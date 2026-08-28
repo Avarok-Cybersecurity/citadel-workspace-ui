@@ -9,6 +9,8 @@
 import { useCallback } from 'react';
 import type { MutableRefObject } from 'react';
 import type { CallMediaKinds } from '@/types/p2p-commands';
+import { captureScreen } from '@/lib/call/screen-capture';
+import type { CaptureFailure } from '@/lib/call/media-capture';
 
 interface ManagerLike {
   getState: () => { selfMedia?: CallMediaKinds } | null | undefined;
@@ -17,6 +19,9 @@ interface ManagerLike {
 
 interface SessionLike {
   getLocalStream: () => MediaStream | null | undefined;
+  startScreen?: (stream: MediaStream, onEnded: () => void) => boolean;
+  stopScreen?: () => void;
+  getScreenStream?: () => MediaStream | null;
 }
 
 export function useCallMediaToggles(
@@ -25,7 +30,11 @@ export function useCallMediaToggles(
   /** Called when the camera cannot be turned on because no track was captured. */
   onCameraUnavailable?: () => void,
   /** Called when the microphone cannot be turned on because its track is gone. */
-  onMicUnavailable?: () => void
+  onMicUnavailable?: () => void,
+  /** Called when a screen could not be captured, with something to say about it. */
+  onScreenUnavailable?: (failure: CaptureFailure) => void,
+  /** Called when the browser's own "Stop sharing" ended the share. */
+  onScreenEnded?: () => void,
 ) {
   const setMedia = useCallback(
     async (next: CallMediaKinds) => {
@@ -88,5 +97,53 @@ export function useCallMediaToggles(
     await setMedia({ ...current, video: !current.video });
   }, [setMedia, managerRef, sessionRef, onCameraUnavailable]);
 
-  return { setMedia, toggleMic, toggleCamera };
+  /**
+   * Start or stop sharing this screen.
+   *
+   * Three things make this different from the mic and camera toggles:
+   *
+   *  - it must run inside a user gesture, or the browser will not open its
+   *    picker -- so no `await` may precede `getDisplayMedia`;
+   *  - dismissing the picker is a person changing their mind, not an error, and
+   *    is reported as such rather than raised;
+   *  - the share can end without this app being asked, from the browser's own
+   *    "Stop sharing" bar. `onEnded` is how the button gets put back; without
+   *    it the UI would read "sharing" over a track that had stopped.
+   */
+  const toggleScreenShare: () => Promise<void> = useCallback(async (): Promise<void> => {
+    const current: CallMediaKinds | undefined = managerRef.current?.getState()?.selfMedia;
+    if (!current) return;
+    const session: SessionLike | null = sessionRef.current;
+    if (!session?.startScreen || !session.stopScreen) return;
+
+    if (current.screen) {
+      session.stopScreen();
+      await setMedia({ ...current, screen: false });
+      return;
+    }
+
+    const result: Awaited<ReturnType<typeof captureScreen>> = await captureScreen();
+    if (!result.ok) {
+      // A dismissed picker says nothing. Anything else is worth explaining.
+      if (!result.cancelled) onScreenUnavailable?.(result.failure);
+      return;
+    }
+
+    const started: boolean = session.startScreen(result.stream, (): void => {
+      // Ended from the browser's bar. The manager is the authority on media
+      // state, so re-read it rather than closing over the value from before.
+      const now: CallMediaKinds | undefined = managerRef.current?.getState()?.selfMedia;
+      session.stopScreen?.();
+      if (now?.screen) void setMedia({ ...now, screen: false });
+      onScreenEnded?.();
+    });
+
+    if (!started) {
+      for (const track of result.stream.getTracks()) track.stop();
+      return;
+    }
+    await setMedia({ ...current, screen: true });
+  }, [setMedia, managerRef, sessionRef, onScreenUnavailable, onScreenEnded]);
+
+  return { setMedia, toggleMic, toggleCamera, toggleScreenShare };
 }

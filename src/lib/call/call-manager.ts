@@ -11,6 +11,7 @@
  * (call-signal-handling, media-session-lifecycle) behind CallManagerInternals.
  */
 
+import { sendAnnotation } from './annotation-signal';
 import type {
   CallDeclineReason,
   CallEndReason,
@@ -129,6 +130,7 @@ export class CallManager {
     return handleInboundSignal(this.internals(), from, username, signal);
   }
 
+
   /** Answer the ringing call. */
   async accept(media: CallMediaKinds, videoSendCodec: string | null): Promise<void> {
     const state = this.state;
@@ -214,11 +216,14 @@ export class CallManager {
     );
   }
 
+  /** One drawn point to everyone; see lib/call/annotation-signal. */
+  annotate(author: string, id: string, point: { x: number; y: number }): void {
+    if (this.state) sendAnnotation(this.options.transport, this.state, author, id, point);
+  }
+
   /** Tell peers our send codec changed; the why lives with the implementation
    *  in call-signal-handling. */
-  async announceSendCodec(codec: string | null): Promise<void> {
-    return announceSendCodec(this.internals(), codec);
-  }
+  async announceSendCodec(codec: string | null): Promise<void> { return announceSendCodec(this.internals(), codec); }
 
   /** Fan one encoded frame out to every participant who is in the call. */
   sendFrame(frame: WireFrame): void {
@@ -240,11 +245,6 @@ export class CallManager {
       .catch(() => undefined);
   }
 
-  markConnected(cid: bigint): void {
-    this.apply({ type: 'peer-connected', cid });
-  }
-
-  canAdd(withVideo: boolean): boolean {
-    return this.state ? canAddParticipant(this.state, withVideo) : true;
-  }
+  markConnected(cid: bigint): void { this.apply({ type: 'peer-connected', cid }); }
+  canAdd(withVideo: boolean): boolean { return this.state ? canAddParticipant(this.state, withVideo) : true; }
 }

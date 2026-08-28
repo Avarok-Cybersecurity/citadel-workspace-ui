@@ -17,6 +17,8 @@ import { callPeerName } from '@/lib/call/peer-name';
 import { toast } from 'sonner';
 import { useCallCapability } from './use-call-capability';
 import { callBusyReason } from '@/lib/call/call-busy';
+import { canShareScreen } from '@/lib/call/capture-pump';
+import { CAMERA_UNAVAILABLE, MIC_UNAVAILABLE, SCREEN_SHARE_STOPPED } from './media-unavailable';
 
 interface CallProviderProps {
   selfCid: bigint | null;
@@ -185,16 +187,15 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     setCall(null);
   }, [teardown, managerRef, setCall]);
 
-  const { toggleMic, toggleCamera } = useCallMediaToggles(managerRef, sessionRef, () =>
-    // Pressing "turn camera on" when capture never got a video track used to
-    // flip the button and announce video:true to every peer, with no frame ever
-    // sent. Say what happened instead of reporting a success that cannot occur.
-    toast.error('Your camera is not available for this call. Rejoin to try again.'),
-    () =>
-      // Same shape for the microphone. Reachable once a mic is unplugged
-      // mid-call: its track ends, and unmuting an ended track is a no-op that
-      // used to still announce "unmuted" to every peer.
-      toast.error('Your microphone is not available for this call. Rejoin to try again.'),
+  // Every one of these is a state the UI would otherwise report as success:
+  // see media-unavailable for what each of them is about.
+  const { toggleMic, toggleCamera, toggleScreenShare } = useCallMediaToggles(
+    managerRef,
+    sessionRef,
+    () => toast.error(CAMERA_UNAVAILABLE),
+    () => toast.error(MIC_UNAVAILABLE),
+    (failure) => toast.error(failure.message),
+    () => toast(SCREEN_SHARE_STOPPED),
   );
 
   useEffect(() => {
@@ -223,6 +224,8 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       localStream: sessionRef.current?.getLocalStream() ?? null,
       remoteStreams: sessionRef.current?.getRemoteStreams() ?? new Map(),
       remoteAudioStreams: sessionRef.current?.getRemoteAudioStreams() ?? new Map(),
+      remoteScreenStreams: sessionRef.current?.getRemoteScreenStreams() ?? new Map(),
+      screenStream: sessionRef.current?.getScreenStream() ?? null,
       qualities,
       captureFailure,
       capability,
@@ -232,10 +235,16 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       leave,
       toggleMic,
       toggleCamera,
+      toggleScreenShare,
+      canShareScreen: canShareScreen(),
+      // The CID, not a display name: the name is a per-surface label ("You"),
+      // so every viewer would see every stroke in one colour, their own.
+      annotate: ({ strokeId, point }) =>
+        managerRef.current?.annotate(selfCid?.toString() ?? 'me', strokeId, point),
     };
     // streamsVersion is a dependency on purpose: streams live on a ref, so this
     // counter is the only thing that tells React they changed.
-  }, [call, streamsVersion, qualities, captureFailure, capability, startCall, accept, decline, leave, toggleMic, toggleCamera, sessionRef]);
+  }, [call, streamsVersion, qualities, captureFailure, capability, startCall, accept, decline, leave, toggleMic, toggleCamera, toggleScreenShare, sessionRef, managerRef, selfCid]);
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;
 }

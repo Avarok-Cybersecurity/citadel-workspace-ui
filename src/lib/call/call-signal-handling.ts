@@ -8,6 +8,7 @@
  */
 
 import type { CallSignalPayload } from '@/types/p2p-commands';
+import { eventEmitter } from '@/lib/event-emitter';
 import { glareWinner } from './call-state';
 import { MEDIA_WIRE_VERSION } from './call-constants';
 import type { CallManagerInternals } from './call-manager-internals';
@@ -68,6 +69,20 @@ export async function handleInboundSignal(
     case 'CallMediaState':
       m.codecs.recordSendCodec(from, signal.video_send_codec);
       m.apply({ type: 'peer-media-changed', cid: from, media: signal.media });
+      return;
+
+    case 'CallAnnotate':
+      // Straight out as an event: strokes are UI state with a five-second life,
+      // and nothing in the call machinery needs to know about them. Routing
+      // them through the reducer would put a 60 Hz stream of points through
+      // every call subscriber for the sake of a canvas.
+      eventEmitter.emit('call:annotate', {
+        callId: signal.call_id,
+        strokeId: signal.stroke_id,
+        author: signal.author,
+        point: { x: signal.x, y: signal.y },
+        at: Date.now(),
+      });
       return;
 
     case 'CallHeartbeat':

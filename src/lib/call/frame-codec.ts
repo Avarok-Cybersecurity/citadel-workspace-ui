@@ -16,6 +16,7 @@ import {
   CALL_TRACK_AUDIO,
   CALL_TRACK_VIDEO,
   CALL_TRACK_VIDEO_THUMBNAIL,
+  CALL_TRACK_SCREEN,
 } from '@/types/p2p-commands';
 
 /** A frame as the Rust transport expects it. */
@@ -47,6 +48,11 @@ export function videoTrackFor(thumbnail: boolean): number {
   return thumbnail ? CALL_TRACK_VIDEO_THUMBNAIL : CALL_TRACK_VIDEO;
 }
 
+/** Whether a frame carries a shared screen rather than a camera. */
+export function isScreenFrame(frame: WireFrame): boolean {
+  return frame.kind === CALL_KIND_VIDEO && frame.track === CALL_TRACK_SCREEN;
+}
+
 /**
  * Turn an encoded video chunk into a wire frame.
  *
@@ -57,13 +63,15 @@ export function videoTrackFor(thumbnail: boolean): number {
 export function videoChunkToFrame(
   chunk: { type: 'key' | 'delta'; timestamp: number; byteLength: number; copyTo: (dst: Uint8Array) => void },
   thumbnail: boolean,
+  /** Overrides the camera track numbering; a shared screen has its own. */
+  track?: number,
 ): WireFrame {
   const payload: Uint8Array<ArrayBuffer> = new Uint8Array(chunk.byteLength);
   chunk.copyTo(payload);
 
   const isKey = chunk.type === 'key';
   return {
-    track: videoTrackFor(thumbnail),
+    track: track ?? videoTrackFor(thumbnail),
     kind: CALL_KIND_VIDEO,
     timestamp: wrapTimestamp(chunk.timestamp),
     flags: isKey ? CALL_FLAG_KEYFRAME : CALL_FLAG_DISCARDABLE,

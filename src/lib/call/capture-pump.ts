@@ -15,6 +15,68 @@ export interface CapturePumpCallbacks {
   onAudioData: (data: AudioData) => void;
 }
 
+/**
+ * Pull frames off a shared screen until stopped.
+ *
+ * Its own pump rather than a second stream through the main one: the screen
+ * starts and stops many times during a call while the camera and microphone run
+ * throughout, and a pump that owns both would have to tear down the wrong half.
+ * Video only -- see captureScreen for why system audio is asked for and never
+ * depended on.
+ */
+export class ScreenPump {
+  private stopped: boolean = false;
+  private readonly cleanups: Array<() => void> = [];
+
+  constructor(private readonly onFrame: (frame: VideoFrame) => void) {}
+
+  start(stream: MediaStream): void {
+    const Processor: ReturnType<typeof trackProcessor> = trackProcessor();
+    const track: MediaStreamTrack | undefined = stream.getVideoTracks()[0];
+    if (!track) return;
+
+    if (!Processor) {
+      // No MediaStreamTrackProcessor: the canvas fallback the camera uses reads
+      // a <video> element, and a screen at 1920x1080 through a canvas copy per
+      // frame costs more than it is worth. Sharing is refused up front by
+      // `canShareScreen` instead of half-working here.
+      debugLog('Call', 'no MediaStreamTrackProcessor; screen cannot be captured here');
+      return;
+    }
+
+    const reader: ReadableStreamDefaultReader<VideoFrame | AudioData> =
+      new Processor({ track }).readable.getReader();
+    this.cleanups.push((): void => void reader.cancel().catch((): void => {}));
+    void (async (): Promise<void> => {
+      while (!this.stopped) {
+        const { done, value } = await reader
+          .read()
+          .catch((): { done: boolean; value: undefined } => ({ done: true, value: undefined }));
+        if (done || !value) break;
+        if (this.stopped) {
+          (value as VideoFrame).close();
+          break;
+        }
+        this.onFrame(value as VideoFrame);
+      }
+    })();
+  }
+
+  stop(): void {
+    this.stopped = true;
+    for (const cleanup of this.cleanups.splice(0)) cleanup();
+  }
+}
+
+/** Whether a screen can be captured AND encoded here. */
+export function canShareScreen(): boolean {
+  return (
+    typeof navigator !== 'undefined' &&
+    !!navigator.mediaDevices?.getDisplayMedia &&
+    trackProcessor() !== null
+  );
+}
+
 
 /**
  * Pull frames off a local stream until stopped.

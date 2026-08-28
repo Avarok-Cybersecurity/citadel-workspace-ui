@@ -9,6 +9,7 @@
  * release it.
  */
 
+import { CALL_TRACK_SCREEN } from '@/types/p2p-commands';
 import {
   createAudioEncoder,
   createVideoEncoder,
@@ -30,6 +31,8 @@ import { debugLog } from '@/lib/debug-config';
 export class SendEncoder {
   private videoEncoder: VideoEncoderHandle | null = null;
   private audioEncoder: AudioEncoderHandle | null = null;
+  /** Built on the first shared-screen frame; see encodeScreen. */
+  private screenEncoder: VideoEncoderHandle | null = null;
   private congestion: CongestionState = INITIAL_CONGESTION;
   private codec: VideoCodec | null = null;
   /** Our encode capabilities, probed once at start and reused to renegotiate. */
@@ -100,6 +103,45 @@ export class SendEncoder {
     frame.close();
   }
 
+  /**
+   * A shared-screen frame, on its own encoder.
+   *
+   * Separate from `encodeVideo` because the two run at different resolutions and
+   * frame rates and must not share congestion behaviour: the camera may be
+   * dropped to keep a call alive, and dropping the screen instead of the face
+   * is usually the wrong trade -- the screen is what everyone is looking at.
+   * Screen frames are therefore never dropped here; the encoder's own queue
+   * handles overload by producing fewer frames rather than by discarding ones
+   * already made.
+   */
+  encodeScreen(frame: VideoFrame, isKeyframe: boolean): void {
+    if (!this.codec) {
+      frame.close();
+      return;
+    }
+    if (!this.screenEncoder) {
+      const chosen: VideoCodec = this.codec;
+      const hardware: boolean = this.encoders.find((e) => e.codec === chosen)?.hardware ?? false;
+      this.screenEncoder = createVideoEncoder(
+        chosen,
+        false,
+        hardware,
+        this.onFrame,
+        (error) => { debugLog('Call', 'screen encode error', error); this.screenEncoder = null; },
+        { track: CALL_TRACK_SCREEN },
+      );
+    }
+    void isKeyframe;
+    this.screenEncoder.encode(frame, this.congestion);
+    frame.close();
+  }
+
+  /** Stop encoding the screen and release the codec. */
+  closeScreen(): void {
+    this.screenEncoder?.close();
+    this.screenEncoder = null;
+  }
+
   encodeAudio(data: AudioData): void {
     if (!this.audioEncoder) {
       // As above; audio has no fallback, so a dead encoder means silence.
@@ -130,5 +172,6 @@ export class SendEncoder {
     this.videoEncoder = null;
     this.audioEncoder?.close();
     this.audioEncoder = null;
+    this.closeScreen();
   }
 }

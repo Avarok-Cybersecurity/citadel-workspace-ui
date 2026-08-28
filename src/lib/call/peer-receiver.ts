@@ -10,7 +10,7 @@
 
 import { createAudioDecoder, createVideoDecoder, type AudioDecoderHandle, type VideoDecoderHandle } from './media-decoders';
 import { createRemoteAudioSink, createRemoteVideoSink, type RemoteAudioSink, type RemoteVideoSink } from './remote-stream';
-import { isVideoFrame, type WireFrame } from './frame-codec';
+import { isScreenFrame, isVideoFrame, type WireFrame } from './frame-codec';
 import { debugLog } from '@/lib/debug-config';
 
 export interface PeerReceiverOptions {
@@ -24,6 +24,9 @@ export class PeerReceiver {
   private audio: AudioDecoderHandle | null = null;
   private videoSink: RemoteVideoSink | null = null;
   private audioSink: RemoteAudioSink | null = null;
+  /** Built on the first shared-screen frame; see acceptScreen. */
+  private screen: VideoDecoderHandle | null = null;
+  private screenSink: RemoteVideoSink | null = null;
   private closed = false;
 
   constructor(private readonly options: PeerReceiverOptions) {}
@@ -42,9 +45,22 @@ export class PeerReceiver {
     return this.audioSink?.stream ?? null;
   }
 
+  /**
+   * A peer's shared screen, or null until one arrives.
+   *
+   * Separate from the camera stream because they are shown in different places
+   * at different sizes. Merging them would make the UI guess which it had, and
+   * guessing wrong puts somebody's desktop in a 120px circle.
+   */
+  getScreenStream(): MediaStream | null {
+    return this.screenSink?.stream ?? null;
+  }
+
   accept(frame: WireFrame): void {
     if (this.closed) return;
-    if (isVideoFrame(frame)) {
+    if (isScreenFrame(frame)) {
+      this.acceptScreen(frame);
+    } else if (isVideoFrame(frame)) {
       this.acceptVideo(frame);
     } else {
       this.acceptAudio(frame);
@@ -82,6 +98,25 @@ export class PeerReceiver {
     this.video.decode(frame);
   }
 
+  private acceptScreen(frame: WireFrame): void {
+    if (!this.screenSink) this.screenSink = createRemoteVideoSink();
+    if (!this.screen) {
+      this.screen = createVideoDecoder(
+        this.options.videoCodec,
+        (decoded) => this.screenSink?.write(decoded),
+        (error) => {
+          debugLog('Call', 'screen decode error', error);
+          // Same recovery as the camera decoder: drop the handle, let the next
+          // frame build a fresh one, keep the sink so the element holding its
+          // stream sees a freeze rather than a stage that empties and refills.
+          this.screen = null;
+        },
+        () => this.options.onNeedKeyframe(frame.track),
+      );
+    }
+    this.screen.decode(frame);
+  }
+
   private acceptAudio(frame: WireFrame): void {
     if (!this.audioSink) this.audioSink = createRemoteAudioSink();
     if (!this.audio) {
@@ -106,9 +141,13 @@ export class PeerReceiver {
     this.audio?.close();
     this.videoSink?.close();
     this.audioSink?.close();
+    this.screen?.close();
+    this.screenSink?.close();
     this.video = null;
     this.audio = null;
     this.videoSink = null;
     this.audioSink = null;
+    this.screen = null;
+    this.screenSink = null;
   }
 }

@@ -64,6 +64,23 @@ export const VIDEO_PROFILE_THUMBNAIL: VideoProfile = {
   bitrate: 150_000,
 };
 
+/**
+ * A shared screen: bigger, slower, and given more bits than a face.
+ *
+ * A screen is read, not watched. Text at 720p is unreadable, so the resolution
+ * goes up; almost every frame is identical to the last, so the frame rate comes
+ * down and costs nothing. The bitrate is higher than the camera's because the
+ * frames that DO change — a scroll, a slide, a window moving — change
+ * everywhere at once, and a screen share that turns to mush exactly when
+ * somebody scrolls is a screen share nobody trusts.
+ */
+export const VIDEO_PROFILE_SCREEN: VideoProfile = {
+  width: 1920,
+  height: 1080,
+  framerate: 8,
+  bitrate: 2_500_000,
+};
+
 export interface MediaCapabilityReport {
   /** False when this browser cannot do calls at all. */
   supported: boolean;

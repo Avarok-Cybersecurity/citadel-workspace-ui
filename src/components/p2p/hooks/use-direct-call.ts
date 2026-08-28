@@ -9,12 +9,19 @@ export interface DirectCallBinding {
   localStream: MediaStream | null;
   remoteStreams: Map<bigint, MediaStream>;
   remoteAudioStreams: Map<bigint, MediaStream>;
+  /** Shared screens by sharer CID; a peer can be here and in remoteStreams. */
+  remoteScreenStreams: Map<bigint, MediaStream>;
+  /** This tab's own share, so the sharer sees what everyone else sees. */
+  screenStream: MediaStream | null;
   qualities: Map<bigint, ConnectionQuality>;
   capability: { supported: boolean; reason?: string };
   startCall: (video: boolean) => void;
   leave: () => void;
   toggleMic: () => void;
   toggleCamera: () => void;
+  toggleScreenShare: () => void;
+  canShareScreen: boolean;
+  annotate: (stroke: { strokeId: string; point: { x: number; y: number } }) => void;
 }
 
 /**
@@ -30,12 +37,17 @@ export function useDirectCall(peerCid: bigint, peerName: string): DirectCallBind
     localStream,
     remoteStreams,
     remoteAudioStreams,
+    remoteScreenStreams,
+    screenStream,
     qualities,
     capability,
     startCall,
     leave,
     toggleMic,
     toggleCamera,
+    toggleScreenShare,
+    canShareScreen,
+    annotate,
   } = useCall();
 
   // roomId must be null: a GROUP call that happens to include this peer belongs
@@ -58,11 +70,16 @@ export function useDirectCall(peerCid: bigint, peerName: string): DirectCallBind
     localStream,
     remoteStreams,
     remoteAudioStreams,
+    remoteScreenStreams,
+    screenStream,
     qualities,
     capability,
     startCall: (video) => void startCall([{ cid: peerCid, username: peerName }], video),
     leave: () => void leave(),
     toggleMic: () => void toggleMic(),
     toggleCamera: () => void toggleCamera(),
+    toggleScreenShare: () => void toggleScreenShare(),
+    canShareScreen,
+    annotate,
   };
 }

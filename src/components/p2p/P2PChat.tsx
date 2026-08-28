@@ -180,9 +180,14 @@ export function P2PChat({
           selfUsername="You"
           localStream={callBinding.localStream}
           remoteStreams={callBinding.remoteStreams}
+          remoteScreenStreams={callBinding.remoteScreenStreams}
+          screenStream={callBinding.screenStream}
           qualities={callBinding.qualities}
           onToggleMic={callBinding.toggleMic}
           onToggleCamera={callBinding.toggleCamera}
+          onToggleScreenShare={callBinding.toggleScreenShare}
+          canShareScreen={callBinding.canShareScreen}
+          onAnnotate={callBinding.annotate}
           onLeave={callBinding.leave}
         />
       )}

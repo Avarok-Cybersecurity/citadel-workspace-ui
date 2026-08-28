@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff, PhoneOff, Video, VideoOff } from 'lucide-react';
+import { Mic, MicOff, MonitorUp, MonitorX, PhoneOff, Video, VideoOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CallMediaKinds } from '@/types/p2p-commands';
 import { useCallDuration } from './use-call-duration';
@@ -10,6 +10,16 @@ interface CallControlsProps {
   canToggleVideo: boolean;
   onToggleMic: () => void;
   onToggleCamera: () => void;
+  /** Absent where the browser cannot share a screen; the control is then hidden. */
+  onToggleScreenShare?: () => void;
+  /**
+   * False while somebody ELSE is sharing.
+   *
+   * One screen at a time, decided here rather than by whoever presses first:
+   * two shares would fight over the stage, and the person who loses would not
+   * know why their share went nowhere.
+   */
+  canShareScreen?: boolean;
   onLeave: () => void;
   /** Shown beside the controls; hidden below sm where space is scarce. */
   /**
@@ -35,6 +45,8 @@ export function CallControls({
   canToggleVideo,
   onToggleMic,
   onToggleCamera,
+  onToggleScreenShare,
+  canShareScreen = false,
   onLeave,
   running,
 }: CallControlsProps) {
@@ -59,6 +71,22 @@ export function CallControls({
         OnIcon={Video}
         OffIcon={VideoOff}
       />
+
+      {onToggleScreenShare && (
+        <ToggleButton
+          active={media.screen}
+          onClick={onToggleScreenShare}
+          disabled={!canShareScreen && !media.screen}
+          testId="call-toggle-screen"
+          label="Screen share"
+          OnIcon={MonitorX}
+          OffIcon={MonitorUp}
+          // The one control whose "on" state is not simply the opposite of
+          // "off": sharing is a state other people can see, so it is coloured
+          // like an alert rather than like a preference.
+          activeTone="sharing"
+        />
+      )}
 
       <span
         className="hidden px-2 text-sm tabular-nums text-muted-foreground sm:inline"
@@ -92,9 +120,18 @@ interface ToggleButtonProps {
   label: string;
   OnIcon: typeof Mic;
   OffIcon: typeof MicOff;
+  /**
+   * How "on" should look.
+   *
+   * `default` is the mic and camera: on is neutral, off is the destructive
+   * fill that universally means muted. `sharing` inverts that reading -- a
+   * screen share being ON is the state worth noticing, because other people can
+   * see it, so it is the one that gets the accent.
+   */
+  activeTone?: 'default' | 'sharing';
 }
 
-function ToggleButton({ active, onClick, disabled, testId, label, OnIcon, OffIcon }: ToggleButtonProps) {
+function ToggleButton({ active, onClick, disabled, testId, label, OnIcon, OffIcon, activeTone = 'default' }: ToggleButtonProps) {
   const Icon = active ? OnIcon : OffIcon;
   return (
     <Button
@@ -115,12 +152,18 @@ function ToggleButton({ active, onClick, disabled, testId, label, OnIcon, OffIco
       // sighted user reads it alongside the icon rather than as a sentence.
       title={active ? `${label} on` : `${label} off`}
       className={cn(
-        'h-10 w-10 rounded-full',
-        active
-          ? 'bg-surface text-foreground hover:bg-surface/80'
-          // Destructive fill for "off" is the universal convention for a muted
-          // mic, and it survives every workspace theme because it is a token.
-          : 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+        'h-10 w-10 rounded-full transition-colors',
+        activeTone === 'sharing'
+          ? active
+            // Sharing: accented, and ringed so it reads as live at a glance
+            // rather than as merely selected.
+            ? 'bg-primary text-primary-foreground ring-2 ring-ring/40 hover:bg-primary/90'
+            : 'bg-surface text-foreground hover:bg-surface/80'
+          : active
+            ? 'bg-surface text-foreground hover:bg-surface/80'
+            // Destructive fill for "off" is the universal convention for a muted
+            // mic, and it survives every workspace theme because it is a token.
+            : 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
       )}
     >
       <Icon className="h-4 w-4" aria-hidden="true" />

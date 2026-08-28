@@ -12767,3 +12767,101 @@ The top of that list is `tree`, `state`, `result`, `requestId`, `request`,
 the next capability, and it is the one with a real failure mode (a cycle), so it
 gets built with the same treatment: refuse anything it cannot prove safe, and
 let `tsc` be the judge on every pass.
+
+## Round 243 — screen sharing, and drawing on it
+
+`CallMediaKinds.screen` has been in the wire types since calling was built, and
+nothing has ever read it. A declared capability with no implementation — the
+shape this campaign keeps finding, this time large enough to be a feature.
+
+### The screen is its own track
+
+`CALL_TRACK_SCREEN = 3`, beside audio (0), video (1) and the video thumbnail
+(2). Not a second camera stream, because the two are shown in different places
+at different sizes: a screen goes on the stage at full width and a face goes in a
+tile beside it. Sharing one track would make the receiver guess which it had, and
+guessing wrong puts somebody's desktop in a 120px circle.
+
+It is still `kind: VIDEO`, so the transport treats it as video throughout — it
+needs keyframes, it can report gaps, and it must never reach the audio decoder.
+Only the track number distinguishes it, and the receiver builds a second decoder
+and sink from the first screen frame.
+
+| | camera | screen |
+|---|---|---|
+| resolution | 1280×720 | 1920×1080 |
+| frame rate | 30 | 8 |
+| bitrate | 1.2 Mbps | 2.5 Mbps |
+
+A screen is read, not watched. Text at 720p is unreadable, so the resolution goes
+up; almost every frame is identical to the last, so the rate comes down and costs
+nothing. The bitrate goes *up* anyway, because the frames that do change — a
+scroll, a slide, a window moving — change everywhere at once, and a share that
+turns to mush exactly when somebody scrolls is a share nobody trusts.
+
+### Stopping is the hard part
+
+Starting a share is one call to the browser. Stopping it has four parts, and
+missing any one leaves something running that the user believes they turned off:
+the pump, the encoder, the **tracks**, and the announcement to peers. The tracks
+are the one that matters most — leave them and the browser's "sharing" indicator
+stays up after the app has stopped sending, which reads as *it is still watching
+my screen*. On a product that sells privacy that is the worst possible thing to
+be wrong about.
+
+The share can also end without this app being asked, from the browser's own
+"Stop sharing" bar — a control it does not own and cannot hide. `onEnded` puts
+the button back and tells peers; without it the UI would read "sharing" over a
+stopped track while everyone else looked at a frozen last frame.
+
+A dismissed picker is reported as `cancelled`, not as a failure. Same
+`NotAllowedError` as a refused device, and a completely different thing to say to
+somebody who simply changed their mind.
+
+### Drawing
+
+Someone points at a thing and says "this one". Three decisions, all arithmetic,
+all in `lib/call/annotations.ts` with no canvas or socket in sight:
+
+- **Coordinates are fractions of the shared surface.** The sharer may be at
+  3840×2160 and a viewer on a phone; pixels would land somewhere else on every
+  screen.
+- **A stroke dies five seconds after its LAST point**, not its first — a long
+  arrow drawn over three seconds must not begin disappearing while it is still
+  being drawn.
+- **It fades in over 120ms and out over the last 900ms of its life**, so the
+  total time on screen is exactly the lifetime however the fades are tuned. A
+  fade that *followed* the lifetime would silently extend it; that is one of the
+  two controls.
+
+Points travel on the signalling channel, not the media pipeline: a point is a few
+bytes that needs to arrive promptly and in order, and putting it through the
+encoder would mean a codec, a keyframe and a jitter buffer for two floats. Local
+strokes are drawn immediately rather than after a round trip — a pointer that
+lags the mouse by a network hop is unusable, and everything disappears in five
+seconds anyway, so there is nothing to reconcile.
+
+Strokes are stamped with the CID, not the display name: the name is a per-surface
+label ("You"), so every viewer would have seen every stroke in one colour, their
+own.
+
+### The tests that discriminate
+
+Nine assertions on the model, five on the wire. Two controls, and the first one
+**passed** — asserting "gone by first-point + lifetime" is true whether or not
+the clock is refreshed, so the test was rewritten to assert the moment that only
+one of those two behaviours produces: still fully visible five and a half seconds
+after the first point, because the second point restarted the clock.
+
+### Six files split
+
+The feature pushed six files past the 250-line ceiling. Each was split at a real
+seam rather than by moving lines somewhere quieter: the share lifecycle
+(`screen-share.ts`), the capture sequence (`session-start.ts`), the stage's
+non-call panels (`CallStagePanels.tsx`), which screen holds the stage
+(`use-stage-share.ts`), the annotation signal (`annotation-signal.ts`), and the
+copy for controls that cannot do what they say (`media-unavailable.ts`).
+
+Every new file is fully typed, because round 240's gate requires it of a file
+that had no violations — and it caught this feature four times while it was being
+written.

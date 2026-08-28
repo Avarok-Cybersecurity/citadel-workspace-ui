@@ -50,7 +50,9 @@ function ctx(overrides: Partial<CallContextValue> = {}): CallContextValue {
     localStream: null,
     remoteStreams: new Map(),
     remoteAudioStreams: new Map(),
-  qualities: new Map(),
+    remoteScreenStreams: new Map<bigint, MediaStream>(),
+    screenStream: null,
+    qualities: new Map(),
     captureFailure: null,
     capability: { supported: true },
     startCall: vi.fn(async () => {}),
@@ -59,6 +61,9 @@ function ctx(overrides: Partial<CallContextValue> = {}): CallContextValue {
     leave: vi.fn(async () => {}),
     toggleMic: vi.fn(async () => {}),
     toggleCamera: vi.fn(async () => {}),
+    toggleScreenShare: vi.fn(async (): Promise<void> => {}),
+    canShareScreen: true,
+    annotate: (): void => {},
     ...overrides,
   };
 }

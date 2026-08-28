@@ -14,6 +14,7 @@ import {
   AUDIO_SAMPLE_RATE,
   VIDEO_PROFILE_MAIN,
   VIDEO_PROFILE_THUMBNAIL,
+  VIDEO_PROFILE_SCREEN,
   type VideoCodec,
   type VideoProfile,
 } from './codec-support';
@@ -61,8 +62,19 @@ export function createVideoEncoder(
   hardware: boolean,
   sink: FrameSink,
   onError: (error: Error) => void,
+  /**
+   * A shared screen instead of a camera: its own track number and its own
+   * profile. Passing `screen` also implies `thumbnail: false` -- there is no
+   * low-resolution variant of a screen, because an unreadable screen is not a
+   * smaller version of the same thing, it is nothing.
+   */
+  screen?: { track: number },
 ): VideoEncoderHandle {
-  const profile: VideoProfile = thumbnail ? VIDEO_PROFILE_THUMBNAIL : VIDEO_PROFILE_MAIN;
+  const profile: VideoProfile = screen
+    ? VIDEO_PROFILE_SCREEN
+    : thumbnail
+      ? VIDEO_PROFILE_THUMBNAIL
+      : VIDEO_PROFILE_MAIN;
   const hardwareAcceleration: HardwareAcceleration = hardware ? 'prefer-hardware' : 'no-preference';
   let lastKeyframeAt: number = -Infinity;
   let forceKeyframe = true;
@@ -70,7 +82,7 @@ export function createVideoEncoder(
   const encoder = new VideoEncoder({
     output: (chunk) => {
       if (chunk.type === 'key') lastKeyframeAt = chunk.timestamp;
-      sink(videoChunkToFrame(chunk, thumbnail));
+      sink(videoChunkToFrame(chunk, thumbnail, screen?.track));
     },
     error: (error) => onError(error instanceof Error ? error : new Error(String(error))),
   });

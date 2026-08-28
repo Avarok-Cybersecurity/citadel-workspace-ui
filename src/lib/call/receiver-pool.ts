@@ -42,6 +42,16 @@ export class ReceiverPool {
     return streams;
   }
 
+  /** Every peer currently sharing a screen, by CID. */
+  screenStreams(): Map<bigint, MediaStream> {
+    const streams: Map<bigint, MediaStream> = new Map();
+    for (const [cid, receiver] of this.receivers) {
+      const stream: MediaStream | null = receiver.getScreenStream();
+      if (stream) streams.set(cid, stream);
+    }
+    return streams;
+  }
+
   audioStreams(): Map<bigint, MediaStream> {
     const streams = new Map<bigint, MediaStream>();
     for (const [cid, receiver] of this.receivers) {

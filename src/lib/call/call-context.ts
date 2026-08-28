@@ -11,6 +11,15 @@ export interface CallContextValue {
   remoteStreams: Map<bigint, MediaStream>;
   /** Remote audio per peer. Must be attached to an element or nobody hears. */
   remoteAudioStreams: Map<bigint, MediaStream>;
+  /**
+   * Shared screens, by the CID of whoever is sharing.
+   *
+   * Separate from `remoteStreams` because a screen and a face are shown in
+   * different places at different sizes. A peer can appear in both.
+   */
+  remoteScreenStreams: Map<bigint, MediaStream>;
+  /** This tab's own share, for the local preview. Null when not sharing. */
+  screenStream: MediaStream | null;
   /** Per-peer link health, for the tiles. Absent entries read as 'good'. */
   qualities: Map<bigint, ConnectionQuality>;
   /** Why capture failed, so the surface can explain rather than just fail. */
@@ -23,6 +32,17 @@ export interface CallContextValue {
   leave: () => Promise<void>;
   toggleMic: () => Promise<void>;
   toggleCamera: () => Promise<void>;
+  /**
+   * Start or stop sharing this screen.
+   *
+   * Must be called from a user gesture: the browser's picker will not open
+   * otherwise, and the rejection is indistinguishable from a refusal.
+   */
+  toggleScreenShare: () => Promise<void>;
+  /** False where the browser cannot capture or encode a screen at all. */
+  canShareScreen: boolean;
+  /** Send one drawn point to the other participants. */
+  annotate: (stroke: { strokeId: string; point: { x: number; y: number } }) => void;
 }
 
 /**
@@ -37,6 +57,8 @@ export const CallContext = createContext<CallContextValue>({
   localStream: null,
   remoteStreams: new Map(),
   remoteAudioStreams: new Map(),
+  remoteScreenStreams: new Map(),
+  screenStream: null,
   qualities: new Map(),
   captureFailure: null,
   capability: { supported: false, reason: 'Calling is not available here.' },
@@ -46,6 +68,9 @@ export const CallContext = createContext<CallContextValue>({
   leave: async () => {},
   toggleMic: async () => {},
   toggleCamera: async () => {},
+  toggleScreenShare: async () => {},
+  canShareScreen: false,
+  annotate: () => {},
 });
 
 export function useCall(): CallContextValue {

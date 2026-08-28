@@ -5,15 +5,17 @@
  * closed) in one place.
  */
 
-import { captureLocalMedia, stopStream, type CaptureFailure } from './media-capture';
+import { stopStream, type CaptureFailure } from './media-capture';
 import { ReceiverPool } from './receiver-pool';
 import type { CongestionState, LinkVerdict } from './congestion';
 import { SendEncoder } from './send-encoder';
-import { supportedVideoEncoders, type VideoCodec } from './codec-support';
+import { type VideoCodec } from './codec-support';
 import { negotiateGroupVideoCodec } from './codec-negotiation';
 import type { WireFrame } from './frame-codec';
 import type { CallMediaKinds } from '@/types/p2p-commands';
 import { CapturePump } from './capture-pump';
+import { ScreenShare } from './screen-share';
+import { startLocalCapture } from './session-start';
 import type { ConnectionQuality } from '@/components/call/ParticipantTile';
 
 export interface CallSessionCallbacks {
@@ -46,6 +48,11 @@ export class CallSession {
   private readonly receivers: ReceiverPool;
   private readonly sender: SendEncoder;
   private pump: CapturePump | null = null;
+  /** This tab's outgoing share; see lib/call/screen-share. */
+  private readonly screen: ScreenShare = new ScreenShare(
+    (frame) => this.encodeScreen(frame, false),
+    () => this.sender.closeScreen(),
+  );
   private closed = false;
   /** In-flight `start()`, so a second press cannot capture a second stream. */
   private starting: Promise<CallMediaKinds | null> | null = null;
@@ -68,6 +75,11 @@ export class CallSession {
   }
 
   /** Remote audio, which the UI must attach to an element or nobody hears it. */
+  /** Every peer currently sharing a screen, by CID. */
+  getRemoteScreenStreams(): Map<bigint, MediaStream> {
+    return this.receivers.screenStreams();
+  }
+
   getRemoteAudioStreams(): Map<bigint, MediaStream> {
     return this.receivers.audioStreams();
   }
@@ -103,53 +115,26 @@ export class CallSession {
   }
 
   private async startOnce(requested: CallMediaKinds): Promise<CallMediaKinds | null> {
-    const result = await captureLocalMedia({ audio: requested.audio, video: requested.video });
-    // The permission prompt can outlive the call: if close() ran while the user
-    // stared at it, adopting the stream now would leave the camera light on
-    // with nothing attached to it until the page reloads.
-    if (this.closed) {
-      if (result.ok) stopStream(result.stream);
-      return null;
-    }
-    if (!result.ok) {
-      this.callbacks.onCaptureFailed(result.failure);
-      return null;
-    }
-
-    // Video was requested and we fell back to audio. `ok` is true and the call
-    // proceeds, but the user asked for their camera and did not get it — tell
-    // them, through the same channel a hard failure uses.
-    if (result.degraded) this.callbacks.onCaptureFailed(result.degraded);
-
-    this.localStream = result.stream;
-    for (const track of result.stream.getTracks()) {
-      track.addEventListener('ended', () => this.handleTrackEnded(track));
-    }
-    const hasVideo = result.stream.getVideoTracks().length > 0;
-    const hasAudio = result.stream.getAudioTracks().length > 0;
-
-    if (hasVideo) {
-      const encoders = await supportedVideoEncoders();
-      if (this.closed) {
-        stopStream(result.stream);
-        this.localStream = null;
-        return null;
-      }
-      // No peer capabilities yet at this point, so this is our own best codec;
-      // renegotiateSendCodec revisits once peers have answered with theirs.
-      this.sender.configure(encoders, negotiateGroupVideoCodec(encoders, []));
-    }
-
-    // Started only after the codec is known, since encodeVideo drops frames
-    // until there is one — pumping before then would discard the opening
-    // second of the call.
-    this.pump = new CapturePump({
-      onVideoFrame: (frame, isKeyframe) => this.encodeVideo(frame, isKeyframe),
-      onAudioData: (data) => this.encodeAudio(data),
+    return startLocalCapture(requested, {
+      isClosed: () => this.closed,
+      onCaptureFailed: (failure) => this.callbacks.onCaptureFailed(failure),
+      adoptStream: (stream) => {
+        this.localStream = stream;
+        for (const track of stream.getTracks()) {
+          track.addEventListener('ended', () => this.handleTrackEnded(track));
+        }
+      },
+      dropStream: () => { this.localStream = null; },
+      configureSender: (encoders) => this.sender.configure(encoders, negotiateGroupVideoCodec(encoders, [])),
+      hasCodec: () => this.sender.getCodec() !== null,
+      startPump: (stream) => {
+        this.pump = new CapturePump({
+          onVideoFrame: (frame, isKeyframe) => this.encodeVideo(frame, isKeyframe),
+          onAudioData: (data) => this.encodeAudio(data),
+        });
+        this.pump.start(stream);
+      },
     });
-    this.pump.start(result.stream);
-
-    return { audio: hasAudio, video: hasVideo && this.sender.getCodec() !== null, screen: false };
   }
 
   /** The codec chosen for this call, once video is running. */
@@ -173,6 +158,23 @@ export class CallSession {
       return;
     }
     this.sender.encodeVideo(frame, isKeyframe);
+  }
+
+  /** Sharing this tab's screen; the lifecycle lives in ScreenShare. */
+  startScreen(stream: MediaStream, onEnded: () => void): boolean {
+    return this.closed ? false : this.screen.start(stream, onEnded);
+  }
+
+  getScreenStream(): MediaStream | null { return this.screen.getStream(); }
+  stopScreen(): void { this.screen.stop(); }
+
+  /** A closed session still has to close the frame, or the buffer leaks. */
+  encodeScreen(frame: VideoFrame, isKeyframe: boolean): void {
+    if (this.closed) {
+      frame.close();
+      return;
+    }
+    this.sender.encodeScreen(frame, isKeyframe);
   }
 
   encodeAudio(data: AudioData): void {
@@ -234,6 +236,10 @@ export class CallSession {
     // would be handed to a closed codec.
     this.pump?.stop();
     this.pump = null;
+    // The screen too, and before `sender.close()` for the same reason. This
+    // also stops the track, which is what takes the browser's "sharing" bar
+    // down when a call ends while somebody is still sharing.
+    this.stopScreen();
     this.sender.close();
     this.receivers.closeAll();
     // Last, so a failure above still turns the camera off — the one part of

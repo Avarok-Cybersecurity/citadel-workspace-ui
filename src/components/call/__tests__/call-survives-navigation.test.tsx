@@ -43,6 +43,8 @@ function harness(overrides: Partial<CallContextValue>) {
     localStream: null,
     remoteStreams: new Map(),
     remoteAudioStreams: new Map(),
+    remoteScreenStreams: new Map(),
+    screenStream: null,
     qualities: new Map(),
     captureFailure: null,
     capability: { supported: true },

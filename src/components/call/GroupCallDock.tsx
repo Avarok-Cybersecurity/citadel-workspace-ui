@@ -15,9 +15,14 @@ export function GroupCallDock({ roomId }: { roomId: string }) {
     call,
     localStream,
     remoteStreams,
+    remoteScreenStreams,
+    screenStream,
     qualities,
     toggleMic,
     toggleCamera,
+    toggleScreenShare,
+    canShareScreen,
+    annotate,
     leave,
   } = useCall();
 
@@ -37,9 +42,14 @@ export function GroupCallDock({ roomId }: { roomId: string }) {
       selfUsername="You"
       localStream={localStream}
       remoteStreams={remoteStreams}
+      remoteScreenStreams={remoteScreenStreams}
+      screenStream={screenStream}
       qualities={qualities}
       onToggleMic={() => void toggleMic()}
       onToggleCamera={() => void toggleCamera()}
+      onToggleScreenShare={() => void toggleScreenShare()}
+      canShareScreen={canShareScreen}
+      onAnnotate={annotate}
       onLeave={() => void leave()}
     />
   );

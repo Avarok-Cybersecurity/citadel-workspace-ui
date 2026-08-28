@@ -35,6 +35,16 @@ export const CALL_TRACK_AUDIO = 0;
 export const CALL_TRACK_VIDEO = 1;
 /** Low-resolution video, sent to everyone who is not the active speaker. */
 export const CALL_TRACK_VIDEO_THUMBNAIL = 2;
+/**
+ * A shared screen, which is video but not a face.
+ *
+ * Its own track rather than a second camera stream, because the two are shown
+ * in different places and at different sizes: a screen goes on the stage at
+ * full width and a face goes in a tile beside it. Sharing one track would make
+ * the receiver guess which it had, and guessing wrong puts somebody's desktop
+ * in a 120px circle.
+ */
+export const CALL_TRACK_SCREEN: number = 3;
 
 /** TrackKind on the wire: matches citadel_media's TrackKind discriminants. */
 export const CALL_KIND_AUDIO = 0;
@@ -70,6 +80,30 @@ export type CallSignalPayload =
    * Also carries a renegotiated send codec: the caller only learns the callee's
    * decode list from the accept, so its invite-time codec choice may change. */
   | { kind: 'CallMediaState'; call_id: string; media: CallMediaKinds; video_send_codec?: string | null }
+  /**
+   * A point drawn on the shared screen.
+   *
+   * On the signalling channel rather than the media pipeline: a point is a few
+   * bytes and needs to arrive promptly and in order, which is what this channel
+   * already gives. Putting it through the encoder would mean a codec, a
+   * keyframe and a jitter buffer for two floats.
+   *
+   * Coordinates are FRACTIONS of the shared surface. The sharer may be at
+   * 3840x2160 and a viewer on a phone; pixels would land somewhere else on
+   * every screen.
+   *
+   * `stroke_id` groups the points of one gesture so they draw as a line and
+   * expire together. Strokes disappear on their own after five seconds, so
+   * there is no erase and nothing to clean up if a sender vanishes mid-stroke.
+   */
+  | {
+      kind: 'CallAnnotate';
+      call_id: string;
+      stroke_id: string;
+      author: string;
+      x: number;
+      y: number;
+    }
   /** Sent after a gap: the decoder cannot recover until a keyframe arrives. */
   | { kind: 'CallKeyframeRequest'; call_id: string; track: number }
   /** Periodic "still here". Absence of media frames cannot stand in for this:

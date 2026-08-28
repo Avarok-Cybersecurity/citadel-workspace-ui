@@ -27,6 +27,8 @@ function contextValue(call: CallState | null): CallContextValue {
     localStream: null,
     remoteStreams: new Map(),
     remoteAudioStreams: new Map(),
+    remoteScreenStreams: new Map<bigint, MediaStream>(),
+    screenStream: null as MediaStream | null,
   qualities: new Map(),
     captureFailure: null,
     capability: { supported: true },
@@ -36,6 +38,9 @@ function contextValue(call: CallState | null): CallContextValue {
     leave: async () => {},
     toggleMic: async () => {},
     toggleCamera: async () => {},
+    toggleScreenShare: async (): Promise<void> => {},
+    canShareScreen: false,
+    annotate: (): void => {},
   };
 }
 
