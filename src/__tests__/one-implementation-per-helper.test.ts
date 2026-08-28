@@ -67,6 +67,36 @@ describe('a shared helper', () => {
     ).toEqual([]);
   });
 
+  it('finds a copy that took a different name', async () => {
+    // The rule above matches by NAME, and the twelfth byte-size formatter was
+    // called `formatSize` in a file the earlier sweep did not reach — so the
+    // guard written to stop this forking found eleven and missed one. A copy
+    // under another name is the same copy.
+    //
+    // The shape is what they all share: log(bytes) / log(1024), or a division
+    // by 1024 raised to a power. Matching that catches the next rename.
+    const files = await fg(['**/*.ts', '**/*.tsx'], {
+      cwd: SRC,
+      ignore: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx', 'test-utils/**'],
+    });
+
+    const BYTE_MATH = /Math\.log\s*\(\s*bytes\s*\)|bytes\s*\/\s*1024\s*\*\*|Math\.pow\s*\(\s*k\s*,/;
+
+    const offenders = files
+      .filter((rel) => rel !== CANONICAL.formatBytes)
+      // useChatSettings renders a limit the user set IN megabytes; see its
+      // comment. It is named formatSizeLimit precisely so it is not mistaken
+      // for the general formatter.
+      .filter((rel) => rel !== 'components/p2p/useChatSettings.ts')
+      .filter((rel) => BYTE_MATH.test(stripComments(readFileSync(join(SRC, rel), 'utf-8'))));
+
+    expect(
+      offenders,
+      'this computes a byte size by hand. There is one formatBytes, and the ' +
+        'copies disagreed about precision before it existed.',
+    ).toEqual([]);
+  });
+
   it('keeps every canonical home real', () => {
     // A home that no longer defines the thing would silently make the rule
     // above vacuous for that name.

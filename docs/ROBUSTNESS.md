@@ -9639,3 +9639,35 @@ Location is now recorded per CID beside `last-accessed`, which already knew
 - Written on every location change, not on unload: `beforeunload` is not
   reliably delivered on mobile or on a crash, and those are exactly the closes
   that end a session without warning.
+
+## Round 166 — auditing my own rounds, and a guard that matched by name
+
+CI has never finished a run on this branch. `cancel-in-progress` is grouped by
+`head_ref`, and a push every few minutes cancels the run before it can complete
+— four consecutive runs cancelled, each by the next round's push. Nothing was
+failing; nothing was passing either. Holding pushes so one can finish, and using
+the wait to check my own work.
+
+**Round 148's guard found eleven byte formatters and missed a twelfth.** It
+matches by NAME — `formatBytes`, `findNodeByPath`, `toInternalServiceRequest` —
+and `VFSPropertiesDialog` had the same body under the name `formatSize`, in a
+file the sweep did not reach. A guard written specifically to stop this forking
+missed a fork.
+
+The rule now also matches the SHAPE they all share: `Math.log(bytes) /
+Math.log(1024)`, or a division by 1024 raised to a power. A copy under another
+name is the same copy, and the next one will be a rename. Control: adding a
+`humanSize` with that body fails it.
+
+`useChatSettings` is exempted by name, because its formatter is deliberately
+always megabytes — it labels a limit the user set in megabytes, and "1 GB"
+beside a slider marked in MB reads as a different setting. It is called
+`formatSizeLimit` precisely so it is not mistaken for the general one.
+
+I also checked the other ten helpers introduced this session for un-migrated
+call sites: `describeFailure`, `isPrivilegedRole`, `claimSessionForThisTab`,
+`mayLeaveEditor`, `isMemberOnline`, `wireMapEntries`, `mergeById`,
+`getCurrentCid`, `findNodeByPath`, `toInternalServiceRequest`. Nothing else was
+left behind. That check was worth running: I have committed the
+"fixed in one place" error twice this session — rounds 156 and 160 — both times
+on a fix I had written myself.

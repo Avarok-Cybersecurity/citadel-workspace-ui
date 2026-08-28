@@ -4,6 +4,7 @@
  * Modal dialog showing detailed properties of a file or directory.
  */
 
+import { formatBytes } from '@/lib/format-bytes';
 import {
   Dialog,
   DialogContent,
@@ -38,13 +39,6 @@ function getFileIcon(fileName: string) {
   return FileText;
 }
 
-function formatSize(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
 
 function formatDate(timestamp: number): string {
   return new Date(timestamp).toLocaleString();
@@ -118,7 +112,7 @@ export function VFSPropertiesDialog({
           {meta && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Size:</span>
-              <span>{formatSize(meta.fileSize)}</span>
+              <span>{formatBytes(meta.fileSize)}</span>
             </div>
           )}
 
