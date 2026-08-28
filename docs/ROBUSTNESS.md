@@ -8847,3 +8847,41 @@ had gone sat there indefinitely — `workspace:created` and `workspace:error` ar
 both type declarations with no emit anywhere — silently excusing a future
 zero-subscriber emit of the same name. Both directions are checked now, and both
 dead entries are gone.
+
+## Round 146 — thirteen suites that never ran on the PR that changed their code
+
+**The UI submodule's CI matrix was thirteen legs behind the parent's.** All UI
+work lands through submodule PRs, and the submodule's own workflow ran neither
+`file-manager`, nor either revfs suite, nor any of the six tree suites, nor
+office chat, room chat, peer-group or native-file-picker. Those suites did run —
+later, on the parent's pointer bump, against a change already reviewed and
+merged.
+
+That is the worst shape a coverage gap can take: the checks exist, they are
+green on the PR page, and the missing ones are invisible precisely because
+nothing enumerates them. `check-ci-matrices-agree.mjs` now compares the two, in
+the one direction that is meaningful (the parent may legitimately run more, since
+it owns the Rust side), and refuses to run at all if the parent's matrix drops
+below ten legs — a scan that finds nothing looks exactly like a scan that
+passes. Preflight is 29 checks. Control: removing a leg from the submodule fails
+it by name.
+
+**A test that manufactures its own trigger tests half a mechanism.** The
+self-heal suite mocks `instanceManager` wholesale and fires
+`instance:registered` by hand to drive the orphan-buffer drain. That covers the
+router and nothing of the producer: delete the emit from `registerInstance` and
+the buffer is never drained — orphaned CID-routed messages, call media among
+them, land on the leader tab — while the suite stays green. (The
+listener/emitter guard does catch outright deletion, but not the emit moving
+behind a condition that never fires.) `register-instance-announces.test.ts` is
+the other half, on the real object, including the two documented contract
+points: a null cid still announces, and an unregister must not.
+
+**A fixture that performs production's action proves nothing about production.**
+`pump_survives_client_loss_and_returns_receive_half` closes the media lane
+itself before spawning the pump — which is exactly what the connection-drop path
+does — so deleting `lane.close()` from that path left the test green while every
+dropped WebSocket leaked a pump decoding frames into a queue nobody reads. The
+close is now `retire_media_lane`, with tests including that one client's
+disconnect does not end another's call. Control: removing the close fails one of
+four.

@@ -432,6 +432,32 @@ jobs:
             artifact: reconnect-p2p-one-c2s
           - test: test:reconnect-p2p-only
             artifact: reconnect-p2p-only
+          - test: test:file-manager
+            artifact: file-manager
+          - test: test:native-file-picker
+            artifact: native-file-picker
+          - test: test:office-chat
+            artifact: office-chat
+          - test: test:peer-group
+            artifact: peer-group
+          - test: test:revfs:peer
+            artifact: revfs-peer
+          - test: test:revfs:server
+            artifact: revfs-server
+          - test: test:room-chat
+            artifact: room-chat
+          - test: test:tree-cascade
+            artifact: tree-cascade
+          - test: test:tree-custom-types
+            artifact: tree-custom-types
+          - test: test:tree-deep
+            artifact: tree-deep
+          - test: test:tree-move
+            artifact: tree-move
+          - test: test:tree-permissions
+            artifact: tree-permissions
+          - test: test:tree-validator
+            artifact: tree-validator
     defaults:
       run:
         working-directory: parent

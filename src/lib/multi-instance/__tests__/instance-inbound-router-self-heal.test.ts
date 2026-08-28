@@ -103,9 +103,12 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
       expect(local).not.toHaveBeenCalled();
       expect(instanceChannelMock.forwardToInstance).not.toHaveBeenCalled();
 
-      // Follower's cid-report lands; instanceManager registers it and the
-      // router's listener replays the buffered message via routeByCid,
-      // which this time finds 'follower-x' and forwards to it.
+      // Follower's cid-report lands. Emitted here by hand because this suite
+      // mocks instanceManager wholesale — see the companion test below, which
+      // covers the half this cannot: that the real registerInstance actually
+      // emits. Without that, deleting the sole production emitter leaves the
+      // buffer undrained (orphaned messages, call media included, land on the
+      // leader tab) while this test stays green.
       eventEmitter.emit('instance:registered', {
         instanceId: 'follower-x',
         cid: 44444n,
