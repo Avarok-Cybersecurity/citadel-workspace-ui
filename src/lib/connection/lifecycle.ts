@@ -78,10 +78,26 @@ export async function disconnectSession(
 
   debugLog('ConnectionService', 'ConnectionManager: Disconnecting session with CID:', cid.toString());
 
+  // The MEMORY mark first, the disconnect second, the write last.
+  //
+  // These three used to be two: `markUserDisconnected` recorded the intent and
+  // persisted it in one awaited call, ahead of the disconnect. So a LocalDB
+  // write that took five seconds to time out held up a sign-out — the same
+  // shape as rounds 189 and 190, found here by the guard those two produced.
+  //
+  // Swapping them outright would have been wrong. `handleDisconnect` schedules
+  // a reconnect a second after the disconnect notification and consults the
+  // in-memory set to decide whether to skip it, so the mark has to be in place
+  // BEFORE the disconnect or auto-reconnect can revive the session the user
+  // just left. Only the persistence — which exists so the decision survives a
+  // reload, and has no deadline — moves after.
   if (username && serverAddress) {
-    await io.markUserDisconnected(username, serverAddress);
+    io.markUserDisconnectedNow(username, serverAddress);
   }
   await io.disconnect(cid);
+  if (username && serverAddress) {
+    await io.persistUserDisconnected();
+  }
 
   state.setCurrentConnectionInfo(null);
   state.invalidateCache();

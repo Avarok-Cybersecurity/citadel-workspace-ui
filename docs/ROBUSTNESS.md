@@ -10603,3 +10603,41 @@ second time this session the cap has produced a better module boundary than the
 one that was there: the four list mutators share an invariant — mutate memory,
 then persist — and stating it once in a header is stronger than four copies of
 the ordering.
+
+## Round 191 — the guard found the third one
+
+Two hand-found instances of *a local write gating a required action* (189, 190)
+made it a pattern rather than a pair, so the rule got stated where it can be
+checked: in `lib/connection`, nothing that writes to LocalDB may be awaited
+before a disconnect in the same function.
+
+It failed on its first run, on a function neither earlier round had touched:
+
+```
+lifecycle.ts:disconnectSession
+```
+
+which did `await io.markUserDisconnected(...)` — a LocalDB write — and then
+`await io.disconnect(cid)`. Same shape, third occurrence, written by someone who
+had every reason to think the ordering was arbitrary.
+
+**Swapping them would have been wrong**, and that is the part worth recording.
+`handleDisconnect` schedules a reconnect a second after the disconnect
+notification and consults the in-memory set to decide whether to skip it. So the
+mark genuinely does have to happen before the disconnect — the mistake was not
+the order, it was that one call did two things with different deadlines:
+
+| half | deadline |
+|---|---|
+| add to the in-memory set | before the disconnect, or auto-reconnect revives the session |
+| write it to LocalDB | none; it exists so the decision survives a reload |
+
+Split into `markUserDisconnectedNow` (synchronous) and `persistUserDisconnected`
+(awaited after the disconnect). The combined `markUserDisconnected` stays for
+callers with no disconnect waiting on it, which is the honest shape: two
+operations, and a convenience for when the distinction does not apply.
+
+Three files needed splitting or trimming under the 250-line cap along the way.
+That is worth noting as a cost, not only a benefit: the cap forced a good module
+boundary twice this session, and here it mostly forced comment editing. It is a
+blunt instrument that happens to be pointed in the right direction.

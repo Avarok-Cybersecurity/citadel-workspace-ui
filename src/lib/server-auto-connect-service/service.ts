@@ -208,12 +208,25 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     }
   }
 
-  public async markUserDisconnected(username: string, serverAddress: string): Promise<void> {
+  /**
+   * Record, in memory, that the user signed out. Separate from the persistence
+   * below: they have different deadlines — see lib/connection/lifecycle.ts.
+   */
+  public markUserDisconnectedNow(username: string, serverAddress: string): void {
     const sessionKey = `${username}@${serverAddress}`;
     this.userDisconnectedSessions.add(sessionKey);
     this.cancelRetry(sessionKey);
+  }
+
+  /** Persist what `markUserDisconnectedNow` recorded. Best-effort. */
+  public async persistUserDisconnected(): Promise<void> {
     await persistUserDisconnectedSessions(this.userDisconnectedSessions);
-    debugLog('ServerAutoConnectService', `Marked ${username} as user-disconnected (won't auto-reconnect, persisted to LocalDB)`);
+  }
+
+  /** Both halves, for callers with no disconnect waiting on the write. */
+  public async markUserDisconnected(username: string, serverAddress: string): Promise<void> {
+    this.markUserDisconnectedNow(username, serverAddress);
+    await this.persistUserDisconnected();
   }
 
   public async clearUserDisconnected(username: string, serverAddress: string): Promise<void> {

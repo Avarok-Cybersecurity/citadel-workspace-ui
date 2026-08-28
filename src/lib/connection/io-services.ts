@@ -117,6 +117,14 @@ export class ConnectionIOServices {
     await serverAutoConnectService.init();
   }
 
+  markUserDisconnectedNow(username: string, serverAddress: string): void {
+    serverAutoConnectService.markUserDisconnectedNow(username, serverAddress);
+  }
+
+  async persistUserDisconnected(): Promise<void> {
+    await serverAutoConnectService.persistUserDisconnected();
+  }
+
   async markUserDisconnected(username: string, serverAddress: string): Promise<void> {
     await serverAutoConnectService.markUserDisconnected(username, serverAddress);
   }

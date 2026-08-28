@@ -77,6 +77,8 @@ export class ConnectionIO {
   async clearSelectedUser(): Promise<void> { return this.svc.clearSelectedUser(); }
   async initServerAutoConnect(): Promise<void> { return this.svc.initServerAutoConnect(); }
   async markUserDisconnected(username: string, serverAddress: string): Promise<void> { return this.svc.markUserDisconnected(username, serverAddress); }
+  markUserDisconnectedNow(username: string, serverAddress: string): void { this.svc.markUserDisconnectedNow(username, serverAddress); }
+  async persistUserDisconnected(): Promise<void> { return this.svc.persistUserDisconnected(); }
   async initPeerRegistrationStore(): Promise<void> { return this.svc.initPeerRegistrationStore(); }
 }
 
