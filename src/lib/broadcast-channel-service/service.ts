@@ -16,7 +16,6 @@ import { CHANNEL_NAME, CLEANUP_INTERVAL_MS, REQUEST_EXPIRY_MS } from './types';
 import {
   handleWorkspaceResponse,
   handleRegisterRequest,
-  handleLeaderElection,
   handleStateSync,
   handleConnectionStatus,
   handleP2PRawMessage,
@@ -24,7 +23,6 @@ import {
 } from './message-handlers';
 import {
   broadcast as doBroadcast,
-  broadcastLeaderClaim,
   broadcastWorkspaceResponse as doBroadcastWorkspaceResponse,
   broadcastStateSync as doBroadcastStateSync,
   broadcastConnectionStatus as doBroadcastConnectionStatus,
@@ -37,7 +35,6 @@ export class BroadcastChannelService extends PollingService {
   private channel: BroadcastChannel | null = null;
   private tabId: string;
   private isLeader: boolean = false;
-  private leaderCheckInterval: number | null = null;
   private lastLeaderHeartbeat: number = 0;
   private pendingRequests = new Map<string, PendingRequest>();
 
@@ -86,7 +83,6 @@ export class BroadcastChannelService extends PollingService {
     try {
       this.channel = new BroadcastChannel(CHANNEL_NAME);
       this.setupMessageHandler();
-      this.startLeaderElection();
       this.startPolling();
       debugLog('BroadcastChannelService', `Initialized with tabId ${this.tabId}`);
     } catch (error) {
@@ -107,12 +103,6 @@ export class BroadcastChannelService extends PollingService {
         switch (message.type) {
           case 'workspace-response':
             await handleWorkspaceResponse(message, this.isLeader, (rid, cid) => this.isResponseForThisCid(rid, cid));
-            break;
-          case 'leader-election':
-            handleLeaderElection(message, this.isLeader, this.tabId, (leader, heartbeat) => {
-              this.isLeader = leader;
-              this.lastLeaderHeartbeat = heartbeat;
-            });
             break;
           case 'state-sync':
             handleStateSync(message);
@@ -138,17 +128,21 @@ export class BroadcastChannelService extends PollingService {
     });
   }
 
-  private startLeaderElection(): void {
-    debugLog('BroadcastChannelService', 'Leader election delegated to InstanceChannel');
-  }
-
-  private becomeLeader(): void {
-    this.isLeader = true;
-    this.lastLeaderHeartbeat = Date.now();
-    debugLog('BroadcastChannelService', `Tab ${this.tabId} is now the leader`);
-    eventEmitter.emit('leader-changed', { isLeader: true, leaderId: this.tabId });
-    broadcastLeaderClaim(this.channel, this.tabId, this.isLeader);
-  }
+  // There is no election here, and nothing that looks like one.
+  //
+  // Leadership is decided by InstanceChannel on the `citadel-instance-channel`
+  // channel, and this service learns the outcome through the `leader-changed`
+  // sync below. What used to sit here was a complete SECOND apparatus —
+  // becomeLeader(), broadcastLeaderClaim(), a handleLeaderElection arm, a
+  // leaderCheckInterval — none of it reachable: becomeLeader had no caller
+  // anywhere, and the claim messages its handler answered were sent by nobody.
+  //
+  // Dead code that looks load-bearing is worse than dead code that looks dead.
+  // None of the sticky-leadership fixes exist in this copy, so reviving it —
+  // which it invited, by being complete and plausibly named — would have
+  // reinstated the HMR/StrictMode bug documented in channel-leader-election.ts:
+  // a remount hands the WebSocket to the newer tab, the workspace redirects to
+  // /connect, and every cross-tab message is dropped.
 
   // --- Public API ---
 
@@ -200,9 +194,6 @@ export class BroadcastChannelService extends PollingService {
   }
 
   public destroy(): void {
-    if (this.leaderCheckInterval) {
-      clearInterval(this.leaderCheckInterval);
-    }
     this.stopPolling();
     if (this.channel) {
       this.channel.close();

@@ -9005,3 +9005,41 @@ labelled copy changed nothing. The values are now derived from `constants.ts`,
 the copy that was always in force, and the comment says what is true.
 
 Preflight is 31 checks.
+
+## Round 150 — dead code that looked load-bearing
+
+`BroadcastChannelService` carried a complete second leader election, on its own
+channel (`citadel-workspace-sync`): `becomeLeader()`, `broadcastLeaderClaim()`,
+a `handleLeaderElection` arm in the message switch, an
+`isLeaderElectionMessage` type guard, a `leaderCheckInterval` field, and a
+`startLeaderElection()` that was already just a log line saying "delegated to
+InstanceChannel".
+
+None of it was reachable. `becomeLeader` had no caller anywhere in the tree, and
+the claim messages its handler answered were sent by nobody — the only thing
+that ever ran was the `leader-changed` sync telling it the real election's
+outcome.
+
+Dead code that looks dead is harmless. This looked load-bearing: complete,
+plausibly named, sitting in the service that owns cross-tab messaging. And it
+had **none** of the sticky-leadership rules the real election gained — so
+reviving it, which its completeness invited, would have reinstated the defect
+`channel-leader-election.ts` documents at length: after an HMR reload or a React
+StrictMode double-mount, leadership passes irrevocably to the newer tab, the
+workspace tab is redirected to /connect, and every cross-tab message is dropped.
+
+`one-leader-election.test.ts` allows calling into the election — routing a
+message to it, or dynamically importing `tryBecomeLeader` to ask for
+leadership, is how the rest of the app participates — and forbids a second
+definition.
+
+Its first version passed its own negative control. The rule matched
+`function becomeLeader`, and the dead copy was a class method
+(`private becomeLeader(): void {`) — so re-adding the exact thing the guard was
+written for left it green. Its second version then caught
+`.then(({ tryBecomeLeader }) => …)`, a destructured dynamic import, as if it
+were a method definition. It now requires an access modifier or a return type,
+which is what separates the two.
+
+That is twice in this round that the first attempt was wrong in opposite
+directions, and both were found by running the control rather than by reading.

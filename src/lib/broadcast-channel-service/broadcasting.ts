@@ -25,32 +25,6 @@ export function broadcast(
   }
 }
 
-/**
- * Build and broadcast a leader claim message.
- */
-export function broadcastLeaderClaim(
-  channel: BroadcastChannel | null,
-  tabId: string,
-  isLeader: boolean
-): void {
-  const message: BroadcastMessage = {
-    type: 'leader-election',
-    data: {
-      tabId,
-      timestamp: Date.now(),
-      priority: isLeader ? 100 : 0
-    },
-    timestamp: Date.now(),
-    tabId,
-    isLeader
-  };
-  broadcast(channel, message);
-}
-
-/**
- * Build and broadcast a workspace response (leader only).
- * Extracts target CID from P2P notifications for receiver filtering.
- */
 export function broadcastWorkspaceResponse(
   channel: BroadcastChannel | null,
   tabId: string,

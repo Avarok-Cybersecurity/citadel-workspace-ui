@@ -9,7 +9,6 @@ import { getSelectedUser } from '@/lib/tab-context';
 import { instanceManager } from '@/lib/multi-instance';
 import { debugLog } from '@/lib/debug-config';
 import type { BroadcastMessage, PendingRequest } from './types';
-import { isLeaderElectionMessage } from './types';
 
 /**
  * Handle workspace-response messages from leader tab.
@@ -61,35 +60,6 @@ export function handleRegisterRequest(
   }
 }
 
-/**
- * Handle leader-election messages from other tabs.
- */
-export function handleLeaderElection(
-  message: BroadcastMessage,
-  isLeader: boolean,
-  tabId: string,
-  setLeaderState: (isLeader: boolean, heartbeat: number) => void
-): void {
-  if (!isLeaderElectionMessage(message.data)) {
-    debugLog('BroadcastChannelService', 'Invalid leader election message data, ignoring');
-    return;
-  }
-  const electionData = message.data;
-
-  if (message.isLeader) {
-    setLeaderState(isLeader, Date.now());
-
-    if (isLeader && electionData.tabId !== tabId) {
-      debugLog('BroadcastChannelService', `Tab ${electionData.tabId} is now the leader`);
-      setLeaderState(false, Date.now());
-      eventEmitter.emit('leader-changed', { isLeader: false, leaderId: electionData.tabId });
-    }
-  }
-}
-
-/**
- * Handle state-sync messages by forwarding to event system.
- */
 export function handleStateSync(message: BroadcastMessage): void {
   eventEmitter.emit('broadcast-state-sync', message.data);
 }
