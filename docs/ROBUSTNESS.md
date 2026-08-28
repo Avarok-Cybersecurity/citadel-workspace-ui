@@ -10881,3 +10881,39 @@ misspelling a script reports the same way from the correct directory.
 
 Preflight is 35 checks. It would have caught this before the push — which is the
 only reason to keep adding to it.
+
+## Round 199 — measured before assumed, three times
+
+Three candidate defects were investigated this round and two of them were not
+defects. Recording that is the point: a campaign that only ever reports finds is
+one that has stopped checking whether it is right.
+
+**Focus visibility.** Seventy raw `<button>` elements carry no `focus-visible`
+class, which looks like seventy keyboard users left without a focus ring. Tabbing
+the built app and reading the computed style says otherwise: every focusable
+element on the landing page shows a ring, because nothing removes the UA outline
+globally and the shadcn Button supplies its own. No change made.
+
+**Jargon in user-facing strings.** A sweep for `LocalDB`, `WASM`, `CID`,
+`request_id` and friends inside `title`/`description`/`message` literals returned
+two hits, and both survive inspection: the peer-add error says "check the CID"
+on a form whose field is labelled *peer CID*, which is vocabulary the UI
+deliberately exposes. No change made.
+
+**Hover-only controls.** `opacity-0 group-hover:opacity-100` appears once in the
+whole tree, inside the comment explaining that it used to appear at eight sites.
+That fix propagated completely. No change made.
+
+What did change: `check-mobile-layout.mjs` measured one viewport, 375px,
+described as *"the smallest widely-used phone"*. It is not — 360 is the most
+common Android width and 320 is the floor a responsive layout is normally held
+to. Both were measured before being added, both already pass, so this is a lock;
+but a layout that fits at 375 and breaks at 360 breaks for more people than one
+that breaks at 375.
+
+The control is worth recording for what it took. A 340px element injected into
+the hero produced no overflow, and neither did a 340px `min-width` on `main` —
+the layout absorbed both, which is a real answer rather than a broken control.
+`body { min-width: 500px }` produced 12 failures with 193px of sideways scroll,
+narrowest width reported first. A control that does not fire is only useful once
+you know whether the rule or the injection is at fault.

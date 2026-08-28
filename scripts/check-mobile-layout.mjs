@@ -25,6 +25,9 @@ const PORT = Number(process.env.MOBILE_CHECK_PORT ?? 4178);
 const ORIGIN = `http://localhost:${PORT}`;
 const MIN_TARGET = 24;
 
+/** Narrowest first, so the first failure reported is the hardest case. */
+const WIDTHS = [320, 360, 375];
+
 const results = [];
 const record = (name, ok, detail = '') => results.push({ name, ok, detail });
 
@@ -73,9 +76,15 @@ async function main() {
 
   const browser = await chromium.launch();
   try {
-    // 375x667 is the smallest widely-used phone; anything that fits here fits.
+    // 375 was the only width measured, described as "the smallest widely-used
+    // phone". It is not: 360 is the most common Android width and 320 is the
+    // floor a responsive layout is normally held to. Both were measured before
+    // being added here and both already pass, so this is a lock rather than a
+    // repair -- but a layout that fits at 375 and breaks at 360 breaks for more
+    // people than one that breaks at 375.
+    for (const width of WIDTHS) {
     const context = await browser.newContext({
-      viewport: { width: 375, height: 667 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2,
+      viewport: { width, height: 667 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2,
     });
     const page = await context.newPage();
 
@@ -115,11 +124,12 @@ async function main() {
       await page.waitForTimeout(400);
 
       const { overflow, small } = await page.evaluate(measurePage, MIN_TARGET);
-      record(`${name}: fits the viewport`, overflow <= 0, overflow > 0 ? `${overflow}px of sideways scroll` : '');
-      record(`${name}: tap targets are at least ${MIN_TARGET}px`, small.length === 0, small.join('; '));
+      record(`${width}px ${name}: fits the viewport`, overflow <= 0, overflow > 0 ? `${overflow}px of sideways scroll` : '');
+      record(`${width}px ${name}: tap targets are at least ${MIN_TARGET}px`, small.length === 0, small.join('; '));
     }
 
     await context.close();
+    }
   } finally {
     await browser.close();
     preview.kill();
