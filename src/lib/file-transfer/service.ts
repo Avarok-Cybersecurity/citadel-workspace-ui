@@ -6,6 +6,8 @@
  */
 
 import { scopedSettingsKey } from './settings-key';
+import { startExpirySweep } from './expiry-sweep';
+import { loadPersistedTransfers, persistTransfer, persistSettings } from './transfer-persistence';
 import { eventEmitter } from '../event-emitter';
 import {
   type MessagingLayer, type FileTransferMode,
@@ -67,6 +69,7 @@ export class FileTransferService {
     if (this.initialized) return;
     this.setupMessageHandlers();
     await this.loadFromStorage();
+    startExpirySweep(this.state, this.emitStateChange.bind(this));
     this.initialized = true;
     debugLog('FileTransferService', 'Initialized');
   }
@@ -260,54 +263,17 @@ export class FileTransferService {
   private static readonly STORAGE_KEY_SETTINGS = 'citadel:file-transfer-settings';
 
   private async loadFromStorage(): Promise<void> {
-    try {
-      const settingsRaw = localStorage.getItem(FileTransferService.STORAGE_KEY_SETTINGS);
-      if (settingsRaw) {
-        const parsed = JSON.parse(settingsRaw) as Record<string, FileTransferSettings>;
-        for (const [peerCid, settings] of Object.entries(parsed)) {
-          this.state.setSettings(peerCid, settings);
-        }
-      }
-      debugLog('FileTransferService', 'Loaded settings from storage');
-    } catch (error) {
-      debugLog('FileTransferService', 'Failed to load from storage:', error);
-    }
+    await loadPersistedTransfers(this.state);
   }
 
   private async saveTransfer(transfer: FileTransfer): Promise<void> {
-    try {
-      const raw = localStorage.getItem(FileTransferService.STORAGE_KEY_TRANSFERS);
-      const transfers: Record<string, Partial<FileTransfer>> = raw ? JSON.parse(raw) : {};
-      // Store only serializable metadata (no Blob/File)
-      transfers[transfer.id] = {
-        id: transfer.id,
-        fileName: transfer.fileName,
-        fileSize: transfer.fileSize,
-        fileType: transfer.fileType,
-        senderCid: transfer.senderCid,
-        recipientCid: transfer.recipientCid,
-        state: transfer.state,
-        isIncoming: transfer.isIncoming,
-        mode: transfer.mode,
-        createdAt: transfer.createdAt,
-        updatedAt: transfer.updatedAt,
-      };
-      localStorage.setItem(FileTransferService.STORAGE_KEY_TRANSFERS, JSON.stringify(transfers));
-    } catch {
-      // Silently fail — localStorage may be full
-    }
+    persistTransfer(transfer);
   }
 
   private async saveSettings(peerCid: string, settings: FileTransferSettings): Promise<void> {
-    try {
-      const raw = localStorage.getItem(FileTransferService.STORAGE_KEY_SETTINGS);
-      const all: Record<string, FileTransferSettings> = raw ? JSON.parse(raw) : {};
-      all[peerCid] = settings;
-      localStorage.setItem(FileTransferService.STORAGE_KEY_SETTINGS, JSON.stringify(all));
-    } catch {
-      // Silently fail
-    }
+    persistSettings(peerCid, settings);
   }
+
 }
 
 // Export singleton instance

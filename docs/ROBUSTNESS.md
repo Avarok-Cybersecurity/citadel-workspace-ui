@@ -9570,3 +9570,38 @@ variants, found none, and concluded the audit was wrong about them existing.
 They live in `citadel-internal-service-types`. Checking one of two type crates
 and reporting the absence as fact is the same mistake as a scan that finds
 nothing and calls it clean.
+
+## Round 164 — three pieces of one feature, each shipped, never joined
+
+**A reload orphaned every in-flight transfer, behind an error that was false.**
+`saveTransfer` wrote every transfer to `citadel:file-transfers`; `loadFromStorage`
+restored settings only. So a reload lost all of them while the message bubble
+kept rendering from the message record, and Accept, Decline and Cancel each
+threw **"Transfer not found"** — a sentence that is wrong about the world. The
+agent still had it; the browser had forgotten a record it had explicitly
+persisted. The user could not even dismiss the bubble.
+
+Transfers are restored now, and **restoring is not resuming**: one that was
+moving cannot continue — the Blob went with the tab and the bytes were flowing
+through a stream that no longer has a reader — so it comes back as an error that
+says a reload interrupted it and to ask again. Bringing it back as
+`transferring` would give a progress bar that never moves, which is the
+"Downloading… 40%" forever this same store produced elsewhere. Terminal
+transfers come back as they were, so history survives.
+
+**And `expired` was a state nothing ever wrote.** `expiresAt` is stamped on
+every offer and shipped to the peer; the `'expired'` state exists in the union;
+the bubble has a "Request expired" branch; `FILE_TRANSFER_EXPIRY_CHECK_INTERVAL_MS`
+had zero usages. Four pieces of one feature, each built and none joined — so a
+sender who went offline mid-offer left the recipient a live-looking Accept
+button for ever, and pressing it started a transfer nobody was on the other end
+of.
+
+The sweep runs on the interval **and once at startup**, because the common case
+is a tab closed while an offer was open: waiting a full interval to notice would
+show the stale button for exactly as long as it takes somebody to press it. An
+offer with no `expiresAt` never lapses — it predates the field, or came from a
+peer that sends none, and inventing a deadline would cancel a transfer the
+sender still believes is open. There is a test for each of those, and one
+asserting that a completed transfer with an old deadline is never rewritten to
+"expired", which would turn a delivered file into a failure in the history.
