@@ -12916,3 +12916,41 @@ adjectives with the numbers hidden behind a dropdown is a list nobody can choose
 from, and there is no Save: the effect is visible in the call within a second,
 and a modal that makes somebody commit before they can see what they chose is a
 modal that gets cancelled.
+
+## Round 245 — the room was created and nobody could see it
+
+CI, after round 233 cut the failing legs from 44 to 28:
+
+```
+Filling node modal: TestRoom_1787941501537
+✓ Success toast visible (1 toast(s))
+Room created: false
+```
+
+Three lines that contradict each other, and all three are true. The write
+succeeded — `createNode` awaits a real response with a matcher, so the toast is
+honest. The room was not in the sidebar, so the check that looks for it was
+honest too.
+
+The tree expands its first level **once**, when it first arrives, and
+deliberately never again: re-expanding on every `treeData` identity change used
+to undo every collapse the user made whenever anyone saved a document anywhere
+in the workspace. The consequence nobody had noticed is that a node created
+afterwards, inside a node that was collapsed — or inside an office created after
+that first moment — lands somewhere invisible.
+
+A user creates a room, sees "Room created", and does not see the room. There is
+nothing to click, because the thing they are looking for is behind a disclosure
+triangle they have no reason to suspect.
+
+Creating a child is an explicit act, and hiding the result of it is never right:
+the parent now opens when a node arrives with it as `parent_id`. The parent
+only, never the new node — expanding the thing you just created would move
+whatever is below it, which nobody asked for.
+
+The first version of the test **reimplemented the rule and asserted its own
+copy** — the "declaration nobody compared to an implementation" shape recorded
+above, written by me two hours after writing that entry. Deleting the effect
+from the component left it green. It now renders the real component into a real
+tree that starts with a childless office, emits `node:loaded`, and looks for the
+room on screen; the control removes the effect and it goes red.

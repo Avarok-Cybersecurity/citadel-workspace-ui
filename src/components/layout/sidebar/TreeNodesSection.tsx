@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { matchesSearch } from '@/lib/fold-for-search';
+import { useRevealCreatedNodes } from './use-reveal-created-nodes';
 import { debugLog } from '@/lib/debug-config';
 import { useLocation, useNavigate } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
@@ -104,23 +105,19 @@ export function TreeNodesSection({
 
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
     const initial: Set<string> = new Set<string>(initialExpandedIds);
-    if (treeData) {
-      initial.add(treeData.node.id);
-    }
+    if (treeData) initial.add(treeData.node.id);
     return initial;
   });
 
   // Expand the first level ONCE, when the tree first arrives.
   //
-  // This used to expand every node with children, on every change of
-  // `treeData` OR `filteredTreeData` identity — and both change constantly.
-  // `filteredTreeData` is a fresh object per keystroke and reverts to
-  // `treeData` when the box is cleared, and `state.nodes` is re-minted on
-  // node:loaded / nodes:loaded / node:deleted / node:content-updated /
-  // node:moved. So every collapse the user made was undone by typing one
-  // character and deleting it, or by anyone saving a document anywhere in the
-  // workspace. A large workspace also opened fully expanded into a 50vh
-  // unvirtualised scroll area, with three tab stops per row.
+  // This used to run on every change of `treeData` OR `filteredTreeData`
+  // identity, and both change constantly: a fresh object per keystroke, and
+  // `state.nodes` re-minted on node:loaded / nodes:loaded / node:deleted /
+  // node:content-updated / node:moved. So every collapse the user made was
+  // undone by typing one character and deleting it, or by anyone saving a
+  // document anywhere in the workspace -- and a large workspace opened fully
+  // expanded into a 50vh unvirtualised scroll area, three tab stops per row.
   const hasAutoExpanded = useRef(false);
   useEffect(() => {
     if (hasAutoExpanded.current || !treeData) return;
@@ -134,6 +131,8 @@ export function TreeNodesSection({
       return next;
     });
   }, [treeData]);
+
+  useRevealCreatedNodes(setExpandedNodes);
 
   /**
    * What is actually rendered as expanded.
