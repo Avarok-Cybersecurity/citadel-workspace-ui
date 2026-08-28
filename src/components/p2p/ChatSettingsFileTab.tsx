@@ -104,7 +104,8 @@ export function ChatSettingsFileTab({
             <Label htmlFor="max-file-size-to-accept" className="text-sm font-medium">Max file size to accept</Label>
             <span className="text-sm text-primary-accent font-medium" data-testid="max-file-size-value">{maxFileSizeMb} MB</span>
           </div>
-          <Slider id="max-file-size-to-accept" value={[maxFileSizeMb]} onValueChange={onMaxFileSizeChange}
+          <Slider id="max-file-size-to-accept"
+            label="Maximum file size" value={[maxFileSizeMb]} onValueChange={onMaxFileSizeChange}
             max={defaultMaxMb} min={1} step={1} className="w-full" data-testid="max-file-size-slider" />
           <p className="text-xs text-muted-foreground">
             Server default: {formatSizeLimit(FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES)}

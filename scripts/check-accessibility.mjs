@@ -85,6 +85,28 @@ async function main() {
         await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
         await page.getByTestId('manage-accounts-button').click({ force: true });
       }],
+      // Settings is reachable from the landing page with no account, and every
+      // tab is its own surface. The Theme tab shipped a serious
+      // `aria-input-field-name`: Radix puts `role="slider"` on the THUMB, so the
+      // `<Label htmlFor>` beside it named nothing, and the Font Size control had
+      // no accessible name at all. Four surfaces were being scanned while this
+      // one sat one click away.
+      ...['General', 'Connect', 'Theme', 'Privacy', 'Perms'].map((tab) => [
+        `settings/${tab}`,
+        async () => {
+          if (!(await page.locator('[role="tab"]').filter({ hasText: tab }).count())) {
+            await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+            await page.locator('button').filter({ hasText: /^Settings$/ }).first().click({ force: true });
+            await page.waitForTimeout(800);
+          }
+          await page.locator('[role="tab"]').filter({ hasText: tab }).first().click({ force: true });
+        },
+      ]),
+      // Any unrouted path. Cheap, and it is the one screen a user reaches by
+      // accident rather than on purpose.
+      ['not-found', async () => {
+        await page.goto(`${ORIGIN}/no-such-page`, { waitUntil: 'domcontentloaded' });
+      }],
     ];
 
     let scanned = 0;

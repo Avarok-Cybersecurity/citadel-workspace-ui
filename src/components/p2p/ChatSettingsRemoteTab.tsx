@@ -57,6 +57,7 @@ export function ChatSettingsRemoteTab({
           <span className="text-sm text-primary-accent font-medium" data-testid="revfs-quota-value">{revfsQuotaMb} MB</span>
         </div>
         <Slider id="storage-quota-for-peername"
+          label="Storage quota for this peer"
           value={[revfsQuotaMb]} onValueChange={onRevfsQuotaChange}
           max={defaultMaxMb} min={1} step={1} className="w-full"
           disabled={!settings.allowRevfsStorage} data-testid="revfs-quota-slider"

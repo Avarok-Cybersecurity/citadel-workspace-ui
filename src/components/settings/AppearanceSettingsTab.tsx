@@ -74,6 +74,7 @@ export function AppearanceSettingsTab() {
             <span className="text-xs text-muted-foreground">{settings.fontSize}px</span>
           </div>
           <Slider id="font-size"
+            label="Font size in pixels"
             value={[settings.fontSize]}
             onValueChange={([v]) => update('fontSize', v)}
             min={12}

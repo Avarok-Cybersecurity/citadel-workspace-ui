@@ -11342,3 +11342,39 @@ not theirs.
 One fix from the previous round is not yet in a CI run: the keyboard-reachable
 run command (round 208) is what turned the Playwright accessibility shards red,
 and it is fixed locally. Pushing now is what tests that.
+
+## Round 210 — the Font Size slider had no name
+
+The accessibility gate scanned four surfaces. Settings is reachable from the
+landing page with **no account**, and every tab is its own surface — so five
+more were one click away and unscanned. The 404 page too.
+
+Scanning them found one serious violation:
+
+```
+settings/Theme: aria-input-field-name x1
+  <span role="slider" aria-valuemin="12" aria-valuemax="18" aria-valuenow="14" …>
+```
+
+Radix puts `role="slider"` on the **Thumb**, not on the Root. The call site has
+`<Label htmlFor="font-size">` next to a `<Slider id="font-size">`, which looks
+correct and names nothing a screen reader can use: `htmlFor` labels only
+labelable elements, and the Root is a div. The control a user is trying to
+operate had no accessible name.
+
+Fixed in `ui/slider.tsx` rather than at the call site, because all three sliders
+in the app are written the same way — label beside the Root, name on nothing —
+so fixing one would have left two.
+
+The `label` prop is **required, not optional**. An optional accessibility prop
+is one nobody passes, which is exactly how this happened: the component has been
+in the tree since the beginning with no way to name it and no complaint. Making
+it required turned the other two sliders into compile errors, which is the
+cheapest possible way to find them.
+
+The gate now scans ten surfaces, all backend-free, and removing the thumb's name
+fails `settings/Theme` by name.
+
+Worth noting what this says about the earlier round: `check-accessibility` was
+added in round 194 reporting **zero violations on four screens**, and that was
+true. The defect was not in what it measured — it was one click outside.
