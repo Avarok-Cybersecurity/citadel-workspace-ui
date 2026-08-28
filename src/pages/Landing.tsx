@@ -1,4 +1,5 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
+import type { JoinFormData } from "@/components/useJoinRegistration";
 import { Button } from "@/components/ui/button";
 import { LogIn, Settings, Shield, ArrowRight } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
@@ -27,6 +28,20 @@ export const Landing = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');
+  /**
+   * What the user has typed on the profile step.
+   *
+   * Held here because that step unmounts whenever they go Back to security, and
+   * its own state went with it: one step back to check a setting cleared the
+   * name, the username and both passwords. The server address and the security
+   * settings already live at this level for the same reason.
+   */
+  const [profileDraft, setProfileDraft] = useState<JoinFormData>({
+    fullName: '',
+    username: '',
+    password: '',
+    confirmPassword: '',
+  });
   const [hasOrphanSessions, setHasOrphanSessions] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -121,6 +136,9 @@ export const Landing = () => {
   const handleSecurityBack = () => setCurrentStep('server');
   const handleJoinNext = async (cid: string) => {
     debugLog('Landing', `[Landing] handleJoinNext called with cid: ${cid}`);
+    // The draft has served its purpose, and half of it is passwords: it should
+    // not outlive the registration it belonged to.
+    setProfileDraft({ fullName: '', username: '', password: '', confirmPassword: '' });
     try {
       await postAuthSetup(BigInt(cid));
       debugLog('Landing', '[Landing] Navigating to /office...');
@@ -132,6 +150,9 @@ export const Landing = () => {
   };
   const handleJoinBack = () => setCurrentStep('security');
   const startRegistration = () => {
+    // A fresh start means a fresh draft: reopening the wizard must not present
+    // the last attempt's name and passwords.
+    setProfileDraft({ fullName: '', username: '', password: '', confirmPassword: '' });
     // Allow joining new workspaces regardless of existing sessions (Slack-like multi-workspace)
     setCurrentStep('server');
   };
@@ -298,6 +319,7 @@ export const Landing = () => {
           serverAddress={serverAddress}
           serverPassword={serverPassword}
           securitySettings={securitySettings}
+          profileDraft={{ initial: profileDraft, onChange: setProfileDraft }}
         />
       )}
       {currentStep === 'login' && (

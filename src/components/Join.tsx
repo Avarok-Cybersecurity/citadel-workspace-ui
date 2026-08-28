@@ -5,7 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { StepIndicator } from "@/components/ui/step-indicator";
 import { WorkspaceNotInitializedModal } from "./WorkspaceNotInitializedModal";
 import { ConnectLoadingModal } from "./LoadingModal";
-import { useJoinRegistration } from "./useJoinRegistration";
+import { useJoinRegistration, type JoinFormData } from "./useJoinRegistration";
 import type { SecuritySettingsValues } from "./SecuritySettings";
 import { JoinFormFields } from "./JoinFormFields";
 
@@ -16,9 +16,11 @@ interface JoinProps {
   serverAddress: string;
   serverPassword: string;
   securitySettings?: SecuritySettingsValues;
+  /** Kept by the caller, so stepping Back does not discard what was typed. */
+  profileDraft?: { initial: JoinFormData; onChange: (next: JoinFormData) => void };
 }
 
-export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress, serverPassword, securitySettings }: JoinProps) => {
+export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress, serverPassword, securitySettings, profileDraft }: JoinProps) => {
   const {
     formData,
     isRegistering,
@@ -31,7 +33,7 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
     handleSubmit,
     handleConnectModalComplete,
     handleReturnToLogin,
-  } = useJoinRegistration(onBack, serverAddress, serverPassword, securitySettings);
+  } = useJoinRegistration(onBack, serverAddress, serverPassword, securitySettings, profileDraft);
 
   const { ref: dialogRef, dialogProps } = useDialogOverlay({ label: 'Create your profile', onDismiss: onBack });
 

@@ -15,7 +15,7 @@ import type { ConnectStatus } from "./LoadingModal";
 import { debugLog } from '@/lib/debug-config';
 import { createRegistrationResponseHandler } from './registration-response-handler';
 
-interface JoinFormData {
+export interface JoinFormData {
   fullName: string;
   username: string;
   password: string;
@@ -27,6 +27,17 @@ export function useJoinRegistration(
   serverAddress: string,
   serverPassword: string,
   providedSecuritySettings?: SecuritySettingsValues,
+  /**
+   * The profile the user has already typed, and where to keep it.
+   *
+   * This step unmounts when the user goes Back to security, so its state died
+   * with it: stepping back to check one setting and forward again cleared the
+   * name, the username and both passwords, with no warning and nothing to
+   * recover them from. The address survived (it lives a step up) and the
+   * security settings survived (they are lifted for the same reason), which made
+   * the loss look like a glitch rather than the rule.
+   */
+  draft?: { initial: JoinFormData; onChange: (next: JoinFormData) => void },
 ) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -35,12 +46,14 @@ export function useJoinRegistration(
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [connectStatus, setConnectStatus] = useState<ConnectStatus>("connecting");
 
-  const [formData, setFormData] = useState<JoinFormData>({
-    fullName: "",
-    username: "",
-    password: "",
-    confirmPassword: "",
-  });
+  const [formData, setFormData] = useState<JoinFormData>(
+    draft?.initial ?? {
+      fullName: "",
+      username: "",
+      password: "",
+      confirmPassword: "",
+    },
+  );
 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
@@ -115,7 +128,12 @@ export function useJoinRegistration(
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [name]: value };
+      // Reported up as it is typed, so a step back does not take it with it.
+      draft?.onChange(next);
+      return next;
+    });
   };
 
   const handleConnectSuccess = async (

@@ -294,6 +294,35 @@ async function main() {
       `${Object.keys(EXPECTED_SCOPE).length} expectations for ${screens.length} screens`,
     );
 
+    // Stepping back and forward again must not discard what was typed.
+    //
+    // Measured: it did. The profile step unmounts when the user goes Back to
+    // security, so its state died with it -- one step back to check a setting
+    // cleared the name, the username and both passwords, with no warning and
+    // nothing to recover them from. The address survived (it lives a step up)
+    // and the security settings survived, which made the loss read as a glitch
+    // rather than the rule.
+    {
+      await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+      await dismissConnectionFailure(page);
+      await toProfileStep();
+      await page.locator('#fullName').fill('Ada Lovelace');
+      await page.locator('#username').fill('ada');
+      await page.locator('button').filter({ hasText: /^Back$/ }).last().click();
+      await page.getByRole('heading', { name: /Security/i }).waitFor({ state: 'visible', timeout: 30_000 });
+      await page.locator('button').filter({ hasText: /^Next$/ }).last().click();
+      await page.locator('#fullName').waitFor({ state: 'visible', timeout: 30_000 });
+      const kept = await page.evaluate(() => ({
+        fullName: document.getElementById('fullName')?.value ?? '',
+        username: document.getElementById('username')?.value ?? '',
+      }));
+      record(
+        'the wizard keeps what was typed when you step back and forward',
+        kept.fullName === 'Ada Lovelace' && kept.username === 'ada',
+        JSON.stringify(kept),
+      );
+    }
+
     // Closing a dialog must put focus back where it came from.
     //
     // Measured on Manage Accounts: closing with Escape *or* with its Close
@@ -315,18 +344,45 @@ async function main() {
       await page.locator('[role="dialog"]').first().waitFor({ state: 'visible', timeout: 30_000 });
       const movedIn = await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'));
       record(`${name}: opening moves focus into the dialog`, movedIn);
-      await page.keyboard.press('Escape');
-      // The content stays mounted for its exit animation, and focus is restored
-      // when it finally goes -- so this waits for the dialog to be gone rather
-      // than sampling a moment after the keypress.
-      await page.locator('[role="dialog"]').first().waitFor({ state: 'detached', timeout: 30_000 }).catch(() => {});
-      await page.waitForTimeout(400);
-      const returned = await page.evaluate(
-        (id) => document.activeElement?.getAttribute('data-testid') === id,
-        testid,
-      );
+      // Closed by its own Close/Cancel control, not by Escape.
+      //
+      // Escape is measured separately below, because it turned out to be
+      // intermittent here in a way this run could not pin down: the same
+      // sequence closed the dialog on some runs and not others, with identical
+      // storage and an identical layer stack (`data-scroll-locked`, two focus
+      // guards, five aria-hidden roots on the way in; all gone on the way out).
+      // Attributing that to the focus assertion would have made a real property
+      // unmeasurable behind a flaky one.
+      const closer = page
+        .locator('[role="dialog"] button')
+        .filter({ hasText: /^(Close|Cancel|Back)$/ })
+        .last();
+      if (await closer.isVisible().catch(() => false)) {
+        await closer.click();
+      } else {
+        await page.keyboard.press('Escape');
+      }
+      const closed = await page
+        .locator('[role="dialog"]')
+        .first()
+        .waitFor({ state: 'detached', timeout: 10_000 })
+        .then(() => true)
+        .catch(() => false);
+      record(`${name}: it can be closed`, closed);
+
+      // Polled, not sampled: the content stays mounted for its exit animation
+      // and focus is restored when it finally goes, so a single read taken a
+      // fixed moment after the close catches whichever side of that it lands on.
+      let returned = false;
+      for (let attempt = 0; attempt < 20 && !returned; attempt += 1) {
+        returned = await page.evaluate(
+          (id) => document.activeElement?.getAttribute('data-testid') === id,
+          testid,
+        );
+        if (!returned) await page.waitForTimeout(200);
+      }
       record(`${name}: closing returns focus to what opened it`, returned,
-        returned ? '' : `left on ${await page.evaluate(() => document.activeElement?.tagName ?? 'nothing')}`);
+        returned ? '' : `left on ${await page.evaluate(() => `${document.activeElement?.tagName ?? 'nothing'} "${(document.activeElement?.textContent ?? '').trim().slice(0, 20)}"`)}`);
     }
 
     let scanned = 0;
