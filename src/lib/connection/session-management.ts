@@ -10,15 +10,29 @@ import { debugLog } from '@/lib/debug-config';
 import { saveRecentServer } from '@/lib/server-utils';
 
 /** Store a session to state and persist to LocalDB. */
+/**
+ * Record a session in memory and, best-effort, on disk.
+ *
+ * Returns whether the DISK half succeeded. It used to rethrow, and the caller
+ * did not catch — see `handleAuthSuccess`, where three sibling operations are
+ * each wrapped with a comment explaining that a local storage failure must not
+ * abort the auth flow, and this one, the only one that actually times out, was
+ * not.
+ *
+ * The in-memory update happens first and cannot fail, so a persistence failure
+ * costs the ability to reconnect automatically NEXT time. It does not cost the
+ * session that was just authenticated, and it must not.
+ */
 export async function storeSession(
   session: StoredSession, state: ConnectionState, io: ConnectionIO,
-): Promise<void> {
+): Promise<boolean> {
+  state.addOrUpdateSession(session);
   try {
-    state.addOrUpdateSession(session);
     await io.storeSessionsToLocalDB(state.storedSessions);
+    return true;
   } catch (error) {
     debugLog('ConnectionService', 'Failed to store session', error);
-    throw error;
+    return false;
   }
 }
 
@@ -63,7 +77,24 @@ export async function handleAuthSuccess(
   };
 
   try {
-    await storeSession(session, state, io);
+    // Not awaited for its success: a LocalDB write that times out costs the
+    // ability to reconnect automatically next time, and nothing else. The
+    // account exists on the server, the credentials were accepted, and the
+    // in-memory session is already correct.
+    //
+    // It used to throw out of here, and the Join flow reported it as
+    // "Registration Error" -- so a five-second local storage timeout discarded
+    // a completed authentication, and the user's retry met "username already
+    // taken". Every other local write in this function was already protected
+    // for exactly this reason; this was the one that was not, and the only one
+    // that actually times out.
+    const persisted = await storeSession(session, state, io);
+    if (!persisted) {
+      debugLog(
+        'ConnectionService',
+        'Session could not be persisted; continuing with the live session',
+      );
+    }
 
     // Persist to localStorage so Connect page can show recent servers
     // even without WASM client. Isolated from the outer try because

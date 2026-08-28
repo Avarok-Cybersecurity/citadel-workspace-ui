@@ -10524,3 +10524,47 @@ every browser-driving script, with exemptions that must **state themselves
 immediately above the line they cover** — `check-pwa-update.mjs` legitimately
 reads the update prompt's sentence, because that sentence is the thing under
 test. An exemption listed elsewhere is a claim nobody re-reads.
+
+## Round 189 — a five-second storage timeout discarded a completed registration
+
+The Playwright and integration failures finally showed their cause:
+
+```
+[ConnectionService] Failed to store session Error: LocalDBSetKV request timed out
+[ConnectionService] handleAuthSuccess failed: Error: LocalDBSetKV request timed out
+[Join] Registration Error: Error: LocalDBSetKV request timed out
+```
+
+By the time that write is attempted the account exists on the server and the
+credentials have been accepted. What failed is a **local** record of the session,
+written through the agent's LocalDB. The user is told **"Registration Error"**,
+and their retry meets *username already taken*.
+
+`handleAuthSuccess` protects three local writes, each with a comment saying so:
+
+| write | protection |
+|---|---|
+| `saveRecentServer` | caught — *"best-effort UX — losing it must NOT abort the auth-success flow"* |
+| `markLastAccessed` | caught — *"same isolation reasoning as saveRecentServer"* |
+| `setSelectedUser` | raced against a timeout, then *"continuing anyway"* |
+| **`storeSession`** | **rethrew** |
+
+The one that was not protected is the one that actually times out. And the
+connection information — `setCurrentConnectionInfo`, `setWorkspaceConnectionId`,
+`updateConnectionService` — is set *after* it, so throwing there meant the app
+never learned it was connected at all.
+
+`storeSession` updates memory first and cannot fail there, so losing the write
+costs the ability to reconnect automatically **next time** and nothing else. It
+returns whether the disk half landed now, rather than throwing, and
+`handleAuthSuccess` carries on.
+
+Whether CI's LocalDB timeouts are themselves a regression is still open — every
+run on this branch was cancelled for hours, so there is no baseline. But this
+defect does not depend on that answer: a slow local write should never have been
+able to discard an authentication, on any machine, and the reasoning for that was
+already written down three times in the same function.
+
+Controls: rethrowing fails 3 of 4; moving the in-memory update after the write
+fails 1 — the one asserting that the live session survives, which is the property
+that makes losing the write safe.
