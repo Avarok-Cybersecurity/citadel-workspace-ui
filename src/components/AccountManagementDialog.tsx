@@ -21,9 +21,11 @@ import { shortPeerHandle } from '@/lib/peer-display';
 interface AccountManagementDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Put focus back where it was. Called once the content has closed. */
+  onRestoreFocus?: () => void;
 }
 
-export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDialogProps) {
+export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: AccountManagementDialogProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [storedSessions, setStoredSessions] = useState(connectionManager.getStoredSessionsArray());
@@ -97,7 +99,24 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[600px] bg-card border-surface">
+        <DialogContent
+          className="sm:max-w-[600px] bg-card border-surface"
+          // Radix's own close-autofocus lands on `<body>` here, because this
+          // dialog has no `DialogTrigger` to return to -- the button that opens
+          // it is an ordinary Button next door. Measured: closing with Escape or
+          // with Close both left `document.activeElement` on the body, so a
+          // keyboard user was dropped at the top of the document.
+          //
+          // Restored HERE rather than in the caller's `onClose`, because the
+          // content stays mounted for its exit animation: a focus call made when
+          // the dialog closes is undone ~300ms later when the content unmounts.
+          // This event is the moment Radix itself would have moved focus, which
+          // is exactly the moment that works.
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            onRestoreFocus?.();
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="text-foreground">Manage Accounts</DialogTitle>
             <DialogDescription className="text-foreground/80">

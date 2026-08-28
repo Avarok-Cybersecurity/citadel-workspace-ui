@@ -12460,3 +12460,43 @@ Options section moved to `LoginAdvancedOptions.tsx` — an exact piecewise move,
 markup unchanged, state passed in, nothing there deciding anything. Verified
 afterwards against the built bundle rather than by reading: the section still
 opens, and both its controls are still there.
+
+## Round 237 — closing a dialog dropped the keyboard user at the top of the page
+
+Three dialogs open from the landing page. Two put focus back on the button that
+opened them. The third did not:
+
+| dialog | opening moves focus in | closing returns it |
+|---|---|---|
+| Sign In | yes | yes |
+| Create Account | yes | yes |
+| **Manage Accounts** | yes | **no — `<body>`** |
+
+With Escape and with its own Close button alike. A keyboard user who opens it,
+looks, and closes it is put back at the top of the document and has to tab all
+the way down to where they were. Nothing static can see this: the markup is
+identical either way, and no scan has an opinion about what happens *after* a
+dialog closes.
+
+Radix restores focus to a `DialogTrigger`, and this dialog has none — the button
+that opens it is an ordinary Button next door.
+
+The first fix did not work, and why is the useful part. Focusing the trigger from
+the caller's `onClose` runs while the content is still mounted for its exit
+animation, and the unmount ~300ms later takes focus away again:
+
+```
+ 50ms  active: BUTTON  dialogs: 1
+150ms  active: BUTTON  dialogs: 1
+400ms  active: BODY    dialogs: 0
+```
+
+`onCloseAutoFocus` is the moment Radix itself would have moved focus, which is
+the moment that works: prevent its default and restore there. Both close paths
+now return to the trigger.
+
+The gate asserts it for all three dialogs, and waits for the dialog to be
+*detached* rather than sampling a moment after the keypress — the same animation
+that broke the first fix would have broken the check. Control: removing the
+restore turns `manage-accounts: closing returns focus to what opened it` red with
+`left on BUTTON`.

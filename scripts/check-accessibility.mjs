@@ -294,6 +294,41 @@ async function main() {
       `${Object.keys(EXPECTED_SCOPE).length} expectations for ${screens.length} screens`,
     );
 
+    // Closing a dialog must put focus back where it came from.
+    //
+    // Measured on Manage Accounts: closing with Escape *or* with its Close
+    // button left `document.activeElement` on `<body>`, so a keyboard user was
+    // dropped at the top of the document and had to tab back down to where they
+    // were. The other two dialogs on the same screen restored it. Nothing in a
+    // static scan can see the difference -- the markup is identical either way,
+    // and axe has no opinion about what happens after a dialog closes.
+    for (const [name, testid] of [
+      ['sign-in', 'sign-in-button'],
+      ['create-account', 'create-account-button'],
+      ['manage-accounts', 'manage-accounts-button'],
+    ]) {
+      await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+      await dismissConnectionFailure(page);
+      const trigger = page.getByTestId(testid);
+      await trigger.focus();
+      await trigger.click();
+      await page.locator('[role="dialog"]').first().waitFor({ state: 'visible', timeout: 30_000 });
+      const movedIn = await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'));
+      record(`${name}: opening moves focus into the dialog`, movedIn);
+      await page.keyboard.press('Escape');
+      // The content stays mounted for its exit animation, and focus is restored
+      // when it finally goes -- so this waits for the dialog to be gone rather
+      // than sampling a moment after the keypress.
+      await page.locator('[role="dialog"]').first().waitFor({ state: 'detached', timeout: 30_000 }).catch(() => {});
+      await page.waitForTimeout(400);
+      const returned = await page.evaluate(
+        (id) => document.activeElement?.getAttribute('data-testid') === id,
+        testid,
+      );
+      record(`${name}: closing returns focus to what opened it`, returned,
+        returned ? '' : `left on ${await page.evaluate(() => document.activeElement?.tagName ?? 'nothing')}`);
+    }
+
     let scanned = 0;
     for (const [name, go] of screens) {
       if ((await go()) === UNREACHABLE) continue;
