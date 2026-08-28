@@ -11166,3 +11166,39 @@ bearing in a way it was not before: it is the difference between a user
 restarting their agent and a user filing a bug.
 
 Nine assertions on the agent-down path now, all passing, all discriminating.
+
+## Round 206 — two false alarms, and the trap that caused both
+
+The create-account path is the one a **new** user actually takes: no account, so
+they press Create Account, not Sign In. Round 205 covered sign-in. This round
+walked the other one with the agent down, and twice concluded the app was broken
+when it was not.
+
+**First false alarm.** Pressing Next on the server step appeared to do nothing —
+same inputs, no error, four times over. The wizard had advanced correctly to
+Security Settings; the probe re-filled `#serverAddress` on a step that no longer
+had one, and reported the stale field list it had gathered before.
+
+**Second false alarm.** Pressing Join appeared to do nothing for twelve seconds:
+no alert, no disabled button, no change. The app was showing *"Connection Error
+— Unable to reach the Citadel agent on this machine"* the whole time. The probe
+looked at `[role="alert"]`, and **Sonner sets no `role="alert"` on its toasts**.
+
+That second one is written down in this repository already: a whole suite's
+error detection was once dead for exactly this reason. Having the note did not
+stop me using the wrong selector — which is the honest lesson. A recorded trap
+protects the next person only when something checks; a note is not a check.
+
+So the gate now asserts the create-account path names the agent, addressed
+through `[data-sonner-toast]`, with the reason written at the call site rather
+than in a document nobody re-reads at the moment of writing a selector. The
+wrong selector reports *"the app said nothing"* about an app that said exactly
+the right thing, which is a worse failure than a missing assertion: it
+manufactures a defect.
+
+Both first-run paths are covered and both were already correct. The control —
+replacing the agent sentence in `error-messages.ts` — fails **both** by name,
+which is what proves they are two independent assertions rather than one written
+twice.
+
+Eleven assertions on the agent-down path. Preflight 37.

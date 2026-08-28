@@ -151,6 +151,51 @@ async function main() {
         );
         record('the submit button is not left spinning', !stuck);
       }
+
+      // The path a NEW user actually takes. They have no account, so they press
+      // Create Account, not Sign In -- and the two report failures through
+      // different mechanisms, so covering one says nothing about the other.
+      await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+      // A fresh load brings the retry dialog back -- correctly, it is a new
+      // failure -- and it would swallow the clicks below.
+      await page.waitForSelector('[role="dialog"]', { timeout: 20_000 }).catch(() => {});
+      await page.locator('[role="dialog"] button').first().focus().catch(() => {});
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(1_200);
+      await page.getByTestId('create-account-button').click({ force: true }).catch(() => {});
+      await page.waitForTimeout(1_200);
+      await page.locator('#serverAddress').fill('127.0.0.1:12349').catch(() => {});
+      await page.locator('#password').fill('password123').catch(() => {});
+      await page.locator('button[type="submit"]').first().click({ force: true }).catch(() => {});
+      await page.waitForTimeout(1_200);
+      await page.locator('button').filter({ hasText: /^Next$/ }).last().click({ force: true }).catch(() => {});
+      await page.waitForTimeout(1_500);
+      const profile = await page.locator('#fullName').count();
+      record('the create-account wizard reaches the profile step', profile > 0);
+
+      if (profile > 0) {
+        await page.locator('#fullName').fill('Probe User');
+        await page.locator('#username').fill(`probe${Date.now() % 100000}`);
+        await page.locator('#password').fill('password123');
+        await page.locator('#confirmPassword').fill('password123');
+        await page.locator('button').filter({ hasText: /^Join$/ }).last().click({ force: true });
+
+        // `[data-sonner-toast]`, NOT `[role="alert"]`.
+        //
+        // Sonner sets no `role="alert"` on its toasts, and this repository has
+        // already lost a whole suite's error detection to that assumption once.
+        // Written out here because the wrong selector reports "the app said
+        // nothing" about an app that said exactly the right thing -- which is
+        // what it did during this check's own development, twice.
+        const told = await page
+          .locator('[data-sonner-toast]')
+          .filter({ hasText: /agent/i })
+          .first()
+          .waitFor({ state: 'visible', timeout: 20_000 })
+          .then(() => true)
+          .catch(() => false);
+        record('registering says the agent is the problem', told);
+      }
     }
 
     await context.close();
