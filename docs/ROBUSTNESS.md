@@ -10849,3 +10849,35 @@ this is the sixth that passed its own control on the first attempt, and the only
 reason it is not still passing over nothing is that the control was run at all.
 
 A sweep for the same shape in the other guards found none.
+
+## Round 198 — twenty minutes of CI to find a missing line
+
+The accessibility gate added in round 194 failed in CI:
+
+```
+npm error Missing script: "check:a11y"
+```
+
+Not because the script was missing — it is committed, and the submodule pointer
+is correct. Because the step was added to `validate.yml` **without the
+`working-directory: citadel-workspaces` its four neighbours carry**, so it ran
+from the repo root.
+
+The mistake is easy for a reason worth naming: the directory is a property of
+each STEP in this job, not of the job. A step written fresh, or copied from the
+wrong neighbour, silently inherits the root — and the failure arrives after a
+Docker build, a WASM sync and three browser checks have already run. Twenty
+minutes of CI to discover a missing line that was visible in the diff.
+
+The rule is deliberately precise rather than blanket. Not *"every npm step must
+declare a directory"* — that is false for genuine root scripts, and a rule with
+a false premise gets exemptions bolted on until it means nothing. Instead: **the
+script must exist in the package.json of the directory the step actually runs
+in.** That is checkable without knowing anyone's intent.
+
+Fourteen npm steps, all valid. Controls: removing the `working-directory` I had
+forgotten reports it by line and says which directory it would run in;
+misspelling a script reports the same way from the correct directory.
+
+Preflight is 35 checks. It would have caught this before the push — which is the
+only reason to keep adding to it.
