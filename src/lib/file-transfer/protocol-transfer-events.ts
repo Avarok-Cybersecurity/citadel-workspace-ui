@@ -146,7 +146,7 @@ export async function handleProtocolStatus(
   if (!event.success) {
     await applyTransferOutcome(deps, transfer.id, {
       success: false,
-      errorMessage: event.message ?? 'The internal service rejected the transfer response.',
+      errorMessage: event.message ?? 'The Citadel agent rejected the transfer response.',
     });
     return;
   }

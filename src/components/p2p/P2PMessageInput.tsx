@@ -6,7 +6,8 @@
  */
 
 import React, { forwardRef } from 'react';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { shouldSendOnKey } from '@/components/chat/should-send-on-key';
 import { Button } from '@/components/ui/button';
 import { Send, Paperclip } from 'lucide-react';
 import { MarkdownToolbar } from './MarkdownToolbar';
@@ -31,7 +32,7 @@ interface P2PMessageInputProps {
   onMessageTypeChange: (type: MessageType) => void;
 }
 
-export const P2PMessageInput = forwardRef<HTMLInputElement, P2PMessageInputProps>(
+export const P2PMessageInput = forwardRef<HTMLTextAreaElement, P2PMessageInputProps>(
   function P2PMessageInput(
     {
       inputMessage,
@@ -95,15 +96,28 @@ export const P2PMessageInput = forwardRef<HTMLInputElement, P2PMessageInputProps
             >
               <Paperclip className="h-4 w-4" />
             </Button>
-            <Input
+            {/* A textarea, matching the group composer.
+                This was an <input> inside a form: Enter submitted natively,
+                Shift+Enter could do nothing, and pasted newlines collapsed —
+                so the first time somebody pasted a log excerpt or wrote two
+                paragraphs to a DM, the product flattened it, while the SAME
+                product handled it correctly one screen away. */}
+            <Textarea
               ref={ref}
               value={inputMessage}
               onChange={(e) => onInputChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (shouldSendOnKey(e)) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
               onFocus={onInputFocus}
               onBlur={onInputBlur}
               placeholder={getPlaceholder()}
               disabled={!canSendMessages}
-              className="flex-1 bg-surface border-surface text-foreground placeholder-gray-400 focus:border-primary"
+              rows={1}
+              className="flex-1 resize-none bg-surface border-surface text-foreground placeholder-gray-400 focus:border-primary"
             />
             <Button
               type="submit"

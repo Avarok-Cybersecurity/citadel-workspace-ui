@@ -226,7 +226,7 @@ export const Landing = () => {
               size="lg"
             >
               <LogIn className="w-4 h-4" />
-              Login Workspace
+              Sign In
             </Button>
 
             <Button
@@ -235,7 +235,7 @@ export const Landing = () => {
               className="border-surface text-foreground/80 hover:bg-card hover:text-foreground hover:border-primary-accent/50 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg"
               size="lg"
             >
-              Join Workspace
+              Create Account
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>

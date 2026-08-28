@@ -63,8 +63,12 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
       <div className="w-full max-w-md">
         <Card className="bg-background border-border shadow-2xl shadow-black/40">
           <CardHeader className="pb-4">
-            <StepIndicator currentStep={1} totalSteps={3} labels={["Server", "Security", "Profile"]} />
-            <h2 className="text-xl font-bold text-foreground mt-5">{title || "Join Workspace"}</h2>
+            {/* "Workspace", not "Server": the field below is labelled
+                Workspace Address, and a step indicator that names a different
+                thing from the field it introduces makes the user wonder which
+                one they are being asked for. */}
+            <StepIndicator currentStep={1} totalSteps={3} labels={["Workspace", "Security", "Profile"]} />
+            <h2 className="text-xl font-bold text-foreground mt-5">{title || "Create Account"}</h2>
             <p className="text-sm text-muted-foreground mt-1">
               {defaultServer ? "Connect with a different account" : "Enter workspace details to get started"}
             </p>

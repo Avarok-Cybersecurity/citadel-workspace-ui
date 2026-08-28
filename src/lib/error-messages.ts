@@ -17,7 +17,7 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
     // watches navigator.onLine, and WorkspaceApp suppresses the retry modal
     // while offline so the two never both fire. That left this string handling
     // only the case its advice did not fit.
-    return 'Unable to reach the connection service. It may not be running yet, or may be restarting — try again in a moment.';
+    return 'Unable to reach the Citadel agent on this machine. It may not be running yet, or may be restarting — try again in a moment.';
   }
   
   if (errorMessage.includes('Connection closed before receiving a handshake')) {
@@ -112,13 +112,20 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
     return 'The service is temporarily unavailable. Please try again in a few minutes.';
   }
   
-  // If no specific match, include the actual error text for debugging
-  // Instead of hiding it behind a completely generic message
+  // Unmatched text is passed through, because a generic sentence hides the one
+  // clue anybody has. What it must NOT pass through is protocol vocabulary: the
+  // words below are the transport's, and to a user they read as the app
+  // speaking a language it never taught them.
   const cleanedMessage = errorMessage
     .replace(/Error:\s*/i, '')
     .replace(/^\s+|\s+$/g, '');
-  
-  if (cleanedMessage && cleanedMessage.length < 200) {
+
+  const isProtocolJargon =
+    /\b(ratchet|handshake|ILM|CID|toolset|packet|codec|serde|deserializ|kem|psk)\b/i.test(
+      cleanedMessage,
+    );
+
+  if (cleanedMessage && cleanedMessage.length < 200 && !isProtocolJargon) {
     return `Something went wrong: ${cleanedMessage}`;
   }
   return 'An unexpected error occurred. Please try again or contact support if the problem persists.';

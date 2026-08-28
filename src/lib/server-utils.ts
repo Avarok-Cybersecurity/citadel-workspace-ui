@@ -126,7 +126,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
 export async function storeKnownServer(server: StoredServer, cid: string = "0"): Promise<void> {
   try {
     if (!websocketService.canSendRequests()) {
-      throw new Error('Cannot reach the internal service');
+      throw new Error('Cannot reach the Citadel agent on this machine');
     }
     
     const requestId = crypto.randomUUID();

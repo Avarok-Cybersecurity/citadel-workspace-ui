@@ -227,12 +227,12 @@ export function Login({ onNext, onCancel }: LoginProps) {
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Connecting...
+                    Signing in...
                   </>
                 ) : (
                   <>
                     <LogIn className="h-4 w-4" />
-                    Connect
+                    Sign In
                   </>
                 )}
               </Button>

@@ -191,7 +191,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
                     navigate('/?join=1');
                   }}
                 >
-                  Join Workspace
+                  Create Account
                 </Button>
               </div>
             )}

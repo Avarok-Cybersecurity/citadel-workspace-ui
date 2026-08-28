@@ -42,7 +42,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
   // composer has had this guard since it was written; the P2P one never did, so
   // a second Enter during the send window sent a genuine duplicate.
   const [isSending, setIsSending] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const inputMessageRef = useRef(inputMessage);
 
   const [messageType, setMessageType] = useState<MessageType>('text');

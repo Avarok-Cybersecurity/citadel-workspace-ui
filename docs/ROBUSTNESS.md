@@ -9491,3 +9491,47 @@ its own file, and a contrast assertion kept pointing at the old one — the same
 shape as round 148's ring assertion. It is repointed WITH a positive pair
 (`toMatch(/<Badge/)`), so a future move cannot leave it passing over a file that
 no longer contains the thing.
+
+## Round 162 — the vocabulary pass
+
+A first-hour audit found the product speaking several dialects at once. This is
+the pass, taken together rather than string by string.
+
+**"Connect" meant four things across three screens.** Landing offered "Login
+Workspace" and "Join Workspace" — neither is English, and "Join" meant *create
+an account*, which a reader guesses only after doing it. The login form's submit
+said "Connect". `/connect` is a page that re-attaches saved sessions. "Connect"
+is also the P2P action, and "Connections" a settings tab. Within minutes the
+same verb labelled signing in, restoring a session, and befriending a person.
+
+Now: **Sign In** and **Create Account** on Landing, **Sign In** on the login
+submit, "Connect" reserved for the P2P relationship the rest of the copy already
+leans on. The registration step indicator said "Server" over a field labelled
+"Workspace Address"; it says Workspace.
+
+**Permission denials rendered as compiler output.** `PermissionDenied:
+EditTreeStructure required` — the enum name, in a toast, to somebody who has
+never seen the permission matrix, and it does not say the one thing that helps:
+ask an administrator. The permission *names* also differ from the labels that
+matrix shows, so even a user who had seen the screen could not match the two.
+Each known permission now has a sentence; an unknown one gets a general sentence
+rather than falling through to the variant name — there is a test for that,
+because falling through is exactly what a new permission would do.
+
+**The generic error fallback passed protocol vocabulary through.** `Something
+went wrong: ${raw}` is right — a generic sentence hides the only clue anybody
+has — but it must not forward the transport's words. Text mentioning ratchets,
+handshakes, ILM, CIDs, codecs or serde now takes the generic branch, because to
+a user those read as the app speaking a language it never taught them.
+
+**The daemon had three names in user-visible strings**: "agent", "the connection
+service", "the internal service". One name now.
+
+**And the DM composer was single-line** while group chat's was not — an `<input>`
+inside a form, so Enter submitted natively, Shift+Enter could do nothing, and
+pasted newlines collapsed. The first time somebody pasted a log excerpt or wrote
+two paragraphs to a DM, the product flattened it, while the same product handled
+it correctly one screen away. It is now the group composer's textarea with the
+shared `shouldSendOnKey` grammar. Round 130 deferred this as needing a product
+decision; the decision was made by the other half of the product having already
+made it.
