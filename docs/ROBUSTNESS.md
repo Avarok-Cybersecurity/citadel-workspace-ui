@@ -10951,3 +10951,42 @@ Adding a header to `/` immediately makes three siblings non-compliant — which 
 the property that makes the derivation worth having rather than just tidy.
 
 Preflight is 36 checks.
+
+## Round 201 — three clean bills of health, and the meta-guard
+
+Four investigations this round, three of which found nothing. Recording them
+matters as much as the fix, because "we looked and it was fine" is a different
+statement from "we did not look".
+
+| investigated | result |
+|---|---|
+| per-request listener leaks (`requestResponse`, `requestResponseSoft`) | both clean up on all four paths: success, failure, timeout, send-error |
+| `eventEmitter.on` with no `off` — 52 sites | all lifetime bindings by singletons, not per-operation subscriptions. The one real instance of that class was round 169's, and it is fixed |
+| loading flags with no deadline — 8 candidates | every one has a `finally`. The sweep's window was simply too small |
+
+### The one that found something
+
+Every gate this campaign has written is a `check-*.mjs`, and round 170 recorded
+what happens when one is not connected to anything:
+`check-submodule-pointers-pushed.mjs` was written, was correct, named the
+offending pointer and the order to push in — and had never run once. A CI run of
+73 jobs died in checkout for exactly the condition it detects, while the detector
+sat in the same directory.
+
+Writing the guard is the hard part and it was already done. Connecting it is the
+cheap part, and it was the missing one, because **a gate that runs nowhere looks
+identical to a gate that passes.**
+
+`check-every-gate-is-invoked.mjs` requires every gate to be named by
+`validate.yml`, by `preflight.mjs`, or by a `package.json` script — the three
+places from which a gate can actually fire. It found one orphan on its first
+run: **itself**. Wired, it reports 41 gates all invoked, and hiding any one of
+them from every caller names it.
+
+Two gates are legitimately outside CI and pass without an exemption clause,
+which is the test of whether the rule is drawn in the right place:
+`check-submodule-pointers-pushed` runs in preflight because by the time CI runs
+it is already too late, and `check-stack-reachable` is a package.json script
+because it needs a stack that is already up.
+
+Preflight is 37 checks.
