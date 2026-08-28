@@ -9289,3 +9289,34 @@ session was adopted, which is the same defect in a smaller place.
 
 Control: re-forking any site fails the guard by name, on both the direct claim
 and the re-implemented "not orphaned" substring.
+
+## Round 157 — a colleague's save made the document refuse to render
+
+A boundary audit of Rust↔TypeScript found the intersection of two earlier rounds,
+which neither of them exercised.
+
+Round 124 built the MDX integrity check: before a document is executed, its
+SHA-256 is compared against the hash the server recorded, and a mismatch refuses
+to render. Round 123/125 built the content broadcast: a save fans
+`NodeContentUpdated` to everyone with the document open, so watchers stop seeing
+the copy they loaded.
+
+`NodeContentUpdated` carried no hash. The watcher merged the new content over
+its cached node and kept the OLD hash — which is exactly the shape the verifier
+treats as tampering. So every non-editing member watching a document got the
+refusal path instead of the update, and went on getting it until they navigated
+away and back. **Ordinary collaborative editing was the trigger**, and each
+round is correct on its own.
+
+The hash now travels with the content, end to end: added to the Rust variant,
+sent from the same `node` the write just produced, carried through the response
+handler and the event payload, and merged onto the node. It is `Option<String>`
+so an older server degrades to "unhashed" rather than "mismatch" — refusing
+content because the server predates the field would be the same defect wearing
+the fix's clothes, and there is a test for that case specifically.
+
+Two smaller things fell out of the same edit. The response handler destructured
+`timestamp` as the `bigint` ts-rs declares; the wire is JSON with no reviver, so
+it arrives as a number — now coerced rather than cast, so the value matches its
+type either way. And the tests use Node's real `webcrypto` rather than a stub,
+so the digest under test is the one the browser computes.

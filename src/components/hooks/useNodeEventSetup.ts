@@ -86,7 +86,7 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
       // member except the editor, so without this the rest of the workspace kept
       // rendering the copy they loaded — a document could be edited and nobody
       // watching it would see the change until they navigated away and back.
-      await workspaceEvents.onNodeEvent('node:content-updated', (payload: { nodeId: string; mdxContent: string; updatedBy: string; timestamp: number; connection: ConnectionInfo }) => {
+      await workspaceEvents.onNodeEvent('node:content-updated', (payload: { nodeId: string; mdxContent: string; mdxContentHash?: string; updatedBy: string; timestamp: number; connection: ConnectionInfo }) => {
         setState(prev => {
           const node = prev.nodes[payload.nodeId];
           // Not a node this client knows about; nothing to refresh.
@@ -95,7 +95,17 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
             ...prev,
             nodes: {
               ...prev.nodes,
-              [payload.nodeId]: { ...node, mdx_content: payload.mdxContent },
+              // The hash travels WITH the content. Merging new content over
+              // the cached node while keeping its old hash made the integrity
+              // check refuse a document that had merely been edited by a
+              // colleague — and go on refusing until the reader navigated away
+              // and back. The verifier and this broadcast were built two rounds
+              // apart, and ordinary collaborative editing was the trigger.
+              [payload.nodeId]: {
+                ...node,
+                mdx_content: payload.mdxContent,
+                mdx_content_hash: payload.mdxContentHash ?? null,
+              },
             },
           };
         });

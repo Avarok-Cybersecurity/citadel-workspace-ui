@@ -100,7 +100,21 @@ export interface WorkspaceEventMap {
   'node:loaded': { node: DomainNode; connection: ConnectionInfo };
   'node:deleted': { nodeId: string; childrenDeleted: string[]; connection: ConnectionInfo };
   'node:moved': { nodeId: string; oldParentId: string | null; newParentId: string | null; connection: ConnectionInfo };
-  'node:content-updated': { nodeId: string; mdxContent: string; updatedBy: string; timestamp: number; connection: ConnectionInfo };
+  'node:content-updated': {
+    nodeId: string;
+    mdxContent: string;
+    /**
+     * The new content's hash, so a watcher verifies what it just received.
+     *
+     * Absent when the server predates the field, which reads as "unhashed"
+     * rather than "mismatch" — refusing content because the server is older
+     * would be the same defect the hash exists to prevent.
+     */
+    mdxContentHash?: string;
+    updatedBy: string;
+    timestamp: number;
+    connection: ConnectionInfo;
+  };
   'nodes:loading': ConnectionInfo;
   'nodes:loaded': { nodes: DomainNode[]; connection: ConnectionInfo };
   'tree:structure:loaded': { root: TreeNode; connection: ConnectionInfo };

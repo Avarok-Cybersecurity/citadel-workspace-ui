@@ -82,15 +82,20 @@ export function handleNodeVariants(
   // the version they loaded until they navigated away and back. The one response
   // variant of 25 with no handler on this side.
   if (isVariant(response, 'NodeContentUpdated')) {
-    const { node_id, mdx_content, updated_by, timestamp } = response.NodeContentUpdated;
+    const { node_id, mdx_content, mdx_content_hash, updated_by, timestamp } =
+      response.NodeContentUpdated;
     debugLog('WorkspaceResponseHandler', 'NodeContentUpdated response received', {
       node_id, updated_by, length: mdx_content.length,
     });
     eventEmitter.emit('node:content-updated', {
       nodeId: node_id,
       mdxContent: mdx_content,
+      mdxContentHash: mdx_content_hash ?? undefined,
       updatedBy: updated_by,
-      timestamp,
+      // ts-rs declares this bigint; the wire is JSON with no reviver, so it
+      // arrives as a number. Coerced rather than cast, so the value is what the
+      // type says either way.
+      timestamp: Number(timestamp),
       connection: connectionInfo,
     });
     eventEmitter.emit('workspace:raw-response', response);
