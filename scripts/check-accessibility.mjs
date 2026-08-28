@@ -151,6 +151,39 @@ async function main() {
       // screen-reader user then hears "invalid entry" with no idea what is
       // wrong. So the association is asserted directly, on the one surface that
       // has an error in it, rather than left to a scan that cannot see it.
+      // Two controls with the same accessible name, in the same view.
+      //
+      // axe does not report it: each button HAS a name, which is all
+      // `button-name` asks. But the create-account form had two toggles both
+      // called "Show password", one per password field, and a screen-reader
+      // user tabbing through hears the same name twice with nothing to say
+      // which field they are on. WCAG 4.1.2 wants the name to identify the
+      // control, and an action alone does not when the action repeats.
+      const duplicates = await page.evaluate(() => {
+        const scope = document.querySelector('[role="dialog"]') ?? document.body;
+        const names = [...scope.querySelectorAll('button')]
+          .filter((b) => b.offsetParent !== null)
+          // Buttons only, by ROLE. A `<button role="tab">` named "Connections"
+          // beside a `<button role="combobox">` whose VALUE is "Connections"
+          // is not a collision: a screen reader says "Connections, tab" and
+          // "Connections, combobox", and the roles tell them apart. That pair
+          // was the rule's first output and it was a false positive, which is
+          // worth more than a green run -- a check that cries wolf gets muted.
+          //
+          // The combobox also shows why `textContent` is not a name in general:
+          // on a Radix select trigger it is the current VALUE. Restricting to
+          // plain buttons keeps the extraction honest.
+          .filter((b) => !b.hasAttribute('role') || b.getAttribute('role') === 'button')
+          .map((b) => (b.getAttribute('aria-label') || b.textContent || '').trim())
+          .filter((n) => n.length > 0);
+        return [...new Set(names.filter((n, i) => names.indexOf(n) !== i))];
+      });
+      record(
+        `${name}: no two controls share a name`,
+        duplicates.length === 0,
+        duplicates.join('; '),
+      );
+
       if (name.includes('validation error')) {
         const association = await page.evaluate(() => {
           const field = document.querySelector('[aria-invalid="true"]');

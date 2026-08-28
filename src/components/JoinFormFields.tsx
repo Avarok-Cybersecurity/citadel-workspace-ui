@@ -75,7 +75,18 @@ function FormField({ id, name, label, value, onChange, placeholder, type, icon: 
             // The name says what the control is; aria-pressed below says whether it
                   // is on. Flipping both made them contradict -- "Hide password,
                   // pressed" announces as hidden while the password is on screen.
-                  aria-label="Show password"
+                  // The FIELD is in the name; the action is not flipped.
+                  //
+                  // This form has two password fields, so two buttons both
+                  // called "Show password" sat in the tab order with nothing to
+                  // tell them apart -- a screen-reader user hears the same name
+                  // twice and has to guess which one they are on.
+                  //
+                  // "Show" stays "Show" whatever the state, for the reason
+                  // above: `aria-pressed` carries the state, and flipping the
+                  // verb as well made the two contradict -- "Hide password,
+                  // pressed" announces as hidden while the password is visible.
+                  aria-label={`Show ${label.toLowerCase()}`}
             aria-pressed={showPassword}
             className="tap-target absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground/80 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >

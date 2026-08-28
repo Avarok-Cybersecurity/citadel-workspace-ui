@@ -11410,3 +11410,49 @@ the same as adding a check.** A scan asserts what the scanner knows how to look
 for, and that set is narrower than "this screen is accessible". The three
 surfaces are still worth having — round 208's defect was exactly the kind axe
 does catch — but the property I actually cared about needed asserting by hand.
+
+## Round 212 — two buttons with the same name, and a rule that cried wolf once
+
+Keyboard traversal of the create-account wizard: eight controls, all reachable,
+focus correctly trapped in the dialog. No defect — but the traversal showed two
+buttons announcing themselves identically:
+
+```
+BUTTON:Show password
+BUTTON:Show password
+```
+
+One per password field. A screen-reader user tabbing through hears the same
+name twice, with nothing to say which field they are on. axe does not report it:
+each button HAS a name, which is all `button-name` asks. WCAG 4.1.2 wants the
+name to identify the control, and an action alone does not when the action
+repeats.
+
+The name now carries the field — *"Show profile password"*, *"Show confirm
+profile password"* — derived from the visible label, which is also what WCAG
+2.5.3 prefers.
+
+**The verb deliberately does not flip.** A comment on that button records why:
+`aria-pressed` carries the state, and flipping the name as well made the two
+contradict — *"Hide password, pressed"* announces as hidden while the password
+is on screen. My first edit reintroduced exactly that, and the comment is the
+only reason it was caught. A note beside the code is worth more than a note in a
+document.
+
+### The rule's first output was a false positive
+
+Comparing every button name in a view flagged Settings → Privacy and Perms with
+`Connections`: a `<button role="tab">` named "Connections" beside a
+`<button role="combobox">` whose current VALUE is "Connections". A screen reader
+says "Connections, tab" and "Connections, combobox" — the roles tell them apart,
+and there is nothing to fix.
+
+It also exposed that `textContent` is not an accessible name in general: on a
+Radix select trigger it is the value. The rule compares plain buttons only now.
+
+Fixing that mattered more than the green run it produced. **A check that cries
+wolf gets muted**, and a rule shipped with a known false positive teaches people
+that its output is advisory — which is how a real finding gets skimmed past
+later.
+
+Putting the shared name back fails two surfaces by name.
