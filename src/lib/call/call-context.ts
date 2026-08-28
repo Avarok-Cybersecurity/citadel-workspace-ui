@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react';
 import type { CallState } from './call-state';
 import type { CaptureFailure } from './media-capture';
 import type { CallMediaKinds } from '@/types/p2p-commands';
+import type { VideoQuality } from './video-quality';
 import type { ConnectionQuality } from '@/components/call/ParticipantTile';
 
 export interface CallContextValue {
@@ -43,6 +44,9 @@ export interface CallContextValue {
   canShareScreen: boolean;
   /** Send one drawn point to the other participants. */
   annotate: (stroke: { strokeId: string; point: { x: number; y: number } }) => void;
+  /** The chosen quality ceiling for outgoing video; see lib/call/video-quality. */
+  videoQuality: VideoQuality;
+  setVideoQuality: (quality: VideoQuality) => void;
 }
 
 /**
@@ -71,6 +75,8 @@ export const CallContext = createContext<CallContextValue>({
   toggleScreenShare: async () => {},
   canShareScreen: false,
   annotate: () => {},
+  videoQuality: 'auto',
+  setVideoQuality: () => {},
 });
 
 export function useCall(): CallContextValue {

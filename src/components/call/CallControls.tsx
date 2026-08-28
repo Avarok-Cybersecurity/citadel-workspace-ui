@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff, MonitorUp, MonitorX, PhoneOff, Video, VideoOff } from 'lucide-react';
+import { Gauge, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, Video, VideoOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CallMediaKinds } from '@/types/p2p-commands';
 import { useCallDuration } from './use-call-duration';
@@ -20,6 +20,8 @@ interface CallControlsProps {
    * know why their share went nowhere.
    */
   canShareScreen?: boolean;
+  /** Opens the video-quality settings. Absent hides the control. */
+  onOpenVideoSettings?: () => void;
   onLeave: () => void;
   /** Shown beside the controls; hidden below sm where space is scarce. */
   /**
@@ -47,6 +49,7 @@ export function CallControls({
   onToggleCamera,
   onToggleScreenShare,
   canShareScreen = false,
+  onOpenVideoSettings,
   onLeave,
   running,
 }: CallControlsProps) {
@@ -86,6 +89,20 @@ export function CallControls({
           // like an alert rather than like a preference.
           activeTone="sharing"
         />
+      )}
+
+      {onOpenVideoSettings && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onOpenVideoSettings}
+          data-testid="call-video-settings"
+          aria-label="Video quality"
+          title="Video quality"
+          className="tap-target h-10 w-10 rounded-full bg-surface text-foreground hover:bg-surface/80"
+        >
+          <Gauge className="h-4 w-4" aria-hidden="true" />
+        </Button>
       )}
 
       <span

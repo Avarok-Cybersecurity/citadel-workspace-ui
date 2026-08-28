@@ -12,13 +12,13 @@ import type { CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
 import { useInboundMedia } from './use-inbound-media';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
 import { eventEmitter } from '@/lib/event-emitter';
-import { debugLog } from '@/lib/debug-config';
 import { callPeerName } from '@/lib/call/peer-name';
 import { toast } from 'sonner';
 import { useCallCapability } from './use-call-capability';
 import { callBusyReason } from '@/lib/call/call-busy';
-import { canShareScreen } from '@/lib/call/capture-pump';
 import { CAMERA_UNAVAILABLE, MIC_UNAVAILABLE, SCREEN_SHARE_STOPPED } from './media-unavailable';
+import { useLiveVideoQuality } from './use-live-video-quality';
+import { buildCallContext } from './build-call-context';
 
 interface CallProviderProps {
   selfCid: bigint | null;
@@ -187,8 +187,10 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     setCall(null);
   }, [teardown, managerRef, setCall]);
 
-  // Every one of these is a state the UI would otherwise report as success:
-  // see media-unavailable for what each of them is about.
+  const { videoQuality, setVideoQuality } = useLiveVideoQuality(sessionRef, call?.callId);
+
+  // Each message below is a state the UI would otherwise report as a success;
+  // see media-unavailable.
   const { toggleMic, toggleCamera, toggleScreenShare } = useCallMediaToggles(
     managerRef,
     sessionRef,
@@ -217,34 +219,30 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     return () => window.clearInterval(id);
   }, [call, sessionRef]);
 
-  const value: CallContextValue = useMemo<CallContextValue>(() => {
-    debugLog('Call', 'context updated', { status: call?.status, streamsVersion });
-    return {
-      call,
-      localStream: sessionRef.current?.getLocalStream() ?? null,
-      remoteStreams: sessionRef.current?.getRemoteStreams() ?? new Map(),
-      remoteAudioStreams: sessionRef.current?.getRemoteAudioStreams() ?? new Map(),
-      remoteScreenStreams: sessionRef.current?.getRemoteScreenStreams() ?? new Map(),
-      screenStream: sessionRef.current?.getScreenStream() ?? null,
-      qualities,
-      captureFailure,
-      capability,
-      startCall,
-      accept,
-      decline,
-      leave,
-      toggleMic,
-      toggleCamera,
-      toggleScreenShare,
-      canShareScreen: canShareScreen(),
-      // The CID, not a display name: the name is a per-surface label ("You"),
-      // so every viewer would see every stroke in one colour, their own.
-      annotate: ({ strokeId, point }) =>
-        managerRef.current?.annotate(selfCid?.toString() ?? 'me', strokeId, point),
-    };
-    // streamsVersion is a dependency on purpose: streams live on a ref, so this
-    // counter is the only thing that tells React they changed.
-  }, [call, streamsVersion, qualities, captureFailure, capability, startCall, accept, decline, leave, toggleMic, toggleCamera, toggleScreenShare, sessionRef, managerRef, selfCid]);
+  const value: CallContextValue = useMemo<CallContextValue>(
+    () =>
+      buildCallContext({
+        call,
+        session: sessionRef.current,
+        qualities,
+        captureFailure,
+        capability,
+        actions: { startCall, accept, decline, leave, toggleMic, toggleCamera, toggleScreenShare },
+        videoQuality,
+        setVideoQuality,
+        annotate: ({ strokeId, point }) =>
+          managerRef.current?.annotate(selfCid?.toString() ?? 'me', strokeId, point),
+      }),
+    // streamsVersion is a dependency ON PURPOSE, and the rule is wrong about it.
+    //
+    // The streams live on a ref, which the exhaustive-deps rule cannot see
+    // through, so this counter is the only thing that tells React they changed.
+    // Removing it -- which is what the rule asks for -- leaves every tile
+    // holding the stream it had when the call started.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [call, streamsVersion, qualities, captureFailure, capability, startCall, accept, decline, leave,
+      toggleMic, toggleCamera, toggleScreenShare, sessionRef, managerRef, selfCid, videoQuality, setVideoQuality],
+  );
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;
 }

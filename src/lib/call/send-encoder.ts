@@ -10,6 +10,7 @@
  */
 
 import { CALL_TRACK_SCREEN } from '@/types/p2p-commands';
+import { allowsAdaptation, cameraProfileFor, screenProfileFor, type VideoQuality } from './video-quality';
 import {
   createAudioEncoder,
   createVideoEncoder,
@@ -33,6 +34,8 @@ export class SendEncoder {
   private audioEncoder: AudioEncoderHandle | null = null;
   /** Built on the first shared-screen frame; see encodeScreen. */
   private screenEncoder: VideoEncoderHandle | null = null;
+  /** The ceiling this person asked for; see lib/call/video-quality. */
+  private quality: VideoQuality = 'auto';
   private congestion: CongestionState = INITIAL_CONGESTION;
   private codec: VideoCodec | null = null;
   /** Our encode capabilities, probed once at start and reused to renegotiate. */
@@ -71,6 +74,26 @@ export class SendEncoder {
     return true;
   }
 
+  /**
+   * Change the quality ceiling mid-call.
+   *
+   * Both encoders are dropped rather than reconfigured: `VideoEncoder.configure`
+   * mid-stream is allowed but the decoders on the far side are configured for
+   * what they were sent, and a resolution change without a keyframe is a
+   * corrupt picture until the next one. A rebuilt encoder starts with a
+   * keyframe, which is exactly the recovery this needs.
+   */
+  setQuality(quality: VideoQuality): void {
+    if (quality === this.quality) return;
+    this.quality = quality;
+    this.videoEncoder?.close();
+    this.videoEncoder = null;
+    this.screenEncoder?.close();
+    this.screenEncoder = null;
+  }
+
+  getQuality(): VideoQuality { return this.quality; }
+
   encodeVideo(frame: VideoFrame, isKeyframe: boolean): void {
     if (!this.codec) {
       frame.close();
@@ -89,6 +112,8 @@ export class SendEncoder {
         // Drop the handle so the next frame rebuilds, as the decoder does: a
         // closed codec makes encode() throw out of the capture pump, killing it.
         (error) => { debugLog('Call', 'video encode error', error); this.videoEncoder = null; },
+        undefined,
+        cameraProfileFor(this.quality),
       );
     }
 
@@ -129,6 +154,7 @@ export class SendEncoder {
         this.onFrame,
         (error) => { debugLog('Call', 'screen encode error', error); this.screenEncoder = null; },
         { track: CALL_TRACK_SCREEN },
+        screenProfileFor(this.quality),
       );
     }
     void isKeyframe;
@@ -164,6 +190,14 @@ export class SendEncoder {
    * five ladder rungs were unreachable. The adaptation existed and never ran.
    */
   applyQualityReport(verdict: LinkVerdict): void {
+    // Only while the person has left the ceiling to us.
+    //
+    // Somebody who picked "High detail" picked it; having the ladder quietly
+    // step off it makes the setting a suggestion, which is the worst kind of
+    // control because it looks like it did something. The congestion state is
+    // still tracked -- it drives frame dropping, which is about latency rather
+    // than picture -- but it no longer reconfigures away from a chosen profile.
+    if (!allowsAdaptation(this.quality)) return;
     this.congestion = applyReport(this.congestion, verdict);
   }
 

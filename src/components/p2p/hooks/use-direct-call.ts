@@ -1,4 +1,5 @@
 import { useCall } from '@/lib/call/call-context';
+import type { VideoQuality } from '@/lib/call/video-quality';
 import type { CallState } from '@/lib/call/call-state';
 import type { ConnectionQuality } from '@/components/call/ParticipantTile';
 
@@ -22,6 +23,8 @@ export interface DirectCallBinding {
   toggleScreenShare: () => void;
   canShareScreen: boolean;
   annotate: (stroke: { strokeId: string; point: { x: number; y: number } }) => void;
+  videoQuality: VideoQuality;
+  setVideoQuality: (quality: VideoQuality) => void;
 }
 
 /**
@@ -48,6 +51,8 @@ export function useDirectCall(peerCid: bigint, peerName: string): DirectCallBind
     toggleScreenShare,
     canShareScreen,
     annotate,
+    videoQuality,
+    setVideoQuality,
   } = useCall();
 
   // roomId must be null: a GROUP call that happens to include this peer belongs
@@ -81,5 +86,7 @@ export function useDirectCall(peerCid: bigint, peerName: string): DirectCallBind
     toggleScreenShare: () => void toggleScreenShare(),
     canShareScreen,
     annotate,
+    videoQuality,
+    setVideoQuality,
   };
 }

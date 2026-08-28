@@ -69,12 +69,22 @@ export function createVideoEncoder(
    * smaller version of the same thing, it is nothing.
    */
   screen?: { track: number },
+  /**
+   * The person's chosen ceiling, overriding the default for this stream.
+   *
+   * Passed in rather than read here: this module encodes, and which profile a
+   * user asked for is a decision that belongs with the decision-maker. Absent
+   * means the built-in profile, which is what every existing caller gets.
+   */
+  profileOverride?: VideoProfile,
 ): VideoEncoderHandle {
-  const profile: VideoProfile = screen
-    ? VIDEO_PROFILE_SCREEN
-    : thumbnail
-      ? VIDEO_PROFILE_THUMBNAIL
-      : VIDEO_PROFILE_MAIN;
+  const profile: VideoProfile =
+    profileOverride ??
+    (screen
+      ? VIDEO_PROFILE_SCREEN
+      : thumbnail
+        ? VIDEO_PROFILE_THUMBNAIL
+        : VIDEO_PROFILE_MAIN);
   const hardwareAcceleration: HardwareAcceleration = hardware ? 'prefer-hardware' : 'no-preference';
   let lastKeyframeAt: number = -Infinity;
   let forceKeyframe = true;

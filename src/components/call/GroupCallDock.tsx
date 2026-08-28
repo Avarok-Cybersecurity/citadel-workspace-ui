@@ -23,6 +23,8 @@ export function GroupCallDock({ roomId }: { roomId: string }) {
     toggleScreenShare,
     canShareScreen,
     annotate,
+    videoQuality,
+    setVideoQuality,
     leave,
   } = useCall();
 
@@ -50,6 +52,8 @@ export function GroupCallDock({ roomId }: { roomId: string }) {
       onToggleScreenShare={() => void toggleScreenShare()}
       canShareScreen={canShareScreen}
       onAnnotate={annotate}
+      videoQuality={videoQuality}
+      onVideoQualityChange={setVideoQuality}
       onLeave={() => void leave()}
     />
   );

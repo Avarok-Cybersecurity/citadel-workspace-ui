@@ -15,6 +15,7 @@ import type { WireFrame } from './frame-codec';
 import type { CallMediaKinds } from '@/types/p2p-commands';
 import { CapturePump } from './capture-pump';
 import { ScreenShare } from './screen-share';
+import type { VideoQuality } from './video-quality';
 import { startLocalCapture } from './session-start';
 import type { ConnectionQuality } from '@/components/call/ParticipantTile';
 
@@ -66,23 +67,12 @@ export class CallSession {
     });
   }
 
-  getLocalStream(): MediaStream | null {
-    return this.localStream;
-  }
-
-  getRemoteStreams(): Map<bigint, MediaStream> {
-    return this.receivers.videoStreams();
-  }
-
-  /** Remote audio, which the UI must attach to an element or nobody hears it. */
+  getLocalStream(): MediaStream | null { return this.localStream; }
+  getRemoteStreams(): Map<bigint, MediaStream> { return this.receivers.videoStreams(); }
   /** Every peer currently sharing a screen, by CID. */
-  getRemoteScreenStreams(): Map<bigint, MediaStream> {
-    return this.receivers.screenStreams();
-  }
-
-  getRemoteAudioStreams(): Map<bigint, MediaStream> {
-    return this.receivers.audioStreams();
-  }
+  getRemoteScreenStreams(): Map<bigint, MediaStream> { return this.receivers.screenStreams(); }
+  /** Remote audio, which the UI must attach to an element or nobody hears it. */
+  getRemoteAudioStreams(): Map<bigint, MediaStream> { return this.receivers.audioStreams(); }
 
   /**
    * Acquire the microphone and camera and start encoding.
@@ -139,6 +129,9 @@ export class CallSession {
 
   /** The codec chosen for this call, once video is running. */
   getCodec(): VideoCodec | null { return this.sender.getCodec(); }
+  /** The quality ceiling this person chose; see lib/call/video-quality. */
+  setVideoQuality(quality: VideoQuality): void { this.sender.setQuality(quality); }
+  getVideoQuality(): VideoQuality { return this.sender.getQuality(); }
 
   /** See SendEncoder.renegotiate — true means the caller must announce the change. */
   renegotiateSendCodec(

@@ -12865,3 +12865,54 @@ copy for controls that cannot do what they say (`media-unavailable.ts`).
 Every new file is fully typed, because round 240's gate requires it of a file
 that had no violations — and it caught this feature four times while it was being
 written.
+
+## Round 244 — video quality, chosen by the person paying for the bandwidth
+
+A call that stutters is worse than a call that looks soft, and only the person
+on it knows which they are living with: hotel wifi, a phone tethering, a metered
+connection where the bill is the constraint. The encoder already backed off
+under measured congestion, but that is a reaction to trouble already happening.
+This is the ceiling somebody sets before it does.
+
+Four levels, in a modal reached from a control on the call bar:
+
+| | camera | screen | roughly |
+|---|---|---|---|
+| Automatic | 1280×720 @30 | 1920×1080 @8 | up to 1.2 Mbps |
+| High detail | 1280×720 @30 | 1920×1080 @8 | ~1.2 Mbps |
+| Balanced | 854×480 @24 | 1920×1080 @5 | ~600 kbps |
+| Data saver | 640×360 @15 | 1280×720 @3 | ~250 kbps |
+
+Two decisions worth stating:
+
+**A screen gives up frame rate before resolution.** Unreadable text is not a
+smaller version of readable text, it is nothing — so the first step down keeps
+every pixel and halves the rate, and only the last step reduces the picture. A
+face degrades the other way round.
+
+**Choosing a level stops the app moving off it.** `applyQualityReport` now
+returns early unless the person left it on Automatic. An app that quietly steps
+off a chosen setting makes it a suggestion, which is the worst kind of control
+because it looks like it did something. Congestion is still tracked — it drives
+frame *dropping*, which is about latency rather than picture — but it no longer
+reconfigures away from a chosen profile.
+
+Changing it mid-call drops both encoders rather than reconfiguring them: the far
+side's decoders are configured for what they were sent, and a resolution change
+without a keyframe is a corrupt picture until the next one arrives. A rebuilt
+encoder opens with a keyframe, which is exactly the recovery this needs.
+
+The preference is remembered, because the reason for it rarely changes between
+calls, and it is re-applied when a new session appears — the case people actually
+hit is turning the quality down *because the last call was rough* and then
+starting another.
+
+Nine assertions on the model, four on the modal, three controls: a level that
+costs the same as the one above it, a ladder that overrides a chosen level, and
+a radiogroup where nothing is marked as chosen. Each turns one of them red.
+
+The modal is a radiogroup with the cost written next to every option. Four
+adjectives with the numbers hidden behind a dropdown is a list nobody can choose
+from, and there is no Save: the effect is visible in the call within a second,
+and a modal that makes somebody commit before they can see what they chose is a
+modal that gets cancelled.

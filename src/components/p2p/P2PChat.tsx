@@ -188,6 +188,8 @@ export function P2PChat({
           onToggleScreenShare={callBinding.toggleScreenShare}
           canShareScreen={callBinding.canShareScreen}
           onAnnotate={callBinding.annotate}
+          videoQuality={callBinding.videoQuality}
+          onVideoQualityChange={callBinding.setVideoQuality}
           onLeave={callBinding.leave}
         />
       )}

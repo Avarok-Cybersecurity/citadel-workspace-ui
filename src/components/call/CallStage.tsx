@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ParticipantTile, type ConnectionQuality } from './ParticipantTile';
 import { CallControls } from './CallControls';
@@ -7,6 +7,8 @@ import { registerCallStage } from './call-stage-presence';
 import { ScreenShareView } from './ScreenShareView';
 import { useAnnotations } from './use-annotations';
 import { useStageShare } from './use-stage-share';
+import { VideoSettingsModal } from './VideoSettingsModal';
+import type { VideoQuality } from '@/lib/call/video-quality';
 import { callLabel, ConnectingBanner, ErrorPanel, OutgoingCallPanel } from './CallStagePanels';
 
 interface CallStageProps {
@@ -23,6 +25,9 @@ interface CallStageProps {
   canShareScreen?: boolean;
   /** Sends one drawn point to the other participants. */
   onAnnotate?: (stroke: { strokeId: string; point: { x: number; y: number } }) => void;
+  /** The chosen quality ceiling, and how to change it. Absent hides the control. */
+  videoQuality?: VideoQuality;
+  onVideoQualityChange?: (quality: VideoQuality) => void;
   /** Remote audio per peer; each tile owns playing its participant's sound. */
   qualities?: Map<bigint, ConnectionQuality>;
   onToggleMic: () => void;
@@ -52,8 +57,11 @@ export function CallStage({
   onToggleScreenShare,
   canShareScreen = false,
   onAnnotate,
+  videoQuality,
+  onVideoQualityChange,
   onLeave,
 }: CallStageProps) {
+  const [videoSettingsOpen, setVideoSettingsOpen] = useState<boolean>(false);
   // Tells OngoingCallBar to stand down: the call's own surface is on screen, so
   // the user can already see and end the call from here.
   useEffect(() => registerCallStage(), []);
@@ -162,10 +170,20 @@ export function CallStage({
           // while it lasts -- with the exception of stopping a share of its
           // own, which must always be possible.
           canShareScreen={canShareScreen && !someoneElseIsSharing}
+          onOpenVideoSettings={onVideoQualityChange ? (): void => setVideoSettingsOpen(true) : undefined}
           onLeave={onLeave}
           running={call.status === 'active'}
         />
       </div>
+
+      {onVideoQualityChange && (
+        <VideoSettingsModal
+          open={videoSettingsOpen}
+          onOpenChange={setVideoSettingsOpen}
+          quality={videoQuality ?? 'auto'}
+          onQualityChange={onVideoQualityChange}
+        />
+      )}
     </section>
   );
 }
