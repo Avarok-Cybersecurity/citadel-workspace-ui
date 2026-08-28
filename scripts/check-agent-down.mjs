@@ -85,6 +85,12 @@ async function main() {
   }
 
   const browser = await chromium.launch();
+  // Everything below records into `results`, and a throw part-way used to lose
+  // all of it: the run died with a Playwright stack trace and printed no table,
+  // so a genuine failure recorded three assertions earlier was invisible. The
+  // control for round 203 did exactly that -- it detected the defect and then
+  // crashed on a later step, reporting neither.
+  let crashed = null;
   try {
     const context = await browser.newContext({ viewport: { width: 375, height: 667 } });
     const page = await context.newPage();
@@ -136,8 +142,12 @@ async function main() {
 
       await page.locator('[role="dialog"] button').first().focus();
       await page.keyboard.press('Escape');
-      // Long enough to outlast several retry cycles: the defect this covers
-      // reopened the dialog within a second or two, for ever.
+      // An OBSERVATION WINDOW, not a settle. You cannot wait for something not
+      // to happen, so the only way to assert "it stays dismissed" is to watch
+      // for a while and see. Eight seconds outlasts several retry cycles; the
+      // defect this covers reopened the dialog within a second or two, for
+      // ever. Every other pause in this file was a sleep standing in for a
+      // condition and has been replaced; this one is the measurement.
       await page.waitForTimeout(8_000);
       const reopened = await page.evaluate(() => document.querySelectorAll('[role="dialog"]').length);
       record('dismissing it makes it stay dismissed', reopened === 0, `${reopened} dialog(s) after 8s`);
@@ -147,12 +157,14 @@ async function main() {
       );
       record('the banner still explains the state afterwards', stillExplained);
 
-      await page.getByTestId('sign-in-button').click({ force: true }).catch(() => {});
-      await page.waitForTimeout(1_500);
-      const form = await page.locator('#username').count();
-      record('the app is still usable — sign-in is reachable', form > 0);
+      await page.getByTestId('sign-in-button').click({ force: true });
+      const form = await page.locator('#username')
+        .waitFor({ state: 'visible', timeout: 20_000 })
+        .then(() => true)
+        .catch(() => false);
+      record('the app is still usable — sign-in is reachable', form);
 
-      if (form > 0) {
+      if (form) {
         // Reaching the form is not the same as being told why it cannot work.
         // A submit that hangs on a spinner, or fails with a protocol string,
         // is the state this whole path exists to avoid.
@@ -177,25 +189,43 @@ async function main() {
       // The path a NEW user actually takes. They have no account, so they press
       // Create Account, not Sign In -- and the two report failures through
       // different mechanisms, so covering one says nothing about the other.
+      // Waits, not sleeps -- and no `.catch(() => {})` between the steps.
+      //
+      // This block was a chain of fixed 1200ms pauses with every click's
+      // failure swallowed. The sibling accessibility gate had the same shape
+      // and timed out in CI on a slower machine (round 218), reporting the
+      // failure against a surface two steps past where it actually went wrong.
+      // Swallowing is the worse half: a selector that stops matching reads as
+      // "the app never reached the profile step", which is a defect report
+      // about the product for a fault in the check.
       await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
       // A fresh load brings the retry dialog back -- correctly, it is a new
       // failure -- and it would swallow the clicks below.
-      await page.waitForSelector('[role="dialog"]', { timeout: 20_000 }).catch(() => {});
-      await page.locator('[role="dialog"] button').first().focus().catch(() => {});
+      await page.waitForSelector('[role="dialog"]', { timeout: 20_000 });
+      await page.locator('[role="dialog"] button').first().focus();
       await page.keyboard.press('Escape');
-      await page.waitForTimeout(1_200);
-      await page.getByTestId('create-account-button').click({ force: true }).catch(() => {});
-      await page.waitForTimeout(1_200);
-      await page.locator('#serverAddress').fill('127.0.0.1:12349').catch(() => {});
-      await page.locator('#password').fill('password123').catch(() => {});
-      await page.locator('button[type="submit"]').first().click({ force: true }).catch(() => {});
-      await page.waitForTimeout(1_200);
-      await page.locator('button').filter({ hasText: /^Next$/ }).last().click({ force: true }).catch(() => {});
-      await page.waitForTimeout(1_500);
-      const profile = await page.locator('#fullName').count();
-      record('the create-account wizard reaches the profile step', profile > 0);
+      // Wait for the dialog to GO, not for a fixed interval. It is modal: while
+      // it is up the landing buttons behind it are inert, and clicking one
+      // silently does nothing. The previous version slept 1200ms and swallowed
+      // the click's failure, so when the dismissal was slow the check reported
+      // that the app never reached the profile step.
+      await page.locator('[role="dialog"]').waitFor({ state: 'detached', timeout: 20_000 });
+      await page.getByTestId('create-account-button').waitFor({ state: 'visible', timeout: 20_000 });
+      await page.getByTestId('create-account-button').click({ force: true });
+      await page.locator('#serverAddress').waitFor({ state: 'visible', timeout: 20_000 });
+      await page.locator('#serverAddress').fill('127.0.0.1:12349');
+      await page.locator('#password').fill('password123');
+      await page.locator('button[type="submit"]').first().click({ force: true });
+      const next = page.locator('button').filter({ hasText: /^Next$/ }).last();
+      await next.waitFor({ state: 'visible', timeout: 20_000 });
+      await next.click({ force: true });
+      const profile = await page.locator('#fullName')
+        .waitFor({ state: 'visible', timeout: 20_000 })
+        .then(() => true)
+        .catch(() => false);
+      record('the create-account wizard reaches the profile step', profile);
 
-      if (profile > 0) {
+      if (profile) {
         await page.locator('#fullName').fill('Probe User');
         await page.locator('#username').fill(`probe${Date.now() % 100000}`);
         await page.locator('#password').fill('password123');
@@ -221,9 +251,15 @@ async function main() {
     }
 
     await context.close();
+  } catch (error) {
+    crashed = error instanceof Error ? error.message.split('\n')[0] : String(error);
   } finally {
     await browser.close();
     preview.kill();
+  }
+
+  if (crashed) {
+    record('the check ran to completion', false, crashed);
   }
 
   const width = Math.max(...results.map((r) => r.name.length));

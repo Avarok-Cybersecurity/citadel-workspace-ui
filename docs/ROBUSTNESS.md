@@ -11685,3 +11685,45 @@ assumption about what ran before. When the assumption holds, it saves a page
 load. When it does not, it produces a timeout that names the wrong surface.
 
 Thirteen surfaces, 54 assertions, no ordering between them.
+
+## Round 219 — auditing my own gates for the faults I keep finding in the code
+
+Round 218 ended on the admission that new gates were being written faster than
+they were being proved. This round audits them for the failure modes this
+campaign keeps naming, rather than adding another.
+
+**Sleeps standing in for conditions.** `check-agent-down` walked the
+create-account wizard through four fixed 1200ms pauses with every click's
+failure swallowed by `.catch(() => {})`. It is the same shape that timed
+`check:a11y` out in CI one round earlier — the never-propagated fix, this time
+caught by reading rather than by CI. Every pause is now a wait on the condition
+that actually matters, including *"wait for the dialog to be detached"*: it is
+modal, so while it is up the landing buttons behind it are inert and clicking
+one silently does nothing.
+
+**Swallowing is the worse half.** With `.catch(() => {})` on each step, a
+selector that stops matching reads as *"the app never reached the profile
+step"* — a defect report about the product for a fault in the check.
+
+**One pause survives, and is now labelled.** The eight-second window after
+dismissing the dialog is an OBSERVATION, not a settle: you cannot wait for
+something not to happen, so watching for a while is the measurement. Every other
+pause was a sleep pretending to be a wait; this one is the assertion.
+
+**A crash lost every result.** Re-running round 203's control found the defect
+and then threw on a later step, and the run died with a Playwright stack trace
+and no table — so the assertion that HAD caught it, three lines earlier, was
+never printed. The gate now records the crash as its own failed check and prints
+what it gathered:
+
+```
+dismissing it makes it stay dismissed    FAIL  1 dialog(s) after 8s
+the check ran to completion              FAIL  locator.waitFor: Timeout 20000ms
+3 agent-down check(s) failed.
+```
+
+A check that reports nothing when it breaks is a check whose failures are
+indistinguishable from its infrastructure, which is where this whole campaign
+started.
+
+Three consecutive clean runs after the change.
