@@ -9960,3 +9960,34 @@ and it fails if the clear is routed through the normal path.
 moved to its own module first. It is a pure function now, which is where the
 unread rule belonged anyway: the echo the server sends the sender is what made
 your own badge count your own messages.
+
+## Round 174 — deleted rooms kept every message, forever
+
+`delete_node` removed the node from the node map and saved. It never touched
+`citadel_workspace.group_messages.<id>`.
+
+So every message anyone had ever sent in a deleted room stayed in the backend —
+and stayed *unreachable*, because the node that named the key was gone. Nothing
+could list it, nothing could purge it, and no later code path could correct it.
+Deletion was the operation that made the data permanent.
+
+For a product whose premise is that conversations are private, "we kept
+everything you deleted, forever, where you cannot see it" is wrong twice: it is
+not what the user was told, and it is not recoverable by any means short of
+knowing the id of a room that no longer exists.
+
+`delete_all_group_messages` drops the key under the same `group_msg_mutex` every
+other writer of it takes, so a send racing the delete cannot re-create the entry
+after it is gone. `delete_node` calls it for every id in `deleted_ids` — which
+matters most for the cascade case, where the child rooms are exactly the ones
+with the conversations in them and are removed without any per-node call of
+their own.
+
+The deletion runs *after* `save_nodes`, deliberately. If it fails the tree is
+already correct and the leftover keys can be cleared by deleting again; the
+other order would leave a room whose history is gone but which is still listed
+and still writable.
+
+Two controls, and the second is the one worth having: deleting only `node_id`
+instead of every id in `deleted_ids` passes the direct test and fails the
+cascade one. A single test here would have looked like a fix.
