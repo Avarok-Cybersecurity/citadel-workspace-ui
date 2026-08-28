@@ -62,7 +62,7 @@ export async function dismissConnectionFailure(page, { timeout = 60_000 } = {}) 
   // Cancel came last in the DOM, which on the sign-in and settings screens is
   // the underlying dialog's -- closing the screen under test and leaving the
   // modal standing.
-  await page.getByTestId('connection-retry-cancel').click({ force: true });
+  await page.getByTestId('connection-retry-cancel').click();
   await modal.waitFor({ state: 'hidden', timeout: 10_000 });
   await page.evaluate(() => { window.__retryModalDismissed = true; }).catch(() => {});
 }

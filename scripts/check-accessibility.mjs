@@ -97,18 +97,18 @@ async function main() {
     /** The wizard's second step, from a fresh load. Waits, never sleeps. */
     const toSecurityStep = async () => {
       await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
-      await page.getByTestId('create-account-button').click({ force: true });
+      await page.getByTestId('create-account-button').click();
       await page.locator('#serverAddress').waitFor({ state: 'visible', timeout: 30_000 });
       await page.locator('#serverAddress').fill('127.0.0.1:12349');
       await page.locator('#password').fill('password123');
-      await page.locator('button[type="submit"]').first().click({ force: true });
+      await page.locator('button[type="submit"]').first().click();
       await page.getByRole('heading', { name: /Security/i }).waitFor({ state: 'visible', timeout: 30_000 });
     };
 
     /** The wizard's third step, from a fresh load. */
     const toProfileStep = async () => {
       await toSecurityStep();
-      await page.locator('button').filter({ hasText: /^Next$/ }).last().click({ force: true });
+      await page.locator('button').filter({ hasText: /^Next$/ }).last().click();
       await page.locator('#fullName').waitFor({ state: 'visible', timeout: 30_000 });
     };
 
@@ -124,19 +124,31 @@ async function main() {
      * It is scanned on its own below rather than merely suppressed: with no
      * agent running it is the first screen a real user meets.
      */
+    /** A surface that does not exist in this world. Its assertions are skipped. */
+    const UNREACHABLE = Symbol('unreachable');
+
+    /** The tab actually became the selected one. */
+    const expectSelected = async (trigger, name) => {
+      const selected = await trigger
+        .getAttribute('aria-selected')
+        .then((value) => value === 'true')
+        .catch(() => false);
+      record(`${name}: the tab it names is the one showing`, selected);
+    };
+
     const screens = [
       ['landing', async () => { await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' }); }],
       ['sign-in', async () => {
         await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
-        await page.getByTestId('sign-in-button').click({ force: true });
+        await page.getByTestId('sign-in-button').click();
       }],
       ['create-account', async () => {
         await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
-        await page.getByTestId('create-account-button').click({ force: true });
+        await page.getByTestId('create-account-button').click();
       }],
       ['manage-accounts', async () => {
         await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
-        await page.getByTestId('manage-accounts-button').click({ force: true });
+        await page.getByTestId('manage-accounts-button').click();
       }],
       // Settings is reachable from the landing page with no account, and every
       // tab is its own surface. The Theme tab shipped a serious
@@ -144,7 +156,17 @@ async function main() {
       // `<Label htmlFor>` beside it named nothing, and the Font Size control had
       // no accessible name at all. Four surfaces were being scanned while this
       // one sat one click away.
-      ...['General', 'Connect', 'Theme', 'Privacy', 'Perms'].map((tab) => [
+      // Three tabs, not five.
+      //
+      // Connect and Perms carry `disabled` with "Connect to a workspace first"
+      // when there is no session. The click here used to be forced, so it went
+      // through the disabled attribute, the tab never changed, and two of these
+      // five surfaces were scanning whichever tab was already open under
+      // somebody else's name. Their real contents are covered by the
+      // authenticated Playwright spec, which has a session. What is asserted
+      // here instead is the property that matters when they are out of reach:
+      // that they say why.
+      ...['General', 'Theme', 'Privacy'].map((tab) => [
         `settings/${tab}`,
         async () => {
           // From a fresh load every time, and waiting rather than sleeping.
@@ -153,12 +175,50 @@ async function main() {
           // modal open, which is the same hidden sequence that timed the
           // wizard steps out in CI.
           await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
-          await page.locator('button').filter({ hasText: /^Settings$/ }).first().click({ force: true });
+          await page.locator('button').filter({ hasText: /^Settings$/ }).first().click();
           const trigger = page.locator('[role="tab"]').filter({ hasText: tab }).first();
           await trigger.waitFor({ state: 'visible', timeout: 30_000 });
-          await trigger.click({ force: true });
+          // A DISABLED tab is not a surface, and pretending otherwise scanned
+          // the wrong one.
+          //
+          // Settings > Connect carries `disabled` with the title "Connect to a
+          // workspace first" when there is no session. The click used to be
+          // forced, so it went through the disabled attribute, the tab never
+          // changed, and the check scanned whatever tab was already open while
+          // reporting it as `settings/Connect`. Recorded rather than skipped: a
+          // surface that quietly drops off the list is how a list shrinks to
+          // nothing.
+          if (await trigger.isDisabled()) {
+            record(`settings/${tab}: is reachable`, false,
+              `the tab is disabled here: ${(await trigger.getAttribute('title')) ?? 'no reason given'}`);
+            // UNREACHABLE, not merely unclicked: everything below would then be
+            // measured against whichever tab is open and reported under this
+            // one's name, which is exactly what the forced click was doing.
+            return UNREACHABLE;
+          }
+          await trigger.click();
+          // The click LANDED. Forced clicks made this unobservable.
+          await expectSelected(trigger, `settings/${tab}`);
         },
       ]),
+      // The two tabs a visitor cannot open, and the reason they give.
+      //
+      // A disabled control with no explanation is a dead end; one with a `title`
+      // at least says why on a desktop. That `title` is invisible on a touch
+      // screen -- recorded, not fixed here, because the fix is a visible reason
+      // and that is a design decision rather than a defect to sneak in.
+      ['settings/session-gated tabs', async () => {
+        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.locator('button').filter({ hasText: /^Settings$/ }).first().click();
+        for (const tab of ['Connect', 'Perms']) {
+          const trigger = page.locator('[role="tab"]').filter({ hasText: tab }).first();
+          await trigger.waitFor({ state: 'visible', timeout: 30_000 });
+          const disabled = await trigger.isDisabled();
+          const reason = (await trigger.getAttribute('title')) ?? '';
+          record(`settings/${tab}: needs a session, and says so`, disabled && reason.length > 0,
+            disabled ? reason : 'not disabled without a session');
+        }
+      }],
       // The wizard's later steps, which the four-surface list never reached.
       // Round 208's defect was on a surface exactly like these: reachable in
       // three clicks, scanned by nothing that runs without a backend, and
@@ -186,7 +246,7 @@ async function main() {
         await page.locator('#username').fill('probe1');
         await page.locator('#password').fill('password123');
         await page.locator('#confirmPassword').fill('different999');
-        await page.locator('button').filter({ hasText: /^Join$/ }).last().click({ force: true });
+        await page.locator('button').filter({ hasText: /^Join$/ }).last().click();
         await page.waitForTimeout(1_200);
       }],
       // The agent-down modal itself. This gate pins a closed agent port, so it
@@ -218,10 +278,9 @@ async function main() {
       'create-account': 'Create Account',
       'manage-accounts': 'Manage Accounts',
       'settings/General': 'Settings',
-      'settings/Connect': 'Settings',
       'settings/Theme': 'Settings',
       'settings/Privacy': 'Settings',
-      'settings/Perms': 'Settings',
+      'settings/session-gated tabs': 'Settings',
       'join/security': 'Security Settings',
       'join/profile': 'Create Your Profile',
       'join/profile with a validation error': 'Create Your Profile',
@@ -237,7 +296,7 @@ async function main() {
 
     let scanned = 0;
     for (const [name, go] of screens) {
-      await go();
+      if ((await go()) === UNREACHABLE) continue;
       // Animations move elements while axe measures them, and a colour read
       // mid-transition is fiction. Settle before scanning.
       await page.waitForTimeout(1_200);
@@ -412,7 +471,13 @@ async function main() {
 
     await context.close();
   } catch (error) {
-    crashed = error instanceof Error ? error.message.split('\n')[0] : String(error);
+    // The first SIX lines, not one. Playwright's actionability messages put the
+    // useful part -- which element, and what was in the way -- below the first
+    // line, and a one-line crash report of "Timeout 30000ms exceeded" names
+    // neither. Round 225's lesson, in this file's own error path.
+    crashed = error instanceof Error
+      ? error.message.split('\n').slice(0, 8).map((l) => l.trim()).filter(Boolean).join(' | ')
+      : String(error);
   } finally {
     await browser.close();
     preview.kill();

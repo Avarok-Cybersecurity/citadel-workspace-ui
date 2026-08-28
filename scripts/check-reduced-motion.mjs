@@ -113,7 +113,7 @@ async function main() {
     // round 223 found in the accessibility gate.
     await dismissConnectionFailure(page);
 
-    await page.getByTestId('manage-accounts-button').click({ force: true });
+    await page.getByTestId('manage-accounts-button').click();
     // The LAST dialog, not the first: dialogs stack, and the one on top is the
     // one the user is in.
     const dialog = page.locator('[role="dialog"]').last();

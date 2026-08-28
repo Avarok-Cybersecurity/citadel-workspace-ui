@@ -114,15 +114,15 @@ async function main() {
     const screens = [
       ['landing', async () => { await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' }); }],
       ['create-account', async () => {
-        await page.getByTestId('create-account-button').click({ force: true });
+        await page.getByTestId('create-account-button').click();
       }],
       ['sign-in', async () => {
         await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
-        await page.getByTestId('sign-in-button').click({ force: true });
+        await page.getByTestId('sign-in-button').click();
       }],
       ['manage-accounts', async () => {
         await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
-        await page.getByTestId('manage-accounts-button').click({ force: true });
+        await page.getByTestId('manage-accounts-button').click();
       }],
       // The join wizard's later steps, which is where the toast collision was.
       //
@@ -133,22 +133,22 @@ async function main() {
       // written for is a rule about nothing.
       ['join/security', async () => {
         await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
-        await page.getByTestId('create-account-button').click({ force: true });
+        await page.getByTestId('create-account-button').click();
         await page.locator('#serverAddress').waitFor({ state: 'visible', timeout: 30_000 });
         await page.locator('#serverAddress').fill('127.0.0.1:12349');
         await page.locator('#password').fill('password123');
-        await page.locator('button[type="submit"]').first().click({ force: true });
+        await page.locator('button[type="submit"]').first().click();
         await page.getByRole('heading', { name: /Security/i }).waitFor({ state: 'visible', timeout: 30_000 });
       }],
       ['join/profile', async () => {
         await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
-        await page.getByTestId('create-account-button').click({ force: true });
+        await page.getByTestId('create-account-button').click();
         await page.locator('#serverAddress').waitFor({ state: 'visible', timeout: 30_000 });
         await page.locator('#serverAddress').fill('127.0.0.1:12349');
         await page.locator('#password').fill('password123');
-        await page.locator('button[type="submit"]').first().click({ force: true });
+        await page.locator('button[type="submit"]').first().click();
         await page.getByRole('heading', { name: /Security/i }).waitFor({ state: 'visible', timeout: 30_000 });
-        await page.locator('button').filter({ hasText: /^Next$/ }).last().click({ force: true });
+        await page.locator('button').filter({ hasText: /^Next$/ }).last().click();
         await page.locator('#fullName').waitFor({ state: 'visible', timeout: 30_000 });
       }],
       // Settings, and every tab in it.
@@ -162,7 +162,12 @@ async function main() {
       // Extending one gate's screen list and not the other's is the same
       // never-propagated fix this campaign keeps recording, applied to my own
       // work two rounds later.
-      ...['General', 'Connect', 'Theme', 'Privacy', 'Perms'].map((tab) => [
+      // Three tabs, not five. Connect and Perms are disabled without a session
+      // ("Connect to a workspace first"), and the forced click used to go
+      // straight through that -- so two of these five surfaces measured
+      // whichever tab was already open, under someone else's name. The same
+      // two, in the same way, in the accessibility gate; see round 231.
+      ...['General', 'Theme', 'Privacy'].map((tab) => [
         `settings/${tab}`,
         async () => {
           // Fresh load, then wait for the tab rather than sleeping. The
@@ -170,10 +175,10 @@ async function main() {
           // Settings modal open -- a hidden sequence that timed out in CI when
           // a click landed a fraction later than it does locally.
           await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
-          await page.locator('button').filter({ hasText: /^Settings$/ }).first().click({ force: true });
+          await page.locator('button').filter({ hasText: /^Settings$/ }).first().click();
           const trigger = page.locator('[role="tab"]').filter({ hasText: tab }).first();
           await trigger.waitFor({ state: 'visible', timeout: 30_000 });
-          await trigger.click({ force: true });
+          await trigger.click();
         },
       ]),
     ];
@@ -248,7 +253,12 @@ async function main() {
     await context.close();
     }
   } catch (error) {
-    crashed = error instanceof Error ? error.message.split('\n')[0] : String(error);
+    // The whole actionability message, not its first line: "Timeout 30000ms
+    // exceeded" names neither the element nor what was in the way, and both are
+    // below it.
+    crashed = error instanceof Error
+      ? error.message.split('\n').slice(0, 8).map((l) => l.trim()).filter(Boolean).join(' | ')
+      : String(error);
   } finally {
     await browser.close();
     preview.kill();

@@ -12213,3 +12213,53 @@ because the hit test only has something to find while a toast happens to be up
 and the ambient ones fire on a schedule no gate can force. Its own first version
 asserted `null` three times — Sonner renders the positioned list only once it
 holds a toast — so each case raises one first.
+
+## Round 231 — every forced click, removed
+
+Round 230 found its defect because a `{ force: true }` click was landing on a
+toast instead of a button. The obvious next question was how many other forced
+clicks this repository has, and the answer was 28 in the gates alone (73 more in
+the Playwright specs).
+
+`force: true` skips the check that the element is the one which will receive the
+click. It hides exactly two things, and both are things a browser-driving gate
+exists to catch: something is covering the control, or the control is disabled.
+
+Removing all 28 found the second one immediately:
+
+```
+locator resolved to <button disabled role="tab" title="Connect to a workspace first"
+  aria-label="Connections" aria-selected="false" data-state="inactive" …>
+```
+
+**Settings > Connect and Settings > Perms are disabled without a session.** The
+forced click went straight through the `disabled` attribute, the tab never
+changed, and both gates then scanned whichever tab was already open and reported
+it as `settings/Connect` and `settings/Perms`. Four surfaces across two gates,
+every run, measuring the General tab under three different names.
+
+The fix is not to click harder. Those two tabs are covered by the authenticated
+Playwright spec, which has a session; what this gate asserts instead is the
+property that matters when they are out of reach — that a disabled control says
+why. Both do, through `title`, which is invisible on a touch screen; that is
+recorded here rather than quietly changed, because a visible reason is a design
+decision.
+
+Two assertions make the class observable from now on:
+
+- after clicking a tab, `aria-selected` must be `true` — the click LANDED;
+- a surface whose setup reports `UNREACHABLE` is skipped entirely rather than
+  scanned, and `every screen was reached` counts what was actually measured.
+
+Control: restoring the forced click and putting Connect back in the list turns
+three assertions red, including "the tab it names is the one showing".
+
+`gates-do-not-force-clicks.test.ts` keeps the twenty-ninth from being written. It
+matches `.click({ force: true })` specifically — `rm(dir, { force: true })` is a
+filesystem call and none of its business.
+
+One more thing was wrong in both gates and only visible once a click could fail:
+their crash handler reported `error.message.split('\n')[0]`, which for a
+Playwright actionability failure is `Timeout 30000ms exceeded` and names neither
+the element nor what was in the way. Both are on the lines below it. That is
+round 225's lesson found inside this file's own error path.

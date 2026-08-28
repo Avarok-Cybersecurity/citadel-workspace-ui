@@ -157,7 +157,7 @@ async function main() {
       );
       record('the banner still explains the state afterwards', stillExplained);
 
-      await page.getByTestId('sign-in-button').click({ force: true });
+      await page.getByTestId('sign-in-button').click();
       const form = await page.locator('#username')
         .waitFor({ state: 'visible', timeout: 20_000 })
         .then(() => true)
@@ -170,7 +170,7 @@ async function main() {
         // is the state this whole path exists to avoid.
         await page.locator('#username').fill('someone');
         await page.locator('#password').fill('password123');
-        await page.locator('button[type="submit"]').first().click({ force: true });
+        await page.locator('button[type="submit"]').first().click();
         const told = await page
           .locator('[role="alert"]')
           .filter({ hasText: /agent/i })
@@ -211,14 +211,14 @@ async function main() {
       // that the app never reached the profile step.
       await page.locator('[role="dialog"]').waitFor({ state: 'detached', timeout: 20_000 });
       await page.getByTestId('create-account-button').waitFor({ state: 'visible', timeout: 20_000 });
-      await page.getByTestId('create-account-button').click({ force: true });
+      await page.getByTestId('create-account-button').click();
       await page.locator('#serverAddress').waitFor({ state: 'visible', timeout: 20_000 });
       await page.locator('#serverAddress').fill('127.0.0.1:12349');
       await page.locator('#password').fill('password123');
-      await page.locator('button[type="submit"]').first().click({ force: true });
+      await page.locator('button[type="submit"]').first().click();
       const next = page.locator('button').filter({ hasText: /^Next$/ }).last();
       await next.waitFor({ state: 'visible', timeout: 20_000 });
-      await next.click({ force: true });
+      await next.click();
       const profile = await page.locator('#fullName')
         .waitFor({ state: 'visible', timeout: 20_000 })
         .then(() => true)
@@ -230,7 +230,7 @@ async function main() {
         await page.locator('#username').fill(`probe${Date.now() % 100000}`);
         await page.locator('#password').fill('password123');
         await page.locator('#confirmPassword').fill('password123');
-        await page.locator('button').filter({ hasText: /^Join$/ }).last().click({ force: true });
+        await page.locator('button').filter({ hasText: /^Join$/ }).last().click();
 
         // `[data-sonner-toast]`, NOT `[role="alert"]`.
         //
