@@ -115,9 +115,9 @@ async function testLoginPage(page: Page): Promise<{
   await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
   await waitForAppReady(page, 60_000);
 
-  const loginBtn = page.getByRole('button', { name: 'Login Workspace' });
+  const loginBtn = page.getByTestId('sign-in-button');
   if (!(await isVisibleWithin(loginBtn, 10_000))) {
-    console.log('  Login Workspace button not found');
+    console.log('  Sign In button not found');
     return results;
   }
 

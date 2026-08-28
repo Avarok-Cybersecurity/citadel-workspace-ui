@@ -318,13 +318,13 @@ test.describe('Responsive layout at 375px', () => {
   test('landing actions are reachable', async ({ page }) => {
     // The three entry points. If one is off-screen at this width there is no way
     // into the product from a phone.
-    for (const name of ['Join Workspace', 'Login Workspace', 'Manage Accounts']) {
+    for (const name of ['Create Account', 'Sign In', 'Manage Accounts']) {
       await expect(page.getByRole('button', { name })).toBeInViewport({ timeout: 15_000 });
     }
   });
 
   test('join flow fits the viewport', async ({ page }) => {
-    await click(page, 'Join Workspace');
+    await click(page, 'Create Account');
     const address = page.getByRole('textbox', { name: 'Workspace Address' });
     await expect(address).toBeVisible({ timeout: 30_000 });
     await expectNoHorizontalOverflow(page, 'join/address');
@@ -336,7 +336,7 @@ test.describe('Responsive layout at 375px', () => {
   });
 
   test('login form fits the viewport, including advanced options', async ({ page }) => {
-    await click(page, 'Login Workspace');
+    await click(page, 'Sign In');
     await expect(page.getByRole('heading', { name: 'Login to Workspace' })).toBeVisible({ timeout: 30_000 });
     await expectNoHorizontalOverflow(page, 'login');
 

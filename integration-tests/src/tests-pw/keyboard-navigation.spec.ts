@@ -101,7 +101,7 @@ test.describe('Keyboard operability', () => {
   test('every landing action is reachable by Tab', async ({ page }) => {
     // All three entry points, in one walk. If any is unreachable there is no
     // keyboard-only way into the product at all.
-    const wanted = ['Join Workspace', 'Login Workspace', 'Manage Accounts'];
+    const wanted = ['Create Account', 'Sign In', 'Manage Accounts'];
     const seen: string[] = [];
 
     for (let i = 0; i < MAX_TAB_STOPS; i++) {
@@ -126,8 +126,8 @@ test.describe('Keyboard operability', () => {
   });
 
   test('the join flow can be driven to the security step by keyboard alone', async ({ page }) => {
-    const reached = await tabUntil(page, (name) => name.includes('Join Workspace'));
-    expect(reached.found, `never reached Join Workspace. Saw: ${reached.seen.join(' | ')}`).toBe(true);
+    const reached = await tabUntil(page, (name) => name.includes('Create Account'));
+    expect(reached.found, `never reached Create Account. Saw: ${reached.seen.join(' | ')}`).toBe(true);
 
     await page.keyboard.press('Enter');
 

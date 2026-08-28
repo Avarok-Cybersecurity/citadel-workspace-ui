@@ -50,14 +50,14 @@ async function loginWithCredentials(
     }
 
     // Navigate to landing if needed
-    const loginBtn = page.locator('button:has-text("Login Workspace")');
+    const loginBtn = page.getByTestId('sign-in-button');
     if (!(await isVisibleWithin(loginBtn, 2000))) {
         await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
         await waitForAppReady(page, 30_000);
     }
 
-    // Click Login Workspace
-    const loginBtnVisible = page.locator('button:has-text("Login Workspace")');
+    // Click Sign In
+    const loginBtnVisible = page.getByTestId('sign-in-button');
     await expect(loginBtnVisible).toBeVisible({ timeout: 5000 });
     await loginBtnVisible.click();
     await sleep(1000);

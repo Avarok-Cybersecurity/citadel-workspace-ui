@@ -2,7 +2,7 @@
  * Security Settings Integration Test (P1)
  *
  * Tests Security Settings overlay and all interactive elements:
- * 1. SecuritySettings overlay renders during Join Workspace flow
+ * 1. SecuritySettings overlay renders during Create Account flow
  * 2. SecurityLevelSelect dropdown options
  * 3. SecurityModeSelect dropdown options
  * 4. AdvancedSettings toggle (crypto params)
@@ -58,7 +58,7 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 // ============================================================================
 
 /**
- * Navigate to Join Workspace flow and stop at Security Settings
+ * Navigate to Create Account flow and stop at Security Settings
  */
 async function navigateToSecuritySettings(page: Page): Promise<boolean> {
   console.log('\n=== Navigating to Security Settings ===');
@@ -70,10 +70,10 @@ async function navigateToSecuritySettings(page: Page): Promise<boolean> {
     await page.reload({ waitUntil: 'commit', timeout: 60000 });
     await waitForAppReady(page, 30000);
 
-    // Click "Join Workspace"
-    const joinBtn = page.locator('button:has-text("Join Workspace")');
+    // Click "Create Account"
+    const joinBtn = page.getByTestId('create-account-button');
     if (!(await isVisibleWithin(joinBtn, 5000))) {
-      console.log('  Join Workspace button not found');
+      console.log('  Create Account button not found');
       return false;
     }
     await joinBtn.click();
@@ -261,10 +261,10 @@ async function testLoginConfigureButton(page: Page): Promise<{
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
     await waitForAppReady(page, 30000);
 
-    // Click "Login Workspace"
-    const loginBtn = page.locator('button:has-text("Login Workspace")');
+    // Click "Sign In"
+    const loginBtn = page.getByTestId('sign-in-button');
     if (!(await isVisibleWithin(loginBtn, 5000))) {
-      console.log('  Login Workspace button not found');
+      console.log('  Sign In button not found');
       return results;
     }
     await loginBtn.click();
@@ -336,7 +336,7 @@ async function runTest(): Promise<boolean> {
 
     // ========== STEP 1: Navigate to Security Settings ==========
     console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 1: Navigate to Security Settings via Join Workspace');
+    console.log('STEP 1: Navigate to Security Settings via Create Account');
     console.log('\u2500'.repeat(50));
 
     results.overlayRenders = await navigateToSecuritySettings(page);
@@ -381,7 +381,7 @@ async function runTest(): Promise<boolean> {
 
     // ========== STEP 5: Complete Join to create account ==========
     console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 5: Complete Join Workspace');
+    console.log('STEP 5: Complete Create Account');
     console.log('\u2500'.repeat(50));
 
     // Click NEXT to pass through Security Settings

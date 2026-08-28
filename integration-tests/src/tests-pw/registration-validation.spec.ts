@@ -20,7 +20,7 @@ async function openProfileForm(page: Page): Promise<void> {
   await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
   await waitForAppReady(page, 60_000);
 
-  const joinBtn = page.locator('button:has-text("Join Workspace")');
+  const joinBtn = page.getByTestId('create-account-button');
   await joinBtn.waitFor({ state: 'visible', timeout: 30_000 });
   await joinBtn.click({ force: true });
 
@@ -93,7 +93,7 @@ test.describe('registration validates before submitting', () => {
     await page.locator('#confirmPassword').fill('validpass1');
 
     // The form's own submit. A name-based lookup also matches the Landing
-    // page's "Join Workspace" button, which is still in the DOM behind the
+    // page's "Create Account" button, which is still in the DOM behind the
     // modal overlay and therefore never clickable.
     await page.locator('form button[type="submit"]').click();
 

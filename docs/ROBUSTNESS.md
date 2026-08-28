@@ -9715,3 +9715,34 @@ total happens to be has stopped being a budget.
 The prompt constant moved to a leaf module anyway. It did not help the number,
 but a navigation source asking "may I leave" should not have to import an office
 hook to find the sentence.
+
+## Round 168 — I broke every Playwright shard with a rename
+
+Round 162 renamed the landing CTAs from "Login Workspace" and "Join Workspace"
+to "Sign In" and "Create Account" — neither of the old ones was English, and
+"Join" meant *create an account*.
+
+`waitForAppReady` in the integration suite waited for
+`button:has-text("Join Workspace")`. So every Playwright shard and four
+integration legs timed out there, sixty seconds each, reporting **only** that
+the React app never rendered. It had rendered perfectly. The probe was asking
+for words that no longer existed.
+
+That probe is the first thing every spec runs, so when it breaks everything
+breaks, and it reports the least useful cause available. It is the piece of the
+suite that should be LEAST coupled to what the product says, and it was keyed
+directly on it.
+
+Both buttons now carry testids and the probe waits for those. Seventeen files
+across the suite referenced the old copy — selectors, role queries, log lines
+and comments — and all of them are migrated, because a probe fixed in one place
+while the specs still click on text is the same outage deferred.
+
+`app-ready-probe-is-not-copy.test.ts` holds both ends: the probe must not match
+on button text, and the landing page must actually render the testids the probe
+waits for. A probe keyed on a testid nobody renders is the same outage with a
+different cause, so both directions have a control.
+
+The `Landing.tsx` ratchet entry moved 311 → 313 for the two attributes, with the
+reason recorded — which is what that ratchet is for: a raise you have to write
+down is a raise somebody decided.

@@ -205,7 +205,7 @@ test.describe.serial('Multi-Tab Synchronization', () => {
         // deprecated and ignored), so on a loaded runner this failed whenever
         // the render had not landed yet. toBeVisible retries until the timeout.
         await expect(
-            tab2.locator('button:has-text("Join Workspace"), button:has-text("Login Workspace"), [data-sidebar="sidebar"]').first()
+            tab2.locator('button:has-text("Create Account"), button:has-text("Sign In"), [data-sidebar="sidebar"]').first()
         ).toBeVisible({ timeout: 10_000 });
     });
 });

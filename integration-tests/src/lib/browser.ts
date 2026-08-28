@@ -389,11 +389,21 @@ export async function waitForAppReady(page: Page, timeout = 60000): Promise<void
   const startTime = Date.now();
 
   // Wait for ANY of the known landing page elements to appear.
-  // These are rendered by React, so their presence confirms the app has mounted.
+  //
+  // Keyed on testids, not on button COPY. This waited for
+  // `button:has-text("Create Account")` and `"Sign In"`, so renaming
+  // those buttons — to "Create Account" and "Sign In", because neither of the
+  // old ones was English and "Join" meant create an account — made every
+  // Playwright shard and four integration legs time out here, sixty seconds
+  // each, reporting only that the React app never rendered. It had rendered
+  // perfectly; the check was asking for words that no longer existed.
+  //
+  // A readiness probe must not be the thing that breaks when the product's
+  // copy improves.
   await page.waitForSelector(
     [
-      'button:has-text("Join Workspace")',
-      'button:has-text("Login Workspace")',
+      '[data-testid="sign-in-button"]',
+      '[data-testid="create-account-button"]',
       // Workspace page indicators (if already logged in)
       '[data-sidebar="sidebar"]',
       '[data-testid="workspace-name"]',

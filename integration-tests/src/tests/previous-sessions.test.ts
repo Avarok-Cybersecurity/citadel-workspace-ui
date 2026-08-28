@@ -85,7 +85,7 @@ async function tryLoginQuick(page: Page, username: string, password: string): Pr
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 30000 });
     await waitForAppReady(page, 15000);
 
-    const loginBtn = page.locator('button:has-text("Login Workspace")');
+    const loginBtn = page.getByTestId('sign-in-button');
     if (!await isVisibleWithin(loginBtn, 3000)) {
       console.log('  tryLoginQuick: Login button not found');
       return false;

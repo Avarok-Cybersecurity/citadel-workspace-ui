@@ -2,7 +2,7 @@
  * How you get a colleague into your workspace.
  *
  * There was no answer to that. No invite link, no share surface, no copy
- * button — the only true entry path is Landing → "Join Workspace" → typing a
+ * button — the only true entry path is Landing → "Create Account" → typing a
  * server address, and the product shows an existing user that address exactly
  * once, as a grey subtitle in the workspace-switcher dropdown, never framed as
  * "give this to somebody".
@@ -62,7 +62,7 @@ export function InviteToWorkspaceDialog({
             Invite someone to {workspaceName}
           </DialogTitle>
           <DialogDescription>
-            Send them this address. They choose <strong>Join Workspace</strong> on the
+            Send them this address. They choose <strong>Create Account</strong> on the
             welcome screen, paste it in, and create their own account.
           </DialogDescription>
         </DialogHeader>

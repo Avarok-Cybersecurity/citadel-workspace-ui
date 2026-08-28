@@ -264,8 +264,8 @@ async function testExitConfirmModal(page: Page): Promise<{
         await sleep(3000);
 
         // Verify we're on the landing page
-        const joinBtn = page.locator('button:has-text("Join Workspace")');
-        const loginBtn = page.locator('button:has-text("Login Workspace")');
+        const joinBtn = page.getByTestId('create-account-button');
+        const loginBtn = page.getByTestId('sign-in-button');
         const onLanding = (await isVisibleWithin(joinBtn, 5000)) ||
                           (await isVisibleWithin(loginBtn, 2000));
         results.confirmExits = onLanding;

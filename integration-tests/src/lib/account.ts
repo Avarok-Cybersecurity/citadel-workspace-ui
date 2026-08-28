@@ -39,11 +39,11 @@ export async function createAccount(page: Page, username: string, options: Creat
   await page.reload({ waitUntil: 'commit', timeout: 60000 });
   await waitForAppReady(page, 30000);
 
-  // Click "Join Workspace" button
+  // Click "Create Account" button
   // Use force:true to bypass Playwright's stability check. In multi-tab tests,
   // BroadcastChannel leader election can cause continuous re-renders that keep
   // the button "not stable" indefinitely.
-  const joinBtn = page.locator('button:has-text("Join Workspace")');
+  const joinBtn = page.getByTestId('create-account-button');
   if (await isVisibleWithin(joinBtn, 5000)) {
     await joinBtn.click({ force: true });
   }

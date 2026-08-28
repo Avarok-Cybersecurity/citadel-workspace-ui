@@ -263,13 +263,13 @@ test.describe(`Accessibility (first-run surfaces, ${scheme})`, () => {
   });
 
   test('join workspace — address step', async ({ page }) => {
-    await click(page, 'Join Workspace');
+    await click(page, 'Create Account');
     await expect(page.getByRole('textbox', { name: 'Workspace Address' })).toBeVisible({ timeout: 30_000 });
     await expectNoBlockingViolations(page, `join/address/${scheme}`);
   });
 
   test('join workspace — security step', async ({ page }) => {
-    await click(page, 'Join Workspace');
+    await click(page, 'Create Account');
     const address = page.getByRole('textbox', { name: 'Workspace Address' });
     await expect(address).toBeVisible({ timeout: 30_000 });
     await address.fill(config.WORKSPACE_SERVER);
@@ -283,7 +283,7 @@ test.describe(`Accessibility (first-run surfaces, ${scheme})`, () => {
   // password toggle with no accessible name and tabIndex={-1} survived here
   // while the identical control on the login form was fully labelled.
   test('join workspace — profile step', async ({ page }) => {
-    await click(page, 'Join Workspace');
+    await click(page, 'Create Account');
     const address = page.getByRole('textbox', { name: 'Workspace Address' });
     await expect(address).toBeVisible({ timeout: 30_000 });
     await address.fill(config.WORKSPACE_SERVER);
@@ -300,7 +300,7 @@ test.describe(`Accessibility (first-run surfaces, ${scheme})`, () => {
   // from the tab order entirely, which is a 2.1.1 failure no automated colour
   // or name check reports.
   test('the profile step password toggles are reachable and named', async ({ page }) => {
-    await click(page, 'Join Workspace');
+    await click(page, 'Create Account');
     const address = page.getByRole('textbox', { name: 'Workspace Address' });
     await expect(address).toBeVisible({ timeout: 30_000 });
     await address.fill(config.WORKSPACE_SERVER);
@@ -326,7 +326,7 @@ test.describe(`Accessibility (first-run surfaces, ${scheme})`, () => {
   });
 
   test('login form, including advanced options', async ({ page }) => {
-    await click(page, 'Login Workspace');
+    await click(page, 'Sign In');
     await expect(page.getByRole('heading', { name: 'Login to Workspace' })).toBeVisible({ timeout: 30_000 });
 
     // Expand Advanced Options too: the controls it hides (server address,
@@ -344,7 +344,7 @@ test.describe(`Accessibility (first-run surfaces, ${scheme})`, () => {
   // credential, so current-password. new-password here would make a manager
   // offer to save a new one on every sign-in.
   test('the login form tells a password manager what each field is', async ({ page }) => {
-    await click(page, 'Login Workspace');
+    await click(page, 'Sign In');
     await expect(page.locator('#username')).toBeVisible({ timeout: 30_000 });
     await expect(page.locator('#username')).toHaveAttribute('autocomplete', 'username');
     await expect(page.locator('#password')).toHaveAttribute('autocomplete', 'current-password');

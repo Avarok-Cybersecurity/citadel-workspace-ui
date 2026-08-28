@@ -63,7 +63,7 @@ test.describe('Error Handling', () => {
   });
 
   test('mismatched profile passwords are rejected before any account is created', async ({ page }) => {
-    await clickThroughRenderChurn(page, 'Join Workspace');
+    await clickThroughRenderChurn(page, 'Create Account');
 
     // Step 1 — workspace address.
     const serverInput = page.getByRole('textbox', { name: 'Workspace Address' });
@@ -95,7 +95,7 @@ test.describe('Error Handling', () => {
   });
 
   test('logging in as a non-existent user reports the failure', async ({ page }) => {
-    await clickThroughRenderChurn(page, 'Login Workspace');
+    await clickThroughRenderChurn(page, 'Sign In');
 
     await page.getByRole('textbox', { name: 'Username' }).fill(`ghost_${Date.now()}`);
     await page.getByRole('textbox', { name: 'Password', exact: true }).fill('wrong-password');

@@ -791,8 +791,8 @@ h1, h2, h3, h4, h5, h6 {
  * The UA replaces every author colour with a system palette, so a control whose
  * only affordance is `background-color` becomes indistinguishable from plain
  * text. That is exactly what happened to the primary button: on the landing
- * page "Login Workspace" — the main call to action — rendered with no border
- * while the secondary "Join Workspace" kept one, so the most important control
+ * page "Sign In" — the main call to action — rendered with no border
+ * while the secondary "Create Account" kept one, so the most important control
  * looked the least like a button.
  *
  * A transparent border is not enough on its own; forced-colors keeps

@@ -108,13 +108,13 @@ test.describe.serial('visual sweep', () => {
         await waitForAppReady(page, 60_000);
         await shot(page, `landing-${scheme}-${label}`);
 
-        await page.getByRole('button', { name: /Login Workspace/i }).click({ force: true });
+        await page.getByTestId('sign-in-button').click({ force: true });
         await page.waitForTimeout(800);
         await shot(page, `login-${scheme}-${label}`);
 
         await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
         await waitForAppReady(page, 60_000);
-        await page.getByRole('button', { name: /Join Workspace/i }).click({ force: true });
+        await page.getByTestId('create-account-button').click({ force: true });
         await page.waitForTimeout(800);
         await shot(page, `join-${scheme}-${label}`);
 

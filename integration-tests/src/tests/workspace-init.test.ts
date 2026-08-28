@@ -72,8 +72,8 @@ async function registerUser(page: Page, username: string, password: string): Pro
     await page.reload({ waitUntil: 'commit', timeout: 60000 });
     await sleep(2000);
 
-    // Click "Join Workspace" button
-    const joinBtn = page.locator('button:has-text("Join Workspace")');
+    // Click "Create Account" button
+    const joinBtn = page.getByTestId('create-account-button');
     if (await isVisibleWithin(joinBtn, 5000)) {
       await joinBtn.click();
       await sleep(1000);
