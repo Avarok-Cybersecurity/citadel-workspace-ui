@@ -13208,3 +13208,25 @@ Fifteen attempts is not a polling lag. Whether the registration is gone or
 merely unreadable from that connection is a question for a running stack, and
 guessing between those two is how a subtle bug gets a confident wrong fix.
 Recorded with its evidence.
+
+### How much of the run round 249 accounts for
+
+Counting the signature across the failing integration legs in run
+`33204490032`:
+
+| leg | died in `closeAnyModals` |
+|---|---|
+| group-multiuser, file-transfer, revfs:peer, p2p, live-doc, directory, p2p-types, directory-actions, files-extended | yes (2 frames each) |
+| tree-permissions, crud | yes (1 frame) |
+| chat-settings, reconnect-c2s, reconnect-p2p-one-c2s, native-file-picker, hard-disconnect, reconnect-both-c2s, settings-controls, reconnect-one-c2s, hierarchy-nav, tree-structure | no |
+
+**Eleven of twenty-one** failing legs ended inside the same helper, clicking a
+Cancel button on a dialog that was closing itself. One three-second timeout and
+a swallowed rejection.
+
+That is worth stating plainly because it changes what the failure list means:
+a list of twenty-one red legs looked like twenty-one problems, and half of it
+was one line in a helper. The other half is now genuinely separable — the
+reconnection family (round 247's login button), the sidebar-invisible family
+(round 245), the settings save (round 250), and the peer-registry lead, which
+remains open.
