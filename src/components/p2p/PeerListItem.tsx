@@ -71,6 +71,7 @@ export const PeerListItem: React.FC<PeerListItemProps> = ({
             size="sm"
             onClick={() => onAccept(incomingRequest)}
             disabled={acceptingPeerCid === peer.cid}
+            data-testid="peer-accept"
             className="border-success text-success-emphasis hover:bg-success/90 hover:text-success-foreground"
           >
             {acceptingPeerCid === peer.cid ? (
@@ -85,6 +86,7 @@ export const PeerListItem: React.FC<PeerListItemProps> = ({
             variant="outline"
             size="sm"
             onClick={() => onRegister(peer.cid, peer.username)}
+            data-testid="peer-connect"
             className="border-primary-accent text-primary-accent hover:bg-primary/90 hover:text-primary-foreground"
           >
             <UserPlus className="h-3 w-3 mr-1" />

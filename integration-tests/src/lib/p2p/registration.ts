@@ -169,7 +169,9 @@ export async function p2pRegister(
       if (await isVisibleWithin(peerText, 2000)) {
         console.log(`  Found peer text, looking for Connect button nearby...`);
         const container = peerText.locator('xpath=ancestor::div[.//button[contains(text(), "Connect")]]').first();
-        const connectBtn = container.locator('button:has-text("Connect")');
+        // By testid: the button said "Connect" when this was written, and this file
+    // is the one every P2P spec goes through.
+    const connectBtn = container.getByTestId('peer-connect');
         if (await isVisibleWithin(connectBtn, 2000)) {
           peerFound = true;
           console.log(`  Found peer ${peerUsername}, clicking Connect...`);
@@ -345,7 +347,7 @@ export async function acceptP2PRequest(
         console.log(`  ✓ Modal opened successfully`);
 
         // Find and click the Accept button
-        const acceptBtn = page.locator('button:has-text("Accept")').first();
+        const acceptBtn = page.getByTestId('peer-accept').first();
         if (await isVisibleWithin(acceptBtn, 5000)) {
           console.log(`  ✓ Found Accept button, clicking...`);
           await acceptBtn.click();

@@ -32,6 +32,7 @@ export function LoginAdvancedOptions({
       {/* Advanced Options */}
       <button
         type="button"
+        data-testid="login-advanced-options"
         className="tap-target flex items-center gap-2 text-muted-foreground w-full transition-colors duration-200 hover:text-primary-accent py-1"
         onClick={() => onToggle()}
       >

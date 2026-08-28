@@ -13230,3 +13230,23 @@ was one line in a helper. The other half is now genuinely separable — the
 reconnection family (round 247's login button), the sidebar-invisible family
 (round 245), the settings save (round 250), and the peer-registry lead, which
 remains open.
+
+## Round 251 — four more helpers off copy
+
+Continuing round 248's burn-down through the shared libraries, since every spec
+runs through them:
+
+| helper | was | now |
+|---|---|---|
+| `p2p/registration.ts` | `has-text("Connect")` | `peer-connect` |
+| `p2p/registration.ts` | `has-text("Accept")` | `peer-accept` |
+| `p2p/session.ts` | `has-text("Advanced Options")` ×2 | `login-advanced-options` |
+
+106 → **102**, and the ratchet banked it. The advanced-options one was verified
+against the built bundle: the testid is present, and pressing it opens the
+section that holds Remember Credentials.
+
+What is left in `lib/` is mostly identity rather than copy — a peer's username,
+a document's title — which no testid can replace. Those are the ones to move to
+`[data-testid="peer-row"]:has-text(name)`, and they will still count, because
+the baseline is where that judgement belongs rather than inside a regex.

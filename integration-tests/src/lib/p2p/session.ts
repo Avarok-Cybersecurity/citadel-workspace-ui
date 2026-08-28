@@ -496,7 +496,7 @@ export async function loginAfterDisconnect(
 
     // Open Advanced Options to fill in server address
     console.log('  Opening Advanced Options...');
-    const advancedBtn = page.locator('button:has-text("Advanced Options")').first();
+    const advancedBtn = page.getByTestId('login-advanced-options').first();
     if (await isVisibleWithin(advancedBtn, 2000)) {
       await advancedBtn.click();
       await sleep(500);
@@ -651,7 +651,7 @@ export async function loginAfterDisconnect(
           await retryUsernameInput.fill(username);
           await retryPasswordInput.fill(password);
           // Open Advanced Options and fill server
-          const retryAdvBtn = page.locator('button:has-text("Advanced Options")').first();
+          const retryAdvBtn = page.getByTestId('login-advanced-options').first();
           if (await isVisibleWithin(retryAdvBtn, 1000)) {
             await retryAdvBtn.click();
             await sleep(500);
