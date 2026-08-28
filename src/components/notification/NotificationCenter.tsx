@@ -119,6 +119,10 @@ const NotificationCenter = () => {
           variant="ghost"
           size="icon"
           className="relative"
+          // Addressed by id. A spec reached for it as
+          // `button:has(svg.lucide-bell)` -- an icon library's internal class
+          // name, which nothing promises to keep.
+          data-testid="notification-bell"
           aria-label={
             unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'
           }

@@ -63,7 +63,13 @@ const SheetContent = React.forwardRef<
       {...props}
     >
       {children}
-      <SheetPrimitive.Close className="absolute right-4 top-4 inline-flex h-6 w-6 items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
+      {/* `tap-target`, for the same reason as the dialog's close button and in
+          the same words: `h-6` is 1.5rem, the app's root font is 14px, so this
+          renders 21x21 -- under the 24px floor. The dialog was fixed; this,
+          its identical twin one file over, was not, and the notification
+          centre is a Sheet. A CI viewport probe measured it at 21x21 months
+          later. A fix applied in one place is not a fix. */}
+      <SheetPrimitive.Close className="tap-target absolute right-4 top-4 inline-flex h-6 w-6 items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </SheetPrimitive.Close>

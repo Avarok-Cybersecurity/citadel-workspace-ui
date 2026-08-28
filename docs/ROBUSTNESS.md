@@ -13490,3 +13490,41 @@ by identity. 140 → **139** on the widened measure.
 
 *A check that cannot see the thing it was written to catch reports zero and
 reads as safe.*
+
+## Round 259 — the close button that was fixed once
+
+Shard 3's `notification centre fits the viewport` failed three times, and the
+three failures were two different things stacked on top of each other.
+
+**The locator.** `button:has(svg.lucide-bell)` — an icon library's internal
+class name. Nothing promises to keep it. When the click landed nowhere the sheet
+never opened, so the tap-target and overflow checks below it never ran, and the
+failure read as a missing dialog rather than as a missing button. Now
+`notification-bell`, in both specs that press it.
+
+**And underneath it, a real defect.** On the one retry that got through, the
+probe measured what it came to measure:
+
+```
+notifications has tap targets under 24px at 375px:
+  <button> "Close" 21x21
+```
+
+`h-6 w-6` looks like 24px and is not: Tailwind's 6 is 1.5rem and this app's root
+font is 14px, so it renders 21×21. That was found and fixed **on the dialog**,
+with a long comment saying exactly this. Its identical twin in `sheet.tsx`, one
+file over, never got it — and the notification centre is a Sheet.
+
+*A correct fix applied in one place. Grep the mechanism, not the symptom.*
+
+The guard is at the mechanism: every `*Primitive.Close` under `components/ui`
+must carry `tap-target`. It matches the Radix primitive rather than the word
+"Close", so a renamed label cannot hide one. Removing the class from either file
+fails it.
+
+### The gate now counts icon classes
+
+`svg.lucide-*` is not copy, but it is identity-free in the same way. Added, and
+it found ten more sites across the file-manager, file-transfer, live-doc, revfs
+and user-directory suites — four of which are currently red legs. 139 → **156**,
+again the check learning to see rather than the code getting worse.

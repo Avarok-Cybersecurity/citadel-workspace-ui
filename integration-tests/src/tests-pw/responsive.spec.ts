@@ -586,7 +586,10 @@ test.describe.serial('Responsive workspace at 375px', () => {
    * line, which is exactly what stops fitting first.
    */
   test('notification centre fits the viewport', async () => {
-    await page.locator('button:has(svg.lucide-bell)').first().click({ force: true });
+    // By testid. `svg.lucide-bell` is an icon library's internal class name --
+    // nothing promises to keep it, and when it goes this click lands nowhere,
+    // the sheet never opens, and the 375px checks below never run.
+    await page.getByTestId('notification-bell').click({ force: true });
     await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
 
     await expectNoHorizontalOverflow(page, 'notifications');

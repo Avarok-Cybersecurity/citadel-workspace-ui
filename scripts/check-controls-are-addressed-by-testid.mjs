@@ -41,9 +41,16 @@ const WRITE = process.argv.includes('--write');
  *    to test.
  *  - **Roles other than button.** A link, tab or menuitem addressed by its
  *    words breaks in exactly the same way.
+ *
+ * An icon's class counts too. `button:has(svg.lucide-bell)` is not copy, but it
+ * is identity-free in the same way: `lucide-bell` is an icon library's internal
+ * name, nothing promises to keep it, and when it goes the click lands nowhere.
+ * That is what happened to the notification centre at 375px — the sheet never
+ * opened, so the tap-target and overflow checks below it never ran, and the
+ * failure read as a missing dialog rather than as a missing button.
  */
 const COPY_LOCATOR =
-  /(has-text\(|getByText\(|getByRole\(\s*['"][a-z]+['"]\s*,\s*\{\s*name\b|filter\(\s*\{\s*hasText:)/;
+  /(has-text\(|getByText\(|getByRole\(\s*['"][a-z]+['"]\s*,\s*\{\s*name\b|filter\(\s*\{\s*hasText:|svg\.lucide-)/;
 /** Something done TO a control, as opposed to asserted about it. */
 const ACTION = /\.(click|fill|press|check|selectOption)\(/;
 

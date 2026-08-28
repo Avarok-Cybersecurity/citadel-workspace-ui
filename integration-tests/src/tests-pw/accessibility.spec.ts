@@ -505,7 +505,7 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
   });
 
   test('notification centre', async () => {
-    await page.locator('button:has(svg.lucide-bell)').first().click({ force: true });
+    await page.getByTestId('notification-bell').click({ force: true });
     await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
 
     await expectNoBlockingViolations(page, 'notifications');
