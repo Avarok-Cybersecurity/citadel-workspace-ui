@@ -309,8 +309,23 @@ test.describe(`Accessibility (first-run surfaces, ${scheme})`, () => {
     await click(page, 'NEXT');
     await expect(page.locator('#password')).toBeVisible({ timeout: 30_000 });
 
-    const toggles = page.getByRole('button', { name: /show password|hide password/i });
+    // `show|hide <anything> password`, not `show password`.
+    //
+    // Both toggles used to be called "Show password" -- one name for two
+    // controls, so a screen-reader user tabbing through heard it twice with
+    // nothing to say which field they were on. They are now "Show profile
+    // password" and "Show confirm profile password", and this assertion, pinned
+    // to the exact old string, failed on the fix that improved them. A rename
+    // that makes a name MORE specific must not read as the control vanishing.
+    const toggles = page.getByRole('button', { name: /(show|hide).*password/i });
     await expect(toggles).toHaveCount(2); // profile password + confirm
+
+    // And they must still be distinguishable from each other, which is the
+    // reason they were renamed.
+    const names = await toggles.evaluateAll((els) =>
+      els.map((el) => el.getAttribute('aria-label') ?? el.textContent ?? ''),
+    );
+    expect(new Set(names).size).toBe(2);
 
     const first = toggles.first();
     await expect(first).toHaveAttribute('aria-pressed', 'false');

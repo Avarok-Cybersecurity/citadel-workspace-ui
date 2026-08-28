@@ -12030,3 +12030,30 @@ Five tests with two controls cover the reject path — removing the listener fai
 four of them, never removing it fails the one that counts listeners, which is the
 one that matters when a drop fails twenty requests at once. A sixth control
 unwraps a single waiter and the rule names that file.
+
+## Round 227 — a check pinned to the copy it asked to be improved
+
+Round 212 renamed two password toggles. Both had been called "Show password" —
+one name for two controls, so a screen-reader user tabbing through heard it twice
+with nothing to say which field they were on. They became "Show profile password"
+and "Show confirm profile password".
+
+Six CI failures followed, three per theme:
+
+```
+Locator:  getByRole('button', { name: /show password|hide password/i })
+Expected: 2
+Received: 0
+```
+
+"Show profile password" does not contain the substring "show password". The
+assertion was pinned to the exact old string, so a rename that made the name
+*more* specific read as the control having vanished — and it read that way three
+times, because the spec retries.
+
+The regex now matches `(show|hide).*password`, and the test additionally asserts
+the two names are **distinct**, which is the property the rename was for and
+which nothing was checking. Round 190's rule — browser checks address controls
+by testid, not by what a button says — exists for this, and it covers
+`scripts/*.mjs`, not the Playwright specs. That is the gap the six failures came
+through.
