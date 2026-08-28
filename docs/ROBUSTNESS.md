@@ -8969,3 +8969,39 @@ Also: "Connection Type: P2P Encrypted" in chat settings was a constant under a
 label that reads as live status — the same string whether the peer is connected,
 offline, or queueing through ILM. Relabelled to the property of the channel it
 actually states.
+
+## Round 149 — a mirror with no lock, and an "SSOT" label on the copy nobody read
+
+**The inline-upload byte cap was declared in two languages and nothing bound
+them.** `MAX_BYTE_CONTENTS_BYTES` exists in `server-upload.ts` and in the
+internal service's `requests/file/upload.rs`, and the TypeScript comment saying
+"Keep the two in lockstep" was the entire mechanism. Unlike the permission
+parity gate and the credential mirror, nothing failed if the Rust cap moved.
+
+Drift has a specific, expensive symptom: the browser serialises a file it
+believes acceptable, ships it, and the service rejects it on arrival — a user
+watches an upload complete and then fail, which is the exact round trip the
+TypeScript constant exists to prevent. `check-transfer-cap-parity.mjs` reads
+both sides as *text* (importing either would pass whatever the other said) and
+fails outright if the declaration is renamed, because a scan that finds nothing
+looks exactly like a scan that agrees. Controls: changing one side fails it;
+renaming it away fails it differently, and says so.
+
+**The CID priority chain existed twice, in the multi-tab hot path.** One copy
+was `cid-resolver.ts`, whose own header read "Extracted to avoid duplication
+across service methods", and the other was in
+`p2p-registration-service/discovery.ts` — same four steps, same 500 ms timeout
+under two different constant names, differing only in debug logging. This is
+which session a tab is acting as; reorder the chain or add a fallback and one of
+the two keeps the old answer. Now `lib/p2p/current-cid.ts`, with both old homes
+as re-exports.
+
+**And the "(SSOT)" label was on the copy nobody imported.**
+`p2p-auto-connect-service/types.ts` re-exported `DEFAULT_BACKOFF_CONFIG` and
+`ONLINE_STATUS_CACHE_TTL_MS` from `p2p-auto-connect/types.ts` under a comment
+saying SSOT — while the same numbers were declared again in this directory's
+`constants.ts`, which is what every consumer actually imports. Tuning the
+labelled copy changed nothing. The values are now derived from `constants.ts`,
+the copy that was always in force, and the comment says what is true.
+
+Preflight is 31 checks.

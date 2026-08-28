@@ -6,61 +6,17 @@
  */
 
 import { websocketService } from '../websocket-service';
-import { connectionManager } from '../connection';
-import { getSelectedUser } from '../tab-context';
 import { broadcastChannelService } from '../broadcast-channel-service';
-import { instanceManager } from '../multi-instance';
 import { debugLog } from '@/lib/debug-config';
 import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 import type { Peer, PeerInfoResponse, PendingRequestEntry } from './types';
-import { PEER_LIST_TIMEOUT, CID_RESOLUTION_TIMEOUT_MS } from './constants';
+import { PEER_LIST_TIMEOUT } from './constants';
 import { wireMapValues } from '@/lib/wire-map';
 
-/**
- * Get current CID with proper priority for multi-tab support:
- * 1) InstanceManager CID (synchronous, set by handleSuccessfulConnection)
- * 2) Tab context selectedCid (IndexedDB - may hang on follower tabs)
- * 3) Tab session CID (IndexedDB - may hang on follower tabs)
- * 4) Global connection CID (legacy fallback)
- */
-export async function getCurrentCid(): Promise<bigint | null> {
-  const instanceCid = instanceManager.cid;
-  debugLog('P2PRegistrationService', `[P2P] getCurrentCid: instanceManager.cid=${instanceCid?.toString() ?? 'null'}`);
-  if (instanceCid) {
-    debugLog('P2PRegistrationService', `[P2P] getCurrentCid: Using instanceManager.cid (primary): ${instanceCid}`);
-    return instanceCid;
-  }
-
-  try {
-    const tabSelectionPromise = getSelectedUser();
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), CID_RESOLUTION_TIMEOUT_MS));
-    const tabSelection = await Promise.race([tabSelectionPromise, timeout]);
-    debugLog('P2PRegistrationService', `[P2P] getCurrentCid: tabSelection=${JSON.stringify(tabSelection ? { selectedCid: tabSelection.selectedCid?.toString() } : null)}`);
-    if (tabSelection?.selectedCid) {
-      debugLog('P2PRegistrationService', `[P2P] getCurrentCid: Using tabSelection.selectedCid: ${tabSelection.selectedCid}`);
-      return tabSelection.selectedCid;
-    }
-  } catch (e) {
-    debugLog('P2PRegistrationService', 'getCurrentCid: getSelectedUser failed:', e);
-  }
-
-  try {
-    const tabSessionPromise = connectionManager.getTabSelectedSession();
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), CID_RESOLUTION_TIMEOUT_MS));
-    const tabSession = await Promise.race([tabSessionPromise, timeout]);
-    debugLog('P2PRegistrationService', `[P2P] getCurrentCid: tabSession=${tabSession ? { cid: tabSession.cid?.toString() } : null}`);
-    if (tabSession?.cid) {
-      debugLog('P2PRegistrationService', `[P2P] getCurrentCid: Using tabSession.cid: ${tabSession.cid}`);
-      return tabSession.cid;
-    }
-  } catch (e) {
-    debugLog('P2PRegistrationService', 'getCurrentCid: getTabSelectedSession failed:', e);
-  }
-
-  const connectionInfo = connectionManager.getConnectionInfo();
-  debugLog('P2PRegistrationService', `[P2P] getCurrentCid: connectionInfo=${connectionInfo ? { cid: connectionInfo.cid?.toString() } : null}`);
-  return connectionInfo?.cid || null;
-}
+// One implementation, in lib/p2p/current-cid. This copy had the same four
+// steps and the same 500ms timeout under a different constant name.
+import { getCurrentCid } from '../p2p/current-cid';
+export { getCurrentCid };
 
 /** Validate that a CID represents an active user session (not the service connection) */
 function assertValidSession(cid: bigint | null): asserts cid is bigint {

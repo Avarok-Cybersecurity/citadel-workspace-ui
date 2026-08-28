@@ -32,18 +32,24 @@ export interface BackoffConfig {
 /**
  * Default backoff configuration.
  */
+// The VALUES live in p2p-auto-connect-service/constants.ts, which is what the
+// consumers actually import. They were declared in both places, and the copy
+// carrying the "(SSOT)" label in the re-export next door was the one nobody
+// read — so tuning it changed nothing. Derived here so the two cannot part.
+import {
+  BASE_DELAY_MS,
+  MAX_DELAY_MS,
+  POLL_INTERVAL_MS,
+  ONLINE_STATUS_CACHE_TTL_MS as SERVICE_ONLINE_STATUS_CACHE_TTL_MS,
+} from '../p2p-auto-connect-service/constants';
+
 export const DEFAULT_BACKOFF_CONFIG: BackoffConfig = {
-  baseDelay: 1000, // 1 second
-  maxDelay: 30 * 1000, // 30 seconds
-  pollInterval: 30 * 1000, // 30 seconds continuous polling
+  baseDelay: BASE_DELAY_MS,
+  maxDelay: MAX_DELAY_MS,
+  pollInterval: POLL_INTERVAL_MS,
 };
 
-/**
- * Online status cache configuration.
- */
-export const ONLINE_STATUS_CACHE_TTL_MS = 10 * 1000; // 10 seconds
+export const ONLINE_STATUS_CACHE_TTL_MS = SERVICE_ONLINE_STATUS_CACHE_TTL_MS;
 
-/**
- * Fresh connection threshold for race condition prevention.
- */
-export const FRESH_CONNECTION_THRESHOLD_MS = 5000; // 5 seconds
+/** Fresh connection threshold for race condition prevention. */
+export const FRESH_CONNECTION_THRESHOLD_MS = 5000;
