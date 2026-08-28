@@ -6,6 +6,7 @@
  */
 
 import type { ConnectionState } from './state';
+import { failOnSocketLoss } from '../websocket/request-response';
 import type { ConnectionIO } from './io';
 import type { ActiveSession } from '@/types/session-types';
 import {
@@ -114,7 +115,7 @@ async function fetchActiveSessions(
 
     await io.sendWebSocketMessage({ GetSessions: { request_id: requestId } });
 
-    const response = await responsePromise;
+    const response = await failOnSocketLoss('GetSessions', responsePromise);
     return { ok: true, sessions: response.sessions || [] };
   } catch (error) {
     debugLog('ConnectionService', 'Failed to get active sessions', error);

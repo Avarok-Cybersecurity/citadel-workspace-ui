@@ -1,4 +1,5 @@
 import { websocketService } from './websocket-service';
+import { failOnSocketLoss } from './websocket/request-response';
 import { eventEmitter } from './event-emitter';
 import { getRecentServers } from './recent-servers';
 import { stringToBytes, bytesToString } from './utils/encoding-utils';
@@ -35,7 +36,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
     const requestId = crypto.randomUUID();
 
     // Create a promise to wait for the response
-    return new Promise((resolve, reject) => {
+    return failOnSocketLoss('ListKnownServers', new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handler);
         reject(new Error('List known servers request timed out'));
@@ -110,7 +111,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
           eventEmitter.off('websocket-message', handler);
           reject(error);
         });
-    });
+    }));
   } catch (error) {
     debugLog('ServerUtils', 'Error in listKnownServers:', error);
     // Return empty array on error to prevent UI crashes
@@ -143,7 +144,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
     }
 
     // Store back to LocalDB
-    return new Promise((resolve, reject) => {
+    return failOnSocketLoss('StoreKnownServer', new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handler);
         reject(new Error('Store known server request timed out'));
@@ -192,7 +193,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
           eventEmitter.off('websocket-message', handler);
           reject(error);
         });
-    });
+    }));
   } catch (error) {
     debugLog('ServerUtils', 'Error in storeKnownServer:', error);
     throw error;

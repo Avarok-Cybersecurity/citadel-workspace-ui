@@ -6,6 +6,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { failOnSocketLoss } from '../websocket/request-response';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
 import { TIMEOUT } from '../timeout-constants';
@@ -22,7 +23,7 @@ export function waitForAcceptResponse(
 ): Promise<void> {
   const targetKey = toCidKey(targetPeerCid);
 
-  return new Promise<void>((resolve, reject) => {
+  return failOnSocketLoss('AcceptPeerRegister', new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => {
       eventEmitter.off('websocket-message', handleMessage);
       reject(new Error('Registration request timed out'));
@@ -76,5 +77,5 @@ export function waitForAcceptResponse(
     };
 
     eventEmitter.on('websocket-message', handleMessage);
-  });
+  }));
 }

@@ -7,6 +7,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { failOnSocketLoss } from '../websocket/request-response';
 import { formatBytes } from '../format-bytes';
 import { websocketService } from '../websocket-service';
 import type { FileSource } from './io-router-types';
@@ -115,7 +116,7 @@ export async function executeSendFile(
     transferId: params.transferId,
   });
 
-  return new Promise((resolve, reject) => {
+  return failOnSocketLoss('SendFile', new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       eventEmitter.off('websocket-message', handleMessage);
       reject(new Error('SendFile request timed out'));
@@ -151,7 +152,7 @@ export async function executeSendFile(
       eventEmitter.off('websocket-message', handleMessage);
       reject(error);
     });
-  });
+  }));
 }
 
 /**

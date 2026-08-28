@@ -14,6 +14,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { failOnSocketLoss } from '../websocket/request-response';
 import { websocketService } from '../websocket-service';
 import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
@@ -74,7 +75,7 @@ export function downloadFileFromServer(transfer: FileTransfer): Promise<string |
     requestId,
   });
 
-  return new Promise<string | undefined>((resolve, reject) => {
+  return failOnSocketLoss('ServerDownload', new Promise<string | undefined>((resolve, reject) => {
     const timeout = setTimeout(() => {
       eventEmitter.off('websocket-message', handleMessage);
       reject(new Error(`Download of "${transfer.fileName}" timed out.`));
@@ -119,7 +120,7 @@ export function downloadFileFromServer(transfer: FileTransfer): Promise<string |
     websocketService.sendMessage(request as unknown as Record<string, unknown>).catch(error => {
       settle(() => reject(error instanceof Error ? error : new Error(String(error))));
     });
-  });
+  }));
 }
 
 /** Minimal surface `completeStagedDownload` needs from the transfer service. */

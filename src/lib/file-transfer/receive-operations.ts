@@ -1,6 +1,7 @@
 /** Receive Operations - RespondFileTransfer, DownloadFile, subscription factories. */
 
 import { eventEmitter } from '../event-emitter';
+import { failOnSocketLoss } from '../websocket/request-response';
 import { websocketService } from '../websocket-service';
 import type {
   RespondTransferParams, DownloadFileParams, TransferRequestEvent,
@@ -68,7 +69,7 @@ export async function executeDownloadFile(params: DownloadFileParams): Promise<v
     peerCid: params.peerCid?.toString(),
   });
 
-  return new Promise((resolve, reject) => {
+  return failOnSocketLoss('ReceiveFile', new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       eventEmitter.off('websocket-message', handleMessage);
       reject(new Error('DownloadFile request timed out'));
@@ -103,7 +104,7 @@ export async function executeDownloadFile(params: DownloadFileParams): Promise<v
       eventEmitter.off('websocket-message', handleMessage);
       reject(error);
     });
-  });
+  }));
 }
 
 export function createTransferRequestHandler(

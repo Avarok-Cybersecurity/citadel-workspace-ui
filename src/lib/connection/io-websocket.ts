@@ -11,6 +11,7 @@
 // live bindings — reading `wsModule.websocketService` is deferred until call time,
 // by which point the cycle has fully resolved and the singleton is initialized.
 import * as wsModule from '../websocket-service';
+import { failOnSocketLoss } from '../websocket/request-response';
 import { persistJSON, parsePersistedJSON } from '../storage-utils';
 import { formatForDebug } from '../debug-formatter';
 import { stringToBytes, bytesToString } from '../utils/encoding-utils';
@@ -159,6 +160,6 @@ export class ConnectionIOWebSocket {
     });
 
     await this.sendWebSocketMessage({ GetSessions: request });
-    return responsePromise;
+    return failOnSocketLoss('GetSessions', responsePromise);
   }
 }

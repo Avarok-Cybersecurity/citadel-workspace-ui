@@ -6,6 +6,7 @@
  */
 
 import { websocketService } from '../websocket-service';
+import { failOnSocketLoss } from '../websocket/request-response';
 import { broadcastChannelService } from '../broadcast-channel-service';
 import { debugLog } from '@/lib/debug-config';
 import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
@@ -53,7 +54,7 @@ export async function listAllPeers(
   });
 
   await websocketService.sendMessage(request);
-  const response = await responsePromise;
+  const response = await failOnSocketLoss('ListAllPeers', responsePromise);
 
   // `peer_information` is a Rust HashMap, which arrives as a JS Map — so
   // `Object.values(...)` yielded `[]` with no error. This is the service that
@@ -96,7 +97,7 @@ export async function listRegisteredPeers(
   });
 
   await websocketService.sendMessage(request);
-  const response = await responsePromise;
+  const response = await failOnSocketLoss('ListAllPeers', responsePromise);
 
   debugLog('P2PRegistrationService', '[P2P-ListRegisteredPeers] Raw response:', JSON.stringify(response, (k, v) => typeof v === 'bigint' ? v.toString() : v));
 

@@ -13,6 +13,7 @@ import type {
   UpdateOperationTS,
   UserRoleTS,
 } from '@/types/workspace-protocol';
+import { failOnSocketLoss } from '../websocket/request-response';
 import { websocketService } from '@/lib/websocket-service';
 import type { WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 import { isVariant } from 'citadel-workspace-client-ts';
@@ -179,7 +180,7 @@ export class WorkspaceService implements ProtocolSender {
     });
 
     await websocketService.sendWorkspaceRequest(this._currentCid, request);
-    return responsePromise;
+    return failOnSocketLoss(requestType, responsePromise);
   }
 
   private getExpectedResponseTypes(requestType: string): string[] {

@@ -5,6 +5,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { failOnSocketLoss } from './request-response';
 import { debugLog } from '../debug-config';
 import { TIMEOUT } from '../timeout-constants';
 
@@ -45,7 +46,7 @@ export class FilePicker {
 
     debugLog('FilePicker', 'Sending PickFile request', request);
 
-    return new Promise((resolve, reject) => {
+    return failOnSocketLoss('PickFile', new Promise((resolve, reject) => {
       // Longer timeout for file picker - user interaction can take time
       const timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handleMessage);
@@ -79,6 +80,6 @@ export class FilePicker {
         eventEmitter.off('websocket-message', handleMessage);
         reject(error);
       });
-    });
+    }));
   }
 }

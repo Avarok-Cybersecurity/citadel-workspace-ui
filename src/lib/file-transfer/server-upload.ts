@@ -12,6 +12,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { failOnSocketLoss } from '../websocket/request-response';
 import { websocketService } from '../websocket-service';
 import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
@@ -40,7 +41,7 @@ export const MAX_BYTE_CONTENTS_BYTES = 16 * 1024 * 1024; // 16 MiB
  * defined once rather than reimplemented per call site.
  */
 export function awaitSendFileAck(requestId: string): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
+  return failOnSocketLoss('ServerUpload', new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => {
       eventEmitter.off('websocket-message', handleMessage);
       reject(new Error('SendFile request timed out'));
@@ -77,7 +78,7 @@ export function awaitSendFileAck(requestId: string): Promise<void> {
     };
 
     eventEmitter.on('websocket-message', handleMessage);
-  });
+  }));
 }
 
 /**

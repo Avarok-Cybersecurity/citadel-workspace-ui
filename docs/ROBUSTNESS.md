@@ -11988,3 +11988,45 @@ now measured by rectangle.
 `console.log` mentioning a timeout must be one of two named informational lines,
 and the reporter must still capture all five fields by rectangle. Three controls
 — restoring a bare line, and reverting the visibility test — each fail it.
+
+## Round 226 — a wait that outlives the socket it was sent on
+
+When the WebSocket dies, every request in flight is already dead: the internal
+service keys responses to the connection that asked, and a reconnect is a new
+connection with a new uuid. Nothing will ever answer.
+
+Each one sat out its full budget anyway, and the budgets are not small:
+
+| operation | budget | what the user saw |
+|---|---|---|
+| PickFile | 120s | file dialog dead, spinner for two minutes |
+| FileDownload | 60s | a minute, then "timed out" |
+| PeerList | 35s | half a minute of empty list |
+| PeerConnect, Disconnect, FileSend | 30s | |
+| LocalDB, ListKnownServers | 5s | ×4 at boot |
+
+Then it said "request timed out", which names the wrong cause: the request did
+not run out of time, it ran out of socket. The difference matters to a user
+deciding whether to wait longer.
+
+`requestResponse` now rejects on `websocket-disconnected`, and so does its soft
+variant. That fixed the callers that use it — which was not all of them.
+
+A rule found the rest, and found more than the obvious search did. Grepping for
+`request timed out` gave ten files; the rule, which looks for the *shape*
+(`reject(new Error(… timed out …))`), found four the grep missed because they
+phrase it differently — `Download of "x" timed out.`, `File picker timed out`,
+`Request timed out after 30000ms waiting for response to …`. Searching for the
+words finds the files that use those words. This is the tenth time this campaign
+has recorded a correct fix that reached one call site.
+
+Thirteen waiters now go through `failOnSocketLoss(operation, promise)`. The
+fourteenth was `utils/request-tracker.ts` — a whole module with **no importers
+at all**, exported through `utils/index.ts` and used by nothing. It is deleted
+rather than guarded: covering dead code makes a rule's list longer and its
+meaning smaller.
+
+Five tests with two controls cover the reject path — removing the listener fails
+four of them, never removing it fails the one that counts listeners, which is the
+one that matters when a drop fails twenty requests at once. A sixth control
+unwraps a single waiter and the rule names that file.

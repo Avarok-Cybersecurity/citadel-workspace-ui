@@ -6,6 +6,7 @@
  */
 
 import { websocketService } from '../websocket-service';
+import { failOnSocketLoss } from '../websocket/request-response';
 import { broadcastChannelService } from '../broadcast-channel-service';
 import { instanceManager } from '../multi-instance';
 import { debugLog } from '@/lib/debug-config';
@@ -188,7 +189,7 @@ export async function registerPeer(
     }, PEER_REGISTER_TIMEOUT_MS);
   });
   await websocketService.sendMessage(request);
-  await responsePromise;
+  await failOnSocketLoss('PeerRegister', responsePromise);
   debugLog('P2PRegistrationService', `Successfully registered peer ${peerCid}`);
 }
 

@@ -18,14 +18,6 @@ export {
   type CidLike
 } from './cid-utils';
 
-// Request tracking
-export {
-  RequestTracker,
-  generateRequestId,
-  type PendingRequest,
-  type RequestTrackerOptions
-} from './request-tracker';
-
 // Retry utilities
 export {
   retryWithBackoff,
