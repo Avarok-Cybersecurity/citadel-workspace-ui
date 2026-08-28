@@ -9181,3 +9181,54 @@ rewrote what the other read next, and the CID self-heal then stamped each
 instance with whatever the shared tab context said, manufacturing the
 duplicate-CID ownership above. `reissueInstanceId` existed for exactly this
 reason and re-rolled the instance id only; the repair now re-rolls both.
+
+## Round 154 — the two upgrade doors that only open one way
+
+Both of these were recorded as needing a decision. Neither needed one: in each
+case the safe answer is the one that says what happened.
+
+**A genuine rollback left users pressing a button that could not work.**
+IndexedDB has no downgrade, so a browser holding the newer schema gets a
+`VersionError` on a rolled-back build. The recovery screen existed and was
+right about the common cause — a stale cached bundle, fixed by unregistering
+the service worker and reloading — and had nothing to say about the other one.
+In a real rollback the server is deliberately serving the older build, so that
+reload returns it, for ever, with the user's data unreachable and no second
+option.
+
+The destructive option now appears, but only after the safe one has been tried
+and landed back on the same screen — which is precisely the signal that
+separates the two causes. It says what it discards (locally cached messages and
+files, any saved sign-in) and what survives (the account, everything on the
+server), because a destructive action that does not say what it destroys is one
+people either avoid when they should not or take when they should not. Controls:
+removing the escalation fails two tests; not recording the attempt fails one.
+
+**The agent's data directory had no version handling at all.** The workspace
+server versions its persisted state and refuses to boot on a schema it does not
+understand; the agent — whose directory holds the ratchet keys for every account
+registered on the device — had nothing. An SDK serialization change was
+therefore indistinguishable from corruption: a routine `docker compose pull`
+produces an agent that cannot read its own accounts, with no statement of why
+and deleting the volume as the only apparent remedy. Those keys do not come
+back.
+
+A stamp does not migrate anything. It turns silent unreadable state into a
+refusal that names the cause, which is the difference between "run the newer
+image again" and "delete everything and hope". Both refusals name a way out —
+there is a test for that, because a refusal with no next step is a dead end —
+and the newer-format one says outright that deleting the directory is the loss
+rather than the recovery. A directory written before the stamp existed is
+adopted rather than refused, since refusing there would have bricked every
+running agent the moment this shipped: a worse bug than the one being prevented.
+
+`docs/UPGRADING.md` said "rolling back is exactly the same operation as
+upgrading. There is no separate rollback path to get wrong." True of the server
+and false of both clients; it now says which, and says to check `DB_VERSION`
+across the two tags before rolling back.
+
+One note on method: clippy rejected a parameter of the new `verdict` function as
+unused, and it was right — whether the directory already holds data does not
+change the answer. The fix was to delete it rather than underscore it. A
+parameter that is threaded through and ignored implies a distinction the code
+does not make, which is how the next reader comes to believe in one.
