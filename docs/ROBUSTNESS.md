@@ -13178,3 +13178,33 @@ new one; the control that removes the exemption fails only the new test.
 
 The UI, for once, was already right: it reverts the switch and shows the reason
 rather than a fixed sentence, which is exactly why the log said what was wrong.
+
+### Corroboration for round 245, and one lead left open
+
+The same run confirms round 245 from a second direction. `test:tree-structure`:
+
+```
+WARNING: "TestRoom_1787947251437"  never appeared in the sidebar
+WARNING: "TestRoom2_1787947251437" never appeared in the sidebar
+WARNING: "TempRoom_1787947251437"  never appeared in the sidebar
+Room Node Created: FAIL   Full Tree Structure: FAIL
+UI Delete Cascades: FAIL  No Orphans Left Behind: FAIL
+```
+
+Three rooms created and none of them visible — the same defect `test:crud`
+reported as one, in a leg that creates more of them. Four verdicts from one
+cause.
+
+**Left open:** `test:hard-disconnect` fails because `ListRegisteredPeers`
+returns zero peers after the disconnect:
+
+```
+[P2P-ListRegisteredPeers] Converted peers array length: 0
+[ConversationManager] Refusing stale-conversation cleanup: the valid peer set is empty
+[UX CRITICAL] Could not find harddc_bob_… in sidebar after 15 attempts
+```
+
+Fifteen attempts is not a polling lag. Whether the registration is gone or
+merely unreadable from that connection is a question for a running stack, and
+guessing between those two is how a subtle bug gets a confident wrong fix.
+Recorded with its evidence.
