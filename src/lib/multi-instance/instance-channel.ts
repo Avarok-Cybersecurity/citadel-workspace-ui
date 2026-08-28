@@ -1,5 +1,6 @@
 // Instance Channel (Singleton): coordinates leader election + message handling.
 import { eventEmitter } from '../event-emitter';
+import { reissueTabId } from '@/lib/tab-context';
 import { handleOutboundAck } from './channel-messaging';
 import { sendToLeader } from './send-to-leader';
 import { instanceManager } from './instance-manager';
@@ -84,7 +85,13 @@ class InstanceChannel {
   }
 
   private readonly identityRepair = {
-    reissue: () => instanceManager.reissueInstanceId(),
+    // Both ids, not just the instance one. sessionStorage is copied on
+    // Duplicate Tab, so the twins share the TAB id too -- and every
+    // `tab-<id>-*` storage key with it, including the selected session.
+    reissue: () => {
+      reissueTabId();
+      return instanceManager.reissueInstanceId();
+    },
     announce: () => this.send({ type: 'instance-announce' as const, targetInstanceId: '*' }),
   };
 

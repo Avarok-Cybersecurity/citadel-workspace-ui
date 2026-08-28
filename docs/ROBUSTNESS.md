@@ -9127,3 +9127,57 @@ work, with no requestId dedupe on the leader; auto-claim treats "not orphaned"
 as adoptable, so two tabs can own one session; and Duplicate Tab shares
 `citadel-tab-id` forever, because the identity repair re-rolls only the instance
 id.
+
+## Round 153 — the five recorded in round 152, taken rather than left
+
+**A demotion landing mid-build left a live socket owned by a follower.**
+`closeLeaderClient` read only `leaderClient`, which is still null while
+`doCreateWebSocketAsLeader` awaits — so a demotion during the build closed
+nothing, the build finished and assigned the client in a tab that was no longer
+leader. That socket is deaf (the message handler drops frames after demotion)
+but open, and still announces itself connected. It now waits on `creating`
+first, with `.catch` so a build that rejects cannot stop a teardown.
+
+**A leadership flap failed whatever was in flight.** A backgrounded leader's
+heartbeat `setInterval` is throttled by the browser to roughly once a minute
+against a five-second dead-leader timeout, while BroadcastChannel delivery is
+not throttled — so a foreground follower challenges, activates, and is demoted
+again milliseconds later by the real leader's event-driven reply. Roughly once a
+minute, in the multi-tab workflow this app is built around. The newly-"active"
+handler had no socket yet and error-acked everything, losing real user
+operations to a race nobody can see.
+
+It now waits briefly for the socket instead — and **bounded**, because the
+unbounded version is the opposite mistake: with no socket coming at all the
+follower waits out the queue's retries rather than being told quickly that
+nobody is listening. Both directions have a control.
+
+**A retry could execute the same work twice.** The leader's proxy handlers ack
+only *after* awaiting the operation and held no in-flight set, so a redelivery
+mid-flight started the work again — invisible for chat, which the receiver
+deduplicates by message id, and a duplicated write for anything proxied to the
+workspace server.
+
+The obvious fix was to raise the queue's 5 s retry deadline to the 30 s the
+leader is budgeted. **That made things worse, and a test caught it**: the same
+deadline bounds *giving up*, so three retries at 30 s turns a dead leader from a
+fast failure into a ninety-second hang. A read-receipt test that depends on the
+fast path timed out. The duplicate is prevented at the leader instead, and the
+deadline stays short doing its other job.
+
+**Two tabs could own one session.** Auto-claim treated a "not orphaned" refusal
+as success outright — but "not orphaned" means somebody has it, and that
+somebody may be another tab in this browser. Both tabs then registered the same
+CID, and `findInstanceByCid` returns the first map hit: every CID-routed
+notification (messages, transfer ticks, call media) went to one tab while the
+other rendered the same conversation and silently never updated, with the winner
+able to flip on re-registration. It now checks the instance registry and says so
+rather than adopting.
+
+**Duplicate Tab shared its identity forever.** Browsers copy sessionStorage on
+Duplicate Tab, so the twins shared `citadel-tab-id` — and with it every
+`tab-<id>-*` key, including the selected session. Switching session in one twin
+rewrote what the other read next, and the CID self-heal then stamped each
+instance with whatever the shared tab context said, manufacturing the
+duplicate-CID ownership above. `reissueInstanceId` existed for exactly this
+reason and re-rolled the instance id only; the repair now re-rolls both.

@@ -137,7 +137,7 @@ export class WebSocketInitialization {
   /** Create WebSocket connection when this tab is the leader. */
   async createWebSocketAsLeader(): Promise<WorkspaceClient> {
     // Idempotent: a demoted-then-promoted tab would otherwise open a second
-    // socket while the first is still live.
+    // socket while the first is still live. closeLeaderClient waits on it too.
     if (this.leaderClient) return this.leaderClient;
     if (this.creating) return this.creating;
     this.creating = this.doCreateWebSocketAsLeader().finally(() => {
@@ -146,8 +146,13 @@ export class WebSocketInitialization {
     return this.creating;
   }
 
-  /** Tear down the socket this tab owned while it was leader. */
+  /**
+   * Tear down the socket this tab owned while it was leader. Waits for an
+   * in-flight build: leaderClient is null while the build awaits, so a demotion
+   * mid-build closed nothing and left a live, deaf socket owned by a follower.
+   */
   async closeLeaderClient(): Promise<void> {
+    if (this.creating) await this.creating.catch(() => undefined);
     const client = this.leaderClient;
     if (!client) return;
     this.leaderClient = null;

@@ -26,6 +26,9 @@ import type { QueuedMessage, AckResult } from './outbound-queue-types';
 export type { QueuedMessage, AckResult, ProxyResponseData } from './outbound-queue-types';
 export { isEnsureMessengerOpenResponse } from './outbound-queue-types';
 
+// Deliberately shorter than sendToLeader's 30s: this deadline also bounds
+// giving up, so matching it turns a dead leader into a 90s hang. Duplicate
+// execution is prevented at the leader (inFlight). ROBUSTNESS round 153.
 const ACK_TIMEOUT_MS = TIMEOUT.SERVER_REQUEST_MS;
 const MAX_RETRIES = 3;
 const CHECK_INTERVAL_MS = 1000;

@@ -16,6 +16,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { waitForSocket } from './wait-for-socket';
 import { instanceChannel } from './instance-channel';
 import type { ProxyResponseData } from './outbound-queue-types';
 import {
@@ -96,7 +97,26 @@ class LeaderOutboundHandler {
     debugLog('LeaderOutboundHandler', '[LeaderOutboundHandler] WebSocket send function registered');
   }
 
+  /**
+   * Request ids currently being executed on behalf of a follower.
+   *
+   * The proxy handlers ack only AFTER awaiting the operation, so a retry that
+   * arrives mid-flight used to start the work a second time — invisible for
+   * chat, which the receiver deduplicates by message id, and a duplicated write
+   * for anything proxied to the workspace server. Dropped silently rather than
+   * error-acked: the original is still running and acks for both.
+   */
+  private readonly inFlight = new Set<string>();
+
   async handleOutboundRequest(request: OutboundRequest): Promise<void> {
+    if (this.inFlight.has(request.requestId)) {
+      debugLog(
+        'LeaderOutboundHandler',
+        `Ignoring duplicate delivery of ${request.requestId}; the original is still running`,
+      );
+      return;
+    }
+
     if (!this.isActive) {
       debugLog('LeaderOutboundHandler', 'Received request but not active (not leader)');
       this.sendAck(request.senderInstanceId, request.requestId, 'error', 'Not leader');
@@ -104,11 +124,18 @@ class LeaderOutboundHandler {
     }
 
     if (!this.websocketSendFn) {
-      debugLog('LeaderOutboundHandler', 'WebSocket send function not set');
-      this.sendAck(request.senderInstanceId, request.requestId, 'error', 'WebSocket not ready');
-      return;
+      // Waited for briefly rather than failed outright: a just-promoted leader
+      // is active before its socket exists, and error-acking there loses a real
+      // user operation to a leadership flap. See wait-for-socket.ts.
+      const ready = await waitForSocket(() => this.websocketSendFn);
+      if (!ready) {
+        debugLog('LeaderOutboundHandler', 'WebSocket send function not set');
+        this.sendAck(request.senderInstanceId, request.requestId, 'error', 'WebSocket not ready');
+        return;
+      }
     }
 
+    this.inFlight.add(request.requestId);
     try {
       if (!this.isValidSender(request.senderInstanceId)) {
         debugLog('LeaderOutboundHandler', `Invalid sender: ${request.senderInstanceId}`);
@@ -139,13 +166,23 @@ class LeaderOutboundHandler {
         `[LeaderOutboundHandler] Processing ${request.requestId} from ${request.senderInstanceId} (ILM: ${requiresIlm})`
       );
 
-      await this.websocketSendFn(request.payload);
+      // Re-read after the awaits above: a demotion can clear it, and the
+      // narrowing from the readiness check no longer holds here.
+      const send = this.websocketSendFn;
+      if (!send) {
+        this.sendAck(request.senderInstanceId, request.requestId, 'error', 'WebSocket not ready');
+        return;
+      }
+
+      await send(request.payload);
       this.sendAck(request.senderInstanceId, request.requestId, 'processed');
       debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Sent and ACKed ${request.requestId}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       debugLog('LeaderOutboundHandler', `Failed to process ${request.requestId}:`, error);
       this.sendAck(request.senderInstanceId, request.requestId, 'error', errorMessage);
+    } finally {
+      this.inFlight.delete(request.requestId);
     }
   }
 

@@ -10,17 +10,40 @@
 
 import { dbPut, dbGet, dbDelete } from './storage-utils';
 
-// Generate or retrieve a unique tab identifier
-// Note: Tab ID is a simple string, so sessionStorage is fine for this
+const TAB_ID_KEY = 'citadel-tab-id';
+
+function mintTabId(): string {
+  return `tab-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
+/** This tab's identity, which every `tab-*` storage key is scoped by. */
 export function getTabId(): string {
-  let tabId = sessionStorage.getItem('citadel-tab-id');
+  let tabId = sessionStorage.getItem(TAB_ID_KEY);
 
   if (!tabId) {
-    tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    sessionStorage.setItem('citadel-tab-id', tabId);
+    tabId = mintTabId();
+    sessionStorage.setItem(TAB_ID_KEY, tabId);
   }
 
   return tabId;
+}
+
+/**
+ * Give this tab a new identity, because another tab was found using the same one.
+ *
+ * Browsers COPY sessionStorage on Duplicate Tab, so the twins shared this id —
+ * and with it every `tab-<id>-*` key, including the selected session. Switching
+ * session in one twin rewrote what the other read next, and the CID self-heal
+ * then stamped each instance with whatever the shared tab context said, which
+ * is how two instances came to claim one CID in the routing map.
+ *
+ * `reissueInstanceId` already existed for exactly this reason and re-rolled the
+ * INSTANCE id only. The tab id is the one the storage keys use.
+ */
+export function reissueTabId(): string {
+  const replacement = mintTabId();
+  sessionStorage.setItem(TAB_ID_KEY, replacement);
+  return replacement;
 }
 
 // Storage key prefixes
