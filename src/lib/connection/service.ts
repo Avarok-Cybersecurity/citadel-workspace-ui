@@ -11,9 +11,9 @@ import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
 import { handleWebSocketMessage } from './message-handling';
 import {
   storeSession, loadStoredSessions, handleAuthSuccess,
-  handleLogout, removeSession, removeAllSessions,
-  clearStoredSessions, updateSessionRole, setActiveSessionIndex,
+  handleLogout, updateSessionRole, setActiveSessionIndex,
 } from './session-management';
+import { removeSession, removeAllSessions, clearStoredSessions } from './session-list';
 import { handleSuccessfulConnection, disconnectSession, switchAccount } from './lifecycle';
 import { attemptLeaderConnection, autoReconnect } from './reconnect';
 import { getActiveSessions, getActiveSessionsResult, type ActiveSessionsResult, getTabActiveSessionIndex, handleConnectFailure } from './queries';

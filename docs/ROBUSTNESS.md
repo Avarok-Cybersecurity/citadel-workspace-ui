@@ -10568,3 +10568,38 @@ already written down three times in the same function.
 Controls: rethrowing fails 3 of 4; moving the in-memory update after the write
 fails 1 — the one asserting that the live session survives, which is the property
 that makes losing the write safe.
+
+## Round 190 — the same defect pointing the other way
+
+Round 189 fixed a local write that could discard a completed registration.
+Looking for siblings found the mirror image, and the worse of the two.
+
+`handleLogout` did:
+
+```
+state.removeSession(...)
+await io.storeSessionsToLocalDB(...)   // the write that times out
+if (cid) await io.disconnect(cid)      // never reached
+```
+
+So a `LocalDBSetKV` timeout — the failure CI is currently producing — meant the
+user pressed **Sign Out**, the session disappeared from memory and from the UI,
+and the connection to the server **stayed open**. The user believes they have
+signed out. They have not.
+
+`removeAllSessions` had the same shape: clear, persist, then disconnect.
+
+Both now disconnect first and persist afterwards, best-effort. The disconnect is
+what the user pressed; the record is a convenience, and a convenience must never
+gate a security action.
+
+The control worth having is the third: with a **working** write, the order is
+still disconnect-then-persist. Testing only the failure path passes with the
+write moved back in front as long as it is wrapped in a try — which would leave
+the disconnect merely *likely* to happen rather than guaranteed.
+
+Splitting `session-list.ts` out was forced by the 250-line cap, which is the
+second time this session the cap has produced a better module boundary than the
+one that was there: the four list mutators share an invariant — mutate memory,
+then persist — and stating it once in a header is stronger than four copies of
+the ordering.

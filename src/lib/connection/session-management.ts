@@ -167,40 +167,30 @@ export async function handleAuthSuccess(
   }
 }
 
-/** Handle user logout by removing session and disconnecting. */
+/**
+ * Handle user logout by removing the session and disconnecting.
+ *
+ * The disconnect is NOT gated on the local write. It used to be — the write sat
+ * between them, so a `LocalDBSetKV` timeout meant the user pressed Sign Out,
+ * the session vanished from memory and the UI, and the connection to the server
+ * stayed open. That is the same defect as round 189 pointing the other way: a
+ * local storage failure suppressing an action the user asked for, and here the
+ * suppressed action is the one that ends a session.
+ *
+ * Persisting after, best-effort, because the disconnect is what the user
+ * pressed and the record is a convenience.
+ */
 export async function handleLogout(
   username: string, serverAddress: string, cid: bigint,
   state: ConnectionState, io: ConnectionIO,
 ): Promise<void> {
   state.removeSession(username, serverAddress);
-  await io.storeSessionsToLocalDB(state.storedSessions);
   if (cid) await io.disconnect(cid);
-}
-
-/** Remove a single session from state and persist. */
-export async function removeSession(
-  username: string, serverAddress: string,
-  state: ConnectionState, io: ConnectionIO,
-): Promise<void> {
-  state.removeSession(username, serverAddress);
-  await io.storeSessionsToLocalDB(state.storedSessions);
-}
-
-/** Remove all sessions, persist, and disconnect if active. */
-export async function removeAllSessions(
-  state: ConnectionState, io: ConnectionIO, disconnectFn: () => Promise<void>,
-): Promise<void> {
-  state.clearSessions();
-  await io.storeSessionsToLocalDB(state.storedSessions);
-  if (state.currentConnectionInfo) await disconnectFn();
-}
-
-/** Clear all stored sessions and persist. */
-export async function clearStoredSessions(
-  state: ConnectionState, io: ConnectionIO,
-): Promise<void> {
-  state.clearSessions();
-  await io.storeSessionsToLocalDB(state.storedSessions);
+  try {
+    await io.storeSessionsToLocalDB(state.storedSessions);
+  } catch (error) {
+    debugLog('ConnectionService', 'Could not persist sessions after logout', error);
+  }
 }
 
 /** Update the role for a stored session. */
