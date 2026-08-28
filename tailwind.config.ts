@@ -18,6 +18,24 @@ export default {
       },
     },
     extend: {
+      /**
+       * The smallest tier holds a 12px floor.
+       *
+       * The appearance default sets the document root to 14px, and Tailwind's
+       * rem scale assumes 16 — so every size in the app renders at 87.5% of its
+       * nominal value and `text-xs` lands at 10.5px. Lighthouse measured 44.85%
+       * of the landing page's text as illegible, and 228 elements use this
+       * class, so that is not a corner of the design: it is most of the small
+       * print in the product, below the size at which small print is readable.
+       *
+       * `max()` rather than a fixed 12px, because the point of the setting is
+       * that it scales. At a 16px root this is exactly 12px as before; at 18px
+       * it grows to 13.5px; at the 12px minimum the floor holds instead of
+       * dropping to 9px. Only the illegible direction is clamped.
+       */
+      fontSize: {
+        xs: ['max(12px, 0.75rem)', { lineHeight: 'max(16px, 1rem)' }],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

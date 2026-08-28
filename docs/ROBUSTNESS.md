@@ -10336,3 +10336,52 @@ Also removed two dead private constants in `service.ts` holding the same two
 storage keys as `transfer-persistence.ts`, referenced by nothing — a second
 source of truth for a key, waiting for someone to change it and wonder why
 nothing happened.
+
+## Round 185 — 45% of the landing page was below the legible size
+
+CI's Lighthouse gate failed: `best-practices 93 (min 95) — not excused:
+unrecognised audit(s): font-size`. The gate behaved exactly as designed: two
+audits are excused with reasons, and a third still fails the build.
+
+Measuring it directly:
+
+```
+score 0 | 55.15% legible text
+  .text-xs   coverage 44.85%   fontSize 10.5px
+```
+
+`text-xs` is `0.75rem`, which is 12px on the 16px root Tailwind's scale assumes.
+The appearance default sets the document root to **14px**, applied at boot before
+first paint — so every size in the app renders at 87.5% of nominal, and the
+smallest tier lands at 10.5px. 228 elements use that class. This is not a corner
+of the design; it is most of the small print in the product, below the size at
+which small print is readable.
+
+The floor is now `max(12px, 0.75rem)`, with the matching line height. `max`
+rather than a fixed 12px because the point of the setting is that it scales: at
+a 16px root it is exactly 12px as before, at 18px it grows to 13.5px, and at the
+12px minimum the floor holds instead of dropping to 9px. Only the illegible
+direction is clamped.
+
+Measured after: **0** text nodes below 12px at 375px, no horizontal page scroll,
+best-practices 96 → **100**.
+
+### Why this surfaced only now
+
+The same CI job that failed today reported, five hours earlier:
+
+```
+accessibility    100  (min 100)  ok
+seo              100  (min 100)  ok
+best-practices    96  (min 95)  ok
+```
+
+on the run where **every production load rendered "Something went wrong"**
+(round 172). Lighthouse was scoring the error boundary: a single heading, a
+paragraph and a button, all comfortably large. Perfect accessibility, perfect
+SEO, on a page that was an apology.
+
+So this is the first honest measurement of the actual landing page, and it
+immediately found a real defect. Round 172 named two production checks that
+measured a crashed app as mounted; this is the third, and the one that was
+handing out perfect scores while doing it.
