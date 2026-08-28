@@ -11302,3 +11302,43 @@ comment recording that `text-[11px]` *was* raised to `text-xs` as a live
 `text-[11px]`. Round 188 met this exact problem and stripped comments; that fix
 was not carried here. A rule that punishes writing down why is a rule people
 route around.
+
+## Round 209 — reading a CI failure correctly
+
+Ten integration legs failed. The temptation is to assume the most recent changes
+caused them; the log says otherwise, and reading it properly is the whole round.
+
+`test:crud` reports **"Could not create office"** two seconds into its step —
+fast enough to look like a broken selector, and the preceding rounds had touched
+exactly those buttons (`.tap-target` on the sidebar's add-node controls, and 48
+files' worth of text-size changes). Following the log back:
+
+```
+Workspace loading timeout
+Looking for Add Node button...
+WARNING: Add Node button not found
+...
+Clicked Add Node button ([data-testid="add-node-button"])
+Workspace Loaded:           FAIL
+```
+
+The button is found by testid, and it IS found and clicked later in the same
+run. What failed first is `Workspace loading timeout` — the workspace never
+finished loading, so the control did not exist yet. Same family as the
+`LocalDBSetKV` timeouts of rounds 189-192: a backend slow enough in CI that
+operations expire, not a UI regression.
+
+Checked, and found already correct: `WorkspaceLoader` does not sit on a spinner
+for ever. It changes its message at each stage — "Loading workspace…",
+"Checking connection…", "Workspace data is taking longer than expected…" — and
+offers a Connect button once a timeout has passed. The recovery affordance the
+situation calls for is there.
+
+So this round changes nothing, which is the correct outcome. What it records is
+the reasoning, because the alternative was plausible and wrong: three of my own
+recent rounds touched the sidebar buttons the failure names, and the failure is
+not theirs.
+
+One fix from the previous round is not yet in a CI run: the keyboard-reachable
+run command (round 208) is what turned the Playwright accessibility shards red,
+and it is fixed locally. Pushing now is what tests that.
