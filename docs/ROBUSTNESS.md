@@ -12342,3 +12342,42 @@ site with none. A fifth test reads the branch and fails for exactly that
 mistake. Settling it properly needs a running kernel, and that needs the stack —
 so this is verified as far as it can be here, and said plainly rather than
 implied.
+
+## Round 234 — "not a member" is reported as "not initialised"
+
+Recorded, not fixed. The evidence is clear; the fix changes protocol semantics
+and cannot be verified without a running stack, and guessing at that is how a
+subtle bug becomes a shipped one.
+
+`GetWorkspace` on the server:
+
+```rust
+if error_msg.contains("not found") || error_msg.contains("Not a member") {
+    info!(target: "citadel", "Returning WorkspaceNotInitialized");
+    Ok(WorkspaceProtocolResponse::WorkspaceNotInitialized)
+}
+```
+
+Two different facts share one answer. "The workspace does not exist yet" and
+"you are not a member of it" are told to the client identically, and the client
+does the only thing that response means:
+
+```ts
+eventEmitter.emit('workspace:not-initialized', connectionInfo);
+// → needsWorkspaceInitialization: true → the "Initialize & Become Admin" modal
+```
+
+So a user who is simply not a member is shown a setup flow for a workspace that
+already exists and already has an owner. What they are asked for is the master
+password. Round 233's finding is the same shape one layer down — the difference
+between *having no administrator* and *not being the administrator* is not
+represented, so both are answered with "set this up".
+
+It also degrades the diagnosis of everything above it: `WorkspaceNotInitialized`
+in a log tells you nothing about which of the two happened, and the two want
+opposite responses from the user.
+
+The fix is a distinct response for "not a member", handled on the client as an
+error rather than as a setup prompt. That is a protocol addition with a client
+branch behind it, and both need a stack to test. Left here with the evidence
+rather than attempted blind.
