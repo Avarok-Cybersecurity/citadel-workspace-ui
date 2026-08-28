@@ -9259,3 +9259,33 @@ now requires the page to have loaded before an absent button counts as evidence.
 
 All three are the same shape: a check whose passing condition is also what
 "nothing happened" looks like.
+
+## Round 156 — my own fix, unpropagated
+
+Round 153 stopped a tab adopting a session another tab was using: "not orphaned"
+from the agent means somebody has it, and that somebody may be another tab in
+this browser. Adopting anyway puts two tabs on one CID, and `findInstanceByCid`
+returns the first map hit — so every CID-routed notification (messages, transfer
+ticks, call media) goes to one tab while the other renders the same conversation
+and silently never updates.
+
+That fix reached the auto-claim path and **none of the other three**: the
+workspace switcher, the orphan-sessions navbar and the post-login redirect all
+still swallowed the refusal and adopted. The defect stayed reachable through
+three unfixed doors — this codebase's most productive shape, committed by the
+round that named it.
+
+The fix is not a fourth copy of the check. `lib/sessions/claim-session.ts` is the
+one place that interprets the agent's refusal, returning `claimed`,
+`already-active` or `owned-by-another-tab` rather than a boolean the caller has
+to know how to read. Writing the guard found **eight** call sites, not four; the
+three that are not a tab adopting a session are exempted with the reason, and the
+distinction that matters is stated: a claim passing `onlyIfOrphaned` is asking
+"may I take this?", which is the question another tab can already have answered.
+
+One call site could not toast — a module function with no toast in scope — so it
+throws instead. Returning quietly there would have left the caller believing the
+session was adopted, which is the same defect in a smaller place.
+
+Control: re-forking any site fails the guard by name, on both the direct claim
+and the re-implemented "not orphaned" substring.

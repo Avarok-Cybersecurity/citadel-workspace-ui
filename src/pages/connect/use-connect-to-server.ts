@@ -20,7 +20,7 @@
  * workspace that will bounce them straight back.
  */
 import { connectionManager } from '@/lib/connection';
-import { websocketService } from '@/lib/websocket-service';
+import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser } from '@/lib/tab-context';
 import { instanceManager, instanceChannel } from '@/lib/multi-instance';
@@ -58,11 +58,12 @@ async function waitForSession(serverAddress: string): Promise<ActiveSession | nu
  * loader to guess at from `activeSessions[0]`.
  */
 async function adoptSession(session: ActiveSession): Promise<void> {
-  try {
-    await websocketService.claimSession(session.cid, true);
-  } catch (e: unknown) {
-    // "not orphaned" means it is already ours — that is a success, not a fault.
-    if (!(e instanceof Error && e.message?.includes('not orphaned'))) throw e;
+  const outcome = await claimSessionForThisTab(session.cid);
+  if (outcome.status === 'owned-by-another-tab') {
+    // Thrown rather than toasted: this is a module function with no toast in
+    // scope, and its callers already surface what it throws. Returning quietly
+    // would leave the caller believing the session was adopted.
+    throw new Error(SESSION_OWNED_ELSEWHERE.description);
   }
 
   const stored = connectionManager.getStoredSessionsArray();

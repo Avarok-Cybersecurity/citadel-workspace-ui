@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
 import { describeFailure } from '@/lib/failure-message';
 import { withWorkspaceNames } from '@/lib/sessions/with-workspace';
 import { markLastAccessed, readLastAccessed } from '@/lib/sessions/last-accessed';
@@ -100,9 +101,10 @@ export function useOrphanSessions() {
         variant: 'success',
       });
 
-      try { await websocketService.claimSession(session.cid, true); }
-      catch (e: unknown) {
-        if (!(e instanceof Error && e.message?.includes('not orphaned'))) throw e;
+      const outcome = await claimSessionForThisTab(session.cid);
+      if (outcome.status === 'owned-by-another-tab') {
+        toast(SESSION_OWNED_ELSEWHERE);
+        return;
       }
 
       if (session.storedSessionIndex >= 0) await connectionManager.setActiveSessionIndex(session.storedSessionIndex);

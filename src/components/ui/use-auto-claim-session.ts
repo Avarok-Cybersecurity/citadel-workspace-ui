@@ -10,10 +10,9 @@
  */
 
 import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
-import { instanceManager } from '@/lib/multi-instance';
+import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
 import { pickSessionToClaim } from '@/lib/sessions/pick-session-to-claim';
 import { ConnectionManager } from '@/lib/connection';
-import { websocketService } from '@/lib/websocket-service';
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser, getSelectedUser, clearSelectedUser } from '@/lib/tab-context';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
@@ -165,35 +164,11 @@ useEffect(() => {
       const session = sessionToUse;
       debugLog('WorkspaceLoader', ' Auto-claiming session:', session.username, session.cid);
 
-      try {
-        await websocketService.claimSession(session.cid, true);
-        debugLog('WorkspaceLoader', ' Session claimed successfully (was orphaned)');
-      } catch (claimError: unknown) {
-        if (claimError instanceof Error && claimError.message?.includes('not orphaned')) {
-          // "Not orphaned" means somebody has it -- and that somebody may be
-          // another TAB in this browser, not a stale server-side record. This
-          // used to be treated as success outright, so a second tab adopted a
-          // session the first was actively using. Both then registered the same
-          // CID, and findInstanceByCid returns the first map hit: every
-          // CID-routed notification -- messages, transfer ticks, call media --
-          // went to one tab while the other rendered the same conversation and
-          // silently never updated, with the winner able to flip on
-          // re-registration.
-          const owner = instanceManager.findInstanceByCid(session.cid);
-          if (owner && owner !== instanceManager.instanceId) {
-            debugLog('WorkspaceLoader', ` Session ${session.cid} is owned by ${owner}; not adopting`);
-            toast({
-              title: 'Already Open Elsewhere',
-              description:
-                'This session is open in another tab. Switch to it, or pick a different session here.',
-            });
-            setIsAutoClaimingSession(false);
-            return;
-          }
-          debugLog('WorkspaceLoader', ' Session is still active (not orphaned), no other tab owns it');
-        } else {
-          throw claimError;
-        }
+      const outcome = await claimSessionForThisTab(session.cid);
+      if (outcome.status === 'owned-by-another-tab') {
+        toast(SESSION_OWNED_ELSEWHERE);
+        setIsAutoClaimingSession(false);
+        return;
       }
 
       await setSelectedUser({

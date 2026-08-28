@@ -38,7 +38,14 @@ vi.mock('@/lib/websocket-service', () => ({ websocketService: { claimSession: h.
 vi.mock('@/lib/post-auth-setup', () => ({ postAuthSetup: h.postAuthSetup }));
 vi.mock('@/lib/tab-context', () => ({ setSelectedUser: h.setSelectedUser }));
 vi.mock('@/lib/multi-instance', () => ({
-  instanceManager: { setCid: vi.fn() },
+  instanceManager: {
+    setCid: vi.fn(),
+    instanceId: 'this-tab',
+    // The claim now asks the registry whether another tab already owns the
+    // session, because adopting one that is in use puts two tabs on one CID and
+    // sends every CID-routed notification to whichever registered first.
+    findInstanceByCid: vi.fn(() => null),
+  },
   instanceChannel: { announcePresence: vi.fn() },
 }));
 
@@ -97,7 +104,7 @@ describe('connectToServer', () => {
     expect(claimSession).not.toHaveBeenCalled();
   });
 
-  it('treats "not orphaned" as already ours, not as a failure', async () => {
+  it('treats "not orphaned" as already ours when no other tab holds it', async () => {
     h.activeSessions = [{ cid: 9n, username: 'alice', server_address: SERVER }];
     claimSession.mockRejectedValueOnce(new Error('session is not orphaned'));
 
@@ -105,5 +112,18 @@ describe('connectToServer', () => {
 
     expect(outcome).toEqual({ kind: 'connected', cid: 9n });
     expect(postAuthSetup).toHaveBeenCalledWith(9n);
+  });
+
+  it('refuses to adopt a session another tab is using', async () => {
+    const { instanceManager } = await import('@/lib/multi-instance');
+    h.activeSessions = [{ cid: 9n, username: 'alice', server_address: SERVER }];
+    claimSession.mockRejectedValueOnce(new Error('session is not orphaned'));
+    vi.mocked(instanceManager.findInstanceByCid).mockReturnValueOnce('other-tab');
+
+    // Adopting here is what put two tabs on one CID: findInstanceByCid returns
+    // the first map hit, so every message, transfer tick and call frame went to
+    // one of them while the other showed the same conversation and never moved.
+    await expect(connectToServer(SERVER)).rejects.toThrow(/another tab/i);
+    expect(postAuthSetup).not.toHaveBeenCalled();
   });
 });

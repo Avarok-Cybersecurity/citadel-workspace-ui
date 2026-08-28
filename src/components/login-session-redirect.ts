@@ -1,4 +1,4 @@
-import { websocketService } from "@/lib/websocket-service";
+import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
 import { markLastAccessed } from '@/lib/sessions/last-accessed';
 import { connectionManager } from "@/lib/connection";
 import { eventEmitter } from "@/lib/event-emitter";
@@ -42,15 +42,10 @@ export async function redirectToExistingSession(
 
     markLastAccessed(session.cid);
 
-    try {
-      await websocketService.claimSession(session.cid, true);
-      debugLog('Login', 'Session claimed successfully (was orphaned)');
-    } catch (claimError: unknown) {
-      if (claimError instanceof Error && claimError.message?.includes('not orphaned')) {
-        debugLog('Login', 'Session is still active (not orphaned), no claim needed');
-      } else {
-        throw claimError;
-      }
+    const outcome = await claimSessionForThisTab(session.cid);
+    if (outcome.status === 'owned-by-another-tab') {
+      toast(SESSION_OWNED_ELSEWHERE);
+      return;
     }
 
     const storedSessions = connectionManager.getStoredSessions();

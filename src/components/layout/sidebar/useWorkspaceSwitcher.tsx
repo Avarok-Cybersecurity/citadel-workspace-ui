@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
+import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
 import { toStoredWorkspaces, pickCurrentWorkspace } from './stored-workspace-list';
 import { describeFailure } from '@/lib/failure-message';
 import { useLocation, useNavigate } from "react-router-dom";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { connectionManager } from "@/lib/connection";
 import { ConnectionService } from "@/lib/connection-service";
-import { websocketService } from "@/lib/websocket-service";
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess, toastError } from "@/lib/toast-helpers";
@@ -118,15 +118,11 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
       if (!targetSession) throw new Error('Session not found');
       if (!targetSession.cid) throw new Error('Session CID not available');
 
-      try {
-        await websocketService.claimSession(targetSession.cid, true);
-        debugLog('WorkspaceSwitcher', 'Session claimed successfully (was orphaned)');
-      } catch (claimError: unknown) {
-        if (claimError instanceof Error && claimError.message?.includes('not orphaned')) {
-          debugLog('WorkspaceSwitcher', 'Session is still active (not orphaned), no claim needed');
-        } else {
-          throw claimError;
-        }
+      const outcome = await claimSessionForThisTab(targetSession.cid);
+      if (outcome.status === 'owned-by-another-tab') {
+        toast({ ...SESSION_OWNED_ELSEWHERE, variant: 'default' });
+        setIsSwitching(false);
+        return;
       }
 
       const index = storedSessions.sessions.indexOf(targetSession);
