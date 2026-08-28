@@ -62,7 +62,6 @@ function ctx(overrides: Partial<CallContextValue> = {}): CallContextValue {
     toggleMic: vi.fn(async () => {}),
     toggleCamera: vi.fn(async () => {}),
     toggleScreenShare: vi.fn(async (): Promise<void> => {}),
-    canShareScreen: true,
     annotate: (): void => {},
     videoQuality: 'auto' as const,
     setVideoQuality: (): void => {},

@@ -4,7 +4,6 @@ import type { CaptureFailure } from '@/lib/call/media-capture';
 import type { ConnectionQuality } from './ParticipantTile';
 import type { CallMediaKinds } from '@/types/p2p-commands';
 import type { VideoQuality } from '@/lib/call/video-quality';
-import { canShareScreen } from '@/lib/call/capture-pump';
 
 /** The streams and screen a live session exposes; absent between calls. */
 interface SessionLike {
@@ -63,7 +62,6 @@ export function buildCallContext(input: {
     toggleMic: actions.toggleMic,
     toggleCamera: actions.toggleCamera,
     toggleScreenShare: actions.toggleScreenShare,
-    canShareScreen: canShareScreen(),
     videoQuality: input.videoQuality,
     setVideoQuality: input.setVideoQuality,
     annotate: input.annotate,

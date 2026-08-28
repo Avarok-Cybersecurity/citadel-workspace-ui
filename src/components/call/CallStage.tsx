@@ -8,6 +8,7 @@ import { ScreenShareView } from './ScreenShareView';
 import { useAnnotations } from './use-annotations';
 import { useStageShare } from './use-stage-share';
 import { VideoSettingsModal } from './VideoSettingsModal';
+import { canShareScreen } from '@/lib/call/screen-capability';
 import type { VideoQuality } from '@/lib/call/video-quality';
 import { callLabel, ConnectingBanner, ErrorPanel, OutgoingCallPanel } from './CallStagePanels';
 
@@ -21,8 +22,7 @@ interface CallStageProps {
   /** This tab's own share, so the sharer sees what everyone else sees. */
   screenStream?: MediaStream | null;
   onToggleScreenShare?: () => void;
-  /** False where the browser cannot capture or encode a screen at all. */
-  canShareScreen?: boolean;
+
   /** Sends one drawn point to the other participants. */
   onAnnotate?: (stroke: { strokeId: string; point: { x: number; y: number } }) => void;
   /** The chosen quality ceiling, and how to change it. Absent hides the control. */
@@ -55,7 +55,6 @@ export function CallStage({
   onToggleMic,
   onToggleCamera,
   onToggleScreenShare,
-  canShareScreen = false,
   onAnnotate,
   videoQuality,
   onVideoQualityChange,
@@ -169,7 +168,11 @@ export function CallStage({
           // Somebody else's share owns the stage, so this tab's button is off
           // while it lasts -- with the exception of stopping a share of its
           // own, which must always be possible.
-          canShareScreen={canShareScreen && !someoneElseIsSharing}
+          // Asked here rather than carried through the context: the provider is
+          // mounted app-wide, so a capability probe in it puts getDisplayMedia
+          // and the WebCodecs feature test on the landing page's critical path.
+          // This component is only ever in a call.
+          canShareScreen={canShareScreen() && !someoneElseIsSharing}
           onOpenVideoSettings={onVideoQualityChange ? (): void => setVideoSettingsOpen(true) : undefined}
           onLeave={onLeave}
           running={call.status === 'active'}

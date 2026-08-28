@@ -21,7 +21,6 @@ export interface DirectCallBinding {
   toggleMic: () => void;
   toggleCamera: () => void;
   toggleScreenShare: () => void;
-  canShareScreen: boolean;
   annotate: (stroke: { strokeId: string; point: { x: number; y: number } }) => void;
   videoQuality: VideoQuality;
   setVideoQuality: (quality: VideoQuality) => void;
@@ -49,7 +48,6 @@ export function useDirectCall(peerCid: bigint, peerName: string): DirectCallBind
     toggleMic,
     toggleCamera,
     toggleScreenShare,
-    canShareScreen,
     annotate,
     videoQuality,
     setVideoQuality,
@@ -84,7 +82,6 @@ export function useDirectCall(peerCid: bigint, peerName: string): DirectCallBind
     toggleMic: () => void toggleMic(),
     toggleCamera: () => void toggleCamera(),
     toggleScreenShare: () => void toggleScreenShare(),
-    canShareScreen,
     annotate,
     videoQuality,
     setVideoQuality,

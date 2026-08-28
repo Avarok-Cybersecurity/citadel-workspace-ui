@@ -11,7 +11,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach } from 'vitest';
 import { VideoSettingsModal } from '../VideoSettingsModal';
-import { VIDEO_QUALITY_OPTIONS } from '@/lib/call/video-quality';
+import { VIDEO_QUALITY_OPTIONS } from '@/lib/call/video-quality-options';
 
 afterEach(cleanup);
 

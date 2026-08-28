@@ -68,14 +68,6 @@ export class ScreenPump {
   }
 }
 
-/** Whether a screen can be captured AND encoded here. */
-export function canShareScreen(): boolean {
-  return (
-    typeof navigator !== 'undefined' &&
-    !!navigator.mediaDevices?.getDisplayMedia &&
-    trackProcessor() !== null
-  );
-}
 
 
 /**

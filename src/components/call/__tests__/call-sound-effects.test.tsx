@@ -39,7 +39,6 @@ function contextValue(call: CallState | null): CallContextValue {
     toggleMic: async () => {},
     toggleCamera: async () => {},
     toggleScreenShare: async (): Promise<void> => {},
-    canShareScreen: false,
     annotate: (): void => {},
     videoQuality: 'auto' as const,
     setVideoQuality: (): void => {},

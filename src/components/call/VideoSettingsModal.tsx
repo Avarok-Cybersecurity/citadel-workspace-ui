@@ -7,7 +7,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { VIDEO_QUALITY_OPTIONS, type VideoQuality } from '@/lib/call/video-quality';
+import type { VideoQuality } from '@/lib/call/video-quality';
+import { VIDEO_QUALITY_OPTIONS } from '@/lib/call/video-quality-options';
 
 interface VideoSettingsModalProps {
   open: boolean;

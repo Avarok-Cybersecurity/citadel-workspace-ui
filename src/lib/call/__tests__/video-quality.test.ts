@@ -7,14 +7,9 @@
  * than the one above it, and that choosing one stops the app moving off it.
  */
 import { describe, it, expect } from 'vitest';
-import {
-  allowsAdaptation,
-  cameraProfileFor,
-  parseVideoQuality,
-  screenProfileFor,
-  VIDEO_QUALITY_OPTIONS,
-  type VideoQuality,
-} from '../video-quality';
+import { parseVideoQuality, type VideoQuality } from '../video-quality';
+import { allowsAdaptation, cameraProfileFor, screenProfileFor } from '../video-quality-profiles';
+import { VIDEO_QUALITY_OPTIONS } from '../video-quality-options';
 
 const LEVELS: readonly VideoQuality[] = ['high', 'balanced', 'saver'];
 

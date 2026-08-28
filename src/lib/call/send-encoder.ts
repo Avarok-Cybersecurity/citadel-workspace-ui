@@ -10,7 +10,8 @@
  */
 
 import { CALL_TRACK_SCREEN } from '@/types/p2p-commands';
-import { allowsAdaptation, cameraProfileFor, screenProfileFor, type VideoQuality } from './video-quality';
+import type { VideoQuality } from './video-quality';
+import { allowsAdaptation, cameraProfileFor, screenProfileFor } from './video-quality-profiles';
 import {
   createAudioEncoder,
   createVideoEncoder,

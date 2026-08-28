@@ -40,8 +40,6 @@ export interface CallContextValue {
    * otherwise, and the rejection is indistinguishable from a refusal.
    */
   toggleScreenShare: () => Promise<void>;
-  /** False where the browser cannot capture or encode a screen at all. */
-  canShareScreen: boolean;
   /** Send one drawn point to the other participants. */
   annotate: (stroke: { strokeId: string; point: { x: number; y: number } }) => void;
   /** The chosen quality ceiling for outgoing video; see lib/call/video-quality. */
@@ -73,7 +71,6 @@ export const CallContext = createContext<CallContextValue>({
   toggleMic: async () => {},
   toggleCamera: async () => {},
   toggleScreenShare: async () => {},
-  canShareScreen: false,
   annotate: () => {},
   videoQuality: 'auto',
   setVideoQuality: () => {},

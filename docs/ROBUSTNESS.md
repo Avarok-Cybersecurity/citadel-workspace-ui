@@ -12954,3 +12954,53 @@ above, written by me two hours after writing that entry. Deleting the effect
 from the component left it green. It now renders the real component into a real
 tree that starts with a childless office, emits `node:loaded`, and looks for the
 room on screen; the control removes the effect and it goes red.
+
+## Round 246 — two gates that could not run, and 700 bytes on the front page
+
+The first run to carry the screen-share work failed in two places, and both are
+about where code ends up rather than what it does.
+
+### A gate in a job that installs nothing
+
+```
+Cannot find package 'eslint' imported from check-explicit-types.mjs
+```
+
+Round 240's gate went into `crate-coverage`, which by design installs nothing —
+every script it runs is dependency-free, which is what keeps that job fast. The
+job went red and took the other twenty-five gates with it.
+
+This is the **second** time: round 228's gate did it with `js-yaml` two hours
+earlier. So the class now has a rule of its own.
+`check-gates-have-their-dependencies.mjs` reads each `node scripts/*.mjs` step,
+looks at what that script imports — bare `import`s and `createRequire(...)()`
+alike, since the second is how the first one got in — and fails if the job has
+no install before it. Control: moving the types gate back turns it red, naming
+the job, the script and the package.
+
+The types gate now runs in `lint`, which has ESLint because running ESLint is
+what that job is.
+
+### 700 bytes of a feature nobody has opened yet
+
+```
+310.7 KB  landing critical path (budget 310 KB)
+Over budget by 0.7 KB.
+```
+
+The call provider is mounted app-wide, so everything it can reach is downloaded
+before the landing page renders. Screen sharing and the quality settings put
+four things there that only matter inside a call:
+
+| what | why it was there | where it went |
+|---|---|---|
+| the quality options' labels and bitrates | the provider imported the module that held them | `video-quality-options.ts`, imported only by the modal |
+| the encoder profiles | same module | `video-quality-profiles.ts`, imported only by the encoder |
+| `canShareScreen` | the provider put it in the context | asked in `CallStage`, which is only ever in a call |
+| both capture pumps and the WebCodecs feature test | `canShareScreen` lived in `capture-pump` | `screen-capability.ts`, two lines and one import |
+
+310.7 → **310.0 KB**, inside the budget, with nothing lazy-loaded and no budget
+raised. The gate's advice — "check whether a newly-imported module pulled a
+chunk onto the critical path" — was right, and the answer was four modules that
+each looked local to the feature and were reachable from a provider mounted at
+the root.
