@@ -10302,3 +10302,37 @@ Worth keeping the record of, because it is the same mistake as the checks that
 measured a crashed app as mounted: an assertion that is true for the wrong
 reason. Here it was true for a reason that was about to stop being true, which
 is the more flattering version of the same error.
+
+## Round 184 — a history that grew forever, rewritten on every tick
+
+`persistTransfer` reads the whole `citadel:file-transfers` map, replaces one
+entry, and writes the whole map back. It is called on every state change of
+every transfer, progress ticks included. Nothing ever removed an entry.
+
+Two costs that are mild alone and compound:
+
+- the cost of recording one transfer's progress grows with the number of
+  transfers the browser has ever seen;
+- the map grows for the life of the profile.
+
+They end at a localStorage quota error, inside a `catch {}` whose comment reads
+*"Losing the record costs history, not a transfer."* That is true exactly while
+the map is bounded. Unbounded, the write that eventually fails is the one
+recording a transfer **still in flight** — and the record it fails to write is
+the one Accept, Decline and Cancel need, which is precisely the bug
+`transfer-persistence.ts` was written to fix. A comforting comment describing
+the safe case, in code whose failure mode is the unsafe one.
+
+Pruned on write, since that is the only moment the whole map is in hand: an
+unfinished transfer survives unconditionally, a finished one for a week, and a
+burst is capped at 200 newest. Age first, count second, so a busy week does not
+shorten the window for a quiet one.
+
+The control worth having is the second: applying the cap to unfinished transfers
+too passes five of six tests. Bounding the map is easy; bounding it without
+throwing away the live record is the part that needed saying.
+
+Also removed two dead private constants in `service.ts` holding the same two
+storage keys as `transfer-persistence.ts`, referenced by nothing — a second
+source of truth for a key, waiting for someone to change it and wonder why
+nothing happened.

@@ -259,9 +259,6 @@ export class FileTransferService {
     this.io.notifyStateChange(transfer);
   }
 
-  private static readonly STORAGE_KEY_TRANSFERS = 'citadel:file-transfers';
-  private static readonly STORAGE_KEY_SETTINGS = 'citadel:file-transfer-settings';
-
   private async loadFromStorage(): Promise<void> {
     await loadPersistedTransfers(this.state);
   }

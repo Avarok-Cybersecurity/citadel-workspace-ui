@@ -17,6 +17,7 @@
 
 import { debugLog } from '@/lib/debug-config';
 import { restoreTransfer } from './restore-transfer';
+import { pruneTransfers } from './prune-transfers';
 import type { FileTransfer, FileTransferSettings } from './types';
 
 const TRANSFERS_KEY = 'citadel:file-transfers';
@@ -76,9 +77,15 @@ export function persistTransfer(transfer: FileTransfer): void {
       updatedAt: transfer.updatedAt,
     };
 
-    localStorage.setItem(TRANSFERS_KEY, JSON.stringify(transfers));
+    // Pruned on write, because this is the only moment the whole map is in
+    // hand. Without it the map grew for the life of the profile and every
+    // progress tick re-serialised all of it.
+    localStorage.setItem(TRANSFERS_KEY, JSON.stringify(pruneTransfers(transfers, Date.now())));
   } catch {
-    // localStorage may be full. Losing the record costs history, not a transfer.
+    // localStorage may be full. Losing the record costs history, not a
+    // transfer — as long as the map is bounded, which is what the prune above
+    // is for. Unbounded, the write that eventually fails is the one recording
+    // a transfer still in flight.
   }
 }
 
