@@ -11,6 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { clearAllDraftsForTests } from '@/lib/chat/draft-store';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useP2PCompose } from '../useP2PCompose';
 
@@ -39,6 +40,10 @@ function setup() {
 
 describe('P2P composer in-flight guard', () => {
   beforeEach(() => {
+    // The composer seeds from the draft store, which is module state: without
+    // this, the previous test's text arrives in the next one's empty box.
+    clearAllDraftsForTests();
+
     sendMessage.mockReset();
     stopTypingPolling.mockReset();
   });

@@ -9443,3 +9443,51 @@ It now says what each does in the user's terms — signing out keeps everything,
 deleting cannot be undone and the keys cannot be regenerated — and the
 destructive branch asks a second time, which every other irreversible action
 here already does.
+
+## Round 161 — you could not invite anyone
+
+**The product had no answer to "get my colleague in here."** No invite link, no
+share surface, no copy button — a sweep of `clipboard.writeText` found the agent
+command, a VFS path and a message id, and nothing else. The only true entry path
+is Landing → Join Workspace → typing a server address, and the product showed an
+existing user that address exactly once: as a grey subtitle in the
+workspace-switcher dropdown, never framed as something to give somebody.
+
+So the first person sets up a workspace, wants their teammate in, and finds
+nothing. They have to work out on their own that the teammate needs the raw
+address and must register themselves — which is the step the product exists to
+make easy.
+
+This needed no backend. The address is already known and joining already works;
+what was missing was saying so. The members header now has two actions, because
+"find people already here" and "get somebody here at all" are different things
+and a user with only the first cannot tell which they needed. The dialog says
+what to do with the address, and that a workspace password is not included and
+must be sent separately.
+
+**Drafts were destroyed by clicking another conversation.** The composer's text
+was component state and the chat is keyed by peer — that keying is deliberate,
+and it is the fix for the worse bug of one conversation's draft leaking into
+another. It also meant switching conversations unmounted the composer and took
+the draft with it: mid-message to Alice, you click Bob to check something she
+asked about, and your paragraph is gone. Silently.
+
+The keying stays and the text lives outside the component, one entry per
+conversation, written on every change rather than on unmount — a tab close, a
+crash or a navigation that skips cleanup all lose an unmount-only save, and
+those are the moments a draft matters. In memory only: persisting a
+half-written message to disk on a product whose subject is privacy is a decision
+to make deliberately, not as a side effect of fixing this.
+
+**The members list called itself three things.** "Workspace Members",
+"Connected Peers", or "<Entity> Members", depending on state the user cannot
+see — the list beneath it did not change, only the word did. A person in this
+workspace is a MEMBER; "connected" describes your relationship with them, not
+what they are. One noun now, varying only when the heading is genuinely scoped
+to an office or room.
+
+One process note: splitting `MembersSection` moved the pending-requests badge to
+its own file, and a contrast assertion kept pointing at the old one — the same
+shape as round 148's ring assertion. It is repointed WITH a positive pair
+(`toMatch(/<Badge/)`), so a future move cannot leave it passing over a file that
+no longer contains the thing.

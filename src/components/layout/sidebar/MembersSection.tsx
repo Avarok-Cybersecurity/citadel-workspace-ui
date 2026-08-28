@@ -1,6 +1,10 @@
 /** Sidebar section displaying workspace members, P2P peers, and conversations. */
 
-import { UserPlus, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
+import { PendingRequestsBadge } from './PendingRequestsBadge';
+import { membersSectionLabel } from './members-section-label';
+import { MembersHeaderActions } from './MembersHeaderActions';
+import { connectionManager } from '@/lib/connection';
 import { mayLeaveEditor } from '@/lib/leave-editor';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { useLocation, useNavigate } from "react-router-dom";
@@ -16,7 +20,6 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
 import { MemberListItems } from './MemberListItems';
-import { Badge } from "@/components/ui/badge";
 import { getEntityMetadata, getEntityTypeString } from "@/lib/entity-type-registry";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { peerRegistrationStore } from "@/lib/peer-registration-store";
@@ -32,6 +35,7 @@ import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 export const MembersSection = () => {
   const location = useLocation();
   const confirm = useConfirm();
+  const [showInvite, setShowInvite] = useState(false);
   const navigate = useNavigate();
   const { state } = useWorkspace();
   const params = new URLSearchParams(location.search);
@@ -76,8 +80,8 @@ export const MembersSection = () => {
   const activeDomainId = currentNodeId;
   const { members, isLoadingMembers } = useDomainMembers(activeDomainId);
 
-  const handleEditMember = (member: WorkspaceMember) => { setSelectedMember(member); setShowEditModal(true); };
-  const handleRemoveMember = (member: WorkspaceMember) => { setSelectedMember(member); setShowRemoveModal(true); };
+  const handleEditMember = (m: WorkspaceMember) => { setSelectedMember(m); setShowEditModal(true); };
+  const handleRemoveMember = (m: WorkspaceMember) => { setSelectedMember(m); setShowRemoveModal(true); };
   const handleManagePermissions = (member: WorkspaceMember) => {
     let domainId = WORKSPACE_ROOT_ID;
     let domainType = 'workspace';
@@ -103,12 +107,10 @@ export const MembersSection = () => {
   };
 
   const getLocationText = () => {
-    if (currentNodeId) {
-      const node = state.nodes[currentNodeId];
-      if (node) return `${getEntityMetadata(node.entity_type).label} Members`;
-    }
-    if (registeredPeers.length > 0 && members.length === 0) return "Connected Peers";
-    return "Workspace Members";
+    const node = currentNodeId ? state.nodes[currentNodeId] : undefined;
+    return membersSectionLabel({
+      entityLabel: node ? getEntityMetadata(node.entity_type).label : undefined,
+    });
   };
 
   return (
@@ -119,35 +121,12 @@ export const MembersSection = () => {
             <SidebarGroupLabel className="text-primary-accent font-semibold m-0 px-0">
               {getLocationText().toUpperCase()}
             </SidebarGroupLabel>
-            {pendingRequestCount > 0 && (
-              /* A real button, not a clickable Badge. Badge renders a div, so
-                 this was invisible to the keyboard and announced as nothing —
-                 and it is one of only two ways to open the pending-requests
-                 modal (the other is a click-only notification card), which made
-                 that whole surface unreachable without a mouse. */
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setShowPendingRequests(true); }}
-                aria-label={`Review ${pendingRequestCount} pending connection request${pendingRequestCount > 1 ? 's' : ''}`}
-                className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {/* The destructive variant, not a raw red: `bg-red-500` with
-                    `text-foreground` is about 3.9:1 in dark mode — below AA at
-                    this size — and a raw hex is invisible to the workspace theme.
-                    OrphanSessionIcon's sibling badge already uses the token. */}
-                <Badge
-                  variant="destructive"
-                  data-testid="pending-requests-badge"
-                  className="h-5 min-w-[20px] px-1.5 transition-colors"
-                >
-                  {pendingRequestCount}
-                </Badge>
-              </button>
-            )}
+            <PendingRequestsBadge count={pendingRequestCount} onOpen={() => setShowPendingRequests(true)} />
           </div>
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground" onClick={() => setShowPeerDiscovery(true)} title="Discover Peers">
-            <UserPlus className="h-4 w-4" />
-          </Button>
+          <MembersHeaderActions
+            onDiscover={() => setShowPeerDiscovery(true)}
+            onInvite={() => setShowInvite(true)}
+          />
         </div>
         <SidebarGroupContent>
           <ScrollArea className="max-h-[30vh]">
@@ -158,7 +137,8 @@ export const MembersSection = () => {
                 </SidebarMenuItem>
               ) : members.length === 0 && filteredRegisteredPeers.length === 0 && registeredPeers.length === 0 ? (
                 <SidebarMenuItem className="px-3 py-2 text-sm text-muted-foreground">
-                  No members yet. Use the <UserPlus className="h-3 w-3 inline mx-1" /> button to discover peers.
+                  Nobody else is here yet. Invite someone with the share button above,
+                  or use the add button to find people who have already joined.
                 </SidebarMenuItem>
               ) : members.length > 0 && (
                 <MemberListItems
@@ -232,6 +212,10 @@ export const MembersSection = () => {
         onSetShowRemoveModal={setShowRemoveModal}
         onSetShowAllMembersDialog={setShowAllMembersDialog}
         onSetShowPermissionModal={setShowPermissionModal}
+        showInvite={showInvite}
+        onSetShowInvite={setShowInvite}
+        workspaceName={state.workspace?.name || 'this workspace'}
+        serverAddress={connectionManager.getConnectionInfo()?.serverAddress}
         onSetShowPeerDiscovery={setShowPeerDiscovery}
         onSetShowPendingRequests={setShowPendingRequests}
         onSetShowCreateGroupDialog={setShowCreateGroupDialog}
@@ -242,6 +226,7 @@ export const MembersSection = () => {
         onManagePermissions={handleManagePermissions}
         onCreateGroup={async (name, membersList) => { await createGroup(name, membersList); }}
       />
+
     </>
   );
 };

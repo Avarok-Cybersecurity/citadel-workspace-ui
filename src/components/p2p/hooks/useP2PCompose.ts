@@ -10,6 +10,10 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+// No clearDraft here: every send path already does setInputMessage(''), and
+// saveDraft treats an empty string as "no draft" and deletes the entry. A
+// second way to clear it would be a second thing to keep in step with the first.
+import { loadDraft, saveDraft } from '@/lib/chat/draft-store';
 import { describeFailure } from '@/lib/failure-message';
 import { P2PMessengerManager } from '@/lib/p2p/p2p-messenger-manager';
 import type { P2PMessage } from '@/lib/p2p/p2p-types';
@@ -28,7 +32,12 @@ interface UseP2PComposeParams {
 }
 
 export function useP2PCompose({ peerCid, messages, editMessage, createDocument }: UseP2PComposeParams) {
-  const [inputMessage, setInputMessage] = useState('');
+  // Seeded from the draft store, so switching conversations and coming back
+  // returns what was typed. The chat is keyed by peer — that keying is the fix
+  // for drafts LEAKING between conversations, and it is why the text has to
+  // live outside the component to survive the remount.
+  const conversationKey = peerCid?.toString() ?? '';
+  const [inputMessage, setInputMessage] = useState(() => loadDraft(conversationKey));
   // True between submit and the message appearing in the transcript. The group
   // composer has had this guard since it was written; the P2P one never did, so
   // a second Enter during the send window sent a genuine duplicate.
@@ -45,6 +54,13 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
   const applyFormat = useMarkdownFormat(inputRef, setInputMessage, () => inputMessage);
 
   useEffect(() => { inputMessageRef.current = inputMessage; }, [inputMessage]);
+
+  // Written on every change rather than on unmount: a tab close, a crash or a
+  // navigation that skips cleanup all lose an unmount-only save, and those are
+  // exactly the moments a draft matters.
+  useEffect(() => {
+    saveDraft(conversationKey, inputMessage);
+  }, [conversationKey, inputMessage]);
 
   // The message this composition is replying to, if any. Cleared on send and on
   // explicit cancel, so a reply cannot silently attach itself to a later message.
@@ -110,6 +126,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
       setIsSending(false);
     }
   };
+
 
   const handleDocCreate = useCallback(async (title: string, initialContent: string) => {
     await createDocument(title, initialContent);

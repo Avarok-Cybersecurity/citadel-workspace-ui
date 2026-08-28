@@ -11,6 +11,7 @@
  */
 
 import { MoreVertical, Shield, User as UserIcon } from "lucide-react";
+import { InviteToWorkspaceDialog } from '@/components/workspace/InviteToWorkspaceDialog';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,6 +71,10 @@ interface MembersSectionModalsProps {
   showAllMembersDialog: boolean;
   showPermissionModal: boolean;
   showPeerDiscovery: boolean;
+  showInvite: boolean;
+  onSetShowInvite: (open: boolean) => void;
+  workspaceName: string;
+  serverAddress: string | undefined;
   showPendingRequests: boolean;
   showCreateGroupDialog: boolean;
   // Modal data
@@ -100,6 +105,7 @@ export function MembersSectionModals({
   locationText,
   showAddModal, showEditModal, showRemoveModal,
   showAllMembersDialog, showPermissionModal, showPeerDiscovery,
+  showInvite, onSetShowInvite, workspaceName, serverAddress,
   showPendingRequests, showCreateGroupDialog,
   selectedMember, permissionModalData,
   onSetShowAddModal, onSetShowEditModal, onSetShowRemoveModal,
@@ -152,6 +158,12 @@ export function MembersSectionModals({
       <PeerDiscoveryModal isOpen={showPeerDiscovery} onClose={() => onSetShowPeerDiscovery(false)} />
       <PendingRequestsModal isOpen={showPendingRequests} onClose={() => onSetShowPendingRequests(false)} />
       <CreateGroupDialog open={showCreateGroupDialog} onOpenChange={onSetShowCreateGroupDialog} availablePeers={registeredPeers.map(p => ({ cid: p.cid, username: p.username, isOnline: p.isOnline }))} currentUsername={currentUsername || 'User'} onCreateGroup={onCreateGroup} />
+      <InviteToWorkspaceDialog
+        open={showInvite}
+        onOpenChange={onSetShowInvite}
+        workspaceName={workspaceName}
+        serverAddress={serverAddress}
+      />
     </>
   );
 }

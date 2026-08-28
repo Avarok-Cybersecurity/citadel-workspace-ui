@@ -56,7 +56,12 @@ describe('selection and loading indicators use theme tokens', () => {
     // eight-entry exemption list that used to let this file through is gone.
     // What ESLint cannot check is that the replacement is the RIGHT token, so
     // that is what this asserts.
-    expect(src('components/layout/sidebar/MembersSection.tsx')).toMatch(/variant="destructive"/);
+    // The badge moved to its own component when MembersSection was split; the
+    // paired positive assertion below is what stops this pointing at a file
+    // with no badge in it and passing for ever.
+    const source = src('components/layout/sidebar/PendingRequestsBadge.tsx');
+    expect(source).toMatch(/variant="destructive"/);
+    expect(source, 'this file must actually render the badge').toMatch(/<Badge/);
   });
 });
 
