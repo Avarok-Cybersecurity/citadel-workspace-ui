@@ -11573,3 +11573,43 @@ no floor also names `checkbox` (`h-4 w-4` = 14px) and `radio-group`
 (`h-4 w-4`). Neither appears on a surface any gate currently reaches, so they
 are recorded here rather than changed blind: the fix is the same one line, and
 it should land with a measurement beside it.
+
+## Round 216 — a detector that manufactured four defects
+
+Round 215 left one open item: `checkbox` and `radio-group` carry `h-4 w-4`
+(14px at a 14px root) and no floor, but neither appeared on a surface any gate
+reaches, so they were recorded rather than changed blind. Closing it by
+measuring:
+
+```
+settings/Theme: radio = 96x58, 96x58, 96x58
+join/security:  no checkbox, no radio
+```
+
+The `h-4 w-4` is the indicator **dot**; the target is the 96×58 label wrapper
+around it. No defect, and the earlier restraint was right — a blind fix would
+have inflated a dot inside a control that was already fine.
+
+### The sweep that followed
+
+Looking for the class the reachability check cannot see — a `<div onClick>` with
+no role, no `tabIndex` and no key handler — the first sweep reported **four**.
+All four were correct code.
+
+The extraction took the opening tag as everything up to the first `>` after the
+tag name. In JSX that is routinely the arrow of `onClick={() => …}`, so the
+slice ended mid-handler and never saw the `role="button"`, `tabIndex={0}` and
+`onKeyDown` that came after it. Scanning brace-aware instead:
+
+```
+0 genuinely clickable non-interactive elements
+```
+
+A detector that manufactures defects is worse than none, because someone acts on
+it. This is the third probe of mine this session that was the defect rather than
+the code — the earlier two being `[role="alert"]` on a Sonner toast, and a
+tabIndex injection that never reached the DOM. The rate is worth naming: every
+one was caught by checking the negative case, and none by reading the output.
+
+The corrected rule is now a guard, passing over the whole tree, with a control
+that fails on a one-line clickable div.
