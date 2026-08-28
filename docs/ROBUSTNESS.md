@@ -10385,3 +10385,44 @@ So this is the first honest measurement of the actual landing page, and it
 immediately found a real defect. Round 172 named two production checks that
 measured a crashed app as mounted; this is the third, and the one that was
 handing out perfect scores while doing it.
+
+## Round 186 — checking a migration against a browser, and admitting a missing baseline
+
+Three Playwright shards failed in `global-setup`, all identically: the admin
+registration timed out with *"The connection request timed out."*
+
+The only change of mine that touches boot in a version-sensitive way is round
+176's IndexedDB v1 → v2 upgrade, which deletes four object stores. In a
+multi-tab app an upgrade can be blocked by another tab holding the old version,
+and `getDB` gives up after ten seconds — close enough to a twenty-second
+registration timeout to be worth ruling out rather than reasoning about.
+
+Planting a v1 database in a real browser and reloading the production build:
+
+```
+planted v1 stores: instances,keyValue,messages,peers,sessions,tabContext
+app mounted after upgrade: yes
+after upgrade: {"version":1,"stores":[... all six ...]}
+console errors: none
+```
+
+The upgrade **had not run**. `getDB()` is lazy and the landing page never touches
+storage, so the migration is deferred to the first feature that does — after
+login. Forcing an open at v2 from outside the app confirmed it: the upgrade
+callback fired for the test's own open, meaning the app had never opened the
+database at all.
+
+So the migration is not on the boot path and cannot be the registration timeout.
+It also means the v1 → v2 upgrade now has a browser-level check behind it, which
+it did not before: the unit tests exercise `runMigrations` against a fake, and a
+fake cannot be blocked by another tab.
+
+What this round cannot say is whether the registration timeout is new. **Every
+run on this branch for the last several hours was cancelled**, because
+`cancel-in-progress` is keyed on `head_ref` and this campaign pushes about every
+ten minutes. There is no completed run to compare against — the branch has been
+producing verdicts at a rate of roughly zero per hour while appearing busy.
+
+That is a process defect of exactly the kind this campaign keeps recording in
+code: a signal that looks live, costs money and CPU, and answers nothing.
+Pushes are held until a run completes.
