@@ -109,7 +109,6 @@
   "src/components/call/call-stage-presence.ts": 2,
   "src/components/call/use-call-capability.ts": 5,
   "src/components/call/use-call-duration.ts": 4,
-  "src/components/call/use-call-media-toggles.ts": 11,
   "src/components/call/use-call-runtime.ts": 16,
   "src/components/call/use-inbound-media.ts": 4,
   "src/components/call/use-leader-tab.ts": 2,

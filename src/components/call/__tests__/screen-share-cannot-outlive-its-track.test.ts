@@ -23,7 +23,7 @@ import type { MutableRefObject } from 'react';
 import type { CallMediaKinds } from '@/types/p2p-commands';
 import { useCallMediaToggles } from '../use-call-media-toggles';
 
-const captureScreen = vi.hoisted(() => vi.fn());
+const captureScreen: ReturnType<typeof vi.fn> = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/call/screen-capture', () => ({ captureScreen }));
 
 type Manager = Parameters<typeof useCallMediaToggles>[0] extends MutableRefObject<infer M>
@@ -46,17 +46,17 @@ function setup(): Harness {
   let release: () => void = (): void => {};
   const gate: Promise<void> = new Promise<void>((resolve) => { release = resolve; });
 
-  const setSelfMedia = vi.fn(async (next: CallMediaKinds): Promise<void> => {
+  const setSelfMedia: ReturnType<typeof vi.fn> = vi.fn(async (next: CallMediaKinds): Promise<void> => {
     await gate;
     selfMedia = next;
   });
-  const managerRef = {
+  const managerRef: MutableRefObject<Manager> = {
     current: { getState: () => ({ selfMedia }), setSelfMedia },
   } as unknown as MutableRefObject<Manager>;
 
   let onEnded: () => void = (): void => {};
-  const stopScreen = vi.fn();
-  const sessionRef = {
+  const stopScreen: ReturnType<typeof vi.fn> = vi.fn();
+  const sessionRef: Parameters<typeof useCallMediaToggles>[1] = {
     current: {
       getLocalStream: () => null,
       startScreen: (_stream: MediaStream, ended: () => void): boolean => {
@@ -73,8 +73,8 @@ function setup(): Harness {
     stream: { getTracks: () => [], getVideoTracks: () => [] } as unknown as MediaStream,
   });
 
-  const onScreenEnded = vi.fn();
-  const hook = renderHook(() =>
+  const onScreenEnded: ReturnType<typeof vi.fn> = vi.fn();
+  const hook: Harness['hook'] = renderHook(() =>
     useCallMediaToggles(managerRef, sessionRef, undefined, undefined, undefined, onScreenEnded),
   );
   return {
@@ -89,7 +89,7 @@ function setup(): Harness {
 
 describe('a screen share that ends while it is being announced', () => {
   it('does not leave the call claiming to share a stopped screen', async () => {
-    const h = setup();
+    const h: Harness = setup();
 
     await act(async (): Promise<void> => {
       const toggling: Promise<void> = h.hook.result.current.toggleScreenShare();
@@ -108,7 +108,7 @@ describe('a screen share that ends while it is being announced', () => {
   });
 
   it('still announces a share that is still running when the announcement lands', async () => {
-    const h = setup();
+    const h: Harness = setup();
 
     await act(async (): Promise<void> => {
       const toggling: Promise<void> = h.hook.result.current.toggleScreenShare();
@@ -138,30 +138,31 @@ function deviceSetup(kind: 'audio' | 'video'): {
   let selfMedia: CallMediaKinds = { audio: false, video: false, screen: false };
   let release: () => void = (): void => {};
   const gate: Promise<void> = new Promise<void>((resolve) => { release = resolve; });
-  const setSelfMedia = vi.fn(async (next: CallMediaKinds): Promise<void> => {
+  const setSelfMedia: ReturnType<typeof vi.fn> = vi.fn(async (next: CallMediaKinds): Promise<void> => {
     await gate;
     selfMedia = next;
   });
-  const managerRef = {
+  const managerRef: MutableRefObject<Manager> = {
     current: { getState: () => ({ selfMedia }), setSelfMedia },
   } as unknown as MutableRefObject<Manager>;
 
-  const track = { enabled: false, readyState: 'live' as 'live' | 'ended' };
-  const sessionRef = {
+  const track: { enabled: boolean; readyState: 'live' | 'ended' } = { enabled: false, readyState: 'live' };
+  const sessionRef: Parameters<typeof useCallMediaToggles>[1] = {
     current: {
-      getLocalStream: () => ({
-        getAudioTracks: () => (kind === 'audio' ? [track] : []),
-        getVideoTracks: () => (kind === 'video' ? [track] : []),
+      getLocalStream: (): unknown => ({
+        getAudioTracks: (): unknown[] => (kind === 'audio' ? [track] : []),
+        getVideoTracks: (): unknown[] => (kind === 'video' ? [track] : []),
       }),
     },
   } as unknown as Parameters<typeof useCallMediaToggles>[1];
 
-  const hook = renderHook(() => useCallMediaToggles(managerRef, sessionRef));
+  const hook: ReturnType<typeof renderHook<ReturnType<typeof useCallMediaToggles>, unknown>> =
+    renderHook(() => useCallMediaToggles(managerRef, sessionRef));
   return {
     hook,
-    media: () => selfMedia,
-    unplug: () => { track.readyState = 'ended'; },
-    releaseAnnouncement: () => release(),
+    media: (): CallMediaKinds => selfMedia,
+    unplug: (): void => { track.readyState = 'ended'; },
+    releaseAnnouncement: (): void => release(),
   };
 }
 
@@ -170,7 +171,7 @@ describe('a device that dies while it is being announced', () => {
     ['audio', 'toggleMic'],
     ['video', 'toggleCamera'],
   ] as const)('does not leave the call claiming a %s device that is gone', async (kind, press) => {
-    const h = deviceSetup(kind);
+    const h: ReturnType<typeof deviceSetup> = deviceSetup(kind);
 
     await act(async (): Promise<void> => {
       const toggling: Promise<void> = h.hook.result.current[press]();
@@ -187,7 +188,7 @@ describe('a device that dies while it is being announced', () => {
     ['audio', 'toggleMic'],
     ['video', 'toggleCamera'],
   ] as const)('still announces a %s device that survives the announcement', async (kind, press) => {
-    const h = deviceSetup(kind);
+    const h: ReturnType<typeof deviceSetup> = deviceSetup(kind);
 
     await act(async (): Promise<void> => {
       const toggling: Promise<void> = h.hook.result.current[press]();

@@ -24,6 +24,13 @@ interface SessionLike {
   getScreenStream?: () => MediaStream | null;
 }
 
+export interface CallMediaToggles {
+  setMedia: (next: CallMediaKinds) => Promise<void>;
+  toggleMic: () => Promise<void>;
+  toggleCamera: () => Promise<void>;
+  toggleScreenShare: () => Promise<void>;
+}
+
 export function useCallMediaToggles(
   managerRef: MutableRefObject<ManagerLike | null>,
   sessionRef: MutableRefObject<SessionLike | null>,
@@ -35,9 +42,9 @@ export function useCallMediaToggles(
   onScreenUnavailable?: (failure: CaptureFailure) => void,
   /** Called when the browser's own "Stop sharing" ended the share. */
   onScreenEnded?: () => void,
-) {
-  const setMedia = useCallback(
-    async (next: CallMediaKinds) => {
+): CallMediaToggles {
+  const setMedia: (next: CallMediaKinds) => Promise<void> = useCallback(
+    async (next: CallMediaKinds): Promise<void> => {
       await managerRef.current?.setSelfMedia(next);
     },
     [managerRef]
@@ -58,7 +65,7 @@ export function useCallMediaToggles(
    * The state is re-read rather than carried in, because the manager is the
    * authority and the announcement that just landed is what it now holds.
    */
-  const reconcile = useCallback(
+  const reconcile: (kind: keyof CallMediaKinds, survived: () => boolean) => Promise<void> = useCallback(
     async (kind: keyof CallMediaKinds, survived: () => boolean): Promise<void> => {
       if (survived()) return;
       const now: CallMediaKinds | undefined = managerRef.current?.getState()?.selfMedia;
@@ -75,16 +82,16 @@ export function useCallMediaToggles(
    * decision to revisit — in a product that sells privacy, a light that stays
    * on reads as "it is still watching me".
    */
-  const toggleMic = useCallback(async () => {
-    const current = managerRef.current?.getState()?.selfMedia;
+  const toggleMic: () => Promise<void> = useCallback(async (): Promise<void> => {
+    const current: CallMediaKinds | undefined = managerRef.current?.getState()?.selfMedia;
     if (!current) return;
-    const stream = sessionRef.current?.getLocalStream();
+    const stream: MediaStream | null | undefined = sessionRef.current?.getLocalStream();
     // Only LIVE tracks. An ended track stays in the stream's track list, so
     // flipping `enabled` on one is a no-op that still announced a state
     // change: after the microphone was unplugged, pressing unmute told every
     // peer the mic was back and left the button reading unmuted, on a device
     // that no longer existed.
-    const audioTracks = (stream?.getAudioTracks() ?? []).filter(
+    const audioTracks: MediaStreamTrack[] = (stream?.getAudioTracks() ?? []).filter(
       (track) => track.readyState === 'live',
     );
 
@@ -101,13 +108,13 @@ export function useCallMediaToggles(
     }
   }, [setMedia, reconcile, managerRef, sessionRef, onMicUnavailable]);
 
-  const toggleCamera = useCallback(async () => {
-    const current = managerRef.current?.getState()?.selfMedia;
+  const toggleCamera: () => Promise<void> = useCallback(async (): Promise<void> => {
+    const current: CallMediaKinds | undefined = managerRef.current?.getState()?.selfMedia;
     if (!current) return;
-    const stream = sessionRef.current?.getLocalStream();
+    const stream: MediaStream | null | undefined = sessionRef.current?.getLocalStream();
     // Live only, for the same reason as the microphone above: the count-based
     // guard below is defeated by a dead track still sitting in the list.
-    const videoTracks = (stream?.getVideoTracks() ?? []).filter(
+    const videoTracks: MediaStreamTrack[] = (stream?.getVideoTracks() ?? []).filter(
       (track) => track.readyState === 'live',
     );
 
