@@ -1,4 +1,5 @@
 import { DB_NAME } from './lib/storage-migrations';
+import { sessionGet, sessionRemove, sessionSet } from './lib/safe-session-storage';
 
 /**
  * The rollback recovery screen.
@@ -15,7 +16,7 @@ const RELOAD_ATTEMPTED_KEY = 'citadel-storage-version-reload-attempted';
 function resetLocalData(button: HTMLButtonElement): void {
   button.disabled = true;
   button.textContent = 'Resetting…';
-  sessionStorage.removeItem(RELOAD_ATTEMPTED_KEY);
+  sessionRemove(RELOAD_ATTEMPTED_KEY);
 
   const request = indexedDB.deleteDatabase(DB_NAME);
   const reload = () => window.location.reload();
@@ -80,7 +81,7 @@ export function showStorageVersionRecovery(): void {
   button.addEventListener('click', () => {
     button.disabled = true;
     button.textContent = 'Reloading…';
-    sessionStorage.setItem(RELOAD_ATTEMPTED_KEY, '1');
+    sessionSet(RELOAD_ATTEMPTED_KEY, '1');
     void navigator.serviceWorker?.getRegistrations()
       .then((registrations) => Promise.all(registrations.map((r) => r.unregister())))
       .catch(() => undefined)
@@ -90,7 +91,7 @@ export function showStorageVersionRecovery(): void {
   panel.append(heading, body, button);
 
   // Only after the safe option has been tried and landed back here.
-  if (sessionStorage.getItem(RELOAD_ATTEMPTED_KEY)) {
+  if (sessionGet(RELOAD_ATTEMPTED_KEY)) {
     const stillStuck = document.createElement('p');
     stillStuck.textContent =
       'Still seeing this after reloading? Then this device is running the version the ' +

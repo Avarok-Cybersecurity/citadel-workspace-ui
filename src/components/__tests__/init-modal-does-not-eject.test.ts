@@ -48,7 +48,9 @@ describe('dismissing the initialization prompt', () => {
   });
 
   it('still records the dismissal, so it does not reappear all session', () => {
-    expect(dismissBody).toMatch(/sessionStorage\.setItem\('workspace-init-modal-dismissed'/);
+    // Through `sessionSet`, not `sessionStorage.setItem` -- the raw accessor
+    // throws under strict privacy settings; see safe-session-storage.
+    expect(dismissBody).toMatch(/sessionSet\('workspace-init-modal-dismissed', 'true'\)/);
   });
 
   it('tells the user what the password is and that they can skip', () => {

@@ -133,7 +133,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" data-testid="connection-retry-modal">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-destructive" />
@@ -220,6 +220,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
           <Button
             variant="outline"
             onClick={handleCancel}
+            data-testid="connection-retry-cancel"
           >
             <X className="h-4 w-4 mr-2" />
             Cancel

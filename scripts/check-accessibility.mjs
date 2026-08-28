@@ -30,6 +30,23 @@ import { AxeBuilder } from '@axe-core/playwright';
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.A11Y_PORT ?? 4186);
 const ORIGIN = `http://localhost:${PORT}`;
+/** Nothing listens here; see the preview spawn below. */
+const CLOSED_AGENT_PORT = 12399;
+
+/**
+ * The surface under test, installed into every page as `__a11yScope()`.
+ *
+ * The LAST dialog, not the first: dialogs stack, and the one on top is the one
+ * the user is in. Taking the first in document order measured whatever was
+ * underneath it. One definition, because three probes ask the same question and
+ * two of them used to answer it differently.
+ */
+const INSTALL_SCOPE = () => {
+  window.__a11yScope = () => {
+    const dialogs = [...document.querySelectorAll('[role="dialog"]')];
+    return dialogs[dialogs.length - 1] ?? document.body;
+  };
+};
 
 /** WCAG 2.0, 2.1 and 2.2, A and AA. */
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -54,9 +71,23 @@ async function main() {
     process.exit(1);
   }
 
+  // A CLOSED agent port, deliberately, and not whatever happens to be running.
+  //
+  // `vite preview` proxies `/ws` to `127.0.0.1:${AGENT_PORT ?? 12345}`, which on
+  // a developer's machine is their live stack and in CI is nothing at all. So
+  // this gate was measuring two different applications: locally the wizard, and
+  // in CI the wizard with the "Connection Failed" modal open on top of it,
+  // trapping focus the way a modal correctly should. Every surface passed
+  // locally and one failed in CI, and the difference was never the code.
+  //
+  // Agent-down is the honest world for a gate whose whole premise is that it
+  // needs nothing but a served bundle -- so it is pinned here, and the modal
+  // that follows from it is scanned as a surface of its own instead of drifting
+  // in and out of the measurement.
   const preview = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
     cwd: APP_ROOT,
     stdio: 'ignore',
+    env: { ...process.env, AGENT_PORT: String(CLOSED_AGENT_PORT) },
   });
   if (!(await waitForServer())) {
     preview.kill();
@@ -74,6 +105,7 @@ async function main() {
     // A phone viewport, because that is where a layout runs out of room and
     // starts producing the overlaps and clipped labels axe can see.
     const context = await browser.newContext({ viewport: { width: 375, height: 667 } });
+    await context.addInitScript(INSTALL_SCOPE);
     const page = await context.newPage();
 
     /** The wizard's second step, from a fresh load. Waits, never sleeps. */
@@ -92,6 +124,41 @@ async function main() {
       await toSecurityStep();
       await page.locator('button').filter({ hasText: /^Next$/ }).last().click({ force: true });
       await page.locator('#fullName').waitFor({ state: 'visible', timeout: 30_000 });
+    };
+
+    /**
+     * The "Connection Failed" modal, dismissed.
+     *
+     * With no agent it opens over whatever the user is on, and it traps focus
+     * -- correctly, that is what a modal is for. But it is not the surface
+     * under test on twelve of these thirteen screens, and while it is open the
+     * keyboard walk measures its buttons instead of theirs. `dismissed`
+     * survives until the connection succeeds, so one dismissal per load holds.
+     *
+     * It is scanned on its own below rather than merely suppressed: with no
+     * agent running it is the first screen a real user meets.
+     */
+    const dismissConnectionFailure = async () => {
+      const modal = page.getByTestId('connection-retry-modal');
+      // WAIT for it, then dismiss -- do not sample and move on.
+      //
+      // With the agent port closed it always arrives, a few seconds after the
+      // load. Polling for its absence exited before it ever showed up on the
+      // quick surfaces (landing, sign-in) and after it had shown up on the slow
+      // ones (settings tabs), so half the screens were measured with it open
+      // over them and half without, which is precisely the drift this gate was
+      // failing on in CI. Waiting makes the two halves the same.
+      await modal.waitFor({ state: 'visible', timeout: 60_000 });
+      // By testid, and the one INSIDE the modal.
+      // `page.locator('button')…filter(hasText: /^Cancel$/).last()` picked
+      // whichever Cancel came last in the DOM, which on the sign-in and
+      // settings surfaces is the underlying dialog's -- so the click closed the
+      // screen under test and left the modal standing.
+      await page.getByTestId('connection-retry-cancel').click({ force: true });
+      await modal.waitFor({ state: 'hidden', timeout: 10_000 });
+      // Dismissal sticks for the rest of the load: `onFailure` preserves it and
+      // only a successful connection clears it. Measured over 30s of continued
+      // failures, so this is one dismissal per surface, not a race.
     };
 
     const screens = [
@@ -159,6 +226,14 @@ async function main() {
         await page.locator('button').filter({ hasText: /^Join$/ }).last().click({ force: true });
         await page.waitForTimeout(1_200);
       }],
+      // The agent-down modal itself. This gate pins a closed agent port, so it
+      // is deterministic here rather than appearing only on the machines where
+      // nothing is running -- which is how it went unscanned while silently
+      // corrupting the measurement of the screen underneath it.
+      ['connection-failed', async () => {
+        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.getByTestId('connection-retry-modal').waitFor({ state: 'visible', timeout: 60_000 });
+      }],
       // Any unrouted path. Cheap, and it is the one screen a user reaches by
       // accident rather than on purpose.
       ['not-found', async () => {
@@ -166,12 +241,49 @@ async function main() {
       }],
     ];
 
+    /**
+     * What each surface must turn out to BE.
+     *
+     * Reporting the measured scope was enough to reveal that six screens were
+     * being scanned through the connection modal; it is not enough to keep them
+     * from drifting back. Every assertion in this gate is only as good as the
+     * element it ran against, so the element is asserted first.
+     */
+    const EXPECTED_SCOPE = {
+      landing: 'document',
+      'sign-in': 'Login to Workspace',
+      'create-account': 'Create Account',
+      'manage-accounts': 'Manage Accounts',
+      'settings/General': 'Settings',
+      'settings/Connect': 'Settings',
+      'settings/Theme': 'Settings',
+      'settings/Privacy': 'Settings',
+      'settings/Perms': 'Settings',
+      'join/security': 'Security Settings',
+      'join/profile': 'Create Your Profile',
+      'join/profile with a validation error': 'Create Your Profile',
+      'connection-failed': 'Connection Failed',
+      'not-found': 'document',
+    };
+    record(
+      'every screen has an expected scope',
+      screens.every(([n]) => n in EXPECTED_SCOPE)
+        && Object.keys(EXPECTED_SCOPE).length === screens.length,
+      `${Object.keys(EXPECTED_SCOPE).length} expectations for ${screens.length} screens`,
+    );
+
     let scanned = 0;
     for (const [name, go] of screens) {
       await go();
       // Animations move elements while axe measures them, and a colour read
       // mid-transition is fiction. Settle before scanning.
       await page.waitForTimeout(1_200);
+      // After the settle, not before it. On the validation-error surface the
+      // submit itself re-opens the modal a beat after `go()` returns, so a
+      // dismissal placed earlier left it standing over the form -- and the
+      // walk then measured its seven buttons and passed, which is exactly the
+      // reading this gate is supposed to make impossible.
+      if (name !== 'connection-failed') await dismissConnectionFailure();
       const { violations } = await new AxeBuilder({ page }).withTags(WCAG).analyze();
       scanned += 1;
 
@@ -197,7 +309,7 @@ async function main() {
       // as "unreachable" to a naive count. Expecting each tab to be a separate
       // Tab stop was this rule's first output, and it was wrong.
       const unreachable = await page.evaluate(async () => {
-        const scope = document.querySelector('[role="dialog"]') ?? document.body;
+        const scope = window.__a11yScope();
         const COMPOSITE = new Set(['tab', 'radio', 'menuitem', 'option', 'treeitem']);
         const describe = (el) =>
           `${el.tagName}:${(el.getAttribute('aria-label') || el.id || (el.textContent || '').trim()).slice(0, 24)}`;
@@ -217,7 +329,11 @@ async function main() {
           // composite-widget members, and those are excluded by role below.
           .filter((el) => !COMPOSITE.has(el.getAttribute('role') ?? ''))
           .filter((el) => !el.closest('[role="tablist"],[role="radiogroup"],[role="menu"],[role="listbox"]'));
-        return { expected: expected.map(describe) };
+        const heading = scope.querySelector('h1,h2,h3,[id$="-title"]');
+        const identity = scope === document.body
+          ? 'document'
+          : `dialog "${(heading?.textContent ?? '').trim().slice(0, 28)}"`;
+        return { expected: expected.map(describe), identity };
       });
 
       const reached = new Set();
@@ -230,6 +346,21 @@ async function main() {
         });
         if (focused) reached.add(focused);
       }
+      // A surface with nothing on it passes every assertion below without
+      // examining anything. That is how the wrong-scope bug stayed green: the
+      // probes ran against a dialog that was not the screen under test, and
+      // "no two controls share a name" is trivially true of a set of one.
+      record(
+        `${name}: has controls to examine`,
+        unreachable.expected.length > 0,
+        `${unreachable.expected.length} control(s) in ${unreachable.identity}`,
+      );
+      record(
+        `${name}: measured the intended surface`,
+        unreachable.identity.includes(EXPECTED_SCOPE[name] ?? '\u0000'),
+        unreachable.identity,
+      );
+
       const missed = [...new Set(unreachable.expected.filter((e) => !reached.has(e)))];
       record(`${name}: every control is reachable by keyboard`, missed.length === 0, missed.join(' | '));
 
@@ -245,7 +376,7 @@ async function main() {
       // What it cannot see is that the name is the wrong THING, and that it
       // changes when the value does, so there is nothing stable to refer to.
       const unnamedSelects = await page.evaluate(() => {
-        const scope = document.querySelector('[role="dialog"]') ?? document.body;
+        const scope = window.__a11yScope();
         return [...scope.querySelectorAll('[role="combobox"]')]
           .filter((el) => el.offsetParent !== null)
           .filter((el) => !el.getAttribute('aria-label') && !el.getAttribute('aria-labelledby'))
@@ -266,7 +397,7 @@ async function main() {
       // which field they are on. WCAG 4.1.2 wants the name to identify the
       // control, and an action alone does not when the action repeats.
       const duplicates = await page.evaluate(() => {
-        const scope = document.querySelector('[role="dialog"]') ?? document.body;
+        const scope = window.__a11yScope();
         const names = [...scope.querySelectorAll('button')]
           .filter((b) => b.offsetParent !== null)
           // Buttons only, by ROLE. A `<button role="tab">` named "Connections"

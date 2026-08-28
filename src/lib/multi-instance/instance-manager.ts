@@ -13,6 +13,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { sessionGet, sessionSet } from '@/lib/safe-session-storage';
 import { debugLog } from '@/lib/debug-config';
 import type { InstanceState, InstanceInfo } from './instance-manager-types';
 import { documentNonce, mintInstanceId } from './instance-identity';
@@ -57,15 +58,23 @@ class InstanceManager {
    * This enables deterministic leader election where highest ID wins
    */
   private getOrCreateInstanceId(): string {
-    let instanceId = sessionStorage.getItem(INSTANCE_ID_KEY);
+    // Through the guarded accessors: `sessionStorage` throws outright under
+    // strict privacy settings and some embedded contexts, and this runs during
+    // boot. Unguarded it rendered a blank page -- see safe-session-storage.
+    const stored = sessionGet(INSTANCE_ID_KEY);
+    if (stored) return stored;
 
-    if (!instanceId) {
-      instanceId = mintInstanceId();
-      sessionStorage.setItem(INSTANCE_ID_KEY, instanceId);
+    const minted = mintInstanceId();
+    if (!sessionSet(INSTANCE_ID_KEY, minted)) {
+      // Storage refused. The id still has to be stable for this document, or
+      // leader election re-rolls it on every read and no tab ever wins.
+      this.inMemoryInstanceId = minted;
     }
-
-    return instanceId;
+    return this.inMemoryInstanceId ?? minted;
   }
+
+  /** Only when sessionStorage refuses; see getOrCreateInstanceId. */
+  private inMemoryInstanceId: string | null = null;
 
   /** This document's non-persisted marker. See instance-identity.ts. */
   get documentNonce(): string {
@@ -82,7 +91,10 @@ class InstanceManager {
    */
   reissueInstanceId(): string {
     const replacement = mintInstanceId();
-    sessionStorage.setItem(INSTANCE_ID_KEY, replacement);
+    if (!sessionSet(INSTANCE_ID_KEY, replacement)) {
+      // Storage refused; the reissue must still take effect for this document.
+      this.inMemoryInstanceId = replacement;
+    }
     this._instanceId = replacement;
     debugLog('InstanceManager', `Instance id re-issued (duplicate detected): ${replacement}`);
     return replacement;

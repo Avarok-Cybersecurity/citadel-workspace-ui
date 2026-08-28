@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { sessionGet, sessionRemove, sessionSet } from '@/lib/safe-session-storage';
 import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
 import type { User } from '../types/workspace-entities';
 import { WorkspaceProvider, WorkspaceState } from '@/contexts/WorkspaceContext';
@@ -86,7 +87,7 @@ export const WorkspaceEventHandler: React.FC<{
 
   const [showInitModal, setShowInitModal] = useState(false);
   const [initModalDismissed, setInitModalDismissed] = useState(() => {
-    return sessionStorage.getItem('workspace-init-modal-dismissed') === 'true';
+    return sessionGet('workspace-init-modal-dismissed') === 'true';
   });
 
   useEffect(() => {
@@ -127,7 +128,7 @@ export const WorkspaceEventHandler: React.FC<{
 
   const handleWorkspaceInitialized = () => {
     setShowInitModal(false);
-    sessionStorage.removeItem('workspace-init-modal-dismissed');
+    sessionRemove('workspace-init-modal-dismissed');
     setState(prev => ({ ...prev, needsWorkspaceInitialization: false, error: undefined }));
     WorkspaceService.loadWorkspace()
       .then(() => debugLog('WorkspaceEventHandler', 'Workspace reloaded after initialization'))
@@ -149,7 +150,7 @@ export const WorkspaceEventHandler: React.FC<{
   const handleInitCancelled = () => {
     setShowInitModal(false);
     setInitModalDismissed(true);
-    sessionStorage.setItem('workspace-init-modal-dismissed', 'true');
+    sessionSet('workspace-init-modal-dismissed', 'true');
     // Deliberately no navigation.
     //
     // This used to `window.location.assign('/')`, throwing the user out of the

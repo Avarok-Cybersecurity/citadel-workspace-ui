@@ -9,6 +9,7 @@
  */
 
 import { dbPut, dbGet, dbDelete } from './storage-utils';
+import { sessionGet, sessionSet } from './safe-session-storage';
 
 const TAB_ID_KEY = 'citadel-tab-id';
 
@@ -16,16 +17,40 @@ function mintTabId(): string {
   return `tab-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
-/** This tab's identity, which every `tab-*` storage key is scoped by. */
+/**
+ * The tab id when sessionStorage cannot be used at all.
+ *
+ * Not a cache: this is the ONLY copy in that case, and it is the right
+ * lifetime — sessionStorage lives exactly as long as the tab does, so an
+ * in-memory id loses only survival across a reload.
+ */
+let inMemoryTabId: string | null = null;
+
+/**
+ * This tab's identity, which every `tab-*` storage key is scoped by.
+ *
+ * Guarded, because `sessionStorage` is not always there to be read. Strict
+ * privacy settings, enterprise policy and some embedded contexts make the
+ * accessor THROW rather than return null — and this function runs during boot.
+ *
+ * Measured with a throwing `sessionStorage`: the app did not mount, did not
+ * reach the error boundary, and rendered an empty body. A blank page with a
+ * `SecurityError` in the console is worse than a crash screen, because there is
+ * nothing on screen to report.
+ *
+ * `localStorage` is wrapped everywhere it is touched in this codebase. Its
+ * sibling was not.
+ */
 export function getTabId(): string {
-  let tabId = sessionStorage.getItem(TAB_ID_KEY);
+  const stored = sessionGet(TAB_ID_KEY);
+  if (stored) return stored;
 
-  if (!tabId) {
-    tabId = mintTabId();
-    sessionStorage.setItem(TAB_ID_KEY, tabId);
+  const minted = mintTabId();
+  if (!sessionSet(TAB_ID_KEY, minted)) {
+    if (!inMemoryTabId) inMemoryTabId = mintTabId();
+    return inMemoryTabId;
   }
-
-  return tabId;
+  return minted;
 }
 
 /**
@@ -42,7 +67,11 @@ export function getTabId(): string {
  */
 export function reissueTabId(): string {
   const replacement = mintTabId();
-  sessionStorage.setItem(TAB_ID_KEY, replacement);
+  if (!sessionSet(TAB_ID_KEY, replacement)) {
+    // Same reasoning as getTabId: without storage the id lives in memory, and
+    // a reissue must still take effect for this tab.
+    inMemoryTabId = replacement;
+  }
   return replacement;
 }
 

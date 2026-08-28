@@ -11802,3 +11802,89 @@ up waiting fails the one that says it is eventually said anyway. The cancel path
 is covered too: the component that schedules this can unmount first, and a timer
 firing into a dead component is the other half of the listener leaks recorded in
 round 169.
+
+## Round 222 — `sessionStorage` throws, and nothing was guarding it
+
+`localStorage` is wrapped at every call site in this codebase. Its sibling was
+wrapped at none.
+
+That matters because the accessor does not return `null` when storage is
+unavailable — it raises. Under strict privacy settings, enterprise policy and
+some embedded contexts, reading `window.sessionStorage` throws `SecurityError:
+Access is denied for this document.` Measured against the production bundle with
+a throwing accessor injected before any app code ran:
+
+| storage | app mounts | crashed to the boundary | body |
+|---|---|---|---|
+| `localStorage` throws | yes | no | full app, create-account reachable |
+| `sessionStorage` throws | **no** | **no** | **empty** |
+
+A blank page is worse than a crash screen. The root error boundary never ran,
+because the throw happened during module evaluation on the boot path — before
+React had anything to catch. There is nothing on screen to report and nothing to
+click.
+
+Four callers were on that path: `tab-context.ts` (already had a try/catch),
+`storage-version-recovery.ts`, `WorkspaceEventHandler.tsx` and
+`multi-instance/instance-manager.ts`. The last three had none.
+
+The fix is `src/lib/safe-session-storage.ts` — `sessionGet` / `sessionSet` /
+`sessionRemove`, reads answering `null` and writes reporting whether they
+landed — plus in-memory fallbacks for the two identifiers that must stay stable
+for the life of the document: the tab id and the instance id. Without those, a
+storage-less browser re-mints an instance id on every read and no tab ever wins
+leader election.
+
+`src/__tests__/storage-is-always-guarded.test.ts` makes it a rule rather than six
+try/catch blocks, so the next caller inherits it instead of re-deciding it.
+Control: restoring one direct `sessionStorage.getItem` names the offending file.
+
+## Round 223 — the accessibility gate was measuring the wrong screen
+
+CI failed `join/profile with a validation error: every control is reachable by
+keyboard`, listing all eight of the form's controls as unreached. Locally the
+same gate passed. The code was identical; the application was not.
+
+`vite preview` proxies `/ws` to `127.0.0.1:${AGENT_PORT ?? 12345}`. On this
+machine that is the developer's live stack. In CI it is nothing at all. So with
+no agent the "Connection Failed" modal opens over whatever screen is showing and
+traps focus — correctly, that is what a modal is for — and the walk measured its
+seven buttons instead of the form's eight.
+
+Reproduced by pinning the port closed (`AGENT_PORT=12399`), which reproduced the
+CI failure exactly, first try. That is the same lesson as round 202, arriving
+from the other direction: there, an investigation assumed the app was broken when
+the stack was up; here, a gate assumed a bare bundle when the stack was up. The
+question to ask first is always *which application am I looking at*.
+
+What the diagnosis then exposed was larger than the failing row. The gate scopes
+each probe to `document.querySelector('[role="dialog"]') ?? document.body`, and
+once the modal is open the scope is the modal on **every** screen. Every
+assertion below it — reachability, select naming, duplicate names — was then
+green about the wrong element. "No two controls share a name" is trivially true
+of a dialog you did not mean to scan.
+
+Six changes:
+
+- The preview is spawned with the agent port pinned closed, so the gate always
+  measures the one world it claims to need: a served bundle and nothing else.
+- The connection modal is **waited for and dismissed** on the twelve surfaces it
+  is not the subject of. Polling for its absence was worse than useless: it
+  exited before the modal arrived on the quick screens and after it arrived on
+  the slow ones, so half the run was measured with it open and half without.
+- It is scanned as a surface of its own. With no agent running it is the first
+  screen a real user meets, and nothing was covering it.
+- Scope is now the **last** dialog, not the first: dialogs stack, and the one on
+  top is the one the user is in. One definition, installed into the page, shared
+  by all three probes — two of them had been answering the question differently.
+- Each surface now records how many controls it examined and *what it examined*,
+  and asserts the latter against a per-screen expectation. Reporting the measured
+  scope is what revealed the bug; asserting it is what keeps it fixed.
+- The dismiss control is addressed by testid, not by the word "Cancel" — the
+  by-text version clicked whichever Cancel came last in the DOM, which on the
+  sign-in and settings screens is the underlying dialog's, closing the screen
+  under test. Round 190's rule caught this one on its own.
+
+Control: disabling the dismissal turns "measured the intended surface" red with
+`dialog "Connection Failed"` as the detail. Fourteen surfaces, and the six that
+had been silently scanning the modal now scan what they name.
