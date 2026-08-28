@@ -12294,3 +12294,51 @@ prompted it would have tripped it*. Its negative control is a phrase that exists
 nowhere, and that is the shape of thing it finds. A guard whose reach is
 overstated gets trusted past its evidence, and the first version of this entry
 claimed both failures were in its set, which was wrong.
+
+## Round 233 — the administrator was asked to become the administrator
+
+`WORKSPACE_ALLOW_FIRST_CONNECT_ADMIN=1` exists, in the words of the commit that
+added it, so that "`tilt up` → create an account → have editing rights work
+without anyone typing the master password". It is set in `docker-compose.yml`,
+which is what CI runs.
+
+It grants the role. It does not mark the workspace initialised — that marker,
+`{"initialized": true}`, is written only by the initialisation flow. And the
+frontend's condition is:
+
+```ts
+needsWorkspaceInitialization: !isInitialized   // metadata.initialized === true
+```
+
+So the first account connects, **is** the administrator, and is shown a modal
+offering to "Initialize & Become Admin". Declining it navigates back to the
+index — by design, since declining means declining to set the workspace up — so
+the account with every permission ends up outside the workspace it owns.
+
+That is visible in the CI logs as a cluster of failures that read like unrelated
+product bugs:
+
+| leg | what it reported |
+|---|---|
+| test:workspace-init | `Dismissal Sticks: FAIL` (round 232's copy bug sat on top of this one) |
+| test:permissions | `WARNING: Could not open Settings from TopBar` — no avatar button, because no workspace shell |
+| test:group | `ADMIN SETTINGS sidebar section not visible after workspace initialization` |
+| test:mdx-content | `Edit Permission Ready: FAIL`, then everything downstream |
+| Playwright shard 3 | `global-setup did not initialise the workspace` |
+
+Promotion now merges the marker into the workspace metadata in the same write
+that adds the first member, so the flag delivers what it claims end to end.
+Merged rather than assigned: that document is shared with theming, and assigning
+over it is the exact regression `metadata_merge` was extracted to prevent.
+
+With the flag off — every production deployment — nothing changes: the outcome is
+`AwaitInitialization`, no marker is written, and the workspace waits for the
+master password as before.
+
+Four unit tests cover the decision and the document. **A control that removes the
+assignment in the kernel passes all four**: nothing obliged the promotion branch
+to use the merge it was written for, which is a helper with tests beside a call
+site with none. A fifth test reads the branch and fails for exactly that
+mistake. Settling it properly needs a running kernel, and that needs the stack —
+so this is verified as far as it can be here, and said plainly rather than
+implied.
