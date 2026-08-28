@@ -735,8 +735,25 @@ async function runTest(): Promise<boolean> {
           results.nonAdminCannotCreateOffice = await itemGoneFromSidebar(nonAdminPage, 'UnauthorizedOffice');
         }
       } else {
-        // No add button visible = good, non-admins shouldn't see it
-        results.nonAdminCannotCreateOffice = true;
+        // An absent button is only evidence if the page actually LOADED.
+        //
+        // TreeNodesSection renders the add button for everyone, so this branch
+        // fires exactly when the non-admin's workspace failed to render — and
+        // it used to record that as a pass. Deleting the server-side
+        // EditTreeStructure check would have gone unnoticed, because the thing
+        // this spec measures was "the page is broken".
+        const loaded = await nonAdminPage
+          .locator('#main-content')
+          .isVisible()
+          .catch(() => false);
+
+        results.nonAdminCannotCreateOffice = loaded;
+        if (!loaded) {
+          console.error(
+            '  FAIL: the non-admin workspace never rendered, so the absence of an add ' +
+              'button proves nothing about authorization.',
+          );
+        }
       }
       console.log(`  Non-admin cannot create office: ${results.nonAdminCannotCreateOffice}`);
       await takeScreenshot(nonAdminPage, `${NON_ADMIN_USER}_auth_test`);

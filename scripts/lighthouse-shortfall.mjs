@@ -40,8 +40,14 @@
 // it stayed invisible while the printout truncated each audit to three items.
 // Still specific: it requires a websocket connection that failed, so a
 // TypeError or an application error is not swept up.
+// The third alternative used to be a bare `WorkspaceClient`, which excused ANY
+// console error that happened to name the class -- including a genuine
+// application bug thrown from inside it, which is exactly what this gate is
+// supposed to notice. Narrowed to the initialisation failure that follows from
+// the WASM client having no agent to talk to, which is the condition being
+// excused.
 const EXPECTED_CONSOLE_ERROR =
-  /WebSocket connection\b.*\bfailed|Failed to initialize WASM client|WorkspaceClient/i;
+  /WebSocket connection\b.*\bfailed|Failed to initialize WASM client|Error initializing WorkspaceClient/i;
 
 export function explainShortfall(category, audits) {
   const failing = (category.auditRefs ?? [])

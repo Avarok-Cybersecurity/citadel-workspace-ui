@@ -9232,3 +9232,30 @@ unused, and it was right — whether the directory already holds data does not
 change the answer. The fix was to delete it rather than underscore it. A
 parameter that is threaded through and ignored implies a distinction the code
 does not make, which is how the next reader comes to believe in one.
+
+## Round 155 — three gates that would pass over nothing
+
+**A source-map run over zero chunks looked exactly like a clean build.**
+`check-source-maps` iterated `dist/assets/*.js`, found none, and printed "every
+chunk names a map that exists". A renamed output directory, a build that emitted
+nothing, or a checkout with no `dist/` turned the gate green while checking
+nothing. It now requires a plausible number of chunks and says so when it does
+not find them. Control: emptying the directory fails it.
+
+**An `EXPECTED_CONSOLE_ERROR` pattern excused any error naming a class.** The
+lighthouse gate tolerates the console errors that follow from running an audit
+with no agent to talk to. Its third alternative was a bare `WorkspaceClient` —
+which matches a genuine application bug thrown from inside that class, exactly
+the thing the gate exists to notice. Narrowed to the initialisation failure that
+is actually the excused condition.
+
+**An authorization spec was satisfied by a broken page.** The non-admin
+office-creation check ended with "no add button visible = good, non-admins
+shouldn't see it" — but `TreeNodesSection` renders that button for everyone, so
+the branch fires exactly when the non-admin's workspace failed to render, and
+recorded it as a pass. Deleting the server-side `EditTreeStructure` check would
+have gone unnoticed, because what the spec measured was "the page is broken". It
+now requires the page to have loaded before an absent button counts as evidence.
+
+All three are the same shape: a check whose passing condition is also what
+"nothing happened" looks like.

@@ -64,6 +64,22 @@ for (const file of readdirSync(ASSETS).filter((f) => f.endsWith('.js'))) {
 }
 
 console.log(`\n  Source maps — ${checked} JavaScript chunk(s) in dist/assets\n`);
+
+// A run over zero chunks passes, and looks exactly like a run over a clean
+// build. That is how a renamed output directory, a build that emitted nothing,
+// or a checkout with no dist/ at all turns this gate green while checking
+// nothing. A production app has many chunks; a handful means something is
+// wrong with the inputs, not with the maps.
+const MIN_CHUNKS = 5;
+if (checked < MIN_CHUNKS) {
+  console.error(
+    `  Only ${checked} chunk(s) found in ${ASSETS}. A real build emits many more,\n` +
+      '  so this run checked nothing meaningful — failing rather than reporting\n' +
+      '  a clean result over an empty or wrong directory.\n',
+  );
+  process.exit(1);
+}
+
 if (failures.length) {
   for (const f of failures) console.log(`  FAIL  ${f}`);
   console.error(`\n  ${failures.length} chunk(s) cannot be mapped back to source.\n`);
