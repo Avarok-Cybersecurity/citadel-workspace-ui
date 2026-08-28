@@ -89,7 +89,22 @@ export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navi
           panel all ran 67px past the dialog's right edge. min-w-0 lets it
           scroll inside itself instead of pushing everything else out. */}
       <div className="mt-1 flex min-w-0 items-center gap-2">
-        <code className="bg-background min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded px-2 py-1 text-xs">
+        {/* Focusable, because it scrolls.
+            
+            The command is longer than the box on a phone, so this is a
+            horizontally scrollable region — and a keyboard user could not reach
+            it to read the end of the line. axe reports it as
+            `scrollable-region-focusable`, serious.
+            
+            It became scrollable when `text-[11px]` was raised to `text-xs` for
+            legibility (round 193): the same characters at 12px no longer fit.
+            Fixing one accessibility defect created another, and only the axe
+            scan on this modal said so. */}
+        <code
+          tabIndex={0}
+          role="region"
+          aria-label="Command to start the Citadel agent"
+          className="bg-background min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded px-2 py-1 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
           {RUN_COMMAND}
         </code>
         <button

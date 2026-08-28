@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { createConnection } from 'node:net';
 import { chromium } from 'playwright';
+import { AxeBuilder } from '@axe-core/playwright';
 
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.AGENT_DOWN_PORT ?? 4203);
@@ -111,6 +112,27 @@ async function main() {
     if (dialog) {
       const body = (await page.textContent('[role="dialog"]')) ?? '';
       record('it says how to start the agent', /run|command|download|install/i.test(body));
+
+      // Scanned here because this modal is only reachable with the agent down,
+      // and the backend-free accessibility gate cannot get to it: it visits
+      // landing, sign-in, create-account and manage-accounts, all of which
+      // exist with a healthy agent.
+      //
+      // It has already been worth it once. Raising `text-[11px]` to `text-xs`
+      // for legibility made the run command wider than its box, turning it into
+      // a horizontally scrollable region a keyboard user could not reach --
+      // `scrollable-region-focusable`, serious. One accessibility fix created
+      // another defect, and only a scan of THIS surface said so.
+      await page.waitForTimeout(1_200);
+      const { violations } = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+        .analyze();
+      const blocking = violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+      record(
+        'the dialog has no serious or critical accessibility violations',
+        blocking.length === 0,
+        blocking.map((v) => `${v.id} x${v.nodes.length}`).join('; '),
+      );
 
       await page.locator('[role="dialog"] button').first().focus();
       await page.keyboard.press('Escape');

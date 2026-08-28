@@ -53,7 +53,15 @@ describe('component class names', () => {
     // floor, and it grows with the setting.
     const offenders: string[] = [];
     for (const file of sourceFiles(join(process.cwd(), 'src'))) {
-      const body = readFileSync(file, 'utf-8');
+      // Comments stripped first. This repository's guards keep flagging their
+      // own explanations -- round 188's did, and the fix was not carried here:
+      // a comment recording that `text-[11px]` WAS raised to `text-xs` reads as
+      // a live `text-[11px]`. A rule that punishes writing down why is a rule
+      // people route around.
+      const body = readFileSync(file, 'utf-8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+        .replace(/(^|[^:])\/\/.*$/gm, '$1');
       if (ARBITRARY_TOO_SMALL.test(body)) offenders.push(file.split('/src/')[1]);
     }
     expect(offenders).toEqual([]);

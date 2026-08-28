@@ -38,6 +38,15 @@ export default tseslint.config(
       // Accessibility. Previously unenforced, which is why aria-* appeared in
       // only 10 of ~207 component files and several <img> shipped with no alt.
       ...jsxA11y.configs.recommended.rules,
+      // AFTER the recommended spread above, not before: placed first, the
+      // spread put the default back and the override did nothing.
+      //
+      // A scrollable region is legitimately focusable, and axe requires it:
+      // `scrollable-region-focusable` is a serious violation without it. The
+      // rule's default role list omits `region`, so the two tools disagreed and
+      // the accessible fix was the lint error. axe is the one holding the WCAG
+      // criterion, so the list is widened rather than the fix reverted.
+      "jsx-a11y/no-noninteractive-tabindex": ["error", { roles: ["region", "tabpanel"] }],
       "react-hooks/exhaustive-deps": "error",
       // Disabled: HMR optimization warning, not code quality issue
       // Many UI components legitimately export variants alongside components

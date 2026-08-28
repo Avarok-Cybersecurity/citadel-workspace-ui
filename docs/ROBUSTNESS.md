@@ -11258,3 +11258,47 @@ This is the whole argument for the round-204/205/206 gates in one exchange: a
 change made for accessibility silently deleted the actionable half of an error
 message, and the check written three rounds earlier for an unrelated reason is
 what said so.
+
+## Round 208 — the legibility fix created an accessibility defect
+
+CI's Playwright shards failed on `accessibility.spec.ts` — the connection-failure
+modal, in both themes, three attempts each:
+
+```
+serious scrollable-region-focusable: Scrollable region must have keyboard access
+  at: <code class="… overflow-x-auto whitespace-nowrap … text-xs">
+      ./citadel-workspace-internal-service --bind 127.0.0.1:12345 --backend filesystem
+```
+
+The command to start the agent is longer than its box on a phone, so it is a
+horizontally scrollable region — and a keyboard user could not reach it to read
+the end of the line.
+
+It became scrollable in **round 193**, which raised `text-[11px]` to `text-xs`
+because 11px is below the legibility floor. The same characters at 12px no
+longer fit. **One accessibility fix created another accessibility defect**, and
+nothing in the backend-free gates could see it: `check-accessibility.mjs` scans
+landing, sign-in, create-account and manage-accounts, all of which exist with a
+healthy agent. This modal only appears when the agent is down.
+
+So the axe scan moved to where the surface is: `check-agent-down.mjs` now scans
+the dialog it already opens. Removing the `tabIndex` again fails it by name with
+`scrollable-region-focusable x1`.
+
+### Three smaller things, all of the same shape
+
+**ESLint and axe disagreed, and the accessible fix was the lint error.**
+`jsx-a11y/no-noninteractive-tabindex` forbids `tabIndex` on a non-interactive
+element; its default role list omits `region`. axe holds the WCAG criterion, so
+the list was widened rather than the fix reverted.
+
+**The override did nothing at first**, because it was written above
+`...jsxA11y.configs.recommended.rules` and the spread put the default back. Same
+class as everything else here: a declaration that looks correct and is not in
+force. Now placed after, with the ordering stated.
+
+**A guard flagged its own explanation.** `no-illegible-text-sizes` read the
+comment recording that `text-[11px]` *was* raised to `text-xs` as a live
+`text-[11px]`. Round 188 met this exact problem and stripped comments; that fix
+was not carried here. A rule that punishes writing down why is a rule people
+route around.
