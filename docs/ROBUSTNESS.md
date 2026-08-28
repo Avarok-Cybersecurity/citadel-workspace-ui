@@ -13398,3 +13398,49 @@ real `CallStage` so the reason has to travel from where the fact lives to where
 the button reads it — without it the prop would be a string nobody passes.
 
 Dropping the stage wiring fails 1 of 5; reverting to plain `disabled` fails 3.
+
+## Round 257 — a live server told to reinitialise itself
+
+`GetWorkspace` decided what to tell the client by searching the error's prose:
+
+```rust
+if error_msg.contains("not found") || error_msg.contains("Not a member")
+```
+
+`WorkspaceNotInitialized` is not a small thing to say. The client treats it as
+"this server has never been set up" and shows the first-run flow, which asks for
+the workspace master password and offers to create the workspace. Saying it to
+somebody whose workspace exists and is fine sends them to re-initialise a live
+server.
+
+Two things were wrong with reading a sentence to decide that.
+
+**"not found" is not specific to a workspace.** A test that asks for a workspace
+id which simply does not exist got `WorkspaceNotInitialized` — a wrong id
+reported as a server that was never set up. Any future message containing those
+words would have done the same.
+
+**The producer and the reader had nothing keeping them in step.** The two
+messages are written in `async_domain_server_ops` and read in the command
+processor. Renaming one silently changed what the other concluded, and nothing
+anywhere failed. That is the same shape as *an authority and a copy with nothing
+keeping them in step*, which this campaign has now hit in four places.
+
+Both messages are one constant each in `handlers/domain/workspace_errors`, used
+by the producer and re-exported to the reader. `classify` matches them exactly,
+not by substring. And `WorkspaceNotInitialized` is now sayable only about the
+**root** workspace, because it is a statement about the server: a failure naming
+some other id is a fact about that id.
+
+Six tests. Four unit tests on the decision, two driving the real command
+processor — including a positive control that the root workspace still resolves,
+without which the first assertion is satisfied by a `GetWorkspace` that has
+stopped working entirely. Restoring the substring search fails one; letting any
+id claim uninitialised fails another.
+
+**Still open, deliberately:** a caller who is not a member of the *root*
+workspace is still told the server is uninitialised. They are being told it is
+empty when they are simply not in it. Fixing that needs a response variant the
+protocol does not have, which means regenerating the TypeScript bindings and
+rebuilding the stack. It is now a named decision with a comment on it rather
+than a coincidence of wording.
