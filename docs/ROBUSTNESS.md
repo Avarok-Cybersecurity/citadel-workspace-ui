@@ -13791,3 +13791,52 @@ third time today that shape has been the answer.
 Both composers now carry a testid, all eight sites press it, and a unit test
 renders the real component and asserts the attribute — not the placeholder and
 not the tag, because asserting either would reintroduce exactly what broke.
+
+## Round 267 — sixty seconds of silence, three times over
+
+The theme editor at 375px is the last shard-3 failure, and its report is:
+
+```
+Error: expect(locator).toBeVisible() failed
+  Locator: getByTestId('account-menu-settings')
+  Timeout 60000ms exceeded while waiting on the predicate
+```
+
+One sentence, and it is true of at least four different faults:
+
+- the avatar is not on the page at all;
+- the avatar is there and something is on top of it, so the click opens nothing;
+- the menu opened and does not contain that item;
+- the menu opened and closed again under the retry.
+
+Sixty seconds, three times, and nothing to tell them apart. This is round 261's
+lesson arriving from the other direction: there the diagnostic was confidently
+wrong, here it is confidently silent, and the cost is the same — the next person
+guesses, and the guess is where the time goes.
+
+`pressAccountMenuItem` now reports, when the retries run out: the avatar's size
+and position, the viewport, whether it is on screen, **what is on top of it by
+name**, how many menus are open, and which testids those menus contain.
+
+### The diagnostic is proved, not assumed
+
+*A diagnostic nobody has ever seen produce output is a diagnostic that might not
+work.* So it was run against a real page in each of its states, using the
+preview world and no backend:
+
+| State | What it said |
+|---|---|
+| no avatar in the document | `no [data-testid="user-avatar-button"] in the document at all` |
+| avatar present, nothing over it | `on screen \| covered by nothing \| 0 open menu(s)` |
+| avatar under a full-screen overlay | `covered by div.drawer-overlay` |
+| menu open, different item in it | `1 open menu(s) \| items: account-menu-profile` |
+
+The first attempt at this probe reported `covered by li.group` in both the clear
+and the covered case — because the injected avatar had no stacking context and
+was genuinely underneath the page. The report was right and the probe was wrong,
+which is worth writing down: a check that gives the same answer in two states
+you built to be different has not been shown to discriminate, and the fault can
+be on either side.
+
+The next run answers the 375px question by itself instead of costing another
+three minutes of retries and a guess.
