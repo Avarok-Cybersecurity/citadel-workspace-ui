@@ -12545,3 +12545,11 @@ a user does anyway — and the focus assertion measures focus. Escape's
 intermittency is recorded here as an open question rather than described as
 fixed, because the difference between "flaky check" and "flaky product" is not
 yet established and writing either one down as fact would be a guess.
+
+`Landing.tsx` carried a length exemption at 313 lines and this pushed it past
+it. The exemption is a record of a file that is already too long, so the answer
+was to shrink it rather than raise the number: the draft became
+`use-profile-draft.ts`, and the four step overlays became `LandingSteps.tsx` — an
+exact piecewise move, every value arriving as a prop, nothing deciding anything
+the page did not decide before. 335 lines down to 304, and the gate's behaviour
+re-verified against the rebuilt bundle rather than assumed from the diff.
