@@ -56,7 +56,10 @@ export const UserDirectory = () => {
     // Online tab was permanently empty, and the "Send Message" branch below was
     // unreachable code. A previous fix had already replaced Math.random() here
     // with something that looked authoritative and was constant false.
-    isOnline: registeredPeers.some((peer) => peer.username === member.id),
+    // `.some(...)` answered "is this person registered with me", which is not
+    // presence: a registered peer who is offline showed a green dot under a tab
+    // labelled Online. The registry already carries the real flag.
+    isOnline: registeredPeers.find((peer) => peer.username === member.id)?.isOnline ?? false,
     // Undefined, not 0: nothing tracks last-seen, and 0 rendered as 1970.
     lastActive: undefined,
   }));

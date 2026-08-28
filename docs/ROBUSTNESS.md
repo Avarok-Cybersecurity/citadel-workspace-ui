@@ -9404,3 +9404,42 @@ The list of navigations is written out rather than derived, because "does this
 unmount BaseOffice" is not a textual property: a scan that guessed would either
 miss one or flag every `navigate()` in the app. Control: removing the call from
 any of the four fails the guard by name.
+
+## Round 160 — the green dot, wrong for the fourth time
+
+A first-hour UX audit found that round 140's presence fix had a wrong premise,
+and the file's own comment asserted it confidently.
+
+| version | what it did | why it was wrong |
+|---|---|---|
+| 1 | `Math.random() > 0.5` | a coin flip contradicting the same user elsewhere on every render |
+| 2 | `connectionService.canMessageUser` | a map keyed on the literal `'current-user'` that only the demo simulation writes — constant false, while naming a service that sounds authoritative |
+| 3 | `lib/presence.ts` (round 140) | asked the registry for a **CID**, having assumed member ids are CIDs |
+| 4 | `UserDirectory` | `registeredPeers.some(...)` — "is registered with me" rendered under a green dot |
+
+**A member id is a username.** The kernel sets `user_id =
+get_username_by_cid(...)` and `ListMembers` returns those `User { id }` structs
+verbatim. Round 140's numeric guard therefore rejected every real member id and
+returned false — straight back to the constant lie it had been written to
+replace. Its tests all passed, because every fixture used a numeric id.
+
+The new test fixture is a username, deliberately, and there is a case for a
+numeric username too — username matching comes first, because reading one as
+somebody else's CID would be a fifth version of this. Control: restoring the
+CID-only lookup fails four of seven.
+
+`UserDirectory` was answering a different question entirely: a registered peer
+who is offline showed as online. It reads the registry's real flag now.
+
+**And the account-delete button shipped developer copy.** The session strip's
+modal offered "Disconnect" and "Deregister" side by side, with the warning
+*"Deregister permanently removes this account from the server. Use this for
+cleanup between test runs."* — on the branch that irreversibly destroys an
+account, in a modal a first-time user reaches while tidying up. "Use this for
+cleanup between test runs" also tells the reader the product was not written for
+them.
+
+It now says what each does in the user's terms — signing out keeps everything,
+deleting cannot be undone and the keys cannot be regenerated — and the
+destructive branch asks a second time, which every other irreversible action
+here already does.

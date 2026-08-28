@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useConfirm } from '@/components/shared/confirm-dialog';
 import {
   Dialog,
   DialogContent,
@@ -30,10 +31,29 @@ export const DisconnectConfirmModal = ({
 }: DisconnectConfirmModalProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedAction, setSelectedAction] = useState<DisconnectAction | null>(null);
+  const confirm = useConfirm();
 
   if (!session) return null;
 
   const handleConfirm = async (action: DisconnectAction) => {
+    // Deleting an account is irreversible and the keys cannot be regenerated,
+    // so it is asked twice — the two buttons sit side by side, and this one
+    // used to fire on the first click with only a paragraph between it and a
+    // user tidying up their sessions list.
+    if (
+      action === 'deregister' &&
+      !(await confirm({
+        title: `Delete ${session.username} permanently?`,
+        description:
+          'This removes the account from the server for good. It cannot be undone, ' +
+          'and the keys for it cannot be regenerated. Signing out instead keeps ' +
+          'everything and lets you come back.',
+        confirmLabel: 'Delete permanently',
+      }))
+    ) {
+      return;
+    }
+
     setIsProcessing(true);
     setSelectedAction(action);
     try {
@@ -50,10 +70,10 @@ export const DisconnectConfirmModal = ({
       <DialogContent className="bg-background border-border text-foreground max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-foreground">
-            Remove Workspace Session?
+            Sign out, or delete this account?
           </DialogTitle>
           <DialogDescription className="text-muted-foreground mt-2">
-            Choose how to remove{" "}
+            Two different things can happen to{" "}
             <span className="font-semibold text-primary-accent">
               {workspaceName || session.username}
             </span>
@@ -75,12 +95,20 @@ export const DisconnectConfirmModal = ({
           </div>
         </div>
 
-        {/* Deregister warning */}
+        {/* The stakes, in the user's terms.
+            This read "Deregister permanently removes this account from the
+            server. Use this for cleanup between test runs." — developer copy on
+            the destructive branch of a modal a first-time user reaches while
+            tidying up the sessions strip, offering "Disconnect" and
+            "Deregister" as if the difference were obvious. */}
         <div className="p-3 bg-destructive/10 border border-destructive/25 rounded-lg flex items-start gap-2">
           <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
           <div className="text-sm text-destructive-emphasis">
-            <strong>Deregister</strong> permanently removes this account from the server.
-            Use this for cleanup between test runs.
+            <strong>Signing out</strong> ends the session on this device. Your account,
+            your messages and your files stay where they are, and you can sign back in.
+            <br />
+            <strong>Deleting the account</strong> removes it from the server for good.
+            It cannot be undone, and the keys for it cannot be regenerated.
           </div>
         </div>
 
@@ -95,10 +123,10 @@ export const DisconnectConfirmModal = ({
               {isProcessing && selectedAction === "disconnect" ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Disconnecting...
+                  Signing out...
                 </>
               ) : (
-                "Disconnect"
+                "Sign out"
               )}
             </Button>
             <Button
@@ -109,10 +137,10 @@ export const DisconnectConfirmModal = ({
               {isProcessing && selectedAction === "deregister" ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deregistering...
+                  Deleting...
                 </>
               ) : (
-                "Deregister"
+                "Delete account permanently"
               )}
             </Button>
           </div>
