@@ -9535,3 +9535,38 @@ it correctly one screen away. It is now the group composer's textarea with the
 shared `shouldSendOnKey` grammar. Round 130 deferred this as needing a product
 decision; the decision was made by the other half of the product having already
 made it.
+
+## Round 163 — guards that reported to nobody
+
+**Call and Accept were silent no-ops.** `use-call-runtime` resolves null on a
+build failure with only a `debugLog`, and all three consumers did
+`if (!manager) return;`. So pressing Call did nothing at all — and the user
+pressed it again. Pressing Accept did nothing while the ring tone kept playing.
+And an inbound signal was dropped, so an incoming call never appeared on screen
+at all, while the caller waited out the 45-second timeout and was told the
+callee did not answer.
+
+A guard that reports to nobody is a feature that appears broken, and this one is
+on the front door. Three sentences rather than one, because the three moments
+are different: "something went wrong" would leave a callee wondering whether the
+caller saw anything.
+
+**No failure variant of any group operation had a handler.**
+`GroupCreateFailure` and its seven siblings carry a message and a request id,
+and `toGroupEvents` mapped none of them. That is invisible rather than merely
+quiet, because the create dialog resolves on *dispatch* and closes: a refused
+create looked exactly like a successful one that had not arrived yet — the form
+cleared, the dialog shut, the sidebar never gained the group, and nothing was
+ever said. The same for invitations.
+
+All eight are handled in one arm, because mapping them individually is how the
+next one comes to be forgotten — which is the state this replaced. The toast
+carries the server's own words where it gave any: it knows why and the client
+does not, and "please try again" for a refusal that will refuse again is worse
+than saying nothing.
+
+A note on where I looked: I first grepped `citadel-workspace-types` for these
+variants, found none, and concluded the audit was wrong about them existing.
+They live in `citadel-internal-service-types`. Checking one of two type crates
+and reporting the absence as fact is the same mistake as a scan that finds
+nothing and calls it clean.

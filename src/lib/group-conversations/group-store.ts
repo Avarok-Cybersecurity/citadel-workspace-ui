@@ -19,6 +19,7 @@
  */
 
 import { eventEmitter } from '@/lib/event-emitter';
+import { bindGroupFailureToasts } from './group-failure-toasts';
 import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import type { GroupConversation, GroupMember } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
@@ -111,6 +112,8 @@ export function areGroupsHydrated(): boolean {
 export function startGroupEventBindings(): void {
   if (bindingsStarted) return;
   bindingsStarted = true;
+
+  bindGroupFailureToasts();
 
   eventEmitter.on('group:created', (data: {
     groupId: string;

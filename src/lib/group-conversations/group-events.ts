@@ -24,7 +24,18 @@ export interface GroupEvent {
     | 'group:invite-received'
     | 'group:member-joined'
     | 'group:member-left'
-    | 'group:deleted';
+    | 'group:deleted'
+    /**
+     * The server refused a group operation.
+     *
+     * `GroupCreateFailure` and its siblings carry a message and a request_id
+     * and were mapped by nothing — no failure variant of any group operation
+     * had a handler. The dialog resolves on DISPATCH and closes, so a refused
+     * create looked exactly like a successful one that had not arrived yet:
+     * the form cleared, the dialog shut, and the sidebar never gained the
+     * group. Nothing was ever said.
+     */
+    | 'group:failed';
   payload: Record<string, unknown>;
 }
 
@@ -89,6 +100,32 @@ export function toGroupEvents(
         ownerUsername: selfUsername,
       },
     }];
+  }
+
+  // Every failure variant the group plane can produce, in one arm. They share
+  // a shape — cid, message, request_id — and mapping them individually is how
+  // the next one comes to be forgotten.
+  for (const name of [
+    'GroupCreateFailure',
+    'GroupChannelCreateFailure',
+    'GroupInviteFailure',
+    'GroupJoinFailure',
+    'GroupLeaveFailure',
+    'GroupKickFailure',
+    'GroupDisconnectFailure',
+    'GroupEndFailure',
+  ]) {
+    const failed = variant(message, name);
+    if (failed) {
+      return [{
+        name: 'group:failed',
+        payload: {
+          operation: name.replace(/^Group|Failure$/g, ''),
+          message: typeof failed.message === 'string' ? failed.message : '',
+          requestId: typeof failed.request_id === 'string' ? failed.request_id : undefined,
+        },
+      }];
+    }
   }
 
   const invited = variant(message, 'GroupInviteNotification');

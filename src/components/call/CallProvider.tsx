@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { reportCallSystemUnavailable } from './report-call-system-unavailable';
 import { useCallMediaToggles } from './use-call-media-toggles';
 import { CallContext, type CallContextValue } from '@/lib/call/call-context';
 import type { ConnectionQuality } from './ParticipantTile';
@@ -70,7 +71,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     const onSignal = ({ peerCid, payload }: { peerCid: bigint; payload: CallSignalPayload }) => {
       void (async () => {
         const manager = await ensureManager();
-        if (!manager) return;
+        if (!manager) return reportCallSystemUnavailable('inbound');
         // The protocol carries only a CID, and the CID is what everything here
         // keys on — but it is not a name. Resolve against the registration
         // roster so the incoming-call card and the participant tile show who is
@@ -120,7 +121,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
 
       setCaptureFailure(null);
       const manager = await ensureManager();
-      if (!manager) return;
+      if (!manager) return reportCallSystemUnavailable('start');
 
       const session = await ensureSession();
       const got = await session.start({ audio: true, video, screen: false });
@@ -143,7 +144,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     async (media: CallMediaKinds) => {
       setCaptureFailure(null);
       const manager = managerRef.current;
-      if (!manager) return;
+      if (!manager) return reportCallSystemUnavailable('accept');
 
       const session = await ensureSession();
       const got = await session.start(media);
