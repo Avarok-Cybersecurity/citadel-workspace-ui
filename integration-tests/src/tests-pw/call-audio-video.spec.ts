@@ -25,8 +25,8 @@ import {
   createAccount,
   waitForWorkspaceLoaded,
   closeAnyModals, isHeaded,} from '../lib/index.js';
-import { config, isCI } from '../lib/config.js';
-import { connectPair } from './call-helpers.js';
+import { config } from '../lib/config.js';
+import { connectPair, CALL_LAUNCH_ARGS } from './call-helpers.js';
 
 interface UserSession {
   browser: Browser;
@@ -41,26 +41,12 @@ const USERS = {
   b: { username: `pw_call_b_${stamp}`, password: 'test12345' },
 };
 
-const LAUNCH_ARGS = [
-  // Synthetic camera and microphone: a moving pattern and a tone, with the
-  // permission prompt auto-accepted.
-  '--use-fake-device-for-media-stream',
-  '--use-fake-ui-for-media-stream',
-  '--autoplay-policy=no-user-gesture-required',
-  '--disable-background-timer-throttling',
-  '--disable-backgrounding-occluded-windows',
-  '--disable-renderer-backgrounding',
-  '--disable-ipc-flooding-protection',
-  ...(isCI
-    ? ['--disable-dev-shm-usage', '--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-extensions']
-    : []),
-];
 
 let sessionA: UserSession;
 let sessionB: UserSession;
 
 async function createSession(label: 'a' | 'b', isFirst: boolean): Promise<UserSession> {
-  const browser = await chromium.launch({ headless: !isHeaded, slowMo: isHeaded ? 50 : 0, args: LAUNCH_ARGS });
+  const browser = await chromium.launch({ headless: !isHeaded, slowMo: isHeaded ? 50 : 0, args: CALL_LAUNCH_ARGS });
   const context = await browser.newContext({
     storageState: undefined,
     permissions: ['camera', 'microphone'],

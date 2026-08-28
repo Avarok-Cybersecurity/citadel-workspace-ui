@@ -7,6 +7,7 @@
  */
 
 import { expect, type Page } from '@playwright/test';
+import { isCI } from '../lib/config.js';
 import {
   acceptP2PRequest,
   openConversation,
@@ -71,3 +72,26 @@ export async function connectPair(
     `${acceptor.username} -> ${initiator.username} channel should be ready`,
   ).toBe(true);
 }
+
+/**
+ * Chrome flags every call spec needs.
+ *
+ * Three copies of this list existed, in the 1:1 spec, the group spec and the
+ * config -- and the screen-share flag was added to one of them, which is how a
+ * list drifts. A synthetic camera and microphone, the permission prompt
+ * auto-accepted, and a synthetic SCREEN: `getDisplayMedia` otherwise opens a
+ * picker no headless browser can answer, and the promise never settles.
+ */
+export const CALL_LAUNCH_ARGS: string[] = [
+  '--use-fake-device-for-media-stream',
+  '--use-fake-ui-for-media-stream',
+  '--auto-select-desktop-capture-source=Entire screen',
+  '--autoplay-policy=no-user-gesture-required',
+  '--disable-background-timer-throttling',
+  '--disable-backgrounding-occluded-windows',
+  '--disable-renderer-backgrounding',
+  '--disable-ipc-flooding-protection',
+  ...(isCI
+    ? ['--disable-dev-shm-usage', '--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-extensions']
+    : []),
+];

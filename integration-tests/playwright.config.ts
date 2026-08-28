@@ -103,6 +103,13 @@ export default defineConfig({
                 // being present.
                 '--use-fake-device-for-media-stream',
                 '--use-fake-ui-for-media-stream',
+                // And a synthetic SCREEN. `getDisplayMedia` opens a picker the
+                // user must choose in, which no headless run can do -- without
+                // this the promise never settles and the spec times out on a
+                // dialog it cannot see. Chrome then answers with the first
+                // available surface, which under `--use-fake-ui-for-media-stream`
+                // is the fake one.
+                '--auto-select-desktop-capture-source=Entire screen',
                 '--autoplay-policy=no-user-gesture-required',
                 '--disable-background-timer-throttling',
                 '--disable-backgrounding-occluded-windows',
