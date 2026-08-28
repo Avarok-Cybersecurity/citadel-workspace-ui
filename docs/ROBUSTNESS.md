@@ -12381,3 +12381,48 @@ The fix is a distinct response for "not a member", handled on the client as an
 error rather than as a setup prompt. That is a protocol addition with a client
 branch behind it, and both need a stack to test. Left here with the evidence
 rather than attempted blind.
+
+## Round 235 — the fourth check pinned to an improvement
+
+`error-handling.spec.ts` failed three times on:
+
+```
+Locator: getByRole('textbox', { name: /Workspace Address|Server/i })
+Expected: visible — element(s) not found
+```
+
+The login form has no server address field, and the source says why at the point
+where it used to be:
+
+> Signing in does not need one and never did: the SDK pins the server in the
+> account's CNAC at registration, and `connect` takes no address at all. The
+> field was collected, stored as metadata, and never used to reach anything — so
+> a user who typed the wrong address still signed in to wherever their account
+> lives, and a user whose account was somewhere else waited out a 30s timeout
+> with the box on screen implying it was the thing to correct.
+
+The spec even guarded for it — `if (await advanced.isVisible())` — but the
+assertion *inside* the guard was unconditional, so an optional step failed hard.
+
+That is four in one session, and they are all the same sentence: **the app got
+better and a check went red for it.**
+
+| round | the improvement | what the check still demanded |
+|---|---|---|
+| 227 | two toggles renamed apart, because one name for two controls says nothing | `/show password/` |
+| 232 | "Not now" instead of "Cancel", because you are declining, not aborting | `name: 'Cancel'` |
+| 232 | mic label stops flipping, because "Mute microphone, pressed" reads as muted on a live mic | `/unmute microphone/` |
+| 235 | login stops asking for an address it never used | a Workspace Address textbox |
+
+Every one of these was reported by CI as a product failure, and in three of the
+four the *fix* was the thing that broke the check. A suite that punishes
+improvement teaches the wrong lesson, and it does it quietly: the cost lands on
+whoever next tries to improve something, as a red run they did not cause.
+
+Testids are the structural answer and one rule already enforces them for
+`scripts/`; extending that to 294 locator sites in the specs is a bigger job than
+one round. What is here now is the cheap half — the vanished-copy rule from
+round 232 — plus these four sites fixed. The remaining exposure is written down
+rather than implied: 36 `getByRole('button', { name: … })`, 171 `has-text(`, and
+87 `getByText(` in the specs, of which only the ones naming copy that vanishes
+entirely are currently guarded.

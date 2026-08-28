@@ -100,16 +100,15 @@ test.describe('Error Handling', () => {
     await page.getByRole('textbox', { name: 'Username' }).fill(`ghost_${Date.now()}`);
     await page.getByRole('textbox', { name: 'Password', exact: true }).fill('wrong-password');
 
-    // The server address lives behind Advanced Options on the login form. It is
-    // pre-filled from storage when a previous session exists; this page is fresh,
-    // so it has to be set explicitly.
-    const advanced = page.getByRole('button', { name: /Advanced Options/i });
-    if (await advanced.isVisible().catch(() => false)) {
-      await advanced.click({ force: true });
-      const serverInput = page.getByRole('textbox', { name: /Workspace Address|Server/i }).first();
-      await expect(serverInput).toBeVisible();
-      await serverInput.fill(config.WORKSPACE_SERVER);
-    }
+    // No server address on the login form, deliberately.
+    //
+    // This used to open Advanced Options and fill one in. The field was removed
+    // because signing in never needed it: the SDK pins the server in the
+    // account's CNAC at registration and `connect` takes no address at all, so
+    // the box was collected, stored as metadata, and never used to reach
+    // anything. The guard here was `if (await advanced.isVisible())`, but the
+    // assertion inside it was unconditional, so the removal turned into three
+    // CI failures for a form that is now correct.
 
     await clickThroughRenderChurn(page, /^Connect$/);
 
