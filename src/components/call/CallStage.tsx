@@ -173,6 +173,18 @@ export function CallStage({
           // and the WebCodecs feature test on the landing page's critical path.
           // This component is only ever in a call.
           canShareScreen={canShareScreen() && !someoneElseIsSharing}
+          shareBlockedReason={
+            someoneElseIsSharing && share
+              ? `${share.name} is sharing — one screen at a time`
+              : !canShareScreen()
+                ? 'This browser cannot share a screen'
+                : undefined
+          }
+          videoBlockedReason={
+            call.status === 'active' || call.status === 'connecting'
+              ? undefined
+              : 'Available once the call connects'
+          }
           onOpenVideoSettings={onVideoQualityChange ? (): void => setVideoSettingsOpen(true) : undefined}
           onLeave={onLeave}
           running={call.status === 'active'}

@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Button } from '@/components/ui/button';
 import { Gauge, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, Video, VideoOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -20,6 +21,16 @@ interface CallControlsProps {
    * know why their share went nowhere.
    */
   canShareScreen?: boolean;
+  /**
+   * Why the screen share cannot be used, in words a person can act on.
+   *
+   * A dimmed control that says nothing is a dead end: the user presses it,
+   * nothing happens, and there is nowhere to find out why. Naming the reason
+   * turns "broken" into "not yet".
+   */
+  shareBlockedReason?: string;
+  /** Why the camera cannot be toggled. Same reasoning as above. */
+  videoBlockedReason?: string;
   /** Opens the video-quality settings. Absent hides the control. */
   onOpenVideoSettings?: () => void;
   onLeave: () => void;
@@ -49,10 +60,12 @@ export function CallControls({
   onToggleCamera,
   onToggleScreenShare,
   canShareScreen = false,
+  shareBlockedReason,
+  videoBlockedReason,
   onOpenVideoSettings,
   onLeave,
   running,
-}: CallControlsProps) {
+}: CallControlsProps): JSX.Element {
   const duration: string = useCallDuration(running);
   return (
     <div className="flex flex-wrap items-center justify-center gap-2" data-testid="call-controls">
@@ -69,6 +82,7 @@ export function CallControls({
         active={media.video}
         onClick={onToggleCamera}
         disabled={!canToggleVideo}
+        disabledReason={videoBlockedReason}
         testId="call-toggle-camera"
         label="Camera"
         OnIcon={Video}
@@ -80,6 +94,7 @@ export function CallControls({
           active={media.screen}
           onClick={onToggleScreenShare}
           disabled={!canShareScreen && !media.screen}
+          disabledReason={shareBlockedReason}
           testId="call-toggle-screen"
           label="Screen share"
           OnIcon={MonitorX}
@@ -133,6 +148,11 @@ interface ToggleButtonProps {
   active: boolean;
   onClick: () => void;
   disabled?: boolean;
+  /**
+   * Why it is unavailable. Its presence is what turns `disabled` into
+   * `aria-disabled` -- see the component for why that matters.
+   */
+  disabledReason?: string;
   testId: string;
   label: string;
   OnIcon: typeof Mic;
@@ -148,14 +168,23 @@ interface ToggleButtonProps {
   activeTone?: 'default' | 'sharing';
 }
 
-function ToggleButton({ active, onClick, disabled, testId, label, OnIcon, OffIcon, activeTone = 'default' }: ToggleButtonProps) {
-  const Icon = active ? OnIcon : OffIcon;
+function ToggleButton({ active, onClick, disabled, disabledReason, testId, label, OnIcon, OffIcon, activeTone = 'default' }: ToggleButtonProps): JSX.Element {
+  const Icon: typeof Mic = active ? OnIcon : OffIcon;
+  // `disabled` removes the button from the tab order AND stops it firing mouse
+  // events, so neither a keyboard user nor a hovering one can ever be told why
+  // it will not work. Where there is something to say, the control stays
+  // reachable and announces itself as disabled instead -- and the click is
+  // suppressed here rather than by the browser.
+  const explained: boolean = Boolean(disabled && disabledReason);
+  const reasonId: string = useId();
   return (
+    <>
     <Button
       variant="ghost"
       size="icon"
-      onClick={onClick}
-      disabled={disabled}
+      onClick={explained ? undefined : onClick}
+      disabled={disabled && !explained}
+      aria-disabled={disabled ? true : undefined}
       data-testid={testId}
       // aria-pressed carries the state, so the label must NOT also flip with
       // it. Paired, they contradict: "Mute microphone" + pressed announced as
@@ -165,11 +194,18 @@ function ToggleButton({ active, onClick, disabled, testId, label, OnIcon, OffIco
       // the state names the state, which is what aria-pressed is for.
       aria-pressed={active}
       aria-label={label}
+      // The reason is a DESCRIPTION, not part of the name. Folding it into the
+      // label would make the name change with something other than what
+      // `aria-pressed` announces, and a name that moves under a listener is
+      // how the mute button came to say the opposite of the truth.
+      aria-describedby={explained ? reasonId : undefined}
       // The visible tooltip can still say what the click will DO, because a
       // sighted user reads it alongside the icon rather than as a sentence.
-      title={active ? `${label} on` : `${label} off`}
+      title={explained ? disabledReason : active ? `${label} on` : `${label} off`}
       className={cn(
         'h-10 w-10 rounded-full transition-colors',
+        // Looks disabled without being disabled.
+        explained && 'pointer-events-auto cursor-not-allowed opacity-50',
         activeTone === 'sharing'
           ? active
             // Sharing: accented, and ringed so it reads as live at a glance
@@ -185,5 +221,11 @@ function ToggleButton({ active, onClick, disabled, testId, label, OnIcon, OffIco
     >
       <Icon className="h-4 w-4" aria-hidden="true" />
     </Button>
+    {explained && (
+      // Off-screen rather than `hidden`: a display:none element is not
+      // announced, so the description would resolve to nothing at all.
+      <span id={reasonId} className="sr-only">{disabledReason}</span>
+    )}
+    </>
   );
 }

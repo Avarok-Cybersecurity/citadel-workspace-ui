@@ -13370,3 +13370,31 @@ One `reconcile(kind, survived)` now covers all three: re-read the state the
 announcement just wrote, and if the subject is gone, take it back. Six tests,
 three of them positive controls that stay green so the harness cannot pass by
 refusing everything. Gutting the reconciler fails three and leaves three.
+
+## Round 256 — a control that will not work must say why
+
+Two of the five in-call controls spend real time unavailable: the camera until
+the call connects, and the screen share for as long as somebody else is
+sharing. Both were plain `disabled` buttons whose tooltip read "Screen share
+off" — which describes the state the user can already see, and not the reason
+they cannot change it.
+
+`disabled` is worse than silent. It removes the button from the tab order *and*
+suppresses its mouse events, so the tooltip never appears and a keyboard user
+cannot reach the control to be told anything at all. Where there is something to
+say, the control now stays reachable and carries `aria-disabled`, with the click
+suppressed in the handler rather than by the browser.
+
+**Where the reason goes matters.** The first version folded it into
+`aria-label`, and the round-215 gate caught it: a name that flips beside
+`aria-pressed` is how the mute button came to announce the opposite of the
+truth. The reason is not part of the name — it is a *description*, and it now
+rides on `aria-describedby` pointing at an `sr-only` span. The gate was right,
+and taking it seriously produced the better markup rather than a weakened check.
+
+Five tests. Two positive controls hold the enabled and the stop-my-own-share
+cases so the harness cannot pass by refusing everything, and one renders the
+real `CallStage` so the reason has to travel from where the fact lives to where
+the button reads it — without it the prop would be a string nobody passes.
+
+Dropping the stage wiring fails 1 of 5; reverting to plain `disabled` fails 3.

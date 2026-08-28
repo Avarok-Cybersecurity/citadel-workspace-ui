@@ -86,7 +86,6 @@
   "src/components/admin/tabs/save-chat-settings.ts": 1,
   "src/components/admin/tabs/use-member-admin-actions.ts": 5,
   "src/components/call/CallAudioHost.tsx": 6,
-  "src/components/call/CallControls.tsx": 4,
   "src/components/call/CallEntryButtons.tsx": 3,
   "src/components/call/CallLayer.tsx": 9,
   "src/components/call/CallProvider.tsx": 25,
