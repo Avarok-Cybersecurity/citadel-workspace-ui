@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { joinFieldErrors } from './join-field-errors';
 import { firstInvalidField } from './join-first-error';
 import { DEFAULT_SECURITY_SETTINGS } from './security-settings-defaults';
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { validateUsername, validatePassword, validateFullName } from "@/lib/credential-rules";
 import type { SecuritySettingsValues } from "./SecuritySettings";
 import { websocketService } from "@/lib/websocket-service";
 import { eventEmitter } from "@/lib/event-emitter";
@@ -88,31 +88,7 @@ export function useJoinRegistration(
     setTouched((prev) => ({ ...prev, [e.target.name]: true }));
   };
 
-  // The SDK enforces these server-side and rejects the whole registration with
-  // a generic toast. Checking here means the user learns that a password has a
-  // 17-character maximum while typing it, not after a round-trip.
-  const rawErrors = {
-    fullName: validateFullName(formData.fullName),
-    username: validateUsername(formData.username),
-    password: validatePassword(formData.password),
-    confirmPassword:
-      formData.confirmPassword && formData.password !== formData.confirmPassword
-        ? "The passwords you entered do not match"
-        : null,
-  };
-
-  // Surface an error only once the field has been left or a submit attempted.
-  // Telling someone their 1-character username is too short while they are
-  // still typing it is noise, not help.
-  const visible = (field: keyof typeof rawErrors) =>
-    touched[field] || submitAttempted ? rawErrors[field] : null;
-
-  const fieldErrors = {
-    fullName: visible("fullName"),
-    username: visible("username"),
-    password: visible("password"),
-    confirmPassword: visible("confirmPassword"),
-  };
+  const { rawErrors, fieldErrors } = joinFieldErrors(formData, touched, submitAttempted);
 
   // Passed in, not read from the query cache.
   //
