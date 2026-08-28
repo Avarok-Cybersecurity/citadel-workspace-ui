@@ -74,7 +74,7 @@ export const OrphanSessionsNavbar = () => {
       >
         <div className="container mx-auto px-6 py-2">
           <div className="flex items-center gap-3 min-w-0">
-            <span className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground flex-shrink-0">
+            <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground flex-shrink-0">
               Active Sessions
             </span>
             <div className="w-px h-4 bg-border flex-shrink-0" />

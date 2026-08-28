@@ -84,12 +84,12 @@ export function ThemePreview({
         }}
       >
         <span
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold"
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-xs font-semibold"
           style={{ backgroundColor: toCssColor(icon.color), color: toCssColor(palette.primaryForeground) }}
         >
           {icon.emoji ?? workspaceName.slice(0, 1).toUpperCase()}
         </span>
-        <span className="truncate text-[11px] font-medium" style={{ color: toCssColor(palette.foreground) }}>
+        <span className="truncate text-xs font-medium" style={{ color: toCssColor(palette.foreground) }}>
           {workspaceName}
         </span>
         <span className="ml-auto flex gap-1">
@@ -121,7 +121,7 @@ export function ThemePreview({
             className={cn(hotspot('active-item').className, 'flex items-center gap-1.5 rounded px-2 py-1')}
             style={{ ...hotspot('active-item').style, backgroundColor: toCssColor(palette.primary) }}
           >
-            <span className="text-[10px] font-medium" style={{ color: toCssColor(palette.primaryForeground) }}>
+            <span className="text-xs font-medium" style={{ color: toCssColor(palette.primaryForeground) }}>
               Selected
             </span>
           </button>
@@ -135,7 +135,7 @@ export function ThemePreview({
               {...hotspot('body-text')}
               className={cn(hotspot('body-text').className, 'block w-full')}
             >
-              <span className="block text-[10px] leading-tight" style={{ color: toCssColor(palette.foreground) }}>
+              <span className="block text-xs leading-tight" style={{ color: toCssColor(palette.foreground) }}>
                 The quick brown fox
               </span>
             </button>
@@ -143,7 +143,7 @@ export function ThemePreview({
               {...hotspot('muted-text')}
               className={cn(hotspot('muted-text').className, 'mt-0.5 block w-full')}
             >
-              <span className="block text-[9px]" style={{ color: toCssColor(palette.mutedForeground) }}>
+              <span className="block text-xs" style={{ color: toCssColor(palette.mutedForeground) }}>
                 09:24 · delivered
               </span>
             </button>
@@ -152,14 +152,14 @@ export function ThemePreview({
           <div className="mt-auto flex items-center gap-1.5">
             <button
               {...hotspot('accent')}
-              className={cn(hotspot('accent').className, 'rounded px-2 py-1 text-[9px] font-medium')}
+              className={cn(hotspot('accent').className, 'rounded px-2 py-1 text-xs font-medium')}
               style={{ ...hotspot('accent').style, color: toCssColor(palette.primaryAccent) }}
             >
               Accent link
             </button>
             <button
               {...hotspot('destructive')}
-              className={cn(hotspot('destructive').className, 'ml-auto rounded px-2 py-1 text-[9px] font-medium')}
+              className={cn(hotspot('destructive').className, 'ml-auto rounded px-2 py-1 text-xs font-medium')}
               style={{
                 ...hotspot('destructive').style,
                 backgroundColor: toCssColor(palette.destructive),
@@ -173,7 +173,7 @@ export function ThemePreview({
           {/* Borders and inputs */}
           <button
             {...hotspot('border')}
-            className={cn(hotspot('border').className, 'w-full rounded border px-2 py-1 text-left text-[9px]')}
+            className={cn(hotspot('border').className, 'w-full rounded border px-2 py-1 text-left text-xs')}
             style={{
               ...hotspot('border').style,
               borderColor: toCssColor(palette.border),
@@ -194,7 +194,7 @@ export function ThemePreview({
         <SwatchButton hotspot={hotspot('warning')} color={toCssColor(palette.warning)} label="Warning" palette={palette} />
         <button
           {...hotspot('page')}
-          className={cn(hotspot('page').className, 'ml-auto rounded px-2 py-0.5 text-[9px]')}
+          className={cn(hotspot('page').className, 'ml-auto rounded px-2 py-0.5 text-xs')}
           style={{ ...hotspot('page').style, color: toCssColor(palette.mutedForeground) }}
         >
           Background
@@ -227,7 +227,7 @@ function SwatchButton({
   return (
     <button
       {...props}
-      className={cn(props.className, 'flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px]')}
+      className={cn(props.className, 'flex items-center gap-1 rounded px-1.5 py-0.5 text-xs')}
       style={{ ...props.style, color: toCssColor(palette.mutedForeground) }}
     >
       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />

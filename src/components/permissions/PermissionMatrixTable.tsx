@@ -36,7 +36,7 @@ export function PermissionMatrixTable({
       {/* Role column headers */}
       <thead className="sticky top-0 z-10 bg-background">
         <tr>
-          <th scope="col" className="sticky left-0 z-20 bg-background text-left text-[11px] font-semibold tracking-wider uppercase text-muted-foreground px-3 sm:px-6 py-3 w-[132px] sm:w-[200px] border-b border-border">
+          <th scope="col" className="sticky left-0 z-20 bg-background text-left text-xs font-semibold tracking-wider uppercase text-muted-foreground px-3 sm:px-6 py-3 w-[132px] sm:w-[200px] border-b border-border">
             Permission
           </th>
           {ROLE_HIERARCHY.map(role => (
@@ -63,7 +63,7 @@ export function PermissionMatrixTable({
                 colSpan={ROLE_HIERARCHY.length + 1}
                 className="sticky left-0 bg-background px-3 sm:px-6 pt-4 pb-1.5"
               >
-                <span className="text-[11px] font-semibold tracking-wider uppercase text-primary-accent">
+                <span className="text-xs font-semibold tracking-wider uppercase text-primary-accent">
                   {category}
                 </span>
               </td>

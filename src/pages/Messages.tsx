@@ -67,7 +67,7 @@ const Messages = () => {
                 sr-only because the visible design has no room for one and does
                 not need it — the pane labels carry the visual hierarchy. */}
             <h1 className="sr-only">Messages</h1>
-            <h2 className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
+            <h2 className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
               Conversations
             </h2>
           </div>
@@ -132,7 +132,7 @@ const Messages = () => {
                 </p>
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-accent/5 border border-primary-accent/10">
                   <Shield className="w-3.5 h-3.5 text-primary-accent" />
-                  <span className="text-[11px] text-muted-foreground">End-to-end encrypted</span>
+                  <span className="text-xs text-muted-foreground">End-to-end encrypted</span>
                 </div>
               </div>
             </div>

@@ -138,7 +138,7 @@ export function GroupConversationRow({
             {displayMembers.map((member, index) => (
               <div
                 key={member.cid}
-                className="relative rounded-full flex items-center justify-center text-[10px] font-medium text-foreground border border-surface"
+                className="relative rounded-full flex items-center justify-center text-xs font-medium text-foreground border border-surface"
                 style={{
                   width: AVATAR_SIZE,
                   height: AVATAR_SIZE,
@@ -155,7 +155,7 @@ export function GroupConversationRow({
             {/* Overflow indicator */}
             {overflowCount > 0 && (
               <div
-                className="relative rounded-full flex items-center justify-center text-[9px] font-medium text-foreground bg-surface border border-surface"
+                className="relative rounded-full flex items-center justify-center text-xs font-medium text-foreground bg-surface border border-surface"
                 style={{
                   width: AVATAR_SIZE,
                   height: AVATAR_SIZE,

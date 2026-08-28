@@ -45,7 +45,7 @@ export function WorkspaceSwitcherDropdown({
     >
       {groupedWorkspaces.map(([workspaceKey, workspaces]) => (
         <div key={workspaceKey} className="mb-1">
-          <div className="px-3 py-1.5 text-[10px] text-muted-foreground font-semibold tracking-wider uppercase flex items-center justify-between">
+          <div className="px-3 py-1.5 text-xs text-muted-foreground font-semibold tracking-wider uppercase flex items-center justify-between">
             <span>{workspaceKey}</span>
             <span className="text-muted-foreground normal-case tracking-normal font-normal">{workspaces[0].serverAddress}</span>
           </div>

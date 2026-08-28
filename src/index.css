@@ -500,7 +500,11 @@ h1, h2, h3, h4, h5, h6 {
   white-space: nowrap;
   padding: 2px 8px;
   border-radius: 4px;
-  font-size: 11px;
+  /* See the note on .tap-target: a size meant as a floor belongs in the unit
+     the standard is written in. These were flat 10px and 11px -- below the
+     12px legibility floor, and, being absolute, deaf to the font-size setting
+     too, so a user who raised the app to 18px still got a 10px timestamp. */
+  font-size: max(12px, 0.75rem);
   font-weight: 500;
   color: white;
   pointer-events: auto;
@@ -558,7 +562,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .collaborator-cursor__word-count {
-  font-size: 10px;
+  font-size: max(12px, 0.75rem);
   color: #9ca3af;
   text-align: right;
   margin-top: 4px;
@@ -575,7 +579,7 @@ h1, h2, h3, h4, h5, h6 {
 .collaborator-cursor__cancel-btn {
   padding: 4px 12px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: max(12px, 0.75rem);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -627,7 +631,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .flash-comment__header {
-  font-size: 11px;
+  font-size: max(12px, 0.75rem);
   font-weight: 600;
   margin-bottom: 6px;
   opacity: 0.9;
@@ -638,7 +642,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .flash-comment__time {
-  font-size: 10px;
+  font-size: max(12px, 0.75rem);
   opacity: 0.7;
   margin-top: 6px;
   text-align: right;

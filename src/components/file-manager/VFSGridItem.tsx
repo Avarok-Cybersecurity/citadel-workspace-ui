@@ -195,7 +195,7 @@ export function GridItem({
         )}
 
         {node.fileMetadata && !isRenaming && (
-          <span className="text-[10px] text-muted-foreground">{formatSize(node.fileMetadata.fileSize)}</span>
+          <span className="text-xs text-muted-foreground">{formatSize(node.fileMetadata.fileSize)}</span>
         )}
       </div>
     </VFSContextMenu>

@@ -45,7 +45,7 @@ export const OrphanSessionIcon = ({
         {/* Small avatar */}
         <div className={cn(
           "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0",
-          "bg-primary text-primary-foreground text-[10px] font-bold"
+          "bg-primary text-primary-foreground text-xs font-bold"
         )}>
           {initials}
         </div>
@@ -57,7 +57,7 @@ export const OrphanSessionIcon = ({
 
         {/* Unread badge */}
         {unreadCount > 0 && (
-          <span className="inline-flex items-center justify-center min-w-[16px] h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1 leading-none">
+          <span className="inline-flex items-center justify-center min-w-[16px] h-4 rounded-full bg-destructive text-destructive-foreground text-xs font-bold px-1 leading-none">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}

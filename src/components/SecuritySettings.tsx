@@ -125,7 +125,7 @@ export const SecuritySettings = ({
                 onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
                 className="flex items-center gap-2 text-muted-foreground w-full transition-colors duration-200 hover:text-primary-accent py-2"
               >
-                <span className="text-[11px] font-semibold tracking-wider uppercase">Advanced Settings</span>
+                <span className="text-xs font-semibold tracking-wider uppercase">Advanced Settings</span>
                 <ChevronDown
                   className={cn(
                     "w-4 h-4 transition-transform duration-300",

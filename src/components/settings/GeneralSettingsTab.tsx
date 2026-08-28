@@ -123,7 +123,7 @@ export function GeneralSettingsTab() {
           {/* Name Input */}
           <div className="flex-1 space-y-4 w-full">
             <div className="space-y-1.5">
-              <label htmlFor="displayName" className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
+              <label htmlFor="displayName" className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                 Display Name
               </label>
               <Input
@@ -134,7 +134,7 @@ export function GeneralSettingsTab() {
                 disabled={isSaving}
                 className="bg-input border-border text-foreground h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 This is how your name appears to other workspace members.
               </p>
             </div>

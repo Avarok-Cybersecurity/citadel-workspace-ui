@@ -94,7 +94,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
             <CardContent className="space-y-4 max-h-[calc(100dvh-16rem)] overflow-y-auto">
               {/* Username */}
               <div className="space-y-1.5">
-                <label htmlFor="username" className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
+                <label htmlFor="username" className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                   Username
                 </label>
                 <div className="relative">
@@ -112,7 +112,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
 
               {/* Password */}
               <div className="space-y-1.5">
-                <label htmlFor="password" className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
+                <label htmlFor="password" className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                   Password
                 </label>
                 <div className="relative">
@@ -166,14 +166,14 @@ export function Login({ onNext, onCancel }: LoginProps) {
                 onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
               >
                 <Settings className="h-3.5 w-3.5" />
-                <span className="text-[11px] font-semibold tracking-wider uppercase">Advanced Options</span>
+                <span className="text-xs font-semibold tracking-wider uppercase">Advanced Options</span>
                 <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200 ml-auto", isAdvancedOpen && "rotate-180")} />
               </button>
 
               {isAdvancedOpen && (
                 <div className="space-y-3 p-3 bg-input rounded-lg border border-border">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
+                    <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                       Security Settings
                     </span>
                     <Button
@@ -190,7 +190,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
                   <div className="flex items-center justify-between">
                     <label
                       htmlFor="remember"
-                      className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground cursor-pointer"
+                      className="text-xs font-semibold tracking-wider uppercase text-muted-foreground cursor-pointer"
                     >
                       Remember Credentials
                     </label>

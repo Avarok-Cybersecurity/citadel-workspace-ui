@@ -78,7 +78,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
             <CardContent className="space-y-5 max-h-[calc(100dvh-16rem)] overflow-y-auto">
               {/* Workspace Address */}
               <div className="space-y-2">
-                <label htmlFor="serverAddress" className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
+                <label htmlFor="serverAddress" className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                   Workspace Address
                 </label>
                 <div className="relative">
@@ -95,7 +95,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
 
               {/* Workspace Password */}
               <div className="space-y-2">
-                <label htmlFor="password" className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
+                <label htmlFor="password" className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                   Workspace Password (Optional)
                 </label>
                 <div className="relative">
@@ -115,7 +115,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
               {/* Security info banner */}
               <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-primary-accent/5 border border-primary-accent/10">
                 <Shield className="w-4 h-4 text-primary-accent flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   Citadel uses <span className="text-primary-accent">lattice-based cryptography</span>. All connections are
                   end-to-end encrypted and resistant to quantum compute attacks.
                 </p>

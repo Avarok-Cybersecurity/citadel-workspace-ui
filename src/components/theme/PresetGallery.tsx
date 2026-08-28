@@ -65,7 +65,7 @@ export function PresetGallery({ themes, selectedId, mode, onSelect }: PresetGall
             </span>
 
             {!theme.isPreset && (
-              <span className="mt-0.5 block text-[10px]" style={{ color: toCssColor(palette.mutedForeground) }}>
+              <span className="mt-0.5 block text-xs" style={{ color: toCssColor(palette.mutedForeground) }}>
                 Custom
               </span>
             )}

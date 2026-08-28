@@ -40,7 +40,7 @@ function FormField({ id, name, label, value, onChange, placeholder, type, icon: 
 
   return (
     <div className="space-y-1.5">
-      <label htmlFor={id} className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
+      <label htmlFor={id} className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
         {label}
       </label>
       <div className="relative">
@@ -86,11 +86,11 @@ function FormField({ id, name, label, value, onChange, placeholder, type, icon: 
         )}
       </div>
       {error ? (
-        <p id={`${id}-error`} role="alert" className="text-[11px] text-destructive-emphasis pl-1">
+        <p id={`${id}-error`} role="alert" className="text-xs text-destructive-emphasis pl-1">
           {error}
         </p>
       ) : (
-        hint && <p className="text-[11px] text-muted-foreground pl-1">{hint}</p>
+        hint && <p className="text-xs text-muted-foreground pl-1">{hint}</p>
       )}
     </div>
   );
@@ -134,7 +134,7 @@ function PasswordStrength({ password }: { password: string }) {
           />
         ))}
       </div>
-      <span className={`text-[10px] font-semibold uppercase tracking-wider ${
+      <span className={`text-xs font-semibold uppercase tracking-wider ${
         strength.level <= 1 ? 'text-destructive-emphasis' :
         strength.level === 2 ? 'text-warning' :
         strength.level === 3 ? 'text-warning' :

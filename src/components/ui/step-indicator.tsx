@@ -31,7 +31,7 @@ export function StepIndicator({ currentStep, totalSteps, labels }: StepIndicator
               {labels && labels[i] && (
                 <span
                   className={cn(
-                    "text-[10px] font-semibold tracking-wider uppercase",
+                    "text-xs font-semibold tracking-wider uppercase",
                     isActive && "text-primary-accent",
                     isCompleted && "text-success",
                     !isCompleted && !isActive && "text-muted-foreground"

@@ -10681,3 +10681,37 @@ That is four instances of one class across four rounds:
 
 All four were written by someone with good reason to think the write belonged
 where they put it. The write does belong there; **awaiting it** is what does not.
+
+## Round 193 — the first text anyone reads in this product was 11px
+
+Round 185 fixed `text-xs`, which Lighthouse caught because Lighthouse measures
+the landing page. This round asked what Lighthouse could not see.
+
+**43 more sub-12px sizes**, none of them on the landing page:
+
+| where | size |
+|---|---|
+| `index.css` — collaborator cursor tooltip (a peer's name) | 11px |
+| `index.css` — word count | 10px |
+| `index.css` — editor send/cancel buttons | 11px |
+| `index.css` — flash comment header / timestamp | 11px / 10px |
+| 38 `text-[11px]` / `text-[10px]` across 15 components | 10–11px |
+
+Among the 38: the **form labels on the login and join screens**. The first text
+anyone reads in this product was 11px.
+
+Absolute sizes are worse than the Tailwind case in one specific respect.
+`text-xs` at least grew when the user raised the font-size setting; a flat 11px
+does not. Someone who set the app to 18px **because they could not read it** was
+still shown an 11px "USERNAME".
+
+All 43 now use the one scale, `max(12px, 0.75rem)` — a floor that still grows.
+Hierarchy below 12px is not hierarchy; it is two sizes of unreadable, and weight
+and colour carry the distinction without costing legibility.
+
+The guard covers both spellings — a bare `font-size: <12px` in a stylesheet, and
+an arbitrary `text-[11px]` in a class name — because the same defect was written
+both ways and a rule that knew only one would have called the file clean.
+
+Verified after: mobile layout passes on all four screens, Lighthouse
+best-practices **100**, accessibility **100**.
