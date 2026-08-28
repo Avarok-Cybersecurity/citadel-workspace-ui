@@ -10917,3 +10917,37 @@ the layout absorbed both, which is a real answer rather than a broken control.
 `body { min-width: 500px }` produced 12 failures with 193px of sideways scroll,
 narrowest width reported first. A control that does not fire is only useful once
 you know whether the rule or the injection is at fault.
+
+## Round 200 — a rule the config states and then asks the reader to remember
+
+`docker/ui/nginx.conf.template` says of its own structure:
+
+> every location that adds a header must repeat all of them. Verbose, but the
+> alternative is a location that quietly ships with no CSP.
+
+That is a correct diagnosis of an nginx behaviour — `add_header` does not
+inherit into a block that adds any header of its own — followed by a rule
+enforced by hand across five blocks, protecting a property whose loss is
+**silent**. A location missing `Content-Security-Policy` serves the same bytes,
+with the same status, and nothing fails.
+
+All five are consistent today, so this is a lock. It is exactly the shape this
+campaign keeps finding broken: a comment that names a hazard and then relies on
+the reader to remember it.
+
+The required set is **derived from `location /`** rather than written out in the
+gate. Adding a header to the root makes every sibling required to carry it, with
+no second list to update — a hardcoded list drifts from the thing it describes
+and starts passing over the wrong set, which is how the `preflight` gate list
+came to be eleven checks short of CI.
+
+`= /ws` is exempt, and the exemption is **verified rather than named**: it is
+identified by containing `proxy_pass`, not by appearing on a list. A WebSocket
+upgrade is not a document. An exemption that describes what a block *does*
+survives the block being renamed; one that lists its name does not.
+
+Both controls fire. Removing CSP from `/sw.js` reports that location by name.
+Adding a header to `/` immediately makes three siblings non-compliant — which is
+the property that makes the derivation worth having rather than just tidy.
+
+Preflight is 36 checks.
