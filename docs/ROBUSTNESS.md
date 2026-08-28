@@ -10715,3 +10715,31 @@ both ways and a rule that knew only one would have called the file clean.
 
 Verified after: mobile layout passes on all four screens, Lighthouse
 best-practices **100**, accessibility **100**.
+
+## Round 194 — an accessibility gate that does not need an account
+
+There is already an accessibility spec, and it is better than the one added
+here: `integration-tests/src/tests-pw/accessibility.spec.ts` signs in and covers
+the workspace. It also needs a backend, an account and a completed registration
+— so while registration is failing in CI, it does not run. Silently.
+
+That is round 188's shape restated: **a check behind a failing check is
+indistinguishable from a passing one.** The screens a visitor meets before they
+have an account need nothing but a served bundle, and their accessibility should
+not depend on whether an account can be created.
+
+`scripts/check-accessibility.mjs` scans landing, sign-in, create-account and
+manage-accounts against the production build at 375px, gated on `serious` and
+`critical` like the spec. It adds `wcag22aa`, which the spec omits — WCAG 2.2 is
+where target size lives, and round 188 found three controls at 21px against its
+24px floor.
+
+Current result: **zero violations on all four screens.** That number was checked
+before it was trusted — injecting a nameless button and a low-contrast paragraph
+at runtime produced `critical/button-name` and `serious/color-contrast`, and
+removing a real button's label failed three of the four screens by name. A clean
+scan is only worth reporting once the scan has been shown capable of a dirty one.
+
+The gate also asserts it reached every screen, because a scan that reached none
+is a clean run over nothing — the failure mode this repository keeps meeting
+from new angles.
