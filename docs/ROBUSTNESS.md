@@ -10813,3 +10813,39 @@ Eighth never-propagated fix, and the pattern is worth stating in its general
 form: **when a fix introduces a new concept, the concept has siblings.**
 `--destructive-emphasis` was correct, well-commented, and applied to exactly one
 of the three tokens that had the problem it solved.
+
+## Round 197 — ten more 21px controls, and a guard of mine that could not fail
+
+Round 188's `.tap-target` was applied to four controls, which is how many
+`check-mobile-layout.mjs` could see: it reaches four screens, all pre-auth,
+because the rest of the app needs an account.
+
+Behind the login sat **ten more `h-6 w-6` buttons** — message actions,
+notification dismiss, tree node menus, member removal, group member removal —
+every one of them 21×21, since `h-6` is `1.5rem` against a 14px root. No browser
+check this repository can run without a backend reaches any of them.
+
+Applying round 196's own lesson: when a fix introduces a new concept, the
+concept has siblings. Ninth never-propagated fix, and the second where the
+uncorrected copies were mine.
+
+The rule is asserted against the source rather than the screen, which is the
+move that keeps working here — the tokens, the schema, the class names. **A
+browser check sees one rendering; the source is every rendering.**
+
+### The guard passed its own negative control
+
+Written, green, and inert. Removing `tap-target` from a real button did not fail
+it.
+
+The cause is a shared module-scope `const BUTTON_TAG = /…/gs` that the first
+test called `.test()` on. A global regex advances `lastIndex` on `test()`, and
+`matchAll` resumes from that index — so the second test began scanning each file
+partway through and skipped every button before the offset. A stateful global,
+shared across two tests, silently reading half its corpus.
+
+It is a fresh regex per use now. Ten guards in this campaign have been written;
+this is the sixth that passed its own control on the first attempt, and the only
+reason it is not still passing over nothing is that the control was run at all.
+
+A sweep for the same shape in the other guards found none.

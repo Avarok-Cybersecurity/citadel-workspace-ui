@@ -99,7 +99,7 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
           <Button 
             variant="ghost" 
             size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            className="tap-target h-6 w-6 text-muted-foreground hover:text-foreground"
             onClick={handleDismiss}
           >
             <span className="sr-only">Dismiss</span>

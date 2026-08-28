@@ -115,7 +115,7 @@ export function MembersTable({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-transparent"
+                  className="tap-target h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-transparent"
                   aria-label={`Remove ${member.username} from the group`}
                   onClick={() => onRemoveMember(member.cid)}
                 >

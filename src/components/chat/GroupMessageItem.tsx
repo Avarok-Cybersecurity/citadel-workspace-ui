@@ -116,7 +116,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
       <div className="reveal-on-hover flex-shrink-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Message actions">
+            <Button variant="ghost" size="icon" className="tap-target h-6 w-6" aria-label="Message actions">
               <MoreVertical className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>

@@ -75,7 +75,7 @@ export function MemberListItems({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 reveal-on-hover"
+                    className="tap-target h-6 w-6 reveal-on-hover"
                     aria-label={`Actions for ${member.displayName || member.username}`}
                     onClick={(e) => e.stopPropagation()}
                   >

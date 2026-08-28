@@ -171,7 +171,7 @@ export const MembersSection = () => {
             <SidebarGroupLabel className="text-primary-accent font-semibold text-xs px-0">CONVERSATIONS</SidebarGroupLabel>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" aria-label="New group chat" data-testid="new-group-chat-button" className="h-6 w-6 p-0 text-primary-accent hover:text-primary-foreground hover:bg-primary" onClick={() => setShowCreateGroupDialog(true)}>
+                <Button variant="ghost" size="sm" aria-label="New group chat" data-testid="new-group-chat-button" className="tap-target h-6 w-6 p-0 text-primary-accent hover:text-primary-foreground hover:bg-primary" onClick={() => setShowCreateGroupDialog(true)}>
                   <Plus className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>

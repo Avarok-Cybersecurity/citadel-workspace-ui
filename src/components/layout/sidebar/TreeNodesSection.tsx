@@ -234,7 +234,7 @@ export function TreeNodesSection({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground"
+              className="tap-target h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground"
               onClick={handleCreateRoot}
               data-testid="add-root-node-button"
               aria-label="Add to this workspace"
@@ -263,7 +263,7 @@ export function TreeNodesSection({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground disabled:opacity-40"
+              className="tap-target h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground disabled:opacity-40"
               onClick={handleCreateRoot}
               disabled={canCreate === false}
               data-testid="add-node-button"
