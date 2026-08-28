@@ -17,7 +17,7 @@
  */
 
 import { hasUnsavedEdits } from './unsaved-edits';
-import { DISCARD_EDIT_PROMPT } from '@/components/office/use-unsaved-mdx-guard';
+import { DISCARD_EDIT_PROMPT } from './unsaved-edits-prompt';
 
 type Confirm = (request: typeof DISCARD_EDIT_PROMPT) => Promise<boolean>;
 

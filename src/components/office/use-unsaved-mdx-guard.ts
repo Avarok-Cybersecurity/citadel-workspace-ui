@@ -65,8 +65,7 @@ export function useUnsavedMdxGuard({
 }
 
 /** The wording used for the Cancel prompt and the navigation guard. */
-export const DISCARD_EDIT_PROMPT = {
-  title: 'Discard your changes?',
-  description: 'This page has edits that have not been saved. Discarding cannot be undone.',
-  confirmLabel: 'Discard',
-} as const;
+// Re-exported so existing importers keep working; the constant itself lives in
+// a leaf module, because a navigation source asking "may I leave" should not
+// have to import an office hook to find the sentence.
+export { DISCARD_EDIT_PROMPT } from '@/lib/unsaved-edits-prompt';
