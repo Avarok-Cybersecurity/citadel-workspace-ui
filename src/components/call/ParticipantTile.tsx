@@ -122,7 +122,7 @@ export function ParticipantTile({ participant, stream, isSelf, quality = 'good' 
 function QualityIcon({ quality }: { quality: ConnectionQuality }) {
   if (quality === 'lost') return <WifiOff className="h-3 w-3 text-destructive" aria-hidden="true" />;
   if (quality === 'poor') return <SignalLow className="h-3 w-3 text-destructive" aria-hidden="true" />;
-  return <SignalMedium className="h-3 w-3 text-warning" aria-hidden="true" />;
+  return <SignalMedium className="h-3 w-3 text-warning-emphasis" aria-hidden="true" />;
 }
 
 function qualityLabel(quality: ConnectionQuality): string {

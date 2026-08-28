@@ -113,7 +113,7 @@ export function FileTransferModal({
                   <span className={`font-medium ${transferMode === 'async' ? 'text-foreground' : 'text-foreground/80'}`}>
                     Send File
                   </span>
-                  <span className="text-xs text-success bg-success/10 px-1.5 py-0.5 rounded">
+                  <span className="text-xs text-success-emphasis bg-success/10 px-1.5 py-0.5 rounded">
                     Recommended
                   </span>
                 </div>
@@ -132,7 +132,7 @@ export function FileTransferModal({
               }`}
             >
               <div className={`p-2 rounded-lg ${transferMode === 'p2p' ? 'bg-warning/20' : 'bg-surface'}`}>
-                <Zap className={`h-5 w-5 ${transferMode === 'p2p' ? 'text-warning' : 'text-muted-foreground'}`} />
+                <Zap className={`h-5 w-5 ${transferMode === 'p2p' ? 'text-warning-emphasis' : 'text-muted-foreground'}`} />
               </div>
               <div className="flex-1 text-left">
                 <span className={`font-medium ${transferMode === 'p2p' ? 'text-foreground' : 'text-foreground/80'}`}>

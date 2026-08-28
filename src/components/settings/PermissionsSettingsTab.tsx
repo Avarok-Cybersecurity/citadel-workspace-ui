@@ -166,7 +166,7 @@ export function PermissionsSettingsTab() {
         <p className="text-xs text-muted-foreground mb-2">Legend</p>
         <div className="flex flex-wrap gap-4 text-xs">
           <div className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+            <CheckCircle2 className="h-3.5 w-3.5 text-success-emphasis" />
             <span className="text-muted-foreground">Allowed</span>
           </div>
           <div className="flex items-center gap-1.5">

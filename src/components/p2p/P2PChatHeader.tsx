@@ -44,7 +44,7 @@ export function getStatusDisplay(
   registered: boolean
 ): StatusDisplay {
   if (connected) {
-    return { text: 'Online', color: 'bg-success', textColor: 'text-success' };
+    return { text: 'Online', color: 'bg-success', textColor: 'text-success-emphasis' };
   }
 
   // `registered` used to short-circuit here, and it is true for every peer you
@@ -60,9 +60,9 @@ export function getStatusDisplay(
   // yet is offline.
   switch (presence.status) {
     case MessagingLayerType.Online:
-      return { text: 'Online', color: 'bg-success', textColor: 'text-success' };
+      return { text: 'Online', color: 'bg-success', textColor: 'text-success-emphasis' };
     case MessagingLayerType.Away:
-      return { text: 'Away', color: 'bg-warning', textColor: 'text-warning' };
+      return { text: 'Away', color: 'bg-warning', textColor: 'text-warning-emphasis' };
     case MessagingLayerType.Offline:
       return { text: 'Offline', color: 'bg-muted-foreground', textColor: 'text-muted-foreground' };
     case MessagingLayerType.CustomState:

@@ -102,7 +102,7 @@ export function UserProfileCard({
             <div className="p-3 rounded-md bg-card flex items-center space-x-3">
               {isConnected ? (
                 <>
-                  <CheckCircle className="h-5 w-5 text-success" />
+                  <CheckCircle className="h-5 w-5 text-success-emphasis" />
                   <div>
                     <p className="text-sm font-medium text-foreground">Connected</p>
                     <p className="text-xs text-muted-foreground">You can message this user</p>
@@ -110,7 +110,7 @@ export function UserProfileCard({
                 </>
               ) : (
                 <>
-                  <AlertCircle className="h-5 w-5 text-warning" />
+                  <AlertCircle className="h-5 w-5 text-warning-emphasis" />
                   <div>
                     <p className="text-sm font-medium text-foreground">Not Connected</p>
                     <p className="text-xs text-muted-foreground">Send a connection request to message this user</p>

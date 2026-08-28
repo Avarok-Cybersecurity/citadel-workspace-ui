@@ -47,7 +47,7 @@ export const AdminSettingsSection = () => {
     <>
       <SidebarGroup className="flex-shrink-0 min-h-[2rem] mb-4">
         <div className="flex items-center gap-2 px-3 mb-2">
-          <SidebarGroupLabel className="text-warning font-semibold m-0 px-0">
+          <SidebarGroupLabel className="text-warning-emphasis font-semibold m-0 px-0">
             ADMIN SETTINGS
           </SidebarGroupLabel>
           <Badge className="h-5 px-1.5 bg-warning text-warning-foreground text-xs">
@@ -61,7 +61,7 @@ export const AdminSettingsSection = () => {
                 onClick={() => setShowPermissionManager(true)}
                 className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors"
               >
-                <Shield className="h-4 w-4 mr-2 text-warning" />
+                <Shield className="h-4 w-4 mr-2 text-warning-emphasis" />
                 Manage User Roles
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -70,7 +70,7 @@ export const AdminSettingsSection = () => {
                 onClick={() => setShowAdminInfo(true)}
                 className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors"
               >
-                <Key className="h-4 w-4 mr-2 text-warning" />
+                <Key className="h-4 w-4 mr-2 text-warning-emphasis" />
                 Admin Privileges
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -94,7 +94,7 @@ export const AdminSettingsSection = () => {
         <DialogContent className="bg-surface border-warning/30">
           <DialogHeader>
             <DialogTitle className="text-foreground flex items-center gap-2">
-              <Shield className="h-5 w-5 text-warning" />
+              <Shield className="h-5 w-5 text-warning-emphasis" />
               Administrator Privileges
             </DialogTitle>
             <DialogDescription className="text-foreground/80">
@@ -103,7 +103,7 @@ export const AdminSettingsSection = () => {
           </DialogHeader>
           <div className="space-y-3 text-foreground">
             <div className="flex items-start gap-3 p-2 bg-warning/10 rounded">
-              <Settings className="h-4 w-4 text-warning mt-0.5" />
+              <Settings className="h-4 w-4 text-warning-emphasis mt-0.5" />
               <div>
                 {/* "Nodes" and "hierarchy nodes" are the code's words for
                     offices and rooms; the result toasts already use the real
@@ -114,21 +114,21 @@ export const AdminSettingsSection = () => {
               </div>
             </div>
             <div className="flex items-start gap-3 p-2 bg-warning/10 rounded">
-              <Users className="h-4 w-4 text-warning mt-0.5" />
+              <Users className="h-4 w-4 text-warning-emphasis mt-0.5" />
               <div>
                 <p className="font-medium">Manage User Roles</p>
                 <p className="text-sm text-muted-foreground">Promote or demote users between Admin, Owner, Member, and Guest roles</p>
               </div>
             </div>
             <div className="flex items-start gap-3 p-2 bg-warning/10 rounded">
-              <Shield className="h-4 w-4 text-warning mt-0.5" />
+              <Shield className="h-4 w-4 text-warning-emphasis mt-0.5" />
               <div>
                 <p className="font-medium">Grant Permissions</p>
                 <p className="text-sm text-muted-foreground">Choose what each person can do, anywhere in the workspace</p>
               </div>
             </div>
             <div className="flex items-start gap-3 p-2 bg-warning/10 rounded">
-              <Key className="h-4 w-4 text-warning mt-0.5" />
+              <Key className="h-4 w-4 text-warning-emphasis mt-0.5" />
               <div>
                 <p className="font-medium">Configure Workspace</p>
                 <p className="text-sm text-muted-foreground">Update workspace settings and configuration</p>

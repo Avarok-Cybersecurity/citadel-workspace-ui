@@ -61,7 +61,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
           <div className="mb-3 p-3 bg-card rounded-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <Signal className="h-4 w-4 text-success" />
+                <Signal className="h-4 w-4 text-success-emphasis" />
                 <span className="text-sm">You are connected as: <strong>{currentUsername}</strong></span>
               </div>
               {currentCid !== undefined && currentCid !== null && (

@@ -34,7 +34,7 @@ export const WorkspaceNotInitializedModal: React.FC<WorkspaceNotInitializedModal
             <Card className="bg-card border-surface shadow-lg w-full max-w-md">
                 <CardHeader>
                     <div className="flex items-center gap-2">
-                        <AlertCircle className="h-6 w-6 text-warning" />
+                        <AlertCircle className="h-6 w-6 text-warning-emphasis" />
                         <div>
                             <CardTitle className="text-foreground text-xl">Workspace Not Initialized</CardTitle>
                             <CardDescription className="text-foreground/80">
@@ -46,7 +46,7 @@ export const WorkspaceNotInitializedModal: React.FC<WorkspaceNotInitializedModal
 
                 <CardContent className="space-y-4">
                     <div className="bg-warning/10 border border-warning/30 rounded-lg p-4">
-                        <p className="text-warning text-sm">
+                        <p className="text-warning-emphasis text-sm">
                             This workspace has not been initialized yet. Please contact your workspace administrator to complete the initial setup.
                         </p>
                     </div>

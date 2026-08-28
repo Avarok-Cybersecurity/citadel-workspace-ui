@@ -136,9 +136,9 @@ function PasswordStrength({ password }: { password: string }) {
       </div>
       <span className={`text-xs font-semibold uppercase tracking-wider ${
         strength.level <= 1 ? 'text-destructive-emphasis' :
-        strength.level === 2 ? 'text-warning' :
-        strength.level === 3 ? 'text-warning' :
-        'text-success'
+        strength.level === 2 ? 'text-warning-emphasis' :
+        strength.level === 3 ? 'text-warning-emphasis' :
+        'text-success-emphasis'
       }`}>
         {strength.label}
       </span>

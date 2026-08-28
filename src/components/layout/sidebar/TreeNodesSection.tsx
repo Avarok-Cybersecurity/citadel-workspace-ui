@@ -335,7 +335,7 @@ export function TreeNodesSection({
             Are you sure you want to delete &quot;{nodeToDelete?.name}&quot;? This
             action cannot be undone.
             {nodeToDelete?.children && nodeToDelete.children.length > 0 && (
-              <span className="block mt-2 text-warning">
+              <span className="block mt-2 text-warning-emphasis">
                 Warning: This will also delete {nodeToDelete.children.length}{" "}
                 child node(s) and all their content.
               </span>

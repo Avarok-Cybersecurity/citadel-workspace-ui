@@ -106,7 +106,7 @@ function SidebarNode({
         >
           {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </span>
-        <FolderIcon className={cn("h-4 w-4 mr-1.5 shrink-0", isProtected ? "text-muted-foreground" : "text-warning")} />
+        <FolderIcon className={cn("h-4 w-4 mr-1.5 shrink-0", isProtected ? "text-muted-foreground" : "text-warning-emphasis")} />
         <span className="truncate text-xs">{node.name}</span>
       </div>
     </VFSContextMenu>
@@ -213,7 +213,7 @@ export function VFSTreeView({
           tabIndex={0}
           onKeyDown={activateOnKey(() => { (() => onNavigate('/'))(); })}
         >
-          <Folder className="h-3.5 w-3.5 mr-1.5 text-warning" />
+          <Folder className="h-3.5 w-3.5 mr-1.5 text-warning-emphasis" />
           <span>Root</span>
         </div>
         {renderNode(tree, 0)}

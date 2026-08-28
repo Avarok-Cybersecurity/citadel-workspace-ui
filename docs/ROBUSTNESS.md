@@ -10778,3 +10778,38 @@ theme pairings by name; adding a third declaration of a token fails the
 positional read outright rather than silently measuring the wrong colours.
 
 Preflight is 34 checks.
+
+## Round 196 — success and warning text failed AA, in both themes
+
+Round 195's gate measured foreground-on-surface pairings and found them all
+clear. Extending the same arithmetic to the pairing the destructive gate already
+knew to check — **text on its own colour at low alpha** — found real failures:
+
+| pairing | light | dark |
+|---|---|---|
+| `--success` as text on `bg-success/20` | **3.54:1** | **4.25:1** |
+| `--warning` as text on `bg-warning/20` | **3.49:1** | 4.90:1 |
+
+Three of four below the 4.5:1 floor. That is the "Active" badge in Account
+Management (`text-success` on `bg-success/20`) and the protocol warning banner —
+not obscure states.
+
+The cause is the one `--destructive-emphasis` was created for and which was then
+never applied to its siblings: `--success` and `--warning` are **surface**
+tokens. White `--success-foreground` sits on them, which pins their lightness,
+and a colour chosen to carry white text is the wrong colour to read as text.
+
+So `--success-emphasis` and `--warning-emphasis` now exist, and the 106 uses of
+`text-success` / `text-warning` across 48 files point at them. The values were
+solved for, not eyeballed: the darkest light-theme lightness and the lightest
+dark-theme one that clears 4.5:1 on background, card, and the /10, /15 and /20
+tints, with margin — because a token sitting at 4.51 is a token that breaks on
+the next design tweak.
+
+The gate now measures 48 pairings. Reverting `--success-emphasis` to the surface
+token's lightness fails three light-theme tint pairings by name.
+
+Eighth never-propagated fix, and the pattern is worth stating in its general
+form: **when a fix introduces a new concept, the concept has siblings.**
+`--destructive-emphasis` was correct, well-commented, and applied to exactly one
+of the three tokens that had the problem it solved.

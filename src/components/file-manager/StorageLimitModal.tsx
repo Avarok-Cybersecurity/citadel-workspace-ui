@@ -95,7 +95,7 @@ export function StorageLimitModal({
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Space needed:</span>
-              <span className="text-warning font-medium">
+              <span className="text-warning-emphasis font-medium">
                 {formatBytes(Math.max(0, attemptedFileSize - availableBytes))} more
               </span>
             </div>

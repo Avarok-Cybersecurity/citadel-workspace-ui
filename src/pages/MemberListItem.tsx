@@ -75,7 +75,7 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
                 {member.role}
               </Badge>
             )}
-            <span className={`text-xs ${variant === 'online' ? 'text-success' : 'text-muted-foreground'}`}>
+            <span className={`text-xs ${variant === 'online' ? 'text-success-emphasis' : 'text-muted-foreground'}`}>
               {variant === 'online'
                 ? 'Online now'
                 : formatPresence(member.isOnline, member.lastActive)}

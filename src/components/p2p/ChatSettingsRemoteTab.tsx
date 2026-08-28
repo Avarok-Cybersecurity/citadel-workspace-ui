@@ -30,7 +30,7 @@ export function ChatSettingsRemoteTab({
             </Label>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Shield className="h-4 w-4 text-success cursor-help" />
+                <Shield className="h-4 w-4 text-success-emphasis cursor-help" />
               </TooltipTrigger>
               <TooltipContent className="max-w-xs bg-background border-surface text-foreground">
                 <p className="text-sm">
@@ -66,9 +66,9 @@ export function ChatSettingsRemoteTab({
 
       <div className="p-4 rounded-lg bg-gradient-to-r from-success/10 to-success/5 border border-success/20">
         <div className="flex items-start gap-3">
-          <Shield className="h-5 w-5 text-success mt-0.5 flex-shrink-0" />
+          <Shield className="h-5 w-5 text-success-emphasis mt-0.5 flex-shrink-0" />
           <div>
-            <h4 className="text-sm font-medium text-success mb-1">Zero-Knowledge Storage</h4>
+            <h4 className="text-sm font-medium text-success-emphasis mb-1">Zero-Knowledge Storage</h4>
             <p className="text-xs text-foreground/80">
               RE-VFS uses post-quantum cryptography to ensure complete privacy.
               As a storage host, you provide blind storage — you cannot view, read,
@@ -87,8 +87,8 @@ export function ChatSettingsRemoteTab({
 
       {settings.allowRevfsStorage && settings.transferMode !== 'protocol' && (
         <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20">
-          <Zap className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-warning/15">
+          <Zap className="h-4 w-4 text-warning-emphasis mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-warning-emphasis/15">
             <strong>Note:</strong> RE-VFS requires the Citadel Protocol transfer method.
             Switch to Citadel Protocol in the Standard tab to enable full RE-VFS functionality.
           </p>

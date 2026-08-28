@@ -120,7 +120,7 @@ export function FileTransferBubble({
             <div className="flex items-center gap-2 text-xs opacity-70">
               <span>{formatBytes(fileSize)}</span>
               {transferMode === 'p2p' && (
-                <span className="flex items-center gap-1 text-warning">
+                <span className="flex items-center gap-1 text-warning-emphasis">
                   <Zap className="h-3 w-3" />
                   P2P
                 </span>
@@ -164,7 +164,7 @@ export function FileTransferBubble({
           <div className="flex gap-2 mt-2">
             <button
               onClick={handleAccept}
-              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-success/20 hover:bg-success/30 text-success rounded text-sm transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-success/20 hover:bg-success/30 text-success-emphasis rounded text-sm transition-colors"
             >
               <Check className="h-4 w-4" />
               Accept

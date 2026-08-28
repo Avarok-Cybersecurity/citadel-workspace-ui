@@ -96,7 +96,7 @@ export const components: MDXComponents = {
   Badge: ({ children, variant = "default" }: { children: React.ReactNode; variant?: "default" | "secondary" | "destructive" | "outline" }) => {
     const getColorClass = (text: string) => {
       if (text === 'In Progress' || text === 'Trending Up' || text === 'Growing Team') 
-        return 'text-success flex items-center gap-1 inline-flex';
+        return 'text-success-emphasis flex items-center gap-1 inline-flex';
       if (text === 'High Priority' || text === 'High Impact' || text === 'Active Hiring') 
         return 'text-destructive flex items-center gap-1 inline-flex';
       return '';

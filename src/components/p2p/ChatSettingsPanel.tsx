@@ -160,7 +160,7 @@ export function ChatSettingsPanel({
 
                 <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
-                    <MessageSquare className="h-5 w-5 text-success" />
+                    <MessageSquare className="h-5 w-5 text-success-emphasis" />
                     <div>
                       <Label htmlFor="typing-indicators" className="text-sm font-medium">Typing Indicators</Label>
                       <p className="text-xs text-muted-foreground">Show when you're typing</p>
@@ -204,7 +204,7 @@ export function ChatSettingsPanel({
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
-                    <Sliders className="h-5 w-5 text-warning" />
+                    <Sliders className="h-5 w-5 text-warning-emphasis" />
                     <div>
                       <Label htmlFor="encryption-level" className="text-sm font-medium">Encryption Level</Label>
                       <p className="text-xs text-muted-foreground">Security level for this conversation</p>
@@ -241,7 +241,7 @@ export function ChatSettingsPanel({
                 <div className="p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <MessageSquare className="h-5 w-5 text-success" />
+                      <MessageSquare className="h-5 w-5 text-success-emphasis" />
                       <div>
                         <Label htmlFor="message-retention" className="text-sm font-medium">Message Retention</Label>
                         <p className="text-xs text-muted-foreground">Days to keep message history locally</p>

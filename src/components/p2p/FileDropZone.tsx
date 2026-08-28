@@ -4,8 +4,8 @@ import { activateOnKey } from '@/lib/a11y';
 function getFileIcon(mimeType: string) {
   if (mimeType.startsWith('image/')) return <FileImage className="h-8 w-8 text-primary-accent" />;
   if (mimeType.startsWith('video/')) return <FileVideo className="h-8 w-8 text-primary-accent" />;
-  if (mimeType.startsWith('audio/')) return <FileAudio className="h-8 w-8 text-success" />;
-  if (mimeType.startsWith('text/') || mimeType.includes('pdf')) return <FileText className="h-8 w-8 text-warning" />;
+  if (mimeType.startsWith('audio/')) return <FileAudio className="h-8 w-8 text-success-emphasis" />;
+  if (mimeType.startsWith('text/') || mimeType.includes('pdf')) return <FileText className="h-8 w-8 text-warning-emphasis" />;
   return <File className="h-8 w-8 text-muted-foreground" />;
 }
 

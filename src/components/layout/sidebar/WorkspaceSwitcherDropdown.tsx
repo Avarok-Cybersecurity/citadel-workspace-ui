@@ -66,7 +66,7 @@ export function WorkspaceSwitcherDropdown({
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   @{workspace.username} · {workspace.role || 'Member'}
                   {isPrivilegedRole(workspace.role) && (
-                    <span title="Administrator"><Shield className="w-3 h-3 text-warning" /></span>
+                    <span title="Administrator"><Shield className="w-3 h-3 text-warning-emphasis" /></span>
                   )}
                 </span>
               </div>

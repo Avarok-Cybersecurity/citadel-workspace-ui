@@ -138,7 +138,7 @@ export function TreeNodeItem({
             {node.name}
             {node.is_default && (
               <Star
-                className="h-3 w-3 text-warning fill-warning flex-shrink-0"
+                className="h-3 w-3 text-warning-emphasis fill-warning flex-shrink-0"
                 aria-label={`Default ${typeName.toLowerCase()}`}
               />
             )}
@@ -202,7 +202,7 @@ export function TreeNodeItem({
             {onSetDefault && !node.is_default && (
               <DropdownMenuItem
                 onClick={() => onSetDefault(node)}
-                className="text-warning hover:text-warning"
+                className="text-warning-emphasis hover:text-warning-emphasis"
                 data-testid={`set-default-node-${node.id}`}
               >
                 <Star className="h-4 w-4 mr-2" />

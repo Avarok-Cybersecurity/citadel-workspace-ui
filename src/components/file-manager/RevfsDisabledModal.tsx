@@ -36,7 +36,7 @@ export function RevfsDisabledModal({
       <DialogContent className="bg-surface border-border text-foreground sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-foreground">
-            <AlertTriangle className="h-5 w-5 text-warning" />
+            <AlertTriangle className="h-5 w-5 text-warning-emphasis" />
             Remote Storage Unavailable
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
@@ -51,9 +51,9 @@ export function RevfsDisabledModal({
           <div className="flex justify-center py-4">
             <div className="rounded-full bg-card p-6">
               {isPeerDisabled ? (
-                <UserCircle2 className="h-12 w-12 text-warning" />
+                <UserCircle2 className="h-12 w-12 text-warning-emphasis" />
               ) : (
-                <Server className="h-12 w-12 text-warning" />
+                <Server className="h-12 w-12 text-warning-emphasis" />
               )}
             </div>
           </div>

@@ -191,7 +191,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                         </div>
 
                         {peer.isRegistered ? (
-                          <CheckCircle className="h-4 w-4 text-success" />
+                          <CheckCircle className="h-4 w-4 text-success-emphasis" />
                         ) : (
                           <UserPlus className="h-4 w-4 text-muted-foreground" />
                         )}

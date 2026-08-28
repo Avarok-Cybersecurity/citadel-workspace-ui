@@ -30,7 +30,7 @@ export function getStatusContent(state: string, isOwn: boolean, message: P2PMess
     case 'pending':
       if (isOwn) {
         return {
-          icon: <Clock className="h-4 w-4 text-warning" />,
+          icon: <Clock className="h-4 w-4 text-warning-emphasis" />,
           text: 'Waiting for acceptance...',
           showCancel: true
         };
@@ -51,7 +51,7 @@ export function getStatusContent(state: string, isOwn: boolean, message: P2PMess
     case 'staged':
       if (isOwn) {
         return {
-          icon: <Check className="h-4 w-4 text-success" />,
+          icon: <Check className="h-4 w-4 text-success-emphasis" />,
           text: 'File ready, waiting for acceptance...',
           showCancel: true
         };
@@ -72,12 +72,12 @@ export function getStatusContent(state: string, isOwn: boolean, message: P2PMess
     case 'complete':
       if (isOwn) {
         return {
-          icon: <Check className="h-4 w-4 text-success" />,
+          icon: <Check className="h-4 w-4 text-success-emphasis" />,
           text: 'Sent successfully'
         };
       }
       return {
-        icon: <Check className="h-4 w-4 text-success" />,
+        icon: <Check className="h-4 w-4 text-success-emphasis" />,
         text: 'Downloaded',
         clickable: true
       };
@@ -102,13 +102,13 @@ export function getStatusContent(state: string, isOwn: boolean, message: P2PMess
         };
       }
       return {
-        icon: <AlertCircle className="h-4 w-4 text-warning" />,
+        icon: <AlertCircle className="h-4 w-4 text-warning-emphasis" />,
         text: 'Sender cancelled transfer'
       };
 
     case 'expired':
       return {
-        icon: <Clock className="h-4 w-4 text-warning" />,
+        icon: <Clock className="h-4 w-4 text-warning-emphasis" />,
         text: 'Request expired'
       };
 

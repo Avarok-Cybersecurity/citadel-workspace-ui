@@ -33,7 +33,7 @@ export function StepIndicator({ currentStep, totalSteps, labels }: StepIndicator
                   className={cn(
                     "text-xs font-semibold tracking-wider uppercase",
                     isActive && "text-primary-accent",
-                    isCompleted && "text-success",
+                    isCompleted && "text-success-emphasis",
                     !isCompleted && !isActive && "text-muted-foreground"
                   )}
                 >

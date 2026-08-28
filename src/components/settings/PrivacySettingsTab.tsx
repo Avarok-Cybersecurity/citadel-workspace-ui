@@ -19,7 +19,7 @@ import {
 /** Shown beside a control this build cannot actually act on. */
 function NotEnforcedNote() {
   return (
-    <p className="text-xs text-warning mt-1">
+    <p className="text-xs text-warning-emphasis mt-1">
       Not enforced yet — this needs server-side support, so leaving it on or off
       changes nothing today.
     </p>

@@ -29,7 +29,7 @@ export { formatBytes as formatSize } from '@/lib/format-bytes';
 export const stateConfig: Record<RevfsFileState, { icon: typeof Monitor; color: string; title: string }> = {
   [RevfsFileState.Hosted]: { icon: Monitor, color: 'text-muted-foreground', title: 'Hosted (stored for peer)' },
   [RevfsFileState.Remote]: { icon: Cloud, color: 'text-primary-accent', title: 'Remote (downloadable)' },
-  [RevfsFileState.Sent]: { icon: Upload, color: 'text-success', title: 'Sent' },
+  [RevfsFileState.Sent]: { icon: Upload, color: 'text-success-emphasis', title: 'Sent' },
   [RevfsFileState.Received]: { icon: Download, color: 'text-primary-accent', title: 'Received' },
   [RevfsFileState.ServerStored]: { icon: Cloud, color: 'text-muted-foreground', title: 'Server stored (downloadable)' },
 };

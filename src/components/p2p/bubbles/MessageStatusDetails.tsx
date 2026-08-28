@@ -18,7 +18,7 @@ const statusLabels: Record<P2PMessage['status'], string> = {
 const statusColors: Record<P2PMessage['status'], string> = {
   pending: 'text-muted-foreground',
   sent: 'text-foreground/80',
-  delivered: 'text-success',
+  delivered: 'text-success-emphasis',
   read: 'text-primary-accent',
   failed: 'text-destructive'
 };

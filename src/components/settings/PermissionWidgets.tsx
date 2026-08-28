@@ -29,7 +29,7 @@ export function RoleBadge({ role }: { role: UserRole | null }) {
 
   const variants: Record<string, string> = {
     Admin: 'bg-primary-accent/20 text-primary-accent border-primary-accent/50',
-    Owner: 'bg-warning/20 text-warning border-warning/50',
+    Owner: 'bg-warning/20 text-warning-emphasis border-warning/50',
     Member: 'bg-primary-accent/20 text-primary-accent border-primary-accent/50',
     Guest: 'bg-muted text-muted-foreground border-border',
     Banned: 'bg-destructive/20 text-destructive-emphasis border-destructive/50',
@@ -49,7 +49,7 @@ export function RoleBadge({ role }: { role: UserRole | null }) {
 export function PermissionStatus({ allowed }: { allowed: boolean }) {
   if (allowed) {
     return (
-      <div className="flex items-center gap-1.5 text-success">
+      <div className="flex items-center gap-1.5 text-success-emphasis">
         <CheckCircle2 className="h-4 w-4" />
         <span className="text-sm">Allowed</span>
       </div>
@@ -91,10 +91,10 @@ export function GroupedPermissionTable({ domainId }: { domainId: string }) {
                   className={cn(
                     'text-xs',
                     allowedCount === totalCount
-                      ? 'bg-success/20 text-success border-success/50'
+                      ? 'bg-success/20 text-success-emphasis border-success/50'
                       : allowedCount === 0
                         ? 'bg-destructive/20 text-destructive-emphasis border-destructive/50'
-                        : 'bg-warning/20 text-warning border-warning/50'
+                        : 'bg-warning/20 text-warning-emphasis border-warning/50'
                   )}
                 >
                   {allowedCount}/{totalCount}

@@ -184,7 +184,7 @@ export const LoadingModal = ({
         {/* Success animation */}
         {isReady && (
           <div className="mt-4 flex justify-center">
-            <span className="text-success text-sm font-medium animate-pulse">
+            <span className="text-success-emphasis text-sm font-medium animate-pulse">
               {config.successMessage}
             </span>
           </div>
@@ -192,7 +192,7 @@ export const LoadingModal = ({
 
         {/* Timeout warning */}
         {timedOut && isLoading && (
-          <div className="mt-4 text-center text-warning text-sm">
+          <div className="mt-4 text-center text-warning-emphasis text-sm">
             This is taking longer than expected.
           </div>
         )}

@@ -35,7 +35,7 @@ export function VFSStorageUsage({ usedBytes, quotaBytes, label }: VFSStorageUsag
   const textColor = isCritical
     ? 'text-destructive'
     : isWarning
-      ? 'text-warning'
+      ? 'text-warning-emphasis'
       : 'text-muted-foreground';
 
   return (

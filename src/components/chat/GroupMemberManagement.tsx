@@ -158,7 +158,7 @@ export function GroupMemberManagement({
                           </span>
                           {getRoleIcon(member.role)}
                           {isOwnerMember && (
-                            <span className="text-xs text-warning">(Owner)</span>
+                            <span className="text-xs text-warning-emphasis">(Owner)</span>
                           )}
                         </div>
                       </div>

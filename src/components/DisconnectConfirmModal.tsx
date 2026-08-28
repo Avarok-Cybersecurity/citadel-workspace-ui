@@ -117,7 +117,7 @@ export const DisconnectConfirmModal = ({
             <Button
               onClick={() => handleConfirm("disconnect")}
               variant="outline"
-              className="flex-1 bg-transparent border-warning text-warning hover:bg-warning/15 hover:text-warning/15"
+              className="flex-1 bg-transparent border-warning text-warning-emphasis hover:bg-warning/15 hover:text-warning-emphasis/15"
               disabled={isProcessing}
             >
               {isProcessing && selectedAction === "disconnect" ? (

@@ -174,7 +174,7 @@ export function GridItem({
       >
         <Icon className={cn(
           "h-10 w-10 mb-1.5",
-          isDir ? (isProtected ? "text-muted-foreground" : "text-warning") : "text-foreground/80",
+          isDir ? (isProtected ? "text-muted-foreground" : "text-warning-emphasis") : "text-foreground/80",
         )} />
 
         {StateIcon && (

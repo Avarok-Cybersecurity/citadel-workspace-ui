@@ -30,7 +30,7 @@ export function statusAppearance(status: string): StatusAppearance {
     iconClass: isError
       ? 'text-destructive'
       : isReady
-        ? 'text-success'
+        ? 'text-success-emphasis'
         : 'animate-spin text-primary-accent',
   };
 }

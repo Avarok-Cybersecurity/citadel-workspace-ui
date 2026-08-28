@@ -50,7 +50,7 @@ function getReadStatusIcon(status: ReadStatus) {
       return <Check className="h-3 w-3 text-muted-foreground" data-testid="message-status-sent" />;
     case 'partial':
       // Amber/yellow for partial reads
-      return <CheckCheck className="h-3 w-3 text-warning" data-testid="message-status-partial" />;
+      return <CheckCheck className="h-3 w-3 text-warning-emphasis" data-testid="message-status-partial" />;
     case 'all_read':
       // Blue for all read
       return <CheckCheck className="h-3 w-3 text-primary-accent" data-testid="message-status-all-read" />;
@@ -81,7 +81,7 @@ function ReadByTooltipContent({ readBy, totalMembers, status }: ReadByTooltipCon
     const unreadCount = (totalMembers - 1) - readBy.length;
     return (
       <div className="text-sm max-w-[200px]">
-        <p className="text-warning font-medium mb-2">
+        <p className="text-warning-emphasis font-medium mb-2">
           Seen by {readBy.length} of {totalMembers - 1}
         </p>
         <div className="space-y-1">

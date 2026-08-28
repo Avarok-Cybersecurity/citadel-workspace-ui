@@ -33,7 +33,7 @@ export function ConversationPeerItem({ peer, isSelected, onSelect }: Conversatio
           <Circle
             aria-hidden="true"
             className={`absolute bottom-0 right-0 h-3 w-3 ${
-              peer.isConnected ? 'fill-success text-success' : 'fill-muted-foreground text-muted-foreground'
+              peer.isConnected ? 'fill-success text-success-emphasis' : 'fill-muted-foreground text-muted-foreground'
             }`}
           />
           {/* Colour alone would carry the meaning, which fails WCAG 1.4.1.

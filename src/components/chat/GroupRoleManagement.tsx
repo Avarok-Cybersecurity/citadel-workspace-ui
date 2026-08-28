@@ -113,7 +113,7 @@ export function GroupRoleManagement({ group, onSettingsChange }: GroupRoleManage
                     <div className="w-3 h-3 rounded-full bg-muted-foreground" />
                   )}
                   {role.isBuiltIn && (
-                    <span title="Built-in role"><Lock className="h-3 w-3 text-warning" /></span>
+                    <span title="Built-in role"><Lock className="h-3 w-3 text-warning-emphasis" /></span>
                   )}
                 </div>
 
@@ -139,7 +139,7 @@ export function GroupRoleManagement({ group, onSettingsChange }: GroupRoleManage
                   {!isDefault && canManageRoles && !role.isBuiltIn && (
                     <Button
                       variant="ghost" size="icon"
-                      className="h-7 w-7 text-warning hover:text-warning hover:bg-warning/10"
+                      className="h-7 w-7 text-warning-emphasis hover:text-warning-emphasis hover:bg-warning/10"
                       onClick={() => handleSetDefault(role.id)}
                       title="Set as default role"
                     >

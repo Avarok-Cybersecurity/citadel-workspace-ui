@@ -45,7 +45,7 @@ export const PeerListItem: React.FC<PeerListItemProps> = ({
       </div>
       <div className="flex items-center space-x-2">
         {peer.is_online && (
-          <Badge className="bg-success/20 text-success border-success/50">
+          <Badge className="bg-success/20 text-success-emphasis border-success/50">
             <div className="w-2 h-2 bg-success rounded-full mr-1 animate-pulse" />
             Online
           </Badge>
@@ -60,7 +60,7 @@ export const PeerListItem: React.FC<PeerListItemProps> = ({
             variant="outline"
             size="sm"
             disabled
-            className="border-warning/50 text-warning cursor-not-allowed"
+            className="border-warning/50 text-warning-emphasis cursor-not-allowed"
           >
             <Clock className="h-3 w-3 mr-1 animate-pulse" />
             Awaiting Response...
@@ -71,7 +71,7 @@ export const PeerListItem: React.FC<PeerListItemProps> = ({
             size="sm"
             onClick={() => onAccept(incomingRequest)}
             disabled={acceptingPeerCid === peer.cid}
-            className="border-success text-success hover:bg-success/90 hover:text-success-foreground"
+            className="border-success text-success-emphasis hover:bg-success/90 hover:text-success-foreground"
           >
             {acceptingPeerCid === peer.cid ? (
               <Loader2 className="h-3 w-3 mr-1 animate-spin" />

@@ -106,10 +106,16 @@ export default {
         success: {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
+          // For success TEXT. DEFAULT is a surface colour: white sits on it,
+          // which pins its lightness, and as text it was 3.54:1 on its own
+          // bg-success/20 tint -- the "Active" badge.
+          emphasis: "hsl(var(--success-emphasis))",
         },
         warning: {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
+          // Same reasoning as success.emphasis above.
+          emphasis: "hsl(var(--warning-emphasis))",
         },
       },
       borderRadius: {

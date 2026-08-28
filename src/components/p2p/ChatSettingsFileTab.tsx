@@ -69,7 +69,7 @@ export function ChatSettingsFileTab({
               <Label htmlFor="browser" className="flex-1 cursor-pointer">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Browser Transfer</span>
-                  <span className="text-xs px-2 py-0.5 rounded bg-success/20 text-success">Default</span>
+                  <span className="text-xs px-2 py-0.5 rounded bg-success/20 text-success-emphasis">Default</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">Simple and reliable for most files</p>
               </Label>
@@ -79,8 +79,8 @@ export function ChatSettingsFileTab({
               <Label htmlFor="protocol" className="flex-1 cursor-pointer">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Citadel Protocol</span>
-                  <Zap className="h-3.5 w-3.5 text-warning" />
-                  <span className="text-xs px-2 py-0.5 rounded bg-warning/20 text-warning">Experimental</span>
+                  <Zap className="h-3.5 w-3.5 text-warning-emphasis" />
+                  <span className="text-xs px-2 py-0.5 rounded bg-warning/20 text-warning-emphasis">Experimental</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">Post-quantum encryption, required for RE-VFS</p>
               </Label>

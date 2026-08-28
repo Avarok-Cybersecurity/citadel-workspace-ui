@@ -109,7 +109,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
             {activeSessions.length > 0 && (
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Wifi className="h-4 w-4 text-success" />Active Sessions ({activeSessions.length})
+                  <Wifi className="h-4 w-4 text-success-emphasis" />Active Sessions ({activeSessions.length})
                 </h3>
                 {activeSessions.map((session) => {
                   const isCurrentSession = currentConnection?.cid === session.cid;
@@ -120,8 +120,8 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
                         <div>
                           <div className="flex items-center gap-2">
                             <h4 className="text-foreground font-medium">{session.username}</h4>
-                            {isCurrentSession && <UserCheck className="h-4 w-4 text-success" />}
-                            <span className="text-xs text-success bg-success/20 px-2 py-0.5 rounded">Active</span>
+                            {isCurrentSession && <UserCheck className="h-4 w-4 text-success-emphasis" />}
+                            <span className="text-xs text-success-emphasis bg-success/20 px-2 py-0.5 rounded">Active</span>
                           </div>
                           <p className="text-sm text-muted-foreground">{session.server_address}</p>
                           <p className="text-xs text-muted-foreground">Session {shortPeerHandle(session.cid)}</p>
@@ -129,7 +129,7 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
                       </div>
                       <div className="flex items-center gap-2">
                         {!isCurrentSession && (
-                          <Button variant="outline" size="sm" className="border-success text-success hover:bg-success/20" onClick={() => handleSwitchAccount(session.username, session.server_address)}>Switch</Button>
+                          <Button variant="outline" size="sm" className="border-success text-success-emphasis hover:bg-success/20" onClick={() => handleSwitchAccount(session.username, session.server_address)}>Switch</Button>
                         )}
                       </div>
                     </div>
@@ -153,8 +153,8 @@ export function AccountManagementDialog({ isOpen, onClose }: AccountManagementDi
                         <div>
                           <div className="flex items-center gap-2">
                             <h4 className="text-foreground font-medium">{session.username}</h4>
-                            {isConnected && <UserCheck className="h-4 w-4 text-success" />}
-                            {hasActiveSession && <span className="text-xs text-success bg-success/20 px-2 py-0.5 rounded">Active</span>}
+                            {isConnected && <UserCheck className="h-4 w-4 text-success-emphasis" />}
+                            {hasActiveSession && <span className="text-xs text-success-emphasis bg-success/20 px-2 py-0.5 rounded">Active</span>}
                           </div>
                           <p className="text-sm text-muted-foreground">{session.serverAddress}</p>
                           {session.lastConnected && (

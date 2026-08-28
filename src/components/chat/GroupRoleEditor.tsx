@@ -139,7 +139,7 @@ export function GroupRoleEditor({
           <div className="space-y-3">
             <Label className="text-sm text-foreground/80">Permissions</Label>
             {isBuiltIn && (
-              <p className="text-xs text-warning">
+              <p className="text-xs text-warning-emphasis">
                 Built-in role permissions cannot be modified.
               </p>
             )}

@@ -148,7 +148,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-success text-success hover:bg-success/90 hover:text-success-foreground"
+                      className="border-success text-success-emphasis hover:bg-success/90 hover:text-success-foreground"
                       onClick={() => handleAccept(request)}
                       disabled={processingId === request.id}
                     >
