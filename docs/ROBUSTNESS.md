@@ -11533,3 +11533,43 @@ not its sibling's — committed by me, two rounds after writing the entry about 
 
 Settings is now in both. The control reverts the Switch floor and fails four
 tabs by name, at 320px first.
+
+## Round 215 — a selector list is another screen list
+
+Round 214 ended on a rule: when a surface is worth scanning, it is worth
+scanning by every gate that has a screen list. The same sentence applies one
+level down.
+
+`check-mobile-layout` measured `button, a, [role="button"], [role="switch"],
+input[type=checkbox], input[type=radio]`. The Settings tab triggers were caught
+only because Radix happens to render them as `<button>`. The slider thumb is a
+`<span role="slider">`, and it was measured by nothing:
+
+```
+320px settings/Theme: SPAN"Font size in pixels" 18x18
+360px settings/Theme: SPAN"Font size in pixels" 18x18
+375px settings/Theme: SPAN"Font size in pixels" 18x18
+```
+
+`h-5` is `1.25rem`; at a 14px root the thumb — the only part of a slider a
+pointer can grab — rendered **18×18**. Fourth instance of the rem-scaling class,
+and the first one hidden by the measuring instrument rather than by the screen
+list.
+
+Floored in `ui/slider.tsx`, so all three sliders in the app get it. The thumb is
+24×24 now, still inside its track, no overflow at any width.
+
+**Two controls, and the second is the point.** Reverting the floor fails three
+widths by name. Dropping `[role="slider"]` from the selector list — with the
+floor still reverted — passes **everything**. The defect is present and the gate
+is green, which is exactly what had been happening.
+
+That second control is the one worth keeping in mind: it tests the *measurer*,
+not the code. A gate can be wrong in two independent ways — the rule, and what
+the rule is pointed at — and only the first is usually checked.
+
+A sweep of `components/ui` for interactive primitives with a small rem box and
+no floor also names `checkbox` (`h-4 w-4` = 14px) and `radio-group`
+(`h-4 w-4`). Neither appears on a surface any gate currently reaches, so they
+are recorded here rather than changed blind: the fix is the same one line, and
+it should land with a measurement beside it.

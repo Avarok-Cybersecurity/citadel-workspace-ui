@@ -42,7 +42,12 @@ const Slider = React.forwardRef<
     </SliderPrimitive.Track>
     <SliderPrimitive.Thumb
       aria-label={label}
-      className="block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+      // `tap-target` for the 24px floor. `h-5` is 1.25rem and the root font
+      // size is 14px, so the thumb -- the only part of a slider a pointer can
+      // grab -- rendered 18x18. It went unmeasured until `[role="slider"]`
+      // joined the mobile gate's selector list: Radix puts that role on a
+      // <span>, and the list only had buttons and switches.
+      className="tap-target block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
     />
   </SliderPrimitive.Root>
 ))

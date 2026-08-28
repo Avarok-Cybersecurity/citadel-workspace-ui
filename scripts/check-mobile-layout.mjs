@@ -42,7 +42,13 @@ async function waitForServer() {
 /** Runs in the page: overflow width, and every interactive element under the floor. */
 function measurePage(min) {
   const root = document.documentElement;
-  const interactive = 'button,a,[role="button"],[role="switch"],input[type="checkbox"],input[type="radio"]';
+  // `[role="slider"]` and `[role="tab"]` are here because the elements that
+  // carry them are not buttons. Radix puts `role="slider"` on a `<span>` and
+  // the tab triggers were only caught because they happen to be `<button>` --
+  // a selector list is another screen list, and it drifts the same way.
+  const interactive =
+    'button,a,[role="button"],[role="switch"],[role="slider"],[role="tab"],' +
+    'input[type="checkbox"],input[type="radio"]';
   const small = [...document.querySelectorAll(interactive)]
     .filter((el) => {
       const box = el.getBoundingClientRect();
