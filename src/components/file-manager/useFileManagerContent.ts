@@ -10,14 +10,7 @@ import { TreeScope } from "@/types/revfs-types";
 import { INTERVAL } from "@/lib/timeout-constants";
 import { useFileManagerHandlers } from "./useFileManagerHandlers";
 
-export function findNodeByPath(tree: RevfsNode, path: string): RevfsNode | null {
-  if (tree.path === path) return tree;
-  for (const child of tree.children ?? []) {
-    const found = findNodeByPath(child, path);
-    if (found) return found;
-  }
-  return null;
-}
+export { findNodeByPath } from '@/lib/revfs/tree-operations';
 
 export function useFileManagerContent() {
   const [myCid, setMyCid] = useState<bigint | null>(null);

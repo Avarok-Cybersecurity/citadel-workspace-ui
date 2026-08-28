@@ -1,4 +1,5 @@
 import { HardDrive } from 'lucide-react';
+import { formatBytes } from '@/lib/format-bytes';
 import { cn } from '@/lib/utils';
 
 interface VFSStorageUsageProps {
@@ -10,14 +11,7 @@ interface VFSStorageUsageProps {
 /**
  * Format bytes to human-readable string (e.g., "45.2 MB")
  */
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  const value = bytes / Math.pow(k, i);
-  return `${value.toFixed(value < 10 ? 1 : 0)} ${sizes[i]}`;
-}
+
 
 /**
  * Storage usage progress bar for the RE-VFS tree view sidebar.

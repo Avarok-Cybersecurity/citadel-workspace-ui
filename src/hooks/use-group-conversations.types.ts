@@ -53,16 +53,10 @@ export interface UseGroupConversationsResult {
 // Protocol Boundary Adapter
 // ============================================================================
 
-import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 
-/**
- * Adapts a locally-constructed request object to the WASM-generated InternalServiceRequest type.
- * The cast is needed because locally-built object literals are structurally compatible at runtime
- * but TypeScript cannot verify structural compatibility with WASM-generated nominal types.
- */
-export function toInternalServiceRequest(request: Record<string, unknown>): InternalServiceRequest {
-  return request as unknown as InternalServiceRequest;
-}
+// One implementation, in lib/wasm-request: this cast is where the app crosses
+// into the WASM nominal types, and a grep for it should find every crossing.
+export { toInternalServiceRequest } from '@/lib/wasm-request';
 
 // ============================================================================
 // Constants

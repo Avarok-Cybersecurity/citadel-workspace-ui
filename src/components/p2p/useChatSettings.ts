@@ -57,7 +57,11 @@ export function useChatSettings(isOpen: boolean, peerCid: string) {
     }
   }, [isOpen, peerCid]);
 
-  const formatBytes = (bytes: number): string => {
+  // Deliberately always megabytes, because it labels a size LIMIT the user set
+  // in megabytes -- rendering "1 GB" beside a slider marked in MB reads as a
+  // different setting. Renamed off formatBytes so it stops looking like the
+  // general formatter it is not.
+  const formatSizeLimit = (bytes: number): string => {
     if (bytes === 0) return '0 MB';
     const mb = bytes / (1024 * 1024);
     return `${Math.round(mb)} MB`;
@@ -104,7 +108,7 @@ export function useChatSettings(isOpen: boolean, peerCid: string) {
     maxFileSizeMb,
     revfsQuotaMb,
     defaultMaxMb,
-    formatBytes,
+    formatSizeLimit,
     handleAutoAcceptChange,
     handleMaxFileSizeChange,
     handleTransferModeChange,

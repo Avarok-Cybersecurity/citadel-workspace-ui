@@ -1,4 +1,5 @@
 import { FileSpreadsheet, FileText, FileType, FileCode, Folder, FileX } from "lucide-react";
+import { formatBytes } from '@/lib/format-bytes';
 import { peerDisplayName } from '@/lib/peer-display';
 import { useRegisteredPeers } from '@/hooks';
 import { useState, useEffect, useCallback } from "react";
@@ -38,13 +39,6 @@ interface FileDisplay {
 /**
  * Format bytes to human readable size
  */
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
 
 
 /**

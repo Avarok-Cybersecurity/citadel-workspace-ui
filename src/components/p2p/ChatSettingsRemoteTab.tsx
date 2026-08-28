@@ -11,13 +11,13 @@ interface ChatSettingsRemoteTabProps {
   settings: FileTransferSettings;
   revfsQuotaMb: number;
   defaultMaxMb: number;
-  formatBytes: (bytes: number) => string;
+  formatSizeLimit: (bytes: number) => string;
   onAllowRevfsChange: (allowed: boolean) => Promise<void>;
   onRevfsQuotaChange: (values: number[]) => Promise<void>;
 }
 
 export function ChatSettingsRemoteTab({
-  peerName, settings, revfsQuotaMb, defaultMaxMb, formatBytes,
+  peerName, settings, revfsQuotaMb, defaultMaxMb, formatSizeLimit,
   onAllowRevfsChange, onRevfsQuotaChange,
 }: ChatSettingsRemoteTabProps) {
   return (
@@ -61,7 +61,7 @@ export function ChatSettingsRemoteTab({
           max={defaultMaxMb} min={1} step={1} className="w-full"
           disabled={!settings.allowRevfsStorage} data-testid="revfs-quota-slider"
         />
-        <p className="text-xs text-muted-foreground">Server default: {formatBytes(REVFS_DEFAULT_QUOTA_BYTES)}</p>
+        <p className="text-xs text-muted-foreground">Server default: {formatSizeLimit(REVFS_DEFAULT_QUOTA_BYTES)}</p>
       </div>
 
       <div className="p-4 rounded-lg bg-gradient-to-r from-success/10 to-success/5 border border-success/20">

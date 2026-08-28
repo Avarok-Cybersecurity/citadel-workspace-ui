@@ -1,3 +1,4 @@
+import { ConnectionFacts } from './ConnectionFacts';
 import {
   Dialog,
   DialogContent,
@@ -48,7 +49,7 @@ export function ChatSettingsPanel({
     maxFileSizeMb,
     revfsQuotaMb,
     defaultMaxMb,
-    formatBytes,
+    formatSizeLimit,
     handleAutoAcceptChange,
     handleMaxFileSizeChange,
     handleTransferModeChange,
@@ -163,7 +164,7 @@ export function ChatSettingsPanel({
                 maxFileSizeMb={maxFileSizeMb}
                 revfsQuotaMb={revfsQuotaMb}
                 defaultMaxMb={defaultMaxMb}
-                formatBytes={formatBytes}
+                formatSizeLimit={formatSizeLimit}
                 onAutoAcceptChange={handleAutoAcceptChange}
                 onMaxFileSizeChange={handleMaxFileSizeChange}
                 onTransferModeChange={handleTransferModeChange}
@@ -290,35 +291,7 @@ export function ChatSettingsPanel({
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50">
-                    <span className="text-sm text-muted-foreground">Peer CID</span>
-                    <span className="text-sm text-foreground/80 font-mono">{peerCid.slice(0, 16)}...</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50">
-                    <span className="text-sm text-muted-foreground">Connection Type</span>
-                    <span className="text-sm text-foreground/80">P2P Encrypted</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50">
-                    <span className="text-sm text-muted-foreground">First Connected</span>
-                    <span className="text-sm text-foreground/80">
-                      {(() => {
-                        try {
-                          const ts = localStorage.getItem(`peer-first-seen:${peerCid}`);
-                          if (!ts) {
-                            localStorage.setItem(`peer-first-seen:${peerCid}`, Date.now().toString());
-                            return 'Just now';
-                          }
-                          return new Date(parseInt(ts)).toLocaleDateString();
-                        } catch { return 'Unknown'; }
-                      })()}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50">
-                    <span className="text-sm text-muted-foreground">Storage Used</span>
-                    <span className="text-sm text-foreground/80">
-                      {formatBytes(settings.revfsQuota - (settings.revfsQuota * 0.85))}
-                    </span>
-                  </div>
+                  <ConnectionFacts peerCid={peerCid} revfsQuota={settings.revfsQuota} />
                 </div>
               </div>
             </TabsContent>

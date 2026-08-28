@@ -8923,3 +8923,49 @@ becoming a no-op on the machine that matters.
 The pattern is one this campaign keeps finding, this time in my own work: three
 lists that must agree — workspace members, Dockerfile COPYs, CI matrices — and
 nothing comparing them. Two of the three now have guards.
+
+## Round 148 — eleven byte formatters, not four
+
+The dedup audit reported four implementations of the byte-size format. Writing
+the guard found **eleven**, in five different precisions:
+
+| where | rule |
+|---|---|
+| `file-transfer-helpers` | `toFixed(1)`, "0 Bytes" |
+| `transfer-format` | `toFixed(2)`, "0 Bytes" |
+| `vfs-content-helpers` | `toFixed(1)`, "0 B" |
+| `lib/utils` | `toLocaleString`, adds TB |
+| `StorageLimitModal`, `VFSStorageUsage` | `toFixed(value < 10 ? 1 : 0)` |
+| `send-operations` | hand-rolled B/KB/MB branches |
+| `useFileTransfer`, `FilesSection` | `toFixed(1)`, "0 Bytes" |
+| `useChatSettings` | always megabytes, rounded |
+| `debug-formatter` | *not a size formatter at all* — it formats byte ARRAYS |
+
+The first two are the same feature: a transfer bubble and the progress line
+beside it showed the same file as "1.5 MB" and "1.46 MB". `debug-formatter`'s
+was a different function wearing the same name, which is how a grep for the
+formatter stops being a way to find them. `useChatSettings`' is deliberate —
+it labels a limit the user set in megabytes, and "1 GB" beside a slider marked
+in MB reads as a different setting — so it is now `formatSizeLimit`, named for
+what it does.
+
+One `formatBytes` in `lib/format-bytes`, one decimal place. It also fixes two
+things every copy had: a negative or NaN size rendered as "NaN undefined", and
+a byte count showed a fractional part ("1.5 B" is not a size).
+
+Same treatment for `findNodeByPath` (three byte-identical copies, two of them
+exported from neighbouring files in the same directory and imported by their
+neighbours) and `toInternalServiceRequest` (twice, with the same body *and* the
+same doc comment — it is the blessed cast across the WASM nominal-type boundary,
+so it exists once precisely so a grep finds every crossing point).
+
+`one-implementation-per-helper.test.ts` allows a re-export — several modules
+keep their old name as a front — and forbids a second body. Its second test
+keeps each canonical home honest: a home that stopped defining the thing would
+make the rule vacuous for that name, silently. Controls: re-forking fails the
+first, changing the home's declaration form fails the second.
+
+Also: "Connection Type: P2P Encrypted" in chat settings was a constant under a
+label that reads as live status — the same string whether the peer is connected,
+offline, or queueing through ILM. Relabelled to the property of the channel it
+actually states.

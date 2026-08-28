@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { formatBytes } from '@/lib/format-bytes';
 import type { FileTransferMode } from '@/types/messaging-layer';
 import { fileTransferService } from '@/lib/file-transfer';
 import { MAX_BYTE_CONTENTS_SIZE_BYTES } from '@/lib/file-transfer/send-operations';
@@ -37,13 +38,6 @@ export function useFileTransfer({
     MAX_BYTE_CONTENTS_SIZE_BYTES
   );
 
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
 
   const handleRemoveFile = () => {
     setSelectedFile(null);

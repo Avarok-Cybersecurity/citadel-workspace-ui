@@ -8,7 +8,9 @@ const SAMPLE_ENDS_COUNT = 5;
 /**
  * Format byte arrays for debug output, showing only first and last few bytes
  */
-function formatBytes(bytes: number[] | Uint8Array): string {
+// Named for what it does. It shared a name with the byte-SIZE formatter while
+// formatting byte ARRAYS for debug output -- two unrelated jobs, one grep.
+function formatByteArray(bytes: number[] | Uint8Array): string {
   const len = bytes.length;
   if (len <= SAMPLE_ENDS_COUNT * 2) {
     return `{BytesLike(len: ${len}, values: [${Array.from(bytes).join(', ')}])}`;
@@ -25,7 +27,7 @@ function formatBytes(bytes: number[] | Uint8Array): string {
  */
 function formatBytesMap(map: Record<string, number[] | Uint8Array>): string {
   const entries = Object.entries(map).map(([key, value]) => {
-    return `(K: ${key}, V: ${formatBytes(value)})`;
+    return `(K: ${key}, V: ${formatByteArray(value)})`;
   });
   
   return `{MapLike: ${entries.join(', ')}}`;
@@ -48,7 +50,7 @@ export function formatForDebug(obj: unknown): unknown {
   if (Array.isArray(obj)) {
     // Check if it's a byte array (all elements are numbers 0-255)
     if (obj.length > 0 && obj.every(v => typeof v === 'number' && v >= 0 && v <= 255)) {
-      return formatBytes(obj);
+      return formatByteArray(obj);
     }
     return obj.map(item => formatForDebug(item));
   }
@@ -85,7 +87,7 @@ export function formatForDebug(obj: unknown): unknown {
       }
       // Special handling for known byte fields
       else if (shouldFormatAsBytes(key, value)) {
-        formatted[key] = formatBytes(value as number[]);
+        formatted[key] = formatByteArray(value as number[]);
       }
       // Special handling for known map fields with byte values
       else if (shouldFormatAsBytesMap(key, value)) {

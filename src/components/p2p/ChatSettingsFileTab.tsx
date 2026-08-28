@@ -17,7 +17,7 @@ interface ChatSettingsFileTabProps {
   maxFileSizeMb: number;
   revfsQuotaMb: number;
   defaultMaxMb: number;
-  formatBytes: (bytes: number) => string;
+  formatSizeLimit: (bytes: number) => string;
   onAutoAcceptChange: (enabled: boolean) => Promise<void>;
   onMaxFileSizeChange: (values: number[]) => Promise<void>;
   onTransferModeChange: (mode: TransferModePreference) => Promise<void>;
@@ -27,7 +27,7 @@ interface ChatSettingsFileTabProps {
 
 export function ChatSettingsFileTab({
   peerName, activeFileTab, setActiveFileTab, settings,
-  maxFileSizeMb, revfsQuotaMb, defaultMaxMb, formatBytes,
+  maxFileSizeMb, revfsQuotaMb, defaultMaxMb, formatSizeLimit,
   onAutoAcceptChange, onMaxFileSizeChange, onTransferModeChange,
   onAllowRevfsChange, onRevfsQuotaChange,
 }: ChatSettingsFileTabProps) {
@@ -107,7 +107,7 @@ export function ChatSettingsFileTab({
           <Slider id="max-file-size-to-accept" value={[maxFileSizeMb]} onValueChange={onMaxFileSizeChange}
             max={defaultMaxMb} min={1} step={1} className="w-full" data-testid="max-file-size-slider" />
           <p className="text-xs text-muted-foreground">
-            Server default: {formatBytes(FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES)}
+            Server default: {formatSizeLimit(FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES)}
           </p>
         </div>
 
@@ -121,7 +121,7 @@ export function ChatSettingsFileTab({
         <ChatSettingsRemoteTab
           peerName={peerName} settings={settings}
           revfsQuotaMb={revfsQuotaMb} defaultMaxMb={defaultMaxMb}
-          formatBytes={formatBytes} onAllowRevfsChange={onAllowRevfsChange}
+          formatSizeLimit={formatSizeLimit} onAllowRevfsChange={onAllowRevfsChange}
           onRevfsQuotaChange={onRevfsQuotaChange}
         />
       </TabsContent>

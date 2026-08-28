@@ -19,14 +19,10 @@ export function getFileIcon(fileType: string): React.ReactNode {
   return <File className="h-5 w-5" />;
 }
 
-/** Formats a byte count into a human-readable string (e.g., "1.5 MB"). */
-export function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
+// Re-exported, not reimplemented. This copy used toFixed(1) while the transfer
+// lifecycle's used toFixed(2), so a bubble and the progress line beside it
+// showed the same file at two different sizes.
+export { formatBytes } from '@/lib/format-bytes';
 
 /** Returns the status icon, text, and action flags for a given transfer state. */
 export function getStatusContent(state: string, isOwn: boolean, message: P2PMessage): StatusContent {

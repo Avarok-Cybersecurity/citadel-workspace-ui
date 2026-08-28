@@ -7,20 +7,13 @@ import {
   FileImage,
   FileCode,
 } from "lucide-react";
-import type { RevfsNode } from "@/types/revfs-types";
 import { RevfsFileState } from "@/types/revfs-types";
 
 export type SortField = 'name' | 'date' | 'size' | 'type';
 export type SortDirection = 'asc' | 'desc';
 
-export function findNodeByPath(tree: RevfsNode, path: string): RevfsNode | null {
-  if (tree.path === path) return tree;
-  for (const child of tree.children ?? []) {
-    const found = findNodeByPath(child, path);
-    if (found) return found;
-  }
-  return null;
-}
+// One implementation, beside its siblings in lib/revfs. There were three.
+export { findNodeByPath } from '@/lib/revfs/tree-operations';
 
 export function getFileIcon(fileName: string) {
   const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
@@ -31,13 +24,7 @@ export function getFileIcon(fileName: string) {
   return FileText;
 }
 
-export function formatSize(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
+export { formatBytes as formatSize } from '@/lib/format-bytes';
 
 export const stateConfig: Record<RevfsFileState, { icon: typeof Monitor; color: string; title: string }> = {
   [RevfsFileState.Hosted]: { icon: Monitor, color: 'text-muted-foreground', title: 'Hosted (stored for peer)' },

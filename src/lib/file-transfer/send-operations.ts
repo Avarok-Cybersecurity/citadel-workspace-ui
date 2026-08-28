@@ -7,6 +7,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { formatBytes } from '../format-bytes';
 import { websocketService } from '../websocket-service';
 import type { FileSource } from './io-router-types';
 import type { SendFileParams, SendFileResult, CancelTransferParams } from './io-router-types';
@@ -28,11 +29,6 @@ import { TIMEOUT } from '../timeout-constants';
  */
 export const MAX_BYTE_CONTENTS_SIZE_BYTES = 2 * 1024 * 1024; // 2 MiB
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 interface SendFileSuccessResponse {
   cid: bigint;

@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { findNodeByPath } from '@/lib/revfs/tree-operations';
 import type { RevfsNode } from '@/types/revfs-types';
 
 export type SelectMode = 'replace' | 'toggle' | 'range';
@@ -19,15 +20,6 @@ interface UseVFSSelectionResult {
   isSelected: (path: string) => boolean;
   selectionCount: number;
   getSelectedNodes: (tree: RevfsNode) => RevfsNode[];
-}
-
-function findNodeByPath(tree: RevfsNode, path: string): RevfsNode | null {
-  if (tree.path === path) return tree;
-  for (const child of tree.children ?? []) {
-    const found = findNodeByPath(child, path);
-    if (found) return found;
-  }
-  return null;
 }
 
 export function useVFSSelection(): UseVFSSelectionResult {

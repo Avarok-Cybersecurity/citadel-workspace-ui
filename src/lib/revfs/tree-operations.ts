@@ -29,6 +29,7 @@ export {
   flipFileState,
   flipNodeStates,
 } from './tree-queries';
+export { findNodeByPath } from './find-node-by-path';
 
 // Mutations
 export {
