@@ -359,7 +359,16 @@ export async function acceptP2PRequest(
           await sleep(500);
           return true;
         } else {
-          console.log(`  ✗ Accept button not found in modal`);
+          // Say WHICH thing is missing. "Accept button not found in modal"
+          // read as "the request never arrived" for as long as the modal's
+          // button simply had no testid, and sent four reconnection legs
+          // looking at the P2P layer for a defect that was in the markup.
+          const rowCount: number = await page.getByTestId('peer-accept').count();
+          console.log(
+            `  ✗ No [data-testid="peer-accept"] inside the open modal ` +
+              `(${rowCount} on the page). The modal is up; either it lists no ` +
+              `requests, or its accept control is not addressable.`,
+          );
           await takeScreenshot(page, `${username}_no_accept_button`);
           if (uxTracker) {
             uxTracker.log('major', 'functional', 'Accept button not found in pending requests modal');

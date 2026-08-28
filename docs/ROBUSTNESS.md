@@ -13567,3 +13567,37 @@ so actionability does its job.
 
 The menu items carry testids now, so the helper presses an identity rather than
 the word "Settings". Five call sites across four specs, 156 → **149**.
+
+## Round 261 — five CI legs on a button with no name
+
+The reconnection legs all die the same way, twenty times each:
+
+```
+✗ Accept button not found in modal
+✗ Accept button not found in modal
+   ... × 20
+✗ No pending P2P request badge found after 20 attempts
+```
+
+That message reads as "the peer request never arrived", and it sent this
+investigation at the P2P layer more than once. It was not true. The badge was
+found. The modal opened — the helper checks its title first, and got past it.
+The modal was rendering the request correctly the whole time.
+
+`peer-accept` lived on the peer LIST's accept button. The sidebar badge opens
+`PendingRequestsModal`, a different component with its own Accept button, which
+never had a testid at all. The helper opened the right modal and reached for a
+handle that surface has never carried.
+
+Five legs — `reconnect-one-c2s`, `reconnect-both-c2s`, `reconnect-p2p-one-c2s`,
+`reconnect-p2p-only`, `peer-group` — on a missing attribute.
+
+Both buttons named, and a test that renders the real modal with a real pending
+request, plus a positive control on the empty state so it cannot pass by
+rendering an Accept button for a request that does not exist.
+
+**And the message now says what is actually missing.** It reports the selector
+and how many of them are on the page, so "the modal is up but its accept control
+is not addressable" cannot be mistaken again for "nothing arrived". A diagnostic
+that names the wrong layer costs more than no diagnostic: it is confidently
+wrong, and it is believed.

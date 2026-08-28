@@ -151,6 +151,14 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                       className="border-success text-success-emphasis hover:bg-success/90 hover:text-success-foreground"
                       onClick={() => handleAccept(request)}
                       disabled={processingId === request.id}
+                      // The same handle the peer list's accept button carries.
+                      // This modal is the ONLY surface a badge click reaches,
+                      // and it never had one -- so every spec that opened it
+                      // and reached for `peer-accept` found nothing, retried
+                      // twenty times and gave up. Four reconnect legs and the
+                      // peer-group leg died here, on a modal that was rendering
+                      // correctly the whole time.
+                      data-testid="peer-accept"
                     >
                       {processingId === request.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -164,6 +172,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                       className="border-destructive text-destructive hover:bg-destructive/90 hover:text-destructive-foreground"
                       onClick={() => handleDecline(request)}
                       disabled={processingId === request.id}
+                      data-testid="peer-decline"
                     >
                       Decline
                     </Button>
