@@ -10743,3 +10743,38 @@ scan is only worth reporting once the scan has been shown capable of a dirty one
 The gate also asserts it reached every screen, because a scan that reached none
 is a clean run over nothing — the failure mode this repository keeps meeting
 from new angles.
+
+## Round 195 — the contrast technique that stopped at one token family
+
+`check-destructive-contrast.mjs` computes WCAG ratios from the token
+definitions rather than from a rendered page, and it found a real defect doing
+it: `--destructive` used as body text was 3.72:1 on `--background`, under the
+floor, in every inline error in the app.
+
+The technique worked, and then stopped at the family it was written for. Ten
+other pairings — foreground, card, popover, surface, primary, secondary, muted,
+accent — went unmeasured in both themes. Seventh never-propagated fix.
+
+All twenty-two clear AA today, so this is a lock rather than a repair. It is
+worth locking because of what one of them looks like up close:
+
+```
+dark   --destructive-foreground on --destructive   4.53:1  (needs 4.50)
+```
+
+Three hundredths of margin. A designer nudging that token's lightness by one
+percent takes white-on-red below AA everywhere it is used, and nothing would
+say so — axe measures only what is rendered during a scan, and a destructive
+button is not on the pre-auth screens.
+
+Muted foreground is measured against `--background` and `--card` as well as its
+own `--muted`, because that is where it is actually read: secondary text sits on
+the page and on cards far more often than on a muted block. A gate that checked
+only the token's namesake surface would have called the most common pairing in
+the product unexamined and reported a pass.
+
+Controls: nudging `--muted-foreground` twenty points lighter fails three light-
+theme pairings by name; adding a third declaration of a token fails the
+positional read outright rather than silently measuring the wrong colours.
+
+Preflight is 34 checks.
