@@ -81,6 +81,11 @@ async function main() {
   }
 
   const browser = await chromium.launch();
+  // A throw part-way used to lose every result gathered before it: the run died
+  // with a Playwright stack trace and printed no table, so a genuine failure
+  // recorded earlier was invisible. A check that reports nothing when it breaks
+  // has failures indistinguishable from its own infrastructure.
+  let crashed = null;
   try {
     // 375 was the only width measured, described as "the smallest widely-used
     // phone". It is not: 360 is the most common Android width and 320 is the
@@ -161,10 +166,17 @@ async function main() {
 
     await context.close();
     }
+  } catch (error) {
+    crashed = error instanceof Error ? error.message.split('\n')[0] : String(error);
   } finally {
     await browser.close();
     preview.kill();
   }
+
+  if (crashed) {
+    record('the check ran to completion', false, crashed);
+  }
+
 
   const width = Math.max(...results.map((r) => r.name.length));
   console.log(`\n  Mobile layout — 375x667, ${ORIGIN} (production bundle)\n`);

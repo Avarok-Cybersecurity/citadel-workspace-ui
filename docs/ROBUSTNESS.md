@@ -11727,3 +11727,40 @@ indistinguishable from its infrastructure, which is where this whole campaign
 started.
 
 Three consecutive clean runs after the change.
+
+## Round 220 — propagating round 219's fix before it becomes another entry
+
+Round 219 made `check-agent-down` keep its results when it crashes. Five other
+browser gates had the same shape, and the discipline this campaign keeps
+recording says the next step is to carry the fix rather than to write the entry
+about not having carried it.
+
+| gate | before | after |
+|---|---|---|
+| `check-accessibility` | lost everything on a throw | records the crash, prints the table |
+| `check-mobile-layout` | lost everything | records |
+| `check-reduced-motion` | lost everything | records |
+| `check-pwa-update` | lost everything | records |
+| `check-pwa-offline` | already crash-safe | — |
+| `check-production-image` | already crash-safe | — |
+
+Two of six already did it, which is the usual shape here: the right thing was
+done once and not made general.
+
+Verified by forcing a crash into the accessibility gate part-way through its
+surface list:
+
+```
+  join/profile with a validation error: no serious or critical violations  ok
+  the check ran to completion                       FAIL  locator.waitFor: Timeout 2000ms
+  1 accessibility check(s) failed.
+```
+
+Every assertion gathered before the fault is still printed, and the fault is
+named as its own failed check rather than as a stack trace.
+
+One `.catch(() => {})` pair survives, in the animation settle:
+`getAnimations().map(a => a.finished.catch(...))`. An animation cancelled
+mid-flight rejects, and that is normal — it is a swallow of an expected
+rejection, not of a step failure. Left, and worth distinguishing: the objection
+is never to `catch`, it is to catching the thing you were testing.

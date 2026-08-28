@@ -65,6 +65,11 @@ async function main() {
   }
 
   const browser = await chromium.launch();
+  // A throw part-way used to lose every result gathered before it: the run died
+  // with a Playwright stack trace and printed no table, so a genuine failure
+  // recorded earlier was invisible. A check that reports nothing when it breaks
+  // has failures indistinguishable from its own infrastructure.
+  let crashed = null;
   try {
     // A phone viewport, because that is where a layout runs out of room and
     // starts producing the overlaps and clipped labels axe can see.
@@ -312,10 +317,17 @@ async function main() {
     record('every screen was reached', scanned === screens.length, `${scanned}/${screens.length}`);
 
     await context.close();
+  } catch (error) {
+    crashed = error instanceof Error ? error.message.split('\n')[0] : String(error);
   } finally {
     await browser.close();
     preview.kill();
   }
+
+  if (crashed) {
+    record('the check ran to completion', false, crashed);
+  }
+
 
   const width = Math.max(...results.map((r) => r.name.length));
   console.log(`\n  Accessibility — ${ORIGIN} (production bundle, 375px)\n`);

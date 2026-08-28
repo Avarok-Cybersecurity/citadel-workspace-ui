@@ -86,6 +86,11 @@ async function main() {
   const context = await browser.newContext();
   const page = await context.newPage();
 
+  // A throw part-way used to lose every result gathered before it: the run died
+  // with a Playwright stack trace and printed no table, so a genuine failure
+  // recorded earlier was invisible. A check that reports nothing when it breaks
+  // has failures indistinguishable from its own infrastructure.
+  let crashed = null;
   try {
     await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
 
@@ -232,10 +237,16 @@ async function main() {
       activated,
       activated ? '' : 'the new shell never became live - the prompt is cosmetic',
     );
+  } catch (error) {
+    crashed = error instanceof Error ? error.message.split('\n')[0] : String(error);
   } finally {
     await browser.close();
     server.close();
     await rm(root, { recursive: true, force: true });
+  }
+
+  if (crashed) {
+    record('the check ran to completion', false, crashed);
   }
 
   const width = Math.max(...results.map((r) => r.name.length));
