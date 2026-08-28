@@ -48,7 +48,20 @@ export async function closeAnyModals(page: Page, maxAttempts = 5): Promise<void>
 
     if (await cancelBtn.isVisible().catch(() => false)) {
       console.log('  closeAnyModals: Clicking Cancel/Close button');
-      await cancelBtn.click();
+      // The click may LOSE ITS TARGET, and that is a success, not a failure.
+      //
+      // Modals here animate in and out, so the button is mid-transform when
+      // this runs. Playwright waits for stability, retries, and if the dialog
+      // finishes closing on its own the element detaches — at which point it
+      // retried for the rest of its thirty seconds and then threw, out of a
+      // HELPER, killing whichever spec called it. Measured in CI:
+      //
+      //   element is not stable / element was detached from the DOM, retrying
+      //   at closeAnyModals ... at createAccount ... at runTest
+      //
+      // A short budget and a swallowed rejection: the loop's own check decides
+      // whether a modal is still there, and that check is the one that matters.
+      await cancelBtn.click({ timeout: 3_000 }).catch(() => {});
       await sleep(500);
       continue;
     }
@@ -313,7 +326,10 @@ export async function dismissAllToasts(page: Page, timeout = 5000): Promise<void
     // Try clicking dismiss buttons
     const dismissBtn = page.locator('[data-sonner-toast] button[data-dismiss], [data-radix-toast-viewport] button[aria-label*="close"]').first();
     if (await dismissBtn.isVisible().catch(() => false)) {
-      await dismissBtn.click();
+      // Same reasoning as closeAnyModals: a toast dismisses itself on a timer,
+      // so the button this just found may be gone before the click lands. The
+      // loop's own count is what decides whether any are left.
+      await dismissBtn.click({ timeout: 3_000 }).catch(() => {});
     }
 
     await sleep(500);

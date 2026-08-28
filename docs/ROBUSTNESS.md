@@ -13102,3 +13102,34 @@ exception and is counted anyway. The hybrid worth moving those to is
 `[data-testid="peer-row"]:has-text(name)`: structure by testid, identity by
 content. It still counts here, because it still contains the words, and the
 baseline is where that judgement is recorded rather than hidden in a regex.
+
+## Round 249 — a helper died because the thing it was closing closed itself
+
+`test:directory` failed inside `createAccount`, which is to say inside a helper
+that most of the suite calls:
+
+```
+locator.click: Timeout 30000ms exceeded.
+  waiting for locator('… button:has-text("Cancel") …')
+  attempting click action
+    element is not stable — retrying
+    element was detached from the DOM, retrying
+at closeAnyModals … at createAccount … at runTest
+```
+
+The modal was closing while the helper tried to close it. Playwright waits for
+stability, retries, and when the dialog finished on its own the element
+detached — so it kept retrying for the remaining thirty seconds and then threw,
+out of a helper, taking the spec with it.
+
+The helper's own loop already decides whether a modal is still there. The click
+is an **attempt**, not an assertion, and an attempt that loses its target has
+succeeded: the modal is gone, which is what was wanted. Both clicks in
+`lib/modals.ts` — the modal's Cancel and a toast's dismiss, which auto-dismisses
+on a timer for the same reason — now carry a three-second budget and shrug off
+the rejection. Verified against the built app by clicking a dialog's Cancel the
+instant it appears: closed, 824ms, no throw.
+
+`check-helpers-survive-a-vanishing-target.mjs` keeps the third one honest. Specs
+are deliberately exempt: a spec's click IS its assertion, and one that cannot
+land is a failure worth reporting. A helper's click is housekeeping.
