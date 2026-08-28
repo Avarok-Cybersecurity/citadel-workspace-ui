@@ -11613,3 +11613,41 @@ one was caught by checking the negative case, and none by reading the output.
 
 The corrected rule is now a guard, passing over the whole tree, with a control
 that fails on a one-line clickable div.
+
+## Round 217 — the selects announced their value, not their purpose
+
+The static sweep that produced round 216's false positives also named the Radix
+`Select` triggers. Measuring what a screen reader gets:
+
+```
+Theme:   { ariaLabel: null, labelledBy: null, contents: "Default" }
+Privacy: { ariaLabel: null, labelledBy: null, contents: "Connections" }
+```
+
+Radix renders a select trigger as `<button role="combobox">`, and `htmlFor`
+labels only labelable elements — so the conventional `<Label
+htmlFor="who-can-message-you">` beside `<SelectTrigger id="who-can-message-you">`
+names nothing, and the accessible name falls back to the trigger's **contents**,
+which is the current value.
+
+So the privacy control announced itself as *"Connections"* and the appearance one
+as *"Default"*. A screen-reader user hears the value instead of what it controls,
+and the name **changes when the value does** — there is nothing stable to refer
+to. That is also why round 212's duplicate-name rule flagged "Connections" twice:
+one of them was a value wearing a name.
+
+axe passes all of this, because a name computed from contents is still a name.
+What it cannot see is that the name is the wrong *thing*.
+
+Identical to round 210's Font Size slider, in a different primitive — a Radix
+widget whose interactive element is a button, beside a label that HTML will not
+associate. Fixed in `ui/select.tsx` by **looking up the existing label** rather
+than adding a prop to twelve call sites: the markup is already correct and
+conventional, and only the association is missing.
+
+After: *"Sidebar Width"* and *"Who Can Message You"*.
+
+The control reverts the lookup and fails four surfaces by name, including
+`join/security` with *"Standard"* and *"Best Effort Secrecy"* — two more selects
+on the sign-up path that were announcing their values, and that nothing had
+looked at.

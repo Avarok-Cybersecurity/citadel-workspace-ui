@@ -202,6 +202,30 @@ async function main() {
       const missed = [...new Set(unreachable.expected.filter((e) => !reached.has(e)))];
       record(`${name}: every control is reachable by keyboard`, missed.length === 0, missed.join(' | '));
 
+      // A combobox must be named by its LABEL, not by its value.
+      //
+      // Radix renders a select trigger as `<button role="combobox">`, and
+      // `htmlFor` labels only labelable elements -- so the conventional
+      // `<Label htmlFor="x">` beside `<SelectTrigger id="x">` names nothing and
+      // the accessible name falls back to the trigger's contents, which is the
+      // current value. Measured on Settings: "Connections" and "Default".
+      //
+      // axe passes that, because a name computed from contents is still a name.
+      // What it cannot see is that the name is the wrong THING, and that it
+      // changes when the value does, so there is nothing stable to refer to.
+      const unnamedSelects = await page.evaluate(() => {
+        const scope = document.querySelector('[role="dialog"]') ?? document.body;
+        return [...scope.querySelectorAll('[role="combobox"]')]
+          .filter((el) => el.offsetParent !== null)
+          .filter((el) => !el.getAttribute('aria-label') && !el.getAttribute('aria-labelledby'))
+          .map((el) => `${el.id || '(no id)'}: "${(el.textContent || '').trim().slice(0, 24)}"`);
+      });
+      record(
+        `${name}: every select is named by its label`,
+        unnamedSelects.length === 0,
+        unnamedSelects.join('; '),
+      );
+
       // Two controls with the same accessible name, in the same view.
       //
       // axe does not report it: each button HAS a name, which is all
