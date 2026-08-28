@@ -6,6 +6,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { recordWithoutLosingIt } from './record-incoming';
 import { instanceManager } from '../multi-instance';
 import { debugLog } from '@/lib/debug-config';
 import { OUTGOING_POLL_INTERVAL_MS } from './constants';
@@ -139,31 +140,9 @@ class PeerRegistrationStore {
     if (!request) return;
     this.pendingRequests.push(request);
     debugLog('PeerRegistrationStore', '[P2P] Added pending request', request);
-
-    // The request is SHOWN whether or not it can be stored.
-    //
-    // These two awaits used to sit in front of `emitUpdate` unguarded, so a
-    // storage failure threw out of this method and the update never ran -- and
-    // the caller above logs and swallows. The request was already in
-    // `pendingRequests` at that point: somebody had asked to connect, the app
-    // knew, and nothing on screen said so. The badge is how a person learns a
-    // request exists at all, so it must not depend on a write succeeding.
-    //
-    // Persistence is for surviving a reload. Failing at that should not also
-    // mean failing to mention it.
-    try {
-      await persistPendingToLocalDB(this.pendingRequests, this.pendingKVRequests);
-    } catch (error) {
-      debugLog('PeerRegistrationStore', 'Could not persist pending requests; showing anyway:', error);
-    }
-
-    try {
-      const currentCid = await getCurrentSessionCid();
-      if (currentCid === request.cid) this.createNotificationForRequest(request);
-    } catch (error) {
-      debugLog('PeerRegistrationStore', 'Could not read the session cid; showing anyway:', error);
-    }
-
+    await recordWithoutLosingIt(request, this.pendingRequests, this.pendingKVRequests, (r) =>
+      this.createNotificationForRequest(r),
+    );
     await this.emitUpdate();
   }
 

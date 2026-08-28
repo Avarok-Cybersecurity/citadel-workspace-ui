@@ -17,11 +17,11 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const persist = vi.fn();
+const persist: ReturnType<typeof vi.fn> = vi.fn();
 
 vi.mock('../persistence', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../persistence')>()),
-  persistPendingToLocalDB: (...args: unknown[]) => persist(...args),
+  persistPendingToLocalDB: (...args: unknown[]): unknown => persist(...args),
 }));
 
 import { peerRegistrationStore } from '../service';
@@ -30,7 +30,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 
 /** Announcements seen while running `body`. */
 async function announcementsDuring(body: () => Promise<void>): Promise<number> {
-  let seen = 0;
+  let seen: number = 0;
   const onUpdate = (): void => { seen += 1; };
   eventEmitter.on('peer-requests:updated', onUpdate);
   await body();
@@ -44,7 +44,7 @@ describe('an incoming request', () => {
   });
 
   it('is announced when everything works', async () => {
-    const seen = await announcementsDuring(() =>
+    const seen: number = await announcementsDuring(() =>
       peerRegistrationStore.handleIncomingRequest({ cid: 1n, peer_cid: 2n, peer_username: 'grace' }),
     );
     expect(seen).toBeGreaterThan(0);
@@ -52,7 +52,7 @@ describe('an incoming request', () => {
 
   it('is announced even when it cannot be stored', async () => {
     persist.mockRejectedValue(new Error('Session unavailable to this connection'));
-    const seen = await announcementsDuring(() =>
+    const seen: number = await announcementsDuring(() =>
       peerRegistrationStore.handleIncomingRequest({ cid: 1n, peer_cid: 3n, peer_username: 'ada' }),
     );
     expect(seen).toBeGreaterThan(0);
