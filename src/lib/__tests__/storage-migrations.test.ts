@@ -3,6 +3,7 @@ import {
   DB_VERSION,
   MIGRATIONS,
   STORE_NAMES,
+  RETIRED_STORE_NAMES,
   runMigrations,
   missingStores,
 } from '../storage-migrations';
@@ -21,6 +22,7 @@ function fakeDb(existingStores: string[] = []) {
       [Symbol.iterator]: () => stores[Symbol.iterator](),
     },
     createObjectStore: vi.fn((n: string) => stores.add(n)),
+    deleteObjectStore: vi.fn((n: string) => stores.delete(n)),
     _stores: stores,
   };
 }
@@ -49,10 +51,24 @@ describe('migration list integrity', () => {
 });
 
 describe('runMigrations', () => {
-  it('creates every store on a fresh database', () => {
+  it('leaves a fresh database holding exactly the current stores', () => {
+    // Every step from 0, so this covers v1 creating six and v2 removing the
+    // four nothing ever used -- the property that matters is the END state
+    // matching the schema, not what any one step did.
     const db = fakeDb();
     runMigrations(db as never, 0, DB_VERSION, {} as never);
     expect([...db._stores].sort()).toEqual([...STORE_NAMES].sort());
+  });
+
+  it('removes the retired stores from a v1 database', () => {
+    const db = fakeDb([...STORE_NAMES, ...RETIRED_STORE_NAMES]);
+    runMigrations(db as never, 1, DB_VERSION, {} as never);
+    for (const name of RETIRED_STORE_NAMES) {
+      expect(db._stores.has(name)).toBe(false);
+    }
+    for (const name of STORE_NAMES) {
+      expect(db._stores.has(name)).toBe(true);
+    }
   });
 
   it('does nothing when the database is already current', () => {
@@ -137,7 +153,14 @@ describe('missingStores', () => {
   });
 
   it('names the stores a migration forgot to create', () => {
-    expect(missingStores(['keyValue', 'sessions'])).toContain('messages');
-    expect(missingStores(['keyValue', 'sessions'])).toContain('peers');
+    expect(missingStores(['keyValue'])).toContain('tabContext');
+    expect(missingStores([])).toEqual([...STORE_NAMES]);
+  });
+
+  it('does not ask for a retired store back', () => {
+    // missingStores drives a hard failure inside the upgrade transaction. If it
+    // still named the v1 stores, v2 would delete them and then abort the very
+    // upgrade that deleted them, on every open, forever.
+    expect(missingStores([...STORE_NAMES])).toEqual([]);
   });
 });

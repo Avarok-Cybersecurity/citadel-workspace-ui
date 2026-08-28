@@ -1,11 +1,18 @@
 /**
  * IndexedDB schema versioning.
  *
- * The app persists sessions, conversations, peer registrations and instance
- * state locally, and ships as an installable PWA — so a returning user always
- * arrives with a database created by whatever version they last ran. Changing
- * the schema is therefore not a code change, it is a data migration against
- * users we cannot coordinate with.
+ * The app persists a small amount of state in the browser and ships as an
+ * installable PWA — so a returning user always arrives with a database created
+ * by whatever version they last ran. Changing the schema is therefore not a
+ * code change, it is a data migration against users we cannot coordinate with.
+ *
+ * Note what is NOT here. Conversations, peer registrations and session records
+ * live in the INTERNAL SERVICE's LocalDB, not in the browser — deliberately,
+ * because that history needs the local agent and would otherwise imply it
+ * survives on the browser alone. This file's header used to claim all four,
+ * and v1 created a store for each: `sessions`, `messages`, `peers` and
+ * `instances` were created for every user and, across the whole history of the
+ * repository, never written to once. v2 drops them.
  *
  * The previous `upgrade(db)` handler took no version arguments and only ever
  * created missing stores. That is correct exactly once, at version 1. Bumping
@@ -31,19 +38,18 @@ import { debugLog, errorLog } from './debug-config';
  * Current schema version. Bump this and add a matching entry to MIGRATIONS in
  * the same commit — the test in storage-migrations.test.ts fails if they drift.
  */
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 export const DB_NAME = 'citadel-workspace';
 
 /** Every object store the current schema expects to exist. */
-export const STORE_NAMES = [
-  'keyValue',
-  'sessions',
-  'messages',
-  'peers',
-  'tabContext',
-  'instances',
-] as const;
+export const STORE_NAMES = ['keyValue', 'tabContext'] as const;
+
+/**
+ * Stores v1 created and nothing ever used. Kept named so v2's migration can
+ * remove them and so a future schema does not reintroduce one by accident.
+ */
+export const RETIRED_STORE_NAMES = ['sessions', 'messages', 'peers', 'instances'] as const;
 
 export type StoreName = (typeof STORE_NAMES)[number];
 
@@ -77,11 +83,33 @@ export const MIGRATIONS: Migration[] = [
     version: 1,
     description: 'Create the initial key-value, session, message, peer, tab and instance stores',
     run: (db, _tx) => {
-      for (const name of STORE_NAMES) {
+      // The v1 store list, spelled out rather than read from STORE_NAMES. A
+      // released migration must keep doing what it did when it was released:
+      // reading the current list would mean a user upgrading from v0 creates
+      // only today's stores, and then v2 tries to delete stores that were
+      // never made. Never edit a released step -- this is what that means in
+      // practice.
+      for (const name of ['keyValue', 'sessions', 'messages', 'peers', 'tabContext', 'instances']) {
         // Guarded because a database may exist from before migrations were
         // tracked, with some or all stores already present.
         if (!db.objectStoreNames.contains(name)) {
           db.createObjectStore(name as never);
+        }
+      }
+    },
+  },
+  {
+    version: 2,
+    description: 'Drop the session, message, peer and instance stores, which nothing ever used',
+    run: (db, _tx) => {
+      // Safe to delete rather than migrate: no commit in the history of this
+      // repository ever wrote to them, so no user can have data there. They
+      // were created on the assumption they would be used and were not, while
+      // the schema went on implying the browser held conversations and peer
+      // registrations that in fact live in the internal service.
+      for (const name of RETIRED_STORE_NAMES) {
+        if (db.objectStoreNames.contains(name)) {
+          db.deleteObjectStore(name);
         }
       }
     },

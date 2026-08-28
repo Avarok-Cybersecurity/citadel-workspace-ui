@@ -10022,3 +10022,44 @@ than everything: there is no account for those requests to belong to yet, and
 guessing is the bug.
 
 Two controls: flat keys fail 2 of 6, dropping the owner filter fails 3 of 6.
+
+## Round 176 — four object stores that nothing ever used
+
+The IndexedDB schema declared six object stores. Two are used.
+
+`sessions`, `messages`, `peers` and `instances` were created in every user's
+browser at v1 and — across the entire history of this repository, checked with
+`git log -S` — written to by **no commit, ever**. They were created on the
+assumption they would be used, and were not.
+
+The cost is not the empty stores. It is that the schema *asserted* something
+false to everyone who read it: that the browser holds conversations, peer
+registrations and session records. It does not. Those live in the internal
+service's **LocalDB**, deliberately — `message-pagination-store.ts` opens by
+saying so, because "IndexedDB" would imply history survives on the browser
+alone when in fact it needs the local agent. The migration file's own header
+repeated the false version.
+
+And the store list was written out **twice**: once as `STORE_NAMES` in
+`storage-migrations.ts`, once as a hand-copied union type in `storage-utils.ts`.
+Every place that knew the names knew them independently, which is precisely why
+four could sit unused with nothing able to notice. That union is now an import.
+
+v2 deletes the four. Safe rather than lossy, because no user can have data in a
+store nothing ever wrote to.
+
+The v1 step now spells out its six store names literally instead of reading
+`STORE_NAMES`. A released migration has to keep doing what it did when it was
+released: reading today's list would mean a user upgrading from v0 creates only
+today's stores, and then v2 deletes stores that were never made. "Never edit a
+released step" is stated in that file; this is what it means in practice, and
+the previous shape violated it the moment the list changed.
+
+`missingStores` needed the same care. It drives a hard failure inside the
+upgrade transaction, so had it gone on naming the retired stores, v2 would
+delete them and then abort the very upgrade that deleted them — on every open,
+forever. That has its own test.
+
+The guard is `every-store-is-used.test.ts`: a declared store must have a reader
+or a writer somewhere in `src/`. Adding `peers` back to the list fails it by
+name.

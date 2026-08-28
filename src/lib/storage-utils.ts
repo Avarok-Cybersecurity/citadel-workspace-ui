@@ -8,6 +8,7 @@
 import { openDB, IDBPDatabase, DBSchema } from 'idb';
 import { errorLog, warnLog } from './debug-config';
 import { DB_NAME, DB_VERSION, runMigrations, missingStores } from './storage-migrations';
+import type { StoreName } from './storage-migrations';
 
 // ============================================================================
 // Database Schema
@@ -15,7 +16,14 @@ import { DB_NAME, DB_VERSION, runMigrations, missingStores } from './storage-mig
 
 /**
  * Schema for the Citadel IndexedDB database.
- * All stores use string keys and support any value type (Structured Clone handles BigInt).
+ *
+ * All stores use string keys and support any value type (Structured Clone
+ * handles BigInt). There are two, and both are used. v1 declared six: the
+ * `sessions`, `messages`, `peers` and `instances` stores were created for every
+ * user and never written to by any commit in the history of this repository,
+ * while asserting to anyone reading the schema that the browser held
+ * conversations and peer registrations. Those live in the internal service's
+ * LocalDB. See storage-migrations.ts.
  */
 interface CitadelDBSchema extends DBSchema {
   /** Key-value store for general data (replaces localStorage) */
@@ -23,28 +31,8 @@ interface CitadelDBSchema extends DBSchema {
     key: string;
     value: unknown;
   };
-  /** Session data store */
-  sessions: {
-    key: string;
-    value: unknown;
-  };
-  /** Message/conversation data store */
-  messages: {
-    key: string;
-    value: unknown;
-  };
-  /** Peer registration data store */
-  peers: {
-    key: string;
-    value: unknown;
-  };
   /** Tab context data store (replaces sessionStorage) */
   tabContext: {
-    key: string;
-    value: unknown;
-  };
-  /** Instance management data store */
-  instances: {
     key: string;
     value: unknown;
   };
@@ -164,7 +152,10 @@ export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
 // Generic IndexedDB Operations
 // ============================================================================
 
-type StoreName = 'keyValue' | 'sessions' | 'messages' | 'peers' | 'tabContext' | 'instances';
+// Imported, not spelled out again. This was a hand-written copy of the list in
+// storage-migrations.ts -- a second source of truth for which stores exist, and
+// the reason four of them could sit unused without anything noticing: every
+// place that knew the names knew them independently.
 
 /**
  * Put a value into an IndexedDB store.
