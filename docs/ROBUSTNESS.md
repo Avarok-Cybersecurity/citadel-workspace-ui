@@ -8797,3 +8797,53 @@ contrast assertion kept pointing at the old one. Its `not.toMatch` would have
 passed forever against a file with no ring in it. The paired `toMatch` is what
 caught it — a negative assertion needs a positive one beside it, or it stops
 checking silently when the code moves.
+
+## Round 145 — verdicts nobody read, and assertions the code under test swallowed
+
+Continuing the audit of checks whose green survives the regression they guard.
+
+**The CID-routing set was pinned in one direction only.** The fixture-coverage
+test asserts every member has a shape fixture — so *adding* a member without one
+fails loudly. *Removing* one shrinks the set, every remaining fixture still
+extracts correctly (the extractor is type-agnostic), and nothing fails. Deleting
+`MediaFrameNotification` would have silently reinstated wrong-tab call delivery,
+which is the exact defect the set exists to prevent. The membership is now
+written out and compared, so removal fails and addition is a deliberate edit in
+two places. Control: dropping a member fails it.
+
+**An assertion inside the code under test's own callback is not an assertion.**
+The group-invite dedupe test asserted `toHaveLength(1)` inside the `setGroups`
+updater — which `applyGroupInvite` calls from inside its own try/catch, so the
+thrown assertion became a "Group Invitation Failed" toast and the test passed.
+Removing the dedupe left it green. The result is now captured and asserted after
+the call, plus an assertion that no failure was reported on the way — the shape
+that hid it. Control: removing the dedupe fails it.
+
+**A verdict printed to the console is not a check.** `chat-settings` computed a
+pass expression from ten booleans and printed nine more, among them the
+auto-accept toggle — the control for a recorded fix — which could print FAIL
+while the suite exited 0. All nine are now in the expression.
+`settings-controls` was worse: its persistence check, the entire point of
+closing and reopening the modal, existed only as `console.log("Settings
+persistence verified: false")` and never reached the results object at all. It
+is now a field and it is gated.
+
+**Three specs could not fail.** `peer-group` returned `true` when group creation
+produced no id — "Treating as PASS (feature not yet available)" — so deleting
+`CreateGroupDialog.tsx` turned a CI leg green; its catch also returned `true` on
+a browser crash, which tells us nothing about the feature and is the only signal
+anyone reads. `security-settings` returned `true` when the Reinforced option
+never appeared, on the reasoning that "the dropdown exists even if we can't
+change it" — in a function called `verifySecurityLevel`, where a dropdown whose
+options never render is a security setting the user cannot choose. All three now
+fail.
+
+> These three may turn an integration leg red. That is the point: the dialog
+> they excused exists, and has since the note was written.
+
+**And exemption staleness was checked in one direction.** An entry left
+`RECORDED_UNCONSUMED` when it gained a listener, but an entry whose *emitter*
+had gone sat there indefinitely — `workspace:created` and `workspace:error` are
+both type declarations with no emit anywhere — silently excusing a future
+zero-subscriber emit of the same name. Both directions are checked now, and both
+dead entries are gone.

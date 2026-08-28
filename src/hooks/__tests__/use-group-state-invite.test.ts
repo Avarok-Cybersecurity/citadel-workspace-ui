@@ -160,18 +160,30 @@ describe('applyGroupInvite', () => {
   });
 
   it('dedupes when a group with the same id already exists', async () => {
+    // The result is captured and asserted AFTER the call, not inside the
+    // updater. Asserting in there throws into applyGroupInvite's own
+    // try/catch, which turns the failure into a toast — so removing the dedupe
+    // left this test green while it reported "Group Invitation Failed".
+    let next: unknown[] | undefined;
     const setGroups = vi.fn((updater: (prev: unknown[]) => unknown[]) => {
-      const next = updater([{ id: 'g-dup' }]);
-      // The dedupe check inside applyGroupInvite means next === prev when the id matches
-      expect(next).toHaveLength(1);
+      next = updater([{ id: 'g-dup' }]);
     });
+
     await applyGroupInvite(
       { groupId: 'g-dup', groupName: 'X', inviterId: '5', inviterUsername: 'alice' },
       setGroups as unknown as (
         u: (prev: import('@/types/group').GroupConversation[]) => import('@/types/group').GroupConversation[],
       ) => void,
     );
+
     expect(setGroups).toHaveBeenCalledTimes(1);
+    expect(next, 'a duplicate invite must not add a second entry').toHaveLength(1);
+
+    // And it must not have reported a failure on the way — the shape that hid
+    // this in the first place.
+    expect(spies.toast).not.toHaveBeenCalledWith(
+      expect.objectContaining({ variant: 'destructive' }),
+    );
   });
 
   it('does NOT throw and does NOT fire a "Group Invitation" notification for a malformed payload', async () => {

@@ -476,7 +476,20 @@ async function runChatSettingsTest(): Promise<boolean> {
       results.chatSettings.innerFileTabs.standardVisible &&
       results.chatSettings.innerFileTabs.remoteStorageVisible &&
       results.chatSettings.transferModeToggle.browserOptionVisible &&
-      results.chatSettings.transferModeToggle.protocolOptionVisible;
+      results.chatSettings.transferModeToggle.protocolOptionVisible &&
+      // Printed but not gated, until now. Nine booleans below the fold reported
+      // PASS/FAIL to the console while the suite exited 0 regardless -- among
+      // them the auto-accept toggle, which is the control for a recorded fix.
+      // A verdict nobody reads is not a check.
+      results.chatSettings.transferModeToggle.toggleWorks &&
+      results.chatSettings.settingsToggle.autoAcceptVisible &&
+      results.chatSettings.settingsToggle.autoAcceptToggleWorks &&
+      results.chatSettings.outerTabs.generalContent &&
+      results.chatSettings.outerTabs.fileContent &&
+      results.chatSettings.outerTabs.advancedContent &&
+      results.chatSettings.outerTabs.statsContent &&
+      results.chatSettings.innerFileTabs.standardContent &&
+      results.chatSettings.innerFileTabs.remoteStorageContent;
 
     console.log('Account Creation:');
     console.log(`  User 1: ${results.accountCreation.user1 ? '✓ PASS' : '✗ FAIL'}`);

@@ -40,6 +40,14 @@ interface TestResults {
 
   // Persistence
   settingsReopen: boolean;
+  /**
+   * Whether the auto-reconnect choice survived close-and-reopen.
+   *
+   * This was a console.log and nothing else: the run printed "Settings
+   * persistence verified: false" and exited 0. Persistence is the entire point
+   * of reopening the modal, so it is the one result the step must produce.
+   */
+  settingsPersisted: boolean;
 }
 
 // ============================================================================
@@ -225,6 +233,7 @@ async function runTest(): Promise<boolean> {
     appearanceThemeToggle: false,
     privacyControls: false,
     settingsReopen: false,
+    settingsPersisted: false,
   };
 
   try {
@@ -324,8 +333,9 @@ async function runTest(): Promise<boolean> {
         await sleep(300);
         const autoReconnect = page.locator('#auto-reconnect').first();
         const persistedState = await autoReconnect.getAttribute('data-state').catch(() => null);
+        results.settingsPersisted = persistedState === 'checked';
         console.log(`  Auto-reconnect persisted state: "${persistedState}"`);
-        console.log(`  Settings persistence verified: ${persistedState === 'checked'}`);
+        console.log(`  Settings persistence verified: ${results.settingsPersisted}`);
       }
 
       await page.keyboard.press('Escape');
@@ -348,6 +358,7 @@ async function runTest(): Promise<boolean> {
       results.appearanceThemeToggle,
       results.privacyControls,
       results.settingsReopen,
+      results.settingsPersisted,
     ].every(Boolean);
 
     console.log(`\n  Account Created:           ${results.accountCreated ? 'PASS' : 'FAIL'}`);
@@ -357,6 +368,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  Theme Toggle:              ${results.appearanceThemeToggle ? 'PASS' : 'CHECK'}`);
     console.log(`  Privacy Controls:          ${results.privacyControls ? 'PASS' : 'CHECK'}`);
     console.log(`  Settings Reopen:           ${results.settingsReopen ? 'PASS' : 'CHECK'}`);
+    console.log(`  Settings Persisted:        ${results.settingsPersisted ? 'PASS' : 'FAIL'}`);
 
     harness.finalize(corePassed, results);
     return corePassed;

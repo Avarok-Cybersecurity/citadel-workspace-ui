@@ -59,6 +59,29 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     }
   });
 
+  it('routes exactly these notifications by cid, and no fewer', () => {
+    // The coverage check above is one-directional: it says every MEMBER has a
+    // fixture. REMOVING a member shrinks the set, every remaining fixture still
+    // extracts fine (the extractor is type-agnostic), and nothing fails —
+    // so deleting 'MediaFrameNotification' would silently reinstate wrong-tab
+    // call delivery, which is the exact defect this set exists to prevent.
+    //
+    // Written out rather than derived, so removing a member fails here and
+    // adding one is a deliberate edit in two places.
+    expect([...CID_ROUTED_NOTIFICATIONS].sort()).toEqual(
+      [
+        'FileTransferRequestNotification',
+        'FileTransferStatusNotification',
+        'FileTransferTickNotification',
+        'MediaFrameNotification',
+        'MediaGapNotification',
+        'MessageNotification',
+        'PeerConnectNotification',
+        'PeerRegisterNotification',
+      ].sort(),
+    );
+  });
+
   for (const type of Object.keys(SHAPES)) {
     it(`extracts target cid from ${type}`, () => {
       const msg = notification(type, SHAPES[type]);

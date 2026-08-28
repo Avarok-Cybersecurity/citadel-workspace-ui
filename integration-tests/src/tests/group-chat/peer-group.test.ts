@@ -500,10 +500,16 @@ async function runPeerGroupTest(userCount: number): Promise<boolean> {
     results.groupCreated = groupId !== null;
 
     if (!results.groupCreated) {
-      console.log('\n  SKIPPED: Peer group UI not yet implemented (CreateGroupDialog / GroupChatPage)');
-      console.log('  This test requires WASM bindings for groupCreate, groupInvite, groupMessage.');
-      console.log('  Treating as PASS (feature not yet available).\n');
-      return true; // Skip gracefully
+      // This used to `return true` -- "Treating as PASS (feature not yet
+      // available)". Deleting CreateGroupDialog.tsx made createPeerGroup return
+      // null, which took that branch, and the leg went green in CI. A spec that
+      // passes when the feature it tests is absent is not a test of anything.
+      //
+      // The dialog exists; it has since the note was written. If group creation
+      // fails now, that is a defect, and a red leg is the correct report.
+      console.error('\n  FAIL: group creation produced no group id.');
+      console.error('  CreateGroupDialog exists, so this is a real failure, not an absent feature.\n');
+      return false;
     }
 
     // ========== STEP 4: All Users Navigate to Group ==========
@@ -584,9 +590,12 @@ async function runPeerGroupTest(userCount: number): Promise<boolean> {
       errorMsg.includes('resource limit');
 
     if (isBrowserCrash && userCount >= 3) {
-      console.log('\n  Browser resource exhaustion for 3+ users (peer group UI not implemented yet)');
-      console.log('  Treating as PASS (feature not yet available).\n');
-      return true; // Skip gracefully
+      // Also used to return true. A browser that dies mid-run has told us
+      // nothing about the feature, and reporting that as a pass is worse than
+      // reporting nothing: it is the only signal anybody reads.
+      console.error('\n  FAIL: browser crashed or ran out of resources with 3+ users.');
+      console.error('  This is a real result about running three sessions, not an absent feature.\n');
+      return false;
     }
 
     return false;

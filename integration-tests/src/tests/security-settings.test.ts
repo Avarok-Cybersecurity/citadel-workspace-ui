@@ -139,8 +139,12 @@ async function verifySecurityLevelSelect(page: Page): Promise<boolean> {
       return changed;
     }
 
-    console.log('  Reinforced option not found in dropdown');
-    return true; // Dropdown exists even if we can't change it
+    // Returning true here meant "the dropdown exists even if we can't change
+    // it" -- but the function is called verifySecurityLevel, and a dropdown
+    // whose options never appear is a security setting the user cannot choose.
+    // Deleting every <option> would have passed.
+    console.error('  FAIL: the Reinforced option never appeared, so the level cannot be changed.');
+    return false;
   } catch (error) {
     console.error('  Error verifying Security Level:', error);
     return false;

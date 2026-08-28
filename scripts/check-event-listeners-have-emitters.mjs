@@ -79,8 +79,6 @@ const RECORDED_UNCONSUMED = new Map([
   ['node:types:loaded', 'node types are read synchronously from the store'],
   ['operation:deleted', 'no consumer; deletions are reflected by the node:* events'],
   ['server:shutdown', 'no consumer — a shutdown notice the UI never shows'],
-  ['workspace:created', 'the create flow awaits its response; this is a duplicate signal'],
-  ['workspace:error', 'errors surface through operation:error, which IS consumed'],
   ['p2p:channel-ready', 'readiness is polled by the auto-connect service, not awaited'],
   ['p2p:conversations-cleaned', 'diagnostic after a stale-conversation sweep'],
   ['p2p:open-conversation', 'no consumer — deep-linking into a conversation is not wired'],
@@ -225,6 +223,25 @@ for (const name of emitted) {
   }
 }
 
+// The OTHER direction of staleness, which was not checked at all.
+//
+// An entry is removed when it gains a listener. An entry whose EMITTER has gone
+// -- 'workspace:created' and 'workspace:error' are both type declarations with
+// no emit anywhere -- sat here indefinitely, and would have silently excused a
+// future zero-subscriber emit of the same name. Same for RECORDED_DEAD entries
+// whose listener has gone.
+const vanishedUnconsumed = [...RECORDED_UNCONSUMED.keys()].filter((n) => !emitted.has(n));
+const vanishedDead = [...RECORDED_DEAD.keys()].filter((n) => !listened.has(n));
+
+for (const name of vanishedUnconsumed) {
+  console.error(`\nVANISHED: '${name}' is in RECORDED_UNCONSUMED but nothing emits it any more.`);
+  console.error(`  Remove the entry rather than letting it excuse a future emit of that name.`);
+}
+for (const name of vanishedDead) {
+  console.error(`\nVANISHED: '${name}' is in RECORDED_DEAD but nothing subscribes to it any more.`);
+  console.error(`  Remove the entry rather than letting it excuse a future dead listener.`);
+}
+
 for (const name of unconsumed) {
   console.error(`\nUNHEARD EMIT: '${name}' is emitted but nothing subscribes to it.`);
   console.error(`  Either subscribe to it, stop emitting it, or add it to`);
@@ -235,7 +252,14 @@ for (const name of staleUnconsumed) {
   console.error(`  Remove the entry so a future regression fails.`);
 }
 
-if (dead.length === 0 && staleMarkers.length === 0 && unconsumed.length === 0 && staleUnconsumed.length === 0) {
+if (
+  dead.length === 0 &&
+  staleMarkers.length === 0 &&
+  unconsumed.length === 0 &&
+  staleUnconsumed.length === 0 &&
+  vanishedUnconsumed.length === 0 &&
+  vanishedDead.length === 0
+) {
   const n = listened.size - RECORDED_DEAD.size;
   console.log(
     `Every one of ${n} subscribed events has an emitter, and every emit has a ` +
