@@ -11764,3 +11764,41 @@ One `.catch(() => {})` pair survives, in the animation settle:
 mid-flight rejects, and that is normal — it is a swallow of an expected
 rejection, not of a step failure. Left, and worth distinguishing: the objection
 is never to `catch`, it is to catching the thing you were testing.
+
+## Round 221 — a green success toast on a failed registration
+
+Registering against an unreachable **workspace server** — the agent up, the
+server not, which is what a typo in the address produces — is handled well:
+
+```
+Connection Error   Could not reach the server. Please check the server address…
+```
+
+Three seconds, actionable, distinct from the agent-down wording, and the button
+is released. That half is right.
+
+Beside it, at the same moment:
+
+```
+Ready to work offline   Citadel has been installed and will now load without a connection.
+```
+
+Two notices side by side: one saying the connection failed, the other that a
+connection is not needed. And the second is a **success** toast, green, landing
+on an action that just failed — which on a first run reads as though something
+worked.
+
+The offline-ready notice fires when the service worker finishes precaching, and
+on a first run that is the same minute the user is filling in the form. It is a
+capability notice with **no deadline**, so it now waits for the screen to be
+quiet.
+
+Bounded, and still shown when the wait expires: the notice is true, it was only
+badly timed, and dropping it would trade a confusing message for a missing one —
+an error that never clears would otherwise silence the feature for the session.
+
+Six tests, two controls. Announcing regardless fails three of them; never giving
+up waiting fails the one that says it is eventually said anyway. The cancel path
+is covered too: the component that schedules this can unmount first, and a timer
+firing into a dead component is the other half of the listener leaks recorded in
+round 169.

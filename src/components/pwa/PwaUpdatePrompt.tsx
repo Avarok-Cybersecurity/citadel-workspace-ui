@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { announceWhenQuiet } from './announce-when-quiet';
 import { useToast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
 import { applyWaitingUpdate } from '@/lib/pwa/apply-waiting-update';
@@ -153,12 +154,19 @@ export function PwaUpdatePrompt() {
 
   useEffect(() => {
     if (!offlineReady) return;
-    toast({
-      title: 'Ready to work offline',
-      description: 'Citadel has been installed and will now load without a connection.',
-      variant: 'success',
+    // Held until the screen is quiet: this is a capability notice with no
+    // deadline, and it was landing beside "Could not reach the server" on a
+    // failed first-run registration -- a green success toast next to the error
+    // the user has to act on. See announce-when-quiet.
+    const cancel = announceWhenQuiet(() => {
+      toast({
+        title: 'Ready to work offline',
+        description: 'Citadel has been installed and will now load without a connection.',
+        variant: 'success',
+      });
     });
     setOfflineReady(false);
+    return cancel;
   }, [offlineReady, setOfflineReady, toast]);
 
   useEffect(() => {
