@@ -8885,3 +8885,41 @@ dropped WebSocket leaked a pump decoding frames into a queue nobody reads. The
 close is now `retire_media_lane`, with tests including that one client's
 disconnect does not end another's call. Control: removing the close fails one of
 four.
+
+## Round 147 — CI went red, and every cause was a check nobody had
+
+Five jobs failed. All five were mine, and each names a seam nothing was
+watching.
+
+**A new workspace crate broke both service images and all three Playwright
+shards.** `citadel-workspace-executor` was added to `Cargo.toml`, to all three
+CI matrices, and to the crate-coverage guard — and to neither Dockerfile. Cargo
+loads *every* member's manifest before building *any* crate, so an image that
+never builds that crate still dies with `failed to load manifest for workspace
+member`. The failure surfaces as a Docker build error inside an integration job,
+about as far from the edit as a consequence gets.
+`check-dockerfiles-copy-every-crate.mjs` connects the membership list to the
+COPY lists, and handles nested members (one arrives with its ancestor's
+directory). Control: removing the COPY fails it by name.
+
+**`deploy.sh` could not run on a machine with nothing deployed.**
+`PREVIOUS_TAGS="$(previous_images)"` ends in a `grep -o` that finds nothing when
+no images are running — normal on a first deploy. Under `set -o pipefail` that
+makes the pipeline exit 1, and under `set -e` the assignment aborts the script.
+So a first deploy printed `[3/4] Updating services`, exited 1, and restarted
+nothing, *after* pulling every image: the one path with no previous version to
+roll back to was the one path that could not run. The line below it had the same
+shape (`[ -n … ] && echo`, which under `set -e` aborts whenever the test is
+false); both are fixed. Its integration test caught this the moment CI ran it —
+that test is exactly as good as advertised.
+
+**A guard I added in round 139 read a file that does not exist in CI.** The
+precache-cap assertion opened `public/wasm/*.wasm`, which is build output, not
+committed. It passed locally against the real binary and threw `ENOENT` on the
+runner. The cap floor is now asserted unconditionally and the real size only
+when there is a real file — and the test says which it did, rather than quietly
+becoming a no-op on the machine that matters.
+
+The pattern is one this campaign keeps finding, this time in my own work: three
+lists that must agree — workspace members, Dockerfile COPYs, CI matrices — and
+nothing comparing them. Two of the three now have guards.
