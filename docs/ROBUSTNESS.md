@@ -11378,3 +11378,35 @@ fails `settings/Theme` by name.
 Worth noting what this says about the earlier round: `check-accessibility` was
 added in round 194 reporting **zero violations on four screens**, and that was
 true. The defect was not in what it measured — it was one click outside.
+
+## Round 211 — a scan that could not fail, caught before it shipped
+
+Round 210's lesson was that a clean scan is only as broad as its screen list. So
+three more surfaces went on the list: the create-account wizard's security and
+profile steps, and the profile step **with a validation error in it**. All three
+were already clean.
+
+The error-state surface almost shipped as a check that cannot fail.
+
+Dropping `aria-describedby` from the invalid field and orphaning its message —
+so a screen-reader user hears "invalid entry" with no idea what is wrong — left
+the axe scan **completely green**. Measured, not assumed: the control was run,
+did not fire, and that is the only reason it was noticed. axe checks names and
+roles; it does not check error ASSOCIATION.
+
+So the association is asserted directly on that surface: something must be
+marked invalid, it must describe an element, that element must exist, and it must
+have text. Two controls, and the second is the one that shapes the assertion —
+removing `aria-describedby` fails it with *"confirmPassword is invalid but
+describes nothing"*, while emptying the message does not, because React renders
+nothing at all when the error string is empty and there is then no invalid field
+to find. The check is honest about what it covers rather than claiming the
+second case.
+
+Thirteen surfaces, fourteen assertions, all backend-free.
+
+The pattern worth keeping from this round: **adding a surface to a scanner is not
+the same as adding a check.** A scan asserts what the scanner knows how to look
+for, and that set is narrower than "this screen is accessible". The three
+surfaces are still worth having — round 208's defect was exactly the kind axe
+does catch — but the property I actually cared about needed asserting by hand.

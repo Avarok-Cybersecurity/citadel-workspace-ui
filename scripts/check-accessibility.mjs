@@ -102,6 +102,32 @@ async function main() {
           await page.locator('[role="tab"]').filter({ hasText: tab }).first().click({ force: true });
         },
       ]),
+      // The wizard's later steps, which the four-surface list never reached.
+      // Round 208's defect was on a surface exactly like these: reachable in
+      // three clicks, scanned by nothing that runs without a backend, and
+      // broken by a change made somewhere else entirely.
+      ['join/security', async () => {
+        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.getByTestId('create-account-button').click({ force: true });
+        await page.waitForTimeout(900);
+        await page.locator('#serverAddress').fill('127.0.0.1:12349');
+        await page.locator('#password').fill('password123');
+        await page.locator('button[type="submit"]').first().click({ force: true });
+      }],
+      ['join/profile', async () => {
+        await page.locator('button').filter({ hasText: /^Next$/ }).last().click({ force: true });
+      }],
+      // The ERROR state, not just the empty form. Field errors are where
+      // `aria-invalid` and `aria-describedby` are either present or the user is
+      // told nothing they can act on — and an empty form proves neither.
+      ['join/profile with a validation error', async () => {
+        await page.locator('#fullName').fill('Probe');
+        await page.locator('#username').fill('probe1');
+        await page.locator('#password').fill('password123');
+        await page.locator('#confirmPassword').fill('different999');
+        await page.locator('button').filter({ hasText: /^Join$/ }).last().click({ force: true });
+        await page.waitForTimeout(1_200);
+      }],
       // Any unrouted path. Cheap, and it is the one screen a user reaches by
       // accident rather than on purpose.
       ['not-found', async () => {
@@ -117,6 +143,29 @@ async function main() {
       await page.waitForTimeout(1_200);
       const { violations } = await new AxeBuilder({ page }).withTags(WCAG).analyze();
       scanned += 1;
+
+      // axe does not check error ASSOCIATION.
+      //
+      // Dropping `aria-describedby` from an invalid field and orphaning its
+      // message leaves the scan completely green -- measured, not assumed. A
+      // screen-reader user then hears "invalid entry" with no idea what is
+      // wrong. So the association is asserted directly, on the one surface that
+      // has an error in it, rather than left to a scan that cannot see it.
+      if (name.includes('validation error')) {
+        const association = await page.evaluate(() => {
+          const field = document.querySelector('[aria-invalid="true"]');
+          if (!field) return { ok: false, why: 'nothing is marked invalid' };
+          const id = field.getAttribute('aria-describedby');
+          if (!id) return { ok: false, why: `${field.id} is invalid but describes nothing` };
+          const message = document.getElementById(id);
+          if (!message) return { ok: false, why: `${field.id} points at #${id}, which does not exist` };
+          const text = (message.textContent ?? '').trim();
+          return text.length > 0
+            ? { ok: true, why: text.slice(0, 40) }
+            : { ok: false, why: `#${id} is empty` };
+        });
+        record('the invalid field names its error', association.ok, association.why);
+      }
       const blocking = violations.filter((v) => BLOCKING.has(v.impact));
       record(
         `${name}: no serious or critical violations`,
