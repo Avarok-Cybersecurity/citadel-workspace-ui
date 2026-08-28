@@ -26,7 +26,8 @@
     "check:pwa-update": "node scripts/check-pwa-update.mjs",
     "check:reduced-motion": "node scripts/check-reduced-motion.mjs",
     "check:mobile": "node scripts/check-mobile-layout.mjs",
-    "check:a11y": "node scripts/check-accessibility.mjs"
+    "check:a11y": "node scripts/check-accessibility.mjs",
+    "check:agent-down": "node scripts/check-agent-down.mjs"
   },
   "dependencies": {
     "@avarok/citadel-protocol-types": "^0.14.0",

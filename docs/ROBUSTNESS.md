@@ -11093,3 +11093,45 @@ Verified in the browser against the dead port:
 banner still explains it: true
 app usable — Sign In reaches the form: true
 ```
+
+## Round 204 — the first-run state, made a gate
+
+The most common state a new user is in — the app installed, the agent not
+started yet — and nothing tested it. `vite preview` proxies `/ws` to
+`AGENT_PORT`, so pointing that at a dead port reproduces it exactly, with no
+stack and no account.
+
+`check-agent-down.mjs` asserts the recovery path rather than the failure:
+
+| | |
+|---|---|
+| the user is told | banner appears |
+| in words about the agent | "agent", not "connection lost" — naming the local process they can restart is the difference between an actionable message and one that sends them to check their wifi |
+| a dialog offers a way forward | the download hint and a Retry |
+| dismissing it makes it stay dismissed | the round-203 defect, held for 8 seconds — several retry cycles |
+| the banner still explains it afterwards | dismissal must not leave the state unexplained |
+| the app is still usable | sign-in reachable, so they can read Settings rather than stare at a modal |
+
+**The check proves its own premise before measuring.** If anything is listening
+on the port it points at, it fails with an explanation instead of reporting on a
+state it is not in — which is precisely the mistake made by hand in round 202,
+where an hour went into diagnosing a healthy app. The control for that is to run
+it against the live agent on 12345:
+
+```
+Something is listening on 12345, so this check would measure a
+CONNECTED app and report that the agent-down state works.
+```
+
+The second control undoes round 203's fix: two assertions fail, *dismissing it
+makes it stay dismissed* with `1 dialog(s) after 8s`, and *the app is still
+usable* — because a modal that keeps returning also blocks the sign-in it was
+covering.
+
+That premise check is the durable part. Every other gate in this campaign
+measures an application; this one first measures **the world the application is
+in**, because the finding depends on it. A check that cannot tell a healthy
+system from an absent one will eventually report on the wrong one, and it will
+look like a pass.
+
+42 gates, 15 workflow npm steps, preflight 37.
