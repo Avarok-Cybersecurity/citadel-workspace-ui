@@ -5,8 +5,7 @@ import type { AvailablePeer } from './create-group-types';
 
 import { Crown, Shield, User } from 'lucide-react';
 import { createElement } from 'react';
-import type { GroupConversation, GroupMemberWithRole, GroupRole } from '@/types/group';
-import { memberAvatarColor } from '@/lib/avatar-color';
+import type { GroupConversation, GroupRole } from '@/types/group';
 
 // ============================================================================
 // Types
@@ -45,7 +44,3 @@ export function getRoleIcon(role: GroupRole): React.ReactElement {
 }
 
 /** Get avatar color from role or cycle through palette */
-/** @deprecated Import memberAvatarColor from '@/lib/avatar-color' directly. */
-export function getAvatarColor(member: GroupMemberWithRole, index: number): string {
-  return memberAvatarColor(member, index);
-}

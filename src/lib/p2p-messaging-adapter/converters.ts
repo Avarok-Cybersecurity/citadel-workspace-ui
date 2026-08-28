@@ -5,6 +5,7 @@
  */
 
 import type { ChatMessage } from '../chat-messaging-adapter';
+import { mergeById } from '@/lib/p2p/merge-by-id';
 import type { P2PMessage } from '../p2p';
 
 /**
@@ -61,17 +62,16 @@ export function convertP2PMessageToChatMessage(
 }
 
 /**
- * Merge storage messages with in-memory messages, deduplicating by ID.
- * In-memory messages take priority (more recent state).
+ * Storage merged with in-memory state.
+ *
+ * The INCOMING copy wins a duplicate id here, because incoming means in-memory
+ * and in-memory is newer than what was persisted. The hook that merges new
+ * arrivals into rendered state resolves the same conflict the other way; both
+ * were called `mergeMessages` and neither said which it did.
  */
 export function mergeMessages(
   storageMessages: P2PMessage[],
   inMemoryMessages: P2PMessage[]
 ): P2PMessage[] {
-  const messageMap = new Map<string, P2PMessage>();
-
-  storageMessages.forEach((msg) => messageMap.set(msg.id, msg));
-  inMemoryMessages.forEach((msg) => messageMap.set(msg.id, msg));
-
-  return Array.from(messageMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+  return mergeById(storageMessages, inMemoryMessages, 'incoming');
 }

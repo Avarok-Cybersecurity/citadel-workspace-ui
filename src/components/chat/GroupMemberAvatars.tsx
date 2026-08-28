@@ -33,7 +33,6 @@ export function GroupMemberAvatars({ group }: { group: GroupConversation }) {
   const overflowCount = Math.max(0, sortedMembers.length - MAX_VISIBLE_AVATARS);
 
   // Get avatar color
-  const getAvatarColor = memberAvatarColor;
 
   return (
     <div className="flex items-center">
@@ -44,7 +43,7 @@ export function GroupMemberAvatars({ group }: { group: GroupConversation }) {
           style={{
             width: 32,
             height: 32,
-            backgroundColor: getAvatarColor(member, index),
+            backgroundColor: memberAvatarColor(member, index),
             marginLeft: index === 0 ? 0 : -10,
             zIndex: visibleMembers.length - index,
           }}

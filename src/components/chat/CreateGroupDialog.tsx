@@ -22,7 +22,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { debugLog } from '@/lib/debug-config';
-import { MembersTable, getAvatarColor } from './CreateGroupMembersTable';
+import { MembersTable } from './CreateGroupMembersTable';
+import { avatarColor } from '@/lib/avatar-color';
 import type { AvailablePeer, SelectedMember, CreateGroupDialogProps } from './create-group-types';
 
 // Re-export types for backward compatibility
@@ -183,7 +184,7 @@ export function CreateGroupDialog({
                             <div
                               className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-foreground"
                               style={{
-                                backgroundColor: getAvatarColor(
+                                backgroundColor: avatarColor(
                                   parseInt(peer.cid) % AVATAR_COLORS_LENGTH
                                 ),
                               }}

@@ -9043,3 +9043,28 @@ which is what separates the two.
 
 That is twice in this round that the first attempt was wrong in opposite
 directions, and both were found by running the control rather than by reading.
+
+## Round 151 — two merges with opposite winners, and a palette that could disagree
+
+**`mergeMessages` existed twice, over the same type, resolving a duplicate id
+in opposite directions.** The hook that merges new arrivals into rendered state
+kept the EXISTING copy; the messaging adapter kept the INCOMING one, because
+there incoming means in-memory and in-memory is newer than storage. Both are
+right for their own call site, and neither said so — a maintainer fixing "the
+merge" would have found one of them.
+
+The winner is now an argument to a shared `mergeById`, so the difference is a
+sentence at each call site rather than a fact you can only learn by reading both
+bodies and noticing they disagree. The asymmetry that is NOT a bug is recorded
+too: the existing-wins caller returns the same array reference when nothing
+changed, because React re-renders on reference inequality and a thread would
+otherwise re-sort on every keystroke — an optimisation that only makes sense
+when incoming duplicates are discarded. Control: swapping the winners fails four
+of seven.
+
+**The avatar palette had a private copy.** `avatar-color.ts` exists precisely
+because this drifted once, and `GroupConversationRow` still carried its own
+`AVATAR_COLORS` array and its own `getAvatarColor` — so it was the one file that
+could show a member a different colour from every other avatar in the app. Two
+`@deprecated` forwarding shims were still imported by three call sites; those
+now import the canonical functions and the shims are gone.

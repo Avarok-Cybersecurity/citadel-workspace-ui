@@ -27,10 +27,6 @@ import type { SelectedMember } from './create-group-types';
 import { avatarColor } from '@/lib/avatar-color';
 
 
-/** @deprecated Import avatarColor from '@/lib/avatar-color' directly. */
-export function getAvatarColor(index: number): string {
-  return avatarColor(index);
-}
 
 interface MembersTableProps {
   selectedMembers: SelectedMember[];
@@ -78,7 +74,7 @@ export function MembersTable({
                 <div className="flex items-center gap-2">
                   <div
                     className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-foreground"
-                    style={{ backgroundColor: getAvatarColor(index) }}
+                    style={{ backgroundColor: avatarColor(index) }}
                   >
                     {member.username[0]?.toUpperCase() || '?'}
                   </div>

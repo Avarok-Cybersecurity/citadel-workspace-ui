@@ -6,6 +6,7 @@
  */
 
 import { useMemo, useRef, useEffect, useState } from 'react';
+import { memberAvatarColor } from '@/lib/avatar-color';
 import { useNavigate } from 'react-router-dom';
 import { SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
@@ -39,17 +40,8 @@ const MIN_AVATARS = 2;
 /** Maximum number of avatars to show */
 const MAX_AVATARS = 4;
 
-/** Colors for avatar backgrounds based on member index */
-const AVATAR_COLORS = [
-  '#FFD700', // Gold - Owner
-  '#6E59A5', // Purple
-  '#4F46E5', // Indigo
-  '#10B981', // Emerald
-  '#F59E0B', // Amber
-  '#EF4444', // Red
-  '#8B5CF6', // Violet
-  '#EC4899', // Pink
-];
+// The avatar palette lives in lib/avatar-color. A private copy here was the
+// only reason this file could disagree with every other avatar in the app.
 
 // ============================================================================
 // Component
@@ -121,12 +113,6 @@ export function GroupConversationRow({
     };
   }, [sortedMembers, maxAvatars]);
 
-  // Get avatar color based on member's role or index
-  const getAvatarColor = (member: GroupMemberWithRole, index: number): string => {
-    if (member.role.color) return member.role.color;
-    return AVATAR_COLORS[index % AVATAR_COLORS.length];
-  };
-
   // Handle click
   const handleClick = () => {
     if (onClick) {
@@ -156,7 +142,7 @@ export function GroupConversationRow({
                 style={{
                   width: AVATAR_SIZE,
                   height: AVATAR_SIZE,
-                  backgroundColor: getAvatarColor(member, index),
+                  backgroundColor: memberAvatarColor(member, index),
                   marginLeft: index === 0 ? 0 : -AVATAR_OVERLAP,
                   zIndex: displayMembers.length - index, // First avatar on top
                 }}

@@ -26,8 +26,8 @@ import {
 } from '@/components/ui/table';
 import type { GroupMemberWithRole } from '@/types/group';
 import { useGroupPermissions } from '@/hooks/use-group-permissions';
-import { getRoleIcon, getAvatarColor } from './GroupMemberManagementHelpers';
-import type { GroupMemberManagementProps } from './GroupMemberManagementHelpers';
+import { memberAvatarColor } from '@/lib/avatar-color';
+import { getRoleIcon, type GroupMemberManagementProps } from './GroupMemberManagementHelpers';
 import { KickConfirmDialog } from './KickConfirmDialog';
 import { PeerPickerPopover } from './PeerPickerPopover';
 
@@ -148,7 +148,7 @@ export function GroupMemberManagement({
                       <div className="flex items-center gap-3">
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium text-foreground"
-                          style={{ backgroundColor: getAvatarColor(member, index) }}
+                          style={{ backgroundColor: memberAvatarColor(member, index) }}
                         >
                           {member.username[0]?.toUpperCase() || '?'}
                         </div>
