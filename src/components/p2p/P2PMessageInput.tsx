@@ -115,6 +115,13 @@ export const P2PMessageInput = forwardRef<HTMLTextAreaElement, P2PMessageInputPr
               onFocus={onInputFocus}
               onBlur={onInputBlur}
               placeholder={getPlaceholder()}
+              // Addressed by id. When this became a Textarea -- the right
+              // change; an <input> flattened pasted newlines -- every spec
+              // still looked for `input[placeholder*="message"]`, which a
+              // textarea is not. The warmup messages that every call and
+              // reconnection test sends first have been going nowhere since,
+              // reported as "not delivered", which reads as a protocol fault.
+              data-testid="p2p-message-input"
               disabled={!canSendMessages}
               rows={1}
               className="flex-1 resize-none bg-surface border-surface text-foreground placeholder-gray-400 focus:border-primary"

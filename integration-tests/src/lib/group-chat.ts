@@ -185,7 +185,7 @@ export async function switchToChatTab(
     }
 
     // Check if message input is visible (indicates we're on chat tab)
-    const messageInput = page.locator('textarea[placeholder*="message" i]').first();
+    const messageInput = page.getByTestId('group-message-input').first();
     if (await isVisibleWithin(messageInput, 2000)) {
       console.log(`  Chat input already visible`);
       return true;
@@ -225,7 +225,7 @@ export async function isChatEnabled(page: Page, username: string): Promise<boole
   }
 
   // Also check if we're already on a chat view
-  const chatInput = page.locator('textarea[placeholder*="message" i]').first();
+  const chatInput = page.getByTestId('group-message-input').first();
   if (await isVisibleWithin(chatInput, 1000)) {
     console.log(`  Chat enabled: true (chat input visible)`);
     return true;
@@ -249,7 +249,7 @@ export async function sendGroupMessage(
 
   try {
     // Find the message input (textarea)
-    const messageInput = page.locator('textarea[placeholder*="message"], textarea[placeholder*="Type"], input[placeholder*="message"]').first();
+    const messageInput = page.getByTestId('group-message-input').first();
 
     if (!(await isVisibleWithin(messageInput, 5000))) {
       console.log(`  WARNING: Message input not found`);

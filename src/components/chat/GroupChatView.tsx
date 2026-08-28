@@ -147,6 +147,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
             }
             onKeyDown={chat.handleKeyPress}
             placeholder={chat.editingId ? 'Edit message...' : 'Type a message...'}
+            data-testid="group-message-input"
             className="flex-1 resize-none bg-background border-surface/50 focus:border-primary-accent"
             rows={1}
           />

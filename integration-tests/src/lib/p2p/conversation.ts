@@ -16,7 +16,7 @@ async function waitForChatReady(page: Page, _peerUsername: string): Promise<void
   console.log(`  Waiting for P2PChat to be fully ready...`);
 
   // Wait for the message input to be visible and enabled
-  const messageInput = page.locator('input[placeholder*="message"], textarea[placeholder*="message"]').first();
+  const messageInput = page.getByTestId('p2p-message-input').first();
 
   for (let i = 0; i < 10; i++) {
     if (await isVisibleWithin(messageInput, 1000)) {

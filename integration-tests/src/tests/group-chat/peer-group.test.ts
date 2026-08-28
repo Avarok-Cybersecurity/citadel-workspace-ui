@@ -274,7 +274,7 @@ async function sendGroupChatMessage(
   const page = sender.page;
 
   // Find message input
-  const messageInput = page.locator('input[placeholder*="message"], textarea[placeholder*="message"]').first();
+  const messageInput = page.getByTestId('group-message-input').first();
 
   if (!await isVisibleWithin(messageInput, 5000)) {
     console.log(`    Message input not found for ${sender.username}`);

@@ -24,7 +24,11 @@ export async function sendMessage(
   console.log(`  [DEBUG] Waiting for message input to be visible (5s timeout)...`);
 
   // Use waitFor with timeout instead of isVisible which doesn't timeout properly
-  const messageInput = page.locator('input[placeholder*="message"]').first();
+  // By testid, not by element type. This said `input[...]` and the composer
+  // has been a <textarea> since pasted newlines stopped being flattened -- so
+  // it matched nothing, and every warmup message the call and reconnection
+  // suites send first went nowhere, reported as "not delivered".
+  const messageInput = page.getByTestId('p2p-message-input').first();
 
   try {
     await messageInput.waitFor({ state: 'visible', timeout: 5000 });

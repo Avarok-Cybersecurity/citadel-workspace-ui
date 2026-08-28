@@ -13745,3 +13745,49 @@ and it will be the file nobody thought to check.*
 
 One copy in `lib/storage/absence.ts`, five call sites, and a test that refuses a
 fifth spelling of the string. Reintroducing one names the offending file.
+
+## Round 266 — the composer that stopped being an input
+
+`call-audio-video` and `call-group` dropped from 4.7 minutes to 45 seconds once
+round 261's fix removed the twenty accept retries, and what was left underneath
+is a real failure:
+
+```
+Error: warmup pw_call_a -> pw_call_b should be delivered
+Expected: true   Received: false
+```
+
+and in `hard-disconnect`, six times over:
+
+```
+[DEBUG] Message input not found or timed out: locator.waitFor: Timeout 5000ms
+FAIL: Both warmup messages failed — ILM channels not established
+```
+
+"ILM channels not established" reads as a transport fault, and it sent this
+investigation at the P2P layer twice. The message was never typed.
+
+The direct-message composer used to be an `<input>` inside a form and became a
+`<Textarea>`. That was the right change — an `<input>` flattened pasted
+newlines, while the group composer one screen away handled them correctly, and
+the comment on the component says so. But the specs look for
+
+```
+input[placeholder*="message"]
+```
+
+and a textarea is not an input. Every warmup message the call, group-call and
+reconnection suites send before doing anything else has gone nowhere since.
+
+### Fixed in three places out of eight
+
+Somebody hit this before. `conversation.ts` and `peer-group.test.ts` were
+widened to `input[...], textarea[...]`, and `group-chat.ts` to `textarea[...]`.
+The three that were left — `messaging.ts`, `p2p-message-types`, `live-doc-sync`
+— are the ones the failing legs run through. **A fix applied to some call sites
+is a fix that will be undone by whichever one was missed**, and this is the
+third time today that shape has been the answer.
+
+Both composers now carry a testid, all eight sites press it, and a unit test
+renders the real component and asserts the attribute — not the placeholder and
+not the tag, because asserting either would reintroduce exactly what broke.

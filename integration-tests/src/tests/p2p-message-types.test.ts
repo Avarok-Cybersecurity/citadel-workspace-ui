@@ -157,7 +157,7 @@ async function sendMarkdownMessage(page: Page, username: string, marker: string)
 
   const results = { sent: false, rendered: false };
 
-  const messageInput = page.locator('input[placeholder*="message"]').first();
+  const messageInput = page.getByTestId('p2p-message-input').first();
   if (!(await isVisibleWithin(messageInput, 5000))) {
     console.log('  Message input not found');
     return results;

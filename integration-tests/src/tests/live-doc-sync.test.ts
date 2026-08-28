@@ -73,7 +73,9 @@ async function createLiveDoc(page: Page, username: string, docTitle: string): Pr
   }
 
   // BUG WORKAROUND: P2PChat.tsx returns early if input is empty BEFORE checking live_document
-  const messageInput = page.locator('input[placeholder*="Document content"], input[placeholder*="message"]').first();
+  // One testid covers both modes: the composer is the same control whether it
+  // is holding a message or a document body, and only its placeholder changes.
+  const messageInput = page.getByTestId('p2p-message-input').first();
   if (await isVisibleWithin(messageInput, 2000)) {
     await messageInput.fill('initial content');
     await sleep(300);
