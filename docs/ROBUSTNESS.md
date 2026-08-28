@@ -10186,3 +10186,43 @@ wording, because there the hedge is accurate.
 Both controls fail 2 of 4: always hedging, and always claiming the group ended.
 
 Baseline: 37 → 36.
+
+## Round 181 — the ratchet finds a justification that expired
+
+37 → 17. Most of that is one decision, and it is the interesting one.
+
+`chat-messaging-adapter.ts` opened with **"NOT WIRED UP"** and an explicit
+argument for keeping 852 lines of unreferenced code:
+
+> Deliberately kept rather than deleted with the rest of the dead code. This is
+> where editMessage / deleteMessage / replyToMessage are actually implemented …
+> The message actions menu is currently unreachable for exactly that reason:
+> P2PChat accepts onEditMessage/onDeleteMessage/onReplyMessage and neither of
+> its mounts passes any.
+
+That was true when written. It is not true now. `P2PChat` supplies its own
+handlers as fallbacks (`onEditMessage ?? handleStartEdit`), so the actions menu
+is reachable, and `useGroupChat` calls `WorkspaceService.editGroupMessage` and
+`deleteGroupMessage` directly. Both chats implement all three actions in their
+own hooks. The adapters were two copies of live logic, kept alive by a comment
+whose premise had quietly expired.
+
+This is a different failure from the ones this campaign has been finding. The
+code was not written and forgotten — someone looked straight at it, asked the
+right question, and wrote down a correct answer. What was missing is that
+**nothing re-asks the question.** A justification is a claim with a shelf life,
+and this one outlived its subject by however long it took the menu to get wired.
+
+The ratchet is what re-asks. It cannot read the comment, but it does not have to:
+it re-states the fact every run, and a fact restated is a fact that can be
+checked against reality.
+
+Also corrected: `merge-by-id.ts`'s header cited the deleted adapter as one of
+two callers that disagreed about merge direction. The direction stays an
+argument — a merge without a stated winner is a coin toss the reader cannot see,
+which is as true with one caller as with two.
+
+Deleted: `chat-messaging-adapter.ts`, `chat-messaging-types.ts`,
+`group-messaging-adapter/`, `p2p-messaging-adapter/`, and 17 unused protocol
+constructors and type guards from `types/messaging-layer.ts` whose enum,
+constants and types remain in use.

@@ -3,10 +3,13 @@
  *
  * Page for viewing and interacting with a custom peer group chat.
  *
- * Renders GroupChatView directly. It does NOT use GroupMessagingAdapter, despite
- * what this comment used to say — GroupChatView takes a groupId and does its own
- * fetching, and nothing in the app constructs an adapter. See the note at the top
- * of lib/chat-messaging-adapter.ts.
+ * Renders GroupChatView directly: it takes a groupId and does its own fetching.
+ *
+ * There used to be a ChatMessagingAdapter layer here, kept on the grounds that
+ * it held the only implementation of edit, delete and reply. That stopped being
+ * true -- both chats implement all three in their own hooks (useGroupChat via
+ * WorkspaceService, useP2PCompose via the messenger) -- so the layer was two
+ * copies of live logic behind a comment explaining why it could not be deleted.
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';

@@ -180,23 +180,7 @@ export function isMessage(layer: MessagingLayer): layer is { type: MessagingLaye
   return layer.type === MessagingLayerType.Message;
 }
 
-/**
- * Type guard: Check if MessagingLayer is a MessageEdit variant
- */
-export function isMessageEdit(
-  layer: MessagingLayer,
-): layer is { type: MessagingLayerType.MessageEdit; message_id: string; contents: string; edited_at: number } {
-  return layer.type === MessagingLayerType.MessageEdit;
-}
 
-/**
- * Type guard: Check if MessagingLayer is a MessageDelete variant
- */
-export function isMessageDelete(
-  layer: MessagingLayer,
-): layer is { type: MessagingLayerType.MessageDelete; message_id: string; deleted_at: number } {
-  return layer.type === MessagingLayerType.MessageDelete;
-}
 
 /**
  * Type guard: Check if MessagingLayer is a Typing variant
@@ -205,12 +189,6 @@ export function isTyping(layer: MessagingLayer): layer is { type: MessagingLayer
   return layer.type === MessagingLayerType.Typing;
 }
 
-/**
- * Type guard: Check if MessagingLayer is an Away variant
- */
-export function isAway(layer: MessagingLayer): layer is { type: MessagingLayerType.Away } {
-  return layer.type === MessagingLayerType.Away;
-}
 
 /**
  * Type guard: Check if MessagingLayer is an Online variant
@@ -219,19 +197,7 @@ export function isOnline(layer: MessagingLayer): layer is { type: MessagingLayer
   return layer.type === MessagingLayerType.Online;
 }
 
-/**
- * Type guard: Check if MessagingLayer is an Offline variant
- */
-export function isOffline(layer: MessagingLayer): layer is { type: MessagingLayerType.Offline } {
-  return layer.type === MessagingLayerType.Offline;
-}
 
-/**
- * Type guard: Check if MessagingLayer is a CustomState variant
- */
-export function isCustomState(layer: MessagingLayer): layer is { type: MessagingLayerType.CustomState; text: string; indicator_icon_color: string } {
-  return layer.type === MessagingLayerType.CustomState;
-}
 
 /**
  * Type guard: Check if MessagingLayer is a presence-related variant
@@ -243,19 +209,7 @@ export function isPresenceUpdate(layer: MessagingLayer): boolean {
          layer.type === MessagingLayerType.CustomState;
 }
 
-/**
- * Type guard: Check if MessagingLayer is a CheckState variant
- */
-export function isCheckState(layer: MessagingLayer): layer is { type: MessagingLayerType.CheckState } {
-  return layer.type === MessagingLayerType.CheckState;
-}
 
-/**
- * Type guard: Check if MessagingLayer is a CheckStateResponse variant
- */
-export function isCheckStateResponse(layer: MessagingLayer): layer is { type: MessagingLayerType.CheckStateResponse; ready: true } {
-  return layer.type === MessagingLayerType.CheckStateResponse;
-}
 
 // ============================================================================
 // File Transfer Type Guards
@@ -275,19 +229,7 @@ export function isFileTransferResponse(layer: MessagingLayer): layer is { type: 
   return layer.type === MessagingLayerType.FileTransferResponse;
 }
 
-/**
- * Type guard: Check if MessagingLayer is a FileTransferProgress variant
- */
-export function isFileTransferProgress(layer: MessagingLayer): layer is { type: MessagingLayerType.FileTransferProgress } & FileTransferProgressData {
-  return layer.type === MessagingLayerType.FileTransferProgress;
-}
 
-/**
- * Type guard: Check if MessagingLayer is a FileTransferComplete variant
- */
-export function isFileTransferComplete(layer: MessagingLayer): layer is { type: MessagingLayerType.FileTransferComplete } & FileTransferCompleteData {
-  return layer.type === MessagingLayerType.FileTransferComplete;
-}
 
 /**
  * Type guard: Check if MessagingLayer is a FileTransferCancel variant
@@ -296,12 +238,6 @@ export function isFileTransferCancel(layer: MessagingLayer): layer is { type: Me
   return layer.type === MessagingLayerType.FileTransferCancel;
 }
 
-/**
- * Type guard: Check if MessagingLayer is a FileTransferChunk variant
- */
-export function isFileTransferChunk(layer: MessagingLayer): layer is { type: MessagingLayerType.FileTransferChunk } & FileTransferChunkData {
-  return layer.type === MessagingLayerType.FileTransferChunk;
-}
 
 /**
  * Type guard: Check if MessagingLayer is a RevfsOperation variant
@@ -310,17 +246,6 @@ export function isRevfsOperation(layer: MessagingLayer): layer is { type: Messag
   return layer.type === MessagingLayerType.RevfsOperation;
 }
 
-/**
- * Type guard: Check if MessagingLayer is any file transfer-related variant
- */
-export function isFileTransferMessage(layer: MessagingLayer): boolean {
-  return layer.type === MessagingLayerType.FileTransferRequest ||
-         layer.type === MessagingLayerType.FileTransferResponse ||
-         layer.type === MessagingLayerType.FileTransferProgress ||
-         layer.type === MessagingLayerType.FileTransferComplete ||
-         layer.type === MessagingLayerType.FileTransferCancel ||
-         layer.type === MessagingLayerType.FileTransferChunk;
-}
 
 // ============================================================================
 // Helper Constructors
@@ -378,12 +303,6 @@ export function createTyping(): MessagingLayer {
   return { type: MessagingLayerType.Typing };
 }
 
-/**
- * Create an Away variant
- */
-export function createAway(): MessagingLayer {
-  return { type: MessagingLayerType.Away };
-}
 
 /**
  * Create an Online variant
@@ -392,25 +311,7 @@ export function createOnline(): MessagingLayer {
   return { type: MessagingLayerType.Online };
 }
 
-/**
- * Create an Offline variant
- */
-export function createOffline(): MessagingLayer {
-  return { type: MessagingLayerType.Offline };
-}
 
-/**
- * Create a CustomState variant
- * @param text - Status text to display
- * @param indicator_icon_color - Hex color string (e.g., "#ff0000")
- */
-export function createCustomState(text: string, indicator_icon_color: string): MessagingLayer {
-  return {
-    type: MessagingLayerType.CustomState,
-    text,
-    indicator_icon_color
-  };
-}
 
 /**
  * Create a CheckState request - sent before messaging to verify P2P channel is active
@@ -510,65 +411,12 @@ export function createFileTransferCancel(
   };
 }
 
-/**
- * Create a RevfsOperation variant
- */
-export function createRevfsOperation(operation: import('./revfs-types').RevfsOperation): MessagingLayer {
-  return {
-    type: MessagingLayerType.RevfsOperation,
-    operation,
-  };
-}
 
 // ============================================================================
 // Serialization Helpers
 // ============================================================================
 
-/**
- * Serialize a MessagingLayer to JSON string for transport
- */
-export function serializeMessagingLayer(layer: MessagingLayer): string {
-  return JSON.stringify(layer);
-}
 
-/**
- * Deserialize a JSON string to MessagingLayer
- * @throws Error if parsing fails or type is invalid
- */
-export function deserializeMessagingLayer(json: string): MessagingLayer {
-  const parsed = JSON.parse(json);
-
-  if (!parsed || typeof parsed !== 'object' || !parsed.type) {
-    throw new Error('Invalid MessagingLayer: missing type field');
-  }
-
-  // Validate the type is a known MessagingLayerType
-  if (!Object.values(MessagingLayerType).includes(parsed.type)) {
-    throw new Error(`Invalid MessagingLayer type: ${parsed.type}`);
-  }
-
-  // Type-specific validation
-  switch (parsed.type) {
-    case MessagingLayerType.Message:
-      if (typeof parsed.contents !== 'string') {
-        throw new Error('Invalid Message: contents must be a string');
-      }
-      if (typeof parsed.timestamp !== 'number') {
-        throw new Error('Invalid Message: timestamp must be a number');
-      }
-      break;
-    case MessagingLayerType.CustomState:
-      if (typeof parsed.text !== 'string') {
-        throw new Error('Invalid CustomState: text must be a string');
-      }
-      if (typeof parsed.indicator_icon_color !== 'string') {
-        throw new Error('Invalid CustomState: indicator_icon_color must be a string');
-      }
-      break;
-  }
-
-  return parsed as MessagingLayer;
-}
 
 // ============================================================================
 // Typing Indicator Constants

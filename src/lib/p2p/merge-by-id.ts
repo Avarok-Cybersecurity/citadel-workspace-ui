@@ -7,11 +7,16 @@
  *   useP2PMessages-types   the existing copy wins; incoming duplicates are
  *                          filtered out, and the previous array reference is
  *                          returned unchanged when nothing is new
- *   p2p-messaging-adapter  the incoming copy wins, because there it means
+ *   p2p-messaging-adapter  the incoming copy wins, because there it meant
  *                          "in-memory state, which is newer than storage"
  *
- * Both are right for their own call site and neither said so. A maintainer
+ * Both were right for their own call site and neither said so. A maintainer
  * fixing "the merge" would have found one of them.
+ *
+ * That adapter has since been deleted -- it was an unwired layer duplicating
+ * logic both chats implement in their own hooks. The winner stays an argument
+ * regardless: the reason it is one is that a merge without a stated direction
+ * is a coin toss the reader cannot see, which is true with one caller too.
  *
  * So the winner is now an argument. The difference between the two call sites
  * is a sentence at each, rather than a fact you can only learn by reading both
