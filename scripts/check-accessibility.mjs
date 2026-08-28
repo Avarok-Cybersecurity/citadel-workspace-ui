@@ -151,6 +151,57 @@ async function main() {
       // screen-reader user then hears "invalid entry" with no idea what is
       // wrong. So the association is asserted directly, on the one surface that
       // has an error in it, rather than left to a scan that cannot see it.
+      // Everything the user can act on must be reachable by Tab.
+      //
+      // axe does not traverse: it inspects a static tree, so a control that is
+      // present, named and correctly roled but sits outside the tab order
+      // passes every rule it has. That is the whole failure mode for a keyboard
+      // user, and this repository has shipped it before -- the join form's
+      // password toggle carried `tabIndex={-1}`, so nobody using a keyboard
+      // could reveal what they had typed.
+      //
+      // Composite widgets are excluded deliberately, not overlooked. A Radix
+      // TabsList uses roving tabindex: exactly one tab is tabbable and the
+      // arrow keys move between them, which is the correct pattern and reads
+      // as "unreachable" to a naive count. Expecting each tab to be a separate
+      // Tab stop was this rule's first output, and it was wrong.
+      const unreachable = await page.evaluate(async () => {
+        const scope = document.querySelector('[role="dialog"]') ?? document.body;
+        const COMPOSITE = new Set(['tab', 'radio', 'menuitem', 'option', 'treeitem']);
+        const describe = (el) =>
+          `${el.tagName}:${(el.getAttribute('aria-label') || el.id || (el.textContent || '').trim()).slice(0, 24)}`;
+        const expected = [...scope.querySelectorAll('button, a[href], input, select, textarea')]
+          .filter((el) => el.offsetParent !== null && !el.disabled)
+          // NOT filtered on `tabindex="-1"`.
+          //
+          // That filter was here first, and it made the rule unable to fail:
+          // marking a control `tabIndex={-1}` removed it from the expectations,
+          // so the exact defect this exists for -- the join form's password
+          // toggle, which shipped with `tabIndex={-1}` and could not be reached
+          // by any keyboard user -- would have been excluded rather than
+          // reported. Both negative controls passed, which is the only reason
+          // it was noticed.
+          //
+          // `-1` is the defect, not an exemption. The legitimate uses of it are
+          // composite-widget members, and those are excluded by role below.
+          .filter((el) => !COMPOSITE.has(el.getAttribute('role') ?? ''))
+          .filter((el) => !el.closest('[role="tablist"],[role="radiogroup"],[role="menu"],[role="listbox"]'));
+        return { expected: expected.map(describe) };
+      });
+
+      const reached = new Set();
+      for (let i = 0; i < unreachable.expected.length * 3 + 6; i += 1) {
+        await page.keyboard.press('Tab');
+        const focused = await page.evaluate(() => {
+          const el = document.activeElement;
+          if (!el || el === document.body) return null;
+          return `${el.tagName}:${(el.getAttribute('aria-label') || el.id || (el.textContent || '').trim()).slice(0, 24)}`;
+        });
+        if (focused) reached.add(focused);
+      }
+      const missed = [...new Set(unreachable.expected.filter((e) => !reached.has(e)))];
+      record(`${name}: every control is reachable by keyboard`, missed.length === 0, missed.join(' | '));
+
       // Two controls with the same accessible name, in the same view.
       //
       // axe does not report it: each button HAS a name, which is all

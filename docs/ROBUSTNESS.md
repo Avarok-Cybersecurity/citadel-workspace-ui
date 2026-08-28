@@ -11456,3 +11456,46 @@ that its output is advisory — which is how a real finding gets skimmed past
 later.
 
 Putting the shared name back fails two surfaces by name.
+
+## Round 213 — a reachability rule that excluded the defect it was written for
+
+axe does not traverse. It inspects a static tree, so a control that is present,
+named and correctly roled but sits outside the tab order passes every rule it
+has — and that is the entire failure mode for a keyboard user. This repository
+has shipped it: the join form's password toggle carried `tabIndex={-1}`, so
+nobody using a keyboard could reveal what they had typed.
+
+So the accessibility gate now tabs through each surface and asserts every
+visible, enabled control is reached. Thirteen surfaces, all passing.
+
+### It could not fail, twice over
+
+The first version filtered `tabindex="-1"` out of its expectations. Marking a
+control `tabIndex={-1}` therefore *removed it from the list*, and the rule could
+not see the exact defect it was written for. Both negative controls passed,
+which is the only reason it was caught. `-1` is the defect, not an exemption —
+the legitimate uses of it are composite-widget members, and those are excluded
+by role.
+
+Then the corrected version's source-level control **still** did not fire: adding
+`tabIndex={-1}` to `JoinFormFields` did not reach the rendered DOM, which the
+probe confirmed (`ti: 0, attr: null`). Rather than accept that as a pass, the
+same logic was driven against a runtime injection:
+
+```
+landing, unmodified:                              expected 4, missed 0
+landing, manage-accounts forced tabIndex=-1:      expected 4, missed 1
+                                                  -> BUTTON:Manage Accounts
+```
+
+The rule discriminates. The source edit was the thing that failed, not the check.
+
+That distinction is worth the extra step. A control that does not fire has two
+explanations — the rule is inert, or the injection missed — and they call for
+opposite responses. Treating "no failure" as "rule works" is how the first
+version would have shipped.
+
+Composite widgets are excluded deliberately, not overlooked: a Radix `TabsList`
+uses roving tabindex, exactly one tab is tabbable, and the arrow keys move
+between them. Expecting each tab to be its own Tab stop was this rule's first
+output and it was wrong.
