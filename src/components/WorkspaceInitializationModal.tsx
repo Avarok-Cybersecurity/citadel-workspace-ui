@@ -217,6 +217,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                             onClick={onClose}
                             className="text-foreground hover:bg-primary-accent/20"
                             disabled={isSubmitting}
+                            data-testid="init-modal-decline"
                         >
                             Not now
                         </Button>

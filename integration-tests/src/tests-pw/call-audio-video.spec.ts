@@ -232,7 +232,15 @@ test.describe.serial('Audio and video calling', () => {
     test.setTimeout(120_000);
     await sessionA.page.getByTestId('call-toggle-mic').click();
 
-    await expect(sessionA.page.getByRole('button', { name: /unmute microphone/i })).toBeVisible();
+    // The STATE, on the control, by testid.
+    //
+    // This looked for a button named "unmute microphone", and no such name
+    // exists: the label deliberately does not flip with the state. A label that
+    // flipped alongside `aria-pressed` announced "Mute microphone, pressed" on a
+    // live mic, which a listener reads as muted -- the worst direction to be
+    // wrong in on a privacy control. So the name stays put and `aria-pressed`
+    // carries the state, which is what this now reads.
+    await expect(sessionA.page.getByTestId('call-toggle-mic')).toHaveAttribute('aria-pressed', 'false');
     await expect(sessionB.page.getByText('muted')).toBeVisible({ timeout: 30_000 });
   });
 

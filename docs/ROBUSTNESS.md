@@ -12263,3 +12263,34 @@ their crash handler reported `error.message.split('\n')[0]`, which for a
 Playwright actionability failure is `Timeout 30000ms exceeded` and names neither
 the element nor what was in the way. Both are on the lines below it. That is
 round 225's lesson found inside this file's own error path.
+
+## Round 232 — a third assertion waiting on words that no longer exist
+
+`test:workspace-init` reported **"Dismissal Sticks: FAIL"** for a feature that
+works. The spec looked for `getByRole('button', { name: 'Cancel' })` on the
+initialisation modal; that button says **"Not now"** — "Cancel" is ambiguous on a
+modal you are declining rather than aborting. It is now addressed by testid.
+
+That is the second CI failure this session caused by a check pinned to copy the
+app improved (round 227 was the first, on the password toggles). So the class got
+a guard — and the guard found a third instance immediately, in a spec that is
+failing right now:
+
+```ts
+await expect(page.getByRole('button', { name: /unmute microphone/i })).toBeVisible();
+```
+
+**No such name exists anywhere in the app.** The mic label deliberately does not
+flip with the state: a label that flipped alongside `aria-pressed` announced
+"Mute microphone, pressed" on a *live* mic, which a listener reads as muted —
+the worst direction to be wrong in on a privacy control. So that assertion was
+waiting on a locator that can never resolve. It now reads `aria-pressed` on the
+control, by testid, which is the state it was always trying to check.
+
+What the new rule catches, stated honestly: copy that has vanished from the app
+**entirely**. Not copy that moved. "Show password" still exists on the login
+form and "Cancel" exists on a dozen buttons, so *neither of the two failures that
+prompted it would have tripped it*. Its negative control is a phrase that exists
+nowhere, and that is the shape of thing it finds. A guard whose reach is
+overstated gets trusted past its evidence, and the first version of this entry
+claimed both failures were in its set, which was wrong.

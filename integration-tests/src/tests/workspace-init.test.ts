@@ -156,14 +156,21 @@ async function registerUser(page: Page, username: string, password: string): Pro
  */
 async function dismissedModalStaysClosed(page: Page, username: string): Promise<boolean> {
   const modal = page.locator('[role="dialog"]');
-  const cancel = page.getByRole('button', { name: 'Cancel' });
+  // By testid, not by the word on it.
+  //
+  // The button is called "Not now" -- "Cancel" is ambiguous on a modal you are
+  // declining rather than aborting -- and this looked for `Cancel`, found
+  // nothing, and reported "Dismissal Sticks: FAIL" for a feature that works.
+  // Round 190's rule, and the second CI failure this session caused by a check
+  // pinned to copy that improved.
+  const decline = page.getByTestId('init-modal-decline');
 
-  if (!(await isVisibleWithin(cancel, 5000))) {
-    console.log('  No Cancel button on the init modal — cannot test dismissal');
+  if (!(await isVisibleWithin(decline, 5000))) {
+    console.log('  No decline button on the init modal — cannot test dismissal');
     return false;
   }
 
-  await cancel.click();
+  await decline.click();
 
   if (!(await isHiddenWithin(modal, 5000))) {
     console.log('  Modal did not close on Cancel');
