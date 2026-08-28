@@ -6,6 +6,7 @@
  */
 
 import type { ConnectionState } from './state';
+import { selectUserWithoutBlocking } from './select-user';
 import type { ConnectionIO } from './io';
 import type { StoredSession } from '@/types/session-types';
 import { storeSession } from './session-management';
@@ -123,7 +124,12 @@ export async function switchAccount(
 
   debugLog('ConnectionService', `ConnectionManager: Switching account to ${username}@${serverAddress} for this tab`);
 
-  await io.setSelectedUser({
+  // Not a bare await. This writes tab context to IndexedDB, which can stall,
+  // and a stalled write here meant the user pressed a workspace icon and
+  // nothing happened -- the old account still on screen, no error, no switch.
+  // handleAuthSuccess already raced this call against a timeout for exactly
+  // that reason; this is the same call in the next file over, and it did not.
+  await selectUserWithoutBlocking(io, {
     selectedUsername: username,
     selectedServerAddress: serverAddress,
     selectedCid: session.cid,

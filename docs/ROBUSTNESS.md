@@ -10641,3 +10641,43 @@ Three files needed splitting or trimming under the 250-line cap along the way.
 That is worth noting as a cost, not only a benefit: the cap forced a good module
 boundary twice this session, and here it mostly forced comment editing. It is a
 blunt instrument that happens to be pointed in the right direction.
+
+## Round 192 — the fourth, and the last one the sweep can see
+
+With the pattern named, a sweep over `src/` for *an awaited local write before an
+outward action* returned exactly one more site:
+
+```
+lifecycle.ts:switchAccount   setSelectedUser before connect
+```
+
+`setSelectedUser` writes tab context to IndexedDB, and IndexedDB stalls for
+ordinary reasons — an upgrade blocked by another tab, a busy agent, a
+private-browsing quota. When it did, the user pressed a workspace icon and
+**nothing happened**: no error, no switch, the old account still on screen.
+
+`handleAuthSuccess` already raced that exact call against a timeout and continued
+on expiry, with a comment explaining why. It is the same call, in the next file
+over, awaited bare. Sixth never-propagated fix.
+
+It is one implementation now — `selectUserWithoutBlocking` — so the next caller
+inherits the reasoning instead of the shape. And it keeps a distinction the
+inline version had and a careless extraction would lose: a **timeout** is
+tolerated, a **rejection** is rethrown. Swallowing both would hide a real write
+failure behind a clock.
+
+Controls: awaiting it bare again hangs the switch test until vitest kills it at
+five seconds — the failure the fix exists to prevent, reproduced exactly.
+Swallowing every error fails the rethrow test.
+
+That is four instances of one class across four rounds:
+
+| round | what waited on a local write |
+|---|---|
+| 189 | a completed registration |
+| 190 | signing out |
+| 191 | a disconnect |
+| 192 | switching account |
+
+All four were written by someone with good reason to think the write belonged
+where they put it. The write does belong there; **awaiting it** is what does not.

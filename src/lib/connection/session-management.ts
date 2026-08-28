@@ -5,7 +5,7 @@ import { markLastAccessed } from '@/lib/sessions/last-accessed';
 import type { ConnectionIO } from './io';
 import type { AuthSuccessParams } from './types';
 import type { StoredSession } from '@/types/session-types';
-import { SET_USER_TIMEOUT_MS } from './constants';
+import { selectUserWithoutBlocking } from './select-user';
 import { debugLog } from '@/lib/debug-config';
 import { saveRecentServer } from '@/lib/server-utils';
 
@@ -118,25 +118,11 @@ export async function handleAuthSuccess(
     }
 
     debugLog('ConnectionService', 'handleAuthSuccess: setting tab context for CID:', params.cid?.toString());
-    try {
-      await Promise.race([
-        io.setSelectedUser({
-          selectedUsername: params.username,
-          selectedServerAddress: params.serverAddress,
-          selectedCid: params.cid,
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('setSelectedUser timeout')), SET_USER_TIMEOUT_MS)
-        ),
-      ]);
-      debugLog('ConnectionService', 'handleAuthSuccess: tab context set successfully');
-    } catch (err: unknown) {
-      if (err instanceof Error && err.message === 'setSelectedUser timeout') {
-        debugLog('ConnectionService', 'handleAuthSuccess: setSelectedUser timed out - continuing anyway');
-      } else {
-        throw err;
-      }
-    }
+    await selectUserWithoutBlocking(io, {
+      selectedUsername: params.username,
+      selectedServerAddress: params.serverAddress,
+      selectedCid: params.cid,
+    });
 
     if (params.cid !== undefined) {
       state.setCurrentConnectionInfo({
