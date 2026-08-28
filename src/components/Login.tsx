@@ -1,13 +1,12 @@
 import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
+import { LoginAdvancedOptions } from "./LoginAdvancedOptions";
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { ChevronLeft, ChevronDown, Settings, Loader2, Eye, EyeOff, User, Lock, LogIn } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { ChevronLeft, Loader2, Eye, EyeOff, User, Lock, LogIn } from "lucide-react";
 import { SecuritySettings, SecuritySettingsValues } from "./SecuritySettings";
 import { useLoginHandler } from "./useLoginHandler";
-import { cn } from "@/lib/utils";
 
 interface LoginProps {
   onNext: (connectionId: string) => void;
@@ -25,6 +24,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
     password,
     setPassword,
     error,
+    invalidField,
     loading,
     securitySettings,
     setSecuritySettings,
@@ -102,6 +102,8 @@ export function Login({ onNext, onCancel }: LoginProps) {
                   <Input
                     id="username"
                     autoComplete="username"
+                    aria-invalid={invalidField === 'username' ? true : undefined}
+                    aria-describedby={error ? 'login-error' : undefined}
                     placeholder="Enter your username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -121,6 +123,8 @@ export function Login({ onNext, onCancel }: LoginProps) {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
+                    aria-invalid={invalidField === 'password' ? true : undefined}
+                    aria-describedby={error ? 'login-error' : undefined}
                     placeholder="••••••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -159,56 +163,18 @@ export function Login({ onNext, onCancel }: LoginProps) {
                   was the thing to correct. Registration still asks, because
                   that is the one moment the address is genuinely needed. */}
 
-              {/* Advanced Options */}
-              <button
-                type="button"
-                className="tap-target flex items-center gap-2 text-muted-foreground w-full transition-colors duration-200 hover:text-primary-accent py-1"
-                onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-              >
-                <Settings className="h-3.5 w-3.5" />
-                <span className="text-xs font-semibold tracking-wider uppercase">Advanced Options</span>
-                <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200 ml-auto", isAdvancedOpen && "rotate-180")} />
-              </button>
-
-              {isAdvancedOpen && (
-                <div className="space-y-3 p-3 bg-input rounded-lg border border-border">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                      Security Settings
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="border-primary-accent/50 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground text-xs h-7 px-3 rounded-md"
-                      onClick={() => setShowSecuritySettings(true)}
-                    >
-                      Configure
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <label
-                      htmlFor="remember"
-                      className="text-xs font-semibold tracking-wider uppercase text-muted-foreground cursor-pointer"
-                    >
-                      Remember Credentials
-                    </label>
-                    <Switch
-                      id="remember"
-                      checked={securitySettings.storeCredentials}
-                      onCheckedChange={(checked) => setSecuritySettings({
-                        ...securitySettings,
-                        storeCredentials: checked
-                      })}
-                    />
-                  </div>
-                </div>
-              )}
+              <LoginAdvancedOptions
+                isOpen={isAdvancedOpen}
+                onToggle={() => setIsAdvancedOpen(!isAdvancedOpen)}
+                onConfigureSecurity={() => setShowSecuritySettings(true)}
+                securitySettings={securitySettings}
+                setSecuritySettings={setSecuritySettings}
+              />
 
               {/* Error */}
               {error && (
                 <div
+                  id="login-error"
                   role="alert"
                   className="flex items-center gap-2 text-destructive-emphasis text-sm p-3 bg-destructive/10 rounded-lg border border-destructive/20"
                 >

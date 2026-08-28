@@ -12426,3 +12426,37 @@ round 232 — plus these four sites fixed. The remaining exposure is written dow
 rather than implied: 36 `getByRole('button', { name: … })`, 171 `has-text(`, and
 87 `getByText(` in the specs, of which only the ones naming copy that vanishes
 entirely are currently guarded.
+
+## Round 236 — the login form never got round 230's fix
+
+Round 230 gave the join form focus-on-refusal: a submit that is refused takes the
+user to the field to fix, because announcing the problem moves nobody. Measured
+on the login form, in the same world, one round later:
+
+```
+empty submit -> { focused: "BUTTON", invalid: [], … }
+```
+
+It says "Username and password are required" through a live region, and then
+leaves the cursor on Sign In with neither field marked. A screen-reader user
+hears which two fields might be at fault and is told nothing about which one is;
+a keyboard user shift-tabs back up the form to find out.
+
+The same fix, in one of the two places it belonged — the twelfth instance this
+campaign has recorded, and the second where I wrote the fix myself and stopped at
+one call site.
+
+So the decision moved to `lib/first-field-to-fix.ts` and both forms call it. The
+login form now marks the offending field `aria-invalid`, associates the message
+through `aria-describedby`, and focuses it:
+
+```
+empty submit  -> { focused: "username", invalid: ["username"], describes: "Username and password are required" }
+password only -> { focused: "password", invalid: ["password"] }
+```
+
+`Login.tsx` crossed the 250-line ceiling by one line doing it, so the Advanced
+Options section moved to `LoginAdvancedOptions.tsx` — an exact piecewise move,
+markup unchanged, state passed in, nothing there deciding anything. Verified
+afterwards against the built bundle rather than by reading: the section still
+opens, and both its controls are still there.

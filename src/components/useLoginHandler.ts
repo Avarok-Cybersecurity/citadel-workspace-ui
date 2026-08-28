@@ -1,4 +1,9 @@
 import { useState } from "react";
+import { firstFieldToFix } from '@/lib/first-field-to-fix';
+
+/** The login form's fields, in the order they are rendered. */
+const LOGIN_FIELD_ORDER = ['username', 'password'] as const;
+type LoginField = (typeof LOGIN_FIELD_ORDER)[number];
 import { DEFAULT_SECURITY_SETTINGS } from './security-settings-defaults';
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -40,6 +45,8 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
   // shape is unchanged for the join flow that shares it.
   const [server, setServer] = useState("");
   const [error, setError] = useState<string | null>(null);
+  /** The field a refused submit pointed at, so the form can mark it invalid. */
+  const [invalidField, setInvalidField] = useState<LoginField | null>(null);
   const [loading, setLoading] = useState(false);
   const [securitySettings, setSecuritySettings] =
     useState<SecuritySettingsState>(DEFAULT_SECURITY_SETTINGS);
@@ -52,10 +59,25 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) { setError("Username and password are required"); return; }
+    if (!username.trim() || !password.trim()) {
+      setError("Username and password are required");
+      // And take them to the field, which announcing alone does not.
+      //
+      // This said the sentence and left focus on Sign In with no field marked
+      // invalid: a screen-reader user hears "username and password are
+      // required" with their cursor on a button, and there is nothing to say
+      // which of the two is missing. The join form was given this in round 230
+      // and the login form was not -- the same fix, in one of the two places it
+      // belonged.
+      const field = firstFieldToFix(LOGIN_FIELD_ORDER, { username, password });
+      setInvalidField(field);
+      if (field) document.getElementById(field)?.focus();
+      return;
+    }
 
     setLoading(true);
     setError(null);
+    setInvalidField(null);
 
     try {
       // No pre-emptive claim on a username match.
@@ -200,6 +222,6 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
 
   return {
     username, setUsername, password, setPassword, server, setServer,
-    error, loading, securitySettings, setSecuritySettings, handleLogin,
+    error, loading, securitySettings, setSecuritySettings, handleLogin, invalidField,
   };
 }
