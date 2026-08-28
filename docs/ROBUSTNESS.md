@@ -11499,3 +11499,37 @@ Composite widgets are excluded deliberately, not overlooked: a Radix `TabsList`
 uses roving tabindex, exactly one tab is tabbable, and the arrow keys move
 between them. Expecting each tab to be its own Tab stop was this rule's first
 output and it was wrong.
+
+## Round 214 — every tab and every switch in the app was under the floor
+
+CI found it, in a spec that needs a backend:
+
+```
+settings has tap targets under 24px at 375px:
+  <button> "General" 59x23   <button> "Connect" 59x23   <button> "Theme"   59x23
+  <button> "Privacy" 59x23   <button> "Perms"   59x23   <button> ""        39x21
+```
+
+The five tab triggers and, separately, **every Switch in the app** — the privacy
+toggles, the settings toggles, all of them.
+
+Both are the rem-scaling defect for the third time. `py-1.5` is `0.375rem` and
+`h-6` is `1.5rem`; the app's root font size is 14px, so a tab came out 23px and
+a switch 21px. Round 185 found it in text (`text-xs` at 10.5px), round 188 in
+icon buttons (`h-6 w-6` at 21px), and here it is in two more shared primitives.
+Fixed in `ui/tabs.tsx` and `ui/switch.tsx`, so it is one edit per primitive
+rather than one per call site.
+
+### Why the cheap gate did not catch it
+
+Round 210 added Settings and its five tabs to the **accessibility** gate. It did
+not add them to the **mobile-layout** gate, which is the one that measures tap
+targets. So a surface was being scanned for names and roles while the defect
+sitting on it went unmeasured, and a forty-minute backend-dependent spec found
+what a twenty-second check could have.
+
+That is the never-propagated fix again — extending one gate's screen list and
+not its sibling's — committed by me, two rounds after writing the entry about it.
+
+Settings is now in both. The control reverts the Switch floor and fails four
+tabs by name, at 320px first.

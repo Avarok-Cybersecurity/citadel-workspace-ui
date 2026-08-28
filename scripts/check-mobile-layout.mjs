@@ -114,6 +114,28 @@ async function main() {
         await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
         await page.getByTestId('manage-accounts-button').click({ force: true });
       }],
+      // Settings, and every tab in it.
+      //
+      // Round 210 added these to the ACCESSIBILITY gate and not to this one,
+      // and the tap-target defects they were hiding went on shipping: the five
+      // tab triggers at 59x23 and every Switch in the app at 39x21, both under
+      // WCAG 2.2's floor, both found by a Playwright spec that needs a backend
+      // rather than by the check that runs in seconds.
+      //
+      // Extending one gate's screen list and not the other's is the same
+      // never-propagated fix this campaign keeps recording, applied to my own
+      // work two rounds later.
+      ...['General', 'Connect', 'Theme', 'Privacy', 'Perms'].map((tab) => [
+        `settings/${tab}`,
+        async () => {
+          if (!(await page.locator('[role="tab"]').filter({ hasText: tab }).count())) {
+            await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+            await page.locator('button').filter({ hasText: /^Settings$/ }).first().click({ force: true });
+            await page.waitForTimeout(800);
+          }
+          await page.locator('[role="tab"]').filter({ hasText: tab }).first().click({ force: true });
+        },
+      ]),
     ];
 
     for (const [name, go] of screens) {
