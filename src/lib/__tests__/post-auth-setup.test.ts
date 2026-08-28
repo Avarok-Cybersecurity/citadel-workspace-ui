@@ -28,6 +28,9 @@ const spies = vi.hoisted(() => {
     listNodesSpy: vi.fn(async () => {
       calls.push({ name: 'listNodes', args: [] });
     }),
+    listMembersSpy: vi.fn(async () => {
+      calls.push({ name: 'listMembers', args: [] });
+    }),
     getTreeSchemaSpy: vi.fn(async () => {
       calls.push({ name: 'getTreeSchema', args: [] });
     }),
@@ -40,6 +43,7 @@ vi.mock('@/lib/workspace-service', () => ({
     loadWorkspace: spies.loadWorkspaceSpy,
     listNodes: spies.listNodesSpy,
     getTreeSchema: spies.getTreeSchemaSpy,
+    listMembers: spies.listMembersSpy,
   },
 }));
 
@@ -50,6 +54,7 @@ describe('postAuthSetup', () => {
     spies.calls.length = 0;
     spies.setConnectionIdSpy.mockClear();
     spies.loadWorkspaceSpy.mockClear();
+    spies.listMembersSpy.mockClear();
     spies.listNodesSpy.mockClear();
     spies.getTreeSchemaSpy.mockClear();
   });
@@ -63,6 +68,12 @@ describe('postAuthSetup', () => {
       'loadWorkspace',
       'listNodes',
       'getTreeSchema',
+      // The members, which is how this client learns its OWN role: the server
+      // promotes the first account to Admin on connect and the browser was
+      // reading role from a stored session record written once at registration.
+      // Nothing asked for the list at boot, so an administrator who never opened
+      // the members panel was shown a member's app.
+      'listMembers',
     ]);
     expect(spies.setConnectionIdSpy).toHaveBeenCalledWith(cid);
   });
@@ -73,6 +84,9 @@ describe('postAuthSetup', () => {
       'setConnectionId',
       'loadWorkspace',
       'listNodes',
+      // Skipping the tree schema does not skip the role: a caller that does not
+      // need entity types still needs to know whether it is an administrator.
+      'listMembers',
     ]);
     expect(spies.getTreeSchemaSpy).not.toHaveBeenCalled();
   });

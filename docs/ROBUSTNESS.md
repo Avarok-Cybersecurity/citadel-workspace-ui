@@ -12553,3 +12553,53 @@ was to shrink it rather than raise the number: the draft became
 exact piecewise move, every value arriving as a prop, nothing deciding anything
 the page did not decide before. 335 lines down to 304, and the gate's behaviour
 re-verified against the rebuilt bundle rather than assumed from the diff.
+
+## Round 239 — the server said Admin and the browser never asked
+
+Round 228's log capture paid for itself on its first run. The Playwright job
+failed, and this time the backend log came with it:
+
+```
+server-1 | INFO citadel: [ASYNC_KERNEL] User pw_admin_1787936938969 is the
+                         first workspace member; promoted to Admin
+```
+
+and, from the same run, the browser's own conclusion:
+
+```
+[global-setup] A workspace already existed; pw_admin_1787936938969 is a member,
+               so specs needing EditTreeStructure will skip.
+```
+
+The server promoted the account. The browser never found out. Every downstream
+symptom this campaign has been chasing — no ADMIN SETTINGS section, "Could not
+open Settings from TopBar", `Edit Permission Ready: FAIL`, the theme editor spec
+refusing to run — is that one sentence, seen from different angles.
+
+The cause is a single line:
+
+```ts
+const storedSession = await connectionManager.getTabSelectedSession();
+const role = storedSession?.role;
+```
+
+`role` came from a session record written once, locally, when the session was
+created. The server is the authority and changes it on connect; nothing refreshed
+the copy.
+
+The machinery to correct it already existed and was already correct:
+`members:loaded` finds this user in the server's list, updates the role, and
+persists it back to the stored session. **Nothing asked for the list at boot.**
+It was requested when the members panel was opened — so an administrator who
+never opened that panel was shown a member's application, indefinitely.
+
+`postAuthSetup` now ends with `listMembers()`, including on the path that skips
+the tree schema: a caller that does not need entity types still needs to know
+whether it is an administrator. Control: removing the call fails two of the five
+sequence tests.
+
+This is round 233's finding one layer further out, and worth stating as a pair.
+233: the server granted the role but did not mark the workspace initialised, so
+the administrator was asked to become one. 239: the server granted the role and
+the client never asked. Both are the same shape — **an authority and a copy, with
+nothing keeping them in step** — and neither is visible from either side alone.
