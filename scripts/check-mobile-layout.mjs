@@ -15,6 +15,7 @@
  * screens someone meets before they have any reason to persevere.
  */
 import { spawn } from 'node:child_process';
+import { spawnPreview, dismissConnectionFailure } from './lib/preview-world.mjs';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
@@ -71,9 +72,7 @@ async function main() {
     process.exit(1);
   }
 
-  const preview = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
-    cwd: APP_ROOT, stdio: 'ignore',
-  });
+  const preview = spawnPreview(APP_ROOT, PORT);
   if (!(await waitForServer())) {
     preview.kill();
     console.error('\n  vite preview did not start.\n');
@@ -154,6 +153,13 @@ async function main() {
 
     for (const [name, go] of screens) {
       await go();
+      // The agent-down modal, dismissed before anything is measured.
+      //
+      // The port is pinned closed (lib/preview-world.mjs), so it always arrives.
+      // Left standing it covers the screen under test: its own buttons get
+      // measured for tap size, and the screen's own controls are hidden and
+      // therefore SKIPPED -- a surface can pass by being invisible.
+      await dismissConnectionFailure(page);
       // Settle transitions before measuring: a box mid-animation is not its size.
       await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))))
         .catch(() => {});

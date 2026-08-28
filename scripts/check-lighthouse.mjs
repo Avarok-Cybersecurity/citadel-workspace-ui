@@ -27,6 +27,7 @@
  */
 
 import { spawn } from 'node:child_process';
+import { spawnPreview } from './lib/preview-world.mjs';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -109,11 +110,9 @@ async function main() {
     );
   }
 
-  const preview = spawn(
-    'npx',
-    ['vite', 'preview', '--port', String(PORT), '--strictPort'],
-    { cwd: APP_ROOT, stdio: 'ignore' },
-  );
+  // Pinned agent port: a performance baseline measured against a live stack on
+  // one machine and against nothing in CI is two baselines wearing one number.
+  const preview = spawnPreview(APP_ROOT, PORT);
 
   let chrome;
   try {

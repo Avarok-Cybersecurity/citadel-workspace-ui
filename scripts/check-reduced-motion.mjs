@@ -18,6 +18,7 @@
  * backend: everything asserted is on the landing page.
  */
 import { spawn } from 'node:child_process';
+import { spawnPreview, dismissConnectionFailure } from './lib/preview-world.mjs';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
@@ -57,10 +58,7 @@ async function main() {
     process.exit(1);
   }
 
-  const preview = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
-    cwd: APP_ROOT,
-    stdio: 'ignore',
-  });
+  const preview = spawnPreview(APP_ROOT, PORT);
   if (!(await waitForServer())) {
     preview.kill();
     console.error('\n  vite preview did not start.\n');
@@ -106,8 +104,19 @@ async function main() {
     // and every browser script that addressed them by copy broke silently --
     // see check-mobile-layout.mjs, which spent weeks timing out on a button
     // called "Join Workspace" that no longer existed.
+    // The agent-down modal first, or it is the dialog this measures.
+    //
+    // The port is pinned closed (see lib/preview-world.mjs), so "Connection
+    // Failed" always arrives; dismissed here it stays dismissed for the rest of
+    // the load. Without this, `[role="dialog"]` could resolve to the modal and
+    // the assertion would pass about the wrong thing -- which is exactly what
+    // round 223 found in the accessibility gate.
+    await dismissConnectionFailure(page);
+
     await page.getByTestId('manage-accounts-button').click({ force: true });
-    const dialog = page.locator('[role="dialog"]').first();
+    // The LAST dialog, not the first: dialogs stack, and the one on top is the
+    // one the user is in.
+    const dialog = page.locator('[role="dialog"]').last();
     const opened = await dialog.waitFor({ state: 'visible', timeout: 15_000 }).then(() => true).catch(() => false);
     await page.keyboard.press('Escape');
     const closed = await dialog.waitFor({ state: 'detached', timeout: 15_000 }).then(() => true).catch(() => false);

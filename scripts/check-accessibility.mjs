@@ -20,7 +20,7 @@
  * are dominated by advice that would make this a running argument with the
  * designer rather than a defect gate.
  */
-import { spawn } from 'node:child_process';
+import { spawnPreview, dismissConnectionFailure } from './lib/preview-world.mjs';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
@@ -30,9 +30,6 @@ import { AxeBuilder } from '@axe-core/playwright';
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.A11Y_PORT ?? 4186);
 const ORIGIN = `http://localhost:${PORT}`;
-/** Nothing listens here; see the preview spawn below. */
-const CLOSED_AGENT_PORT = 12399;
-
 /**
  * The surface under test, installed into every page as `__a11yScope()`.
  *
@@ -71,24 +68,13 @@ async function main() {
     process.exit(1);
   }
 
-  // A CLOSED agent port, deliberately, and not whatever happens to be running.
+  // The agent port pinned closed, from the one place that decides it.
   //
-  // `vite preview` proxies `/ws` to `127.0.0.1:${AGENT_PORT ?? 12345}`, which on
-  // a developer's machine is their live stack and in CI is nothing at all. So
-  // this gate was measuring two different applications: locally the wizard, and
-  // in CI the wizard with the "Connection Failed" modal open on top of it,
-  // trapping focus the way a modal correctly should. Every surface passed
-  // locally and one failed in CI, and the difference was never the code.
-  //
-  // Agent-down is the honest world for a gate whose whole premise is that it
-  // needs nothing but a served bundle -- so it is pinned here, and the modal
-  // that follows from it is scanned as a surface of its own instead of drifting
-  // in and out of the measurement.
-  const preview = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
-    cwd: APP_ROOT,
-    stdio: 'ignore',
-    env: { ...process.env, AGENT_PORT: String(CLOSED_AGENT_PORT) },
-  });
+  // `vite preview` proxies `/ws` to the developer's live stack or, in CI, to
+  // nothing — so an unpinned gate measures two different applications. That
+  // difference produced a red CI leg here and the same latent bug in three other
+  // gates; see lib/preview-world.mjs.
+  const preview = spawnPreview(APP_ROOT, PORT);
   if (!(await waitForServer())) {
     preview.kill();
     console.error('\n  vite preview did not start.\n');
@@ -138,29 +124,6 @@ async function main() {
      * It is scanned on its own below rather than merely suppressed: with no
      * agent running it is the first screen a real user meets.
      */
-    const dismissConnectionFailure = async () => {
-      const modal = page.getByTestId('connection-retry-modal');
-      // WAIT for it, then dismiss -- do not sample and move on.
-      //
-      // With the agent port closed it always arrives, a few seconds after the
-      // load. Polling for its absence exited before it ever showed up on the
-      // quick surfaces (landing, sign-in) and after it had shown up on the slow
-      // ones (settings tabs), so half the screens were measured with it open
-      // over them and half without, which is precisely the drift this gate was
-      // failing on in CI. Waiting makes the two halves the same.
-      await modal.waitFor({ state: 'visible', timeout: 60_000 });
-      // By testid, and the one INSIDE the modal.
-      // `page.locator('button')…filter(hasText: /^Cancel$/).last()` picked
-      // whichever Cancel came last in the DOM, which on the sign-in and
-      // settings surfaces is the underlying dialog's -- so the click closed the
-      // screen under test and left the modal standing.
-      await page.getByTestId('connection-retry-cancel').click({ force: true });
-      await modal.waitFor({ state: 'hidden', timeout: 10_000 });
-      // Dismissal sticks for the rest of the load: `onFailure` preserves it and
-      // only a successful connection clears it. Measured over 30s of continued
-      // failures, so this is one dismissal per surface, not a race.
-    };
-
     const screens = [
       ['landing', async () => { await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' }); }],
       ['sign-in', async () => {
@@ -283,7 +246,7 @@ async function main() {
       // dismissal placed earlier left it standing over the form -- and the
       // walk then measured its seven buttons and passed, which is exactly the
       // reading this gate is supposed to make impossible.
-      if (name !== 'connection-failed') await dismissConnectionFailure();
+      if (name !== 'connection-failed') await dismissConnectionFailure(page);
       const { violations } = await new AxeBuilder({ page }).withTags(WCAG).analyze();
       scanned += 1;
 

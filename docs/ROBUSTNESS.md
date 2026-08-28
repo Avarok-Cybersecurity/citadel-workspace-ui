@@ -12100,3 +12100,59 @@ and both step indices.
 This is round 225 one level up. There, a wait gave up and reported nothing; here,
 a CI job fails and reports nothing. Same defect, different altitude — and the
 same fix, which is to capture the state at the moment it is still true.
+
+## Round 229 — the same fix, in five more gates
+
+Round 223 found that `check-accessibility.mjs` measured a different application
+locally than in CI, because `vite preview` proxies `/ws` to
+`127.0.0.1:${AGENT_PORT ?? 12345}` — a developer's live stack on one machine,
+nothing at all on the other. With no agent the "Connection Failed" modal opens
+over the screen and traps focus, so anything scoped to `[role="dialog"]` lands on
+the modal instead of the screen it names.
+
+That gate was fixed. Five others had the same shape and none of them had failed
+yet, which is the whole problem: they were green about the wrong screen.
+
+| gate | pinned the agent port | handled the modal |
+|---|---|---|
+| check-accessibility | after round 223 | after round 223 |
+| check-mobile-layout | no | no |
+| check-reduced-motion | no | no |
+| check-pwa-offline | no | no |
+| check-lighthouse | no | n/a |
+| check-agent-down | yes — the agent is its subject | n/a |
+
+`check-reduced-motion` asserted on `[role="dialog"]`**.first()** after opening
+Manage Accounts; in CI that can be the retry modal, so "dialogs still close, not
+merely fade" was a statement about a dialog the check never meant to open.
+`check-mobile-layout` is worse in a quieter way: with the modal covering the
+screen, its own buttons get measured for tap size and the screen's real controls
+are hidden — and hidden controls are *skipped*, so a surface passes by being
+invisible.
+
+`scripts/lib/preview-world.mjs` now owns the decision: `spawnPreview` pins the
+port closed, `dismissConnectionFailure` waits for the modal and dismisses it.
+Waiting rather than sampling is the point — polling for its absence exits before
+it arrives on a quick surface and after it arrives on a slow one, so half a run
+gets measured with it open. The dismissal is once per **document**, and the
+document remembers: a marker on `window`, which navigation clears, which is
+exactly when the modal comes back.
+
+Two rules, and both had to be fixed before they could fail:
+
+- `check-gates-pin-their-world.mjs` first asked whether a file *mentioned*
+  `spawnPreview`, which an import line satisfies on its own. Its control — a raw
+  spawn in a file that still imports the helper — passed. It now matches the
+  hand-rolled argument list. It also found the sixth gate, `check-lighthouse`,
+  that the manual sweep had missed, where a performance baseline was measured
+  against a live stack on one machine and against nothing in CI: two baselines
+  wearing one number.
+- `preflight.mjs` derived its gate list with a regex and ran everything from the
+  repo root, so the first gate carrying a `working-directory:` failed locally
+  while passing in CI — preflight's own failure mode, pointed the other way. It
+  now parses the workflow and runs each gate where CI runs it. Control: removing
+  the `working-directory:` from the step turns preflight red.
+
+This is the eleventh never-propagated fix this campaign has recorded, and the
+second where the uncorrected copies sat in the same directory as the corrected
+one.

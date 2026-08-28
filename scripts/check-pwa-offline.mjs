@@ -19,6 +19,7 @@
  * once and every production-bundle check verifies the same artefact.
  */
 import { spawn } from 'node:child_process';
+import { spawnPreview } from './lib/preview-world.mjs';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -68,11 +69,7 @@ async function main() {
     );
   }
 
-  const preview = spawn(
-    'npx',
-    ['vite', 'preview', '--port', String(PORT), '--strictPort'],
-    { cwd: APP_ROOT, stdio: 'ignore' },
-  );
+  const preview = spawnPreview(APP_ROOT, PORT);
 
   let browser;
   try {
