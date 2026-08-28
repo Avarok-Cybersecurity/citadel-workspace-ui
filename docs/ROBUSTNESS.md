@@ -11888,3 +11888,57 @@ Six changes:
 Control: disabling the dismissal turns "measured the intended surface" red with
 `dialog "Connection Failed"` as the detail. Fourteen surfaces, and the six that
 had been silently scanning the modal now scan what they name.
+
+## Round 224 — the request that was refused by never answering
+
+Three CI integration legs failed with the same shape, and it is the shape that
+has been recorded twice before as unexplained:
+
+```
+[MessagePaginationStore] Failed to delete old format: LocalDBDeleteKV request timed out
+[ConnectionService]      Failed to store session:     LocalDBSetKV request timed out
+[MessagePaginationStore] Failed to load metadata:     LocalDBGetAllKV request timed out
+[ConnectionService]      Failed to store session:     LocalDBSetKV request timed out
+Workspace loading timeout
+```
+
+The router logs every inbound message, which turns this from a guess into a
+measurement: there is **no** `LocalDBSetKVSuccess`, `LocalDBSetKVFailure`,
+`LocalDBDeleteKV*` or `LocalDBGetAllKV*` line anywhere in the run — not late, not
+at all — while `LocalDBGetKVFailure` arrives repeatedly and is handled.
+
+That asymmetry names the code exactly. The internal service's ownership gate
+covers four variants:
+
+| variant | gated | answered in CI |
+|---|---|---|
+| `LocalDBGetKV` | exempt for ILM keys | yes |
+| `LocalDBSetKV` | yes | **never** |
+| `LocalDBDeleteKV` | yes | **never** |
+| `LocalDBGetAllKV` | yes | **never** |
+| `LocalDBClearAllKV` | yes | not exercised |
+
+The gate refused by `return None`, and `None` sends nothing. The browser then
+waits out its own five-second timeout, four times, and the workspace load times
+out behind it — a failure the UI reports as a storage problem, in a component
+that never did anything wrong.
+
+It is not an attack path, it is the ordinary boot: a browser keeps its CID across
+an internal-service restart, so the first write afterwards names a session that
+no longer exists. The caller being refused is the app itself.
+
+Both branches now answer with the same message, so the two are indistinguishable
+and answering leaks nothing a timeout did not already leak. Everything the gate
+does not refuse keeps being dropped — inventing a response shape for a variant
+the gate never refuses would be guesswork, and a wrong shape is worse than
+silence because the caller matches on it.
+
+The decision moved out of `handle_request` into `gate_decision(command, owner,
+caller)`, a pure function. That was not tidying. The first version of this fix
+kept the decision inline and tested only the thing that builds a refusal —
+**restoring the silent `return None` passed all eight tests**, because nothing
+obliged the gate to build one. Two controls now fail: letting an unowned write
+proceed, and removing a variant from the response builder.
+
+Not yet verified end-to-end. This is a backend change, and the stack rebuild that
+would confirm it belongs to the person whose stack it is.
