@@ -11651,3 +11651,37 @@ The control reverts the lookup and fails four surfaces by name, including
 `join/security` with *"Standard"* and *"Best Effort Secrecy"* — two more selects
 on the sign-up path that were announcing their values, and that nothing had
 looked at.
+
+## Round 218 — my own gate failed CI, on a hidden sequence
+
+`check:a11y` timed out in CI:
+
+```
+locator.fill: Timeout 30000ms exceeded.
+  - waiting for locator('#fullName')
+```
+
+It passes locally every time. The surfaces were **chained**: `join/security`
+navigated the wizard, `join/profile` clicked Next on whatever that had left
+behind, and the validation-error surface typed into the form the previous one
+was assumed to have reached. On a slower machine the Next click had not landed,
+the profile step did not exist, and the check waited thirty seconds for a field
+on a screen it had never opened.
+
+**A surface that depends on the previous surface's state is not a check, it is a
+sequence — and it fails as one.** The failure also lands on the wrong name: the
+error says `join/profile with a validation error`, when what went wrong was two
+steps earlier.
+
+Every surface now walks from a fresh load through named helpers, and every step
+**waits for the thing it needs** instead of sleeping a fixed number of
+milliseconds. The Settings tabs had the same shape — *"only open Settings if a
+tab is not already showing"* — in both the accessibility gate and the mobile
+one, and both are fixed.
+
+That "only if not already showing" conditional is worth naming as an
+anti-pattern of its own: it reads as an optimisation and it encodes an
+assumption about what ran before. When the assumption holds, it saves a page
+load. When it does not, it produces a timeout that names the wrong surface.
+
+Thirteen surfaces, 54 assertions, no ordering between them.

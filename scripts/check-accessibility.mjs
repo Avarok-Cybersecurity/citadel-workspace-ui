@@ -71,6 +71,24 @@ async function main() {
     const context = await browser.newContext({ viewport: { width: 375, height: 667 } });
     const page = await context.newPage();
 
+    /** The wizard's second step, from a fresh load. Waits, never sleeps. */
+    const toSecurityStep = async () => {
+      await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+      await page.getByTestId('create-account-button').click({ force: true });
+      await page.locator('#serverAddress').waitFor({ state: 'visible', timeout: 30_000 });
+      await page.locator('#serverAddress').fill('127.0.0.1:12349');
+      await page.locator('#password').fill('password123');
+      await page.locator('button[type="submit"]').first().click({ force: true });
+      await page.getByRole('heading', { name: /Security/i }).waitFor({ state: 'visible', timeout: 30_000 });
+    };
+
+    /** The wizard's third step, from a fresh load. */
+    const toProfileStep = async () => {
+      await toSecurityStep();
+      await page.locator('button').filter({ hasText: /^Next$/ }).last().click({ force: true });
+      await page.locator('#fullName').waitFor({ state: 'visible', timeout: 30_000 });
+    };
+
     const screens = [
       ['landing', async () => { await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' }); }],
       ['sign-in', async () => {
@@ -94,33 +112,41 @@ async function main() {
       ...['General', 'Connect', 'Theme', 'Privacy', 'Perms'].map((tab) => [
         `settings/${tab}`,
         async () => {
-          if (!(await page.locator('[role="tab"]').filter({ hasText: tab }).count())) {
-            await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
-            await page.locator('button').filter({ hasText: /^Settings$/ }).first().click({ force: true });
-            await page.waitForTimeout(800);
-          }
-          await page.locator('[role="tab"]').filter({ hasText: tab }).first().click({ force: true });
+          // From a fresh load every time, and waiting rather than sleeping.
+          // The conditional "only open Settings if a tab is not already
+          // showing" version depended on the previous surface leaving the
+          // modal open, which is the same hidden sequence that timed the
+          // wizard steps out in CI.
+          await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+          await page.locator('button').filter({ hasText: /^Settings$/ }).first().click({ force: true });
+          const trigger = page.locator('[role="tab"]').filter({ hasText: tab }).first();
+          await trigger.waitFor({ state: 'visible', timeout: 30_000 });
+          await trigger.click({ force: true });
         },
       ]),
       // The wizard's later steps, which the four-surface list never reached.
       // Round 208's defect was on a surface exactly like these: reachable in
       // three clicks, scanned by nothing that runs without a backend, and
       // broken by a change made somewhere else entirely.
+      // Each of these walks the wizard from the START.
+      //
+      // They used to chain -- `join/profile` clicked Next on whatever
+      // `join/security` had left behind. That worked locally and timed out in
+      // CI, waiting thirty seconds for `#fullName` on a step that was never
+      // reached because the previous click had not landed yet on a slower
+      // machine. A surface that depends on the previous surface's state is not
+      // a check, it is a sequence, and it fails as one.
       ['join/security', async () => {
-        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
-        await page.getByTestId('create-account-button').click({ force: true });
-        await page.waitForTimeout(900);
-        await page.locator('#serverAddress').fill('127.0.0.1:12349');
-        await page.locator('#password').fill('password123');
-        await page.locator('button[type="submit"]').first().click({ force: true });
+        await toSecurityStep();
       }],
       ['join/profile', async () => {
-        await page.locator('button').filter({ hasText: /^Next$/ }).last().click({ force: true });
+        await toProfileStep();
       }],
       // The ERROR state, not just the empty form. Field errors are where
       // `aria-invalid` and `aria-describedby` are either present or the user is
       // told nothing they can act on — and an empty form proves neither.
       ['join/profile with a validation error', async () => {
+        await toProfileStep();
         await page.locator('#fullName').fill('Probe');
         await page.locator('#username').fill('probe1');
         await page.locator('#password').fill('password123');

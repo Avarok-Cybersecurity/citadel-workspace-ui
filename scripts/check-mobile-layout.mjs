@@ -134,12 +134,15 @@ async function main() {
       ...['General', 'Connect', 'Theme', 'Privacy', 'Perms'].map((tab) => [
         `settings/${tab}`,
         async () => {
-          if (!(await page.locator('[role="tab"]').filter({ hasText: tab }).count())) {
-            await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
-            await page.locator('button').filter({ hasText: /^Settings$/ }).first().click({ force: true });
-            await page.waitForTimeout(800);
-          }
-          await page.locator('[role="tab"]').filter({ hasText: tab }).first().click({ force: true });
+          // Fresh load, then wait for the tab rather than sleeping. The
+          // conditional version depended on the previous surface leaving the
+          // Settings modal open -- a hidden sequence that timed out in CI when
+          // a click landed a fraction later than it does locally.
+          await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+          await page.locator('button').filter({ hasText: /^Settings$/ }).first().click({ force: true });
+          const trigger = page.locator('[role="tab"]').filter({ hasText: tab }).first();
+          await trigger.waitFor({ state: 'visible', timeout: 30_000 });
+          await trigger.click({ force: true });
         },
       ]),
     ];
