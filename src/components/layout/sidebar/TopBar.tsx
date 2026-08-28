@@ -165,12 +165,14 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
             <DropdownMenuItem
               className="text-foreground cursor-pointer focus:bg-primary-accent/15 focus:text-foreground"
               onClick={() => setShowProfileModal(true)}
+              data-testid="account-menu-profile"
             >
               Profile
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-foreground cursor-pointer focus:bg-primary-accent/15 focus:text-foreground"
               onClick={() => setShowSettingsModal(true)}
+              data-testid="account-menu-settings"
             >
               Settings
             </DropdownMenuItem>
@@ -178,6 +180,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
               <DropdownMenuItem
                 className="text-foreground cursor-pointer gap-2 focus:bg-primary-accent/15 focus:text-foreground"
                 onClick={installNow}
+                data-testid="account-menu-install"
               >
                 <Download className="h-4 w-4" aria-hidden="true" />
                 Install app
@@ -187,6 +190,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
             <DropdownMenuItem
               className="text-muted-foreground cursor-pointer gap-2 focus:bg-primary-accent/15 focus:text-foreground"
               onClick={() => setShowExitConfirm(true)}
+              data-testid="account-menu-exit"
             >
               <ArrowLeft className="h-4 w-4" />
               Exit to Landing
@@ -194,6 +198,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
             <DropdownMenuItem
               className="text-destructive-emphasis cursor-pointer gap-2 focus:bg-destructive/10 focus:text-destructive-emphasis"
               onClick={handleSignOut}
+              data-testid="account-menu-signout"
             >
               <LogOut className="h-4 w-4" />
               Sign Out

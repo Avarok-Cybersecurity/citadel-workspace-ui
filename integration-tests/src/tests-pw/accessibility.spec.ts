@@ -27,6 +27,7 @@ import {
   waitForWorkspaceLoaded,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { pressAccountMenuItem } from '../lib/account-menu.js';
 
 /** WCAG 2.1 A and AA. The level a product is normally held to. */
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
@@ -472,8 +473,7 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
     // The other surfaces, while we are already in light. Scanning only the
     // shell would have left settings and the directory unexamined in the very
     // mode that hid three separate defects.
-    await page.getByTestId('user-avatar-button').click({ force: true });
-    await page.getByRole('menuitem', { name: 'Settings' }).click({ force: true });
+    await pressAccountMenuItem(page, 'account-menu-settings');
     await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
     await expectNoBlockingViolations(page, 'settings/light');
     await page.keyboard.press('Escape');
@@ -495,8 +495,7 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
   });
 
   test('settings modal', async () => {
-    await page.getByTestId('user-avatar-button').click({ force: true });
-    await page.getByRole('menuitem', { name: 'Settings' }).click({ force: true });
+    await pressAccountMenuItem(page, 'account-menu-settings');
     await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
 
     await expectNoBlockingViolations(page, 'settings');
@@ -736,12 +735,7 @@ test.describe.serial('Accessibility (theme editor)', () => {
     // something to say about: a custom colour wheel is a hand-built widget, not
     // a native control, and the preview is a grid of buttons standing in for
     // parts of the app.
-    const settingsItem = page.locator('[role="menuitem"]:has-text("Settings")');
-    await expect(async () => {
-      await page.getByTestId('user-avatar-button').click({ force: true });
-      await expect(settingsItem).toBeVisible({ timeout: 3_000 });
-    }).toPass({ timeout: 30_000 });
-    await settingsItem.click({ force: true });
+    await pressAccountMenuItem(page, 'account-menu-settings');
 
     await page.getByRole('tab', { name: /^theme$/i }).click({ force: true });
     await page.getByTestId('open-workspace-appearance').click({ force: true });

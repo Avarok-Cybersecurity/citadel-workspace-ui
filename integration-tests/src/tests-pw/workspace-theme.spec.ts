@@ -23,6 +23,7 @@ import {
   waitForWorkspaceLoaded,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { pressAccountMenuItem } from '../lib/account-menu.js';
 
 /** Read a design token off the document, which is where applyTheme writes. */
 async function readToken(page: Page, name: string): Promise<string> {
@@ -33,20 +34,7 @@ async function readToken(page: Page, name: string): Promise<string> {
 }
 
 async function openAppearanceSettings(page: Page): Promise<void> {
-  const settingsItem = page.locator('[role="menuitem"]:has-text("Settings")');
-
-  // The workspace keeps streaming data in for a while after it first renders,
-  // and a re-render dismisses an open Radix dropdown. Clicking the avatar once
-  // and then waiting on the menu item means waiting forever on a menu that
-  // closed a frame after it opened — which is exactly how this step hung for a
-  // full timeout after a reload. Reopen until the item is really there.
-  const avatar = page.getByTestId('user-avatar-button');
-  await expect(async () => {
-    await avatar.click({ timeout: 5_000 });
-    await expect(settingsItem).toBeVisible({ timeout: 3_000 });
-  }).toPass({ timeout: 30_000 });
-
-  await settingsItem.click();
+  await pressAccountMenuItem(page, 'account-menu-settings');
   // The tab is labelled "Theme"; its visible text is hidden below `sm`, so the
   // accessible name comes from the aria-label rather than the span.
   await page.getByRole('tab', { name: /^theme$/i }).click();

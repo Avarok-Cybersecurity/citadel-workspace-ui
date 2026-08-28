@@ -19,6 +19,7 @@ import {
   waitForWorkspaceLoaded,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { pressAccountMenuItem } from '../lib/account-menu.js';
 
 /**
  * Bound on the tab walk.
@@ -243,8 +244,7 @@ test.describe.serial('Keyboard operability (workspace)', () => {
   });
 
   test('the settings dialog closes with Escape', async () => {
-    await page.getByTestId('user-avatar-button').click({ force: true });
-    await page.getByRole('menuitem', { name: 'Settings' }).click({ force: true });
+    await pressAccountMenuItem(page, 'account-menu-settings');
 
     const dialog = page.locator('[role="dialog"]').first();
     await expect(dialog).toBeVisible({ timeout: 30_000 });

@@ -30,15 +30,14 @@
   "integration-tests/src/tests/user-directory-actions.test.ts": 1,
   "integration-tests/src/tests/user-directory.test.ts": 5,
   "integration-tests/src/tests/workspace-init.test.ts": 10,
-  "integration-tests/src/tests-pw/accessibility.spec.ts": 9,
+  "integration-tests/src/tests-pw/accessibility.spec.ts": 6,
   "integration-tests/src/tests-pw/admin-lockout.spec.ts": 1,
   "integration-tests/src/tests-pw/error-handling.spec.ts": 7,
-  "integration-tests/src/tests-pw/keyboard-navigation.spec.ts": 1,
   "integration-tests/src/tests-pw/login-flow.spec.ts": 1,
   "integration-tests/src/tests-pw/member-promotion.spec.ts": 1,
   "integration-tests/src/tests-pw/p2p-messaging.spec.ts": 2,
   "integration-tests/src/tests-pw/registration-validation.spec.ts": 3,
-  "integration-tests/src/tests-pw/responsive.spec.ts": 6,
-  "integration-tests/src/tests-pw/workspace-theme.spec.ts": 3,
+  "integration-tests/src/tests-pw/responsive.spec.ts": 4,
+  "integration-tests/src/tests-pw/workspace-theme.spec.ts": 2,
   "integration-tests/src/tools/visual-sweep.spec.ts": 2
 }

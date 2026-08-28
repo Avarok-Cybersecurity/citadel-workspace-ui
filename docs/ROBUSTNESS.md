@@ -13528,3 +13528,42 @@ fails it.
 it found ten more sites across the file-manager, file-transfer, live-doc, revfs
 and user-directory suites — four of which are currently red legs. 139 → **156**,
 again the check learning to see rather than the code getting worse.
+
+## Round 260 — a forced click that could not land, and a retry loop written twice
+
+Shard 1's light-mode accessibility scan failed three times with something worth
+reading carefully:
+
+```
+Error: locator.click: Element is outside of the viewport
+  - locator resolved to <div role="menuitem">Settings</div>
+  - attempting click action
+    - scrolling into view if needed
+    - done scrolling
+```
+
+The element existed. Scrolling was attempted and finished. It was still outside
+the viewport — because a `position: fixed` popper cannot be scrolled into view.
+Radix positions its content asynchronously, and `{ force: true }` skips exactly
+the wait that lets it finish. The force did not rescue the click; it caused the
+failure. *A forced click hides the defect that the click cannot land* — and here
+it manufactured one.
+
+The accessibility scan below that line has therefore not run in CI.
+
+### Written twice, missing in a third place
+
+Two specs had already met the other half of this — the workspace streams data in
+after first render, a re-render dismisses an open dropdown, so the menu has to be
+reopened until the item is really there. `workspace-theme` and `responsive` each
+grew their own `toPass` loop. `accessibility` never got one, and neither did
+`keyboard-navigation`.
+
+One `pressAccountMenuItem(page, testId)` now holds all of it: force the avatar,
+because the churn is real and the trigger is a plain button; retry until the item
+appears; then assert `toBeInViewport` — not merely `toBeVisible`, which a
+rendered-but-unpositioned popper already satisfies — and click **without** force,
+so actionability does its job.
+
+The menu items carry testids now, so the helper presses an identity rather than
+the word "Settings". Five call sites across four specs, 156 → **149**.

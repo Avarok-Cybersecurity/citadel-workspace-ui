@@ -25,6 +25,7 @@ import {
   waitForWorkspaceLoaded,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { pressAccountMenuItem } from '../lib/account-menu.js';
 
 const PHONE = { width: 375, height: 667 };
 
@@ -476,8 +477,7 @@ test.describe.serial('Responsive workspace at 375px', () => {
   });
 
   test('settings modal fits the viewport', async () => {
-    await page.getByTestId('user-avatar-button').click({ force: true });
-    await page.getByRole('menuitem', { name: 'Settings' }).click({ force: true });
+    await pressAccountMenuItem(page, 'account-menu-settings');
     await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
 
     await expectNoHorizontalOverflow(page, 'settings');
@@ -697,12 +697,7 @@ test.describe.serial('Responsive theme editor at 375px', () => {
     // The workspace keeps streaming data in after it first renders, and a
     // re-render dismisses an open Radix dropdown, so opening the menu is
     // retried rather than clicked once and waited on.
-    const settingsItem = page.locator('[role="menuitem"]:has-text("Settings")');
-    await expect(async () => {
-      await page.getByTestId('user-avatar-button').click({ force: true });
-      await expect(settingsItem).toBeVisible({ timeout: 3_000 });
-    }).toPass({ timeout: 60_000 });
-    await settingsItem.click({ force: true });
+    await pressAccountMenuItem(page, 'account-menu-settings');
 
     // Wait for the dialog, do not assume it. Clicking the tab straight after
     // the menu item raced the modal mounting: the click landed on nothing and
