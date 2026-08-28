@@ -9991,3 +9991,34 @@ and still writable.
 Two controls, and the second is the one worth having: deleting only `node_id`
 instead of every id in `deleted_ids` passes the direct test and fails the
 cascade one. A single test here would have looked like a fix.
+
+## Round 175 — contact requests belonged to the device, not the account
+
+`pending_peer_requests` and `outgoing_peer_requests` were written to flat keys in
+LocalDB bucket `0n`, which every account on the device shares.
+
+So on a product that explicitly expects several accounts in one browser, one
+account's **incoming contact requests appeared in another's list** — and could be
+accepted there. Accepting establishes a real P2P registration under the wrong
+CID: a peer becomes a contact of an account that never agreed to it, and the
+person who sent the request is now connected to someone they did not ask for.
+
+The neighbouring subsystem had already been through this. `message-page-keys.ts`
+opens by describing the identical defect in the identical bucket, fixed by
+putting the owner in the key rather than policing the sharing afterwards. The
+comment even records the follow-up mistake — an `ownerCid` stamp that guarded
+only deletion, so "Clear Chat History" refused into a debug log while telling the
+user it could not be undone.
+
+That fix was correct and it reached one subsystem. This is the fourth time this
+campaign has found a fix that was never propagated, and the second time the
+uncorrected copy was one directory away from the corrected one.
+
+Both loaders now filter by owner as well, on every read — not only the legacy
+one. On the scoped key the filter costs nothing and can never fire; on the
+legacy key, which holds every account's requests, it is what makes the read safe
+at all. And with no session established, the filter claims **nothing** rather
+than everything: there is no account for those requests to belong to yet, and
+guessing is the bug.
+
+Two controls: flat keys fail 2 of 6, dropping the owner filter fails 3 of 6.

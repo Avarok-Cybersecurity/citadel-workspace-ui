@@ -21,6 +21,14 @@ import {
   OUTGOING_STORAGE_KEY,
   REQUEST_TIMEOUT_MS
 } from './constants';
+import {
+  pendingKey,
+  outgoingKey,
+  hasLegacyPending,
+  hasLegacyOutgoing,
+  ownPending,
+  ownOutgoing,
+} from './storage-keys';
 
 /** Generic LocalDB set operation */
 async function localDBSet(
@@ -113,39 +121,72 @@ export function persistPendingToLocalDB(
   requests: PendingPeerRequest[],
   kv: Map<string, KVPendingEntry>
 ): Promise<void> {
-  return localDBSet(STORAGE_KEY, requests, kv, 'pending');
+  return localDBSet(pendingKey(), requests, kv, 'pending');
 }
 
+/**
+ * Load this account's incoming requests, from its own key and — once — from the
+ * shared key older builds wrote.
+ *
+ * Both reads are filtered by owner. The scoped key cannot contain anyone else's
+ * and the filter is free there; the legacy key contains EVERY account's, and
+ * without it the second account on a device sees, and can accept, a contact
+ * request addressed to the first.
+ */
 export function loadPendingFromLocalDB(
   kv: Map<string, KVPendingEntry>,
   onLoaded: (requests: PendingPeerRequest[]) => Promise<void>
 ): Promise<void> {
-  return localDBGet<PendingPeerRequest>(STORAGE_KEY, kv, onLoaded, 'pending');
+  return localDBGet<PendingPeerRequest>(
+    pendingKey(), kv,
+    async (data) => {
+      await onLoaded(ownPending(data));
+    },
+    'pending',
+  ).then(() => {
+    if (!hasLegacyPending()) return;
+    return localDBGet<PendingPeerRequest>(
+      STORAGE_KEY, kv,
+      async (data) => {
+        const mine = ownPending(data);
+        if (mine.length > 0) await onLoaded(mine);
+      },
+      'pending (legacy)',
+    );
+  });
 }
 
 export function persistOutgoingToLocalDB(
   requests: OutgoingPeerRequest[],
   kv: Map<string, KVPendingEntry>
 ): Promise<void> {
-  return localDBSet(OUTGOING_STORAGE_KEY, requests, kv, 'outgoing');
+  return localDBSet(outgoingKey(), requests, kv, 'outgoing');
 }
 
 export function loadOutgoingFromLocalDB(
   kv: Map<string, KVPendingEntry>,
   onLoaded: (requests: OutgoingPeerRequest[]) => Promise<void>
 ): Promise<void> {
-  return localDBGet<OutgoingPeerRequest>(
-    OUTGOING_STORAGE_KEY, kv,
-    async (data) => {
-      const valid = data.filter(r => r.toCid && r.fromCid);
-      const invalidCount = data.length - valid.length;
-      if (invalidCount > 0) {
-        debugLog('PeerRegistrationStore', `Filtered out ${invalidCount} invalid outgoing requests`);
-      }
-      await onLoaded(valid);
-    },
-    'outgoing'
-  );
+  const accept = async (data: OutgoingPeerRequest[]) => {
+    const valid = data.filter(r => r.toCid && r.fromCid);
+    const invalidCount = data.length - valid.length;
+    if (invalidCount > 0) {
+      debugLog('PeerRegistrationStore', `Filtered out ${invalidCount} invalid outgoing requests`);
+    }
+    await onLoaded(ownOutgoing(valid));
+  };
+
+  return localDBGet<OutgoingPeerRequest>(outgoingKey(), kv, accept, 'outgoing').then(() => {
+    if (!hasLegacyOutgoing()) return;
+    return localDBGet<OutgoingPeerRequest>(
+      OUTGOING_STORAGE_KEY, kv,
+      async (data) => {
+        const mine = ownOutgoing(data.filter(r => r.toCid && r.fromCid));
+        if (mine.length > 0) await onLoaded(mine);
+      },
+      'outgoing (legacy)',
+    );
+  });
 }
 
 /** Resolve a LocalDB get KV response */
