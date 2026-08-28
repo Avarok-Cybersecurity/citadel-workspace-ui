@@ -24,6 +24,11 @@ function FullPageError({ onReload }: { onReload: () => void }) {
     <div
       role="alert"
       aria-live="assertive"
+      // Named so a check can tell "the app mounted" from "the app crashed and
+      // this rendered instead". Two production checks asserted only that #root
+      // had children, which this satisfies -- so both reported a mounted app
+      // while every single production load was this screen.
+      data-testid="app-crashed"
       className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center text-foreground"
     >
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">

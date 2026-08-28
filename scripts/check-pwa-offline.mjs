@@ -111,6 +111,7 @@ async function main() {
     // that has nothing to do with the app.
     await page.waitForTimeout(1_000);
 
+    let told = false;
     await context.setOffline(true);
     const offlineResponse = await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => null);
 
@@ -121,20 +122,29 @@ async function main() {
       // A 200 from the cache is not the same as a working app: the shell has to
       // actually mount. #root staying empty is what a broken precache looks
       // like from the user's side.
+      // "Not an empty page" was the whole assertion, and it was satisfied by
+      // the root error boundary -- a div under #root. While every production
+      // load rendered "Something went wrong", this said ok.
       const mounted = await page
         .waitForFunction(() => {
           const root = document.getElementById('root');
-          return Boolean(root && root.children.length > 0);
+          if (!root || root.children.length === 0) return false;
+          if (document.querySelector('[data-testid="app-crashed"]')) return false;
+          return Boolean(
+            document.querySelector('[data-testid="sign-in-button"]') ||
+              document.querySelector('[data-testid="create-account-button"]') ||
+              document.querySelector('[data-testid="app-shell"]'),
+          );
         }, { timeout: 15_000 })
         .then(() => true)
         .catch(() => false);
-      record('the offline app renders its shell, not an empty page', mounted);
+      record('the offline app renders the app, not an empty page or a crash', mounted);
 
       // A shell that renders but says nothing leaves the user to guess why
       // half the app is inert. The banner is the only thing that explains it,
       // and its unit test proves it renders when told it is offline — not that
       // anything ever tells it.
-      const told = await page
+      told = await page
         .getByText(/You[’']re offline/i)
         .waitFor({ state: 'visible', timeout: 15_000 })
         .then(() => true)
@@ -147,12 +157,19 @@ async function main() {
     // The promise the banner makes is that this state ends when the connection
     // does. A banner that never clears is its own bug, and a stuck "offline" is
     // worse than none — it contradicts an app that is visibly working again.
-    const cleared = await page
-      .getByText(/You[’']re offline/i)
-      .waitFor({ state: 'hidden', timeout: 20_000 })
-      .then(() => true)
-      .catch(() => false);
-    record('and the notice clears when the connection returns', cleared);
+    // Only meaningful if the notice was ever there. A banner that never
+    // appeared is trivially hidden, so this reported ok for the entire time
+    // the check above was failing -- an assertion that could not fail sitting
+    // directly beneath the one that did.
+    const cleared = told
+      ? await page
+          .getByText(/You[’']re offline/i)
+          .waitFor({ state: 'hidden', timeout: 20_000 })
+          .then(() => true)
+          .catch(() => false)
+      : false;
+    record('and the notice clears when the connection returns', cleared,
+      told ? undefined : 'the notice never appeared, so clearing proves nothing');
 
     report();
   } finally {

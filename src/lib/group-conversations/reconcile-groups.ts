@@ -1,5 +1,5 @@
 import { eventEmitter } from '@/lib/event-emitter';
-import { getGroups, updateGroups } from './group-store';
+import { getGroups, updateGroups, resetGroupsForSession } from './group-store';
 import type { GroupConversation } from '@/types/group';
 import { debugLog } from '@/lib/debug-config';
 
@@ -96,9 +96,14 @@ export function bindGroupListReconcile(): void {
   // consistency check nobody asked for, is worse.
   eventEmitter.on('instance:cid-changed', (data: { cid: bigint | null }) => {
     if (data.cid === null) return;
-    void requestGroupReconcile().catch((error) => {
-      debugLog('GroupReconcile', 'Could not ask the server for the group list', error);
-    });
+    // Scope first, then ask. The list is a module singleton keyed by nothing,
+    // so without the reset the snapshot below would be built from the PREVIOUS
+    // account's groups and the server's answer would be applied to them.
+    void resetGroupsForSession()
+      .then(() => requestGroupReconcile())
+      .catch((error) => {
+        debugLog('GroupReconcile', 'Could not ask the server for the group list', error);
+      });
   });
 }
 

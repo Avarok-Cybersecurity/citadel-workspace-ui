@@ -15,6 +15,7 @@ import { PwaUpdatePrompt } from "./components/pwa/PwaUpdatePrompt";
 import { ThemeColorSync } from "./components/theme/ThemeColorSync";
 import { OfflineBanner } from "./components/pwa/OfflineBanner";
 import { CallLayer } from "./components/call/CallLayer";
+import { OngoingCallBar } from "./components/call/OngoingCallBar";
 
 // Landing is the route almost every session starts on, so it is imported eagerly:
 // code-splitting it would only add a network round trip before first paint.
@@ -96,6 +97,12 @@ const App = () => {
               future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
             >
               <DocumentTitle />
+              {/* Inside the router because its Return button navigates, above
+                  the routes because a running call has to stay visible on all
+                  of them. It lived in CallLayer, which is above the router --
+                  so its useNavigate() threw on every render and took the whole
+                  app down to the error boundary. */}
+              <OngoingCallBar />
               <Suspense fallback={<RouteFallback />}>
                 <Routes>
                   {/* Public routes that don't require workspace data */}

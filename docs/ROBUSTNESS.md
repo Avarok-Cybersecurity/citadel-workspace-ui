@@ -9872,3 +9872,91 @@ import graph, and a unit test of an unread badge started constructing a
 BroadcastChannel and dying inside multi-tab identity code. That failure is worth
 naming: **an import graph is an interface.** The store gained a dependency on
 the WebSocket by adding one line that mentioned it.
+
+## Round 172 — the application did not run
+
+CI's PWA-offline job failed one assertion: *the user is told they are offline*.
+Reproducing it locally produced something much larger. The page was not missing
+a banner. **The whole app was down.**
+
+```
+BODY: Something went wrong | The workspace hit an unexpected error and
+      could not continue. | Reload workspace
+```
+
+Not offline — that is what every production load rendered, online included.
+
+`OngoingCallBar` calls `useNavigate()`; its entire purpose is a Return button.
+It was mounted inside `CallLayer`, which sits **above** `<BrowserRouter>` on
+purpose, so a call survives navigation. Hooks run before a component's early
+returns, so it threw react-router's *"useNavigate() may be used only in the
+context of a `<Router>`"* on every render — with no call in progress and no bar
+on screen. The throw reached the root error boundary, and the app was replaced
+by an apology.
+
+The bar renders inside the router now, above the routes: it can navigate, and it
+still shows on every page.
+
+### Why nothing caught it
+
+Both production browser checks asserted the app had mounted. Both were green.
+
+| check | assertion | why it passed |
+|---|---|---|
+| `check-production-image` | `#root.children.length > 0` | the error boundary is a child of `#root` |
+| `check-pwa-offline` | same, "not an empty page" | same |
+| `check-production-image`, offline | `mounted && h1 text length > 0` | the boundary's `<h1>` reads "Something went wrong" |
+| `check-pwa-offline` | *"and the notice clears when the connection returns"* | asserts a banner is **hidden** — trivially true when it never appeared |
+
+That last one deserves its own line. It reported **ok** for the entire time the
+assertion directly above it was failing, because a thing that never rendered is
+always hidden. A check that cannot fail, sitting one line below the check that
+did.
+
+The distinction is now something the app states about itself: the boundary's
+fallback carries `data-testid="app-crashed"`, and `scripts/lib/app-mounted.mjs`
+is the one definition of "mounted" — no crash marker, `#root` non-empty, **and**
+a control the app actually renders. Both checks use it. The clear-on-reconnect
+assertion is now conditional on the notice having appeared, and says so when it
+did not.
+
+Restoring the bug fails three of the five offline checks instead of one, and the
+two that used to pass over a dead app now name what they saw.
+
+### The static guard
+
+`src/__tests__/router-hooks-live-inside-the-router.test.ts` walks the components
+rendered between `<AppErrorBoundary>` and `<BrowserRouter>` in `App.tsx`,
+follows their imports through `src/`, and fails if any reaches a router hook.
+Its first run flagged `CallLayer.tsx` — for the comment explaining why the bar
+had been moved out of it. A rule that reads its own documentation as a violation
+makes writing the documentation a bug, so it strips comments first.
+
+The reason this is a unit test and not a browser check is that the browser
+checks are the ones that missed it — for a day, across every run — while
+reporting a mounted app.
+
+## Round 173 — two accounts, one group list
+
+The group list is a module singleton, and the restore is a union merge. Both are
+deliberate. Together they mean switching accounts in one browser left the
+previous account's groups in the sidebar and merged the new account's on top:
+two people's groups in one list, the first account's still clickable, opening a
+chat the current session is not a member of.
+
+Persistence was already keyed per CID. Only the memory in front of it was not —
+the same shape as the permissions cache in round 169, four days after that one
+was fixed, in a different subsystem. The pattern is worth naming on its own:
+**a singleton that outlives the session it describes.** Both were found by
+asking the same question of a different module.
+
+The clear deliberately does not go through `updateGroups`, because that
+persists. By the time the reset runs the CID has already changed, so persistence
+is keyed to the NEW account — writing the cleared list there would destroy
+exactly the groups the restore is about to read back. That is the second test,
+and it fails if the clear is routed through the normal path.
+
+`group-store.ts` was at 245 lines, so folding a group message into the list
+moved to its own module first. It is a pure function now, which is where the
+unread rule belonged anyway: the echo the server sends the sender is what made
+your own badge count your own messages.

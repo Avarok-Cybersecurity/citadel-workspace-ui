@@ -21,12 +21,12 @@
 import { eventEmitter } from '@/lib/event-emitter';
 import { bindGroupFailureToasts } from './group-failure-toasts';
 import { bindGroupListReconcile } from './reconcile-groups';
-import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import type { GroupConversation, GroupMember } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { applyGroupInvite } from '@/hooks/use-group-state-invite';
 import { toast } from '@/hooks/use-toast';
 import { loadPersistedGroups, persistGroups } from './group-persistence';
+import { applyGroupMessage } from './apply-group-message';
 import { debugLog } from '@/lib/debug-config';
 
 let groups: GroupConversation[] = [];
@@ -86,6 +86,26 @@ export async function restorePersistedGroups(): Promise<void> {
     hydrated = true;
     for (const listener of listeners) listener();
   }
+}
+
+/**
+ * Forget this account's groups and load the next one's.
+ *
+ * The list is a module singleton and the restore is a union merge, so switching
+ * accounts in one browser left the previous account's groups in the sidebar and
+ * merged the new account's on top — two people's groups in one list, with the
+ * first account's still clickable. Persistence was already keyed per CID; only
+ * the memory in front of it was not.
+ *
+ * The clear does NOT go through `updateGroups`, which persists: writing an
+ * empty list under the NEW account's key would destroy the very groups the
+ * restore is about to read.
+ */
+export async function resetGroupsForSession(): Promise<void> {
+  groups = [];
+  hydrated = false;
+  for (const listener of listeners) listener();
+  await restorePersistedGroups();
 }
 
 /**
@@ -213,25 +233,7 @@ export function startGroupEventBindings(): void {
     senderId: string;
     content: string;
   }) => {
-    updateGroups(prev =>
-      prev.map(group => {
-        if (group.id !== data.groupId) return group;
-        // The server answers the SENDER with the same GroupMessageNotification
-        // it broadcasts to everyone else — that echo is what confirms a send —
-        // so this counted the user's own messages as unread. Send three and
-        // your own badge reads 3.
-        const own = instanceManager.cid;
-        const fromSelf = own !== null && data.senderId === String(own);
-
-        return {
-          ...group,
-          unreadCount: fromSelf ? group.unreadCount : group.unreadCount + 1,
-          lastMessageTime: Date.now(),
-          lastMessagePreview:
-            data.content.length > 50 ? data.content.substring(0, 50) + '...' : data.content,
-        };
-      }),
-    );
+    updateGroups((prev) => applyGroupMessage(prev, data, Date.now()));
   });
 
   eventEmitter.on('group:deleted', (data: { groupId: string }) => {

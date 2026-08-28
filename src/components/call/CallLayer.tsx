@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { CallProvider } from './CallProvider';
 import { CallSoundEffects } from './CallSoundEffects';
 import { CallAudioHost } from './CallAudioHost';
-import { OngoingCallBar } from './OngoingCallBar';
 import { IncomingCallCard } from './IncomingCallCard';
 import { useCall } from '@/lib/call/call-context';
 import { useIsLeaderTab } from './use-leader-tab';
@@ -37,7 +36,21 @@ export function CallLayer({ children }: { children: React.ReactNode }) {
       <CallSoundEffects />
       <CallAudioHost />
       <RingingCall />
-      <OngoingCallBar />
+      {/*
+        OngoingCallBar is NOT here, though it belongs to this layer and used to
+        be. It calls useNavigate() -- its whole purpose is a Return button --
+        and CallLayer is mounted ABOVE <BrowserRouter> so that a call survives
+        navigation. A hook runs before the component's early returns, so the
+        bar threw react-router's "useNavigate() may be used only in the context
+        of a <Router>" on EVERY render, with no call in progress and no bar on
+        screen.
+
+        That took the whole application down: the throw propagated to the root
+        error boundary, so every production load -- and every dev load --
+        rendered "Something went wrong" instead of the app. It is rendered
+        inside the router in App.tsx, where it can both navigate and still sit
+        above every route.
+      */}
       {children}
     </CallProvider>
   );
