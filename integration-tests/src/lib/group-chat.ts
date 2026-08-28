@@ -5,6 +5,7 @@
  */
 
 import type { Page } from 'playwright';
+import { reportTimeout } from './screen-state.js';
 import { sleep } from './utils.js';
 import { takeScreenshot } from './screenshots.js';
 import type { UxIssueTracker } from './ux-tracker.js';
@@ -330,7 +331,7 @@ export async function verifyGroupMessageReceived(
       return true;
     }
 
-    console.log(`  WARNING: Message not found within ${timeout}ms`);
+    await reportTimeout(page, `WARNING: Message not found within ${timeout}ms`);
     if (options.uxTracker) {
       options.uxTracker.log('major', 'functional', `Group message not received: "${expectedMessage.substring(0, 30)}..."`);
     }

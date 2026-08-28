@@ -3,6 +3,7 @@
  */
 
 import type { Page } from 'playwright';
+import { reportTimeout } from './screen-state.js';
 import { sleep } from './utils.js';
 import { UxIssueTracker } from './ux-tracker.js';
 
@@ -153,7 +154,7 @@ export async function waitForWorkspaceLoaded(page: Page, timeout = 60000): Promi
     await sleep(1000);
   }
 
-  console.log('  Workspace loading timeout');
+  await reportTimeout(page, 'Workspace loading timeout');
   return false;
 }
 
@@ -293,7 +294,7 @@ export async function waitForTreeDataLoaded(page: Page, timeout = 30000): Promis
     await sleep(500);
   }
 
-  console.log('  Tree data loading timeout');
+  await reportTimeout(page, 'Tree data loading timeout');
   return false;
 }
 

@@ -3,6 +3,7 @@
  */
 
 import { chromium, Page } from 'playwright';
+import { reportTimeout } from './screen-state.js';
 import type { BrowserOptions, BrowserSetup } from './types.js';
 import { isCI, isHeaded, config } from './config.js';
 
@@ -101,7 +102,7 @@ export async function clearBrowserStorage(page: Page): Promise<void> {
     ]);
     console.log('  Browser storage cleared');
   } catch (error) {
-    console.log('  WARNING: Storage clear failed or timed out, continuing anyway');
+    await reportTimeout(page, 'WARNING: Storage clear failed or timed out, continuing anyway');
   }
 }
 

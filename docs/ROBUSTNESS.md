@@ -11942,3 +11942,49 @@ proceed, and removing a variant from the response builder.
 
 Not yet verified end-to-end. This is a backend change, and the stack rebuild that
 would confirm it belongs to the person whose stack it is.
+
+## Round 225 — a wait that gives up and says nothing
+
+Eleven of the failing CI legs end the same way:
+
+```
+  Workspace loading timeout
+```
+
+That is the whole report. Not the URL, not whether a modal was sitting over the
+app, not whether anything still said it was loading, not what the page actually
+said. Two failure families in this repository have been carried as
+"environmental and unexplained" for weeks, and this is why: the moment they
+happen is the moment the evidence is thrown away.
+
+Twelve helpers in `integration-tests/src/lib` did this. They all take a `page`,
+so one mechanism serves all of them: `reportTimeout(page, message)` captures the
+screen at the instant of the give-up — URL, open dialog titles, anything still
+claiming to load, headings, error toasts, and the first of the body text.
+
+Run against a build with no agent, where the workspace genuinely never loads:
+
+```
+  Workspace loading timeout
+    url:      http://localhost:4188/
+    dialogs:  Connection Failed
+    loading:  nothing says loading
+    headings: The World's FirstPost-QuantumVirtual Wor | Connection Failed
+    errors:   none
+    screen:   Can't reach the Citadel agent on this machine. Check that it is
+              running. CITADEL ... Sign In Create Account Manage Accounts
+```
+
+One line — `dialogs: Connection Failed` — is the diagnosis that thirty seconds of
+waiting and a bare timeout line could not produce.
+
+The first version printed `dialogs: none` against that same screen. It filtered
+on `offsetParent !== null`, and every dialog in this app is `position: fixed`,
+which always reports a null offsetParent. The single most useful field was the
+one that did not work, and it looked exactly like a clean report. Visibility is
+now measured by rectangle.
+
+`give-ups-report-the-screen.test.ts` keeps bare give-ups from returning: any
+`console.log` mentioning a timeout must be one of two named informational lines,
+and the reporter must still capture all five fields by rectangle. Three controls
+— restoring a bare line, and reverting the visibility test — each fail it.
