@@ -10990,3 +10990,55 @@ it is already too late, and `check-stack-reachable` is a package.json script
 because it needs a stack that is already up.
 
 Preflight is 37 checks.
+
+## Round 202 — a finding that was wrong, and how it was caught
+
+This entry replaces one that claimed the agent-down banner could never fire and
+that the WASM client fabricates protocol responses with no agent behind it. Both
+claims were false. The correction is kept in full rather than deleted, because
+the mistake is more instructive than the non-finding.
+
+**What was measured.** A production build was served with `vite preview`, and
+the agent-down banner never appeared in sixty seconds. Digging with the app's
+dev-mode handles showed `isInitialized: true` and `canSendRequests(): true`.
+Probing with `GetSessions` and then `LocalDBGetKV` returned a
+`GetSessionsResponse` and a `LocalDBGetKVFailure` respectively. The conclusion
+drawn was that the client answers everything itself, so no browser-side probe
+can detect an absent agent.
+
+**What was actually true.** `vite.config.ts` proxies `/ws` to
+`ws://127.0.0.1:${AGENT_PORT ?? 12345}` for **both** `server` and `preview` —
+its comment says so explicitly — and this machine has an agent listening on
+12345. Every one of those measurements was of a **healthy, connected app**. The
+banner did not appear because there was nothing to report. The responses came
+from the real agent.
+
+The premise was never checked. `nc -z 127.0.0.1 12345` answers in a millisecond
+and would have ended the investigation before it started.
+
+**Re-run with the agent genuinely unreachable** — `AGENT_PORT=12399`, a port
+with nothing on it:
+
+```
+agent-down banner appeared after 3s
+text: Can't reach the Citadel agent on this machine. Check that it is running.
+```
+
+Three seconds, correct text. The health signal, the banner and
+`canSendRequests()` are all correct, and the Rust `init_inner` propagates a
+failed `WsMeta::connect` exactly as it should.
+
+**What this cost and what it bought.** Two speculative changes to the health
+probe were written and reverted — correctly reverted, but for the wrong reason.
+An hour went into diagnosing a defect that does not exist, and a conclusion was
+written down assigning it to a subsystem I had not read.
+
+The rule this earns: **an investigation that begins "X is broken" must first
+establish that X is in the state it is assumed to be in.** Every other round in
+this campaign began from an observed failure — a red gate, a timeout in a log, a
+measurement. This one began from an absence, and an absence is evidence only
+once you know what should have been there.
+
+The CI `LocalDBSetKV` timeouts remain unexplained. What rounds 189-192 fixed —
+a slow local write discarding an authentication, suppressing a sign-out, gating
+a disconnect — stands on its own regardless of why the agent is slow in CI.
