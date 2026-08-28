@@ -449,8 +449,14 @@ export async function loginAfterDisconnect(
       }
     }
 
-    // Click "Login" button to open login form
-    const loginBtn = page.locator('button:has-text("Login")').first();
+    // By testid, not by the word "Login".
+    //
+    // The landing page's button says "Sign In" and has done for some time, so
+    // this found nothing, reported "Login button not found on landing page" as
+    // a MAJOR UX issue, and failed the whole reconnection family -- five specs
+    // -- on a product that was working. Fifth check this session pinned to copy
+    // the app had improved; see round 235 for the other four.
+    const loginBtn = page.getByTestId('sign-in-button').first();
 
     if (!await isVisibleWithin(loginBtn, 5000)) {
       // Check if we're already on login form
@@ -518,7 +524,9 @@ export async function loginAfterDisconnect(
     await takeScreenshot(page, `${username}_credentials_filled`);
 
     // Submit the form - Login component button says "Connect"
-    const submitBtn = page.locator('button[type="submit"]:has-text("Connect"), button[type="submit"]:has-text("Login"), button:has-text("Sign In"), button:has-text("Log In")').first();
+    // The login form's submit, by testid. The three-way copy match it replaces
+    // was one rename away from finding nothing at all.
+    const submitBtn = page.getByTestId('login-submit').first();
     if (await isVisibleWithin(submitBtn, 2000)) {
       console.log('  Clicking submit button...');
       await submitBtn.click();
@@ -633,7 +641,7 @@ export async function loginAfterDisconnect(
       await sleep(3000);
 
       // Try login form again
-      const retryLoginBtn = page.locator('button:has-text("Login")').first();
+      const retryLoginBtn = page.getByTestId('sign-in-button').first();
       if (await isVisibleWithin(retryLoginBtn, 3000)) {
         await retryLoginBtn.click();
         await sleep(1500);
@@ -658,7 +666,7 @@ export async function loginAfterDisconnect(
             }
           }
           await sleep(500);
-          const retrySubmit = page.locator('button[type="submit"]:has-text("Connect"), button[type="submit"]:has-text("Login")').first();
+          const retrySubmit = page.getByTestId('login-submit').first();
           if (await isVisibleWithin(retrySubmit, 1000)) {
             await retrySubmit.click();
           } else {

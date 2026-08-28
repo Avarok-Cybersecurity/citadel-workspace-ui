@@ -13004,3 +13004,58 @@ raised. The gate's advice — "check whether a newly-imported module pulled a
 chunk onto the critical path" — was right, and the answer was four modules that
 each looked local to the feature and were reachable from a provider mounted at
 the root.
+
+## Round 247 — the fifth check pinned to copy, and it cost five specs
+
+`test:reconnect-c2s` failed, and round 228's log dump made the reason a single
+line of the test's own output:
+
+```
+Login button not found
+[UX MAJOR/functional]: Login button not found on landing page
+Login after disconnect failed
+```
+
+The helper:
+
+```ts
+const loginBtn = page.locator('button:has-text("Login")').first();
+```
+
+The landing page's button says **"Sign In"**, and has for some time. So the
+whole reconnection family — five specs — failed on a product that was working,
+and reported it as a MAJOR UX issue while doing so.
+
+The same file had a second one, and it is worth quoting because it shows the
+shape at its most brittle:
+
+```ts
+page.locator('button[type="submit"]:has-text("Connect"), ' +
+             'button[type="submit"]:has-text("Login"), ' +
+             'button:has-text("Sign In"), button:has-text("Log In")')
+```
+
+Four spellings of the same button, which is what people write when they have
+been bitten by this before — and it is still one rename away from finding
+nothing, with no way to tell that it has.
+
+Both now use testids: `sign-in-button`, which already existed, and
+`login-submit`, added to the form's submit. Verified against the built bundle
+rather than by reading — both are present, and the second is genuinely the
+submit.
+
+That is the fifth in this session:
+
+| round | the improvement | what the check still demanded |
+|---|---|---|
+| 227 | toggles renamed apart | `/show password/` |
+| 232 | "Not now" instead of "Cancel" | `name: 'Cancel'` |
+| 232 | mic label stops flipping | `/unmute microphone/` |
+| 235 | login stops asking for an address | a Workspace Address textbox |
+| 247 | "Sign In" instead of "Login" | `has-text("Login")` |
+
+Round 232's rule catches copy that vanished from the app entirely; four of these
+five moved rather than vanished, so it caught none of them. The structural
+answer is testids, and the honest position is that 294 locator sites still
+address controls by their words. Each one is a spec that will fail the next time
+somebody improves that wording — which is a tax on improving anything.
