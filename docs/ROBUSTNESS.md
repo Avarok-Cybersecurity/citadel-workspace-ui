@@ -10146,3 +10146,43 @@ The baseline must also shrink honestly: a name that has since gained a caller
 fails the test too, because a stale baseline is how a ratchet quietly stops
 ratcheting. Both directions have a control — adding an unreferenced export fails
 by name and file, and marking a live function as baselined fails as stale.
+
+## Round 180 — working the ratchet: one entry closed, honestly
+
+The baseline is 37 names. The point of a ratchet is that it comes down, so this
+round took the next entry: `useGroupChatEvents`, a hook in `src/pages/` that
+nothing mounted.
+
+It handled five events for the group chat page: member joined, left, kicked,
+group deleted, message received. The page mounts none of it. Reading what
+happens instead:
+
+| what the dead hook did | what actually covers it |
+|---|---|
+| `group:message-received` → append | `useGroupChat` subscribes via `groupMessagingManager` |
+| member joined/left/kicked → refresh | the store updates, `getGroup` changes identity, the page's effect re-runs |
+| `group:deleted` → toast and leave | `getGroup` misses, and the page already bounces |
+
+So it was genuinely redundant, not a missing wire — the first entry examined
+that was safe to simply delete. Which is the useful part of a ratchet: the
+answer is a change per entry, and "delete it" is one of the answers.
+
+But reading the deletion path turned up something worth fixing. When a group
+ends while you are looking at it — deleted by its owner, or you were removed
+from it — the page bounces with **"Group not found. This group may have been
+deleted."** The client is not guessing. It received the event and acted on it a
+moment earlier; that is *why* the page bounced.
+
+"May have been deleted" is the same evasion as round 178's "the file picker
+result may have expired": a hedge offered in the one case where the answer is
+known. It now says **"Group ended. This group was deleted, or you were removed
+from it."** The remaining vagueness is real and stays — deletion and being
+kicked arrive as the same `GroupDisconnectNotification`, and the mapping
+collapses them, so claiming "deleted" outright would be a guess.
+
+A stale link, where this session never saw the group at all, keeps the old
+wording, because there the hedge is accurate.
+
+Both controls fail 2 of 4: always hedging, and always claiming the group ended.
+
+Baseline: 37 → 36.

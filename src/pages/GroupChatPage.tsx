@@ -25,6 +25,7 @@ import { connectionManager } from '@/lib/connection';
 import { sendGroupEnd } from '@/lib/group-conversations/group-requests';
 import { debugLog } from '@/lib/debug-config';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { groupGoneMessage } from '@/lib/group-conversations/group-gone-message';
 
 // ============================================================================
 // Component
@@ -68,11 +69,7 @@ export function GroupChatPage() {
 
     const loadedGroup = getGroup(groupId);
     if (!loadedGroup) {
-      toast({
-        title: 'Group not found',
-        description: 'This group may have been deleted.',
-        variant: 'destructive',
-      });
+      toast({ ...groupGoneMessage(groupId), variant: 'destructive' });
       navigate('/workspace');
       return;
     }

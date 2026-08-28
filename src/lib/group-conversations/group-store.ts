@@ -21,6 +21,7 @@
 import { eventEmitter } from '@/lib/event-emitter';
 import { bindGroupFailureToasts } from './group-failure-toasts';
 import { bindGroupListReconcile } from './reconcile-groups';
+import { bindEndedGroups } from './ended-groups';
 import type { GroupConversation, GroupMember } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { applyGroupInvite } from '@/hooks/use-group-state-invite';
@@ -242,6 +243,7 @@ export function startGroupEventBindings(): void {
   });
 
   bindGroupListReconcile();
+  bindEndedGroups();
 
   debugLog('GroupStore', 'Group event bindings started');
 }
