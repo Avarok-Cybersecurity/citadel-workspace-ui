@@ -53,10 +53,10 @@ export function ChatSettingsRemoteTab({
 
       <div className={`space-y-3 p-4 rounded-lg bg-surface/50 ${!settings.allowRevfsStorage ? 'opacity-50' : ''}`}>
         <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">Storage quota for {peerName}</Label>
+          <Label htmlFor="storage-quota-for-peername" className="text-sm font-medium">Storage quota for {peerName}</Label>
           <span className="text-sm text-primary-accent font-medium" data-testid="revfs-quota-value">{revfsQuotaMb} MB</span>
         </div>
-        <Slider
+        <Slider id="storage-quota-for-peername"
           value={[revfsQuotaMb]} onValueChange={onRevfsQuotaChange}
           max={defaultMaxMb} min={1} step={1} className="w-full"
           disabled={!settings.allowRevfsStorage} data-testid="revfs-quota-slider"

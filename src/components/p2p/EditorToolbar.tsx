@@ -28,6 +28,9 @@ function ToolbarButton({ icon, onClick, active, disabled, title }: ToolbarButton
       type="button"
       onClick={onClick}
       disabled={disabled}
+      /* Same reason as MarkdownToolbar: active was a colour and nothing more. */
+      aria-pressed={active}
+      aria-label={title}
       className={`
         p-1.5 rounded transition-colors
         ${active

@@ -122,33 +122,33 @@ export function ChatSettingsPanel({
                   <div className="flex items-center gap-3">
                     <Bell className="h-5 w-5 text-primary-accent" />
                     <div>
-                      <Label className="text-sm font-medium">Notifications</Label>
+                      <Label htmlFor="notifications" className="text-sm font-medium">Notifications</Label>
                       <p className="text-xs text-muted-foreground">Receive alerts for new messages</p>
                     </div>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch id="notifications" defaultChecked />
                 </div>
 
                 <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
                     <Eye className="h-5 w-5 text-primary-accent" />
                     <div>
-                      <Label className="text-sm font-medium">Read Receipts</Label>
+                      <Label htmlFor="read-receipts" className="text-sm font-medium">Read Receipts</Label>
                       <p className="text-xs text-muted-foreground">Show when you've read messages</p>
                     </div>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch id="read-receipts" defaultChecked />
                 </div>
 
                 <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
                     <MessageSquare className="h-5 w-5 text-success" />
                     <div>
-                      <Label className="text-sm font-medium">Typing Indicators</Label>
+                      <Label htmlFor="typing-indicators" className="text-sm font-medium">Typing Indicators</Label>
                       <p className="text-xs text-muted-foreground">Show when you're typing</p>
                     </div>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch id="typing-indicators" defaultChecked />
                 </div>
               </div>
             </TabsContent>
@@ -179,11 +179,11 @@ export function ChatSettingsPanel({
                   <div className="flex items-center gap-3">
                     <Sliders className="h-5 w-5 text-warning" />
                     <div>
-                      <Label className="text-sm font-medium">Encryption Level</Label>
+                      <Label htmlFor="encryption-level" className="text-sm font-medium">Encryption Level</Label>
                       <p className="text-xs text-muted-foreground">Security level for this conversation</p>
                     </div>
                   </div>
-                  <select
+                  <select id="encryption-level"
                     className="bg-surface border border-surface rounded px-2 py-1 text-sm text-foreground/80"
                     defaultValue="standard"
                   >
@@ -197,11 +197,11 @@ export function ChatSettingsPanel({
                   <div className="flex items-center gap-3">
                     <Settings className="h-5 w-5 text-primary-accent" />
                     <div>
-                      <Label className="text-sm font-medium">Connection Priority</Label>
+                      <Label htmlFor="connection-priority" className="text-sm font-medium">Connection Priority</Label>
                       <p className="text-xs text-muted-foreground">Prefer direct P2P or server relay</p>
                     </div>
                   </div>
-                  <select
+                  <select id="connection-priority"
                     className="bg-surface border border-surface rounded px-2 py-1 text-sm text-foreground/80"
                     defaultValue="p2p"
                   >
@@ -216,13 +216,13 @@ export function ChatSettingsPanel({
                     <div className="flex items-center gap-3">
                       <MessageSquare className="h-5 w-5 text-success" />
                       <div>
-                        <Label className="text-sm font-medium">Message Retention</Label>
+                        <Label htmlFor="message-retention" className="text-sm font-medium">Message Retention</Label>
                         <p className="text-xs text-muted-foreground">Days to keep message history locally</p>
                       </div>
                     </div>
                     <span className="text-sm text-muted-foreground">90 days</span>
                   </div>
-                  <input
+                  <input id="message-retention"
                     type="range"
                     min={7}
                     max={365}

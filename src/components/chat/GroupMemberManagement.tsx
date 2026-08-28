@@ -171,7 +171,8 @@ export function GroupMemberManagement({
                           value={member.roleId}
                           onValueChange={value => handleRoleChange(member, value)}
                         >
-                          <SelectTrigger className="h-8 w-32 bg-surface border-border text-foreground text-xs">
+                          <SelectTrigger
+              aria-label={`Role for ${member.username}`} className="h-8 w-32 bg-surface border-border text-foreground text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-background border-border">

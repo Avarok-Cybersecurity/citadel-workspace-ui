@@ -44,12 +44,19 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
 
       {/* Messages area */}
       <ScrollArea className="flex-1" ref={chat.scrollAreaRef}>
-        {chat.loading ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-primary-accent" />
-          </div>
-        ) : (
-          <div className="py-4" role="log" aria-label="Group conversation">
+        {/* The log region is OUTSIDE the loading branch on purpose.
+            A live region has to pre-exist its content: created together with a
+            full back-scroll, the insertion is either read aloud in its entirety
+            or dropped, depending on the browser and the reader. The direct
+            message list gets this right (P2PMessageList) and the group view was
+            written the other way. */}
+        <div className="py-4" role="log" aria-label="Group conversation">
+          {chat.loading ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="h-8 w-8 animate-spin text-primary-accent" />
+            </div>
+          ) : (
+            <>
             {/* Load more button */}
             {chat.hasMore && (
               <div className="flex justify-center mb-4">
@@ -95,9 +102,10 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
               </div>
             )}
 
-            <div ref={chat.messagesEndRef} />
-          </div>
-        )}
+              <div ref={chat.messagesEndRef} />
+            </>
+          )}
+        </div>
       </ScrollArea>
 
       {/* Reply indicator */}

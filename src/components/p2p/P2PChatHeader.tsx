@@ -110,9 +110,12 @@ export function P2PChatHeader({
                 style={statusDisplay.customColor ? { backgroundColor: statusDisplay.customColor } : undefined}
               />
               <span className={statusDisplay.textColor}>{statusDisplay.text}</span>
-              {peerTyping && (
-                <span className="ml-2 text-primary-accent animate-pulse">typing...</span>
-              )}
+              {/* Permanently mounted so the region pre-exists its text; a live
+                  region created together with its content is announced
+                  inconsistently or not at all. The pulse was purely visual. */}
+              <span role="status" aria-live="polite" className="ml-2 text-primary-accent">
+                {peerTyping ? <span className="animate-pulse">typing...</span> : null}
+              </span>
             </div>
           </div>
         </div>

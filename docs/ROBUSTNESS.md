@@ -8744,3 +8744,56 @@ the bus for the first time surfaced five file-transfer events with no
 subscriber; each fires alongside `state-changed`, which the sidebar does listen
 to, so they are recorded with that reason rather than presented as new gaps.
 Control: deleting the `COMPLETED` emits now reports a dead listener.
+
+## Round 144 — the app's access-control surface was unusable without sight
+
+A screen-reader audit of the whole tree. The headline is not a subtle
+omission — it is that the permission matrix, which is where an administrator
+decides who may do what, announced nothing usable at all.
+
+**Every checkbox in the permission matrix was unnamed.** Radix renders a
+`Checkbox` as a `<button role="checkbox">` with no text. The matrix is
+permissions × four roles, so an admin heard *"checkbox, not checked"* dozens of
+times in a row with nothing to distinguish them. Table navigation did not rescue
+it: the permission cell was a `<td>` rather than `<th scope="row">`, and the
+role headers carried no `scope`. Each checkbox is now named outright — row and
+column headers only help a reader that is in table mode, and on this surface
+that is not a bet worth taking — and the headers are correct too, so both routes
+work.
+
+**The pattern was documented in one file and applied nowhere else.**
+`GeneralSettingsTab` carries a comment explaining exactly this ("htmlFor/id, not
+proximity. A Switch renders a `<button>` with no inner text…") beside its one
+correct call site. Every toggle, slider and select in Privacy, Appearance and
+the three chat-settings tabs was named by a `<Label>` sitting next to it, which
+is visual only — eighteen controls, including the read-receipt and online-status
+switches, which is someone changing their privacy blind. This is the repo's most
+productive defect shape occurring in the one place where the correct answer was
+already written down.
+
+`controls-have-accessible-names.test.ts` scans both directions: a nameless
+control, and an `htmlFor` pointing at an id that does not exist (which looks
+more correct than no `htmlFor` and is just as broken). Getting it to
+discriminate needed brace-aware attribute parsing — `[^>]*` stops at the first
+`>`, and `onCheckedChange={() => …}` contains one, so a control named *after*
+its handler read as unnamed.
+
+Also fixed: two dialogs with no accessible name, announced as just "dialog";
+the palette radios, whose labels sat in a wrapping `<label>` that cannot name a
+`<button>`, so both options were "radio, not checked"; the colour swatches, N
+identical empty buttons with selection shown by a ring alone; the markdown and
+editor toolbars, where Bold and Italic exposed their on-state as a background
+colour and nothing else; the file-transfer progress bar, which had no
+`role="progressbar"` and so was silence from start to finish; the typing
+indicator, a purely visual pulse; the group chat's `role="log"`, which was
+mounted *with* its content (a live region must pre-exist its text or the
+insertion is read wholesale or dropped — the direct-message list gets this right
+and the group view was written the other way); and two routes with no `<h1>` or
+with heading levels running backwards.
+
+One thing the round produced that is worth noting on its own: splitting
+`GroupRoleEditor` moved the colour swatches to a new file, and an existing
+contrast assertion kept pointing at the old one. Its `not.toMatch` would have
+passed forever against a file with no ring in it. The paired `toMatch` is what
+caught it — a negative assertion needs a positive one beside it, or it stops
+checking silently when the code moves.

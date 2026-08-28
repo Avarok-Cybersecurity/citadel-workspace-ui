@@ -138,7 +138,15 @@ export function FileTransferBubble({
         {/* Progress bar */}
         {status.showProgress && (
           <div className="mb-2">
-            <div className="h-1.5 bg-foreground/10 rounded-full overflow-hidden">
+            <div
+            role="progressbar"
+            aria-valuenow={Math.round(progress)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`Transfer of ${fileName}`}
+            aria-valuetext={`${Math.round(progress)} percent`}
+            className="h-1.5 bg-foreground/10 rounded-full overflow-hidden"
+          >
               <div
                 className="h-full bg-primary-accent rounded-full transition-all duration-300"
                 style={{ width: `${progress}%` }}

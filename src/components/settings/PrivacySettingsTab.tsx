@@ -48,10 +48,10 @@ export function PrivacySettingsTab() {
 
         <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
-            <Label className="text-sm font-medium">Online Status</Label>
+            <Label htmlFor="online-status" className="text-sm font-medium">Online Status</Label>
             <p className="text-xs text-muted-foreground">Let others see when you're online</p>
           </div>
-          <Switch
+          <Switch id="online-status"
             checked={settings.showOnlineStatus}
             onCheckedChange={(v) => update('showOnlineStatus', v)}
           />
@@ -59,11 +59,11 @@ export function PrivacySettingsTab() {
 
         <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
-            <Label className="text-sm font-medium">Profile Visibility</Label>
+            <Label htmlFor="profile-visibility" className="text-sm font-medium">Profile Visibility</Label>
             <p className="text-xs text-muted-foreground">Show your profile to non-connected peers</p>
             {!PRIVACY_ENFORCEMENT.showProfileToStrangers && <NotEnforcedNote />}
           </div>
-          <Switch
+          <Switch id="profile-visibility"
             disabled={!PRIVACY_ENFORCEMENT.showProfileToStrangers}
             checked={settings.showProfileToStrangers}
             onCheckedChange={(v) => update('showProfileToStrangers', v)}
@@ -80,10 +80,10 @@ export function PrivacySettingsTab() {
 
         <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
-            <Label className="text-sm font-medium">Typing Indicators</Label>
+            <Label htmlFor="typing-indicators" className="text-sm font-medium">Typing Indicators</Label>
             <p className="text-xs text-muted-foreground">Show when you're typing a message</p>
           </div>
-          <Switch
+          <Switch id="typing-indicators"
             checked={settings.showTypingIndicators}
             onCheckedChange={(v) => update('showTypingIndicators', v)}
           />
@@ -91,10 +91,10 @@ export function PrivacySettingsTab() {
 
         <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
-            <Label className="text-sm font-medium">Read Receipts</Label>
+            <Label htmlFor="read-receipts" className="text-sm font-medium">Read Receipts</Label>
             <p className="text-xs text-muted-foreground">Let others know when you've read their messages</p>
           </div>
-          <Switch
+          <Switch id="read-receipts"
             checked={settings.sendReadReceipts}
             onCheckedChange={(v) => update('sendReadReceipts', v)}
           />
@@ -111,7 +111,7 @@ export function PrivacySettingsTab() {
         <div className="p-3 rounded-lg bg-background/50">
           <div className="flex items-center justify-between">
             <div>
-              <Label className="text-sm font-medium">Who Can Message You</Label>
+              <Label htmlFor="who-can-message-you" className="text-sm font-medium">Who Can Message You</Label>
               <p className="text-xs text-muted-foreground">Control who can send you direct messages</p>
               {!PRIVACY_ENFORCEMENT.allowDirectMessages && <NotEnforcedNote />}
             </div>
@@ -120,7 +120,7 @@ export function PrivacySettingsTab() {
               value={settings.allowDirectMessages}
               onValueChange={(v) => update('allowDirectMessages', v as PrivacySettings['allowDirectMessages'])}
             >
-              <SelectTrigger className="w-32 h-8 bg-surface border-surface text-sm">
+              <SelectTrigger id="who-can-message-you" className="w-32 h-8 bg-surface border-surface text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -134,13 +134,13 @@ export function PrivacySettingsTab() {
 
         <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
-            <Label className="text-sm font-medium">Screenshot Alerts</Label>
+            <Label htmlFor="screenshot-alerts" className="text-sm font-medium">Screenshot Alerts</Label>
             <p className="text-xs text-muted-foreground">Get notified if someone takes a screenshot</p>
             {/* A web page cannot observe a screenshot at all, so this one is not
                 waiting on a server — it is waiting on a platform that can. */}
             {!PRIVACY_ENFORCEMENT.notifyOnScreenshot && <NotEnforcedNote />}
           </div>
-          <Switch
+          <Switch id="screenshot-alerts"
             disabled={!PRIVACY_ENFORCEMENT.notifyOnScreenshot}
             checked={settings.notifyOnScreenshot}
             onCheckedChange={(v) => update('notifyOnScreenshot', v)}

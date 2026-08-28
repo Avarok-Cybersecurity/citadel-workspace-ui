@@ -37,7 +37,7 @@ const CardTitle = React.forwardRef<
      * section — and wrong for one that IS a top-level section under the page
      * h1, which is how /directory jumped h1 -> h3 and skipped a level.
      */
-    as?: 'h2' | 'h3' | 'h4';
+    as?: 'h1' | 'h2' | 'h3' | 'h4';
   }
 >(({ className, as: Heading = 'h3', ...props }, ref) => (
   // The disable that used to sit here is gone with the literal <h3>:

@@ -56,8 +56,13 @@ export function PaletteModeToggle({ mode, onModeChange, showRederive, onRederive
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
+            {/* Named on the ITEM. Radix renders a <button role="radio">, and
+                a wrapping <label> does not name a button -- the accname comes
+                from the button's own subtree, which sr-only leaves empty. Both
+                options announced as "radio, not checked". */}
             <RadioGroupItem
               value={value}
+              aria-label={label}
               className="sr-only"
               data-testid={`appearance-mode-${value}`}
             />

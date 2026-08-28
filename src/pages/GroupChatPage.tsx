@@ -184,6 +184,10 @@ export function GroupChatPage() {
   return (
     <AppLayout>
       <div className="flex flex-col h-full bg-background">
+      {/* The route had no h1 at all, so heading navigation opened at level 2
+          with no page title. Messages.tsx solved exactly this and the group
+          route was missed. */}
+      <h1 className="sr-only">Group chat</h1>
 
       {/* Header */}
       <GroupChatHeader

@@ -111,7 +111,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
           setTargetWorkspaceForNewAccount(null);
         }
       }}>
-        <DialogContent className="p-0 bg-transparent border-none max-w-xl">
+        <DialogContent aria-label="Switch workspace" className="p-0 bg-transparent border-none max-w-xl">
           {currentStep === "connect" && (
             <ServerConnect
               onNext={handleNext}

@@ -61,7 +61,7 @@ export function EntityField({ field, value, onChange, disabled }: EntityFieldPro
         <div className="grid gap-2">
           <Label htmlFor={field.id} className="text-foreground">{field.label}</Label>
           <Select value={value} onValueChange={onChange} disabled={disabled}>
-            <SelectTrigger className="bg-card border-border text-foreground">
+            <SelectTrigger id={field.id} className="bg-card border-border text-foreground">
               <SelectValue placeholder={field.placeholder ?? `Select ${field.label.toLowerCase()}`} />
             </SelectTrigger>
             <SelectContent className="bg-card border-border">

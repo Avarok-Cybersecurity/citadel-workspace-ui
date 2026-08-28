@@ -90,7 +90,8 @@ export function MembersTable({
                   value={member.roleId}
                   onValueChange={value => onRoleChange(member.cid, value)}
                 >
-                  <SelectTrigger className="h-8 w-28 bg-surface border-border text-foreground text-xs">
+                  <SelectTrigger
+              aria-label={`Role for ${member.username}`} className="h-8 w-28 bg-surface border-border text-foreground text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-background border-border">

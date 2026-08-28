@@ -33,7 +33,10 @@ const src = (p: string) => stripComments(readFileSync(join(process.cwd(), 'src',
 
 describe('selection and loading indicators use theme tokens', () => {
   it('the role-colour ring is not white on a white background', () => {
-    const source = src('components/chat/GroupRoleEditor.tsx');
+    // The swatches moved to RoleColorPicker when GroupRoleEditor was split.
+    // The second assertion is what makes that safe: pointing at a file with no
+    // ring in it would satisfy the `not.toMatch` and check nothing.
+    const source = src('components/chat/RoleColorPicker.tsx');
     // `ring-offset-background` is white in light mode, so `ring-white` offset
     // against it is a white ring on white — the selected swatch loses its only
     // indicator.

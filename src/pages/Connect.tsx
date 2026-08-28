@@ -123,7 +123,10 @@ export const Connect = () => {
         <CardHeader>
           <div className="flex items-center gap-3">
             <Shield className="w-8 h-8 text-foreground" />
-            <CardTitle className="text-foreground text-2xl">Connect to Workspace</CardTitle>
+            {/* h1, not the CardTitle default h3. The route had no h1, and the
+                later "Choose a workspace" is an h2 -- so the levels ran
+                backwards from 3 to 2 with no page title above either. */}
+            <CardTitle as="h1" className="text-foreground text-2xl">Connect to Workspace</CardTitle>
           </div>
           <CardDescription className="text-foreground/80">Select a saved workspace to connect</CardDescription>
         </CardHeader>

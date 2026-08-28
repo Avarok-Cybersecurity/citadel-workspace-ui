@@ -39,6 +39,11 @@ function ToolbarButton({ icon, onClick, title, active = false }: ToolbarButtonPr
     <button
       type="button"
       onClick={onClick}
+      /* Bold, Italic, Quote, Code and Preview are toggles whose on-state was a
+         background colour and nothing else. A screen reader could not tell
+         whether Bold was on, and heard nothing change when it was pressed. */
+      aria-pressed={active}
+      aria-label={title}
       className={`p-1.5 rounded transition-colors ${
         active
           ? 'bg-primary text-primary-foreground'

@@ -35,7 +35,13 @@ export const PermissionManagerModal: React.FC<PermissionManagerModalProps> = ({
           scrolling the matrix on the smallest viewport sizes; max-w-3xl
           (768px) gives ~96px of slack so a future role addition or a
           longer permission label doesn't immediately overflow. */}
-      <DialogContent className="max-w-3xl p-0 bg-transparent border-0 shadow-none [&>button]:sr-only">
+      {/* Named. Radix warns about a missing title and the reader announces just
+          "dialog"; the heading it needs is the h2 inside PermissionManager,
+          which was simply never wired up. */}
+      <DialogContent
+        aria-label="Role permissions"
+        className="max-w-3xl p-0 bg-transparent border-0 shadow-none [&>button]:sr-only"
+      >
         <PermissionManager
           userId={userId}
           domainId={domainId}

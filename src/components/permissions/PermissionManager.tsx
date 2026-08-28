@@ -1,10 +1,10 @@
+import { PermissionMatrixTable } from './PermissionMatrixTable';
 import React, { useState, useEffect, useCallback } from 'react';
 import { describeFailure } from '@/lib/failure-message';
 import { useLoadedPermissions } from './use-loaded-permissions';
 import { PermissionMatrixNotice } from './PermissionMatrixNotice';
 import { Shield, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import WorkspaceService from '@/lib/workspace-service';
 import type { PermissionTS, UpdateOperationTS } from '@/types/workspace-protocol';
 import { useToast } from '@/hooks/use-toast';
@@ -138,76 +138,11 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
 
       <PermissionMatrixNotice load={load} />
 
-      {/* Matrix Table */}
-      <div className="flex-1 overflow-auto min-h-0">
-        <table className="w-full border-collapse">
-          {/* Role column headers */}
-          <thead className="sticky top-0 z-10 bg-background">
-            <tr>
-              <th className="sticky left-0 z-20 bg-background text-left text-[11px] font-semibold tracking-wider uppercase text-muted-foreground px-3 sm:px-6 py-3 w-[132px] sm:w-[200px] border-b border-border">
-                Permission
-              </th>
-              {ROLE_HIERARCHY.map(role => (
-                <th
-                  key={role.value}
-                  className="text-center px-3 py-3 border-b border-border min-w-[90px]"
-                >
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-foreground/80">
-                    <div className={`w-1.5 h-1.5 rounded-full ${role.color}`} />
-                    {role.label}
-                  </span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody>
-            {allPermissions.map(([category, permissions]) => (
-              <React.Fragment key={category}>
-                {/* Category header row */}
-                <tr>
-                  <td
-                    colSpan={ROLE_HIERARCHY.length + 1}
-                    className="sticky left-0 bg-background px-3 sm:px-6 pt-4 pb-1.5"
-                  >
-                    <span className="text-[11px] font-semibold tracking-wider uppercase text-primary-accent">
-                      {category}
-                    </span>
-                  </td>
-                </tr>
-
-                {/* Permission rows */}
-                {permissions.map((permission, idx) => (
-                  <tr
-                    key={permission.id}
-                    className={`group hover:bg-primary-accent/5 transition-colors ${
-                      idx === permissions.length - 1 ? '' : ''
-                    }`}
-                  >
-                    <td className="sticky left-0 z-10 bg-background px-3 sm:px-6 py-2">
-                      <span className="text-sm text-foreground/80">{permission.label}</span>
-                    </td>
-                    {ROLE_HIERARCHY.map(role => {
-                      const isChecked = rolePermissions[role.value]?.has(permission.id) ?? false;
-                      return (
-                        <td key={role.value} className="text-center px-3 py-2">
-                          <div className="flex items-center justify-center">
-                            <Checkbox
-                              checked={isChecked}
-                              onCheckedChange={() => togglePermission(role.value, permission.id)}
-                              className="h-4 w-4 border-surface data-[state=checked]:bg-primary data-[state=checked]:border-primary-accent"
-                            />
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <PermissionMatrixTable
+        allPermissions={allPermissions}
+        rolePermissions={rolePermissions}
+        togglePermission={togglePermission}
+      />
 
       {/* Footer */}
       <div className="flex-shrink-0 flex items-center justify-end px-6 py-4 border-t border-border">

@@ -51,10 +51,10 @@ export function AppearanceSettingsTab() {
 
         <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
-            <Label className="text-sm font-medium">Show Avatars</Label>
+            <Label htmlFor="show-avatars" className="text-sm font-medium">Show Avatars</Label>
             <p className="text-xs text-muted-foreground">Display user avatars in messages and lists</p>
           </div>
-          <Switch
+          <Switch id="show-avatars"
             checked={settings.showAvatars}
             onCheckedChange={(v) => update('showAvatars', v)}
           />
@@ -70,10 +70,10 @@ export function AppearanceSettingsTab() {
 
         <div className="p-3 rounded-lg bg-background/50 space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Font Size</Label>
+            <Label htmlFor="font-size" className="text-sm font-medium">Font Size</Label>
             <span className="text-xs text-muted-foreground">{settings.fontSize}px</span>
           </div>
-          <Slider
+          <Slider id="font-size"
             value={[settings.fontSize]}
             onValueChange={([v]) => update('fontSize', v)}
             min={12}
@@ -94,14 +94,14 @@ export function AppearanceSettingsTab() {
         <div className="p-3 rounded-lg bg-background/50">
           <div className="flex items-center justify-between">
             <div>
-              <Label className="text-sm font-medium">Sidebar Width</Label>
+              <Label htmlFor="sidebar-width" className="text-sm font-medium">Sidebar Width</Label>
               <p className="text-xs text-muted-foreground">Adjust the navigation sidebar width</p>
             </div>
             <Select
               value={settings.sidebarWidth}
               onValueChange={(v) => update('sidebarWidth', v as AppearanceSettings['sidebarWidth'])}
             >
-              <SelectTrigger className="w-28 h-8 bg-surface border-surface text-sm">
+              <SelectTrigger id="sidebar-width" className="w-28 h-8 bg-surface border-surface text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -115,10 +115,10 @@ export function AppearanceSettingsTab() {
 
         <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
-            <Label className="text-sm font-medium">Animations</Label>
+            <Label htmlFor="animations" className="text-sm font-medium">Animations</Label>
             <p className="text-xs text-muted-foreground">Enable smooth transitions and effects</p>
           </div>
-          <Switch
+          <Switch id="animations"
             checked={settings.animationsEnabled}
             onCheckedChange={(v) => update('animationsEnabled', v)}
           />

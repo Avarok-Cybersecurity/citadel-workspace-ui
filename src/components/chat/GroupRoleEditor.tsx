@@ -9,12 +9,13 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { RoleColorPicker } from './RoleColorPicker';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import type { GroupPermissions } from '@/types/group';
 import { DEFAULT_MEMBER_PERMISSIONS } from '@/types/group';
-import { PRESET_COLORS, PERMISSION_LABELS } from './GroupRoleEditorConstants';
+import { PERMISSION_LABELS } from './GroupRoleEditorConstants';
 import type { GroupRoleEditorProps } from './GroupRoleEditorConstants';
 
 // ============================================================================
@@ -130,32 +131,7 @@ export function GroupRoleEditor({
           </div>
 
           {/* Color */}
-          <div className="space-y-2">
-            <Label className="text-sm text-foreground/80">Role Color (optional)</Label>
-            <div className="flex flex-wrap gap-2">
-              {PRESET_COLORS.map(presetColor => (
-                <button
-                  key={presetColor}
-                  onClick={() => setColor(presetColor)}
-                  className={`w-7 h-7 rounded-full transition-all ${
-                    color === presetColor
-                      ? 'ring-2 ring-offset-2 ring-offset-background ring-ring'
-                      : 'hover:scale-110'
-                  }`}
-                  style={{ backgroundColor: presetColor }}
-                />
-              ))}
-              <button
-                onClick={() => setColor('')}
-                className={`w-7 h-7 rounded-full border-2 border-dashed border-border text-xs text-muted-foreground ${
-                  !color ? 'ring-2 ring-offset-2 ring-offset-background ring-ring' : ''
-                }`}
-                title="No color"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
+          <RoleColorPicker color={color} onChange={setColor} />
 
           <Separator className="bg-border" />
 
@@ -207,12 +183,13 @@ export function GroupRoleEditor({
           {/* Default Role Toggle */}
           <div className="flex items-center justify-between p-2 rounded hover:bg-surface">
             <div>
-              <Label className="text-sm text-foreground">Set as Default Role</Label>
+              <Label htmlFor="default-role" className="text-sm text-foreground">Set as Default Role</Label>
               <p className="text-xs text-muted-foreground">
                 New members will be assigned this role when they join
               </p>
             </div>
             <Checkbox
+              id="default-role"
               checked={isDefault}
               onCheckedChange={checked => setIsDefault(!!checked)}
               disabled={isBuiltIn}
