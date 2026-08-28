@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { readLastLocation } from '@/lib/sessions/last-location';
 import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
 import { describeFailure } from '@/lib/failure-message';
 import { withWorkspaceNames } from '@/lib/sessions/with-workspace';
@@ -133,7 +134,12 @@ export function useOrphanSessions() {
         serverAddress: session.server_address, activationType: 'claim' as const
       });
 
-      navigate(getWorkspacePath());
+      // Back where they were, when there is a where. An in-tab refresh keeps
+      // its place because the URL is the state; this path -- the actual second
+      // session, from the landing page -- navigated to the workspace root with
+      // no params, so a user who closed the browser mid-conversation landed on
+      // the default office and re-found it by hand, every day.
+      navigate(readLastLocation(session.cid) ?? getWorkspacePath());
 
       toast({
         title: "Connected!",

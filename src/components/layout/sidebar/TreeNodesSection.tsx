@@ -237,7 +237,7 @@ export function TreeNodesSection({
               className="h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground"
               onClick={handleCreateRoot}
               data-testid="add-root-node-button"
-              aria-label="Add node"
+              aria-label="Add to this workspace"
             >
               <Plus className="h-4 w-4" />
             </Button>
@@ -267,8 +267,8 @@ export function TreeNodesSection({
               onClick={handleCreateRoot}
               disabled={canCreate === false}
               data-testid="add-node-button"
-              aria-label={canCreate === false ? 'Add node (waiting for workspace schema)' : 'Add node'}
-              title={canCreate === false ? 'Waiting for the workspace schema to load' : 'Add node'}
+              aria-label={canCreate === false ? 'Add to this workspace (still loading)' : 'Add to this workspace'}
+              title={canCreate === false ? 'Waiting for the workspace to finish loading' : 'Add to this workspace'}
             >
               <Plus className="h-4 w-4" />
             </Button>
@@ -280,7 +280,7 @@ export function TreeNodesSection({
             <div className="relative">
               <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Filter nodes..."
+                placeholder="Filter..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="h-7 pl-7 text-xs bg-surface border-surface text-foreground/80 placeholder:text-muted-foreground"

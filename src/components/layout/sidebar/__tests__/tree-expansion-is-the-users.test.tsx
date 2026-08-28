@@ -68,7 +68,7 @@ describe('tree expansion', () => {
     expect(screen.queryByText('Backend')).toBeNull();
 
     // Typing and clearing the filter must not reopen it.
-    const filter = screen.getByPlaceholderText(/filter nodes/i);
+    const filter = screen.getByPlaceholderText(/^filter/i);
     await user.type(filter, 'Back');
     await user.clear(filter);
     expect(screen.queryByText('Backend'), 'the filter reopened a collapsed node').toBeNull();
@@ -85,7 +85,7 @@ describe('tree expansion', () => {
     const toggles = screen.getAllByRole('button', { name: /collapse|expand/i });
     await user.click(toggles[0]!); // collapse Engineering
 
-    const filter = screen.getByPlaceholderText(/filter nodes/i);
+    const filter = screen.getByPlaceholderText(/^filter/i);
     await user.type(filter, 'Backend');
 
     // A match hidden inside a collapsed ancestor is not a search result.

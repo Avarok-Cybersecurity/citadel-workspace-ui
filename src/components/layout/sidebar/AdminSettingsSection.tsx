@@ -105,8 +105,12 @@ export const AdminSettingsSection = () => {
             <div className="flex items-start gap-3 p-2 bg-warning/10 rounded">
               <Settings className="h-4 w-4 text-warning mt-0.5" />
               <div>
-                <p className="font-medium">Create & Manage Nodes</p>
-                <p className="text-sm text-muted-foreground">Create, edit, and delete hierarchy nodes</p>
+                {/* "Nodes" and "hierarchy nodes" are the code's words for
+                    offices and rooms; the result toasts already use the real
+                    ones, so the same thing had two names either side of a
+                    click. */}
+                <p className="font-medium">Offices & Rooms</p>
+                <p className="text-sm text-muted-foreground">Create, rename and remove them</p>
               </div>
             </div>
             <div className="flex items-start gap-3 p-2 bg-warning/10 rounded">
@@ -120,7 +124,7 @@ export const AdminSettingsSection = () => {
               <Shield className="h-4 w-4 text-warning mt-0.5" />
               <div>
                 <p className="font-medium">Grant Permissions</p>
-                <p className="text-sm text-muted-foreground">Assign specific permissions to users for any domain</p>
+                <p className="text-sm text-muted-foreground">Choose what each person can do, anywhere in the workspace</p>
               </div>
             </div>
             <div className="flex items-start gap-3 p-2 bg-warning/10 rounded">

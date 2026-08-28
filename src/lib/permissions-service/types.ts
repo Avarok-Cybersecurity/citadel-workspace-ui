@@ -65,27 +65,33 @@ export interface DomainPermissions {
 }
 
 /**
- * Human-readable labels for permissions
+ * Human-readable labels for permissions.
+ *
+ * "Human-readable" was doing a lot of work here: these were the enum names with
+ * spaces inserted. "Node" is the code's word for an office or a room, "MDX" is
+ * the file format, and "Tree Structure" is the data structure — none of them
+ * are things an administrator has been shown anywhere else in the product,
+ * which is the permission matrix's whole audience.
  */
 export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.All]: 'All Permissions',
-  [Permission.CreateNode]: 'Create Node',
-  [Permission.DeleteNode]: 'Delete Node',
-  [Permission.UpdateNode]: 'Update Node',
-  [Permission.AddNode]: 'Add Node',
-  [Permission.EditNodeConfig]: 'Edit Node Config',
-  [Permission.UpdateNodeSettings]: 'Update Node Settings',
-  [Permission.ManageNodeMembers]: 'Manage Node Members',
+  [Permission.CreateNode]: 'Create offices and rooms',
+  [Permission.DeleteNode]: 'Delete offices and rooms',
+  [Permission.UpdateNode]: 'Rename offices and rooms',
+  [Permission.AddNode]: 'Add offices and rooms',
+  [Permission.EditNodeConfig]: 'Change office and room settings',
+  [Permission.UpdateNodeSettings]: 'Update office and room settings',
+  [Permission.ManageNodeMembers]: 'Manage who is in an office or room',
   [Permission.CreateWorkspace]: 'Create Workspace',
   [Permission.UpdateWorkspace]: 'Update Workspace',
   [Permission.DeleteWorkspace]: 'Delete Workspace',
   [Permission.EditWorkspaceConfig]: 'Edit Workspace Config',
   [Permission.Themes]: 'Edit Workspace Theme',
-  [Permission.EditTreeStructure]: 'Edit Tree Structure',
-  [Permission.ManageNodeTypes]: 'Manage Node Types',
+  [Permission.EditTreeStructure]: 'Reorganise the workspace',
+  [Permission.ManageNodeTypes]: 'Define new kinds of space',
   [Permission.ViewContent]: 'View Content',
   [Permission.EditContent]: 'Edit Content',
-  [Permission.EditMdx]: 'Edit MDX Content',
+  [Permission.EditMdx]: 'Edit documents',
   [Permission.AddUsers]: 'Add Users',
   [Permission.RemoveUsers]: 'Remove Users',
   [Permission.BanUser]: 'Ban User',
@@ -93,7 +99,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.ReadMessages]: 'Read Messages',
   [Permission.UploadFiles]: 'Upload Files',
   [Permission.DownloadFiles]: 'Download Files',
-  [Permission.ManageDomains]: 'Manage Domains',
+  [Permission.ManageDomains]: 'Manage every space in the workspace',
   [Permission.ConfigureSystem]: 'Configure System',
 };
 

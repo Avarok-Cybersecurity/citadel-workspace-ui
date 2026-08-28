@@ -9605,3 +9605,37 @@ peer that sends none, and inventing a deadline would cancel a transfer the
 sender still believes is open. There is a test for each of those, and one
 asserting that a completed transfer with an old deadline is never rewritten to
 "expired", which would turn a delivered file into a failure in the history.
+
+## Round 165 — the last two from the first-hour audit
+
+**Offices became "nodes" and "domains" the moment you tried to manage them.**
+The tree renders "Office" and "Room" per item and the result toasts say "Office
+Deleted" — but the button that creates one was `aria-label="Add node"`, the
+filter was "Filter nodes...", the admin menu offered "Create & Manage Nodes" /
+"hierarchy nodes" and, one row below, "any domain". The same operation was a
+node before the click and an Office after it.
+
+The permission matrix was worse, because it is the one screen whose whole
+audience is an administrator deciding what people may do: `Edit MDX Content`,
+`Edit Tree Structure`, `Manage Node Types`, `Manage Domains` — the enum names
+with spaces inserted. "Node" is the code's word for an office or a room, "MDX"
+is a file format, "Tree Structure" is a data structure, and none of them appear
+anywhere else in the product. They read as sentences now: *Reorganise the
+workspace*, *Edit documents*, *Delete offices and rooms*.
+
+**A returning user landed on the default page.** An in-tab refresh keeps its
+place because the URL is the state. The second session does not: landing page →
+Active Sessions → claim navigated to the workspace root with no params, so
+somebody who closed the browser mid-conversation came back tomorrow and landed
+on the default office, re-finding the conversation by hand, every day.
+
+Location is now recorded per CID beside `last-accessed`, which already knew
+*when* each session was used and never *where*. Two decisions have tests:
+
+- Only in-workspace paths are kept. Restoring `/connect` or the landing page
+  sends a returning user back to the screen they were trying to get past —
+  the one place a "take me back" feature must not go. Checked on read as well as
+  write, so a value from an older build cannot become a navigation target.
+- Written on every location change, not on unload: `beforeunload` is not
+  reliably delivered on mobile or on a crash, and those are exactly the closes
+  that end a session without warning.

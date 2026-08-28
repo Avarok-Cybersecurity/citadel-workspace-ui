@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useRememberLocation } from './use-remember-location';
 import {
   Sidebar,
   SidebarContent,
@@ -15,6 +16,11 @@ interface AppLayoutProps {
 }
 
 export const AppLayout = ({ children }: AppLayoutProps) => {
+  // Records where this session is, so claiming it tomorrow returns here rather
+  // than to the default office. Inside AppLayout because that is exactly the
+  // set of routes worth returning to -- the pre-auth screens do not mount it.
+  useRememberLocation();
+
   return (
     <SidebarProvider>
       {/* `--app-height` is published by keyboard-inset.ts on browsers that do
