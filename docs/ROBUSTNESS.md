@@ -13250,3 +13250,31 @@ What is left in `lib/` is mostly identity rather than copy — a peer's username
 a document's title — which no testid can replace. Those are the ones to move to
 `[data-testid="peer-row"]:has-text(name)`, and they will still count, because
 the baseline is where that judgement belongs rather than inside a regex.
+
+## Round 252 — a screen that turned out to be right
+
+The connection-failure modal is the screen a user meets most often when
+something is wrong, so it was worth auditing rather than assuming. Four things
+were checked against the built bundle, and all four were already correct:
+
+| checked | found |
+|---|---|
+| the countdown ticks | 2s → 1s → 4s → 3s → … → 8s, with the backoff visible in it |
+| Retry Now works past the budget | pressing it restarts the series rather than being dead |
+| the icon-only button is named | `aria-label="Copy the run command"` |
+| retry progress reaches a screen reader | a `role="status"` region, with the ticking number deliberately outside it |
+
+The last one is the interesting one, and it was nearly recorded as a defect. The
+probe asked for `[aria-live]` and found only two toasts, so the modal appeared to
+have no live region at all — but `role="status"` carries an implicit
+`aria-live="polite"` and no attribute, which the query could not see. The modal
+had it, correctly, with the countdown left out on purpose: announcing every tick
+is what makes a screen reader unusable, and there is a comment beside the call
+timer saying so.
+
+**A probe that looks for the attribute and not the role will find nothing and
+call it a finding.** Recorded because the mistake was mine, in a session that has
+spent a great deal of effort on checks that cannot fail — this is the neighbour
+of that: a check that cannot see.
+
+Nothing changed in the product this round. That is the result.
