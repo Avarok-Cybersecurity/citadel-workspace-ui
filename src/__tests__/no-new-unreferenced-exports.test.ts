@@ -24,7 +24,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { findUnreferencedExports } from './unreferenced-exports';
+import { scanExports } from './unreferenced-exports';
 
 const SRC = resolve(__dirname, '..');
 const BASELINE: string[] = JSON.parse(
@@ -32,14 +32,20 @@ const BASELINE: string[] = JSON.parse(
 );
 
 describe('unreferenced exports', () => {
-  const found = findUnreferencedExports(SRC);
+  const scan = scanExports(SRC);
+  const found = scan.unreferenced;
   const names = found.map((f) => f.name);
 
   it('scans a real corpus, so the rule is not passing over nothing', () => {
     // Every guard in this repo that silently checked nothing looked exactly
     // like a passing one.
-    expect(BASELINE.length).toBeGreaterThan(10);
-    expect(names.length).toBeGreaterThan(0);
+    //
+    // This asserted `BASELINE.length > 10` at first, which was wrong in a way
+    // worth keeping the record of: it read the SIZE OF THE PROBLEM as evidence
+    // that the rule worked, so the rule began failing the moment the problem
+    // got small. The baseline reaching zero is the goal, not a malfunction.
+    // What has to be non-trivial is the SCAN.
+    expect(scan.examined).toBeGreaterThan(500);
   });
 
   it('gains none', () => {

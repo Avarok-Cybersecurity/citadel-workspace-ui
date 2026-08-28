@@ -47,16 +47,19 @@ export function reissueTabId(): string {
 }
 
 // Storage key prefixes
+// There was a symmetric `shared-` family here too — setSharedData,
+// getSharedData, removeSharedData and getSharedKey — written alongside the
+// tab-scoped trio and never called by anything. Speculative symmetry: the
+// tab-scoped half has a real consumer in user-service, the shared half had a
+// prefix, three functions and no feature. Cross-tab state in this app travels
+// by BroadcastChannel and by the storage event, not through a second IndexedDB
+// key space.
 const TAB_PREFIX = 'tab-';
-const SHARED_PREFIX = 'shared-';
 
 export function getTabSpecificKey(key: string): string {
   return `${TAB_PREFIX}${getTabId()}-${key}`;
 }
 
-export function getSharedKey(key: string): string {
-  return `${SHARED_PREFIX}${key}`;
-}
 
 /**
  * Store tab-specific data in IndexedDB.
@@ -85,32 +88,8 @@ export async function removeTabData(key: string): Promise<void> {
   await dbDelete('tabContext', storageKey);
 }
 
-/**
- * Store shared data (accessible across tabs) in IndexedDB.
- * BigInt values are preserved via Structured Clone.
- */
-export async function setSharedData<T>(key: string, value: T): Promise<void> {
-  const storageKey = getSharedKey(key);
-  await dbPut('keyValue', storageKey, value);
-}
 
-/**
- * Retrieve shared data from IndexedDB.
- * BigInt values are automatically restored.
- */
-export async function getSharedData<T>(key: string): Promise<T | null> {
-  const storageKey = getSharedKey(key);
-  const data = await dbGet<T>('keyValue', storageKey);
-  return data ?? null;
-}
 
-/**
- * Remove shared data from IndexedDB.
- */
-export async function removeSharedData(key: string): Promise<void> {
-  const storageKey = getSharedKey(key);
-  await dbDelete('keyValue', storageKey);
-}
 
 // Tab context interface for managing selected user
 export interface TabUserContext {

@@ -10261,3 +10261,44 @@ delete a key" is neither.
 That is worth recording as a limit of that guard rather than a gap to paper
 over. A rule that finds duplication by name finds the duplication somebody
 already named.
+
+## Round 183 — the module written to end duplicate formatters was itself duplicated
+
+12 → 7.
+
+`lib/format-time.ts` opens by explaining why it exists:
+
+> There were six independent formatters — two of them pinned to `'en-US'` — so
+> the same instant read "2:07 PM" in a chat bubble, "8/27/2026, 2:07:33 PM" in
+> the files sidebar and "3 minutes ago" in a notification.
+
+The consolidation reached four of the six. `components/chat/shared/formatters.ts`
+still held `formatTime` and `formatDate` with their own bodies, byte-for-byte
+identical to `formatClock` and `formatDay` one import away — and those two copies
+were the ones the chat actually rendered with, while the canonical pair had no
+callers at all.
+
+So the module written to end duplicate formatters was itself duplicated, and the
+duplicate won. They are re-exports now, under the names the chat components
+already use.
+
+Also removed: the `shared-` half of `tab-context.ts` — `setSharedData`,
+`getSharedData`, `removeSharedData`, `getSharedKey` — written alongside the
+tab-scoped trio and called by nothing. The tab-scoped half has a real consumer;
+the shared half was a prefix, three functions and no feature. Cross-tab state
+here travels by BroadcastChannel and the storage event.
+
+### The ratchet's own sanity check was wrong
+
+It asserted `BASELINE.length > 10` to prove the rule was not passing over
+nothing — and at 7 entries, it failed. The assertion read **the size of the
+problem** as evidence the rule worked, so it broke the moment the problem got
+small. A baseline reaching zero is the goal, not a malfunction.
+
+It now asserts the SCAN is non-trivial (>500 exported functions examined), which
+is the property actually wanted and is independent of how many are unreferenced.
+
+Worth keeping the record of, because it is the same mistake as the checks that
+measured a crashed app as mounted: an assertion that is true for the wrong
+reason. Here it was true for a reason that was about to stop being true, which
+is the more flattering version of the same error.

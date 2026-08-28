@@ -4,11 +4,6 @@
   "decodeMetadataBytes",
   "deriveLightPalette",
   "findRegion",
-  "formatClock",
-  "formatDay",
-  "getSharedData",
-  "removeSharedData",
   "resetToPreset",
-  "setSharedData",
   "stringToUint8Array"
 ]

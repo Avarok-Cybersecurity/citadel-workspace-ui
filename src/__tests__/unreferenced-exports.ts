@@ -14,6 +14,12 @@ export interface Unreferenced {
   file: string;
 }
 
+export interface Scan {
+  /** How many exported functions were examined. */
+  examined: number;
+  unreferenced: Unreferenced[];
+}
+
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir)) {
@@ -24,7 +30,7 @@ function sourceFiles(dir: string): string[] {
   return out;
 }
 
-export function findUnreferencedExports(src: string): Unreferenced[] {
+export function scanExports(src: string): Scan {
   const files = sourceFiles(src);
   const text = new Map(files.map((f) => [f, readFileSync(f, 'utf8')]));
 
@@ -47,5 +53,8 @@ export function findUnreferencedExports(src: string): Unreferenced[] {
     if (total <= 0) unreferenced.push({ name, file: file.slice(src.length + 1) });
   }
 
-  return unreferenced.sort((a, b) => a.name.localeCompare(b.name));
+  return {
+    examined: declaredIn.size,
+    unreferenced: unreferenced.sort((a, b) => a.name.localeCompare(b.name)),
+  };
 }

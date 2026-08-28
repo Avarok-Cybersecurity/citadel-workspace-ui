@@ -1,35 +1,30 @@
 /**
- * Shared chat formatters and utilities
- * Used by both P2PChat and GroupChatView components
+ * Chat display helpers.
+ *
+ * `formatTime` and `formatDate` used to have their own bodies here, byte-for-byte
+ * the same as `formatClock` and `formatDay` in `lib/format-time.ts`. That file's
+ * header explains why it exists: there were SIX independent time formatters,
+ * two pinned to `'en-US'`, so one instant read "2:07 PM" in a chat bubble,
+ * "8/27/2026, 2:07:33 PM" in the files sidebar and "3 minutes ago" in a
+ * notification.
+ *
+ * The consolidation reached four of the six. These two survived, unreferenced
+ * copies of the canonical pair sitting one import away — so the module written
+ * to end duplicate formatters was itself duplicated, and the copies were the
+ * ones the chat actually rendered with.
+ *
+ * They are re-exports now, under the names the chat components already use.
+ * Renaming the call sites instead would have been a larger diff to the same
+ * end, and `formatTime` is the name a message bubble wants.
  */
 
-/**
- * Format a timestamp to HH:MM format
- * Accepts number or bigint (bigint from WASM u64 timestamps)
- */
-export function formatTime(timestamp: number | bigint): string {
-  const date = new Date(Number(timestamp));
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
+import { formatClock, formatDay } from '@/lib/format-time';
 
-/**
- * Format a date with relative labels (Today, Yesterday, or date string)
- * Accepts number or bigint (bigint from WASM u64 timestamps)
- */
-export function formatDate(timestamp: number | bigint): string {
-  const date = new Date(Number(timestamp));
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
+/** The clock beside a message. Canonical implementation: `lib/format-time`. */
+export const formatTime = formatClock;
 
-  if (date.toDateString() === today.toDateString()) {
-    return 'Today';
-  } else if (date.toDateString() === yesterday.toDateString()) {
-    return 'Yesterday';
-  } else {
-    return date.toLocaleDateString();
-  }
-}
+/** Today / Yesterday / a date, for separators. Canonical: `lib/format-time`. */
+export const formatDate = formatDay;
 
 /**
  * Extract initials from a name (max 2 characters)
