@@ -15,29 +15,11 @@ import type {
 import { conversationPrefix, legacyConversationPrefix, hasLegacyFallback } from './message-page-keys';
 import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import { debugLog } from '@/lib/debug-config';
+import { isGenuinelyAbsent } from '@/lib/storage/absence';
 
 /**
  * Load metadata by full key.
  */
-/**
- * A read that came back empty because the key genuinely is not there.
- *
- * The distinction is load-bearing, not pedantry. `sendLocalDBGet` rejects for
- * BOTH "no such key" and "the request timed out after 5s" / "the socket is
- * down", and the append path treats a null return as "this conversation is
- * new" — it then fabricates metadata with `latestPage: 0` and writes a page
- * containing the single message that triggered it. That overwrites page 0 and
- * orphans pages 1..N, because nothing else records their existence. One
- * transient timeout silently destroys a conversation.
- *
- * The same string test is already used twice in message-pagination-store; it
- * was never applied to the two functions where getting it wrong loses data.
- */
-function isGenuinelyAbsent(error: unknown): boolean {
-  const message: string = error instanceof Error ? error.message : String(error);
-  return message.includes('Key not found') || message.includes('No keys found');
-}
-
 export async function loadMetadataByKey(key: string): Promise<ConversationMetadata | null> {
   try {
     const response = await websocketService.sendLocalDBGet(0n, key);

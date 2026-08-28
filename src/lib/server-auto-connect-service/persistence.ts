@@ -7,11 +7,18 @@
 import { websocketService } from '@/lib/websocket-service';
 import { stringToBytes, bytesToString } from '@/lib/utils/encoding-utils';
 import { debugLog } from '@/lib/debug-config';
+import { isGenuinelyAbsent } from '@/lib/storage/absence';
 import { GLOBAL_CID, LOCALDB_KEY, USER_DISCONNECTED_KEY } from './types';
 
 /**
  * Load the enabled setting from LocalDB.
- * Returns true (default) if not found or on error.
+ *
+ * Absent means nobody has chosen yet, and `true` is the documented default.
+ * A FAILED read means nothing at all -- and returning the default there is how
+ * a user who turned auto-connect off finds it back on after one timed-out
+ * request. The two were one `catch` returning `true`, and the absent case fires
+ * on every first boot, so the log line was permanent noise that nobody could
+ * have read a real failure out of.
  */
 export async function loadEnabledSetting(): Promise<boolean> {
   try {
@@ -21,7 +28,12 @@ export async function loadEnabledSetting(): Promise<boolean> {
       return decoded === 'true';
     }
   } catch (error) {
-    debugLog('ServerAutoConnectService', 'Failed to load enabled setting:', error);
+    if (isGenuinelyAbsent(error)) {
+      debugLog('ServerAutoConnectService', 'No stored preference; auto-connect defaults to on');
+    } else {
+      debugLog('ServerAutoConnectService', 'COULD NOT READ the auto-connect preference; ' +
+        'defaulting to on, which may not be what this user chose:', error);
+    }
   }
   return true;
 }
@@ -51,7 +63,15 @@ export async function loadUserDisconnectedSessions(): Promise<Set<string>> {
       }
     }
   } catch (error) {
-    debugLog('ServerAutoConnectService', 'Failed to load user disconnected sessions:', error);
+    if (isGenuinelyAbsent(error)) {
+      debugLog('ServerAutoConnectService', 'No user-disconnected sessions stored yet');
+    } else {
+      // An empty set here means "nobody signed out of anything", which is what
+      // makes the service reconnect them. Say so, rather than logging a generic
+      // failure beside the one that happens on every first boot.
+      debugLog('ServerAutoConnectService', 'COULD NOT READ user-disconnected sessions; ' +
+        'treating every session as reconnectable:', error);
+    }
   }
   return new Set();
 }

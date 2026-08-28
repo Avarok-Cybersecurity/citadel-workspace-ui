@@ -15,6 +15,7 @@ import type { Peer, PeerInfoResponse, PendingRequestEntry } from './types';
 import { AUTO_ACCEPT_KEY, RETRY_BACKOFF_MS, DEFAULT_LIST_RETRIES } from './constants';
 import { getCurrentCid, listRegisteredPeers } from './discovery';
 import { registerPeer } from './registration';
+import { isGenuinelyAbsent } from '@/lib/storage/absence';
 
 /**
  * List currently registered peers with retry logic.
@@ -129,8 +130,7 @@ export async function getAutoAcceptSetting(cidOverride?: bigint): Promise<boolea
       return decoded === 'true';
     }
   } catch (error: unknown) {
-    const errorMessage: string = error instanceof Error ? error.message : String(error);
-    if (errorMessage?.includes('Key not found')) {
+    if (isGenuinelyAbsent(error)) {
       debugLog('P2PRegistrationService', '[P2P] Auto-accept setting not found, using default: false');
     } else {
       debugLog('P2PRegistrationService', 'Failed to get auto-accept setting:', error);

@@ -13707,3 +13707,41 @@ depends on how many awaits happen to be above it is measuring the wrong thing.*
 It now waits for the announcement to actually be in flight, and primes the
 module first, which is the production shape: fetched on mount, read minutes
 later by a press. Gutting the reconciler still fails three of six.
+
+## Round 265 — the predicate that four files re-derived
+
+Round 261's fix landed, and `hard-disconnect` changed shape: **0** hits of
+"Accept button not found in modal", where the previous run had 20. It now gets
+much further and fails somewhere else entirely — which is what a real fix looks
+like from the outside.
+
+On the way through its log, this, from both peers, at boot:
+
+```
+[Alice] [ServerAutoConnectService] Failed to load enabled setting: Error: Key not found
+[Bob]   [ServerAutoConnectService] Failed to load user disconnected sessions: Error: Key not found
+```
+
+`sendLocalDBGet` rejects for BOTH "no such key" and "the request timed out" /
+"the socket is down". `loadEnabledSetting` caught all of it and returned `true`.
+
+Absent is fine — nobody has chosen yet, and on is the documented default. A
+**failed** read means nothing at all, and returning the default there is how
+somebody who turned auto-connect off finds it back on after one timed-out
+request. Worse, the absent case fires on every first boot, so that log line is
+permanent noise: a real failure would have printed the same words, beside the
+same words, forever.
+
+`isGenuinelyAbsent` already existed. It was written once in
+`message-page-operations`, with a comment explaining that getting this wrong
+fabricates page-0 metadata and orphans a conversation's other pages. The same
+string test was then spelled out by hand in `message-pagination-store` (twice)
+and in `p2p-registration-service` — and **not at all** in
+`server-auto-connect-service`, which is the one place where getting it wrong
+flips a user's stated preference.
+
+*A predicate that four files re-derive is a predicate one file will get wrong,
+and it will be the file nobody thought to check.*
+
+One copy in `lib/storage/absence.ts`, five call sites, and a test that refuses a
+fifth spelling of the string. Reintroducing one names the offending file.

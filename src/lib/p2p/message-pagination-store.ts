@@ -39,6 +39,7 @@ import { deleteConversationPages, type DeleteScope } from './message-page-delete
 import { debugLog } from '@/lib/debug-config';
 import { withPeerLock } from './peer-write-lock';
 import { placeInPage, recordAppend } from './message-page-append';
+import { isGenuinelyAbsent } from '@/lib/storage/absence';
 
 export class MessagePaginationStore {
   private readonly dbPrefix = 'p2p_messages';
@@ -49,8 +50,7 @@ export class MessagePaginationStore {
       await websocketService.sendLocalDBDelete(0n, key);
       debugLog('MessagePaginationStore', '[P2P] Deleted old monolithic format');
     } catch (error) {
-      const errorMessage: string = error instanceof Error ? error.message : String(error);
-      if (!errorMessage.includes('Key not found')) {
+      if (!isGenuinelyAbsent(error)) {
         debugLog('MessagePaginationStore', 'Failed to delete old format:', error);
       }
     }
@@ -83,8 +83,7 @@ export class MessagePaginationStore {
 
       debugLog('MessagePaginationStore', `[P2P] Loaded ${results.length} conversation(s) from paginated storage`);
     } catch (error) {
-      const errorMessage: string = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('Key not found') || errorMessage.includes('No keys found')) {
+      if (isGenuinelyAbsent(error)) {
         debugLog('MessagePaginationStore', '[P2P] No paginated conversations found');
       } else {
         debugLog('MessagePaginationStore', 'Failed to load metadata:', error);
