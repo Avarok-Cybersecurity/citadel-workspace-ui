@@ -212,7 +212,7 @@ export interface UserTS {
   username: string;
   display_name: string;
   name?: string;
-  metadata?: Record<string, any>; // For avatar and other user metadata
+  metadata?: Record<string, unknown>; // For avatar and other user metadata
 }
 
 export enum UserRoleTS {

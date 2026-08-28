@@ -31,10 +31,16 @@ export class TypedEventEmitter<T> {
   }
 }
 
+/** A handler with its payload type erased for storage; see the pinch point below. */
+type StoredHandler = (payload?: unknown) => void;
+
 export class EventEmitter {
-  // PINCH POINT: Internal storage uses any because it holds heterogeneous handler types
-  // across different event names. Type safety is enforced at on<T>/emit<T> call sites.
-  private listeners: Map<string, Set<EventHandler<any>>> = new Map();
+  // PINCH POINT: one map holds handlers for many different event payloads, so
+  // the STORED type has to erase the payload. `StoredHandler` says that in one
+  // place with one cast at each boundary, instead of `any`, which erases it
+  // everywhere and lets a caller read a property off it by accident. Type
+  // safety is enforced at the typed on<T>/emit<T> call sites.
+  private listeners: Map<string, Set<StoredHandler>> = new Map();
 
   /**
    * How many handlers are currently subscribed to an event.
@@ -69,11 +75,14 @@ export class EventEmitter {
     }
 
     const handlers = this.listeners.get(event)!;
-    handlers.add(handler);
+    // The one cast, at the boundary: `on<T>` knows the payload type and the map
+    // cannot. Everything below this line treats it as erased.
+    const stored = handler as StoredHandler;
+    handlers.add(stored);
 
     // Return unsubscribe function
     return () => {
-      handlers.delete(handler);
+      handlers.delete(stored);
       if (handlers.size === 0) {
         this.listeners.delete(event);
       }
@@ -90,7 +99,10 @@ export class EventEmitter {
     return unsubscribe;
   }
 
-  off(event: string, handler?: EventHandler<any>): void {
+  // Generic like `on`, so a caller can pass back the same typed handler it
+  // registered. Non-generic (`EventHandler<unknown>`) it refused every handler
+  // that names its payload, which is all of them.
+  off<T = unknown>(event: string, handler?: EventHandler<T>): void {
     if (!handler) {
       // Remove all handlers for this event
       this.listeners.delete(event);
@@ -98,7 +110,7 @@ export class EventEmitter {
       // Remove specific handler
       const handlers = this.listeners.get(event);
       if (handlers) {
-        handlers.delete(handler);
+        handlers.delete(handler as StoredHandler);
         if (handlers.size === 0) {
           this.listeners.delete(event);
         }

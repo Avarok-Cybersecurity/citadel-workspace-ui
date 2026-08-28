@@ -70,9 +70,13 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
     // Don't trigger if clicking buttons or the dismiss X
     if ((e.target as HTMLElement).closest('button')) return;
 
-    // Call onCardClick if provided in data
-    if (notification.data?.onCardClick) {
-      notification.data.onCardClick();
+    // Narrowed, not assumed. `data` is `Record<string, unknown>` -- it arrives
+    // from whoever raised the notification -- so a callback in it is a claim
+    // until it is checked. It used to be typed `any`, which let this call
+    // anything at all under that key, including a string.
+    const onCardClick = notification.data?.onCardClick;
+    if (typeof onCardClick === 'function') {
+      (onCardClick as () => void)();
     }
   };
 

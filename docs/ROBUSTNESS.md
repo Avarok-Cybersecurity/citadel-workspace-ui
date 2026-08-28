@@ -12603,3 +12603,53 @@ This is round 233's finding one layer further out, and worth stating as a pair.
 the administrator was asked to become one. 239: the server granted the role and
 the client never asked. Both are the same shape — **an authority and a copy, with
 nothing keeping them in step** — and neither is visible from either side alone.
+
+## Round 240 — every declaration carries a type
+
+Asked for: a pipeline check that every TypeScript file is strongly typed —
+`const storedSession: StoredSession = await …`, not `const storedSession = await
+…`. There are no `.svelte` files in this tree; the check is written to cover
+`.ts` and `.tsx`, which is all of it.
+
+Round 239 is the argument for the policy in one line: a value read from one place
+and believed everywhere, with nothing stating what it was.
+
+### What was enforced outright
+
+`no-explicit-any` is now an **error**. There were nine and they are gone:
+
+| where | was | now |
+|---|---|---|
+| `event-emitter.ts` | `Set<EventHandler<any>>` | a named `StoredHandler` with one cast at each boundary; `off` became generic so it accepts the handler a caller registered |
+| 4 × metadata bags | `Record<string, any>` | `Record<string, unknown>` — readers must narrow |
+| `service.ts` | `(window as any).webkitAudioContext` | a named `Window & { webkitAudioContext?: … }` |
+| `NotificationItem.tsx` | `notification.data.onCardClick()` | `typeof … === 'function'` first — under `any` that call would have run a string |
+
+### What was ratcheted
+
+Turning the typedef rules on outright fails **951 of 1087 files, 7,826
+findings**. A gate nobody can pass is a gate that gets switched off, so
+`check-explicit-types.mjs` holds a per-file baseline:
+
+- a file may not gain violations;
+- a file not in the baseline must have **none** — all new code is fully typed;
+- a file that improves has its lower number written in immediately, so the debt
+  can only shrink.
+
+Required: `typedef` for variable declarations, named parameters, members and
+properties; `explicit-function-return-type`; `explicit-module-boundary-types`.
+
+Not required, deliberately: `arrowParameter`. A callback passed to `.map()` is
+contextually typed already, and annotating it restates the signature it was just
+passed to — 1,999 extra findings that make code longer without making it safer.
+That number is measured, not guessed, and the flag is one word away if you want
+it.
+
+Three controls: a new untyped declaration in a clean file is named; one more in a
+baselined file is reported as `14, up from 13`; and an inflated baseline entry is
+rewritten down rather than quietly accepted, printing `Total debt: 7831 → 7826`.
+
+The gate then caught its own author immediately. Splitting the notification
+chime into a new file produced `chime.ts: 4 declaration(s) without a type, in a
+file that had none` — a new file, so the policy applies in full. Annotated:
+7,826 → **7,822**, and the burn-down starts there.

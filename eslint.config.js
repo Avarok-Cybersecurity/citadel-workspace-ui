@@ -72,8 +72,14 @@ export default tseslint.config(
       // Prevent accidentally not awaiting a Promise
       // Use "void someAsyncFunction();" to explicitly run in background
       "@typescript-eslint/no-floating-promises": "error",
-      // Disable for now - too many existing uses, address separately
-      "@typescript-eslint/no-explicit-any": "off",
+      // ON. There were nine `any`s in this codebase and they are gone: the
+      // event emitter erases its payload type in one named place with one cast
+      // at each boundary, and the four `Record<string, any>` metadata bags
+      // became `Record<string, unknown>` so their readers have to narrow. The
+      // one consumer that was calling `data.onCardClick()` on faith now checks
+      // it is a function first -- under `any` that call would happily have run
+      // a string.
+      "@typescript-eslint/no-explicit-any": "error",
       // Disable non-critical rules to unblock CI - TODO: fix these later
       "@typescript-eslint/no-empty-object-type": "off",
       "@typescript-eslint/no-unsafe-function-type": "off",

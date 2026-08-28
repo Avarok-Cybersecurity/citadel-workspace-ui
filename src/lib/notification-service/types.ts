@@ -36,7 +36,7 @@ export interface Notification {
   read: boolean;
   timestamp: number;
   actionButtons?: NotificationAction[];
-  data?: Record<string, any>; // Additional data specific to the notification type
+  data?: Record<string, unknown>; // Additional data specific to the notification type
 }
 
 export interface NotificationAction {

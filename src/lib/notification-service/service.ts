@@ -4,6 +4,7 @@
  * Centralized service to manage all types of notifications in the application.
  */
 import { eventEmitter } from '../event-emitter';
+import { playNotificationChime } from './chime';
 import { showBrowserNotification } from './browser-notification';
 import { v4 as uuidv4 } from 'uuid';
 import { debugLog } from '@/lib/debug-config';
@@ -49,26 +50,12 @@ export class NotificationService {
   }
 
   private playNotificationSound(): void {
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
-      oscillator.connect(gain);
-      gain.connect(ctx.destination);
-      oscillator.frequency.setValueAtTime(880, ctx.currentTime);
-      oscillator.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.1, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-      oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + 0.3);
-    } catch {
-      // Audio not available
-    }
+    playNotificationChime();
   }
 
   public addMessageNotification(
     title: string, content: string, senderId: string,
-    messageId: string, recipientCid?: string, data?: Record<string, any>
+    messageId: string, recipientCid?: string, data?: Record<string, unknown>
   ): Notification {
     return this.addNotification({
       type: NotificationType.MESSAGE, title, content, senderId,
