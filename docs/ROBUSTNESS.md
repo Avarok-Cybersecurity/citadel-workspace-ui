@@ -12057,3 +12057,46 @@ which nothing was checking. Round 190's rule — browser checks address controls
 by testid, not by what a button says — exists for this, and it covers
 `scripts/*.mjs`, not the Playwright specs. That is the gap the six failures came
 through.
+
+## Round 228 — `if: failure()` does not mean "on failure"
+
+Twenty-four CI legs failed in the last run. Every one of them uploaded a
+screenshot and **discarded the backend logs**.
+
+Both test jobs did have a dump step with `if: failure()`. It sat before the test:
+
+```
+Start Services
+Dump Service Logs on Start Failure     <- if: failure()
+Clean Docker Build Cache
+Run Integration Test                   <- fails here
+Upload Screenshots on Failure
+```
+
+Steps run in order. By the time the test fails, the dump step has already been
+skipped — `if: failure()` gates a step that will never be reached again. It reads
+like insurance and is a placebo.
+
+The cost is specific. The open question about these failures is whether the first
+account is promoted to Admin or whether the workspace is awaiting initialisation,
+and the server logs one line saying exactly which:
+
+```
+User {id} is the first workspace member; promoted to Admin
+User {id} is the first workspace member, but first-connect admin promotion is
+off. The workspace awaits initialization with the master password.
+```
+
+Twenty-four failing legs, and that line was never captured once. A screenshot
+shows the symptom; the log says why.
+
+Both jobs now dump after the test, grepping the membership and refusal decisions
+first and then tailing both services. `check-service-logs-are-captured.mjs`
+asserts the position rather than the presence: every job that runs `docker
+compose up` must have a failure-dump step **after** its last test step. The
+control moves the existing dump back above the test, and the gate names the job
+and both step indices.
+
+This is round 225 one level up. There, a wait gave up and reported nothing; here,
+a CI job fails and reports nothing. Same defect, different altitude — and the
+same fix, which is to capture the state at the moment it is still true.
