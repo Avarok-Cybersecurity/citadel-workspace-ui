@@ -41,7 +41,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
               aria-label="Refresh peer list"
               variant="ghost"
               size="sm"
-              onClick={discoverPeers}
+              onClick={() => void discoverPeers()}
               disabled={loading}
               className="text-primary-accent hover:text-primary-accent"
             >

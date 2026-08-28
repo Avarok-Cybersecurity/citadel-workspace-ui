@@ -9068,3 +9068,62 @@ because this drifted once, and `GroupConversationRow` still carried its own
 could show a member a different colour from every other avatar in the app. Two
 `@deprecated` forwarding shims were still imported by three call sites; those
 now import the canonical functions and the shims are gone.
+
+## Round 152 — the frontend time audit
+
+A lifecycle-and-races audit of the frontend. Its refuted list is longer than its
+findings, which is the right shape after this many rounds — the call machinery
+and the request/response plumbing came back clean. What it found lives at seams
+this campaign has seen before: a filter applied to three of four subscribers, a
+guard applied to one of three sibling registrations.
+
+**The group-call roster could ring another domain's members.** Round 133 added
+`isForDomain` because the workspace protocol carries no request id, so a
+`Members` response cannot be attributed to the request that caused it. Its own
+header names four subscribers it was written for; it reached two. The
+group-call roster was the sharpest miss, and its comment said so in the wrong
+direction — "the event carries no domain id, so this is the established
+contract, not an oversight of this hook", true when written and false once the
+filter landed. Open an office chat, then open the admin tab for another entity:
+its `ListMembers` response replaces the callable roster, and Start call rings
+THAT domain's members while dropping this one's. One line, plus a guard that
+requires every `members:loaded` subscriber to filter or say why it does not.
+The one exemption — the workspace-wide member record user search reads — is
+stated rather than assumed.
+
+**Every visit to the User Directory showed a red "Not Connected".** The CID
+loads asynchronously; the discovery trigger runs on the same mount with the
+modal already open, hits the `!currentCid` branch and toasts. A tick later the
+CID lands, the callback's identity changes, the effect re-runs and succeeds
+silently — so the user saw an error and a working list. The toast is now for
+somebody pressing Refresh.
+
+**Two socket listeners accumulated, one per socket creation.**
+`setupDisconnectionHandler` and `setupSessionReleaseHandler` registered on the
+global emitter with no `off` and no once-guard, while the function next door to
+them has exactly that guard. After N drop-and-recreate cycles one drop ran N+1
+teardowns and one release request sent N+1 `ReleaseSession`s, each stale closure
+holding a dead client. Guarded — and the per-socket client and hooks are held in
+module refs rather than the closure, because a once-guard over a stale closure
+would have been a different bug wearing the fix's clothes.
+
+**A guard outlived the listener it was guarding.**
+`useServerRevfsTree` set `capabilitiesQueried.current` on first run, and the
+effect's cleanup removed the subscription — so after one Peer/Server toggle the
+listener was gone and the ref short-circuited the re-subscribe. If the server's
+capabilities landed in that window the UI kept `DEFAULT_SERVER_CAPABILITIES`
+(permissive quota, RE-VFS enabled) for the rest of the session, advertising
+storage the server may refuse. The guard now tracks whether capabilities were
+RECEIVED, which is what it was always meant to mean.
+
+**Recorded, not yet fixed** — each needs a decision rather than a patch:
+background-tab timer throttling makes a hidden leader miss its 2 s heartbeats
+against a 5 s dead-leader timeout, so a foreground follower challenges roughly
+every minute and each flap error-acks in-flight requests; `closeLeaderClient`
+has no interlock with an in-flight `creating`, so a demotion mid-build leaves a
+live deaf socket owned by a follower; the outbound queue retries at 5 s while
+the leader's proxy handlers are budgeted 30 s and ack only after the awaited
+work, with no requestId dedupe on the leader; auto-claim treats "not orphaned"
+as adoptable, so two tabs can own one session; and Duplicate Tab shares
+`citadel-tab-id` forever, because the identity repair re-rolls only the instance
+id.

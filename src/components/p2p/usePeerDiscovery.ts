@@ -136,9 +136,19 @@ export function usePeerDiscovery(isOpen: boolean) {
     }
   }, [currentCid]);
 
-  const discoverPeers = useCallback(async () => {
+  /**
+   * `announce` separates a user asking from the mount-time effect below.
+   *
+   * The CID loads asynchronously and the trigger effect runs on the same mount
+   * with the modal already open, so every visit to the User Directory toasted
+   * "Not Connected" in red on a page that was about to work: a tick later the
+   * CID landed and the effect re-ran and succeeded silently.
+   */
+  const discoverPeers = useCallback(async (announce = true) => {
     if (!currentCid) {
-      toastError(toast, "Not Connected", "Please connect to a workspace first");
+      if (announce) {
+        toastError(toast, "Not Connected", "Please connect to a workspace first");
+      }
       return;
     }
     setLoading(true);
@@ -184,7 +194,7 @@ export function usePeerDiscovery(isOpen: boolean) {
   // Trigger discovery when modal opens
   useEffect(() => {
     if (isOpen) {
-      runAsyncSetup(discoverPeers);
+      runAsyncSetup(() => discoverPeers(false));
       const loadOutgoing = async () => {
         const bigintCids = await peerRegistrationStore.getOutgoingRequestCids();
         const stringCids = new Set<string>();

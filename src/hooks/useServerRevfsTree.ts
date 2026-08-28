@@ -6,7 +6,7 @@
  * No P2P sync - operations are local tree + server backend only.
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { RevfsNode } from '@/types/revfs-types';
 import { TreeScope } from '@/types/revfs-types';
 import { revfsService } from '@/lib/revfs';
@@ -22,7 +22,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [serverCapabilities, setServerCapabilities] = useState<ServerCapabilities>(DEFAULT_SERVER_CAPABILITIES);
-  const capabilitiesQueried = useRef(false);
+  const [capabilitiesReceived, setCapabilitiesReceived] = useState(false);
 
   const key = myCid ? serverTreeKey(myCid) : null;
 
@@ -33,10 +33,22 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
   }, [tree]);
 
   // Query server capabilities on mount
+  //
+  // The guard used to be a ref set on first run — which survived the cleanup
+  // that REMOVED the listener. The file manager flips myCid to null and back on
+  // every Peer/Server toggle, so after one toggle-away the subscription was
+  // gone and the ref short-circuited the re-subscribe: if the server's answer
+  // landed in that window, the UI kept DEFAULT_SERVER_CAPABILITIES — permissive
+  // quota, RE-VFS enabled — for the rest of the session, advertising storage
+  // the server may refuse.
+  //
+  // The guard is now on whether real capabilities have been RECEIVED, which is
+  // the thing it was meant to mean, and it does not outlive the listener.
   useEffect(() => {
-    if (!myCid || capabilitiesQueried.current) return;
+    if (!myCid || capabilitiesReceived) return;
 
     const handleCapabilities = (data: ServerCapabilities) => {
+      setCapabilitiesReceived(true);
       setServerCapabilities({
         allowServerFileTransfer: data.allowServerFileTransfer,
         allowServerRevfsStorage: data.allowServerRevfsStorage,
@@ -48,8 +60,6 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     // Listen for capabilities response
     eventEmitter.on('server:capabilities:loaded', handleCapabilities);
 
-    // Query server capabilities
-    capabilitiesQueried.current = true;
     workspaceService.getServerCapabilities().catch((err) => {
       debugLog('UseServerRevfsTree', 'Failed to query server capabilities:', err);
       // Keep default capabilities on error
@@ -58,7 +68,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     return () => {
       eventEmitter.off('server:capabilities:loaded', handleCapabilities);
     };
-  }, [myCid]);
+  }, [myCid, capabilitiesReceived]);
 
   const loadTree = useCallback(async () => {
     if (!myCid) {

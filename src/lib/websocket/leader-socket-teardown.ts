@@ -24,8 +24,36 @@ export interface TeardownHooks {
  * reconnect hand back the dead client and report success over a socket that is
  * gone — the user sees a green "connection restored" over nothing.
  */
+/**
+ * The live client, read by the one disconnection handler.
+ *
+ * Both handlers below were registered inside `doCreateWebSocketAsLeader` with no
+ * `off` and no once-guard, so they accumulated one per socket creation. After N
+ * drop-and-recreate cycles a single drop ran N+1 teardowns, and one
+ * `session:release-request` sent N+1 `ReleaseSession` requests — and each stale
+ * closure kept a dead client alive. The guard they needed was already next door,
+ * on `registerLeadershipListener`, and was not carried across.
+ */
+let liveClient: WorkspaceClient | null = null;
+let liveHooks: TeardownHooks | null = null;
+let liveReleaseHooks: Pick<TeardownHooks, 'releaseSession'> | null = null;
+let disconnectionHandlerRegistered = false;
+let sessionReleaseHandlerRegistered = false;
+
 export function setupDisconnectionHandler(client: WorkspaceClient, hooks: TeardownHooks): void {
+  // The client AND the hooks change per socket; the LISTENER does not. Holding
+  // them here rather than in the closure is what makes the once-guard safe --
+  // otherwise the single surviving listener would keep calling into the first
+  // socket's hooks forever.
+  liveClient = client;
+  liveHooks = hooks;
+  if (disconnectionHandlerRegistered) return;
+  disconnectionHandlerRegistered = true;
+
   eventEmitter.on('websocket-disconnected', async () => {
+    const client = liveClient;
+    const hooks = liveHooks;
+    if (!client || !hooks) return;
     debugLog('WebSocketInit', 'WebSocket disconnected event received, stopping message processing and resetting state');
     client.stopMessageProcessing();
     try {
@@ -42,9 +70,13 @@ export function setupDisconnectionHandler(client: WorkspaceClient, hooks: Teardo
 }
 
 export function setupSessionReleaseHandler(hooks: Pick<TeardownHooks, 'releaseSession'>): void {
+  liveReleaseHooks = hooks;
+  if (sessionReleaseHandlerRegistered) return;
+  sessionReleaseHandlerRegistered = true;
+
   eventEmitter.on('session:release-request', ({ cid }: { cid: bigint }) => {
     debugLog('WebSocketInit', `Session release requested for CID ${cid.toString()}`);
-    hooks.releaseSession(cid);
+    liveReleaseHooks?.releaseSession(cid);
   });
 }
 
