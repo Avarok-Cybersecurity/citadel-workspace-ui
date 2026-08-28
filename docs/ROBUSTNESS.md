@@ -9746,3 +9746,40 @@ different cause, so both directions have a control.
 The `Landing.tsx` ratchet entry moved 311 → 313 for the two attributes, with the
 reason recorded — which is what that ratchet is for: a raise you have to write
 down is a raise somebody decided.
+
+## Round 169 — a cache that outlived the account, and a cleanup path that did not exist
+
+From a data-integrity audit.
+
+**The permissions cache answered for the previous account.**
+`PermissionsService` is a singleton and its cache is keyed by domain id alone.
+`workspace-root` is the same id for everyone, so after switching accounts the
+previous account's rights answered — long enough to render a control the new
+account may not use, or hide one it may. It cleared only on a role change for
+the current user. It now clears when the session's CID changes, because a
+permission belongs to a session.
+
+**And a timed-out permissions fetch leaked its listener.**
+`off('user:permissions:loaded', …)` was called only on the success path, so
+every timeout left a handler on the global emitter for the life of the tab —
+each holding its closure and its `reject` alive, and each still running on every
+subsequent load. The wait is now its own module, because the lifetime is its
+whole substance: the timeout has to be able to remove the handler, and the
+ordering that makes that possible reads as a mistake when it is inline.
+
+**`GetSessions` reconciliation was dead code that the documentation cited.**
+The handler queried the SDK, built a list of "stale C2S sessions" to clean up,
+and every branch of that filter returned `false` — the last one under a comment
+reading *"Actually, let's preserve all sessions and let explicit disconnect
+handle cleanup"*. The decision was taken and the machinery left standing: a
+round trip whose result was discarded, a lock, a list that was always empty, and
+a loop over it.
+
+Worse than no code, because `CLAUDE.md` names this as one of three places a
+session can be removed, and it is not one. There are two: Disconnect and
+Deregister. Both the machinery and the claim are gone.
+
+That is the third time this campaign has found a documented mechanism that does
+not exist — after the second leader election (round 150) and the "(SSOT)" label
+on a copy nobody imported (round 149). A comment asserting a property is the
+most effective way to stop the next person checking it.

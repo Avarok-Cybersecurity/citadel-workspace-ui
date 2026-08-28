@@ -5,13 +5,13 @@
  * Extends EventListenerManager for automatic event listener cleanup.
  */
 
-import { eventEmitter } from '@/lib/event-emitter';
+import { awaitPermissionsLoaded } from './await-permissions-loaded';
 import { isAdminRole, isOwnerRole, isPrivilegedRole } from '@/lib/role-predicate';
 import WorkspaceService from '@/lib/workspace-service';
 import { connectionManager } from '@/lib/connection';
 import { EventListenerManager } from '@/lib/utils/event-listener-manager';
 import { debugLog } from '@/lib/debug-config';
-import { TIMEOUT, INTERVAL } from '@/lib/timeout-constants';
+import { INTERVAL } from '@/lib/timeout-constants';
 
 import { Permission, PERMISSION_LABELS } from './types';
 import type { UserRole, DomainPermissions } from './types';
@@ -88,6 +88,15 @@ export class PermissionsService extends EventListenerManager {
       }
     });
 
+    // A permission belongs to a SESSION, and this cache is keyed by domain
+    // alone in a singleton that outlives every account. `workspace-root` is the
+    // same id for everyone, so after switching accounts the previous account's
+    // rights answered for up to the cache's lifetime -- long enough to render a
+    // control the new account may not use, or hide one it may.
+    this.listen<{ cid: bigint | null }>('instance:cid-changed', () => {
+      this.clearCache();
+    });
+
     this.listen<{ userId: string; role: UserRole }>('member:role-updated', (payload) => {
       void this.isCurrentUser(payload.userId).then((mine) => {
         if (mine) {
@@ -156,26 +165,7 @@ export class PermissionsService extends EventListenerManager {
       try {
         await WorkspaceService.getUserPermissions(userId, domainId);
 
-        return new Promise<DomainPermissions>((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            reject(new Error('Permission fetch timeout'));
-          }, TIMEOUT.PERMISSION_FETCH_MS);
-
-          const handler = (payload: { domainId: string }) => {
-            if (payload.domainId === domainId) {
-              clearTimeout(timeout);
-              eventEmitter.off('user:permissions:loaded', handler);
-              const cached = this.cache.get(domainId);
-              if (cached) {
-                resolve(cached);
-              } else {
-                reject(new Error('Permissions not found in cache after load'));
-              }
-            }
-          };
-
-          eventEmitter.on('user:permissions:loaded', handler);
-        });
+        return awaitPermissionsLoaded(domainId, () => this.cache.get(domainId));
       } finally {
         this.pendingRequests.delete(domainId);
       }
