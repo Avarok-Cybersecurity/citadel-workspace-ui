@@ -5,40 +5,26 @@
  * Also provides presence update helpers for peer connect/disconnect.
  */
 
-import { connectionManager } from '../connection';
-import { getSelectedUser } from '../tab-context';
-import { instanceManager } from '../multi-instance';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { PeerPresence } from './p2p-types';
 import type { ConversationManager } from './conversation-manager';
 import type { PresenceManager } from './presence-manager';
-import type { TabUserContext } from '@/lib/tab-context';
-import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { P2PConversation } from '@/lib/p2p/p2p-types';
-import type { StoredSession } from '@/types/session-types';
 
 type EmitFn = (event: string, data: unknown) => void;
 
 /**
- * Resolve the current CID using multiple fallback strategies.
- * Priority: instanceManager.cid > selectedUser > tabSession > connectionInfo
+ * Who this tab is, for the messenger.
+ *
+ * A re-export, not an implementation. This file used to carry its own copy of
+ * the priority chain -- instance manager, tab selection, tab session, global
+ * connection -- with its own 500ms literal where the authority uses
+ * `CID_LOOKUP_TIMEOUT_MS`. Two answers to "who am I" in the code that decides
+ * which session a message belongs to, and nothing keeping them in step.
+ *
+ * `p2p-auto-connect-service/cid-resolver.ts` already did it this way.
  */
-export async function resolveCurrentCid(): Promise<bigint | null> {
-  const instanceCid: bigint | null = instanceManager.cid;
-  if (instanceCid) return instanceCid;
-  try {
-    const timeout: Promise<null> = new Promise<null>((resolve) => setTimeout((): void => resolve(null), 500));
-    const tabSelection: TabUserContext | null = await Promise.race([getSelectedUser(), timeout]);
-    if (tabSelection?.selectedCid) return tabSelection.selectedCid;
-  } catch { /* continue */ }
-  try {
-    const timeout: Promise<null> = new Promise<null>((resolve) => setTimeout((): void => resolve(null), 500));
-    const tabSession: StoredSession | null = await Promise.race([connectionManager.getTabSelectedSession(), timeout]);
-    if (tabSession?.cid) return tabSession.cid;
-  } catch { /* continue */ }
-  const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
-  return connectionInfo?.cid ?? null;
-}
+export { getCurrentCid as resolveCurrentCid } from './current-cid';
 
 /**
  * Update peer presence to Online and broadcast.

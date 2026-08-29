@@ -5,6 +5,7 @@ import { CallAudioHost } from './CallAudioHost';
 import { IncomingCallCard } from './IncomingCallCard';
 import { useCall } from '@/lib/call/call-context';
 import { useIsLeaderTab } from './use-leader-tab';
+import { getCurrentCid } from '@/lib/p2p/current-cid';
 import { connectionManager } from '@/lib/connection';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
 import type { CallParticipant } from '@/lib/call/call-state';
@@ -27,7 +28,11 @@ export function CallLayer({ children }: { children: React.ReactNode }): JSX.Elem
 
   const senderConfig: Pick<MessageSenderConfig, "getCurrentCid"> = useMemo<Pick<MessageSenderConfig, 'getCurrentCid'>>(
     () => ({
-      getCurrentCid: async (): Promise<bigint | null> => connectionManager.getConnectionInfo()?.cid ?? null,
+      // The authority, not `connectionManager.getConnectionInfo()` -- which is
+      // the LAST resort in that chain, and is the connection's identity rather
+      // than this tab's. With two sessions in one browser the call layer was
+      // answering "who am I" differently from the messenger beside it.
+      getCurrentCid,
     }),
     [],
   );

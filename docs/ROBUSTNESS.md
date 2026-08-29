@@ -18149,3 +18149,47 @@ The rest of the shard's failure, and the group-call one beside it, is
 stack.
 
 2448 tests green, all 59 preflight checks.
+
+## Round 372 — three answers to "which session is this?"
+
+`lib/p2p/current-cid.ts` documents the priority and the reason for it: the
+instance manager first (synchronous, set on connect), then the TAB's selection,
+then the tab's stored session, and only then the global connection — which
+belongs to the connection rather than to this tab, and is wrong whenever one
+browser holds two sessions. It is the same distinction rounds 328, 347, 353,
+357, 358 and 370 have each landed on.
+
+It existed three times.
+
+| where | how it differed |
+|---|---|
+| `lib/p2p/current-cid.ts` | the authority |
+| `p2p/messenger-cid-resolver.ts` | a copy, with a `500` literal where the authority uses `CID_LOOKUP_TIMEOUT_MS` |
+| `peer-registration-store/state.ts` | a copy with **the order changed** — the global connection at position **two** |
+| `CallLayer.tsx` | the bare `getConnectionInfo()?.cid`: the last step used as the only step |
+
+The third is not a tidiness problem. With the global connection ranked above the
+tab's own selection, a browser holding two sessions scopes one tab's **pending
+contact requests** by the other tab's CID. And the call layer answered "who am
+I" differently from the messenger sitting beside it.
+
+All three now delegate. `state.ts` also gets safer in the process: its careful
+note about IndexedDB throwing still applies, and the authority does that
+per-step with a timeout rather than in one try around both awaits.
+
+**The gate cried wolf first.** Matching any two of {`getSelectedUser`,
+`getTabSelectedSession`, `instanceManager.cid`} reported ten files, eight of them
+innocent — reading the tab's selection and its session is simply how you answer
+"who is on this tab", for a username as much as for a CID. What identifies *this*
+chain is falling all the way through to the global connection as well, so the
+gate now requires all three markers. Reported in the round rather than quietly
+corrected, because a gate's first draft being wrong is the ordinary case.
+
+A gate can only see that there is one implementation; the **order** is the
+substance. Fifteen tests run the same five orderings against all three exported
+names, so they cannot disagree. Restoring the wrong order fails five of them —
+including the positive control that the global connection is still consulted
+last, since an implementation that never consulted it would satisfy the other
+four and lose the only answer a fresh tab has.
+
+2463 tests green, all 60 preflight checks.

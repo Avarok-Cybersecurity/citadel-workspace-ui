@@ -5,50 +5,34 @@
  * All functions are pure or operate on the provided arrays.
  */
 
-import { connectionManager } from '../connection';
-import { instanceManager } from '../multi-instance';
-import { getSelectedUser } from '../tab-context';
+import { getCurrentCid } from '@/lib/p2p/current-cid';
 import { debugLog } from '@/lib/debug-config';
 import type { PendingPeerRequest, OutgoingPeerRequest } from './types';
-import type { CurrentConnectionInfo } from '@/lib/connection/types';
-import type { TabUserContext } from '@/lib/tab-context';
-import type { StoredSession } from '@/types/session-types';
 
 /**
  * Get current session CID.
- * Priority: 1) instanceManager.cid (sync), 2) connectionInfo (sync),
- *           3) tab context (async), 4) tab session (async)
+ *
+ * Delegated, not implemented. This carried its own copy of the priority chain
+ * with the order CHANGED: `connectionInfo` sat at position 2, ahead of the
+ * tab's own selection. That is the connection's identity outranking the tab's,
+ * so in a browser holding two sessions one tab scoped its pending contact
+ * requests by the other tab's CID. The authority puts the global connection
+ * last and says why.
+ *
+ * The reason the old body wrapped its storage reads in a try/catch still
+ * stands, and `getCurrentCid` does it per step with a timeout, which is
+ * strictly safer than the single try this had:
+ *
+ *   The storage fallback cannot be allowed to THROW. A rejection here used to
+ *   propagate through `emitUpdate` and take the whole announcement with it, so
+ *   an incoming contact request was recorded and never mentioned -- the app
+ *   knew somebody had asked to connect and nothing on screen said so.
+ *
+ * Unknown remains a legitimate answer: the caller already treats a null CID as
+ * "cannot scope by account" and shows what it has.
  */
 export async function getCurrentSessionCid(): Promise<bigint | null> {
-  const instanceCid: bigint | null = instanceManager.cid;
-  if (instanceCid) {
-    return instanceCid;
-  }
-
-  const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
-  if (connectionInfo?.cid) {
-    return connectionInfo.cid;
-  }
-
-  // The storage fallback cannot be allowed to THROW.
-  //
-  // Everything above this line is in memory and is what answers in a normal
-  // session; these two read IndexedDB, which is unavailable under strict
-  // privacy settings and in some embedded contexts. A rejection here used to
-  // propagate through `emitUpdate` and take the whole announcement with it, so
-  // an incoming contact request was recorded and never mentioned -- the app
-  // knew somebody had asked to connect and nothing on screen said so.
-  //
-  // Unknown is a legitimate answer: the caller already treats a null CID as
-  // "cannot scope by account" and shows what it has.
-  try {
-    const tabSelection: TabUserContext | null = await getSelectedUser();
-    const tabSession: StoredSession | null = await connectionManager.getTabSelectedSession();
-    return tabSelection?.selectedCid || tabSession?.cid || null;
-  } catch (error) {
-    debugLog('PeerRegistrationStore', 'Could not read the selected session; treating it as unknown:', error);
-    return null;
-  }
+  return getCurrentCid();
 }
 
 /**
