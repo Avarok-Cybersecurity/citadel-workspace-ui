@@ -222,7 +222,9 @@ test.describe.serial('P2P Messaging', () => {
     test('the stats tab counts real messages', async () => {
         const page = sessionA.page;
         await page.getByTestId('chat-settings-button').click({ force: true });
-        await page.getByTestId('tab-stats').click({ force: true });
+        const statsTab = page.getByTestId('tab-stats');
+        await expect(statsTab).toBeEnabled({ timeout: 10_000 });
+        await statsTab.click({ force: true });
 
         const count = page.getByText('Messages', { exact: true }).locator('..').locator('p').first();
         await expect(count).toBeVisible({ timeout: 30_000 });
@@ -249,8 +251,28 @@ test.describe.serial('P2P Messaging', () => {
         await page.getByTestId('chat-settings-button').click({ force: true });
         // The control lives in the Advanced tab, which is not the default one.
         await page.getByTestId('tab-advanced').click({ force: true });
-        await page.getByRole('button', { name: /clear chat history/i }).click({ force: true });
-        await page.getByRole('button', { name: /^clear history$/i }).click({ force: true });
+        // `force` gets past the panel's own scrim; the wait is what stops the
+        // click landing before the control it names has arrived.
+        const clearButton = page.getByRole('button', { name: /clear chat history/i });
+        await expect(clearButton).toBeEnabled({ timeout: 10_000 });
+        await clearButton.click({ force: true });
+
+        // NOT forced, and the wait is the point.
+        //
+        // The confirmation is a Radix AlertDialog that animates in. `force`
+        // skips the actionability check, so this clicked the coordinates of a
+        // button that had not finished arriving -- the click landed on nothing
+        // and the dialog was still open thirty seconds later, with the message
+        // it was supposed to delete behind it. It failed once and passed on
+        // retry, which is what a race looks like from the outside.
+        const confirmClear = page.getByRole('button', { name: /^clear history$/i });
+        await expect(confirmClear).toBeEnabled({ timeout: 10_000 });
+        await confirmClear.click();
+
+        // The dialog closing is the app's own statement that it took the
+        // answer. Asserting the messages are gone without it cannot tell "the
+        // clear did nothing" from "the click did nothing".
+        await expect(confirmClear).toHaveCount(0, { timeout: 10_000 });
 
         // Gone from the open conversation — the in-memory copy, which the old
         // implementation never touched either.

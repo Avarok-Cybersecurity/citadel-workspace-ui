@@ -738,7 +738,9 @@ test.describe.serial('Accessibility (theme editor)', () => {
     await pressAccountMenuItem(page, 'account-menu-settings');
 
     await page.getByRole('tab', { name: /^theme$/i }).click({ force: true });
-    await page.getByTestId('open-workspace-appearance').click({ force: true });
+    const openAppearance = page.getByTestId('open-workspace-appearance');
+    await expect(openAppearance).toBeEnabled({ timeout: 10_000 });
+    await openAppearance.click({ force: true });
     await expect(page.getByTestId('workspace-appearance-modal')).toBeVisible({ timeout: 30_000 });
 
     await expectNoBlockingViolations(page, 'theme editor');

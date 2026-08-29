@@ -15659,3 +15659,41 @@ would make the answer depend on listener order; one IndexedDB-backed and
 therefore async, and authoritative. That question is what every round of this
 archaeology kept returning to, and it now reads on its own. `service.ts` is 241
 lines, back under the cap it had just crossed.
+
+## Round 312 — a forced click on a control that had not arrived
+
+Shard 2 reported two failures and they are not the same kind of thing:
+
+```
+1 failed   node-content-propagation   (three attempts, all identical)
+1 flaky    clearing chat history      (failed once, passed on retry)
+```
+
+The screenshot for the flaky one shows why, and it is not about clearing
+history. The confirmation dialog is **still open**, with the message it was
+supposed to delete sitting behind it:
+
+> **Clear all chat history with pw_p2p_b_…?**  · Cancel · Clear history
+
+The test clicks that button with `{ force: true }`. `force` skips Playwright's
+actionability check, so the click goes to the element's coordinates whether or
+not it is ready to receive one — and the confirmation is a Radix `AlertDialog`
+that animates in. The click landed on a button that had not finished arriving,
+nothing happened, and thirty seconds later the assertion failed on a message
+that was never deleted because the dialog was never answered.
+
+Failing once and passing on retry is what that looks like from outside. It reads
+as "clearing history is unreliable", and the clearing had not run.
+
+The confirm click is not forced now, waits to be enabled, and — this is the part
+worth keeping — **asserts the dialog closed** before asserting the messages are
+gone. Without that, the test cannot tell "the clear did nothing" from "the click
+did nothing", which is precisely the confusion it produced.
+
+Two other forced clicks immediately follow an opening click in these specs, and
+both have the same hazard. Their `force` is doing real work — getting past a
+panel's own scrim — so it stays, with a wait in front of it: `toBeEnabled` is a
+DOM question and passes through an overlay, so the two compose.
+
+> `force: true` does not make a click land. It stops Playwright checking whether
+> it did.
