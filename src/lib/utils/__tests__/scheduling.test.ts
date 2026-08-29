@@ -1,4 +1,4 @@
-import { describe, it, expect, vi  } from 'vitest';
+import { describe, it, expect, vi   } from 'vitest';
 import { yieldToEventLoop, waitFor, waitForEvent } from '../scheduling';
 
 describe('yieldToEventLoop', () => {
@@ -104,7 +104,7 @@ describe('waitForEvent', () => {
   });
 
   it('unsubscribes on timeout too, so a listener cannot leak', async () => {
-    const unsubscribe = vi.fn();
+    const unsubscribe: ReturnType<typeof vi.fn> = vi.fn();
     const promise: Promise<void> = waitForEvent(() => unsubscribe, { timeoutMs: 20, description: 'never fires' });
 
     await expect(promise).rejects.toThrow(/waiting for: never fires/);

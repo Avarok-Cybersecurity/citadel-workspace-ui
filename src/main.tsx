@@ -206,7 +206,7 @@ try {
     const heading: ReturnType<typeof document.createElement> = document.createElement('h2');
     heading.textContent = 'React Initialization Error';
 
-    const errorParagraph = document.createElement('p');
+    const errorParagraph: ReturnType<typeof document.createElement> = document.createElement('p');
     const errorLabel: HTMLElement = document.createElement('strong');
     errorLabel.textContent = 'Error: ';
     errorParagraph.appendChild(errorLabel);

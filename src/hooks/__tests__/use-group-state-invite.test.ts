@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach  } from 'vitest';
+import { describe, it, expect, vi, beforeEach   } from 'vitest';
 
 /**
  * Unit tests for `buildGroupFromInvite` / `applyGroupInvite`. Focus is on
@@ -146,7 +146,7 @@ describe('applyGroupInvite', () => {
   });
 
   it('reports a failure to the user rather than dropping the invite silently', async () => {
-    const setGroups = vi.fn((): never => {
+    const setGroups: ReturnType<typeof vi.fn> = vi.fn((): never => {
       throw new Error('store rejected the invite');
     });
 
