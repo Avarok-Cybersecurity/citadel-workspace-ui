@@ -11,7 +11,7 @@ import { render, screen, act } from '@testing-library/react';
 const state: { isLeader: boolean; } = { isLeader: true };
 vi.mock('@/lib/multi-instance', () => ({
   instanceManager: {
-    get isLeader() {
+    get isLeader(): boolean {
       return state.isLeader;
     },
   },

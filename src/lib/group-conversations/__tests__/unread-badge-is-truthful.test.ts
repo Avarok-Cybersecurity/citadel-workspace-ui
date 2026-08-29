@@ -13,7 +13,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const h: { cid: bigint | null; } = vi.hoisted((): { cid: bigint | null; } => ({ cid: null as bigint | null }));
 vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { get cid() { return h.cid; } },
+  instanceManager: { get cid(): bigint | null { return h.cid; } },
 }));
 
 const SELF: bigint = 7n;

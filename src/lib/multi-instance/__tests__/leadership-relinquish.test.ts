@@ -16,7 +16,7 @@ const setLeader: ReturnType<typeof vi.fn> = vi.fn();
 let isLeader: boolean = true;
 vi.mock('@/lib/multi-instance/instance-manager', () => ({
   instanceManager: {
-    get isLeader() {
+    get isLeader(): boolean {
       return isLeader;
     },
     instanceId: '1700000000000000123',

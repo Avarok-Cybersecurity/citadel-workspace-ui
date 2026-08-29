@@ -17,7 +17,7 @@ function capture() {
   const stored: StoredSession[] = [];
   const state = {
     addOrUpdateSession: (session: StoredSession): void => { stored.push(session); },
-    get storedSessions() { return { sessions: stored, activeSessionIndex: 0 }; },
+    get storedSessions(): { sessions: StoredSession[]; activeSessionIndex: number; } { return { sessions: stored, activeSessionIndex: 0 }; },
     setCurrentConnectionInfo: vi.fn(),
     invalidateCache: vi.fn(),
   };

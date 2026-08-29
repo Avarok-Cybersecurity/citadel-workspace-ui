@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 let isLeader: boolean = false;
 vi.mock('@/lib/multi-instance/instance-manager', () => ({
   instanceManager: {
-    get isLeader() {
+    get isLeader(): boolean {
       return isLeader;
     },
     instanceId: 'me',

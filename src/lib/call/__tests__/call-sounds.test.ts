@@ -49,7 +49,7 @@ function harness(overrides: Partial<CallSoundDeps> = {}): Harness {
   return {
     deps,
     bursts,
-    get chimes() {
+    get chimes(): number {
       return chimes;
     },
     fireTimers: (): void => {

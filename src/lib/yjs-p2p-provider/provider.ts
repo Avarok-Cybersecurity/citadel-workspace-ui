@@ -76,19 +76,19 @@ export class YjsP2PProvider {
     // eslint-disable-next-line @typescript-eslint/no-this-alias -- required for getter/setter context binding
     const self: this = this;
     return {
-      get ownCid() { return self.ownCid; },
-      get peerCid() { return self.peerCid; },
-      get documentId() { return self.documentId; },
-      get creatorCid() { return self.creatorCid; },
-      get revision() { return self.revision; },
+      get ownCid(): string | null { return self.ownCid; },
+      get peerCid(): string { return self.peerCid; },
+      get documentId(): string { return self.documentId; },
+      get creatorCid(): string | null { return self.creatorCid; },
+      get revision(): number { return self.revision; },
       set revision(v: number) { self.revision = v; },
-      get merkleTree() { return self.merkleTree; },
-      get pendingAcks() { return self.pendingAcks; },
-      get doc() { return self.doc; },
-      get awareness() { return self.awareness; },
-      get syncState() { return self.syncState; },
+      get merkleTree(): YjsMerkleTree | null { return self.merkleTree; },
+      get pendingAcks(): Map<string, PendingAck> { return self.pendingAcks; },
+      get doc(): Y.Doc { return self.doc; },
+      get awareness(): Awareness { return self.awareness; },
+      get syncState(): SyncState { return self.syncState; },
       set syncState(v: SyncState) { self.syncState = v; },
-      get initialSyncComplete() { return self.initialSyncComplete; },
+      get initialSyncComplete(): boolean { return self.initialSyncComplete; },
       set initialSyncComplete(v: boolean) { self.initialSyncComplete = v; },
       updateMerkleTree: () => self.updateMerkleTree(),
       handleHashMismatch: (h: string) => handleHashMismatch(self.ctx, h),
@@ -216,8 +216,8 @@ export class YjsP2PProvider {
     this.awareness.setLocalStateField(field, value);
   }
   getStates() { return this.awareness.getStates(); }
-  get isConnected() { return this.connected && !this.destroyed; }
-  get isSynced() { return this.initialSyncComplete; }
+  get isConnected(): boolean { return this.connected && !this.destroyed; }
+  get isSynced(): boolean { return this.initialSyncComplete; }
   getSyncState(): SyncState { return this.syncState; }
   getDocumentHash(): string { return this.merkleTree?.getRootHash() ?? computeDocumentHash(this.doc); }
   forceResync(): void { this.initiateSync(); }

@@ -20,7 +20,7 @@ vi.mock('@/lib/storage-utils', () => ({
   dbPut: vi.fn(async (_s: string, k: string, v: unknown) => { store.set(k, v); }),
 }));
 vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { get cid() { return cidRef.current; } },
+  instanceManager: { get cid(): bigint | null { return cidRef.current; } },
 }));
 
 import { loadPersistedGroups, persistGroups } from '../group-persistence';

@@ -14,7 +14,7 @@ import { vi } from 'vitest';
 
 const cidRef: { current: bigint | null; } = { current: null as bigint | null };
 vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { get cid() { return cidRef.current; } },
+  instanceManager: { get cid(): bigint | null { return cidRef.current; } },
 }));
 
 import {

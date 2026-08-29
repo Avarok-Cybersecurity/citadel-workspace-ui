@@ -24,7 +24,7 @@ function racyStore(initial: string[]): { read: () => string[]; write: (next: str
       await Promise.resolve();
       value = next;
     },
-    get current() {
+    get current(): string[] {
       return value;
     },
   };

@@ -22,7 +22,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const cidRef: { current: bigint | null; } = { current: null as bigint | null };
 vi.mock('@/lib/multi-instance', () => ({
-  instanceManager: { get cid() { return cidRef.current; } },
+  instanceManager: { get cid(): bigint | null { return cidRef.current; } },
 }));
 
 import { scopedSettingsKey } from '../settings-key';

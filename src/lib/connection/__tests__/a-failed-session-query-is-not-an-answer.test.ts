@@ -23,10 +23,10 @@ function stateDouble() {
   let cached: unknown = null;
   let pending: unknown = null;
   return {
-    get cachedSessions() { return cached; },
+    get cachedSessions(): unknown { return cached; },
     isCacheValid: (): boolean => cached !== null,
     setCachedSessions: (s: unknown): void => { cached = s; },
-    get pendingGetSessions() { return pending; },
+    get pendingGetSessions(): unknown { return pending; },
     setPendingGetSessions: (p: unknown): void => { pending = p; },
     setPendingRequest: vi.fn(),
     hasPendingRequest: (): boolean => false,
