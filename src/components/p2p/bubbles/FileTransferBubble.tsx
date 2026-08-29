@@ -39,7 +39,7 @@ export function FileTransferBubble({
   const isFailed: boolean = message.status === 'failed' || message.transfer_state === 'error';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
 
-  const state = message.transfer_state || 'pending';
+  const state: string = message.transfer_state || 'pending';
 
   // DEBUG: Log to understand why Accept/Decline may not show
   debugLog('FileTransferBubble', '[FileTransferBubble] Debug:', {

@@ -9,7 +9,7 @@ for pass in $(seq 1 "${1:-6}"); do
   # when it is failing -- so a failing gate read as zero and the loop reported
   # the work finished.
   before=$(python3 -c "import json;print(sum(json.load(open('scripts/explicit-types.baseline.json')).values()))")
-  node scripts/annotate-from-findings.mjs src --allow-literal --any-as-unknown --one-per-file >/dev/null 2>&1
+  node scripts/annotate-from-findings.mjs src --allow-literal --any-as-unknown --widen-strings --one-per-file >/dev/null 2>&1
   for round in 1 2 3; do
     BAD=$(npx tsc -p tsconfig.app.json --noEmit 2>&1 | sed -n 's/^\(src\/[^(]*\)(.*/\1/p' | sort -u)
     [ -z "$BAD" ] && break
@@ -37,6 +37,6 @@ for pass in $(seq 1 "${1:-6}"); do
   # still useful: it puts those sites in the ledger, so the next pass reaches
   # the ones behind them. Stopping on a flat pass stopped the whole loop after
   # one round, every time.
-  remaining=$(node scripts/annotate-from-findings.mjs src --allow-literal --any-as-unknown --one-per-file --dry 2>/dev/null | grep -oE 'annotate [0-9]+' | grep -oE '[0-9]+')
+  remaining=$(node scripts/annotate-from-findings.mjs src --allow-literal --any-as-unknown --widen-strings --one-per-file --dry 2>/dev/null | grep -oE 'annotate [0-9]+' | grep -oE '[0-9]+')
   [ "${remaining:-0}" = "0" ] && break
 done

@@ -85,7 +85,7 @@ describe('WASM Debug Bridge', () => {
   });
 
   it('should handle complex mixed content', () => {
-    const complexInput = 'Start {"user": "john", "data": [1, 2, 3]} middle text {"status": "ok"} end';
+    const complexInput: string = 'Start {"user": "john", "data": [1, 2, 3]} middle text {"status": "ok"} end';
     window.wasmDebugLog(complexInput);
 
     const sanitizedLog: string | undefined = findLog('sanitized log:');
