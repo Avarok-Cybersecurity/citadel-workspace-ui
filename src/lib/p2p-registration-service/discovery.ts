@@ -35,7 +35,7 @@ export async function listAllPeers(
   const currentCid: bigint | null = await getCurrentCid();
   assertValidSession(currentCid);
 
-  const requestId = crypto.randomUUID();
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   broadcastChannelService.registerRequest(requestId, currentCid);
 
   const request: InternalServiceRequest = {
@@ -78,7 +78,7 @@ export async function listRegisteredPeers(
   debugLog('P2PRegistrationService', `[P2P] listRegisteredPeers: currentCid=${currentCid?.toString() ?? 'null'}`);
   assertValidSession(currentCid);
 
-  const requestId = crypto.randomUUID();
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   broadcastChannelService.registerRequest(requestId, currentCid);
 
   const request: InternalServiceRequest = {

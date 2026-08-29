@@ -33,8 +33,8 @@ export class DisconnectOperations {
 
     await this.config.init();
 
-    const requestId = crypto.randomUUID();
-    const request = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const request: { Disconnect: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; }; } = {
       Disconnect: { request_id: requestId, cid }
     };
 
@@ -83,8 +83,8 @@ export class DisconnectOperations {
   async deregister(cid: bigint): Promise<void> {
     await this.config.init();
 
-    const requestId = crypto.randomUUID();
-    const request = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const request: { Deregister: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; }; } = {
       Deregister: { request_id: requestId, cid }
     };
 

@@ -44,7 +44,7 @@ export async function sendFile(
     thumbnail = await deps.io.generateThumbnail(file);
   }
 
-  const transferId = crypto.randomUUID();
+  const transferId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   const expiresAt: number = Date.now() + FILE_TRANSFER_REQUEST_TTL_MS;
 
   const transfer: FileTransfer = {
@@ -110,7 +110,7 @@ export async function sendFileWithNativePicker(
     size: fileInfo.file_size.toString(),
   });
 
-  const transferId = crypto.randomUUID();
+  const transferId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   const transfer: FileTransfer = {
     id: transferId,
     fileName: fileInfo.file_name,

@@ -23,8 +23,8 @@ export class LocalDBOperations {
   async get(cid: bigint, key: string): Promise<{ value: number[] } | null> {
     await this.config.init();
 
-    const requestId = crypto.randomUUID();
-    const request = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const request: { LocalDBGetKV: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: null; key: string; }; } = {
       LocalDBGetKV: { request_id: requestId, cid, peer_cid: null, key }
     };
 
@@ -52,8 +52,8 @@ export class LocalDBOperations {
   async set(cid: bigint, key: string, value: number[]): Promise<void> {
     await this.config.init();
 
-    const requestId = crypto.randomUUID();
-    const request = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const request: { LocalDBSetKV: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: null; key: string; value: number[]; }; } = {
       LocalDBSetKV: { request_id: requestId, cid, peer_cid: null, key, value }
     };
 
@@ -79,8 +79,8 @@ export class LocalDBOperations {
   async delete(cid: bigint, key: string): Promise<void> {
     await this.config.init();
 
-    const requestId = crypto.randomUUID();
-    const request = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const request: { LocalDBDeleteKV: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: null; key: string; }; } = {
       LocalDBDeleteKV: { request_id: requestId, cid, peer_cid: null, key }
     };
 
@@ -106,8 +106,8 @@ export class LocalDBOperations {
   async listKeys(cid: bigint, prefix?: string): Promise<string[]> {
     await this.config.init();
 
-    const requestId = crypto.randomUUID();
-    const request = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const request: { LocalDBGetAllKV: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: null; }; } = {
       LocalDBGetAllKV: { request_id: requestId, cid, peer_cid: null }
     };
 

@@ -136,7 +136,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
         return;
       }
 
-      const callId = crypto.randomUUID();
+      const callId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
       // The invite announces our provisional codec; the accept's decode list
       // may change it, in which case the signal path announces the new one.
       await manager.start(callId, peers, got, roomId ?? null, session.getCodec());

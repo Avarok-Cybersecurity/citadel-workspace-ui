@@ -35,6 +35,21 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // Off, deliberately, and the reason is a genuine conflict rather than a
+      // preference.
+      //
+      // This project requires every declaration to state its type. For a
+      // constant holding a string literal, the annotation typedef asks for is
+      // `const MODE: 'compact' = 'compact'`, and prefer-as-const calls exactly
+      // that shape an error and wants the annotation removed in favour of `as
+      // const`. Both cannot be satisfied: `as const` is not an annotation, so
+      // typedef still objects.
+      //
+      // Two hundred and ten declarations sit in that gap. The explicit-type
+      // policy is the one with a pipeline check and a stated goal behind it, so
+      // it is the one that wins; the redundancy prefer-as-const exists to
+      // prevent is redundancy this codebase has chosen on purpose.
+      '@typescript-eslint/prefer-as-const': 'off',
       // Accessibility. Previously unenforced, which is why aria-* appeared in
       // only 10 of ~207 component files and several <img> shipped with no alt.
       ...jsxA11y.configs.recommended.rules,

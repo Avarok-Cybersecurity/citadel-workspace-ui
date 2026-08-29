@@ -80,7 +80,7 @@ export class MessageSender {
     }
 
     const timestamp: number = Date.now();
-    const messageId = crypto.randomUUID();
+    const messageId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
 
     const layer: MessagingLayer = createMessage(content, timestamp);
 

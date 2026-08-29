@@ -70,8 +70,8 @@ export class SessionManagement {
   async setOrphanMode(enabled: boolean): Promise<SessionManagementResult> {
     await this.config.init();
 
-    const requestId = crypto.randomUUID();
-    const request = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const request: { ConnectionManagement: { request_id: `${string}-${string}-${string}-${string}-${string}`; management_command: { SetConnectionOrphan: { allow_orphan_sessions: boolean; }; }; }; } = {
       ConnectionManagement: {
         request_id: requestId,
         management_command: { SetConnectionOrphan: { allow_orphan_sessions: enabled } }
@@ -97,10 +97,10 @@ export class SessionManagement {
   async claimSession(sessionCid: string | bigint, onlyIfOrphaned: boolean = false): Promise<SessionManagementResult> {
     await this.config.init();
 
-    const requestId = crypto.randomUUID();
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
     const sessionCidBigInt: bigint = typeof sessionCid === 'string' ? BigInt(sessionCid) : sessionCid;
 
-    const request = {
+    const request: { ConnectionManagement: { request_id: `${string}-${string}-${string}-${string}-${string}`; management_command: { ClaimSession: { session_cid: bigint; only_if_orphaned: boolean; }; }; }; } = {
       ConnectionManagement: {
         request_id: requestId,
         management_command: {
@@ -122,8 +122,8 @@ export class SessionManagement {
   async disconnectOrphan(sessionCid?: string | bigint | null): Promise<SessionManagementResult> {
     await this.config.init();
 
-    const requestId = crypto.randomUUID();
-    const request = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const request: { ConnectionManagement: { request_id: `${string}-${string}-${string}-${string}-${string}`; management_command: { DisconnectOrphan: { session_cid: bigint | null; }; }; }; } = {
       ConnectionManagement: {
         request_id: requestId,
         management_command: {
@@ -149,7 +149,7 @@ export class SessionManagement {
       return;
     }
 
-    const request = {
+    const request: { ConnectionManagement: { request_id: `${string}-${string}-${string}-${string}-${string}`; management_command: { ReleaseSession: { session_cid: bigint; }; }; }; } = {
       ConnectionManagement: {
         request_id: crypto.randomUUID(),
         management_command: { ReleaseSession: { session_cid: sessionCid } }

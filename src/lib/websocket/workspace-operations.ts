@@ -45,7 +45,7 @@ export class WorkspaceOperations {
         request: request
       };
 
-      const requestId = crypto.randomUUID();
+      const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
       instanceInboundRouter.registerPendingRequest(requestId, instanceManager.instanceId);
 
       const result: AckResult = await instanceChannel.sendToLeader(proxyRequest, requestId);

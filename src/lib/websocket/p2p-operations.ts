@@ -50,7 +50,7 @@ export class P2POperations {
 
     debugLog('P2POperations', 'Opening P2P connection', { cid: cid.toString(), targetCid: targetCid.toString() });
 
-    const requestId = crypto.randomUUID();
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
     const peerConnectRequest = {
       PeerConnect: {
         request_id: requestId,
@@ -109,8 +109,8 @@ export class P2POperations {
 
     debugLog('P2POperations', 'Accepting P2P connection', { cid: cid.toString(), peerCid: peerCid.toString() });
 
-    const requestId = crypto.randomUUID();
-    const acceptRequest = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const acceptRequest: { PeerConnectAccept: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: bigint; accept: boolean; udp_mode: string; session_security_settings: {}; peer_session_password: null; }; } = {
       PeerConnectAccept: {
         request_id: requestId,
         cid: cid,
@@ -166,8 +166,8 @@ export class P2POperations {
 
     debugLog('P2POperations', 'Disconnecting P2P connection', { localCid: localCid.toString(), peerCid: peerCid.toString() });
 
-    const requestId = crypto.randomUUID();
-    const peerDisconnectRequest = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const peerDisconnectRequest: { PeerDisconnect: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: bigint; }; } = {
       PeerDisconnect: { request_id: requestId, cid: localCid, peer_cid: peerCid }
     };
 

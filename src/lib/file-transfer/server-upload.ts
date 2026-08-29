@@ -126,8 +126,8 @@ export async function uploadFileToServer(
   // ByteContents.data is a Rust Vec<u8>, which serialises as a JSON number array.
   const data: number[] = Array.from(new Uint8Array(await file.arrayBuffer()));
 
-  const requestId = crypto.randomUUID();
-  const request = {
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+  const request: { SendFile: { request_id: `${string}-${string}-${string}-${string}-${string}`; source: { ByteContents: { file_name: string; data: number[]; }; }; cid: bigint; peer_cid: bigint; chunk_size: null; transfer_type: string; }; } = {
     SendFile: {
       request_id: requestId,
       source: { ByteContents: { file_name: file.name, data } },

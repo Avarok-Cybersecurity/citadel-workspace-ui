@@ -53,9 +53,9 @@ async function sendGroupRequest(request: Record<string, unknown>): Promise<void>
 export async function sendGroupCreate(
   initialMembers: Array<{ cid: string; username: string; roleId?: string }>
 ): Promise<string> {
-  const requestId = crypto.randomUUID();
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   const cid: bigint = await requireCid();
-  const request = {
+  const request: { GroupCreate: { cid: bigint; request_id: `${string}-${string}-${string}-${string}-${string}`; initial_users_to_invite: { ID: bigint; }[]; }; } = {
     GroupCreate: {
       cid,
       request_id: requestId,
@@ -141,7 +141,7 @@ export async function sendGroupKick(groupId: string, memberCid: string): Promise
 
 export async function sendGroupListRequest(): Promise<void> {
   const cid: bigint = await requireCid();
-  const request = {
+  const request: { GroupListGroupsFor: { cid: bigint; peer_cid: null; request_id: `${string}-${string}-${string}-${string}-${string}`; }; } = {
     GroupListGroupsFor: {
       cid,
       peer_cid: null,

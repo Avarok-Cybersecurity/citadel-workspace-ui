@@ -83,8 +83,8 @@ export async function executeSendFile(
     );
   }
 
-  const requestId = crypto.randomUUID();
-  const request = {
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+  const request: { SendFile: { request_id: `${string}-${string}-${string}-${string}-${string}`; source: FileSource; cid: bigint; peer_cid: bigint | null; chunk_size: number | null; transfer_type: string; }; } = {
     SendFile: {
       request_id: requestId,
       source,

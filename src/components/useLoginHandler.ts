@@ -18,7 +18,7 @@ import { setSelectedUser } from "@/lib/tab-context";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { redirectToExistingSession } from './login-session-redirect';
-import { mapSecuritySettings } from '@/lib/security-utils';
+import { mapSecuritySettings  } from '@/lib/security-utils';
 import type { NavigateFunction } from 'react-router';
 import type {
   SecurityLevel, SecrecyMode, EncryptionAlgorithm, KemAlgorithm, SigAlgorithm,
@@ -111,7 +111,7 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       const storedSession = storedSessions.sessions.find(s => s.username === username.trim());
       const serverAddress: string = storedSession?.serverAddress ?? '';
 
-      const requestId = crypto.randomUUID();
+      const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
       let responseReceived: boolean = false;
       const responsePromise: Promise<bigint> = new Promise<bigint>((resolve, reject) => {
         const timeout: NodeJS.Timeout = setTimeout((): void => {

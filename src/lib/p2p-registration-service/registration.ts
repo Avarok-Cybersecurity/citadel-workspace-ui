@@ -168,7 +168,7 @@ export async function registerPeer(
   if (!currentCid || currentCid === 0n) throw new Error('No active user session (CID 0 is service connection)');
   if (peerCid === currentCid) throw new Error('Cannot register with self');
 
-  const requestId = crypto.randomUUID();
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   broadcastChannelService.registerRequest(requestId, currentCid);
   const request: InternalServiceRequest = {
     PeerRegister: {

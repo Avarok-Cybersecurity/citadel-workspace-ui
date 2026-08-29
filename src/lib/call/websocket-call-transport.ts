@@ -48,7 +48,7 @@ export class WebSocketCallTransport implements CallTransport {
     const client = await websocketService.getWasmClient();
     if (!client) throw new Error('Not connected');
 
-    const requestId = crypto.randomUUID();
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
     debugLog('Call', 'requesting media session', { peerCid: peerCid.toString() });
 
     // Awaiting the service's verdict is the point: MediaOpen can fail there —

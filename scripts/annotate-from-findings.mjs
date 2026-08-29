@@ -429,7 +429,13 @@ function unresolvedNames(printed, source) {
   // being asked to resolve `cid` and `op_id` as if they were types, and every
   // object literal with a field this file happened not to declare was refused
   // for it -- `cid` alone accounted for thirty.
-  const withoutProperties = printed.replace(/([A-Za-z_$][\w$]*)\s*\??\s*:/g, ':');
+  const withoutProperties = printed
+    // Template literal types: `${string}-${number}` is not three type names.
+    .replace(/`[^`]*`/g, 'string')
+    // `readonly foo:` and `foo?:` and `[key: string]:` are property positions.
+    .replace(/\breadonly\s+/g, '')
+    .replace(/\[\s*[A-Za-z_$][\w$]*\s*:/g, '[:')
+    .replace(/([A-Za-z_$][\w$]*)\s*\??\s*:/g, ':');
   const names = withoutProperties.match(/[A-Za-z_$][A-Za-z0-9_$]*/g) ?? [];
   // A single upper-case letter is a type PARAMETER -- `T`, `K`, `V`. It has no
   // declaration to import and never will; refusing the whole type is right.

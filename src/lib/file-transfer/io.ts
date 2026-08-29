@@ -181,7 +181,7 @@ export class FileTransferIO extends RealProtocolIORouter {
     // sender waited forever on an accept nobody could click.
     await announceTransfer(intent.transfer);
 
-    const requestId = crypto.randomUUID();
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
 
     // Build FileSource - support both direct path and PickFileRef
     let source: FileSource;
@@ -191,7 +191,7 @@ export class FileTransferIO extends RealProtocolIORouter {
       source = { Path: intent.filePath };
     }
 
-    const request = {
+    const request: { SendFile: { request_id: `${string}-${string}-${string}-${string}-${string}`; source: { Path: string; } | { PickFileRef: { pick_file_request_id: string; }; }; cid: string; peer_cid: string | null; chunk_size: null; transfer_type: string; }; } = {
       SendFile: {
         request_id: requestId,
         source,

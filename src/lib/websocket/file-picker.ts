@@ -34,8 +34,8 @@ export class FilePicker {
   ): Promise<FilePickerResult> {
     await this.config.init();
 
-    const requestId = crypto.randomUUID();
-    const request = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const request: { PickFile: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; title: string | null; allowed_extensions: string[] | null; }; } = {
       PickFile: {
         request_id: requestId,
         cid: cid,

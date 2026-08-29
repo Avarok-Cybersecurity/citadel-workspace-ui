@@ -191,7 +191,7 @@ class InstanceInboundRouter {
         // takes — so a dropped BroadcastChannel post can no longer lose the
         // message. A cid re-registration meanwhile drains and re-routes it,
         // which is the mid-reload recovery path.
-        const requestId = crypto.randomUUID();
+        const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
         this.orphanBuffer.push(targetCid, message, messageType, {
           requestId,
           targetInstanceId: targetInstance,

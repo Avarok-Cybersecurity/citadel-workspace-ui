@@ -34,7 +34,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
       return { servers: getRecentServers() };
     }
     
-    const requestId = crypto.randomUUID();
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
 
     // Create a promise to wait for the response
     return failOnSocketLoss('ListKnownServers', new Promise((resolve, reject) => {
@@ -98,7 +98,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
       eventEmitter.on('websocket-message', handler);
 
       // Send the request
-      const request = {
+      const request: { LocalDBGetAllKV: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: null; }; } = {
         LocalDBGetAllKV: {
           request_id: requestId,
           cid: BigInt(options.cid || '0'),
@@ -131,7 +131,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
       throw new Error('Cannot reach the Citadel agent on this machine');
     }
     
-    const requestId = crypto.randomUUID();
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
 
     // First, get existing servers
     const { servers } = await listKnownServers({ cid });
@@ -178,7 +178,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
       const bytes: number[] = stringToBytes(jsonStr);
 
       // Send the request
-      const request = {
+      const request: { LocalDBSetKV: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: null; key: string; value: number[]; }; } = {
         LocalDBSetKV: {
           request_id: requestId,
           cid: BigInt(cid || '0'),

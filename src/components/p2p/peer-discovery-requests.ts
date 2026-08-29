@@ -32,8 +32,8 @@ interface PeerEntry {
  * Queries the internal service's session map directly.
  */
 export async function discoverPeersViaGetSessions(currentCid: bigint | null): Promise<Peer[]> {
-  const requestId = crypto.randomUUID();
-  const request = {
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+  const request: { GetSessions: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: number; }; } = {
     GetSessions: { request_id: requestId, cid: 0 }
   };
 
@@ -77,10 +77,10 @@ export async function discoverPeersViaGetSessions(currentCid: bigint | null): Pr
  * Load the set of already-registered peer CIDs via ListRegisteredPeers.
  */
 export async function fetchRegisteredPeers(currentCid: bigint): Promise<Set<string>> {
-  const requestId = crypto.randomUUID();
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   broadcastChannelService.registerRequest(requestId, currentCid);
 
-  const request = {
+  const request: { ListRegisteredPeers: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; }; } = {
     ListRegisteredPeers: { request_id: requestId, cid: currentCid }
   };
 
@@ -127,10 +127,10 @@ export async function fetchRegisteredPeers(currentCid: bigint): Promise<Set<stri
  * Discover all peers via ListAllPeers request, with GetSessions fallback.
  */
 export async function fetchAllPeers(currentCid: bigint): Promise<Peer[]> {
-  const requestId = crypto.randomUUID();
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   broadcastChannelService.registerRequest(requestId, currentCid);
 
-  const request = {
+  const request: { ListAllPeers: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; }; } = {
     ListAllPeers: { request_id: requestId, cid: currentCid }
   };
 

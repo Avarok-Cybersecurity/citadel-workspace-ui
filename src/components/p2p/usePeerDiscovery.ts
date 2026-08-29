@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef  } from 'react';
 import { describeFailure } from '@/lib/failure-message';
 import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
@@ -224,7 +224,7 @@ export function usePeerDiscovery(isOpen: boolean) {
       return;
     }
     try {
-      const requestId = crypto.randomUUID();
+      const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
       broadcastChannelService.registerRequest(requestId, currentCid);
       // Before the send: a failure can arrive before the await resolves.
       sentRequests.current.set(requestId, peerUsername);

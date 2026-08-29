@@ -26,8 +26,8 @@ import type { ParsedTick } from '@/lib/file-transfer/tick-events';
  * correlation maps (see tick-events.ts).
  */
 export async function executeRespondToTransfer(params: RespondTransferParams): Promise<string> {
-  const requestId = crypto.randomUUID();
-  const request = {
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+  const request: { RespondFileTransfer: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: bigint; object_id: bigint; accept: boolean; download_location: string | null; }; } = {
     RespondFileTransfer: {
       request_id: requestId,
       cid: params.cid,
@@ -51,8 +51,8 @@ export async function executeRespondToTransfer(params: RespondTransferParams): P
 }
 
 export async function executeDownloadFile(params: DownloadFileParams): Promise<void> {
-  const requestId = crypto.randomUUID();
-  const request = {
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+  const request: { DownloadFile: { request_id: `${string}-${string}-${string}-${string}-${string}`; virtual_directory: string; cid: bigint; peer_cid: bigint | null; security_level: string | null; delete_on_pull: boolean; }; } = {
     DownloadFile: {
       request_id: requestId,
       virtual_directory: params.virtualDirectory,

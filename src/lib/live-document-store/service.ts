@@ -59,7 +59,7 @@ export class LiveDocumentStore {
     creatorCid: string,
     initialDoc?: Y.Doc,
   ): Promise<DocumentMetadata> {
-    const id = crypto.randomUUID();
+    const id: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
     const now: number = Date.now();
 
     const doc = initialDoc || new Y.Doc();

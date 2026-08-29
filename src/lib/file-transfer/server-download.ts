@@ -56,9 +56,9 @@ export function downloadFileFromServer(transfer: FileTransfer): Promise<string |
   // We are the recipient pulling from the sender: our own CID is `cid`, theirs is `peer_cid`.
   const cid: bigint = BigInt(transfer.recipientCid);
   const peerCid: bigint = BigInt(transfer.senderCid);
-  const requestId = crypto.randomUUID();
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
 
-  const request = {
+  const request: { DownloadFile: { request_id: `${string}-${string}-${string}-${string}-${string}`; virtual_directory: string; cid: bigint; peer_cid: bigint; security_level: string; delete_on_pull: boolean; }; } = {
     DownloadFile: {
       request_id: requestId,
       virtual_directory: virtualDirectory,

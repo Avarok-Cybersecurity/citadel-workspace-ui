@@ -139,7 +139,7 @@ async function performAutoReconnect(
       );
     }
 
-    const requestId = crypto.randomUUID();
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
     await io.connect({
       requestId,
       username: session.username,

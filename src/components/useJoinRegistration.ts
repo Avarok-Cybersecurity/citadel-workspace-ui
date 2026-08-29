@@ -167,7 +167,7 @@ export function useJoinRegistration(
 
     try {
       debugLog('Join', "Registering user:", formData.username, "to", serverAddress);
-      const requestId = crypto.randomUUID();
+      const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
 
       const responsePromise: Promise<{ cid: string; }> = new Promise<{ cid: string }>((resolve, reject): void => {
         let handler: ((raw: unknown) => void) | null = null;

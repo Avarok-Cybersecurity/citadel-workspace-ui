@@ -54,7 +54,7 @@ export class MessengerOperations {
         cid: cid.toString()
       };
 
-      const requestId = crypto.randomUUID();
+      const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
       instanceInboundRouter.registerPendingRequest(requestId, instanceManager.instanceId);
 
       const result: AckResult = await instanceChannel.sendToLeader(proxyRequest, requestId);
@@ -93,7 +93,7 @@ export class MessengerOperations {
         cid: cid.toString()
       };
 
-      const requestId = crypto.randomUUID();
+      const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
       instanceInboundRouter.registerPendingRequest(requestId, instanceManager.instanceId);
 
       const result: AckResult = await instanceChannel.sendToLeader(proxyRequest, requestId);
@@ -153,7 +153,7 @@ export class MessengerOperations {
         securityLevel: securityLevel
       };
 
-      const requestId = crypto.randomUUID();
+      const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
       instanceInboundRouter.registerPendingRequest(requestId, instanceManager.instanceId);
 
       const result: AckResult = await instanceChannel.sendToLeader(proxyRequest, requestId);

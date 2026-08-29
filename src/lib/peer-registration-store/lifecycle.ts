@@ -129,7 +129,7 @@ export async function executeAcceptRequest(request: PendingPeerRequest): Promise
   const currentCid: bigint = request.cid;
   if (!currentCid) throw new Error('No active session - cannot accept registration');
 
-  const registerRequestId = crypto.randomUUID();
+  const registerRequestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   const registerRequest = {
     PeerRegister: {
       request_id: registerRequestId,

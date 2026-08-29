@@ -37,11 +37,11 @@ async function localDBSet(
   pendingKVRequests: Map<string, KVPendingEntry>,
   label: string
 ): Promise<void> {
-  const requestId = crypto.randomUUID();
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   const { persistJSON } = await import('../storage-utils');
   const valueStr: string = persistJSON(data);
 
-  const request = {
+  const request: { LocalDBSetKV: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: null; key: string; value: number[]; }; } = {
     LocalDBSetKV: {
       request_id: requestId, cid: 0n, peer_cid: null,
       key, value: stringToBytes(valueStr)
@@ -78,8 +78,8 @@ async function localDBGet<T>(
   onLoaded: (data: T[]) => Promise<void>,
   label: string
 ): Promise<void> {
-  const requestId = crypto.randomUUID();
-  const request = {
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+  const request: { LocalDBGetKV: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: null; key: string; }; } = {
     LocalDBGetKV: {
       request_id: requestId, cid: 0n, peer_cid: null, key
     }

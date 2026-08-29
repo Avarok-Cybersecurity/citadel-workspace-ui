@@ -101,7 +101,7 @@ async function fetchActiveSessions(
       }
     }
 
-    const requestId = crypto.randomUUID();
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
 
     const responsePromise: Promise<{ sessions?: ActiveSession[]; }> = new Promise<{ sessions?: ActiveSession[] }>((resolve, reject): void => {
       state.setPendingRequest(requestId, { resolve: resolve as (value: unknown) => void, reject });

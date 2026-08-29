@@ -30,7 +30,7 @@ async function dispatchP2PMessage(
     throw new Error('Target CID (peer_cid) is required to send P2P message');
   }
 
-  const messageRequest = {
+  const messageRequest: { Message: { request_id: `${string}-${string}-${string}-${string}-${string}`; message: number[]; cid: bigint; peer_cid: bigint; security_level: string; }; } = {
     Message: {
       request_id: crypto.randomUUID(),
       message: messageBytes,
