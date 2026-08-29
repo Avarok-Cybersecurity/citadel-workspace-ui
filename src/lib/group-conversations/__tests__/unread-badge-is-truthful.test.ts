@@ -19,7 +19,10 @@ vi.mock('@/lib/multi-instance/instance-manager', () => ({
 const SELF: bigint = 7n;
 const OTHER: bigint = 42n;
 
-async function freshStore() {
+async function freshStore(): Promise<{
+  store: typeof import('../group-store');
+  eventEmitter: (typeof import('@/lib/event-emitter'))['eventEmitter'];
+}> {
   vi.resetModules();
   const store: typeof import('../group-store') = await import('../group-store');
   // The emitter must come from the SAME module graph as the store. Importing it

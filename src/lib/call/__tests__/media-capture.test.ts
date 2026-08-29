@@ -92,7 +92,7 @@ describe('captureLocalMedia', () => {
   it('falls back to audio when only the camera is blocked', async () => {
     // The important behaviour: a blocked camera must not cost the user the call.
     const audioStream: MediaStream = { getTracks: () => [] } as unknown as MediaStream;
-    const getUserMedia = vi
+    const getUserMedia: ReturnType<typeof vi.fn> = vi
       .fn()
       .mockRejectedValueOnce(domError('NotAllowedError'))
       .mockResolvedValueOnce(audioStream);

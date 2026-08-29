@@ -14,7 +14,8 @@ const themeRef: { current: Record<string, string>; } = { current: { primary: 'bl
 const previewTheme: ReturnType<typeof vi.fn> = vi.fn();
 
 vi.mock('@/lib/theme/workspace-theme-context', () => ({
-  useWorkspaceTheme: () => ({ savedTheme: themeRef.current, previewTheme }),
+  useWorkspaceTheme: (): { savedTheme: Record<string, string>; previewTheme: ReturnType<typeof vi.fn> } =>
+    ({ savedTheme: themeRef.current, previewTheme }),
 }));
 
 import { useAppearanceDraft } from '../useAppearanceDraft';

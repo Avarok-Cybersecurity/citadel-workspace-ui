@@ -22,7 +22,7 @@ import userEvent from '@testing-library/user-event';
 import type { UserEvent } from '@testing-library/user-event';
 
 const updateServiceWorker: ReturnType<typeof vi.fn> = vi.fn();
-const applyWaitingUpdate = vi.fn<() => Promise<boolean>>();
+const applyWaitingUpdate: ReturnType<typeof vi.fn<() => Promise<boolean>>> = vi.fn<() => Promise<boolean>>();
 const reload: ReturnType<typeof vi.fn> = vi.fn();
 
 vi.mock('@/lib/pwa/apply-waiting-update', () => ({
@@ -42,7 +42,11 @@ const state: { offlineReady: boolean; needRefresh: boolean; setOfflineReady: Ret
 };
 
 vi.mock('virtual:pwa-register/react', () => ({
-  useRegisterSW: (options: typeof registeredOptions) => {
+  useRegisterSW: (options: typeof registeredOptions): {
+    offlineReady: [boolean, ReturnType<typeof vi.fn>];
+    needRefresh: [boolean, ReturnType<typeof vi.fn>];
+    updateServiceWorker: ReturnType<typeof vi.fn>;
+  } => {
     registeredOptions = options;
     return {
       offlineReady: [state.offlineReady, state.setOfflineReady],

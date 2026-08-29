@@ -16,7 +16,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { handleWebSocketMessage } from '../registration';
 import type { Peer } from '../types';
 
-function context() {
+function context(): {
+  pendingRequests: Map<bigint, unknown>;
+  allPeers: Map<bigint, Peer>;
+  registeredPeers: Map<bigint, Peer>;
+  outgoingRegistrations: Set<bigint>;
+  incomingRegistrations: Set<bigint>;
+  handleIncomingRegistration: ReturnType<typeof vi.fn>;
+} {
   return {
     pendingRequests: new Map(),
     allPeers: new Map<bigint, Peer>(),

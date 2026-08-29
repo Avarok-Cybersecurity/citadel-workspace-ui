@@ -15,7 +15,12 @@
 import { describe, it, expect, vi, beforeEach  } from 'vitest';
 import { isValidElement } from 'react';
 
-const sonner = vi.hoisted(() => ({
+const sonner: {
+  error: ReturnType<typeof vi.fn>;
+  success: ReturnType<typeof vi.fn>;
+  plain: ReturnType<typeof vi.fn>;
+  dismiss: ReturnType<typeof vi.fn>;
+} = vi.hoisted(() => ({
   error: vi.fn((_message: unknown, _opts?: unknown) => 1),
   success: vi.fn((_message: unknown, _opts?: unknown) => 2),
   plain: vi.fn((_message: unknown, _opts?: unknown) => 3),

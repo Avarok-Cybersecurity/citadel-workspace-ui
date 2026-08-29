@@ -15,7 +15,12 @@ import {
  * that make that safe.
  */
 
-function fakeDb(existingStores: string[] = []) {
+function fakeDb(existingStores: string[] = []): {
+  objectStoreNames: { contains: (n: string) => boolean; [Symbol.iterator]: () => SetIterator<string> };
+  createObjectStore: ReturnType<typeof vi.fn>;
+  deleteObjectStore: ReturnType<typeof vi.fn>;
+  _stores: Set<string>;
+} {
   const stores: Set<string> = new Set(existingStores);
   return {
     objectStoreNames: {

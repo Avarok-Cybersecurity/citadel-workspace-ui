@@ -18,7 +18,7 @@ const player: { startRing: ReturnType<typeof vi.fn>; stopRing: ReturnType<typeof
 };
 
 vi.mock('@/lib/call/call-sounds', () => ({
-  callSounds: () => player,
+  callSounds: (): typeof player => player,
 }));
 
 function contextValue(call: CallState | null): CallContextValue {

@@ -90,6 +90,7 @@ export function defaultIntentHandler(overrides?: Partial<Record<RevfsIntent['typ
 }
 
 export function getExecuteCalls(service: RevfsService): RevfsIntent[] {
-  const io = (service as unknown as { io: { execute: ReturnType<typeof vi.fn> } }).io;
+  const io: { execute: ReturnType<typeof vi.fn> } =
+    (service as unknown as { io: { execute: ReturnType<typeof vi.fn> } }).io;
   return io.execute.mock.calls.map((c: unknown[]) => c[0] as RevfsIntent);
 }

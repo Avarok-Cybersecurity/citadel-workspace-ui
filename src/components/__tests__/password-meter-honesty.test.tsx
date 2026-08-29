@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, type RenderResult } from '@testing-library/react';
 import { JoinFormFields } from '../JoinFormFields';
 import { CREDENTIAL_LIMITS } from '@/lib/credential-rules';
 
@@ -14,7 +14,7 @@ import { CREDENTIAL_LIMITS } from '@/lib/credential-rules';
  * credential hygiene.
  */
 
-const renderWith = (password: string) =>
+const renderWith = (password: string): RenderResult =>
   render(
     <JoinFormFields
       formData={{ fullName: 'Test User', username: 'testuser', password, confirmPassword: password }}

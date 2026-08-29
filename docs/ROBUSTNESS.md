@@ -16282,3 +16282,38 @@ Negative control: restoring the old `hasPermission` gate in that file makes the
 check fail and names it.
 
 Preflight: **46 checks**, all green.
+
+## Round 330 — every declaration in src/ states its type, and the gate is a wall
+
+7,823 findings across 951 of 1087 files when the rules were first turned on.
+251 when this session started. Zero now, production and tests alike.
+
+The last stretch was read out of the compiler rather than written by hand: a
+throwaway script walked the TypeScript API, found each reported function
+declaration, asked the checker for its inferred return type, and wrote it back.
+Twenty sites in one pass, two corrections
+(`InstanceType<typeof AuthOperations>`, `Parameters<typeof MemberListItem>[0]`),
+no test changes. Guessing those by hand would have been an afternoon and some
+of them would have been wrong.
+
+**The gate is now a wall.** The per-file baseline and its `--write` lever are
+deleted: there is nothing left to record, and no way to record more. One
+untyped declaration anywhere in `src/` fails CI.
+
+Three exemptions survive, each established rather than assumed, and each
+negative-controlled against a declaration of identical shape that is *not*
+exempt:
+
+| exempt | because |
+|---|---|
+| `… as const` | the assertion gives the narrowest type the value admits; any annotation is identical or wider, and writing it duplicates the literals |
+| `cva(…)` | the self-referential annotation is TS2502; `ReturnType<typeof cva>` compiles and silently erases the variant union, breaking three call sites |
+| `vi.fn<Sig>()`, `vi.spyOn(o, 'm')` | the signature is stated, or derived from the real method — annotating the latter decouples the double from what it doubles |
+
+A bare `vi.fn()` is not exempt: it carries no signature, which is where an
+annotation is worth the most.
+
+Negative control on the wall itself: appending `export const X = { a: 1 };` to
+one file fails it; so does `export function f() { return 1; }`.
+
+Preflight: 46 checks, green. 2333 tests green.

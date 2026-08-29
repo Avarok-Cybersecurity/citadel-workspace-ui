@@ -15,7 +15,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Spies declared via `vi.hoisted` so they exist before `vi.mock` (which
 // is itself hoisted) evaluates its factory.
-const spies = vi.hoisted(() => {
+const spies: {
+  calls: { name: string; args: unknown[] }[];
+  setConnectionIdSpy: ReturnType<typeof vi.fn>;
+  loadWorkspaceSpy: ReturnType<typeof vi.fn>;
+  listNodesSpy: ReturnType<typeof vi.fn>;
+  listMembersSpy: ReturnType<typeof vi.fn>;
+  getTreeSchemaSpy: ReturnType<typeof vi.fn>;
+} = vi.hoisted(() => {
   const calls: { name: string; args: unknown[] }[] = [];
   return {
     calls,

@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach  } from 'vitest';
 
-const sendP2PCommand = vi.hoisted(() => vi.fn());
+const sendP2PCommand: ReturnType<typeof vi.fn> = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/p2p/message-send-operations', () => ({ sendP2PCommand }));
 
 import { WebSocketCallTransport } from '../websocket-call-transport';

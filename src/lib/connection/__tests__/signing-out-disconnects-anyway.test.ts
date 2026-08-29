@@ -16,7 +16,12 @@ import { handleLogout } from '../session-management';
 import { removeAllSessions } from '../session-list';
 
 function harness(writeFails: boolean): { state: { storedSessions: { sessions: never[]; }; removeSession: ReturnType<typeof vi.fn>; clearSessions: ReturnType<typeof vi.fn>; currentConnectionInfo: { cid: bigint; }; }; io: { storeSessionsToLocalDB: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn>; }; } {
-  const state = {
+  const state: {
+    storedSessions: { sessions: never[] };
+    removeSession: ReturnType<typeof vi.fn>;
+    clearSessions: ReturnType<typeof vi.fn>;
+    currentConnectionInfo: { cid: bigint };
+  } = {
     storedSessions: { sessions: [] },
     removeSession: vi.fn(),
     clearSessions: vi.fn(),

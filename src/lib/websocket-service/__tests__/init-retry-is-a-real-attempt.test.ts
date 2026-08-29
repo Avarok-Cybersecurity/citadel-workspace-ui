@@ -44,7 +44,7 @@ describe('initService', () => {
   });
 
   it('re-attempts after a failure instead of replaying the stale rejection', async () => {
-    const create = vi
+    const create: ReturnType<typeof vi.fn> = vi
       .fn()
       .mockRejectedValueOnce(new Error('internal service unreachable'))
       .mockResolvedValueOnce({ ok: true });

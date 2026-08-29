@@ -25,7 +25,8 @@ describe('seedDocument', () => {
   });
 
   it('uses paragraph elements, which is what ProseMirror expects', () => {
-    const node = seedDocument('a').getXmlFragment('default').get(0);
+    const node: Y.XmlElement | Y.XmlText | Y.XmlHook | undefined =
+      seedDocument('a').getXmlFragment('default').get(0);
 
     expect(node).toBeInstanceOf(Y.XmlElement);
     expect((node as Y.XmlElement).nodeName).toBe('paragraph');

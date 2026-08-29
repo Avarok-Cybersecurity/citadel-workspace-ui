@@ -41,10 +41,10 @@ type Store = ReturnType<typeof LiveDocumentStore.getInstance>;
 const freshStore = (): Store =>
   new (LiveDocumentStore as unknown as { new (): Store })();
 
-const DOC_ID = 'shared-doc-1';
+const DOC_ID: string = 'shared-doc-1';
 
 function editedDoc(text: string): Y.Doc {
-  const doc = new Y.Doc();
+  const doc: Y.Doc = new Y.Doc();
   doc.getText('content').insert(0, text);
   return doc;
 }

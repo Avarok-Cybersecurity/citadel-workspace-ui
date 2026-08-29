@@ -16,7 +16,9 @@ import {
 } from '../install-prompt-store';
 
 const toast: ReturnType<typeof vi.fn> = vi.fn();
-vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast }) }));
+vi.mock('@/hooks/use-toast', () => ({
+  useToast: (): { toast: ReturnType<typeof vi.fn> } => ({ toast }),
+}));
 
 /** A stand-in for the event Chromium fires; the DOM lib does not declare it. */
 function makePromptEvent(outcome: 'accepted' | 'dismissed'): Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string; platform: string; }>; platforms: string[]; } {

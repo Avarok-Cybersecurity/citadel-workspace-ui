@@ -15,7 +15,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // vi.mock factories are hoisted above every top-level binding, so the doubles
 // have to live inside vi.hoisted rather than in module scope.
-const h = vi.hoisted(() => ({
+const h: {
+  claimSession: ReturnType<typeof vi.fn>;
+  postAuthSetup: ReturnType<typeof vi.fn>;
+  setSelectedUser: ReturnType<typeof vi.fn>;
+  triggerAutoConnect: ReturnType<typeof vi.fn>;
+  activeSessions: Array<{ cid: bigint; username: string; server_address: string }>;
+  storedSessions: Array<{ username: string; serverAddress: string; password?: string }>;
+} = vi.hoisted(() => ({
   claimSession: vi.fn(() => Promise.resolve()),
   postAuthSetup: vi.fn(() => Promise.resolve()),
   setSelectedUser: vi.fn(() => Promise.resolve()),

@@ -68,7 +68,7 @@ describe('resolveWebsocketUrl', () => {
     // `connect-src 'self'` blocks these in a browser. The connection fails with an opaque error
     // that never mentions CSP, so the warning is the only thing standing between an operator and
     // a long debugging session. These tests pin that it fires, and that it does NOT cry wolf.
-    const warn = () => vi.spyOn(console, 'warn').mockImplementation((): void => {});
+    const warn = (): ReturnType<typeof vi.spyOn> => vi.spyOn(console, 'warn').mockImplementation((): void => {});
     afterEach(() => vi.restoreAllMocks());
 
     it('warns that CSP will block an off-origin override', () => {

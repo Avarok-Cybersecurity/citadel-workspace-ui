@@ -12,7 +12,12 @@ import { describe, it, expect, vi, beforeEach      } from 'vitest';
  * dropped, and no exception escapes.
  */
 
-const spies = vi.hoisted(() => ({
+const spies: {
+  getConnectionInfo: ReturnType<typeof vi.fn>;
+  getTabSelectedSession: ReturnType<typeof vi.fn>;
+  emit: ReturnType<typeof vi.fn>;
+  toast: ReturnType<typeof vi.fn>;
+} = vi.hoisted(() => ({
   getConnectionInfo: vi.fn(() => null as unknown),
   getTabSelectedSession: vi.fn(async () => null),
   emit: vi.fn(),

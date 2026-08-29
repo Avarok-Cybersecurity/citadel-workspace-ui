@@ -18,7 +18,14 @@ import { handleAuthSuccess, storeSession } from '../session-management';
 import type { StoredSession } from '@/types/session-types';
 
 function harness(storeFails: boolean): { state: { storedSessions: { sessions: StoredSession[]; }; addOrUpdateSession: ReturnType<typeof vi.fn>; setCurrentConnectionInfo: ReturnType<typeof vi.fn>; updateCurrentConnectionInfo: ReturnType<typeof vi.fn>; setStoredSessions: ReturnType<typeof vi.fn>; removeSession: ReturnType<typeof vi.fn>; }; io: { storeSessionsToLocalDB: ReturnType<typeof vi.fn>; loadSessionsFromLocalDB: ReturnType<typeof vi.fn>; setSelectedUser: ReturnType<typeof vi.fn>; setWorkspaceConnectionId: ReturnType<typeof vi.fn>; updateConnectionService: ReturnType<typeof vi.fn>; }; } {
-  const state = {
+  const state: {
+    storedSessions: { sessions: StoredSession[] };
+    addOrUpdateSession: ReturnType<typeof vi.fn>;
+    setCurrentConnectionInfo: ReturnType<typeof vi.fn>;
+    updateCurrentConnectionInfo: ReturnType<typeof vi.fn>;
+    setStoredSessions: ReturnType<typeof vi.fn>;
+    removeSession: ReturnType<typeof vi.fn>;
+  } = {
     storedSessions: { sessions: [] as StoredSession[] },
     addOrUpdateSession: vi.fn(),
     setCurrentConnectionInfo: vi.fn(),

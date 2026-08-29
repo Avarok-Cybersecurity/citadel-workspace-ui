@@ -63,7 +63,7 @@ describe('every settings read', () => {
     // cannot see a key mismatch, so this scans for the call shape instead.
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
-    const fg = (await import('fast-glob')).default;
+    const fg: typeof import('fast-glob') = (await import('fast-glob')).default;
     const { stripComments } = await import('@/test-utils/strip-comments');
 
     const dir: string = join(process.cwd(), 'src/lib/file-transfer');

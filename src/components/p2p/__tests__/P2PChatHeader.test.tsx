@@ -8,6 +8,7 @@
  * children to separate.
  */
 import { describe, it, expect, vi } from 'vitest';
+import type { ComponentProps } from 'react';
 import { render, screen , type RenderResult } from '@testing-library/react';
 import { P2PChatHeader } from '../P2PChatHeader';
 import { MessagingLayerType } from '@/types/messaging-layer';
@@ -15,7 +16,7 @@ import type { PeerPresence } from '@/lib/p2p';
 
 const ONLINE: PeerPresence = { status: MessagingLayerType.Online, lastUpdate: 0 };
 
-const callProps = {
+const callProps: ComponentProps<typeof P2PChatHeader>['call'] = {
   canCall: true,
   inCall: false,
   capability: { supported: true },

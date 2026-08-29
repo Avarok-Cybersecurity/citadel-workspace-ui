@@ -23,7 +23,7 @@ vi.mock('../group-persistence', () => ({
   persistGroups: (): Promise<void> => Promise.resolve(),
 }));
 
-async function freshStore() {
+async function freshStore(): Promise<typeof import('../group-store')> {
   vi.resetModules();
   return import('../group-store');
 }

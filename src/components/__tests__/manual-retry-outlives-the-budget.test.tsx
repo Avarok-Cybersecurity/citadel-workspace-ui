@@ -21,7 +21,9 @@ import { ConnectionRetryModal } from '../ConnectionRetryModal';
 vi.mock('@/lib/websocket-service', () => ({
   websocketService: { reset: vi.fn(), init: vi.fn().mockResolvedValue(undefined) },
 }));
-vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
+vi.mock('@/hooks/use-toast', () => ({
+  useToast: (): { toast: ReturnType<typeof vi.fn> } => ({ toast: vi.fn() }),
+}));
 
 const onRetry: ReturnType<typeof vi.fn> = vi.fn();
 

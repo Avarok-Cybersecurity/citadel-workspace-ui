@@ -17,7 +17,7 @@ afterEach(cleanup);
 // with the rest of the dead UI. It carried this same defect, so deleting it
 // removed a trap as well as dead weight.
 describe('DisabledWithTooltip', () => {
-  const Wrapper = DisabledWithTooltip;
+  const Wrapper: typeof DisabledWithTooltip = DisabledWithTooltip;
 
   it('passes children through untouched when not disabled', () => {
     render(

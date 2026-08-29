@@ -6,13 +6,22 @@ import { ORPHAN_BUFFER_TIMEOUT_MS } from '../orphan-buffer';
 // imported. The router subscribes to event-emitter inside its constructor and
 // captures the singleton references, so any vi.mock factory has to be in place
 // before the first `import` of the SUT module.
-const instanceChannelMock = vi.hoisted(() => ({
+const instanceChannelMock: {
+  requestCidReport: ReturnType<typeof vi.fn>;
+  forwardToInstance: ReturnType<typeof vi.fn>;
+  broadcast: ReturnType<typeof vi.fn>;
+} = vi.hoisted(() => ({
   requestCidReport: vi.fn(),
   forwardToInstance: vi.fn(),
   broadcast: vi.fn(),
 }));
 
-const instanceManagerMock = vi.hoisted(() => ({
+const instanceManagerMock: {
+  instanceId: string;
+  findInstanceByCid: ReturnType<typeof vi.fn<(cid: bigint) => string | null>>;
+  getAllInstances: ReturnType<typeof vi.fn>;
+  registerInstance: ReturnType<typeof vi.fn>;
+} = vi.hoisted(() => ({
   instanceId: 'leader-instance',
   findInstanceByCid: vi.fn<(cid: bigint) => string | null>(),
   getAllInstances: vi.fn(() => [] as Array<{ instanceId: string; cid: bigint | null }>),

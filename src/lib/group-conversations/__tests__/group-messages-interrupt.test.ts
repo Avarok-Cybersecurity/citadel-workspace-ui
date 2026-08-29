@@ -13,7 +13,7 @@ import { describe, it, expect, vi, beforeEach    } from 'vitest';
 
 const addMessageNotification: ReturnType<typeof vi.fn> = vi.fn();
 vi.mock('@/lib/notification-service', () => ({
-  default: { getInstance: () => ({ addMessageNotification }) },
+  default: { getInstance: (): { addMessageNotification: ReturnType<typeof vi.fn> } => ({ addMessageNotification }) },
   NotificationPriority: { HIGH: 'high', NORMAL: 'normal' },
 }));
 

@@ -16,7 +16,10 @@ function renderModal(options: {
   saved?: WorkspaceTheme;
   onSave?: Mock<(theme: WorkspaceTheme) => Promise<void>>;
   previewTheme?: (t: WorkspaceTheme | null) => void;
-} = {}) {
+} = {}): {
+  onSave: Mock<(theme: WorkspaceTheme) => Promise<void>>;
+  previewTheme: Mock<(...args: unknown[]) => unknown> | ((t: WorkspaceTheme | null) => void);
+} {
   const {
     canEdit = true,
     saved = defaultTheme(),
