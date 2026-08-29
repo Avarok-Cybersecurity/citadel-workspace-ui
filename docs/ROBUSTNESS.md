@@ -17279,3 +17279,56 @@ fixing it cost a few minutes and saved changing working code — which the
 detector, left unexamined, would have had me do twice.
 
 2389 tests green; preflight 53/53 bar the push reminder.
+
+## Round 353 — the sentence was true once, and stayed on screen after it stopped being
+
+`node-content-propagation` still fails, and the button still says:
+
+> Your permissions here could not be checked: nobody is signed in on this tab.
+
+Round 328's in-memory mirror is in that run. So my model of the cause was
+incomplete, and the message itself is the clue I had been reading past:
+`lastFailure` is cleared **only on a successful fetch**, and the message is
+shown only once the retry budget is spent. It therefore describes the FIRST
+failure, not the current state.
+
+The sequence is:
+
+1. Start-up. The tab does not yet know who it is, so `resolveCurrentUserId`
+   returns null and every fetch bails, recording that sentence.
+2. `usePermission` spends its budget — four attempts across about 4.6 seconds,
+   which start-up can easily outlast.
+3. The tab learns who it is.
+4. **Nothing happens.** `setSelectedUser` writes to IndexedDB and emits nothing,
+   and `RETRY_AGAIN_AFTER` lists reconnection, a CID change and a role change —
+   none of which is "the tab learned who it is".
+
+So the budget is never spent again, the gate stays refused for the life of the
+page, and the reason it gives is a cached description of a state that has since
+gone away. Rounds 328 and 347 both fix *when* the selection is written; neither
+restarts a budget already spent.
+
+`setSelectedUser` now announces itself, after the write, and `usePermission`
+listens. Both halves are tested, because only testing the listener leaves the
+emit unguarded — I checked, and removing it broke nothing any test would notice.
+The order is pinned too: announcing before the write would have every listener
+re-read the old value and conclude nothing had changed.
+
+The negative control on the listener side is the important one: the budget must
+NOT restart on an unrelated event, or it stops being a budget.
+
+### And the gate could not see the subscription
+
+Adding the event failed `check-event-listeners-have-emitters` with "nothing
+subscribes to it" — about an event whose subscriber is twelve lines below the
+list it was added to. The gate matched `eventEmitter.on('literal')` and one
+array form, not `for (const event of NAMES) eventEmitter.on(event, …)`, which
+is how `use-permission` has always subscribed.
+
+Taught to see it, and controlled: with the new pass disabled the event is
+reported unheard again, so the pass is load-bearing rather than decorative. My
+first attempt at that control was malformed and passed for the wrong reason —
+worth redoing, since a control that cannot fail is the thing this log keeps
+finding.
+
+2393 tests green; preflight 53/53 bar the push reminder.

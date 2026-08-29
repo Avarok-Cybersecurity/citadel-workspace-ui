@@ -9,6 +9,7 @@
  */
 
 import { dbPut, dbGet, dbDelete } from './storage-utils';
+import { eventEmitter } from './event-emitter';
 import { sessionGet, sessionSet } from './safe-session-storage';
 
 const TAB_ID_KEY: "citadel-tab-id" = 'citadel-tab-id';
@@ -139,6 +140,21 @@ export async function getSelectedUser(): Promise<TabUserContext | null> {
  */
 export async function setSelectedUser(user: TabUserContext): Promise<void> {
   await setTabData('selected-user', user);
+  // Announced, because several things are waiting to hear it and nothing told
+  // them.
+  //
+  // `resolveCurrentUserId` reads this record, so until it exists every
+  // permission fetch bails with "nobody is signed in on this tab".
+  // `usePermission` retries a failed fetch four times across about 4.6 seconds
+  // and then stops, and it restarts that budget only on reconnection, a CID
+  // change, or a role change — none of which happen when a tab simply learns
+  // who it is. So a budget spent during start-up, before this was written, was
+  // never spent again: the gate stayed refused, and the reason it showed was
+  // the FIRST failure, cached, describing a state that had since gone away.
+  //
+  // CI reported that as the workspace admin's own Edit button, disabled for
+  // sixty seconds, explaining itself with a sentence that was no longer true.
+  eventEmitter.emit('tab:selected-user-changed', user);
 }
 
 /**

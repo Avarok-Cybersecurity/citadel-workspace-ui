@@ -147,6 +147,29 @@ const LISTEN_PATTERNS = [
 ];
 const LISTEN_ARRAY = new RegExp(String.raw`useEventListeners${GENERIC}\(\s*\[([^\]]*)\]`, 'g');
 
+// `for (const event of NAMES) eventEmitter.on(event, handler)`.
+//
+// Subscribing from a named list is ordinary and readable — `use-permission`
+// keeps the events after which a permission answer may differ in
+// `RETRY_AGAIN_AFTER`, with a paragraph on each explaining why it is there —
+// and this check could not see any of it. Adding a fourth entry to that list
+// therefore failed the build with "nothing subscribes to it", about an event
+// with a subscriber twelve lines further down.
+//
+// A gate that cannot see a pattern the codebase actually uses reports the
+// codebase as broken, and gets switched off for it.
+const LOOP_SUBSCRIBE = new RegExp(
+  String.raw`for\s*\(\s*const\s+(\w+)\s+of\s+(\w+)\s*\)[\s\S]{0,200}?eventEmitter\.(?:on|once)${GENERIC}\(\s*\1\b`,
+  'g',
+);
+/** `const NAMES: readonly string[] = [ 'a', 'b' ];` — the literals in it. */
+function literalsOfArray(src, name) {
+  const declaration = new RegExp(String.raw`const\s+${name}\s*(?::[^=]+)?=\s*\[([\s\S]*?)\]`);
+  const found = declaration.exec(src);
+  if (!found) return [];
+  return [...found[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+}
+
 const isTest = (p) => p.includes('__tests__') || /\.test\.[tj]sx?$/.test(p);
 
 const files = [];
@@ -192,6 +215,12 @@ for (const [file, raw] of sources) {
     for (const n of m[1].matchAll(/'([^']+)'/g)) {
       if (!listened.has(n[1])) listened.set(n[1], []);
       listened.get(n[1]).push(relative(SRC, file));
+    }
+  }
+  for (const m of src.matchAll(LOOP_SUBSCRIBE)) {
+    for (const name of literalsOfArray(src, m[2])) {
+      if (!listened.has(name)) listened.set(name, []);
+      listened.get(name).push(relative(SRC, file));
     }
   }
 }

@@ -83,6 +83,14 @@ const RETRY_AGAIN_AFTER: readonly string[] = [
   'permissions:role-changed',
   'on-ws-connection-success',
   'instance:cid-changed',
+  // The one that was missing, and the one that matters most.
+  //
+  // Every fetch bails with "nobody is signed in on this tab" until the tab
+  // selection exists, and writing it is not a reconnection, a CID change or a
+  // role change. A budget spent during start-up — four attempts across about
+  // 4.6 seconds, which start-up can easily outlast — was therefore never spent
+  // again, however long the tab then ran knowing exactly who it was.
+  'tab:selected-user-changed',
 ];
 
 /**

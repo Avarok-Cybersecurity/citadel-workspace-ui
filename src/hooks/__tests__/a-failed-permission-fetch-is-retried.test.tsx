@@ -183,3 +183,51 @@ describe('"we never got an answer" as a value, not a sentence', () => {
     expect(result.current.unanswered).toBe(false);
   }, 15_000);
 });
+
+describe('a budget spent before the tab knew who it was', () => {
+  it('starts again when the tab learns its user', async (): Promise<void> => {
+    // The gap this closes. Every fetch bails with "nobody is signed in on this
+    // tab" until the selection exists, and writing it is not a reconnection, a
+    // CID change or a role change -- so a budget spent during start-up was
+    // never spent again, however long the tab then ran knowing exactly who it
+    // was. The reason the control then showed was the FIRST failure, cached,
+    // describing a state that had since gone away.
+    const { result, rerender } = renderHook(() => usePermission('office-late', Permission.EditMdx));
+
+    await waitFor((): void => { expect(state.fetches).toBeGreaterThanOrEqual(4); }, {
+      timeout: 10_000,
+    });
+    const spent: number = state.fetches;
+    await new Promise((resolve): void => { setTimeout(resolve, 200); });
+    expect(state.fetches).toBe(spent);
+    expect(result.current.allowed).toBe(false);
+
+    state.succeedFrom = spent + 1;
+    eventEmitter.emit('tab:selected-user-changed', {
+      selectedUsername: 'alice',
+      selectedServerAddress: 'x:1',
+    });
+
+    await waitFor((): void => { expect(state.fetches).toBeGreaterThan(spent); }, { timeout: 10_000 });
+    rerender();
+    expect(result.current.allowed).toBe(true);
+    expect(result.current.unanswered).toBe(false);
+  }, 30_000);
+
+  it('does not restart on an unrelated event', async (): Promise<void> => {
+    // The negative control. Listening to everything would make the budget
+    // meaningless -- it exists so a domain that genuinely cannot be read stops
+    // being polled for the life of the page.
+    renderHook(() => usePermission('office-unrelated', Permission.EditMdx));
+
+    await waitFor((): void => { expect(state.fetches).toBeGreaterThanOrEqual(4); }, {
+      timeout: 10_000,
+    });
+    const spent: number = state.fetches;
+
+    eventEmitter.emit('some:unrelated-event', {});
+    await new Promise((resolve): void => { setTimeout(resolve, 500); });
+
+    expect(state.fetches).toBe(spent);
+  }, 30_000);
+});
