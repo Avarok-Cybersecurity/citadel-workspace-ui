@@ -88,17 +88,39 @@ export async function connectP2P(
         if (errorMsg.includes('Already connected')) {
           return { success: true, alreadyConnected: true };
         }
-        return { success: false, error: errorMsg };
+        // A timeout is not an answer. The request may still complete, and the
+        // app's own auto-connect keeps trying with backoff regardless -- so
+        // the peer row, not this rejection, is what decides.
+        const timedOut = /timed out|timeout/i.test(errorMsg);
+        return { success: false, timedOut, error: errorMsg };
       }
     }, peerUsername);
 
-    if (!result.success) {
-      console.log(`  P2P connect failed: ${result.error}`);
+    // A REFUSAL ends it: the peer is not registered, the CID is missing, the
+    // target is this session. Nothing about waiting changes those.
+    //
+    // A TIMEOUT is different, and returning false on one is why the
+    // reconnection specs failed where a real user would not have noticed. The
+    // SDK's PeerConnect handshake can take longer than the 30s request budget
+    // on a loaded machine, and the app's own p2p-auto-connect-service retries
+    // it with exponential backoff -- so the connection frequently arrives a few
+    // seconds after this rejection. The verification below reads the peer row,
+    // which is the app's own account of whether the channel exists; that is the
+    // authority here, not the ack for one request.
+    if (!result.success && !result.timedOut) {
+      console.log(`  P2P connect refused: ${result.error}`);
       if (uxTracker) {
-        uxTracker.log('major', 'functional', `P2P connect to ${peerUsername} failed: ${result.error}`);
+        uxTracker.log('major', 'functional', `P2P connect to ${peerUsername} refused: ${result.error}`);
       }
       await takeScreenshot(page, `${username}_p2p_connect_failed`);
       return false;
+    }
+
+    if (!result.success) {
+      console.log(
+        `  P2P connect to ${peerUsername} timed out (${result.error}); ` +
+          'waiting for auto-connect to establish it'
+      );
     }
 
     if (result.alreadyConnected) {
@@ -106,8 +128,11 @@ export async function connectP2P(
       return true;
     }
 
-    // Wait for connection to establish
+    // Wait for connection to establish. A timed-out request waits longer,
+    // because what it is waiting for is the auto-connect service's next backoff
+    // tick rather than a handshake already in flight.
     await sleep(3000);
+    const attempts: number = result.timedOut ? 40 : 10;
 
     // Verify the peer's row says it is connected.
     //
@@ -125,7 +150,7 @@ export async function connectP2P(
     // screen reader is given, so asserting it also keeps that affordance honest.
     const peerRow = page.getByTestId(`peer-row-${peerUsername}`);
     let peerVisible = false;
-    for (let attempt = 0; attempt < 10 && !peerVisible; attempt += 1) {
+    for (let attempt = 0; attempt < attempts && !peerVisible; attempt += 1) {
       const text: string | null = await peerRow.first().textContent().catch(() => null);
       peerVisible = (text ?? '').includes('Connected');
       if (!peerVisible) await sleep(1000);
@@ -142,7 +167,13 @@ export async function connectP2P(
     // verification — and it is the documented retry fallback for PeerConnect
     // timeouts, so it reported the retry as having worked in exactly the case
     // where it had not.
-    console.log(`  FAIL: P2P connect to ${peerUsername} sent, but the peer never appeared as connected`);
+    console.log(
+      `  FAIL: P2P connect to ${peerUsername} ${result.timedOut ? 'timed out' : 'sent'}, ` +
+        'but the peer never appeared as connected'
+    );
+    if (uxTracker && result.timedOut) {
+      uxTracker.log('major', 'functional', `P2P connect to ${peerUsername} failed: ${result.error}`);
+    }
     await takeScreenshot(page, `${username}_p2p_connect_unconfirmed`);
     return false;
 

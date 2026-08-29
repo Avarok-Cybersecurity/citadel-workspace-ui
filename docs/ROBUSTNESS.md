@@ -14747,3 +14747,55 @@ the config below stays the thing that produces classes.
 
 The codemod passes are spent: six more returned 251 → 249. What is left needs
 decisions like this one, a file at a time.
+
+## Round 291 — a tree with no memory, and a timeout read as a refusal
+
+`test:hierarchy-nav` has failed every recent run, and the report says exactly
+what happened:
+
+```
+[UI] Node "Alpha_…"   exists: true
+[UI] Node "Beta_…"    exists: true
+[UI] Node "Charlie_…" exists: false
+Charlie NOT visible in sidebar
+```
+
+Alpha and Beta are depths one and two; Charlie, Delta and Epsilon are three,
+four and five. That is precisely the auto-expand boundary — the root, plus the
+first level that has children — and the step before the check is
+`await page.reload()`.
+
+**The tree had no memory.** Every branch opened since load, whether by the user
+or by the reveal that follows a creation, was discarded by the refresh. Nothing
+in the sidebar can show a node whose branch is shut, so depth three and below
+were not merely collapsed but unreachable: the only way back is to open every
+ancestor by hand. `TreeNodesSection` has carried an `initialExpandedIds` prop
+for this the whole time, with no production caller — a prop read and never
+written, which is the same shape as the other controls that operate on nothing.
+
+Expansion is now stored per CID beside `session_last_location`, restored as a
+MERGE into whatever auto-expand has already opened (both are "open this";
+neither is a closure), and bounded at 500 ids so a large workspace cannot grow
+the entry until `setItem` throws and the key stops accepting anything. A value
+written by an older build reads as "no memory" rather than putting a non-string
+into the expansion set, where it would compare unequal to every node id and
+never be cleared.
+
+**And the tree now shows where you are.** A node reached by URL — a shared
+link, a restored last location, a reload on a deep page — was selected with
+nothing opening its branch, so the sidebar highlighted nothing. Its ancestors
+open now; the node's own children do not, because opening what you selected
+moves everything below it.
+
+**A timeout is not a refusal.** `test:reconnect-p2p-only` failed with
+`PeerConnect request timed out`, and the helper returned false on it. The app's
+own `p2p-auto-connect-service` retries a failed connect with exponential
+backoff, so the channel frequently arrives seconds after that rejection — the
+helper was strictly less resilient than the product it tests. It now
+distinguishes a refusal (not registered, no CID, target is self — nothing about
+waiting changes those) from a timeout, and on a timeout falls through to the
+verification it already had: the peer row's own status, which is the app's
+account of whether the channel exists.
+
+> The state a refresh throws away is the measure of how much of the UI is
+> memory rather than record.

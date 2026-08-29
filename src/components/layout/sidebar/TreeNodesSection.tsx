@@ -109,6 +109,7 @@ export function TreeNodesSection({
     filteredTreeData,
     searchQuery,
     initialExpandedIds,
+    selectedNodeId,
   });
 
   const [nodeToDelete, setNodeToDelete] = useState<DomainNode | null>(null);
