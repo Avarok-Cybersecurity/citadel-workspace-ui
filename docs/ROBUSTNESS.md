@@ -15926,3 +15926,38 @@ getting under a number.
 |---|---|
 | Typing debt | 153 → **145** (251 at session start, −42%) |
 | Production files remaining | 65, holding 78 of the 145 |
+
+## Round 319 — the chip that never lit
+
+Round 296's gate finds props a component honours and nobody passes. The same
+shape hides in hooks, where no gate looks: a member returned and never
+destructured. Fifty-five hooks, eleven such members, and one of them is a
+feature.
+
+`OrphanSessionIcon` takes `shouldGlow` and renders a lit border for it.
+`OrphanSessionsNavbar` passes `glowingSessionCid === session.cid`.
+`useOrphanSessions` owns `glowingSessionCid` and exposes `triggerGlow` to set it
+on a four-second timer. **Nothing ever called `triggerGlow`.**
+
+So a message arriving for a session you are not looking at moved its badge
+number, and the attention cue the icon was built for never fired. The whole path
+existed except the one line that starts it — which is the same thing round 296
+found twice and round 306 found once, in a fourth place.
+
+It lights now, from the unread snapshot that was already arriving. The rule is
+its own pure function because "did this go up" is easier to get wrong than it
+looks: the strip mounts against an empty map and the first event carries every
+session's current count, so treating an absent previous as zero glows every chip
+at once the moment the page loads. That case has its own test, and the control —
+`before ?? 0` — fails it.
+
+`useAttentionGlow` came out of the hook while doing it. `useOrphanSessions` was
+at 258 lines against a 250 cap, and the glow is a self-contained rule: counts
+arrive as a map, a chip lights when its own number rises, and it goes out on a
+timer.
+
+The other ten unread hook members are dead surface rather than dead features —
+`setServer`, `hasLoaded`, `refreshPeers`, `selectAll` and the like. `selectAll`
+on the file manager's selection hook is the one worth a second look: a
+multi-select file manager with no select-all is a missing affordance rather than
+a broken one, and that is a product decision.

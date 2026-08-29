@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useAttentionGlow } from './use-attention-glow';
 import { readLastLocation } from '@/lib/sessions/last-location';
 import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
 import { describeFailure } from '@/lib/failure-message';
@@ -39,7 +40,7 @@ export function useOrphanSessions() {
     session: ActiveSession;
     workspaceName: string;
   } | null>(null);
-  const [glowingSessionCid, setGlowingSessionCid] = useState<bigint | null>(null);
+  const { glowing: glowingSessionCid, observe } = useAttentionGlow();
   const [notificationCounts, setNotificationCounts] = useState<Map<string, number>>(new Map());
 
   const [loadingModal, setLoadingModal] = useState<{
@@ -210,11 +211,6 @@ export function useOrphanSessions() {
     setLoadingModal(prev => ({ ...prev, open: false }));
   };
 
-  const triggerGlow = (cid: bigint): void => {
-    setGlowingSessionCid(cid);
-    setTimeout(() => { setGlowingSessionCid(null); }, 4000);
-  };
-
   // WebSocket connection success handler
   const handleWsConnectionSuccess: () => Promise<void> = useCallback(async (): Promise<void> => {
     debugLog('OrphanSessionsNavbar', 'WebSocket connected, reloading sessions...');
@@ -225,8 +221,11 @@ export function useOrphanSessions() {
 
   // Notification count handler
   const handleUnreadCountChanged: (change: UnreadCountChange) => void = useCallback((change: UnreadCountChange): void => {
-    setNotificationCounts(new Map(change.byCid));
-  }, []);
+    const next: Map<string, number> = new Map(change.byCid);
+    setNotificationCounts(next);
+    // The glow the chip was built for, and which nothing used to start.
+    observe(next);
+  }, [observe]);
 
   useEventListener<UnreadCountChange>('unread-count-changed', handleUnreadCountChanged);
 
@@ -242,7 +241,6 @@ export function useOrphanSessions() {
     handleDisconnect,
     handleConfirmDisconnect,
     handleLoadingComplete,
-    triggerGlow,
     notificationService,
   };
 }
