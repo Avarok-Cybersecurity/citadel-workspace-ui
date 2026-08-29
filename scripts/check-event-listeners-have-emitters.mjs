@@ -66,7 +66,6 @@ const RECORDED_UNCONSUMED = new Map([
   ['file-transfer:progress-updated', 'progress is rendered from the transfer record; state-changed drives the sidebar'],
   ['file-transfer:cancelled', 'cancellation also emits state-changed, which the sidebar listens to'],
   ['file-transfer:error', 'as cancelled'],
-  ['revfs:persist-failed', 'REAL GAP — a failed tree persist is announced to nobody, same shape as live-document:persist-failed'],
   ['outbound-failed', 'REAL GAP — the queue knows a proxied request is dead ~10s before sendToLeader times out; nobody hears it'],
   ['outbound-error', 'REAL GAP — as outbound-failed'],
   ['group:message:new', 'published beside group:message-received, which is the one the store reads'],

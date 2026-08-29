@@ -14,6 +14,7 @@ import { RouteFallback } from "./components/RouteFallback";
 import { PwaUpdatePrompt } from "./components/pwa/PwaUpdatePrompt";
 import { ThemeColorSync } from "./components/theme/ThemeColorSync";
 import { OfflineBanner } from "./components/pwa/OfflineBanner";
+import { PersistFailureNotice } from "./components/PersistFailureNotice";
 import { CallLayer } from "./components/call/CallLayer";
 import { OngoingCallBar } from "./components/call/OngoingCallBar";
 
@@ -81,6 +82,7 @@ const App: () => JSX.Element = (): JSX.Element => {
             <PwaUpdatePrompt />
             <ThemeColorSync />
             <OfflineBanner />
+            <PersistFailureNotice />
             {/*
               Opt into the v7 behaviours now. Both were logging deprecation
               warnings on every boot; adopting them here means the eventual

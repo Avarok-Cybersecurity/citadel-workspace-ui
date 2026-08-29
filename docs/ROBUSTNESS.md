@@ -15426,3 +15426,36 @@ ones.
 
 > An announcement decoded, emitted, and dropped costs more than one never sent:
 > the protocol paid for it, and the user got nothing.
+
+## Round 306 — the write that failed, announced to nobody
+
+`persistTree` writes the workspace file tree and, when the write fails, does not
+throw — under a comment that is right about why:
+
+> The operation DID happen; what failed is its durability. So: one event, raised
+> once, from one place. Whoever wires a "changes may not survive a reload"
+> notice does it here rather than at twenty call sites, and until then the
+> failure is at least loud in the log instead of absent.
+
+Nobody wired it. The tree changed on screen, the write failed, and the only
+record was a debug line the user never sees. Their changes exist in that tab and
+nowhere else, and nothing says so.
+
+Its sibling `useDocumentPersistence` had the same shape and was solved the
+opposite way — *"Toasted, not emitted… A direct toast removes the wire rather
+than adding a second end to it"*. That is right **there** and wrong here:
+`useDocumentPersistence` is a hook, already in the component layer.
+`persistTree` is library code, and business logic reaching for the toaster is
+the thing SBIO exists to prevent. So this one keeps its event and gains the
+consumer the comment was written for.
+
+Bounded, because a disk that has stopped accepting writes fails every one of
+them and the second notice tells the user nothing the first did not: one per
+tree per minute, as a pure rule that can be read without a clock or a toaster.
+Its control — the cooldown removed — turns a five-failure burst into five
+toasts.
+
+That is two of the three `REAL GAP` markers cleared in two rounds, and the gate
+now reads 25 recorded-unheard instead of 27. The last is `outbound-failed` /
+`outbound-error`: the multi-instance queue knows a proxied request is dead about
+ten seconds before `sendToLeader` times out, and says so to nobody.
