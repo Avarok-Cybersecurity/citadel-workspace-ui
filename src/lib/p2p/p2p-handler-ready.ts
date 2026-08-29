@@ -22,7 +22,7 @@ import { debugLog } from '@/lib/debug-config';
  * the messenger is constructed during boot, and bounded because a tab where it
  * somehow never attaches must not grow this forever.
  */
-const MAX_HELD: 64 = 64;
+const MAX_HELD: number = 64;
 
 /**
  * How long a message may wait for the handler before being emitted anyway.
@@ -33,7 +33,7 @@ const MAX_HELD: 64 = 64;
  * IS listening beats holding forever. An unbounded hold would trade a rare lost
  * message for a permanently stranded one, which is not an improvement.
  */
-const HOLD_RELEASE_MS: 2000 = 2000;
+const HOLD_RELEASE_MS: number = 2000;
 
 let attached: boolean = false;
 let held: unknown[] = [];
