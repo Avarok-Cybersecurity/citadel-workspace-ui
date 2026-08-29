@@ -3,6 +3,7 @@
  */
 
 import { chromium, Page } from 'playwright';
+import { formatConsoleLine } from './console-line.js';
 import { reportTimeout } from './screen-state.js';
 import type { BrowserOptions, BrowserSetup } from './types.js';
 import { isCI, isHeaded, config } from './config.js';
@@ -429,7 +430,7 @@ export function setupConsoleCapture(page: Page, label: string, filterKeywords: s
 
     if (shouldLog) {
       logs.push(`[${new Date().toISOString()}] ${text}`);
-      console.log(`  [${label}] ${text.substring(0, 150)}`);
+      console.log(`  [${label}] ${formatConsoleLine(text)}`);
     }
   });
 

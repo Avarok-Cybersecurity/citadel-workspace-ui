@@ -8,7 +8,7 @@
  */
 
 import type { Page } from 'playwright';
-import { formatConsoleLine } from './console-line';
+import { formatConsoleLine } from './console-line.js';
 
 export type ConsoleMessageType = 'log' | 'debug' | 'info' | 'warning' | 'error' | 'pageerror';
 
@@ -268,7 +268,7 @@ export function printDiagnosticsReport(report: DiagnosticsReport): void {
     console.log('CONSOLE ERRORS:');
     console.log('─'.repeat(60));
     report.errors.forEach((msg, i) => {
-      console.log(`[${i + 1}] ${msg.timestamp} ${msg.text.substring(0, 300)}`);
+      console.log(`[${i + 1}] ${msg.timestamp} ${formatConsoleLine(msg.text)}`);
     });
   }
 
@@ -277,7 +277,7 @@ export function printDiagnosticsReport(report: DiagnosticsReport): void {
     console.log('CONSOLE WARNINGS:');
     console.log('─'.repeat(60));
     report.warnings.forEach((msg, i) => {
-      console.log(`[${i + 1}] ${msg.timestamp} ${msg.text.substring(0, 200)}`);
+      console.log(`[${i + 1}] ${msg.timestamp} ${formatConsoleLine(msg.text)}`);
     });
   }
 

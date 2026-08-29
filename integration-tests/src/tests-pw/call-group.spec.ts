@@ -27,6 +27,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { formatConsoleLine } from '../lib/console-line.js';
 import { chromium, type Page, type Browser, type BrowserContext } from 'playwright';
 import {
   clearBrowserStorage,
@@ -76,7 +77,7 @@ async function createSession(label: 'a' | 'b' | 'c', isFirst: boolean): Promise<
   page.on('console', (msg) => {
     const text = msg.text();
     if (/\[Call\]|CallSignal|call:signal|CallInvite|sendP2PCommand|Failed to send|MediaSession/i.test(text)) {
-      console.log(`  [${label}:console] ${text.slice(0, 300)}`);
+      console.log(`  [${label}:console] ${formatConsoleLine(text)}`);
     }
   });
 

@@ -14,7 +14,7 @@
  * the line as cut, and a reader would have chased a peer that does not exist.
  */
 import { describe, it, expect } from 'vitest';
-import { formatConsoleLine, CONSOLE_LINE_LIMIT } from '../console-line';
+import { formatConsoleLine, CONSOLE_LINE_LIMIT } from '../console-line.js';
 
 const WASM_WARN: string =
   '%cWARN%c /workspace/citadel-internal-service/intersession-layer-messaging/src/lib.rs:668 %c\n' +

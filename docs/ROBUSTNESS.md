@@ -16358,3 +16358,33 @@ Negative-controlled twice: dropping `scripts/**` from the include names the
 orphaned file, and a new test file in an uncovered directory is caught too.
 
 Preflight: **47 checks**.
+
+## Round 332 — the same truncation in four places, three of them still there
+
+Round 331 fixed `diagnostics.ts`'s `text.substring(0, 150)`. Grepping the
+mechanism afterwards, rather than the symptom, found three more:
+
+| site | what it prints |
+|---|---|
+| `browser.ts:433` | `substring(0, 150)` — **the `[Alice]` / `[Bob]` lines in the very CI logs that showed `peer 15`** |
+| `diagnostics.ts:271` | `substring(0, 300)` — the CONSOLE ERRORS block of the end-of-run report |
+| `diagnostics.ts:280` | `substring(0, 200)` — the CONSOLE WARNINGS block |
+| `call-group.spec.ts:79` | `slice(0, 300)` — call-path console lines, in the spec that is currently failing |
+
+The first is the one that matters most: round 331 fixed a printer, and the
+printer that was actually producing the broken output was a different one. The
+report blocks are what a reader looks at *first* when a run fails.
+
+All four now use `formatConsoleLine`, and `check-console-printers.mjs` fails
+any file registering a `page.on('console')` handler that slices the message
+text itself. Eight listeners, none truncating.
+
+Negative control: restoring `browser.ts`'s `substring(0, 150)` names it by file
+and line.
+
+This is the pattern this repository's notes call *a correct fix applied in ONE
+place*. The lesson recorded there is "grep the mechanism, not the symptom" —
+and it is worth writing down that doing so **after** committing still found
+three, so the grep is not optional even when the first fix looks complete.
+
+Preflight: **48 checks**.
