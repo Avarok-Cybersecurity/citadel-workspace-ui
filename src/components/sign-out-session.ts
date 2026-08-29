@@ -97,12 +97,23 @@ export async function signOutSession(
 
     io.invalidateSessionCache();
     await io.removeSession(target.username, target.serverAddress);
-    // Before the reload, and not conditional on it: the request above
-    // succeeded, so this session is gone whatever the re-query manages to say.
-    io.forget(cid);
 
     onStage('cleaning');
     await io.reload();
+    // AFTER the reload, and this is the whole point.
+    //
+    // It was before, and the reload put the row straight back: `reload` asks
+    // the internal service for the session list, and a list fetched a moment
+    // after a deregistration can still contain the session that was just
+    // removed. CI showed exactly that -- `Deregister success: true` followed by
+    // `still in navbar: true`, with the local removal undone by the query that
+    // came after it.
+    //
+    // Last word rather than first: if the reload answers and correctly omits
+    // this session, forgetting it again is a no-op; if the reload does not
+    // answer, or answers with a list that has not caught up, the removal
+    // stands. The request above succeeded, so the session is gone either way.
+    io.forget(cid);
     return { status: 'done' };
   } catch (error) {
     debugLog('SignOutSession', `Failed to ${action}:`, error);

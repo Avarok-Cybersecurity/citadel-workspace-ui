@@ -17433,3 +17433,52 @@ fails, and converting a field to bigint makes the ratchet demand its baseline be
 written down.
 
 Preflight: **54 checks**.
+
+## Round 356 — CI marking my own two fixes, and failing both
+
+The run carrying rounds 345 and 350 reported `test:prev-sessions`, and the log
+is about my work rather than the product's.
+
+**Round 345's `io.forget` did not hold.** `Deregister success: true` followed by
+`still in navbar: true`, exactly as before. The sequence was
+
+```
+request → invalidate → removeSession → forget → reload
+```
+
+and `reload` asks the internal service for the session list. A list fetched a
+moment after a deregistration can still contain the session that was just
+removed — so the local removal was undone by the query that came after it. The
+fix removed the row and then asked the server to describe the world again.
+
+`forget` is now the **last** word rather than the first. If the reload answers
+and correctly omits the session, forgetting it again is a no-op; if the reload
+does not answer, or answers with a list that has not caught up, the removal
+stands. The order is pinned by a test, because nothing else would notice it
+moving back.
+
+**Round 350's `signedInAs` produced a false negative.** Every login check now
+reported:
+
+> a workspace loaded, but for Loading... rather than prev_sess_c_…
+
+`user-service` seeds a profile with `username: 'Loading...'` while the real one
+is fetched, and my parser excluded only the TopBar's literal `"User"`. So the
+helper answered "that is not the user" about a placeholder, and
+`Deregister Permanent` passed for the wrong reason — a check I had just fixed,
+now green because it could not read the name rather than because the account was
+gone.
+
+Two changes: `'Loading...'` joins `'User'` as a placeholder, and `signedInAs`
+polls rather than reading once, because the name settles after the workspace
+renders. A single read was always going to race the profile fetch.
+
+Both controlled: restoring either mistake fails exactly the test that names it.
+
+The lesson is the one round 350 was itself about, turned around. I wrote that
+"a failing check that cannot discriminate is worth less than no check, because
+it is acted on" — and then shipped one that discriminated on a placeholder.
+Making an assertion stricter is a change to what it can be wrong about, not only
+to what it can catch.
+
+2398 tests green.

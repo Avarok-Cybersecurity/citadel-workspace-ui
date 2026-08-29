@@ -30,8 +30,9 @@ vi.mock('@/lib/sessions/claim-session', () => ({
   claimSessionForThisTab: vi.fn(async () => ({ ok: true })),
 }));
 
-function io(overrides: Partial<SignOutIO> = {}): SignOutIO & { forgotten: bigint[] } {
+function io(overrides: Partial<SignOutIO> = {}): SignOutIO & { forgotten: bigint[]; order: string[] } {
   const forgotten: bigint[] = [];
+  const order: string[] = [];
   return {
     markUserDisconnected: vi.fn(async (): Promise<void> => {}),
     currentWasmCid: (): string | null => null,
@@ -40,9 +41,10 @@ function io(overrides: Partial<SignOutIO> = {}): SignOutIO & { forgotten: bigint
     disconnect: vi.fn(async (): Promise<void> => {}),
     invalidateSessionCache: vi.fn(),
     removeSession: vi.fn(async (): Promise<void> => {}),
-    forget: (cid: bigint): void => { forgotten.push(cid); },
-    reload: vi.fn(async (): Promise<void> => {}),
+    forget: (cid: bigint): void => { forgotten.push(cid); order.push('forget'); },
+    reload: vi.fn(async (): Promise<void> => { order.push('reload'); }),
     forgotten,
+    order,
     ...overrides,
   };
 }
@@ -105,5 +107,19 @@ describe('signing a session out', () => {
     expect(result.status).toBe('refused');
     expect(effects.deregister).not.toHaveBeenCalled();
     expect(effects.forgotten).toEqual([]);
+  });
+});
+
+describe('the order of the removal and the reload', () => {
+  it('forgets AFTER reloading, so the reload cannot put the row back', async () => {
+    // It forgot first, and the reload undid it: `reload` asks the internal
+    // service for the session list, and a list fetched a moment after a
+    // deregistration can still contain the session just removed. CI showed
+    // `Deregister success: true` followed by `still in navbar: true`.
+    const effects: ReturnType<typeof io> = io();
+
+    await signOutSession(effects, TARGET, 'deregister', () => {});
+
+    expect(effects.order).toEqual(['reload', 'forget']);
   });
 });

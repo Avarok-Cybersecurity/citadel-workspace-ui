@@ -16,15 +16,26 @@
  * `Account menu for alice (workspace administrator)`.
  */
 
+/** Names the TopBar shows when it does not yet know who is signed in. */
+const PLACEHOLDERS: ReadonlySet<string> = new Set(['User', 'Loading...']);
+
 /** The username in an account-menu aria-label, or null if it is not one. */
 export function usernameFromAccountLabel(label: string | null): string | null {
   if (!label) return null;
   const match = /^Account menu for (.+?)(?: \(workspace administrator\))?$/.exec(label.trim());
   if (!match) return null;
   const username = match[1].trim();
-  // The TopBar falls back to the literal "User" when it knows no name. That is
-  // the absence of an answer, not an account called User.
-  return username === '' || username === 'User' ? null : username;
+  // Placeholders are the absence of an answer, not an account with that name.
+  //
+  // The TopBar falls back to the literal "User" when it knows no name, and
+  // `user-service` seeds a profile with `username: 'Loading...'` while the real
+  // one is fetched. CI caught the second: every login check reported
+  //
+  //   a workspace loaded, but for Loading... rather than prev_sess_c_…
+  //
+  // and concluded the account could not sign in — a false negative from this
+  // helper rather than an answer about the account.
+  return PLACEHOLDERS.has(username) || username === '' ? null : username;
 }
 
 /**
@@ -33,12 +44,26 @@ export function usernameFromAccountLabel(label: string | null): string | null {
  * Reads the account-menu button rather than any workspace chrome, because the
  * chrome is identical for every user.
  */
-export async function signedInAs(page: {
-  locator: (selector: string) => {
-    first: () => { getAttribute: (name: string) => Promise<string | null>; count: () => Promise<number> };
-  };
-}): Promise<string | null> {
-  const button = page.locator('[data-testid="user-avatar-button"]').first();
-  if ((await button.count()) === 0) return null;
-  return usernameFromAccountLabel(await button.getAttribute('aria-label'));
+export async function signedInAs(
+  page: {
+    locator: (selector: string) => {
+      first: () => { getAttribute: (name: string) => Promise<string | null>; count: () => Promise<number> };
+    };
+    waitForTimeout: (ms: number) => Promise<void>;
+  },
+  timeoutMs: number = 10_000,
+): Promise<string | null> {
+  // Polled, because the name settles after the workspace renders: the profile
+  // is fetched separately and the TopBar shows "Loading..." until it arrives.
+  // Reading once produced a placeholder and a false "that is not the user".
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const button = page.locator('[data-testid="user-avatar-button"]').first();
+    if ((await button.count()) > 0) {
+      const name = usernameFromAccountLabel(await button.getAttribute('aria-label'));
+      if (name !== null) return name;
+    }
+    if (Date.now() >= deadline) return null;
+    await page.waitForTimeout(250);
+  }
 }

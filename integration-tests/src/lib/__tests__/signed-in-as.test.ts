@@ -24,6 +24,13 @@ describe('reading who is signed in from the account menu', () => {
     expect(usernameFromAccountLabel('Account menu for prev_sess_c_1788 (x)')).toBe('prev_sess_c_1788 (x)');
   });
 
+  it("is null for user-service's 'Loading...' seed", () => {
+    // CI read this as a username and reported "a workspace loaded, but for
+    // Loading... rather than prev_sess_c_…" for every login check — a false
+    // negative from the helper rather than an answer about the account.
+    expect(usernameFromAccountLabel('Account menu for Loading...')).toBeNull();
+  });
+
   it('is null for the placeholder the TopBar shows when it knows no name', () => {
     // `state.currentUser?.username || sessionFallback?.username || "User"`.
     // Treating that as an account called User would make the assertion pass for
