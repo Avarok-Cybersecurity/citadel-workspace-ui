@@ -50,7 +50,7 @@ export function useRetry<T, A extends unknown[] = unknown[]>(
     lastParams: null
   });
 
-  const execute = useCallback(
+  const execute: (...params: A) => Promise<T | null> = useCallback(
     async (...params: A): Promise<T | null> => {
       setState(prev => ({
         ...prev,
@@ -93,7 +93,7 @@ export function useRetry<T, A extends unknown[] = unknown[]>(
     [operation, onSuccess, onError]
   );
 
-  const retry = useCallback(async (): Promise<T | null> => {
+  const retry: () => Promise<T | null> = useCallback(async (): Promise<T | null> => {
     if (!state.lastParams || state.attempt > maxRetries) {
       return null;
     }

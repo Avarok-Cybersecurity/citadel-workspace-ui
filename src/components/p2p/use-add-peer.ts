@@ -13,10 +13,20 @@ import { debugLog } from '@/lib/debug-config';
  * place that does not exist. The two paths that actually work are the workspace
  * directory and Discover Peers, so those are what it names now.
  */
+/** What the add-a-peer form needs to render and submit itself. */
+export interface AddPeerForm {
+  value: string;
+  setValue: (next: string) => void;
+  error: string | null;
+  setError: (next: string | null) => void;
+  adding: boolean;
+  submit: () => Promise<void>;
+}
+
 export function useAddPeer(
   register: (cid: bigint) => Promise<unknown>,
   onAdded: () => void,
-) {
+): AddPeerForm {
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);

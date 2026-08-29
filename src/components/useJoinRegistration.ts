@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { joinFieldErrors } from './join-field-errors';
+import type { JoinRegistration } from './join-registration-shape';
 import { firstInvalidField } from './join-first-error';
 import { DEFAULT_SECURITY_SETTINGS } from './security-settings-defaults';
 import { useNavigate } from "react-router-dom";
@@ -39,7 +40,7 @@ export function useJoinRegistration(
    * the loss look like a glitch rather than the rule.
    */
   draft?: { initial: JoinFormData; onChange: (next: JoinFormData) => void },
-) {
+): JoinRegistration {
   const navigate: NavigateFunction = useNavigate();
   const { toast } = useToast();
   const [isRegistering, setIsRegistering] = useState(false);

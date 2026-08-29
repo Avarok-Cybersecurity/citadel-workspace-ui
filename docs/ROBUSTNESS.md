@@ -15899,3 +15899,30 @@ switch that has flipped, a counter that has moved, a URL that has changed —
 returning the moment the predicate holds. The auto-accept check uses it.
 
 > A sleep in front of a wait is slow. A sleep in place of one is a verdict.
+
+## Round 318 — three hooks that never said what they return
+
+`useLoginHandler`, `useJoinRegistration` and `useAddPeer` each return an object
+of eight to twelve members and declared none of it. The form on the other side
+of each was working from inference, which is fine until somebody reads the hook
+to find out what the form can do — and then the answer is two hundred lines of
+flow with a `return {` at the bottom.
+
+`LoginHandler`, `JoinRegistration` and `AddPeerForm` say it now. Two notes from
+writing them:
+
+**A setter is `Dispatch<SetStateAction<T>>`, not `(next: T) => void`.** Narrowing
+it looked tidier and broke `Login.tsx` immediately: a caller passing an updater
+function is doing the ordinary thing, and the narrowed type makes the hook's own
+state harder to use than `useState`'s.
+
+**`JoinRegistration` went to its own file.** `useJoinRegistration` was at 245
+lines and the interface put it at 260. The contract is also the half a reader
+wants first — the hook is flow, and its agreement with the form is twelve lines
+— so the extraction is what should have been there anyway rather than a way of
+getting under a number.
+
+| | |
+|---|---|
+| Typing debt | 153 → **145** (251 at session start, −42%) |
+| Production files remaining | 65, holding 78 of the 145 |

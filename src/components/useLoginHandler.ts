@@ -39,7 +39,27 @@ interface UseLoginHandlerParams {
   onNext: (connectionId: string) => void;
 }
 
-export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
+/** Everything the sign-in form renders and submits with. */
+export interface LoginHandler {
+  username: string;
+  setUsername: React.Dispatch<React.SetStateAction<string>>;
+  password: string;
+  setPassword: React.Dispatch<React.SetStateAction<string>>;
+  server: string;
+  setServer: React.Dispatch<React.SetStateAction<string>>;
+  error: string | null;
+  loading: boolean;
+  securitySettings: SecuritySettingsState;
+  // The setter React gives, not a narrowed one: a caller that passes an updater
+  // function is doing the ordinary thing, and narrowing this to a plain value
+  // makes the hook's own state harder to use than useState's.
+  setSecuritySettings: React.Dispatch<React.SetStateAction<SecuritySettingsState>>;
+  handleLogin: (e: React.FormEvent) => Promise<void>;
+  /** Which field to mark, so the message lands on the control it is about. */
+  invalidField: LoginField | null;
+}
+
+export function useLoginHandler({ onNext }: UseLoginHandlerParams): LoginHandler {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   // Registration still needs one; signing in does not. Kept so the hook's
