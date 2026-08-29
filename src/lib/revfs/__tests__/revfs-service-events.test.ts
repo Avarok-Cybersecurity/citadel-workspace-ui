@@ -199,7 +199,7 @@ describe('RevfsService (events & sync)', () => {
     it('returns unsubscribe function', async () => {
       const service = createTestService(defaultIntentHandler());
       const changes: string[] = [];
-      const unsub = service.onTreeChanged((key) => { changes.push(key); });
+      const unsub = service.onTreeChanged((key): void => { changes.push(key); });
       await service.getTree(ALICE, BOB);
       const countBefore: number = changes.length;
       unsub();

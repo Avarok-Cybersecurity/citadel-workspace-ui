@@ -9,7 +9,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { retryPendingOps } from '../revfs-retry';
 
-const EXHAUSTED = 5; // MAX_OP_RETRIES
+const EXHAUSTED: number = 5; // MAX_OP_RETRIES
 
 function op(id: string, retryCount: number) {
   return { operation: { op_id: id, op_type: 'RenameFile' }, retryCount };

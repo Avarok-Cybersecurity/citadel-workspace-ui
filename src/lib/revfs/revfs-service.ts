@@ -34,7 +34,7 @@ import { persistTree } from './persist-tree';
 
 
 export class RevfsService {
-  private readonly state = new RevfsState();
+  private readonly state: RevfsState = new RevfsState();
   private io: RevfsIO | null = null;
   private initialized = false;
 

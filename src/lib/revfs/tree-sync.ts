@@ -75,7 +75,7 @@ export function applyRemoteOp(
       // Same inversion as tree-mutations.ts `placeFile` — see the note there.
       // Whoever uploaded holds the decryptable copy's address (Remote); whoever
       // received the bytes is the one hosting them.
-      const fileState = op.metadata.uploadedByCid === _viewerCid
+      const fileState: RevfsFileState = op.metadata.uploadedByCid === _viewerCid
         ? RevfsFileState.Remote
         : RevfsFileState.Hosted;
 

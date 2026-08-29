@@ -100,8 +100,8 @@ describe('deep nested tree stress tests (extra)', () => {
 
   it('handles wide tree at each level (many siblings)', () => {
     let tree: RevfsNode = createDefaultTree();
-    const SIBLINGS_PER_LEVEL = 20;
-    const LEVELS = 5;
+    const SIBLINGS_PER_LEVEL: number = 20;
+    const LEVELS: number = 5;
 
     for (let level: number = 0; level < LEVELS; level++) {
       const parentPath: string = level === 0 ? '/' : `/wide-${level - 1}`;

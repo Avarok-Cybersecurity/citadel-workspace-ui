@@ -13,9 +13,9 @@
 
 import type { RevfsNode, RevfsPendingOp, TreeKey } from '@/types/revfs-types';
 
-const ROOT_DIR_NAME = 'revfs';
-const TREE_FILE = 'tree.json';
-const PENDING_OPS_FILE = 'pending_ops.json';
+const ROOT_DIR_NAME: string = 'revfs';
+const TREE_FILE: string = 'tree.json';
+const PENDING_OPS_FILE: string = 'pending_ops.json';
 
 /**
  * BigInt-safe JSON serializer for RevfsNode trees.

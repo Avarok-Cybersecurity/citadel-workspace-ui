@@ -20,10 +20,10 @@ export interface PendingAck {
 export type TreeChangedCallback = (key: TreeKey, tree: RevfsNode) => void;
 
 export class RevfsState {
-  readonly trees = new Map<TreeKey, RevfsNode>();
-  readonly pendingOps = new Map<TreeKey, RevfsPendingOp[]>();
-  readonly pendingAcks = new Map<string, PendingAck>();
-  private readonly listeners = new Set<TreeChangedCallback>();
+  readonly trees: Map<string, RevfsNode> = new Map<TreeKey, RevfsNode>();
+  readonly pendingOps: Map<string, RevfsPendingOp[]> = new Map<TreeKey, RevfsPendingOp[]>();
+  readonly pendingAcks: Map<string, PendingAck> = new Map<string, PendingAck>();
+  private readonly listeners: Set<TreeChangedCallback> = new Set<TreeChangedCallback>();
 
   // ── Tree ──────────────────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ export class RevfsState {
 
   registerAck(opId: string, timeoutMs: number): Promise<boolean> {
     return new Promise<boolean>((resolve, reject) => {
-      const timeout = setTimeout(() => {
+      const timeout = setTimeout((): void => {
         this.pendingAcks.delete(opId);
         reject(new Error(`ACK timeout for op ${opId}`));
       }, timeoutMs);

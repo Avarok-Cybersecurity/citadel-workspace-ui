@@ -25,12 +25,12 @@ const sent: Array<Record<string, unknown>> = [];
 
 /** The one I/O seam this module has — injected, so nothing needs mocking. */
 const deps = {
-  sendInternalServiceRequest: async (request: unknown) => {
+  sendInternalServiceRequest: async (request: unknown): Promise<void> => {
     sent.push(request as Record<string, unknown>);
   },
 };
 
-const CID = 7n;
+const CID: bigint = 7n;
 const CONTENT: Uint8Array<ArrayBuffer> = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
 
 /** The SendFile payload from the most recent send. */

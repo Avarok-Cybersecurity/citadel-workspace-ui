@@ -25,7 +25,7 @@ export interface RevfsIODeps {
 }
 
 export class RevfsIO {
-  private readonly storage = new RevfsOpfsStorage();
+  private readonly storage: RevfsOpfsStorage = new RevfsOpfsStorage();
   private readonly deps: RevfsIODeps;
 
   constructor(deps: RevfsIODeps) {

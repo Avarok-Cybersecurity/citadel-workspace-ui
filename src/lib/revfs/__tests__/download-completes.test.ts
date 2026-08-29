@@ -32,23 +32,23 @@ import { describe, it, expect, vi } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';
 import { backendDownloadFile } from '../revfs-io-download';
 
-const CID = 7n;
-const PATH = '/docs/notes.txt';
+const CID: bigint = 7n;
+const PATH: string = '/docs/notes.txt';
 
 /** Capture the request_id the download used, so ticks can be addressed to it. */
 function startDownload() {
   let requestId: string = '';
   const deps = {
-    sendInternalServiceRequest: async (request: unknown) => {
+    sendInternalServiceRequest: async (request: unknown): Promise<void> => {
       const payload: Record<string, string> = (request as Record<string, Record<string, string>>).DownloadFile;
       requestId = payload.request_id;
     },
   };
   const pending = backendDownloadFile(deps, CID, null, PATH);
-  return { pending, requestId: () => requestId };
+  return { pending, requestId: (): string => requestId };
 }
 
-const tick = (requestId: string, status: unknown) =>
+const tick = (requestId: string, status: unknown): void =>
   eventEmitter.emit('websocket-message', {
     FileTransferTickNotification: { request_id: requestId, status },
   });

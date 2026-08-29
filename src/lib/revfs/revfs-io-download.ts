@@ -18,7 +18,7 @@ export async function backendDownloadFile(
   peerCid: bigint | null,
   virtualDir: string,
 ): Promise<RevfsIntentResult> {
-  const requestId = crypto.randomUUID();
+  const requestId: string = crypto.randomUUID();
   const isServerStorage = peerCid === null;
   debugLog('RevfsIO', `backendDownloadFile: virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
 
@@ -34,7 +34,7 @@ export async function backendDownloadFile(
   };
 
   return new Promise((resolve) => {
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout((): void => {
       eventEmitter.off('websocket-message', handleMessage);
       debugLog('RevfsIO', 'backendDownloadFile timed out');
       resolve({ type: 'backend-download-file', success: false });
@@ -44,13 +44,13 @@ export async function backendDownloadFile(
     // the transfer completes.
     let receivedPath: string | undefined;
 
-    const settle = (result: RevfsIntentResult) => {
+    const settle = (result: RevfsIntentResult): void => {
       clearTimeout(timeout);
       eventEmitter.off('websocket-message', handleMessage);
       resolve(result);
     };
 
-    const handleMessage = (message: unknown) => {
+    const handleMessage = (message: unknown): void => {
       const msg = message as Record<string, unknown>;
 
       // A REVFS pull reports progress through FileTransferTickNotification.

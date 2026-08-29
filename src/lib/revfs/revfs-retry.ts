@@ -13,7 +13,7 @@ import type { RevfsState } from './revfs-state';
 import type { RevfsIO } from './revfs-io';
 import { debugLog } from '@/lib/debug-config';
 
-const ACK_TIMEOUT_MS = 15_000;
+const ACK_TIMEOUT_MS: number = 15_000;
 
 export interface RetryDeps {
   state: RevfsState;
@@ -33,7 +33,7 @@ export interface RetryDeps {
  * either side. The provider next door (yjs-p2p-provider/ack-checker.ts) had the
  * retry loop this needed the whole time.
  */
-const MAX_OP_RETRIES = 5;
+const MAX_OP_RETRIES: number = 5;
 
 /**
  * Re-send everything queued for a peer. Call when a channel becomes usable.

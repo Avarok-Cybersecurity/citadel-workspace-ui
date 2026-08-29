@@ -15,8 +15,8 @@ import {
  *
  * Pure tree in, pure tree out: no mocks, no environment.
  */
-const now = 1_700_000_000_000;
-const viewer = 1n;
+const now: number = 1_700_000_000_000;
+const viewer: bigint = 1n;
 
 function dir(path: string, children: RevfsNode[] = []): RevfsNode {
   return {

@@ -13,7 +13,7 @@ import { collectFiles } from '../tree-queries';
 import { createDefaultTree, mkdir, placeFile, serverTreeKey } from '../tree-operations';
 import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
 
-const MY_CID = 7n;
+const MY_CID: bigint = 7n;
 
 function meta(name: string, dir: string): RevfsFileMetadata {
   return {
@@ -147,7 +147,7 @@ describe('serverRmdir', () => {
 });
 
 describe('peerRmdir', () => {
-  const PEER_CID = 42n;
+  const PEER_CID: bigint = 42n;
 
   it('deletes the orphaned bytes from peer storage, like its server twin', async () => {
     const { ctx, executed } = setup(buildTree());

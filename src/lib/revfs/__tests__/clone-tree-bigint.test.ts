@@ -9,7 +9,7 @@ import { cloneTree, createDefaultTree } from '../tree-queries';
 import { placeFile, mkdir } from '../tree-mutations';
 import type { RevfsFileMetadata } from '@/types/revfs-types';
 
-const CID = 18446744073709551615n; // u64 max — also beyond Number.MAX_SAFE_INTEGER
+const CID: bigint = 18446744073709551615n; // u64 max — also beyond Number.MAX_SAFE_INTEGER
 
 function meta(): RevfsFileMetadata {
   return {

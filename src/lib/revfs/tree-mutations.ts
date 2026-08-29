@@ -137,7 +137,7 @@ export function placeFile(
   // was "Hosted for peer (encrypted, cannot open)" about a file only they could
   // open. The peer, meanwhile, was stamped Remote and pulled from the uploader's
   // node, where nothing was ever stored. The file was retrievable by nobody.
-  const fileState = metadata.uploadedByCid === viewerCid
+  const fileState: RevfsFileState = metadata.uploadedByCid === viewerCid
     ? RevfsFileState.Remote
     : RevfsFileState.Hosted;
 

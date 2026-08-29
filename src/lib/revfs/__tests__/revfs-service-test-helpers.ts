@@ -16,8 +16,8 @@ import { RevfsState } from '../revfs-state';
 
 // ── Constants ───────────────────────────────────────────────────────────
 
-export const ALICE = 100n;
-export const BOB = 200n;
+export const ALICE: bigint = 100n;
+export const BOB: bigint = 200n;
 
 // ── Types ───────────────────────────────────────────────────────────────
 

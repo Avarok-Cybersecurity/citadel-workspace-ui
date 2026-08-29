@@ -4,8 +4,8 @@
 
 import type { RevfsFileMetadata } from '@/types/revfs-types';
 
-export const CID_A = 100n;
-export const CID_B = 200n;
+export const CID_A: bigint = 100n;
+export const CID_B: bigint = 200n;
 
 export function makeMeta(overrides?: Partial<RevfsFileMetadata>): RevfsFileMetadata {
   return {

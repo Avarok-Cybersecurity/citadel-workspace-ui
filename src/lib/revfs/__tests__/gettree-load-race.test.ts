@@ -21,7 +21,7 @@ import type { RevfsState } from '../revfs-state';
 const withFolder = (): RevfsNode =>
   ({ name: '', type: 'directory', children: [{ name: 'test-folder', type: 'directory', children: [] }] }) as unknown as RevfsNode;
 
-const names = (tree: RevfsNode | null | undefined) =>
+const names = (tree: RevfsNode | null | undefined): string[] =>
   ((tree as unknown as { children?: Array<{ name: string }> })?.children ?? []).map((c) => c.name);
 
 describe('getTree racing an applied op', () => {

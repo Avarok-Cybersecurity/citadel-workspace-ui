@@ -27,8 +27,8 @@ import { CID_A, CID_B, makeMeta } from './tree-test-helpers';
 // Helpers
 // ============================================================================
 
-const MAX_DEPTH = 50;
-const FILES_PER_LEVEL = 3;
+const MAX_DEPTH: number = 50;
+const FILES_PER_LEVEL: number = 3;
 
 function buildPathAtDepth(depth: number): string {
   if (depth === 0) return '/';
@@ -208,7 +208,7 @@ describe('deep nested tree stress tests', () => {
 
   it('applies remote operations to deep tree', () => {
     const { tree } = createDeepTree(20, 2);
-    const deepPath = '/level-0/level-1/level-2/level-3/level-4/level-5/level-6/level-7/level-8/level-9';
+    const deepPath: string = '/level-0/level-1/level-2/level-3/level-4/level-5/level-6/level-7/level-8/level-9';
 
     const mkdirOp = { op_id: '1', op_type: RevfsOpType.Mkdir, path: `${deepPath}/remote-dir`, timestamp: Date.now() };
     let result: RevfsNode = applyRemoteOp(tree, mkdirOp, CID_B);

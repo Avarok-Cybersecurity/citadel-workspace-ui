@@ -26,8 +26,8 @@ import { isDownloadableState, calculateStorageUsage } from '../tree-queries';
 import { RevfsOpType, TreeScope } from '@/types/revfs-types';
 import type { RevfsFileMetadata } from '@/types/revfs-types';
 
-const UPLOADER = 111n;
-const HOLDER = 222n;
+const UPLOADER: bigint = 111n;
+const HOLDER: bigint = 222n;
 
 function makeMeta(uploadedByCid: bigint): RevfsFileMetadata {
   return {

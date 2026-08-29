@@ -11,7 +11,7 @@ import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
 
 /** Timeout for backend file operations (30 seconds) */
-export const BACKEND_TIMEOUT_MS = TIMEOUT.FILE_SEND_MS;
+export const BACKEND_TIMEOUT_MS: number = TIMEOUT.FILE_SEND_MS;
 
 export interface NetworkIODeps {
   sendInternalServiceRequest: (request: unknown) => Promise<void>;
@@ -30,7 +30,7 @@ export async function backendSendFile(
   content: Uint8Array,
   virtualDir: string,
 ): Promise<RevfsIntentResult> {
-  const requestId = crypto.randomUUID();
+  const requestId: string = crypto.randomUUID();
   const isServerStorage = peerCid === null;
   debugLog('RevfsIO', `backendSendFile: name=${fileName} bytes=${content.byteLength} virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
 
@@ -67,7 +67,7 @@ export async function backendSendFile(
     // transfer that is still ticking must not be declared dead at a fixed
     // 30s, while a transfer nobody is answering still fails honestly.
     let timeout: ReturnType<typeof setTimeout>;
-    const armTimeout = () => {
+    const armTimeout = (): void => {
       clearTimeout(timeout);
       timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handleMessage);
@@ -76,13 +76,13 @@ export async function backendSendFile(
       }, BACKEND_TIMEOUT_MS);
     };
 
-    const settle = (result: RevfsIntentResult) => {
+    const settle = (result: RevfsIntentResult): void => {
       clearTimeout(timeout);
       eventEmitter.off('websocket-message', handleMessage);
       resolve(result);
     };
 
-    const handleMessage = (message: unknown) => {
+    const handleMessage = (message: unknown): void => {
       const msg = message as Record<string, unknown>;
 
       // SendFileRequestSuccess is emitted the moment the internal service
@@ -154,7 +154,7 @@ export async function backendDeleteFile(
   peerCid: bigint | null,
   virtualDir: string,
 ): Promise<RevfsIntentResult> {
-  const requestId = crypto.randomUUID();
+  const requestId: string = crypto.randomUUID();
   const isServerStorage = peerCid === null;
   debugLog('RevfsIO', `backendDeleteFile: virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
 
@@ -168,13 +168,13 @@ export async function backendDeleteFile(
   };
 
   return new Promise((resolve) => {
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout((): void => {
       eventEmitter.off('websocket-message', handleMessage);
       debugLog('RevfsIO', 'backendDeleteFile timed out');
       resolve({ type: 'backend-delete-file', success: false });
     }, BACKEND_TIMEOUT_MS);
 
-    const handleMessage = (message: unknown) => {
+    const handleMessage = (message: unknown): void => {
       const msg = message as Record<string, unknown>;
 
       const success = msg.DeleteVirtualFileSuccess as { request_id?: string } | undefined;

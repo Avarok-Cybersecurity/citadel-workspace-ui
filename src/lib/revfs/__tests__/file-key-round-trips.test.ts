@@ -20,7 +20,7 @@ import { describe, it, expect } from 'vitest';
 import { createTestService, ALICE } from './revfs-service-test-helpers';
 import type { RevfsIntent, RevfsIntentResult } from '@/types/revfs-intents';
 
-const FILE_PATH = '/notes.txt';
+const FILE_PATH: string = '/notes.txt';
 
 /** Run `act` against a real service, returning every intent it emitted. */
 async function intentsFrom(

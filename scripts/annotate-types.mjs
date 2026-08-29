@@ -63,11 +63,20 @@ for (const source of program.getSourceFiles()) {
     // furthest -- change a function's body and its type changes three modules
     // away with nothing to say so. None of the narrowing hazards apply, because
     // a return type does not alias a condition.
+    // Arrow functions and function expressions too, not only named ones.
+    //
+    // They are most of the debt -- every callback passed to a hook, an event
+    // handler or an options object -- and `void` is most of THEIR answer, which
+    // the first version skipped as though it were nothing to say. It is the
+    // whole statement for a callback: this returns nothing, and a body that
+    // starts returning something is a change to its contract.
     if (
-      (ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node)) &&
+      (ts.isFunctionDeclaration(node) ||
+        ts.isMethodDeclaration(node) ||
+        ts.isArrowFunction(node) ||
+        ts.isFunctionExpression(node)) &&
       !node.type &&
-      node.body &&
-      node.name
+      node.body
     ) {
       const signature = checker.getSignatureFromDeclaration(node);
       if (signature) {
@@ -76,9 +85,24 @@ for (const source of program.getSourceFiles()) {
           node,
           ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType,
         );
-        if (isSafe(printed, source) && printed !== 'void') {
-          // After the parameter list, before the body.
-          edits.push({ position: node.body.getFullStart(), text: `: ${printed}` });
+        // `JSX.Element` prints unqualified and resolves globally; everything
+        // else goes through the same import-free test as a variable.
+        if ((isSafe(printed, source) || printed === 'JSX.Element') && printed !== 'any') {
+          // After the parameter list, before `=>` or the body.
+          //
+          // A parenthesis-less arrow -- `value => ...` -- has nowhere to put a
+          // return type: inserting before the `=>` lands inside the parameter
+          // and produces `value: void =>`, which is a syntax error the first
+          // run made in six files. Skipped rather than parenthesised, because a
+          // codemod that rewrites parameter lists is a different and larger
+          // thing than one that writes down a type.
+          const insertAt = ts.isArrowFunction(node)
+            ? node.equalsGreaterThanToken.getFullStart()
+            : node.body.getFullStart();
+          const before = source.getFullText().slice(0, insertAt).trimEnd();
+          if (!ts.isArrowFunction(node) || before.endsWith(')')) {
+            edits.push({ position: insertAt, text: `: ${printed}` });
+          }
         }
       }
     }
@@ -89,7 +113,17 @@ for (const source of program.getSourceFiles()) {
       node.initializer &&
       ts.isIdentifier(node.name)
     ) {
-      const type = checker.getTypeAtLocation(node);
+      // Widened, not the literal. `const RETRIES = 2` infers the literal type
+      // `2`; writing that down narrows the constant to a single value and every
+      // caller passing a different number stops compiling. The base type is
+      // what the declaration already means -- `number` -- and is what a person
+      // would have written. This unlocks the whole class the first version had
+      // to refuse outright.
+      const inferred = checker.getTypeAtLocation(node);
+      const type =
+        ts.getCombinedNodeFlags(node) & ts.NodeFlags.Const
+          ? checker.getBaseTypeOfLiteralType(inferred)
+          : inferred;
       const printed = checker.typeToString(
         type,
         node,
