@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildTreeFromNodes } from '../tree-node-utils';
 import type { DomainNode } from '../tree-node-types';
+import type { TreeNode } from '@/components/layout/sidebar/tree-node-types';
 
 /**
  * A node carrying only the fields buildTreeFromNodes reads. Filling in the rest
@@ -40,7 +41,7 @@ describe('buildTreeFromNodes', () => {
     // root matched the first rule and its children matched the second, so every
     // office rendered twice — once beside the root and once beneath it —
     // producing duplicate DOM ids and testids.
-    const tree = buildTreeFromNodes([
+    const tree: TreeNode | null = buildTreeFromNodes([
       node('workspace-root', null, 'Root Workspace'),
       node('office-a', 'workspace-root', 'General'),
       node('office-b', 'workspace-root', 'Engineering'),
@@ -53,7 +54,7 @@ describe('buildTreeFromNodes', () => {
   });
 
   it('nests children under their parent', () => {
-    const tree = buildTreeFromNodes([
+    const tree: TreeNode | null = buildTreeFromNodes([
       node('workspace-root', null, 'Root'),
       node('office-a', 'workspace-root', 'General'),
       node('room-a', 'office-a', 'Random'),
@@ -66,7 +67,7 @@ describe('buildTreeFromNodes', () => {
   it('wraps orphans in a synthetic root when the real root is absent', () => {
     // The other half of the same rule: with no 'workspace-root' node in the set,
     // its children have a dangling parent and are genuinely roots.
-    const tree = buildTreeFromNodes([
+    const tree: TreeNode | null = buildTreeFromNodes([
       node('office-a', 'workspace-root', 'General'),
       node('office-b', 'workspace-root', 'Engineering'),
     ]);

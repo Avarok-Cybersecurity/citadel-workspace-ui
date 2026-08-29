@@ -39,7 +39,7 @@ const source: string = readFileSync(
  */
 function methodBody(name: string): string {
   const definition: RegExp = new RegExp(`\\n  (?:private |public |protected )?(?:async )?${name}\\(`);
-  const match = definition.exec(source);
+  const match: RegExpExecArray | null = definition.exec(source);
   expect(match, `${name} should be defined`).not.toBeNull();
   const rest: string = source.slice(match!.index);
   const end: number = rest.indexOf('\n  }\n');

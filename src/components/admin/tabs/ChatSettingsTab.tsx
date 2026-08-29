@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef  } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -11,6 +11,7 @@ import { saveChatSettings, MAX_CHAT_RULES_LENGTH } from './save-chat-settings';
 import { Loader2, MessageSquare, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { debugLog } from '@/lib/debug-config';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: AdminTabProps): JSX.Element {
   const { toast } = useToast();
@@ -43,7 +44,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
       try {
         // Same store the sidebar and BaseOffice read from, so the tab cannot
         // disagree with what the rest of the app shows.
-        const node = state.nodes[entityId];
+        const node: DomainNode = state.nodes[entityId];
         const enabled: boolean = node ? node.chat_enabled : true;
         const rules: string = node?.rules ?? '';
 

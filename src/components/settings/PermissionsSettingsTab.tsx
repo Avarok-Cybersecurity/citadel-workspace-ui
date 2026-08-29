@@ -15,11 +15,12 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { usePermissions } from '@/contexts/PermissionsContext';
+import { usePermissions  } from '@/contexts/PermissionsContext';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import type { NodeEntityType } from '@/lib/entity-type-registry';
 import { RoleBadge, GroupedPermissionTable } from './PermissionWidgets';
 import { ParentNodePermissionSection } from './PermissionNodeSections';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 /**
  * Main PermissionsSettingsTab component
@@ -50,10 +51,10 @@ export function PermissionsSettingsTab(): JSX.Element {
 
   // Group nodes by parent/child hierarchy using parent_id relationships
   const nodesWithChildren: { id: string; name: string; entityType: NodeEntityType; children: { id: string; name: string; entityType: NodeEntityType; }[]; }[] = useMemo((): { id: string; name: string; entityType: NodeEntityType; children: { id: string; name: string; entityType: NodeEntityType; }[]; }[] => {
-    const allNodes = Object.values(state.nodes);
+    const allNodes: DomainNode[] = Object.values(state.nodes);
     const childParentIds: Set<string | null> = new Set(allNodes.filter(n => n.parent_id).map(n => n.parent_id));
-    const parentNodes = allNodes.filter(n => childParentIds.has(n.id));
-    const leafNodes = allNodes.filter(n => !childParentIds.has(n.id) && n.parent_id);
+    const parentNodes: DomainNode[] = allNodes.filter(n => childParentIds.has(n.id));
+    const leafNodes: DomainNode[] = allNodes.filter(n => !childParentIds.has(n.id) && n.parent_id);
 
     return parentNodes.map(parent => ({
       id: parent.id,

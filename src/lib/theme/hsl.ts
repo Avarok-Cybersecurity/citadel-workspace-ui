@@ -30,7 +30,7 @@ export function toCssColor(color: HslColor): string {
 
 /** Parse `H S% L%` back into channels. Returns null rather than guessing. */
 export function fromCssValue(value: string): HslColor | null {
-  const match = value.trim().match(/^(-?[\d.]+)\s+(-?[\d.]+)%\s+(-?[\d.]+)%$/);
+  const match: RegExpMatchArray | null = value.trim().match(/^(-?[\d.]+)\s+(-?[\d.]+)%\s+(-?[\d.]+)%$/);
   if (!match) return null;
   const [, h, s, l] = match;
   return clampHsl({ h: Number(h), s: Number(s), l: Number(l) });

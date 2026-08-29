@@ -20,6 +20,7 @@ import { connectionManager } from "@/lib/connection";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 interface BaseOfficeProps {
   title: string;
@@ -31,7 +32,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   const { state } = useWorkspace();
 
   // Get the entity data from workspace state (unified node hierarchy)
-  const entityData = nodeId ? state.nodes[nodeId] : null;
+  const entityData: DomainNode | null = nodeId ? state.nodes[nodeId] : null;
 
   // Initialize content from mdx_content if available, otherwise use getInitialContent
   const [content, setContent] = useState<string>(

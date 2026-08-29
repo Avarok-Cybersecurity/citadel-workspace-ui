@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState  } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,7 @@ import { AdminModalProps, EntityData } from './types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { getEntityMetadata , type EntityTypeMetadata } from '@/lib/entity-type-registry';
 import { debugLog } from '@/lib/debug-config';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 export function AdminModal({
   isOpen,
@@ -46,7 +47,7 @@ export function AdminModal({
             });
           }
         } else {
-          const node = state.nodes[entityId];
+          const node: DomainNode = state.nodes[entityId];
           if (node) {
             setEntity({
               id: node.id,

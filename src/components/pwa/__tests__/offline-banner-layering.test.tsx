@@ -19,9 +19,9 @@ const src = (p: string): string => readFileSync(join(process.cwd(), 'src', p), '
 
 /** The numeric z-index a Tailwind class encodes, e.g. z-40 or z-[110]. */
 function zIndex(className: string): number {
-  const bracketed = className.match(/z-\[(\d+)\]/);
+  const bracketed: RegExpMatchArray | null = className.match(/z-\[(\d+)\]/);
   if (bracketed) return Number(bracketed[1]);
-  const plain = className.match(/z-(\d+)/);
+  const plain: RegExpMatchArray | null = className.match(/z-(\d+)/);
   return plain ? Number(plain[1]) : 0;
 }
 
@@ -62,7 +62,7 @@ describe('offline banner layering', () => {
 
     // Both panes: the banner spans the full width, so the sidebar is covered too.
     const layout: string = src('components/layout/AppLayout.tsx');
-    const reserving = layout.match(/pt-\[calc\(3\.5rem\+var\(--offline-banner-height[^\]]*\]/g) ?? [];
+    const reserving: [] | RegExpMatchArray = layout.match(/pt-\[calc\(3\.5rem\+var\(--offline-banner-height[^\]]*\]/g) ?? [];
     expect(reserving.length).toBe(2);
   });
 });

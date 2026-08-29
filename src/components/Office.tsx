@@ -7,6 +7,7 @@ import { FileManagerContent } from "./file-manager/FileManagerContent";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { debugLog } from '@/lib/debug-config';
 import type { NavigateFunction } from 'react-router';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 export const Office: () => JSX.Element = (): JSX.Element => {
   const location = useLocation();
@@ -25,7 +26,7 @@ export const Office: () => JSX.Element = (): JSX.Element => {
     if (nodeId || section || hasNavigatedToDefault.current) return;
 
     // Find the default node from state
-    const defaultNode = Object.values(state.nodes).find(n => n.is_default);
+    const defaultNode: DomainNode | undefined = Object.values(state.nodes).find(n => n.is_default);
     if (defaultNode) {
       hasNavigatedToDefault.current = true;
       debugLog('Office', `[Office] Navigating to default node: ${defaultNode.name} (${defaultNode.id})`);

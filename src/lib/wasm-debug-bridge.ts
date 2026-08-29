@@ -41,7 +41,7 @@ export function parseAndFormatMixedContent(input: unknown): string {
   let lastIndex: number = 0;
   
   // Find all JSON matches
-  const matches = Array.from(input.matchAll(jsonRegex));
+  const matches: RegExpExecArray[] = Array.from(input.matchAll(jsonRegex));
   
   for (const match of matches) {
     const jsonStr: string = match[0];

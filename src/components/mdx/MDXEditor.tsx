@@ -82,7 +82,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
     const lineEnd: number = value.indexOf('\n', start);
     const line: string = value.substring(lineStart, lineEnd === -1 ? value.length : lineEnd);
 
-    const existingHeadingMatch = line.match(/^(#{1,6})\s/);
+    const existingHeadingMatch: RegExpMatchArray | null = line.match(/^(#{1,6})\s/);
 
     let newText;
     if (existingHeadingMatch) {

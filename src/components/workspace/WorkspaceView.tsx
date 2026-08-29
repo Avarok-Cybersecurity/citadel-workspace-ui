@@ -13,6 +13,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { tryParseCid } from '@/lib/utils/cid-utils';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 interface WorkspaceViewProps {
   nodeId?: string | null;
@@ -42,7 +43,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   const peerName: string | null = params.get('p2pUser');
 
   // Get entity data from unified node hierarchy
-  const node = nodeId ? state.nodes[nodeId] : null;
+  const node: DomainNode | null = nodeId ? state.nodes[nodeId] : null;
 
   // Determine whether this node has children (e.g., Office) or is a leaf (e.g., Room)
   const isLeafNode: boolean | null = node && isVariant(node.entity_type as Record<string, unknown>, 'Child')

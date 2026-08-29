@@ -82,7 +82,7 @@ describe('every font-size in index.css', () => {
       // Only bare pixel declarations. `max(12px, 0.75rem)` names a floor and a
       // scaling value, and reading its first argument as the size would flag
       // the fix as the defect.
-      const match = /font-size:\s*(\d+(?:\.\d+)?)px\s*;/.exec(line);
+      const match: RegExpExecArray | null = /font-size:\s*(\d+(?:\.\d+)?)px\s*;/.exec(line);
       if (!match) continue;
       if (Number(match[1]) < 12) tooSmall.push(`index.css:${index + 1} — ${line.trim()}`);
     }

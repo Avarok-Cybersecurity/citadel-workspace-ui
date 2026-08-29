@@ -33,6 +33,7 @@ import { MembersSectionModals } from './MembersSectionModals';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import type { NavigateFunction } from 'react-router';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 export const MembersSection: () => JSX.Element = (): JSX.Element => {
   const location = useLocation();
@@ -89,7 +90,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
     let domainType: string = 'workspace';
     if (currentNodeId) {
       domainId = currentNodeId;
-      const node = state.nodes[currentNodeId];
+      const node: DomainNode = state.nodes[currentNodeId];
       domainType = node ? getEntityTypeString(node.entity_type).toLowerCase() : 'workspace';
     }
     setPermissionModalData({ userId: member.id, domainId, domainType });
@@ -109,7 +110,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
   };
 
   const getLocationText = (): string => {
-    const node = currentNodeId ? state.nodes[currentNodeId] : undefined;
+    const node: DomainNode | undefined = currentNodeId ? state.nodes[currentNodeId] : undefined;
     return membersSectionLabel({
       entityLabel: node ? getEntityMetadata(node.entity_type).label : undefined,
     });

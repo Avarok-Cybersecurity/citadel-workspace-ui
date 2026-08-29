@@ -211,7 +211,7 @@ export class ConnectionStateCore {
   // ============================================================================
 
   extractCidFromErrorMessage(message: string): string | null {
-    const cidMatch = message.match(/cid\s*=\s*(\d+)/i);
+    const cidMatch: RegExpMatchArray | null = message.match(/cid\s*=\s*(\d+)/i);
     return cidMatch ? cidMatch[1] : null;
   }
 

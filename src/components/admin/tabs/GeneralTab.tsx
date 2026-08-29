@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef  } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '@/lib/workspace-service';
 import { Loader2 } from 'lucide-react';
 import { debugLog } from '@/lib/debug-config';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTabProps): JSX.Element {
   const { state } = useWorkspace();
@@ -45,7 +46,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
           setOriginalName(state.workspace.name);
           setOriginalDescription(state.workspace.description || '');
         } else {
-          const node = state.nodes[entityId];
+          const node: DomainNode = state.nodes[entityId];
           if (node) {
             setName(node.name);
             setDescription(node.description || '');

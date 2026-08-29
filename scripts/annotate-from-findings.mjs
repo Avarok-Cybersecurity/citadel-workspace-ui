@@ -104,6 +104,9 @@ const TYPE_WORDS = new Set([
   'ReadableStream', 'WritableStream', 'TransformStream', 'TextEncoder', 'TextDecoder',
   'Int8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint32Array', 'Float64Array',
   'BigInt64Array', 'BigUint64Array', 'Crypto', 'SubtleCrypto', 'CryptoKey',
+  'RegExpMatchArray', 'RegExpExecArray', 'PropertyKey', 'ThisType', 'InstanceType',
+  'ConstructorParameters', 'OmitThisParameter', 'Capitalize', 'Uncapitalize',
+  'Lowercase', 'Uppercase', 'NoInfer', 'IArguments', 'CallableFunction',
 ]);
 
 const RULES = {
@@ -167,8 +170,19 @@ for (const file of program.getSourceFiles()) {
     const isType = flags & (ts.SymbolFlags.Type | ts.SymbolFlags.Interface |
       ts.SymbolFlags.TypeAlias | ts.SymbolFlags.Class | ts.SymbolFlags.Enum);
     if (!isType) continue;
-    if (declaredIn.has(name) && declaredIn.get(name) !== file.fileName) ambiguous.add(name);
-    else declaredIn.set(name, file.fileName);
+    const known = declaredIn.get(name);
+    if (known && known !== file.fileName) {
+      // Declared twice. Prefer the one inside src -- `StoredSession` exists
+      // here and in the generated client package, and the app's own is the one
+      // every call site means. Ambiguous only when neither or both are ours.
+      const src = resolve(APP, 'src');
+      const knownIsOurs = known.startsWith(src);
+      const thisIsOurs = file.fileName.startsWith(src);
+      if (knownIsOurs === thisIsOurs) ambiguous.add(name);
+      else if (thisIsOurs) declaredIn.set(name, file.fileName);
+    } else if (!known) {
+      declaredIn.set(name, file.fileName);
+    }
   }
 }
 
@@ -403,6 +417,9 @@ function unresolvedNames(printed, source) {
   // for it -- `cid` alone accounted for thirty.
   const withoutProperties = printed.replace(/([A-Za-z_$][\w$]*)\s*\??\s*:/g, ':');
   const names = withoutProperties.match(/[A-Za-z_$][A-Za-z0-9_$]*/g) ?? [];
+  // A single upper-case letter is a type PARAMETER -- `T`, `K`, `V`. It has no
+  // declaration to import and never will; refusing the whole type is right.
+  if (names.some((name) => /^[A-Z]$/.test(name))) return refuse('type parameter', printed);
   const BUILTIN = new Set([
     'string', 'number', 'boolean', 'void', 'bigint', 'symbol', 'object', 'true', 'false',
     'Array', 'Promise', 'Map', 'Set', 'Record', 'Date', 'RegExp', 'Error', 'Uint8Array',

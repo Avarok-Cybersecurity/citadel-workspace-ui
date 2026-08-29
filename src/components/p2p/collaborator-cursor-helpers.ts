@@ -19,7 +19,7 @@ export interface FlashComment {
 
 /** Parse hex color to RGBA for transparency */
 export function hexToRgba(hex: string, alpha: number): string {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  const result: RegExpExecArray | null = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   if (result) {
     const r: number = parseInt(result[1], 16);
     const g: number = parseInt(result[2], 16);

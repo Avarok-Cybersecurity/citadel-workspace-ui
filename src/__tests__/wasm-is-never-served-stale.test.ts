@@ -36,7 +36,7 @@ const code: string = config.replace(/^\s*\/\/.*$/gm, '');
 
 describe('the WASM binary', () => {
   it('is precached, so it is versioned with the glue that calls it', () => {
-    const globPatterns = code.match(/globPatterns:\s*\[([^\]]*)\]/);
+    const globPatterns: RegExpMatchArray | null = code.match(/globPatterns:\s*\[([^\]]*)\]/);
     expect(globPatterns, 'no globPatterns in the workbox config').not.toBeNull();
     expect(
       globPatterns![1],
@@ -46,7 +46,7 @@ describe('the WASM binary', () => {
   });
 
   it('is not excluded from the precache', () => {
-    const globIgnores = code.match(/globIgnores:\s*\[([^\]]*)\]/);
+    const globIgnores: RegExpMatchArray | null = code.match(/globIgnores:\s*\[([^\]]*)\]/);
     expect(globIgnores).not.toBeNull();
     expect(
       globIgnores![1],
@@ -65,7 +65,7 @@ describe('the WASM binary', () => {
   });
 
   it('fits under the per-file precache cap', () => {
-    const cap = code.match(/maximumFileSizeToCacheInBytes:\s*(\d+)\s*\*\s*1024\s*\*\s*1024/);
+    const cap: RegExpMatchArray | null = code.match(/maximumFileSizeToCacheInBytes:\s*(\d+)\s*\*\s*1024\s*\*\s*1024/);
     expect(cap, 'no maximumFileSizeToCacheInBytes — the binary would be dropped').not.toBeNull();
 
     const capBytes: number = Number(cap![1]) * 1024 * 1024;
