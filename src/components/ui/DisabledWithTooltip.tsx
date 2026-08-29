@@ -56,12 +56,15 @@ interface DisabledWithTooltipProps {
  *
  * Shared by both components so the two cannot drift apart.
  */
-function disableChildren(children: React.ReactNode): React.ReactNode {
+function disableChildren(children: React.ReactNode, reason: string): React.ReactNode {
   return React.Children.map(children, (child) =>
     React.isValidElement(child)
       ? React.cloneElement(
-          child as React.ReactElement<{ disabled?: boolean; tabIndex?: number }>,
-          { disabled: true, tabIndex: -1 }
+          child as React.ReactElement<{ disabled?: boolean; tabIndex?: number; title?: string }>,
+          // `title` on the control itself, not only on the wrapper: hovering
+          // lands on the button, and a DOM dump of a refused control should say
+          // what refused it.
+          { disabled: true, tabIndex: -1, title: reason }
         )
       : child
   );
@@ -100,8 +103,20 @@ export const DisabledWithTooltip: React.FC<DisabledWithTooltipProps> = ({
             // aria-disabled beside it — the one thing this wrapper exists to
             // announce. group keeps it announced as a disabled region.
             role="group"
+            // The reason lived ONLY inside the Radix tooltip, which renders in
+            // a portal when the pointer is over the trigger. So it existed for
+            // a mouse and for nothing else: the region announced itself as
+            // disabled and never said why, and a DOM dump of a failing test
+            // showed a bare `<button disabled>Edit</button>` with the
+            // explanation nowhere in the document.
+            //
+            // Named here, and on the control itself below, so the sentence is
+            // in the accessibility tree and in the markup whether or not the
+            // tooltip ever opens.
+            title={tooltip}
+            aria-label={tooltip}
           >
-            {disableChildren(children)}
+            {disableChildren(children, tooltip)}
           </div>
         </TooltipTrigger>
         <TooltipContent

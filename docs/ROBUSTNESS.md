@@ -14672,3 +14672,53 @@ assertion discriminate. A negative control that passes is not a control.
 
 > A component that reports "retry shortly" to a caller that cannot retry has
 > built one half of a feature and documented the other.
+
+## Round 289 — a refusal with the reason in a portal, and a retry budget that never restarts
+
+CI's `node-content-propagation` has failed the same way in every recent run:
+
+```
+63 × locator resolved to <button disabled tabindex="-1" class="...">Edit</button>
+```
+
+That line is quoted verbatim in `permission-retry.ts`, written when a previous
+round fixed a permission fetch that was tried exactly once. The retry it added
+is bounded — four attempts, and then silence for the life of the page — so the
+end state is identical: the workspace administrator cannot edit, and there is
+nothing to press.
+
+Tracing it produced no defect in the grant itself. The server promotes the first
+member (`User pw_admin_… is the first workspace member; promoted to Admin` in
+the CI log), `check_entity_permission` short-circuits on the global admin role,
+the permissions endpoint computes through that same function, `Permission`
+serialises PascalCase on both sides, and `normalizeRole` already handles the
+role's casing. Every link holds. What the failure could not tell me is which
+branch it took — because the reason was not in the document.
+
+**The reason existed for a mouse and for nothing else.** `DisabledWithTooltip`
+put it in a Radix tooltip, rendered in a portal while the pointer is over the
+trigger. The wrapper announced `aria-disabled` with no name; the control inside
+was `disabled` and `tabIndex={-1}`. So a person using a keyboard was told
+"disabled region" and never why, and a DOM dump of a failing test showed a bare
+disabled button with the answer nowhere in the page. The sentence now sits on
+the wrapper (`title`, `aria-label`) and on the control itself, whether or not
+the tooltip ever opens. Every permission-gated control in the app goes through
+this wrapper, so this lands in all of them at once.
+
+A first attempt added `tabIndex={0}` to make the tooltip keyboard-reachable.
+`jsx-a11y/no-noninteractive-tabindex` was right to refuse it: a focus stop on a
+`role="group"` that does nothing is not the fix, and `disabled` is deliberate
+here — an earlier round made it real after finding Enter still fired the handler.
+
+**The budget now restarts.** Four attempts spent while the connection was still
+coming up refused the control permanently, and reported it as a denial rather
+than as an answer that never arrived. It starts again on
+`on-ws-connection-success` and `instance:cid-changed` as well as on a role
+change. Clearing the guard was not enough on its own — the fetch effect's
+dependencies are the domain, the cache and the fetcher, none of which a cleared
+ref moves, so the reset re-ran nothing. A generation counter in the deps is what
+makes it take effect. Both halves have their own negative control; the version
+that only cleared the ref fails the new test.
+
+> A control that refuses and cannot say why is indistinguishable from a bug in
+> the server, to the user and to whoever reads the failure.

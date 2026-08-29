@@ -21,6 +21,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { usePermission } from '../use-permission';
 import { Permission } from '@/contexts/PermissionsContext';
+import { eventEmitter } from '@/lib/event-emitter';
 
 const state: {
   fetches: number;
@@ -86,4 +87,34 @@ describe('a permissions fetch that comes back empty', () => {
     await new Promise<void>((resolve) => setTimeout(resolve, 1_500));
     expect(state.fetches).toBe(settled);
   }, 20_000);
+});
+
+describe('a retry budget that has run out', () => {
+  it('starts again when the connection comes back', async (): Promise<void> => {
+    // The budget is four attempts. Spending it while the connection was still
+    // coming up refused the control for the life of the page — the workspace
+    // admin's Edit button, permanently disabled, explaining itself as a denial
+    // rather than as an answer that never arrived.
+    const { result, rerender } = renderHook(() => usePermission('office-1', Permission.EditMdx));
+
+    await waitFor((): void => { expect(state.fetches).toBeGreaterThanOrEqual(4); }, {
+      timeout: 10_000,
+    });
+    const spent: number = state.fetches;
+    // Nothing more happens on its own: the budget is spent.
+    await new Promise((resolve): void => { setTimeout(resolve, 200); });
+    expect(state.fetches).toBe(spent);
+    expect(result.current.allowed).toBe(false);
+
+    state.succeedFrom = spent + 1;
+    eventEmitter.emit('on-ws-connection-success', {});
+
+    // The budget starts over: the request goes out again on its own.
+    await waitFor((): void => { expect(state.fetches).toBeGreaterThan(spent); }, { timeout: 10_000 });
+    // The real provider re-renders consumers by replacing its Map; the mocked
+    // one holds a plain object, so the render is driven here (as in the test
+    // above) rather than being what is under test.
+    rerender();
+    expect(result.current.allowed).toBe(true);
+  }, 30_000);
 });

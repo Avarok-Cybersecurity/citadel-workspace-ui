@@ -53,16 +53,50 @@ interface UsePermissionResult {
  * ```
  */
 /**
- * Clears a hook's "already tried this domain" guard when the role changes.
- * Without this, clearCache() on a promotion left every hook with an empty cache
- * AND a guard saying it had asked — denying every gated control until a reload.
+ * Events after which the answer may be different, so the retry budget starts
+ * again.
+ *
+ * `permissions:role-changed` was the only one. Without it, clearCache() on a
+ * promotion left every hook with an empty cache AND a guard saying it had
+ * asked — denying every gated control until a reload.
+ *
+ * The other two are the same failure from the other direction. The budget is
+ * four attempts and then silence, forever: a fetch that failed while the
+ * connection was still coming up left the control refused for the life of the
+ * page, and the reason shown was a denial rather than "we never got an answer".
+ * A reconnection, or a switch to a different session, is exactly the moment
+ * asking again is worth doing.
  */
-function useResetOnRoleChange(attempted: React.MutableRefObject<Map<string, number>>): void {
+const RETRY_AGAIN_AFTER: readonly string[] = [
+  'permissions:role-changed',
+  'on-ws-connection-success',
+  'instance:cid-changed',
+];
+
+/**
+ * Clears a hook's "already tried this domain" guard, and returns a number that
+ * changes each time it does.
+ *
+ * Clearing the ref alone changes nothing: the fetch effect's dependencies are
+ * the domain, the cache and the fetcher, none of which a cleared ref moves. The
+ * guard was reset and the effect never re-ran — the reset had no effect at all,
+ * which is the same shape as the bug it was written to fix.
+ */
+function useResetWhenTheAnswerMayChange(
+  attempted: React.MutableRefObject<Map<string, number>>,
+): number {
+  const [generation, setGeneration] = useState(0);
   useEffect(() => {
-    const onRoleChanged = (): void => attempted.current.clear();
-    eventEmitter.on('permissions:role-changed', onRoleChanged);
-    return (): void => { eventEmitter.off("permissions:role-changed", onRoleChanged); };
+    const reset = (): void => {
+      attempted.current.clear();
+      setGeneration((previous: number): number => previous + 1);
+    };
+    for (const event of RETRY_AGAIN_AFTER) eventEmitter.on(event, reset);
+    return (): void => {
+      for (const event of RETRY_AGAIN_AFTER) eventEmitter.off(event, reset);
+    };
   }, [attempted]);
+  return generation;
 }
 
 export function usePermission(
@@ -81,7 +115,7 @@ export function usePermission(
   /** Attempts made per domain, so a failure can be retried and still bounded. */
   const attemptedFetchRef: React.MutableRefObject<Map<string, number>> =
     useRef<Map<string, number>>(new Map());
-  useResetOnRoleChange(attemptedFetchRef);
+  const askAgain: number = useResetWhenTheAnswerMayChange(attemptedFetchRef);
 
   // Fetch this domain's permissions, and try again if the answer never came.
   //
@@ -126,7 +160,7 @@ export function usePermission(
       cancelled = true;
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [domainId, permissions, fetchPermissionsForDomain]);
+  }, [domainId, permissions, fetchPermissionsForDomain, askAgain]);
 
   const refresh: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (!domainId) return;
