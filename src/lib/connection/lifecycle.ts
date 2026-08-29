@@ -21,7 +21,24 @@ export async function handleSuccessfulConnection(
   state: ConnectionState,
   io: ConnectionIO,
 ): Promise<void> {
-  state.setCurrentConnectionInfo({ cid });
+  // MERGED, not assigned.
+  //
+  // This arrives from the WebSocket when a ConnectSuccess lands, and it knows
+  // only the CID. Assigning `{ cid }` replaces whatever was there -- including
+  // the `username` that `handleAuthSuccess` writes -- so a second success for
+  // the same session leaves the record CID-only.
+  //
+  // `permissionsService.getCurrentUserId()` reads exactly that username, and
+  // its comment records the consequence without the cause: "the synchronous
+  // accessor is null for a user who logged IN rather than registering". A null
+  // there is a permissions fetch that cannot say who it is for, and CI reports
+  // it as the workspace administrator's own Edit button, disabled for sixty
+  // seconds, over a title reading "Permissions have not been loaded for this
+  // domain".
+  //
+  // Same shape as the workspace metadata, which is shared with theming and was
+  // being assigned over: a partial write to a shared record has to merge.
+  state.updateCurrentConnectionInfo({ cid });
   debugLog('ConnectionService', 'ConnectionManager: Handling successful connection', cid.toString(), 'shouldUpdateStoredSession:', shouldUpdateStoredSession);
 
   io.setInstanceCid(cid);

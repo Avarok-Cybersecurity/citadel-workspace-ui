@@ -15189,3 +15189,45 @@ test stays the one being tested.
 
 > A retry that does not know how long the thing it is retrying takes will find
 > out by colliding with it.
+
+## Round 300 — a partial write over a shared record, and the admin who could not edit
+
+Round 298 established what the workspace administrator's disabled Edit button
+meant: the permission fetch never lands, and it is not a denial. This round is
+the mechanism.
+
+`permissionsService.getCurrentUserId()` reads
+`connectionManager.getConnectionInfo()?.username`, and its own comment records
+the symptom without the cause — *"the synchronous accessor is null for a user
+who logged IN rather than registering"*. A null there is a permissions fetch
+that cannot say who it is for, so nothing fills the cache and every gated
+control on the page stays refused.
+
+The username is written by `handleAuthSuccess`, on the login path, as part of a
+complete record. It is erased by `handleSuccessfulConnection`, which runs from
+the WebSocket when a ConnectSuccess lands and knows only the CID:
+
+```ts
+state.setCurrentConnectionInfo({ cid });   //  ASSIGNS. everything else goes.
+```
+
+`setCurrentConnectionInfo` assigns; `updateCurrentConnectionInfo` merges; the
+partial writer was calling the first. TypeScript could not object, because
+`username` is optional on `CurrentConnectionInfo` — **an optional field is what
+makes a partial write indistinguishable from a complete one.** The one writer
+that knows only a CID now merges, and the order of the two writers stops
+mattering.
+
+This is the same shape as the workspace metadata, which is shared with theming
+and was being assigned over, erasing `initialized` and leaving a modal backdrop
+across the whole app. A partial write to a shared record has to merge; there is
+no third option, and the two spellings sitting next to each other on the same
+class is how one of them got called by mistake.
+
+Grepped the mechanism rather than the symptom: the other two writers of that
+record — the reconnect path and `handleAuthSuccess` — both write complete
+records, so this was the only one.
+
+> Optional fields are how a partial write passes for a whole one. The compiler
+> checks that every field present is valid, never that the ones absent were
+> meant to be.
