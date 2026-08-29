@@ -17973,3 +17973,50 @@ Three controls, each failing exactly its own tests: null falling back to
 connected.
 
 2436 tests green, all 59 preflight checks.
+
+## Round 368 — "New message from alice" did nothing
+
+A sweep for the mirror of the listeners-have-emitters problem — names *emitted*
+that nothing listens for — found 14 of 92. Most are announcements whose real
+effect happens by direct call beside them. One was a control the user will
+certainly try.
+
+Clicking a "New message from alice" notification opened nothing, and it was
+broken twice over:
+
+1. `message-arrival-notification.ts` supplied its callback under the key
+   `onOpen`. `NotificationItem` reads `data.onCardClick`. Different key, so the
+   click found nothing to run.
+2. That callback emits `p2p:open-conversation`, and nothing anywhere listened
+   for it.
+
+Either alone was enough, which is why fixing one would have looked like no
+change at all. Both ends are now wired, with the listener in `NotificationCenter`
+so the messaging layer stays free of the router — which is the reason the event
+exists.
+
+**Two things I got wrong, both caught by controls.**
+
+I claimed a third break: that `isClickable` gated the card on
+`type === PEER_REGISTRATION`, so a message card was "not clickable whatever it
+carried". Restoring that gate as a control changed no behaviour and failed no
+test — because `isClickable` decides the *pointer cursor* and nothing else;
+`handleCardClick` runs unconditionally. The real defect there is an affordance:
+a card that did something gave the reader no sign it would. The claim is
+corrected in three places and the cursor is now asserted on its own terms, with
+the type-gate control failing exactly that one test.
+
+I also wrote a whole new gate for the emitted-with-no-listener direction, ran
+its three controls, wired it into CI — and then discovered
+`check-event-listeners-have-emitters.mjs` **already checks both directions**.
+Its `RECORDED_UNCONSUMED` list even carried `p2p:open-conversation` with the
+note *"no consumer — deep-linking into a conversation is not wired"*. I had
+written a second list of the same dead names in a second file, in a campaign
+whose most-cited defect is exactly that. The new gate is deleted; the debt entry
+is removed because the debt is paid, and the existing gate now fails if the
+listener disappears again — which is control C.
+
+The CID stayed a `bigint` across the event and became a string only where the
+URL is built, which the CID ratchet caught on the first attempt.
+
+2440 tests green, all 59 preflight checks.

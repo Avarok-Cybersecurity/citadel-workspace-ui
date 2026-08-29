@@ -66,6 +66,6 @@ export interface MessageHandlerConfig {
     senderId: string,
     messageId: string,
     recipientCid: string | undefined,
-    options: { peerCid: string; onOpen: () => void }
+    options: { peerCid: string; onCardClick: () => void }
   ) => void;
 }

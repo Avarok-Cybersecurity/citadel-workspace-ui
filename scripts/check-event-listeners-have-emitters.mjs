@@ -78,7 +78,6 @@ const RECORDED_UNCONSUMED = new Map([
   ['operation:deleted', 'no consumer; deletions are reflected by the node:* events'],
   ['p2p:channel-ready', 'readiness is polled by the auto-connect service, not awaited'],
   ['p2p:conversations-cleaned', 'diagnostic after a stale-conversation sweep'],
-  ['p2p:open-conversation', 'no consumer — deep-linking into a conversation is not wired'],
   ['p2p:peer-registered-with-us', 'the peer list refreshes on its own poll'],
   ['p2p:presence-updated', 'presence renders from the messenger callback registry'],
   ['p2p:registration-declined', 'no consumer — a decline is not surfaced anywhere'],

@@ -18,12 +18,38 @@ import NotificationService, {
 import NotificationItem from '@/components/notification/NotificationItem';
 import { notificationBelongsTo } from '@/lib/notification-service/types';
 import { connectionManager } from '@/lib/connection';
+import { eventEmitter } from '@/lib/event-emitter';
+import { conversationHref } from '@/components/layout/sidebar/active-conversation';
+import { useNavigate, useLocation, type NavigateFunction, type Location } from 'react-router-dom';
 
 const NotificationCenter: () => JSX.Element = (): JSX.Element => {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | NotificationType>('all');
   const [sessionCid, setSessionCid] = useState<string | null>(null);
+  const navigate: NavigateFunction = useNavigate();
+  const location: Location = useLocation();
+
+  // The third end of the message-notification click.
+  //
+  // The card supplies a callback that emits this; nothing listened, so even
+  // once the card became clickable the click still went nowhere. Navigating
+  // here rather than inside lib/ keeps the messaging layer free of the router,
+  // which is why the event exists at all.
+  useEffect(() => {
+    return eventEmitter.on<{ peerCid: bigint; peerUsername: string }>(
+      'p2p:open-conversation',
+      (payload): void => {
+        setOpen(false);
+        navigate(
+          conversationHref(location.pathname, location.search, {
+            cid: payload.peerCid.toString(),
+            username: payload.peerUsername,
+          }),
+        );
+      },
+    );
+  }, [navigate, location.pathname, location.search]);
   
   const notificationService: NotificationService = NotificationService.getInstance();
   
