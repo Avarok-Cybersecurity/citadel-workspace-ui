@@ -39,7 +39,11 @@ const eslint = new ESLint({
   },
 });
 
-const results = await eslint.lintFiles(['src/**/*.tsx']);
+// `.ts` as well as `.tsx`. A hook or a factory has the same multi-line
+// parameter list and the same missing return type; restricting this to .tsx
+// left `) => {` in useJoinRegistration and MDXEditor untouched for no reason
+// other than the file extension.
+const results = await eslint.lintFiles(['src/**/*.tsx', 'src/**/*.ts']);
 /** file -> the lines that end a parameter list and want a return type */
 const wanted = new Map();
 for (const result of results) {
@@ -67,7 +71,13 @@ for (const [file, hits] of wanted) {
   // where one is not a component had all four reverted together, and the run
   // reported "0 across 4 files" while three of them were perfectly fine.
   for (const line of hits) {
-    for (const spelling of ['JSX.Element', 'JSX.Element | null', 'React.ReactNode']) {
+    // A `.ts` file has no JSX, so `void` and `Promise<void>` are the useful
+    // spellings there; a `.tsx` one is usually a component. Both lists are
+    // tried and the compiler decides which fits.
+    const spellings = file.endsWith('.tsx')
+      ? ['JSX.Element', 'JSX.Element | null', 'React.ReactNode', 'void', 'Promise<void>']
+      : ['void', 'Promise<void>'];
+    for (const spelling of spellings) {
       const current = readFileSync(file, 'utf-8');
       const lines = current.split('\n');
       const original = lines[line - 1];

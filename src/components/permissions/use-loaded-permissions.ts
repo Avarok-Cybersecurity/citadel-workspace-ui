@@ -37,7 +37,7 @@ export function useLoadedPermissions(userId: string, domainId: string): Permissi
       domainId: string;
       role: string;
       permissions: string[];
-    }) => {
+    }): void => {
       // Both, because one editor can be open while another domain's response
       // arrives — and the response is the only thing that says which is which.
       if (payload.userId !== userId || payload.domainId !== domainId) return;

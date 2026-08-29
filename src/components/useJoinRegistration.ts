@@ -117,7 +117,7 @@ export function useJoinRegistration(
     data: Record<string, unknown>,
     resolve: (value: { cid: string }) => void,
     reject: (reason: Error) => void
-  ) => {
+  ): Promise<void> => {
     debugLog('Join', 'ConnectSuccess CID:', (data.cid as bigint | undefined)?.toString());
     try {
       await ConnectionManager.getInstance().handleAuthSuccess({

@@ -32,7 +32,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
   const formatText = (
     prefix: string,
     suffix: string = prefix,
-  ) => {
+  ): void => {
     if (!textAreaRef.current) return;
 
     const textarea: HTMLTextAreaElement = textAreaRef.current;
