@@ -5,6 +5,7 @@
  * and accept/decline registration requests.
  */
 
+import type { PendingPeerRequest } from '@/lib/peer-registration-store/types';
 import { peerRecord } from './peer-record';
 import { websocketService } from '../websocket-service';
 import { peerRegistrationStore } from '../peer-registration-store';
@@ -210,10 +211,29 @@ export async function acceptRegistrationRequest(
 }
 
 /**
- * Decline a registration request - removes from pending requests.
+ * Decline a registration request.
+ *
+ * Delegates to the store, which SENDS the decline. This used to remove the
+ * local entry and nothing else -- exactly the bug `declineRequest` records
+ * having fixed for itself:
+ *
+ *   Removing the local entry was the whole of decline, so a declined request
+ *   came back every five minutes forever.
+ *
+ * Two declines with the same meaning, one of them weaker, and the weaker one
+ * carried the more obvious name on the more obvious object: it is exported
+ * from this service's public index, so it is what a new caller reaches for.
+ * Nothing called it, which is the only reason the bug was not live.
  */
 export async function declineRegistrationRequest(peerCid: bigint): Promise<void> {
   debugLog('P2PRegistrationService', `[P2P] Declining registration from ${peerCid.toString()}`);
-  await peerRegistrationStore.removeRequestByPeerCid(peerCid);
+  const pending: PendingPeerRequest[] = await peerRegistrationStore.getPendingRequests();
+  const request: PendingPeerRequest | undefined = pending.find((r) => r.peer_cid === peerCid);
+  if (request) {
+    await peerRegistrationStore.declineRequest(request.id);
+  } else {
+    // Nothing to answer, but the local entry must still go.
+    await peerRegistrationStore.removeRequestByPeerCid(peerCid);
+  }
   eventEmitter.emit('p2p:registration-declined', { peerCid });
 }

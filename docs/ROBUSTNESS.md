@@ -18317,3 +18317,38 @@ control on this round.
 ratcheted from 252 to 251 rather than left slack.
 
 2478 tests green, all 60 preflight checks.
+
+## Round 376 — two declines, and only one of them told anybody
+
+Three probes this round found code that was already right — the "group gone"
+toast says "deleted, **or you were removed from it**" rather than guessing; all
+seven hand-rolled overlays already go through `useDialogOverlay`; the handlers
+that looked like they swallowed their errors all set an error state. Worth
+recording: the interesting result of a sweep is often that there is nothing
+there, and it costs little to find out.
+
+The fourth found something.
+
+`peerRegistrationStore.declineRequest` sends `PeerRegisterRespond
+{ accept: false }`, and its own comment records why:
+
+> Removing the local entry was the whole of decline, so a declined request came
+> back every five minutes forever.
+
+`p2pRegistrationService.declineRegistrationRequest` did **exactly the thing that
+comment describes as the bug**: removed the local entry, emitted an event
+nothing listens for, and sent nothing. Two functions with the same meaning, one
+of them weaker — and the weaker one carries the more obvious name on the more
+obvious object, exported from the service's public index. It is what a new
+caller reaches for.
+
+Nothing called it, which is the only reason the bug was not live. That is not a
+reason to leave it: a trap with no victim yet is still a trap, and the fix is
+one delegation.
+
+The assertion is on the **wire**, not on the local state: a decline that does not
+leave the machine is not a decline, which is the whole finding. Both controls
+fail it — restoring the local-only version, and flipping `accept` to `true`,
+which would otherwise look identical to "one message was sent".
+
+2481 tests green, all 60 preflight checks.
