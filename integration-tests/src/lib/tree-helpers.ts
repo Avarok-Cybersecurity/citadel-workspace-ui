@@ -776,13 +776,21 @@ export async function deleteNodeViaUI(
 /**
  * Locator for a node in the hierarchy sidebar.
  *
- * Matches any button carrying the name rather than only
- * `[data-sidebar="menu-button"]`. The tree renders through SidebarMenuButton,
- * which does emit that attribute — but there are two SidebarMenuButton
- * implementations in the tree (components/ui/sidebar.tsx and
- * components/ui/sidebar/SidebarMenu.tsx), so pinning to the attribute makes the
- * helper depend on which one a given node happens to use. The broader match is
- * what the passing legacy suite has always used.
+ * Matches any button carrying the name as well as
+ * `[data-sidebar="menu-button"]`.
+ *
+ * The comment here used to say that pinning to the attribute would make the
+ * helper depend on which of TWO SidebarMenuButton implementations a node
+ * happened to use — `components/ui/sidebar.tsx` and
+ * `components/ui/sidebar/SidebarMenu.tsx`. There was indeed a second copy. It
+ * had zero importers: a file beats a directory of the same name in module
+ * resolution, so `@/components/ui/sidebar` always meant the 764-line file, and
+ * the tidy split version was never loaded by anything. It has been deleted.
+ *
+ * The broad match is kept because it is what the passing legacy suite has
+ * always used and narrowing it is a separate change with its own evidence —
+ * but the reason written down for it was not true, and a false reason is worse
+ * than none: it stops the question being asked again.
  */
 export function sidebarNode(page: Page, nodeName: string) {
   return page.locator(`button:has-text("${nodeName}"), [data-sidebar="menu-button"]:has-text("${nodeName}")`).first();

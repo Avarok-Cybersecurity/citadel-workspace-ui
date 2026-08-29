@@ -13990,3 +13990,62 @@ their catches wrap writes or a JSON decode, not a read. Two controls: removing
 the classification from a reader names that file, and exempting a module that
 already classifies fails as a stale exemption. A list nobody can add to
 carelessly, and that cannot rot quietly.
+
+## Round 272 — the file that shadowed the fix
+
+Round 267's self-diagnosing account-menu helper reached CI and answered its own
+question on the first run:
+
+```
+the account menu never offered "account-menu-settings".
+avatar 35x35 at (326,7) | viewport 375x667 | on screen |
+covered by li.group | 0 open menu(s) | items: none
+```
+
+The avatar is there and on screen. Something is **on top of it**, so the click
+opens nothing. Sixty seconds of silence became one line naming the culprit's
+tag and class — which is the whole reason that round existed.
+
+Chasing `li.group` into the sidebar found something else, and larger.
+
+### Two sidebars, one of them unreachable
+
+`src/components/ui/sidebar.tsx` — 764 lines, three times the file-length cap and
+on the exemption list for exactly that reason — sits beside
+`src/components/ui/sidebar/`, a 549-line split of the same component across five
+files.
+
+**A file beats a directory of the same name in module resolution.** Every
+`@/components/ui/sidebar` import in the app has always meant the monolith. The
+tidy split version had zero importers, and could not have worked anyway: it is
+missing `SidebarTrigger`, `SidebarMenuSkeleton` and the three `MenuSub`
+components.
+
+The cost is not the dead bytes. It is that people read it and believed it.
+`tree-helpers.ts` carried this, as the stated reason for a deliberately weak
+locator:
+
+> pinning to the attribute makes the helper depend on which one a given node
+> happens to use
+
+There were two implementations. Only one ever ran. A weaker test was adopted to
+hedge against a fork that did not exist in the shipped app — and the false
+reason written beside it is what stopped the question being asked again. *A
+wrong reason is worse than no reason.*
+
+Deleted, and the comment corrected to say what is actually true.
+
+### The guard, and what it caught about itself
+
+No file may shadow a directory that **nothing reaches into**. Two more
+collisions exist — `lib/utils.ts` over `lib/utils/`, `lib/workspace-events.ts`
+over `lib/workspace-events/` — and both directories have deep importers (55 and
+3), so only the bare specifier is ambiguous there. That is a naming smell, not
+unreachable code, and the check says so.
+
+The first version passed its own negative control, because the guard's doc
+comment mentions `components/ui/sidebar/` and the search counted its own prose
+as an importer. Round 246's gate flagged itself the same way. Comments are
+stripped and the file excludes itself; the control now fails as it should.
+
+Types 5,568 → **5,531** — 37 of them were in code nothing loaded.
