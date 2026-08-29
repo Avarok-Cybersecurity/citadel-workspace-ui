@@ -84,7 +84,7 @@ describe('yjs update coalescing', () => {
   });
 
   it('flushes buffered edits on destroy rather than dropping them', () => {
-    const doc = new Y.Doc();
+    const doc: Y.Doc = new Y.Doc();
     const provider: YjsP2PProvider = makeProvider(doc);
     sent.length = 0;
 
