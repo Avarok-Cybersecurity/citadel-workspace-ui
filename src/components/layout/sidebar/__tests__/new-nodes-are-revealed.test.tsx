@@ -17,6 +17,7 @@
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TreeNodesSection } from '../TreeNodesSection';
@@ -150,5 +151,47 @@ describe('a node that has just arrived', () => {
     });
 
     expect(screen.getByText('Delta')).toBeInTheDocument();
+  });
+
+  it('does not re-open a branch when a node it already knows is loaded again', async () => {
+    // `node:loaded` is not a creation event: it fires for every Node response,
+    // including simply opening a node. Reacting to those re-opened whatever the
+    // user had collapsed -- and once this hook expanded the whole ancestor
+    // chain rather than one parent, re-opening a branch became re-opening ALL
+    // of it. CI caught it as "Collapse Hides Children: FAIL".
+    const office: DomainNode = node('office', 'Design', 'root', ['room']);
+    const room: DomainNode = node('room', 'Standup', 'office');
+    const full: TreeNode = {
+      node: node('root', 'Workspace', null, ['office']),
+      children: [{ node: office, children: [{ node: room, children: [] }] }],
+    };
+
+    render(
+      <MemoryRouter>
+        <SidebarProvider>
+          <TreeNodesSection tree={full} nodes={[full.node, office, room]} canCreate />
+        </SidebarProvider>
+      </MemoryRouter>,
+    );
+
+    // Arrival: the room is revealed.
+    await act(async () => {
+      eventEmitter.emit('node:loaded', { node: room, connection: {} });
+    });
+    expect(screen.getByText('Standup')).toBeInTheDocument();
+
+    // The user collapses the office, through the control that collapses it.
+    const toggles: HTMLElement[] = screen.getAllByRole('button', { name: /collapse|expand/i });
+    await userEvent.click(toggles[toggles.length - 1]!);
+    expect(screen.queryByText('Standup'), 'the collapse should have worked').toBeNull();
+
+    // The same room loads again -- opening it, say. The collapse must survive.
+    await act(async () => {
+      eventEmitter.emit('node:loaded', { node: room, connection: {} });
+    });
+    expect(
+      screen.queryByText('Standup'),
+      'a node loading again must not re-open a branch the user collapsed',
+    ).toBeNull();
   });
 });

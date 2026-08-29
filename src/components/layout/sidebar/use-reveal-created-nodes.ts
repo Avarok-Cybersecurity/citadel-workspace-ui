@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { ancestorIds, type AncestorWalkable } from './ancestor-chain';
@@ -37,10 +37,16 @@ export function useRevealCreatedNodes(
    */
   treeRef: MutableRefObject<AncestorWalkable | null>,
 ): void {
+  const seen: MutableRefObject<Set<string>> = useRef<Set<string>>(new Set());
+
   useEffect(() => {
-    const reveal = (payload: { node: { parent_id: string | null } }): void => {
+    const reveal = (payload: { node: { id: string; parent_id: string | null } }): void => {
       const parentId: string | null = payload.node.parent_id;
       if (!parentId) return;
+      // Seen before: this is a load, not an arrival, and opening its branch
+      // would undo whatever the user has collapsed since.
+      if (seen.current.has(payload.node.id)) return;
+      seen.current.add(payload.node.id);
       // The parent, and everything it is inside. A parent opened within a shut
       // grandparent is still not on screen.
       const toOpen: string[] = [...ancestorIds(treeRef.current, parentId), parentId];

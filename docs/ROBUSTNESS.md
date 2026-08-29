@@ -14341,3 +14341,45 @@ per delete waiting for a label nothing renders, then fell back to `has-text
 as well as slow.
 
 44 preflight checks now. Reintroducing any one string fails the gate by name.
+
+## Round 280 — a fix of mine that widened a blast radius
+
+Round 274 landed: `prev-sessions` prints "Permissions not found in cache after
+load" **zero** times where it printed it repeatedly, and three of its six checks
+now pass. Round 263 also landed, and it made something worse.
+
+`hierarchy-nav` now reports:
+
+```
+Delta Nav:                FAIL
+Epsilon Nav:              FAIL
+Collapse Hides Children:  FAIL
+Expand Shows Children:    PASS
+```
+
+Delta used to pass. **Collapse Hides Children is the tell**, and the cause is
+round 263.
+
+`node:loaded` is not a creation event, despite `useRevealCreatedNodes`' name. It
+fires for every `Node` response — including the one that comes back from simply
+opening a node. Reacting to those by expanding the node's PARENT was very nearly
+harmless. Reacting by expanding its whole ancestor chain was not: opening
+anything inside a collapsed branch re-opened the entire branch, so a collapse the
+user had just made came straight back.
+
+The file's own sibling comment warned about exactly this shape — *every collapse
+the user made was once undone by typing one character*. I widened the blast
+radius without narrowing the trigger.
+
+It now reveals only a node this tab has **not seen before**, which is the
+closest honest signal to "created" that the event carries. The depth fix stands;
+the over-firing is gone.
+
+Three tests: the parent case, the five-deep chain, and a collapse that must
+survive the same node loading again — driven through the control that actually
+collapses, because clicking the node's label navigates instead. Removing the
+seen-check fails exactly the new one and leaves the other two green, which is
+what says it is about the new thing.
+
+*A fix measured only against the failure it was written for will pass, and can
+still cost more than it bought.*
