@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback ,  type RefObject  , type DragEvent } from 'react';
+import { useState, useRef, useCallback, type RefObject, type DragEvent, type Dispatch, type SetStateAction } from 'react';
 import { formatBytes } from '@/lib/format-bytes';
 import type { FileTransferMode } from '@/types/messaging-layer';
 import { fileTransferService } from '@/lib/file-transfer';
@@ -12,12 +12,36 @@ interface UseFileTransferOptions {
   maxFileSizeMb: number;
 }
 
+export interface UseFileTransferResult {
+  selectedFile: File | null;
+  previewUrl: string | null;
+  transferMode: FileTransferMode;
+  setTransferMode: Dispatch<SetStateAction<FileTransferMode>>;
+  isDragging: boolean;
+  isSending: boolean;
+  isPickingFile: boolean;
+  error: string | null;
+  nativePickerAvailable: boolean | null;
+  fileInputRef: RefObject<HTMLInputElement>;
+  maxFileSizeBytes: number;
+  formatBytes: (bytes: number) => string;
+  handleDrop: (e: React.DragEvent) => void;
+  handleDragOver: (e: React.DragEvent) => void;
+  handleDragLeave: (e: React.DragEvent) => void;
+  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleBrowseClick: () => void;
+  handleNativePickerClick: () => Promise<void>;
+  handleRemoveFile: () => void;
+  handleSend: () => Promise<void>;
+  handleClose: () => void;
+}
+
 export function useFileTransfer({
   onClose,
   onSendFile,
   peerCid,
   maxFileSizeMb,
-}: UseFileTransferOptions) {
+}: UseFileTransferOptions): UseFileTransferResult {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [transferMode, setTransferMode] = useState<FileTransferMode>('p2p');

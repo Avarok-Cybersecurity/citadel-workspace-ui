@@ -181,7 +181,7 @@ async function resolveDNS(hostname: string): Promise<string> {
     }
 
     // Extract the first A record (IPv4)
-    const answers = data.Answer;
+    const answers: { type: number; data: string }[] | undefined = data.Answer;
     if (!answers || answers.length === 0) {
       throw new Error(`No DNS records found for '${hostname}'`);
     }
@@ -192,7 +192,7 @@ async function resolveDNS(hostname: string): Promise<string> {
       throw new Error(`No A (IPv4) record found for '${hostname}'`);
     }
 
-    const resolvedIP = aRecord.data;
+    const resolvedIP: string = aRecord.data;
     debugLog('AddressResolver', `DNS resolved (Google DoH): ${hostname} -> ${resolvedIP}`);
     return resolvedIP;
   } catch (error) {

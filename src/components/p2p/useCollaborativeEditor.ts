@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef ,  type RefObject } from 'react';
+import { useState, useEffect, useCallback, useRef, type RefObject, type Dispatch, type SetStateAction } from 'react';
 import * as Y from 'yjs';
 import { YjsP2PProvider, createYjsP2PProvider } from '@/lib/yjs-p2p-provider';
 import { eventEmitter } from '@/lib/event-emitter';
@@ -29,16 +29,30 @@ interface UseCollaborativeEditorParams {
   creatorCid?: string;
 }
 
+export interface UseCollaborativeEditorResult {
+  doc: Y.Doc;
+  provider: YjsP2PProvider | null;
+  userColor: string;
+  connectedUsers: { name: string; isActive: boolean }[];
+  syncState: string;
+  flashComments: FlashComment[];
+  contextMenu: { x: number; y: number } | null;
+  setContextMenu: Dispatch<SetStateAction<{ x: number; y: number } | null>>;
+  editorContainerRef: RefObject<HTMLDivElement>;
+  handleContextMenu: (e: React.MouseEvent) => void;
+  dismissFlashComment: (commentId: string) => void;
+}
+
 export function useCollaborativeEditor({
   documentId,
   peerCid,
   currentUserCid,
   currentUserName,
   creatorCid,
-}: UseCollaborativeEditorParams) {
-  const [doc] = useState(() => new Y.Doc());
+}: UseCollaborativeEditorParams): UseCollaborativeEditorResult {
+  const [doc] = useState<Y.Doc>(() => new Y.Doc());
   const [provider, setProvider] = useState<YjsP2PProvider | null>(null);
-  const [userColor] = useState(() => getRandomColor());
+  const [userColor] = useState<string>(() => getRandomColor());
   const [connectedUsers, setConnectedUsers] = useState<{ name: string; isActive: boolean }[]>([{ name: currentUserName, isActive: true }]);
   const [syncState, setSyncState] = useState<string>('connecting');
   const [flashComments, setFlashComments] = useState<FlashComment[]>([]);

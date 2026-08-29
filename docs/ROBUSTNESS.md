@@ -16041,3 +16041,16 @@ blind — the same lesson as round 312, one file over.
 
 > A keystroke is not a state. Pressing Escape says what you want; counting the
 > dialogs says what happened.
+
+## Round 322 — five more hook and component boundaries typed
+
+`useFileTransfer` and `useCollaborativeEditor` returned twenty-one and eleven
+members respectively with no declared shape: every caller's view of them was
+whatever inference produced that day, so a member changing type was invisible at
+the boundary. Both now have exported result interfaces.
+
+Also: `data.Answer` in the DNS resolver (an untyped parse of a network
+response), `resolvedIP`, and `Comp` in the button primitive.
+
+Explicit-type debt: 145 → 138. `npx vitest run` 342 files / 2331 tests green;
+`tsc -p tsconfig.app.json --noEmit` clean.
