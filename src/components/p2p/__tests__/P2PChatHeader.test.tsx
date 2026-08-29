@@ -8,7 +8,7 @@
  * children to separate.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen , type RenderResult } from '@testing-library/react';
 import { P2PChatHeader } from '../P2PChatHeader';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { PeerPresence } from '@/lib/p2p';
@@ -23,7 +23,7 @@ const callProps = {
   onLeave: vi.fn(),
 };
 
-function renderHeader() {
+function renderHeader(): RenderResult {
   return render(
     <P2PChatHeader
       peerName="Alice Chen"

@@ -3,6 +3,7 @@
  * that is off, a peer who is muted, a call that failed, a call still ringing.
  * Each looks broken if it renders as nothing.
  */
+import type { ComponentProps } from 'react';
 import { describe, it, expect, vi  } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -184,11 +185,10 @@ describe('IncomingCallCard', () => {
 });
 
 describe('CallStage', () => {
-  const props = {
+  const props: Omit<ComponentProps<typeof CallStage>, 'call'> = {
     selfUsername: 'Me',
     localStream: null,
     remoteStreams: new Map<bigint, MediaStream>(),
-    duration: '00:10',
     onToggleMic: vi.fn(),
     onToggleCamera: vi.fn(),
     onLeave: vi.fn(),

@@ -4,11 +4,11 @@
  * ever sees one route at a time.
  */
 import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { render , type RenderResult } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { DocumentTitle, titleForPath } from '../DocumentTitle';
 
-function renderAt(path: string) {
+function renderAt(path: string): RenderResult {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <DocumentTitle />

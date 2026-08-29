@@ -16149,3 +16149,32 @@ value it narrowed are true together and false together. 2331 tests green.
 
 **`src/` production code: 0 untyped declarations.** 251 at the start of the
 burn-down. The remaining 75 are in `__tests__`.
+
+## Round 326 — a spread fixture that had been describing a prop nobody reads
+
+Typing the test-side prop fixtures found one. Five `const props = { … }`
+objects are spread into a component under test, and **excess property checking
+does not apply to a spread** — so a fixture key the component stopped
+accepting keeps compiling, keeps reading like an input, and does nothing.
+
+`CallStage` has no `duration` prop and never has. Both its fixtures passed one:
+
+```
+call-ui.test.tsx        duration: '00:10',
+call-waiting-ui.test.tsx  duration: '',
+```
+
+The clock is computed inside `CallControls` by `useCallDuration`, from the
+call's own start time. So `'00:10'` was not the stage's input; it was decoration
+that reads as an input. A reader debugging the timer would have started from a
+value the component cannot see, and if the derivation broke the fixture would
+have gone on saying ten seconds.
+
+Both fields removed. The five fixtures now carry
+`Omit<ComponentProps<typeof X>, 'call'>` / `Parameters<typeof X>[0]` /
+`Pick<…>`, which is what surfaced it.
+
+Negative control: adding `onRenamedAwayProp: vi.fn()` to the `MemberListItem`
+fixture is now TS2353. Without the annotation it compiled.
+
+Also: ten `render` helpers now return `RenderResult`. Debt 75 → 60.

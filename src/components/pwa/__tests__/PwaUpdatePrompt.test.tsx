@@ -17,7 +17,7 @@ import { describe, it, expect, beforeEach, vi   } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act , type RenderResult } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { UserEvent } from '@testing-library/user-event';
 
@@ -65,7 +65,7 @@ function setOnline(value: boolean): void {
  * prompt first, the update notice is raised into a void and nothing renders.
  * That is a real constraint on the app, not a test detail.
  */
-function renderPrompt() {
+function renderPrompt(): RenderResult {
   return render(
     <>
       <Toaster />

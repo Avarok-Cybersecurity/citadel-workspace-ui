@@ -8,7 +8,7 @@
  * object whose contents for THIS node are unchanged.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor , type RenderResult } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WorkspaceContext , type WorkspaceState } from '@/contexts/WorkspaceContext';
 import { GeneralTab } from '../GeneralTab';
@@ -26,7 +26,7 @@ const ctx = (nodes: Record<string, unknown>): { state: WorkspaceState; } =>
     typeof WorkspaceContext.Provider
   >['value'];
 
-function renderTab(nodes: Record<string, unknown>) {
+function renderTab(nodes: Record<string, unknown>): RenderResult {
   return render(
     <WorkspaceContext.Provider value={ctx(nodes)}>
       <GeneralTab entityType="office" entityId="n1" onClose={() => {}} />

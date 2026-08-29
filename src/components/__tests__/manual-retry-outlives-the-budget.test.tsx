@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach  } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor , type RenderResult } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ConnectionRetryModal } from '../ConnectionRetryModal';
 
@@ -25,7 +25,7 @@ vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
 const onRetry: ReturnType<typeof vi.fn> = vi.fn();
 
-function renderExhausted() {
+function renderExhausted(): RenderResult {
   // maxRetries=1 so the very first failure spends the whole budget -- the same
   // state a real user reaches after ten, without waiting out the backoff.
   return render(

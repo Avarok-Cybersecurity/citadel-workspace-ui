@@ -5,7 +5,7 @@
  * is covered against fakes in call-sounds.test.ts.
  */
 import { describe, it, expect, vi, beforeEach  } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, waitFor , type RenderResult } from '@testing-library/react';
 import { CallSoundEffects } from '../CallSoundEffects';
 import { CallContext, type CallContextValue } from '@/lib/call/call-context';
 import type { CallState } from '@/lib/call/call-state';
@@ -58,7 +58,7 @@ function callState(status: CallState['status']): CallState {
   };
 }
 
-function mount(call: CallState | null) {
+function mount(call: CallState | null): RenderResult {
   return render(
     <CallContext.Provider value={contextValue(call)}>
       <CallSoundEffects />

@@ -20,7 +20,7 @@ const member: MemberDisplay = {
 };
 
 function renderRow(overrides: Partial<Parameters<typeof MemberListItem>[0]> = {}) {
-  const props = {
+  const props: Parameters<typeof MemberListItem>[0] = {
     member,
     variant: 'all' as const,
     onSendMessage: vi.fn(),

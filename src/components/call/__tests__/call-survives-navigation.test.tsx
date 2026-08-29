@@ -12,7 +12,7 @@
  * and a control to leave appears exactly when the call's own surface is not.
  */
 import { describe, it, expect, vi, beforeEach   } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act , type RenderResult } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { CallAudioHost } from '../CallAudioHost';
@@ -89,7 +89,7 @@ describe('CallAudioHost', () => {
 });
 
 describe('OngoingCallBar', () => {
-  function renderBar(value: CallContextValue) {
+  function renderBar(value: CallContextValue): RenderResult {
     return render(
       <MemoryRouter>
         <CallContext.Provider value={value}>

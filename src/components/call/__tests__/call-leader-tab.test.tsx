@@ -6,7 +6,7 @@
  * this is.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act , type RenderResult } from '@testing-library/react';
 
 const state: { isLeader: boolean; } = { isLeader: true };
 vi.mock('@/lib/multi-instance', () => ({
@@ -33,7 +33,7 @@ function CapabilityProbe(): JSX.Element {
   return <span data-testid="reason">{capability.supported ? 'available' : capability.reason}</span>;
 }
 
-function renderProvider() {
+function renderProvider(): RenderResult {
   return render(
     <CallProvider selfCid={11n} senderConfig={{} as never}>
       <CapabilityProbe />

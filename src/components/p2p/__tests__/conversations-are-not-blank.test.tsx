@@ -8,6 +8,7 @@
  * written; the two surfaces simply diverged.
  */
 
+import type { ComponentProps } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { P2PMessageList } from '../P2PMessageList';
@@ -16,7 +17,7 @@ vi.mock('../MessageBubble', () => ({
   MessageBubble: ({ message }: { message: { content: string } }): JSX.Element => <div>{message.content}</div>,
 }));
 
-const base = {
+const base: Omit<ComponentProps<typeof P2PMessageList>, 'ref'> = {
   messages: [],
   currentUserCid: 1n,
   currentUserName: 'me',

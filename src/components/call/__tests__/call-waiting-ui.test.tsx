@@ -3,6 +3,7 @@
  * bridge between accepting and the first frame. These are the moments the
  * user decides whether the feature works.
  */
+import type { ComponentProps } from 'react';
 import { describe, it, expect, vi  } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -38,11 +39,10 @@ function callState(overrides: Partial<CallState> = {}): CallState {
   };
 }
 
-const stageProps = {
+const stageProps: Omit<ComponentProps<typeof CallStage>, 'call'> = {
   selfUsername: 'Me',
   localStream: null,
   remoteStreams: new Map<bigint, MediaStream>(),
-  duration: '',
   onToggleMic: vi.fn(),
   onToggleCamera: vi.fn(),
   onLeave: vi.fn(),

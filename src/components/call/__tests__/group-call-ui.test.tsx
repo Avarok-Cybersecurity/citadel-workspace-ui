@@ -4,7 +4,7 @@
  * restarted, and a stage that must stay inside its own room.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen , type RenderResult } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CallContext, type CallContextValue } from '@/lib/call/call-context';
 import { MAX_VIDEO_PARTICIPANTS, type CallParticipant, type CallState } from '@/lib/call/call-state';
@@ -69,7 +69,7 @@ function ctx(overrides: Partial<CallContextValue> = {}): CallContextValue {
   };
 }
 
-function renderControls(value: CallContextValue, roster: GroupCallMember[]) {
+function renderControls(value: CallContextValue, roster: GroupCallMember[]): RenderResult {
   return render(
     <CallContext.Provider value={value}>
       <GroupCallControls roomId={ROOM} roomName="Design" members={roster} />
@@ -172,7 +172,7 @@ describe('GroupCallControls — in call', () => {
 });
 
 describe('GroupCallDock — scoping', () => {
-  function renderDock(value: CallContextValue, roomId: string = ROOM) {
+  function renderDock(value: CallContextValue, roomId: string = ROOM): RenderResult {
     return render(
       <CallContext.Provider value={value}>
         <GroupCallDock roomId={roomId} />
