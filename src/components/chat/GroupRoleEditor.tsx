@@ -49,7 +49,7 @@ export function GroupRoleEditor({
   }, [position, existingRoles, role]);
 
   const isNameValid = name.trim().length > 0;
-  const canSave = isNameValid && isPositionValid;
+  const canSave: unknown = isNameValid && isPositionValid;
 
   // Handlers
   const handlePermissionChange: (key: keyof GroupPermissions, checked: boolean) => void = useCallback(
