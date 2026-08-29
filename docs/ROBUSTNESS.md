@@ -15277,3 +15277,45 @@ the fast one, and its control — retransmission removed — still fails it.
 > An optimisation whose risk cannot be measured is not a smaller version of one
 > that can. It is a different decision, and the honest answer to it is usually
 > no.
+
+## Round 302 — the loop complaining about starvation was competing for the thread
+
+`test:peer-group` failed with `FAIL: group creation produced no group id`, and
+the hundred lines before it are all one thing:
+
+```
+[ILM-BLOCKED]  CID 4949905227955559357 -> peer 10055484878294118731
+[ILM-BLOCKED]  CID 10055484878294118731 -> peer 4949905227955559357
+[ILM-BLOCKED]  CID 4949905227955559357 -> peer 10055484878294118731
+…
+```
+
+`[ILM-BLOCKED]` fires at `warn!` every poll cycle — five times a second per
+peer — for as long as a message goes unacknowledged. Waiting for an ACK is the
+normal steady state of a stop-and-wait link, so a link that is stuck narrates
+its own wait indefinitely. In the WASM client each of those is a synchronous
+console write on the browser's main thread, so the loop complaining about a
+starved link was competing for the thread with the link.
+
+That is the second instance of the same defect in two rounds, one level apart:
+round 301 demoted `[ILM-OUTBOUND]`, which had gone from 2,086 to 31,918 lines in
+a run. The rule underneath both: **a line that fires once per cycle is a line
+that fires forever, and its level has to be chosen for the state that lasts, not
+the moment it began.**
+
+The transition INTO blocked is the news; everything after it is the same news
+again. It warns once now and then goes quiet, and `[ILM-RETRANSMIT]` drops to
+`info!` for the same reason — at one per second per peer a warning costs what
+the blocked line cost. A test installs a log collector and holds a link blocked
+for five seconds: two warnings at most, measured at 24 with the fix reverted.
+
+**What the counters say about the link itself, and what they do not.** Of 366
+sends in the file-manager run, 211 were retransmissions — so 155 distinct
+messages were sent and 18 were delivered. That ratio is not something
+retransmission can fix, and it is not the ACK path either: inbound `Payload::Ack`
+updates the tracker, clears the outbound message and re-polls, all correctly.
+Messages are being sent and not arriving. Where they are lost is below this
+crate, and finding out needs the running stack rather than another log.
+
+> A log line inside a 200ms loop has a level chosen for the state that persists,
+> not for the moment it starts.
