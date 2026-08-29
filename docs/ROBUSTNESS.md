@@ -15231,3 +15231,49 @@ records, so this was the only one.
 > Optional fields are how a partial write passes for a whole one. The compiler
 > checks that every field present is valid, never that the ones absent were
 > meant to be.
+
+## Round 301 — the ILM fix measured, and half of it withdrawn
+
+Round 293 went into CI. The counters, same suite, same shape of run:
+
+| | round 292 | round 293 |
+|---|---|---|
+| `[ILM-BLOCKED-RECOVERY]` | 93 | **10** |
+| `[ILM-RETRANSMIT]` | — | 211 |
+| `[ILM-ACK-RECV]` | 24 | **94** |
+| `[ILM-DELIVER]` | 13 | 18 |
+| `[ILM-OUTBOUND]` | 2,086 | **31,918** |
+
+The livelock is gone: recoveries down ninefold, acknowledgements up fourfold,
+and the retransmission that did not exist now firing 211 times. And round 292's
+report change did its job too — `Peer Sees File: FAIL` instead of `CHECK`
+between two passes.
+
+**Two things that round got wrong, both visible in that table.**
+
+`[ILM-OUTBOUND]` went from 2,086 lines to 31,918. That line logs one
+message's send decision, and it fired once per cycle while the loop stopped at
+the head. Considering every queued message made it five lines per second per
+QUEUED MESSAGE. The same function already carries a comment about precisely
+this — the noise "drowns the `error!`s below it in the same target" — and in the
+WASM client every one of those is a console write on the browser's main thread,
+so the volume is not merely unreadable, it is spent. Demoted to `debug!`.
+
+**The pipelining is withdrawn.** It was the reason the lost-ACK burst went from
+2.5s to 0.01s, and it is unsafe here: `process_inbound` delivers whatever is
+pending, sorted within the batch, and never holds message N+1 waiting for N.
+Stop-and-wait was what made the ordering hold. revfs applies operations in the
+order it receives them, so a create arriving after the write into it is a worse
+outcome than a slow sync — and a receiver-side contiguity gate, which is how a
+real protocol has both, stalls forever on an id that is never sent. That is not
+a change to make against a stack I cannot run.
+
+So what ships is the half that was proven and is safe: **the head can be
+retransmitted**. Without it ten of eighteen messages never arrived at all in
+sixty seconds; with it, and with ordering preserved, the burst drains at a
+retransmit cycle per message. The test now bounds the ORDERED cost rather than
+the fast one, and its control — retransmission removed — still fails it.
+
+> An optimisation whose risk cannot be measured is not a smaller version of one
+> that can. It is a different decision, and the honest answer to it is usually
+> no.
