@@ -22,10 +22,9 @@
  * to render what the cache holds. Reading it to decide whether a control works
  * is not, and any file that needs to must say why here.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, relative, resolve } from 'node:path';
-import { globSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -42,7 +41,28 @@ const DISPLAYS_RATHER_THAN_GATES = new Map([
 
 const CALLS = /\b(hasPermission|hasAnyPermission|hasAllPermissions)\s*\(/;
 
-const files = globSync('src/**/*.{ts,tsx}', { cwd: APP })
+/**
+ * Walked rather than globbed.
+ *
+ * `globSync` from `node:fs` arrived in Node 22, and the lint job that runs this
+ * is pinned to Node 20 — so it threw `does not provide an export named
+ * globSync` and took the ESLint jobs for all three projects down with it. It
+ * passed locally because this shell runs 22. A gate must not need a newer
+ * runtime than the job it runs in.
+ */
+function walk(dir, out = []) {
+  for (const entry of readdirSync(dir)) {
+    if (entry === 'node_modules') continue;
+    const full = join(dir, entry);
+    let info;
+    try { info = statSync(full); } catch { continue; }
+    if (info.isDirectory()) walk(full, out);
+    else if (/\.tsx?$/.test(entry)) out.push(relative(APP, full));
+  }
+  return out;
+}
+
+const files = walk(join(APP, 'src'))
   .filter((f) => !f.includes('__tests__') && !f.includes('.test.'))
   // The mechanism itself, and the context that exposes it.
   .filter((f) => !f.startsWith('src/hooks/use-permission') && !f.startsWith('src/lib/permissions-service/'))

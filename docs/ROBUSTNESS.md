@@ -16839,3 +16839,46 @@ only as good as the spelling it looks for, and the only way to know which
 spellings it sees is to write each one down and watch it fail.
 
 Preflight: 52 checks.
+
+## Round 344 — a gate that needed a newer Node than the job it ran in
+
+Round 343's fix was not the end of it. The same CI run failed the ESLint jobs
+for **all three projects** on:
+
+```
+SyntaxError: The requested module 'node:fs' does not provide an export named 'globSync'
+```
+
+`check-permission-gates.mjs`, from round 329, imported `globSync`. That arrived
+in **Node 22**. The lint job pins **Node 20**, and `package.json` says
+`engines: { node: ">=20" }`.
+
+It passed locally, and it would pass locally for anybody — the shell that wrote
+it runs 22. Nothing about running a gate on a developer's machine can see this,
+which is exactly what makes it worth a check rather than a habit.
+
+Bumping CI to Node 22 would have made the red go away and left `engines` lying.
+The floor is the contract, so the gate walks with `readdirSync` instead. Every
+gate I have added this session was then re-run under **Node 18** — older than
+CI's 20, so a conservative proxy — and all seven pass.
+
+`check-gates-run-on-the-oldest-node.mjs` reads the floor from `engines` rather
+than repeating it, and fails any gate using an API that postdates it.
+
+**Its first run cried wolf twice**, and both are the point:
+
+1. It flagged **itself**. It lists the APIs it forbids as *data*, so
+   comment-stripping does not hide them.
+2. It flagged three browser-driving gates for `navigator.`. That is a Node 21
+   global — and also a browser one, used inside `page.evaluate()` where it runs
+   in Chrome and has nothing to do with Node. Correct by the rule as written,
+   wrong in every sense that matters.
+
+`navigator.` is out and the list now holds only APIs that could only ever be
+Node's. A gate that cries wolf is one somebody switches off, so a false
+positive is a defect in the gate, not an inconvenience.
+
+Controls: the exact `globSync` import that broke CI is caught; the
+browser-context `navigator.` no longer fires; and the gate runs under Node 18.
+
+Preflight: **53 checks**.
