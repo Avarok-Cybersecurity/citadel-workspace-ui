@@ -165,7 +165,7 @@ export function updatePeerMaps(
         cid,
         username,
         fullName: peer.name || username || 'Unknown User',
-        isOnline: peer.online_status !== undefined ? peer.online_status : true,
+        isOnline: peer.online_status ?? null,
         isRegistered: false
       });
     }
@@ -183,7 +183,7 @@ export function updatePeerMaps(
         cid,
         username,
         fullName: peer.name || username || 'Unknown User',
-        isOnline: peer.online_status !== undefined ? peer.online_status : true,
+        isOnline: peer.online_status ?? null,
         isRegistered: true
       };
       peerInfo.isRegistered = true;

@@ -69,6 +69,11 @@ export class AutoConnectState {
     return this.core.isPeerOnline(peerCid);
   }
 
+  /** Online status, or null when no poll has landed yet. */
+  peerOnlineStatus(peerCid: bigint): boolean | null {
+    return this.core.peerOnlineStatus(peerCid);
+  }
+
   addOnlinePeer(peerCid: bigint): void {
     // Directly add a single peer to the online set (used by event handlers)
     // This leverages setOnlinePeers internally by building the full list

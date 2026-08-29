@@ -77,12 +77,32 @@ describe('updatePeerMaps', () => {
     expect(registered.get(7n)).toMatchObject({ username: 'carol', isRegistered: true, isOnline: false });
   });
 
-  it('defaults online_status to true when the backend omits it', () => {
+  it('reports unknown when the backend omits online_status', () => {
+    // It used to default to TRUE, so a peer the agent had said nothing about
+    // got a green dot -- and presence.ts ORed that flag with the live poll, so
+    // the invention outranked the real answer.
     const all: Map<bigint, Peer> = new Map<bigint, Peer>();
     const registered: Map<bigint, Peer> = new Map<bigint, Peer>();
 
     updatePeerMaps(all, registered, [{ cid: 1n, username: 'alice' }], []);
 
+    expect(all.get(1n)?.isOnline).toBeNull();
+  });
+
+  it('still carries the status the backend does report', () => {
+    // The positive control: a version that hardcoded null would satisfy the
+    // test above and lose every real answer.
+    const all: Map<bigint, Peer> = new Map<bigint, Peer>();
+    const registered: Map<bigint, Peer> = new Map<bigint, Peer>();
+
+    updatePeerMaps(
+      all,
+      registered,
+      [{ cid: 1n, username: 'alice', online_status: true }, { cid: 2n, username: 'bob', online_status: false }],
+      [],
+    );
+
     expect(all.get(1n)?.isOnline).toBe(true);
+    expect(all.get(2n)?.isOnline).toBe(false);
   });
 });

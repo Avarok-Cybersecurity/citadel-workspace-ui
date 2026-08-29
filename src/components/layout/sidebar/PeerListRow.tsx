@@ -15,7 +15,12 @@ import { rowClass } from "./selected-row";
 interface PeerListRowProps {
   cid: string;
   username: string;
-  isOnline: boolean;
+  /**
+   * True, false, or null when no poll has landed yet. Null is a real answer
+   * here: this row used to write "Offline" beside every peer until the first
+   * poll returned, which is an assertion about somebody who may be right there.
+   */
+  isOnline: boolean | null;
   isConnected: boolean;
   unreadCount?: number;
   /** Whether this is the conversation currently on screen. See active-conversation. */
@@ -32,11 +37,22 @@ export function PeerListRow({
   isActive = false,
   onClick,
 }: PeerListRowProps): JSX.Element {
-  const statusColor: "bg-success" | "bg-warning" | "bg-destructive" = isConnected
-    ? 'bg-success'
-    : isOnline
-    ? 'bg-warning'
-    : 'bg-destructive';
+  const statusColor: "bg-success" | "bg-warning" | "bg-destructive" | "bg-muted-foreground" =
+    isConnected
+      ? 'bg-success'
+      : isOnline === true
+      ? 'bg-warning'
+      : isOnline === false
+      ? 'bg-destructive'
+      : 'bg-muted-foreground';
+
+  const statusLabel: string = isConnected
+    ? 'Connected'
+    : isOnline === true
+    ? 'Online'
+    : isOnline === false
+    ? 'Offline'
+    : 'Presence not known yet';
 
   return (
     <SidebarMenuItem key={cid}>
@@ -67,7 +83,7 @@ export function PeerListRow({
             {/* Colour alone would carry the meaning, which fails WCAG 1.4.1 —
                 same pairing as ParticipantTile's speaking indicator. */}
             <span className="sr-only">
-              {isConnected ? 'Connected' : isOnline ? 'Online' : 'Offline'}
+              {statusLabel}
             </span>
           </div>
           {/* Username */}

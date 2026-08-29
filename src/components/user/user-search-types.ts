@@ -11,7 +11,8 @@ export interface UserData {
   avatarUrl?: string;
   email?: string;
   role?: UserRole;
-  isOnline?: boolean;
+  /** True, false, or null when nobody has said. See lib/presence.ts. */
+  isOnline?: boolean | null;
   lastActive?: number;
 }
 

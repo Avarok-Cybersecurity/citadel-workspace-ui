@@ -91,6 +91,11 @@ export class P2PAutoConnectService {
     return this.state.isPeerOnline(peerCid);
   }
 
+  /** Online status, or null when no poll has landed yet. */
+  public peerOnlineStatus(peerCid: bigint): boolean | null {
+    return this.state.peerOnlineStatus(peerCid);
+  }
+
   public getOnlinePeers(): bigint[] {
     return this.state.getOnlinePeers();
   }

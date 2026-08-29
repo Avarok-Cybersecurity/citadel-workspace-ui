@@ -18,7 +18,8 @@ import { debugLog } from '@/lib/debug-config';
 export interface RegisteredPeer {
   cid: string;
   username: string;
-  isOnline: boolean;
+  /** True, false, or null when no poll has landed. See lib/presence.ts. */
+  isOnline: boolean | null;
   isConnected: boolean;
 }
 
@@ -87,7 +88,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
           const cidStr: string = p.cid?.toString() || '';
           const displayName: string = peerDisplayName({ cid: p.cid, username: p.username });
           const peerCidBigInt: bigint = p.cid ?? BigInt(0);
-          const isOnline: boolean = p2pAutoConnectService.isPeerOnline(peerCidBigInt);
+          const isOnline: boolean | null = p2pAutoConnectService.peerOnlineStatus(peerCidBigInt);
           let isConnected: boolean = false;
           try {
             const connectedPromise: Promise<boolean> = p2pAutoConnectService.isPeerConnected(peerCidBigInt);
@@ -103,7 +104,8 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
         peerList = peersToUse.map(p => {
           const cidStr: string = p.cid?.toString() || '';
           const displayName: string = peerDisplayName({ cid: p.cid, username: p.username });
-          return { cid: cidStr, username: displayName, isOnline: false, isConnected: false };
+          // The listing failed; nobody has said whether these peers are online.
+          return { cid: cidStr, username: displayName, isOnline: null, isConnected: false };
         });
       }
 

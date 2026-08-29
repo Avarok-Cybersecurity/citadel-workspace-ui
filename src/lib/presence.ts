@@ -17,6 +17,12 @@
  *   4. `UserDirectory` ignoring all of the above and rendering "is registered
  *      with me" under a green dot — so a registered peer who is offline showed
  *      as online.
+ *   5. Upstream of all of it: `Peer.isOnline` was a plain boolean, and the
+ *      registry INVENTED `true` for a peer the agent had said nothing about.
+ *      This function ORs that flag with the live poll, so the invention
+ *      outranked the real answer. The field is now `boolean | null`, and this
+ *      function returns null for the same reason: not knowing is a third
+ *      answer, and the two it used to be squeezed into are both assertions.
  *
  * A member id is a USERNAME. The peer registry indexes peers by CID and carries
  * both the username and the real `isOnline` the agent reports, so the lookup is
@@ -58,20 +64,25 @@ function findPeer(memberId: string): Peer | undefined {
 }
 
 /**
- * Presence for a member id.
+ * Presence for a member id: true, false, or null for "nobody has said".
  *
- * False for a member the registry has never heard of — which is honest: an
- * unregistered member's presence is genuinely unknown to this client, and the
- * agent does not report it.
+ * Null for a member the registry has never heard of. The previous version
+ * returned false there and called it honest, which it was not quite: the UI
+ * renders that as the word "Offline", which is an assertion about somebody who
+ * might be sitting right there. An unregistered member's presence is unknown to
+ * this client, and now the type can say so.
  */
-export function isMemberOnline(memberId: string): boolean {
+export function isMemberOnline(memberId: string): boolean | null {
   const peer: ReturnType<typeof findPeer> = findPeer(memberId);
   if (!peer) {
-    debugLog('Presence', 'no registered peer for member, reporting offline:', memberId);
-    return false;
+    debugLog('Presence', 'no registered peer for member, presence unknown:', memberId);
+    return null;
   }
 
-  // The polled set is the live answer; the registry's own flag is a snapshot
-  // from whenever the list was last fetched.
-  return p2pAutoConnectService.isPeerOnline(peer.cid) || peer.isOnline;
+  // The polled set is the live answer where it HAS one. Before the first poll
+  // it is empty, and reading "absent from an empty set" as offline is what put
+  // the word beside people who were sitting right there.
+  const polled: boolean | null = p2pAutoConnectService.peerOnlineStatus(peer.cid);
+  if (polled !== null) return polled;
+  return peer.isOnline;
 }

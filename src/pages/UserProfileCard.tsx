@@ -83,7 +83,7 @@ export function UserProfileCard({
           )}
           <CardDescription className="text-muted-foreground flex items-center justify-center">
             <Clock className="h-3.5 w-3.5 mr-1.5" />
-            {formatPresence(selectedUser.isOnline ?? false, selectedUser.lastActive)}
+            {formatPresence(selectedUser.isOnline ?? null, selectedUser.lastActive)}
           </CardDescription>
         </div>
       </CardHeader>

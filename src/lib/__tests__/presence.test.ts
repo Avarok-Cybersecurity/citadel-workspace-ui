@@ -9,6 +9,10 @@
  *      constant false. The file's own comment asserted the wrong thing.
  *   4. UserDirectory answering "is this person registered with me" under a
  *      green dot, so a registered-but-offline peer showed as online.
+ *   5. The data underneath: `Peer.isOnline` was a plain boolean and the
+ *      registry INVENTED `true` for a peer the agent had said nothing about,
+ *      while the poll's own set read empty-before-first-refresh as "everyone
+ *      offline". Presence now has three answers, and null is one of them.
  *
  * The fixture below is a USERNAME, deliberately: version 3 passed every test it
  * had, because every test used a numeric id.
@@ -16,11 +20,11 @@
 
 import { describe, it, expect, vi, beforeEach  } from 'vitest';
 
-const isPeerOnline = vi.fn<(cid: bigint) => boolean>();
+const peerOnlineStatus = vi.fn<(cid: bigint) => boolean | null>();
 const getPeers: ReturnType<typeof vi.fn> = vi.fn();
 
 vi.mock('../p2p-auto-connect-service', () => ({
-  p2pAutoConnectService: { isPeerOnline: (cid: bigint): boolean => isPeerOnline(cid) },
+  p2pAutoConnectService: { peerOnlineStatus: (cid: bigint): boolean | null => peerOnlineStatus(cid) },
 }));
 vi.mock('../p2p-registration-service', () => ({
   p2pRegistrationService: { getPeers: (): unknown => getPeers() },
@@ -28,7 +32,7 @@ vi.mock('../p2p-registration-service', () => ({
 
 const { isMemberOnline, memberIdToCid } = await import('../presence');
 
-const peer: (username: string, cid: bigint, isOnline?: boolean) => { cid: bigint; username: string; fullName: string; isOnline: boolean; isRegistered: boolean; } = (username: string, cid: bigint, isOnline = false): { cid: bigint; username: string; fullName: string; isOnline: boolean; isRegistered: boolean; } => ({
+const peer: (username: string, cid: bigint, isOnline?: boolean | null) => { cid: bigint; username: string; fullName: string; isOnline: boolean | null; isRegistered: boolean; } = (username: string, cid: bigint, isOnline: boolean | null = null): { cid: bigint; username: string; fullName: string; isOnline: boolean | null; isRegistered: boolean; } => ({
   cid,
   username,
   fullName: '',
@@ -38,16 +42,16 @@ const peer: (username: string, cid: bigint, isOnline?: boolean) => { cid: bigint
 
 describe('member presence', () => {
   beforeEach(() => {
-    isPeerOnline.mockReset().mockReturnValue(false);
+    peerOnlineStatus.mockReset().mockReturnValue(false);
     getPeers.mockReset().mockReturnValue({ allPeers: [], registeredPeers: [] });
   });
 
   it('finds a member by username, which is what a member id is', () => {
     getPeers.mockReturnValue({ allPeers: [peer('alice', 42n)], registeredPeers: [] });
-    isPeerOnline.mockImplementation((cid) => cid === 42n);
+    peerOnlineStatus.mockImplementation((cid) => cid === 42n);
 
     expect(isMemberOnline('alice')).toBe(true);
-    expect(isPeerOnline).toHaveBeenCalledWith(42n);
+    expect(peerOnlineStatus).toHaveBeenCalledWith(42n);
   });
 
   it('does not answer the same for everyone', () => {
@@ -57,17 +61,27 @@ describe('member presence', () => {
       allPeers: [peer('alice', 1n), peer('bob', 2n)],
       registeredPeers: [],
     });
-    isPeerOnline.mockImplementation((cid) => cid === 1n);
+    peerOnlineStatus.mockImplementation((cid) => cid === 1n);
 
     expect(isMemberOnline('alice')).toBe(true);
     expect(isMemberOnline('bob')).toBe(false);
   });
 
-  it('falls back to the registry snapshot when the poll has not seen them', () => {
+  it('falls back to the registry snapshot only before the first poll', () => {
     getPeers.mockReturnValue({ allPeers: [peer('alice', 42n, true)], registeredPeers: [] });
-    isPeerOnline.mockReturnValue(false);
+    peerOnlineStatus.mockReturnValue(null);
 
     expect(isMemberOnline('alice')).toBe(true);
+  });
+
+  it('lets a landed poll overrule a stale registry snapshot', () => {
+    // The old version ORed the two, so a snapshot saying `true` outranked a
+    // fresh poll saying otherwise. They come from the same backend call, so the
+    // only way they differ is staleness, and the poll is the fresher of the two.
+    getPeers.mockReturnValue({ allPeers: [peer('alice', 42n, true)], registeredPeers: [] });
+    peerOnlineStatus.mockReturnValue(false);
+
+    expect(isMemberOnline('alice')).toBe(false);
   });
 
   it('prefers a username match over a CID match for a numeric username', () => {
@@ -77,16 +91,17 @@ describe('member presence', () => {
       allPeers: [peer('7', 99n), peer('carol', 7n)],
       registeredPeers: [],
     });
-    isPeerOnline.mockImplementation((cid) => cid === 99n);
+    peerOnlineStatus.mockImplementation((cid) => cid === 99n);
 
     expect(isMemberOnline('7')).toBe(true);
   });
 
-  it('reports offline for a member the registry has never heard of', () => {
+  it('reports unknown, not offline, for a member the registry never heard of', () => {
+    // "Offline" is an assertion about somebody who may be sitting right there.
     getPeers.mockReturnValue({ allPeers: [], registeredPeers: [] });
 
-    expect(isMemberOnline('stranger')).toBe(false);
-    expect(isPeerOnline).not.toHaveBeenCalled();
+    expect(isMemberOnline('stranger')).toBeNull();
+    expect(peerOnlineStatus).not.toHaveBeenCalled();
   });
 
   it('does not throw on any shape of member id', () => {

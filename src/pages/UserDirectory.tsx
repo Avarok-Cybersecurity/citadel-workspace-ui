@@ -68,7 +68,9 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
   }));
 
   const filteredMembers: MemberDisplay[] = allMembers.filter(member => {
-    if (tab === 'online') return member.isOnline;
+    // `=== true`: a member whose presence nobody has reported is not evidence
+    // of being online, and this tab asserts that they are.
+    if (tab === 'online') return member.isOnline === true;
     return true;
   });
 

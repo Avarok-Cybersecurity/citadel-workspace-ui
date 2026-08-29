@@ -98,7 +98,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
       try {
         const members: User[] = Object.values(state.members || {});
 
-        const filteredMembers: { id: string; displayName: string; avatarUrl: string | undefined; email: string | undefined; role: UserRole | undefined; isOnline: boolean; lastActive: undefined; }[] = members
+        const filteredMembers: { id: string; displayName: string; avatarUrl: string | undefined; email: string | undefined; role: UserRole | undefined; isOnline: boolean | null; lastActive: undefined; }[] = members
           .filter(member =>
             !exclude.includes(member.id) &&
             (

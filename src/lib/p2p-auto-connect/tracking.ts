@@ -96,6 +96,19 @@ export class P2PConnectionState extends ConnectedPeersState {
     return this.onlinePeers.has(peerCid);
   }
 
+  /**
+   * Online status as a third answer: `null` until the first poll has landed.
+   *
+   * `isPeerOnline` answers "is this peer in the online set", and before the
+   * first refresh that set is empty -- so every peer read as offline, and the
+   * sidebar wrote the word "Offline" beside people who were sitting right
+   * there. Absent from an empty set is not evidence of anything.
+   */
+  peerOnlineStatus(peerCid: bigint): boolean | null {
+    if (this.lastOnlineStatusRefresh === 0) return null;
+    return this.onlinePeers.has(peerCid);
+  }
+
   setOnlinePeers(peerCids: bigint[]): void {
     this.onlinePeers.clear();
     for (const cid of peerCids) {

@@ -17830,3 +17830,58 @@ changed the work, and it is recorded in the gate so nobody spends the round
 again.
 
 All 58 preflight checks.
+
+## Round 365 — the fifth way the dot was wrong
+
+`lib/presence.ts` opens with a list of the four ways this one green dot had been
+wrong: `Math.random()`, a demo-only map keyed on a literal nobody writes, a
+CID/username mix-up that made it constant false, and `UserDirectory` rendering
+"is registered with me" under a green light.
+
+The fifth was underneath all four. `Peer.isOnline` was a plain `boolean`, so the
+absent fact was invented three different ways at the same time:
+
+| site | absent status becomes |
+|---|---|
+| `discovery.ts` (×2) | `online_status !== undefined ? online_status : true` → **online** |
+| `registration.ts` (×2) | hardcoded `isOnline: true` → **online** |
+| `polling.ts` | `online_status ?? false` → **offline** |
+| `use-registered-peers` catch | `isOnline: false` → **offline** |
+
+and `isPeerOnline` answered "is this peer in the online set", which before the
+first poll is empty — so every peer in the app read as offline, and the sidebar
+wrote the word beside people who were sitting right there.
+
+`presence.ts` then ORed the registry's flag with the live poll. So an *invented*
+`true` outranked the real answer, and the module whose docstring catalogues four
+previous versions of this bug was consuming a fifth.
+
+Two things are true at once and the old type could hold only one: a peer can be
+**not online**, and a peer can be **not asked about**. `Peer.isOnline`,
+`isMemberOnline` and the two peer hooks are now `boolean | null`, and
+`peerOnlineStatus` returns null until a poll has actually landed.
+
+The migration was small for a reason worth recording: almost every surface
+renders `isOnline && <Dot/>`, and null is falsy, so those were already correct.
+Only the three places that *say a word* — the sidebar's "Offline", the profile
+card's `formatPresence`, and UserDirectory's online filter — had to decide, and
+each was asserting something it did not know. `date-utils` had already been
+through this for **last seen** ("three different fictions for the same missing
+fact") one field over, and the fix stopped there.
+
+A landed poll now overrules the registry snapshot rather than being ORed with
+it: the two come from the same backend call, so the only way they differ is
+staleness, and the poll is the fresher.
+
+Two existing tests encoded the defect — one was named *"defaults online_status
+to true when the backend omits it"*. Both were rewritten to the new contract,
+and the peer-maps one gained a positive control, since a version that hardcoded
+`null` would have satisfied the replacement and lost every real answer.
+
+Three behavioural controls, each failing exactly its own assertions:
+re-inventing `true` in discovery, restoring the OR in presence, and reporting a
+stranger as offline. `check-presence-is-not-invented.mjs` holds both types open
+and forbids the two literal inventions — `?? false` in the poller stays legal,
+because there an answer *did* arrive.
+
+2431 tests green, all 59 preflight checks.

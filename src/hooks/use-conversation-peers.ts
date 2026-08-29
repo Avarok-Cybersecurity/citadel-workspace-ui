@@ -17,7 +17,8 @@ import type { P2PConversation } from '@/lib/p2p/p2p-types';
 export interface ConversationPeer {
   peerCid: string;
   peerUsername: string;
-  isOnline: boolean;
+  /** True, false, or null when no poll has landed. See lib/presence.ts. */
+  isOnline: boolean | null;
   isConnected: boolean;
   unreadCount: number;
   lastMessageTime?: number;
@@ -49,7 +50,7 @@ export function useConversationPeers({
       .filter(c => c.messages.length > 0)
       .filter(c => c.peerCid.toString() !== currentCid);
 
-    const convPeers: { peerCid: string; peerUsername: string; isOnline: boolean; isConnected: boolean; unreadCount: number; lastMessageTime: number; }[] = await Promise.all(filteredConversations.map(async c => {
+    const convPeers: { peerCid: string; peerUsername: string; isOnline: boolean | null; isConnected: boolean; unreadCount: number; lastMessageTime: number; }[] = await Promise.all(filteredConversations.map(async c => {
       const peerCidStr: string = c.peerCid.toString();
       // Find the username from registered peers
       const registeredPeer: RegisteredPeer | undefined = registeredPeers.find(p => p.cid === peerCidStr);
@@ -61,7 +62,7 @@ export function useConversationPeers({
       return {
         peerCid: peerCidStr,
         peerUsername: displayName,
-        isOnline: p2pAutoConnectService.isPeerOnline(c.peerCid),
+        isOnline: p2pAutoConnectService.peerOnlineStatus(c.peerCid),
         isConnected: await p2pAutoConnectService.isPeerConnected(c.peerCid),
         unreadCount: c.unreadCount,
         lastMessageTime: c.messages[c.messages.length - 1]?.timestamp
