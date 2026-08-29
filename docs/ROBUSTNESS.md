@@ -15537,3 +15537,51 @@ was already right.
 |---|---|
 | Typing debt | 179 → **168** |
 | Sites that cannot be annotated | 2, both documented in place |
+
+## Round 309 — the sign-out that was refused, and never told
+
+Round 298's bigint fix closed the diagnostic loop, and the next CI run finally
+printed the CID:
+
+```
+[OrphanSessionsNavbar] Disconnecting session: 11465873633484109802n
+[DisconnectOperations] Sending Disconnect request
+… 30 seconds …
+[OrphanSessionsNavbar] Failed to disconnect: Error: Disconnect request timed out
+```
+
+No `DisconnectNotification`, no `PeerDisconnectFailure` — **nothing at all**. The
+service never answers.
+
+It never answers because it decided not to act. The ownership gate refuses
+`Some(owner) if owner != caller` for any request, and an orphaned session's
+owner is the connection that opened it — so signing one out from a new tab,
+which is the *entire* Previous Sessions flow, is refused. The refusal is logged
+server-side, and then `refusal_response` falls to `_ => return None`, which
+sends nothing.
+
+The gate's own documentation says why that was left: *"inventing a response
+shape for the rest would be guesswork"*. For these two it is not guesswork —
+`Disconnect` and `Deregister` both have a failure variant the client already
+matches on, by request id. They are answered now, so a refused sign-out fails in
+milliseconds with a reason instead of spinning for thirty seconds and reporting
+a timeout that names the wrong thing.
+
+**The tests read as covering the class and covered a subset.** `gated_requests`
+held the four LocalDB variants, and every test in that module iterates it — so
+"a refusal is answered with its own request id", "every refusal says the same
+thing" and "a refused request never decides to proceed" all proved things about
+LocalDB and nothing about the destructive pair that the comment on `handle`
+names by name. Adding those two to that fixture broke four tests immediately,
+and correctly: they are refused only when the session is owned elsewhere, not
+when it is unmapped. They needed their own list, and now have one.
+
+**What is still open, and is a product decision rather than a defect.** The gate
+refuses a legitimate operation: signing out of your own orphaned session from
+another tab of your own browser. Answering the refusal makes that visible and
+truthful; it does not make it work. Whether an orphan whose owning connection is
+gone should still be considered owned is a question about the ownership model,
+and it is recorded here rather than answered by me against a stack I cannot run.
+
+> A component that refuses owes the refusal to whoever asked. Logging it where
+> the asker cannot see is the same silence with a paper trail.
