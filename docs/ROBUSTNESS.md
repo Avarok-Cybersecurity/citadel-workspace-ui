@@ -16562,3 +16562,37 @@ ignore it, so comment lines are skipped.
 Negative control: restoring one raw `${err}` names it by file and line.
 
 Preflight: **50 checks**. 2359 tests.
+
+## Round 338 — "Something went wrong: [object Object]", on login
+
+The sweep that produced round 337 kept going, into the mapper those toasts
+were supposed to be using.
+
+`getUserFriendlyErrorMessage(error: string | Error)` is the app's one place for
+turning a failure into advice, and it is good at it — twenty-odd branches, each
+with a comment saying why that wording. Its three most important callers are
+login, registration and workspace initialization: every flow a new user meets.
+All three narrowed the same way before calling it:
+
+```ts
+const errArg: string | Error = err instanceof Error ? err : String(err);
+```
+
+`String()` on a structured rejection is `[object Object]`. That string matches
+none of the twenty branches, is not protocol jargon, and is under 200
+characters — so it went straight through the deliberate passthrough at the end
+and reached the user as:
+
+> Something went wrong: [object Object]
+
+The signature is now `unknown` and normalises with `describeError` inside, so
+the coercion is gone from all three call sites at once rather than each being
+asked to remember. Same for `getErrorTitle`.
+
+**The first negative control passed, and proved nothing** — the string I
+substituted did not match, so the run was green because nothing had changed.
+Redone against both call sites, it fails two tests: the `[object Object]` one
+and the positive control that a known failure carried on a payload is still
+recognised, which is what stops the fix from being "return a constant".
+
+Preflight: 50 checks. 2361 tests.

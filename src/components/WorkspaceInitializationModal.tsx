@@ -124,12 +124,11 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
             onSuccess();
         } catch (err: unknown) {
             debugLog('WorkspaceInitializationModal', 'Failed to initialize workspace:', err);
-            const errArg: string | Error = err instanceof Error ? err : String(err);
-            const userFriendlyMessage: string = getUserFriendlyErrorMessage(errArg);
+            const userFriendlyMessage: string = getUserFriendlyErrorMessage(err);
             setError(userFriendlyMessage);
 
             toast({
-                title: getErrorTitle(errArg),
+                title: getErrorTitle(err),
                 description: userFriendlyMessage,
                 variant: "destructive",
             });

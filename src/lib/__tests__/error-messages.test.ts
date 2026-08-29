@@ -157,3 +157,28 @@ describe('credential errors are matched regardless of case', () => {
     expect(getUserFriendlyErrorMessage('Disk quota exceeded')).not.toContain('Incorrect password');
   });
 });
+
+describe('an error that is neither a string nor an Error', () => {
+  it('never becomes "[object Object]" in front of a user', () => {
+    // Login, registration and workspace initialization each narrowed with
+    // `err instanceof Error ? err : String(err)` before calling this, and the
+    // revfs and websocket layers both reject with a structured payload. That
+    // string matched no branch, was not jargon and was under 200 characters,
+    // so it reached the user through the passthrough.
+    const shown: string = getUserFriendlyErrorMessage({ code: 5, detail: 'x' });
+
+    expect(shown).not.toContain('[object Object]');
+  });
+
+  it('still recognises a known failure carried on a payload', () => {
+    // The positive control: normalising must not cost the mapping. Without
+    // this, returning a constant would satisfy the test above.
+    expect(getUserFriendlyErrorMessage({ message: 'Invalid credentials' })).toMatch(
+      /invalid username or password/i,
+    );
+  });
+
+  it('titles it without [object Object] either', () => {
+    expect(getErrorTitle({ code: 5 })).not.toContain('[object Object]');
+  });
+});

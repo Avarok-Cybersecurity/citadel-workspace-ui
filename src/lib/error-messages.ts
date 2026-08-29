@@ -1,8 +1,25 @@
+import { describeError } from './describe-error';
 /**
  * Transforms technical error messages into user-friendly messages
  */
-export function getUserFriendlyErrorMessage(error: string | Error): string {
-  const errorMessage: string = typeof error === 'string' ? error : error.message;
+/**
+ * `unknown`, not `string | Error`.
+ *
+ * Three call sites — login, registration and workspace initialization, which
+ * is every flow a new user meets — narrowed with
+ * `err instanceof Error ? err : String(err)` before calling this. `String()`
+ * on a structured rejection is `[object Object]`, and the revfs and websocket
+ * layers both reject with one. That string then matches none of the branches
+ * below, is not protocol jargon and is under 200 characters, so it reached the
+ * user through the passthrough as:
+ *
+ *   Something went wrong: [object Object]
+ *
+ * Taking `unknown` and normalising here removes the coercion from all three at
+ * once, rather than asking each to remember.
+ */
+export function getUserFriendlyErrorMessage(error: unknown): string {
+  const errorMessage: string = describeError(error);
   
   // Connection-related errors
   if (errorMessage.includes('WebSocket connection failed') || 
@@ -134,8 +151,8 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
 /**
  * Gets a user-friendly title for an error
  */
-export function getErrorTitle(error: string | Error): string {
-  const errorMessage: string = typeof error === 'string' ? error : error.message;
+export function getErrorTitle(error: unknown): string {
+  const errorMessage: string = describeError(error);
   
   if (errorMessage.includes('connection') || errorMessage.includes('WebSocket') ||
       errorMessage.includes('Connection') || errorMessage.includes('ECONNREFUSED')) {

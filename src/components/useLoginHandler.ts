@@ -233,9 +233,8 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams): LoginHandler
             },
       );
     } catch (err: unknown) {
-      const errArg: string | Error = err instanceof Error ? err : String(err);
-      setError(getUserFriendlyErrorMessage(errArg));
-      toast({ variant: "destructive", title: getErrorTitle(errArg), description: getUserFriendlyErrorMessage(errArg) });
+      setError(getUserFriendlyErrorMessage(err));
+      toast({ variant: "destructive", title: getErrorTitle(err), description: getUserFriendlyErrorMessage(err) });
     } finally {
       setLoading(false);
     }
