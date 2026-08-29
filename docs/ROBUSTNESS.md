@@ -14566,3 +14566,35 @@ worse than signing out of nothing is refusing to sign out of something.
 The type still says `bigint`. That it is sometimes absent is a mismatch between
 the declaration and the data that this guard tolerates rather than fixes, and it
 is written down here as the next thing to chase.
+
+## Round 286 — the chip that could not be acted on
+
+Round 285 stopped the sign-out from lying. This removes the thing it was lying
+about.
+
+`ActiveSession.cid` is declared `bigint` and the wire does not always carry one.
+Every action the strip offers is keyed by CID — navigate, claim, sign out — so a
+chip for a session without one is a control that does nothing. It reached the
+strip, and pressing sign-out on it called `disconnect(undefined)`, ran the modal
+through to "ready", and left the chip exactly where it was.
+
+Filtered at the pairing, which is a pure function and testable on its own.
+
+**Dropping is not emptying**, and the distinction is load-bearing here: this file
+already refuses to treat a failed READ as "no sessions", because a stale list
+beats an empty one and CIDs are permanent. This removes only the entries nothing
+can be done with.
+
+Three tests, and the two controls carry the weight:
+
+- **every session survives when they all have a CID** — otherwise "drops the bad
+  one" is satisfied by a filter that drops everything;
+- **CID zero survives**. `0n` is falsy, `filter(s => s.cid)` would drop it, and
+  hiding a real session is worse than showing a dead one. That is the second
+  time this exact mistake was available in two rounds, and the second time a
+  control for it was written before the code was.
+
+Also: the pairing's inline return type had grown to a 240-character object
+literal repeated twice in one line, written by the annotator. It is a named
+`Paired` interface now. *An explicit type that nobody can read is explicit and
+not much else.*
