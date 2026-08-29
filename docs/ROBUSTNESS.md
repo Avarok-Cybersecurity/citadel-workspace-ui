@@ -16947,3 +16947,45 @@ ten — 0.7 KB of headroom, so the next growth is argued for too, which is what
 that comment already asks of anybody raising it.
 
 2366 tests green; preflight 53/53.
+
+## Round 346 — the same conflation, on the Manage Accounts screen
+
+Round 345's mechanism, grepped rather than waited for. `queries.ts` defines two
+accessors and says why, at the definition:
+
+> `ok: false` means the question could not be asked or was not answered … It
+> does NOT mean there are no sessions, and the two must never be conflated:
+> this query is how the app decides whether the user is logged in.
+
+`AccountManagementDialog` used the lenient one, which returns `[]` on failure,
+and rendered that as fact:
+
+- the **Active Sessions** section disappeared entirely;
+- every saved account lost its **"Active"** badge and its green border.
+
+So a socket blip told the user, positively, that none of their accounts were
+connected — on the screen whose entire job is to say which are. The `catch`
+beside the call never fired, because `getActiveSessions` swallows the failure
+and returns the empty array itself.
+
+`null` now means unknown, `[]` means none, and the two render differently: the
+badges are withheld either way, but unknown also says so, so their absence
+reads as a fact about the question rather than about the accounts.
+
+Extracted to `account-live-status.tsx` — the tri-state and the sentence that
+explains it belong together, and the dialog was at 261 lines against a 250
+limit.
+
+**The negative control passed on the first attempt**, which is the third time
+this session. The test was written as `act(...).then(() => waitFor(...))`, and
+`waitFor` retries until its assertion holds — the first read is the initial
+`null`, so it succeeded before the state update it was meant to be watching had
+landed. Rewritten as a plain `await act(...)` and a direct assertion, restoring
+the defect now fails exactly that one test and leaves the positive control
+green.
+
+The positive control matters as much here: without "is an empty list when the
+query answers none", returning `null` unconditionally would satisfy the defect
+test.
+
+2370 tests green; preflight 53/53.

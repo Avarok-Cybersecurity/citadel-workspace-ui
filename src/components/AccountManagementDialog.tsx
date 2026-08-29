@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLiveSessions, LiveStatusUnknown, type LiveSessions } from './account-live-status';
 import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
@@ -31,7 +32,9 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
   const { toast } = useToast();
   const navigate: NavigateFunction = useNavigate();
   const [storedSessions, setStoredSessions] = useState(connectionManager.getStoredSessionsArray());
-  const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
+  const live: LiveSessions = useLiveSessions();
+  const loadLive: () => Promise<void> = live.load;
+  const activeSessions: ActiveSession[] | null = live.sessions;
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<{ username: string; serverAddress: string } | null>(null);
   const [clearAllConfirmOpen, setClearAllConfirmOpen] = useState(false);
@@ -42,8 +45,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
     if (isOpen) {
       const loadActiveSessions = async (): Promise<void> => {
         try {
-          const active: ActiveSession[] = await connectionManager.getActiveSessions();
-          setActiveSessions(active);
+          await loadLive();
         } catch (error) {
           debugLog('AccountManagementDialog', 'Failed to load active sessions:', error);
         }
@@ -51,7 +53,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
       runAsyncSetup(loadActiveSessions);
       setStoredSessions(connectionManager.getStoredSessionsArray());
     }
-  }, [isOpen]);
+  }, [isOpen, loadLive]);
 
   const handleRemoveSession = async (): Promise<void> => {
     if (!sessionToDelete) return;
@@ -127,12 +129,13 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
           </DialogHeader>
 
           <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-            {activeSessions.length > 0 && (
+            {activeSessions === null && storedSessions.length > 0 && <LiveStatusUnknown />}
+            {(activeSessions?.length ?? 0) > 0 && (
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Wifi className="h-4 w-4 text-success-emphasis" />Active Sessions ({activeSessions.length})
+                  <Wifi className="h-4 w-4 text-success-emphasis" />Active Sessions ({activeSessions?.length ?? 0})
                 </h3>
-                {activeSessions.map((session) => {
+                {(activeSessions ?? []).map((session) => {
                   const isCurrentSession: boolean = currentConnection?.cid === session.cid;
                   return (
                     <div key={session.cid} className="flex items-center justify-between p-4 rounded-lg bg-background border border-success/30">
@@ -166,7 +169,8 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
                 </h3>
                 {storedSessions.map((session) => {
                   const isConnected: boolean = currentConnection?.serverAddress === session.serverAddress && currentConnection?.username === session.username;
-                  const hasActiveSession: boolean = activeSessions.some(a => a.username === session.username && a.server_address === session.serverAddress);
+                  const hasActiveSession: boolean =
+                    activeSessions?.some(a => a.username === session.username && a.server_address === session.serverAddress) ?? false;
                   return (
                     <div key={`${session.username}-${session.serverAddress}`} className={`flex items-center justify-between p-4 rounded-lg bg-background border ${hasActiveSession ? 'border-success/30' : 'border-surface/50'}`}>
                       <div className="flex items-center gap-3">
@@ -197,7 +201,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
               </div>
             )}
 
-            {activeSessions.length === 0 && storedSessions.length === 0 && (
+            {(activeSessions?.length ?? 0) === 0 && storedSessions.length === 0 && (
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-4">No accounts found. Join a workspace to get started.</p>
                 <Button
