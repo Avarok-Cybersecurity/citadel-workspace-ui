@@ -1,5 +1,15 @@
 """Record the sites in rejected files, and report which of them we touched.
 
+CAUTION, and the reason this file exists twice over: a file can appear in the
+error list because ANOTHER file's annotation broke it. Intersecting with the
+touched set stops us reverting files we never edited, but it does not tell
+"I broke it" from "someone broke me" -- so a perfectly good site gets blamed for
+a neighbour's failure and is never tried again.
+
+Measured: `DisconnectConfirmModalProps): JSX.Element | null` compiles cleanly on
+its own, and had been sitting in the ledger for several passes. The ledger is
+therefore a HINT, not a verdict, and is cleared and rebuilt periodically.
+
 Errors CASCADE: one bad annotation in a shared module breaks every consumer, and
 a run that reverted every file named in the errors reverted 114 files after
 touching 37 -- throwing away good work in files it had never edited, and leaving
