@@ -31,28 +31,43 @@ export interface DomainMembers {
   members: WorkspaceMember[];
   setMembers: React.Dispatch<React.SetStateAction<WorkspaceMember[]>>;
   isLoadingMembers: boolean;
+  /**
+   * The list was asked for and did not arrive — the send failed, or nothing
+   * answered within `MEMBER_LOAD_TIMEOUT_MS`.
+   *
+   * Distinct from an empty list, because the section renders an empty list as
+   * "Nobody else is here yet. Invite someone…" — a claim about the workspace,
+   * made on the strength of a request that failed. The note on the timeout
+   * above frames it as a choice between an indefinite spinner and that empty
+   * state; there is a third answer, which is to say what actually happened.
+   */
+  membersUnavailable: boolean;
 }
 
 export function useDomainMembers(activeDomainId: string | null): DomainMembers {
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [membersUnavailable, setMembersUnavailable] = useState(false);
 
   useEffect(() => {
     const loadMembers = async (): Promise<void> => {
       if (!activeDomainId) {
         setMembers([]);
         setIsLoadingMembers(false);
+        setMembersUnavailable(false);
         return;
       }
       // Clear first: the previous node's members would otherwise stay on screen,
       // attributed to the node just opened.
       setMembers([]);
+      setMembersUnavailable(false);
       setIsLoadingMembers(true);
       try {
         await WorkspaceService.listMembers(activeDomainId);
       } catch (error) {
         debugLog('useDomainMembers', 'Error loading members:', error);
         setIsLoadingMembers(false);
+        setMembersUnavailable(true);
       }
       // Deliberately NOT cleared here — see the note at the top of this file.
     };
@@ -68,6 +83,7 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
       if (payload.members) setMembers(payload.members);
       // The response is what ends the load.
       setIsLoadingMembers(false);
+      setMembersUnavailable(false);
     };
     // `onMemberEvent` returns its unsubscribe SYNCHRONOUSLY. It used to be
     // wrapped in `runAsyncSetup(async () => await ...)`, which threw the return
@@ -84,9 +100,13 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
 
   useEffect(() => {
     if (!isLoadingMembers) return;
-    const timer: number = window.setTimeout(() => setIsLoadingMembers(false), MEMBER_LOAD_TIMEOUT_MS);
+    const timer: number = window.setTimeout((): void => {
+      setIsLoadingMembers(false);
+      // Not silently empty. Nothing answered, and that is what to say.
+      setMembersUnavailable(true);
+    }, MEMBER_LOAD_TIMEOUT_MS);
     return (): void => window.clearTimeout(timer);
   }, [isLoadingMembers]);
 
-  return { members, setMembers, isLoadingMembers };
+  return { members, setMembers, isLoadingMembers, membersUnavailable };
 }

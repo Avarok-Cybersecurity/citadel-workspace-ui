@@ -17183,3 +17183,50 @@ answer that question, which it could not before — and a failing check that
 cannot discriminate is worth less than no check, because it is acted on.
 
 2385 tests green; preflight 53/53 apart from the push reminder.
+
+## Round 351 — a third answer the code had already ruled out
+
+Next on round 349's list: `use-domain-members`. The sidebar renders an empty
+member list as
+
+> Nobody else is here yet. Invite someone with the share button above…
+
+and two paths leave it empty without anybody being ruled out: the `listMembers`
+send failing, and nothing answering within `MEMBER_LOAD_TIMEOUT_MS`.
+
+The second is the interesting one, because it was already considered. The
+constant's own note says:
+
+> A reply that never comes must not leave the section spinning forever. Falling
+> back to the empty state after this long is a worse answer than the real list
+> and a better one than an indefinite "Loading members...".
+
+That is a real choice between two bad options, and it picked the better one.
+But it is a false dichotomy: the third answer is to say what happened. An
+indefinite spinner tells the user nothing; a false empty state tells them
+something wrong; "the list could not be loaded" tells them the truth and what to
+do.
+
+`membersUnavailable` is set on both paths and cleared when members arrive.
+`MembersEmptyState` owns the two sentences — extracted because `MembersSection`
+was at 248 lines against a 250 limit and this added a branch.
+
+Control: ignoring `unavailable` fails exactly the first test and leaves the
+positive control green, which is the one that stops the fix from being "always
+say it failed" — somebody genuinely alone in a workspace needs to be told how to
+invite people.
+
+### Where the mechanism has now been fixed
+
+| round | site | what a failure used to say |
+|---|---|---|
+| 345 | `useOrphanSessions` | kept a session the user had just deleted |
+| 346 | `AccountManagementDialog` | every account shown as disconnected |
+| 347 | `use-auto-claim-session` | nothing — and every permission gate then refused |
+| 349 | `PeerDiscoveryModal` | "No other users in this workspace yet" |
+| 351 | `MembersSection` | "Nobody else is here yet" |
+
+Remaining from round 349's list: `UserSearch`, `use-registered-peers`,
+`useGroupChat` and `useP2PMessages` (both pagination), `use-loaded-permissions`.
+
+2387 tests green; preflight 53/53 bar the push reminder.

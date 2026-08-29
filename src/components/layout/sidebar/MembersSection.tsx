@@ -1,6 +1,7 @@
 /** Sidebar section displaying workspace members, P2P peers, and conversations. */
 
 import { Plus } from "lucide-react";
+import { MembersEmptyState } from './MembersEmptyState';
 import { PendingRequestsBadge } from './PendingRequestsBadge';
 import { membersSectionLabel } from './members-section-label';
 import { MembersHeaderActions } from './MembersHeaderActions';
@@ -82,7 +83,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
   useEventListener('open-pending-requests-modal', () => { setShowPendingRequests(true); });
 
   const activeDomainId: string | null = currentNodeId;
-  const { members, isLoadingMembers } = useDomainMembers(activeDomainId);
+  const { members, isLoadingMembers, membersUnavailable } = useDomainMembers(activeDomainId);
 
   const handleEditMember = (m: WorkspaceMember): void => { setSelectedMember(m); setShowEditModal(true); };
   const handleRemoveMember = (m: WorkspaceMember): void => { setSelectedMember(m); setShowRemoveModal(true); };
@@ -140,10 +141,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
                   Loading members...
                 </SidebarMenuItem>
               ) : members.length === 0 && filteredRegisteredPeers.length === 0 && registeredPeers.length === 0 ? (
-                <SidebarMenuItem className="px-3 py-2 text-sm text-muted-foreground">
-                  Nobody else is here yet. Invite someone with the share button above,
-                  or use the add button to find people who have already joined.
-                </SidebarMenuItem>
+                <MembersEmptyState unavailable={membersUnavailable} />
               ) : members.length > 0 && (
                 <MemberListItems
                   members={members}
