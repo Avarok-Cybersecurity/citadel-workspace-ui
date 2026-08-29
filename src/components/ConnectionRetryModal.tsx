@@ -28,7 +28,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
   const retryInProgressRef = useRef(false);
   const executeFnRef = useRef<(() => Promise<unknown>) | null>(null);
 
-  const retryOperation = useCallback(async (): Promise<true | void> => {
+  const retryOperation: () => Promise<true | void> = useCallback(async (): Promise<true | void> => {
     if (onRetry) {
       return onRetry();
     }

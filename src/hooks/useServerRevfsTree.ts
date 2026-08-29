@@ -70,7 +70,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     };
   }, [myCid, capabilitiesReceived]);
 
-  const loadTree = useCallback(async (): Promise<void> => {
+  const loadTree: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (!myCid) {
       setTree(null);
       setLoading(false);
@@ -96,7 +96,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
   // Subscribe to tree changes
   useEffect(() => {
     if (!key) return;
-    const unsub = revfsService.onTreeChanged((changedKey, newTree): void => {
+    const unsub: () => void = revfsService.onTreeChanged((changedKey, newTree): void => {
       if (changedKey === key) {
         setTree(newTree);
       }

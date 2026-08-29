@@ -35,7 +35,7 @@ describe('group store', () => {
     startGroupEventBindings();
     const id: string = freshId();
     let notified: number = 0;
-    const unsubscribe = subscribeToGroups((): void => { notified += 1; });
+    const unsubscribe: () => void = subscribeToGroups((): void => { notified += 1; });
 
     emitCreated(id);
 

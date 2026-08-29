@@ -32,7 +32,7 @@ export abstract class EventListenerManager {
    * @param handler - Event handler function
    */
   protected listen<T>(event: string, handler: (data: T) => void): void {
-    const unsubscribe = eventEmitter.on(event, handler);
+    const unsubscribe: () => void = eventEmitter.on(event, handler);
     this.cleanupFunctions.push(unsubscribe);
   }
 
@@ -42,7 +42,7 @@ export abstract class EventListenerManager {
    * @param handler - Event handler function (called only once)
    */
   protected listenOnce<T>(event: string, handler: (data: T) => void): void {
-    const unsubscribe = eventEmitter.once(event, handler);
+    const unsubscribe: () => void = eventEmitter.once(event, handler);
     this.cleanupFunctions.push(unsubscribe);
   }
 

@@ -9,7 +9,7 @@
  * cause".
  */
 
-export const DISCARD_EDIT_PROMPT = {
+export const DISCARD_EDIT_PROMPT: { readonly title: "Discard your changes?"; readonly description: "This page has edits that have not been saved. Discarding cannot be undone."; readonly confirmLabel: "Discard"; } = {
   title: 'Discard your changes?',
   description: 'This page has edits that have not been saved. Discarding cannot be undone.',
   confirmLabel: 'Discard',

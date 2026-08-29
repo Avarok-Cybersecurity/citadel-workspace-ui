@@ -100,7 +100,7 @@ export function CollaborativeEditor({
   // Handle flash comment from context menu. Delegates the build to a
   // pure helper so the empty-text guard (and shape) is unit-testable
   // without mounting Tiptap. See `buildContextMenuFlashComment`.
-  const handleFlashCommentFromContextMenu = useCallback((): void => {
+  const handleFlashCommentFromContextMenu: () => void = useCallback((): void => {
     if (!contextMenu || !editor) return;
 
     // Anchor captured BEFORE asking, which the native prompt made free and an

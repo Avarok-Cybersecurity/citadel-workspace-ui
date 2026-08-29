@@ -81,7 +81,7 @@ export function useP2PMessages({
     };
     runAsyncSetup(loadConversation);
 
-    const unsubscribeConversationEvents = subscribeToConversationEvents({
+    const unsubscribeConversationEvents: () => void = subscribeToConversationEvents({
       messenger, peerCid, activeTabIdRef, onUnreadMessage,
       setMessages, setPeerTyping, setIsConnected, setPeerPresence, setIsRegistered,
     });
@@ -121,7 +121,7 @@ export function useP2PMessages({
     };
   }, [peerCid, activeTabIdRef, onUnreadMessage, messenger]);
 
-  const loadOlderMessages = useCallback(async (): Promise<void> => {
+  const loadOlderMessages: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (isLoadingMore || currentPage === null || currentPage <= 0 || !hasMorePages) return;
 
     setIsLoadingMore(true);
@@ -159,7 +159,7 @@ export function useP2PMessages({
     }
   }, [hasMorePages, isLoadingMore, loadOlderMessages]);
 
-  const handleRetryMessage = useCallback(async (message: P2PMessage): Promise<void> => {
+  const handleRetryMessage: (message: P2PMessage) => Promise<void> = useCallback(async (message: P2PMessage): Promise<void> => {
     if (message.status !== 'failed') return;
     try {
       await messenger.resendMessage(peerCid, message.id);

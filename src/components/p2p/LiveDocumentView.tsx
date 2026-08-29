@@ -41,7 +41,7 @@ export function LiveDocumentView({
     setIsSaving(false);
   }, [documentId, onSave]);
 
-  const handleDownload = useCallback((): void => {
+  const handleDownload: () => void = useCallback((): void => {
     // Get the editor content via the DOM (simple approach)
     const editorContent: string = document.querySelector('.ProseMirror')?.innerHTML || '';
     const blob: Blob = new Blob([editorContent], { type: 'text/html' });

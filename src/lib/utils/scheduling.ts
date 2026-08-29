@@ -105,6 +105,6 @@ export function waitForEvent<T = void>(
 
     // Assigned before use by the subscribe callback below, which cannot fire
     // synchronously before this returns in any of our event sources.
-    const unsubscribe = subscribe(value => finish((): void => resolve(value)));
+    const unsubscribe: () => void = subscribe(value => finish((): void => resolve(value)));
   });
 }

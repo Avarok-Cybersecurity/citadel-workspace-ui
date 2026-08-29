@@ -62,7 +62,7 @@ export const MembersSection = () => {
   const conversationPeerCids: Set<string> = new Set(peersWithConversations.map(c => c.peerCid));
   const filteredRegisteredPeers = registeredPeers.filter(p => !conversationPeerCids.has(p.cid));
 
-  const updatePendingCount = useCallback(async (): Promise<void> => {
+  const updatePendingCount: () => Promise<void> = useCallback(async (): Promise<void> => {
     const count: number = await peerRegistrationStore.getPendingCount();
     setPendingRequestCount(count);
   }, []);

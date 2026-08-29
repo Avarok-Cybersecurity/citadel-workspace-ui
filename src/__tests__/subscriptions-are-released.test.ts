@@ -26,7 +26,7 @@ describe('ConnectionService.onConnectionChange', () => {
     const service: ConnectionService = ConnectionService.getInstance();
     const handler = vi.fn();
 
-    const unsubscribe = service.onConnectionChange(handler);
+    const unsubscribe: () => void = service.onConnectionChange(handler);
     // A void return is the defect: callers have nothing to return from their
     // effect, so every remount leaves another live handler behind.
     expect(typeof unsubscribe).toBe('function');
@@ -45,10 +45,10 @@ describe('ConnectionService.onConnectionChange', () => {
 
     // Simulate an effect that re-runs: subscribe, clean up, subscribe again.
     for (let run: number = 0; run < 5; run++) {
-      const unsubscribe = service.onConnectionChange((): number => calls.push(run));
+      const unsubscribe: () => void = service.onConnectionChange((): number => calls.push(run));
       unsubscribe();
     }
-    const live = service.onConnectionChange((): number => calls.push(99));
+    const live: () => void = service.onConnectionChange((): number => calls.push(99));
 
     // `onConnectionChange` replays the current connection to a new subscriber
     // immediately, so everything recorded so far is that replay, not a dispatch.

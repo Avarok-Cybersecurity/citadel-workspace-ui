@@ -63,12 +63,12 @@ export function VFSContentGrid({
     ? allChildren.filter(n => matchesSearch(n.name, filterText))
     : allChildren;
 
-  const handleBackgroundClick = useCallback((): void => { onClearSelection?.(); }, [onClearSelection]);
+  const handleBackgroundClick: () => void = useCallback((): void => { onClearSelection?.(); }, [onClearSelection]);
   const handleRename = useCallback((node: RevfsNode): void => { setRenamingPath(node.path); }, []);
   const handleRenameConfirm = useCallback(async (node: RevfsNode, newName: string): Promise<void> => {
     setRenamingPath(null); await onRename(node.path, newName);
   }, [onRename]);
-  const handleRenameCancel = useCallback((): void => { setRenamingPath(null); }, []);
+  const handleRenameCancel: () => void = useCallback((): void => { setRenamingPath(null); }, []);
   const handlePasteItem = useCallback(async (node: RevfsNode): Promise<void> => { await onPaste(node.path); }, [onPaste]);
 
   const sorted: RevfsNode[] = [...children].sort((a, b) => {

@@ -29,7 +29,7 @@ const sender = { sendProtocolRequest: vi.fn((): Promise<void> => Promise.resolve
 
 function countReloads(run: () => Promise<unknown>): Promise<number> {
   let count: number = 0;
-  const off = eventEmitter.on('members:reload', (): void => { count += 1; });
+  const off: () => void = eventEmitter.on('members:reload', (): void => { count += 1; });
   return run()
     .catch(() => undefined)
     .then(() => {

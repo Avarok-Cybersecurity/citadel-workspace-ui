@@ -31,7 +31,7 @@ import { applyGroupMessage } from './apply-group-message';
 import { debugLog } from '@/lib/debug-config';
 
 let groups: GroupConversation[] = [];
-const listeners = new Set<() => void>();
+const listeners: Set<() => void> = new Set<() => void>();
 let bindingsStarted = false;
 
 let hydrated = false;

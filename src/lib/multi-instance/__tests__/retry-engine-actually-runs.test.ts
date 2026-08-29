@@ -29,7 +29,7 @@ afterEach(() => {
 describe('the retry engine', () => {
   it('retries a request that is never acknowledged', () => {
     const retries: string[] = [];
-    const off = eventEmitter.on('outbound-retry', (d: { requestId: string }): number =>
+    const off: () => void = eventEmitter.on('outbound-retry', (d: { requestId: string }): number =>
       retries.push(d.requestId),
     );
 
@@ -49,7 +49,7 @@ describe('the retry engine', () => {
 
   it('gives up after the documented number of attempts, and says so', () => {
     const failures: string[] = [];
-    const off = eventEmitter.on('outbound-failed', (d: { requestId: string }): number =>
+    const off: () => void = eventEmitter.on('outbound-failed', (d: { requestId: string }): number =>
       failures.push(d.requestId),
     );
 
@@ -70,7 +70,7 @@ describe('the retry engine', () => {
 
   it('stops retrying once acknowledged', () => {
     const retries: string[] = [];
-    const off = eventEmitter.on('outbound-retry', (d: { requestId: string }): number =>
+    const off: () => void = eventEmitter.on('outbound-retry', (d: { requestId: string }): number =>
       retries.push(d.requestId),
     );
 

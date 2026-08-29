@@ -142,7 +142,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     [ensureManager, ensureSession, teardown, managerRef],
   );
 
-  const accept = useCallback(
+  const accept: (media: CallMediaKinds) => Promise<void> = useCallback(
     async (media: CallMediaKinds) => {
       setCaptureFailure(null);
       const manager = managerRef.current;
@@ -163,12 +163,12 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     [ensureSession, teardown, managerRef],
   );
 
-  const decline = useCallback(async (): Promise<void> => {
+  const decline: () => Promise<void> = useCallback(async (): Promise<void> => {
     await managerRef.current?.decline('rejected');
     teardown();
   }, [teardown, managerRef]);
 
-  const leave = useCallback(async (): Promise<void> => {
+  const leave: () => Promise<void> = useCallback(async (): Promise<void> => {
     const manager = managerRef.current;
     if (manager) {
       await manager.end('hangup');

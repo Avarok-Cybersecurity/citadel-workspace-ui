@@ -89,7 +89,7 @@ export function useConnectionHandler() {
     let lastProcessedCid: string | null = null;
 
     debugLog('WorkspaceApp', 'Subscribing to connection changes');
-    const unsubscribeConnection = connectionService.onConnectionChange(async (connection): Promise<void> => {
+    const unsubscribeConnection: () => void = connectionService.onConnectionChange(async (connection): Promise<void> => {
       debugLog('WorkspaceApp', `onConnectionChange called, cid=${connection?.cid?.toString()}, isConnected=${connection?.isConnected}`);
       const cidValue = typeof connection?.cid === 'string' ? parseInt(connection.cid, 10) : connection?.cid;
       if (connection && connection.cid && cidValue !== 0) {

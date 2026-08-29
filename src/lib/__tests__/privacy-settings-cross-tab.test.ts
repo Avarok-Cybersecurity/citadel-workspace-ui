@@ -69,7 +69,7 @@ describe('privacy settings across tabs', () => {
   });
 
   it('stops listening when torn down', () => {
-    const release = initPrivacySettingsSync();
+    const release: () => void = initPrivacySettingsSync();
     getPrivacySettings();
     release();
     localStorage.setItem(

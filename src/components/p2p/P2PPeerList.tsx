@@ -26,7 +26,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
 
   const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
 
-  const loadPeers = useCallback((): void => {
+  const loadPeers: () => void = useCallback((): void => {
     const conversations = messenger.getAllConversations();
     const peerList: PeerInfo[] = conversations.map(conv => {
       const lastMessage = conv.messages[conv.messages.length - 1];
@@ -54,11 +54,11 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
     };
     initPeers().catch(err => debugLog('P2PPeerList', 'Failed to init peers:', err));
 
-    const unsubscribeMessage = messenger.onMessage((): void => {
+    const unsubscribeMessage: () => void = messenger.onMessage((): void => {
       loadPeers();
     });
 
-    const unsubscribeConnection = messenger.onConnectionChange((): void => {
+    const unsubscribeConnection: () => void = messenger.onConnectionChange((): void => {
       loadPeers();
     });
 

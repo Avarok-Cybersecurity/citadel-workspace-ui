@@ -26,7 +26,7 @@ export function useVFSKeyboardShortcuts({
   setRenamingPath, onDelete, onDeleteMultiple, onCopy, onCopyMultiple,
   onCut, onCutMultiple, onPaste, onSelectAll, onClearSelection,
 }: KeyboardShortcutsDeps): void {
-  const getSelectedNodes = useCallback((): RevfsNode[] => {
+  const getSelectedNodes: () => RevfsNode[] = useCallback((): RevfsNode[] => {
     return Array.from(selectedPaths)
       .map(path => findNodeByPath(tree, path))
       .filter((n): n is RevfsNode => n !== null);

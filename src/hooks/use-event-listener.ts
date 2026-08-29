@@ -45,7 +45,7 @@ export function useEventListener<T = unknown>(
       handlerRef.current(payload);
     };
 
-    const unsubscribe = eventEmitter.on(eventName, stableHandler);
+    const unsubscribe: () => void = eventEmitter.on(eventName, stableHandler);
 
     return (): void => {
       unsubscribe();
@@ -76,7 +76,7 @@ export function useEventListeners<T = unknown>(
       handlerRef.current(payload);
     };
 
-    const unsubscribes = eventNames.map(name =>
+    const unsubscribes: (() => void)[] = eventNames.map(name =>
       eventEmitter.on(name, stableHandler)
     );
 

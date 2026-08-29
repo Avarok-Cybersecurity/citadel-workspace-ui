@@ -48,7 +48,7 @@ export function GroupSettingsPanel({
   const canDeleteGroup = can('deleteGroup');
 
   // Handle name save
-  const handleNameSave = useCallback(async (): Promise<void> => {
+  const handleNameSave: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (groupName.trim() === group.name) return;
 
     setIsSaving(true);

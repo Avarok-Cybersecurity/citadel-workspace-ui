@@ -75,7 +75,7 @@ export function useVFSSelection(): UseVFSSelectionResult {
     }
   }, []);
 
-  const clearSelection = useCallback((): void => {
+  const clearSelection: () => void = useCallback((): void => {
     setSelectedPaths(new Set());
     setLastSelectedPath(null);
   }, []);
@@ -86,7 +86,7 @@ export function useVFSSelection(): UseVFSSelectionResult {
 
   const selectionCount: number = useMemo(() => selectedPaths.size, [selectedPaths]);
 
-  const getSelectedNodes = useCallback((tree: RevfsNode): RevfsNode[] => {
+  const getSelectedNodes: (tree: RevfsNode) => RevfsNode[] = useCallback((tree: RevfsNode): RevfsNode[] => {
     const nodes: RevfsNode[] = [];
     for (const path of selectedPaths) {
       const node = findNodeByPath(tree, path);

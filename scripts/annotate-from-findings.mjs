@@ -163,9 +163,15 @@ for (const source of program.getSourceFiles()) {
 }
 
 function isSafe(printed, source) {
-  if (printed.length > 60) return false;
-  if (/\bimport\(|typeof import|\{|\}|=>|any\b|error\b/.test(printed)) return false;
-  if (/^(any|unknown|never|null|undefined)$/.test(printed)) return false;
+  // 200, not 60. A long type is ugly and true; the reason to refuse one is that
+  // it cannot be written without an import, which the name test below decides.
+  if (printed.length > 200) return false;
+  // `import(...)` in a printed type is the compiler saying it cannot name this
+  // without a path, and `any` is not something to write down in a codebase that
+  // bans it. Object and function type literals are allowed: they are printable
+  // in full, and `tsc` says whether the result is right.
+  if (/\bimport\(|typeof import|\bany\b|\berror\b/.test(printed)) return false;
+  if (/^(any)$/.test(printed)) return false;
   if (/^["'`]/.test(printed) || /^-?\d/.test(printed) || /^(true|false)$/.test(printed)) return false;
   if (printed === 'boolean') return false;
   const names = printed.match(/[A-Za-z_$][A-Za-z0-9_$]*/g) ?? [];

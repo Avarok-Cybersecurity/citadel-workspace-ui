@@ -95,7 +95,7 @@ export class EventEmitter {
       unsubscribe();
       handler(payload);
     };
-    const unsubscribe = this.on(event, wrappedHandler);
+    const unsubscribe: () => void = this.on(event, wrappedHandler);
     return unsubscribe;
   }
 

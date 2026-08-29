@@ -110,7 +110,7 @@ export class ConnectionManager {
   }
 
   private setupLeaderElection(): void {
-    const unsub = this.io.onEvent<{ isLeader: boolean; leaderId: string }>(
+    const unsub: () => void = this.io.onEvent<{ isLeader: boolean; leaderId: string }>(
       'leader-changed',
       async ({ isLeader, leaderId }) => {
         debugLog('ConnectionService', `ConnectionManager: Leader changed - isLeader: ${isLeader}, leaderId: ${leaderId}`);

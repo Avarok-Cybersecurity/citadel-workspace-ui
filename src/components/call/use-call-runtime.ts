@@ -52,7 +52,7 @@ export function useCallRuntime({
   const managerCidRef = useRef<bigint | null>(null);
 
   /** Torn down together: a session without its manager cannot end a call. */
-  const teardown = useCallback((): void => {
+  const teardown: () => void = useCallback((): void => {
     sessionRef.current?.close();
     sessionRef.current = null;
     managerRef.current = null;
@@ -76,7 +76,7 @@ export function useCallRuntime({
     teardown();
   }, [selfCid, teardown]);
 
-  const ensureManager = useCallback(async (): Promise<CallManager | null> => {
+  const ensureManager: () => Promise<CallManager | null> = useCallback(async (): Promise<CallManager | null> => {
     if (!selfCid) return null;
     // Both caches are keyed on the identity they were built for. Reusing either
     // across a CID change is what bound calling to the previous account.
@@ -184,7 +184,7 @@ export function useCallRuntime({
    * chunk, so every visitor downloaded a video encoder before the login form
    * had painted.
    */
-  const ensureSession = useCallback(async (): Promise<CallSession> => {
+  const ensureSession: () => Promise<CallSession> = useCallback(async (): Promise<CallSession> => {
     if (sessionRef.current) return sessionRef.current;
     const { CallSession } = await import('@/lib/call/call-session');
     // Re-checked after the await: two callers can race this import, and the

@@ -52,7 +52,7 @@ const NotificationCenter = () => {
     setNotifications(notificationService.getNotificationsForCid(sessionCid));
     
     // Register for notification updates
-    const unregister = notificationService.registerNotificationHandler((notification): void => {
+    const unregister: () => void = notificationService.registerNotificationHandler((notification): void => {
       // Check if this is a removed notification
       if (notification.id.startsWith('removed:')) {
         const actualId: string = notification.id.replace('removed:', '');

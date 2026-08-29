@@ -84,7 +84,7 @@ export const Landing = () => {
   }, [searchParams, setSearchParams]);
 
   // Memoize the checkForServers function to prevent it from being recreated on each render
-  const checkForServers = useCallback(async (): Promise<void> => {
+  const checkForServers: () => Promise<void> = useCallback(async (): Promise<void> => {
     try {
       // Using "0" as a valid u64 string representation for the landing page
       await listKnownServers({ cid: "0" });

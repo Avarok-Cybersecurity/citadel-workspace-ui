@@ -124,7 +124,7 @@ export function PwaUpdatePrompt() {
    * THIS window instead of showing "Updated in another window" — the re-offer
    * used to omit it, so the user pressed Reload and was told to reload.
    */
-  const acceptUpdate = useCallback((): void => {
+  const acceptUpdate: () => void = useCallback((): void => {
     weInitiatedUpdate.current = true;
     void (async (): Promise<void> => {
       // `applyWaitingUpdate` rather than the library's `updateServiceWorker`,
@@ -158,7 +158,7 @@ export function PwaUpdatePrompt() {
     // deadline, and it was landing beside "Could not reach the server" on a
     // failed first-run registration -- a green success toast next to the error
     // the user has to act on. See announce-when-quiet.
-    const cancel = announceWhenQuiet((): void => {
+    const cancel: () => void = announceWhenQuiet((): void => {
       toast({
         title: 'Ready to work offline',
         description: 'Citadel has been installed and will now load without a connection.',

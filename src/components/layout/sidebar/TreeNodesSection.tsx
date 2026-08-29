@@ -129,7 +129,7 @@ export function TreeNodesSection({
     [onNodeSelect, location.search, navigate, setOpenMobile]
   );
 
-  const handleNodeDelete = useCallback(
+  const handleNodeDelete: (node: DomainNode) => void = useCallback(
     (node: DomainNode) => {
       if (onNodeDelete) {
         setNodeToDelete(node);
@@ -138,7 +138,7 @@ export function TreeNodesSection({
     [onNodeDelete]
   );
 
-  const confirmDelete = useCallback(async (): Promise<void> => {
+  const confirmDelete: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (!nodeToDelete || !onNodeDelete) return;
     setDeleteError(null);
     try {
@@ -155,7 +155,7 @@ export function TreeNodesSection({
     }
   }, [nodeToDelete, onNodeDelete]);
 
-  const handleCreateRoot = useCallback((): void => {
+  const handleCreateRoot: () => void = useCallback((): void => {
     if (onNodeCreate) {
       onNodeCreate(null);
     }

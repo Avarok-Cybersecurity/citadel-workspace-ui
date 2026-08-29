@@ -19,7 +19,7 @@ export const Connect = () => {
   const [selectedServer, setSelectedServer] = useState<string | null>(null);
 
   // Memoize the fetchServers function to prevent it from being recreated on each render
-  const fetchServers = useCallback(async (): Promise<void> => {
+  const fetchServers: () => Promise<void> = useCallback(async (): Promise<void> => {
     try {
       // Using "1" as a valid u64 string representation for the connect page
       const response = await listKnownServers({ cid: "1" });

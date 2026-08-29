@@ -39,7 +39,7 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
     setHexDraft(toHex(value).slice(1));
   }, [value]);
 
-  const commitHex = useCallback((): void => {
+  const commitHex: () => void = useCallback((): void => {
     const parsed = fromHex(hexDraft);
     if (parsed) onChange(parsed);
     // Invalid input snaps back to the current colour rather than clearing —

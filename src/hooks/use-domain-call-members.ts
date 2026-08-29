@@ -32,7 +32,7 @@ export function useDomainCallMembers(domainId: string | undefined): GroupCallMem
       return;
     }
 
-    const unsubscribe = workspaceEvents.onMemberEvent(
+    const unsubscribe: () => void = workspaceEvents.onMemberEvent(
       'members:loaded',
       (payload: MembersPayload) => {
         if (!isForDomain(payload.domainId, domainId)) return;

@@ -20,7 +20,7 @@ interface Harness {
 function harness(overrides: Partial<CallSoundDeps> = {}): Harness {
   const bursts: Harness['bursts'] = [];
   let chimes: number = 0;
-  const timers = new Map<number, () => void>();
+  const timers: Map<number, () => void> = new Map<number, () => void>();
   let nextId: number = 1;
   let held: number = 0;
   const deps: CallSoundDeps = {
@@ -52,7 +52,7 @@ function harness(overrides: Partial<CallSoundDeps> = {}): Harness {
       return chimes;
     },
     fireTimers: (): void => {
-      const pending = [...timers.entries()];
+      const pending: [number, () => void][] = [...timers.entries()];
       timers.clear();
       for (const [, fn] of pending) fn();
     },

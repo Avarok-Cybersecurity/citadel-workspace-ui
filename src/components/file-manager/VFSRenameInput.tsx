@@ -54,7 +54,7 @@ export function VFSRenameInput({
     return null;
   }, []);
 
-  const handleConfirm = useCallback((): void => {
+  const handleConfirm: () => void = useCallback((): void => {
     const trimmed: string = value.trim();
     const validationError = validate(trimmed);
     if (validationError) {
@@ -79,7 +79,7 @@ export function VFSRenameInput({
     e.stopPropagation();
   }, [handleConfirm, onCancel]);
 
-  const handleBlur = useCallback((): void => {
+  const handleBlur: () => void = useCallback((): void => {
     handleConfirm();
   }, [handleConfirm]);
 

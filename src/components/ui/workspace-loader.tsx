@@ -52,7 +52,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
     let mounted = true;
 
     // `mounted` made stale handlers inert but never removed them. See onConnectionChange.
-    const unsubscribeConnection = connectionService.onConnectionChange((connection): void => {
+    const unsubscribeConnection: () => void = connectionService.onConnectionChange((connection): void => {
       if (mounted) {
         setHasConnection(!!connection?.isConnected);
       }

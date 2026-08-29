@@ -35,7 +35,7 @@ export function useFileManagerSelectionHandlers({
     toast.info(`Copied ${nodes.length} item${nodes.length !== 1 ? 's' : ''}`);
   }, [copyToClipboard, currentTreeKey]);
 
-  const handleSelectAll = useCallback((): void => {
+  const handleSelectAll: () => void = useCallback((): void => {
     if (!tree) return;
     const currentNode = tree.path === currentPath ? tree : findNodeByPath(tree, currentPath);
     if (!currentNode?.children) return;

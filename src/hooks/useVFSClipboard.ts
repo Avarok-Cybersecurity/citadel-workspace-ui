@@ -51,7 +51,7 @@ export function useVFSClipboard(): UseVFSClipboardResult {
     });
   }, []);
 
-  const clear = useCallback((): void => {
+  const clear: () => void = useCallback((): void => {
     setClipboard(EMPTY_CLIPBOARD);
   }, []);
 

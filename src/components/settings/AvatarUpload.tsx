@@ -71,7 +71,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     setIsDragActive(false);
   }, []);
 
-  const handleClick = useCallback((): void => {
+  const handleClick: () => void = useCallback((): void => {
     if (!disabled && fileInputRef.current) {
       fileInputRef.current.click();
     }

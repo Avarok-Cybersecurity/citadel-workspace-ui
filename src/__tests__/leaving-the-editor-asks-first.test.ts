@@ -62,7 +62,7 @@ describe('a navigation that unmounts the editor', () => {
     expect(await mayLeaveEditor(confirm)).toBe(true);
     expect(asked, 'a clean editor must not prompt').toBe(0);
 
-    const clear = registerUnsavedEdits('doc-1');
+    const clear: () => void = registerUnsavedEdits('doc-1');
     expect(await mayLeaveEditor(confirm)).toBe(true);
     expect(asked, 'a dirty editor must prompt').toBe(1);
 

@@ -67,7 +67,7 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
   const resizeHandler = (): void => schedulePositionUpdate();
   window.addEventListener('resize', resizeHandler);
 
-  const checkRemoval = () => {
+  const checkRemoval: () => boolean = () => {
     if (!document.contains(cursor)) {
       document.removeEventListener('scroll', scrollHandler, true);
       window.removeEventListener('resize', resizeHandler);

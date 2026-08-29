@@ -203,7 +203,7 @@ export function useFileManagerHandlers({
   }, [myCid, uploadFile, storageUsed, storageQuota, revfsEnabled, storageMode,
       setRevfsDisabledReason, setRevfsDisabledModalOpen, setAttemptedFileSize, setStorageLimitModalOpen]);
 
-  const handleSync = useCallback(async (): Promise<void> => {
+  const handleSync: () => Promise<void> = useCallback(async (): Promise<void> => {
     try {
       if (storageMode === TreeScope.Peer) {
         // Peer mode only auto-selects a peer when at least one is registered, so

@@ -84,7 +84,7 @@ export function CreateGroupDialog({
     );
   }, []);
 
-  const handleCreate = useCallback(async (): Promise<void> => {
+  const handleCreate: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (selectedMembers.length === 0) return;
     setIsCreating(true);
     setCreateError(null);
@@ -108,7 +108,7 @@ export function CreateGroupDialog({
   // No `if (!isCreating)` guard: onOpenChange is Radix's SINGLE dismissal
   // channel, so guarding it disables the X, Escape and outside-click together,
   // while the submit button is disabled too. See shared/confirm-dialog.
-  const handleClose = useCallback((): void => {
+  const handleClose: () => void = useCallback((): void => {
     setGroupName('');
     setSelectedMembers([]);
     onOpenChange(false);

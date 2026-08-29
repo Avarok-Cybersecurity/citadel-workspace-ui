@@ -60,7 +60,7 @@ describe('an ambient announcement', () => {
 
   it('can be cancelled, so an unmount does not fire into a dead component', () => {
     const announce = vi.fn();
-    const cancel = announceWhenQuiet(announce, { isBusy: () => true });
+    const cancel: () => void = announceWhenQuiet(announce, { isBusy: () => true });
     cancel();
     vi.advanceTimersByTime(QUIET_WAIT_MS * 2);
     expect(announce).not.toHaveBeenCalled();

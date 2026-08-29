@@ -36,7 +36,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
   const { toast } = useToast();
 
   // Load pending requests
-  const loadRequests = useCallback(async (): Promise<void> => {
+  const loadRequests: () => Promise<void> = useCallback(async (): Promise<void> => {
     const requests: PendingPeerRequest[] = await peerRegistrationStore.getPendingRequests();
     setPendingRequests(requests);
   }, []);

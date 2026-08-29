@@ -54,11 +54,11 @@ export function HierarchySidebar() {
     navigate(buildWorkspacePath(newParams));
   }, [location.search, navigate, confirm]);
 
-  const handleNodeEdit = useCallback((node: DomainNode): void => {
+  const handleNodeEdit: (node: DomainNode) => void = useCallback((node: DomainNode): void => {
     setEditNode(node);
   }, []);
 
-  const handleNodeDelete = useCallback(async (node: DomainNode): Promise<void> => {
+  const handleNodeDelete: (node: DomainNode) => Promise<void> = useCallback(async (node: DomainNode): Promise<void> => {
     try {
       await WorkspaceService.deleteNode(node.id, true);
 
@@ -148,11 +148,11 @@ export function HierarchySidebar() {
     setCreateModal({ parentId, entityType: allowedTypes[0] });
   }, [state.nodes, state.treeSchema, toast]);
 
-  const handleAdminSettings = useCallback((node: DomainNode): void => {
+  const handleAdminSettings: (node: DomainNode) => void = useCallback((node: DomainNode): void => {
     setAdminNode(node);
   }, []);
 
-  const handleSetDefault = useCallback(async (node: DomainNode): Promise<void> => {
+  const handleSetDefault: (node: DomainNode) => Promise<void> = useCallback(async (node: DomainNode): Promise<void> => {
     try {
       await WorkspaceService.updateNode(node.id, { isDefault: true });
       const typeName: string = getEntityTypeString(node.entity_type);

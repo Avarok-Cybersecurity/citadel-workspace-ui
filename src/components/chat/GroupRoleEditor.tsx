@@ -61,7 +61,7 @@ export function GroupRoleEditor({
     []
   );
 
-  const handleSave = useCallback((): void => {
+  const handleSave: () => void = useCallback((): void => {
     if (!canSave) return;
 
     onSave({
@@ -73,7 +73,7 @@ export function GroupRoleEditor({
     });
   }, [canSave, name, position, color, permissions, isDefault, onSave]);
 
-  const handleClose = useCallback((): void => {
+  const handleClose: () => void = useCallback((): void => {
     onOpenChange(false);
   }, [onOpenChange]);
 

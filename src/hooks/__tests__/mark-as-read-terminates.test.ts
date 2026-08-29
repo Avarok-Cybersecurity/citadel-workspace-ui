@@ -60,7 +60,7 @@ describe('marking a group read', () => {
   it('the store treats an unchanged array as nothing to do', async () => {
     const store = await import('@/lib/group-conversations/group-store');
     const listener = vi.fn();
-    const unsubscribe = store.subscribeToGroups(listener);
+    const unsubscribe: () => void = store.subscribeToGroups(listener);
 
     store.updateGroups((prev) => prev);
 

@@ -69,7 +69,7 @@ export function useGroupRoles(
     [roles]
   );
 
-  const suggestPosition = useCallback((): number => {
+  const suggestPosition: () => number = useCallback((): number => {
     const nonOwnerRoles: GroupRole[] = roles.filter(r => !r.isBuiltIn);
     if (nonOwnerRoles.length === 0) return 50;
 

@@ -126,7 +126,7 @@ export function usePeerDiscovery(isOpen: boolean) {
     return (): void => { eventEmitter.off('websocket-message', handleIncomingRegistration); };
   }, []);
 
-  const loadRegisteredPeers = useCallback(async (): Promise<void> => {
+  const loadRegisteredPeers: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (!currentCid) return;
     try {
       const registered: Set<string> = await fetchRegisteredPeers(currentCid);

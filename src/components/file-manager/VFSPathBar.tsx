@@ -44,13 +44,13 @@ export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps) {
     }
   }, [hasError]);
 
-  const handleFocus = useCallback((): void => {
+  const handleFocus: () => void = useCallback((): void => {
     setIsEditing(true);
     // Select all text on focus for easy replacement
     setTimeout(() => inputRef.current?.select(), 0);
   }, []);
 
-  const handleBlur = useCallback((): void => {
+  const handleBlur: () => void = useCallback((): void => {
     setIsEditing(false);
     // Revert to current path on blur without submission
     setInputValue(currentPath);

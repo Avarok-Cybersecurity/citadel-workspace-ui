@@ -35,7 +35,7 @@ export function useConversationPeers({
 }: UseConversationPeersProps): UseConversationPeersReturn {
   const [peersWithConversations, setPeersWithConversations] = useState<ConversationPeer[]>([]);
 
-  const loadConversations = useCallback(async (): Promise<void> => {
+  const loadConversations: () => Promise<void> = useCallback(async (): Promise<void> => {
     const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
     const conversations = messenger.getAllConversations();
 

@@ -60,7 +60,7 @@ export function useGroupChat(groupId: string) {
 
   // Subscribe to group message events
   useEffect(() => {
-    const unsubscribe = groupMessagingManager.subscribeToGroup(groupId, (event): void => {
+    const unsubscribe: () => void = groupMessagingManager.subscribeToGroup(groupId, (event): void => {
       switch (event.type) {
         case 'messages_loaded':
           cancelLoadingDeadline(`group-messages:${groupId}`);
@@ -110,7 +110,7 @@ export function useGroupChat(groupId: string) {
   }, [groupId]);
 
   // Load more messages (pagination)
-  const loadMoreMessages = useCallback(async (): Promise<void> => {
+  const loadMoreMessages: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (!hasMore || loadingMore) return;
 
     const oldestTimestamp = groupMessagingManager.getOldestTimestamp(groupId);

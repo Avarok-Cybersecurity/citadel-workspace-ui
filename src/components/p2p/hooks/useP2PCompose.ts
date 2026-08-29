@@ -88,7 +88,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
     inputRef.current?.focus();
   }, [messages]);
 
-  const cancelComposeContext = useCallback((): void => {
+  const cancelComposeContext: () => void = useCallback((): void => {
     if (editingMessage) setInputMessage('');
     setEditingMessage(null);
     setReplyingTo(null);
@@ -134,16 +134,16 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
     setInputMessage('');
   }, [createDocument]);
 
-  const handleMessageTypeChange = useCallback((type: MessageType): void => {
+  const handleMessageTypeChange: (type: MessageType) => void = useCallback((type: MessageType): void => {
     setMessageType(type);
     if (type === 'live_document' && inputMessage.trim()) setShowDocModal(true);
   }, [inputMessage]);
 
-  const handleInputFocus = useCallback((): void => {
+  const handleInputFocus: () => void = useCallback((): void => {
     if (peerCid) messenger.startTypingPolling(peerCid, () => inputMessageRef.current);
   }, [peerCid, messenger]);
 
-  const handleInputBlur = useCallback((): void => {
+  const handleInputBlur: () => void = useCallback((): void => {
     if (peerCid) messenger.stopTypingPolling(peerCid);
   }, [peerCid, messenger]);
 

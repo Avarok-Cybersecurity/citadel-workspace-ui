@@ -27,7 +27,7 @@ export interface BeforeInstallPromptEvent extends Event {
 
 let promptEvent: BeforeInstallPromptEvent | null = null;
 let installed = false;
-const listeners = new Set<() => void>();
+const listeners: Set<() => void> = new Set<() => void>();
 
 function emit(): void {
   for (const listener of listeners) listener();

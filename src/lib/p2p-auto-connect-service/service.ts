@@ -38,7 +38,7 @@ export class P2PAutoConnectService {
 
   private constructor() {
     const broadcastPeerConnected = this.setPeerConnected.bind(this);
-    const connectAll = this.connectToAllRegisteredPeers.bind(this);
+    const connectAll: () => Promise<void> = this.connectToAllRegisteredPeers.bind(this);
     setupEventListeners(this.state, broadcastPeerConnected, connectAll);
   }
 

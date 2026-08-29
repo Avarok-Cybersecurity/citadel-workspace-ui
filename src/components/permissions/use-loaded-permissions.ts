@@ -49,7 +49,7 @@ export function useLoadedPermissions(userId: string, domainId: string): Permissi
       });
     };
 
-    const unsubscribe = eventEmitter.on('user:permissions:loaded', onLoaded);
+    const unsubscribe: () => void = eventEmitter.on('user:permissions:loaded', onLoaded);
 
     const timer = setTimeout((): void => {
       if (settled) return;

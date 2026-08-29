@@ -74,7 +74,7 @@ export function useAsyncData<T>(
     };
   }, []);
 
-  const fetchData = useCallback(async (): Promise<void> => {
+  const fetchData: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (skip) {
       setLoading(false);
       return;
@@ -112,11 +112,11 @@ export function useAsyncData<T>(
     const _: Promise<void> = fetchData();
   }, [fetchData]);
 
-  const refetch = useCallback(async (): Promise<void> => {
+  const refetch: () => Promise<void> = useCallback(async (): Promise<void> => {
     await fetchData();
   }, [fetchData]);
 
-  const reset = useCallback((): void => {
+  const reset: () => void = useCallback((): void => {
     fetchIdRef.current++;
     setData(initialData as T | null);
     setLoading(false);
@@ -195,12 +195,12 @@ export function useAsyncAction<T, Args extends unknown[] = []>(
     }
   }, [actionFn, onSuccess, onError]);
 
-  const refetch = useCallback(async (): Promise<void> => {
+  const refetch: () => Promise<void> = useCallback(async (): Promise<void> => {
     // For actions, refetch doesn't make sense without args
     debugLog('UseAsyncAction', 'refetch() called without arguments. Use execute() with args instead.');
   }, []);
 
-  const reset = useCallback((): void => {
+  const reset: () => void = useCallback((): void => {
     setData(null);
     setLoading(false);
     setError(null);

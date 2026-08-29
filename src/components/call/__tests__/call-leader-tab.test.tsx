@@ -18,7 +18,7 @@ vi.mock('@/lib/multi-instance', () => ({
 }));
 vi.mock('@/lib/call/codec-support', () => ({
   probeMediaCapabilities: () => Promise.resolve({ supported: true }),
-  localCapabilities: () => Promise.resolve({}),
+  localCapabilities: (): Promise<{}> => Promise.resolve({}),
 }));
 vi.mock('@/lib/call/call-manager', () => ({ CallManager: class {} }));
 vi.mock('@/lib/call/websocket-call-transport', () => ({ WebSocketCallTransport: class {} }));

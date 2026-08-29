@@ -37,7 +37,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
     startupCompleteRef.current = startupComplete;
   }, [startupComplete]);
 
-  const loadRegisteredPeers = useCallback(async (): Promise<void> => {
+  const loadRegisteredPeers: () => Promise<void> = useCallback(async (): Promise<void> => {
     setIsLoading(true);
     try {
       const { registeredPeers: cachedPeers } = p2pRegistrationService.getPeers();

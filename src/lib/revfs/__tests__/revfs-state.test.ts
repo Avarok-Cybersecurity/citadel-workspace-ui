@@ -104,7 +104,7 @@ describe('RevfsState', () => {
     it('unsubscribe stops notifications', () => {
       const state: RevfsState = new RevfsState();
       const calls: string[] = [];
-      const unsub = state.onTreeChanged((key): number => calls.push(key));
+      const unsub: () => void = state.onTreeChanged((key): number => calls.push(key));
       state.setTree('100_200', makeTree());
       expect(calls).toHaveLength(1);
       unsub();

@@ -145,7 +145,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   }, [setGroups]);
 
   // Refresh groups from server
-  const refresh = useCallback(async (): Promise<void> => {
+  const refresh: () => Promise<void> = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       await sendGroupListRequest();

@@ -13,7 +13,7 @@
 import { useSyncExternalStore } from 'react';
 
 let mounted: number = 0;
-const listeners = new Set<() => void>();
+const listeners: Set<() => void> = new Set<() => void>();
 
 function emit(): void {
   for (const listener of listeners) listener();
@@ -33,7 +33,7 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-const isMounted = () => mounted > 0;
+const isMounted: () => boolean = () => mounted > 0;
 
 export function useCallStageVisible(): boolean {
   // Server snapshot is `false`: with no DOM there is no stage on screen.

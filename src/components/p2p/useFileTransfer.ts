@@ -48,7 +48,7 @@ export function useFileTransfer({
     }
   };
 
-  const handleFileSelect = useCallback((file: File): void => {
+  const handleFileSelect: (file: File) => void = useCallback((file: File): void => {
     setError(null);
 
     if (file.size > maxFileSizeBytes) {
@@ -103,7 +103,7 @@ export function useFileTransfer({
     fileInputRef.current?.click();
   };
 
-  const handleNativePickerClick = useCallback(async (): Promise<void> => {
+  const handleNativePickerClick: () => Promise<void> = useCallback(async (): Promise<void> => {
     setError(null);
     setIsPickingFile(true);
 

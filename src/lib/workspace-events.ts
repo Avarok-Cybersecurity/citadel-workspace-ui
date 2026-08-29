@@ -147,7 +147,7 @@ export class WorkspaceEvents {
 
   // Single internal cast to bridge the type-safe public API to the untyped eventEmitter.on()
   private registerListener<K extends WorkspaceEventType>(event: K, callback: (payload: WorkspaceEventMap[K]) => void): () => void {
-    const unlistenFn = eventEmitter.on(event, callback as (payload: unknown) => void);
+    const unlistenFn: () => void = eventEmitter.on(event, callback as (payload: unknown) => void);
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
     }

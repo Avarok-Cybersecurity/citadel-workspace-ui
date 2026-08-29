@@ -35,7 +35,7 @@ vi.mock('@/lib/call/websocket-call-transport', () => ({
   WebSocketCallTransport: class {},
 }));
 vi.mock('@/lib/call/codec-support', () => ({
-  localCapabilities: () => Promise.resolve({}),
+  localCapabilities: (): Promise<{}> => Promise.resolve({}),
   probeMediaCapabilities: () => Promise.resolve({ supported: true }),
 }));
 vi.mock('@/lib/call/peer-name', () => ({ callPeerName: (): string => 'Peer' }));

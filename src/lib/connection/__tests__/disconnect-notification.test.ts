@@ -20,7 +20,7 @@ import type { WebSocketMessage } from '@/types/ws-message-types';
 const CURRENT = 111n;
 const OTHER = 222n;
 
-function harness(currentCid: bigint | undefined) {
+function harness(currentCid: bigint | undefined): { state: ConnectionState; io: ConnectionIO; } {
   const state: ConnectionState = {
     currentConnectionInfo: currentCid === undefined ? null : { cid: currentCid },
     setCurrentConnectionInfo: vi.fn(),
@@ -40,7 +40,7 @@ function notify(cid: bigint): WebSocketMessage {
 
 describe('a server-initiated disconnect tears the session down', () => {
   it('clears the connection when the notification names the current session', async () => {
-    const h = harness(CURRENT);
+    const h: { state: ConnectionState; io: ConnectionIO; } = harness(CURRENT);
 
     await handleWebSocketMessage(notify(CURRENT), h.state, h.io, vi.fn(), vi.fn());
 
@@ -52,7 +52,7 @@ describe('a server-initiated disconnect tears the session down', () => {
   it('leaves another account alone', async () => {
     // The socket carries every account in this browser. Tearing down on any
     // CID would sign the user out of a session that is perfectly healthy.
-    const h = harness(CURRENT);
+    const h: { state: ConnectionState; io: ConnectionIO; } = harness(CURRENT);
 
     await handleWebSocketMessage(notify(OTHER), h.state, h.io, vi.fn(), vi.fn());
 
@@ -63,7 +63,7 @@ describe('a server-initiated disconnect tears the session down', () => {
   });
 
   it('does nothing when there is no current session to lose', async () => {
-    const h = harness(undefined);
+    const h: { state: ConnectionState; io: ConnectionIO; } = harness(undefined);
 
     await handleWebSocketMessage(notify(CURRENT), h.state, h.io, vi.fn(), vi.fn());
 

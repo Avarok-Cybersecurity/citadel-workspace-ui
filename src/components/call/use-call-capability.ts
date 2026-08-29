@@ -43,7 +43,7 @@ export function useCallCapability({
   // placed and carried no audio. Reported as a capability so the existing
   // disabled-with-a-reason treatment covers it: the buttons stay visible and
   // explain themselves rather than vanishing or lying.
-  const capability = useMemo(() => {
+  const capability: { supported: boolean; reason?: string; } = useMemo((): { supported: boolean; reason?: string; } => {
     if (!browserCapability.supported) return browserCapability;
     if (!isLeaderTab) {
       return {

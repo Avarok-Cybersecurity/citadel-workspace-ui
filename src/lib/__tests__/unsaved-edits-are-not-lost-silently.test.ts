@@ -33,13 +33,13 @@ describe('the shared unsaved-edits answer', () => {
   });
 
   it('clears when that editor releases', () => {
-    const release = registerUnsavedEdits('node-1');
+    const release: () => void = registerUnsavedEdits('node-1');
     release();
     expect(hasUnsavedEdits()).toBe(false);
   });
 
   it('stays true while ANY editor is still dirty', () => {
-    const releaseFirst = registerUnsavedEdits('node-1');
+    const releaseFirst: () => void = registerUnsavedEdits('node-1');
     registerUnsavedEdits('node-2');
 
     releaseFirst();
@@ -50,7 +50,7 @@ describe('the shared unsaved-edits answer', () => {
   });
 
   it('is idempotent per owner', () => {
-    const release = registerUnsavedEdits('node-1');
+    const release: () => void = registerUnsavedEdits('node-1');
     registerUnsavedEdits('node-1');
     release();
     expect(hasUnsavedEdits()).toBe(false);

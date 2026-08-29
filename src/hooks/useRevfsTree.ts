@@ -38,7 +38,7 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     };
   }, [peerCid]);
 
-  const loadTree = useCallback(async (): Promise<void> => {
+  const loadTree: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (!myCid || !peerCid) {
       setTree(null);
       setLoading(false);
@@ -62,7 +62,7 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
 
   useEffect(() => {
     if (!key) return;
-    const unsub = revfsService.onTreeChanged((changedKey, newTree): void => {
+    const unsub: () => void = revfsService.onTreeChanged((changedKey, newTree): void => {
       if (changedKey === key) {
         setTree(newTree);
       }

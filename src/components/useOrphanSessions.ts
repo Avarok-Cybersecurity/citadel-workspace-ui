@@ -51,7 +51,7 @@ export function useOrphanSessions() {
     workspaceName: "",
   });
 
-  const loadActiveSessions = useCallback(async (): Promise<void> => {
+  const loadActiveSessions: () => Promise<void> = useCallback(async (): Promise<void> => {
     try {
       await connectionManager.waitForReady();
       const { ok, sessions: activeSessions } = await connectionManager.getActiveSessionsResult();
@@ -218,7 +218,7 @@ export function useOrphanSessions() {
   };
 
   // WebSocket connection success handler
-  const handleWsConnectionSuccess = useCallback(async (): Promise<void> => {
+  const handleWsConnectionSuccess: () => Promise<void> = useCallback(async (): Promise<void> => {
     debugLog('OrphanSessionsNavbar', 'WebSocket connected, reloading sessions...');
     await loadActiveSessions();
   }, [loadActiveSessions]);
