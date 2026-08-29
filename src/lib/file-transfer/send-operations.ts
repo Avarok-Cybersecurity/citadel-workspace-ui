@@ -99,7 +99,7 @@ export async function executeSendFile(
   // file as a `data: number[]`, which would dump (potentially secret) file
   // contents into dev logs and allocate/format a huge array on every inline
   // transfer. Log a redacted summary instead.
-  const sourceSummary =
+  const sourceSummary: { Path: string; } | { PickFileRef: { pick_file_request_id: string; }; } | { kind: "ByteContents"; fileName: string; byteLength: number; } =
     'ByteContents' in source
       ? {
           kind: 'ByteContents' as const,

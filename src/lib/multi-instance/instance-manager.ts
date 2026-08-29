@@ -20,7 +20,7 @@ import { documentNonce, mintInstanceId } from './instance-identity';
 
 export type { InstanceState, InstanceInfo } from './instance-manager-types';
 
-const INSTANCE_ID_KEY = 'citadel-instance-id';
+const INSTANCE_ID_KEY: "citadel-instance-id" = 'citadel-instance-id';
 
 class InstanceManager {
   private static instance: InstanceManager;

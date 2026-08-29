@@ -189,7 +189,7 @@ export const PRESET_THEMES: WorkspaceTheme[] = [
   ),
 ];
 
-export const DEFAULT_THEME_ID = 'avarok-purple';
+export const DEFAULT_THEME_ID: "avarok-purple" = 'avarok-purple';
 
 /** The theme applied when a workspace has never chosen one. */
 export function defaultTheme(): WorkspaceTheme {

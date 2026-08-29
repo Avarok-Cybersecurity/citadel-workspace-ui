@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback ,  type RefObject } from 'react';
 import { formatBytes } from '@/lib/format-bytes';
 import type { FileTransferMode } from '@/types/messaging-layer';
 import { fileTransferService } from '@/lib/file-transfer';
@@ -26,7 +26,7 @@ export function useFileTransfer({
   const [isPickingFile, setIsPickingFile] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nativePickerAvailable, setNativePickerAvailable] = useState<boolean | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
 
   // The drag/browse path sends the selected File inline as `ByteContents`,
   // which `executeSendFile` hard-caps at MAX_BYTE_CONTENTS_SIZE_BYTES (2 MiB)

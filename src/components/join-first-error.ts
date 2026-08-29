@@ -13,7 +13,7 @@
 import { firstFieldToFix } from '@/lib/first-field-to-fix';
 
 /** The profile step's fields, in the order they are rendered. */
-export const JOIN_FIELD_ORDER = ['fullName', 'username', 'password', 'confirmPassword'] as const;
+export const JOIN_FIELD_ORDER: readonly ["fullName", "username", "password", "confirmPassword"] = ['fullName', 'username', 'password', 'confirmPassword'] as const;
 
 export type JoinField = (typeof JOIN_FIELD_ORDER)[number];
 

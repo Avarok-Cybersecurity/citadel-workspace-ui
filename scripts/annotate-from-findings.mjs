@@ -173,6 +173,8 @@ const checker = program.getTypeChecker();
  */
 const declaredIn = new Map();
 const ambiguous = new Set();
+/** file -> the specifier it would be imported by, computed once. */
+const specifierOfFile = new Map();
 for (const file of program.getSourceFiles()) {
   const symbol = checker.getSymbolAtLocation(file);
   for (const exported of symbol ? checker.getExportsOfModule(symbol) : []) {
@@ -181,19 +183,11 @@ for (const file of program.getSourceFiles()) {
     const isType = flags & (ts.SymbolFlags.Type | ts.SymbolFlags.Interface |
       ts.SymbolFlags.TypeAlias | ts.SymbolFlags.Class | ts.SymbolFlags.Enum);
     if (!isType) continue;
-    const known = declaredIn.get(name);
-    if (known && known !== file.fileName) {
-      // Declared twice. Prefer the one inside src -- `StoredSession` exists
-      // here and in the generated client package, and the app's own is the one
-      // every call site means. Ambiguous only when neither or both are ours.
-      const src = resolve(APP, 'src');
-      const knownIsOurs = known.startsWith(src);
-      const thisIsOurs = file.fileName.startsWith(src);
-      if (knownIsOurs === thisIsOurs) ambiguous.add(name);
-      else if (thisIsOurs) declaredIn.set(name, file.fileName);
-    } else if (!known) {
-      declaredIn.set(name, file.fileName);
-    }
+    // Every candidate is kept. Which one is meant is decided later, on the
+    // SPECIFIER each would produce: three files in one package are not an
+    // ambiguity, they are one import.
+    if (!declaredIn.has(name)) declaredIn.set(name, new Set());
+    declaredIn.get(name).add(file.fileName);
   }
 }
 
@@ -287,7 +281,7 @@ for (const source of program.getSourceFiles()) {
     if (missing === null) return false;
     for (const name of missing) {
       const specifier = specifierFor(name, node);
-      if (!specifier) { refuse('name', name); return false; }
+      if (!specifier) { refuse('name', `${name}   in   ${printed.slice(0, 70)}`); return false; }
       if (imports.has(name) && imports.get(name) !== specifier) return false;
       imports.set(name, specifier);
     }
@@ -300,9 +294,19 @@ for (const source of program.getSourceFiles()) {
     const declaration = symbol?.declarations?.[0];
     // Scope first, then the program-wide index. Scope cannot see the case that
     // needs an import, which is the only case this function is asked about.
-    const file = declaration?.getSourceFile()?.fileName
-      ?? (ambiguous.has(name) ? undefined : declaredIn.get(name));
-    if (!file) return null;
+    let file = declaration?.getSourceFile()?.fileName;
+    if (!file) {
+      const candidates = [...(declaredIn.get(name) ?? [])];
+      const src = resolve(APP, 'src');
+      // Ours first: `StoredSession` exists here and in the generated client
+      // package, and the app's own is what every call site means.
+      const ours = candidates.filter((c) => c.startsWith(src));
+      const pool = ours.length > 0 ? ours : candidates;
+      // One import is not an ambiguity even from several files.
+      const specifiers = new Set(pool.map((c) => specifierForPath(c)).filter(Boolean));
+      if (specifiers.size !== 1) return null;
+      return [...specifiers][0];
+    }
     // Declared right here. The in-file name test missed it -- a local `const fn
     // = ...` is not matched by a regex looking for `const fn` with a type
     // keyword -- and importing a module from itself is a compile error, which
@@ -329,10 +333,16 @@ for (const source of program.getSourceFiles()) {
     ) {
       const signature = checker.getSignatureFromDeclaration(node);
       if (signature) {
-        const printed = checker.typeToString(
-          checker.getReturnTypeOfSignature(signature), node,
-          ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType,
-        );
+        const returned = checker.getReturnTypeOfSignature(signature);
+        const shownReturn = checker.typeToString(returned);
+        // A bigint literal return type -- `42n` -- narrows the signature and
+        // its `n` reads as a type name. Widened, like a number.
+        const printed = /^-?\d[\d_]*n$/.test(shownReturn)
+          ? checker.typeToString(checker.getBaseTypeOfLiteralType(returned), node)
+          : checker.typeToString(
+              returned, node,
+              ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType,
+            );
         const lifted = liftImports(printed === 'any' && ANY_AS_UNKNOWN ? 'unknown' : printed);
         if (lifted !== null && (canWrite(lifted, node) || lifted === 'JSX.Element')) {
           const insertAt = ts.isArrowFunction(node)
@@ -432,6 +442,8 @@ function unresolvedNames(printed, source) {
   const withoutProperties = printed
     // Template literal types: `${string}-${number}` is not three type names.
     .replace(/`[^`]*`/g, 'string')
+    .replace(/"[^"]*"/g, 'string')
+    .replace(/'[^']*'/g, 'string')
     // `readonly foo:` and `foo?:` and `[key: string]:` are property positions.
     .replace(/\breadonly\s+/g, '')
     .replace(/\[\s*[A-Za-z_$][\w$]*\s*:/g, '[:')

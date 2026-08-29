@@ -26,13 +26,13 @@ export function VFSStorageUsage({ usedBytes, quotaBytes, label }: VFSStorageUsag
   const isCritical: boolean = percentage >= 95;
 
   // Determine bar color based on usage
-  const barColor = isCritical
+  const barColor: "bg-warning" | "bg-destructive" | "bg-primary" = isCritical
     ? 'bg-destructive'
     : isWarning
       ? 'bg-warning'
       : 'bg-primary';
 
-  const textColor = isCritical
+  const textColor: "text-destructive" | "text-warning-emphasis" | "text-muted-foreground" = isCritical
     ? 'text-destructive'
     : isWarning
       ? 'text-warning-emphasis'

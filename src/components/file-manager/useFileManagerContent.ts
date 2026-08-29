@@ -11,6 +11,7 @@ import { INTERVAL } from "@/lib/timeout-constants";
 import { useFileManagerHandlers } from "./useFileManagerHandlers";
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { UseRevfsTreeResult, UseServerRevfsTreeResult } from '@/hooks/useRevfsTree-types';
+import type { RefObject } from 'react';
 
 export { findNodeByPath } from '@/lib/revfs/tree-operations';
 
@@ -66,7 +67,7 @@ export function useFileManagerContent() {
     : registeredPeers.find(p => p.cid === selectedPeerCid)?.username ?? 'Peer';
 
   const [currentPath, setCurrentPath] = useState('/');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
   const [uploadTargetDir, setUploadTargetDir] = useState('/');
 
   const [storageLimitModalOpen, setStorageLimitModalOpen] = useState(false);
@@ -112,7 +113,7 @@ export function useFileManagerContent() {
     setFilterText('');
   }, [currentPath, storageMode, selectedPeerCid]);
 
-  const handleSortChange = useCallback((field: 'name' | 'date' | 'size' | 'type', direction: 'asc' | 'desc'): void => {
+  const handleSortChange: (field: "name" | "date" | "size" | "type", direction: "asc" | "desc") => void = useCallback((field: 'name' | 'date' | 'size' | 'type', direction: 'asc' | 'desc'): void => {
     setSortField(field);
     setSortDirection(direction);
   }, []);

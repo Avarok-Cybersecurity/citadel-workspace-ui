@@ -11,7 +11,7 @@ import { MAX_VIDEO_PARTICIPANTS, type CallParticipant, type CallState } from '@/
 import { GroupCallControls, type GroupCallMember } from '../GroupCallControls';
 import { GroupCallDock } from '../GroupCallDock';
 
-const ROOM = 'room-1';
+const ROOM: "room-1" = 'room-1';
 
 function members(count: number): GroupCallMember[] {
   return Array.from({ length: count }, (_, i) => ({

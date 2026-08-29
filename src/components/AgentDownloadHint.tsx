@@ -36,7 +36,7 @@ const LABELS: Record<AgentPlatform, string> = {
  * button that produces something unrunnable is worse than no copy button: it
  * looks like the instruction, so the reader stops looking for the real one.
  */
-const RUN_COMMAND =
+const RUN_COMMAND: "./citadel-workspace-internal-service --bind 127.0.0.1:12345 --backend filesystem" =
   './citadel-workspace-internal-service --bind 127.0.0.1:12345 --backend filesystem';
 
 export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navigatorRef }) => {

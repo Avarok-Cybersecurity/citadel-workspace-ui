@@ -10,7 +10,7 @@ import { sessionGet, sessionRemove, sessionSet } from './lib/safe-session-storag
  * build understands — the shape a user hits after a rollback, or after opening
  * an old cached bundle.
  */
-const RELOAD_ATTEMPTED_KEY = 'citadel-storage-version-reload-attempted';
+const RELOAD_ATTEMPTED_KEY: "citadel-storage-version-reload-attempted" = 'citadel-storage-version-reload-attempted';
 
 /** Wipe the local database, then reload. The last resort, and it loses data. */
 function resetLocalData(button: HTMLButtonElement): void {

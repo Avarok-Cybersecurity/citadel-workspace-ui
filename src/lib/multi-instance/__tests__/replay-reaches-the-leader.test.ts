@@ -31,7 +31,7 @@ vi.mock('@/lib/event-emitter', () => ({
 import { replayOutboundRequest } from '@/lib/multi-instance/channel-messaging';
 
 /** The leader's local path emits this; a lost replay emits nothing. */
-const LOCAL = 'channel:outbound-request';
+const LOCAL: "channel:outbound-request" = 'channel:outbound-request';
 
 beforeEach(() => {
   emitted.length = 0;

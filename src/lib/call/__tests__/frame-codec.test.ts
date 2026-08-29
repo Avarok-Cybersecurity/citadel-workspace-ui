@@ -26,7 +26,7 @@ import {
   CALL_TRACK_VIDEO_THUMBNAIL,
 } from '@/types/p2p-commands';
 
-function chunk(type: 'key' | 'delta', timestamp: number, bytes: number[]) {
+function chunk(type: 'key' | 'delta', timestamp: number, bytes: number[]): { type: "key" | "delta"; timestamp: number; byteLength: number; copyTo: (dst: Uint8Array) => void; } {
   return {
     type,
     timestamp,

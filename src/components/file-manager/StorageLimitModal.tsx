@@ -42,7 +42,7 @@ export function StorageLimitModal({
   const percentage: number = quotaBytes > 0 ? Math.min((usedBytes / quotaBytes) * 100, 100) : 0;
 
   // Determine bar color based on usage
-  const barColor = percentage >= 95
+  const barColor: "bg-warning" | "bg-destructive" | "bg-primary" = percentage >= 95
     ? 'bg-destructive'
     : percentage >= 80
       ? 'bg-warning'

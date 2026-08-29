@@ -107,7 +107,7 @@ export function useGroupRoles(
     [roles, settings, onSettingsChange]
   );
 
-  const updateRole = useCallback(
+  const updateRole: (roleId: string, updates: Partial<Omit<GroupRole, "id" | "isBuiltIn">>) => GroupSettings = useCallback(
     (
       roleId: string,
       updates: Partial<Omit<GroupRole, 'id' | 'isBuiltIn'>>

@@ -8,7 +8,7 @@
  * state machine lives here.
  */
 
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef ,  type MutableRefObject } from 'react';
 import { toast } from 'sonner';
 import { useWorkspaceTheme } from '@/lib/theme/workspace-theme-context';
 import { PRESET_THEMES } from '@/lib/theme/presets';
@@ -54,8 +54,8 @@ export function useAppearanceDraft({ open, onOpenChange, onSave }: UseAppearance
   // colours snapped back to the saved theme and the selection cleared, with no
   // message and no way to recover the work. The admin tabs already carry this
   // dirty guard; this hook never got it.
-  const seededForOpenRef = useRef(false);
-  const dirtyRef = useRef(false);
+  const seededForOpenRef: MutableRefObject<boolean> = useRef(false);
+  const dirtyRef: MutableRefObject<boolean> = useRef(false);
   useEffect(() => {
     dirtyRef.current = draft !== savedTheme;
   }, [draft, savedTheme]);

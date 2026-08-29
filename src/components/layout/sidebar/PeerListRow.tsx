@@ -28,7 +28,7 @@ export function PeerListRow({
   unreadCount,
   onClick,
 }: PeerListRowProps): JSX.Element {
-  const statusColor = isConnected
+  const statusColor: "bg-success" | "bg-warning" | "bg-destructive" = isConnected
     ? 'bg-success'
     : isOnline
     ? 'bg-warning'

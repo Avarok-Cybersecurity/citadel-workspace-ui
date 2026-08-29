@@ -25,7 +25,7 @@ export function CallLayer({ children }: { children: React.ReactNode }): JSX.Elem
     return (): void => window.clearInterval(timer);
   }, []);
 
-  const senderConfig = useMemo<Pick<MessageSenderConfig, 'getCurrentCid'>>(
+  const senderConfig: Pick<MessageSenderConfig, "getCurrentCid"> = useMemo<Pick<MessageSenderConfig, 'getCurrentCid'>>(
     () => ({
       getCurrentCid: async (): Promise<bigint | null> => connectionManager.getConnectionInfo()?.cid ?? null,
     }),

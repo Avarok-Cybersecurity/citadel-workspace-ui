@@ -19,7 +19,7 @@ import type { P2PAttachment } from '@/types/p2p-types';
 // ============================================================================
 
 export const MESSAGES_PER_PAGE: number = 50;
-export const PAGINATED_PREFIX = 'msgs_with_peer_';
+export const PAGINATED_PREFIX: "msgs_with_peer_" = 'msgs_with_peer_';
 
 /**
  * Metadata for a conversation stored at `msgs_with_peer_{CID}_metadata`

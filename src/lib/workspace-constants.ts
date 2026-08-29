@@ -10,4 +10,4 @@
  * exactly the kind of duplication that survives a rename on the Rust side
  * without anything failing to compile.
  */
-export const WORKSPACE_ROOT_ID = 'workspace-root';
+export const WORKSPACE_ROOT_ID: "workspace-root" = 'workspace-root';

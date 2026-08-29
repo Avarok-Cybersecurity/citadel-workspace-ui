@@ -15,13 +15,13 @@
  * group messages.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { awaitWriteResponse } from '../await-write-response';
 import { eventEmitter } from '@/lib/event-emitter';
 import { aboutNode, newChildOf, nodeWithId } from '../response-matchers';
 
-const MINE = 'node-mine';
-const THEIRS = 'node-theirs';
+const MINE: "node-mine" = 'node-mine';
+const THEIRS: "node-theirs" = 'node-theirs';
 
 function emitLater(response: unknown): void {
   setTimeout(() => eventEmitter.emit('workspace:raw-response', response), 0);

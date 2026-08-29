@@ -42,7 +42,7 @@ export interface CallSessionCallbacks {
 }
 
 /** Decode fallback when a peer never announced its send codec (older client). */
-const LEGACY_DECODE_CODEC = 'vp09.00.31.08';
+const LEGACY_DECODE_CODEC: "vp09.00.31.08" = 'vp09.00.31.08';
 
 export class CallSession {
   private localStream: MediaStream | null = null;
@@ -63,7 +63,7 @@ export class CallSession {
     this.receivers = new ReceiverPool({
       onStreamsChanged: callbacks.onStreamsChanged,
       onNeedKeyframe: callbacks.onNeedKeyframe,
-      fallbackCodec: () => this.sender.getCodec() ?? LEGACY_DECODE_CODEC,
+      fallbackCodec: (): "av01.0.05M.08" | "vp09.00.31.08" | "avc1.42E01F" => this.sender.getCodec() ?? LEGACY_DECODE_CODEC,
     });
   }
 

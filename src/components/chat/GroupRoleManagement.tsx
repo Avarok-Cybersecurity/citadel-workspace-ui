@@ -53,7 +53,7 @@ export function GroupRoleManagement({ group, onSettingsChange }: GroupRoleManage
     }
   }, [roleToDelete, deleteRole]);
 
-  const handleSaveRole = useCallback(
+  const handleSaveRole: (roleData: Omit<GroupRole, "id" | "isBuiltIn">) => void = useCallback(
     (roleData: Omit<GroupRole, 'id' | 'isBuiltIn'>) => {
       if (editingRole) {
         updateRole(editingRole.id, roleData);

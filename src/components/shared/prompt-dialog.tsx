@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode ,  type MutableRefObject } from 'react';
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
@@ -34,7 +34,7 @@ const PromptContext = createContext<((request: PromptRequest) => Promise<string 
 export function PromptDialogProvider({ children }: { children: ReactNode }): JSX.Element {
   const [request, setRequest] = useState<PromptRequest | null>(null);
   const [value, setValue] = useState('');
-  const resolveRef = useRef<((result: string | null) => void) | null>(null);
+  const resolveRef: MutableRefObject<((result: string | null) => void) | null> = useRef<((result: string | null) => void) | null>(null);
 
   const settle: (result: string | null) => void = useCallback((result: string | null): void => {
     resolveRef.current?.(result);

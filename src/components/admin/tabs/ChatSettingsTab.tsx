@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef  } from 'react';
+import { useState, useEffect, useRef  , type MutableRefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -23,8 +23,8 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
   const [hasChanges, setHasChanges] = useState(false);
   const [originalEnabled, setOriginalEnabled] = useState(true);
   const [originalRules, setOriginalRules] = useState('');
-  const seededKeyRef = useRef<string | null>(null);
-  const dirtyRef = useRef(false);
+  const seededKeyRef: MutableRefObject<string | null> = useRef<string | null>(null);
+  const dirtyRef: MutableRefObject<boolean> = useRef(false);
 
   useEffect(() => {
     // `state.nodes` is re-minted by ANY node event in the workspace — including a

@@ -20,7 +20,7 @@ import { join, resolve } from 'node:path';
 
 const SRC: string = resolve(__dirname, '..');
 /** The one module allowed to touch it: the guard itself. */
-const GUARD = 'lib/safe-session-storage.ts';
+const GUARD: "lib/safe-session-storage.ts" = 'lib/safe-session-storage.ts';
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];

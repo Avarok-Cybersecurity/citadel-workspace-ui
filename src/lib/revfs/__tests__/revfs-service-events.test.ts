@@ -31,8 +31,8 @@ describe('RevfsService (events & sync)', () => {
       const tree: RevfsNode = await service.getTree(ALICE, BOB);
       expect(tree.children!.find(c => c.name === 'shared')).toBeDefined();
 
-      const sendCalls = getExecuteCalls(service).filter(i => i.type === 'send-revfs-op');
-      const ackCall = sendCalls.find(i => {
+      const sendCalls: { type: "send-revfs-op"; peerCid: bigint; operation: RevfsOperation; }[] = getExecuteCalls(service).filter(i => i.type === 'send-revfs-op');
+      const ackCall: { type: "send-revfs-op"; peerCid: bigint; operation: RevfsOperation; } | undefined = sendCalls.find(i => {
         const sentOp: RevfsOperation = (i as { operation: RevfsOperation }).operation;
         return sentOp.op_type === RevfsOpType.Ack;
       });
@@ -47,8 +47,8 @@ describe('RevfsService (events & sync)', () => {
       const mkdirPromise: Promise<void> = service.mkdir(ALICE, BOB, '/docs');
 
       await new Promise(r => setTimeout(r, 10));
-      const sendCalls = getExecuteCalls(service).filter(i => i.type === 'send-revfs-op');
-      const mkdirSend = sendCalls.find(i => {
+      const sendCalls: { type: "send-revfs-op"; peerCid: bigint; operation: RevfsOperation; }[] = getExecuteCalls(service).filter(i => i.type === 'send-revfs-op');
+      const mkdirSend: { type: "send-revfs-op"; peerCid: bigint; operation: RevfsOperation; } | undefined = sendCalls.find(i => {
         const op: RevfsOperation = (i as { operation: RevfsOperation }).operation;
         return op.op_type === RevfsOpType.Mkdir;
       });
@@ -73,8 +73,8 @@ describe('RevfsService (events & sync)', () => {
       };
       await service.handleRevfsOperation(BOB, ALICE, syncReq);
 
-      const sendCalls = getExecuteCalls(service).filter(i => i.type === 'send-revfs-op');
-      const syncResp = sendCalls.find(i => {
+      const sendCalls: { type: "send-revfs-op"; peerCid: bigint; operation: RevfsOperation; }[] = getExecuteCalls(service).filter(i => i.type === 'send-revfs-op');
+      const syncResp: { type: "send-revfs-op"; peerCid: bigint; operation: RevfsOperation; } | undefined = sendCalls.find(i => {
         const op: RevfsOperation = (i as { operation: RevfsOperation }).operation;
         return op.op_type === RevfsOpType.SyncResponse;
       });

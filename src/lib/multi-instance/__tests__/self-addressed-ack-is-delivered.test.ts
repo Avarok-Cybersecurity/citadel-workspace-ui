@@ -9,7 +9,7 @@
  * a Connect, a workspace mutation or a P2P message run up to four times, then
  * reported as failed when the caller's own 30s timer expired.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 
 const posted: unknown[] = [];
 vi.mock('@/lib/event-emitter', () => ({
@@ -24,7 +24,7 @@ describe('a self-addressed ack', () => {
   beforeEach(() => { posted.length = 0; });
 
   it('settles the queue entry instead of being posted into the void', async () => {
-    const id = 'self-ack-1';
+    const id: "self-ack-1" = 'self-ack-1';
     outboundQueue.enqueue({ kind: 'Connect' }, id);
 
     // The leader answering its own replayed request.

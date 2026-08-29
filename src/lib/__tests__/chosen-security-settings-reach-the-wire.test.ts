@@ -18,7 +18,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { mapSecuritySettings, getDefaultSecuritySettings } from '@/lib/security-utils';
+import { mapSecuritySettings, getDefaultSecuritySettings , type SessionSecuritySettings } from '@/lib/security-utils';
 import { stripComments } from '@/test-utils/strip-comments';
 import type { SecuritySettingsValues } from '@/components/SecuritySettings';
 
@@ -42,7 +42,7 @@ const chosen: SecuritySettingsValues = {
 
 describe('mapSecuritySettings', () => {
   it('carries every choice through to the wire shape', () => {
-    const wire = mapSecuritySettings(chosen);
+    const wire: SessionSecuritySettings = mapSecuritySettings(chosen);
 
     expect(wire.security_level).toBe('CHOSEN_LEVEL');
     expect(wire.secrecy_mode).toBe('CHOSEN_SECRECY');
@@ -54,7 +54,7 @@ describe('mapSecuritySettings', () => {
   it('produces something different from the defaults', () => {
     // Without this the assertions above could pass against a mapper that
     // ignored its input and returned defaults that happened to match.
-    const defaults = getDefaultSecuritySettings();
+    const defaults: SessionSecuritySettings = getDefaultSecuritySettings();
     expect(mapSecuritySettings(chosen)).not.toEqual(defaults);
   });
 });

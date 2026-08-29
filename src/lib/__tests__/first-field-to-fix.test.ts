@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest';
 import { firstFieldToFix } from '../first-field-to-fix';
 
-const LOGIN = ['username', 'password'] as const;
+const LOGIN: readonly ["username", "password"] = ['username', 'password'] as const;
 
 describe('the first field to fix', () => {
   it('is nothing when every field is filled', () => {

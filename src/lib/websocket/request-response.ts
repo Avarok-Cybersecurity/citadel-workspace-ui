@@ -46,7 +46,7 @@ export interface RequestResponseOptions<T> {
  * message. Only the leader tab's client emits this; a follower's request dies
  * with its leader and is covered by the leader-change path instead.
  */
-const CONNECTION_LOST = 'the connection to the Citadel agent was lost';
+const CONNECTION_LOST: "the connection to the Citadel agent was lost" = 'the connection to the Citadel agent was lost';
 
 export function requestResponse<T>(options: RequestResponseOptions<T>): Promise<T> {
   const { request, requestId, sendRequest, timeoutMs, operationName, matcher } = options;

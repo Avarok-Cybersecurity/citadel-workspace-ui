@@ -54,7 +54,7 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
   isOpen, onClose, mode, domainId, member,
 }) => {
   const { toast } = useToast();
-  const location = domainId ? "domain" : "workspace";
+  const location: "domain" | "workspace" = domainId ? "domain" : "workspace";
 
   const modes: Record<"add" | "edit" | "remove", ModeConfig> = {
     add: { ...BASE_MODES.add, description: `Add a new member to this ${location}` },

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef , type MutableRefObject } from 'react';
 import { useCall } from '@/lib/call/call-context';
 import type { CallStatus } from '@/lib/call/call-state';
 import type { CallSoundPlayer } from '@/lib/call/call-sounds';
@@ -23,8 +23,8 @@ export function CallSoundEffects(): null {
   const { call } = useCall();
   const status: CallStatus | null = call?.status ?? null;
   const callId: string | null = call?.callId ?? null;
-  const prevStatusRef = useRef<CallStatus | null>(null);
-  const loadedRef = useRef(false);
+  const prevStatusRef: MutableRefObject<CallStatus | null> = useRef<CallStatus | null>(null);
+  const loadedRef: MutableRefObject<boolean> = useRef(false);
 
   useEffect(() => {
     const prev: CallStatus | null = prevStatusRef.current;

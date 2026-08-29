@@ -14,6 +14,7 @@ import { resolveServerAddress } from '../address-resolver';
 import { instanceManager } from '../multi-instance';
 import { stringToBytes } from '../utils/encoding-utils';
 import type { PreSharedKey } from '@avarok/citadel-protocol-types';
+import type { HeaderObfuscatorSettings } from '@/lib/security-utils';
 
 export interface AuthConfig {
   init: () => Promise<void>;
@@ -69,7 +70,7 @@ export class AuthOperations {
     // Use provided settings or defaults (snake_case from SessionSecuritySettings)
     const settings: SessionSecuritySettings = sessionSecuritySettings ?? getDefaultSecuritySettings();
 
-    const connectOptions = {
+    const connectOptions: { request_id: string; username: string; password: number[]; connect_mode: { Standard: { force_login: boolean; }; }; udp_mode: string; keep_alive_timeout: null; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; } = {
       request_id: requestId,
       username,
       password: stringToBytes(password),

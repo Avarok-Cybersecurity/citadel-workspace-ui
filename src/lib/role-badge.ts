@@ -24,7 +24,7 @@ const ROLE_BADGE: Record<string, string> = {
   guest: 'bg-transparent text-muted-foreground border border-transparent',
 };
 
-const FALLBACK = 'bg-transparent text-muted-foreground border border-border';
+const FALLBACK: "bg-transparent text-muted-foreground border border-border" = 'bg-transparent text-muted-foreground border border-border';
 
 /** Classes for a role badge. Unknown or absent roles read as a plain member. */
 export function roleBadgeClass(role?: string | null): string {

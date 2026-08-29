@@ -10,7 +10,7 @@
 
 import type { SecuritySettingsValues } from './SecuritySettings';
 
-export const DEFAULT_SECURITY_SETTINGS = {
+export const DEFAULT_SECURITY_SETTINGS: { readonly securityLevel: "Standard"; readonly secrecyMode: "BestEffort"; readonly encryptionAlgorithm: "AES_GCM_256"; readonly kemAlgorithm: "MlKem"; readonly sigAlgorithm: "None"; readonly headerObfuscatorSettings: {}; readonly storeCredentials: false; } = {
   securityLevel: 'Standard',
   secrecyMode: 'BestEffort',
   encryptionAlgorithm: 'AES_GCM_256',

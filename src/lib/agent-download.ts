@@ -23,7 +23,7 @@ export const AGENT_ASSETS: Record<AgentPlatform, string> = {
   'windows-x64': 'citadel-agent-windows-x64.zip',
 };
 
-export const RELEASES_PAGE =
+export const RELEASES_PAGE: "https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest" =
   'https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest';
 
 /**

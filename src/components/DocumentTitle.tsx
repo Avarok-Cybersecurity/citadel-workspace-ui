@@ -14,7 +14,7 @@ import { useLocation } from 'react-router-dom';
  * One map rather than a hook call in each page: the pages are lazily loaded and
  * a missed one fails silently, leaving the previous route's title in place.
  */
-const SUFFIX = 'Citadel Workspace';
+const SUFFIX: "Citadel Workspace" = 'Citadel Workspace';
 
 /** First match wins, so put specific paths before their prefixes. */
 const ROUTE_TITLES: ReadonlyArray<readonly [RegExp, string]> = [

@@ -203,7 +203,7 @@ class PeerRegistrationStore {
     debugLog('PeerRegistrationStore', 'Poll checking', this.outgoingRequests.length, 'outgoing requests');
     let needsPersist: boolean = false;
     for (const request of this.outgoingRequests) {
-      const result = await processPollRequest(request, now);
+      const result: "remove" | "updated" | "skip" = await processPollRequest(request, now);
       if (result === 'remove') { await this.removeOutgoingRequest(request.id); needsPersist = true; }
       else if (result === 'updated') { needsPersist = true; }
     }

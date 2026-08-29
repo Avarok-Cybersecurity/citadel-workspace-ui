@@ -59,7 +59,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
       onSubmit();
     };
 
-    const getPlaceholder = () => {
+    const getPlaceholder: () => "Type markdown message..." | "Document content (optional)..." | "Type a message..." = (): "Type markdown message..." | "Document content (optional)..." | "Type a message..." => {
       if (isMarkdownMode) return 'Type markdown message...';
       if (isLiveDocMode) return 'Document content (optional)...';
       return 'Type a message...';

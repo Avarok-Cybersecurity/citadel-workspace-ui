@@ -65,7 +65,7 @@ export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
       upgrade(db, oldVersion, newVersion, tx): void {
         runMigrations(db, oldVersion, newVersion, tx);
 
-        const missing = missingStores(db.objectStoreNames);
+        const missing: ("keyValue" | "tabContext")[] = missingStores(db.objectStoreNames);
         if (missing.length > 0) {
           // The migration list has drifted from the schema. Failing here aborts
           // the upgrade transaction and keeps the old database, which is far

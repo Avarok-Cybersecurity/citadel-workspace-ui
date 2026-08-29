@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef , type MutableRefObject } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { announceWhenQuiet } from './announce-when-quiet';
 import { useToast } from '@/hooks/use-toast';
@@ -31,11 +31,11 @@ import { applyWaitingUpdate } from '@/lib/pwa/apply-waiting-update';
 const UPDATE_CHECK_INTERVAL_MS: number = 60 * 60 * 1000;
 
 /** One identity for the update offer, so re-offering replaces rather than stacks. */
-const UPDATE_TOAST_ID = 'pwa-update-available';
+const UPDATE_TOAST_ID: "pwa-update-available" = 'pwa-update-available';
 export function PwaUpdatePrompt(): null {
   const { toast } = useToast();
 
-  const cleanupRef = useRef<(() => void) | null>(null);
+  const cleanupRef: MutableRefObject<(() => void) | null> = useRef<(() => void) | null>(null);
 
   useEffect((): () => void | undefined => (): void | undefined => cleanupRef.current?.(), []);
 
@@ -47,10 +47,10 @@ export function PwaUpdatePrompt(): null {
   // all of them, dropping each one's WebSocket and P2P channels mid-session.
   // A ref, not state: it is read inside a callback the library owns, and it
   // must not trigger a render.
-  const weInitiatedUpdate = useRef(false);
+  const weInitiatedUpdate: MutableRefObject<boolean> = useRef(false);
   // `toast` is declared below and the callback above closes over this instead,
   // so the callback does not depend on declaration order.
-  const toastRef = useRef<
+  const toastRef: MutableRefObject<((opts: { title: string; description?: string; action?: { label: string; onClick: () => void; }; }) => void) | null> = useRef<
     | ((opts: {
         title: string;
         description?: string;

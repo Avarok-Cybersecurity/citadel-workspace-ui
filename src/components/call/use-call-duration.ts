@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState , type MutableRefObject } from 'react';
 
 /**
  * A ticking call timer, as mm:ss.
@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
  * not how long ago they pressed call.
  */
 export function useCallDuration(running: boolean): string {
-  const startedAt = useRef<number | null>(null);
+  const startedAt: MutableRefObject<number | null> = useRef<number | null>(null);
   const [text, setText] = useState('00:00');
 
   useEffect(() => {

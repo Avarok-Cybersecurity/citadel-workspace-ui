@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect , type RefObject } from 'react';
 import { FolderOpen } from 'lucide-react';
 import type { RevfsNode } from '@/types/revfs-types';
 import { pathExists } from '@/lib/revfs/tree-operations';
@@ -27,7 +27,7 @@ export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps): 
   const [inputValue, setInputValue] = useState(currentPath);
   const [isEditing, setIsEditing] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
 
   // Sync input with current path when it changes externally
   useEffect(() => {

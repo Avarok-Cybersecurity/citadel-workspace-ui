@@ -25,7 +25,7 @@ const renderWith = (password: string) =>
 describe('password strength meter', () => {
   it('does not call an over-length password strong', () => {
     // Strong by every other measure — case mix, digit, symbol — and too long.
-    const generated = 'Xk9$mQ2#vL7@pR4!nT6&wZ';
+    const generated: "Xk9$mQ2#vL7@pR4!nT6&wZ" = 'Xk9$mQ2#vL7@pR4!nT6&wZ';
     expect(generated.length).toBeGreaterThan(CREDENTIAL_LIMITS.password.max);
 
     renderWith(generated);
@@ -35,7 +35,7 @@ describe('password strength meter', () => {
   });
 
   it('still calls an acceptable strong password strong', () => {
-    const good = 'Xk9$mQ2#vL7@'; // 12 chars: within range, all character classes
+    const good: "Xk9$mQ2#vL7@" = 'Xk9$mQ2#vL7@'; // 12 chars: within range, all character classes
     expect(good.length).toBeLessThanOrEqual(CREDENTIAL_LIMITS.password.max);
     expect(good.length).toBeGreaterThanOrEqual(CREDENTIAL_LIMITS.password.min);
 

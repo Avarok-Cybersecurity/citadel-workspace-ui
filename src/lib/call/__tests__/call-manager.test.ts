@@ -8,7 +8,7 @@
  * so this exercises the real orchestration logic with no browser, no peer and no
  * internal service.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 import { CallManager, MEDIA_WIRE_VERSION } from '../call-manager';
 import type { CallTransport } from '../call-transport';
 import type { CallCodecCapabilities, CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
@@ -83,7 +83,7 @@ function harness(): Harness {
   };
 }
 
-function invite(callId = 'their-call', overrides: Partial<Extract<CallSignalPayload, { kind: 'CallInvite' }>> = {}) {
+function invite(callId = 'their-call', overrides: Partial<Extract<CallSignalPayload, { kind: 'CallInvite' }>> = {}): { kind: "CallInvite"; call_id: string; media: CallMediaKinds; codecs: CallCodecCapabilities; media_wire_version: number; group?: { room_id: string; members: string[]; } | undefined; video_send_codec?: string | null | undefined; } {
   return {
     kind: 'CallInvite' as const,
     call_id: callId,
@@ -205,7 +205,7 @@ describe('receiving a group call', () => {
   let h: Harness;
   beforeEach(() => { h = harness(); });
 
-  const groupInvite = (callId = 'gc') =>
+  const groupInvite: (callId?: string) => { kind: "CallInvite"; call_id: string; media: CallMediaKinds; codecs: CallCodecCapabilities; media_wire_version: number; group?: { room_id: string; members: string[]; } | undefined; video_send_codec?: string | null | undefined; } = (callId = 'gc'): { kind: "CallInvite"; call_id: string; media: CallMediaKinds; codecs: CallCodecCapabilities; media_wire_version: number; group?: { room_id: string; members: string[]; } | undefined; video_send_codec?: string | null | undefined; } =>
     // The harness's own cid (1n) is in the roster on purpose: the invite names
     // EVERY invitee, and treating ourselves as a peer would mean signalling and
     // opening a session to our own cid.

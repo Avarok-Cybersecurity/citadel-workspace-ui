@@ -16,7 +16,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { GroupMessageItem } from '../GroupMessageItem';
 
-const ALICE = 'alice_citadel';
+const ALICE: "alice_citadel" = 'alice_citadel';
 
 function message(senderId: string): never {
   return {

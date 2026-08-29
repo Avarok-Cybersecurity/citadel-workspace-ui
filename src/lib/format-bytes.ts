@@ -17,7 +17,7 @@
  * utils version — a workspace can hold one.
  */
 
-const UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
+const UNITS: readonly ["B", "KB", "MB", "GB", "TB"] = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
 
 export function formatBytes(bytes: number): string {
   // Guard the whole non-positive range, not just zero: a negative size is a

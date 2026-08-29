@@ -26,7 +26,7 @@ import { FILE_TRANSFER_EVENTS } from './events';
  * download path uses (`revfs-io-network.ts`), so both routes negotiate identically;
  * a mismatch here would be a silent per-feature difference in transport hardening.
  */
-const DOWNLOAD_SECURITY_LEVEL = 'Standard';
+const DOWNLOAD_SECURITY_LEVEL: "Standard" = 'Standard';
 
 /**
  * Whether the server discards its staged copy once pulled.

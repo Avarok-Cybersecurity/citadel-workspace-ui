@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef  } from 'react';
+import { useState, useEffect, useCallback, useRef  , type MutableRefObject } from 'react';
 import { describeFailure } from '@/lib/failure-message';
 import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
@@ -27,7 +27,7 @@ export function usePeerDiscovery(isOpen: boolean) {
   const [peers, setPeers] = useState<Peer[]>([]);
   // requestId -> peer name, so a PeerRegisterFailure — which carries a
   // request_id but no peer_cid — can say who it was for.
-  const sentRequests = useRef(new Map<string, string>());
+  const sentRequests: MutableRefObject<Map<string, string>> = useRef(new Map<string, string>());
   const [registeredPeers, setRegisteredPeers] = useState<Set<string>>(new Set());
   const [outgoingRequests, setOutgoingRequests] = useState<Set<string>>(new Set());
   const [incomingRequests, setIncomingRequests] = useState<Map<string, PendingPeerRequest>>(new Map());

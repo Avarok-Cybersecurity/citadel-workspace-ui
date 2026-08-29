@@ -5,7 +5,7 @@
  * tab activity indicators, and tab open/close/select actions.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback , type MutableRefObject  } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { seedDocument } from '@/lib/live-document-store/seed-document';
 import { liveDocumentStore } from '@/lib/live-document-store';
@@ -24,8 +24,8 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
   const [activeTabId, setActiveTabId] = useState('messages');
   const [messagesHasUnread, setMessagesHasUnread] = useState(false);
   const [tabActivity, setTabActivity] = useState<Record<string, boolean>>({});
-  const activeTabIdRef = useRef(activeTabId);
-  const tabsRef = useRef(tabs);
+  const activeTabIdRef: MutableRefObject<string> = useRef(activeTabId);
+  const tabsRef: MutableRefObject<ChatTab[]> = useRef(tabs);
 
   const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
 
@@ -114,7 +114,7 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
     // content were discarded, and no tab opened.
   }, [peerCid, currentUserCid, handleOpenDocument, messenger]);
 
-  const tabsWithUnread = tabs.map(tab => ({
+  const tabsWithUnread: { hasUnread: boolean; id: string; type: "messages" | "live_document"; title: string; documentId?: string; }[] = tabs.map(tab => ({
     ...tab,
     hasUnread: tab.id === 'messages' ? messagesHasUnread : tabActivity[tab.id] || false,
   }));

@@ -2,7 +2,7 @@
  * Permission node sections: ChildNodePermissionSection, ParentNodePermissionSection
  */
 
-import { useEffect } from 'react';
+import { useEffect , type ComponentType } from 'react';
 import { Loader2 } from 'lucide-react';
 import {
   Accordion,
@@ -10,7 +10,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { usePermissions } from '@/contexts/PermissionsContext';
+import { usePermissions  } from '@/contexts/PermissionsContext';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { getEntityMetadata, type NodeEntityType , type EntityTypeMetadata } from '@/lib/entity-type-registry';
 import { RoleBadge, GroupedPermissionTable } from './PermissionWidgets';
@@ -30,7 +30,7 @@ export function ChildNodePermissionSection({
   const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
   const role = getRole(nodeId);
   const metadata: EntityTypeMetadata = getEntityMetadata(entityType);
-  const Icon = metadata.icon;
+  const Icon: ComponentType<{ className?: string; }> = metadata.icon;
 
   useEffect(() => {
     runAsyncSetup(async () => {
@@ -72,7 +72,7 @@ export function ParentNodePermissionSection({
   const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
   const role = getRole(nodeId);
   const metadata: EntityTypeMetadata = getEntityMetadata(entityType);
-  const Icon = metadata.icon;
+  const Icon: ComponentType<{ className?: string; }> = metadata.icon;
 
   useEffect(() => {
     runAsyncSetup(async () => {

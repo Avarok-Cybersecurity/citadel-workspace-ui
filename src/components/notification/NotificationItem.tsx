@@ -52,7 +52,7 @@ const NotificationItem: ({ notification }: NotificationItemProps) => JSX.Element
   };
   
   // Get border color based on priority
-  const getBorderColor = () => {
+  const getBorderColor: () => "border-destructive" | "border-primary-accent" | "border-border" = (): "border-destructive" | "border-primary-accent" | "border-border" => {
     switch (notification.priority) {
       case 'high':
         return 'border-destructive';

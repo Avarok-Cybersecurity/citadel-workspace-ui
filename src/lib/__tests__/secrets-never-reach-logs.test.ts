@@ -14,7 +14,7 @@
 import { describe, it, expect } from 'vitest';
 import { formatForDebug, isSecretField } from '../debug-formatter';
 
-const SECRET = 'hunter2-do-not-print-me';
+const SECRET: "hunter2-do-not-print-me" = 'hunter2-do-not-print-me';
 
 /** Every rendering of the formatted value, so nothing hides in a nested field. */
 const rendered = (value: unknown): string => JSON.stringify(formatForDebug(value));

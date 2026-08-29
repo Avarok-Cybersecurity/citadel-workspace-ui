@@ -1,4 +1,4 @@
-import { useEffect, useState  } from 'react';
+import { useEffect, useState  , type ComponentType } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -73,7 +73,7 @@ export function AdminModal({
   };
 
   const meta: EntityTypeMetadata = getEntityMetadata(entityType);
-  const EntityIcon = meta.icon;
+  const EntityIcon: ComponentType<{ className?: string; }> = meta.icon;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>

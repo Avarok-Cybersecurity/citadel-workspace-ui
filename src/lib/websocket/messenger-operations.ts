@@ -145,7 +145,7 @@ export class MessengerOperations {
       debugLog('MessengerOperations', '[Follower] Proxying sendP2PMessageReliable through leader');
 
       // Convert Uint8Array to Array for serialization over BroadcastChannel
-      const proxyRequest = {
+      const proxyRequest: { __sendP2PMessageProxy: boolean; localCid: string; peerCid: string; message: number[]; securityLevel: "Standard" | "Reinforced" | "High" | "Extreme" | undefined; } = {
         __sendP2PMessageProxy: true,
         localCid: localCid.toString(),
         peerCid: peerCid.toString(),

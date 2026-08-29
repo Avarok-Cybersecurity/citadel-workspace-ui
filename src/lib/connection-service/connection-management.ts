@@ -12,7 +12,7 @@ import type {
   UserConnectionPreferences
 } from './types';
 
-const CURRENT_USER = 'current-user';
+const CURRENT_USER: "current-user" = 'current-user';
 
 const DEFAULT_PREFERENCES: UserConnectionPreferences = {
   autoAcceptRegistrations: false

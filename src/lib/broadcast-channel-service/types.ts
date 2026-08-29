@@ -27,6 +27,6 @@ export interface LeaderElectionMessage {
   priority: number;
 }
 
-export const CHANNEL_NAME = 'citadel-workspace-sync';
+export const CHANNEL_NAME: "citadel-workspace-sync" = 'citadel-workspace-sync';
 export const REQUEST_EXPIRY_MS: number = 30 * 60 * 1000;
 export const CLEANUP_INTERVAL_MS: number = INTERVAL.CLEANUP_MS;

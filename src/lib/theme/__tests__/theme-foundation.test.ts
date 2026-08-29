@@ -169,7 +169,7 @@ describe('presets', () => {
   // 3.5:1 and 4.5:1 against their own card. The colour migration routed every
   // brand-tinted label in the app through this token, which turned a narrow
   // defect into a wide one.
-  const ACCENT_SURFACES = ['background', 'card', 'surface'] as const;
+  const ACCENT_SURFACES: readonly ["background", "card", "surface"] = ['background', 'card', 'surface'] as const;
 
   it.each(
     PRESET_THEMES.flatMap((t) =>

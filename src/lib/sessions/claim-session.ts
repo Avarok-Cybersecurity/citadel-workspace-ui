@@ -61,7 +61,7 @@ export async function claimSessionForThisTab(cid: bigint): Promise<ClaimOutcome>
 }
 
 /** What to tell the user when another tab has it. */
-export const SESSION_OWNED_ELSEWHERE = {
+export const SESSION_OWNED_ELSEWHERE: { readonly title: "Already Open Elsewhere"; readonly description: "This session is open in another tab. Switch to it, or pick a different session here."; } = {
   title: 'Already Open Elsewhere',
   description:
     'This session is open in another tab. Switch to it, or pick a different session here.',

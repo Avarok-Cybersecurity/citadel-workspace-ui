@@ -42,7 +42,7 @@ import { placeInPage, recordAppend } from './message-page-append';
 import { isGenuinelyAbsent } from '@/lib/storage/absence';
 
 export class MessagePaginationStore {
-  private readonly dbPrefix = 'p2p_messages';
+  private readonly dbPrefix: "p2p_messages" = 'p2p_messages';
 
   public async deleteOldFormat(): Promise<void> {
     try {

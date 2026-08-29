@@ -14,7 +14,7 @@ describe('applyGfmStrikethrough', () => {
 
   it('does NOT touch ~~text~~ inside an inline code span', () => {
     // The literal backtick-delimited segment must come through unchanged.
-    const input = 'try `~~not strikethrough~~` here';
+    const input: "try `~~not strikethrough~~` here" = 'try `~~not strikethrough~~` here';
     expect(applyGfmStrikethrough(input)).toBe(input);
   });
 
@@ -34,7 +34,7 @@ describe('applyGfmStrikethrough', () => {
   });
 
   it('handles fenced blocks with a language tag', () => {
-    const input = '```ts\nconst x = ~~y~~;\n```\n~~outside~~';
+    const input: "```ts\nconst x = ~~y~~;\n```\n~~outside~~" = '```ts\nconst x = ~~y~~;\n```\n~~outside~~';
     const out: string = applyGfmStrikethrough(input);
     expect(out).toContain('const x = ~~y~~;');
     expect(out).toContain('<del>outside</del>');
@@ -47,14 +47,14 @@ describe('applyGfmStrikethrough', () => {
   });
 
   it('is idempotent on text that contains no ~~ markers', () => {
-    const plain = 'no markers here, just text and `code` and\n```\nmore code\n```';
+    const plain: "no markers here, just text and `code` and\n```\nmore code\n```" = 'no markers here, just text and `code` and\n```\nmore code\n```';
     expect(applyGfmStrikethrough(plain)).toBe(plain);
   });
 
   it('handles unbalanced backticks gracefully (no infinite loop, no exception)', () => {
     // A lone backtick should not start an inline code span (the regex
     // requires `[^`\n]*\``). Strikethrough outside should still apply.
-    const input = 'unbalanced ` here ~~strike~~ end';
+    const input: "unbalanced ` here ~~strike~~ end" = 'unbalanced ` here ~~strike~~ end';
     const out: string = applyGfmStrikethrough(input);
     expect(out).toContain('<del>strike</del>');
   });
@@ -102,7 +102,7 @@ describe('applyGfmStrikethrough', () => {
     // GFM strikethrough body cannot contain a blank line. The
     // previous `[\s\S]*?` body would have wrapped both paragraphs
     // in a single `<del>` and broken MDX paragraph layout.
-    const input = '~~para 1\n\npara 2~~';
+    const input: "~~para 1\n\npara 2~~" = '~~para 1\n\npara 2~~';
     expect(applyGfmStrikethrough(input)).toBe(input);
   });
 

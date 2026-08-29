@@ -8,7 +8,7 @@
  *
  * These assert at the send points, which is where the promise is kept or broken.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 import type { PrivacySettings } from '@/lib/privacy-settings';
 import {
   DEFAULT_PRIVACY_SETTINGS,
@@ -110,9 +110,9 @@ describe('read receipts', () => {
     vi.resetModules();
     const { markMessagesAsRead } = await import('../p2p/messenger-compatibility');
 
-    const message = { id: 'm1', senderCid: 7n, status: 'delivered' as const };
-    const conversation = { messages: [message], unreadCount: 1 };
-    const conversationManager = { getConversation: () => conversation };
+    const message: { id: string; senderCid: bigint; status: "delivered"; } = { id: 'm1', senderCid: 7n, status: 'delivered' as const };
+    const conversation: { messages: { id: string; senderCid: bigint; status: "delivered"; }[]; unreadCount: number; } = { messages: [message], unreadCount: 1 };
+    const conversationManager: { getConversation: () => { messages: { id: string; senderCid: bigint; status: "delivered"; }[]; unreadCount: number; }; } = { getConversation: (): { messages: { id: string; senderCid: bigint; status: "delivered"; }[]; unreadCount: number; } => conversation };
     const sendMessageAck = vi.fn((): Promise<void> => Promise.resolve());
 
     await markMessagesAsRead(

@@ -10,6 +10,7 @@ import { debugLog, errorLog } from '../debug-config';
 import { getDefaultSecuritySettings } from '../security-utils';
 import { sendP2PMessage, sendP2PMessageBytes } from './p2p-message-dispatch';
 import { TIMEOUT } from '../timeout-constants';
+import type { SessionSecuritySettings } from '@/lib/security-utils';
 
 export interface P2PConfig {
   init: () => Promise<void>;
@@ -51,7 +52,7 @@ export class P2POperations {
     debugLog('P2POperations', 'Opening P2P connection', { cid: cid.toString(), targetCid: targetCid.toString() });
 
     const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
-    const peerConnectRequest = {
+    const peerConnectRequest: { PeerConnect: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: bigint; udp_mode: string; session_security_settings: SessionSecuritySettings; }; } = {
       PeerConnect: {
         request_id: requestId,
         cid: cid,

@@ -15,7 +15,7 @@ import {
   type CallStatus,
 } from '../call-state';
 
-const ROOM = 'room-1';
+const ROOM: "room-1" = 'room-1';
 
 function participant(cid: bigint, overrides: Partial<CallParticipant> = {}): CallParticipant {
   return {

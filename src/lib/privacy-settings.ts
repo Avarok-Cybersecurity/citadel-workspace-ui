@@ -22,8 +22,8 @@
  * place to flip.
  */
 
-const STORAGE_KEY = 'citadel:privacy-settings';
-const CHANGE_EVENT = 'privacy-settings-changed';
+const STORAGE_KEY: "citadel:privacy-settings" = 'citadel:privacy-settings';
+const CHANGE_EVENT: "privacy-settings-changed" = 'privacy-settings-changed';
 
 export interface PrivacySettings {
   showOnlineStatus: boolean;

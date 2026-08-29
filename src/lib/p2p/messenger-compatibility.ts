@@ -16,6 +16,7 @@ import type { P2PMessage } from './p2p-types';
 import { debugLog } from '@/lib/debug-config';
 import { getPrivacySettings } from '@/lib/privacy-settings';
 import type { P2PConversation } from '@/lib/p2p/p2p-types';
+import type { SessionSecuritySettings } from '@/lib/security-utils';
 
 type EmitFn = (event: string, data: unknown) => void;
 
@@ -162,7 +163,7 @@ export async function autoRegisterPeer(
 ): Promise<void> {
   const cidToUse: bigint | null = ownCid ?? await getCurrentCid();
   if (!cidToUse) throw new Error('No CID provided for registration');
-  const request = {
+  const request: { PeerRegister: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: string; peer_cid: string; session_security_settings: SessionSecuritySettings; connect_after_register: boolean; peer_session_password: null; }; } = {
     PeerRegister: {
       request_id: crypto.randomUUID(), cid: cidToUse.toString(), peer_cid: peerCid.toString(),
       session_security_settings: getDefaultSecuritySettings(),

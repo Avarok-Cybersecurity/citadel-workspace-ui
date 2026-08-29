@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef , type MutableRefObject } from 'react';
 import { registerUnsavedEdits } from '@/lib/unsaved-edits';
 
 /**
@@ -25,7 +25,7 @@ export function useUnsavedMdxGuard({
   /** Identifies this editor in the shared unsaved-edits set. */
   ownerId: string;
 }): { isDirty: boolean } {
-  const baselineRef = useRef<string | null>(null);
+  const baselineRef: MutableRefObject<string | null> = useRef<string | null>(null);
 
   // Captured once per editing session. `content` is in the dependency list
   // because the first render of an editing session needs it, but the null check

@@ -21,6 +21,7 @@ import type {
   PeerRegisterNotification,
 } from './types';
 import { toInternalServiceRequest } from './types';
+import type { SessionSecuritySettings } from '@/lib/security-utils';
 
 /**
  * Create a notification card with accept/decline callbacks
@@ -130,7 +131,7 @@ export async function executeAcceptRequest(request: PendingPeerRequest): Promise
   if (!currentCid) throw new Error('No active session - cannot accept registration');
 
   const registerRequestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
-  const registerRequest = {
+  const registerRequest: { PeerRegister: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: bigint; session_security_settings: SessionSecuritySettings; connect_after_register: boolean; peer_session_password: null; }; } = {
     PeerRegister: {
       request_id: registerRequestId,
       cid: currentCid,
@@ -163,7 +164,7 @@ export async function resendPeerRegister(request: OutgoingPeerRequest): Promise<
   if (!client) throw new Error('No WebSocket client available');
 
   await websocketService.claimSession(request.fromCid);
-  const registerRequest = {
+  const registerRequest: { PeerRegister: { request_id: string; cid: bigint; peer_cid: bigint; session_security_settings: SessionSecuritySettings; connect_after_register: boolean; peer_session_password: null; }; } = {
     PeerRegister: {
       request_id: request.id,
       cid: request.fromCid,

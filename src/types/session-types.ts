@@ -112,8 +112,8 @@ export interface LocalDBGetAllKVSuccess {
 /**
  * Key names for LocalDB storage
  */
-export const SESSION_STORAGE_KEY = 'citadel_sessions';
-export const ACTIVE_SESSION_KEY = 'citadel_active_session';
+export const SESSION_STORAGE_KEY: "citadel_sessions" = 'citadel_sessions';
+export const ACTIVE_SESSION_KEY: "citadel_active_session" = 'citadel_active_session';
 
 /**
  * Peer connection information within a session

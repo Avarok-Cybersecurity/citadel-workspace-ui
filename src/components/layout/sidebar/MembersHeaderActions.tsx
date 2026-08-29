@@ -18,7 +18,7 @@ interface MembersHeaderActionsProps {
   onInvite: () => void;
 }
 
-const ACTION_CLASS =
+const ACTION_CLASS: "h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground" =
   'h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground';
 
 export function MembersHeaderActions({ onDiscover, onInvite }: MembersHeaderActionsProps): JSX.Element {

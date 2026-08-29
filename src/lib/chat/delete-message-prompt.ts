@@ -11,7 +11,7 @@
  * of them into asking none, which is how this started.
  */
 
-export const DELETE_MESSAGE_PROMPT = {
+export const DELETE_MESSAGE_PROMPT: { readonly title: "Delete this message?"; readonly description: "It will be removed for everyone in this conversation, and cannot be restored."; readonly confirmLabel: "Delete"; } = {
   title: 'Delete this message?',
   description:
     'It will be removed for everyone in this conversation, and cannot be restored.',

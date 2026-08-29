@@ -15,7 +15,7 @@
  * existing accept test mocks `io` wholesale, which is exactly why this survived
  * — the mock stood precisely where the defect was.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 
 type SentRequest = {
   RespondFileTransfer: { object_id: bigint; accept: boolean; cid: bigint };
@@ -42,7 +42,7 @@ vi.mock('@/lib/websocket-service', () => ({
 
 import { FileTransferIO } from '../io';
 
-const UUID = '6f1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8';
+const UUID: "6f1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8" = '6f1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8';
 const OBJECT_ID: string = '90210';
 
 /** Reach the accept path exactly as the lifecycle does. */

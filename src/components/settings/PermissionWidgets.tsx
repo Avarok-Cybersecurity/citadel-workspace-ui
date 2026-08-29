@@ -25,7 +25,7 @@ export function RoleBadge({ role }: { role: UserRole | null }): JSX.Element {
     return <Badge variant="outline" className="text-muted-foreground border-border">Unknown</Badge>;
   }
 
-  const roleString = typeof role === 'string' ? role : 'Custom';
+  const roleString: "Member" | "Admin" | "Owner" | "Guest" | "Banned" | "Custom" = typeof role === 'string' ? role : 'Custom';
 
   const variants: Record<string, string> = {
     Admin: 'bg-primary-accent/20 text-primary-accent border-primary-accent/50',

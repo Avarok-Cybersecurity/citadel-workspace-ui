@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef , type RefObject } from 'react';
 import { describeFailure } from '@/lib/failure-message';
 import { Button } from '@/components/ui/button';
 import { DialogContent, DialogHeader, DialogTitle, DialogDescription, Dialog } from '@/components/ui/dialog';
@@ -23,7 +23,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [altText, setAltText] = useState('');
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleDrag = (e: React.DragEvent): void => {

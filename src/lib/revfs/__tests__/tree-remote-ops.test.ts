@@ -183,8 +183,8 @@ describe('mergeTrees', () => {
 
   it('keeps later-updated node on conflict', () => {
     const base: RevfsNode = createDefaultTree();
-    const local = { ...base, updatedAt: 1000 };
-    const remote = { ...base, updatedAt: 2000 };
+    const local: { updatedAt: number; name: string; type: "file" | "directory"; path: string; children?: RevfsNode[]; fileState?: RevfsFileState; fileMetadata?: RevfsFileMetadata; createdAt: number; } = { ...base, updatedAt: 1000 };
+    const remote: { updatedAt: number; name: string; type: "file" | "directory"; path: string; children?: RevfsNode[]; fileState?: RevfsFileState; fileMetadata?: RevfsFileMetadata; createdAt: number; } = { ...base, updatedAt: 2000 };
     const merged: RevfsNode = mergeTrees(local, remote);
     expect(merged.updatedAt).toBe(2000);
   });

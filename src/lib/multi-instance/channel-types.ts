@@ -6,7 +6,7 @@
 
 import type { ProxyResponseData } from './outbound-queue';
 
-export const CHANNEL_NAME = 'citadel-instance-channel';
+export const CHANNEL_NAME: "citadel-instance-channel" = 'citadel-instance-channel';
 
 export type ChannelMessageType =
   | 'outbound-request'

@@ -81,7 +81,7 @@ export class CallLivenessBinding {
           // about THIS peer's stream as it reaches us, and sending one peer's
           // judgement to everyone would have every encoder chase the worst link
           // in the call.
-          const link = internals().observedLink(cid);
+          const link: "good" | "fair" | "poor" | "lost" | undefined = internals().observedLink(cid);
           // Key omitted rather than set to undefined: this is CBOR-encoded, and
           // an explicit undefined is a value on the wire, not an absence.
           const beat: CallSignalPayload = link

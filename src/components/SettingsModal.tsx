@@ -25,7 +25,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps): JSX.E
   const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
   const isConnected: boolean = !!connectionInfo?.cid;
 
-  const tabTriggerClass = "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5 text-xs rounded-lg transition-all data-[state=active]:shadow-md data-[state=active]:shadow-primary-accent/20";
+  const tabTriggerClass: "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5 text-xs rounded-lg transition-all data-[state=active]:shadow-md data-[state=active]:shadow-primary-accent/20" = "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5 text-xs rounded-lg transition-all data-[state=active]:shadow-md data-[state=active]:shadow-primary-accent/20";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

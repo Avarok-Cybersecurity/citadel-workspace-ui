@@ -11,7 +11,7 @@
 import { debugLog } from '@/lib/debug-config';
 import type { StoredServer } from './server-utils';
 
-const RECENT_SERVERS_KEY = 'citadel_recent_servers';
+const RECENT_SERVERS_KEY: "citadel_recent_servers" = 'citadel_recent_servers';
 
 /**
  * How many servers to remember.

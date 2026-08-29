@@ -11,7 +11,7 @@
 import { dbPut, dbGet, dbDelete } from './storage-utils';
 import { sessionGet, sessionSet } from './safe-session-storage';
 
-const TAB_ID_KEY = 'citadel-tab-id';
+const TAB_ID_KEY: "citadel-tab-id" = 'citadel-tab-id';
 
 function mintTabId(): string {
   return `tab-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
@@ -83,7 +83,7 @@ export function reissueTabId(): string {
 // prefix, three functions and no feature. Cross-tab state in this app travels
 // by BroadcastChannel and by the storage event, not through a second IndexedDB
 // key space.
-const TAB_PREFIX = 'tab-';
+const TAB_PREFIX: "tab-" = 'tab-';
 
 export function getTabSpecificKey(key: string): string {
   return `${TAB_PREFIX}${getTabId()}-${key}`;

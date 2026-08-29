@@ -29,7 +29,7 @@ beforeAll(() => {
 
 describe('a content update', () => {
   it('verifies against the hash that travelled with it', async () => {
-    const edited = '# Edited by a colleague\n\nNew paragraph.';
+    const edited: "# Edited by a colleague\n\nNew paragraph." = '# Edited by a colleague\n\nNew paragraph.';
     const hash: string = await hashDocument(edited);
 
     // What the watcher now holds after the merge: new content, new hash.
@@ -38,8 +38,8 @@ describe('a content update', () => {
 
   it('is refused when the content is checked against a stale hash', async () => {
     // The defect, stated: the watcher kept the hash of what it had loaded.
-    const original = '# Original';
-    const edited = '# Edited by a colleague';
+    const original: "# Original" = '# Original';
+    const edited: "# Edited by a colleague" = '# Edited by a colleague';
     const staleHash: string = await hashDocument(original);
 
     const verdict: IntegrityVerdict = await verifyDocument(edited, staleHash);
@@ -55,7 +55,7 @@ describe('a content update', () => {
 
   it('distinguishes a real edit from tampering, not just any change', async () => {
     // The check has to still work. A hash that matches nothing must fail.
-    const edited = '# Edited';
+    const edited: "# Edited" = '# Edited';
     const wrong: string = await hashDocument('# Something else entirely');
 
     expect((await verifyDocument(edited, wrong)).status).toBe('mismatch');

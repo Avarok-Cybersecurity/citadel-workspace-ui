@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState , type MutableRefObject } from 'react';
 import { toast } from 'sonner';
 import { callOutcomeMessage, callOutcomePeerName } from '@/lib/call/call-outcome-message';
 import type { CallState } from '@/lib/call/call-state';
@@ -20,7 +20,7 @@ export function useCallCapability({
 }): { capability: { supported: boolean; reason?: string } } {
   // Once per call: the terminal state survives teardown, so this would
   // otherwise re-fire on every later render.
-  const announcedOutcome = useRef<string | null>(null);
+  const announcedOutcome: MutableRefObject<string | null> = useRef<string | null>(null);
   useEffect(() => {
     if (!call || call.status !== 'ended') return;
     // Only the caller is left guessing; the callee knows what they pressed.

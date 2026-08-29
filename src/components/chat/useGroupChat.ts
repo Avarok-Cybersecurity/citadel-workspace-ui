@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback , type RefObject  } from 'react';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { DELETE_MESSAGE_PROMPT } from '@/lib/chat/delete-message-prompt';
 import { describeFailure } from '@/lib/failure-message';
@@ -16,8 +16,8 @@ import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-ti
 export function useGroupChat(groupId: string) {
   const { toast } = useToast();
   const confirm = useConfirm();
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
+  const messagesEndRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
 
   const [messages, setMessages] = useState<GroupMessage[]>([]);
   const [hasMore, setHasMore] = useState(true);

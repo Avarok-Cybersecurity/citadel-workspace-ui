@@ -5,7 +5,7 @@
  * status tracking, and stale conversation cleanup.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback , type MutableRefObject } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
@@ -31,7 +31,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
   const [registeredPeers, setRegisteredPeers] = useState<RegisteredPeer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [startupComplete, setStartupComplete] = useState(true);
-  const startupCompleteRef = useRef(startupComplete);
+  const startupCompleteRef: MutableRefObject<boolean> = useRef(startupComplete);
 
   useEffect(() => {
     startupCompleteRef.current = startupComplete;

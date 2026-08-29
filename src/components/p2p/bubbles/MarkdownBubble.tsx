@@ -1,5 +1,5 @@
 import ReactMarkdown from 'react-markdown';
-import { memo , type ReactNode } from 'react';
+import { memo , type ReactNode , type NamedExoticComponent } from 'react';
 import { AlertCircle, MoreVertical, Reply, Edit2, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -25,7 +25,7 @@ import { getInitials } from '@/components/chat/shared';
  * `content` is a string, so this memo holds even while the surrounding bubble
  * re-renders with fresh inline callbacks — no change to the bubble's API.
  */
-const RenderedMarkdown = memo(function RenderedMarkdown({ content }: { content: string }): JSX.Element {
+const RenderedMarkdown: NamedExoticComponent<{ content: string; }> = memo(function RenderedMarkdown({ content }: { content: string }): JSX.Element {
   return <ReactMarkdown components={markdownComponents}>{content}</ReactMarkdown>;
 });
 

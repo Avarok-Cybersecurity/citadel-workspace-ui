@@ -90,7 +90,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   }
 
   if (isLoading || isAutoClaimingSession) {
-    const loadingMessage = isAutoClaimingSession
+    const loadingMessage: "Connecting to session..." | "Workspace data is taking longer than expected..." | "Checking connection..." | "Loading workspace..." = isAutoClaimingSession
       ? 'Connecting to session...'
       : workspaceDataTimeout
         ? 'Workspace data is taking longer than expected...'

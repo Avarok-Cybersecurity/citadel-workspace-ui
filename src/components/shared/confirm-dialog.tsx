@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode ,  type MutableRefObject } from 'react';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 
 interface ConfirmRequest {
@@ -26,7 +26,7 @@ const ConfirmContext = createContext<((request: ConfirmRequest) => Promise<boole
 export function ConfirmDialogProvider({ children }: { children: ReactNode }): JSX.Element {
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
   // The pending promise's resolve, so answering the dialog settles the caller.
-  const resolveRef = useRef<((confirmed: boolean) => void) | null>(null);
+  const resolveRef: MutableRefObject<((confirmed: boolean) => void) | null> = useRef<((confirmed: boolean) => void) | null>(null);
 
   const settle: (confirmed: boolean) => void = useCallback((confirmed: boolean): void => {
     resolveRef.current?.(confirmed);

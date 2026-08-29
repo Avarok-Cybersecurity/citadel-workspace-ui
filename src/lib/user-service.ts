@@ -20,7 +20,7 @@ export class UserService {
   private static instance: UserService;
   private notificationService: NotificationService;
   private userChangeHandlers: Array<(user: UserRegistrationInfo | null) => void> = [];
-  private static readonly TAB_USER_KEY = 'current-user';
+  private static readonly TAB_USER_KEY: "current-user" = 'current-user';
 
   private constructor() {
     this.notificationService = NotificationService.getInstance();

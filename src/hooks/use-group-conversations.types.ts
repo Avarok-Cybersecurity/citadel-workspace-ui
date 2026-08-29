@@ -62,4 +62,4 @@ export { toInternalServiceRequest } from '@/lib/wasm-request';
 // Constants
 // ============================================================================
 
-export const STORAGE_KEY = 'citadel_group_conversations';
+export const STORAGE_KEY: "citadel_group_conversations" = 'citadel_group_conversations';

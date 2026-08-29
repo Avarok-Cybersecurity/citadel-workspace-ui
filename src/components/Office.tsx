@@ -8,6 +8,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { debugLog } from '@/lib/debug-config';
 import type { NavigateFunction } from 'react-router';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
+import type { MutableRefObject } from 'react';
 
 export const Office: () => JSX.Element = (): JSX.Element => {
   const location = useLocation();
@@ -18,7 +19,7 @@ export const Office: () => JSX.Element = (): JSX.Element => {
   const { state } = useWorkspace();
 
   // Track if we've already navigated to prevent loops
-  const hasNavigatedToDefault = useRef(false);
+  const hasNavigatedToDefault: MutableRefObject<boolean> = useRef(false);
 
   // Auto-navigate to default node when no nodeId is selected
   // Skip if a section (e.g. "files") is explicitly active

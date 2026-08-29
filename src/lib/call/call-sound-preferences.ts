@@ -6,9 +6,9 @@
  * CustomEvent pattern as the privacy and appearance settings tabs.
  */
 
-const STORAGE_KEY = 'citadel:call-sound-settings';
+const STORAGE_KEY: "citadel:call-sound-settings" = 'citadel:call-sound-settings';
 
-export const CALL_SOUND_SETTINGS_EVENT = 'call-sound-settings-changed';
+export const CALL_SOUND_SETTINGS_EVENT: "call-sound-settings-changed" = 'call-sound-settings-changed';
 
 export interface CallSoundSettings {
   enabled: boolean;

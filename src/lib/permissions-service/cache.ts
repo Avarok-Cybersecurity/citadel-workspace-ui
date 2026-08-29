@@ -112,6 +112,6 @@ export function getDeniedReason(
   }
 
   const label: string = PERMISSION_LABELS[permission] || permission;
-  const roleLabel = typeof cached.role === 'string' ? cached.role : 'Custom';
+  const roleLabel: "Member" | "Admin" | "Owner" | "Guest" | "Banned" | "Custom" = typeof cached.role === 'string' ? cached.role : 'Custom';
   return `You don't have the "${label}" permission. Your role: ${roleLabel}`;
 }

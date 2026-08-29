@@ -9,7 +9,7 @@ import { getDefaultSecuritySettings, type SessionSecuritySettings } from '../sec
 import { TIMEOUT, POLLING } from '../timeout-constants';
 
 /** LocalDB key for auto-accept setting */
-export const AUTO_ACCEPT_KEY = 'p2p_auto_accept_registrations';
+export const AUTO_ACCEPT_KEY: "p2p_auto_accept_registrations" = 'p2p_auto_accept_registrations';
 
 /** Default polling interval (30 seconds) */
 export const POLLING_INTERVAL: number = POLLING.P2P_REGISTRATION_INTERVAL_MS;

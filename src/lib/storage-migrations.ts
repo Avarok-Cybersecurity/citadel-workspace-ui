@@ -40,16 +40,16 @@ import { debugLog, errorLog } from './debug-config';
  */
 export const DB_VERSION: number = 2;
 
-export const DB_NAME = 'citadel-workspace';
+export const DB_NAME: "citadel-workspace" = 'citadel-workspace';
 
 /** Every object store the current schema expects to exist. */
-export const STORE_NAMES = ['keyValue', 'tabContext'] as const;
+export const STORE_NAMES: readonly ["keyValue", "tabContext"] = ['keyValue', 'tabContext'] as const;
 
 /**
  * Stores v1 created and nothing ever used. Kept named so v2's migration can
  * remove them and so a future schema does not reintroduce one by accident.
  */
-export const RETIRED_STORE_NAMES = ['sessions', 'messages', 'peers', 'instances'] as const;
+export const RETIRED_STORE_NAMES: readonly ["sessions", "messages", "peers", "instances"] = ['sessions', 'messages', 'peers', 'instances'] as const;
 
 export type StoreName = (typeof STORE_NAMES)[number];
 

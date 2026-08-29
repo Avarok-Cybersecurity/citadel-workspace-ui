@@ -13,6 +13,7 @@ import { websocketService } from '@/lib/websocket-service';
 import { toInternalServiceRequest } from '@/hooks/use-group-conversations.types';
 import { groupIdToKey } from './group-key';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import type { MessageGroupKey } from '@/lib/group-conversations/group-key';
 
 async function requireCid(): Promise<bigint> {
   const connectionInfo: CurrentConnectionInfo | null = (await import('../connection')).connectionManager.getConnectionInfo();
@@ -74,7 +75,7 @@ export async function sendGroupCreate(
 
 export async function sendGroupInvite(groupId: string, peerCid: string): Promise<void> {
   const cid: bigint = await requireCid();
-  const request = {
+  const request: { GroupInvite: { cid: bigint; peer_cid: bigint; group_key: MessageGroupKey; request_id: `${string}-${string}-${string}-${string}-${string}`; }; } = {
     GroupInvite: {
       cid,
       peer_cid: BigInt(peerCid),
@@ -101,7 +102,7 @@ export async function sendGroupRespond(
   accept: boolean
 ): Promise<void> {
   const cid: bigint = await requireCid();
-  const request = {
+  const request: { GroupRespondRequest: { cid: bigint; peer_cid: bigint; group_key: MessageGroupKey; response: boolean; invitation: boolean; request_id: `${string}-${string}-${string}-${string}-${string}`; }; } = {
     GroupRespondRequest: {
       cid,
       peer_cid: BigInt(inviterCid),
@@ -116,7 +117,7 @@ export async function sendGroupRespond(
 
 export async function sendGroupLeave(groupId: string): Promise<void> {
   const cid: bigint = await requireCid();
-  const request = {
+  const request: { GroupLeave: { cid: bigint; group_key: MessageGroupKey; request_id: `${string}-${string}-${string}-${string}-${string}`; }; } = {
     GroupLeave: {
       cid,
       group_key: groupIdToKey(groupId),
@@ -128,7 +129,7 @@ export async function sendGroupLeave(groupId: string): Promise<void> {
 
 export async function sendGroupKick(groupId: string, memberCid: string): Promise<void> {
   const cid: bigint = await requireCid();
-  const request = {
+  const request: { GroupKick: { cid: bigint; peer_cid: bigint; group_key: MessageGroupKey; request_id: `${string}-${string}-${string}-${string}-${string}`; }; } = {
     GroupKick: {
       cid,
       peer_cid: BigInt(memberCid),
@@ -158,7 +159,7 @@ export async function sendGroupListRequest(): Promise<void> {
  */
 export async function sendGroupEnd(groupId: string): Promise<void> {
   const cid: bigint = await requireCid();
-  const request = {
+  const request: { GroupEnd: { cid: bigint; group_key: MessageGroupKey; request_id: `${string}-${string}-${string}-${string}-${string}`; }; } = {
     GroupEnd: {
       cid,
       group_key: groupIdToKey(groupId),

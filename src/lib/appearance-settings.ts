@@ -20,7 +20,7 @@ export interface AppearanceSettings {
   animationsEnabled: boolean;
 }
 
-export const APPEARANCE_STORAGE_KEY = 'citadel:appearance-settings';
+export const APPEARANCE_STORAGE_KEY: "citadel:appearance-settings" = 'citadel:appearance-settings';
 
 export const defaultAppearanceSettings: AppearanceSettings = {
   fontSize: 14,
@@ -40,7 +40,7 @@ const MIN_FONT_SIZE: number = 12;
 const MAX_FONT_SIZE: number = 18;
 
 function coerce(stored: unknown): AppearanceSettings {
-  const merged = { ...defaultAppearanceSettings, ...(stored as Partial<AppearanceSettings>) };
+  const merged: { fontSize: number; sidebarWidth: "narrow" | "default" | "wide"; showAvatars: boolean; animationsEnabled: boolean; } = { ...defaultAppearanceSettings, ...(stored as Partial<AppearanceSettings>) };
   const fontSize: number = Number(merged.fontSize);
   return {
     fontSize:

@@ -1,5 +1,5 @@
 import { WifiOff, Wifi } from 'lucide-react';
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef , type RefObject } from 'react';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { useServiceHealth } from '@/hooks/use-service-health';
 
@@ -21,7 +21,7 @@ export function OfflineBanner(): JSX.Element | null {
   // localhost. That produced exactly the symptom this banner exists to explain,
   // and was reported nowhere: the health poll ran every 10s to zero listeners.
   const { isHealthy } = useServiceHealth();
-  const ref = useRef<HTMLDivElement>(null);
+  const ref: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const agentDown: boolean = isOnline && !isHealthy;
   const showing: boolean = !isOnline || justReconnected || agentDown;
 

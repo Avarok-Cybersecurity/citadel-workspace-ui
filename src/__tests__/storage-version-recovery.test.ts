@@ -13,10 +13,10 @@
  * back here — which is exactly the signal that separates the two causes.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi  } from 'vitest';
 import { showStorageVersionRecovery } from '../storage-version-recovery';
 
-const RELOAD_ATTEMPTED_KEY = 'citadel-storage-version-reload-attempted';
+const RELOAD_ATTEMPTED_KEY: "citadel-storage-version-reload-attempted" = 'citadel-storage-version-reload-attempted';
 
 function freshRoot(): HTMLElement {
   document.body.innerHTML = '<div id="root"></div>';

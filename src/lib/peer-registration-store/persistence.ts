@@ -13,7 +13,7 @@ import { parsePersistedJSON } from '../storage-utils';
  * Keys older builds wrote as bare strings via safeJSONStringify. New writes are
  * tagged, so this list only exists to rescue data already on disk.
  */
-const PERSISTED_CID_FIELDS = ['fromCid', 'toCid', 'cid', 'peer_cid'] as const;
+const PERSISTED_CID_FIELDS: readonly ["fromCid", "toCid", "cid", "peer_cid"] = ['fromCid', 'toCid', 'cid', 'peer_cid'] as const;
 import { debugLog } from '@/lib/debug-config';
 import type { PendingPeerRequest, OutgoingPeerRequest, KVPendingEntry } from './types';
 import {

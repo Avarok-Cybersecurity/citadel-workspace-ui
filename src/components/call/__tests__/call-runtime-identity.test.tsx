@@ -12,8 +12,8 @@
  * against a fake transport elsewhere; constructing the real thing here would
  * pull in WebCodecs and a capture pump to observe one identity comparison.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
+import { renderHook, act, waitFor , type RenderHookResult } from '@testing-library/react';
 
 const built: Array<{ selfCid: bigint; end: ReturnType<typeof vi.fn>; status: string }> = [];
 
@@ -42,8 +42,10 @@ vi.mock('@/lib/call/peer-name', () => ({ callPeerName: (): string => 'Peer' }));
 
 import { useCallRuntime } from '../use-call-runtime';
 import type { CallManager } from '@/lib/call/call-manager';
+import type { MutableRefObject } from 'react';
+import type { CallSession } from '@/lib/call/call-session';
 
-function setup(selfCid: bigint | null) {
+function setup(selfCid: bigint | null): RenderHookResult<{ managerRef: MutableRefObject<CallManager | null>; sessionRef: MutableRefObject<CallSession | null>; teardown: () => void; ensureManager: () => Promise<CallManager | null>; ensureSession: () => Promise<CallSession>; }, { cid: bigint | null; }> {
   return renderHook(
     ({ cid }: { cid: bigint | null }) =>
       useCallRuntime({

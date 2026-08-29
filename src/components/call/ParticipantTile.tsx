@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef , type RefObject } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { MicOff, SignalLow, SignalMedium, Volume2, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -30,7 +30,7 @@ interface ParticipantTileProps {
  * whether it worked.
  */
 export function ParticipantTile({ participant, stream, isSelf, quality = 'good' }: ParticipantTileProps): JSX.Element {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef: RefObject<HTMLVideoElement> = useRef<HTMLVideoElement>(null);
   const showVideo: boolean = participant.media.video && stream !== null;
 
   useEffect(() => {

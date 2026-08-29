@@ -12,7 +12,7 @@ import type { CallCodecCapabilities } from '@/types/p2p-commands';
 import { hasTrackTransforms } from './track-transforms';
 
 /** Opus. There is no serious alternative for interactive voice. */
-export const AUDIO_CODEC = 'opus';
+export const AUDIO_CODEC: "opus" = 'opus';
 
 /** 48 kHz mono at 32 kbps: the standard operating point for speech. */
 export const AUDIO_SAMPLE_RATE: number = 48_000;
@@ -27,7 +27,7 @@ export const AUDIO_BITRATE: number = 32_000;
  * since roughly 2012. All three are decodable far more widely than they are
  * encodable, which is why negotiation is done on the receiver's DECODE list.
  */
-export const VIDEO_CODEC_PREFERENCE = [
+export const VIDEO_CODEC_PREFERENCE: readonly ["av01.0.05M.08", "vp09.00.31.08", "avc1.42E01F"] = [
   'av01.0.05M.08',
   'vp09.00.31.08',
   'avc1.42E01F',

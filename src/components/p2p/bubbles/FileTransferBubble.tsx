@@ -54,7 +54,7 @@ export function FileTransferBubble({
   const fileName: string = message.file_name || 'Unknown file';
   const fileSize: number = message.file_size || 0;
   const fileType: string = message.file_type || 'application/octet-stream';
-  const transferMode = message.transfer_mode || 'async';
+  const transferMode: "async" | "p2p" = message.transfer_mode || 'async';
 
   const status: StatusContent = getStatusContent(state, isOwn, message);
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect , type ComponentType } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -71,7 +71,7 @@ const TemplateSelector = ({
   // Derive icon and label from entity-type-registry (SSOT)
   const entityType: string = categoryToEntityType(category);
   const metadata: EntityTypeMetadata = getEntityMetadata(entityType);
-  const CategoryIcon = metadata.icon;
+  const CategoryIcon: ComponentType<{ className?: string; }> = metadata.icon;
   const categoryLabel: string = metadata.label;
 
   return (

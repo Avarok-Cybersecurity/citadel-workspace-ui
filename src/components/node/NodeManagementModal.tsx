@@ -66,7 +66,7 @@ export function NodeManagementModal({
 }: NodeManagementModalProps): JSX.Element {
   const { toast } = useToast();
   const meta: EntityTypeMetadata = getEntityMetadata(entityType);
-  const modes = buildModes(meta.label);
+  const modes: Record<"create" | "edit", ModeConfig> = buildModes(meta.label);
   const fields: FieldConfig[] = buildFields(meta);
 
   const handleSubmit = async (formData: Record<string, string>): Promise<void> => {

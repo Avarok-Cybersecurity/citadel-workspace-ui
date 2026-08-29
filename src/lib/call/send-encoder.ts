@@ -64,7 +64,7 @@ export class SendEncoder {
     peerDecoderLists: Array<Array<{ codec: string; hardware: boolean; maxHeight: number }>>,
   ): boolean {
     if (this.encoders.length === 0 || peerDecoderLists.length === 0) return false;
-    const next = negotiateGroupVideoCodec(this.encoders, peerDecoderLists);
+    const next: "av01.0.05M.08" | "vp09.00.31.08" | "avc1.42E01F" | null = negotiateGroupVideoCodec(this.encoders, peerDecoderLists);
     if (next === this.codec) return false;
     // The encoder is rebuilt lazily by the next frame; closing it here is what
     // makes that frame create one with the new codec — and it starts with a
@@ -101,7 +101,7 @@ export class SendEncoder {
       return;
     }
     if (!this.videoEncoder) {
-      const chosen = this.codec;
+      const chosen: "av01.0.05M.08" | "vp09.00.31.08" | "avc1.42E01F" = this.codec;
       // The probe's verdict for THIS codec decides the acceleration mode; see
       // createVideoEncoder for why assuming hardware kills the whole call.
       const hardware: boolean = this.encoders.find((e): boolean => e.codec === chosen)?.hardware ?? false;

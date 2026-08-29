@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef  } from 'react';
+import { useState, useEffect, useRef  , type MutableRefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,8 +21,8 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
   const [hasChanges, setHasChanges] = useState(false);
   const [originalName, setOriginalName] = useState('');
   const [originalDescription, setOriginalDescription] = useState('');
-  const seededKeyRef = useRef<string | null>(null);
-  const dirtyRef = useRef(false);
+  const seededKeyRef: MutableRefObject<string | null> = useRef<string | null>(null);
+  const dirtyRef: MutableRefObject<boolean> = useRef(false);
 
   useEffect(() => {
     // `state.nodes` is re-minted by ANY node event in the workspace — including a

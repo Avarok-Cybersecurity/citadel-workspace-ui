@@ -13,15 +13,15 @@ import {
 } from '../codec-support';
 import { negotiateVideoCodec, negotiateGroupVideoCodec } from '../codec-negotiation';
 
-const AV1 = 'av01.0.05M.08';
-const VP9 = 'vp09.00.31.08';
-const H264 = 'avc1.42E01F';
+const AV1: "av01.0.05M.08" = 'av01.0.05M.08';
+const VP9: "vp09.00.31.08" = 'vp09.00.31.08';
+const H264: "avc1.42E01F" = 'avc1.42E01F';
 
 function decoders(...codecs: string[]): { codec: string; hardware: boolean; maxHeight: number; }[] {
   return codecs.map((codec) => ({ codec, hardware: false, maxHeight: 720 }));
 }
 
-function encoders(...codecs: VideoCodec[]) {
+function encoders(...codecs: VideoCodec[]): { codec: "av01.0.05M.08" | "vp09.00.31.08" | "avc1.42E01F"; hardware: boolean; }[] {
   return codecs.map((codec) => ({ codec, hardware: false }));
 }
 
@@ -62,7 +62,7 @@ describe('negotiateGroupVideoCodec', () => {
   it('picks a codec EVERY participant can decode', () => {
     // Alice decodes everything, Bob only VP9/H.264 — so VP9, even though we
     // could encode AV1 for Alice.
-    const chosen = negotiateGroupVideoCodec(encoders(AV1, VP9, H264), [
+    const chosen: "av01.0.05M.08" | "vp09.00.31.08" | "avc1.42E01F" | null = negotiateGroupVideoCodec(encoders(AV1, VP9, H264), [
       decoders(AV1, VP9, H264),
       decoders(VP9, H264),
     ]);
@@ -71,7 +71,7 @@ describe('negotiateGroupVideoCodec', () => {
   });
 
   it('drops to the room’s weakest decoder', () => {
-    const chosen = negotiateGroupVideoCodec(encoders(AV1, VP9, H264), [
+    const chosen: "av01.0.05M.08" | "vp09.00.31.08" | "avc1.42E01F" | null = negotiateGroupVideoCodec(encoders(AV1, VP9, H264), [
       decoders(AV1, VP9, H264),
       decoders(VP9, H264),
       decoders(H264),

@@ -72,7 +72,7 @@ export function useJoinRegistration(
    * that touches the DOM.
    */
   const focusFirstProblem = (): void => {
-    const field = firstInvalidField(
+    const field: "fullName" | "username" | "password" | "confirmPassword" | null = firstInvalidField(
       {
         fullName: formData.fullName,
         username: formData.username,
@@ -101,7 +101,7 @@ export function useJoinRegistration(
   // the defaults instead, permanently, with nothing said. Landing already
   // lifted the server address out of the cache for exactly this reason and did
   // not carry the fix here.
-  const securitySettings = providedSecuritySettings ?? DEFAULT_SECURITY_SETTINGS;
+  const securitySettings: SecuritySettingsValues | { readonly securityLevel: "Standard"; readonly secrecyMode: "BestEffort"; readonly encryptionAlgorithm: "AES_GCM_256"; readonly kemAlgorithm: "MlKem"; readonly sigAlgorithm: "None"; readonly headerObfuscatorSettings: {}; readonly storeCredentials: false; } = providedSecuritySettings ?? DEFAULT_SECURITY_SETTINGS;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const { name, value } = e.target;

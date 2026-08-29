@@ -22,7 +22,7 @@ import { debugLog } from '@/lib/debug-config';
  * Keyed per account: two accounts in one browser must not inherit each other's
  * group list, the same way conversations are now scoped.
  */
-const STORE = 'keyValue';
+const STORE: "keyValue" = 'keyValue';
 
 function key(): string | null {
   const own: bigint | null = instanceManager.cid;

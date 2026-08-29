@@ -50,7 +50,7 @@ export function ChatSettingsPanel({
   const [privacy, setPrivacy] = useState<PrivacySettings>(getPrivacySettings);
   const updatePrivacy = <K extends keyof PrivacySettings>(key: K, value: PrivacySettings[K]): void => {
     setPrivacy((prev) => {
-      const next = { ...prev, [key]: value };
+      const next: { showOnlineStatus: boolean; showTypingIndicators: boolean; sendReadReceipts: boolean; allowDirectMessages: "everyone" | "connections" | "nobody"; showProfileToStrangers: boolean; notifyOnScreenshot: boolean; } = { ...prev, [key]: value };
       savePrivacySettings(next);
       return next;
     });

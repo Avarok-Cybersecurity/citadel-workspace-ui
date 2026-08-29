@@ -117,6 +117,6 @@ export function resolveWebsocketUrl(
 
   // Follow the page's scheme: a page served over TLS must not open an insecure socket (browsers
   // block the mixed content), and a plain-http page cannot complete a `wss` handshake.
-  const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+  const scheme: "wss" | "ws" = location.protocol === 'https:' ? 'wss' : 'ws';
   return `${scheme}://${location.host}/ws`;
 }

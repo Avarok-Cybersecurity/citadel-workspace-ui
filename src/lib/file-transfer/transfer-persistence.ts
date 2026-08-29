@@ -20,8 +20,8 @@ import { restoreTransfer } from './restore-transfer';
 import { pruneTransfers } from './prune-transfers';
 import type { FileTransfer, FileTransferSettings } from './types';
 
-const TRANSFERS_KEY = 'citadel:file-transfers';
-const SETTINGS_KEY = 'citadel:file-transfer-settings';
+const TRANSFERS_KEY: "citadel:file-transfers" = 'citadel:file-transfers';
+const SETTINGS_KEY: "citadel:file-transfer-settings" = 'citadel:file-transfer-settings';
 
 interface TransferStore {
   setTransfer(transfer: FileTransfer): void;

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { firstFieldToFix } from '@/lib/first-field-to-fix';
 
 /** The login form's fields, in the order they are rendered. */
-const LOGIN_FIELD_ORDER = ['username', 'password'] as const;
+const LOGIN_FIELD_ORDER: readonly ["username", "password"] = ['username', 'password'] as const;
 type LoginField = (typeof LOGIN_FIELD_ORDER)[number];
 import { DEFAULT_SECURITY_SETTINGS } from './security-settings-defaults';
 import { useNavigate } from "react-router-dom";
@@ -18,7 +18,7 @@ import { setSelectedUser } from "@/lib/tab-context";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { redirectToExistingSession } from './login-session-redirect';
-import { mapSecuritySettings  } from '@/lib/security-utils';
+import { mapSecuritySettings  , type SessionSecuritySettings } from '@/lib/security-utils';
 import type { NavigateFunction } from 'react-router';
 import type {
   SecurityLevel, SecrecyMode, EncryptionAlgorithm, KemAlgorithm, SigAlgorithm,
@@ -69,7 +69,7 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       // which of the two is missing. The join form was given this in round 230
       // and the login form was not -- the same fix, in one of the two places it
       // belonged.
-      const field = firstFieldToFix(LOGIN_FIELD_ORDER, { username, password });
+      const field: "username" | "password" | null = firstFieldToFix(LOGIN_FIELD_ORDER, { username, password });
       setInvalidField(field);
       if (field) document.getElementById(field)?.focus();
       return;
@@ -172,7 +172,7 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       // algorithm connected with Standard/BestEffort/AES_GCM_256 and was told
       // nothing. The registration flow has always mapped these correctly; the
       // login flow read neither its own state nor the shared cache.
-      const chosenSettings = mapSecuritySettings(securitySettings);
+      const chosenSettings: SessionSecuritySettings = mapSecuritySettings(securitySettings);
       await websocketService.connect(requestId, username, password, chosenSettings);
       const cid: bigint = await responsePromise;
 

@@ -15,7 +15,7 @@
  * return <Profile user={data} />;
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef , type MutableRefObject } from 'react';
 import { debugLog } from '@/lib/debug-config';
 
 export interface AsyncDataState<T> {
@@ -63,9 +63,9 @@ export function useAsyncData<T>(
   const [hasLoaded, setHasLoaded] = useState(false);
 
   // Track if component is mounted
-  const mountedRef = useRef(true);
+  const mountedRef: MutableRefObject<boolean> = useRef(true);
   // Track current fetch to handle race conditions
-  const fetchIdRef = useRef(0);
+  const fetchIdRef: MutableRefObject<number> = useRef(0);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -158,7 +158,7 @@ export function useAsyncAction<T, Args extends unknown[] = []>(
   const [error, setError] = useState<Error | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
 
-  const mountedRef = useRef(true);
+  const mountedRef: MutableRefObject<boolean> = useRef(true);
 
   useEffect(() => {
     mountedRef.current = true;

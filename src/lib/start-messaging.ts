@@ -31,7 +31,7 @@ export interface MessagingStartDeps {
   report: (title: string, detail: string) => void;
 }
 
-export const MESSAGING_UNAVAILABLE_TITLE = 'Messaging unavailable';
+export const MESSAGING_UNAVAILABLE_TITLE: "Messaging unavailable" = 'Messaging unavailable';
 
 function describe(error: unknown): string {
   const reason: string = error instanceof Error ? error.message : String(error);

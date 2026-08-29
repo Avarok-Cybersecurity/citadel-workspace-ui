@@ -46,7 +46,7 @@ export function WorkspaceThemeProvider({ children }: { children: ReactNode }): J
   }, [state.workspace?.metadata]);
 
   const theme: WorkspaceTheme = preview ?? saved ?? defaultTheme();
-  const mode = resolvedTheme === 'light' ? 'light' : 'dark';
+  const mode: "light" | "dark" = resolvedTheme === 'light' ? 'light' : 'dark';
 
   useEffect(() => {
     applyTheme(theme, mode);

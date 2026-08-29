@@ -43,7 +43,7 @@ export function activateOnKey<E extends KeyboardEvent>(onActivate: (event: E) =>
  * The full set of props that make a non-button element behave like one for
  * keyboard and assistive-technology users.
  */
-export function interactive(onActivate: () => void) {
+export function interactive(onActivate: () => void): { role: "button"; tabIndex: number; onClick: () => void; onKeyDown: (event: KeyboardEvent<Element>) => void; } {
   return {
     role: 'button' as const,
     tabIndex: 0,

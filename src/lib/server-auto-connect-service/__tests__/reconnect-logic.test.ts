@@ -9,11 +9,11 @@
  * These assert on the map after the call, which is the state the scheduler
  * actually reads.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { cancelRetry } from '../reconnect-logic';
 import type { ConnectionAttempt } from '../types';
 
-const key = 'alice@wss://example.test';
+const key: "alice@wss://example.test" = 'alice@wss://example.test';
 
 describe('cancelRetry', () => {
   it('removes an entry that never scheduled a retry (the happy path)', () => {

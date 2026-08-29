@@ -30,5 +30,5 @@ export interface StoredDocument {
   revisionChain?: RevisionEntry[];
 }
 
-export const DOCUMENTS_KEY_PREFIX = 'live_doc';
-export const DOCUMENTS_INDEX_KEY = 'live_doc_index';
+export const DOCUMENTS_KEY_PREFIX: "live_doc" = 'live_doc';
+export const DOCUMENTS_INDEX_KEY: "live_doc_index" = 'live_doc_index';

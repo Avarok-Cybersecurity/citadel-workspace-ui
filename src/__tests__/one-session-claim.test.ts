@@ -23,7 +23,7 @@ import { stripComments } from '@/test-utils/strip-comments';
 const SRC: string = join(process.cwd(), 'src');
 
 /** The one module allowed to call the transport's claim directly. */
-const CLAIM_HOME = 'lib/sessions/claim-session.ts';
+const CLAIM_HOME: "lib/sessions/claim-session.ts" = 'lib/sessions/claim-session.ts';
 
 /**
  * Calls that are not a tab adopting a session, and why.

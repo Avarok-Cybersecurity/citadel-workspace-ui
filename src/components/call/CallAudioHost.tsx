@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef , type RefObject } from 'react';
 import { useCall } from '@/lib/call/call-context';
 
 /**
@@ -27,7 +27,7 @@ export function CallAudioHost(): JSX.Element {
 }
 
 function RemoteAudio({ stream }: { stream: MediaStream }): JSX.Element {
-  const ref = useRef<HTMLAudioElement>(null);
+  const ref: RefObject<HTMLAudioElement> = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     const element: HTMLAudioElement | null = ref.current;

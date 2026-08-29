@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils';
 import type { ThemePalette, ThemeTokenKey, WorkspaceIcon } from '@/lib/theme/theme-types';
 import { toCssColor } from '@/lib/theme/hsl';
 import { PREVIEW_REGIONS , type PreviewRegion } from '@/lib/theme/preview-regions';
+import type { CSSProperties, ButtonHTMLAttributes } from 'react';
 
 interface ThemePreviewProps {
   palette: ThemePalette;
@@ -40,7 +41,7 @@ export function ThemePreview({
   const region: (id: string) => PreviewRegion = (id: string): PreviewRegion => PREVIEW_REGIONS.find((r): boolean => r.id === id)!;
 
   /** Shared behaviour for every clickable part of the mock. */
-  const hotspot = (id: string) => {
+  const hotspot: (id: string) => { type: "button"; 'data-testid': string; 'data-selected': string | undefined; 'aria-label': string; 'aria-pressed': boolean; title: string; onClick: () => void; className: string; style: CSSProperties | undefined; } = (id: string): { type: "button"; 'data-testid': string; 'data-selected': string | undefined; 'aria-label': string; 'aria-pressed': boolean; title: string; onClick: () => void; className: string; style: CSSProperties | undefined; } => {
     const r: PreviewRegion = region(id);
     const selected: boolean = selectedToken === r.token;
     return {
@@ -223,7 +224,7 @@ function SwatchButton({
   label: string;
   palette: ThemePalette;
 }): JSX.Element {
-  const props = hotspot as unknown as React.ButtonHTMLAttributes<HTMLButtonElement> & { className?: string };
+  const props: ButtonHTMLAttributes<HTMLButtonElement> & { className?: string; } = hotspot as unknown as React.ButtonHTMLAttributes<HTMLButtonElement> & { className?: string };
   return (
     <button
       {...props}

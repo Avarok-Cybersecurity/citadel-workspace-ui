@@ -11,7 +11,7 @@
  * Two independent audits found this the same week, from opposite directions —
  * one looking for silent failures, one for call-state divergence.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { renderHook, act , type RenderHookResult } from '@testing-library/react';
 import { useCallMediaToggles } from '../use-call-media-toggles';
 import type { MutableRefObject } from 'react';
@@ -26,7 +26,7 @@ function setup(videoTracks: number, selfVideo = false) {
   // `readyState` matters now: the toggle filters to LIVE tracks, because an
   // ended one stays in the stream's list and flipping `enabled` on it is a
   // no-op that still announced a state change to every peer.
-  const tracks = Array.from({ length: videoTracks }, () => ({
+  const tracks: { enabled: boolean; readyState: "live"; }[] = Array.from({ length: videoTracks }, (): { enabled: boolean; readyState: "live"; } => ({
     enabled: false,
     readyState: 'live' as const,
   }));
@@ -37,7 +37,7 @@ function setup(videoTracks: number, selfVideo = false) {
     },
   } as unknown as MutableRefObject<Manager>;
   const sessionRef = {
-    current: { getLocalStream: () => ({ getVideoTracks: () => tracks, getAudioTracks: (): never[] => [] }) },
+    current: { getLocalStream: (): { getVideoTracks: () => { enabled: boolean; readyState: "live"; }[]; getAudioTracks: () => never[]; } => ({ getVideoTracks: (): { enabled: boolean; readyState: "live"; }[] => tracks, getAudioTracks: (): never[] => [] }) },
   } as unknown as Parameters<typeof useCallMediaToggles>[1];
   const onCameraUnavailable = vi.fn();
   const hook: RenderHookResult<CallMediaToggles, unknown> = renderHook((): CallMediaToggles =>

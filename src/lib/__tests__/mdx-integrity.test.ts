@@ -44,7 +44,7 @@ describe('hashDocument', () => {
 
 describe('verifyDocument', () => {
   it('verifies content that matches its stored hash', async () => {
-    const content = '# Hello';
+    const content: "# Hello" = '# Hello';
     expect(await verifyDocument(content, await hashDocument(content))).toEqual({
       status: 'verified',
     });

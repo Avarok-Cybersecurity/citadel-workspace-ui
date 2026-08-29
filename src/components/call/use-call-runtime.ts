@@ -9,7 +9,7 @@
  * story lives here.
  */
 
-import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction , type MutableRefObject } from 'react';
 import { callPeerName } from '@/lib/call/peer-name';
 import { debugLog } from '@/lib/debug-config';
 import { CallManager } from '@/lib/call/call-manager';
@@ -35,11 +35,11 @@ export function useCallRuntime({
   setCall,
   setStreamsVersion,
   setCaptureFailure,
-}: UseCallRuntimeParams) {
-  const managerRef = useRef<CallManager | null>(null);
+}: UseCallRuntimeParams): { managerRef: MutableRefObject<CallManager | null>; sessionRef: MutableRefObject<CallSession | null>; teardown: () => void; ensureManager: () => Promise<CallManager | null>; ensureSession: () => Promise<CallSession>; } {
+  const managerRef: MutableRefObject<CallManager | null> = useRef<CallManager | null>(null);
   /** In-flight construction, so two callers cannot each build a manager. */
-  const managerPromiseRef = useRef<Promise<CallManager | null> | null>(null);
-  const sessionRef = useRef<CallSession | null>(null);
+  const managerPromiseRef: MutableRefObject<Promise<CallManager | null> | null> = useRef<Promise<CallManager | null> | null>(null);
+  const sessionRef: MutableRefObject<CallSession | null> = useRef<CallSession | null>(null);
   /**
    * Which CID the current manager — or the one being built — belongs to.
    *
@@ -50,7 +50,7 @@ export function useCallRuntime({
    * is now signed in, and calling stays bound to the previous identity across
    * logout, reconnect and account switching.
    */
-  const managerCidRef = useRef<bigint | null>(null);
+  const managerCidRef: MutableRefObject<bigint | null> = useRef<bigint | null>(null);
 
   /** Torn down together: a session without its manager cannot end a call. */
   const teardown: () => void = useCallback((): void => {

@@ -19,7 +19,7 @@
  * explicit override, applied below, and is the only thing that should signal
  * rank.
  */
-export const AVATAR_COLORS = [
+export const AVATAR_COLORS: readonly ["#6E59A5", "#4F46E5", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"] = [
   '#6E59A5', // Purple
   '#4F46E5', // Indigo
   '#10B981', // Emerald

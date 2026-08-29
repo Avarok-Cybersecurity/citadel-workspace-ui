@@ -15,6 +15,7 @@ import type {
 } from './protocol-types';
 import { parseTickNotification, type TickCorrelation } from './tick-events';
 import type { ParsedTick } from '@/lib/file-transfer/tick-events';
+import type { VirtualObjectMetadata } from '@avarok/citadel-protocol-types';
 
 /**
  * Send RespondFileTransfer and return the request UUID it was sent under.
@@ -117,7 +118,7 @@ export function createTransferRequestHandler(
       | undefined;
     if (!notification) return;
 
-    const metadata = notification.metadata;
+    const metadata: VirtualObjectMetadata = notification.metadata;
     // RE-VFS pushes arrive through the same notification; they are handled by
     // the revfs service and must not enter the chat-transfer correlator, where
     // their name/size could join against an unrelated chat announcement.

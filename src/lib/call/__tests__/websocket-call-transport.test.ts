@@ -6,7 +6,7 @@
  * that the chain holds, and that a failed send does not poison the sends
  * queued behind it.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach  } from 'vitest';
 
 const sendP2PCommand = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/p2p/message-send-operations', () => ({ sendP2PCommand }));
@@ -14,7 +14,7 @@ vi.mock('@/lib/p2p/message-send-operations', () => ({ sendP2PCommand }));
 import { WebSocketCallTransport } from '../websocket-call-transport';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
 
-const signal = { kind: 'CallHeartbeat' as const, call_id: 'c1' };
+const signal: { kind: "CallHeartbeat"; call_id: string; } = { kind: 'CallHeartbeat' as const, call_id: 'c1' };
 
 function transport(): WebSocketCallTransport {
   return new WebSocketCallTransport({

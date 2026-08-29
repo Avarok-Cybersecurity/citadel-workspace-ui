@@ -9,7 +9,7 @@
  * composer state machine itself.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback , type RefObject ,  type MutableRefObject } from 'react';
 // No clearDraft here: every send path already does setInputMessage(''), and
 // saveDraft treats an empty string as "no draft" and deletes the entry. A
 // second way to clear it would be a second thing to keep in step with the first.
@@ -42,8 +42,8 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
   // composer has had this guard since it was written; the P2P one never did, so
   // a second Enter during the send window sent a genuine duplicate.
   const [isSending, setIsSending] = useState(false);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const inputMessageRef = useRef(inputMessage);
+  const inputRef: RefObject<HTMLTextAreaElement> = useRef<HTMLTextAreaElement>(null);
+  const inputMessageRef: MutableRefObject<string> = useRef(inputMessage);
 
   const [messageType, setMessageType] = useState<MessageType>('text');
   const [showDocModal, setShowDocModal] = useState(false);

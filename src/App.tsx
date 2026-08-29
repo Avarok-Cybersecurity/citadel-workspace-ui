@@ -20,6 +20,7 @@ import { OngoingCallBar } from "./components/call/OngoingCallBar";
 // Landing is the route almost every session starts on, so it is imported eagerly:
 // code-splitting it would only add a network round trip before first paint.
 import Landing from "./pages/Landing";
+import type { LazyExoticComponent } from 'react';
 
 /**
  * Every other route is split out. Nothing here was split before, so a visitor to
@@ -27,18 +28,18 @@ import Landing from "./pages/Landing";
  * manager and the collaborative editor (TipTap + Yjs + ProseMirror) before it
  * could render — none of which that page uses.
  */
-const Office = lazy((): Promise<{ default: never; } | { default: () => JSX.Element; }> =>
+const Office: LazyExoticComponent<() => JSX.Element> = lazy((): Promise<{ default: never; } | { default: () => JSX.Element; }> =>
   import("@/components/Office").then(m => ({ default: m.Office }))
 );
-const Messages = lazy(() => import("./pages/Messages"));
-const Connect = lazy((): Promise<{ default: never; } | { default: () => JSX.Element; }> =>
+const Messages: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pages/Messages"));
+const Connect: LazyExoticComponent<() => JSX.Element> = lazy((): Promise<{ default: never; } | { default: () => JSX.Element; }> =>
   import("./pages/Connect").then(m => ({ default: m.Connect }))
 );
-const UserDirectory = lazy(() => import("./pages/UserDirectory"));
-const GroupChatPage = lazy((): Promise<{ default: never; } | { default: () => JSX.Element; }> =>
+const UserDirectory: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pages/UserDirectory"));
+const GroupChatPage: LazyExoticComponent<() => JSX.Element> = lazy((): Promise<{ default: never; } | { default: () => JSX.Element; }> =>
   import("./pages/GroupChatPage").then(m => ({ default: m.GroupChatPage }))
 );
-const NotFound = lazy(() => import("./pages/NotFound"));
+const NotFound: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pages/NotFound"));
 
 const queryClient: QueryClient = new QueryClient();
 

@@ -25,7 +25,7 @@ import { CID_ROUTED_NOTIFICATIONS } from '../multi-instance/routing-rules';
 import { INTERVAL } from '../timeout-constants';
 
 // Global state key for preventing multiple WASM client initializations
-export const GLOBAL_INIT_KEY = '__citadel_wasm_client_init__';
+export const GLOBAL_INIT_KEY: "__citadel_wasm_client_init__" = '__citadel_wasm_client_init__';
 
 declare global {
   interface Window {

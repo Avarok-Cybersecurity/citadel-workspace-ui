@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef ,  type RefObject } from 'react';
 import * as Y from 'yjs';
 import { YjsP2PProvider, createYjsP2PProvider } from '@/lib/yjs-p2p-provider';
 import { eventEmitter } from '@/lib/event-emitter';
@@ -43,7 +43,7 @@ export function useCollaborativeEditor({
   const [syncState, setSyncState] = useState<string>('connecting');
   const [flashComments, setFlashComments] = useState<FlashComment[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
-  const editorContainerRef = useRef<HTMLDivElement>(null);
+  const editorContainerRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
 
   useDocumentPersistence(documentId, doc);
 

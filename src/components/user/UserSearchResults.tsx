@@ -27,7 +27,7 @@ import { getRoleBadgeClass , type UserData } from './user-search-types';
  * A constant rather than useId: there is one search panel open at a time, and a
  * stable id keeps the relationship legible.
  */
-export const RESULTS_LIST_ID = 'user-search-results';
+export const RESULTS_LIST_ID: "user-search-results" = 'user-search-results';
 
 interface UserSearchResultsProps {
   resultsRef: React.RefObject<HTMLDivElement>;

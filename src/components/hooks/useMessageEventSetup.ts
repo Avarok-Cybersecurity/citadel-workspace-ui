@@ -28,7 +28,7 @@ interface UseMessageEventSetupOptions {
  * it keeps the coupling greppable from both sides, so rewording the Rust string
  * breaks one visible constant rather than silently disabling first-run setup.
  */
-const WORKSPACE_MISSING_ERROR = 'No workspace found';
+const WORKSPACE_MISSING_ERROR: "No workspace found" = 'No workspace found';
 
 export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions): void {
   useEffect(() => {

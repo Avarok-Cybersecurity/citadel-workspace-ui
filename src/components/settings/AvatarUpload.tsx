@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback , type RefObject } from 'react';
 import { Upload, X, User } from 'lucide-react';
 import { processAvatarImage, validateAvatarFile, avatarToDataUrl } from '@/lib/image-processor';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
@@ -17,7 +17,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
   const [isDragActive, setIsDragActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
 
   const handleFile: (file: File) => Promise<void> = useCallback(async (file: File): Promise<void> => {
     setError(null);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent , type RefObject } from 'react';
 import { isEnterCommit } from '@/lib/keyboard-commit';
 import type { HslColor } from '@/lib/theme/theme-types';
 import { toCssColor, toHex, fromHex } from '@/lib/theme/hsl';
@@ -47,8 +47,8 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps): JSX.Ele
     else setHexDraft(toHex(value).slice(1));
   }, [hexDraft, onChange, value]);
 
-  const ringRef = useRef<HTMLDivElement>(null);
-  const squareRef = useRef<HTMLDivElement>(null);
+  const ringRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
+  const squareRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
 
   const hueFromPointer: (event: ReactPointerEvent<HTMLDivElement>) => void = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {

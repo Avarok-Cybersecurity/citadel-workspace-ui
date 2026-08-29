@@ -55,4 +55,4 @@ export function getBubbleContainerStyles(isOwn: boolean): string {
  * Nothing decided that — it is what happens when a number is retyped at each
  * site.
  */
-export const BUBBLE_MAX_WIDTH = 'max-w-[75%]';
+export const BUBBLE_MAX_WIDTH: "max-w-[75%]" = 'max-w-[75%]';

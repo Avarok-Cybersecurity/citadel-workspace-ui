@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { RevfsOpType, RevfsFileState , type RevfsNode } from '@/types/revfs-types';
+import { RevfsOpType, RevfsFileState , type RevfsNode , type TreeKey , type RevfsPendingOp } from '@/types/revfs-types';
 import type { RevfsOperation, RevfsFileMetadata } from '@/types/revfs-types';
 import { createDefaultTree } from '../tree-operations';
 import { ALICE, BOB, createTestService, defaultIntentHandler, getExecuteCalls } from './revfs-service-test-helpers';
@@ -51,7 +51,7 @@ describe('RevfsService', () => {
       await service.getTree(ALICE, BOB);
       await service.getTree(ALICE, BOB);
 
-      const loadCalls = getExecuteCalls(service).filter(i => i.type === 'load-tree');
+      const loadCalls: { type: "load-tree"; treeKey: TreeKey; }[] = getExecuteCalls(service).filter(i => i.type === 'load-tree');
       expect(loadCalls).toHaveLength(1);
     });
   });
@@ -62,7 +62,7 @@ describe('RevfsService', () => {
       await service.mkdir(ALICE, BOB, '/docs');
 
       const intents: RevfsIntent[] = getExecuteCalls(service);
-      const sendCalls = intents.filter(i => i.type === 'send-revfs-op');
+      const sendCalls: { type: "send-revfs-op"; peerCid: bigint; operation: RevfsOperation; }[] = intents.filter(i => i.type === 'send-revfs-op');
 
       expect(sendCalls).toHaveLength(1);
       const sentOp: RevfsOperation = (sendCalls[0] as { type: 'send-revfs-op'; operation: RevfsOperation }).operation;
@@ -84,7 +84,7 @@ describe('RevfsService', () => {
       const service: RevfsService = createTestService(defaultIntentHandler());
       await service.mkdir(ALICE, BOB, '/docs');
 
-      const persistCalls = getExecuteCalls(service).filter(i => i.type === 'persist-tree');
+      const persistCalls: { type: "persist-tree"; treeKey: TreeKey; tree: RevfsNode; }[] = getExecuteCalls(service).filter(i => i.type === 'persist-tree');
       expect(persistCalls.length).toBeGreaterThanOrEqual(2);
     });
   });
@@ -109,7 +109,7 @@ describe('RevfsService', () => {
 
       await service.mkdir(ALICE, BOB, '/docs');
 
-      const persistPendingCalls = getExecuteCalls(service)
+      const persistPendingCalls: { type: "persist-pending-ops"; treeKey: TreeKey; ops: RevfsPendingOp[]; }[] = getExecuteCalls(service)
         .filter(i => i.type === 'persist-pending-ops');
       expect(persistPendingCalls.length).toBeGreaterThanOrEqual(1);
     });
@@ -152,7 +152,7 @@ describe('RevfsService', () => {
       expect(sentFiles?.children?.find(c => c.name === 'doc.pdf')).toBeUndefined();
 
       const intents: RevfsIntent[] = getExecuteCalls(service);
-      const deleteCalls = intents.filter(i => i.type === 'backend-delete-file');
+      const deleteCalls: { type: "backend-delete-file"; cid: bigint; peerCid: bigint | null; virtualDir: string; }[] = intents.filter(i => i.type === 'backend-delete-file');
       expect(deleteCalls).toHaveLength(1);
     });
   });

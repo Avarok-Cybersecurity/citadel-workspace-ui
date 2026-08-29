@@ -26,7 +26,7 @@ import { stripComments } from '@/test-utils/strip-comments';
 const SRC: string = join(process.cwd(), 'src');
 
 /** The one module allowed to decide who leads. */
-const ELECTION_HOME = 'lib/multi-instance/channel-leader-election.ts';
+const ELECTION_HOME: "lib/multi-instance/channel-leader-election.ts" = 'lib/multi-instance/channel-leader-election.ts';
 
 /**
  * DEFINING a decision about who leads — not calling one.
