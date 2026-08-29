@@ -47,7 +47,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
   useEffect(() => {
     if (!myCid || capabilitiesReceived) return;
 
-    const handleCapabilities = (data: ServerCapabilities) => {
+    const handleCapabilities = (data: ServerCapabilities): void => {
       setCapabilitiesReceived(true);
       setServerCapabilities({
         allowServerFileTransfer: data.allowServerFileTransfer,
@@ -65,12 +65,12 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
       // Keep default capabilities on error
     });
 
-    return () => {
+    return (): void => {
       eventEmitter.off('server:capabilities:loaded', handleCapabilities);
     };
   }, [myCid, capabilitiesReceived]);
 
-  const loadTree = useCallback(async () => {
+  const loadTree = useCallback(async (): Promise<void> => {
     if (!myCid) {
       setTree(null);
       setLoading(false);
@@ -96,7 +96,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
   // Subscribe to tree changes
   useEffect(() => {
     if (!key) return;
-    const unsub = revfsService.onTreeChanged((changedKey, newTree) => {
+    const unsub = revfsService.onTreeChanged((changedKey, newTree): void => {
       if (changedKey === key) {
         setTree(newTree);
       }
@@ -104,17 +104,17 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     return unsub;
   }, [key]);
 
-  const mkdir = useCallback(async (path: string) => {
+  const mkdir = useCallback(async (path: string): Promise<void> => {
     if (!myCid) return;
     await revfsService.serverMkdir(myCid, path);
   }, [myCid]);
 
-  const rmdir = useCallback(async (path: string) => {
+  const rmdir = useCallback(async (path: string): Promise<void> => {
     if (!myCid) return;
     await revfsService.serverRmdir(myCid, path);
   }, [myCid]);
 
-  const uploadFile = useCallback(async (dirPath: string, fileName: string, metadata: Parameters<typeof revfsService.uploadFileToServer>[3], content: Uint8Array) => {
+  const uploadFile = useCallback(async (dirPath: string, fileName: string, metadata: Parameters<typeof revfsService.uploadFileToServer>[3], content: Uint8Array): Promise<void> => {
     if (!myCid) return;
     await revfsService.uploadFileToServer(myCid, dirPath, fileName, metadata, content);
   }, [myCid]);
@@ -124,22 +124,22 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     return revfsService.downloadFileFromServer(myCid, filePath);
   }, [myCid]);
 
-  const removeFile = useCallback(async (filePath: string) => {
+  const removeFile = useCallback(async (filePath: string): Promise<void> => {
     if (!myCid) return;
     await revfsService.removeFileFromServer(myCid, filePath);
   }, [myCid]);
 
-  const rename = useCallback(async (path: string, newName: string) => {
+  const rename = useCallback(async (path: string, newName: string): Promise<void> => {
     if (!myCid) return;
     await revfsService.serverRename(myCid, path, newName);
   }, [myCid]);
 
-  const move = useCallback(async (sourcePath: string, destParentPath: string) => {
+  const move = useCallback(async (sourcePath: string, destParentPath: string): Promise<void> => {
     if (!myCid) return;
     await revfsService.serverMove(myCid, sourcePath, destParentPath);
   }, [myCid]);
 
-  const copy = useCallback(async (sourcePath: string, destParentPath: string) => {
+  const copy = useCallback(async (sourcePath: string, destParentPath: string): Promise<void> => {
     if (!myCid) return;
     await revfsService.serverCopy(myCid, sourcePath, destParentPath);
   }, [myCid]);

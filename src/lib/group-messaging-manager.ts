@@ -108,7 +108,7 @@ class GroupMessagingManagerClass {
    * Groups with a "load older" request in flight, so the response that comes
    * back is merged into the thread instead of replacing it.
    */
-  private readonly pendingOlder = new Set<string>();
+  private readonly pendingOlder: Set<string> = new Set<string>();
 
   /** Called before requesting an older page. Consumed by the next response. */
   public markLoadingOlder(groupId: string): void {

@@ -12,12 +12,12 @@ const codecInstances: Array<{ close: ReturnType<typeof vi.fn> }> = [];
 
 function stubCodecClass() {
   return class {
-    state = 'configured';
-    encodeQueueSize = 0;
+    state: string = 'configured';
+    encodeQueueSize: number = 0;
     encode = vi.fn();
     decode = vi.fn();
     configure = vi.fn();
-    close = vi.fn(() => { this.state = 'closed'; });
+    close = vi.fn((): void => { this.state = 'closed'; });
     constructor() { codecInstances.push(this as unknown as { close: ReturnType<typeof vi.fn> }); }
     static isConfigSupported = async () => ({ supported: true });
   };
@@ -31,11 +31,11 @@ function makeTrack(kind: 'audio' | 'video') {
     readyState: 'live',
     enabled: true,
     stop: vi.fn(),
-    addEventListener: (event: string, fn: () => void) => {
+    addEventListener: (event: string, fn: () => void): void => {
       if (event === 'ended') listeners.push(fn);
     },
     /** Test-only: what the browser does when a device is unplugged. */
-    fireEnded: () => listeners.forEach((fn) => fn()),
+    fireEnded: (): void => listeners.forEach((fn): void => fn()),
   };
 }
 
@@ -78,7 +78,7 @@ beforeEach(() => {
   vi.stubGlobal(
     'MediaStreamTrackProcessor',
     class {
-      readable = { getReader: () => ({ read: () => new Promise(() => {}), cancel: vi.fn().mockResolvedValue(undefined) }) };
+      readable = { getReader: () => ({ read: () => new Promise((): void => {}), cancel: vi.fn().mockResolvedValue(undefined) }) };
       constructor(public init: { track: unknown }) {}
     },
   );

@@ -39,25 +39,25 @@ export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps) {
   // Clear error state after animation
   useEffect(() => {
     if (hasError) {
-      const timeout = setTimeout(() => setHasError(false), 500);
-      return () => clearTimeout(timeout);
+      const timeout = setTimeout((): void => setHasError(false), 500);
+      return (): void => clearTimeout(timeout);
     }
   }, [hasError]);
 
-  const handleFocus = useCallback(() => {
+  const handleFocus = useCallback((): void => {
     setIsEditing(true);
     // Select all text on focus for easy replacement
     setTimeout(() => inputRef.current?.select(), 0);
   }, []);
 
-  const handleBlur = useCallback(() => {
+  const handleBlur = useCallback((): void => {
     setIsEditing(false);
     // Revert to current path on blur without submission
     setInputValue(currentPath);
     setHasError(false);
   }, [currentPath]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (isEnterCommit(e)) {
       e.preventDefault();
       const normalizedPath: string = inputValue.trim() || '/';
@@ -80,7 +80,7 @@ export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps) {
     }
   }, [inputValue, tree, currentPath, onNavigate]);
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
     setInputValue(e.target.value);
     setHasError(false);
   }, []);

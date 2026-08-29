@@ -38,7 +38,7 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
 
   useEffect(() => {
-    const loadMembers = async () => {
+    const loadMembers = async (): Promise<void> => {
       if (!activeDomainId) {
         setMembers([]);
         setIsLoadingMembers(false);
@@ -60,7 +60,7 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
   }, [activeDomainId]);
 
   useEffect(() => {
-    const handleMembersLoaded = (payload: MembersPayload) => {
+    const handleMembersLoaded = (payload: MembersPayload): void => {
       // See is-for-domain: a list fetched for another domain used to replace
       // this one, and this hook's members are the corpus the user search
       // searches.
@@ -85,7 +85,7 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
   useEffect(() => {
     if (!isLoadingMembers) return;
     const timer: number = window.setTimeout(() => setIsLoadingMembers(false), MEMBER_LOAD_TIMEOUT_MS);
-    return () => window.clearTimeout(timer);
+    return (): void => window.clearTimeout(timer);
   }, [isLoadingMembers]);
 
   return { members, setMembers, isLoadingMembers };

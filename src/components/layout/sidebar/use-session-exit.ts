@@ -27,7 +27,7 @@ export function useSessionExit() {
   const [disconnectStatus, setDisconnectStatus] = useState<DisconnectStatus>("disconnecting");
   const [disconnectError, setDisconnectError] = useState<string | undefined>();
 
-  const handleExit = () => {
+  const handleExit = (): void => {
     // Stop WASM connection manager polling (session stays active but this tab won't poll)
     wasmConnectionManager.stop();
 
@@ -38,7 +38,7 @@ export function useSessionExit() {
     toastSuccess(toast, "Returned to landing page", "Your session is still active. Click your workspace icon to return instantly.");
   };
 
-  const handleSignOut = async () => {
+  const handleSignOut = async (): Promise<void> => {
     // Show the disconnect modal immediately
     setDisconnectStatus("disconnecting");
     setDisconnectError(undefined);
@@ -112,7 +112,7 @@ export function useSessionExit() {
     setDisconnectStatus("ready");
   };
 
-  const handleDisconnectComplete = () => {
+  const handleDisconnectComplete = (): void => {
     setShowDisconnectModal(false);
     if (disconnectStatus === "ready") {
       navigate('/');

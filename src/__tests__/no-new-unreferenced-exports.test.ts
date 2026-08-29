@@ -26,7 +26,7 @@ import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { scanExports } from './unreferenced-exports';
 
-const SRC = resolve(__dirname, '..');
+const SRC: string = resolve(__dirname, '..');
 const BASELINE: string[] = JSON.parse(
   readFileSync(join(__dirname, 'unreferenced-exports.baseline.json'), 'utf8'),
 );
@@ -34,7 +34,7 @@ const BASELINE: string[] = JSON.parse(
 describe('unreferenced exports', () => {
   const scan = scanExports(SRC);
   const found = scan.unreferenced;
-  const names = found.map((f) => f.name);
+  const names: string[] = found.map((f): string => f.name);
 
   it('scans a real corpus, so the rule is not passing over nothing', () => {
     // Every guard in this repo that silently checked nothing looked exactly
@@ -56,7 +56,7 @@ describe('unreferenced exports', () => {
   });
 
   it('has no stale entries — fix one, remove it from the baseline', () => {
-    const stale = BASELINE.filter((name) => !names.includes(name));
+    const stale: string[] = BASELINE.filter((name) => !names.includes(name));
     expect(stale).toEqual([]);
   });
 });

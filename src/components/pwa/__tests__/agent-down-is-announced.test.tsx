@@ -17,7 +17,7 @@ vi.mock('@/hooks/use-online-status', () => ({
   useOnlineStatus: () => ({ isOnline: true, justReconnected: false }),
 }));
 
-const announceHealth = (isHealthy: boolean) =>
+const announceHealth = (isHealthy: boolean): void =>
   act(() => { eventEmitter.emit('service-health', { isHealthy, lastCheck: Date.now() }); });
 
 describe('the agent-down banner', () => {

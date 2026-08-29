@@ -46,7 +46,7 @@ function scheduleTone(c: AudioContext, tone: ToneSpec): void {
     osc.type = 'sine';
     osc.frequency.value = freqHz;
     osc.connect(envelope);
-    osc.onended = () => {
+    osc.onended = (): void => {
       osc.disconnect();
       envelope.disconnect();
     };
@@ -68,7 +68,7 @@ export function playTones(tones: ToneSpec[]): void {
     // than that (or never), playing a stale burst would ring after the call
     // stopped ringing, so it is dropped instead.
     const staleAfter: number = Date.now() + Math.max(...tones.map((t) => t.atMs + t.durationMs));
-    const go = () => {
+    const go = (): void => {
       if (Date.now() > staleAfter) return;
       try {
         for (const tone of tones) scheduleTone(c, tone);

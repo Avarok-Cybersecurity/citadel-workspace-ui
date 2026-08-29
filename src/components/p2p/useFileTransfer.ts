@@ -39,7 +39,7 @@ export function useFileTransfer({
   );
 
 
-  const handleRemoveFile = () => {
+  const handleRemoveFile = (): void => {
     setSelectedFile(null);
     setPreviewUrl(null);
     setError(null);
@@ -48,7 +48,7 @@ export function useFileTransfer({
     }
   };
 
-  const handleFileSelect = useCallback((file: File) => {
+  const handleFileSelect = useCallback((file: File): void => {
     setError(null);
 
     if (file.size > maxFileSizeBytes) {
@@ -63,7 +63,7 @@ export function useFileTransfer({
 
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = (e): void => {
         setPreviewUrl(e.target?.result as string);
       };
       reader.readAsDataURL(file);
@@ -72,7 +72,7 @@ export function useFileTransfer({
     }
   }, [maxFileSizeBytes]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = useCallback((e: React.DragEvent): void => {
     e.preventDefault();
     setIsDragging(false);
 
@@ -82,28 +82,28 @@ export function useFileTransfer({
     }
   }, [handleFileSelect]);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: React.DragEvent): void => {
     e.preventDefault();
     setIsDragging(true);
   }, []);
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
+  const handleDragLeave = useCallback((e: React.DragEvent): void => {
     e.preventDefault();
     setIsDragging(false);
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const files = e.target.files;
     if (files && files.length > 0) {
       handleFileSelect(files[0]);
     }
   };
 
-  const handleBrowseClick = () => {
+  const handleBrowseClick = (): void => {
     fileInputRef.current?.click();
   };
 
-  const handleNativePickerClick = useCallback(async () => {
+  const handleNativePickerClick = useCallback(async (): Promise<void> => {
     setError(null);
     setIsPickingFile(true);
 
@@ -134,7 +134,7 @@ export function useFileTransfer({
     }
   }, [peerCid, onClose]);
 
-  const handleSend = async () => {
+  const handleSend = async (): Promise<void> => {
     if (!selectedFile) return;
 
     setIsSending(true);
@@ -151,7 +151,7 @@ export function useFileTransfer({
     }
   };
 
-  const handleClose = () => {
+  const handleClose = (): void => {
     if (!isSending) {
       handleRemoveFile();
       onClose();

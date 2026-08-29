@@ -48,7 +48,7 @@ function countItems(node: RevfsNode): { files: number; folders: number } {
   let files: number = 0;
   let folders: number = 0;
 
-  function traverse(n: RevfsNode) {
+  function traverse(n: RevfsNode): void {
     for (const child of n.children ?? []) {
       if (child.type === 'directory') {
         folders++;

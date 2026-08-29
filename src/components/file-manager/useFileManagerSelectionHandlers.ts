@@ -23,19 +23,19 @@ interface SelectionDeps {
 export function useFileManagerSelectionHandlers({
   tree, currentPath, filterText, currentTreeKey, cut, copyToClipboard, selectItem,
 }: SelectionDeps) {
-  const handleCutMultiple = useCallback((nodes: RevfsNode[]) => {
+  const handleCutMultiple = useCallback((nodes: RevfsNode[]): void => {
     if (!currentTreeKey) return;
     cut(nodes, currentTreeKey);
     toast.info(`Cut ${nodes.length} item${nodes.length !== 1 ? 's' : ''}`);
   }, [cut, currentTreeKey]);
 
-  const handleCopyMultiple = useCallback((nodes: RevfsNode[]) => {
+  const handleCopyMultiple = useCallback((nodes: RevfsNode[]): void => {
     if (!currentTreeKey) return;
     copyToClipboard(nodes, currentTreeKey);
     toast.info(`Copied ${nodes.length} item${nodes.length !== 1 ? 's' : ''}`);
   }, [copyToClipboard, currentTreeKey]);
 
-  const handleSelectAll = useCallback(() => {
+  const handleSelectAll = useCallback((): void => {
     if (!tree) return;
     const currentNode = tree.path === currentPath ? tree : findNodeByPath(tree, currentPath);
     if (!currentNode?.children) return;

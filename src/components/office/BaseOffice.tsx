@@ -77,12 +77,12 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
 
   // Cancel used to be a bare toggle. The load effect below then restored the
   // stored document over the buffer, so the edits were gone with no prompt.
-  const handleEditToggle = async () => {
+  const handleEditToggle = async (): Promise<void> => {
     if (isEditing && isDirty && !(await confirm(DISCARD_EDIT_PROMPT))) return;
     setIsEditing(!isEditing);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
     // The decision lives in saveOfficeContent so it can be tested without
     // rendering the MDX pipeline; this supplies the I/O and reacts to the answer.
     const saved = await saveOfficeContent({
@@ -132,7 +132,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
 
 
   // Handle template selection
-  const handleTemplateSelect = (template: MdxTemplate) => {
+  const handleTemplateSelect = (template: MdxTemplate): void => {
     // Replace content with template content
     setContent(template.content);
 

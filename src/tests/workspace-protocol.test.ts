@@ -12,7 +12,7 @@ import { debugLog } from '@/lib/debug-config';
 describe('Workspace Protocol', () => {
   it('should create a message payload correctly', () => {
     // Test with a simple binary message
-    const testData = new Uint8Array([1, 2, 3, 4, 5]);
+    const testData: Uint8Array<ArrayBuffer> = new Uint8Array([1, 2, 3, 4, 5]);
     const payload = createMessagePayload(testData);
 
     // Verify the structure (uses Pascal case to match Rust serialization)
@@ -28,7 +28,7 @@ describe('Workspace Protocol', () => {
 
   it('should serialize and deserialize payloads correctly', () => {
     // Create a test message
-    const testData = new Uint8Array([1, 2, 3, 4, 5]);
+    const testData: Uint8Array<ArrayBuffer> = new Uint8Array([1, 2, 3, 4, 5]);
     const payload = createMessagePayload(testData);
 
     // Check payload type before serialization
@@ -57,7 +57,7 @@ describe('Workspace Protocol', () => {
 
   it('should handle empty messages', () => {
     // Create an empty message
-    const emptyData = new Uint8Array(0);
+    const emptyData: Uint8Array<ArrayBuffer> = new Uint8Array(0);
     const payload = createMessagePayload(emptyData);
 
     debugLog('WorkspaceProtocolTest', 'Empty payload:', payload);
@@ -87,8 +87,8 @@ describe('Workspace Protocol', () => {
 
   it('should handle large binary messages', () => {
     // Create a large binary message (1KB)
-    const largeData = new Uint8Array(1024);
-    for (let i = 0; i < largeData.length; i++) {
+    const largeData: Uint8Array<ArrayBuffer> = new Uint8Array(1024);
+    for (let i: number = 0; i < largeData.length; i++) {
       largeData[i] = i % 256;
     }
 

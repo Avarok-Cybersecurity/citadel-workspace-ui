@@ -47,7 +47,7 @@ export function useEventListener<T = unknown>(
 
     const unsubscribe = eventEmitter.on(eventName, stableHandler);
 
-    return () => {
+    return (): void => {
       unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -80,7 +80,7 @@ export function useEventListeners<T = unknown>(
       eventEmitter.on(name, stableHandler)
     );
 
-    return () => {
+    return (): void => {
       unsubscribes.forEach(unsub => unsub());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

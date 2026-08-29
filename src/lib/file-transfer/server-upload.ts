@@ -42,18 +42,18 @@ export const MAX_BYTE_CONTENTS_BYTES: number = 16 * 1024 * 1024; // 16 MiB
  */
 export function awaitSendFileAck(requestId: string): Promise<void> {
   return failOnSocketLoss('ServerUpload', new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout((): void => {
       eventEmitter.off('websocket-message', handleMessage);
       reject(new Error('SendFile request timed out'));
     }, TIMEOUT.FILE_SEND_MS);
 
-    const settle = (fn: () => void) => {
+    const settle = (fn: () => void): void => {
       clearTimeout(timeout);
       eventEmitter.off('websocket-message', handleMessage);
       fn();
     };
 
-    const handleMessage = (message: unknown) => {
+    const handleMessage = (message: unknown): void => {
       const msg = message as Record<string, unknown>;
 
       const success = msg.SendFileRequestSuccess as { request_id?: string } | undefined;
@@ -110,7 +110,7 @@ export async function uploadFileToServer(
   ownCid: bigint
 ): Promise<string> {
   if (file.size > MAX_BYTE_CONTENTS_BYTES) {
-    const mib = (n: number) => `${(n / (1024 * 1024)).toFixed(1)} MiB`;
+    const mib = (n: number): string => `${(n / (1024 * 1024)).toFixed(1)} MiB`;
     throw new Error(
       `"${file.name}" is ${mib(file.size)}, above the ${mib(MAX_BYTE_CONTENTS_BYTES)} limit ` +
         `for browser uploads. Send it while both peers are online, or use the native file picker.`

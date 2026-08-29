@@ -19,7 +19,7 @@ export const Connect = () => {
   const [selectedServer, setSelectedServer] = useState<string | null>(null);
 
   // Memoize the fetchServers function to prevent it from being recreated on each render
-  const fetchServers = useCallback(async () => {
+  const fetchServers = useCallback(async (): Promise<void> => {
     try {
       // Using "1" as a valid u64 string representation for the connect page
       const response = await listKnownServers({ cid: "1" });
@@ -67,7 +67,7 @@ export const Connect = () => {
     runAsyncSetup(fetchServers);
   }, [fetchServers]);
 
-  const handleConnect = async () => {
+  const handleConnect = async (): Promise<void> => {
     if (!selectedServer) {
       toast({
         title: "No Server Selected",
@@ -172,7 +172,7 @@ export const Connect = () => {
                     onClick={() => setSelectedServer(server.serverAddress)}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={activateOnKey(() => { (() => setSelectedServer(server.serverAddress))(); })}
+                    onKeyDown={activateOnKey((): void => { ((): void => setSelectedServer(server.serverAddress))(); })}
                   >
                     <Server className="w-5 h-5 text-primary-accent mr-3" />
                     <div>

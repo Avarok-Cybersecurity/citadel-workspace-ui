@@ -21,7 +21,7 @@ export function sendToLeader(
   return new Promise((resolve) => {
     outboundQueue.enqueue(payload, id);
 
-    const ackHandler = (event: { requestId: string; status: 'processed' | 'error'; error?: string; data?: ProxyResponseData }) => {
+    const ackHandler = (event: { requestId: string; status: 'processed' | 'error'; error?: string; data?: ProxyResponseData }): void => {
       if (event.requestId === id) {
         clearTimeout(timeout);
         eventEmitter.off('outbound-ack', ackHandler);
@@ -31,7 +31,7 @@ export function sendToLeader(
 
     eventEmitter.on('outbound-ack', ackHandler);
 
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout((): void => {
       eventEmitter.off('outbound-ack', ackHandler);
       // Drop it from the queue. The ack path calls acknowledge(); this one did
       // not, so a timed-out request stayed in the map forever — and

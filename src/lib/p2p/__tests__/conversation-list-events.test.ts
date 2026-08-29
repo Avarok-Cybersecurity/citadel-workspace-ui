@@ -22,9 +22,9 @@ describe('markMessagesAsRead', () => {
 
   function setup(messages: P2PMessage[]) {
     const conversation: P2PConversation = { peerCid, messages, unreadCount: messages.length } as unknown as P2PConversation;
-    const conversationManager = { getConversation: vi.fn(() => conversation) };
+    const conversationManager = { getConversation: vi.fn((): P2PConversation => conversation) };
     const emit = vi.fn();
-    const sendAck = vi.fn(() => Promise.resolve());
+    const sendAck = vi.fn((): Promise<void> => Promise.resolve());
     return { conversation, conversationManager, emit, sendAck };
   }
 

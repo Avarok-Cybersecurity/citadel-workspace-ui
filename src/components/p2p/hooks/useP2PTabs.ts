@@ -41,7 +41,7 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
   // never fired again. The CBOR-decoded payload preserves
   // `type` + `document_id`, so the filter logic is unchanged.
   useEffect(() => {
-    const handleYjsCommand = ({ payload }: { peerCid: bigint; payload: Record<string, unknown> }) => {
+    const handleYjsCommand = ({ payload }: { peerCid: bigint; payload: Record<string, unknown> }): void => {
       if (payload.type !== 'yjs_sync') return;
       const docId = typeof payload.document_id === 'string' ? payload.document_id : undefined;
       if (!docId) return;
@@ -51,21 +51,21 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
       }
     };
     eventEmitter.on('yjs:p2p-command', handleYjsCommand);
-    return () => { eventEmitter.off('yjs:p2p-command', handleYjsCommand); };
+    return (): void => { eventEmitter.off('yjs:p2p-command', handleYjsCommand); };
   }, []);
 
-  const handleTabSelect = useCallback((tabId: string) => {
+  const handleTabSelect = useCallback((tabId: string): void => {
     setActiveTabId(tabId);
     if (tabId === 'messages') setMessagesHasUnread(false);
     setTabActivity(prev => ({ ...prev, [tabId]: false }));
   }, []);
 
-  const handleCloseTab = useCallback((tabId: string) => {
+  const handleCloseTab = useCallback((tabId: string): void => {
     setTabs(prev => prev.filter(t => t.id !== tabId));
     if (activeTabId === tabId) setActiveTabId('messages');
   }, [activeTabId]);
 
-  const handleOpenDocument = useCallback((docId: string, title: string) => {
+  const handleOpenDocument = useCallback((docId: string, title: string): void => {
     // Adopt before opening. Only the CREATOR had a store record, so on the
     // recipient's side updateDocumentState found nothing and silently wrote
     // nothing — every edit they made was lost when the tab closed. Adoption is
@@ -89,7 +89,7 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
     }
   }, [tabs, currentUserCid, peerCid]);
 
-  const handleCreateDocument = useCallback(async (title: string, initialContent: string) => {
+  const handleCreateDocument = useCallback(async (title: string, initialContent: string): Promise<void> => {
     // Was `if (!currentUserCid) return;` — a success-shaped no-op that closed
     // the modal and cleared the compose box having created nothing.
     if (!currentUserCid) throw new Error('Cannot create a document before the session has a CID');

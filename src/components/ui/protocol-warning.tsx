@@ -14,11 +14,11 @@ export const ProtocolWarning: React.FC = () => {
       setVisible(true);
       
       // Auto-dismiss after 10 seconds
-      const timer = setTimeout(() => {
+      const timer = setTimeout((): void => {
         setVisible(false);
       }, 10000);
       
-      return () => clearTimeout(timer);
+      return (): void => clearTimeout(timer);
     }
   }, [state.protocolWarning]);
   

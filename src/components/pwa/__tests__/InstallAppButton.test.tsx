@@ -37,14 +37,14 @@ function fireInstallPrompt(outcome: 'accepted' | 'dismissed' = 'accepted') {
   return event;
 }
 
-function setStandalone(matches: boolean) {
+function setStandalone(matches: boolean): void {
   window.matchMedia = ((query: string) => ({
     matches: query.includes('display-mode: standalone') ? matches : false,
     media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    addListener: () => {},
-    removeListener: () => {},
+    addEventListener: (): void => {},
+    removeEventListener: (): void => {},
+    addListener: (): void => {},
+    removeListener: (): void => {},
     dispatchEvent: () => false,
     onchange: null,
   })) as unknown as typeof window.matchMedia;

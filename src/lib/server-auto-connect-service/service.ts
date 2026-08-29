@@ -33,9 +33,9 @@ import {
 export class ServerAutoConnectService extends EventListenerPollingService {
   private static instance: ServerAutoConnectService;
 
-  private reconnectAttempts = new Map<string, ConnectionAttempt>();
-  private activeSessionKeys = new Set<string>();
-  private userDisconnectedSessions = new Set<string>();
+  private reconnectAttempts: Map<string, ConnectionAttempt> = new Map<string, ConnectionAttempt>();
+  private activeSessionKeys: Set<string> = new Set<string>();
+  private userDisconnectedSessions: Set<string> = new Set<string>();
   private isEnabled = true;
   private isInitialized = false;
 

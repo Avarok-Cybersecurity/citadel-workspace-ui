@@ -83,7 +83,7 @@ describe('runMigrations', () => {
     const steps = [2, 3, 4].map(version => ({
       version,
       description: `step ${version}`,
-      run: () => { ran.push(version); },
+      run: (): void => { ran.push(version); },
     }));
     const original = MIGRATIONS.slice();
     MIGRATIONS.push(...steps);

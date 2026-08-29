@@ -38,7 +38,7 @@ export async function getCurrentCid(): Promise<bigint | null> {
   // 2) Tab context from IndexedDB (with timeout to prevent hangs)
   try {
     const tabSelectionPromise = getSelectedUser();
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), CID_LOOKUP_TIMEOUT_MS));
+    const timeout = new Promise<null>((resolve) => setTimeout((): void => resolve(null), CID_LOOKUP_TIMEOUT_MS));
     const tabSelection = await Promise.race([tabSelectionPromise, timeout]);
     if (tabSelection?.selectedCid) {
       return tabSelection.selectedCid;
@@ -50,7 +50,7 @@ export async function getCurrentCid(): Promise<bigint | null> {
   // 3) Tab session from stored sessions (with timeout)
   try {
     const tabSessionPromise = connectionManager.getTabSelectedSession();
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), CID_LOOKUP_TIMEOUT_MS));
+    const timeout = new Promise<null>((resolve) => setTimeout((): void => resolve(null), CID_LOOKUP_TIMEOUT_MS));
     const tabSession = await Promise.race([tabSessionPromise, timeout]);
     if (tabSession?.cid) {
       return tabSession.cid;

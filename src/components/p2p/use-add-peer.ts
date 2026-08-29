@@ -21,7 +21,7 @@ export function useAddPeer(
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
-  const submit = async () => {
+  const submit = async (): Promise<void> => {
     const entered: string = value.trim();
     if (!entered) return;
 

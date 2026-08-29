@@ -28,7 +28,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
   const retryInProgressRef = useRef(false);
   const executeFnRef = useRef<(() => Promise<unknown>) | null>(null);
 
-  const retryOperation = useCallback(async () => {
+  const retryOperation = useCallback(async (): Promise<true | void> => {
     if (onRetry) {
       return onRetry();
     }
@@ -100,7 +100,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     onClose();
   }, [onClose, resetAttempts]);
 
-  const handleManualRetry = () => {
+  const handleManualRetry = (): void => {
     resetCountdown();
     // `maxRetries` bounds the MACHINE's patience; it was never meant to bound
     // the person's. A laptop asleep through ten backed-off attempts -- about 18
@@ -127,7 +127,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = (): void => {
     onClose();
   };
 

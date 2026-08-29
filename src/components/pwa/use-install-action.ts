@@ -19,8 +19,8 @@ export function useInstallAction(): {
   const { canInstall, needsManualInstall, install } = usePwaInstall();
   const { toast } = useToast();
 
-  const installNow = useCallback(() => {
-    void (async () => {
+  const installNow = useCallback((): void => {
+    void (async (): Promise<void> => {
       const accepted = await install();
       // Only on acceptance. Declining is a choice, not an error to report back.
       if (accepted) {

@@ -87,7 +87,7 @@ export function ChatTabBar({ tabs, activeTabId, onTabSelect, onTabClose }: ChatT
           tab={tab}
           active={tab.id === activeTabId}
           onSelect={() => onTabSelect(tab.id)}
-          onClose={tab.type === 'live_document' ? () => onTabClose(tab.id) : undefined}
+          onClose={tab.type === 'live_document' ? (): void => onTabClose(tab.id) : undefined}
         />
       ))}
     </div>

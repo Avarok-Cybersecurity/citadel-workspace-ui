@@ -25,7 +25,7 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /**
  * Files allowed to reach for the raw client, and how that is enforced.
@@ -80,7 +80,7 @@ describe('follower tabs', () => {
     const offenders: string[] = [];
     for (const rel of await sourceFiles()) {
       if (rel in LEADER_ONLY) continue;
-      const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
       if (/\bgetClient\(\)/.test(source)) offenders.push(rel);
     }
 
@@ -94,7 +94,7 @@ describe('follower tabs', () => {
 
   it('keeps every leader-only exemption real', async () => {
     for (const [rel, { why, requires }] of Object.entries(LEADER_ONLY)) {
-      const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
 
       expect(
         /\bgetClient\b/.test(source),
@@ -122,7 +122,7 @@ describe('follower tabs', () => {
     // do is decide whether this tab may SEND.
     const offenders: string[] = [];
     for (const rel of await sourceFiles()) {
-      const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
       if (!/websocketService\.isConnected\(\)/.test(source)) continue;
       if (/sendMessage|sendRequest|sendDirectToInternalService/.test(source)) {
         offenders.push(rel);

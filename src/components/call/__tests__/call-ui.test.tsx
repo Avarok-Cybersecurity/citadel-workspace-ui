@@ -93,7 +93,7 @@ describe('ParticipantTile', () => {
 });
 
 describe('CallControls', () => {
-  const noop = () => {};
+  const noop = (): void => {};
 
   it('names the microphone once and lets aria-pressed carry the state', async () => {
     // This test used to assert the opposite, and moved with the bug: it

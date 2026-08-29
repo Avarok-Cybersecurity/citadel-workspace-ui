@@ -44,6 +44,6 @@ export function callOutcomeMessage(reason: string | null, peerName: string): str
  * recorded CIDs leaking into the UI as identity.
  */
 export function callOutcomePeerName(call: CallState): string {
-  const named = [...call.participants.values()].find((p) => p.username);
+  const named = [...call.participants.values()].find((p): string => p.username);
   return named?.username ?? 'They';
 }

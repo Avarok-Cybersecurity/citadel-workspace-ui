@@ -74,17 +74,17 @@ export function CreateGroupDialog({
     [memberRole, defaultRoles]
   );
 
-  const handleRemoveMember = useCallback((cid: string) => {
+  const handleRemoveMember = useCallback((cid: string): void => {
     setSelectedMembers(prev => prev.filter(m => m.cid !== cid));
   }, []);
 
-  const handleRoleChange = useCallback((cid: string, roleId: string) => {
+  const handleRoleChange = useCallback((cid: string, roleId: string): void => {
     setSelectedMembers(prev =>
       prev.map(m => (m.cid === cid ? { ...m, roleId } : m))
     );
   }, []);
 
-  const handleCreate = useCallback(async () => {
+  const handleCreate = useCallback(async (): Promise<void> => {
     if (selectedMembers.length === 0) return;
     setIsCreating(true);
     setCreateError(null);
@@ -108,7 +108,7 @@ export function CreateGroupDialog({
   // No `if (!isCreating)` guard: onOpenChange is Radix's SINGLE dismissal
   // channel, so guarding it disables the X, Escape and outside-click together,
   // while the submit button is disabled too. See shared/confirm-dialog.
-  const handleClose = useCallback(() => {
+  const handleClose = useCallback((): void => {
     setGroupName('');
     setSelectedMembers([]);
     onOpenChange(false);

@@ -116,7 +116,7 @@ export class CapturePump {
     const reader = readable.getReader();
     this.cleanups.push(() => void reader.cancel().catch(() => undefined));
 
-    const loop = async () => {
+    const loop = async (): Promise<void> => {
       while (!this.stopped) {
         const { done, value } = await reader.read();
         if (done || !value) return;
@@ -144,7 +144,7 @@ export class CapturePump {
     void Promise.resolve(video.play()).catch(() => undefined);
 
     let raf: number = 0;
-    const draw = () => {
+    const draw = (): void => {
       if (this.stopped) return;
       if (video.videoWidth > 0) {
         // VideoFrame from an element is the one construction path available

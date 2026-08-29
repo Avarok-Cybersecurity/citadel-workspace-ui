@@ -119,8 +119,8 @@ export class CallSession {
       hasCodec: () => this.sender.getCodec() !== null,
       startPump: (stream) => {
         this.pump = new CapturePump({
-          onVideoFrame: (frame, isKeyframe) => this.encodeVideo(frame, isKeyframe),
-          onAudioData: (data) => this.encodeAudio(data),
+          onVideoFrame: (frame, isKeyframe): void => this.encodeVideo(frame, isKeyframe),
+          onAudioData: (data): void => this.encodeAudio(data),
         });
         this.pump.start(stream);
       },

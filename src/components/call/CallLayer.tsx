@@ -18,10 +18,10 @@ export function CallLayer({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Polled rather than subscribed because connection identity settles
     // asynchronously during login, and calling is unavailable until it has.
-    const read = () => setSelfCid(connectionManager.getConnectionInfo()?.cid ?? null);
+    const read = (): void => setSelfCid(connectionManager.getConnectionInfo()?.cid ?? null);
     read();
     const timer: number = window.setInterval(read, 2000);
-    return () => window.clearInterval(timer);
+    return (): void => window.clearInterval(timer);
   }, []);
 
   const senderConfig = useMemo<Pick<MessageSenderConfig, 'getCurrentCid'>>(

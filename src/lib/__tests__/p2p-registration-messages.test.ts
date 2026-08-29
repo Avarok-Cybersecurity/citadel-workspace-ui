@@ -25,7 +25,7 @@ function makeContext(): RegistrationContext & { pendingRequests: Map<string, Pen
 function pend(ctx: RegistrationContext, requestId: string) {
   let resolve!: (v: Record<string, unknown>) => void;
   let reject!: (e: Error) => void;
-  const promise = new Promise<Record<string, unknown>>((res, rej) => { resolve = res; reject = rej; });
+  const promise = new Promise<Record<string, unknown>>((res, rej): void => { resolve = res; reject = rej; });
   ctx.pendingRequests.set(requestId, { resolve, reject });
   return promise;
 }

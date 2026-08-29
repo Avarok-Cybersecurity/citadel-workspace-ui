@@ -76,7 +76,7 @@ export function GroupConversationRow({
 
   // Calculate how many avatars can fit
   useEffect(() => {
-    const updateMaxAvatars = () => {
+    const updateMaxAvatars = (): void => {
       if (!containerRef.current) return;
 
       // Approximate available width for avatars (container width - padding - name space)
@@ -99,7 +99,7 @@ export function GroupConversationRow({
       resizeObserver.observe(containerRef.current);
     }
 
-    return () => resizeObserver.disconnect();
+    return (): void => resizeObserver.disconnect();
   }, []);
 
   // Get display avatars and overflow count
@@ -114,7 +114,7 @@ export function GroupConversationRow({
   }, [sortedMembers, maxAvatars]);
 
   // Handle click
-  const handleClick = () => {
+  const handleClick = (): void => {
     if (onClick) {
       onClick(group);
     } else {

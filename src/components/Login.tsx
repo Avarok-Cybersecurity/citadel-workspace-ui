@@ -31,7 +31,7 @@ export function Login({ onNext, onCancel }: LoginProps) {
     handleLogin,
   } = useLoginHandler({ onNext });
 
-  const handleSecuritySettingsComplete = (values: SecuritySettingsValues) => {
+  const handleSecuritySettingsComplete = (values: SecuritySettingsValues): void => {
     setSecuritySettings({
       securityLevel: values.securityLevel,
       secrecyMode: values.secrecyMode,

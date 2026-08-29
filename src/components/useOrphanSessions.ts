@@ -51,7 +51,7 @@ export function useOrphanSessions() {
     workspaceName: "",
   });
 
-  const loadActiveSessions = useCallback(async () => {
+  const loadActiveSessions = useCallback(async (): Promise<void> => {
     try {
       await connectionManager.waitForReady();
       const { ok, sessions: activeSessions } = await connectionManager.getActiveSessionsResult();
@@ -90,7 +90,7 @@ export function useOrphanSessions() {
     }
   }, []);
 
-  const handleNavigate = async (session: OrphanSessionWithWorkspace) => {
+  const handleNavigate = async (session: OrphanSessionWithWorkspace): Promise<void> => {
     try {
       debugLog('OrphanSessionsNavbar', 'Navigating to workspace:', session.workspaceName);
 
@@ -156,11 +156,11 @@ export function useOrphanSessions() {
     }
   };
 
-  const handleDisconnect = (session: OrphanSessionWithWorkspace) => {
+  const handleDisconnect = (session: OrphanSessionWithWorkspace): void => {
     setDisconnectTarget({ session, workspaceName: session.workspaceName });
   };
 
-  const handleConfirmDisconnect = async (action: DisconnectAction) => {
+  const handleConfirmDisconnect = async (action: DisconnectAction): Promise<void> => {
     if (!disconnectTarget) return;
 
     const workspaceName: string = disconnectTarget.workspaceName;
@@ -208,17 +208,17 @@ export function useOrphanSessions() {
     }
   };
 
-  const handleLoadingComplete = () => {
+  const handleLoadingComplete = (): void => {
     setLoadingModal(prev => ({ ...prev, open: false }));
   };
 
-  const triggerGlow = (cid: bigint) => {
+  const triggerGlow = (cid: bigint): void => {
     setGlowingSessionCid(cid);
     setTimeout(() => { setGlowingSessionCid(null); }, 4000);
   };
 
   // WebSocket connection success handler
-  const handleWsConnectionSuccess = useCallback(async () => {
+  const handleWsConnectionSuccess = useCallback(async (): Promise<void> => {
     debugLog('OrphanSessionsNavbar', 'WebSocket connected, reloading sessions...');
     await loadActiveSessions();
   }, [loadActiveSessions]);
@@ -226,7 +226,7 @@ export function useOrphanSessions() {
   useEventListener('on-ws-connection-success', handleWsConnectionSuccess);
 
   // Notification count handler
-  const handleUnreadCountChanged = useCallback((change: UnreadCountChange) => {
+  const handleUnreadCountChanged = useCallback((change: UnreadCountChange): void => {
     setNotificationCounts(new Map(change.byCid));
   }, []);
 

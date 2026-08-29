@@ -19,7 +19,7 @@ export function useFileManagerContent() {
   const [storageMode, setStorageMode] = useState<TreeScope>(TreeScope.Peer);
 
   useEffect(() => {
-    const update = () => {
+    const update = (): void => {
       const info = connectionManager.getConnectionInfo();
       setMyCid(info?.cid ?? null);
       const { registeredPeers: peers } = p2pRegistrationService.getPeers();
@@ -27,7 +27,7 @@ export function useFileManagerContent() {
     };
     update();
     const interval = setInterval(update, INTERVAL.HEARTBEAT_MS);
-    return () => clearInterval(interval);
+    return (): void => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -110,7 +110,7 @@ export function useFileManagerContent() {
     setFilterText('');
   }, [currentPath, storageMode, selectedPeerCid]);
 
-  const handleSortChange = useCallback((field: 'name' | 'date' | 'size' | 'type', direction: 'asc' | 'desc') => {
+  const handleSortChange = useCallback((field: 'name' | 'date' | 'size' | 'type', direction: 'asc' | 'desc'): void => {
     setSortField(field);
     setSortDirection(direction);
   }, []);

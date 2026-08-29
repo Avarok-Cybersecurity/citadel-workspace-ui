@@ -52,7 +52,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
   const { toast } = useToast();
 
   useEffect(() => {
-    const loadStoredWorkspaces = async () => {
+    const loadStoredWorkspaces = async (): Promise<void> => {
       const storedSessions = connectionManager.getStoredSessions();
       const tabSelectedUser = await getSelectedUser();
       const connInfo = connectionManager.getConnectionInfo();
@@ -96,7 +96,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     }
   }, [location.pathname, location.search, currentWorkspace]);
 
-  const handleWorkspaceChange = async (workspace: StoredWorkspace) => {
+  const handleWorkspaceChange = async (workspace: StoredWorkspace): Promise<void> => {
     // Switching session tears the whole workspace down, editor included.
     if (!(await mayLeaveEditor(confirm))) return;
 
@@ -165,13 +165,13 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     }
   };
 
-  const handleAddWorkspace = () => {
+  const handleAddWorkspace = (): void => {
     setIsAddingWorkspace(true);
     setCurrentStep("connect");
     setTargetWorkspaceForNewAccount(null);
   };
 
-  const handleAddAccountToWorkspace = (wsName: string, serverAddress: string) => {
+  const handleAddAccountToWorkspace = (wsName: string, serverAddress: string): void => {
     setTargetWorkspaceForNewAccount({ workspaceName: wsName, serverAddress });
     setIsAddingWorkspace(true);
     setCurrentStep("connect");
@@ -179,14 +179,14 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     toastSuccess(toast, "Adding New Account", `Join ${wsName} with a different account`);
   };
 
-  const handleManageAccounts = () => {
+  const handleManageAccounts = (): void => {
     setIsOpen(false);
   };
 
   // ServerConnect calls `onNext(address, password)`; SecuritySettings and
   // Join call `onNext()` (no args). Treat the args as optional so this
   // single handler can serve all three steps without reshaping their APIs.
-  const handleNext = (address?: string, password?: string) => {
+  const handleNext = (address?: string, password?: string): void => {
     switch (currentStep) {
       case "connect":
         if (address !== undefined) setServerAddress(address);
@@ -205,7 +205,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     }
   };
 
-  const handleBack = () => {
+  const handleBack = (): void => {
     switch (currentStep) {
       case "security": setCurrentStep("connect"); break;
       case "join": setCurrentStep("security"); break;

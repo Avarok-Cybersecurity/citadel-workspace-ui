@@ -35,8 +35,8 @@ const sendRequest = vi.fn(async (_request: unknown): Promise<void> => undefined)
 const sendP2PMessageReliable = vi.fn(async (): Promise<void> => undefined);
 vi.mock('@/lib/websocket-service', () => ({
   websocketService: {
-    sendRequest: (r: unknown) => sendRequest(r),
-    sendP2PMessageReliable: () => sendP2PMessageReliable(),
+    sendRequest: (r: unknown): Promise<void> => sendRequest(r),
+    sendP2PMessageReliable: (): Promise<void> => sendP2PMessageReliable(),
   },
 }));
 

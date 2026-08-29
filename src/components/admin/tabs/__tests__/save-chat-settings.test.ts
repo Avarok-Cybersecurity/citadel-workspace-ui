@@ -4,7 +4,7 @@ import type { ChatSettingsNotice } from '../save-chat-settings';
 
 function deps(overrides: Partial<Parameters<typeof saveChatSettings>[0]> = {}) {
   const notices: ChatSettingsNotice[] = [];
-  const write = vi.fn(() => Promise.resolve());
+  const write = vi.fn((): Promise<void> => Promise.resolve());
   return {
     notices,
     write,
@@ -14,8 +14,8 @@ function deps(overrides: Partial<Parameters<typeof saveChatSettings>[0]> = {}) {
       chatEnabled: true,
       chatRules: 'Be kind',
       write,
-      notify: (n: ChatSettingsNotice) => notices.push(n),
-      log: () => {},
+      notify: (n: ChatSettingsNotice): number => notices.push(n),
+      log: (): void => {},
       ...overrides,
     },
   };

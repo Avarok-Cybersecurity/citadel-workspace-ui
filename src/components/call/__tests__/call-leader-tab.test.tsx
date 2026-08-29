@@ -22,7 +22,7 @@ vi.mock('@/lib/call/codec-support', () => ({
 }));
 vi.mock('@/lib/call/call-manager', () => ({ CallManager: class {} }));
 vi.mock('@/lib/call/websocket-call-transport', () => ({ WebSocketCallTransport: class {} }));
-vi.mock('@/lib/call/peer-name', () => ({ callPeerName: () => 'Peer' }));
+vi.mock('@/lib/call/peer-name', () => ({ callPeerName: (): string => 'Peer' }));
 
 import { eventEmitter } from '@/lib/event-emitter';
 import { CallProvider } from '../CallProvider';

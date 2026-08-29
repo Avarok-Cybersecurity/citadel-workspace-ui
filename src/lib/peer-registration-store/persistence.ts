@@ -167,7 +167,7 @@ export function loadOutgoingFromLocalDB(
   kv: Map<string, KVPendingEntry>,
   onLoaded: (requests: OutgoingPeerRequest[]) => Promise<void>
 ): Promise<void> {
-  const accept = async (data: OutgoingPeerRequest[]) => {
+  const accept = async (data: OutgoingPeerRequest[]): Promise<void> => {
     const valid: OutgoingPeerRequest[] = data.filter(r => r.toCid && r.fromCid);
     const invalidCount: number = data.length - valid.length;
     if (invalidCount > 0) {

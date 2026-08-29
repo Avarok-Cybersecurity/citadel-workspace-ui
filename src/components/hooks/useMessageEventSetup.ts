@@ -30,9 +30,9 @@ interface UseMessageEventSetupOptions {
  */
 const WORKSPACE_MISSING_ERROR = 'No workspace found';
 
-export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions) {
+export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions): void {
   useEffect(() => {
-    const setupMessageListeners = async () => {
+    const setupMessageListeners = async (): Promise<void> => {
       await workspaceEvents.onMessageEvent('message:received', (payload: MessagePayload) => {
         debugLog('WorkspaceEventHandler', `Received message from peer: ${payload.peerCid}, length: ${payload.contentLength}`);
         if (!payload.contents) return;
@@ -75,7 +75,7 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions) 
       });
     };
 
-    const setupErrorHandling = async () => {
+    const setupErrorHandling = async (): Promise<void> => {
       await workspaceEvents.onOperationEvent('operation:error', (payload: ErrorPayload) => {
         const needsInitialization = payload.message.includes(WORKSPACE_MISSING_ERROR);
 
@@ -107,7 +107,7 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions) 
       });
     };
 
-    const setupProtocolWarningHandling = async () => {
+    const setupProtocolWarningHandling = async (): Promise<void> => {
       await workspaceEvents.onProtocolEvent('protocol:warning', (payload: ProtocolWarningPayload) => {
         debugLog('WorkspaceEventHandler', `Protocol warning: ${payload.message}`);
         setState(prev => ({
@@ -118,7 +118,7 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions) 
       });
     };
 
-    const initializeEvents = async () => {
+    const initializeEvents = async (): Promise<void> => {
       await setupMessageListeners();
       await setupErrorHandling();
       await setupProtocolWarningHandling();
@@ -127,7 +127,7 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions) 
 
     runAsyncSetup(initializeEvents);
 
-    return () => {
+    return (): void => {
       runAsyncSetup(async () => { workspaceEvents.cleanupAllListeners(); });
       p2pRegistrationService.stop();
     };

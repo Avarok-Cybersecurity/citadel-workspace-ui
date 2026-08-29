@@ -50,7 +50,7 @@ export function IncomingCallCard({
   useEffect(() => {
     const message: string = `${description} from ${callerName}. Press Tab to reach Decline and Accept.`;
     const id: number = window.setTimeout(() => setAnnouncement(message), 100);
-    return () => window.clearTimeout(id);
+    return (): void => window.clearTimeout(id);
   }, [description, callerName]);
 
   return (

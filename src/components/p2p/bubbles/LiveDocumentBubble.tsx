@@ -7,7 +7,7 @@ export function LiveDocumentBubble({ message, isOwn, onRetry, onOpenDocument }: 
   const isFailed = message.status === 'failed';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
 
-  const handleClick = () => {
+  const handleClick = (): void => {
     if (message.document_id && onOpenDocument) {
       onOpenDocument(message.document_id, message.document_title || 'Untitled Document');
     }

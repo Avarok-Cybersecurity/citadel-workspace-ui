@@ -14,7 +14,7 @@ interface UseWorkspaceEventSetupProps {
 
 export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps): void {
   useEffect(() => {
-    const setupWorkspaceListeners = async () => {
+    const setupWorkspaceListeners = async (): Promise<void> => {
       // Loading state
       await workspaceEvents.onWorkspaceEvent('workspace:loading', () => {
         setLoading(setState, 'workspace', true);

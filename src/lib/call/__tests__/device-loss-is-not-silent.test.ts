@@ -33,7 +33,7 @@ function makeTrack(kind: 'audio' | 'video'): FakeTrack {
     readyState: 'live',
     enabled: true,
     stop: vi.fn(),
-    addEventListener: (event, fn) => {
+    addEventListener: (event, fn): void => {
       if (event === 'ended') listeners.push(fn);
     },
     fireEnded: () => listeners.forEach((fn) => fn()),

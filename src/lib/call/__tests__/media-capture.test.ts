@@ -18,7 +18,7 @@ function domError(name: string): DOMException {
   return new DOMException('denied', name);
 }
 
-function stubMediaDevices(getUserMedia: unknown) {
+function stubMediaDevices(getUserMedia: unknown): void {
   Object.defineProperty(navigator, 'mediaDevices', {
     value: { getUserMedia, enumerateDevices: async () => [] },
     configurable: true,

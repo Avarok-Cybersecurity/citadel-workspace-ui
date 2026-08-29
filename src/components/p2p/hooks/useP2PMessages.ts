@@ -48,7 +48,7 @@ export function useP2PMessages({
       return;
     }
 
-    const loadConversation = async () => {
+    const loadConversation = async (): Promise<void> => {
       await messenger.waitForReady();
       await messenger.syncConnectionsFromBackend();
 
@@ -86,7 +86,7 @@ export function useP2PMessages({
       setMessages, setPeerTyping, setIsConnected, setPeerPresence, setIsRegistered,
     });
 
-    const checkInitialConnection = async () => {
+    const checkInitialConnection = async (): Promise<void> => {
       const syncConnected = messenger.isConnected(peerCid);
       const autoConnected = await p2pAutoConnectService.isPeerConnected(peerCid);
       setIsConnected(syncConnected || autoConnected);
@@ -99,21 +99,21 @@ export function useP2PMessages({
       messenger.markMessagesAsRead(peerCid).catch(err => debugLog('UseP2PMessages', 'Error:', err));
     }
 
-    const refreshTimeout = setTimeout(() => {
+    const refreshTimeout = setTimeout((): void => {
       const conversation = messenger.getConversation(peerCid);
       if (conversation && conversation.messages.length > 0) {
         setMessages(prev => mergeMessages(prev, conversation.messages));
       }
     }, 500);
 
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = (): void => {
       if (document.visibilityState === 'visible') {
         messenger.markMessagesAsRead(peerCid).catch(err => debugLog('UseP2PMessages', 'Error:', err));
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    return () => {
+    return (): void => {
       unsubscribeConversationEvents();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearTimeout(refreshTimeout);
@@ -121,7 +121,7 @@ export function useP2PMessages({
     };
   }, [peerCid, activeTabIdRef, onUnreadMessage, messenger]);
 
-  const loadOlderMessages = useCallback(async () => {
+  const loadOlderMessages = useCallback(async (): Promise<void> => {
     if (isLoadingMore || currentPage === null || currentPage <= 0 || !hasMorePages) return;
 
     setIsLoadingMore(true);
@@ -152,14 +152,14 @@ export function useP2PMessages({
     }
   }, [isLoadingMore, currentPage, hasMorePages, peerCid, scrollRef, messenger]);
 
-  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>): void => {
     const target = event.currentTarget;
     if (target.scrollTop < 100 && hasMorePages && !isLoadingMore) {
       runAsyncSetup(loadOlderMessages);
     }
   }, [hasMorePages, isLoadingMore, loadOlderMessages]);
 
-  const handleRetryMessage = useCallback(async (message: P2PMessage) => {
+  const handleRetryMessage = useCallback(async (message: P2PMessage): Promise<void> => {
     if (message.status !== 'failed') return;
     try {
       await messenger.resendMessage(peerCid, message.id);
@@ -174,7 +174,7 @@ export function useP2PMessages({
     }
   }, [peerCid, messenger]);
 
-  const handleEditMessage = useCallback(async (messageId: string, content: string) => {
+  const handleEditMessage = useCallback(async (messageId: string, content: string): Promise<void> => {
     try {
       await messenger.editMessage(peerCid, messageId, content);
     } catch (error) {
@@ -185,7 +185,7 @@ export function useP2PMessages({
     }
   }, [peerCid, messenger]);
 
-  const handleDeleteMessage = useCallback(async (messageId: string) => {
+  const handleDeleteMessage = useCallback(async (messageId: string): Promise<void> => {
     // Asked first; same reasoning as the group chat's delete.
     if (!(await confirm(DELETE_MESSAGE_PROMPT))) return;
 

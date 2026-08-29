@@ -113,9 +113,9 @@ export const P2PMessageList = forwardRef<HTMLDivElement, P2PMessageListProps>(
                 showSenderName={displaySenderName}
                 showSenderAvatar={displaySenderAvatar}
                 senderName={messageSenderName}
-                onEdit={onEditMessage ? () => onEditMessage(message.id, message.content) : undefined}
-                onDelete={onDeleteMessage ? () => onDeleteMessage(message.id) : undefined}
-                onReply={onReplyMessage ? () => onReplyMessage(message.id) : undefined}
+                onEdit={onEditMessage ? (): void => onEditMessage(message.id, message.content) : undefined}
+                onDelete={onDeleteMessage ? (): void => onDeleteMessage(message.id) : undefined}
+                onReply={onReplyMessage ? (): void => onReplyMessage(message.id) : undefined}
               />
             );
           })}

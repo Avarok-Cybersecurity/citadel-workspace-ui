@@ -37,7 +37,7 @@ export function ParticipantTile({ participant, stream, isSelf, quality = 'good' 
     const element = videoRef.current;
     if (!element || !stream) return;
     element.srcObject = stream;
-    return () => {
+    return (): void => {
       // Streams outlive tiles — the same one is reattached when the call moves
       // between the docked and expanded layouts — so detach rather than stop.
       element.srcObject = null;

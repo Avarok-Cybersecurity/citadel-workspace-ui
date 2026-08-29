@@ -27,7 +27,7 @@ const { startGroupNotificationBindings } = await import('../group-notifications'
 
 startGroupNotificationBindings();
 
-function receive(senderId: string, content = 'hello', groupId = 'g1') {
+function receive(senderId: string, content = 'hello', groupId = 'g1'): void {
   eventEmitter.emit('group:message-received', {
     groupId,
     senderId,

@@ -30,7 +30,7 @@ function chunk(type: 'key' | 'delta', timestamp: number, bytes: number[]) {
     type,
     timestamp,
     byteLength: bytes.length,
-    copyTo: (dst: Uint8Array) => dst.set(bytes),
+    copyTo: (dst: Uint8Array): void => dst.set(bytes),
   };
 }
 

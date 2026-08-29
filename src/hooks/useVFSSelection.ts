@@ -26,7 +26,7 @@ export function useVFSSelection(): UseVFSSelectionResult {
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const [lastSelectedPath, setLastSelectedPath] = useState<string | null>(null);
 
-  const select = useCallback((path: string, mode: SelectMode, allPaths?: string[]) => {
+  const select = useCallback((path: string, mode: SelectMode, allPaths?: string[]): void => {
     setSelectedPaths(prev => {
       const next: Set<string> = new Set(prev);
 
@@ -68,14 +68,14 @@ export function useVFSSelection(): UseVFSSelectionResult {
     }
   }, [lastSelectedPath, selectedPaths]);
 
-  const selectAll = useCallback((paths: string[]) => {
+  const selectAll = useCallback((paths: string[]): void => {
     setSelectedPaths(new Set(paths));
     if (paths.length > 0) {
       setLastSelectedPath(paths[paths.length - 1]);
     }
   }, []);
 
-  const clearSelection = useCallback(() => {
+  const clearSelection = useCallback((): void => {
     setSelectedPaths(new Set());
     setLastSelectedPath(null);
   }, []);

@@ -13,7 +13,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 
 export function useInboundMedia(sessionRef: RefObject<CallSession | null>): void {
   useEffect(() => {
-    const onMessage = (message: Record<string, unknown>) => {
+    const onMessage = (message: Record<string, unknown>): void => {
       const frame = message.MediaFrameNotification as
         | { cid: bigint; peer_cid: bigint; track: number; kind: number; timestamp: number; flags: number; payload: number[] }
         | undefined;
@@ -38,6 +38,6 @@ export function useInboundMedia(sessionRef: RefObject<CallSession | null>): void
       }
     };
     eventEmitter.on('websocket-message', onMessage);
-    return () => eventEmitter.off('websocket-message', onMessage);
+    return (): void => eventEmitter.off('websocket-message', onMessage);
   }, [sessionRef]);
 }

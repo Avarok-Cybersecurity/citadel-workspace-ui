@@ -61,7 +61,7 @@ const TemplateSelector = ({
     }
   }, [open, category]);
 
-  const handleSelectTemplate = () => {
+  const handleSelectTemplate = (): void => {
     if (selectedTemplate) {
       onSelectTemplate(selectedTemplate);
       setOpen(false);
@@ -123,7 +123,7 @@ const TemplateSelector = ({
                       onClick={() => setSelectedTemplate(template)}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={activateOnKey(() => { (() => setSelectedTemplate(template))(); })}
+                      onKeyDown={activateOnKey((): void => { ((): void => setSelectedTemplate(template))(); })}
                     >
                       <div className="absolute top-2 right-2 z-10">
                         {selectedTemplate?.id === template.id && (
@@ -171,7 +171,7 @@ const TemplateSelector = ({
                       onClick={() => setSelectedTemplate(template)}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={activateOnKey(() => { (() => setSelectedTemplate(template))(); })}
+                      onKeyDown={activateOnKey((): void => { ((): void => setSelectedTemplate(template))(); })}
                     >
                       <div className="mr-3 mt-1">
                         <CategoryIcon className="h-5 w-5" />

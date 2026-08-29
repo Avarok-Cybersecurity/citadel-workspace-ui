@@ -40,7 +40,7 @@ export function startGroupResponseService(): void {
     if (!raw || typeof raw !== 'object') return;
     const message = raw as Record<string, unknown>;
 
-    void (async () => {
+    void (async (): Promise<void> => {
       const self = await resolveSelf();
       if (!self) return;
 

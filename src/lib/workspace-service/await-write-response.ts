@@ -120,7 +120,7 @@ export async function awaitWriteResponse(
   }
 
   const settled: Promise<void> = new Promise<void>((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout((): void => {
       eventEmitter.off('workspace:raw-response', handler);
       reject(
         new Error(
@@ -130,7 +130,7 @@ export async function awaitWriteResponse(
       );
     }, WRITE_RESPONSE_TIMEOUT_MS);
 
-    const handler = (response: unknown) => {
+    const handler = (response: unknown): void => {
       if (!response || typeof response !== 'object') return;
       const responseType: string = Object.keys(response)[0];
       if (responseType === undefined) return;

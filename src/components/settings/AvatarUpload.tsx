@@ -19,7 +19,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = useCallback(async (file: File) => {
+  const handleFile = useCallback(async (file: File): Promise<void> => {
     setError(null);
 
     // Validate file
@@ -42,7 +42,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     }
   }, [onAvatarChange]);
 
-  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragActive(false);
@@ -57,7 +57,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     }
   }, [disabled, handleFile]);
 
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     e.stopPropagation();
     if (!disabled) {
@@ -65,19 +65,19 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     }
   }, [disabled]);
 
-  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragActive(false);
   }, []);
 
-  const handleClick = useCallback(() => {
+  const handleClick = useCallback((): void => {
     if (!disabled && fileInputRef.current) {
       fileInputRef.current.click();
     }
   }, [disabled]);
 
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];
     if (file) {
       runAsyncSetup(async () => {
@@ -88,7 +88,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     e.target.value = '';
   }, [handleFile]);
 
-  const handleRemove = useCallback((e: React.MouseEvent) => {
+  const handleRemove = useCallback((e: React.MouseEvent): void => {
     e.stopPropagation();
     setPreview(null);
     setError(null);

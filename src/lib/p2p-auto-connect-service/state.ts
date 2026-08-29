@@ -18,7 +18,7 @@ import type { PeerConnectionInfo } from './types';
  */
 export class AutoConnectState {
   /** Core connection state (SSOT for connectedPeers, pending, attempts, online) */
-  readonly core = new P2PConnectionState();
+  readonly core: P2PConnectionState = new P2PConnectionState();
 
   /**
    * Channels that have proven bidirectional message flow.
@@ -26,7 +26,7 @@ export class AutoConnectState {
    * proving the channel is established and messages can flow in both directions.
    * Reset on session reconnection (ClaimSession/Login).
    */
-  readonly readyChannels = new Set<bigint>();
+  readonly readyChannels: Set<bigint> = new Set<bigint>();
 
   /** Periodic polling interval handle for connection attempts */
   pollingInterval: NodeJS.Timeout | null = null;

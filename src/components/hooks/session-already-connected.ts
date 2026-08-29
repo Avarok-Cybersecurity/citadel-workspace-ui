@@ -44,7 +44,7 @@ return async (event: { cid: string; message: string }): Promise<void> => {
       // claiming: this session is already live, so take it.
       label: "Use That Session",
       onClick: () => {
-        void (async () => {
+        void (async (): Promise<void> => {
           try {
             const outcome = await claimSessionForThisTab(BigInt(event.cid));
             if (outcome.status === 'owned-by-another-tab') {

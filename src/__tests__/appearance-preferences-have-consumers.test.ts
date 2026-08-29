@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /**
  * Preferences whose reader is somewhere ELSE in the tree, and the token that
@@ -35,15 +35,15 @@ const BROWSER_APPLIED: Record<string, string> = {
 
 describe('appearance preferences', () => {
   it('each one is read somewhere outside the module that writes it', async () => {
-    const files = await fg(['**/*.ts', '**/*.tsx', '**/*.css'], {
+    const files: string[] = await fg(['**/*.ts', '**/*.tsx', '**/*.css'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx', 'lib/appearance-settings.ts'],
     });
-    const tree = files
+    const tree: string = files
       .map((rel) => stripComments(readFileSync(join(SRC, rel), 'utf-8')))
       .join('\n');
 
-    const unread = Object.entries(CONSUMED_BY)
+    const unread: string[] = Object.entries(CONSUMED_BY)
       .filter(([, token]) => !tree.includes(token))
       .map(([pref, token]) => `${pref} (nothing reads ${token})`);
 
@@ -54,16 +54,16 @@ describe('appearance preferences', () => {
   });
 
   it('lists every preference the settings type declares', async () => {
-    const module = readFileSync(join(SRC, 'lib/appearance-settings.ts'), 'utf-8');
-    const body = module.slice(
+    const module: string = readFileSync(join(SRC, 'lib/appearance-settings.ts'), 'utf-8');
+    const body: string = module.slice(
       module.indexOf('export interface AppearanceSettings'),
       module.indexOf('export const APPEARANCE_STORAGE_KEY'),
     );
-    const declared = [...body.matchAll(/^\s{2}(\w+)[?]?:/gm)].map((m) => m[1]);
+    const declared: string[] = [...body.matchAll(/^\s{2}(\w+)[?]?:/gm)].map((m): string => m[1]);
 
     // Adding a field to the interface without adding it here leaves the scan
     // above passing over a preference it never checked.
-    const covered = [...Object.keys(CONSUMED_BY), ...Object.keys(BROWSER_APPLIED)];
+    const covered: string[] = [...Object.keys(CONSUMED_BY), ...Object.keys(BROWSER_APPLIED)];
     expect(declared.sort()).toEqual(covered.sort());
   });
 });

@@ -34,18 +34,18 @@ export function useOnlineStatus(): OnlineStatus {
   const [justReconnected, setJustReconnected] = useState(false);
 
   useEffect(() => {
-    const handleOnline = () => {
+    const handleOnline = (): void => {
       setIsOnline(true);
       setJustReconnected(true);
     };
-    const handleOffline = () => {
+    const handleOffline = (): void => {
       setIsOnline(false);
       setJustReconnected(false);
     };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    return () => {
+    return (): void => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
@@ -53,10 +53,10 @@ export function useOnlineStatus(): OnlineStatus {
 
   useEffect(() => {
     if (!justReconnected) return;
-    const timer = setTimeout(() => setJustReconnected(false), RECONNECTED_NOTICE_MS);
+    const timer = setTimeout((): void => setJustReconnected(false), RECONNECTED_NOTICE_MS);
     // Cleared on unmount and on a further change, so a flapping connection
     // cannot leave a stale "Back online" on screen.
-    return () => clearTimeout(timer);
+    return (): void => clearTimeout(timer);
   }, [justReconnected]);
 
   return { isOnline, justReconnected };

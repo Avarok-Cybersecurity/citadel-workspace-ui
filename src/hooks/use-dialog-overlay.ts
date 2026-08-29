@@ -52,7 +52,7 @@ export function useDialogOverlay<T extends HTMLElement = HTMLDivElement>({
     const first = ref.current?.querySelector<HTMLElement>(FOCUSABLE);
     (first ?? ref.current)?.focus();
 
-    return () => {
+    return (): void => {
       // Only if it is still in the document — the launcher is often unmounted
       // by the same state change that closes this.
       if (previouslyFocused?.isConnected) previouslyFocused.focus();
@@ -61,7 +61,7 @@ export function useDialogOverlay<T extends HTMLElement = HTMLDivElement>({
 
   useEffect(() => {
     if (!enabled) return;
-    const onKeyDown = (event: KeyboardEvent) => {
+    const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape' && onDismiss) {
         onDismiss();
         return;
@@ -87,7 +87,7 @@ export function useDialogOverlay<T extends HTMLElement = HTMLDivElement>({
     };
 
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    return (): void => document.removeEventListener('keydown', onKeyDown);
   }, [onDismiss, enabled]);
 
   return {

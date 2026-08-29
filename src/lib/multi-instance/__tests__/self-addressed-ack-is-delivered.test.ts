@@ -13,7 +13,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const posted: unknown[] = [];
 vi.mock('@/lib/event-emitter', () => ({
-  eventEmitter: { emit: () => {}, on: () => () => {}, off: () => {} },
+  eventEmitter: { emit: (): void => {}, on: () => (): void => {}, off: (): void => {} },
 }));
 
 import { instanceManager } from '../instance-manager';

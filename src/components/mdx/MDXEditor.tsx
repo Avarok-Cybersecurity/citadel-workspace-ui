@@ -21,7 +21,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
   const [mediaUploaderOpen, setMediaUploaderOpen] = useState(false);
 
   // Track selection changes
-  const handleSelectionChange = () => {
+  const handleSelectionChange = (): void => {
     if (textAreaRef.current) {
       setSelectionStart(textAreaRef.current.selectionStart);
       setSelectionEnd(textAreaRef.current.selectionEnd);
@@ -66,13 +66,13 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
   };
 
   // Format handlers
-  const handleBold = () => formatText('**');
-  const handleItalic = () => formatText('*');
-  const handleUnderline = () => formatText('__');
-  const handleCode = () => formatText('`');
-  const handleBlockquote = () => formatText('> ');
+  const handleBold = (): void => formatText('**');
+  const handleItalic = (): void => formatText('*');
+  const handleUnderline = (): void => formatText('__');
+  const handleCode = (): void => formatText('`');
+  const handleBlockquote = (): void => formatText('> ');
 
-  const handleHeading = (level: number) => {
+  const handleHeading = (level: number): void => {
     const prefix: string = '#'.repeat(level) + ' ';
     if (!textAreaRef.current) return;
 
@@ -95,7 +95,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
     onChange(newText);
   };
 
-  const handleLink = () => {
+  const handleLink = (): void => {
     const selectedText: string = value.substring(selectionStart, selectionEnd);
 
     if (selectedText) {
@@ -105,11 +105,11 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
     }
   };
 
-  const handleImage = () => {
+  const handleImage = (): void => {
     setMediaUploaderOpen(true);
   };
 
-  const handleMediaInsert = (markdownText: string) => {
+  const handleMediaInsert = (markdownText: string): void => {
     if (!textAreaRef.current) return;
 
     const textarea = textAreaRef.current;
@@ -125,7 +125,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
     }, 0);
   };
 
-  const handleList = (ordered: boolean = false) => {
+  const handleList = (ordered: boolean = false): void => {
     if (!textAreaRef.current) return;
 
     const textarea = textAreaRef.current;

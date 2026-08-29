@@ -69,7 +69,7 @@ export function WorkspaceAppearanceSection() {
     workspaceRole: workspaceId ? getRole(workspaceId) : null,
   });
 
-  const handleSave = useCallback(async (next: WorkspaceTheme) => {
+  const handleSave = useCallback(async (next: WorkspaceTheme): Promise<void> => {
     // Rides in the workspace's metadata bytes, so every member receives it with
     // the workspace they already load. Uses the theme-specific request rather
     // than UpdateWorkspace, which requires the master password.

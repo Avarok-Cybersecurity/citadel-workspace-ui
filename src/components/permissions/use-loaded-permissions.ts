@@ -51,7 +51,7 @@ export function useLoadedPermissions(userId: string, domainId: string): Permissi
 
     const unsubscribe = eventEmitter.on('user:permissions:loaded', onLoaded);
 
-    const timer = setTimeout(() => {
+    const timer = setTimeout((): void => {
       if (settled) return;
       // A silent timeout would leave the matrix showing defaults for ever,
       // which is exactly the state this hook exists to make impossible.
@@ -74,7 +74,7 @@ export function useLoadedPermissions(userId: string, domainId: string): Permissi
       }
     });
 
-    return () => {
+    return (): void => {
       unsubscribe();
       clearTimeout(timer);
     };

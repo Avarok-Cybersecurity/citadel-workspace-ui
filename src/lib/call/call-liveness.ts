@@ -33,7 +33,7 @@ export interface CallLivenessOptions {
 }
 
 export class CallLiveness {
-  private readonly lastSeen = new Map<bigint, number>();
+  private readonly lastSeen: Map<bigint, number> = new Map<bigint, number>();
   private cancelTick: (() => void) | null = null;
 
   constructor(private readonly options: CallLivenessOptions) {}

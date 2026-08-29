@@ -17,7 +17,7 @@ import { formatForDebug, isSecretField } from '../debug-formatter';
 const SECRET = 'hunter2-do-not-print-me';
 
 /** Every rendering of the formatted value, so nothing hides in a nested field. */
-const rendered = (value: unknown) => JSON.stringify(formatForDebug(value));
+const rendered = (value: unknown): string => JSON.stringify(formatForDebug(value));
 
 describe('debug formatting', () => {
   it('redacts a password that is a string', () => {

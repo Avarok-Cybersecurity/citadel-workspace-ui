@@ -215,7 +215,7 @@ export function startGroupEventBindings(): void {
     );
   });
 
-  const handleMemberLeft = (data: { groupId: string; memberCid: string }) => {
+  const handleMemberLeft = (data: { groupId: string; memberCid: string }): void => {
     debugLog('GroupStore', 'Member left:', data);
     const memberCid: bigint = BigInt(data.memberCid);
     updateGroups(prev =>

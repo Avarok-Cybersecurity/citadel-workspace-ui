@@ -32,12 +32,12 @@ function contextValue(call: CallState | null): CallContextValue {
   qualities: new Map(),
     captureFailure: null,
     capability: { supported: true },
-    startCall: async () => {},
-    accept: async () => {},
-    decline: async () => {},
-    leave: async () => {},
-    toggleMic: async () => {},
-    toggleCamera: async () => {},
+    startCall: async (): Promise<void> => {},
+    accept: async (): Promise<void> => {},
+    decline: async (): Promise<void> => {},
+    leave: async (): Promise<void> => {},
+    toggleMic: async (): Promise<void> => {},
+    toggleCamera: async (): Promise<void> => {},
     toggleScreenShare: async (): Promise<void> => {},
     annotate: (): void => {},
     videoQuality: 'auto' as const,
@@ -66,7 +66,7 @@ function mount(call: CallState | null) {
   );
 }
 
-function update(view: ReturnType<typeof mount>, call: CallState | null) {
+function update(view: ReturnType<typeof mount>, call: CallState | null): void {
   view.rerender(
     <CallContext.Provider value={contextValue(call)}>
       <CallSoundEffects />

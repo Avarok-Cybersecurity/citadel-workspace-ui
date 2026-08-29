@@ -51,7 +51,7 @@ function harness(overrides: Partial<CallSoundDeps> = {}): Harness {
     get chimes() {
       return chimes;
     },
-    fireTimers: () => {
+    fireTimers: (): void => {
       const pending = [...timers.entries()];
       timers.clear();
       for (const [, fn] of pending) fn();

@@ -13,7 +13,7 @@ import { render, screen } from '@testing-library/react';
 
 const state = { canInstall: false, needsManualInstall: false };
 vi.mock('../use-install-action', () => ({
-  useInstallAction: () => ({ ...state, installNow: () => {} }),
+  useInstallAction: () => ({ ...state, installNow: (): void => {} }),
 }));
 
 import { InstallAppButton } from '../InstallAppButton';

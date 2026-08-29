@@ -73,7 +73,7 @@ describe('typing indicators', () => {
     );
     vi.resetModules();
     const { PresenceManager } = await import('../p2p/presence-manager');
-    const sendCommand = vi.fn(() => Promise.resolve());
+    const sendCommand = vi.fn((): Promise<void> => Promise.resolve());
     const manager = new PresenceManager({
       sendCommand,
       getConnectedPeers: () => [7n],
@@ -112,7 +112,7 @@ describe('read receipts', () => {
     const message = { id: 'm1', senderCid: 7n, status: 'delivered' as const };
     const conversation = { messages: [message], unreadCount: 1 };
     const conversationManager = { getConversation: () => conversation };
-    const sendMessageAck = vi.fn(() => Promise.resolve());
+    const sendMessageAck = vi.fn((): Promise<void> => Promise.resolve());
 
     await markMessagesAsRead(
       conversationManager as never,

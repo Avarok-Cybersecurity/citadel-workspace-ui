@@ -54,7 +54,7 @@ export const P2PMessageInput = forwardRef<HTMLTextAreaElement, P2PMessageInputPr
     const isMarkdownMode = messageType === 'markdown';
     const isLiveDocMode = messageType === 'live_document';
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent): void => {
       e.preventDefault();
       onSubmit();
     };

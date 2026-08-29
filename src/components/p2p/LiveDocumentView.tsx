@@ -27,7 +27,7 @@ export function LiveDocumentView({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = useCallback((content: string) => {
+  const handleSave = useCallback((content: string): void => {
     // setLastSaved used to run unconditionally, outside this guard — and no
     // call site passes onSave, so the header stamped "Last saved <time>" over
     // a save that never happened. The durable write now lives in
@@ -41,7 +41,7 @@ export function LiveDocumentView({
     setIsSaving(false);
   }, [documentId, onSave]);
 
-  const handleDownload = useCallback(() => {
+  const handleDownload = useCallback((): void => {
     // Get the editor content via the DOM (simple approach)
     const editorContent: string = document.querySelector('.ProseMirror')?.innerHTML || '';
     const blob: Blob = new Blob([editorContent], { type: 'text/html' });

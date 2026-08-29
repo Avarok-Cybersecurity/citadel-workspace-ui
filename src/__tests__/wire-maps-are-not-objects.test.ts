@@ -20,18 +20,18 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /** Fields that cross the wire as a Rust HashMap. */
-const WIRE_MAPS = ['peer_connections'];
+const WIRE_MAPS: string[] = ['peer_connections'];
 
 /** Reading one as a plain object, which yields nothing at runtime. */
-const AS_OBJECT = (field: string) =>
+const AS_OBJECT = (field: string): RegExp =>
   new RegExp(String.raw`Object\.(?:keys|entries|values)\s*\([^)]*\b${field}\b`);
 
 describe('a field that is a Rust HashMap', () => {
   it('is read with wireMapEntries, not Object.keys', async () => {
-    const files = await fg(['**/*.ts', '**/*.tsx'], {
+    const files: string[] = await fg(['**/*.ts', '**/*.tsx'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx', 'test-utils/**'],
     });
@@ -39,7 +39,7 @@ describe('a field that is a Rust HashMap', () => {
     const offenders: string[] = [];
 
     for (const rel of files) {
-      const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
       for (const field of WIRE_MAPS) {
         if (AS_OBJECT(field).test(source)) offenders.push(`${rel}: reads ${field} as an object`);
       }

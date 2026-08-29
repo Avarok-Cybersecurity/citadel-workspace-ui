@@ -21,7 +21,7 @@ vi.mock('@/lib/multi-instance/instance-manager', () => ({
     },
     instanceId: '1700000000000000123',
     instanceIdAsBigInt: 1700000000000000123n,
-    setLeader: (leader: boolean, id: string) => {
+    setLeader: (leader: boolean, id: string): void => {
       isLeader = leader;
       setLeader(leader, id);
     },
@@ -31,8 +31,8 @@ vi.mock('@/lib/multi-instance/instance-manager', () => ({
 const emitted: Array<{ event: string; payload: unknown }> = [];
 vi.mock('@/lib/event-emitter', () => ({
   eventEmitter: {
-    emit: (event: string, payload: unknown) => emitted.push({ event, payload }),
-    on: () => () => {},
+    emit: (event: string, payload: unknown): number => emitted.push({ event, payload }),
+    on: () => (): void => {},
   },
 }));
 

@@ -20,9 +20,9 @@ import { workspaceResponseHandler } from '@/lib/workspace-response-handler';
 
 vi.mock('@/lib/group-messaging-manager', () => ({
   groupMessagingManager: {
-    handleMessageEdited: () => {},
-    handleMessageDeleted: () => {},
-    handleMessagesLoaded: () => {},
+    handleMessageEdited: (): void => {},
+    handleMessageDeleted: (): void => {},
+    handleMessagesLoaded: (): void => {},
   },
 }));
 
@@ -40,7 +40,7 @@ const RESPONSES: Record<string, unknown> = {
 /** Feed one response through the real router and report whether it surfaced. */
 function reachesWaiter(response: unknown): boolean {
   let seen = false;
-  const handler = () => {
+  const handler = (): void => {
     seen = true;
   };
   eventEmitter.on('workspace:raw-response', handler);

@@ -81,12 +81,12 @@ export const SecuritySettings = ({
     },
   });
 
-  const handleNext = () => {
+  const handleNext = (): void => {
     // Update the security settings and let the onSuccess handler navigate
     updateSecuritySettings(settings);
   };
 
-  const handleSettingChange = <K extends keyof SecuritySettingsValues>(key: K, value: SecuritySettingsValues[K]) => {
+  const handleSettingChange = <K extends keyof SecuritySettingsValues>(key: K, value: SecuritySettingsValues[K]): void => {
     setSettings(prev => ({
       ...prev,
       [key]: value

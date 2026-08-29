@@ -23,7 +23,7 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /**
  * Keys read from the cache that genuinely need no observer, and why.
@@ -33,7 +33,7 @@ const SRC = join(process.cwd(), 'src');
  */
 const NO_OBSERVER_NEEDED: Record<string, string> = {};
 
-const sources = await Promise.all(
+const sources: (readonly [string, string])[] = await Promise.all(
   (
     await fg(['**/*.ts', '**/*.tsx'], {
       cwd: SRC,
@@ -42,7 +42,7 @@ const sources = await Promise.all(
   ).map(async (rel) => [rel, stripComments(readFileSync(join(SRC, rel), 'utf-8'))] as const),
 );
 
-const all = sources.map(([, source]) => source).join('\n');
+const all: string = sources.map(([, source]): string => source).join('\n');
 
 describe('a value read back from the query cache', () => {
   it('has something observing its key, so it is not garbage-collected', () => {
@@ -50,7 +50,7 @@ describe('a value read back from the query cache', () => {
 
     for (const [rel, source] of sources) {
       for (const match of source.matchAll(/getQueryData<?[^>]*>?\(\s*\[\s*'([^']+)'/g)) {
-        const key = match[1];
+        const key: string = match[1];
         if (key in NO_OBSERVER_NEEDED) continue;
 
         // An observer is a useQuery/useQueries naming the same key, anywhere.

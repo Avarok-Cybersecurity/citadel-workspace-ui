@@ -10,7 +10,7 @@
  * next", so that is what it says now.
  */
 
-export const getDefaultNodeContent = (nodeName: string) => `# ${nodeName}
+export const getDefaultNodeContent = (nodeName: string): string => `# ${nodeName}
 
 This is a room in your workspace: a place for a team to talk, share files, and
 work on documents together. Everything here is end-to-end encrypted with
@@ -61,7 +61,7 @@ person still picks light or dark for themselves.
 server in the middle can read them — including the one hosting this workspace.*
 `;
 
-export const getDefaultChildNodeContent = (nodeName: string, nodeDescription?: string) => `# ${nodeName}
+export const getDefaultChildNodeContent = (nodeName: string, nodeDescription?: string): string => `# ${nodeName}
 
 ${nodeDescription || 'A room for focused work: conversation, files, and shared documents in one place.'}
 

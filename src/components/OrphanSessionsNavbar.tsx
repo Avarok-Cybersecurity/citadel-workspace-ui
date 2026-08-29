@@ -42,7 +42,7 @@ export const OrphanSessionsNavbar = () => {
     const MAX_ATTEMPTS = 8;
     const RETRY_MS = 1_500;
 
-    const load = () => {
+    const load = (): void => {
       if (cancelled) return;
       attempts += 1;
       loadActiveSessions()
@@ -56,7 +56,7 @@ export const OrphanSessionsNavbar = () => {
     };
 
     let timer: number = window.setTimeout(load, 0);
-    return () => {
+    return (): void => {
       cancelled = true;
       window.clearTimeout(timer);
     };

@@ -22,9 +22,9 @@ export function useIsLeaderTab(): boolean {
     // the subscription below, and missing that leaves calling disabled in the
     // tab that owns the socket.
     setIsLeader(instanceManager.isLeader);
-    const onChange = ({ isLeader: next }: { isLeader: boolean }) => setIsLeader(next);
+    const onChange = ({ isLeader: next }: { isLeader: boolean }): void => setIsLeader(next);
     eventEmitter.on('instance:leader-changed', onChange);
-    return () => eventEmitter.off('instance:leader-changed', onChange);
+    return (): void => eventEmitter.off('instance:leader-changed', onChange);
   }, []);
 
   return isLeader;

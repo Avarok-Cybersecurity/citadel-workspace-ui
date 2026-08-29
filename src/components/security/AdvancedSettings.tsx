@@ -37,13 +37,13 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
     });
   }, [values.headerObfuscatorSettings]);
 
-  const handleValueChange = <K extends keyof SecuritySettingsValues>(key: K, value: SecuritySettingsValues[K]) => {
+  const handleValueChange = <K extends keyof SecuritySettingsValues>(key: K, value: SecuritySettingsValues[K]): void => {
     if (onChange) {
       onChange(key, value);
     }
   };
 
-  const handleHeaderObfuscatorChange = (uiMode: 'off' | 'on' | 'psk') => {
+  const handleHeaderObfuscatorChange = (uiMode: 'off' | 'on' | 'psk'): void => {
     setObfuscatorUIMode(uiMode);
 
     let newSettings: Record<string, string> = {};
@@ -61,7 +61,7 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
     }
   };
 
-  const handleSavePSK = () => {
+  const handleSavePSK = (): void => {
     const newSettings = { ...values.headerObfuscatorSettings, mode: 'psk', psk: psk };
     handleValueChange('headerObfuscatorSettings', newSettings);
     setShowPSKDialog(false);

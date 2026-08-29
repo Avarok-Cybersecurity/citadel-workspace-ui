@@ -178,7 +178,7 @@ export async function registerPeer(
       peer_session_password: null
     }
   };
-  const responsePromise = new Promise<Record<string, unknown>>((resolve, reject) => {
+  const responsePromise = new Promise<Record<string, unknown>>((resolve, reject): void => {
     pendingRequests.set(requestId, { resolve, reject });
     setTimeout(() => {
       if (pendingRequests.has(requestId)) {

@@ -51,7 +51,7 @@ useEffect(() => {
   }
   autoClaimAttempted.current = true;
 
-  const autoClaimSession = async () => {
+  const autoClaimSession = async (): Promise<void> => {
     debugLog('WorkspaceLoader', ' Starting auto-claim session process');
 
     const connectionManager: ConnectionManager = ConnectionManager.getInstance();

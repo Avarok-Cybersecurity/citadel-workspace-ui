@@ -35,7 +35,7 @@ export function useConversationPeers({
 }: UseConversationPeersProps): UseConversationPeersReturn {
   const [peersWithConversations, setPeersWithConversations] = useState<ConversationPeer[]>([]);
 
-  const loadConversations = useCallback(async () => {
+  const loadConversations = useCallback(async (): Promise<void> => {
     const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
     const conversations = messenger.getAllConversations();
 
@@ -73,13 +73,13 @@ export function useConversationPeers({
   useEffect(() => {
     runAsyncSetup(loadConversations);
 
-    const handleMessageUpdate = async () => { await loadConversations(); };
+    const handleMessageUpdate = async (): Promise<void> => { await loadConversations(); };
 
     eventEmitter.on('p2p:message-received', handleMessageUpdate);
     eventEmitter.on('p2p:message-sent', handleMessageUpdate);
     eventEmitter.on('p2p:conversation-updated', handleMessageUpdate);
 
-    return () => {
+    return (): void => {
       eventEmitter.off('p2p:message-received', handleMessageUpdate);
       eventEmitter.off('p2p:message-sent', handleMessageUpdate);
       eventEmitter.off('p2p:conversation-updated', handleMessageUpdate);

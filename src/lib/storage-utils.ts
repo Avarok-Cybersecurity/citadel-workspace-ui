@@ -58,12 +58,12 @@ export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
     let rejectBlocked: ((reason: Error) => void) | null = null;
     // Rejects only if `blocked` actually fired, so a slow-but-progressing
     // upgrade is never killed by a timer.
-    const blockedGuard = new Promise<never>((_, reject) => {
+    const blockedGuard = new Promise<never>((_, reject): void => {
       rejectBlocked = reject;
     });
 
     const opening: Promise<IDBPDatabase<CitadelDBSchema>> = openDB<CitadelDBSchema>(DB_NAME, DB_VERSION, {
-      upgrade(db, oldVersion, newVersion, tx) {
+      upgrade(db, oldVersion, newVersion, tx): void {
         runMigrations(db, oldVersion, newVersion, tx);
 
         const missing = missingStores(db.objectStoreNames);
@@ -83,7 +83,7 @@ export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
        * app hangs with no explanation — and this app is explicitly multi-tab, so
        * it is the normal case during an update, not an edge case.
        */
-      blocked(currentVersion, blockedVersion) {
+      blocked(currentVersion, blockedVersion): void {
         const detail: string =
           `Database upgrade to v${blockedVersion} is blocked by another tab still on v${currentVersion}. ` +
           'Close other Citadel tabs to finish updating.';
@@ -104,7 +104,7 @@ export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
        * to upgrade. Closing our connection lets that upgrade proceed; the next
        * database call transparently reopens at the new version.
        */
-      blocking(currentVersion, blockedVersion) {
+      blocking(currentVersion, blockedVersion): void {
         warnLog(
           'Storage',
           `Closing our v${currentVersion} connection so another tab can upgrade to v${blockedVersion}`

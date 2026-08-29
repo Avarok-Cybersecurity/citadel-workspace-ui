@@ -51,14 +51,14 @@ export function useUnsavedMdxGuard({
 
   useEffect(() => {
     if (!isDirty) return;
-    const warn = (event: BeforeUnloadEvent) => {
+    const warn = (event: BeforeUnloadEvent): void => {
       // Both are required: browsers disagree about which one arms the prompt,
       // and the prompt itself is the only protection against a closed tab.
       event.preventDefault();
       event.returnValue = '';
     };
     window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
+    return (): void => window.removeEventListener('beforeunload', warn);
   }, [isDirty]);
 
   return { isDirty };

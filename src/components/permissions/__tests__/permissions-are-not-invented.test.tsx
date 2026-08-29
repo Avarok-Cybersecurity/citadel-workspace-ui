@@ -27,7 +27,7 @@ const { useLoadedPermissions } = await import('../use-loaded-permissions');
 const USER = 'alice';
 const DOMAIN = 'workspace-root';
 
-function answer(permissions: string[], userId = USER, domainId = DOMAIN) {
+function answer(permissions: string[], userId = USER, domainId = DOMAIN): void {
   act(() => {
     eventEmitter.emit('user:permissions:loaded', {
       userId,

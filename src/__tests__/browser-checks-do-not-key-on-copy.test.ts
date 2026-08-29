@@ -22,10 +22,10 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const SCRIPTS = join(process.cwd(), 'scripts');
+const SCRIPTS: string = join(process.cwd(), 'scripts');
 
 /** Playwright locators that address a control by what it says. */
-const COPY_LOCATORS = [
+const COPY_LOCATORS: RegExp[] = [
   /getByRole\(\s*['"]button['"]\s*,\s*\{\s*name:/,
   /has-text\(/,
   /getByText\(/,
@@ -40,14 +40,14 @@ function browserScripts(): string[] {
 
 /** Lines a `copy-under-test:` comment immediately above declares exempt. */
 function exemptions(files: string[]): Set<string> {
-  const exempt = new Set<string>();
+  const exempt: Set<string> = new Set<string>();
   for (const file of files) {
     const name = file.split('/').pop();
-    const lines = readFileSync(file, 'utf-8').split('\n');
+    const lines: string[] = readFileSync(file, 'utf-8').split('\n');
     lines.forEach((line, index) => {
       if (!/copy-under-test:/.test(line)) return;
       // Everything from the marker to the next non-comment line.
-      let cursor = index + 1;
+      let cursor: number = index + 1;
       while (cursor < lines.length && /^\s*(\/\/|\*)/.test(lines[cursor])) cursor += 1;
       if (cursor < lines.length) exempt.add(`${name}:${cursor}`);
     });
@@ -56,8 +56,8 @@ function exemptions(files: string[]): Set<string> {
 }
 
 describe('the browser-driving check scripts', () => {
-  const scripts = browserScripts();
-  const exempt = exemptions(scripts);
+  const scripts: string[] = browserScripts();
+  const exempt: Set<string> = exemptions(scripts);
 
   it('finds some, so the rule is not passing over an empty list', () => {
     // Every guard in this repo that silently checked nothing looked exactly

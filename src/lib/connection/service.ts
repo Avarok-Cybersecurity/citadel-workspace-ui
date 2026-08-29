@@ -95,7 +95,7 @@ export class ConnectionManager {
   private setupEventListeners(): void {
     this.state.executeCleanup();
 
-    const onMessage = async (raw: unknown) => {
+    const onMessage = async (raw: unknown): Promise<void> => {
       const message = narrowWebSocketMessage(raw);
       if (!message) return;
       await handleWebSocketMessage(

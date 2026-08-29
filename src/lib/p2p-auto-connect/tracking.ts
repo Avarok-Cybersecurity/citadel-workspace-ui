@@ -13,18 +13,18 @@ export class P2PConnectionState extends ConnectedPeersState {
   /**
    * Peers we've initiated connection to (waiting for PeerConnectSuccess)
    */
-  private pendingConnections = new Set<bigint>();
+  private pendingConnections: Set<bigint> = new Set<bigint>();
 
   /**
    * Connection retry tracking per peer
    */
-  private connectionAttempts = new Map<bigint, ConnectionAttempt>();
+  private connectionAttempts: Map<bigint, ConnectionAttempt> = new Map<bigint, ConnectionAttempt>();
 
   /**
    * Online status cache
    */
-  private onlinePeers = new Set<bigint>();
-  private lastOnlineStatusRefresh = 0;
+  private onlinePeers: Set<bigint> = new Set<bigint>();
+  private lastOnlineStatusRefresh: number = 0;
 
   /**
    * Force initiator mode - set after ClaimSession to bypass deterministic CID check.

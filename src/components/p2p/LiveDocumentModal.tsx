@@ -31,7 +31,7 @@ export function LiveDocumentModal({
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const handleCreate = async () => {
+  const handleCreate = async (): Promise<void> => {
     if (!title.trim()) return;
     // The Create button is disabled while in flight, but the Enter path below
     // bypassed the button entirely: two Enters during a slow create made two
@@ -54,7 +54,7 @@ export function LiveDocumentModal({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
     if (isEnterCommit(e) && title.trim()) {
       runAsyncSetup(handleCreate);
     }

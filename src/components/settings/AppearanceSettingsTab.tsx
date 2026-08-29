@@ -29,7 +29,7 @@ export function AppearanceSettingsTab() {
   // reload instead of lasting only as long as this tab is mounted.
   useEffect(() => { saveAppearanceSettings(settings); }, [settings]);
 
-  const update = <K extends keyof AppearanceSettings>(key: K, value: AppearanceSettings[K]) => {
+  const update = <K extends keyof AppearanceSettings>(key: K, value: AppearanceSettings[K]): void => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 

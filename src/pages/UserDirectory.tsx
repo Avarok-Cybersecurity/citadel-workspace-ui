@@ -72,7 +72,7 @@ export const UserDirectory = () => {
   const isUserConnected = (username: string): boolean =>
     registeredPeers.some((peer) => peer.username === username);
 
-  const handleSendMessage = (userId: string) => {
+  const handleSendMessage = (userId: string): void => {
     if (isUserConnected(userId)) {
       // Two separate defects lived in the one line this replaces.
       //
@@ -105,13 +105,13 @@ export const UserDirectory = () => {
     }
   };
 
-  const handleInviteUser = (userId: string) => {
+  const handleInviteUser = (userId: string): void => {
     setSelectedUser(allMembers.find(member => member.id === userId) || null);
     setRequestMessage(`I'd like to connect with you on Citadel Workspace.`);
     setRequestDialogOpen(true);
   };
 
-  const sendConnectionRequest = async () => {
+  const sendConnectionRequest = async (): Promise<void> => {
     if (!selectedUser) return;
 
     setSendingRequest(true);
@@ -157,7 +157,7 @@ export const UserDirectory = () => {
     }
   };
 
-  const handleUserSelect = (user: UserData) => {
+  const handleUserSelect = (user: UserData): void => {
     setSelectedUser(user);
   };
 

@@ -36,8 +36,8 @@ export async function processAvatarImage(
     const img = new Image();
     const reader = new FileReader();
 
-    reader.onload = (e) => {
-      img.onload = () => {
+    reader.onload = (e): void => {
+      img.onload = (): void => {
         try {
           // Calculate new dimensions while maintaining aspect ratio
           let width: number = img.width;
@@ -90,14 +90,14 @@ export async function processAvatarImage(
         }
       };
 
-      img.onerror = () => {
+      img.onerror = (): void => {
         reject(new Error('Failed to load image'));
       };
 
       img.src = e.target?.result as string;
     };
 
-    reader.onerror = () => {
+    reader.onerror = (): void => {
       reject(new Error('Failed to read file'));
     };
 

@@ -165,7 +165,7 @@ describe('applyGroupInvite', () => {
     // try/catch, which turns the failure into a toast — so removing the dedupe
     // left this test green while it reported "Group Invitation Failed".
     let next: unknown[] | undefined;
-    const setGroups = vi.fn((updater: (prev: unknown[]) => unknown[]) => {
+    const setGroups = vi.fn((updater: (prev: unknown[]) => unknown[]): void => {
       next = updater([{ id: 'g-dup' }]);
     });
 

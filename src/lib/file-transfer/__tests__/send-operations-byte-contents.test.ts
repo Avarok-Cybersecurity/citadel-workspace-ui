@@ -141,7 +141,7 @@ describe('executeSendFile — ByteContents size guard', () => {
     // the production code reaches it — that would mean the size check
     // ran *after* the allocation, defeating the OOM protection.
     const sizeBytes: number = 3 * 1024 * 1024;
-    const allocSpy = vi.fn(async () => new ArrayBuffer(sizeBytes));
+    const allocSpy = vi.fn(async (): Promise<ArrayBuffer> => new ArrayBuffer(sizeBytes));
     const oversized: File = new File([new Uint8Array(0)], 'too-big.bin');
     Object.defineProperty(oversized, 'size', { value: sizeBytes, configurable: true });
     Object.defineProperty(oversized, 'arrayBuffer', { value: allocSpy, configurable: true });

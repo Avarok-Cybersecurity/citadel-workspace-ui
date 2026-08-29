@@ -23,7 +23,7 @@ function freshRoot(): HTMLElement {
   return document.getElementById('root') as HTMLElement;
 }
 
-const buttonLabels = () =>
+const buttonLabels = (): string[] =>
   [...document.querySelectorAll('button')].map((b) => b.textContent ?? '');
 
 describe('the storage-version recovery screen', () => {
@@ -49,7 +49,7 @@ describe('the storage-version recovery screen', () => {
     sessionStorage.setItem(RELOAD_ATTEMPTED_KEY, '1');
     showStorageVersionRecovery();
 
-    const text = document.body.textContent ?? '';
+    const text: string = document.body.textContent ?? '';
     expect(text).toMatch(/stored in this browser/i);
     expect(text, 'a destructive action must say what survives it').toMatch(
       /not affected|are not affected/i,

@@ -23,14 +23,14 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /** Reads that only the demo simulator can answer truthfully. */
-const DEMO_ONLY = /\b(canMessageUser|simulateRequestReceived|autoAcceptConnection|DEMO_PEERS)\b/;
+const DEMO_ONLY: RegExp = /\b(canMessageUser|simulateRequestReceived|autoAcceptConnection|DEMO_PEERS)\b/;
 
 describe('the demo simulation store', () => {
   it('is not consulted outside its own module', async () => {
-    const files = await fg(['**/*.ts', '**/*.tsx'], {
+    const files: string[] = await fg(['**/*.ts', '**/*.tsx'], {
       cwd: SRC,
       ignore: [
         '**/__tests__/**',
@@ -42,7 +42,7 @@ describe('the demo simulation store', () => {
       ],
     });
 
-    const offenders = files.filter((rel) =>
+    const offenders: string[] = files.filter((rel) =>
       DEMO_ONLY.test(stripComments(readFileSync(join(SRC, rel), 'utf-8'))),
     );
 

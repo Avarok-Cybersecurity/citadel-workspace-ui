@@ -32,7 +32,7 @@ export function OngoingCallBar() {
   );
   const who: string = others.length === 1 ? others[0].username : `${others.length} people`;
 
-  const returnToCall = () => {
+  const returnToCall = (): void => {
     if (call.roomId) {
       navigate(`/groups/${call.roomId}`);
       return;

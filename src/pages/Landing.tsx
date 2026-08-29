@@ -42,7 +42,7 @@ export const Landing = () => {
 
   // Check for orphan sessions (don't auto-navigate, just detect)
   useEffect(() => {
-    const checkOrphanSessions = async () => {
+    const checkOrphanSessions = async (): Promise<void> => {
       try {
         // Get the connection manager instance
         const connectionManager: ConnectionManager = ConnectionManager.getInstance();
@@ -84,7 +84,7 @@ export const Landing = () => {
   }, [searchParams, setSearchParams]);
 
   // Memoize the checkForServers function to prevent it from being recreated on each render
-  const checkForServers = useCallback(async () => {
+  const checkForServers = useCallback(async (): Promise<void> => {
     try {
       // Using "0" as a valid u64 string representation for the landing page
       await listKnownServers({ cid: "0" });
@@ -106,19 +106,19 @@ export const Landing = () => {
     runAsyncSetup(checkForServers);
   }, [checkForServers]);
 
-  const handleServerNext = (address: string, password: string) => {
+  const handleServerNext = (address: string, password: string): void => {
     setServerAddress(address);
     setServerPassword(password);
     setCurrentStep('security');
   };
-  const handleSecurityComplete = (chosen: SecuritySettingsValues) => {
+  const handleSecurityComplete = (chosen: SecuritySettingsValues): void => {
     setSecuritySettings(chosen);
     if (currentStep === 'security') {
       setCurrentStep('join');
     }
   };
-  const handleSecurityBack = () => setCurrentStep('server');
-  const handleJoinNext = async (cid: string) => {
+  const handleSecurityBack = (): void => setCurrentStep('server');
+  const handleJoinNext = async (cid: string): Promise<void> => {
     debugLog('Landing', `[Landing] handleJoinNext called with cid: ${cid}`);
     clearProfileDraft();
     try {
@@ -130,17 +130,17 @@ export const Landing = () => {
       toastError(toast, "Setup Failed", error instanceof Error ? error.message : "Failed to load workspace after registration");
     }
   };
-  const handleJoinBack = () => setCurrentStep('security');
-  const startRegistration = () => {
+  const handleJoinBack = (): void => setCurrentStep('security');
+  const startRegistration = (): void => {
     clearProfileDraft();
     // Allow joining new workspaces regardless of existing sessions (Slack-like multi-workspace)
     setCurrentStep('server');
   };
-  const startLogin = () => {
+  const startLogin = (): void => {
     // Allow login flow - username-specific conflict check happens in Login.tsx
     setCurrentStep('login');
   };
-  const handleLoginNext = async (cid: string) => {
+  const handleLoginNext = async (cid: string): Promise<void> => {
     debugLog('Landing', `[Landing] handleLoginNext called with cid: ${cid}`);
     try {
       await postAuthSetup(BigInt(cid));

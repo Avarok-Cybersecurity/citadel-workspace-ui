@@ -22,7 +22,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const sendSpy = vi.fn<(request: unknown, requestId?: string) => Promise<void>>(async () => undefined);
 
 vi.mock('../../address-resolver', () => ({
-  resolveServerAddress: async (s: string) => s,
+  resolveServerAddress: async (s: string): Promise<string> => s,
 }));
 
 vi.mock('../../multi-instance', () => ({

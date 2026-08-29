@@ -175,7 +175,7 @@ try {
   // And keep checking, whatever the app is doing. PwaUpdatePrompt polls hourly
   // while it is mounted; this interval survives a crashed render, which is
   // exactly the case where a new build matters most.
-  const UPDATE_CHECK_MS = 60 * 60 * 1000;
+  const UPDATE_CHECK_MS: number = 60 * 60 * 1000;
   window.setInterval(() => {
     navigator.serviceWorker?.getRegistration()
       .then((registration) => registration?.update())
@@ -197,8 +197,8 @@ try {
   // Show error on page if React fails — use safe DOM APIs (no innerHTML)
   const rootElement = document.getElementById("root");
   if (rootElement) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack ?? '' : '';
+    const errorMessage: string = error instanceof Error ? error.message : String(error);
+    const errorStack: string = error instanceof Error ? error.stack ?? '' : '';
 
     const container = document.createElement('div');
     container.style.cssText = 'padding: 20px; color: red; font-family: monospace;';

@@ -58,7 +58,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   /**
    * Sync state with service cache
    */
-  const syncWithService = useCallback(() => {
+  const syncWithService = useCallback((): void => {
     const cached: Map<string, DomainPermissions> = permissionsService.getAllCachedPermissions();
     setPermissions(new Map(cached));
   }, []);
@@ -89,7 +89,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   /**
    * Refresh all permissions or a specific domain
    */
-  const refreshPermissions = useCallback(async (domainId?: string) => {
+  const refreshPermissions = useCallback(async (domainId?: string): Promise<void> => {
     if (domainId) {
       await fetchPermissionsForDomain(domainId);
     } else {
@@ -159,15 +159,15 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     syncWithService();
 
     // Listen for permission updates
-    const handlePermissionsUpdated = () => {
+    const handlePermissionsUpdated = (): void => {
       syncWithService();
     };
 
-    const handleRoleChanged = () => {
+    const handleRoleChanged = (): void => {
       syncWithService();
     };
 
-    const handlePermissionsLoaded = () => {
+    const handlePermissionsLoaded = (): void => {
       syncWithService();
     };
 
@@ -175,7 +175,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     eventEmitter.on('permissions:role-changed', handleRoleChanged);
     eventEmitter.on('user:permissions:loaded', handlePermissionsLoaded);
 
-    return () => {
+    return (): void => {
       eventEmitter.off('permissions:updated', handlePermissionsUpdated);
       eventEmitter.off('permissions:role-changed', handleRoleChanged);
       eventEmitter.off('user:permissions:loaded', handlePermissionsLoaded);

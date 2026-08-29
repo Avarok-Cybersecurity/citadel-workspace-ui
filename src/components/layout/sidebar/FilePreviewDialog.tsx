@@ -81,7 +81,7 @@ function SavedLocation({ path }: { path: string }) {
     );
   }
 
-  const copy = () => {
+  const copy = (): void => {
     void navigator.clipboard.writeText(path).then(
       () => {
         setCopied(true);

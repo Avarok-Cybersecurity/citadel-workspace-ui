@@ -39,7 +39,7 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
     setHexDraft(toHex(value).slice(1));
   }, [value]);
 
-  const commitHex = useCallback(() => {
+  const commitHex = useCallback((): void => {
     const parsed = fromHex(hexDraft);
     if (parsed) onChange(parsed);
     // Invalid input snaps back to the current colour rather than clearing —
@@ -76,14 +76,14 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
   );
 
   const drag = (handler: (e: ReactPointerEvent<HTMLDivElement>) => void) => ({
-    onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => {
+    onPointerDown: (e: ReactPointerEvent<HTMLDivElement>): void => {
       e.currentTarget.setPointerCapture(e.pointerId);
       handler(e);
     },
-    onPointerMove: (e: ReactPointerEvent<HTMLDivElement>) => {
+    onPointerMove: (e: ReactPointerEvent<HTMLDivElement>): void => {
       if (e.currentTarget.hasPointerCapture(e.pointerId)) handler(e);
     },
-    onPointerUp: (e: ReactPointerEvent<HTMLDivElement>) => {
+    onPointerUp: (e: ReactPointerEvent<HTMLDivElement>): void => {
       e.currentTarget.releasePointerCapture(e.pointerId);
     },
   });

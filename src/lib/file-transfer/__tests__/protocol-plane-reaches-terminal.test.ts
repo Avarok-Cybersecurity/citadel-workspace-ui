@@ -128,7 +128,7 @@ const transfer = (over: Partial<FileTransfer> = {}): FileTransfer =>
   ({ id: 't1', state: 'transferring', progress: 0, updatedAt: 0, ...over }) as FileTransfer;
 
 function depsFor(t: FileTransfer) {
-  const saveTransfer = vi.fn(async () => {});
+  const saveTransfer = vi.fn(async (): Promise<void> => {});
   const emitStateChange = vi.fn();
   return {
     deps: {

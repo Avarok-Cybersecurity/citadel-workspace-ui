@@ -74,7 +74,7 @@ export function useCallCapability({
           });
         }
       });
-    return () => {
+    return (): void => {
       cancelled = true;
     };
   }, []);

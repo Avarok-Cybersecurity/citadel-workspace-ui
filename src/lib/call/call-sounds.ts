@@ -106,7 +106,7 @@ export function createCallSoundPlayer(deps: CallSoundDeps): CallSoundPlayer {
   return {
     startRing,
     stopRing,
-    chime: (kind) => {
+    chime: (kind): void => {
       if (deps.isEnabled()) deps.playChime(CHIME_SPECS[kind]);
     },
     isRinging: () => active !== null,

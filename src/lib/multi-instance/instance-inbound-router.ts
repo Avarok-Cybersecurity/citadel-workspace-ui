@@ -37,7 +37,7 @@ class InstanceInboundRouter {
    * `orphan-buffer.ts` for the timer/replay lifecycle and
    * `router-forwarding.ts` for what a timeout does.
    */
-  private readonly orphanBuffer = new OrphanBuffer(
+  private readonly orphanBuffer: OrphanBuffer = new OrphanBuffer(
     makeForwardFallback((message) => this.processLocalMessage(message)),
   );
 

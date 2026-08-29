@@ -59,7 +59,7 @@ describe('signing out when the local write times out', () => {
 
   it('removing every session disconnects too', async () => {
     const { state, io } = harness(true);
-    const disconnectFn = vi.fn(async () => {});
+    const disconnectFn = vi.fn(async (): Promise<void> => {});
     await removeAllSessions(state as never, io as never, disconnectFn);
     expect(disconnectFn).toHaveBeenCalled();
   });

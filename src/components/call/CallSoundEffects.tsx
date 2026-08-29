@@ -56,7 +56,7 @@ export function CallSoundEffects() {
 
   // A ring must not outlive the surface that owns it (e.g. logout mid-ring).
   useEffect(
-    () => () => {
+    () => (): void => {
       if (!loadedRef.current) return;
       void import('@/lib/call/call-sounds')
         .then(({ callSounds }: SoundModule) => callSounds().stopRing())

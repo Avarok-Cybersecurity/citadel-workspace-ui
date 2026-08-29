@@ -21,7 +21,7 @@ type Manager = Parameters<typeof useCallMediaToggles>[0] extends MutableRefObjec
   : never;
 
 function setup(videoTracks: number, selfVideo = false) {
-  const setSelfMedia = vi.fn(() => Promise.resolve());
+  const setSelfMedia = vi.fn((): Promise<void> => Promise.resolve());
   // `readyState` matters now: the toggle filters to LIVE tracks, because an
   // ended one stays in the stream's list and flipping `enabled` on it is a
   // no-op that still announced a state change to every peer.

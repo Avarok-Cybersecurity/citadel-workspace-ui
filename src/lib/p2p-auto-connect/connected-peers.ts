@@ -21,7 +21,7 @@ export class ConnectedPeersState {
    * SINGLE SOURCE OF TRUTH for peer connections.
    * Structure: Map<localCid, Map<peerCid, PeerConnectionInfo>>
    */
-  protected connectedPeers = new Map<bigint, Map<bigint, PeerConnectionInfo>>();
+  protected connectedPeers: Map<bigint, Map<bigint, PeerConnectionInfo>> = new Map<bigint, Map<bigint, PeerConnectionInfo>>();
 
   // ============================================================================
   // Connected Peers Management

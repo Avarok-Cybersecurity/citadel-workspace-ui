@@ -19,7 +19,7 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /**
  * Files allowed to compare against Enter directly, and why. Activation on a
@@ -36,14 +36,14 @@ const EXEMPT: Record<string, string> = {
 
 describe('Enter handling', () => {
   it('routes every self-handled Enter through the shared composition rule', async () => {
-    const files = await fg(['**/*.ts', '**/*.tsx'], {
+    const files: string[] = await fg(['**/*.ts', '**/*.tsx'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx', 'test-utils/**'],
     });
 
     const offenders: string[] = [];
     for (const rel of files) {
-      const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
       if (!/key\s*===\s*['"]Enter['"]/.test(source)) continue;
       if (rel in EXEMPT) continue;
       if (source.includes('isEnterCommit')) continue;
@@ -60,7 +60,7 @@ describe('Enter handling', () => {
 
   it('keeps every exempt entry real', async () => {
     for (const rel of Object.keys(EXEMPT)) {
-      const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
       expect(
         /key\s*===\s*['"]Enter['"]/.test(source),
         `${rel} is exempted but no longer handles Enter — drop the exemption ` +

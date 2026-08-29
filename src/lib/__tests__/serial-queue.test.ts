@@ -19,8 +19,8 @@ import { withSerialLock } from '../serial-queue';
 function racyStore(initial: string[]) {
   let value: string[] = initial;
   return {
-    read: () => value,
-    write: async (next: string[]) => {
+    read: (): string[] => value,
+    write: async (next: string[]): Promise<void> => {
       await Promise.resolve();
       value = next;
     },
@@ -33,7 +33,7 @@ function racyStore(initial: string[]) {
 describe('withSerialLock', () => {
   it('does not lose a concurrent write to the same key', async () => {
     const store = racyStore(['a', 'b', 'c']);
-    const remove = (item: string) => async () => {
+    const remove = (item: string) => async (): Promise<void> => {
       const current: string[] = store.read();
       await Promise.resolve();
       await store.write(current.filter((x) => x !== item));
@@ -51,7 +51,7 @@ describe('withSerialLock', () => {
 
   it('still runs different keys concurrently', async () => {
     const order: string[] = [];
-    const slow = (name: string, ms: number) => async () => {
+    const slow = (name: string, ms: number) => async (): Promise<void> => {
       await new Promise((r) => setTimeout(r, ms));
       order.push(name);
     };

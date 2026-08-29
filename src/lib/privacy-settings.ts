@@ -95,7 +95,7 @@ export function savePrivacySettings(settings: PrivacySettings): void {
 
 /** Drop the cache when another tab changes the settings. */
 export function initPrivacySettingsSync(): () => void {
-  const onStorage = (e: StorageEvent) => {
+  const onStorage = (e: StorageEvent): void => {
     if (e.key === STORAGE_KEY) cached = null;
   };
   window.addEventListener('storage', onStorage);

@@ -33,7 +33,7 @@ export function MoveNodeDialog({
 
   if (!node) return null;
 
-  const move = (parentId: string | null) => {
+  const move = (parentId: string | null): void => {
     setMoving(true);
     onMove(node.id, parentId);
   };

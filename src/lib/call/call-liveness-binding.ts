@@ -64,7 +64,7 @@ export class CallLivenessBinding {
    * the user noticed. "Camera on, nobody there, no timer anywhere" is the exact
    * failure CONNECT_TIMEOUT_MS was introduced to prevent one state earlier.
    */
-  private readonly invitedSince = new Map<bigint, number>();
+  private readonly invitedSince: Map<bigint, number> = new Map<bigint, number>();
 
   private readonly now: () => number;
 
@@ -73,7 +73,7 @@ export class CallLivenessBinding {
     this.liveness = new CallLiveness({
       now: options.now,
       schedule: options.schedule,
-      sendHeartbeat: () => {
+      sendHeartbeat: (): void => {
         const state = internals().getState();
         if (!state) return;
         for (const cid of presentPeers(state)) {
@@ -92,7 +92,7 @@ export class CallLivenessBinding {
           void options.transport.sendSignal(cid, beat).catch(() => undefined);
         }
       },
-      onTick: (now) => {
+      onTick: (now): void => {
         for (const [cid, since] of [...this.invitedSince]) {
           if (now - since < RING_TIMEOUT_MS) continue;
           // Deleted BEFORE notifying, matching the silence sweep: the callback

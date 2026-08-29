@@ -40,7 +40,7 @@ export function useCompiledMdx(
   const [renderError, setRenderError] = useState<string | null>(null);
 
   useEffect(() => {
-    const compileContent = async () => {
+    const compileContent = async (): Promise<void> => {
       try {
         debugLog('BaseOffice', 'Compiling MDX content...');
         // remark-gfm handles strikethrough, tables, autolinks, task-lists.

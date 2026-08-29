@@ -14,7 +14,7 @@ interface UseMemberEventSetupProps {
 
 export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): void {
   useEffect(() => {
-    const setupMemberListeners = async () => {
+    const setupMemberListeners = async (): Promise<void> => {
       // Member events
       await workspaceEvents.onMemberEvent('members:loading', (payload) => {
         setLoading(setState, 'members', true);

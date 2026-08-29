@@ -61,14 +61,14 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const [sessionFallback, setSessionFallback] = useState<{ username: string; fullName?: string } | null>(null);
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
+    void (async (): Promise<void> => {
       const tab = await getSelectedUser();
       if (cancelled) return;
       if (tab?.selectedUsername) { setSessionFallback({ username: tab.selectedUsername }); return; }
       const session = await connectionManager.getTabSelectedSession();
       if (!cancelled) setSessionFallback(session?.username ? { username: session.username, fullName: session.fullName } : null);
     })();
-    return () => { cancelled = true; };
+    return (): void => { cancelled = true; };
   }, [state.currentUser?.username]);
 
   const username: string = state.currentUser?.username || sessionFallback?.username || "User";

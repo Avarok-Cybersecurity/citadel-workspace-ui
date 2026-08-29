@@ -126,7 +126,7 @@ export const WorkspaceEventHandler: React.FC<{
     if (onStateChange) onStateChange(state);
   }, [state, onStateChange]);
 
-  const handleWorkspaceInitialized = () => {
+  const handleWorkspaceInitialized = (): void => {
     setShowInitModal(false);
     sessionRemove('workspace-init-modal-dismissed');
     setState(prev => ({ ...prev, needsWorkspaceInitialization: false, error: undefined }));
@@ -147,7 +147,7 @@ export const WorkspaceEventHandler: React.FC<{
    * the first symptom is a blank page. A full load is also the right semantics
    * for declining setup, since it drops the half-built workspace context.
    */
-  const handleInitCancelled = () => {
+  const handleInitCancelled = (): void => {
     setShowInitModal(false);
     setInitModalDismissed(true);
     sessionSet('workspace-init-modal-dismissed', 'true');

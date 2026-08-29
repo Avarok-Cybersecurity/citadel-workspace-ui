@@ -70,8 +70,8 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
 
   // Inbound call control.
   useEffect(() => {
-    const onSignal = ({ peerCid, payload }: { peerCid: bigint; payload: CallSignalPayload }) => {
-      void (async () => {
+    const onSignal = ({ peerCid, payload }: { peerCid: bigint; payload: CallSignalPayload }): void => {
+      void (async (): Promise<void> => {
         const manager = await ensureManager();
         if (!manager) return reportCallSystemUnavailable('inbound');
         // The protocol carries only a CID, and the CID is what everything here
@@ -85,7 +85,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       })();
     };
     eventEmitter.on('call:signal', onSignal);
-    return () => eventEmitter.off('call:signal', onSignal);
+    return (): void => eventEmitter.off('call:signal', onSignal);
   }, [ensureManager, sessionRef]);
 
   useInboundMedia(sessionRef);
@@ -93,7 +93,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   // The camera must not survive the provider unmounting — and the peer must be
   // told, or they sit in a call that is over until their ring timeout fires.
   useEffect(
-    () => () => {
+    () => (): void => {
       const manager = managerRef.current;
       const state = manager?.getState();
       if (manager && state && state.status !== 'ended' && state.status !== 'failed') {
@@ -163,12 +163,12 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     [ensureSession, teardown, managerRef],
   );
 
-  const decline = useCallback(async () => {
+  const decline = useCallback(async (): Promise<void> => {
     await managerRef.current?.decline('rejected');
     teardown();
   }, [teardown, managerRef]);
 
-  const leave = useCallback(async () => {
+  const leave = useCallback(async (): Promise<void> => {
     const manager = managerRef.current;
     if (manager) {
       await manager.end('hangup');
@@ -209,14 +209,14 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       setQualities((prev) => (prev.size === 0 ? prev : new Map()));
       return;
     }
-    const tick = () => {
+    const tick = (): void => {
       const next = sessionRef.current?.connectionQuality(Date.now()) ?? new Map();
       // Replace only on a real change, or every tick re-renders the call surface.
       setQualities((prev) => (sameQualities(prev, next) ? prev : next));
     };
     tick();
     const id: number = window.setInterval(tick, 2_000);
-    return () => window.clearInterval(id);
+    return (): void => window.clearInterval(id);
   }, [call, sessionRef]);
 
   const value: CallContextValue = useMemo<CallContextValue>(

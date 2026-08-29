@@ -62,20 +62,20 @@ function Separator() {
 
 export function MarkdownToolbar({ visible, onFormat, showPreview, onTogglePreview }: MarkdownToolbarProps) {
   const formatHandlers = {
-    bold: () => onFormat('bold', '**', '**'),
-    italic: () => onFormat('italic', '*', '*'),
-    strike: () => onFormat('strike', '~~', '~~'),
-    superscript: () => onFormat('superscript', '<sup>', '</sup>'),
-    subscript: () => onFormat('subscript', '<sub>', '</sub>'),
-    h1: () => onFormat('h1', '# ', ''),
-    h2: () => onFormat('h2', '## ', ''),
-    h3: () => onFormat('h3', '### ', ''),
-    bullet: () => onFormat('bullet', '- ', ''),
-    numbered: () => onFormat('numbered', '1. ', ''),
-    link: () => onFormat('link', '[', '](url)'),
-    table: () => onFormat('table', '\n| Header | Header |\n|--------|--------|\n| Cell | Cell |\n', ''),
-    code: () => onFormat('code', '```\n', '\n```'),
-    quote: () => onFormat('quote', '> ', ''),
+    bold: (): void => onFormat('bold', '**', '**'),
+    italic: (): void => onFormat('italic', '*', '*'),
+    strike: (): void => onFormat('strike', '~~', '~~'),
+    superscript: (): void => onFormat('superscript', '<sup>', '</sup>'),
+    subscript: (): void => onFormat('subscript', '<sub>', '</sub>'),
+    h1: (): void => onFormat('h1', '# ', ''),
+    h2: (): void => onFormat('h2', '## ', ''),
+    h3: (): void => onFormat('h3', '### ', ''),
+    bullet: (): void => onFormat('bullet', '- ', ''),
+    numbered: (): void => onFormat('numbered', '1. ', ''),
+    link: (): void => onFormat('link', '[', '](url)'),
+    table: (): void => onFormat('table', '\n| Header | Header |\n|--------|--------|\n| Cell | Cell |\n', ''),
+    code: (): void => onFormat('code', '```\n', '\n```'),
+    quote: (): void => onFormat('quote', '> ', ''),
   };
 
   return (
@@ -200,7 +200,7 @@ export function useMarkdownFormat(
   setValue: (value: string) => void,
   getValue: () => string
 ) {
-  const handleFormat = useCallback((format: string, prefix: string, suffix: string) => {
+  const handleFormat = useCallback((format: string, prefix: string, suffix: string): void => {
     const input = inputRef.current;
     if (!input) return;
 

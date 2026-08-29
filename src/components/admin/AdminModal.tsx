@@ -34,7 +34,7 @@ export function AdminModal({
       return;
     }
 
-    const loadEntity = () => {
+    const loadEntity = (): void => {
       setLoading(true);
       try {
         if (entityType === 'workspace') {
@@ -65,7 +65,7 @@ export function AdminModal({
     loadEntity();
   }, [isOpen, entityType, entityId, state.workspace, state.nodes]);
 
-  const handleOpenChange = (open: boolean) => {
+  const handleOpenChange = (open: boolean): void => {
     if (!open) {
       onClose();
     }

@@ -8,11 +8,11 @@ import { render, screen, act } from '@testing-library/react';
 import { OfflineBanner } from '../OfflineBanner';
 import { RECONNECTED_NOTICE_MS } from '@/hooks/use-online-status';
 
-function setOnline(value: boolean) {
+function setOnline(value: boolean): void {
   Object.defineProperty(navigator, 'onLine', { value, configurable: true });
 }
 
-function fireConnectivity(event: 'online' | 'offline') {
+function fireConnectivity(event: 'online' | 'offline'): void {
   act(() => { window.dispatchEvent(new Event(event)); });
 }
 

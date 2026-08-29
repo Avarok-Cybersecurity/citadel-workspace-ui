@@ -52,23 +52,23 @@ export function requestResponse<T>(options: RequestResponseOptions<T>): Promise<
   const { request, requestId, sendRequest, timeoutMs, operationName, matcher } = options;
 
   return new Promise<T>((resolve, reject) => {
-    const cleanup = () => {
+    const cleanup = (): void => {
       clearTimeout(timeout);
       eventEmitter.off('websocket-message', handler);
       eventEmitter.off('websocket-disconnected', onDisconnected);
     };
 
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout((): void => {
       cleanup();
       reject(new Error(`${operationName} request timed out`));
     }, timeoutMs);
 
-    const onDisconnected = () => {
+    const onDisconnected = (): void => {
       cleanup();
       reject(new Error(`${operationName} failed: ${CONNECTION_LOST}`));
     };
 
-    const handler = (message: Record<string, unknown>) => {
+    const handler = (message: Record<string, unknown>): void => {
       const successData = matcher.matchSuccess(message);
       if (successData !== undefined) {
         cleanup();
@@ -112,13 +112,13 @@ export function requestResponseSoft(options: {
     matchSuccess, matchFailure, onTimeout, onFailure } = options;
 
   return new Promise<void>((resolve) => {
-    const cleanup = () => {
+    const cleanup = (): void => {
       clearTimeout(timeout);
       eventEmitter.off('websocket-message', handler);
       eventEmitter.off('websocket-disconnected', onDisconnected);
     };
 
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout((): void => {
       cleanup();
       if (onTimeout) onTimeout();
       resolve();
@@ -127,13 +127,13 @@ export function requestResponseSoft(options: {
     // Same reasoning as the strict variant, reported through this one's own
     // failure channel: a soft caller warns and continues, and it should get to
     // do that now rather than in two minutes.
-    const onDisconnected = () => {
+    const onDisconnected = (): void => {
       cleanup();
       if (onFailure) onFailure(`${operationName} failed: ${CONNECTION_LOST}`);
       resolve();
     };
 
-    const handler = (message: Record<string, unknown>) => {
+    const handler = (message: Record<string, unknown>): void => {
       if (matchSuccess(message)) {
         cleanup();
         resolve();
@@ -175,7 +175,7 @@ export function requestResponseSoft(options: {
  */
 export function failOnSocketLoss<T>(operationName: string, promise: Promise<T>): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const onLost = () => {
+    const onLost = (): void => {
       eventEmitter.off('websocket-disconnected', onLost);
       reject(new Error(`${operationName} failed: ${CONNECTION_LOST}`));
     };

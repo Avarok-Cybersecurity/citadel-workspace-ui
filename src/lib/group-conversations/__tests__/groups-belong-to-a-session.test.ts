@@ -20,7 +20,7 @@ vi.mock('../group-persistence', () => ({ persistGroups, loadPersistedGroups }));
 import { getGroups, updateGroups, resetGroupsForSession, areGroupsHydrated } from '../group-store';
 import type { GroupConversation } from '@/types/group';
 
-const group = (id: string) => ({ id, name: id, members: [], unreadCount: 0 } as unknown as GroupConversation);
+const group = (id: string): GroupConversation => ({ id, name: id, members: [], unreadCount: 0 } as unknown as GroupConversation);
 
 describe('switching accounts', () => {
   beforeEach(() => {

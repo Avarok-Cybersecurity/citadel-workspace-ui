@@ -18,14 +18,14 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-const SRC = resolve(__dirname, '..');
+const SRC: string = resolve(__dirname, '..');
 /** The one module allowed to touch it: the guard itself. */
 const GUARD = 'lib/safe-session-storage.ts';
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
+    const path: string = join(dir, entry);
     if (statSync(path).isDirectory()) {
       if (entry === '__tests__') continue;
       out.push(...sourceFiles(path));
@@ -37,7 +37,7 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe('sessionStorage', () => {
-  const files = sourceFiles(SRC);
+  const files: string[] = sourceFiles(SRC);
 
   it('scans a real corpus, so the rule is not passing over nothing', () => {
     expect(files.length).toBeGreaterThan(50);
@@ -47,9 +47,9 @@ describe('sessionStorage', () => {
   it('is only touched through the guard', () => {
     const offenders: string[] = [];
     for (const file of files) {
-      const relative = file.slice(SRC.length + 1);
+      const relative: string = file.slice(SRC.length + 1);
       if (relative === GUARD) continue;
-      const source = readFileSync(file, 'utf-8')
+      const source: string = readFileSync(file, 'utf-8')
         .replace(/\/\*[\s\S]*?\*\//g, '')
         .replace(/(^|[^:])\/\/.*$/gm, '$1');
       if (/\bsessionStorage\s*\./.test(source)) offenders.push(relative);

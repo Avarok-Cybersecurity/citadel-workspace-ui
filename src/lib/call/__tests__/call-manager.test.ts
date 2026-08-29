@@ -73,7 +73,7 @@ function harness(): Harness {
     signalsTo: (cid) =>
       transport.sendSignal.mock.calls.filter((c) => c[0] === cid).map((c) => c[1]),
     keyframeRequests,
-    fireTimers: () => {
+    fireTimers: (): number => {
       const live = timers.filter((t) => !t.cancelled);
       for (const t of live) t.fn();
       return live.length;

@@ -37,7 +37,7 @@ function RemoteAudio({ stream }: { stream: MediaStream }) {
     // They are in a call, so they have — but a refusal must not throw into the
     // render path either way.
     void element.play().catch(() => undefined);
-    return () => {
+    return (): void => {
       element.srcObject = null;
     };
   }, [stream]);

@@ -17,7 +17,7 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-const LIB = resolve(__dirname, '../../integration-tests/src/lib');
+const LIB: string = resolve(__dirname, '../../integration-tests/src/lib');
 
 /**
  * Lines that MENTION a timeout without being one.
@@ -25,7 +25,7 @@ const LIB = resolve(__dirname, '../../integration-tests/src/lib');
  * Deliberately exact, and deliberately short: an allow-list that accepts a
  * pattern would accept the next give-up too.
  */
-const INFORMATIONAL = [
+const INFORMATIONAL: string[] = [
   '[DEBUG] Waiting for message input to be visible (5s timeout)...',
   'Config: maxRetries=${maxRetries}, verifyTimeout=${verifyTimeout}ms',
 ];
@@ -33,7 +33,7 @@ const INFORMATIONAL = [
 /** `console.log(...)` calls with their literal argument text. */
 function loggedMessages(source: string): string[] {
   const out: string[] = [];
-  const call = /console\.log\(\s*(`[^`]*`|'[^']*'|"[^"]*")/g;
+  const call: RegExp = /console\.log\(\s*(`[^`]*`|'[^']*'|"[^"]*")/g;
   let match: RegExpExecArray | null;
   while ((match = call.exec(source)) !== null) {
     out.push(match[1].slice(1, -1).trim());
@@ -42,7 +42,7 @@ function loggedMessages(source: string): string[] {
 }
 
 describe('a wait that gives up', () => {
-  const files = readdirSync(LIB).filter((f) => f.endsWith('.ts'));
+  const files: string[] = readdirSync(LIB).filter((f) => f.endsWith('.ts'));
 
   it('scans the helper library, so the rule is not passing over nothing', () => {
     expect(files.length).toBeGreaterThan(5);
@@ -63,7 +63,7 @@ describe('a wait that gives up', () => {
   });
 
   it('has a reporter that captures more than the message it was given', () => {
-    const reporter = readFileSync(join(LIB, 'screen-state.ts'), 'utf-8');
+    const reporter: string = readFileSync(join(LIB, 'screen-state.ts'), 'utf-8');
     // Each of these was worth its own line in the one run that used it.
     for (const field of ['url', 'dialogs', 'loading', 'headings', 'errors']) {
       expect(reporter).toContain(`${field}:`);
@@ -73,7 +73,7 @@ describe('a wait that gives up', () => {
     // first version printed "dialogs: none" with a modal on the screen.
     // Comments are stripped first; the reason is written in one, and an
     // assertion that reads its own explanation as a violation is no assertion.
-    const code = reporter
+    const code: string = reporter
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/(^|[^:])\/\/.*$/gm, '$1');
     expect(code).toContain('getBoundingClientRect');

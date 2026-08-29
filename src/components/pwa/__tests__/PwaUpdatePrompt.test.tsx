@@ -25,7 +25,7 @@ const applyWaitingUpdate = vi.fn<() => Promise<boolean>>();
 const reload = vi.fn();
 
 vi.mock('@/lib/pwa/apply-waiting-update', () => ({
-  applyWaitingUpdate: () => applyWaitingUpdate(),
+  applyWaitingUpdate: (): Promise<boolean> => applyWaitingUpdate(),
 }));
 let registeredOptions: {
   onRegisteredSW?: (url: string, registration?: { update: () => Promise<void> }) => void;
@@ -54,7 +54,7 @@ vi.mock('virtual:pwa-register/react', () => ({
 const { PwaUpdatePrompt } = await import('../PwaUpdatePrompt');
 const { Toaster } = await import('@/components/ui/sonner');
 
-function setOnline(value: boolean) {
+function setOnline(value: boolean): void {
   Object.defineProperty(navigator, 'onLine', { value, configurable: true });
 }
 
@@ -173,7 +173,7 @@ describe('PwaUpdatePrompt', () => {
   describe('checking for updates while a tab stays open', () => {
     // vite-plugin-pwa only checks at registration. This app is left open for
     // days, so without these a long-lived session never learns a deploy shipped.
-    function registerWith(update: () => Promise<void>) {
+    function registerWith(update: () => Promise<void>): void {
       renderPrompt();
       act(() => {
         registeredOptions.onRegisteredSW?.('/sw.js', { update });

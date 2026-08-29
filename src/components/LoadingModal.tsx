@@ -64,20 +64,20 @@ export const LoadingModal = ({
       });
     } else {
       setIsVisible(false);
-      const timer = setTimeout(() => {
+      const timer = setTimeout((): void => {
         setShouldRender(false);
       }, 300);
-      return () => clearTimeout(timer);
+      return (): void => clearTimeout(timer);
     }
   }, [open]);
 
   // Auto-close after showing "ready" status
   useEffect(() => {
     if (status === "ready" && open) {
-      const timer = setTimeout(() => {
+      const timer = setTimeout((): void => {
         onComplete?.();
       }, config.autoCloseDelay ?? 1500);
-      return () => clearTimeout(timer);
+      return (): void => clearTimeout(timer);
     }
   }, [status, open, onComplete, config.autoCloseDelay]);
 
@@ -87,10 +87,10 @@ export const LoadingModal = ({
       setTimedOut(false);
       return;
     }
-    const timer = setTimeout(() => {
+    const timer = setTimeout((): void => {
       setTimedOut(true);
     }, timeoutMs);
-    return () => clearTimeout(timer);
+    return (): void => clearTimeout(timer);
   }, [open, status, timeoutMs]);
 
   const { isLoading, isError, isReady, Icon, iconClass } = statusAppearance(status);

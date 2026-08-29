@@ -25,11 +25,11 @@ export function useWorkspaceDataTimeout(
       setTimedOut(false);
       return;
     }
-    const timer = setTimeout(() => {
+    const timer = setTimeout((): void => {
       debugLog('WorkspaceLoader', 'Workspace data loading timeout — connection exists but data never arrived');
       setTimedOut(true);
     }, WORKSPACE_DATA_TIMEOUT_MS);
-    return () => clearTimeout(timer);
+    return (): void => clearTimeout(timer);
   }, [hasConnection, isLoading, isDevMode]);
 
   return timedOut;

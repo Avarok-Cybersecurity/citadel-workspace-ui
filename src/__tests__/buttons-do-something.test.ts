@@ -21,15 +21,15 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /** Anything that gives a button an effect, or hands its behaviour elsewhere. */
-const ACTS =
+const ACTS: RegExp =
   /\bonClick|\bonPointerDown|\bonMouseDown|\btype=["'{]?submit|\basChild\b|\bdisabled\b|\bhref=|\{\.\.\./;
 
 describe('a rendered Button', () => {
   it('has something to do when clicked', async () => {
-    const files = await fg(['**/*.tsx'], {
+    const files: string[] = await fg(['**/*.tsx'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.tsx', 'test-utils/**', 'components/ui/**'],
     });
@@ -37,22 +37,22 @@ describe('a rendered Button', () => {
     const offenders: string[] = [];
 
     for (const rel of files) {
-      const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
 
       // Each `<Button ...>` opening tag, up to the `>` that closes it.
       for (const match of source.matchAll(/<Button\b([^>]*)>/g)) {
-        const attributes = match[1];
+        const attributes: string = match[1];
         if (ACTS.test(attributes)) continue;
 
         // A trigger that renders its child IS the handler: `<DropdownMenuTrigger
         // asChild><Button>` gets its behaviour from the trigger, and requiring
         // an onClick there would push people to add a no-op one.
-        const before = source.slice(Math.max(0, match.index - 120), match.index);
+        const before: string = source.slice(Math.max(0, match.index - 120), match.index);
         // `{}` is what stripComments leaves behind for a JSX comment, and
         // several of these triggers carry one explaining the accessible name.
         if (/asChild\s*>\s*(\{\s*\}\s*)?$/.test(before)) continue;
 
-        const line = source.slice(0, match.index).split('\n').length;
+        const line: number = source.slice(0, match.index).split('\n').length;
         offenders.push(`${rel}:${line}`);
       }
     }

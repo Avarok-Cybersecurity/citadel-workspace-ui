@@ -24,7 +24,7 @@ function ackHandlerWith(updateMessageInPages: ReturnType<typeof vi.fn>) {
 
 describe('an ack for a message outside the in-memory window', () => {
   it('is applied to the stored page instead of being dropped', async () => {
-    const updateMessageInPages = vi.fn(async () => true);
+    const updateMessageInPages = vi.fn(async (): Promise<boolean> => true);
     const { handler, notifyMessageStatusListeners } = ackHandlerWith(updateMessageInPages);
 
     await handler.handleMessageAck(
@@ -39,7 +39,7 @@ describe('an ack for a message outside the in-memory window', () => {
   });
 
   it('does not claim an update when the message is in neither place', async () => {
-    const updateMessageInPages = vi.fn(async () => false);
+    const updateMessageInPages = vi.fn(async (): Promise<boolean> => false);
     const { handler, notifyMessageStatusListeners } = ackHandlerWith(updateMessageInPages);
 
     await handler.handleMessageAck({ message_id: 'gone', ack_type: 'read' } as never, PEER);
@@ -107,7 +107,7 @@ describe('opening a conversation after a reload', () => {
     };
     const { markMessagesAsRead } = await import('../messenger-compatibility');
 
-    const sendMessageAck = vi.fn(async () => {});
+    const sendMessageAck = vi.fn(async (): Promise<void> => {});
     await markMessagesAsRead(
       conversationManager as never,
       sendMessageAck,

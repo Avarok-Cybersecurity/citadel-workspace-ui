@@ -22,20 +22,20 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
-const SRC = resolve(__dirname, '..');
-const ROUTER_HOOKS = /\buse(Navigate|Location|Params|SearchParams|NavigationType|Match|Routes|Resolved(Path)?|OutletContext)\s*\(/;
+const SRC: string = resolve(__dirname, '..');
+const ROUTER_HOOKS: RegExp = /\buse(Navigate|Location|Params|SearchParams|NavigationType|Match|Routes|Resolved(Path)?|OutletContext)\s*\(/;
 
 /** Component names rendered before <BrowserRouter> opens in App.tsx. */
 function componentsAboveTheRouter(): string[] {
-  const app = readFileSync(join(SRC, 'App.tsx'), 'utf8');
-  const start = app.indexOf('<AppErrorBoundary>');
-  const router = app.indexOf('<BrowserRouter');
+  const app: string = readFileSync(join(SRC, 'App.tsx'), 'utf8');
+  const start: number = app.indexOf('<AppErrorBoundary>');
+  const router: number = app.indexOf('<BrowserRouter');
   expect(start).toBeGreaterThan(-1);
   expect(router).toBeGreaterThan(start);
-  const above = app.slice(start, router);
+  const above: string = app.slice(start, router);
   // JSX comments are where the reasoning lives and mention component names in
   // prose; strip them or the rule reads its own explanation as a render.
-  const code = above.replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+  const code: string = above.replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
   return [...new Set([...code.matchAll(/<([A-Z][A-Za-z0-9_]*)/g)].map((m) => m[1]))];
 }
 
@@ -67,15 +67,15 @@ function code(file: string): string {
 
 /** Every src/ file reachable from `entry` by import, entry included. */
 function reachable(entry: string): string[] {
-  const seen = new Set<string>();
-  const queue = [entry];
+  const seen: Set<string> = new Set<string>();
+  const queue: string[] = [entry];
   while (queue.length) {
     const file = queue.pop();
     if (!file || seen.has(file)) continue;
     seen.add(file);
-    const text = readFileSync(file, 'utf8');
+    const text: string = readFileSync(file, 'utf8');
     for (const m of text.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
-      const next = resolveLocal(file, m[1]);
+      const next: string | null = resolveLocal(file, m[1]);
       if (next && !seen.has(next)) queue.push(next);
     }
   }
@@ -83,7 +83,7 @@ function reachable(entry: string): string[] {
 }
 
 describe('components mounted above the router', () => {
-  const above = componentsAboveTheRouter();
+  const above: string[] = componentsAboveTheRouter();
 
   it('finds the components, so the rule is not passing over an empty list', () => {
     // Every guard in this repo that silently checked nothing looked exactly
@@ -94,8 +94,8 @@ describe('components mounted above the router', () => {
   });
 
   it('reach no router hook', () => {
-    const app = readFileSync(join(SRC, 'App.tsx'), 'utf8');
-    const imports = new Map<string, string>();
+    const app: string = readFileSync(join(SRC, 'App.tsx'), 'utf8');
+    const imports: Map<string, string> = new Map<string, string>();
     for (const m of app.matchAll(/import\s+\{([^}]+)\}\s+from\s+['"]([^'"]+)['"]/g)) {
       for (const name of m[1].split(',').map((n) => n.trim().split(/\s+as\s+/).pop()!)) {
         imports.set(name, m[2]);
@@ -106,7 +106,7 @@ describe('components mounted above the router', () => {
     for (const name of above) {
       const spec = imports.get(name);
       if (!spec) continue;
-      const entry = resolveLocal(join(SRC, 'App.tsx'), spec);
+      const entry: string | null = resolveLocal(join(SRC, 'App.tsx'), spec);
       if (!entry) continue;
       for (const file of reachable(entry)) {
         if (ROUTER_HOOKS.test(code(file))) {

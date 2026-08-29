@@ -36,7 +36,7 @@ export class BroadcastChannelService extends PollingService {
   private tabId: string;
   private isLeader: boolean = false;
   private lastLeaderHeartbeat: number = 0;
-  private pendingRequests = new Map<string, PendingRequest>();
+  private pendingRequests: Map<string, PendingRequest> = new Map<string, PendingRequest>();
 
   private constructor() {
     super();
@@ -93,7 +93,7 @@ export class BroadcastChannelService extends PollingService {
   private setupMessageHandler(): void {
     if (!this.channel) return;
 
-    this.channel.onmessage = (event: MessageEvent<BroadcastMessage>) => {
+    this.channel.onmessage = (event: MessageEvent<BroadcastMessage>): void => {
       const message: BroadcastMessage = event.data;
       if (message.tabId === this.tabId) return;
 

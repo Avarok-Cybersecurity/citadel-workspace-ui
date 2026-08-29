@@ -15,8 +15,8 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/lib/p2p-auto-connect-service', () => ({
   p2pAutoConnectService: {
-    markChannelReady: () => {},
-    isPeerConnected: async () => true,
+    markChannelReady: (): void => {},
+    isPeerConnected: async (): Promise<boolean> => true,
     ensurePeerConnectedInBackground: async () => undefined,
   },
 }));
@@ -70,7 +70,7 @@ function harness(addBehaviour: () => Promise<boolean>) {
     rendered,
     acked,
     notified,
-    run: () => handleMessagingLayerCommand(config, noFileTransfers, payload, PEER, ME),
+    run: (): Promise<void> => handleMessagingLayerCommand(config, noFileTransfers, payload, PEER, ME),
   };
 }
 
@@ -100,7 +100,7 @@ describe('an arrived message whose write fails', () => {
   });
 
   it('acks normally when the write succeeds', async () => {
-    const h = harness(async () => true);
+    const h = harness(async (): Promise<true> => true);
 
     await h.run();
 

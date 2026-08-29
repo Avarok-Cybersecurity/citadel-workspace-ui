@@ -29,14 +29,14 @@ import { stripComments } from '@/test-utils/strip-comments';
  * replaced WITH necessarily quote the value it was replaced FROM. Asserting on
  * prose rather than code is how a guard starts reporting on itself.
  */
-const src = (p: string) => stripComments(readFileSync(join(process.cwd(), 'src', p), 'utf8'));
+const src = (p: string): string => stripComments(readFileSync(join(process.cwd(), 'src', p), 'utf8'));
 
 describe('selection and loading indicators use theme tokens', () => {
   it('the role-colour ring is not white on a white background', () => {
     // The swatches moved to RoleColorPicker when GroupRoleEditor was split.
     // The second assertion is what makes that safe: pointing at a file with no
     // ring in it would satisfy the `not.toMatch` and check nothing.
-    const source = src('components/chat/RoleColorPicker.tsx');
+    const source: string = src('components/chat/RoleColorPicker.tsx');
     // `ring-offset-background` is white in light mode, so `ring-white` offset
     // against it is a white ring on white — the selected swatch loses its only
     // indicator.
@@ -45,7 +45,7 @@ describe('selection and loading indicators use theme tokens', () => {
   });
 
   it('the workspace switcher spinner is not white on a near-white surface', () => {
-    const source = src('components/layout/sidebar/WorkspaceSwitcher.tsx');
+    const source: string = src('components/layout/sidebar/WorkspaceSwitcher.tsx');
     expect(source).not.toContain('border-white');
     expect(source).toContain('Loader2');
   });
@@ -59,15 +59,15 @@ describe('selection and loading indicators use theme tokens', () => {
     // The badge moved to its own component when MembersSection was split; the
     // paired positive assertion below is what stops this pointing at a file
     // with no badge in it and passing for ever.
-    const source = src('components/layout/sidebar/PendingRequestsBadge.tsx');
+    const source: string = src('components/layout/sidebar/PendingRequestsBadge.tsx');
     expect(source).toMatch(/variant="destructive"/);
     expect(source, 'this file must actually render the badge').toMatch(/<Badge/);
   });
 });
 
 describe('the collaborative editor context menu follows the theme', () => {
-  const css = stripComments(readFileSync(join(process.cwd(), 'src', 'index.css'), 'utf8'));
-  const block = css.slice(
+  const css: string = stripComments(readFileSync(join(process.cwd(), 'src', 'index.css'), 'utf8'));
+  const block: string = css.slice(
     css.indexOf('.editor-context-menu {'),
     css.indexOf('@keyframes context-menu-in') === -1
       ? css.indexOf('.editor-context-menu {') + 1200

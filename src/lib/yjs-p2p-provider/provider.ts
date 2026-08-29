@@ -97,8 +97,8 @@ export class YjsP2PProvider {
     };
   }
 
-  private setupUpdateHandler() {
-    this.updateHandler = (update: Uint8Array, origin: YjsOrigin) => {
+  private setupUpdateHandler(): void {
+    this.updateHandler = (update: Uint8Array, origin: YjsOrigin): void => {
       if (this.destroyed) return;
       if (origin === 'remote' || origin === 'merkle-reconstruct' || origin === 'creator-resync') return;
       // Buffered, not sent: one message per keystroke overruns a stop-and-wait
@@ -108,8 +108,8 @@ export class YjsP2PProvider {
     this.doc.on('update', this.updateHandler);
   }
 
-  private setupAwarenessHandler() {
-    this.awarenessHandler = ({ added, updated, removed }, origin) => {
+  private setupAwarenessHandler(): void {
+    this.awarenessHandler = ({ added, updated, removed }, origin): void => {
       if (this.destroyed) return;
       if (origin === 'remote') return;
       const changedClients: number[] = added.concat(updated).concat(removed);
@@ -121,7 +121,7 @@ export class YjsP2PProvider {
     this.awareness.on('update', this.awarenessHandler);
   }
 
-  private setupMessageListener() {
+  private setupMessageListener(): void {
     // Listen on `yjs:p2p-command` rather than `p2p:raw-message`.
     // `message-handler.ts` already CBOR-decodes incoming bytes into a
     // `P2PCommand` and dispatches `YjsP2PSync` payloads through this
@@ -142,7 +142,7 @@ export class YjsP2PProvider {
     });
   }
 
-  private initiateSync() {
+  private initiateSync(): void {
     const now: number = Date.now();
     if (this.syncInProgress || (now - this.lastSyncInitiated < YJS_SYNC_COOLDOWN_MS)) {
       debugLog('YjsP2PProvider', `[Yjs] Sync throttled (cooldown: ${Math.ceil((YJS_SYNC_COOLDOWN_MS - (now - this.lastSyncInitiated)) / 1000)}s remaining)`);
@@ -157,7 +157,7 @@ export class YjsP2PProvider {
     setTimeout(() => { this.syncInProgress = false; }, YJS_SYNC_RESET_DELAY_MS);
   }
 
-  private handleMessage(message: YjsP2PMessage) {
+  private handleMessage(message: YjsP2PMessage): void {
     switch (message.type) {
       case 'yjs_sync': this.handleSyncMessage(message); break;
       case 'yjs_awareness': handleAwarenessMessage(this.ctx, message); break;
@@ -176,7 +176,7 @@ export class YjsP2PProvider {
     }
   }
 
-  private handleSyncMessage(message: YjsSyncMessage) {
+  private handleSyncMessage(message: YjsSyncMessage): void {
     const data: Uint8Array<ArrayBuffer> = new Uint8Array(message.data);
     switch (message.sub_type) {
       case 'sync_step1': handleSyncStep1(this.ctx, data, message); break;
@@ -188,11 +188,11 @@ export class YjsP2PProvider {
     }
   }
 
-  private startAckChecker() {
+  private startAckChecker(): void {
     this.ackCheckInterval = setInterval(() => checkPendingAcks(this.ctx), YJS_HEALTH_CHECK_INTERVAL_MS);
   }
 
-  private updateMerkleTree() {
+  private updateMerkleTree(): void {
     if (this.merkleTree) {
       this.merkleTree.updateFromDocument(this.doc);
     } else {
@@ -204,7 +204,7 @@ export class YjsP2PProvider {
   // PUBLIC API
   // ============================================
 
-  setLocalState(state: Record<string, unknown>) { this.awareness.setLocalState(state); }
+  setLocalState(state: Record<string, unknown>): void { this.awareness.setLocalState(state); }
   /**
    * Set ONE awareness field, leaving the rest of the local state alone.
    *
@@ -213,7 +213,7 @@ export class YjsP2PProvider {
    * wanted to set its own field was wiping every peer's view of this user's
    * cursor and selection as a side effect.
    */
-  setLocalStateField(field: string, value: unknown) {
+  setLocalStateField(field: string, value: unknown): void {
     this.awareness.setLocalStateField(field, value);
   }
   getStates() { return this.awareness.getStates(); }
@@ -221,9 +221,9 @@ export class YjsP2PProvider {
   get isSynced() { return this.initialSyncComplete; }
   getSyncState(): SyncState { return this.syncState; }
   getDocumentHash(): string { return this.merkleTree?.getRootHash() ?? computeDocumentHash(this.doc); }
-  forceResync() { this.initiateSync(); }
+  forceResync(): void { this.initiateSync(); }
 
-  destroy() {
+  destroy(): void {
     if (this.destroyed) return;
     // Flushed BEFORE the destroyed flag, or edits made in the last 120ms are
     // silently dropped -- closing a document right after typing is the normal

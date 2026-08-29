@@ -25,14 +25,14 @@ export function GeneralSettingsTab() {
 
   // Saved on change like the privacy toggles — this is a device preference,
   // not part of the profile form, so it does not wait on the Save button.
-  const handleCallSoundsChange = (enabled: boolean) => {
+  const handleCallSoundsChange = (enabled: boolean): void => {
     setCallSoundsEnabled(enabled);
     saveCallSoundSettings({ enabled });
   };
 
   // Load current user data on mount
   useEffect(() => {
-    const loadUser = async () => {
+    const loadUser = async (): Promise<void> => {
       const currentUser = await userService.getCurrentUser();
       if (currentUser) {
         setDisplayName(currentUser.fullName || currentUser.username);
@@ -45,7 +45,7 @@ export function GeneralSettingsTab() {
 
   // Handle profile updates
   // MetadataValue is a tagged enum: { type: "String", content: "..." }
-  const handleProfileUpdate = useCallback((data: { user: User }) => {
+  const handleProfileUpdate = useCallback((data: { user: User }): void => {
     const avatarMeta = data.user.metadata?.avatar;
     const avatar = (avatarMeta && 'content' in avatarMeta && typeof avatarMeta.content === 'string') ? avatarMeta.content : undefined;
     if (avatar) {
@@ -68,7 +68,7 @@ export function GeneralSettingsTab() {
 
   const hasChanges = displayName !== originalDisplayName || avatarData !== originalAvatarData;
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
     if (!hasChanges) return;
 
     setIsSaving(true);
@@ -89,7 +89,7 @@ export function GeneralSettingsTab() {
     }
   };
 
-  const handleAvatarChange = (base64Data: string | null) => {
+  const handleAvatarChange = (base64Data: string | null): void => {
     setAvatarData(base64Data);
   };
 

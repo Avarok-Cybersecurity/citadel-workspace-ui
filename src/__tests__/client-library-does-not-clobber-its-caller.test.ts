@@ -22,8 +22,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const LIB = join(process.cwd(), '..', 'citadel-workspace-client-ts', 'src');
-const CLIENT = join(
+const LIB: string = join(process.cwd(), '..', 'citadel-workspace-client-ts', 'src');
+const CLIENT: string = join(
   process.cwd(),
   '..',
   'citadel-internal-service',
@@ -31,11 +31,11 @@ const CLIENT = join(
   'src',
 );
 
-const read = (base: string, file: string) =>
+const read = (base: string, file: string): string =>
   stripComments(readFileSync(join(base, file), 'utf8'));
 
 describe('the session manager does not displace the caller', () => {
-  const session = read(LIB, 'session.ts');
+  const session: string = read(LIB, 'session.ts');
 
   it('was found, so the assertions below are about something', () => {
     expect(session).toContain('setupErrorHandling');
@@ -54,12 +54,12 @@ describe('the session manager does not displace the caller', () => {
 });
 
 describe('reconnect actually reconnects', () => {
-  const session = read(LIB, 'session.ts');
+  const session: string = read(LIB, 'session.ts');
 
   it('does not clear the workspace session on a transport error', () => {
     // A CID is permanent per account and the session survives a transport drop,
     // so discarding local session state is both wrong and unrecoverable.
-    const scheduled = session.slice(session.indexOf('private scheduleReconnect'));
+    const scheduled: string = session.slice(session.indexOf('private scheduleReconnect'));
     expect(scheduled).not.toContain('clearWorkspaceSession');
   });
 
@@ -69,7 +69,7 @@ describe('reconnect actually reconnects', () => {
 });
 
 describe('the base client supports more than one error subscriber', () => {
-  const client = read(CLIENT, 'InternalServiceWasmClient.ts');
+  const client: string = read(CLIENT, 'InternalServiceWasmClient.ts');
 
   it('exposes a listener API that returns a remover', () => {
     expect(client).toContain('addErrorListener');

@@ -15,15 +15,15 @@ function installContainer(registration: unknown) {
   const listeners: Record<string, (() => void)[]> = {};
   const container = {
     getRegistration: () => Promise.resolve(registration),
-    addEventListener: (type: string, fn: () => void) => {
+    addEventListener: (type: string, fn: () => void): void => {
       (listeners[type] ??= []).push(fn);
     },
-    removeEventListener: (type: string, fn: () => void) => {
+    removeEventListener: (type: string, fn: () => void): void => {
       listeners[type] = (listeners[type] ?? []).filter((f) => f !== fn);
     },
   };
   Object.defineProperty(navigator, 'serviceWorker', { value: container, configurable: true });
-  return { fire: (type: string) => (listeners[type] ?? []).forEach((f) => f()) };
+  return { fire: (type: string): void => (listeners[type] ?? []).forEach((f): void => f()) };
 }
 
 describe('applyWaitingUpdate', () => {

@@ -23,7 +23,7 @@ describe('ConnectionService.onConnectionChange', () => {
   });
 
   it('returns an unsubscribe that actually stops the handler', () => {
-    const service = ConnectionService.getInstance();
+    const service: ConnectionService = ConnectionService.getInstance();
     const handler = vi.fn();
 
     const unsubscribe = service.onConnectionChange(handler);
@@ -40,15 +40,15 @@ describe('ConnectionService.onConnectionChange', () => {
   });
 
   it('does not accumulate handlers when the same effect re-subscribes', () => {
-    const service = ConnectionService.getInstance();
+    const service: ConnectionService = ConnectionService.getInstance();
     const calls: number[] = [];
 
     // Simulate an effect that re-runs: subscribe, clean up, subscribe again.
-    for (let run = 0; run < 5; run++) {
-      const unsubscribe = service.onConnectionChange(() => calls.push(run));
+    for (let run: number = 0; run < 5; run++) {
+      const unsubscribe = service.onConnectionChange((): number => calls.push(run));
       unsubscribe();
     }
-    const live = service.onConnectionChange(() => calls.push(99));
+    const live = service.onConnectionChange((): number => calls.push(99));
 
     // `onConnectionChange` replays the current connection to a new subscriber
     // immediately, so everything recorded so far is that replay, not a dispatch.
@@ -64,7 +64,7 @@ describe('ConnectionService.onConnectionChange', () => {
 
 describe('useDomainMembers', () => {
   it('releases its members:loaded listener on unmount', () => {
-    const before = workspaceEvents.listenerCount('members:loaded');
+    const before: number = workspaceEvents.listenerCount('members:loaded');
 
     const first = renderHook(() => useDomainMembers('domain-1'));
     expect(workspaceEvents.listenerCount('members:loaded')).toBe(before + 1);

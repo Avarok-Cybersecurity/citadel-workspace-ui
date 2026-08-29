@@ -10,8 +10,8 @@ import { POOR_THRESHOLD } from '../call-quality';
 
 function pool(): ReceiverPool {
   return new ReceiverPool({
-    onStreamsChanged: () => {},
-    onNeedKeyframe: () => {},
+    onStreamsChanged: (): void => {},
+    onNeedKeyframe: (): void => {},
     fallbackCodec: () => 'vp8',
   });
 }

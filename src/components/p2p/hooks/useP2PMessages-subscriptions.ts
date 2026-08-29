@@ -39,7 +39,7 @@ export function subscribeToConversationEvents({
   setPeerPresence,
   setIsRegistered,
 }: ConversationSubscriptionParams): () => void {
-  const unsubscribeMessage = messenger.onMessage((message) => {
+  const unsubscribeMessage = messenger.onMessage((message): void => {
     if (message.senderCid === peerCid || message.recipientCid === peerCid) {
       setMessages(prev => {
         if (prev.some(m => m.id === message.id)) return prev;
@@ -55,7 +55,7 @@ export function subscribeToConversationEvents({
     }
   });
 
-  const unsubscribeStatusChange = messenger.onMessageStatusChange((messageId, status) => {
+  const unsubscribeStatusChange = messenger.onMessageStatusChange((messageId, status): void => {
     setMessages(prev => {
       // `prev.map` always allocates, so this changed the array identity for a
       // status transition in ANY conversation — and the chat's scroll effect
@@ -66,7 +66,7 @@ export function subscribeToConversationEvents({
     });
   });
 
-  const unsubscribeMessageUpdate = eventEmitter.on('p2p:message-updated', (updatedMessage: P2PMessage) => {
+  const unsubscribeMessageUpdate = eventEmitter.on('p2p:message-updated', (updatedMessage: P2PMessage): void => {
     if (updatedMessage.senderCid === peerCid || updatedMessage.recipientCid === peerCid) {
       setMessages(prev => prev.map(m => m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m));
     }
@@ -93,19 +93,19 @@ export function subscribeToConversationEvents({
     },
   );
 
-  const unsubscribeTyping = messenger.onTyping((cid, isTyping) => {
+  const unsubscribeTyping = messenger.onTyping((cid, isTyping): void => {
     if (cid === peerCid) setPeerTyping(isTyping);
   });
 
-  const unsubscribeConnection = messenger.onConnectionChange((cid, connected) => {
+  const unsubscribeConnection = messenger.onConnectionChange((cid, connected): void => {
     if (cid === peerCid) setIsConnected(connected);
   });
 
-  const unsubscribePresence = messenger.onPresenceChange((cid, presence) => {
+  const unsubscribePresence = messenger.onPresenceChange((cid, presence): void => {
     if (cid === peerCid) setPeerPresence(presence);
   });
 
-  const unsubscribeRegistration = eventEmitter.on('p2p:peer-registered', ({ peer }: { peer: { cid: bigint } }) => {
+  const unsubscribeRegistration = eventEmitter.on('p2p:peer-registered', ({ peer }: { peer: { cid: bigint } }): void => {
     if (peer.cid === peerCid) {
       setIsRegistered(true);
       p2pAutoConnectService.poll();
@@ -116,7 +116,7 @@ export function subscribeToConversationEvents({
   // that emit 'p2p:message-received' but NOT messenger.onMessage().
   // The dedup check (prev.some(m => m.id === ...)) prevents double-processing
   // when both paths fire for the same message.
-  const unsubscribeMessageReceived = eventEmitter.on('p2p:message-received', (eventData: { peerCid: bigint; messageId: string; message?: P2PMessage }) => {
+  const unsubscribeMessageReceived = eventEmitter.on('p2p:message-received', (eventData: { peerCid: bigint; messageId: string; message?: P2PMessage }): void => {
     const { peerCid: messagePeerCid, messageId, message: eventMessage } = eventData;
     if (messagePeerCid === peerCid) {
       setMessages(prev => {

@@ -27,12 +27,12 @@ export function useServiceHealth(): { isHealthy: boolean } {
   const [isHealthy, setIsHealthy] = useState(true);
 
   useEffect(() => {
-    const handler = (health: unknown) => {
+    const handler = (health: unknown): void => {
       const h = health as ServiceHealth | undefined;
       if (typeof h?.isHealthy === 'boolean') setIsHealthy(h.isHealthy);
     };
     eventEmitter.on('service-health', handler);
-    return () => eventEmitter.off('service-health', handler);
+    return (): void => eventEmitter.off('service-health', handler);
   }, []);
 
   return { isHealthy };

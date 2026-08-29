@@ -83,7 +83,7 @@ export function toHex(color: HslColor): string {
     h < 300 ? [x, 0, c] :
     [c, 0, x];
 
-  const to255 = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+  const to255 = (v: number): string => Math.round((v + m) * 255).toString(16).padStart(2, '0');
   return `#${to255(r)}${to255(g)}${to255(b)}`;
 }
 
@@ -96,7 +96,7 @@ export function toHex(color: HslColor): string {
  */
 export function relativeLuminance(color: HslColor): number {
   const hex: string = toHex(color).slice(1);
-  const channel = (i: number) => {
+  const channel = (i: number): number => {
     const v: number = parseInt(hex.slice(i * 2, i * 2 + 2), 16) / 255;
     return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
   };

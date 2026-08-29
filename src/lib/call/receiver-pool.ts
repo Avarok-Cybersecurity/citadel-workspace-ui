@@ -25,11 +25,11 @@ export class ReceiverPool {
    * Connection quality, tracked here because this is where per-peer frames and
    * gaps converge. Anywhere else would have to be told about both again.
    */
-  private readonly quality = new CallQualityTracker();
+  private readonly quality: CallQualityTracker = new CallQualityTracker();
 
-  private readonly receivers = new Map<bigint, PeerReceiver>();
+  private readonly receivers: Map<bigint, PeerReceiver> = new Map<bigint, PeerReceiver>();
   /** What each peer told us it will SEND, so decoders match what arrives. */
-  private readonly peerReceiveCodecs = new Map<bigint, string>();
+  private readonly peerReceiveCodecs: Map<bigint, string> = new Map<bigint, string>();
 
   constructor(private readonly callbacks: ReceiverPoolCallbacks) {}
 

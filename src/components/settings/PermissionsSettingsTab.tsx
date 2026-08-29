@@ -65,7 +65,7 @@ export function PermissionsSettingsTab() {
     }));
   }, [state.nodes]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = async (): Promise<void> => {
     setIsRefreshing(true);
     await refreshPermissions();
     setIsRefreshing(false);

@@ -21,7 +21,7 @@ vi.mock('@/lib/call/call-manager', () => ({
   CallManager: class {
     selfCid: bigint;
     end = vi.fn();
-    status = 'active';
+    status: string = 'active';
     constructor(config: { selfCid: bigint }) {
       this.selfCid = config.selfCid;
       built.push(this);
@@ -38,7 +38,7 @@ vi.mock('@/lib/call/codec-support', () => ({
   localCapabilities: () => Promise.resolve({}),
   probeMediaCapabilities: () => Promise.resolve({ supported: true }),
 }));
-vi.mock('@/lib/call/peer-name', () => ({ callPeerName: () => 'Peer' }));
+vi.mock('@/lib/call/peer-name', () => ({ callPeerName: (): string => 'Peer' }));
 
 import { useCallRuntime } from '../use-call-runtime';
 

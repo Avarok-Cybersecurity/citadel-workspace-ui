@@ -21,7 +21,7 @@ export function ConnectionsSettingsTab() {
     runAsyncSetup(loadSettings);
   }, []);
 
-  const loadSettings = async () => {
+  const loadSettings = async (): Promise<void> => {
     setLoading(true);
     try {
       const [enabled, autoAccept] = await Promise.all([
@@ -37,7 +37,7 @@ export function ConnectionsSettingsTab() {
     }
   };
 
-  const handleToggle = async (enabled: boolean) => {
+  const handleToggle = async (enabled: boolean): Promise<void> => {
     setAutoReconnect(enabled);
     setSaving(true);
 
@@ -68,7 +68,7 @@ export function ConnectionsSettingsTab() {
     }
   };
 
-  const handleAutoAcceptChange = async (checked: boolean) => {
+  const handleAutoAcceptChange = async (checked: boolean): Promise<void> => {
     setAutoAcceptRegistrations(checked);
     setSavingAutoAccept(true);
     try {

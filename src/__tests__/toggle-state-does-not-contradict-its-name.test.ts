@@ -15,18 +15,18 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 describe('a control with aria-pressed', () => {
   it('does not also flip its accessible name', async () => {
-    const files = await fg(['**/*.tsx'], {
+    const files: string[] = await fg(['**/*.tsx'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.tsx'],
     });
 
     const offenders: string[] = [];
     for (const rel of files) {
-      const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
       if (!source.includes('aria-pressed')) continue;
 
       // A conditional expression inside aria-label is the shape: the name is

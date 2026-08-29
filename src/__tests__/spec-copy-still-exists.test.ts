@@ -39,15 +39,15 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-const UI = resolve(__dirname, '../..');
-const APP = join(UI, 'src');
-const SPECS = join(UI, 'integration-tests', 'src');
+const UI: string = resolve(__dirname, '../..');
+const APP: string = join(UI, 'src');
+const SPECS: string = join(UI, 'integration-tests', 'src');
 
 function sourceFiles(dir: string, extensions: string[]): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir)) {
     if (entry === 'node_modules') continue;
-    const path = join(dir, entry);
+    const path: string = join(dir, entry);
     if (statSync(path).isDirectory()) out.push(...sourceFiles(path, extensions));
     else if (extensions.some((ext) => entry.endsWith(ext))) out.push(path);
   }
@@ -56,10 +56,10 @@ function sourceFiles(dir: string, extensions: string[]): string[] {
 
 /** Every phrase a spec uses to ADDRESS a control, with where it says it. */
 function addressedByCopy(): Map<string, string> {
-  const found = new Map<string, string>();
+  const found: Map<string, string> = new Map<string, string>();
   for (const file of sourceFiles(SPECS, ['.ts'])) {
-    const source = readFileSync(file, 'utf-8');
-    const where = file.slice(SPECS.length + 1);
+    const source: string = readFileSync(file, 'utf-8');
+    const where: string = file.slice(SPECS.length + 1);
     // getByRole('button', { name: 'Exact words' })
     for (const m of source.matchAll(/getByRole\(\s*['"]button['"]\s*,\s*\{\s*name:\s*['"]([^'"]+)['"]/g)) {
       if (!found.has(m[1])) found.set(m[1], where);
@@ -72,7 +72,7 @@ function addressedByCopy(): Map<string, string> {
     // plain words. A regex is how the password-toggle failure was written.
     for (const m of source.matchAll(/getByRole\(\s*['"]button['"]\s*,\s*\{\s*name:\s*\/([^/\n]+)\/[a-z]*\s*\}/g)) {
       for (const alternative of m[1].split('|')) {
-        const phrase = alternative.replace(/[\^$]/g, '').trim();
+        const phrase: string = alternative.replace(/[\^$]/g, '').trim();
         if (!/^[A-Za-z][A-Za-z ]{2,28}$/.test(phrase)) continue;
         if (!found.has(phrase)) found.set(phrase, where);
       }
@@ -82,11 +82,11 @@ function addressedByCopy(): Map<string, string> {
 }
 
 describe('copy a spec addresses a control by', () => {
-  const app = sourceFiles(APP, ['.ts', '.tsx'])
+  const app: string = sourceFiles(APP, ['.ts', '.tsx'])
     .map((f) => readFileSync(f, 'utf-8'))
     .join('\n')
     .toLowerCase();
-  const phrases = addressedByCopy();
+  const phrases: Map<string, string> = addressedByCopy();
 
   it('finds the phrases it is written about', () => {
     // A rule over an empty set passes forever.
@@ -98,7 +98,7 @@ describe('copy a spec addresses a control by', () => {
   });
 
   it('still exists in the app', () => {
-    const gone = [...phrases]
+    const gone: string[] = [...phrases]
       .filter(([phrase]) => !app.includes(phrase.toLowerCase()))
       .map(([phrase, where]) => `${where}: "${phrase}"`);
     expect(gone).toEqual([]);

@@ -34,10 +34,10 @@ function message(senderId: string) {
 
 /** The handlers the item needs; none is exercised by these assertions. */
 const props = {
-  onEdit: () => {},
-  onDelete: () => {},
-  onReply: () => {},
-  onOpenThread: () => {},
+  onEdit: (): void => {},
+  onDelete: (): void => {},
+  onReply: (): void => {},
+  onOpenThread: (): void => {},
   totalMembers: 3,
 };
 

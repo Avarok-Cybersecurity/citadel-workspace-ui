@@ -14,7 +14,7 @@ const noop = (..._args: unknown[]): void => { /* intentionally empty */ };
  * Log debug messages. Only emits in development.
  */
 export const debugLog: (category: string, ...args: unknown[]) => void = isDev
-  ? (category, ...args) => console.log(`[${category}]`, ...args)
+  ? (category, ...args): void => console.log(`[${category}]`, ...args)
   : noop;
 
 /**

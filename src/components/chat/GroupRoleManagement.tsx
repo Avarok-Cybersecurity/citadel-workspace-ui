@@ -32,21 +32,21 @@ export function GroupRoleManagement({ group, onSettingsChange }: GroupRoleManage
 
   const canManageRoles = can('manageRoles');
 
-  const handleCreateRole = useCallback(() => {
+  const handleCreateRole = useCallback((): void => {
     setEditingRole(null);
     setShowEditor(true);
   }, []);
 
-  const handleEditRole = useCallback((role: GroupRole) => {
+  const handleEditRole = useCallback((role: GroupRole): void => {
     setEditingRole(role);
     setShowEditor(true);
   }, []);
 
-  const handleDeleteRole = useCallback((role: GroupRole) => {
+  const handleDeleteRole = useCallback((role: GroupRole): void => {
     setRoleToDelete(role);
   }, []);
 
-  const confirmDelete = useCallback(() => {
+  const confirmDelete = useCallback((): void => {
     if (roleToDelete) {
       deleteRole(roleToDelete.id);
       setRoleToDelete(null);

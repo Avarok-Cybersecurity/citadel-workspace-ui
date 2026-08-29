@@ -36,12 +36,12 @@ export async function discoverPeersViaGetSessions(currentCid: bigint | null): Pr
     GetSessions: { request_id: requestId, cid: 0 }
   };
 
-  const responsePromise = new Promise<{ sessions?: SessionEntry[]; request_id?: string }>((resolve, reject) => {
-    const timeout = setTimeout(() => {
+  const responsePromise = new Promise<{ sessions?: SessionEntry[]; request_id?: string }>((resolve, reject): void => {
+    const timeout = setTimeout((): void => {
       reject(new Error('GetSessions timed out'));
     }, TIMEOUT.SERVER_REQUEST_MS);
 
-    const handleMessage = (raw: unknown) => {
+    const handleMessage = (raw: unknown): void => {
       const message = narrowWebSocketMessage(raw);
       if (!message) return;
       if (hasVariant(message, 'GetSessionsResponse')) {
@@ -83,13 +83,13 @@ export async function fetchRegisteredPeers(currentCid: bigint): Promise<Set<stri
     ListRegisteredPeers: { request_id: requestId, cid: currentCid }
   };
 
-  const responsePromise = new Promise<{ peers?: Record<string, unknown>; request_id?: string }>((resolve, reject) => {
-    const timeout = setTimeout(() => {
+  const responsePromise = new Promise<{ peers?: Record<string, unknown>; request_id?: string }>((resolve, reject): void => {
+    const timeout = setTimeout((): void => {
       broadcastChannelService.clearRequest(requestId);
       reject(new Error('Request timed out'));
     }, 10000);
 
-    const handleMessage = (raw: unknown) => {
+    const handleMessage = (raw: unknown): void => {
       const message = narrowWebSocketMessage(raw);
       if (!message) return;
       if (hasVariant(message, 'ListRegisteredPeersResponse')) {
@@ -133,13 +133,13 @@ export async function fetchAllPeers(currentCid: bigint): Promise<Peer[]> {
     ListAllPeers: { request_id: requestId, cid: currentCid }
   };
 
-  const responsePromise = new Promise<{ peer_information?: Record<string, PeerEntry>; request_id?: string }>((resolve, reject) => {
-    const timeout = setTimeout(() => {
+  const responsePromise = new Promise<{ peer_information?: Record<string, PeerEntry>; request_id?: string }>((resolve, reject): void => {
+    const timeout = setTimeout((): void => {
       broadcastChannelService.clearRequest(requestId);
       reject(new Error('Request timed out'));
     }, 10000);
 
-    const handleMessage = (raw: unknown) => {
+    const handleMessage = (raw: unknown): void => {
       const message = narrowWebSocketMessage(raw);
       if (!message) return;
       if (hasVariant(message, 'ListAllPeersResponse')) {

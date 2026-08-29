@@ -69,7 +69,7 @@ export function NodeManagementModal({
   const modes = buildModes(meta.label);
   const fields: FieldConfig[] = buildFields(meta);
 
-  const handleSubmit = async (formData: Record<string, string>) => {
+  const handleSubmit = async (formData: Record<string, string>): Promise<void> => {
     if (mode === 'create') {
       if (parentId === undefined) {
         throw new Error('parentId is required for create mode');

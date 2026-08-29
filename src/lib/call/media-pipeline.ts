@@ -90,11 +90,11 @@ export function createVideoEncoder(
   let forceKeyframe = true;
 
   const encoder = new VideoEncoder({
-    output: (chunk) => {
+    output: (chunk): void => {
       if (chunk.type === 'key') lastKeyframeAt = chunk.timestamp;
       sink(videoChunkToFrame(chunk, thumbnail, screen?.track));
     },
-    error: (error) => onError(error instanceof Error ? error : new Error(String(error))),
+    error: (error): void => onError(error instanceof Error ? error : new Error(String(error))),
   });
 
   encoder.configure({
@@ -110,7 +110,7 @@ export function createVideoEncoder(
   let appliedRung: number = -1;
 
   return {
-    encode(frame, congestion) {
+    encode(frame, congestion): void {
       // As the decoder guard below: a fatal error closes the codec async, and
       // encode() on a closed codec throws out of the capture pump's read loop,
       // which then exits for good. The owner rebuilds it; stay quiet here.
@@ -142,12 +142,12 @@ export function createVideoEncoder(
       encoder.encode(frame, { keyFrame: forceKeyframe || dueForKeyframe });
       forceKeyframe = false;
     },
-    requestKeyframe() {
+    requestKeyframe(): void {
       // Set a flag rather than encoding now: the peer asks for this after a gap,
       // and the next captured frame is the earliest one we could send anyway.
       forceKeyframe = true;
     },
-    close() {
+    close(): void {
       if (encoder.state !== 'closed') encoder.close();
     },
     queueSize: () => encoder.encodeQueueSize,
@@ -161,8 +161,8 @@ export interface AudioEncoderHandle {
 
 export function createAudioEncoder(sink: FrameSink, onError: (error: Error) => void): AudioEncoderHandle {
   const encoder = new AudioEncoder({
-    output: (chunk) => sink(audioChunkToFrame(chunk)),
-    error: (error) => onError(error instanceof Error ? error : new Error(String(error))),
+    output: (chunk): void => sink(audioChunkToFrame(chunk)),
+    error: (error): void => onError(error instanceof Error ? error : new Error(String(error))),
   });
 
   encoder.configure({
@@ -173,14 +173,14 @@ export function createAudioEncoder(sink: FrameSink, onError: (error: Error) => v
   });
 
   return {
-    encode(data) {
+    encode(data): void {
       // As the decoder guard below: a fatal error closes the codec async, and
       // encode() on a closed codec throws out of the capture pump's read loop,
       // which then exits for good. The owner rebuilds it; stay quiet here.
       if (encoder.state === 'closed') return;
       encoder.encode(data);
     },
-    close() {
+    close(): void {
       if (encoder.state !== 'closed') encoder.close();
     },
   };

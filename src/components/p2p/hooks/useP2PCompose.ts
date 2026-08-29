@@ -51,7 +51,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
 
   const { toast } = useToast();
   const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
-  const applyFormat = useMarkdownFormat(inputRef, setInputMessage, () => inputMessage);
+  const applyFormat = useMarkdownFormat(inputRef, setInputMessage, (): string => inputMessage);
 
   useEffect(() => { inputMessageRef.current = inputMessage; }, [inputMessage]);
 
@@ -71,7 +71,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
   // composer and the next submit commits the change.
   const [editingMessage, setEditingMessage] = useState<P2PMessage | null>(null);
 
-  const handleReplyMessage = useCallback((messageId: string) => {
+  const handleReplyMessage = useCallback((messageId: string): void => {
     const target = messages.find((m) => m.id === messageId);
     if (!target) return;
     setEditingMessage(null);
@@ -79,7 +79,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
     inputRef.current?.focus();
   }, [messages]);
 
-  const handleStartEdit = useCallback((messageId: string, content: string) => {
+  const handleStartEdit = useCallback((messageId: string, content: string): void => {
     const target = messages.find((m) => m.id === messageId);
     if (!target) return;
     setReplyingTo(null);
@@ -88,13 +88,13 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
     inputRef.current?.focus();
   }, [messages]);
 
-  const cancelComposeContext = useCallback(() => {
+  const cancelComposeContext = useCallback((): void => {
     if (editingMessage) setInputMessage('');
     setEditingMessage(null);
     setReplyingTo(null);
   }, [editingMessage]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = async (): Promise<void> => {
     if (isSending) return;
     if (!inputMessage.trim()) return;
     if (messageType === 'live_document') { setShowDocModal(true); return; }
@@ -128,22 +128,22 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
   };
 
 
-  const handleDocCreate = useCallback(async (title: string, initialContent: string) => {
+  const handleDocCreate = useCallback(async (title: string, initialContent: string): Promise<void> => {
     await createDocument(title, initialContent);
     setShowDocModal(false);
     setInputMessage('');
   }, [createDocument]);
 
-  const handleMessageTypeChange = useCallback((type: MessageType) => {
+  const handleMessageTypeChange = useCallback((type: MessageType): void => {
     setMessageType(type);
     if (type === 'live_document' && inputMessage.trim()) setShowDocModal(true);
   }, [inputMessage]);
 
-  const handleInputFocus = useCallback(() => {
+  const handleInputFocus = useCallback((): void => {
     if (peerCid) messenger.startTypingPolling(peerCid, () => inputMessageRef.current);
   }, [peerCid, messenger]);
 
-  const handleInputBlur = useCallback(() => {
+  const handleInputBlur = useCallback((): void => {
     if (peerCid) messenger.stopTypingPolling(peerCid);
   }, [peerCid, messenger]);
 

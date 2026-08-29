@@ -29,7 +29,7 @@ export function createVideoDecoder(
 
   const decoder = new VideoDecoder({
     output: onFrame,
-    error: (error) => {
+    error: (error): void => {
       // A decode error means the reference chain is broken; only a keyframe
       // recovers it, so ask rather than continuing to emit corruption.
       primed = false;
@@ -41,7 +41,7 @@ export function createVideoDecoder(
   decoder.configure({ codec, optimizeForLatency: true });
 
   return {
-    decode(frame) {
+    decode(frame): void {
       // A fatal error closes the codec asynchronously; a frame can race that
       // callback, and decode() on a closed codec throws out of the caller's
       // event handler. The owner rebuilds the decoder — this just stays quiet.
@@ -56,7 +56,7 @@ export function createVideoDecoder(
       const init = frameToDecoderChunk(frame);
       decoder.decode(new EncodedVideoChunk(init));
     },
-    close() {
+    close(): void {
       if (decoder.state !== 'closed') decoder.close();
     },
     isPrimed: () => primed,
@@ -74,7 +74,7 @@ export function createAudioDecoder(
 ): AudioDecoderHandle {
   const decoder = new AudioDecoder({
     output: onData,
-    error: (error) => onError(error instanceof Error ? error : new Error(String(error))),
+    error: (error): void => onError(error instanceof Error ? error : new Error(String(error))),
   });
 
   decoder.configure({
@@ -84,12 +84,12 @@ export function createAudioDecoder(
   });
 
   return {
-    decode(frame) {
+    decode(frame): void {
       // Same closed-codec race as the video decoder; see above.
       if (decoder.state === 'closed') return;
       decoder.decode(new EncodedAudioChunk(frameToDecoderChunk(frame)));
     },
-    close() {
+    close(): void {
       if (decoder.state !== 'closed') decoder.close();
     },
   };

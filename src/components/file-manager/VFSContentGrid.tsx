@@ -63,13 +63,13 @@ export function VFSContentGrid({
     ? allChildren.filter(n => matchesSearch(n.name, filterText))
     : allChildren;
 
-  const handleBackgroundClick = useCallback(() => { onClearSelection?.(); }, [onClearSelection]);
-  const handleRename = useCallback((node: RevfsNode) => { setRenamingPath(node.path); }, []);
-  const handleRenameConfirm = useCallback(async (node: RevfsNode, newName: string) => {
+  const handleBackgroundClick = useCallback((): void => { onClearSelection?.(); }, [onClearSelection]);
+  const handleRename = useCallback((node: RevfsNode): void => { setRenamingPath(node.path); }, []);
+  const handleRenameConfirm = useCallback(async (node: RevfsNode, newName: string): Promise<void> => {
     setRenamingPath(null); await onRename(node.path, newName);
   }, [onRename]);
-  const handleRenameCancel = useCallback(() => { setRenamingPath(null); }, []);
-  const handlePasteItem = useCallback(async (node: RevfsNode) => { await onPaste(node.path); }, [onPaste]);
+  const handleRenameCancel = useCallback((): void => { setRenamingPath(null); }, []);
+  const handlePasteItem = useCallback(async (node: RevfsNode): Promise<void> => { await onPaste(node.path); }, [onPaste]);
 
   const sorted: RevfsNode[] = [...children].sort((a, b) => {
     if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
@@ -87,18 +87,18 @@ export function VFSContentGrid({
     return sortDirection === 'asc' ? cmp : -cmp;
   });
 
-  const onRootDragOver = (e: React.DragEvent) => { e.preventDefault(); setRootDragOver(true); };
-  const onRootDrop = (e: React.DragEvent) => {
+  const onRootDragOver = (e: React.DragEvent): void => { e.preventDefault(); setRootDragOver(true); };
+  const onRootDrop = (e: React.DragEvent): void => {
     e.preventDefault(); setRootDragOver(false);
     if (e.dataTransfer.files.length > 0) onDrop(currentPath, e.dataTransfer.files);
   };
 
   const emptyContextProps = {
     node: null as RevfsNode | null,
-    onNewFolder: () => onNewFolder(currentPath),
-    onDelete: () => {}, onDownload: () => {},
-    onUploadFile: () => onUploadFile(currentPath), onInfo: () => {},
-    onPaste: hasPasteItems ? async () => { await onPaste(currentPath); } : undefined,
+    onNewFolder: (): void => onNewFolder(currentPath),
+    onDelete: (): void => {}, onDownload: (): void => {},
+    onUploadFile: (): void => onUploadFile(currentPath), onInfo: (): void => {},
+    onPaste: hasPasteItems ? async (): Promise<void> => { await onPaste(currentPath); } : undefined,
     hasPasteItems,
   };
 

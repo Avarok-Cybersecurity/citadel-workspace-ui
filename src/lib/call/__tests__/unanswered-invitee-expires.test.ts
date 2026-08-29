@@ -56,10 +56,10 @@ function harness() {
   return {
     manager,
     transport,
-    setNow: (ms: number) => {
+    setNow: (ms: number): void => {
       now = ms;
     },
-    tick: () => {
+    tick: (): number => {
       const due = timers.filter((t) => !t.cancelled && !t.fired);
       for (const t of due) {
         t.fired = true;
@@ -67,16 +67,16 @@ function harness() {
       }
       return due.length;
     },
-    accept: (from: bigint) =>
+    accept: (from: bigint): Promise<void> =>
       manager.handleSignal(from, from.toString(), {
         kind: 'CallAccept',
         call_id: 'c1',
         codecs: CAPS,
         media: AUDIO,
       }),
-    beat: (from: bigint) =>
+    beat: (from: bigint): Promise<void> =>
       manager.handleSignal(from, from.toString(), { kind: 'CallHeartbeat', call_id: 'c1' }),
-    bye: (from: bigint) =>
+    bye: (from: bigint): Promise<void> =>
       manager.handleSignal(from, from.toString(), {
         kind: 'CallEnd',
         call_id: 'c1',

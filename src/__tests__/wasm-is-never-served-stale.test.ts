@@ -29,10 +29,10 @@ import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const config = readFileSync(join(process.cwd(), 'vite.config.ts'), 'utf8');
+const config: string = readFileSync(join(process.cwd(), 'vite.config.ts'), 'utf8');
 
 /** The config with `//` comments stripped, so prose cannot satisfy a check. */
-const code = config.replace(/^\s*\/\/.*$/gm, '');
+const code: string = config.replace(/^\s*\/\/.*$/gm, '');
 
 describe('the WASM binary', () => {
   it('is precached, so it is versioned with the glue that calls it', () => {
@@ -55,8 +55,8 @@ describe('the WASM binary', () => {
   });
 
   it('has no runtime-caching rule racing the precache', () => {
-    const runtime = code.slice(code.indexOf('runtimeCaching:'));
-    const rules = runtime.slice(0, runtime.indexOf('devOptions'));
+    const runtime: string = code.slice(code.indexOf('runtimeCaching:'));
+    const rules: string = runtime.slice(0, runtime.indexOf('devOptions'));
     expect(
       rules,
       'a runtime rule answers from its own generation, which is exactly how ' +
@@ -68,7 +68,7 @@ describe('the WASM binary', () => {
     const cap = code.match(/maximumFileSizeToCacheInBytes:\s*(\d+)\s*\*\s*1024\s*\*\s*1024/);
     expect(cap, 'no maximumFileSizeToCacheInBytes — the binary would be dropped').not.toBeNull();
 
-    const capBytes = Number(cap![1]) * 1024 * 1024;
+    const capBytes: number = Number(cap![1]) * 1024 * 1024;
 
     // The cap has to clear the binary, and workbox drops an over-cap file from
     // the precache SILENTLY — which reinstates the glue/binary split without
@@ -79,12 +79,12 @@ describe('the WASM binary', () => {
     // yet. So the floor is asserted unconditionally and the real size only when
     // there is a real file, and the test says which it did rather than quietly
     // becoming a no-op on the machine that matters.
-    const FLOOR_BYTES = 4 * 1024 * 1024;
+    const FLOOR_BYTES: number = 4 * 1024 * 1024;
     expect(capBytes, 'the cap must clear a WASM binary of several megabytes').toBeGreaterThanOrEqual(
       FLOOR_BYTES,
     );
 
-    const binary = join(process.cwd(), 'public/wasm/citadel_internal_service_wasm_client_bg.wasm');
+    const binary: string = join(process.cwd(), 'public/wasm/citadel_internal_service_wasm_client_bg.wasm');
     if (!existsSync(binary)) return;
 
     expect(

@@ -12,7 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import { toGroupEvents } from '../group-events';
 
-const noName = () => 'peer';
+const noName = (): string => 'peer';
 
 describe('a refused group operation', () => {
   it('becomes an event carrying the server\'s reason', () => {

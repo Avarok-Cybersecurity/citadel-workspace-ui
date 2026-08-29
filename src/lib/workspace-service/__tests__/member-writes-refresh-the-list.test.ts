@@ -25,11 +25,11 @@ import { addMember, removeMember, updateMemberRole } from '../member-operations'
 import { eventEmitter } from '@/lib/event-emitter';
 import { UserRoleTS } from '@/types/workspace-types';
 
-const sender = { sendProtocolRequest: vi.fn(() => Promise.resolve()) } as never;
+const sender = { sendProtocolRequest: vi.fn((): Promise<void> => Promise.resolve()) } as never;
 
 function countReloads(run: () => Promise<unknown>): Promise<number> {
   let count: number = 0;
-  const off = eventEmitter.on('members:reload', () => { count += 1; });
+  const off = eventEmitter.on('members:reload', (): void => { count += 1; });
   return run()
     .catch(() => undefined)
     .then(() => {

@@ -44,17 +44,17 @@ beforeEach(() => {
   g.AudioEncoder = Object.assign(function () {}, {
     isConfigSupported: () => Promise.resolve({ supported: true }),
   });
-  g.AudioDecoder = function () {};
+  g.AudioDecoder = function (): void {};
   g.VideoEncoder = Object.assign(function () {}, {
     isConfigSupported: () => Promise.resolve({ supported: false }),
   });
-  g.VideoDecoder = function () {};
+  g.VideoDecoder = function (): void {};
   // The pump reads frames off this; a reader that never yields keeps the pump
   // idle without it throwing, which is all these tests need from it.
-  g.MediaStreamTrackProcessor = function (this: Record<string, unknown>) {
-    this.readable = { getReader: () => ({ read: () => new Promise(() => {}), cancel: () => Promise.resolve() }) };
+  g.MediaStreamTrackProcessor = function (this: Record<string, unknown>): void {
+    this.readable = { getReader: () => ({ read: () => new Promise((): void => {}), cancel: (): Promise<void> => Promise.resolve() }) };
   };
-  g.MediaStreamTrackGenerator = function (this: Record<string, unknown>) {
+  g.MediaStreamTrackGenerator = function (this: Record<string, unknown>): void {
     this.writable = { getWriter: () => ({ write: vi.fn(), close: vi.fn() }) };
   };
 
@@ -64,7 +64,7 @@ beforeEach(() => {
       new Promise((resolve) => {
         // Held open so a second start() can arrive mid-prompt, exactly as a
         // user double-clicking does.
-        release = () => {
+        release = (): void => {
           const stream = makeStream();
           streams.push(stream);
           resolve(stream as unknown as MediaStream);

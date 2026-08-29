@@ -35,7 +35,7 @@ export const DisconnectConfirmModal = ({
 
   if (!session) return null;
 
-  const handleConfirm = async (action: DisconnectAction) => {
+  const handleConfirm = async (action: DisconnectAction): Promise<void> => {
     // Deleting an account is irreversible and the keys cannot be regenerated,
     // so it is asked twice — the two buttons sit side by side, and this one
     // used to fire on the first click with only a paragraph between it and a

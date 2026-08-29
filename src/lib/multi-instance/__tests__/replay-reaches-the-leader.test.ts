@@ -22,9 +22,9 @@ vi.mock('@/lib/multi-instance/instance-manager', () => ({
 const emitted: string[] = [];
 vi.mock('@/lib/event-emitter', () => ({
   eventEmitter: {
-    emit: (event: string) => emitted.push(event),
-    on: () => () => {},
-    off: () => {},
+    emit: (event: string): number => emitted.push(event),
+    on: () => (): void => {},
+    off: (): void => {},
   },
 }));
 

@@ -117,12 +117,12 @@ export async function executeSendFile(
   });
 
   return failOnSocketLoss('SendFile', new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout((): void => {
       eventEmitter.off('websocket-message', handleMessage);
       reject(new Error('SendFile request timed out'));
     }, TIMEOUT.FILE_SEND_MS);
 
-    const handleMessage = (message: Record<string, unknown>) => {
+    const handleMessage = (message: Record<string, unknown>): void => {
       const success = message.SendFileRequestSuccess as SendFileSuccessResponse | undefined;
       const failure = message.SendFileRequestFailure as SendFileFailureResponse | undefined;
 

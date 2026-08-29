@@ -41,7 +41,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
   // reported "No members found" no matter who was in the workspace. Subscribing
   // is what MembersSection in the sidebar already does; this now matches it.
   useEffect(() => {
-    const handleMembersLoaded = (payload: MembersPayload) => {
+    const handleMembersLoaded = (payload: MembersPayload): void => {
       if (!payload.members) return;
       // Someone else's domain, arriving while this tab is open, used to render
       // here -- and the role changes and removals below would then name THIS
@@ -64,7 +64,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
     return workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded);
   }, [deadlineKey, entityId]);
 
-  const loadMembers = async () => {
+  const loadMembers = async (): Promise<void> => {
     setLoading(true);
     // listMembers resolves on SEND and loading was cleared only by the success
     // event, so a refusal left the panel spinning (useMemberEventSetup has had this).
@@ -87,7 +87,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
 
   const handleRoleChange = changeRole;
 
-  const handleRemoveMember = async () => {
+  const handleRemoveMember = async (): Promise<void> => {
     if (!memberToRemove) return;
     try {
       await removeMember(memberToRemove);
@@ -96,7 +96,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
     }
   };
 
-  const handleAdvancedPermissions = (member: MemberData) => {
+  const handleAdvancedPermissions = (member: MemberData): void => {
     setSelectedMember(member);
   };
 

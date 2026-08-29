@@ -70,12 +70,12 @@ export async function executeDownloadFile(params: DownloadFileParams): Promise<v
   });
 
   return failOnSocketLoss('ReceiveFile', new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout((): void => {
       eventEmitter.off('websocket-message', handleMessage);
       reject(new Error('DownloadFile request timed out'));
     }, TIMEOUT.FILE_DOWNLOAD_MS);
 
-    const handleMessage = (message: Record<string, unknown>) => {
+    const handleMessage = (message: Record<string, unknown>): void => {
       const success = message.DownloadFileSuccess as { request_id?: string } | undefined;
       const failure = message.DownloadFileFailure as
         | { request_id?: string; message?: string }

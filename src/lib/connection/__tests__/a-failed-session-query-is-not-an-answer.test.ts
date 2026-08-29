@@ -24,9 +24,9 @@ function stateDouble() {
   return {
     get cachedSessions() { return cached; },
     isCacheValid: () => cached !== null,
-    setCachedSessions: (s: unknown) => { cached = s; },
+    setCachedSessions: (s: unknown): void => { cached = s; },
     get pendingGetSessions() { return pending; },
-    setPendingGetSessions: (p: unknown) => { pending = p; },
+    setPendingGetSessions: (p: unknown): void => { pending = p; },
     setPendingRequest: vi.fn(),
     hasPendingRequest: () => false,
     deletePendingRequest: vi.fn(),
@@ -42,7 +42,7 @@ describe('asking which sessions exist', () => {
   it('reports failure rather than emptiness when the tab cannot send', async () => {
     const io = {
       canSendRequests: () => false,
-      waitForWebSocketInit: () => Promise.resolve(),
+      waitForWebSocketInit: (): Promise<void> => Promise.resolve(),
       sendWebSocketMessage: vi.fn(),
     };
 
@@ -55,7 +55,7 @@ describe('asking which sessions exist', () => {
   it('does not cache a failure', async () => {
     const io = {
       canSendRequests: () => false,
-      waitForWebSocketInit: () => Promise.resolve(),
+      waitForWebSocketInit: (): Promise<void> => Promise.resolve(),
       sendWebSocketMessage: vi.fn(),
     };
 
@@ -70,7 +70,7 @@ describe('asking which sessions exist', () => {
   it('caches a real answer, including a genuinely empty one', async () => {
     const io = {
       canSendRequests: () => true,
-      waitForWebSocketInit: () => Promise.resolve(),
+      waitForWebSocketInit: (): Promise<void> => Promise.resolve(),
       sendWebSocketMessage: vi.fn().mockImplementation(() => {
         // Resolve the pending request the way the response handler would.
         const call = (state.setPendingRequest as ReturnType<typeof vi.fn>).mock.calls[0];

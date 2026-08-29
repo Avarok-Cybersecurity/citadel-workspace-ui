@@ -35,12 +35,12 @@ export function createRemoteVideoSink(): RemoteVideoSink {
 
     return {
       stream,
-      write(frame) {
+      write(frame): void {
         // Frames are scarce GPU handles; the writer takes ownership and closes
         // them. Failing to close leaks until the decoder stalls.
         void writer.write(frame).catch(() => frame.close());
       },
-      close() {
+      close(): void {
         void writer.close().catch(() => undefined);
         track.stop();
       },
@@ -63,7 +63,7 @@ export function createRemoteVideoSink(): RemoteVideoSink {
     return {
       stream: new MediaStream(),
       write: (frame) => frame.close(),
-      close: () => {},
+      close: (): void => {},
     };
   }
 
@@ -71,7 +71,7 @@ export function createRemoteVideoSink(): RemoteVideoSink {
 
   return {
     stream,
-    write(frame) {
+    write(frame): void {
       try {
         if (canvas.width !== frame.displayWidth || canvas.height !== frame.displayHeight) {
           canvas.width = frame.displayWidth;
@@ -83,7 +83,7 @@ export function createRemoteVideoSink(): RemoteVideoSink {
         frame.close();
       }
     },
-    close() {
+    close(): void {
       for (const track of stream.getTracks()) track.stop();
     },
   };
@@ -107,10 +107,10 @@ export function createRemoteAudioSink(): RemoteAudioSink {
   if (!Generator) {
     return {
       stream: null,
-      write(data) {
+      write(data): void {
         data.close();
       },
-      close() {},
+      close(): void {},
     };
   }
 
@@ -120,10 +120,10 @@ export function createRemoteAudioSink(): RemoteAudioSink {
 
   return {
     stream,
-    write(data) {
+    write(data): void {
       void writer.write(data).catch(() => data.close());
     },
-    close() {
+    close(): void {
       void writer.close().catch(() => undefined);
       track.stop();
     },

@@ -94,7 +94,7 @@ function AppHeaderHeightVar() {
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty('--app-header-height', '3.5rem');
-    return () => {
+    return (): void => {
       root.style.removeProperty('--app-header-height');
     };
   }, []);

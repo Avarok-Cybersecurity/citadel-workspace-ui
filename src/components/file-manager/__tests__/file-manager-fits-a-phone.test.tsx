@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const read = (p: string) => stripComments(readFileSync(join(process.cwd(), p), 'utf8'));
+const read = (p: string): string => stripComments(readFileSync(join(process.cwd(), p), 'utf8'));
 
 describe('the storage bar', () => {
   const source: string = read('src/components/file-manager/FileManagerStorageBar.tsx');

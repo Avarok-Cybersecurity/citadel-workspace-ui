@@ -19,13 +19,13 @@ function resetLocalData(button: HTMLButtonElement): void {
   sessionRemove(RELOAD_ATTEMPTED_KEY);
 
   const request = indexedDB.deleteDatabase(DB_NAME);
-  const reload = () => window.location.reload();
+  const reload = (): void => window.location.reload();
   request.onsuccess = reload;
   request.onerror = reload;
   // `onblocked` fires when another tab still holds the database open, and it
   // never resolves on its own. Saying so beats a button that sits at
   // "Resetting…" for ever.
-  request.onblocked = () => {
+  request.onblocked = (): void => {
     button.textContent = 'Close other Citadel tabs, then try again';
     button.disabled = false;
   };

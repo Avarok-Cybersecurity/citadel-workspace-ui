@@ -35,7 +35,7 @@ class InstanceChannel {
       leaderCheckInterval: null,
       heartbeatInterval: null,
       initTime: Date.now(),
-      send: (msg) => this.send(msg),
+      send: (msg): void => this.send(msg),
     };
     this.initialize();
   }
@@ -88,17 +88,17 @@ class InstanceChannel {
     // Both ids, not just the instance one. sessionStorage is copied on
     // Duplicate Tab, so the twins share the TAB id too -- and every
     // `tab-<id>-*` storage key with it, including the selected session.
-    reissue: () => {
+    reissue: (): string => {
       reissueTabId();
       return instanceManager.reissueInstanceId();
     },
-    announce: () => this.send({ type: 'instance-announce' as const, targetInstanceId: '*' }),
+    announce: (): void => this.send({ type: 'instance-announce' as const, targetInstanceId: '*' }),
   };
 
   private setupMessageHandler(): void {
     if (!this.channel) return;
 
-    this.channel.onmessage = (event: MessageEvent<ChannelMessage>) => {
+    this.channel.onmessage = (event: MessageEvent<ChannelMessage>): void => {
       const message: ChannelMessage = event.data;
 
       // Gated by DOCUMENT, not instance id — see instance-identity.ts.
@@ -131,7 +131,7 @@ class InstanceChannel {
     // getSelectedUser reads IndexedDB, which throws when storage is unavailable
     // (private mode, denied permission, quota). Without this catch that surfaced
     // as an unhandled rejection. The heal is best effort - log and move on.
-    void (async () => {
+    void (async (): Promise<void> => {
       const { getSelectedUser } = await import('../tab-context');
       const tab = await getSelectedUser();
       if (tab?.selectedCid) { instanceManager.setCid(tab.selectedCid); this.sendCidUpdate(tab.selectedCid); }

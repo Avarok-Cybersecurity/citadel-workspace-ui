@@ -27,7 +27,7 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /** name -> the single file allowed to define it. */
 const CANONICAL: Record<string, string> = {
@@ -38,7 +38,7 @@ const CANONICAL: Record<string, string> = {
 
 describe('a shared helper', () => {
   it('is defined once', async () => {
-    const files = await fg(['**/*.ts', '**/*.tsx'], {
+    const files: string[] = await fg(['**/*.ts', '**/*.tsx'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx', 'test-utils/**'],
     });
@@ -46,13 +46,13 @@ describe('a shared helper', () => {
     const offenders: string[] = [];
 
     for (const rel of files) {
-      const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
 
       for (const [name, home] of Object.entries(CANONICAL)) {
         if (rel === home) continue;
         // A definition, not a re-export or a call: `function name(` in any of
         // the forms this codebase uses.
-        const defines = new RegExp(
+        const defines: RegExp = new RegExp(
           `(?:export\\s+)?(?:async\\s+)?function\\s+${name}\\b|` +
             `(?:export\\s+)?const\\s+${name}\\s*[:=]\\s*(?:\\([^)]*\\)|async)`,
         );
@@ -75,14 +75,14 @@ describe('a shared helper', () => {
     //
     // The shape is what they all share: log(bytes) / log(1024), or a division
     // by 1024 raised to a power. Matching that catches the next rename.
-    const files = await fg(['**/*.ts', '**/*.tsx'], {
+    const files: string[] = await fg(['**/*.ts', '**/*.tsx'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx', 'test-utils/**'],
     });
 
-    const BYTE_MATH = /Math\.log\s*\(\s*bytes\s*\)|bytes\s*\/\s*1024\s*\*\*|Math\.pow\s*\(\s*k\s*,/;
+    const BYTE_MATH: RegExp = /Math\.log\s*\(\s*bytes\s*\)|bytes\s*\/\s*1024\s*\*\*|Math\.pow\s*\(\s*k\s*,/;
 
-    const offenders = files
+    const offenders: string[] = files
       .filter((rel) => rel !== CANONICAL.formatBytes)
       // useChatSettings renders a limit the user set IN megabytes; see its
       // comment. It is named formatSizeLimit precisely so it is not mistaken
@@ -101,7 +101,7 @@ describe('a shared helper', () => {
     // A home that no longer defines the thing would silently make the rule
     // above vacuous for that name.
     for (const [name, home] of Object.entries(CANONICAL)) {
-      const source = stripComments(readFileSync(join(SRC, home), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, home), 'utf-8'));
       expect(
         new RegExp(`function\\s+${name}\\b`).test(source),
         `${home} is named as the home of ${name} but does not define it`,

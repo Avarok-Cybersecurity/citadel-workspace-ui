@@ -25,12 +25,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('[ErrorBoundary] Caught error:', error, errorInfo);
     this.props.onError?.(error, errorInfo);
   }
 
-  handleRetry = () => {
+  handleRetry = (): void => {
     this.setState({ hasError: false, error: null });
   };
 

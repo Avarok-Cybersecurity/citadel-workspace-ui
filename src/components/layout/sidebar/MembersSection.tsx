@@ -62,7 +62,7 @@ export const MembersSection = () => {
   const conversationPeerCids: Set<string> = new Set(peersWithConversations.map(c => c.peerCid));
   const filteredRegisteredPeers = registeredPeers.filter(p => !conversationPeerCids.has(p.cid));
 
-  const updatePendingCount = useCallback(async () => {
+  const updatePendingCount = useCallback(async (): Promise<void> => {
     const count: number = await peerRegistrationStore.getPendingCount();
     setPendingRequestCount(count);
   }, []);
@@ -80,9 +80,9 @@ export const MembersSection = () => {
   const activeDomainId = currentNodeId;
   const { members, isLoadingMembers } = useDomainMembers(activeDomainId);
 
-  const handleEditMember = (m: WorkspaceMember) => { setSelectedMember(m); setShowEditModal(true); };
-  const handleRemoveMember = (m: WorkspaceMember) => { setSelectedMember(m); setShowRemoveModal(true); };
-  const handleManagePermissions = (member: WorkspaceMember) => {
+  const handleEditMember = (m: WorkspaceMember): void => { setSelectedMember(m); setShowEditModal(true); };
+  const handleRemoveMember = (m: WorkspaceMember): void => { setSelectedMember(m); setShowRemoveModal(true); };
+  const handleManagePermissions = (member: WorkspaceMember): void => {
     let domainId: string = WORKSPACE_ROOT_ID;
     let domainType: string = 'workspace';
     if (currentNodeId) {
@@ -94,7 +94,7 @@ export const MembersSection = () => {
     setShowPermissionModal(true);
   };
 
-  const handlePeerClick = async (cid: string, username: string) => {
+  const handlePeerClick = async (cid: string, username: string): Promise<void> => {
     // The workspace view renders P2P chat instead of the editor, so this
     // unmounts the buffer as completely as selecting another node does.
     if (!(await mayLeaveEditor(confirm))) return;
@@ -106,7 +106,7 @@ export const MembersSection = () => {
     navigate(`${location.pathname}?${searchParams.toString()}`);
   };
 
-  const getLocationText = () => {
+  const getLocationText = (): string => {
     const node = currentNodeId ? state.nodes[currentNodeId] : undefined;
     return membersSectionLabel({
       entityLabel: node ? getEntityMetadata(node.entity_type).label : undefined,

@@ -38,7 +38,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
     if (seededKeyRef.current === entityKey && dirtyRef.current) return;
     seededKeyRef.current = entityKey;
 
-    const loadData = () => {
+    const loadData = (): void => {
       setLoading(true);
       try {
         // Same store the sidebar and BaseOffice read from, so the tab cannot
@@ -65,7 +65,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
     dirtyRef.current = dirty;
   }, [chatEnabled, chatRules, originalEnabled, originalRules]);
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
     setSaving(true);
     const saved = await saveChatSettings({
       entityType,
@@ -89,7 +89,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
     }
   };
 
-  const handleReset = () => {
+  const handleReset = (): void => {
     setChatEnabled(originalEnabled);
     setChatRules(originalRules);
   };

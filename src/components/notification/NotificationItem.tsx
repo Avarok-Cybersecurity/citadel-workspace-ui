@@ -29,7 +29,7 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
     notificationService.markAsRead(notification.id);
   }
   
-  const handleDismiss = () => {
+  const handleDismiss = (): void => {
     notificationService.removeNotification(notification.id);
   };
   
@@ -66,7 +66,7 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
   };
   
   // Handle card click (for PEER_REGISTRATION cards, opens the modal)
-  const handleCardClick = (e: React.MouseEvent) => {
+  const handleCardClick = (e: React.MouseEvent): void => {
     // Don't trigger if clicking buttons or the dismiss X
     if ((e.target as HTMLElement).closest('button')) return;
 

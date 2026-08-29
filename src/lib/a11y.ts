@@ -27,7 +27,7 @@ import type { KeyboardEvent } from 'react';
  * to scroll the page, which would fire the handler and jump the view at once.
  */
 export function activateOnKey<E extends KeyboardEvent>(onActivate: (event: E) => void) {
-  return (event: E) => {
+  return (event: E): void => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     // Ignore keys that bubbled from a control inside this element — a nested
     // input or button handles its own Enter/Space.

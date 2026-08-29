@@ -19,6 +19,6 @@ export function useProfileDraft() {
   return {
     draft,
     setDraft,
-    clear: () => setDraft(BLANK),
+    clear: (): void => setDraft(BLANK),
   };
 }

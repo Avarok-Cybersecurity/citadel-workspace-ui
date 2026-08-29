@@ -38,7 +38,7 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     };
   }, [peerCid]);
 
-  const loadTree = useCallback(async () => {
+  const loadTree = useCallback(async (): Promise<void> => {
     if (!myCid || !peerCid) {
       setTree(null);
       setLoading(false);
@@ -62,7 +62,7 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
 
   useEffect(() => {
     if (!key) return;
-    const unsub = revfsService.onTreeChanged((changedKey, newTree) => {
+    const unsub = revfsService.onTreeChanged((changedKey, newTree): void => {
       if (changedKey === key) {
         setTree(newTree);
       }
@@ -70,17 +70,17 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     return unsub;
   }, [key]);
 
-  const mkdir = useCallback(async (path: string) => {
+  const mkdir = useCallback(async (path: string): Promise<void> => {
     if (!myCid || !peerCid) return;
     await revfsService.mkdir(myCid, peerCid, path);
   }, [myCid, peerCid]);
 
-  const rmdir = useCallback(async (path: string) => {
+  const rmdir = useCallback(async (path: string): Promise<void> => {
     if (!myCid || !peerCid) return;
     await revfsService.rmdir(myCid, peerCid, path);
   }, [myCid, peerCid]);
 
-  const uploadFile = useCallback(async (dirPath: string, fileName: string, metadata: RevfsFileMetadata, content: Uint8Array) => {
+  const uploadFile = useCallback(async (dirPath: string, fileName: string, metadata: RevfsFileMetadata, content: Uint8Array): Promise<void> => {
     if (!myCid || !peerCid) return;
     await revfsService.uploadFileToPeer(myCid, peerCid, dirPath, fileName, metadata, content);
   }, [myCid, peerCid]);
@@ -90,22 +90,22 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     return revfsService.downloadFileFromPeer(myCid, peerCid, filePath);
   }, [myCid, peerCid]);
 
-  const removeFile = useCallback(async (filePath: string) => {
+  const removeFile = useCallback(async (filePath: string): Promise<void> => {
     if (!myCid || !peerCid) return;
     await revfsService.removeFileFromPeer(myCid, peerCid, filePath);
   }, [myCid, peerCid]);
 
-  const rename = useCallback(async (path: string, newName: string) => {
+  const rename = useCallback(async (path: string, newName: string): Promise<void> => {
     if (!myCid || !peerCid) return;
     await revfsService.rename(myCid, peerCid, path, newName);
   }, [myCid, peerCid]);
 
-  const move = useCallback(async (sourcePath: string, destParentPath: string) => {
+  const move = useCallback(async (sourcePath: string, destParentPath: string): Promise<void> => {
     if (!myCid || !peerCid) return;
     await revfsService.move(myCid, peerCid, sourcePath, destParentPath);
   }, [myCid, peerCid]);
 
-  const copy = useCallback(async (sourcePath: string, destParentPath: string) => {
+  const copy = useCallback(async (sourcePath: string, destParentPath: string): Promise<void> => {
     if (!myCid || !peerCid) return;
     await revfsService.copy(myCid, peerCid, sourcePath, destParentPath);
   }, [myCid, peerCid]);

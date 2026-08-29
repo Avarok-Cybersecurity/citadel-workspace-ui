@@ -106,7 +106,7 @@ class LeaderOutboundHandler {
    * for anything proxied to the workspace server. Dropped silently rather than
    * error-acked: the original is still running and acks for both.
    */
-  private readonly inFlight = new Set<string>();
+  private readonly inFlight: Set<string> = new Set<string>();
 
   async handleOutboundRequest(request: OutboundRequest): Promise<void> {
     if (this.inFlight.has(request.requestId)) {

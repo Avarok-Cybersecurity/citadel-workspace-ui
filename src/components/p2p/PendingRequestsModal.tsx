@@ -36,7 +36,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
   const { toast } = useToast();
 
   // Load pending requests
-  const loadRequests = useCallback(async () => {
+  const loadRequests = useCallback(async (): Promise<void> => {
     const requests: PendingPeerRequest[] = await peerRegistrationStore.getPendingRequests();
     setPendingRequests(requests);
   }, []);
@@ -51,7 +51,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
     loadRequests().catch(err => debugLog('PendingRequestsModal', 'Error:', err));
   });
 
-  const handleAccept = async (request: PendingPeerRequest) => {
+  const handleAccept = async (request: PendingPeerRequest): Promise<void> => {
     setProcessingId(request.id);
     try {
       await peerRegistrationStore.acceptRequest(request.id);
@@ -67,7 +67,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
     }
   };
 
-  const handleDecline = async (request: PendingPeerRequest) => {
+  const handleDecline = async (request: PendingPeerRequest): Promise<void> => {
     setProcessingId(request.id);
     try {
       await peerRegistrationStore.declineRequest(request.id);

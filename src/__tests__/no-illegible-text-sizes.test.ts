@@ -25,7 +25,7 @@ import { join } from 'node:path';
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
+    const path: string = join(dir, entry);
     if (statSync(path).isDirectory()) {
       if (entry === '__tests__') continue;
       out.push(...sourceFiles(path));
@@ -36,10 +36,10 @@ function sourceFiles(dir: string): string[] {
   return out;
 }
 
-const CSS = join(process.cwd(), 'src/index.css');
+const CSS: string = join(process.cwd(), 'src/index.css');
 
 /** Arbitrary Tailwind sizes below the floor, e.g. `text-[11px]`. */
-const ARBITRARY_TOO_SMALL = /text-\[(?:[0-9]|10|11)px\]/;
+const ARBITRARY_TOO_SMALL: RegExp = /text-\[(?:[0-9]|10|11)px\]/;
 
 describe('component class names', () => {
   it('do not set an arbitrary size below the floor', () => {
@@ -58,7 +58,7 @@ describe('component class names', () => {
       // a comment recording that `text-[11px]` WAS raised to `text-xs` reads as
       // a live `text-[11px]`. A rule that punishes writing down why is a rule
       // people route around.
-      const body = readFileSync(file, 'utf-8')
+      const body: string = readFileSync(file, 'utf-8')
         .replace(/\/\*[\s\S]*?\*\//g, '')
         .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
         .replace(/(^|[^:])\/\/.*$/gm, '$1');
@@ -69,7 +69,7 @@ describe('component class names', () => {
 });
 
 describe('every font-size in index.css', () => {
-  const source = readFileSync(CSS, 'utf-8');
+  const source: string = readFileSync(CSS, 'utf-8');
 
   it('reads a real stylesheet, so the rule is not passing over nothing', () => {
     expect(source.length).toBeGreaterThan(5000);

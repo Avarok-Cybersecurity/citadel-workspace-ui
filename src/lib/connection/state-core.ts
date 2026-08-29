@@ -26,7 +26,7 @@ export class ConnectionStateCore {
   protected _storedSessions: StoredSessions = { sessions: [] };
   protected _currentConnectionInfo: CurrentConnectionInfo | null = null;
   protected _isLeader = false;
-  protected _reconnectAttempts = 0;
+  protected _reconnectAttempts: number = 0;
 
   // Ready promise for initialization
   protected _readyPromise: Promise<void>;

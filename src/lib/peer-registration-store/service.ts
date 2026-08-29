@@ -48,7 +48,7 @@ class PeerRegistrationStore {
   private static instance: PeerRegistrationStore;
   private pendingRequests: PendingPeerRequest[] = [];
   private outgoingRequests: OutgoingPeerRequest[] = [];
-  private pendingKVRequests = new Map<string, KVPendingEntry>();
+  private pendingKVRequests: Map<string, KVPendingEntry> = new Map<string, KVPendingEntry>();
   private isInitializedFlag = false;
   private initializationPromise: Promise<void> | null = null;
   private pollIntervalId: NodeJS.Timeout | null = null;
@@ -75,7 +75,7 @@ class PeerRegistrationStore {
   public async initialize(): Promise<void> {
     if (this.isInitializedFlag) return;
     if (this.initializationPromise) return this.initializationPromise;
-    this.initializationPromise = (async () => {
+    this.initializationPromise = (async (): Promise<void> => {
       await Promise.all([this.loadFromLocalDB(), this.loadOutgoingFromLocalDB()]);
       this.startPollLoop();
     })();

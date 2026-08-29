@@ -58,7 +58,7 @@ describe('the peer discovery reader', () => {
  * no cached-peer sync after a reconnect.
  */
 describe('every wire HashMap read', () => {
-  const strip = (s: string) =>
+  const strip = (s: string): string =>
     s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
   const FILES: string[] = [

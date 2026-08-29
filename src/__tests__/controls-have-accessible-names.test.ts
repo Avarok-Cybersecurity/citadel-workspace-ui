@@ -23,10 +23,10 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /** Controls that render with no inner text of their own. */
-const NAMELESS_BY_DEFAULT = /<(Switch|Slider|Checkbox|SelectTrigger)\b/g;
+const NAMELESS_BY_DEFAULT: RegExp = /<(Switch|Slider|Checkbox|SelectTrigger)\b/g;
 
 /**
  * The attributes of the tag opening at `start`, to its real closing `>`.
@@ -36,9 +36,9 @@ const NAMELESS_BY_DEFAULT = /<(Switch|Slider|Checkbox|SelectTrigger)\b/g;
  * what separates a JSX expression's `>` from the tag's.
  */
 function attributesOf(source: string, start: number): string {
-  let depth = 0;
-  for (let i = start; i < source.length; i++) {
-    const c = source[i];
+  let depth: number = 0;
+  for (let i: number = start; i < source.length; i++) {
+    const c: string = source[i];
     if (c === '{') depth++;
     else if (c === '}') depth--;
     else if (c === '>' && depth === 0) return source.slice(start, i);
@@ -47,11 +47,11 @@ function attributesOf(source: string, start: number): string {
 }
 
 /** Any way a name reaches the accessibility tree. */
-const NAMED = /\bid=|\baria-label(?:ledby)?=|\{\.\.\./;
+const NAMED: RegExp = /\bid=|\baria-label(?:ledby)?=|\{\.\.\./;
 
 describe('a control with no text of its own', () => {
   it('is named, not merely sat next to a Label', async () => {
-    const files = await fg(['**/*.tsx'], {
+    const files: string[] = await fg(['**/*.tsx'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.tsx', 'test-utils/**', 'components/ui/**'],
     });
@@ -59,11 +59,11 @@ describe('a control with no text of its own', () => {
     const offenders: string[] = [];
 
     for (const rel of files) {
-      const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
 
       for (const match of source.matchAll(NAMELESS_BY_DEFAULT)) {
         if (NAMED.test(attributesOf(source, match.index + match[0].length))) continue;
-        const line = source.slice(0, match.index).split('\n').length;
+        const line: number = source.slice(0, match.index).split('\n').length;
         offenders.push(`${rel}:${line} <${match[1]}>`);
       }
     }
@@ -79,14 +79,14 @@ describe('a control with no text of its own', () => {
   it('pairs every settings Label with a control', async () => {
     // The other direction: an htmlFor pointing at nothing is as broken as no
     // htmlFor, and it looks more correct.
-    const files = await fg(['components/settings/**/*.tsx', 'components/p2p/ChatSettings*.tsx'], {
+    const files: string[] = await fg(['components/settings/**/*.tsx', 'components/p2p/ChatSettings*.tsx'], {
       cwd: SRC,
     });
 
     const dangling: string[] = [];
 
     for (const rel of files) {
-      const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
 
       for (const match of source.matchAll(/htmlFor="([^"]+)"/g)) {
         if (!source.includes(`id="${match[1]}"`)) dangling.push(`${rel}: htmlFor="${match[1]}"`);

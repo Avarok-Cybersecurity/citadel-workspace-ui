@@ -30,7 +30,7 @@ export function useP2PFileTransfer({
 }: UseP2PFileTransferProps): UseP2PFileTransferReturn {
   const { toast } = useToast();
 
-  const handleSendFile = useCallback(async (file: File, mode: FileTransferMode) => {
+  const handleSendFile = useCallback(async (file: File, mode: FileTransferMode): Promise<void> => {
     try {
       await fileTransferService.sendFile(peerCid.toString(), file, mode);
       toast({
@@ -48,7 +48,7 @@ export function useP2PFileTransfer({
     }
   }, [peerCid, peerName, toast]);
 
-  const handleAcceptTransfer = useCallback(async (transferId: string) => {
+  const handleAcceptTransfer = useCallback(async (transferId: string): Promise<void> => {
     try {
       await fileTransferService.acceptTransfer(transferId);
     } catch (error) {
@@ -65,7 +65,7 @@ export function useP2PFileTransfer({
   // They used to only debugLog, which is a no-op outside dev — so a decline
   // that failed left the request sitting there with no explanation, and the
   // obvious reading is that the button is broken.
-  const handleDeclineTransfer = useCallback(async (transferId: string) => {
+  const handleDeclineTransfer = useCallback(async (transferId: string): Promise<void> => {
     try {
       await fileTransferService.declineTransfer(transferId);
     } catch (error) {
@@ -78,7 +78,7 @@ export function useP2PFileTransfer({
     }
   }, [toast]);
 
-  const handleCancelTransfer = useCallback(async (transferId: string) => {
+  const handleCancelTransfer = useCallback(async (transferId: string): Promise<void> => {
     try {
       await fileTransferService.cancelTransfer(transferId);
     } catch (error) {
@@ -91,7 +91,7 @@ export function useP2PFileTransfer({
     }
   }, [toast]);
 
-  const handleOpenFile = useCallback((downloadPath: string) => {
+  const handleOpenFile = useCallback((downloadPath: string): void => {
     debugLog('UseP2PFileTransfer', 'Opening file:', downloadPath);
     toast({
       title: 'File Ready',

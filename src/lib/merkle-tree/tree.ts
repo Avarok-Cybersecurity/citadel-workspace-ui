@@ -99,7 +99,7 @@ export class MerkleTree<T, C = Uint8Array> {
     const levelHashes: string[][] = [];
     const height: number = this.getTreeHeight();
 
-    const collectLevel = (node: MerkleNode, targetLevel: number, collected: string[]) => {
+    const collectLevel = (node: MerkleNode, targetLevel: number, collected: string[]): void => {
       if (node.level === targetLevel) {
         collected.push(node.hash);
         return;

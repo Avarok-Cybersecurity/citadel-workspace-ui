@@ -38,7 +38,7 @@ export function ConnectionFacts({ peerCid, revfsQuota }: ConnectionFactsProps) {
   <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50">
     <span className="text-sm text-muted-foreground">First Connected</span>
     <span className="text-sm text-foreground/80">
-      {(() => {
+      {((): string => {
         try {
           const ts = localStorage.getItem(`peer-first-seen:${peerCid}`);
           if (!ts) {

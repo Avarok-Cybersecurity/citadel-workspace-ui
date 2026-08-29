@@ -70,7 +70,7 @@ export function useJoinRegistration(
    * Which field is a pure decision (`firstInvalidField`); this is the one line
    * that touches the DOM.
    */
-  const focusFirstProblem = () => {
+  const focusFirstProblem = (): void => {
     const field = firstInvalidField(
       {
         fullName: formData.fullName,
@@ -84,7 +84,7 @@ export function useJoinRegistration(
     document.getElementById(field)?.focus();
   };
 
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>): void => {
     setTouched((prev) => ({ ...prev, [e.target.name]: true }));
   };
 
@@ -102,7 +102,7 @@ export function useJoinRegistration(
   // not carry the fix here.
   const securitySettings = providedSecuritySettings ?? DEFAULT_SECURITY_SETTINGS;
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const { name, value } = e.target;
     setFormData(prev => {
       const next = { ...prev, [name]: value };
@@ -133,7 +133,7 @@ export function useJoinRegistration(
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
     setSubmitAttempted(true);
@@ -168,15 +168,15 @@ export function useJoinRegistration(
       debugLog('Join', "Registering user:", formData.username, "to", serverAddress);
       const requestId = crypto.randomUUID();
 
-      const responsePromise = new Promise<{ cid: string }>((resolve, reject) => {
+      const responsePromise = new Promise<{ cid: string }>((resolve, reject): void => {
         let handler: ((raw: unknown) => void) | null = null;
 
-        const timeout = setTimeout(() => {
+        const timeout = setTimeout((): void => {
           if (handler) eventEmitter.off('websocket-message', handler);
           reject(new Error('Registration timed out after 30 seconds'));
         }, 30000);
 
-        const cleanup = () => {
+        const cleanup = (): void => {
           clearTimeout(timeout);
           if (handler) eventEmitter.off('websocket-message', handler);
         };
@@ -217,12 +217,12 @@ export function useJoinRegistration(
     }
   };
 
-  const handleConnectModalComplete = () => {
+  const handleConnectModalComplete = (): void => {
     setShowConnectModal(false);
     navigate(getWorkspacePath());
   };
 
-  const handleReturnToLogin = () => {
+  const handleReturnToLogin = (): void => {
     setShowNotInitializedModal(false);
     onBack();
   };

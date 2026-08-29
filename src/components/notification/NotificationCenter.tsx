@@ -37,10 +37,10 @@ const NotificationCenter = () => {
     // Polled, matching CallLayer: connection identity settles asynchronously
     // during login, and a notification list scoped to a CID we do not have yet
     // would be empty rather than wrong.
-    const read = () => setSessionCid(connectionManager.getConnectionInfo()?.cid?.toString() ?? null);
+    const read = (): void => setSessionCid(connectionManager.getConnectionInfo()?.cid?.toString() ?? null);
     read();
     const timer: number = window.setInterval(read, 2000);
-    return () => window.clearInterval(timer);
+    return (): void => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -52,7 +52,7 @@ const NotificationCenter = () => {
     setNotifications(notificationService.getNotificationsForCid(sessionCid));
     
     // Register for notification updates
-    const unregister = notificationService.registerNotificationHandler((notification) => {
+    const unregister = notificationService.registerNotificationHandler((notification): void => {
       // Check if this is a removed notification
       if (notification.id.startsWith('removed:')) {
         const actualId: string = notification.id.replace('removed:', '');
@@ -91,7 +91,7 @@ const NotificationCenter = () => {
       }, 2000);
     }
     
-    return () => {
+    return (): void => {
       unregister();
       if (readTimeout) clearTimeout(readTimeout);
     };
@@ -102,7 +102,7 @@ const NotificationCenter = () => {
     ? notifications 
     : notifications.filter(n => n.type === activeTab);
   
-  const handleClearAll = () => {
+  const handleClearAll = (): void => {
     const notificationIds: string[] = filteredNotifications.map(n => n.id);
     notificationIds.forEach(id => notificationService.removeNotification(id));
   };

@@ -25,10 +25,10 @@ export function createRegistrationResponseHandler(
 ) {
   const { handleConnectSuccess, setShowNotInitializedModal } = deps;
   const matchId = (v: Record<string, unknown>) => v.request_id === requestId;
-  const rejectWith = (v: Record<string, unknown>, fallback: string) => {
+  const rejectWith = (v: Record<string, unknown>, fallback: string): void => {
     cleanup(); reject(new Error((v.message as string) || fallback));
   };
-  return (raw: unknown) => {
+  return (raw: unknown): void => {
     const message = narrowWebSocketMessage(raw);
     if (!message) return;
     debugLog('Join', 'Registration response received, expecting:', requestId);

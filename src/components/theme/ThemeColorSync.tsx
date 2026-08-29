@@ -23,7 +23,7 @@ export function ThemeColorSync(): null {
     // reading the computed variable before that lands returns the outgoing
     // colour — the titlebar would then trail one toggle behind.
     const frame: number = requestAnimationFrame(() => syncThemeColorMeta());
-    return () => cancelAnimationFrame(frame);
+    return (): void => cancelAnimationFrame(frame);
   }, [resolvedTheme]);
 
   return null;

@@ -64,7 +64,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
     }));
   }, [load]);
 
-  const togglePermission = useCallback((role: string, permissionId: string) => {
+  const togglePermission = useCallback((role: string, permissionId: string): void => {
     setRolePermissions(prev => {
       const next = { ...prev };
       const perms: Set<string> = new Set(next[role]);
@@ -78,7 +78,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
     });
   }, []);
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
     // Refused rather than guessed. Saving without knowing what the server has
     // is how the defaults got written over real permissions.
     if (load.status !== 'loaded' || !serverPermissions) return;

@@ -67,7 +67,7 @@ function FullPageError({ onReload }: { onReload: () => void }) {
 }
 
 export function AppErrorBoundary({ children }: { children: ReactNode }) {
-  const handleError = (error: Error, errorInfo: ErrorInfo) => {
+  const handleError = (error: Error, errorInfo: ErrorInfo): void => {
     // Always logged, in every build: this is the one error the user cannot
     // report usefully themselves, because the screen it happened on is gone.
     errorLog('AppErrorBoundary', 'Unhandled render error', error, errorInfo.componentStack);

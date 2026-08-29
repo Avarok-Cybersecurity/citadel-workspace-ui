@@ -34,7 +34,7 @@ let nodes: Record<string, { id: string; name: string; mdx_content: string }> = {
 vi.mock('@/contexts/WorkspaceContext', () => ({
   useWorkspace: () => ({
     state: { nodes, loading: { nodes: false }, currentUser: { id: 'u1' } },
-    setState: () => {},
+    setState: (): void => {},
   }),
 }));
 
@@ -52,7 +52,7 @@ describe('the MDX editor buffer', () => {
       // play on every unrelated store change; with a stable callback the effect
       // never re-runs and the guard is never exercised, so a test using
       // useCallback here passes with the guard fully removed. (It did.)
-      const getInitialContent = () => '# Template';
+      const getInitialContent = (): string => '# Template';
       return (
         <>
           <button onClick={() => bump((n) => n + 1)}>unrelated update</button>

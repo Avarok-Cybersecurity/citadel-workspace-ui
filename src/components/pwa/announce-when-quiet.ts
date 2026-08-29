@@ -51,7 +51,7 @@ export function announceWhenQuiet(
   }
 
   let done = false;
-  const finish = () => {
+  const finish = (): void => {
     if (done) return;
     done = true;
     clearInterval(poll);
@@ -59,7 +59,7 @@ export function announceWhenQuiet(
     announce();
   };
 
-  const poll = setInterval(() => {
+  const poll = setInterval((): void => {
     if (!isBusy()) finish();
   }, pollMs);
   const giveUp = setTimeout(finish, waitMs);

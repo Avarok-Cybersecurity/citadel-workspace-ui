@@ -21,7 +21,7 @@ export function showBrowserNotification(notification: AppNotification): void {
     // the inbound-message handler — so every message received while
     // backgrounded produced an unhandled rejection. SW path first, since it
     // is the supported one there.
-    void (async () => {
+    void (async (): Promise<void> => {
       try {
         const registration = await navigator.serviceWorker?.ready;
         if (registration) {

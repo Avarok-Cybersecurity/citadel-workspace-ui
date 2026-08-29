@@ -313,14 +313,14 @@ export function serializeWorkspacePayload(payload: WorkspaceProtocolPayloadTS): 
     // Special handling for Uint8Array - convert to a special format object
     if (value instanceof Uint8Array) {
       // Convert to base64 for safe JSON serialization
-      const base64 = btoa(String.fromCharCode.apply(null, [...value]));
+      const base64: string = btoa(String.fromCharCode.apply(null, [...value]));
       return { __type: 'Uint8Array', data: base64 };
     }
     return value;
   }));
 
   // Convert to string and then to Uint8Array
-  const jsonString = JSON.stringify(payloadCopy);
+  const jsonString: string = JSON.stringify(payloadCopy);
   return new TextEncoder().encode(jsonString);
 }
 
@@ -331,7 +331,7 @@ export function serializeWorkspacePayload(payload: WorkspaceProtocolPayloadTS): 
  */
 export function deserializeWorkspacePayload(data: Uint8Array): WorkspaceProtocolPayloadTS {
   // Convert from Uint8Array to string
-  const jsonString = new TextDecoder().decode(data);
+  const jsonString: string = new TextDecoder().decode(data);
 
   // Parse JSON with reviver function to handle special types
   return JSON.parse(jsonString, (key, value) => {
@@ -343,9 +343,9 @@ export function deserializeWorkspacePayload(data: Uint8Array): WorkspaceProtocol
       }
 
       // Convert from base64 back to Uint8Array for non-empty arrays
-      const binaryString = atob(value.data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
+      const binaryString: string = atob(value.data);
+      const bytes: Uint8Array<ArrayBuffer> = new Uint8Array(binaryString.length);
+      for (let i: number = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
       return bytes;

@@ -12,8 +12,8 @@
 import type { CallCodecCapabilities } from '@/types/p2p-commands';
 
 export class PeerCodecBook {
-  private readonly decodeCaps = new Map<bigint, CallCodecCapabilities>();
-  private readonly sendCodecs = new Map<bigint, string>();
+  private readonly decodeCaps: Map<bigint, CallCodecCapabilities> = new Map<bigint, CallCodecCapabilities>();
+  private readonly sendCodecs: Map<bigint, string> = new Map<bigint, string>();
 
   recordCaps(cid: bigint, caps: CallCodecCapabilities): void {
     this.decodeCaps.set(cid, caps);

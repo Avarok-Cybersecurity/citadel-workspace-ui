@@ -57,7 +57,7 @@ export function usePwaInstall(): PwaInstallState {
     () => false,
   );
 
-  const install = useCallback(async () => {
+  const install = useCallback(async (): Promise<boolean> => {
     const event = getPromptEvent();
     if (!event) return false;
     await event.prompt();

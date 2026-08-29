@@ -45,7 +45,7 @@ interface RowProps {
 }
 
 function Row({ label, value, valueClassName = 'text-foreground', copyable, fullValue }: RowProps) {
-  const handleCopy = () => {
+  const handleCopy = (): void => {
     runAsyncSetup(async () => {
       await navigator.clipboard.writeText(fullValue || value);
     });

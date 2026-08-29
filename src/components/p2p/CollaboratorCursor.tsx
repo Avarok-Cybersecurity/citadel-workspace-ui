@@ -39,7 +39,7 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
   let lastTop: number = 0;
   let rafId: number | null = null;
 
-  const updateTooltipPosition = () => {
+  const updateTooltipPosition = (): void => {
     rafId = null;
     const cursorRect = cursor.getBoundingClientRect();
     const newLeft: number = cursorRect.left;
@@ -53,7 +53,7 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
     }
   };
 
-  const schedulePositionUpdate = () => {
+  const schedulePositionUpdate = (): void => {
     if (rafId === null) {
       rafId = requestAnimationFrame(updateTooltipPosition);
     }
@@ -61,10 +61,10 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
 
   setTimeout(updateTooltipPosition, 0);
 
-  const scrollHandler = () => schedulePositionUpdate();
+  const scrollHandler = (): void => schedulePositionUpdate();
   document.addEventListener('scroll', scrollHandler, true);
 
-  const resizeHandler = () => schedulePositionUpdate();
+  const resizeHandler = (): void => schedulePositionUpdate();
   window.addEventListener('resize', resizeHandler);
 
   const checkRemoval = () => {
@@ -79,7 +79,7 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
     return false;
   };
 
-  const cleanupInterval = setInterval(() => {
+  const cleanupInterval = setInterval((): void => {
     if (checkRemoval()) {
       clearInterval(cleanupInterval);
     }

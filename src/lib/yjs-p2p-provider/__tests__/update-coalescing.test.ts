@@ -19,7 +19,7 @@ import { YJS_UPDATE_COALESCE_MS } from '../constants';
 const sent: Uint8Array[] = [];
 
 vi.mock('../sending', () => ({
-  sendUpdate: (_ctx: unknown, update: Uint8Array) => {
+  sendUpdate: (_ctx: unknown, update: Uint8Array): void => {
     sent.push(update);
   },
   sendSyncMessage: () => undefined,

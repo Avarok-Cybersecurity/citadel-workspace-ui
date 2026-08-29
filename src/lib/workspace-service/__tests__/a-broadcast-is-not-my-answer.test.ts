@@ -23,7 +23,7 @@ import { aboutNode, newChildOf, nodeWithId } from '../response-matchers';
 const MINE = 'node-mine';
 const THEIRS = 'node-theirs';
 
-function emitLater(response: unknown) {
+function emitLater(response: unknown): void {
   setTimeout(() => eventEmitter.emit('workspace:raw-response', response), 0);
 }
 

@@ -54,10 +54,10 @@ export function WorkspaceThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Leaving the workspace must drop its variables, or the next workspace
     // inherits whichever tokens it does not itself set.
-    return () => clearTheme();
+    return (): void => clearTheme();
   }, []);
 
-  const previewTheme = useCallback((next: WorkspaceTheme | null) => setPreview(next), []);
+  const previewTheme = useCallback((next: WorkspaceTheme | null): void => setPreview(next), []);
 
   const value = useMemo(
     () => ({

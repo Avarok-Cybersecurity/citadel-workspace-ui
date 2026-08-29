@@ -38,7 +38,7 @@ export function useRetryCountdown({
 
     let hasTriggeredRetry = false;
 
-    const updateProgress = () => {
+    const updateProgress = (): void => {
       const elapsed: number = Date.now() - startTime;
       const remainingSeconds: number = Math.ceil((retryDelayMs - elapsed) / 1000);
       setCountdown(Math.max(remainingSeconds, 0));
@@ -62,7 +62,7 @@ export function useRetryCountdown({
 
     const interval = setInterval(updateProgress, 100);
 
-    return () => clearInterval(interval);
+    return (): void => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, attempt, maxRetries, isLoading]);
 

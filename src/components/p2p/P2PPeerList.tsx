@@ -26,7 +26,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
 
   const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
 
-  const loadPeers = useCallback(() => {
+  const loadPeers = useCallback((): void => {
     const conversations = messenger.getAllConversations();
     const peerList: PeerInfo[] = conversations.map(conv => {
       const lastMessage = conv.messages[conv.messages.length - 1];
@@ -46,7 +46,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
   }, [messenger]);
 
   useEffect(() => {
-    const initPeers = async () => {
+    const initPeers = async (): Promise<void> => {
       await messenger.waitForReady();
       await messenger.syncConnectionsFromBackend();
       loadPeers();
@@ -54,21 +54,21 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
     };
     initPeers().catch(err => debugLog('P2PPeerList', 'Failed to init peers:', err));
 
-    const unsubscribeMessage = messenger.onMessage(() => {
+    const unsubscribeMessage = messenger.onMessage((): void => {
       loadPeers();
     });
 
-    const unsubscribeConnection = messenger.onConnectionChange(() => {
+    const unsubscribeConnection = messenger.onConnectionChange((): void => {
       loadPeers();
     });
 
-    return () => {
+    return (): void => {
       unsubscribeMessage();
       unsubscribeConnection();
     };
   }, [loadPeers, messenger]);
 
-  const handlePeersUpdated = useCallback((data: { allPeers: Peer[]; registeredPeers: Peer[] }) => {
+  const handlePeersUpdated = useCallback((data: { allPeers: Peer[]; registeredPeers: Peer[] }): void => {
     setAvailablePeers(data.allPeers);
     loadPeers();
   }, [loadPeers]);
@@ -76,7 +76,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
   useEventListener<{ allPeers: Peer[]; registeredPeers: Peer[] }>('p2p:peers-updated', handlePeersUpdated);
   useEventListener('p2p:messages-loaded', loadPeers);
 
-  const loadAvailablePeers = () => {
+  const loadAvailablePeers = (): void => {
     const { allPeers } = p2pRegistrationService.getPeers();
     setAvailablePeers(allPeers);
   };

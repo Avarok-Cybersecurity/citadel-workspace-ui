@@ -28,13 +28,13 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
   // The pending promise's resolve, so answering the dialog settles the caller.
   const resolveRef = useRef<((confirmed: boolean) => void) | null>(null);
 
-  const settle = useCallback((confirmed: boolean) => {
+  const settle = useCallback((confirmed: boolean): void => {
     resolveRef.current?.(confirmed);
     resolveRef.current = null;
     setRequest(null);
   }, []);
 
-  const confirm = useCallback((next: ConfirmRequest) => {
+  const confirm = useCallback((next: ConfirmRequest): Promise<boolean> => {
     // A second request while one is open would strand the first caller's
     // promise for ever; answer it as declined rather than leaking it.
     resolveRef.current?.(false);

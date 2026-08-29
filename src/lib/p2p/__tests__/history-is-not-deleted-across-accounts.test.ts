@@ -29,7 +29,7 @@ vi.mock('../../websocket-service', () => ({
       return { value };
     },
     sendLocalDBSet: async () => undefined,
-    sendLocalDBDelete: async (_cid: bigint, key: string) => {
+    sendLocalDBDelete: async (_cid: bigint, key: string): Promise<void> => {
       deleted.push(key);
     },
   },
@@ -42,7 +42,7 @@ const BOB = 222n;
 const PEER = 999n;
 
 /** Seed one conversation's metadata as `owner` (undefined = a legacy record). */
-function seedConversation(owner: bigint | undefined) {
+function seedConversation(owner: bigint | undefined): void {
   stored.clear();
   deleted.length = 0;
   stored.set(

@@ -50,7 +50,7 @@ describe('switching account while tab context is stalled', () => {
 describe('selectUserWithoutBlocking', () => {
   it('reports false when the write does not land', async () => {
     vi.useFakeTimers();
-    const io = { setSelectedUser: vi.fn(() => new Promise<void>(() => {})) };
+    const io = { setSelectedUser: vi.fn((): Promise<void> => new Promise<void>((): void => {})) };
     const result: Promise<boolean> = selectUserWithoutBlocking(io as never, {
       selectedUsername: 'alice', selectedServerAddress: 'x',
     });
@@ -61,7 +61,7 @@ describe('selectUserWithoutBlocking', () => {
 
   it('reports true when it does', async () => {
     // The positive control: without it, `false` could be a constant.
-    const io = { setSelectedUser: vi.fn(async () => {}) };
+    const io = { setSelectedUser: vi.fn(async (): Promise<void> => {}) };
     expect(
       await selectUserWithoutBlocking(io as never, {
         selectedUsername: 'alice', selectedServerAddress: 'x',

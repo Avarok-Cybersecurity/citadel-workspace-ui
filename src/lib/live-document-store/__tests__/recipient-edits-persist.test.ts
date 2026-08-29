@@ -18,16 +18,16 @@ import { join } from 'node:path';
 
 const saved = new Map<string, unknown>();
 vi.mock('../persistence', () => ({
-  saveDocumentToDB: async (id: string, doc: unknown) => {
+  saveDocumentToDB: async (id: string, doc: unknown): Promise<void> => {
     saved.set(id, doc);
   },
   loadDocumentFromDB: async (id: string) => saved.get(id) ?? null,
   saveIndexToDB: async () => undefined,
   loadIndexFromDB: async () => [],
-  deleteDocumentFromDB: async (id: string) => {
+  deleteDocumentFromDB: async (id: string): Promise<void> => {
     saved.delete(id);
   },
-  decodeValue: (v: unknown) => String(v),
+  decodeValue: (v: unknown): string => String(v),
 }));
 
 const { LiveDocumentStore } = await import('../service');

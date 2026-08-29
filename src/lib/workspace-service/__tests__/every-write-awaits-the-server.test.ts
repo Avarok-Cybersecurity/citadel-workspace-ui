@@ -52,7 +52,7 @@ const MUTATING: string[] = [
  * the write is ungated again. This campaign has already produced one source
  * assertion that matched the comment explaining the code's removal.
  */
-const stripComments = (source: string) =>
+const stripComments = (source: string): string =>
   source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 const sources: string = readdirSync(DIR)

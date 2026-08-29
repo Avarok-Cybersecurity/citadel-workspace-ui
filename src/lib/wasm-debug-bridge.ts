@@ -114,9 +114,9 @@ export function parseAndFormatMixedContent(input: unknown): string {
  * Set up the global wasmDebugLog function that the WASM module can call
  * This bridges the WASM debug logs to use our TypeScript debug formatter
  */
-export function setupWasmDebugBridge() {
+export function setupWasmDebugBridge(): void {
   // Make the debug log function available globally for WASM to call
-  window.wasmDebugLog = (logStr: string) => {
+  window.wasmDebugLog = (logStr: string): void => {
     try {
       const mappedLog: string = parseAndFormatMixedContent(logStr);
       debugLog('WasmDebugBridge', "sanitized log: " + mappedLog);
@@ -128,7 +128,7 @@ export function setupWasmDebugBridge() {
 
   // Set up the WebSocket disconnection callback
   // This is called by the WASM module when the WebSocket connection dies
-  window.onWasmWebSocketDisconnected = (reason: string) => {
+  window.onWasmWebSocketDisconnected = (reason: string): void => {
     debugLog('WasmDebugBridge', 'WebSocket disconnected:', reason);
 
     // Emit connection-failure event to show the retry modal

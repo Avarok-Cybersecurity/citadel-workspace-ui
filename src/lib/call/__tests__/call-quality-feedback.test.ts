@@ -48,12 +48,12 @@ function harness(observed?: (cid: bigint) => Link | undefined) {
     manager,
     transport,
     reported,
-    tick: () => timers.splice(0).forEach((fn) => fn()),
+    tick: (): void => timers.splice(0).forEach((fn): void => fn()),
     heartbeats: () =>
       transport.sendSignal.mock.calls
         .map((c) => c[1] as CallSignalPayload)
         .filter((s) => s.kind === 'CallHeartbeat'),
-    active: async () => {
+    active: async (): Promise<void> => {
       await manager.start('c1', [{ cid: BOB, username: 'bob' }], AUDIO, null, null);
       await manager.handleSignal(BOB, 'bob', {
         kind: 'CallAccept',

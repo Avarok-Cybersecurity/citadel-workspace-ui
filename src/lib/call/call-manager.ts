@@ -38,9 +38,9 @@ export { MEDIA_WIRE_VERSION, RING_TIMEOUT_MS } from './call-constants';
 export class CallManager {
   private state: CallState | null = null;
   /** Peers we have an open media session with, so close is exact. */
-  private readonly openSessions = new Set<bigint>();
+  private readonly openSessions: Set<bigint> = new Set<bigint>();
   /** Codec facts peers told us; consumed by the provider's codec sync. */
-  readonly codecs = new PeerCodecBook();
+  readonly codecs: PeerCodecBook = new PeerCodecBook();
   private readonly deadline: CallDeadline;
 
   /** Watches for peers going silent; see call-liveness-binding. */

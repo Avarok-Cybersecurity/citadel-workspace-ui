@@ -38,7 +38,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
 
   useEffect(() => {
     if (isOpen) {
-      const loadActiveSessions = async () => {
+      const loadActiveSessions = async (): Promise<void> => {
         try {
           const active: ActiveSession[] = await connectionManager.getActiveSessions();
           setActiveSessions(active);
@@ -51,7 +51,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
     }
   }, [isOpen]);
 
-  const handleRemoveSession = async () => {
+  const handleRemoveSession = async (): Promise<void> => {
     if (!sessionToDelete) return;
     try {
       await connectionManager.removeSession(sessionToDelete.username, sessionToDelete.serverAddress);
@@ -64,7 +64,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
     }
   };
 
-  const handleClearAll = async () => {
+  const handleClearAll = async (): Promise<void> => {
     try {
       await connectionManager.removeAllSessions();
       setStoredSessions([]);
@@ -76,7 +76,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
     }
   };
 
-  const handleSwitchAccount = async (username: string, serverAddress: string) => {
+  const handleSwitchAccount = async (username: string, serverAddress: string): Promise<void> => {
     try {
       await connectionManager.switchAccount(username, serverAddress);
       toast({ title: 'Account switched', description: `Switched to ${username}` });
@@ -86,7 +86,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
     }
   };
 
-  const formatLastConnected = (timestamp?: number) => {
+  const formatLastConnected = (timestamp?: number): string => {
     if (!timestamp) return 'Never';
     const diff: number = Date.now() - timestamp;
     const hours: number = Math.floor(diff / (1000 * 60 * 60));

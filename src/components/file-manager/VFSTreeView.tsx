@@ -46,13 +46,13 @@ function SidebarNode({
   const isProtected = PROTECTED_DIRS.has(node.path);
   const FolderIcon = isProtected ? FolderLock : expanded ? FolderOpen : Folder;
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent): void => {
     e.preventDefault();
     e.stopPropagation();
     setDragOver(true);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent): void => {
     e.preventDefault();
     e.stopPropagation();
     setDragOver(false);
@@ -61,14 +61,14 @@ function SidebarNode({
     }
   };
 
-  const handleClick = () => {
+  const handleClick = (): void => {
     onNavigate(node.path);
     if (!expanded) onToggle();
   };
 
   // Widened from MouseEvent: also the keyboard activation handler, and it only
   // uses stopPropagation, which both event types have.
-  const handleChevronClick = (e: React.MouseEvent | React.KeyboardEvent) => {
+  const handleChevronClick = (e: React.MouseEvent | React.KeyboardEvent): void => {
     e.stopPropagation();
     onToggle();
   };
@@ -147,7 +147,7 @@ export function VFSTreeView({
 }: VFSTreeViewProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['/']));
 
-  const toggleExpand = useCallback((path: string) => {
+  const toggleExpand = useCallback((path: string): void => {
     setExpanded(prev => {
       const next: Set<string> = new Set(prev);
       if (next.has(path)) next.delete(path);
@@ -211,7 +211,7 @@ export function VFSTreeView({
           onClick={() => onNavigate('/')}
           role="button"
           tabIndex={0}
-          onKeyDown={activateOnKey(() => { (() => onNavigate('/'))(); })}
+          onKeyDown={activateOnKey((): void => { ((): void => onNavigate('/'))(); })}
         >
           <Folder className="h-3.5 w-3.5 mr-1.5 text-warning-emphasis" />
           <span>Root</span>

@@ -36,8 +36,8 @@ function treeWith(children: RevfsNode[]): RevfsNode {
   } as unknown as RevfsNode;
 }
 
-const noop = () => {};
-const asyncNoop = async () => {};
+const noop = (): void => {};
+const asyncNoop = async (): Promise<void> => {};
 /** Everything the grid needs that this test does not exercise. */
 const props = {
   currentPath: '/docs',

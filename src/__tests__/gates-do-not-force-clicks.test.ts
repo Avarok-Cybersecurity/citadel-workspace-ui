@@ -21,12 +21,12 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-const SCRIPTS = resolve(__dirname, '../../scripts');
+const SCRIPTS: string = resolve(__dirname, '../../scripts');
 
 function scriptFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
+    const path: string = join(dir, entry);
     if (statSync(path).isDirectory()) out.push(...scriptFiles(path));
     else if (entry.endsWith('.mjs')) out.push(path);
   }
@@ -34,7 +34,7 @@ function scriptFiles(dir: string): string[] {
 }
 
 describe('the browser gates', () => {
-  const files = scriptFiles(SCRIPTS);
+  const files: string[] = scriptFiles(SCRIPTS);
 
   it('scan a real set of scripts', () => {
     expect(files.length).toBeGreaterThan(10);
@@ -43,11 +43,11 @@ describe('the browser gates', () => {
   it('never force a click', () => {
     const forced: string[] = [];
     for (const file of files) {
-      const source = readFileSync(file, 'utf-8');
+      const source: string = readFileSync(file, 'utf-8');
       // `.click({ force: true })` only — `rm(dir, { force: true })` is a
       // filesystem call and has nothing to do with this.
       for (const match of source.matchAll(/\.click\(\s*\{[^}]*force:\s*true/g)) {
-        const line = source.slice(0, match.index).split('\n').length;
+        const line: number = source.slice(0, match.index).split('\n').length;
         forced.push(`${file.slice(SCRIPTS.length + 1)}:${line}`);
       }
     }

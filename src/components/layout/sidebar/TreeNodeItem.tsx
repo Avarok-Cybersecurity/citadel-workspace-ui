@@ -70,12 +70,12 @@ export function TreeNodeItem({
   // Cap at 5 levels of indentation to keep deep hierarchies navigable
   const indentPx: number = Math.min(Math.max(0, depth - 1), 5) * 12;
 
-  const handleToggle = (e: React.MouseEvent) => {
+  const handleToggle = (e: React.MouseEvent): void => {
     e.stopPropagation();
     onToggleExpand(node.id);
   };
 
-  const handleToggleKeyDown = (e: React.KeyboardEvent) => {
+  const handleToggleKeyDown = (e: React.KeyboardEvent): void => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       e.stopPropagation();

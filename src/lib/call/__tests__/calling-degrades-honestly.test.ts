@@ -11,19 +11,19 @@ const KEYS: string[] = [
   'MediaStreamTrackProcessor', 'MediaStreamTrackGenerator',
 ];
 
-function stubWebCodecs() {
+function stubWebCodecs(): void {
   for (const k of KEYS) saved[k] = g[k];
   // Enough of WebCodecs for the probe to get past its first gate.
   g.AudioEncoder = Object.assign(function () {}, {
     isConfigSupported: () => Promise.resolve({ supported: true }),
   });
-  g.AudioDecoder = function () {};
+  g.AudioDecoder = function (): void {};
   g.VideoEncoder = Object.assign(function () {}, {
     isConfigSupported: () => Promise.resolve({ supported: false }),
   });
-  g.VideoDecoder = function () {};
-  g.MediaStreamTrackProcessor = function () {};
-  g.MediaStreamTrackGenerator = function () {};
+  g.VideoDecoder = function (): void {};
+  g.MediaStreamTrackProcessor = function (): void {};
+  g.MediaStreamTrackGenerator = function (): void {};
   Object.defineProperty(navigator, 'mediaDevices', {
     configurable: true,
     value: { getUserMedia: () => Promise.resolve({}), enumerateDevices: () => Promise.resolve([]) },

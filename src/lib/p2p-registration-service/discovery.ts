@@ -42,7 +42,7 @@ export async function listAllPeers(
     ListAllPeers: { request_id: requestId, cid: currentCid }
   };
 
-  const responsePromise = new Promise<Record<string, unknown>>((resolve, reject) => {
+  const responsePromise = new Promise<Record<string, unknown>>((resolve, reject): void => {
     pendingRequests.set(requestId, { resolve, reject });
     setTimeout(() => {
       if (pendingRequests.has(requestId)) {
@@ -85,7 +85,7 @@ export async function listRegisteredPeers(
     ListRegisteredPeers: { request_id: requestId, cid: currentCid }
   };
 
-  const responsePromise = new Promise<Record<string, unknown>>((resolve, reject) => {
+  const responsePromise = new Promise<Record<string, unknown>>((resolve, reject): void => {
     pendingRequests.set(requestId, { resolve, reject });
     setTimeout(() => {
       if (pendingRequests.has(requestId)) {

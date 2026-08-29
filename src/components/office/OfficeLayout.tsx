@@ -29,7 +29,7 @@ export const OfficeLayout = ({
   const navigate = useNavigate();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
-  const handleNavigateUp = () => {
+  const handleNavigateUp = (): void => {
     const params = new URLSearchParams(location.search);
     params.delete("nodeId");
     navigate(buildWorkspacePath(params));

@@ -75,7 +75,7 @@ export class WebSocketInitialization {
     return new Promise<void>((resolve) => {
       let resolved = false;
 
-      const handler = ({ isLeader, leaderId }: { isLeader: boolean; leaderId: string }) => {
+      const handler = ({ isLeader, leaderId }: { isLeader: boolean; leaderId: string }): void => {
         if (!resolved) {
           resolved = true;
           eventEmitter.off('instance:leader-changed', handler);

@@ -63,7 +63,7 @@ describe('ConfirmDeleteDialog', () => {
   it('ignores a second click while the first delete is still in flight', async () => {
     const user = userEvent.setup();
     let release!: () => void;
-    const onConfirm = vi.fn(() => new Promise<void>((r) => { release = () => r(); }));
+    const onConfirm = vi.fn((): Promise<void> => new Promise<void>((r): void => { release = (): void => r(); }));
     render(<Harness onConfirm={onConfirm} />);
 
     const button = screen.getByRole('button', { name: 'Delete' });

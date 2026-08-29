@@ -52,7 +52,7 @@ export function useCallRuntime({
   const managerCidRef = useRef<bigint | null>(null);
 
   /** Torn down together: a session without its manager cannot end a call. */
-  const teardown = useCallback(() => {
+  const teardown = useCallback((): void => {
     sessionRef.current?.close();
     sessionRef.current = null;
     managerRef.current = null;
@@ -89,7 +89,7 @@ export function useCallRuntime({
 
     const builtFor: bigint = selfCid;
     managerCidRef.current = builtFor;
-    const build: Promise<CallManager | null> = (async () => {
+    const build: Promise<CallManager | null> = (async (): Promise<CallManager | null> => {
       const { localCapabilities } = await import('@/lib/call/codec-support');
       const capabilities = await localCapabilities();
       const manager: CallManager = new CallManager({
@@ -101,7 +101,7 @@ export function useCallRuntime({
           const id: number = window.setTimeout(fn, delayMs);
           return () => window.clearTimeout(id);
         },
-        onStateChanged: (next) => {
+        onStateChanged: (next): void => {
           setCall(next);
           if (next) {
             // A departed participant's decoders and tracks are released the
@@ -196,7 +196,7 @@ export function useCallRuntime({
       onCaptureFailed: setCaptureFailure,
       // Our decoder for this peer is stuck; ask their encoder for a keyframe.
       onNeedKeyframe: (peerCid, track) => void managerRef.current?.requestKeyframe(peerCid, track),
-      onTrackEnded: (kind: 'audio' | 'video') => {
+      onTrackEnded: (kind: 'audio' | 'video'): void => {
         // Two audiences, both of which were being lied to. The local UI:
         // without this the mic button still read unmuted on a dead mic, and
         // toggling it flipped `enabled` on an ended track — a no-op that

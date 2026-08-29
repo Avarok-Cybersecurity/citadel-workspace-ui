@@ -25,7 +25,7 @@ export function useVFSKeyboardShortcuts({
   tree, selectedPaths, renamingPath, currentPath, hasPasteItems,
   setRenamingPath, onDelete, onDeleteMultiple, onCopy, onCopyMultiple,
   onCut, onCutMultiple, onPaste, onSelectAll, onClearSelection,
-}: KeyboardShortcutsDeps) {
+}: KeyboardShortcutsDeps): void {
   const getSelectedNodes = useCallback((): RevfsNode[] => {
     return Array.from(selectedPaths)
       .map(path => findNodeByPath(tree, path))
@@ -33,7 +33,7 @@ export function useVFSKeyboardShortcuts({
   }, [selectedPaths, tree]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
       if (renamingPath || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       const isMod = e.ctrlKey || e.metaKey;
@@ -85,7 +85,7 @@ export function useVFSKeyboardShortcuts({
     };
 
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    return (): void => document.removeEventListener('keydown', handleKeyDown);
   }, [
     renamingPath, getSelectedNodes, currentPath, hasPasteItems,
     onDelete, onDeleteMultiple, onCopy, onCopyMultiple,

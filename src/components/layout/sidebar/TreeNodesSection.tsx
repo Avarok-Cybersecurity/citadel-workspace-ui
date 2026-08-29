@@ -138,7 +138,7 @@ export function TreeNodesSection({
     [onNodeDelete]
   );
 
-  const confirmDelete = useCallback(async () => {
+  const confirmDelete = useCallback(async (): Promise<void> => {
     if (!nodeToDelete || !onNodeDelete) return;
     setDeleteError(null);
     try {
@@ -155,7 +155,7 @@ export function TreeNodesSection({
     }
   }, [nodeToDelete, onNodeDelete]);
 
-  const handleCreateRoot = useCallback(() => {
+  const handleCreateRoot = useCallback((): void => {
     if (onNodeCreate) {
       onNodeCreate(null);
     }

@@ -22,8 +22,8 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   private disposed = false;
 
   // Map client transferId to protocol objectId for correlation
-  private transferIdToObjectId = new Map<string, string>();
-  private objectIdToTransferId = new Map<string, string>();
+  private transferIdToObjectId: Map<string, string> = new Map<string, string>();
+  private objectIdToTransferId: Map<string, string> = new Map<string, string>();
 
   /**
    * Correlation state for the id-less tick stream (see tick-events.ts):
@@ -65,7 +65,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   onTransferRequest(callback: (event: TransferRequestEvent) => void): () => void {
     const handler = createTransferRequestHandler(callback);
     eventEmitter.on('websocket-message', handler);
-    const unsubscribe = () => eventEmitter.off('websocket-message', handler);
+    const unsubscribe = (): void => eventEmitter.off('websocket-message', handler);
     this.subscriptions.set(`request-${Date.now()}`, unsubscribe);
     return unsubscribe;
   }
@@ -73,7 +73,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   onProgress(callback: (event: TransferProgressEvent) => void): () => void {
     const handler = createProgressHandler(callback, this.tickCorrelation);
     eventEmitter.on('websocket-message', handler);
-    const unsubscribe = () => eventEmitter.off('websocket-message', handler);
+    const unsubscribe = (): void => eventEmitter.off('websocket-message', handler);
     this.subscriptions.set(`progress-${Date.now()}`, unsubscribe);
     return unsubscribe;
   }
@@ -81,7 +81,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   onComplete(callback: (event: TransferCompleteEvent) => void): () => void {
     const handler = createCompleteHandler(callback, this.tickCorrelation);
     eventEmitter.on('websocket-message', handler);
-    const unsubscribe = () => eventEmitter.off('websocket-message', handler);
+    const unsubscribe = (): void => eventEmitter.off('websocket-message', handler);
     this.subscriptions.set(`complete-${Date.now()}`, unsubscribe);
     return unsubscribe;
   }
@@ -89,7 +89,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   onStatusChange(callback: (event: TransferStatusEvent) => void): () => void {
     const handler = createStatusChangeHandler(callback, this.tickCorrelation);
     eventEmitter.on('websocket-message', handler);
-    const unsubscribe = () => eventEmitter.off('websocket-message', handler);
+    const unsubscribe = (): void => eventEmitter.off('websocket-message', handler);
     this.subscriptions.set(`status-${Date.now()}`, unsubscribe);
     return unsubscribe;
   }
@@ -103,7 +103,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
       const reader = new FileReader();
       reader.onload = e => {
         const img = new Image();
-        img.onload = () => {
+        img.onload = (): void => {
           const canvas = document.createElement('canvas');
           const MAX_SIZE = 100;
           let width: number = img.width;
@@ -131,10 +131,10 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
             reject(new Error('Could not get canvas context'));
           }
         };
-        img.onerror = () => reject(new Error('Could not load image'));
+        img.onerror = (): void => reject(new Error('Could not load image'));
         img.src = e.target?.result as string;
       };
-      reader.onerror = () => reject(new Error('Could not read file'));
+      reader.onerror = (): void => reject(new Error('Could not read file'));
       reader.readAsDataURL(file);
     });
   }

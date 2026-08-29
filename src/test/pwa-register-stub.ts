@@ -15,9 +15,9 @@ export interface RegisterSWOptions {
 
 export function useRegisterSW(_options?: RegisterSWOptions) {
   return {
-    offlineReady: [false, () => {}] as [boolean, (value: boolean) => void],
-    needRefresh: [false, () => {}] as [boolean, (value: boolean) => void],
-    updateServiceWorker: async (_reloadPage?: boolean) => {},
+    offlineReady: [false, (): void => {}] as [boolean, (value: boolean) => void],
+    needRefresh: [false, (): void => {}] as [boolean, (value: boolean) => void],
+    updateServiceWorker: async (_reloadPage?: boolean): Promise<void> => {},
   };
 }
 
@@ -30,5 +30,5 @@ export function registerSW(_options?: {
   onRegisteredSW?: (url: string, registration?: ServiceWorkerRegistration) => void;
   onRegisterError?: (error: unknown) => void;
 }) {
-  return async (_reloadPage?: boolean) => {};
+  return async (_reloadPage?: boolean): Promise<void> => {};
 }

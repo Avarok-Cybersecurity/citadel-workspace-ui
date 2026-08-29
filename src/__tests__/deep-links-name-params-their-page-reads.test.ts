@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /** Route path → the file that reads its query params. */
 const PAGE_FOR_ROUTE: Record<string, string> = {
@@ -25,21 +25,21 @@ const PAGE_FOR_ROUTE: Record<string, string> = {
 
 describe('deep links', () => {
   it('only carry query params the destination page reads', async () => {
-    const files = await fg(['**/*.ts', '**/*.tsx'], {
+    const files: string[] = await fg(['**/*.ts', '**/*.tsx'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx'],
     });
 
     const offenders: string[] = [];
     for (const [route, pageRel] of Object.entries(PAGE_FOR_ROUTE)) {
-      const page = stripComments(readFileSync(join(SRC, pageRel), 'utf-8'));
-      const pattern = new RegExp(`${route}\\?([A-Za-z_][A-Za-z0-9_]*)=`, 'g');
+      const page: string = stripComments(readFileSync(join(SRC, pageRel), 'utf-8'));
+      const pattern: RegExp = new RegExp(`${route}\\?([A-Za-z_][A-Za-z0-9_]*)=`, 'g');
 
       for (const rel of files) {
         if (rel === pageRel) continue;
-        const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+        const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
         for (const match of source.matchAll(pattern)) {
-          const param = match[1];
+          const param: string = match[1];
           if (!page.includes(`get("${param}")`) && !page.includes(`get('${param}')`)) {
             offenders.push(`${rel} links to ${route}?${param}= but ${pageRel} never reads it`);
           }

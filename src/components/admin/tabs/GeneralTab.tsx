@@ -36,7 +36,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
     if (seededKeyRef.current === entityKey && dirtyRef.current) return;
     seededKeyRef.current = entityKey;
 
-    const loadData = () => {
+    const loadData = (): void => {
       setLoading(true);
       try {
         if (entityType === 'workspace' && state.workspace) {
@@ -67,7 +67,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
     dirtyRef.current = dirty;
   }, [name, description, originalName, originalDescription]);
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
     if (!name.trim()) {
       toast({
         title: 'Error',
@@ -124,7 +124,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = (): void => {
     setName(originalName);
     setDescription(originalDescription);
   };

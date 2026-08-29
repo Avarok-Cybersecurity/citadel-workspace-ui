@@ -62,7 +62,7 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
     remove: { ...BASE_MODES.remove, description: `Remove member from this ${location}` },
   };
 
-  const handleSubmit = async (formData: Record<string, string>) => {
+  const handleSubmit = async (formData: Record<string, string>): Promise<void> => {
     if (mode === "add") {
       await WorkspaceService.addMember(formData.username, formData.role as UserRoleTS, domainId);
       toastSuccess(toast, "Member Added", `${formData.username} has been added to the ${location} as ${formData.role}`);

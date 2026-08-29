@@ -48,7 +48,7 @@ export function ChatSettingsPanel({
   // The workspace-wide privacy settings, so this panel's switches and the
   // Privacy settings tab cannot disagree about what is being broadcast.
   const [privacy, setPrivacy] = useState<PrivacySettings>(getPrivacySettings);
-  const updatePrivacy = <K extends keyof PrivacySettings>(key: K, value: PrivacySettings[K]) => {
+  const updatePrivacy = <K extends keyof PrivacySettings>(key: K, value: PrivacySettings[K]): void => {
     setPrivacy((prev) => {
       const next = { ...prev, [key]: value };
       savePrivacySettings(next);
@@ -265,7 +265,7 @@ export function ChatSettingsPanel({
                 <button
                   className="w-full p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive-emphasis text-sm hover:bg-destructive/20 transition-colors"
                   onClick={() => {
-                    void (async () => {
+                    void (async (): Promise<void> => {
                       const ok = await confirm({
                         title: `Clear all chat history with ${peerName}?`,
                         description: 'Messages stored on this device are removed. This cannot be undone.',

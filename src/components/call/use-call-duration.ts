@@ -21,7 +21,7 @@ export function useCallDuration(running: boolean): string {
     startedAt.current = Date.now();
     // One second is the resolution the display has; a faster interval would
     // re-render the call surface for no visible difference.
-    const tick = () => {
+    const tick = (): void => {
       const started = startedAt.current;
       if (started === null) return;
       const seconds: number = Math.floor((Date.now() - started) / 1000);
@@ -32,7 +32,7 @@ export function useCallDuration(running: boolean): string {
 
     tick();
     const timer: number = window.setInterval(tick, 1000);
-    return () => window.clearInterval(timer);
+    return (): void => window.clearInterval(timer);
   }, [running]);
 
   return text;

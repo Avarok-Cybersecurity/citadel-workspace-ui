@@ -58,7 +58,7 @@ export function GroupChatHeader({
   const [isLeaving, setIsLeaving] = useState(false);
 
   // Handle leave confirmation
-  const handleLeaveConfirm = async () => {
+  const handleLeaveConfirm = async (): Promise<void> => {
     setIsLeaving(true);
     try {
       await onLeaveGroup();

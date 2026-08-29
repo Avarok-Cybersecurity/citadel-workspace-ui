@@ -43,7 +43,7 @@ export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navi
   const candidates: AgentPlatform[] = agentPlatformCandidates(navigatorRef ?? navigator);
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
+  const handleCopy = (): void => {
     runAsyncSetup(async () => {
       await navigator.clipboard.writeText(RUN_COMMAND);
       setCopied(true);

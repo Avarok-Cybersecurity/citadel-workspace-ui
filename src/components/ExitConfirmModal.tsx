@@ -24,7 +24,7 @@ export const ExitConfirmModal = ({
   userName,
   workspaceName = "your workspace",
 }: ExitConfirmModalProps) => {
-  const handleConfirm = () => {
+  const handleConfirm = (): void => {
     onConfirm();
     onOpenChange(false);
   };

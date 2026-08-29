@@ -23,7 +23,7 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /**
  * Subscribers that deliberately take every list, and why.
@@ -39,7 +39,7 @@ const WORKSPACE_WIDE: Record<string, string> = {
 
 describe('a members:loaded subscriber', () => {
   it('filters by domain, or says why it does not', async () => {
-    const files = await fg(['**/*.ts', '**/*.tsx'], {
+    const files: string[] = await fg(['**/*.ts', '**/*.tsx'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx', 'test-utils/**'],
     });
@@ -48,7 +48,7 @@ describe('a members:loaded subscriber', () => {
 
     for (const rel of files) {
       if (rel in WORKSPACE_WIDE) continue;
-      const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
 
       // Subscribing, not declaring or emitting. The type map names the event
       // and the response handler emits it; neither consumes a list.
@@ -72,7 +72,7 @@ describe('a members:loaded subscriber', () => {
 
   it('keeps every exemption honest', () => {
     for (const rel of Object.keys(WORKSPACE_WIDE)) {
-      const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
       expect(
         /['"]members:loaded['"]/.test(source),
         `${rel} is exempted but no longer subscribes — drop the exemption ` +

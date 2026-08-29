@@ -32,7 +32,7 @@ export function useGroupChat(groupId: string) {
 
   // Load initial messages
   useEffect(() => {
-    const loadMessages = async () => {
+    const loadMessages = async (): Promise<void> => {
       setLoading(true);
       // getGroupMessages resolves when the request is SENT, and `loading` is
       // cleared only by the messages_loaded event — so a refused or lost
@@ -60,7 +60,7 @@ export function useGroupChat(groupId: string) {
 
   // Subscribe to group message events
   useEffect(() => {
-    const unsubscribe = groupMessagingManager.subscribeToGroup(groupId, (event) => {
+    const unsubscribe = groupMessagingManager.subscribeToGroup(groupId, (event): void => {
       switch (event.type) {
         case 'messages_loaded':
           cancelLoadingDeadline(`group-messages:${groupId}`);
@@ -106,11 +106,11 @@ export function useGroupChat(groupId: string) {
       }
     });
 
-    return () => unsubscribe();
+    return (): void => unsubscribe();
   }, [groupId]);
 
   // Load more messages (pagination)
-  const loadMoreMessages = useCallback(async () => {
+  const loadMoreMessages = useCallback(async (): Promise<void> => {
     if (!hasMore || loadingMore) return;
 
     const oldestTimestamp = groupMessagingManager.getOldestTimestamp(groupId);
@@ -134,7 +134,7 @@ export function useGroupChat(groupId: string) {
   }, [groupId, hasMore, loadingMore]);
 
   // Handle send message
-  const handleSendMessage = async () => {
+  const handleSendMessage = async (): Promise<void> => {
     if (!inputValue.trim() || sending) return;
 
     setSending(true);
@@ -160,7 +160,7 @@ export function useGroupChat(groupId: string) {
   };
 
   // Handle edit message
-  const handleEditMessage = async () => {
+  const handleEditMessage = async (): Promise<void> => {
     if (!editingId || !editContent.trim()) return;
 
     try {
@@ -178,7 +178,7 @@ export function useGroupChat(groupId: string) {
   };
 
   // Handle delete message
-  const handleDeleteMessage = async (messageId: string) => {
+  const handleDeleteMessage = async (messageId: string): Promise<void> => {
     // Asked first. Delete sits directly under Edit in the same dropdown, and a
     // mis-click destroyed the message for everyone with no undo.
     if (!(await confirm(DELETE_MESSAGE_PROMPT))) return;
@@ -200,7 +200,7 @@ export function useGroupChat(groupId: string) {
   // per message. A long thread made typing visibly lag.
   const messagesByDate: Record<string, GroupMessage[]> = useMemo(() => groupMessagesByDate(messages), [messages]);
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e: React.KeyboardEvent): void => {
     if (shouldSendOnKey(e)) {
       e.preventDefault();
       runAsyncSetup(async () => {

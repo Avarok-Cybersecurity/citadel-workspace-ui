@@ -18,24 +18,24 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /**
  * Values that change on a timer rather than in response to the user. A live
  * region may hold them only if they are hidden from assistive technology.
  */
-const TICKING = ['{duration}', '{countdown}', '{elapsed}'];
+const TICKING: string[] = ['{duration}', '{countdown}', '{elapsed}'];
 
 describe('live regions', () => {
   it('do not contain a value that changes on a timer', async () => {
-    const files = await fg(['**/*.tsx'], {
+    const files: string[] = await fg(['**/*.tsx'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.tsx'],
     });
 
     const offenders: string[] = [];
     for (const rel of files) {
-      const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
       if (!/aria-live=|role="status"|role="alert"/.test(source)) continue;
 
       for (const ticking of TICKING) {
@@ -43,9 +43,9 @@ describe('live regions', () => {
         // The value has to be inside an element that hides it. Checked by
         // proximity rather than by parsing: the hidden marker must appear
         // within the same element as the interpolation.
-        const at = source.indexOf(ticking);
-        const before = source.slice(0, at);
-        const marker = Math.max(
+        const at: number = source.indexOf(ticking);
+        const before: string = source.slice(0, at);
+        const marker: number = Math.max(
           before.lastIndexOf('aria-live='),
           before.lastIndexOf('role="status"'),
           before.lastIndexOf('role="alert"'),
@@ -58,7 +58,7 @@ describe('live regions', () => {
         // after the status div closes. Without this the scan reported correct
         // code as a defect, and a scan that cries wolf gets relaxed until it
         // catches nothing.
-        const between = source.slice(marker, at);
+        const between: string = source.slice(marker, at);
         const escapedTheRegion = /<\/(div|span|p)>/.test(between);
         if (escapedTheRegion) continue;
 
@@ -68,9 +68,9 @@ describe('live regions', () => {
         // control proved it: removing the duration's hidden marker still
         // passed. A guard that its own negative control cannot fail is not a
         // guard.
-        const enclosingTagEnd = between.lastIndexOf('>');
-        const enclosingTagStart = between.lastIndexOf('<', enclosingTagEnd);
-        const enclosingTag =
+        const enclosingTagEnd: number = between.lastIndexOf('>');
+        const enclosingTagStart: number = between.lastIndexOf('<', enclosingTagEnd);
+        const enclosingTag: string =
           enclosingTagStart === -1 ? '' : between.slice(enclosingTagStart, enclosingTagEnd);
 
         if (!enclosingTag.includes('aria-hidden')) {

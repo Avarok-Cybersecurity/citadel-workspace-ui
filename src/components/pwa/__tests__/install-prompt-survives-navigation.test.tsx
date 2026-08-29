@@ -26,7 +26,7 @@ function fireInstallPrompt() {
     prompt: () => Promise<void>;
     userChoice: Promise<{ outcome: string; platform: string }>;
   };
-  event.prompt = () => Promise.resolve();
+  event.prompt = (): Promise<void> => Promise.resolve();
   event.userChoice = Promise.resolve({ outcome: 'accepted', platform: 'web' });
   act(() => {
     window.dispatchEvent(event);

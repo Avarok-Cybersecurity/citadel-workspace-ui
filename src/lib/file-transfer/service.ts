@@ -35,8 +35,8 @@ import {
 export class FileTransferService {
   private static instance: FileTransferService;
 
-  private readonly state = new FileTransferState();
-  private readonly correlator = new ProtocolOfferCorrelator((transferId, objectId) =>
+  private readonly state: FileTransferState = new FileTransferState();
+  private readonly correlator: ProtocolOfferCorrelator = new ProtocolOfferCorrelator((transferId, objectId): void =>
     this.io.registerTransferMapping(transferId, objectId)
   );
   private io: FileTransferIO;
@@ -81,7 +81,7 @@ export class FileTransferService {
       emitStateChange: this.emitStateChange.bind(this),
       saveTransfer: this.saveTransfer.bind(this),
       saveSettings: this.saveSettings.bind(this),
-      handleAsyncSend: (t: FileTransfer, f: File) => handleAsyncSend(this.deps, t, f),
+      handleAsyncSend: (t: FileTransfer, f: File): Promise<void> => handleAsyncSend(this.deps, t, f),
     };
   }
 

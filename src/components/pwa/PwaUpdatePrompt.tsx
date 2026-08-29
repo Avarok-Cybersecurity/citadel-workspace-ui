@@ -82,11 +82,11 @@ export function PwaUpdatePrompt() {
         action: { label: 'Reload', onClick: () => window.location.reload() },
       });
     },
-    onRegisteredSW(url, registration) {
+    onRegisteredSW(url, registration): void {
       debugLog('PWA', 'Service worker registered', url);
       if (!registration) return;
 
-      const check = () => {
+      const check = (): void => {
         // Offline, the request only fails and logs noise; the visibility and
         // online listeners below cover the moment connectivity returns.
         if (!navigator.onLine) return;
@@ -99,7 +99,7 @@ export function PwaUpdatePrompt() {
 
       // Also check at the two moments a user is most likely to have missed one:
       // coming back to the tab, and coming back online.
-      const onVisible = () => {
+      const onVisible = (): void => {
         if (document.visibilityState === 'visible') check();
       };
       document.addEventListener('visibilitychange', onVisible);
@@ -107,13 +107,13 @@ export function PwaUpdatePrompt() {
 
       // Registration outlives this component in practice, but the listeners
       // should not accumulate if it ever remounts.
-      cleanupRef.current = () => {
+      cleanupRef.current = (): void => {
         clearInterval(timer);
         document.removeEventListener('visibilitychange', onVisible);
         window.removeEventListener('online', check);
       };
     },
-    onRegisterError(error) {
+    onRegisterError(error): void {
       debugLog('PWA', 'Service worker registration failed', error);
     },
   });
@@ -124,9 +124,9 @@ export function PwaUpdatePrompt() {
    * THIS window instead of showing "Updated in another window" — the re-offer
    * used to omit it, so the user pressed Reload and was told to reload.
    */
-  const acceptUpdate = useCallback(() => {
+  const acceptUpdate = useCallback((): void => {
     weInitiatedUpdate.current = true;
-    void (async () => {
+    void (async (): Promise<void> => {
       // `applyWaitingUpdate` rather than the library's `updateServiceWorker`,
       // because it reports whether a worker actually took control.
       //
@@ -158,7 +158,7 @@ export function PwaUpdatePrompt() {
     // deadline, and it was landing beside "Could not reach the server" on a
     // failed first-run registration -- a green success toast next to the error
     // the user has to act on. See announce-when-quiet.
-    const cancel = announceWhenQuiet(() => {
+    const cancel = announceWhenQuiet((): void => {
       toast({
         title: 'Ready to work offline',
         description: 'Citadel has been installed and will now load without a connection.',
@@ -197,7 +197,7 @@ export function PwaUpdatePrompt() {
   // as a new version is sitting there — so returning to the tab is a natural,
   // bounded moment to raise it again without nagging mid-task.
   useEffect(() => {
-    const offerIfWaiting = () => {
+    const offerIfWaiting = (): void => {
       if (document.visibilityState !== 'visible') return;
       void navigator.serviceWorker?.getRegistration()
         .then((registration) => {
@@ -214,7 +214,7 @@ export function PwaUpdatePrompt() {
     };
 
     document.addEventListener('visibilitychange', offerIfWaiting);
-    return () => document.removeEventListener('visibilitychange', offerIfWaiting);
+    return (): void => document.removeEventListener('visibilitychange', offerIfWaiting);
   }, [toast, acceptUpdate]);
 
   return null;

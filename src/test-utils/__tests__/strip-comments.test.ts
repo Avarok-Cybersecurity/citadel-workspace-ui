@@ -7,12 +7,12 @@
 import { describe, it, expect } from 'vitest';
 import { stripComments } from '../strip-comments';
 
-const NAIVE = (s: string) =>
+const NAIVE = (s: string): string =>
   s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 describe('stripComments', () => {
   it('removes block and line comments', () => {
-    const out = stripComments('/* gone */ const a = 1;\n// gone\nconst b = 2;');
+    const out: string = stripComments('/* gone */ const a = 1;\n// gone\nconst b = 2;');
     expect(out).not.toMatch(/gone/);
     expect(out).toContain('const a = 1;');
     expect(out).toContain('const b = 2;');
@@ -24,7 +24,7 @@ describe('stripComments', () => {
     // closes it, so everything between — including the code — is deleted.
     // Without the trailing comment there is nothing to close it and the bug
     // does not reproduce, which is how the first version of this test passed.
-    const source = [
+    const source: string = [
       "globPatterns: ['**/*.{js,css}'],",
       "pure: ['debugLog'],",
       "/** a later doc comment */",

@@ -23,12 +23,12 @@ export async function resolveCurrentCid(): Promise<bigint | null> {
   const instanceCid = instanceManager.cid;
   if (instanceCid) return instanceCid;
   try {
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 500));
+    const timeout = new Promise<null>((resolve) => setTimeout((): void => resolve(null), 500));
     const tabSelection = await Promise.race([getSelectedUser(), timeout]);
     if (tabSelection?.selectedCid) return tabSelection.selectedCid;
   } catch { /* continue */ }
   try {
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 500));
+    const timeout = new Promise<null>((resolve) => setTimeout((): void => resolve(null), 500));
     const tabSession = await Promise.race([connectionManager.getTabSelectedSession(), timeout]);
     if (tabSession?.cid) return tabSession.cid;
   } catch { /* continue */ }

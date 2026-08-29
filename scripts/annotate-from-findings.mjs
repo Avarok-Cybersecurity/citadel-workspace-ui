@@ -128,9 +128,17 @@ for (const source of program.getSourceFiles()) {
       (ts.isVariableDeclaration(node) || ts.isPropertyDeclaration(node)) &&
       !node.type && ts.isIdentifier(node.name) && onWantedLine(node)
     ) {
-      const inferred = checker.getTypeAtLocation(node);
-      const type = ts.getCombinedNodeFlags(node) & ts.NodeFlags.Const
-        ? checker.getBaseTypeOfLiteralType(inferred) : inferred;
+      // NOT widened. `getBaseTypeOfLiteralType` turns `const CODEC =
+      // 'av01.0.05M.08'` into `string`, and every call site expecting the
+      // literal union stops compiling -- 30-odd errors on the first full run.
+      // Writing the literal instead narrows a numeric constant so that callers
+      // passing a different number stop compiling, which is the same failure
+      // from the other side.
+      //
+      // Both directions break, so literal-typed declarations are left alone.
+      // They are the one class this tool cannot decide, because the answer
+      // depends on how the value is USED and not on what it is.
+      const type = checker.getTypeAtLocation(node);
       const printed = checker.typeToString(
         type, node,
         ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType,

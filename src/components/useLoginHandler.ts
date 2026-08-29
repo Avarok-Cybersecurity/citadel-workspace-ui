@@ -54,10 +54,10 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const doRedirect = (session: { cid: bigint; username: string; server_address: string }) =>
+  const doRedirect = (session: { cid: bigint; username: string; server_address: string }): Promise<void> =>
     redirectToExistingSession(session, { navigate, toast, onNext });
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
       setError("Username and password are required");
@@ -114,11 +114,11 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       const requestId = crypto.randomUUID();
       let responseReceived = false;
       const responsePromise: Promise<bigint> = new Promise<bigint>((resolve, reject) => {
-        const timeout = setTimeout(() => {
+        const timeout = setTimeout((): void => {
           if (!responseReceived) { eventEmitter.off('websocket-message', handler); reject(new Error('Connection timeout')); }
         }, 30000);
 
-        const handler = (message: InternalServiceResponse) => {
+        const handler = (message: InternalServiceResponse): void => {
           const response: InternalServiceResponse = (message as Record<string, unknown>).Response
             ? ((message as Record<string, unknown>).Response as InternalServiceResponse) : message;
 

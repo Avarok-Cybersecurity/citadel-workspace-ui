@@ -13,9 +13,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const emitted: Array<{ event: string; payload: unknown }> = [];
 vi.mock('@/lib/event-emitter', () => ({
   eventEmitter: {
-    emit: (event: string, payload: unknown) => emitted.push({ event, payload }),
-    on: () => () => {},
-    off: () => {},
+    emit: (event: string, payload: unknown): number => emitted.push({ event, payload }),
+    on: () => (): void => {},
+    off: (): void => {},
   },
 }));
 

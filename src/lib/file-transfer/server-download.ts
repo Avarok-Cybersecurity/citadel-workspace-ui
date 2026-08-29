@@ -76,18 +76,18 @@ export function downloadFileFromServer(transfer: FileTransfer): Promise<string |
   });
 
   return failOnSocketLoss('ServerDownload', new Promise<string | undefined>((resolve, reject) => {
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout((): void => {
       eventEmitter.off('websocket-message', handleMessage);
       reject(new Error(`Download of "${transfer.fileName}" timed out.`));
     }, TIMEOUT.FILE_SEND_MS);
 
-    const settle = (fn: () => void) => {
+    const settle = (fn: () => void): void => {
       clearTimeout(timeout);
       eventEmitter.off('websocket-message', handleMessage);
       fn();
     };
 
-    const handleMessage = (message: unknown) => {
+    const handleMessage = (message: unknown): void => {
       const msg = message as Record<string, unknown>;
 
       // The transfer itself completing (or failing) arrives as a status notification,

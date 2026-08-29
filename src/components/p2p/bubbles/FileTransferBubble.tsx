@@ -58,27 +58,27 @@ export function FileTransferBubble({
 
   const status = getStatusContent(state, isOwn, message);
 
-  const handleClick = () => {
+  const handleClick = (): void => {
     if (status.clickable && onOpen && message.virtual_path) {
       onOpen(message.virtual_path);
     }
   };
 
-  const handleAccept = (e: React.MouseEvent) => {
+  const handleAccept = (e: React.MouseEvent): void => {
     e.stopPropagation();
     if (onAccept && message.transfer_id) {
       onAccept(message.transfer_id);
     }
   };
 
-  const handleDecline = (e: React.MouseEvent) => {
+  const handleDecline = (e: React.MouseEvent): void => {
     e.stopPropagation();
     if (onDecline && message.transfer_id) {
       onDecline(message.transfer_id);
     }
   };
 
-  const handleCancel = (e: React.MouseEvent) => {
+  const handleCancel = (e: React.MouseEvent): void => {
     e.stopPropagation();
     if (onCancel && message.transfer_id) {
       onCancel(message.transfer_id);

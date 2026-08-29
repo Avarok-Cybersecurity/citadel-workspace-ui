@@ -14,7 +14,7 @@ import { describe, it, expect } from 'vitest';
 import { expiredTransferIds } from '../expire-transfers';
 import type { FileTransfer } from '../types';
 
-const offer = (over: Record<string, unknown> = {}) =>
+const offer = (over: Record<string, unknown> = {}): FileTransfer =>
   ({
     id: 't-1',
     state: 'pending',

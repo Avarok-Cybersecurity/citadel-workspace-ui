@@ -69,12 +69,12 @@ export function useAsyncData<T>(
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => {
+    return (): void => {
       mountedRef.current = false;
     };
   }, []);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (): Promise<void> => {
     if (skip) {
       setLoading(false);
       return;
@@ -112,11 +112,11 @@ export function useAsyncData<T>(
     const _: Promise<void> = fetchData();
   }, [fetchData]);
 
-  const refetch = useCallback(async () => {
+  const refetch = useCallback(async (): Promise<void> => {
     await fetchData();
   }, [fetchData]);
 
-  const reset = useCallback(() => {
+  const reset = useCallback((): void => {
     fetchIdRef.current++;
     setData(initialData as T | null);
     setLoading(false);
@@ -162,7 +162,7 @@ export function useAsyncAction<T, Args extends unknown[] = []>(
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => {
+    return (): void => {
       mountedRef.current = false;
     };
   }, []);
@@ -195,12 +195,12 @@ export function useAsyncAction<T, Args extends unknown[] = []>(
     }
   }, [actionFn, onSuccess, onError]);
 
-  const refetch = useCallback(async () => {
+  const refetch = useCallback(async (): Promise<void> => {
     // For actions, refetch doesn't make sense without args
     debugLog('UseAsyncAction', 'refetch() called without arguments. Use execute() with args instead.');
   }, []);
 
-  const reset = useCallback(() => {
+  const reset = useCallback((): void => {
     setData(null);
     setLoading(false);
     setError(null);

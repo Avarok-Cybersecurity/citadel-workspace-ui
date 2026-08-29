@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /**
  * Navigation sources that unmount the document editor.
@@ -25,7 +25,7 @@ const SRC = join(process.cwd(), 'src');
  * a textual property, and a scan that guessed would either miss one or flag
  * every navigate() in the app.
  */
-const LEAVES_THE_EDITOR = [
+const LEAVES_THE_EDITOR: string[] = [
   'components/layout/sidebar/HierarchySidebar.tsx',
   'components/layout/sidebar/MembersSection.tsx',
   'components/layout/sidebar/FilesSection.tsx',
@@ -34,7 +34,7 @@ const LEAVES_THE_EDITOR = [
 
 describe('a navigation that unmounts the editor', () => {
   it('asks before discarding unsaved work', () => {
-    const offenders = LEAVES_THE_EDITOR.filter(
+    const offenders: string[] = LEAVES_THE_EDITOR.filter(
       (rel) => !/mayLeaveEditor\s*\(/.test(stripComments(readFileSync(join(SRC, rel), 'utf-8'))),
     );
 
@@ -53,8 +53,8 @@ describe('a navigation that unmounts the editor', () => {
 
     clearUnsavedEditsForTests();
 
-    let asked = 0;
-    const confirm = async () => {
+    let asked: number = 0;
+    const confirm = async (): Promise<boolean> => {
       asked += 1;
       return true;
     };

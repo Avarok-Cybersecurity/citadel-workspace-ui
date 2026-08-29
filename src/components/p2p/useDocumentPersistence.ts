@@ -37,14 +37,14 @@ export function useDocumentPersistence(documentId: string, doc: Y.Doc): void {
         // provider still populates it from the peer.
         debugLog('CollaborativeEditor', 'Could not restore document', documentId, error);
       });
-    return () => {
+    return (): void => {
       cancelled = true;
     };
   }, [documentId, doc]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const persist = () => {
+    const persist = (): void => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         void liveDocumentStore.updateDocumentState(documentId, doc).catch((error: unknown) => {
@@ -53,7 +53,7 @@ export function useDocumentPersistence(documentId: string, doc: Y.Doc): void {
       }, DOCUMENT_PERSIST_DEBOUNCE_MS);
     };
     doc.on('update', persist);
-    return () => {
+    return (): void => {
       doc.off('update', persist);
       if (timer) clearTimeout(timer);
       // Flush on unmount so closing the tab does not drop the last edits.

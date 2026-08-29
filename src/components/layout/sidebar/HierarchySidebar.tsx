@@ -41,7 +41,7 @@ export function HierarchySidebar() {
   // Build flat node list from state
   const nodes: DomainNode[] = useMemo(() => Object.values(state.nodes), [state.nodes]);
 
-  const handleNodeSelect = useCallback(async (nodeId: string) => {
+  const handleNodeSelect = useCallback(async (nodeId: string): Promise<void> => {
     if (!(await mayLeaveEditor(confirm))) return;
 
     const newParams = new URLSearchParams(location.search);
@@ -54,11 +54,11 @@ export function HierarchySidebar() {
     navigate(buildWorkspacePath(newParams));
   }, [location.search, navigate, confirm]);
 
-  const handleNodeEdit = useCallback((node: DomainNode) => {
+  const handleNodeEdit = useCallback((node: DomainNode): void => {
     setEditNode(node);
   }, []);
 
-  const handleNodeDelete = useCallback(async (node: DomainNode) => {
+  const handleNodeDelete = useCallback(async (node: DomainNode): Promise<void> => {
     try {
       await WorkspaceService.deleteNode(node.id, true);
 
@@ -85,7 +85,7 @@ export function HierarchySidebar() {
     }
   }, [selectedNodeId, navigate, toast]);
 
-  const handleNodeCreate = useCallback((parentId: string | null) => {
+  const handleNodeCreate = useCallback((parentId: string | null): void => {
     if (parentId === null) {
       // Creating a root-level child under the synthetic workspace root.
       // Allowed types come from the tree schema.
@@ -148,11 +148,11 @@ export function HierarchySidebar() {
     setCreateModal({ parentId, entityType: allowedTypes[0] });
   }, [state.nodes, state.treeSchema, toast]);
 
-  const handleAdminSettings = useCallback((node: DomainNode) => {
+  const handleAdminSettings = useCallback((node: DomainNode): void => {
     setAdminNode(node);
   }, []);
 
-  const handleSetDefault = useCallback(async (node: DomainNode) => {
+  const handleSetDefault = useCallback(async (node: DomainNode): Promise<void> => {
     try {
       await WorkspaceService.updateNode(node.id, { isDefault: true });
       const typeName: string = getEntityTypeString(node.entity_type);
@@ -163,7 +163,7 @@ export function HierarchySidebar() {
     }
   }, [toast]);
 
-  const handleMove = useCallback(async (nodeId: string, newParentId: string | null) => {
+  const handleMove = useCallback(async (nodeId: string, newParentId: string | null): Promise<void> => {
     try {
       await WorkspaceService.moveNode(nodeId, newParentId);
       toastSuccess(toast, 'Moved', 'The change has been saved.');

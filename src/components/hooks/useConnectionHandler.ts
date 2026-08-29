@@ -48,7 +48,7 @@ export function useConnectionHandler() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const initializeServices = async () => {
+    const initializeServices = async (): Promise<void> => {
       try {
         debugLog('WorkspaceApp', 'Starting ConnectionManager initialization...');
         await connectionManager.initialize();
@@ -89,7 +89,7 @@ export function useConnectionHandler() {
     let lastProcessedCid: string | null = null;
 
     debugLog('WorkspaceApp', 'Subscribing to connection changes');
-    const unsubscribeConnection = connectionService.onConnectionChange(async (connection) => {
+    const unsubscribeConnection = connectionService.onConnectionChange(async (connection): Promise<void> => {
       debugLog('WorkspaceApp', `onConnectionChange called, cid=${connection?.cid?.toString()}, isConnected=${connection?.isConnected}`);
       const cidValue = typeof connection?.cid === 'string' ? parseInt(connection.cid, 10) : connection?.cid;
       if (connection && connection.cid && cidValue !== 0) {
@@ -169,7 +169,7 @@ export function useConnectionHandler() {
       }
     });
 
-    const handleConnectionFailure = (event: { error: string }) => {
+    const handleConnectionFailure = (event: { error: string }): void => {
       // Through the rule, not a bare `true`. The client retries while the agent
       // is down, so this fires every couple of seconds -- and setting `true`
       // here reopened the dialog within a second or two of every dismissal,
@@ -179,7 +179,7 @@ export function useConnectionHandler() {
 
     // A connection that succeeds ends the outage the dismissal was about, so
     // the NEXT failure interrupts again.
-    const handleConnectionSuccess = () => {
+    const handleConnectionSuccess = (): void => {
       setState(prev => (prev.retry === NOT_FAILING ? prev : { ...prev, retry: onSuccess() }));
     };
 
@@ -189,7 +189,7 @@ export function useConnectionHandler() {
     eventEmitter.on('on-ws-connection-success', handleConnectionSuccess);
     eventEmitter.on('session-already-connected', handleSessionAlreadyConnected);
 
-    return () => {
+    return (): void => {
       // Drop this hook's own subscription explicitly. `connectionService.cleanup()`
       // below wipes the singleton's whole handler array — every other component's
       // subscription with it — which is only survivable because this hook mounts
@@ -211,7 +211,7 @@ export function useConnectionHandler() {
     showConnectionRetry: isRetryDialogOpen(state.retry),
     connectionError: state.connectionError,
     orphanSessionCid: state.orphanSessionCid,
-    setShowConnectionRetry: (v: boolean) =>
+    setShowConnectionRetry: (v: boolean): void =>
       setState(prev => ({ ...prev, retry: v ? onFailure(prev.retry) : onDismiss(prev.retry) })),
   };
 }

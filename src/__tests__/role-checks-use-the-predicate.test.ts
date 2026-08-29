@@ -17,10 +17,10 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /** The predicate itself, and the tests that pin it. */
-const CANONICAL = ['lib/role-predicate.ts'];
+const CANONICAL: string[] = ['lib/role-predicate.ts'];
 
 /**
  * Places that compare a role literal for a reason other than privilege.
@@ -33,16 +33,16 @@ const CANONICAL = ['lib/role-predicate.ts'];
 const NOT_A_PRIVILEGE_CHECK: Record<string, string> = {};
 
 /** `x === 'Admin'`, `x !== "owner"`, `role == `Owner`` — any comparison to a role literal. */
-const ROLE_COMPARISON = /[=!]==?\s*['"`](?:Admin|admin|Owner|owner)['"`]|['"`](?:Admin|admin|Owner|owner)['"`]\s*[=!]==?/;
+const ROLE_COMPARISON: RegExp = /[=!]==?\s*['"`](?:Admin|admin|Owner|owner)['"`]|['"`](?:Admin|admin|Owner|owner)['"`]\s*[=!]==?/;
 
 describe('a role check', () => {
   it('goes through the predicate rather than comparing literals', async () => {
-    const files = await fg(['**/*.ts', '**/*.tsx'], {
+    const files: string[] = await fg(['**/*.ts', '**/*.tsx'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx', 'test-utils/**'],
     });
 
-    const offenders = files
+    const offenders: string[] = files
       .filter((rel) => !CANONICAL.includes(rel) && !(rel in NOT_A_PRIVILEGE_CHECK))
       .filter((rel) => ROLE_COMPARISON.test(stripComments(readFileSync(join(SRC, rel), 'utf-8'))));
 

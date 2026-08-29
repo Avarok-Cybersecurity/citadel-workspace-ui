@@ -54,7 +54,7 @@ export function VFSRenameInput({
     return null;
   }, []);
 
-  const handleConfirm = useCallback(() => {
+  const handleConfirm = useCallback((): void => {
     const trimmed: string = value.trim();
     const validationError = validate(trimmed);
     if (validationError) {
@@ -68,7 +68,7 @@ export function VFSRenameInput({
     onConfirm(trimmed);
   }, [value, currentName, validate, onConfirm, onCancel]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent): void => {
     if (isEnterCommit(e)) {
       e.preventDefault();
       handleConfirm();
@@ -79,11 +79,11 @@ export function VFSRenameInput({
     e.stopPropagation();
   }, [handleConfirm, onCancel]);
 
-  const handleBlur = useCallback(() => {
+  const handleBlur = useCallback((): void => {
     handleConfirm();
   }, [handleConfirm]);
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
     setValue(e.target.value);
     setError(null);
   }, []);

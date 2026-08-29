@@ -21,7 +21,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const stripComments = (text: string) =>
+const stripComments = (text: string): string =>
   text
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .split('\n')

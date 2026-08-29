@@ -21,10 +21,10 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-const SRC = resolve(__dirname, '..');
+const SRC: string = resolve(__dirname, '..');
 
 /** The square box an icon button gets: `h-6 w-6` and its smaller siblings. */
-const SQUARE_BOX = /\bh-(4|5|6) w-\1\b/;
+const SQUARE_BOX: RegExp = /\bh-(4|5|6) w-\1\b/;
 
 /**
  * A FRESH regex each time, never a shared constant.
@@ -38,12 +38,12 @@ const SQUARE_BOX = /\bh-(4|5|6) w-\1\b/;
  * Caught by running the negative control, which is the only reason it is not
  * still passing over nothing.
  */
-const buttonTags = () => /<(?:button|Button)\b[^>]*?>/gs;
+const buttonTags = (): RegExp => /<(?:button|Button)\b[^>]*?>/gs;
 
 function tsxFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
+    const path: string = join(dir, entry);
     if (statSync(path).isDirectory()) {
       if (entry === '__tests__') continue;
       out.push(...tsxFiles(path));
@@ -55,7 +55,7 @@ function tsxFiles(dir: string): string[] {
 }
 
 describe('every square icon button', () => {
-  const files = tsxFiles(SRC);
+  const files: string[] = tsxFiles(SRC);
 
   it('reads a real corpus, so the rule is not passing over nothing', () => {
     expect(files.length).toBeGreaterThan(50);
@@ -66,12 +66,12 @@ describe('every square icon button', () => {
   it('carries the tap-target floor', () => {
     const offenders: string[] = [];
     for (const file of files) {
-      const source = readFileSync(file, 'utf-8');
+      const source: string = readFileSync(file, 'utf-8');
       for (const match of source.matchAll(buttonTags())) {
-        const tag = match[0];
+        const tag: string = match[0];
         if (!SQUARE_BOX.test(tag)) continue;
         if (tag.includes('tap-target')) continue;
-        const line = source.slice(0, match.index).split('\n').length;
+        const line: number = source.slice(0, match.index).split('\n').length;
         offenders.push(`${file.slice(SRC.length + 1)}:${line}`);
       }
     }

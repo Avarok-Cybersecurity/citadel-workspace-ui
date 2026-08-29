@@ -35,7 +35,7 @@ const EMPTY_CLIPBOARD: ClipboardState = {
 export function useVFSClipboard(): UseVFSClipboardResult {
   const [clipboard, setClipboard] = useState<ClipboardState>(EMPTY_CLIPBOARD);
 
-  const cut = useCallback((nodes: RevfsNode[], treeKey: TreeKey) => {
+  const cut = useCallback((nodes: RevfsNode[], treeKey: TreeKey): void => {
     setClipboard({
       items: nodes,
       operation: 'cut',
@@ -43,7 +43,7 @@ export function useVFSClipboard(): UseVFSClipboardResult {
     });
   }, []);
 
-  const copy = useCallback((nodes: RevfsNode[], treeKey: TreeKey) => {
+  const copy = useCallback((nodes: RevfsNode[], treeKey: TreeKey): void => {
     setClipboard({
       items: nodes,
       operation: 'copy',
@@ -51,7 +51,7 @@ export function useVFSClipboard(): UseVFSClipboardResult {
     });
   }, []);
 
-  const clear = useCallback(() => {
+  const clear = useCallback((): void => {
     setClipboard(EMPTY_CLIPBOARD);
   }, []);
 

@@ -15,7 +15,7 @@ import { handleGroupVariants } from '../../workspace-response-handler/group-hand
 describe('an incoming group message', () => {
   it('emits the event the sidebar badge actually listens for', () => {
     const seen: Array<Record<string, unknown>> = [];
-    const listener = (p: unknown) => seen.push(p as Record<string, unknown>);
+    const listener = (p: unknown): number => seen.push(p as Record<string, unknown>);
     eventEmitter.on('group:message-received', listener);
 
     try {

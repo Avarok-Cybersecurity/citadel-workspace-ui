@@ -83,7 +83,7 @@ export function CollaborativeEditor({
     if (!editor || !onSave) return;
 
     let timeout: NodeJS.Timeout;
-    const handleUpdate = () => {
+    const handleUpdate = (): void => {
       clearTimeout(timeout);
       timeout = setTimeout(() => {
         onSave(editor.getHTML());
@@ -91,7 +91,7 @@ export function CollaborativeEditor({
     };
 
     editor.on('update', handleUpdate);
-    return () => {
+    return (): void => {
       clearTimeout(timeout);
       editor.off('update', handleUpdate);
     };
@@ -100,7 +100,7 @@ export function CollaborativeEditor({
   // Handle flash comment from context menu. Delegates the build to a
   // pure helper so the empty-text guard (and shape) is unit-testable
   // without mounting Tiptap. See `buildContextMenuFlashComment`.
-  const handleFlashCommentFromContextMenu = useCallback(() => {
+  const handleFlashCommentFromContextMenu = useCallback((): void => {
     if (!contextMenu || !editor) return;
 
     // Anchor captured BEFORE asking, which the native prompt made free and an
@@ -111,7 +111,7 @@ export function CollaborativeEditor({
     const coords = editor.view.coordsAtPos(cursorPos);
     setContextMenu(null);
 
-    void (async () => {
+    void (async (): Promise<void> => {
       const raw = await prompt({
         title: 'Flash comment',
         description: 'Shown to everyone in the document for a few seconds.',

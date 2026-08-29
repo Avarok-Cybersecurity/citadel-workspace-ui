@@ -31,7 +31,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
         setMasterPassword(e.target.value);
         setError(null);
     };
@@ -44,7 +44,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
         return true;
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();
 
         if (!validateForm()) {
@@ -75,7 +75,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                 let unsubscribeError: (() => void) | null = null;
                 let timeoutId: NodeJS.Timeout | null = null;
 
-                const cleanup = () => {
+                const cleanup = (): void => {
                     if (unsubscribeWorkspace) unsubscribeWorkspace();
                     if (unsubscribeError) unsubscribeError();
                     if (timeoutId) clearTimeout(timeoutId);

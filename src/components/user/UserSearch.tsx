@@ -44,7 +44,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
   // no way to reach what it covered. That is the combobox behaviour anyone would
   // expect, and its absence was a dead end rather than a cosmetic gap.
   useEffect(() => {
-    const dismissOnPointerOutside = (event: MouseEvent) => {
+    const dismissOnPointerOutside = (event: MouseEvent): void => {
       if (
         resultsRef.current &&
         !resultsRef.current.contains(event.target as Node) &&
@@ -55,7 +55,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
       }
     };
 
-    const dismissOnEscape = (event: KeyboardEvent) => {
+    const dismissOnEscape = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return;
       // Only when open, so Escape stays available to whatever is behind us —
       // a dialog holding this search, for instance.
@@ -67,7 +67,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
 
     document.addEventListener('mousedown', dismissOnPointerOutside);
     document.addEventListener('keydown', dismissOnEscape);
-    return () => {
+    return (): void => {
       document.removeEventListener('mousedown', dismissOnPointerOutside);
       document.removeEventListener('keydown', dismissOnEscape);
     };
@@ -75,7 +75,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
 
   // Search users
   useEffect(() => {
-    const searchUsers = async () => {
+    const searchUsers = async (): Promise<void> => {
       if (!searchTerm.trim()) {
         setResults([]);
         return;
@@ -121,16 +121,16 @@ export const UserSearch: React.FC<UserSearchProps> = ({
 
     const debounceTimeout = setTimeout(searchUsers, 300);
 
-    return () => {
+    return (): void => {
       clearTimeout(debounceTimeout);
     };
   }, [searchTerm, state.members, exclude]);
 
-  const handleFocus = () => {
+  const handleFocus = (): void => {
     setShowResults(true);
   };
 
-  const handleSelectUser = (user: UserData) => {
+  const handleSelectUser = (user: UserData): void => {
     if (onUserSelect) {
       onUserSelect(user);
     }
@@ -138,7 +138,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
     setSearchTerm('');
   };
 
-  const handleClearSearch = () => {
+  const handleClearSearch = (): void => {
     setSearchTerm('');
     inputRef.current?.focus();
   };

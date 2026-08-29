@@ -51,7 +51,7 @@ export function createServiceModules(
 ): ServiceModules {
   const moduleConfig = {
     init: callbacks.init,
-    sendRequest: (req: unknown, reqId?: string) => callbacks.sendRequest(req as Record<string, unknown>, reqId),
+    sendRequest: (req: unknown, reqId?: string): Promise<void> => callbacks.sendRequest(req as Record<string, unknown>, reqId),
     getClient: callbacks.getClient,
   };
 

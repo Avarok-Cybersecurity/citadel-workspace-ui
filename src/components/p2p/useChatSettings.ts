@@ -35,7 +35,7 @@ export function useChatSettings(isOpen: boolean, peerCid: string) {
   useEffect(() => {
     if (!isOpen || !peerCid) return;
     let cancelled = false;
-    void (async () => {
+    void (async (): Promise<void> => {
       try {
         const metadata = await p2pMessengerManager.getConversationMetadata(BigInt(peerCid));
         const transfers = fileTransferService.getTransfersForPeer(peerCid);
@@ -47,7 +47,7 @@ export function useChatSettings(isOpen: boolean, peerCid: string) {
         if (!cancelled) setStats({ messages: 0, files: 0 });
       }
     })();
-    return () => { cancelled = true; };
+    return (): void => { cancelled = true; };
   }, [isOpen, peerCid]);
 
   useEffect(() => {
@@ -67,28 +67,28 @@ export function useChatSettings(isOpen: boolean, peerCid: string) {
     return `${Math.round(mb)} MB`;
   };
 
-  const handleAutoAcceptChange = async (enabled: boolean) => {
+  const handleAutoAcceptChange = async (enabled: boolean): Promise<void> => {
     setSettings(prev => ({ ...prev, autoAccept: enabled }));
     await fileTransferService.setAutoAccept(peerCid, enabled);
   };
 
-  const handleMaxFileSizeChange = async (values: number[]) => {
+  const handleMaxFileSizeChange = async (values: number[]): Promise<void> => {
     const bytes: number = values[0] * 1024 * 1024;
     setSettings(prev => ({ ...prev, maxFileSize: bytes }));
     await fileTransferService.setMaxFileSize(peerCid, bytes);
   };
 
-  const handleTransferModeChange = async (mode: TransferModePreference) => {
+  const handleTransferModeChange = async (mode: TransferModePreference): Promise<void> => {
     setSettings(prev => ({ ...prev, transferMode: mode }));
     await fileTransferService.setTransferMode(peerCid, mode);
   };
 
-  const handleAllowRevfsChange = async (allowed: boolean) => {
+  const handleAllowRevfsChange = async (allowed: boolean): Promise<void> => {
     setSettings(prev => ({ ...prev, allowRevfsStorage: allowed }));
     await fileTransferService.setAllowRevfsStorage(peerCid, allowed);
   };
 
-  const handleRevfsQuotaChange = async (values: number[]) => {
+  const handleRevfsQuotaChange = async (values: number[]): Promise<void> => {
     const bytes: number = values[0] * 1024 * 1024;
     setSettings(prev => ({ ...prev, revfsQuota: bytes }));
     await fileTransferService.setRevfsQuota(peerCid, bytes);

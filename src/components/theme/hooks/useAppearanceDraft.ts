@@ -75,7 +75,7 @@ export function useAppearanceDraft({ open, onOpenChange, onSave }: UseAppearance
   // the app back its saved theme on close.
   useEffect(() => {
     previewTheme(open ? draft : null);
-    return () => previewTheme(null);
+    return (): void => previewTheme(null);
   }, [open, draft, previewTheme]);
 
   const allThemes: WorkspaceTheme[] = useMemo(() => {
@@ -114,7 +114,7 @@ export function useAppearanceDraft({ open, onOpenChange, onSave }: UseAppearance
     [editDraft, mode, selection],
   );
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
     setSaving(true);
     try {
       await onSave(draft);

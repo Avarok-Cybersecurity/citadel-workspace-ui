@@ -28,7 +28,7 @@ function context() {
 }
 
 /** Delivered through the real entry point, as the socket would. */
-function deliverRequest(ctx: ReturnType<typeof context>) {
+function deliverRequest(ctx: ReturnType<typeof context>): void {
   handleWebSocketMessage({ PeerRegisterNotification: notification } as never, ctx as never);
 }
 

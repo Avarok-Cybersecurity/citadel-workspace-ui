@@ -51,7 +51,7 @@ describe('P2P composer in-flight guard', () => {
   it('sends once when submitted twice during the send window', async () => {
     let release!: () => void;
     sendMessage.mockImplementation(
-      () => new Promise<void>((resolve) => { release = () => resolve(); }),
+      (): Promise<void> => new Promise<void>((resolve): void => { release = (): void => resolve(); }),
     );
 
     const { result } = setup();
@@ -76,7 +76,7 @@ describe('P2P composer in-flight guard', () => {
       (_cid: bigint, _text: string, options: { onOptimisticAppend?: () => void }) =>
         new Promise<void>((resolve) => {
           appended = () => options.onOptimisticAppend?.();
-          release = () => resolve();
+          release = (): void => resolve();
         }),
     );
 

@@ -101,7 +101,7 @@ export const FilesSection = () => {
   /**
    * Load completed incoming transfers from FileTransferService
    */
-  const loadFiles = useCallback(() => {
+  const loadFiles = useCallback((): void => {
     const downloads: FileTransfer[] = fileTransferService.getAllTransfers()
       .filter(t => t.state === 'complete' && t.isIncoming)
       .sort((a, b) => b.updatedAt - a.updatedAt); // Most recent first
@@ -125,23 +125,23 @@ export const FilesSection = () => {
 
   // Also refresh on window focus in case events were missed while tab was inactive
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = (): void => {
       if (document.visibilityState === 'visible') {
         loadFiles();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
+    return (): void => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [loadFiles]);
 
-  const handleFileClick = (file: FileDisplay) => {
+  const handleFileClick = (file: FileDisplay): void => {
     setSelectedFile(file);
     setIsPreviewOpen(true);
   };
 
-  const handleClosePreview = () => {
+  const handleClosePreview = (): void => {
     setIsPreviewOpen(false);
     setSelectedFile(null);
   };
@@ -149,7 +149,7 @@ export const FilesSection = () => {
   const params = new URLSearchParams(location.search);
   const isFileManagerActive = params.get('section') === 'files';
 
-  const handleFileManagerClick = async () => {
+  const handleFileManagerClick = async (): Promise<void> => {
     // Deletes nodeId from the URL, which unmounts the editor.
     if (!(await mayLeaveEditor(confirm))) return;
 

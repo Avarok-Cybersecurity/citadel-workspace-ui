@@ -57,7 +57,7 @@ export function useFileManagerHandlers({
   const confirm = useConfirm();
   const prompt = usePrompt();
 
-  const handleNewFolder = useCallback(async (parentPath: string) => {
+  const handleNewFolder = useCallback(async (parentPath: string): Promise<void> => {
     const name = await prompt({
       title: 'New folder',
       label: 'Folder name',
@@ -71,7 +71,7 @@ export function useFileManagerHandlers({
     mkdir(path).catch(err => toast.error(`Failed to create folder: ${err}`));
   }, [mkdir, prompt]);
 
-  const handleDelete = useCallback(async (node: RevfsNode) => {
+  const handleDelete = useCallback(async (node: RevfsNode): Promise<void> => {
     const isDirectory = node.type === 'directory';
     const ok = await confirm({
       title: isDirectory ? `Delete folder "${node.name}"?` : `Delete file "${node.name}"?`,
@@ -85,7 +85,7 @@ export function useFileManagerHandlers({
     removal.catch(err => toast.error(`Failed to delete: ${err}`));
   }, [rmdir, removeFile, confirm]);
 
-  const handleDownload = useCallback((node: RevfsNode) => {
+  const handleDownload = useCallback((node: RevfsNode): void => {
     if (isDownloadableState(node.fileState)) {
       // No "initiated" branch: downloadFile now throws rather than resolving
       // undefined on failure, so there is no longer a state where we know the
@@ -100,16 +100,16 @@ export function useFileManagerHandlers({
     }
   }, [downloadFile]);
 
-  const handleUploadFile = useCallback((dirPath: string) => {
+  const handleUploadFile = useCallback((dirPath: string): void => {
     setUploadTargetDir(dirPath);
     fileInputRef.current?.click();
   }, [setUploadTargetDir, fileInputRef]);
 
-  const handleInfo = useCallback((node: RevfsNode) => {
+  const handleInfo = useCallback((node: RevfsNode): void => {
     setPropertiesNode(node);
   }, [setPropertiesNode]);
 
-  const handleRename = useCallback(async (path: string, newName: string) => {
+  const handleRename = useCallback(async (path: string, newName: string): Promise<void> => {
     try {
       await rename(path, newName);
       toast.success(`Renamed to "${newName}"`);
@@ -118,19 +118,19 @@ export function useFileManagerHandlers({
     }
   }, [rename]);
 
-  const handleCut = useCallback((node: RevfsNode) => {
+  const handleCut = useCallback((node: RevfsNode): void => {
     if (!currentTreeKey) return;
     cut([node], currentTreeKey);
     toast.info(`Cut: ${node.name}`);
   }, [cut, currentTreeKey]);
 
-  const handleCopy = useCallback((node: RevfsNode) => {
+  const handleCopy = useCallback((node: RevfsNode): void => {
     if (!currentTreeKey) return;
     copyToClipboard([node], currentTreeKey);
     toast.info(`Copied: ${node.name}`);
   }, [copyToClipboard, currentTreeKey]);
 
-  const handlePaste = useCallback(async (destPath: string) => {
+  const handlePaste = useCallback(async (destPath: string): Promise<void> => {
     if (!hasPasteItems || !currentTreeKey) return;
     if (clipboard.sourceTreeKey !== currentTreeKey) {
       toast.error('Cannot paste between different storage trees');
@@ -148,7 +148,7 @@ export function useFileManagerHandlers({
     }
   }, [hasPasteItems, currentTreeKey, clipboard, isCut, move, copy, clearClipboard]);
 
-  const handleDeleteMultiple = useCallback(async (nodes: RevfsNode[]) => {
+  const handleDeleteMultiple = useCallback(async (nodes: RevfsNode[]): Promise<void> => {
     const count: number = nodes.length;
     const ok = await confirm({
       title: `Delete ${count} item${count !== 1 ? 's' : ''}?`,
@@ -163,7 +163,7 @@ export function useFileManagerHandlers({
   const { handleCutMultiple, handleCopyMultiple, handleSelectAll } =
     useFileManagerSelectionHandlers({ tree, currentPath, filterText, currentTreeKey, cut, copyToClipboard, selectItem });
 
-  const handleDrop = useCallback(async (targetPath: string, files: FileList) => {
+  const handleDrop = useCallback(async (targetPath: string, files: FileList): Promise<void> => {
     if (!myCid) { toast.error('Not connected'); return; }
     const isStandardTransfer = targetPath === SENT_FILES_DIR || targetPath.startsWith(SENT_FILES_DIR + '/');
     if (isStandardTransfer) { toast.info('Standard file transfer: Use P2P Chat to send files directly'); return; }
@@ -203,7 +203,7 @@ export function useFileManagerHandlers({
   }, [myCid, uploadFile, storageUsed, storageQuota, revfsEnabled, storageMode,
       setRevfsDisabledReason, setRevfsDisabledModalOpen, setAttemptedFileSize, setStorageLimitModalOpen]);
 
-  const handleSync = useCallback(async () => {
+  const handleSync = useCallback(async (): Promise<void> => {
     try {
       if (storageMode === TreeScope.Peer) {
         // Peer mode only auto-selects a peer when at least one is registered, so

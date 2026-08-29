@@ -26,7 +26,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const handleDrag = (e: React.DragEvent) => {
+  const handleDrag = (e: React.DragEvent): void => {
     e.preventDefault();
     e.stopPropagation();
     if (e.type === 'dragenter' || e.type === 'dragover') {
@@ -36,7 +36,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent): void => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
@@ -47,7 +47,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     e.preventDefault();
     const file = e.target.files?.[0];
     if (file) {
@@ -57,7 +57,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
     }
   };
 
-  const handleFile = async (file: File) => {
+  const handleFile = async (file: File): Promise<void> => {
     if (!file.type.startsWith('image/')) {
       toast({
         title: 'Unsupported file format',
@@ -72,7 +72,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
     setUploading(true);
     try {
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = (): void => {
         setUploadedImage(reader.result as string);
         setUploading(false);
       };
@@ -88,7 +88,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
     }
   };
 
-  const handleInsert = () => {
+  const handleInsert = (): void => {
     if (!uploadedImage) return;
     
     // In a full implementation, this would be a URL to the uploaded image
@@ -98,13 +98,13 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
     handleCancel();
   };
 
-  const handleCancel = () => {
+  const handleCancel = (): void => {
     setUploadedImage(null);
     setAltText('');
     onClose();
   };
 
-  const handleButtonClick = () => {
+  const handleButtonClick = (): void => {
     fileInputRef.current?.click();
   };
 

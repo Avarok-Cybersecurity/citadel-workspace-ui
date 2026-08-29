@@ -25,7 +25,7 @@ export function useMemberAdminActions(
 ) {
   const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set());
 
-  const reason = (error: unknown, fallback: string) =>
+  const reason = (error: unknown, fallback: string): string =>
     error instanceof Error && error.message ? error.message : fallback;
 
   const changeRole = useCallback(

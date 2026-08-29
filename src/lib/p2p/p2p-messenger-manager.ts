@@ -49,45 +49,45 @@ export class P2PMessengerManager extends EventListenerManager {
 
   private constructor() {
     super();
-    this.conversationManager = new ConversationManager({ getCurrentCid: () => resolveCurrentCid(), maxMessagesPerConversation: 100, maxQueueSize: 100 });
+    this.conversationManager = new ConversationManager({ getCurrentCid: (): Promise<bigint | null> => resolveCurrentCid(), maxMessagesPerConversation: 100, maxQueueSize: 100 });
     this.presenceManager = new PresenceManager({
-      sendCommand: (peerCid, layer) => this.messageSender.sendRawMessage(peerCid, layer),
-      getConnectedPeers: () => Array.from(this.conversationManager.getConnections().entries()).filter(([, c]) => c).map(([p]) => p)
+      sendCommand: (peerCid, layer): Promise<void> => this.messageSender.sendRawMessage(peerCid, layer),
+      getConnectedPeers: (): bigint[] => Array.from(this.conversationManager.getConnections().entries()).filter(([, c]) => c).map(([p]): bigint => p)
     });
     this.checkStateManager = new CheckStateManager({
       timeout: TIMEOUT.CHECKSTATE_MS,
-      sendToP2P: (peerCid, bytes) => this.messageSender.sendRawBytes(peerCid, bytes),
-      getCurrentCid: () => resolveCurrentCid(),
-      getLastMessageIndex: (peerCid) => this.conversationManager.getOrCreateConversation(peerCid).lastMessageIndex
+      sendToP2P: (peerCid, bytes): Promise<void> => this.messageSender.sendRawBytes(peerCid, bytes),
+      getCurrentCid: (): Promise<bigint | null> => resolveCurrentCid(),
+      getLastMessageIndex: (peerCid): number => this.conversationManager.getOrCreateConversation(peerCid).lastMessageIndex
     });
     this.messageSender = new MessageSender({
-      getCurrentCid: () => resolveCurrentCid(),
-      getOrCreateConversation: (peerCid) => this.conversationManager.getOrCreateConversation(peerCid),
-      addMessageToConversation: (peerCid, message) => this.conversationManager.addMessageToConversation(peerCid, message),
-      findStoredMessage: (p, id) => messagePaginationStore.findMessageInPages(p, id),
+      getCurrentCid: (): Promise<bigint | null> => resolveCurrentCid(),
+      getOrCreateConversation: (peerCid): P2PConversation => this.conversationManager.getOrCreateConversation(peerCid),
+      addMessageToConversation: (peerCid, message): Promise<boolean> => this.conversationManager.addMessageToConversation(peerCid, message),
+      findStoredMessage: (p, id): Promise<P2PMessage | null> => messagePaginationStore.findMessageInPages(p, id),
 
-      updateMessageInPages: (peerCid, messageId, updates) => messagePaginationStore.updateMessageInPages(peerCid, messageId, updates),
-      emitEvent: (event, data) => this.emit(event, data),
-      notifyMessageListeners: (message) => this.messageListeners.forEach(l => l(message)),
-      notifyMessageStatusListeners: (messageId, status) => this.messageStatusListeners.forEach(l => l(messageId, status)),
+      updateMessageInPages: (peerCid, messageId, updates): Promise<boolean> => messagePaginationStore.updateMessageInPages(peerCid, messageId, updates),
+      emitEvent: (event, data): void => this.emit(event, data),
+      notifyMessageListeners: (message): void => this.messageListeners.forEach(l => l(message)),
+      notifyMessageStatusListeners: (messageId, status): void => this.messageStatusListeners.forEach(l => l(messageId, status)),
       isConnected: (peerCid) => this.conversationManager.isConnected(peerCid),
-      tryEnsurePeerReady: (peerCid) => this.checkStateManager.tryEnsurePeerReady(peerCid)
+      tryEnsurePeerReady: (peerCid): Promise<boolean> => this.checkStateManager.tryEnsurePeerReady(peerCid)
     });
     this.messageHandler = new MessageHandler({
-      getCurrentCid: () => resolveCurrentCid(),
+      getCurrentCid: (): Promise<bigint | null> => resolveCurrentCid(),
       isConnected: (peerCid) => this.conversationManager.isConnected(peerCid),
-      getOrCreateConversation: (peerCid) => this.conversationManager.getOrCreateConversation(peerCid),
-      addMessageToConversation: (peerCid, message) => this.conversationManager.addMessageToConversation(peerCid, message),
-      updateMessageInPages: (peerCid, messageId, updates) => messagePaginationStore.updateMessageInPages(peerCid, messageId, updates),
-      getConversations: () => this.conversationManager.getConversationsMap(),
-      notifyMessageListeners: (message) => this.messageListeners.forEach(l => l(message)),
-      notifyMessageStatusListeners: (messageId, status) => this.messageStatusListeners.forEach(l => l(messageId, status)),
-      notifyTypingListeners: (peerCid, isTyping) => this.presenceManager.notifyTypingChange(peerCid, isTyping),
-      notifyPresenceListeners: (peerCid, presence) => this.presenceManager.notifyPresenceChange(peerCid, presence),
-      sendMessageAck: (messageId, ackType, peerCid, recipientCid) => this.messageSender.sendMessageAck(messageId, ackType, peerCid, recipientCid),
-      handleCheckState: (peerCid) => this.checkStateManager.handleCheckState(peerCid),
-      handleCheckStateResponse: (peerCid) => this.checkStateManager.handleCheckStateResponse(peerCid),
-      markPeerReady: (peerCid) => this.checkStateManager.markPeerReady(peerCid),
+      getOrCreateConversation: (peerCid): P2PConversation => this.conversationManager.getOrCreateConversation(peerCid),
+      addMessageToConversation: (peerCid, message): Promise<boolean> => this.conversationManager.addMessageToConversation(peerCid, message),
+      updateMessageInPages: (peerCid, messageId, updates): Promise<boolean> => messagePaginationStore.updateMessageInPages(peerCid, messageId, updates),
+      getConversations: (): Map<bigint, P2PConversation> => this.conversationManager.getConversationsMap(),
+      notifyMessageListeners: (message): void => this.messageListeners.forEach(l => l(message)),
+      notifyMessageStatusListeners: (messageId, status): void => this.messageStatusListeners.forEach(l => l(messageId, status)),
+      notifyTypingListeners: (peerCid, isTyping): void => this.presenceManager.notifyTypingChange(peerCid, isTyping),
+      notifyPresenceListeners: (peerCid, presence): void => this.presenceManager.notifyPresenceChange(peerCid, presence),
+      sendMessageAck: (messageId, ackType, peerCid, recipientCid): Promise<void> => this.messageSender.sendMessageAck(messageId, ackType, peerCid, recipientCid),
+      handleCheckState: (peerCid): Promise<void> => this.checkStateManager.handleCheckState(peerCid),
+      handleCheckStateResponse: (peerCid): void => this.checkStateManager.handleCheckStateResponse(peerCid),
+      markPeerReady: (peerCid): void => this.checkStateManager.markPeerReady(peerCid),
       shouldShowNotification: (peerCid) => this.activeConversationPeerCid !== peerCid,
       addNotification: (title, body, senderId, messageId, recipientCid, options) =>
         notificationService.addMessageNotification(title, body, senderId, messageId, recipientCid, options)

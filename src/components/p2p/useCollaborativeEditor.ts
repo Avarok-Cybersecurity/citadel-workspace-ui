@@ -59,7 +59,7 @@ export function useCollaborativeEditor({
     setProvider(newProvider);
     setSyncState('syncing');
 
-    const handleSyncComplete = ({ documentId: docId }: { documentId: string }) => {
+    const handleSyncComplete = ({ documentId: docId }: { documentId: string }): void => {
       if (docId === documentId) {
         setSyncState('synced');
       }
@@ -67,7 +67,7 @@ export function useCollaborativeEditor({
 
     eventEmitter.on('yjs:sync-complete', handleSyncComplete);
 
-    return () => {
+    return (): void => {
       eventEmitter.off('yjs:sync-complete', handleSyncComplete);
       newProvider.destroy();
     };
@@ -79,7 +79,7 @@ export function useCollaborativeEditor({
 
     let prevUsersKey: string = '';
 
-    const updateUsers = () => {
+    const updateUsers = (): void => {
       const states = provider.getStates();
       const users: { name: string; isActive: boolean }[] = [];
       const now: number = Date.now();
@@ -111,7 +111,7 @@ export function useCollaborativeEditor({
 
     const activityInterval = setInterval(updateUsers, 10000);
 
-    return () => {
+    return (): void => {
       provider.awareness.off('change', updateUsers);
       clearInterval(activityInterval);
     };
@@ -123,7 +123,7 @@ export function useCollaborativeEditor({
     // armed against a provider that may already be gone.
     let clearFlashTimer: number | undefined;
 
-    const handleSendFlashComment = (comment: FlashComment) => {
+    const handleSendFlashComment = (comment: FlashComment): void => {
       if (!provider) return;
       // Set only our field. `setLocalState` replaces the entire awareness state,
       // which also holds the `cursor` field CollaborationCursor maintains — so
@@ -140,7 +140,7 @@ export function useCollaborativeEditor({
 
     let prevCommentsKey: string = '';
 
-    const handleAwarenessChange = () => {
+    const handleAwarenessChange = (): void => {
       if (!provider) return;
 
       const states = provider.getStates();
@@ -170,7 +170,7 @@ export function useCollaborativeEditor({
       provider.awareness.on('change', handleAwarenessChange);
     }
 
-    return () => {
+    return (): void => {
       eventEmitter.off('flash-comment:send', handleSendFlashComment);
       // Without this the expiry outlives the effect and fires against a provider
       // that `destroy()` has already torn the awareness off of.
@@ -181,19 +181,19 @@ export function useCollaborativeEditor({
     };
   }, [provider, currentUserName, userColor]);
 
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent): void => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
 
   // Close context menu on click outside
   useEffect(() => {
-    const handleClick = () => setContextMenu(null);
+    const handleClick = (): void => setContextMenu(null);
     document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
+    return (): void => document.removeEventListener('click', handleClick);
   }, []);
 
-  const dismissFlashComment = useCallback((commentId: string) => {
+  const dismissFlashComment = useCallback((commentId: string): void => {
     setFlashComments(prev => prev.filter(c => c.id !== commentId));
   }, []);
 

@@ -15,10 +15,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const config = stripComments(readFileSync(join(process.cwd(), 'vite.config.ts'), 'utf8'));
+const config: string = stripComments(readFileSync(join(process.cwd(), 'vite.config.ts'), 'utf8'));
 
 /** The `pure: [...]` array as written, comments already removed. */
-const pureList = /pure:\s*\[([^\]]*)\]/.exec(config)?.[1] ?? '';
+const pureList: string = /pure:\s*\[([^\]]*)\]/.exec(config)?.[1] ?? '';
 
 describe('production logging', () => {
   it('marks debugLog pure so its calls and arguments are removable', () => {
@@ -38,7 +38,7 @@ describe('production logging', () => {
   it('keeps debugLog a no-op at runtime as well', () => {
     // Belt and braces: `pure` only helps the production build. The runtime
     // guard is what makes a dev-only log dev-only in every other context.
-    const source = readFileSync(join(process.cwd(), 'src/lib/debug-config.ts'), 'utf8');
+    const source: string = readFileSync(join(process.cwd(), 'src/lib/debug-config.ts'), 'utf8');
     expect(source).toMatch(/isDev\s*\?/);
     expect(source).toContain('noop');
   });

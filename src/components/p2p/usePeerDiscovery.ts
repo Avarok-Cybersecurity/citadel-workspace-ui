@@ -39,7 +39,7 @@ export function usePeerDiscovery(isOpen: boolean) {
 
   // Load current connection info asynchronously
   useEffect(() => {
-    const loadConnectionInfo = async () => {
+    const loadConnectionInfo = async (): Promise<void> => {
       const tabSelection = await getSelectedUser();
       const tabSession = await connectionManager.getTabSelectedSession();
       const cid = tabSelection?.selectedCid || tabSession?.cid || connectionManager.getConnectionInfo()?.cid || null;
@@ -52,18 +52,18 @@ export function usePeerDiscovery(isOpen: boolean) {
 
   // Listen for outgoing request updates
   useEffect(() => {
-    const handleOutgoingUpdate = (data: { requests: OutgoingPeerRequest[]; cids: Set<bigint> }) => {
+    const handleOutgoingUpdate = (data: { requests: OutgoingPeerRequest[]; cids: Set<bigint> }): void => {
       const stringCids: Set<string> = new Set<string>();
       data.cids.forEach(cid => stringCids.add(cid.toString()));
       setOutgoingRequests(stringCids);
     };
     eventEmitter.on('outgoing-peer-requests:updated', handleOutgoingUpdate);
-    return () => { eventEmitter.off('outgoing-peer-requests:updated', handleOutgoingUpdate); };
+    return (): void => { eventEmitter.off('outgoing-peer-requests:updated', handleOutgoingUpdate); };
   }, []);
 
   // Listen for incoming pending requests
   useEffect(() => {
-    const updateIncomingRequests = async () => {
+    const updateIncomingRequests = async (): Promise<void> => {
       const pending: PendingPeerRequest[] = await peerRegistrationStore.getPendingRequests();
       const incomingMap: Map<string, PendingPeerRequest> = new Map<string, PendingPeerRequest>();
       pending.forEach(req => { incomingMap.set(req.peer_cid.toString(), req); });
@@ -71,12 +71,12 @@ export function usePeerDiscovery(isOpen: boolean) {
     };
     if (isOpen) { runAsyncSetup(updateIncomingRequests); }
     eventEmitter.on('peer-requests:updated', updateIncomingRequests);
-    return () => { eventEmitter.off('peer-requests:updated', updateIncomingRequests); };
+    return (): void => { eventEmitter.off('peer-requests:updated', updateIncomingRequests); };
   }, [isOpen]);
 
   // Listen for PeerRegisterSuccess/PeerConnectSuccess
   useEffect(() => {
-    const handleRegistrationSuccess = (raw: unknown) => {
+    const handleRegistrationSuccess = (raw: unknown): void => {
       const message = narrowWebSocketMessage(raw);
       if (!message) return;
       // A refusal used to reach only `debugLog`, compiled out in production, so
@@ -108,14 +108,14 @@ export function usePeerDiscovery(isOpen: boolean) {
       }
     };
     eventEmitter.on('websocket-message', handleRegistrationSuccess);
-    return () => { eventEmitter.off('websocket-message', handleRegistrationSuccess); };
+    return (): void => { eventEmitter.off('websocket-message', handleRegistrationSuccess); };
     // `toast` is a stable module function (see hooks/use-toast), so this
     // re-subscribes on nothing.
   }, [toast]);
 
   // Listen for incoming registration notifications
   useEffect(() => {
-    const handleIncomingRegistration = async (raw: unknown) => {
+    const handleIncomingRegistration = async (raw: unknown): Promise<void> => {
       const message = narrowWebSocketMessage(raw);
       if (!message) return;
       if (hasVariant(message, 'PeerRegisterNotification')) {
@@ -123,10 +123,10 @@ export function usePeerDiscovery(isOpen: boolean) {
       }
     };
     eventEmitter.on('websocket-message', handleIncomingRegistration);
-    return () => { eventEmitter.off('websocket-message', handleIncomingRegistration); };
+    return (): void => { eventEmitter.off('websocket-message', handleIncomingRegistration); };
   }, []);
 
-  const loadRegisteredPeers = useCallback(async () => {
+  const loadRegisteredPeers = useCallback(async (): Promise<void> => {
     if (!currentCid) return;
     try {
       const registered: Set<string> = await fetchRegisteredPeers(currentCid);
@@ -144,7 +144,7 @@ export function usePeerDiscovery(isOpen: boolean) {
    * "Not Connected" in red on a page that was about to work: a tick later the
    * CID landed and the effect re-ran and succeeded silently.
    */
-  const discoverPeers = useCallback(async (announce = true) => {
+  const discoverPeers = useCallback(async (announce = true): Promise<void> => {
     if (!currentCid) {
       if (announce) {
         toastError(toast, "Not Connected", "Please connect to a workspace first");
@@ -195,7 +195,7 @@ export function usePeerDiscovery(isOpen: boolean) {
   useEffect(() => {
     if (isOpen) {
       runAsyncSetup(() => discoverPeers(false));
-      const loadOutgoing = async () => {
+      const loadOutgoing = async (): Promise<void> => {
         const bigintCids: Set<bigint> = await peerRegistrationStore.getOutgoingRequestCids();
         const stringCids: Set<string> = new Set<string>();
         bigintCids.forEach(cid => stringCids.add(cid.toString()));
@@ -205,7 +205,7 @@ export function usePeerDiscovery(isOpen: boolean) {
     }
   }, [isOpen, discoverPeers]);
 
-  const acceptIncomingRequest = async (request: PendingPeerRequest) => {
+  const acceptIncomingRequest = async (request: PendingPeerRequest): Promise<void> => {
     setAcceptingPeerCid(request.peer_cid.toString());
     try {
       await peerRegistrationStore.acceptRequest(request.id);
@@ -217,7 +217,7 @@ export function usePeerDiscovery(isOpen: boolean) {
     }
   };
 
-  const registerWithPeer = async (peerCid: string, peerUsername: string) => {
+  const registerWithPeer = async (peerCid: string, peerUsername: string): Promise<void> => {
     if (!currentCid) {
       toastError(toast, "Not Connected", "Please connect to a workspace first");
       return;

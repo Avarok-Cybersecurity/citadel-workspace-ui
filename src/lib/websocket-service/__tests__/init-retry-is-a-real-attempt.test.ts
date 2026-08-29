@@ -17,7 +17,7 @@ import type { WebSocketServiceCore } from '../core';
 vi.mock('../../multi-instance/instance-manager', () => ({
   instanceManager: { isLeader: true },
 }));
-vi.mock('../../wasm-debug-bridge', () => ({ setupWasmDebugBridge: () => {} }));
+vi.mock('../../wasm-debug-bridge', () => ({ setupWasmDebugBridge: (): void => {} }));
 
 function coreWith(createWebSocketAsLeader: () => Promise<unknown>): WebSocketServiceCore {
   return {
@@ -62,7 +62,7 @@ describe('initService', () => {
 
   it('still shares one in-flight attempt between concurrent callers', async () => {
     let release!: (v: unknown) => void;
-    const pending = new Promise((r) => { release = r; });
+    const pending = new Promise((r): void => { release = r; });
     const create = vi.fn(() => pending);
     const service: WebSocketServiceCore = coreWith(create);
 

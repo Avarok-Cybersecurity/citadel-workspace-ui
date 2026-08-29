@@ -37,11 +37,11 @@ export function OfflineBanner() {
       root.style.removeProperty('--offline-banner-height');
       return;
     }
-    const publish = () => root.style.setProperty('--offline-banner-height', `${el.offsetHeight}px`);
+    const publish = (): void => root.style.setProperty('--offline-banner-height', `${el.offsetHeight}px`);
     publish();
     const observer = new ResizeObserver(publish);
     observer.observe(el);
-    return () => {
+    return (): void => {
       observer.disconnect();
       root.style.removeProperty('--offline-banner-height');
     };

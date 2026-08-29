@@ -43,7 +43,7 @@ interface PeerQualityState {
 }
 
 export class CallQualityTracker {
-  private readonly peers = new Map<bigint, PeerQualityState>();
+  private readonly peers: Map<bigint, PeerQualityState> = new Map<bigint, PeerQualityState>();
 
   /** A frame arrived from this peer. */
   recordFrame(cid: bigint, now: number): void {

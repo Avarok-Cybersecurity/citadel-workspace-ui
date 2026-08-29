@@ -18,10 +18,10 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const PROBE = join(process.cwd(), 'integration-tests/src/lib/browser.ts');
+const PROBE: string = join(process.cwd(), 'integration-tests/src/lib/browser.ts');
 
 /** The testids the probe waits for, which the app must therefore render. */
-const REQUIRED_TESTIDS = ['sign-in-button', 'create-account-button'];
+const REQUIRED_TESTIDS: string[] = ['sign-in-button', 'create-account-button'];
 
 describe('the app-ready probe', () => {
   it('waits on testids, not on what a button says', () => {
@@ -29,9 +29,9 @@ describe('the app-ready probe', () => {
     // means this scan checked nothing, so it fails rather than passing.
     expect(existsSync(PROBE), `${PROBE} is missing`).toBe(true);
 
-    const source = stripComments(readFileSync(PROBE, 'utf-8'));
-    const probe = source.slice(source.indexOf('export async function waitForAppReady'));
-    const body = probe.slice(0, probe.indexOf('\n}'));
+    const source: string = stripComments(readFileSync(PROBE, 'utf-8'));
+    const probe: string = source.slice(source.indexOf('export async function waitForAppReady'));
+    const body: string = probe.slice(0, probe.indexOf('\n}'));
 
     expect(
       body,
@@ -44,7 +44,7 @@ describe('the app-ready probe', () => {
   it('waits for testids the landing page actually renders', () => {
     // The other half: a probe keyed on a testid nobody renders is the same
     // outage with a different cause.
-    const landing = readFileSync(join(process.cwd(), 'src/pages/Landing.tsx'), 'utf-8');
+    const landing: string = readFileSync(join(process.cwd(), 'src/pages/Landing.tsx'), 'utf-8');
 
     for (const testid of REQUIRED_TESTIDS) {
       expect(landing, `Landing must render data-testid="${testid}"`).toContain(
@@ -54,7 +54,7 @@ describe('the app-ready probe', () => {
   });
 
   it('has the probe waiting for exactly those testids', () => {
-    const source = stripComments(readFileSync(PROBE, 'utf-8'));
+    const source: string = stripComments(readFileSync(PROBE, 'utf-8'));
     for (const testid of REQUIRED_TESTIDS) {
       expect(source, `the probe should wait for ${testid}`).toContain(testid);
     }

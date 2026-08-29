@@ -23,7 +23,7 @@ export interface Scan {
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
+    const path: string = join(dir, entry);
     if (statSync(path).isDirectory()) out.push(...sourceFiles(path));
     else if (/\.tsx?$/.test(entry)) out.push(path);
   }
@@ -31,10 +31,10 @@ function sourceFiles(dir: string): string[] {
 }
 
 export function scanExports(src: string): Scan {
-  const files = sourceFiles(src);
-  const text = new Map(files.map((f) => [f, readFileSync(f, 'utf8')]));
+  const files: string[] = sourceFiles(src);
+  const text: Map<string, string> = new Map(files.map((f): [string, string] => [f, readFileSync(f, 'utf8')]));
 
-  const declaredIn = new Map<string, string>();
+  const declaredIn: Map<string, string> = new Map<string, string>();
   for (const [file, body] of text) {
     for (const m of body.matchAll(/^export\s+(?:async\s+)?function\s+([A-Za-z0-9_]+)/gm)) {
       if (!declaredIn.has(m[1])) declaredIn.set(m[1], file);
@@ -43,8 +43,8 @@ export function scanExports(src: string): Scan {
 
   const unreferenced: Unreferenced[] = [];
   for (const [name, file] of declaredIn) {
-    const word = new RegExp(`\\b${name}\\b`, 'g');
-    let total = 0;
+    const word: RegExp = new RegExp(`\\b${name}\\b`, 'g');
+    let total: number = 0;
     for (const [f, body] of text) {
       total += (body.match(word) ?? []).length;
       // The declaration itself is not a reference.

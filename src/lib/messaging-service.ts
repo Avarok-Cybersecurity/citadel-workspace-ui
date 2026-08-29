@@ -82,14 +82,14 @@ export class MessagingService {
     return this.connectionService;
   }
 
-  private setupEventListeners() {
+  private setupEventListeners(): void {
   }
 
-  public setMessageReceivedHandler(handler: (message: Message) => void) {
+  public setMessageReceivedHandler(handler: (message: Message) => void): void {
     this.onMessageReceived = handler;
   }
 
-  public setTypingStatusHandler(handler: (peerId: string, isTyping: boolean) => void) {
+  public setTypingStatusHandler(handler: (peerId: string, isTyping: boolean) => void): void {
     this.onTypingStatusChange = handler;
   }
 

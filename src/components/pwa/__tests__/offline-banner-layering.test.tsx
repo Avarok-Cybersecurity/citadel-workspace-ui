@@ -15,7 +15,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const src = (p: string) => readFileSync(join(process.cwd(), 'src', p), 'utf8');
+const src = (p: string): string => readFileSync(join(process.cwd(), 'src', p), 'utf8');
 
 /** The numeric z-index a Tailwind class encodes, e.g. z-40 or z-[110]. */
 function zIndex(className: string): number {

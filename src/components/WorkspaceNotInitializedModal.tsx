@@ -16,7 +16,7 @@ export const WorkspaceNotInitializedModal: React.FC<WorkspaceNotInitializedModal
 }) => {
     const navigate = useNavigate();
 
-    const handleReturnToLogin = () => {
+    const handleReturnToLogin = (): void => {
         onReturnToLogin();
         navigate('/');
     };

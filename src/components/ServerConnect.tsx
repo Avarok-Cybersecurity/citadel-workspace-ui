@@ -31,7 +31,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
   const [serverAddress, setServerAddress] = useState(defaultServer || initialAddress || '');
   const [password, setPassword] = useState(initialPassword || '');
 
-  const handleConnect = (e: React.FormEvent) => {
+  const handleConnect = (e: React.FormEvent): void => {
     e.preventDefault();
     if (!serverAddress) {
       toast({

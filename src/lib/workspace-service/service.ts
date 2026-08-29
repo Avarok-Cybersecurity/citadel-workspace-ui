@@ -160,13 +160,13 @@ export class WorkspaceService implements ProtocolSender {
     const requestType: string = typeof request === 'string' ? request : Object.keys(request)[0];
     const expectedResponseTypes: string[] = this.getExpectedResponseTypes(requestType);
 
-    const responsePromise = new Promise<unknown>((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
+    const responsePromise = new Promise<unknown>((resolve, reject): void => {
+      const timeoutId = setTimeout((): void => {
         eventEmitter.off('workspace:raw-response', handler);
         reject(new Error(`Request timed out after ${timeoutMs}ms waiting for response to ${requestType}`));
       }, timeoutMs);
 
-      const handler = (response: unknown) => {
+      const handler = (response: unknown): void => {
         if (response && typeof response === 'object') {
           const responseType: string = Object.keys(response)[0];
           if (expectedResponseTypes.includes(responseType) || responseType === 'Error') {

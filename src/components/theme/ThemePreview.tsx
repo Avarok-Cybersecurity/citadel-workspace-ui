@@ -50,7 +50,7 @@ export function ThemePreview({
       'aria-label': `Edit ${r.label}`,
       'aria-pressed': selected,
       title: `${r.label} — ${r.description}`,
-      onClick: () => onSelectToken(r.token),
+      onClick: (): void => onSelectToken(r.token),
       className: cn(
         'relative text-left transition-transform duration-150 ease-out',
         'motion-safe:hover:scale-[0.985] motion-safe:active:scale-[0.97]',

@@ -80,7 +80,7 @@ export function GroupMemberManagement({
   );
 
   // Handle kick confirmation
-  const handleKickConfirm = async () => {
+  const handleKickConfirm = async (): Promise<void> => {
     if (!memberToKick) return;
 
     setIsKicking(true);

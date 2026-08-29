@@ -53,11 +53,11 @@ function harness() {
   return {
     manager,
     transport,
-    setNow: (ms: number) => {
+    setNow: (ms: number): void => {
       now = ms;
     },
     /** Fires every live timer once (each liveness tick re-arms the next). */
-    tick: () => {
+    tick: (): number => {
       const due = timers.filter((t) => !t.cancelled && !t.fired);
       for (const t of due) {
         t.fired = true;
@@ -65,13 +65,13 @@ function harness() {
       }
       return due.length;
     },
-    heartbeatsTo: (cid: bigint) =>
+    heartbeatsTo: (cid: bigint): number =>
       transport.sendSignal.mock.calls.filter(
         (c) => c[0] === cid && (c[1] as CallSignalPayload).kind === 'CallHeartbeat',
       ).length,
-    beat: (from: bigint, callId = 'c1') =>
+    beat: (from: bigint, callId = 'c1'): Promise<void> =>
       manager.handleSignal(from, from.toString(), { kind: 'CallHeartbeat', call_id: callId }),
-    accept: (from: bigint) =>
+    accept: (from: bigint): Promise<void> =>
       manager.handleSignal(from, from.toString(), {
         kind: 'CallAccept',
         call_id: 'c1',

@@ -41,7 +41,7 @@ function makeYjsSyncCommand(payload: P2PYjsSyncPayload): P2PCommand {
 
 describe('P2PCommandType.YjsP2PSync — CBOR round-trip', () => {
   it('preserves a yjs_sync (sync_step2) payload across encode/decode', () => {
-    const original = makeYjsSyncCommand({
+    const original: P2PCommand = makeYjsSyncCommand({
       type: 'yjs_sync',
       sub_type: 'sync_step2',
       document_id: 'doc-42',
@@ -53,24 +53,24 @@ describe('P2PCommandType.YjsP2PSync — CBOR round-trip', () => {
       is_creator: false,
     });
 
-    const decoded = deserializeP2PCommand(serializeP2PCommand(original));
+    const decoded: P2PCommand = deserializeP2PCommand(serializeP2PCommand(original));
     expect(decoded.type).toBe(P2PCommandType.YjsP2PSync);
     expect(decoded.payload).toEqual(original.payload);
   });
 
   it('preserves a yjs_awareness payload across encode/decode', () => {
-    const original = makeYjsSyncCommand({
+    const original: P2PCommand = makeYjsSyncCommand({
       type: 'yjs_awareness',
       document_id: 'doc-42',
       awareness: [0xDE, 0xAD, 0xBE, 0xEF],
     });
 
-    const decoded = deserializeP2PCommand(serializeP2PCommand(original));
+    const decoded: P2PCommand = deserializeP2PCommand(serializeP2PCommand(original));
     expect(decoded.payload).toEqual(original.payload);
   });
 
   it('preserves a yjs_ack payload across encode/decode', () => {
-    const original = makeYjsSyncCommand({
+    const original: P2PCommand = makeYjsSyncCommand({
       type: 'yjs_ack',
       document_id: 'doc-42',
       message_id: 'msg-abc',
@@ -78,12 +78,12 @@ describe('P2PCommandType.YjsP2PSync — CBOR round-trip', () => {
       revision: 8,
     });
 
-    const decoded = deserializeP2PCommand(serializeP2PCommand(original));
+    const decoded: P2PCommand = deserializeP2PCommand(serializeP2PCommand(original));
     expect(decoded.payload).toEqual(original.payload);
   });
 
   it('preserves a yjs_divergence payload (with optional diverged_chunks)', () => {
-    const original = makeYjsSyncCommand({
+    const original: P2PCommand = makeYjsSyncCommand({
       type: 'yjs_divergence',
       document_id: 'doc-42',
       local_hash: 'aaaaaaaaaaaaaaaa',
@@ -92,7 +92,7 @@ describe('P2PCommandType.YjsP2PSync — CBOR round-trip', () => {
       action: 'request_chunks',
     });
 
-    const decoded = deserializeP2PCommand(serializeP2PCommand(original));
+    const decoded: P2PCommand = deserializeP2PCommand(serializeP2PCommand(original));
     expect(decoded.payload).toEqual(original.payload);
   });
 });

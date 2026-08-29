@@ -85,7 +85,7 @@ export function GroupChatPage() {
   }, [groupId, getGroup, hydrated, markAsRead, navigate, toast]);
 
   // Handlers
-  const handleLeaveGroup = useCallback(async () => {
+  const handleLeaveGroup = useCallback(async (): Promise<void> => {
     if (!groupId) return;
     await leaveGroup(groupId);
     navigate('/workspace');
@@ -141,7 +141,7 @@ export function GroupChatPage() {
     [groupId, invitePeer, toast],
   );
 
-  const handleSettingsChange = useCallback((settings: GroupSettings) => {
+  const handleSettingsChange = useCallback((settings: GroupSettings): void => {
     setGroup(prev => (prev ? { ...prev, settings } : null));
   }, []);
 
@@ -152,7 +152,7 @@ export function GroupChatPage() {
     []
   );
 
-  const handleDeleteGroup = useCallback(async () => {
+  const handleDeleteGroup = useCallback(async (): Promise<void> => {
     if (!groupId || !currentUserId) return;
     try {
       // Was `const client = getClient(); if (client) { ...send... }` — and a

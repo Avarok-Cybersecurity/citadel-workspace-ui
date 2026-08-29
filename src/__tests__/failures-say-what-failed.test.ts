@@ -21,7 +21,7 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /**
  * Catches whose user-facing message is deliberately fixed, and why.
@@ -51,13 +51,13 @@ const RECORDED_DEBT: Record<string, string> = {
 };
 
 /** A user-facing failure report. */
-const SURFACES = /\b(toast|toastError|setError|setCreateError|setDeleteError|setRenderError)\s*\(/;
+const SURFACES: RegExp = /\b(toast|toastError|setError|setCreateError|setDeleteError|setRenderError)\s*\(/;
 
 /**
  * Every catch in `rel` that reports a failure to the user without consulting it.
  */
 function offendingCatches(rel: string): string[] {
-  const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+  const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
   const found: string[] = [];
 
   // Each `catch (name) { ... }` body, delimited by matching braces.
@@ -68,15 +68,15 @@ function offendingCatches(rel: string): string[] {
   // catch's failure report. An over-reporting scan is not a safe one — it fills
   // the debt list with files that were never wrong.
   for (const match of source.matchAll(/catch\s*\((\w+)\)\s*\{/g)) {
-    const name = match[1];
-    const open = match.index + match[0].length - 1;
-    let depth = 0;
-    let close = source.length;
-    for (let i = open; i < source.length; i++) {
+    const name: string = match[1];
+    const open: number = match.index + match[0].length - 1;
+    let depth: number = 0;
+    let close: number = source.length;
+    for (let i: number = open; i < source.length; i++) {
       if (source[i] === '{') depth++;
       else if (source[i] === '}' && --depth === 0) { close = i; break; }
     }
-    const body = source.slice(match.index, close);
+    const body: string = source.slice(match.index, close);
     if (!SURFACES.test(body)) continue;
 
     // The logging calls are stripped FIRST, and that is the whole point.
@@ -87,7 +87,7 @@ function offendingCatches(rel: string): string[] {
     // sentence. Logging the reason and showing the user something else IS the
     // defect; a rule satisfied by the logging call could never have caught any
     // of the four.
-    const userFacing = body
+    const userFacing: string = body
       .replace(new RegExp(`catch\\s*\\(${name}\\)`), '')
       .replace(/\b(debugLog|console\.\w+)\s*\([^;]*\);/g, '');
 
@@ -101,7 +101,7 @@ function offendingCatches(rel: string): string[] {
 
 describe('a caught failure', () => {
   it('tells the user what actually failed', async () => {
-    const files = await fg(['**/*.ts', '**/*.tsx'], {
+    const files: string[] = await fg(['**/*.ts', '**/*.tsx'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx', 'test-utils/**'],
     });

@@ -15,7 +15,7 @@ interface SecurityModeSelectProps {
 }
 
 export const SecurityModeSelect = ({ value = 'BestEffort', onChange }: SecurityModeSelectProps) => {
-  const handleValueChange = (newValue: SecrecyMode) => {
+  const handleValueChange = (newValue: SecrecyMode): void => {
     if (onChange) {
       onChange(newValue);
     }

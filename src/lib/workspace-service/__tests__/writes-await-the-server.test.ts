@@ -20,7 +20,7 @@ import {
 } from '@/lib/workspace-service/await-write-response';
 
 /** Answer the write the way the server would. */
-function serverAnswers(response: unknown) {
+function serverAnswers(response: unknown): void {
   queueMicrotask(() => eventEmitter.emit('workspace:raw-response', response));
 }
 
@@ -29,7 +29,7 @@ describe('a write', () => {
   afterEach(() => vi.useRealTimers());
 
   it('resolves when the server accepts it', async () => {
-    const send = vi.fn(async () => {
+    const send = vi.fn(async (): Promise<void> => {
       serverAnswers({ NodeDeleted: { node_id: 'n1' } });
     });
 
@@ -38,7 +38,7 @@ describe('a write', () => {
   });
 
   it('REJECTS when the server refuses it, carrying the reason', async () => {
-    const send = vi.fn(async () => {
+    const send = vi.fn(async (): Promise<void> => {
       serverAnswers({ Error: 'Permission denied: EditTreeStructure required' });
     });
 
@@ -48,7 +48,7 @@ describe('a write', () => {
   });
 
   it("does not accept another write's success as its own", async () => {
-    const send = vi.fn(async () => {
+    const send = vi.fn(async (): Promise<void> => {
       // A Node response cannot satisfy a delete.
       serverAnswers({ Node: { id: 'n1' } });
       setTimeout(() => eventEmitter.emit('workspace:raw-response', { Error: 'nope' }), 5);

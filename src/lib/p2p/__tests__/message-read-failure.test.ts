@@ -27,7 +27,7 @@ describe('a read that fails is not a conversation that is absent', () => {
   // leader-election machinery, which issues its own reads on import — a blanket
   // rejecting mock turns those into unrelated unhandled rejections that fail
   // the run before any assertion is reached.
-  function failWith(message: string) {
+  function failWith(message: string): void {
     sendLocalDBGet.mockImplementation(async (_ns: unknown, key: string) => {
       if (typeof key === 'string' && key.includes('7_metadata')) throw new Error(message);
       return { value: null };

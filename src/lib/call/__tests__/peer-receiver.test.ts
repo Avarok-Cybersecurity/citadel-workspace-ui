@@ -15,9 +15,9 @@ const decoderInstances: Array<{ close: ReturnType<typeof vi.fn>; decode: ReturnT
 
 function stubCodec() {
   return class {
-    state = 'configured';
+    state: string = 'configured';
     decode = vi.fn();
-    close = vi.fn(() => { this.state = 'closed'; });
+    close = vi.fn((): void => { this.state = 'closed'; });
     configure = vi.fn();
     constructor() {
       decoderInstances.push(this as unknown as { close: ReturnType<typeof vi.fn>; decode: ReturnType<typeof vi.fn> });

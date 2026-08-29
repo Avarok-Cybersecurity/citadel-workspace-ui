@@ -20,7 +20,7 @@ import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
-const SRC = join(process.cwd(), 'src');
+const SRC: string = join(process.cwd(), 'src');
 
 /** The one module allowed to call the transport's claim directly. */
 const CLAIM_HOME = 'lib/sessions/claim-session.ts';
@@ -45,12 +45,12 @@ const NOT_A_TAB_ADOPTING: Record<string, string> = {
 
 describe('claiming a session', () => {
   it('goes through the one place that checks for another tab', async () => {
-    const files = await fg(['**/*.ts', '**/*.tsx'], {
+    const files: string[] = await fg(['**/*.ts', '**/*.tsx'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx', 'test-utils/**'],
     });
 
-    const offenders = files
+    const offenders: string[] = files
       .filter((rel) => rel !== CLAIM_HOME && !(rel in NOT_A_TAB_ADOPTING))
       // websocket-service defines it; calling it from anywhere else is the fork.
       .filter((rel) => !rel.startsWith('lib/websocket'))
@@ -71,12 +71,12 @@ describe('claiming a session', () => {
   it('nobody re-implements the not-orphaned check', async () => {
     // The substring match on the agent's refusal is the tell: four copies of it
     // is how three came to differ.
-    const files = await fg(['**/*.ts', '**/*.tsx'], {
+    const files: string[] = await fg(['**/*.ts', '**/*.tsx'], {
       cwd: SRC,
       ignore: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx', 'test-utils/**'],
     });
 
-    const offenders = files
+    const offenders: string[] = files
       .filter((rel) => rel !== CLAIM_HOME)
       .filter((rel) =>
         /['"]not orphaned['"]/.test(stripComments(readFileSync(join(SRC, rel), 'utf-8'))),
@@ -87,7 +87,7 @@ describe('claiming a session', () => {
 
   it('keeps every exemption honest', async () => {
     for (const rel of Object.keys(NOT_A_TAB_ADOPTING)) {
-      const source = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
       expect(
         /websocketService\.claimSession\s*\(/.test(source),
         `${rel} is exempted but no longer claims — drop the exemption rather ` +
@@ -97,7 +97,7 @@ describe('claiming a session', () => {
   });
 
   it('keeps the one place real', () => {
-    const source = stripComments(readFileSync(join(SRC, CLAIM_HOME), 'utf-8'));
+    const source: string = stripComments(readFileSync(join(SRC, CLAIM_HOME), 'utf-8'));
     expect(source).toMatch(/websocketService\.claimSession\s*\(/);
     expect(
       source,

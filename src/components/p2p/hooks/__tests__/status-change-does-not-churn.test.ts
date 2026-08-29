@@ -15,7 +15,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/lib/p2p-auto-connect-service', () => ({
-  p2pAutoConnectService: { markChannelReady: () => {}, onPeerConnected: () => () => {} },
+  p2pAutoConnectService: { markChannelReady: (): void => {}, onPeerConnected: () => (): void => {} },
 }));
 
 import { subscribeToConversationEvents } from '../useP2PMessages-subscriptions';
@@ -32,15 +32,15 @@ function captureStatusHandler() {
   const updates: Array<(prev: P2PMessage[]) => P2PMessage[]> = [];
 
   const messenger = {
-    onMessage: () => () => {},
+    onMessage: () => (): void => {},
     onMessageStatusChange: (cb: (id: string, status: string) => void) => {
       statusHandler = cb;
-      return () => {};
+      return (): void => {};
     },
-    onTyping: () => () => {},
-    onConnectionChange: () => () => {},
-    onPresenceChange: () => () => {},
-    onRegistrationChange: () => () => {},
+    onTyping: () => (): void => {},
+    onConnectionChange: () => (): void => {},
+    onPresenceChange: () => (): void => {},
+    onRegistrationChange: () => (): void => {},
   } as never;
 
   subscribeToConversationEvents({

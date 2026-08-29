@@ -13,15 +13,15 @@ import { ConnectionStateCore } from './state-core';
 
 export class ConnectionState extends ConnectionStateCore {
   // Pending requests for response tracking
-  private _pendingRequests = new Map<string, PendingRequest>();
+  private _pendingRequests: Map<string, PendingRequest> = new Map<string, PendingRequest>();
 
   // Session cache for deduplication
   private _pendingGetSessions: Promise<ActiveSessionsResult> | null = null;
   private _cachedSessions: ActiveSession[] | null = null;
-  private _cachedSessionsTimestamp = 0;
+  private _cachedSessionsTimestamp: number = 0;
 
   // Concurrency guard for connection attempts
-  private _connectionAttempts = new Set<string>();
+  private _connectionAttempts: Set<string> = new Set<string>();
 
   // ============================================================================
   // Pending Requests

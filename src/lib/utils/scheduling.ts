@@ -90,7 +90,7 @@ export function waitForEvent<T = void>(
   return new Promise<T>((resolve, reject) => {
     let settled = false;
 
-    const finish = (fn: () => void) => {
+    const finish = (fn: () => void): void => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
@@ -105,6 +105,6 @@ export function waitForEvent<T = void>(
 
     // Assigned before use by the subscribe callback below, which cannot fire
     // synchronously before this returns in any of our event sources.
-    const unsubscribe = subscribe(value => finish(() => resolve(value)));
+    const unsubscribe = subscribe(value => finish((): void => resolve(value)));
   });
 }

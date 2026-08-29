@@ -85,11 +85,11 @@ export function EntityManagementModal<TMode extends string>({
   // Unguarded on purpose: onOpenChange is Radix's only dismissal channel, so
   // gating it on isSubmitting removed the X, Escape and outside-click at once.
   // Shared component, so that dead end reproduced at every call site.
-  const handleClose = () => {
+  const handleClose = (): void => {
     onClose();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     const visibleFields: FieldConfig[] = fields.filter(
       f => !f.showInModes || f.showInModes.includes(mode)

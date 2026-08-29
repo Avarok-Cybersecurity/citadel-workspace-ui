@@ -21,13 +21,13 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** main.tsx with comments stripped — a source assertion must read code. */
-const main = readFileSync(join(process.cwd(), 'src/main.tsx'), 'utf8')
+const main: string = readFileSync(join(process.cwd(), 'src/main.tsx'), 'utf8')
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .split('\n')
   .filter((line) => !line.trim().startsWith('//'))
   .join('\n');
 
-const handler = main.slice(main.indexOf("'vite:preloadError'"));
+const handler: string = main.slice(main.indexOf("'vite:preloadError'"));
 
 describe('a superseded build', () => {
   it('is recovered from, rather than reaching the error boundary', () => {

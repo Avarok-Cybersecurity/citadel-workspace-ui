@@ -33,7 +33,7 @@ export function PrivacySettingsTab() {
     savePrivacySettings(settings);
   }, [settings]);
 
-  const update = <K extends keyof PrivacySettings>(key: K, value: PrivacySettings[K]) => {
+  const update = <K extends keyof PrivacySettings>(key: K, value: PrivacySettings[K]): void => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 

@@ -25,7 +25,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
 
   // Load tab context and session asynchronously
   useEffect(() => {
-    const loadTabInfo = async () => {
+    const loadTabInfo = async (): Promise<void> => {
       const selection = await getSelectedUser();
       const session = await connectionManager.getTabSelectedSession();
       setTabSelection(selection);
@@ -50,7 +50,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   // useCallback, not a bare arrow. A new identity every render put this in
   // BaseOffice's content effect dependencies and re-ran it on every unrelated
   // store change — which overwrote the editor buffer.
-  const getInitialContent = useCallback(() => {
+  const getInitialContent = useCallback((): string => {
     if (node && isLeafNode) {
       return getDefaultChildNodeContent(node.name, node.description);
     }

@@ -42,7 +42,7 @@ export function InviteToWorkspaceDialog({
 }: InviteToWorkspaceDialogProps) {
   const [copied, setCopied] = useState(false);
 
-  const copy = () => {
+  const copy = (): void => {
     if (!serverAddress) return;
     void navigator.clipboard.writeText(serverAddress).then(
       () => {

@@ -15,7 +15,7 @@ const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 describe('withPeerLock', () => {
   it('does not interleave operations for the same peer', async () => {
     const events: string[] = [];
-    const operation = (name: string, delay: number) =>
+    const operation = (name: string, delay: number): Promise<void> =>
       withPeerLock(1n, async () => {
         events.push(`${name}:start`);
         await tick(delay);
@@ -34,7 +34,7 @@ describe('withPeerLock', () => {
     // A direct model of the bug: load, await, mutate, save. Unserialised, both
     // read 0 and the total ends at 1 instead of 2.
     let stored: number = 0;
-    const increment = () =>
+    const increment = (): Promise<void> =>
       withPeerLock(7n, async () => {
         const seen: number = stored;
         await tick(5);

@@ -37,7 +37,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
     startupCompleteRef.current = startupComplete;
   }, [startupComplete]);
 
-  const loadRegisteredPeers = useCallback(async () => {
+  const loadRegisteredPeers = useCallback(async (): Promise<void> => {
     setIsLoading(true);
     try {
       const { registeredPeers: cachedPeers } = p2pRegistrationService.getPeers();
@@ -138,17 +138,17 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
 
   // Track session startup state
   useEffect(() => {
-    const handleSessionActivated = (event: { activationType: string }) => {
+    const handleSessionActivated = (event: { activationType: string }): void => {
       if (event.activationType === 'login' || event.activationType === 'claim') {
         setStartupComplete(false);
       }
     };
-    const handleStartupComplete = () => setStartupComplete(true);
+    const handleStartupComplete = (): void => setStartupComplete(true);
 
     eventEmitter.on('session:activated', handleSessionActivated);
     eventEmitter.on('session:startup-complete', handleStartupComplete);
 
-    return () => {
+    return (): void => {
       eventEmitter.off('session:activated', handleSessionActivated);
       eventEmitter.off('session:startup-complete', handleStartupComplete);
     };
@@ -158,7 +158,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
   useEffect(() => {
     runAsyncSetup(loadRegisteredPeers);
 
-    const handlePeerUpdate = async () => { await loadRegisteredPeers(); };
+    const handlePeerUpdate = async (): Promise<void> => { await loadRegisteredPeers(); };
 
     eventEmitter.on('p2p:peer-registered', handlePeerUpdate);
     eventEmitter.on('p2p:registration-accepted', handlePeerUpdate);
@@ -167,7 +167,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
     eventEmitter.on('p2p-connection-lost', handlePeerUpdate);
     eventEmitter.on('session:startup-complete', handlePeerUpdate);
 
-    return () => {
+    return (): void => {
       eventEmitter.off('p2p:peer-registered', handlePeerUpdate);
       eventEmitter.off('p2p:registration-accepted', handlePeerUpdate);
       eventEmitter.off('p2p:peers-updated', handlePeerUpdate);

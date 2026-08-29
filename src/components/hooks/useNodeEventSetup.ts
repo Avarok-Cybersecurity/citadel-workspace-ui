@@ -22,7 +22,7 @@ function flattenTree(treeNode: TreeNode): DomainNode[] {
 
 export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
   useEffect(() => {
-    const setupNodeListeners = async () => {
+    const setupNodeListeners = async (): Promise<void> => {
       // Loading state
       await workspaceEvents.onNodeEvent('nodes:loading', (_connectionInfo: ConnectionInfo) => {
         setState(prev => ({

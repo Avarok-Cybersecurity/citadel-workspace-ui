@@ -36,7 +36,7 @@ export function PromptDialogProvider({ children }: { children: ReactNode }) {
   const [value, setValue] = useState('');
   const resolveRef = useRef<((result: string | null) => void) | null>(null);
 
-  const settle = useCallback((result: string | null) => {
+  const settle = useCallback((result: string | null): void => {
     resolveRef.current?.(result);
     resolveRef.current = null;
     setRequest(null);
@@ -53,7 +53,7 @@ export function PromptDialogProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const submit = useCallback(() => {
+  const submit = useCallback((): void => {
     const trimmed: string = value.trim();
     // Empty is a cancel, not an empty name — same as the native dialog's OK on
     // a blank field, which callers already treated as "do nothing".

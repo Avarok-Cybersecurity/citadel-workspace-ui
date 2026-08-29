@@ -40,7 +40,7 @@ const GroupChatPage = lazy(() =>
 );
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const queryClient = new QueryClient();
+const queryClient: QueryClient = new QueryClient();
 
 const App = () => {
   return (

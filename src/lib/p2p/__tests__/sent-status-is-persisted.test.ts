@@ -29,7 +29,7 @@ vi.mock('@/lib/p2p/message-send-operations', () => ({
 }));
 vi.mock('@/lib/p2p-auto-connect-service', () => ({
   p2pAutoConnectService: {
-    isPeerConnected: async () => true,
+    isPeerConnected: async (): Promise<boolean> => true,
     ensurePeerConnectedInBackground: async () => undefined,
   },
 }));

@@ -12,8 +12,8 @@ import { ConnectionIOWebSocket } from './io-websocket';
 import { ConnectionIOServices } from './io-services';
 
 export class ConnectionIO {
-  private ws = new ConnectionIOWebSocket();
-  private svc = new ConnectionIOServices();
+  private ws: ConnectionIOWebSocket = new ConnectionIOWebSocket();
+  private svc: ConnectionIOServices = new ConnectionIOServices();
 
   async executeIntent(intent: ConnectionIntent): Promise<unknown> {
     // Try WebSocket intents first

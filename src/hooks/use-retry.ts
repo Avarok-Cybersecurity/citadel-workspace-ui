@@ -143,7 +143,7 @@ export function useRetry<T, A extends unknown[] = unknown[]>(
     }
   }, [state.attempt, state.lastParams, state.error, maxRetries, operation, retryDelay, onRetry, onSuccess, onError]);
 
-  const reset = useCallback(() => {
+  const reset = useCallback((): void => {
     setState({
       data: null,
       error: null,

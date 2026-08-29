@@ -24,12 +24,12 @@ export function waitForAcceptResponse(
   const targetKey: string = toCidKey(targetPeerCid);
 
   return failOnSocketLoss('AcceptPeerRegister', new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout((): void => {
       eventEmitter.off('websocket-message', handleMessage);
       reject(new Error('Registration request timed out'));
     }, TIMEOUT.PEER_REGISTER_MS);
 
-    const handleMessage = (raw: unknown) => {
+    const handleMessage = (raw: unknown): void => {
       const message = narrowWebSocketMessage(raw);
       if (!message) return;
 

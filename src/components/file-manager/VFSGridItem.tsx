@@ -62,7 +62,7 @@ export function GridItem({
     ? (isProtected ? FolderLock : Folder)
     : getFileIcon(node.name);
 
-  const handleDoubleClick = () => {
+  const handleDoubleClick = (): void => {
     if (isDir) onNavigate(node.path);
   };
 
@@ -77,7 +77,7 @@ export function GridItem({
    *
    * Enter opens, Space selects — the convention every file manager uses.
    */
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
     if (isDir && e.key === 'Enter') {
       e.preventDefault();
       e.stopPropagation();
@@ -95,7 +95,7 @@ export function GridItem({
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(hover: none)').matches;
 
-  const handleClickOrOpen = (e: React.MouseEvent) => {
+  const handleClickOrOpen = (e: React.MouseEvent): void => {
     if (isDir && isCoarsePointer) {
       handleDoubleClick();
       return;
@@ -106,7 +106,7 @@ export function GridItem({
   // Widened from MouseEvent: this is now also the keyboard activation handler,
   // and every property it reads (stopPropagation, ctrlKey/metaKey/shiftKey for
   // the selection mode) exists on both event types.
-  const handleClick = (e: React.MouseEvent | React.KeyboardEvent) => {
+  const handleClick = (e: React.MouseEvent | React.KeyboardEvent): void => {
     e.stopPropagation();
     let mode: SelectMode = 'replace';
     if (e.ctrlKey || e.metaKey) {
@@ -121,7 +121,7 @@ export function GridItem({
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent): void => {
     if (isDir) {
       e.preventDefault();
       e.stopPropagation();
@@ -129,7 +129,7 @@ export function GridItem({
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent): void => {
     e.preventDefault();
     e.stopPropagation();
     setDragOver(false);
@@ -149,10 +149,10 @@ export function GridItem({
       onDownload={() => onDownload(node)}
       onUploadFile={() => onUploadFile(isDir ? node.path : '/')}
       onInfo={() => onInfo(node)}
-      onRename={canModify ? () => onRename(node) : undefined}
-      onCut={canModify ? () => onCut(node) : undefined}
-      onCopy={canModify ? () => onCopy(node) : undefined}
-      onPaste={isDir && hasPasteItems ? () => onPaste(node) : undefined}
+      onRename={canModify ? (): void => onRename(node) : undefined}
+      onCut={canModify ? (): void => onCut(node) : undefined}
+      onCopy={canModify ? (): void => onCopy(node) : undefined}
+      onPaste={isDir && hasPasteItems ? (): void => onPaste(node) : undefined}
       hasPasteItems={hasPasteItems}
     >
       <div

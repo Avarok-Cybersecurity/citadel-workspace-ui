@@ -44,7 +44,7 @@ const Messages = () => {
     setSelectedPeerCid(channel);
   }, [channel]);
 
-  const handleSelectPeer = (peerCid: string) => {
+  const handleSelectPeer = (peerCid: string): void => {
     setSelectedPeerCid(peerCid);
     navigate(`/messages?channel=${peerCid}`, { replace: true });
   };

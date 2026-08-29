@@ -26,11 +26,11 @@ export async function applyWaitingUpdate(): Promise<boolean> {
   if (!waiting) return false;
 
   const tookControl: Promise<boolean> = new Promise<boolean>((resolve) => {
-    const onControllerChange = () => {
+    const onControllerChange = (): void => {
       clearTimeout(timer);
       resolve(true);
     };
-    const timer = setTimeout(() => {
+    const timer = setTimeout((): void => {
       container.removeEventListener('controllerchange', onControllerChange);
       resolve(false);
     }, TIMEOUT.SW_ACTIVATION_MS);

@@ -88,7 +88,7 @@ export async function retryWithBackoff<T>(
  */
 export class RetryScheduler {
   private readonly options: Required<RetryOptions>;
-  private currentAttempt = 0;
+  private currentAttempt: number = 0;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
   private _isCancelled = false;
 
@@ -184,7 +184,7 @@ export function createDeferred<T>(): {
   let resolve!: (value: T) => void;
   let reject!: (error: Error) => void;
 
-  const promise = new Promise<T>((res, rej) => {
+  const promise = new Promise<T>((res, rej): void => {
     resolve = res;
     reject = rej;
   });
