@@ -19,6 +19,7 @@ import { Permission } from "@/contexts/PermissionsContext";
 import { connectionManager } from "@/lib/connection";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
 interface BaseOfficeProps {
   title: string;
@@ -71,7 +72,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     Permission.EditMdx
   );
 
-  const { isDirty } = useUnsavedMdxGuard({ isEditing, content, ownerId: nodeId ?? 'workspace-root' });
+  const { isDirty } = useUnsavedMdxGuard({ isEditing, content, ownerId: nodeId ?? WORKSPACE_ROOT_ID });
   const confirm = useConfirm();
 
   // Cancel used to be a bare toggle. The load effect below then restored the

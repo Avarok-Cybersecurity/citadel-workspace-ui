@@ -9,6 +9,7 @@ import { debugLog } from '@/lib/debug-config';
 import { isPrivilegedRole } from '@/lib/role-predicate';
 import { Permission, PERMISSION_LABELS } from './types';
 import type { UserRole, DomainPermissions } from './types';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
 /**
  * Parse raw permission strings into a Permission Set, filtering unknown values.
@@ -67,8 +68,8 @@ export function hasPermission(
   }
 
   // Hierarchy fallback: check workspace-root for inherited permissions
-  if (domainId !== 'workspace-root') {
-    const root = cache.get('workspace-root');
+  if (domainId !== WORKSPACE_ROOT_ID) {
+    const root = cache.get(WORKSPACE_ROOT_ID);
     if (root) {
       if (isPrivilegedRole(root.role)) return true;
       if (root.permissions.has(Permission.All)) return true;
@@ -89,8 +90,8 @@ export function getRole(
   const cached = cache.get(domainId);
   if (cached?.role) return cached.role;
 
-  if (domainId !== 'workspace-root') {
-    const root = cache.get('workspace-root');
+  if (domainId !== WORKSPACE_ROOT_ID) {
+    const root = cache.get(WORKSPACE_ROOT_ID);
     if (root?.role) return root.role;
   }
 

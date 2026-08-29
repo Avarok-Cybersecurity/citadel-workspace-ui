@@ -1,6 +1,7 @@
 import { isVariant } from 'citadel-workspace-client-ts';
 import { getEntityTypeString } from '@/lib/entity-type-registry';
 import type { DomainNode, TreeNode } from './tree-node-types';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
 /**
  * Builds a tree structure from a flat list of DomainNodes.
@@ -61,7 +62,7 @@ export function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
 
   // Multiple roots: wrap in synthetic workspace node so all are visible
   const syntheticRoot: DomainNode = {
-    id: 'workspace-root',
+    id: WORKSPACE_ROOT_ID,
     parent_id: null,
     entity_type: 'Workspace',
     depth: 0,

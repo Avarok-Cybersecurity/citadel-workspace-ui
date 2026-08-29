@@ -14421,3 +14421,36 @@ Both buttons named, and a test that presses each. The second one matters most:
 two destructive choices sit side by side, and the control that signs you out and
 the control that destroys the account must never be reachable by the same
 locator. 145 → **143**.
+
+## Round 282 — a constant introduced, and six call sites never converted
+
+Shard 2 is down to one failure, and chasing it into the permission cache found
+something else on the way.
+
+`workspace-constants.ts` exists, and says why:
+
+> It was written as a bare 'workspace-root' literal in several components, which
+> is exactly the kind of duplication that survives a rename on the Rust side
+> without anything failing to compile.
+
+The constant was added. **The call sites were never converted.** Six bare
+literals remained — including `hasPermission`'s hierarchy fallback, which is
+what every inherited grant in the app resolves through. A rename on the Rust
+side would leave that lookup silently missing the root, and every inherited
+permission would evaluate to false with nothing failing anywhere.
+
+*A constant nobody uses is a comment.*
+
+Two checks, and they are different things:
+
+- **nobody re-spells the literal**, so a rename has one place to change;
+- **the constant still equals the Rust sentinel**, read out of
+  `citadel-workspace-server-kernel/src/lib.rs`, so that one place is right.
+
+The second is the one that matters. A single spelling that has drifted from the
+server is a single spelling of the wrong thing — and it is the half that a
+"don't duplicate" rule alone never gives you.
+
+Both controls fail as they should: reintroducing a literal names the file, and
+changing the constant fails the parity check while leaving the duplication check
+green.

@@ -14,6 +14,7 @@ import { TreeNodesSection, type DomainNode } from './TreeNodesSection';
 import { NodeManagementModal } from '@/components/node/NodeManagementModal';
 import { AdminModal } from '@/components/admin';
 import { useConfirm } from '@/components/shared/confirm-dialog';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
 /**
  * Orchestrator component that wires TreeNodesSection to workspace state.
@@ -129,7 +130,7 @@ export function HierarchySidebar() {
         );
         return;
       }
-      setCreateModal({ parentId: 'workspace-root', entityType: allowedTypes[0] });
+      setCreateModal({ parentId: WORKSPACE_ROOT_ID, entityType: allowedTypes[0] });
       return;
     }
 

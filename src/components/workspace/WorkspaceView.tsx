@@ -11,6 +11,7 @@ import { StoredSession } from '@/types/session-types';
 import { getSelectedUser, TabUserContext } from '@/lib/tab-context';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { tryParseCid } from '@/lib/utils/cid-utils';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
 interface WorkspaceViewProps {
   nodeId?: string | null;
@@ -124,7 +125,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
     <BaseOffice
       // Keyed: without it React reuses the instance across nodes, so `isEditing`
       // stayed true while the buffer was swapped to the other node's body.
-      key={nodeId ?? 'workspace-root'}
+      key={nodeId ?? WORKSPACE_ROOT_ID}
       title={entityTitle}
       getInitialContent={getInitialContent}
       nodeId={nodeId || undefined}
