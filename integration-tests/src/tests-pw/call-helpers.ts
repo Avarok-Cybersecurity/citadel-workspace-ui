@@ -116,7 +116,12 @@ export async function expectCallLive(page: Page, timeout: number = 60_000): Prom
       async (): Promise<string> => {
         const failure: Locator = page.getByTestId('call-error');
         if ((await failure.count()) > 0) {
-          return `call failed: ${(await failure.innerText()).replace(/\s+/g, ' ').trim().slice(0, 200)}`;
+          // The RAW transport text, not what is on screen. What is on screen is
+          // now written for a user — "try the call again in a moment" — and a
+          // failure report needs the sentence the service actually produced.
+          const raw: string | null = await failure.first().getAttribute('data-raw-reason');
+          const shown: string = (await failure.innerText()).replace(/\s+/g, ' ').trim();
+          return `call failed: ${raw && raw.length > 0 ? raw : shown}`;
         }
         const clock: string = ((await page.getByTestId('call-duration').textContent()) ?? '').trim();
         if (clock !== '' && clock !== '00:00') return 'running';

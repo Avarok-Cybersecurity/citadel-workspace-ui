@@ -1,4 +1,5 @@
 import { AlertCircle, PhoneOff } from 'lucide-react';
+import { callFailureDetail, type CallFailureDetail } from '@/lib/call/call-failure-detail';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { getInitials } from '@/components/chat/shared/formatters';
@@ -89,17 +90,28 @@ export function ConnectingBanner(): JSX.Element {
 }
 
 export function ErrorPanel({ title, detail }: { title: string; detail: string }): JSX.Element {
+  const shown: CallFailureDetail = callFailureDetail(detail);
   return (
     // Assertive: a failure the user must act on.
+    //
+    // Which is why what it says has to be addressed to them. `detail` is
+    // whatever the media transport threw, and a screen reader reads this out in
+    // full: CI caught it announcing a nineteen-digit CID, the word "UdpMode",
+    // and a parenthetical aimed at whoever wrote the retry policy.
+    //
+    // The raw text stays on the element rather than on screen, so support and
+    // the specs can still read exactly what the transport said.
     <div
       className="flex items-center gap-3 rounded-md bg-surface p-4"
       role="alert"
       data-testid="call-error"
+      data-raw-reason={shown.raw}
+      data-reason-recognised={String(shown.recognised)}
     >
       <AlertCircle className="h-5 w-5 shrink-0 text-destructive" aria-hidden="true" />
       <div className="min-w-0">
         <p className="text-sm font-medium text-foreground">{title}</p>
-        <p className="text-xs text-muted-foreground">{detail}</p>
+        <p className="text-xs text-muted-foreground">{shown.detail}</p>
       </div>
     </div>
   );

@@ -16484,3 +16484,43 @@ reader re-announces every second, which is why the call duration is already
 is the first time it has fired on new code since it stopped being a ratchet.
 
 Preflight: 49 checks. 2345 tests.
+
+## Round 336 — the alert was addressed to the wrong reader
+
+CI's screen-share run finally produced the failure text, and it is what the
+user sees:
+
+> **The call could not start**
+> no UDP channel for peer 2181040939592097811 within 5s; it may still be
+> negotiating (retry shortly), or the peer connection was established with
+> UdpMode disabled
+
+That is `CallState.reason` — whatever the media transport threw — rendered
+straight into a `role="alert"`, which a screen reader announces in full. A
+nineteen-digit CID, an internal mode name, and a parenthetical addressed to
+whoever wrote the retry policy. The one thing a person can actually do about it
+is in there, in a subordinate clause, phrased as an aside to somebody else.
+
+`callFailureDetail` maps it:
+
+> A direct media connection could not be opened. This often clears on its own —
+> try the call again in a moment. If it keeps happening, a firewall or VPN may
+> be blocking direct connections.
+
+**Unrecognised text passes through unchanged.** A generic "something went
+wrong" would be worse than the raw string — the raw string can at least be
+searched for. And the raw text stays on the element as `data-raw-reason`
+regardless, so support and the specs read exactly what the transport said;
+`expectCallLive` now reports that rather than what is on screen.
+
+Negative control: bypassing the mapping puts the CID back into the alert's
+accessible text and fails.
+
+Ruled out on the way: the accepting side does **not** connect with UdpMode
+disabled. `PeerConnect` sends `Enabled`, the notification echoes the
+initiator's mode out of the stored `PeerSignal::PostConnect`, and the accept
+path passes it back. So the second half of the service's message is not what is
+happening here — it is the first half, negotiation not finishing, and that
+needs the running stack.
+
+Preflight: 49 checks. 2351 tests.
