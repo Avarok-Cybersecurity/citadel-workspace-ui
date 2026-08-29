@@ -29,7 +29,7 @@
   "src/components/file-manager/useFileManagerContent.ts": 2,
   "src/components/file-manager/useFileManagerHandlers.ts": 2,
   "src/components/file-manager/vfs-content-helpers.ts": 2,
-  "src/components/hooks/useConnectionHandler.ts": 2,
+  "src/components/hooks/useConnectionHandler.ts": 1,
   "src/components/hooks/useWorkspaceEventSetup.ts": 1,
   "src/components/layout/sidebar/GroupConversationRow.tsx": 1,
   "src/components/layout/sidebar/HierarchySidebar.tsx": 1,

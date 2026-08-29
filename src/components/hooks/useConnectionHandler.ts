@@ -129,7 +129,7 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
         const cidBigInt: bigint = typeof connection.cid === 'bigint' ? connection.cid : BigInt(connection.cid);
 
         const allStoredSessions: StoredSession[] = connectionManager.getStoredSessionsArray();
-        const storedSession = allStoredSessions.find(s => s.cid?.toString() === cidString);
+        const storedSession: StoredSession | undefined = allStoredSessions.find(s => s.cid?.toString() === cidString);
         if (!storedSession) return;
 
         // Single source of truth for post-auth setup
