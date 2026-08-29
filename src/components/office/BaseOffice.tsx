@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { readerIdentity, type ReaderIdentity, type TabIdentity } from '@/lib/tab-identity';
 import { useTabIdentity } from '@/hooks/use-tab-identity';
+import { useChatSurface, type ChatSurface } from './chat-surface';
 import { useToast } from "@/hooks/use-toast";
 import { MDXProvider } from '@mdx-js/react';
 import { components } from "./mdxComponents";
@@ -142,16 +143,18 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   };
 
   // Show skeleton loader during loading state
+  // Chat is enabled, disabled, or NOT YET ANSWERED -- see chat-surface.ts.
+  // `entityData?.chat_enabled ?? false` read the third as the second, so a node
+  // momentarily absent from `state.nodes` took the whole tab surface down and
+  // the composer with it.
+  const chat: ChatSurface | null = useChatSurface(nodeId, entityData);
+
   if (isLoading) {
     return <OfficeSkeletonLoader />;
   }
 
   // Use permission check result, defaulting to true if no domain ID (demo mode)
   const hasEditPermission: boolean = !domainId || canEditMdx;
-
-  // Check if chat is enabled for this office/room
-  const chatEnabled: boolean = entityData?.chat_enabled ?? false;
-  const chatChannelId: string | null | undefined = entityData?.chat_channel_id;
 
   // Get current user info from workspace state OR connection manager
   // State first, tab identity second — see `readerIdentity`.
@@ -200,7 +203,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   );
 
   // If chat is not enabled, just show the content
-  if (!chatEnabled || !chatChannelId) {
+  if (!chat || !chat.enabled || !chat.channelId) {
     return (
       <OfficeLayout
         title={entityData?.name || title}
@@ -227,7 +230,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     >
       <OfficeChatTabs
         contentView={contentView}
-        chatChannelId={chatChannelId}
+        chatChannelId={chat.channelId}
         nodeId={nodeId}
         roomName={entityData?.name || title}
         currentUserId={reader.id}

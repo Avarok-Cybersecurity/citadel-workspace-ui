@@ -18193,3 +18193,42 @@ last, since an implementation that never consulted it would satisfy the other
 four and lose the only answer a fresh tab has.
 
 2463 tests green, all 60 preflight checks.
+
+## Round 373 — a room nobody has told us about is not a room without chat
+
+Four integration jobs — `test:room-chat`, `test:group-multiuser`,
+`test:office-chat` and the touch-reachability spec — all fail on the same line:
+
+    WARNING: Message input not found
+
+Round 369 found one cause (the tab selection not surviving a remount). This is
+the one underneath it.
+
+`BaseOffice` read `const chatEnabled = entityData?.chat_enabled ?? false`, where
+`entityData` is `state.nodes[nodeId]`. A node that is not in that map — not
+loaded yet, or momentarily out of it while the list reloads — became **"this
+room has no chat"**, and the whole Content/Chat tab surface was replaced by the
+document alone. The composer went with it, mid-conversation.
+
+Three answers, not two: enabled, disabled, and *not yet told*. `chat-surface.ts`
+returns null for the third, and a room that HAS answered keeps its answer while
+the node reloads underneath it. A room answering `chat_enabled: false` is
+honoured immediately — that is a fact, not an absence.
+
+Keyed by node, so a room that has said nothing does not inherit the previous
+room's channel and point its chat at the wrong conversation. That control fails
+on its own.
+
+This is the same shape as the presence dot (round 365) and the group membership
+(round 366): a fact nobody has reported, rendered as a definite negative. It is
+becoming the most productive single question to ask of this codebase — *what
+does this render when nobody has answered yet?*
+
+Four controls: an absent node reading as disabled fails four of six tests; a
+memory that ignores the node id fails one; no memory at all fails one; and the
+positive control that a loaded node's real answer still gets through.
+
+React's rules-of-hooks caught the first placement — the hook sat below the
+`isLoading` early return.
+
+2469 tests green, all 60 preflight checks.
