@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { getSelectedUser, type TabUserContext } from '@/lib/tab-context';
-import { tabIdentity, readerIdentity, type ReaderIdentity } from '@/lib/tab-identity';
+import { readerIdentity, type ReaderIdentity, type TabIdentity } from '@/lib/tab-identity';
+import { useTabIdentity } from '@/hooks/use-tab-identity';
 import { useToast } from "@/hooks/use-toast";
 import { MDXProvider } from '@mdx-js/react';
 import { components } from "./mdxComponents";
@@ -18,12 +18,9 @@ import WorkspaceService from "@/lib/workspace-service";
 import { OfficeChatTabs } from "./OfficeChatTabs";
 import { usePermission } from '@/hooks/use-permission';
 import { Permission } from "@/contexts/PermissionsContext";
-import { connectionManager } from "@/lib/connection";
-import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
-import type { StoredSession } from '@/types/session-types';
 
 interface BaseOfficeProps {
   title: string;
@@ -44,17 +41,9 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   const [isEditing, setIsEditing] = useState(false);
 
   const [isNewContent, setIsNewContent] = useState(!entityData?.mdx_content);
-  const [tabSession, setTabSession] = useState<{ username?: string; fullName?: string } | null>(null);
   const { toast } = useToast();
-
   // Selection first, saved account second — see `tabIdentity`.
-  useEffect(() => {
-    runAsyncSetup(async () => {
-      const selection: TabUserContext | null = await getSelectedUser();
-      const session: StoredSession | null = await connectionManager.getTabSelectedSession();
-      setTabSession(tabIdentity(selection, session));
-    });
-  }, []);
+  const tabSession: TabIdentity | null = useTabIdentity();
 
   // Determine if we're in a loading state
   const isLoading: boolean = state.loading.nodes && !entityData;

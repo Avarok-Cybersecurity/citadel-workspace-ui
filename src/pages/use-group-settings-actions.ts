@@ -1,0 +1,61 @@
+/**
+ * The settings panel's three callbacks, out of `GroupChatPage` for the length
+ * cap and because they are one unit: everything the panel can change about a
+ * group, plus ending it.
+ */
+import { useCallback } from 'react';
+import type { NavigateFunction } from 'react-router-dom';
+import type { GroupConversation, GroupSettings } from '@/types/group';
+import { sendGroupEnd } from '@/lib/group-conversations/group-requests';
+import { debugLog } from '@/lib/debug-config';
+
+export interface GroupSettingsActions {
+  onSettingsChange: (settings: GroupSettings) => void;
+  onNameChange: (name: string) => Promise<void>;
+  onDeleteGroup: () => Promise<void>;
+}
+
+export function useGroupSettingsActions(deps: {
+  groupId: string | undefined;
+  currentUserId: string;
+  setGroup: React.Dispatch<React.SetStateAction<GroupConversation | null>>;
+  navigate: NavigateFunction;
+  toast: (options: { title: string; description?: string; variant?: 'destructive' }) => void;
+}): GroupSettingsActions {
+  const { groupId, currentUserId, setGroup, navigate, toast } = deps;
+
+  const onSettingsChange: (settings: GroupSettings) => void = useCallback(
+    (settings: GroupSettings): void => {
+      setGroup((prev) => (prev ? { ...prev, settings } : null));
+    },
+    [setGroup],
+  );
+
+  const onNameChange: (name: string) => Promise<void> = useCallback(
+    async (name: string): Promise<void> => {
+      setGroup((prev) => (prev ? { ...prev, name } : null));
+    },
+    [setGroup],
+  );
+
+  const onDeleteGroup: () => Promise<void> = useCallback(async (): Promise<void> => {
+    if (!groupId || !currentUserId) return;
+    try {
+      // Was `const client = getClient(); if (client) { ...send... }` -- and a
+      // follower tab owns no client, so the delete was skipped WITHOUT error
+      // and the user was navigated away as though it had worked. The group
+      // still existed, for everyone.
+      await sendGroupEnd(groupId);
+      navigate('/workspace');
+    } catch (error) {
+      debugLog('GroupChatPage', 'Failed to delete group:', error);
+      toast({
+        title: 'Failed to delete group',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  }, [groupId, currentUserId, navigate, toast]);
+
+  return { onSettingsChange, onNameChange, onDeleteGroup };
+}

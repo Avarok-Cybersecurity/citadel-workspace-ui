@@ -18065,3 +18065,57 @@ composer. `Guest` does not, and now gets a sentence saying so rather than a
 missing box.
 
 2443 tests green, all 59 preflight checks.
+
+## Round 370 — the second user never had a composer
+
+Two integration jobs, `test:room-chat` and `test:group-multiuser`, fail with the
+same line and the same asymmetry:
+
+    WARNING: Message input not found
+    User1 -> User2 Msg:  PASS
+    User2 -> User1 Msg:  FAIL
+
+User one always sends. User two never can. In both peer groups and office rooms.
+
+`GroupChatPage` rendered its chat area behind `{currentUserId && groupId && ...}`
+and derived `currentUserId` from `connectionManager.getConnectionInfo()` — the
+**connection's** identity, not the tab's. With two sessions in one browser that
+lookup is empty or belongs to the other tab, so the second user got a group page
+with no message list and no composer at all.
+
+`GroupChatView`'s own prop comment says `currentUserId` is *"Unused by the view
+itself; kept only for callers that still pass it"*. **The entire chat was gated
+on a value its consumer ignores.**
+
+This is the chain rounds 328, 347, 353, 357 and 358 walked — "the tab's user is
+not the connection's user" — arriving at a page those rounds did not touch.
+`BaseOffice` was fixed in 358 and uses `readerIdentity`, which never returns
+empty; `GroupChatPage` returned `''` and rendered nothing.
+
+The chat now renders on `groupId` alone, and the reader is named through the
+same `readerIdentity` — so the fallback is the tab's username rather than the
+literal `'You'`.
+
+**One thing still waits on the CID, deliberately.** `callMembers` is "everyone
+except me", and `startCall` invites exactly that list — with an unknown self it
+excludes nobody and rings the caller in their own call. So the call controls are
+withheld while the chat is not. Rendering a call button that would misbehave is
+not an improvement on rendering nothing.
+
+The asynchronous tab-identity read that `BaseOffice` spelled by hand is now
+`useTabIdentity`, because a second hand-spelled copy of an ordering that matters
+is how the ordering drifts — which is what `tab-identity.ts` says in its own
+docstring.
+
+Five tests against the real page, three controls: gating the chat on
+`currentUserId` again fails three of them, restoring `'You'` fails one, and
+letting the call controls render unconditionally fails one.
+
+**Not claimed:** that this closes those two jobs. The failing run predates
+rounds 362-369 and integration tests cannot run here.
+
+While extracting to fit the length cap, `group-roster.ts` and
+`use-group-settings-actions.ts` came out of the page; both are cohesive units
+rather than slices, and `GroupChatPage` is at 239 lines.
+
+2448 tests green, all 59 preflight checks.

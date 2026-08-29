@@ -16,7 +16,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { callMembers, invitablePeers, type CallMember } from './group-roster';
+import { useGroupSettingsActions } from './use-group-settings-actions';
 import { useGroupPermissions } from '@/hooks/use-group-permissions';
+import { useTabIdentity } from '@/hooks/use-tab-identity';
+import { readerIdentity, type ReaderIdentity, type TabIdentity } from '@/lib/tab-identity';
 import { groupRestriction } from '@/components/chat/group-restriction';
 import { useRegisteredPeers , type RegisteredPeer } from '@/hooks/use-registered-peers';
 import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
@@ -25,10 +29,8 @@ import { GroupCallDock } from '@/components/call/GroupCallDock';
 import { GroupSettingsPanel } from '@/components/chat/GroupSettingsPanel';
 import { GroupChatView } from '@/components/chat/GroupChatView';
 import { useGroupConversations } from '@/hooks/use-group-conversations';
-import type { GroupConversation, GroupSettings } from '@/types/group';
+import type { GroupConversation } from '@/types/group';
 import { connectionManager } from '@/lib/connection';
-import { sendGroupEnd } from '@/lib/group-conversations/group-requests';
-import { debugLog } from '@/lib/debug-config';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { groupGoneMessage } from '@/lib/group-conversations/group-gone-message';
 import type { NavigateFunction } from 'react-router';
@@ -60,10 +62,18 @@ export function GroupChatPage(): JSX.Element {
   const { can, listedAsMember } = useGroupPermissions(group);
   const [showSettings, setShowSettings] = useState(false);
 
-  // Get current user info
+  // Get current user info.
+  //
+  // `currentUserId` is "my CID, if this tab knows it" and stays empty when it
+  // does not: it decides who to leave OUT of a call invite, and guessing there
+  // rings the caller in their own call. The chat no longer waits on it.
   const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
   const currentUserId: string = connectionInfo?.cid ? String(connectionInfo.cid) : '';
-  const currentUserName: string = connectionInfo?.username || 'You';
+  const tab: TabIdentity | null = useTabIdentity();
+  const reader: ReaderIdentity = readerIdentity(
+    connectionInfo ? { id: currentUserId, username: connectionInfo.username } : null,
+    tab,
+  );
 
   // Load group on mount
   useEffect(() => {
@@ -114,22 +124,14 @@ export function GroupChatPage(): JSX.Element {
     [groupId, updateMemberRole]
   );
 
-  // Everyone except the current user — startCall invites this exact list, so
-  // including ourselves would make the engine ring us in our own call.
-  const callMembers: { cid: bigint; username: string; }[] = useMemo((): { cid: bigint; username: string; }[] => {
-    if (!group) return [];
-    return group.members
-      .filter((m) => m.cid.toString() !== currentUserId)
-      .map((m) => ({ cid: m.cid, username: m.username }));
-  }, [group, currentUserId]);
-
-  // Anyone already in the group would be a no-op invite, so they are filtered
-  // out rather than offered and silently rejected by the backend.
-  const invitablePeers: RegisteredPeer[] = useMemo((): RegisteredPeer[] => {
-    if (!group) return [];
-    const existing: Set<string> = new Set(group.members.map((m) => m.cid.toString()));
-    return registeredPeers.filter((p) => !existing.has(p.cid));
-  }, [group, registeredPeers]);
+  const members: CallMember[] = useMemo(
+    (): CallMember[] => callMembers(group, currentUserId),
+    [group, currentUserId],
+  );
+  const invitable: RegisteredPeer[] = useMemo(
+    (): RegisteredPeer[] => invitablePeers(group, registeredPeers),
+    [group, registeredPeers],
+  );
 
   const handleInviteMember: (peerCid: string) => Promise<void> = useCallback(
     async (peerCid: string) => {
@@ -148,35 +150,9 @@ export function GroupChatPage(): JSX.Element {
     [groupId, invitePeer, toast],
   );
 
-  const handleSettingsChange: (settings: GroupSettings) => void = useCallback((settings: GroupSettings): void => {
-    setGroup(prev => (prev ? { ...prev, settings } : null));
-  }, []);
-
-  const handleNameChange: (name: string) => Promise<void> = useCallback(
-    async (name: string) => {
-      setGroup(prev => (prev ? { ...prev, name } : null));
-    },
-    []
-  );
-
-  const handleDeleteGroup: () => Promise<void> = useCallback(async (): Promise<void> => {
-    if (!groupId || !currentUserId) return;
-    try {
-      // Was `const client = getClient(); if (client) { ...send... }` — and a
-      // follower tab owns no client, so the delete was skipped WITHOUT error
-      // and the user was navigated away as though it had worked. The group
-      // still existed, for everyone.
-      await sendGroupEnd(groupId);
-      navigate('/workspace');
-    } catch (error) {
-      debugLog('GroupChatPage', 'Failed to delete group:', error);
-      toast({
-        title: 'Failed to delete group',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
-    }
-  }, [groupId, currentUserId, navigate, toast]);
+  const { onSettingsChange, onNameChange, onDeleteGroup } = useGroupSettingsActions({
+    groupId, currentUserId, setGroup, navigate, toast,
+  });
 
   if (!group) {
     return (
@@ -201,8 +177,12 @@ export function GroupChatPage(): JSX.Element {
         group={group}
         onOpenSettings={() => setShowSettings(true)}
         onLeaveGroup={handleLeaveGroup}
+        // Calling needs to know who NOT to ring, so it waits for the CID that
+        // the chat below no longer waits for.
         callControls={
-          <GroupCallControls roomId={group.id} roomName={group.name} members={callMembers} />
+          currentUserId ? (
+            <GroupCallControls roomId={group.id} roomName={group.name} members={members} />
+          ) : null
         }
       />
 
@@ -212,7 +192,14 @@ export function GroupChatPage(): JSX.Element {
       {/* Real group chat with backend messaging. The wrapper gives the
           h-full chat view a bounded flex slot, so a docked call stage
           shrinks the messages instead of pushing the composer off-screen. */}
-      {currentUserId && groupId && (
+      {/* On `groupId` alone. This used to require `currentUserId`, which comes
+          from `connectionManager.getConnectionInfo()` -- the CONNECTION's
+          identity, not the tab's -- so a tab that could not resolve it rendered
+          the group with no message list and no composer at all, which an
+          integration run reports as "Message input not found". GroupChatView's
+          own prop comment says currentUserId is "Unused by the view itself":
+          the whole chat was gated on a value its consumer ignores. */}
+      {groupId && (
         <div className="flex-1 min-h-0">
           {/* Keyed by group: useGroupChat never resets its composer, so a
               switch mid-draft carried inputValue, replyToId and editingId into
@@ -222,7 +209,7 @@ export function GroupChatPage(): JSX.Element {
             key={groupId}
             groupId={groupId}
             currentUserId={currentUserId}
-            currentUserName={currentUserName}
+            currentUserName={reader.displayName}
             totalMembers={group.members.length}
             sendRestriction={groupRestriction(listedAsMember, can('sendMessages'))}
           />
@@ -234,13 +221,13 @@ export function GroupChatPage(): JSX.Element {
         open={showSettings}
         onOpenChange={setShowSettings}
         group={group}
-        onNameChange={handleNameChange}
-        onSettingsChange={handleSettingsChange}
+        onNameChange={onNameChange}
+        onSettingsChange={onSettingsChange}
         onMemberRoleChange={handleRoleChange}
         onKickMember={handleKickMember}
-        invitablePeers={invitablePeers}
+        invitablePeers={invitable}
         onInviteMember={handleInviteMember}
-        onDeleteGroup={handleDeleteGroup}
+        onDeleteGroup={onDeleteGroup}
       />
       </div>
     </AppLayout>
