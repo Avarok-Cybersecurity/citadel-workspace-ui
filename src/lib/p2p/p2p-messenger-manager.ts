@@ -236,7 +236,7 @@ export const p2pMessengerManager: P2PMessengerManager = new Proxy({} as P2PMesse
   get(_target: P2PMessengerManager, prop: string | symbol, receiver): unknown {
     return Reflect.get(getP2PMessengerManager(), prop, receiver);
   },
-  set(_target: P2PMessengerManager, prop, value, receiver): boolean {
+  set(_target: P2PMessengerManager, prop: string | symbol, value, receiver): boolean {
     return Reflect.set(getP2PMessengerManager(), prop, value, receiver);
   },
 });
