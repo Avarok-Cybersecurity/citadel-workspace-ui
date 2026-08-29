@@ -13873,3 +13873,38 @@ contain the username at all.
 *Recorded because the first draft of this entry claimed the coincidence
 explained the failing leg. It does not, and a diagnosis that fits the shape of a
 bug is not the same as a diagnosis.*
+
+## Round 269 — an administrator who could not edit
+
+`node-content-propagation` fails on the **admin's own** Edit button:
+
+```
+Expected: enabled   Received: disabled   Timeout: 60000ms
+63 × locator resolved to <button disabled ...>Edit</button>
+```
+
+`usePermission` asked once per domain and recorded that it had asked — in a Set,
+*before* the request went out. The guard is right to exist: without it a fetch
+that keeps returning nothing spins forever.
+
+But `fetchPermissionsForDomain` returns `null` on failure rather than throwing.
+One timed-out request during workspace start-up — when everything is streaming
+in at once — looks exactly like a completed one. The domain is marked asked-for,
+the cache stays empty, and **nothing ever triggers a second attempt**, because
+that effect's dependencies only move when a fetch SUCCEEDS.
+
+Every permission-gated control on that node then stays disabled for the life of
+the page. A workspace administrator who cannot edit, with no error and nothing
+to press, is indistinguishable from a permissions bug in the server — which is
+where this would have been looked for.
+
+Bounded retry: 0, 400, 1200, 3000 ms, then it stops. The schedule is arithmetic
+in its own module with four tests — including that the whole budget fits inside
+five seconds, because the control it gates is an Edit button and a budget
+measured in minutes would be the same defect wearing a retry loop. Two hook
+tests drive the real `usePermission`: one where the second fetch succeeds and
+the control becomes usable, one where none ever does and the asking stops.
+Removing the retry fails both.
+
+*A one-shot attempt whose failure is indistinguishable from success, with no
+path back.* Same family as round 253 and round 265.

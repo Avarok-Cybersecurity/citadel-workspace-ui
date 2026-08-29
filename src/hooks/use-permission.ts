@@ -23,6 +23,7 @@ import type React from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { usePermissions, Permission } from '@/contexts/PermissionsContext';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { nextRetryDelayMs } from './permission-retry';
 
 interface UsePermissionResult {
   /** Whether the user has the permission */
@@ -56,11 +57,11 @@ interface UsePermissionResult {
  * Without this, clearCache() on a promotion left every hook with an empty cache
  * AND a guard saying it had asked — denying every gated control until a reload.
  */
-function useResetOnRoleChange(attempted: React.MutableRefObject<Set<string>>): void {
+function useResetOnRoleChange(attempted: React.MutableRefObject<Map<string, number>>): void {
   useEffect(() => {
-    const onRoleChanged = () => attempted.current.clear();
+    const onRoleChanged = (): void => attempted.current.clear();
     eventEmitter.on('permissions:role-changed', onRoleChanged);
-    return () => { eventEmitter.off('permissions:role-changed', onRoleChanged); };
+    return (): void => { eventEmitter.off("permissions:role-changed", onRoleChanged); };
   }, [attempted]);
 }
 
@@ -77,29 +78,57 @@ export function usePermission(
   } = usePermissions();
 
   const [localLoading, setLocalLoading] = useState(false);
-  // Track domains we've attempted to fetch to avoid infinite retry loops
-  const attemptedFetchRef = useRef<Set<string>>(new Set());
+  /** Attempts made per domain, so a failure can be retried and still bounded. */
+  const attemptedFetchRef: React.MutableRefObject<Map<string, number>> =
+    useRef<Map<string, number>>(new Map());
   useResetOnRoleChange(attemptedFetchRef);
 
-  // Check if we need to fetch permissions for this domain
+  // Fetch this domain's permissions, and try again if the answer never came.
+  //
+  // This was one attempt, recorded in a Set before the request went out. The
+  // guard was right to exist, but `fetchPermissionsForDomain` returns `null` on
+  // failure rather than throwing, so a timed-out request during workspace
+  // start-up was indistinguishable from a completed one -- and nothing ever
+  // triggered a second attempt, because this effect's dependencies only move
+  // when a fetch SUCCEEDS. Every gated control on that node stayed disabled for
+  // the life of the page, which CI caught as the workspace admin waiting sixty
+  // seconds for their own Edit button.
   useEffect(() => {
-    if (!domainId) return;
+    if (!domainId || permissions.has(domainId)) return;
 
-    // If permissions aren't cached for this domain and we haven't tried yet, fetch them
-    if (!permissions.has(domainId) && !attemptedFetchRef.current.has(domainId)) {
-      attemptedFetchRef.current.add(domainId);
-      setLocalLoading(true);
-      runAsyncSetup(async () => {
-        try {
-          await fetchPermissionsForDomain(domainId);
-        } finally {
+    let cancelled: boolean = false;
+    let timer: number | undefined;
+
+    const attempt = (): void => {
+      const soFar: number = attemptedFetchRef.current.get(domainId) ?? 0;
+      const delay: number | null = nextRetryDelayMs(soFar);
+      if (cancelled || delay === null) return;
+
+      timer = window.setTimeout(() => {
+        if (cancelled) return;
+        attemptedFetchRef.current.set(domainId, soFar + 1);
+        setLocalLoading(true);
+        runAsyncSetup(async () => {
+          const result: Awaited<ReturnType<typeof fetchPermissionsForDomain>> =
+            await fetchPermissionsForDomain(domainId);
+          if (cancelled) return;
           setLocalLoading(false);
-        }
-      });
-    }
+          // A null result is a failure, not an empty permission set: the
+          // context swallows the error and returns null either way. On success
+          // the cache fills and this effect will not run again.
+          if (!result) attempt();
+        });
+      }, delay);
+    };
+
+    attempt();
+    return (): void => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
   }, [domainId, permissions, fetchPermissionsForDomain]);
 
-  const refresh = useCallback(async () => {
+  const refresh: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (!domainId) return;
     setLocalLoading(true);
     await fetchPermissionsForDomain(domainId);
@@ -116,9 +145,9 @@ export function usePermission(
     };
   }
 
-  const allowed = hasPermission(domainId, permission);
-  const loading = contextLoading || localLoading;
-  const reason = allowed ? null : getDeniedReason(domainId, permission);
+  const allowed: boolean = hasPermission(domainId, permission);
+  const loading: boolean = contextLoading || localLoading;
+  const reason: string | null = allowed ? null : getDeniedReason(domainId, permission);
 
   return {
     allowed,

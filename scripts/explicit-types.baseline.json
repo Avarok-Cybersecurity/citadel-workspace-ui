@@ -398,7 +398,6 @@
   "src/hooks/use-group-state.ts": 2,
   "src/hooks/use-mobile.tsx": 6,
   "src/hooks/use-online-status.ts": 6,
-  "src/hooks/use-permission.ts": 7,
   "src/hooks/use-registered-peers.ts": 14,
   "src/hooks/use-retry.ts": 5,
   "src/hooks/use-service-health.ts": 3,
