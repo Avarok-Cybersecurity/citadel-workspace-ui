@@ -556,7 +556,7 @@ describe('leaving a call does not wait on the network', () => {
     await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], AUDIO, null, null);
     await h.manager.end('hangup');
 
-    const last = h.states[h.states.length - 1];
+    const last: CallState | null = h.states[h.states.length - 1];
     expect(last?.status).toBe('ended');
   });
 

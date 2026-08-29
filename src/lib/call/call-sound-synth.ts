@@ -61,7 +61,7 @@ function scheduleTone(c: AudioContext, tone: ToneSpec): void {
  */
 export function playTones(tones: ToneSpec[]): void {
   try {
-    const c = ensureContext();
+    const c: AudioContext | null = ensureContext();
     if (!c) return;
     // A suspended context means no user gesture has unlocked audio yet. The
     // tones are only valid within their own window: if resume() resolves later

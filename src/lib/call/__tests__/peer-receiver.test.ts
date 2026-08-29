@@ -41,7 +41,7 @@ beforeEach(() => {
       constructor(init: { kind: string }) { this.kind = init.kind; }
     },
   );
-  vi.stubGlobal('MediaStream', class { constructor(public tracks: unknown[] = []) {} getTracks() { return this.tracks; } });
+  vi.stubGlobal('MediaStream', class { constructor(public tracks: unknown[] = []) {} getTracks(): unknown[] { return this.tracks; } });
 });
 
 afterEach(() => { vi.unstubAllGlobals(); });

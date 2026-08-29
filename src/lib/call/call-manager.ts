@@ -51,7 +51,7 @@ export class CallManager {
     this.deadline = new CallDeadline({
       schedule: options.schedule,
       getStatus: () => this.state?.status ?? null,
-      onExpired: (status) => {
+      onExpired: (status): undefined => {
         if (status !== 'connecting') return void this.end('unanswered');
         this.apply({ type: 'failed', reason: 'The call could not connect.' });
         void closeAllSessions(this.internals());
@@ -64,7 +64,7 @@ export class CallManager {
   }
 
   private apply(event: CallEvent): void {
-    const next = reduce(this.state, event);
+    const next: CallState | null = reduce(this.state, event);
     if (next === this.state) return;
     this.state = next;
     this.deadline.observeState(next);
@@ -133,7 +133,7 @@ export class CallManager {
 
   /** Answer the ringing call. */
   async accept(media: CallMediaKinds, videoSendCodec: string | null): Promise<void> {
-    const state = this.state;
+    const state: CallState | null = this.state;
     if (!state || state.status !== 'ringing-in') return;
 
     this.apply({ type: 'accepted-locally', media });
@@ -174,7 +174,7 @@ export class CallManager {
   }
 
   async decline(reason: CallDeclineReason): Promise<void> {
-    const state = this.state;
+    const state: CallState | null = this.state;
     if (!state) return;
 
     const peers: bigint[] = [...state.participants.keys()];
@@ -187,7 +187,7 @@ export class CallManager {
 
   /** Leave or cancel the call, telling everyone and releasing every session. */
   async end(reason: CallEndReason): Promise<void> {
-    const state = this.state;
+    const state: CallState | null = this.state;
     if (!state) return;
 
     const peers: bigint[] = [...state.participants.keys()];
@@ -204,7 +204,7 @@ export class CallManager {
 
   /** Tell peers the microphone or camera changed, so their tiles stay honest. */
   async setSelfMedia(media: CallMediaKinds): Promise<void> {
-    const state = this.state;
+    const state: CallState | null = this.state;
     if (!state) return;
 
     this.apply({ type: 'self-media-changed', media });
@@ -227,7 +227,7 @@ export class CallManager {
 
   /** Fan one encoded frame out to every participant who is in the call. */
   sendFrame(frame: WireFrame): void {
-    const state = this.state;
+    const state: CallState | null = this.state;
     if (!state) return;
 
     for (const participant of state.participants.values()) {
@@ -238,7 +238,7 @@ export class CallManager {
   }
 
   async requestKeyframe(from: bigint, track: number): Promise<void> {
-    const state = this.state;
+    const state: CallState | null = this.state;
     if (!state) return;
     await this.options.transport
       .sendSignal(from, { kind: 'CallKeyframeRequest', call_id: state.callId, track })

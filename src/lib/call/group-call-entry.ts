@@ -50,7 +50,7 @@ export function groupCallEntryMode(
     // letting it block calling HERE would strand the user with no way out.
     // `callBusyReason` owns that rule, shared with the 1:1 start path — which
     // had no busy check at all until it was extracted.
-    const busy = callBusyReason(call);
+    const busy: string | null = callBusyReason(call);
     if (busy) return { kind: 'busy', reason: busy };
   }
 

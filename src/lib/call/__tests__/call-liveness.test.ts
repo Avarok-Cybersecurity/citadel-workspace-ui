@@ -21,7 +21,7 @@ const CAROL = 3n;
 const SILENT: number = CALL_HEARTBEAT_TIMEOUT_MS + 1_000;
 
 /** Lets already-resolved sends inside fire-and-forget handlers settle. */
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+const flush: () => Promise<unknown> = (): Promise<unknown> => new Promise((resolve) => setTimeout(resolve, 0));
 
 function harness() {
   let now: number = 0;

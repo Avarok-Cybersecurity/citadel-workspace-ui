@@ -92,7 +92,7 @@ export class CallSession {
     // (the buttons are not disabled until `invite-sent`, which happens after
     // capture) or Accept on an incoming call.
     if (this.starting) return this.starting;
-    const attempt = this.startOnce(requested);
+    const attempt: Promise<CallMediaKinds | null> = this.startOnce(requested);
     this.starting = attempt;
     try {
       return await attempt;

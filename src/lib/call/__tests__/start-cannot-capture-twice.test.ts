@@ -14,7 +14,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CallSession } from '../call-session';
 
-const g = globalThis as unknown as Record<string, unknown>;
+const g: Record<string, unknown> = globalThis as unknown as Record<string, unknown>;
 const savedMedia = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
 const savedKeys: Record<string, unknown> = {};
 const KEYS: string[] = ['AudioEncoder', 'AudioDecoder', 'VideoEncoder', 'VideoDecoder',
@@ -30,7 +30,7 @@ function makeStream() {
   return {
     getTracks: () => tracks,
     getAudioTracks: () => tracks,
-    getVideoTracks: () => [],
+    getVideoTracks: (): never[] => [],
     tracks,
   };
 }
@@ -52,7 +52,7 @@ beforeEach(() => {
   // The pump reads frames off this; a reader that never yields keeps the pump
   // idle without it throwing, which is all these tests need from it.
   g.MediaStreamTrackProcessor = function (this: Record<string, unknown>): void {
-    this.readable = { getReader: () => ({ read: () => new Promise((): void => {}), cancel: (): Promise<void> => Promise.resolve() }) };
+    this.readable = { getReader: () => ({ read: (): Promise<unknown> => new Promise((): void => {}), cancel: (): Promise<void> => Promise.resolve() }) };
   };
   g.MediaStreamTrackGenerator = function (this: Record<string, unknown>): void {
     this.writable = { getWriter: () => ({ write: vi.fn(), close: vi.fn() }) };

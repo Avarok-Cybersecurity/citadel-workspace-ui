@@ -21,13 +21,13 @@ export interface TrackGeneratorCtor {
 }
 
 export function trackProcessor(): TrackProcessorCtor | null {
-  const ctor = (globalThis as { MediaStreamTrackProcessor?: TrackProcessorCtor })
+  const ctor: TrackProcessorCtor | undefined = (globalThis as { MediaStreamTrackProcessor?: TrackProcessorCtor })
     .MediaStreamTrackProcessor;
   return typeof ctor === 'function' ? ctor : null;
 }
 
 export function trackGenerator(): TrackGeneratorCtor | null {
-  const ctor = (globalThis as { MediaStreamTrackGenerator?: TrackGeneratorCtor })
+  const ctor: TrackGeneratorCtor | undefined = (globalThis as { MediaStreamTrackGenerator?: TrackGeneratorCtor })
     .MediaStreamTrackGenerator;
   return typeof ctor === 'function' ? ctor : null;
 }

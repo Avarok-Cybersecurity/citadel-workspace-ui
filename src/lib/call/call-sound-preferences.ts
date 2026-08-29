@@ -20,7 +20,7 @@ const defaultSettings: CallSoundSettings = { enabled: true };
 
 export function loadCallSoundSettings(): CallSoundSettings {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored: string | null = localStorage.getItem(STORAGE_KEY);
     if (stored) return { ...defaultSettings, ...(JSON.parse(stored) as Partial<CallSoundSettings>) };
   } catch {
     // Corrupt storage must not take sounds down with it.

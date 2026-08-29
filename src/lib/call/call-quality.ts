@@ -47,7 +47,7 @@ export class CallQualityTracker {
 
   /** A frame arrived from this peer. */
   recordFrame(cid: bigint, now: number): void {
-    const state = this.peers.get(cid);
+    const state: PeerQualityState | undefined = this.peers.get(cid);
     if (state) {
       state.lastFrameAt = now;
       return;

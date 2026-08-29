@@ -86,7 +86,7 @@ export function createCallSoundPlayer(deps: CallSoundDeps): CallSoundPlayer {
     if (active && active.callId === callId && active.kind === kind) return;
     stopRing();
     const gen: number = ++generation;
-    const release = await deps.acquireRingLock(callId);
+    const release: (() => void) | null = await deps.acquireRingLock(callId);
     if (gen !== generation) {
       release?.();
       return;

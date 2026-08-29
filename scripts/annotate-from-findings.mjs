@@ -41,6 +41,23 @@ const limitAt = args.indexOf('--limit');
 const LIMIT = limitAt >= 0 ? Number(args[limitAt + 1]) : Infinity;
 const prefix = args.find((a) => !a.startsWith('--') && a !== String(LIMIT)) ?? 'src';
 
+/** Type-position words that are never imported. */
+const TYPE_WORDS = new Set([
+      'null', 'undefined', 'void', 'never', 'unknown', 'this', 'keyof', 'typeof',
+      'infer', 'extends', 'in', 'is', 'asserts', 'new', 'abstract',
+      'Partial', 'Required', 'Pick', 'Omit', 'Exclude', 'Extract', 'NonNullable',
+      'ReturnType', 'Parameters', 'Awaited', 'Readonly', 'ReadonlyArray', 'Iterable',
+      'Generator', 'AsyncGenerator', 'IterableIterator', 'WeakMap', 'WeakSet',
+      'Function', 'Object', 'JSON', 'Math', 'Intl', 'Element', 'Node', 'Event',
+      'HTMLElement', 'HTMLInputElement', 'HTMLButtonElement', 'HTMLDivElement',
+      'HTMLTextAreaElement', 'HTMLCanvasElement', 'HTMLVideoElement', 'HTMLAudioElement',
+      'MediaStream', 'MediaStreamTrack', 'AudioContext', 'AudioData', 'VideoFrame',
+      'Response', 'Request', 'Headers', 'AbortSignal', 'Worker', 'MessagePort',
+      'BroadcastChannel', 'IDBDatabase', 'CustomEvent', 'PointerEvent', 'KeyboardEvent',
+      'MouseEvent', 'DOMRect', 'JSX', 'React', 'NodeJS', 'Uint16Array', 'Int32Array',
+  'Float32Array', 'DataView', 'SharedArrayBuffer', 'MediaRecorder',
+]);
+
 const RULES = {
   '@typescript-eslint/typedef': ['error', {
     variableDeclaration: true, memberVariableDeclaration: true,
@@ -99,6 +116,53 @@ for (const source of program.getSourceFiles()) {
     lines.has(ts.getLineAndCharacterOfPosition(source, node.getStart(source)).line + 1);
 
   const edits = [];
+  /** name -> module specifier, for types this file cannot yet see. */
+  const imports = new Map();
+
+  /**
+   * Can this type be written here, importing what it needs?
+   *
+   * A codemod that adds imports can break a build, so every name is resolved
+   * through the checker to a real declaration and turned into a specifier this
+   * project already uses -- `@/...` for anything under src, the package name
+   * for anything in node_modules. A name that resolves to neither is refused,
+   * which is the same answer the first version gave to every name it did not
+   * recognise, just arrived at with evidence.
+   */
+  const canWrite = (printed, node) => {
+    const missing = unresolvedNames(printed, source);
+    if (missing === null) return false;
+    for (const name of missing) {
+      const specifier = specifierFor(name, node);
+      if (!specifier) return false;
+      if (imports.has(name) && imports.get(name) !== specifier) return false;
+      imports.set(name, specifier);
+    }
+    return true;
+  };
+
+  const specifierFor = (name, node) => {
+    const symbols = checker.getSymbolsInScope(node, ts.SymbolFlags.Type | ts.SymbolFlags.Value);
+    const symbol = symbols.find((s) => s.getName() === name);
+    const declaration = symbol?.declarations?.[0];
+    const file = declaration?.getSourceFile()?.fileName;
+    if (!file) return null;
+    // Declared right here. The in-file name test missed it -- a local `const fn
+    // = ...` is not matched by a regex looking for `const fn` with a type
+    // keyword -- and importing a module from itself is a compile error, which
+    // is how this was found.
+    if (file === source.fileName) return null;
+    if (file.includes('/node_modules/')) {
+      const after = file.split('/node_modules/').pop() ?? '';
+      const parts = after.split('/');
+      const pkg = after.startsWith('@') ? `${parts[0]}/${parts[1]}` : parts[0];
+      return pkg && !pkg.startsWith('typescript') ? pkg : null;
+    }
+    const src = resolve(APP, 'src');
+    if (!file.startsWith(src)) return null;
+    return `@/${relative(src, file).replace(/\.tsx?$/, '')}`;
+  };
+
   const visit = (node) => {
     if (annotated + edits.length >= LIMIT) return;
 
@@ -113,7 +177,7 @@ for (const source of program.getSourceFiles()) {
           checker.getReturnTypeOfSignature(signature), node,
           ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType,
         );
-        if ((isSafe(printed, source) || printed === 'JSX.Element') && printed !== 'any') {
+        if ((canWrite(printed, node) || printed === 'JSX.Element') && printed !== 'any') {
           const insertAt = ts.isArrowFunction(node)
             ? node.equalsGreaterThanToken.getFullStart()
             : node.body.getFullStart();
@@ -143,7 +207,7 @@ for (const source of program.getSourceFiles()) {
         type, node,
         ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType,
       );
-      if (isSafe(printed, source)) edits.push({ position: node.name.getEnd(), text: `: ${printed}` });
+      if (canWrite(printed, node)) edits.push({ position: node.name.getEnd(), text: `: ${printed}` });
     }
 
     ts.forEachChild(node, visit);
@@ -159,21 +223,37 @@ for (const source of program.getSourceFiles()) {
   for (const edit of edits.sort((a, b) => b.position - a.position)) {
     text = text.slice(0, edit.position) + edit.text + text.slice(edit.position);
   }
+  if (imports.size > 0) {
+    // After the last existing import, so the new lines land with the others and
+    // never above a directive like 'use client'.
+    const lastImport = [...text.matchAll(/^import .*?;$/gm)].pop();
+    const at = lastImport ? lastImport.index + lastImport[0].length : 0;
+    const lines = [...imports.entries()]
+      .map(([name, specifier]) => `\nimport type { ${name} } from '${specifier}';`)
+      .join('');
+    text = text.slice(0, at) + lines + text.slice(at);
+  }
   writeFileSync(source.fileName, text);
 }
 
-function isSafe(printed, source) {
+/**
+ * The names in a printed type that this file cannot already see.
+ *
+ * Returns `null` when the type is one to refuse outright, and an array
+ * (possibly empty) of names needing an import otherwise.
+ */
+function unresolvedNames(printed, source) {
   // 200, not 60. A long type is ugly and true; the reason to refuse one is that
   // it cannot be written without an import, which the name test below decides.
-  if (printed.length > 200) return false;
+  if (printed.length > 200) return null;
   // `import(...)` in a printed type is the compiler saying it cannot name this
   // without a path, and `any` is not something to write down in a codebase that
   // bans it. Object and function type literals are allowed: they are printable
   // in full, and `tsc` says whether the result is right.
-  if (/\bimport\(|typeof import|\bany\b|\berror\b/.test(printed)) return false;
-  if (/^(any)$/.test(printed)) return false;
-  if (/^["'`]/.test(printed) || /^-?\d/.test(printed) || /^(true|false)$/.test(printed)) return false;
-  if (printed === 'boolean') return false;
+  if (/\bimport\(|typeof import|\bany\b|\berror\b/.test(printed)) return null;
+  if (/^(any)$/.test(printed)) return null;
+  if (/^["'`]/.test(printed) || /^-?\d/.test(printed) || /^(true|false)$/.test(printed)) return null;
+  if (printed === 'boolean') return null;
   const names = printed.match(/[A-Za-z_$][A-Za-z0-9_$]*/g) ?? [];
   const BUILTIN = new Set([
     'string', 'number', 'boolean', 'void', 'bigint', 'symbol', 'object', 'true', 'false',
@@ -181,9 +261,14 @@ function isSafe(printed, source) {
     'ArrayBuffer', 'Blob', 'File', 'FormData', 'URL', 'AbortController', 'readonly',
   ]);
   const text = source.getFullText();
-  return names.every((name) =>
-    BUILTIN.has(name) ||
-    new RegExp(`\\b(import[^;]*\\b${name}\\b|(interface|type|class|enum)\\s+${name}\\b)`).test(text));
+  const KEYWORD = TYPE_WORDS;
+  return names.filter(
+    (name) =>
+      !BUILTIN.has(name) &&
+      !KEYWORD.has(name) &&
+      !new RegExp(`\\b(import[^;]*\\b${name}\\b|(interface|type|class|enum|function|const|let)\\s+${name}\\b)`).test(text),
+  );
 }
+
 
 console.log(`${DRY ? 'Would annotate' : 'Annotated'} ${annotated} finding(s) across ${touched} file(s) under ${prefix}.`);

@@ -39,7 +39,7 @@ function makeTrack(kind: 'audio' | 'video') {
   };
 }
 
-function fakeStream(withVideo: boolean) {
+function fakeStream(withVideo: boolean): MediaStream {
   const tracks = withVideo
     ? [makeTrack('video'), makeTrack('audio')]
     : [makeTrack('audio')];
@@ -72,13 +72,13 @@ beforeEach(() => {
       constructor(public init: { kind: string }) {}
     },
   );
-  vi.stubGlobal('MediaStream', class { constructor(public tracks: unknown[] = []) {} getTracks() { return this.tracks; } });
+  vi.stubGlobal('MediaStream', class { constructor(public tracks: unknown[] = []) {} getTracks(): unknown[] { return this.tracks; } });
   // The efficient capture path. Without it the session falls back to the canvas
   // pump, which needs a real <video> element and an animation frame loop.
   vi.stubGlobal(
     'MediaStreamTrackProcessor',
     class {
-      readable = { getReader: () => ({ read: () => new Promise((): void => {}), cancel: vi.fn().mockResolvedValue(undefined) }) };
+      readable = { getReader: () => ({ read: (): Promise<unknown> => new Promise((): void => {}), cancel: vi.fn().mockResolvedValue(undefined) }) };
       constructor(public init: { track: unknown }) {}
     },
   );
@@ -265,7 +265,7 @@ describe('closing during capture', () => {
       configurable: true,
     });
     const session: CallSession = new CallSession(callbacks());
-    const lateStream = fakeStream(true);
+    const lateStream: MediaStream = fakeStream(true);
 
     const pending = session.start({ audio: true, video: true, screen: false });
     session.close();

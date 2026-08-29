@@ -26,7 +26,7 @@ const CAPS: CallCodecCapabilities = { audio: ['opus'], video: [] };
 const BOB = 2n;
 const CAROL = 3n;
 
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+const flush: () => Promise<unknown> = (): Promise<unknown> => new Promise((resolve) => setTimeout(resolve, 0));
 
 function harness() {
   let now: number = 0;

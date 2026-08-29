@@ -194,7 +194,7 @@ describe('playTones (autoplay / missing audio hardware)', () => {
     const fakeCtx = {
       state: 'suspended',
       currentTime: 0,
-      resume: () => Promise.reject(new Error('autoplay blocked')),
+      resume: (): Promise<never> => Promise.reject(new Error('autoplay blocked')),
     };
     vi.stubGlobal('AudioContext', function AudioContext() {
       return fakeCtx;

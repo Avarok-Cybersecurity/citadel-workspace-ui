@@ -34,9 +34,9 @@ export class ReceiverPool {
   constructor(private readonly callbacks: ReceiverPoolCallbacks) {}
 
   videoStreams(): Map<bigint, MediaStream> {
-    const streams = new Map<bigint, MediaStream>();
+    const streams: Map<bigint, MediaStream> = new Map<bigint, MediaStream>();
     for (const [cid, receiver] of this.receivers) {
-      const stream = receiver.getVideoStream();
+      const stream: MediaStream | null = receiver.getVideoStream();
       if (stream) streams.set(cid, stream);
     }
     return streams;
@@ -53,9 +53,9 @@ export class ReceiverPool {
   }
 
   audioStreams(): Map<bigint, MediaStream> {
-    const streams = new Map<bigint, MediaStream>();
+    const streams: Map<bigint, MediaStream> = new Map<bigint, MediaStream>();
     for (const [cid, receiver] of this.receivers) {
-      const stream = receiver.getAudioStream();
+      const stream: MediaStream | null = receiver.getAudioStream();
       if (stream) streams.set(cid, stream);
     }
     return streams;
@@ -65,7 +65,7 @@ export class ReceiverPool {
   setReceiveCodec(peerCid: bigint, codec: string): void {
     if (this.peerReceiveCodecs.get(peerCid) === codec) return;
     this.peerReceiveCodecs.set(peerCid, codec);
-    const receiver = this.receivers.get(peerCid);
+    const receiver: PeerReceiver | undefined = this.receivers.get(peerCid);
     if (receiver) {
       receiver.close();
       this.receivers.delete(peerCid);
@@ -117,7 +117,7 @@ export class ReceiverPool {
     // would leave that history behind for a peer who left, and hand it back to
     // them stale if they rejoined.
     this.quality.forget(peerCid);
-    const receiver = this.receivers.get(peerCid);
+    const receiver: PeerReceiver | undefined = this.receivers.get(peerCid);
     if (!receiver) return;
     receiver.close();
     this.receivers.delete(peerCid);
@@ -131,7 +131,7 @@ export class ReceiverPool {
   }
 
   private receiverFor(peerCid: bigint): PeerReceiver {
-    const existing = this.receivers.get(peerCid);
+    const existing: PeerReceiver | undefined = this.receivers.get(peerCid);
     if (existing) return existing;
 
     const receiver: PeerReceiver = new PeerReceiver({

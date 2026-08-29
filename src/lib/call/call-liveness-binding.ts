@@ -74,7 +74,7 @@ export class CallLivenessBinding {
       now: options.now,
       schedule: options.schedule,
       sendHeartbeat: (): void => {
-        const state = internals().getState();
+        const state: CallState | null = internals().getState();
         if (!state) return;
         for (const cid of presentPeers(state)) {
           // Built per peer, not once for the whole fan-out: the verdict is
@@ -101,7 +101,7 @@ export class CallLivenessBinding {
           void peerLostBecauseSilent(internals(), cid);
         }
       },
-      onPeerLost: (cid) => void peerLostBecauseSilent(internals(), cid),
+      onPeerLost: (cid): undefined => void peerLostBecauseSilent(internals(), cid),
     });
   }
 

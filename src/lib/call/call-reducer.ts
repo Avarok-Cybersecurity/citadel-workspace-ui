@@ -30,7 +30,7 @@ function withParticipant(
   cid: bigint,
   update: (p: CallParticipant) => CallParticipant,
 ): CallState {
-  const existing = state.participants.get(cid);
+  const existing: CallParticipant | undefined = state.participants.get(cid);
   if (!existing) return state;
   const participants: Map<bigint, CallParticipant> = new Map(state.participants);
   participants.set(cid, update(existing));

@@ -147,7 +147,7 @@ export async function captureLocalMedia(request: CaptureRequest): Promise<Captur
   }
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia(constraintsFor(request));
+    const stream: MediaStream = await navigator.mediaDevices.getUserMedia(constraintsFor(request));
     return { ok: true, stream };
   } catch (error) {
     const failure: CaptureFailure = classifyCaptureError(error);
@@ -157,7 +157,7 @@ export async function captureLocalMedia(request: CaptureRequest): Promise<Captur
     // "your camera is blocked" and "the call did not happen".
     if (request.video && request.audio && failure.kind !== 'insecure-context') {
       try {
-        const audioOnly = await navigator.mediaDevices.getUserMedia(
+        const audioOnly: MediaStream = await navigator.mediaDevices.getUserMedia(
           constraintsFor({ audio: true, video: false }),
         );
         return { ok: true, stream: audioOnly, degraded: failure };

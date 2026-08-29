@@ -79,7 +79,7 @@ describe('quality feedback, outbound', () => {
   it('says nothing when it has not seen enough media to judge', async () => {
     // Absence of evidence must not read as a healthy link, or a call would
     // report 'good' before a single frame had arrived.
-    const h = harness(() => undefined);
+    const h = harness((): undefined => undefined);
     await h.active();
     h.tick();
 

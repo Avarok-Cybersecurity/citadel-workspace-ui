@@ -88,7 +88,7 @@ export class CapturePump {
   start(stream: MediaStream): void {
     const Processor = trackProcessor();
 
-    const videoTrack = stream.getVideoTracks()[0];
+    const videoTrack: MediaStreamTrack = stream.getVideoTracks()[0];
     if (videoTrack) {
       if (Processor) {
         this.pumpTrack(new Processor({ track: videoTrack }).readable, (frame) =>
@@ -99,7 +99,7 @@ export class CapturePump {
       }
     }
 
-    const audioTrack = stream.getAudioTracks()[0];
+    const audioTrack: MediaStreamTrack = stream.getAudioTracks()[0];
     if (audioTrack && Processor) {
       this.pumpTrack(new Processor({ track: audioTrack }).readable, (data) =>
         this.callbacks.onAudioData(data as AudioData),
@@ -134,7 +134,7 @@ export class CapturePump {
   }
 
   private pumpVideoViaCanvas(stream: MediaStream): void {
-    const video = document.createElement('video');
+    const video: HTMLVideoElement = document.createElement('video');
     video.srcObject = stream;
     video.muted = true;
     // play() returns a promise in browsers that implement the modern spec and
@@ -149,7 +149,7 @@ export class CapturePump {
       if (video.videoWidth > 0) {
         // VideoFrame from an element is the one construction path available
         // without the processor API.
-        const frame = new VideoFrame(video, { timestamp: performance.now() * 1000 });
+        const frame: VideoFrame = new VideoFrame(video, { timestamp: performance.now() * 1000 });
         this.callbacks.onVideoFrame(frame, false);
       }
       raf = requestAnimationFrame(draw);

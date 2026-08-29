@@ -42,14 +42,14 @@ export class CallDeadline {
   constructor(private readonly host: DeadlineHost) {}
 
   observeState(next: CallState | null): void {
-    const status = next?.status ?? null;
+    const status: CallStatus | null = next?.status ?? null;
     if (status === this.armedFor) return;
     this.cancel?.();
     this.cancel = null;
     this.armedFor = status;
     if (!status) return;
 
-    const ms = DEADLINE_MS[status];
+    const ms: number | undefined = DEADLINE_MS[status];
     if (ms === undefined) return;
 
     this.cancel = this.host.schedule(() => {

@@ -12,7 +12,7 @@ import type { CallState, CallParticipant } from '../call-state';
 
 describe('callOutcomeMessage', () => {
   it('distinguishes every outcome the caller cannot otherwise tell apart', () => {
-    const said = ['rejected', 'busy', 'no-devices', 'unsupported', 'unanswered'].map((r) =>
+    const said: (string | null)[] = ['rejected', 'busy', 'no-devices', 'unsupported', 'unanswered'].map((r): string | null =>
       callOutcomeMessage(r, 'Ada'),
     );
 

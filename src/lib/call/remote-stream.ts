@@ -31,7 +31,7 @@ export function createRemoteVideoSink(): RemoteVideoSink {
   if (Generator) {
     const track = new Generator({ kind: 'video' });
     const writer = track.writable.getWriter();
-    const stream = new MediaStream([track]);
+    const stream: MediaStream = new MediaStream([track]);
 
     return {
       stream,
@@ -49,7 +49,7 @@ export function createRemoteVideoSink(): RemoteVideoSink {
 
   debugLog('Call', 'MediaStreamTrackGenerator unavailable; using the canvas path');
 
-  const canvas = document.createElement('canvas');
+  const canvas: HTMLCanvasElement = document.createElement('canvas');
   // Sized on the first frame; a zero-sized canvas produces a black stream.
   canvas.width = 640;
   canvas.height = 360;
@@ -67,7 +67,7 @@ export function createRemoteVideoSink(): RemoteVideoSink {
     };
   }
 
-  const stream = canvas.captureStream();
+  const stream: MediaStream = canvas.captureStream();
 
   return {
     stream,
@@ -116,7 +116,7 @@ export function createRemoteAudioSink(): RemoteAudioSink {
 
   const track = new Generator({ kind: 'audio' });
   const writer = track.writable.getWriter();
-  const stream = new MediaStream([track]);
+  const stream: MediaStream = new MediaStream([track]);
 
   return {
     stream,
