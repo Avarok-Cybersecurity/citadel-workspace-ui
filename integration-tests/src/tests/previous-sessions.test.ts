@@ -12,6 +12,7 @@
  */
 
 import { Page } from 'playwright';
+import { signedInAs } from '../lib/signed-in-as.js';
 import {
   sleep,
   createBrowser,
@@ -107,7 +108,20 @@ async function tryLoginQuick(page: Page, username: string, password: string): Pr
     }
 
     await page.getByTestId('login-submit').click();
-    return await waitForWorkspaceLoaded(page, 45000);
+    if (!(await waitForWorkspaceLoaded(page, 45000))) return false;
+
+    // WHOSE workspace. `waitForWorkspaceLoaded` is satisfied by sidebar labels
+    // and a workspace name, which every signed-in user has -- so with two other
+    // live sessions in this browser, ServerAutoConnect reconnecting one of them
+    // looked exactly like the account under test still working. The caller uses
+    // this to decide whether a deregistration was permanent, and that question
+    // cannot be answered by a screen that does not name anybody.
+    const who: string | null = await signedInAs(page);
+    if (who !== username) {
+      console.log(`  tryLoginQuick: a workspace loaded, but for ${who ?? 'nobody named'} rather than ${username}`);
+      return false;
+    }
+    return true;
   } catch {
     return false;
   }

@@ -17143,3 +17143,43 @@ Failed loads that still render as empty results, for a later pass:
 (pagination), `useP2PMessages` (pagination), `use-loaded-permissions`.
 
 2380 tests green; preflight 53/53.
+
+## Round 350 — an assertion that could not name who it was looking at
+
+`test:prev-sessions` reports two failures. Round 345 addressed the first
+(`Deregister Removes`). The second is `Deregister Permanent`, and before
+treating it as a product defect it was worth asking whether the assertion can
+see what it claims to.
+
+It cannot. The check is:
+
+```ts
+const canLoginAfterDeregister = await tryLoginQuick(page, deregisterUser, PASSWORD);
+results.deregisterPermanent = !canLoginAfterDeregister;
+```
+
+and `tryLoginQuick` ends at `waitForWorkspaceLoaded`, which looks for sidebar
+group labels, a workspace name, section headers. **Every one of those is
+present for any signed-in user.** This test has three accounts in one browser
+and has already exercised ServerAutoConnect reconnecting one of them — it prints
+"ServerAutoConnect reconnected the session" earlier in the same run. So a
+workspace appearing is not evidence that the deregistered account authenticated;
+it is evidence that *a* workspace appeared.
+
+The account menu carries the answer and always has:
+`aria-label="Account menu for alice"`, or with a
+`(workspace administrator)` suffix. `signedInAs` reads it, and `tryLoginQuick`
+now returns true only when the user who loaded is the user it attempted, logging
+whose workspace it actually found when they differ.
+
+Pure parser, unit-tested — `integration-tests/src/lib` became testable in round
+331 and this is the first thing to use it. Two negative controls, because there
+are two ways to get it wrong: treating the TopBar's literal `"User"` fallback as
+an account name (which would let a page that knows nobody satisfy the check),
+and failing to strip the administrator suffix.
+
+This does not say whether deregistration is permanent. It says the test can now
+answer that question, which it could not before — and a failing check that
+cannot discriminate is worth less than no check, because it is acted on.
+
+2385 tests green; preflight 53/53 apart from the push reminder.
