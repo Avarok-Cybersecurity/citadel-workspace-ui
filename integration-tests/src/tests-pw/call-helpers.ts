@@ -129,9 +129,17 @@ export async function expectCallLive(page: Page, timeout: number = 60_000): Prom
         // own aria-label says which: "Outgoing call, ringing", "Call
         // connecting", "Call in progress".
         const stage: Locator = page.getByTestId('call-stage');
-        const state: string | null =
-          (await stage.count()) > 0 ? await stage.first().getAttribute('aria-label') : null;
-        return `clock at ${clock || '(absent)'}, stage says ${state ?? '(no stage)'}`;
+        if ((await stage.count()) === 0) return `clock at ${clock || '(absent)'}, no stage`;
+        const state: string | null = await stage.first().getAttribute('aria-label');
+
+        // And for how long. `Call connecting` is true of a call whose 30s
+        // connect deadline never armed AND of one that keeps re-entering the
+        // status, restarting it -- two different faults that cost a CI run
+        // each to tell apart, because the label is the same either way.
+        const since: string | null = await stage.first().getAttribute('data-status-since');
+        const heldFor: string =
+          since === null ? 'unknown' : `${Math.round((Date.now() - Number(since)) / 1000)}s`;
+        return `clock at ${clock || '(absent)'}, stage says ${state ?? '(unlabelled)'} for ${heldFor}`;
       },
       { timeout, message: 'the call clock never started, so the call never became active' },
     )

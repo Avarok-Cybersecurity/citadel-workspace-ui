@@ -16448,3 +16448,39 @@ Negative-controlled from both ends: rewording the kernel message fails and
 prints what the kernel actually sends; renaming the client constant fails too.
 
 Preflight: **49 checks**.
+
+## Round 335 — ruling out the obvious cause of a call that never connects
+
+CI's group-call failure now reads, thanks to round 321:
+
+```
+Expected: "running"
+Received: "clock at 00:00, stage says Call connecting"
+```
+
+`connecting` has a thirty-second deadline that fails the call with "The call
+could not connect." The obvious reading is that it does not fire. That reading
+is wrong, and it is worth having proved it rather than having assumed either
+way: a new test drives the real `CallManager` with a media open that **never
+settles** — not one that rejects, which the retry policy already covers, but a
+promise nothing resolves — and the call is `failed` one millisecond after the
+deadline, and still `connecting` one millisecond before it.
+
+That was previously untested. `open-session-retry` covers a rejected open;
+nothing covered a hung one, which is the case where the deadline is the only
+thing left that can rescue the call.
+
+So the manager is not the fault, and the label cannot say what is.
+`Call connecting` is true of a call whose deadline never armed **and** of one
+that keeps re-entering the status and restarting it — two different faults,
+identical on screen. The stage now carries `data-status-since`, and the spec's
+polled value reads `… stage says Call connecting for 58s`.
+
+Data, not the accessible name: a name that changes every second is one a screen
+reader re-announces every second, which is why the call duration is already
+`aria-hidden`. A ref rather than state, so nothing here schedules a render.
+
+**The types wall caught two declarations in this round's own new files**, which
+is the first time it has fired on new code since it stopped being a ratchet.
+
+Preflight: 49 checks. 2345 tests.

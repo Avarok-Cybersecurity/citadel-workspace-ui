@@ -12,6 +12,7 @@ import { VideoSettingsModal } from './VideoSettingsModal';
 import { canShareScreen } from '@/lib/call/screen-capability';
 import type { VideoQuality } from '@/lib/call/video-quality';
 import { callLabel, ConnectingBanner, ErrorPanel, OutgoingCallPanel } from './CallStagePanels';
+import { useStatusSince } from './use-status-since';
 
 interface CallStageProps {
   call: CallState;
@@ -89,10 +90,17 @@ export function CallStage({
     send: onAnnotate,
   });
 
+  const statusSince: number = useStatusSince(call.status);
+
   return (
     <section
       data-testid="call-stage"
       aria-label={callLabel(call, visible.length)}
+      // How long this status has held, for a reader who needs to tell "the
+      // deadline never armed" from "the call keeps re-entering this status".
+      // Data rather than the accessible name: a name that changes every second
+      // is one a screen reader re-announces every second.
+      data-status-since={statusSince}
       className="m-3 rounded-lg border border-border bg-card p-3"
     >
       {call.status === 'failed' ? (
