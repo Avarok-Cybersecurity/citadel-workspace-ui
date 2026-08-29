@@ -91,6 +91,20 @@ const WIDEN_STRINGS = args.includes('--widen-strings');
  * checked. Written under the compile judge, kept where it holds.
  */
 const ANY_AS_UNKNOWN = args.includes('--any-as-unknown');
+
+/**
+ * `any` becomes `unknown`, wherever it appears in the type.
+ *
+ * The first version only swapped a bare `any`, so `any[]`, `Promise<any>` and
+ * `Record<string, any>` were all refused -- a hundred of them, which is the
+ * largest single class left. This codebase's rule is "avoid `any`, use
+ * `unknown` with type guards", and `unknown` inside a generic is the same
+ * honest statement as `unknown` alone: stricter, and it will not compile
+ * anywhere the value is used without a check. That is the point, and the
+ * compile judge is what decides where it holds.
+ */
+const withoutAny = (printed) =>
+  ANY_AS_UNKNOWN ? printed.replace(/\bany\b/g, 'unknown') : printed;
 /**
  * At most one annotation per file per run.
  *
@@ -519,7 +533,7 @@ for (const source of program.getSourceFiles()) {
         type, node,
         ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType,
       );
-      const lifted = liftImports(printed === 'any' && ANY_AS_UNKNOWN ? 'unknown' : printed);
+      const lifted = liftImports(withoutAny(printed));
       if (lifted !== null && canWrite(lifted, node)) {
         edits.push({ position: node.name.getEnd(), text: `: ${lifted}` });
       } else if (
@@ -663,10 +677,7 @@ function unresolvedNames(printed, source) {
   // in this codebase, so an inferred `any` is a finding for a human, not a
   // string to write down.
   if (/\bimport\(|typeof import/.test(printed)) return refuse('import(...)', printed);
-  if (/\bany\b/.test(printed)) {
-    if (ANY_AS_UNKNOWN && printed === 'any') return [];
-    return refuse('any', printed);
-  }
+  if (/\bany\b/.test(printed)) return refuse('any', printed);
   if (/\berror\b/.test(printed)) return refuse('error', printed);
   if (!ALLOW_LITERAL && (/^["'`]/.test(printed) || /^-?\d/.test(printed) || /^(true|false)$/.test(printed))) return refuse('literal', printed);
   if (!ALLOW_BOOLEAN && printed === 'boolean') return refuse('boolean', printed);

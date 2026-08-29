@@ -3,7 +3,7 @@ import { setupWasmDebugBridge } from './wasm-debug-bridge';
 
 describe('WASM Debug Bridge', () => {
   let capturedLogs: string[][] = [];
-  const originalConsoleLog = console.log;
+  const originalConsoleLog: { (...data: unknown[]): void; (message?: unknown, ...optionalParams: unknown[]): void; } = console.log;
 
   beforeEach(() => {
     capturedLogs = [];

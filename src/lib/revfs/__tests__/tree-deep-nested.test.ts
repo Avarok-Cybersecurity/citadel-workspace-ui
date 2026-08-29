@@ -149,7 +149,7 @@ describe('deep nested tree stress tests', () => {
 
   it('removes directory at mid-level (cascades children removal)', () => {
     const { tree } = createDeepTree(MAX_DEPTH, FILES_PER_LEVEL);
-    const segments = [];
+    const segments: unknown[] = [];
     for (let i: number = 0; i < Math.floor(MAX_DEPTH / 2); i++) {
       segments.push(`level-${i}`);
     }
