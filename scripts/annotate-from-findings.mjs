@@ -518,7 +518,16 @@ for (const source of program.getSourceFiles()) {
         // inference from the ARGUMENTS is the case this can still get wrong,
         // which is what the compile judge is for.
         const callee = node.initializer.expression.getText(source);
-        edits.push({ position: node.name.getEnd(), text: `: ReturnType<typeof ${callee}>` });
+        // `typeof` takes an entity NAME, not an expression. Two shapes broke
+        // the parse outright:
+        //
+        //   typeof vi.spyOn(console, 'error').mockImplementation   -- a call
+        //   typeof state.treeSchema.rules?.find                    -- optional
+        //
+        // Only a plain dotted path qualifies.
+        if (/^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$/.test(callee)) {
+          edits.push({ position: node.name.getEnd(), text: `: ReturnType<typeof ${callee}>` });
+        }
       }
     }
 

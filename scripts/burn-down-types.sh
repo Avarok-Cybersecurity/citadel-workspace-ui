@@ -15,8 +15,11 @@ for pass in $(seq 1 "${1:-6}"); do
     [ -z "$BAD" ] && break
     # Remember every site in a rejected file, so the next pass reaches the ones
     # behind it instead of proposing the same failure again.
-    python3 scripts/record-rejected.py "$BAD" >/dev/null
-    echo "$BAD" | xargs git checkout --
+    # Only the files this pass touched: errors cascade, and reverting every
+    # file named in them threw away work in files never edited.
+    OURS=$(python3 scripts/record-rejected.py "$BAD")
+    [ -z "$OURS" ] && break
+    echo "$OURS" | xargs git checkout --
   done
   node scripts/merge-type-imports.mjs >/dev/null 2>&1
   npx eslint --fix src >/dev/null 2>&1
@@ -29,5 +32,11 @@ for pass in $(seq 1 "${1:-6}"); do
     git add -A && git commit -q -m "refactor: typing pass -- $before to $after"
   fi
   echo "pass $pass: $before -> $after"
-  [ "$before" = "$after" ] && break
+  # Keep going while there is anything left to TRY, not while the count is
+  # falling. A pass whose every proposal is rejected makes no progress and is
+  # still useful: it puts those sites in the ledger, so the next pass reaches
+  # the ones behind them. Stopping on a flat pass stopped the whole loop after
+  # one round, every time.
+  remaining=$(node scripts/annotate-from-findings.mjs src --allow-literal --any-as-unknown --one-per-file --dry 2>/dev/null | grep -oE 'annotate [0-9]+' | grep -oE '[0-9]+')
+  [ "${remaining:-0}" = "0" ] && break
 done
