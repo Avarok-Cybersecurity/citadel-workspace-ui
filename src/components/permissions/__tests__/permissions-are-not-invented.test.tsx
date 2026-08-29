@@ -13,7 +13,7 @@
  * one user being edited — so an admin who changed nothing still sent writes.
  */
 
-import { describe, it, expect, vi, beforeEach  } from 'vitest';
+import { describe, it, expect, vi, beforeEach   } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
 const getUserPermissions = vi.fn().mockResolvedValue(undefined);
@@ -25,7 +25,7 @@ const { eventEmitter } = await import('@/lib/event-emitter');
 const { useLoadedPermissions } = await import('../use-loaded-permissions');
 
 const USER: string = 'alice';
-const DOMAIN = 'workspace-root';
+const DOMAIN: string = 'workspace-root';
 
 function answer(permissions: string[], userId = USER, domainId = DOMAIN): void {
   act(() => {
