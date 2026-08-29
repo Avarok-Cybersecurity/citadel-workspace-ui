@@ -80,7 +80,13 @@ const NotificationItem: ({ notification }: NotificationItemProps) => JSX.Element
     }
   };
 
-  const isClickable: unknown = notification.type === NotificationType.PEER_REGISTRATION && notification.data?.onCardClick;
+  // `Boolean(...)`, and typed as one. The `&&` yields the handler itself when
+  // both hold, so the inferred type was a union of a callback and `undefined`
+  // and the annotation was `unknown` -- which is neither, and is what a control
+  // that decides a cursor should never be described as.
+  const isClickable: boolean = Boolean(
+    notification.type === NotificationType.PEER_REGISTRATION && notification.data?.onCardClick,
+  );
 
   return (
     <Card

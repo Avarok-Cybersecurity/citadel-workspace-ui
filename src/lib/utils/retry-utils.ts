@@ -60,7 +60,7 @@ export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   options: RetryOptions = {}
 ): Promise<T> {
-  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const opts: Required<RetryOptions> = { ...DEFAULT_OPTIONS, ...options };
   let lastError: Error | undefined;
 
   for (let attempt: number = 0; attempt < opts.maxAttempts; attempt++) {
@@ -184,7 +184,7 @@ export function createDeferred<T>(): {
   let resolve!: (value: T) => void;
   let reject!: (error: Error) => void;
 
-  const promise = new Promise<T>((res, rej): void => {
+  const promise: Promise<T> = new Promise<T>((res, rej): void => {
     resolve = res;
     reject = rej;
   });

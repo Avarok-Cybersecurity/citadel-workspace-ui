@@ -28,6 +28,23 @@ const FOCUSABLE: string = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+/**
+ * What a dialog element needs on it, or nothing when this overlay has delegated
+ * to a nested one. Named because it is the hook's contract with every caller,
+ * and an inferred union of an object and `{}` says less than it looks like.
+ */
+export interface DialogOverlayProps {
+  role?: 'dialog';
+  'aria-modal'?: boolean;
+  'aria-label'?: string;
+  tabIndex?: number;
+}
+
+export interface DialogOverlay<T extends HTMLElement> {
+  ref: React.RefObject<T>;
+  dialogProps: DialogOverlayProps;
+}
+
 export function useDialogOverlay<T extends HTMLElement = HTMLDivElement>({
   label,
   onDismiss,
@@ -41,8 +58,8 @@ export function useDialogOverlay<T extends HTMLElement = HTMLDivElement>({
    * the document would answer one Escape twice and fight over focus.
    */
   enabled?: boolean;
-}) {
-  const ref = useRef<T>(null);
+}): DialogOverlay<T> {
+  const ref: React.RefObject<T> = useRef<T>(null);
 
   useEffect(() => {
     if (!enabled) return;

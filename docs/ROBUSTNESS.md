@@ -15346,3 +15346,44 @@ shape has no way to say so.
 The residue is 189, and it is mostly this: shapes that exist and have no name.
 That is slower than a codemod and it leaves the file better than a codemod would
 have.
+
+## Round 304 — 189 → 179, and the annotations that erased what was known
+
+The typing programme has been running long enough to have made its own mistakes,
+so this round measured them rather than assuming there were none. Across all
+production code: **31 `: unknown =` annotations, and one
+`ReturnType<typeof useMemo>`.**
+
+Twenty-nine of the thirty-one are right — `JSON.parse` results, values pulled
+off a `Record<string, unknown>`, wire fields whose type genuinely is not known
+until something checks it. Two were not:
+
+```ts
+const canSave: unknown = isNameValid && isPositionValid;                    // a boolean
+const isClickable: unknown = notification.type === … && notification.data?.onCardClick;
+```
+
+`unknown` on a value the compiler already knew is worse than no annotation: it
+throws away what was there and satisfies the gate for doing it. `canSave` is a
+boolean; `isClickable` was a union of a callback and `undefined`, and is now a
+`Boolean(...)` typed as one, because a value that decides a cursor should not be
+described as something nobody can use.
+
+`ReturnType<typeof useMemo>` said nothing at all — `useMemo` is generic, so it
+resolves to nothing useful. It was a validity flag.
+
+**And one annotation that could not be made.** `const isEditing = !!role`
+narrows `role` from `Role | null` wherever it is checked, since TS 4.4 aliases
+conditions. Annotating it `boolean` discards that and takes line 85 down with
+it. The annotator refuses `boolean` on a variable for exactly this reason, and
+the refusal is the substance rather than an omission — so the site now says why
+it is bare instead of looking like something nobody got to.
+
+| | |
+|---|---|
+| Typing debt | 189 → **179** |
+| Wrong `: unknown` annotations found | 2 of 31 |
+| Sites that cannot be annotated | 1 more, now documented in place |
+
+> An annotation that discards what the compiler knew passes the same gate as one
+> that adds what it did not.

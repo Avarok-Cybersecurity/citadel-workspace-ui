@@ -32,7 +32,7 @@ export function useEventListener<T = unknown>(
   deps: React.DependencyList = []
 ): void {
   // Store handler in ref to avoid re-subscribing on every render
-  const handlerRef = useRef<EventHandler<T>>(handler);
+  const handlerRef: React.MutableRefObject<EventHandler<T>> = useRef<EventHandler<T>>(handler);
 
   // Update ref when handler changes
   useEffect(() => {
@@ -65,7 +65,7 @@ export function useEventListeners<T = unknown>(
   handler: EventHandler<T>,
   deps: React.DependencyList = []
 ): void {
-  const handlerRef = useRef<EventHandler<T>>(handler);
+  const handlerRef: React.MutableRefObject<EventHandler<T>> = useRef<EventHandler<T>>(handler);
 
   useEffect(() => {
     handlerRef.current = handler;
@@ -97,7 +97,7 @@ export function useEventCollector<T = unknown>(
   eventName: string,
   maxItems: number = 100
 ): T[] {
-  const itemsRef = useRef<T[]>([]);
+  const itemsRef: React.MutableRefObject<T[]> = useRef<T[]>([]);
 
   useEventListener<T>(eventName, (payload) => {
     itemsRef.current = [...itemsRef.current.slice(-(maxItems - 1)), payload];

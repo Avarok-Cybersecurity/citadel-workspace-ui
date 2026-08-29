@@ -28,8 +28,15 @@ export function GroupRoleEditor({
   suggestedPosition,
   onSave,
 }: GroupRoleEditorProps): JSX.Element {
+  // NOT annotated, and it is the one on this screen that cannot be.
+  //
+  // Since TS 4.4 a `const` holding a condition narrows what it tested, so
+  // `isEditing` narrows `role` from `Role | null` wherever it is checked. An
+  // annotation discards that, and line 85 stops compiling. The gate's own
+  // annotator refuses `boolean` on a variable for exactly this reason; the
+  // refusal is the substance, not an omission.
   const isEditing = !!role;
-  const isBuiltIn = role?.isBuiltIn ?? false;
+  const isBuiltIn: boolean = role?.isBuiltIn ?? false;
 
   // Initialize state
   const [name, setName] = useState(role?.name || '');
@@ -41,15 +48,17 @@ export function GroupRoleEditor({
   const [isDefault, setIsDefault] = useState(role?.isDefault ?? false);
 
   // Validation
-  const isPositionValid: ReturnType<typeof useMemo> = useMemo(() => {
+  // `ReturnType<typeof useMemo>` said nothing: useMemo is generic, so that
+  // resolves to nothing useful. This is a validity flag.
+  const isPositionValid: boolean = useMemo((): boolean => {
     if (position < 1 || position > 99) return false;
     return !existingRoles.some(
       r => r.position === position && r.id !== role?.id
     );
   }, [position, existingRoles, role]);
 
-  const isNameValid = name.trim().length > 0;
-  const canSave: unknown = isNameValid && isPositionValid;
+  const isNameValid: boolean = name.trim().length > 0;
+  const canSave: boolean = isNameValid && isPositionValid;
 
   // Handlers
   const handlePermissionChange: (key: keyof GroupPermissions, checked: boolean) => void = useCallback(
