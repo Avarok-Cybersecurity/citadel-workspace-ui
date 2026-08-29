@@ -40,7 +40,7 @@ const AVATAR_OVERLAP: 8 = 8;
 const MIN_AVATARS: 2 = 2;
 
 /** Maximum number of avatars to show */
-const MAX_AVATARS = 4;
+const MAX_AVATARS: number = 4;
 
 // The avatar palette lives in lib/avatar-color. A private copy here was the
 // only reason this file could disagree with every other avatar in the app.
