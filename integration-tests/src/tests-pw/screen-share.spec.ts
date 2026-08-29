@@ -11,7 +11,7 @@
  * headless browser cannot answer, and the promise simply never settles.
  */
 import { test, expect, chromium, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { connectPair, CALL_LAUNCH_ARGS } from './call-helpers.js';
+import { connectPair, expectCallLive, CALL_LAUNCH_ARGS } from './call-helpers.js';
 import { config, isHeaded } from '../lib/config.js';
 import { clearBrowserStorage, waitForAppReady } from '../lib/browser.js';
 import { createAccount } from '../lib/account.js';
@@ -77,6 +77,9 @@ test.describe.serial('Screen sharing', () => {
     await expect(sessionA.page.getByTestId('call-stage')).toBeVisible({ timeout: 30_000 });
     await sessionB.page.getByTestId('incoming-call-accept').click({ timeout: 60_000 });
     await expect(sessionB.page.getByTestId('call-stage')).toBeVisible({ timeout: 60_000 });
+    // Both clocks running. A stage alone proves nothing — see expectCallLive.
+    await expectCallLive(sessionA.page);
+    await expectCallLive(sessionB.page);
   });
 
   test.afterAll(async () => {

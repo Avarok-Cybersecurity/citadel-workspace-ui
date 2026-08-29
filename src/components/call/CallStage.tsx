@@ -7,6 +7,7 @@ import { registerCallStage } from './call-stage-presence';
 import { ScreenShareView } from './ScreenShareView';
 import { useAnnotations } from './use-annotations';
 import { useStageShare } from './use-stage-share';
+import { mediaControlsUsable, type ControlAvailability } from './call-control-availability';
 import { VideoSettingsModal } from './VideoSettingsModal';
 import { canShareScreen } from '@/lib/call/screen-capability';
 import type { VideoQuality } from '@/lib/call/video-quality';
@@ -73,6 +74,7 @@ export function CallStage({
   const anyVideo: boolean = call.selfMedia.video || visible.some((p): boolean => p.media.video);
   const tileCount: number = visible.length + 1;
 
+  const controls: ControlAvailability = mediaControlsUsable(call.status);
   const { share, someoneElseIsSharing } = useStageShare({
     visible,
     remoteScreenStreams,
@@ -161,7 +163,9 @@ export function CallStage({
       <div className="mt-3">
         <CallControls
           media={call.selfMedia}
-          canToggleVideo={call.status === 'active' || call.status === 'connecting'}
+          canToggleVideo={controls.usable}
+          canToggleMic={controls.usable}
+          micBlockedReason={controls.reason}
           onToggleMic={onToggleMic}
           onToggleCamera={onToggleCamera}
           onToggleScreenShare={onToggleScreenShare}
@@ -172,19 +176,18 @@ export function CallStage({
           // mounted app-wide, so a capability probe in it puts getDisplayMedia
           // and the WebCodecs feature test on the landing page's critical path.
           // This component is only ever in a call.
-          canShareScreen={canShareScreen() && !someoneElseIsSharing}
+          // A share of this tab's own must always be stoppable, including on a
+          // call that just failed underneath it -- otherwise the screen stays
+          // captured with no control that takes it back.
+          canShareScreen={(controls.usable || call.selfMedia.screen) && canShareScreen() && !someoneElseIsSharing}
           shareBlockedReason={
             someoneElseIsSharing && share
               ? `${share.name} is sharing — one screen at a time`
               : !canShareScreen()
                 ? 'This browser cannot share a screen'
-                : undefined
+                : controls.reason
           }
-          videoBlockedReason={
-            call.status === 'active' || call.status === 'connecting'
-              ? undefined
-              : 'Available once the call connects'
-          }
+          videoBlockedReason={controls.reason}
           onOpenVideoSettings={onVideoQualityChange ? (): void => setVideoSettingsOpen(true) : undefined}
           onLeave={onLeave}
           running={call.status === 'active'}

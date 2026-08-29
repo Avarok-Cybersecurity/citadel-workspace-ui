@@ -33,6 +33,7 @@ function renderControls(
     <CallControls
       media={MEDIA}
       canToggleVideo
+      canToggleMic
       onToggleMic={vi.fn()}
       onToggleCamera={onToggleCamera}
       onToggleScreenShare={onToggleScreenShare}

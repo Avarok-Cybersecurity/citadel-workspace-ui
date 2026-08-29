@@ -14621,3 +14621,54 @@ field and its submit. Three locators replaced; 143 → **141**.
 
 *A locator with two alternatives is a locator that will one day match the wrong
 one, and the failure will be a report about pointer events.*
+
+## Round 288 — a call that told you to retry, with nothing that retries
+
+CI's screen-share spec failed with `call-screen-share` never appearing. The
+screenshot in the failure artifact showed why, and it was not about screen
+sharing at all:
+
+> **The call could not start** — no UDP channel for peer 3721451325260395213
+> within 5s; it may still be negotiating (retry shortly), or the peer connection
+> was established with UdpMode disabled
+
+Three separate defects sat behind that one image.
+
+**The retry that was never built.** The service's `finish_first_open` parks the
+peer's UDP receiver in `UdpState::Pending(rx)` when the wait times out, and
+`open.rs` has a `UdpState::Pending` arm that picks it straight back up. That
+half exists so a second open can await the same channel. Nothing ever issued a
+second open: `openSessionFor` caught the rejection and declared the call failed,
+showing the user a sentence of protocol prose telling them to retry with no way
+to. `MediaOpen` is a five-second window, once, and a peer whose UDP negotiation
+took six seconds could not be called at all.
+
+It now retries, bounded by attempts and by the connect deadline — retrying past
+the moment the call is declared failed anyway buys nothing. The budget uses the
+*measured* duration of the attempt that just failed rather than a copy of the
+service's `UDP_WAIT`, because a second spelling of a constant the service owns
+is a second authority for it.
+
+**Controls over a call that does not exist.** The failed stage rendered a live
+microphone button and a live screen-share button. Pressing screen share there
+opened the browser's picker and captured a monitor for nobody. Only the camera
+asked whether the call was live, which is exactly how the other two drifted;
+all three now derive from one predicate. The single exception is stopping a
+share of this tab's own, which must stay possible however the call underneath
+it ended — otherwise the screen stays captured with no control that takes it
+back.
+
+**A setup assertion that could not fail.** Three specs took `call-stage` being
+visible as proof of a call. The same stage renders for a call that could not
+start. So the first assertion to notice anything was a screen-share element
+thirty seconds later, whose failure said nothing about the call. `expectCallLive`
+polls the clock — which runs only while the call is `active` — and folds the
+error text into the polled value, so a failure names the cause.
+
+The jsdom control for the screen-share assertion passed with the fix removed:
+jsdom has no `getDisplayMedia`, so the button was disabled for a reason that had
+nothing to do with the call. Mocking the capability probe is what made the
+assertion discriminate. A negative control that passes is not a control.
+
+> A component that reports "retry shortly" to a caller that cannot retry has
+> built one half of a feature and documented the other.

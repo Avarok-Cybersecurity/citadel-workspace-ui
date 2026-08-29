@@ -35,7 +35,7 @@ import {
   waitForWorkspaceLoaded,
   closeAnyModals, isHeaded,} from '../lib/index.js';
 import { config } from '../lib/config.js';
-import { connectPair, CALL_LAUNCH_ARGS } from './call-helpers.js';
+import { connectPair, expectCallLive, CALL_LAUNCH_ARGS } from './call-helpers.js';
 
 interface UserSession {
   browser: Browser;
@@ -266,6 +266,10 @@ test.describe.serial('Group calling with three participants', () => {
 
     await sessionC.page.getByTestId('incoming-call-accept').click();
     await expect(sessionC.page.getByTestId('call-stage')).toBeVisible({ timeout: 60_000 });
+
+    // Joined is the clock running, not the stage rendering. See expectCallLive.
+    await expectCallLive(sessionB.page);
+    await expectCallLive(sessionC.page);
   });
 
   test('B decodes frames from TWO distinct peers — the caller and the other invitee', async () => {

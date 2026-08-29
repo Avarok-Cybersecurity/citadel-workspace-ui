@@ -79,7 +79,7 @@ export class CallManager {
     return {
       transport: o.transport, selfCid: o.selfCid, capabilities: o.capabilities,
       codecs: this.codecs, openSessions: this.openSessions,
-      getState: () => this.state,
+      now: o.now, schedule: o.schedule, getState: () => this.state,
       apply: (event) => this.apply(event),
       keyframeRequested: (track) => o.onKeyframeRequested(track),
       observedLink: (cid) => o.observedLink?.(cid),

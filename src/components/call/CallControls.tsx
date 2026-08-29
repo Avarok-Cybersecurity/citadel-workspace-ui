@@ -9,6 +9,10 @@ interface CallControlsProps {
   media: CallMediaKinds;
   /** False while the call is still connecting; leaving must stay available. */
   canToggleVideo: boolean;
+  /** False when there is no live call to mute into. See call-control-availability. */
+  canToggleMic: boolean;
+  /** Why the microphone cannot be toggled. Same reasoning as `videoBlockedReason`. */
+  micBlockedReason?: string;
   onToggleMic: () => void;
   onToggleCamera: () => void;
   /** Absent where the browser cannot share a screen; the control is then hidden. */
@@ -56,6 +60,8 @@ interface CallControlsProps {
 export function CallControls({
   media,
   canToggleVideo,
+  canToggleMic,
+  micBlockedReason,
   onToggleMic,
   onToggleCamera,
   onToggleScreenShare,
@@ -72,6 +78,8 @@ export function CallControls({
       <ToggleButton
         active={media.audio}
         onClick={onToggleMic}
+        disabled={!canToggleMic}
+        disabledReason={micBlockedReason}
         testId="call-toggle-mic"
         label="Microphone"
         OnIcon={Mic}

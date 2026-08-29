@@ -9,6 +9,7 @@
  * internal service.
  */
 import { describe, it, expect, vi, beforeEach     } from 'vitest';
+import { MAX_OPEN_ATTEMPTS, OPEN_RETRY_GAP_MS } from '../open-session-retry';
 import { CallManager, MEDIA_WIRE_VERSION } from '../call-manager';
 import type { CallTransport } from '../call-transport';
 import type { CallCodecCapabilities, CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
@@ -36,7 +37,15 @@ interface Harness {
   /** Fires every timer the manager scheduled; returns how many fired. */
   fireTimers: () => number;
   cancelledTimers: () => number;
+  /**
+   * Awaits work that pauses between retries, moving the fake clock forward in
+   * retry-gap steps so only the retry pauses fire. `fireTimers` would fire the
+   * connect deadline too, which is a different outcome than the one under test.
+   */
+  settle: <T>(work: Promise<T>) => Promise<T>;
 }
+
+interface Timer { fn: () => void; delayMs: number; cancelled: boolean; fired: boolean }
 
 function harness(): Harness {
   const transport = {
@@ -47,14 +56,15 @@ function harness(): Harness {
   };
   const states: Array<CallState | null> = [];
   const keyframeRequests: number[] = [];
-  const timers: Array<{ fn: () => void; cancelled: boolean }> = [];
+  const timers: Array<Timer> = [];
+  let clock: number = 0;
   const manager: CallManager = new CallManager({
     transport: transport as unknown as CallTransport,
     selfCid: 1n,
     capabilities: CAPS,
-    now: () => 0,
-    schedule: (fn) => {
-      const timer: { fn: () => void; cancelled: boolean; } = { fn, cancelled: false };
+    now: () => clock,
+    schedule: (fn, delayMs) => {
+      const timer: Timer = { fn, delayMs, cancelled: false, fired: false };
       timers.push(timer);
       return () => {
         timer.cancelled = true;
@@ -75,11 +85,26 @@ function harness(): Harness {
       transport.sendSignal.mock.calls.filter((c) => c[0] === cid).map((c) => c[1]),
     keyframeRequests,
     fireTimers: (): number => {
-      const live: { fn: () => void; cancelled: boolean; }[] = timers.filter((t): boolean => !t.cancelled);
-      for (const t of live) t.fn();
+      const live: Timer[] = timers.filter((t): boolean => !t.cancelled && !t.fired);
+      for (const t of live) { t.fired = true; t.fn(); }
       return live.length;
     },
     cancelledTimers: () => timers.filter((t) => t.cancelled).length,
+    settle: async <T,>(work: Promise<T>): Promise<T> => {
+      let finished: boolean = false;
+      const watched: Promise<T> = work.finally((): void => { finished = true; });
+      for (let step: number = 0; step < MAX_OPEN_ATTEMPTS + 1 && !finished; step += 1) {
+        await Promise.resolve();
+        await Promise.resolve();
+        if (finished) break;
+        clock += OPEN_RETRY_GAP_MS;
+        const due: Timer[] = timers.filter(
+          (t): boolean => !t.cancelled && !t.fired && t.delayMs <= OPEN_RETRY_GAP_MS,
+        );
+        for (const t of due) { t.fired = true; t.fn(); }
+      }
+      return watched;
+    },
   };
 }
 
@@ -396,8 +421,14 @@ describe('media session failures', () => {
     h.transport.openSession.mockRejectedValue(new Error('peer connected without UDP'));
 
     await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], VIDEO, null, null);
-    await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
+    await h.settle(
+      h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO }),
+    );
 
+    // Every attempt was spent before the call was given up on: the service
+    // parks the peer's UDP channel across a timed-out open precisely so the
+    // next one picks it up, and one attempt threw that away.
+    expect(h.transport.openSession).toHaveBeenCalledTimes(MAX_OPEN_ATTEMPTS);
     expect(h.manager.getState()?.status).toBe('failed');
     expect(h.manager.getState()?.reason).toMatch(/without UDP/);
   });
@@ -410,7 +441,9 @@ describe('media session failures', () => {
 
     await h.manager.start('c1', [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }], VIDEO, 'room-1', null);
     await h.manager.handleSignal(BOB, 'bob', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
-    await h.manager.handleSignal(CAROL, 'carol', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO });
+    await h.settle(
+      h.manager.handleSignal(CAROL, 'carol', { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: VIDEO }),
+    );
 
     expect(h.manager.getState()?.status).not.toBe('failed');
     expect(h.manager.getState()?.participants.get(CAROL)?.status).toBe('left');
@@ -517,12 +550,14 @@ describe('ring timeout', () => {
       'room-1',
       null,
     );
-    await h.manager.handleSignal(CAROL, 'carol', {
-      kind: 'CallAccept',
-      call_id: 'c1',
-      codecs: CAPS,
-      media: VIDEO,
-    });
+    await h.settle(
+      h.manager.handleSignal(CAROL, 'carol', {
+        kind: 'CallAccept',
+        call_id: 'c1',
+        codecs: CAPS,
+        media: VIDEO,
+      }),
+    );
     expect(h.manager.getState()?.status).toBe('connecting');
 
     expect(h.fireTimers()).toBe(1);

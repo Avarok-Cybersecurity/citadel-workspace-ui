@@ -26,7 +26,7 @@ import {
   waitForWorkspaceLoaded,
   closeAnyModals, isHeaded,} from '../lib/index.js';
 import { config } from '../lib/config.js';
-import { connectPair, CALL_LAUNCH_ARGS } from './call-helpers.js';
+import { connectPair, expectCallLive, CALL_LAUNCH_ARGS } from './call-helpers.js';
 
 interface UserSession {
   browser: Browser;
@@ -193,6 +193,11 @@ test.describe.serial('Audio and video calling', () => {
     await expect(sessionB.page.getByTestId('call-stage')).toBeVisible({ timeout: 60_000 });
     await expect(sessionB.page.getByTestId('incoming-call-card')).toHaveCount(0);
     await expect(sessionA.page.getByTestId('call-controls')).toBeVisible({ timeout: 60_000 });
+
+    // "In the call" is the clock running, not the stage rendering: a call that
+    // could not get a UDP channel renders the same stage. See expectCallLive.
+    await expectCallLive(sessionA.page);
+    await expectCallLive(sessionB.page);
   });
 
   test('video actually flows from A to B', async () => {

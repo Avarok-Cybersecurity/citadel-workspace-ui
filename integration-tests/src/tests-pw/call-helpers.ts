@@ -6,7 +6,7 @@
  * helpers in `lib/` deliberately return booleans instead of importing `expect`.
  */
 
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { isCI } from '../lib/config.js';
 import {
   acceptP2PRequest,
@@ -95,3 +95,33 @@ export const CALL_LAUNCH_ARGS: string[] = [
     ? ['--disable-dev-shm-usage', '--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-extensions']
     : []),
 ];
+
+/**
+ * A live call, not merely a stage.
+ *
+ * `call-stage` is visible for a call that could NOT start: the same panel
+ * renders an error, a Leave button and a clock frozen at 00:00. Three specs
+ * used stage visibility as their setup assertion, so a call that never got a
+ * UDP channel was indistinguishable from one that worked -- and the first
+ * assertion to notice was a screen-share element thirty seconds later, whose
+ * failure said nothing about the call.
+ *
+ * The clock only runs while the call is 'active', so it is what tells the two
+ * apart. The error text is folded into the polled value so a failure names the
+ * cause rather than a missing element.
+ */
+export async function expectCallLive(page: Page, timeout: number = 60_000): Promise<void> {
+  await expect
+    .poll(
+      async (): Promise<string> => {
+        const failure: Locator = page.getByTestId('call-error');
+        if ((await failure.count()) > 0) {
+          return `call failed: ${(await failure.innerText()).replace(/\s+/g, ' ').trim().slice(0, 200)}`;
+        }
+        const clock: string = ((await page.getByTestId('call-duration').textContent()) ?? '').trim();
+        return clock !== '' && clock !== '00:00' ? 'running' : `clock at ${clock || '(absent)'}`;
+      },
+      { timeout, message: 'the call clock never started, so the call never became active' },
+    )
+    .toBe('running');
+}

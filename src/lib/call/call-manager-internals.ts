@@ -43,6 +43,10 @@ export interface CallManagerInternals {
   readonly codecs: PeerCodecBook;
   /** Peers with an open media session, so close is exact. */
   readonly openSessions: Set<bigint>;
+  /** See CallManagerOptions.now. */
+  now(): number;
+  /** See CallManagerOptions.schedule. */
+  schedule(fn: () => void, delayMs: number): () => void;
   getState(): CallState | null;
   apply(event: CallEvent): void;
   /** A peer's decoder is stuck and needs our encoder to produce a keyframe. */

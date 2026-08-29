@@ -103,7 +103,7 @@ describe('CallControls', () => {
     // control is the worst possible direction to be wrong in.
     const onToggleMic: ReturnType<typeof vi.fn> = vi.fn();
     const { rerender } = render(
-      <CallControls media={VIDEO} canToggleVideo onToggleMic={onToggleMic} onToggleCamera={noop} onLeave={noop} running={false} />,
+      <CallControls media={VIDEO} canToggleVideo canToggleMic onToggleMic={onToggleMic} onToggleCamera={noop} onLeave={noop} running={false} />,
     );
 
     const mic: HTMLElement = screen.getByRole('button', { name: 'Microphone' });
@@ -112,7 +112,7 @@ describe('CallControls', () => {
     expect(onToggleMic).toHaveBeenCalled();
 
     rerender(
-      <CallControls media={MUTED} canToggleVideo onToggleMic={onToggleMic} onToggleCamera={noop} onLeave={noop} running={false} />,
+      <CallControls media={MUTED} canToggleVideo canToggleMic onToggleMic={onToggleMic} onToggleCamera={noop} onLeave={noop} running={false} />,
     );
 
     // Same name, different state. That is the whole contract.
@@ -126,7 +126,7 @@ describe('CallControls', () => {
     // Being unable to abandon a call that is still connecting is the worst
     // version of this component.
     render(
-      <CallControls media={AUDIO_ONLY} canToggleVideo={false} onToggleMic={noop} onToggleCamera={noop} onLeave={noop} running={false} />,
+      <CallControls media={AUDIO_ONLY} canToggleVideo={false} canToggleMic={false} micBlockedReason="Available once the call connects" onToggleMic={noop} onToggleCamera={noop} onLeave={noop} running={false} />,
     );
 
     expect(screen.getByRole('button', { name: /leave/i })).toBeEnabled();
@@ -135,7 +135,7 @@ describe('CallControls', () => {
   it('hides the timer from screen readers', () => {
     // Announcing it every second would make the call unusable with a reader.
     render(
-      <CallControls media={VIDEO} canToggleVideo onToggleMic={noop} onToggleCamera={noop} onLeave={noop} running={false} />,
+      <CallControls media={VIDEO} canToggleVideo canToggleMic onToggleMic={noop} onToggleCamera={noop} onLeave={noop} running={false} />,
     );
 
     expect(screen.getByTestId('call-duration')).toHaveAttribute('aria-hidden', 'true');
