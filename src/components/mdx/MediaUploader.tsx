@@ -71,7 +71,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
     // For now, we'll just use a data URL for demonstration
     setUploading(true);
     try {
-      const reader = new FileReader();
+      const reader: FileReader = new FileReader();
       reader.onload = (): void => {
         setUploadedImage(reader.result as string);
         setUploading(false);

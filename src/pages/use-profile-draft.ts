@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState , type Dispatch , type SetStateAction } from 'react';
 import type { JoinFormData } from '@/components/useJoinRegistration';
 
 const BLANK: JoinFormData = { fullName: '', username: '', password: '', confirmPassword: '' };
@@ -14,7 +14,7 @@ const BLANK: JoinFormData = { fullName: '', username: '', password: '', confirmP
  * `clear` exists because half of this is passwords: the draft should not outlive
  * the registration it belonged to, nor greet the next one.
  */
-export function useProfileDraft() {
+export function useProfileDraft(): { draft: JoinFormData; setDraft: Dispatch<SetStateAction<JoinFormData>>; clear: () => void; } {
   const [draft, setDraft] = useState<JoinFormData>(BLANK);
   return {
     draft,

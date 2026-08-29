@@ -16,7 +16,8 @@ import type { AutoConnectState } from './state';
 import { BASE_DELAY_MS, MAX_DELAY_MS, POLL_INTERVAL_MS } from './constants';
 import { getCurrentCid } from './cid-resolver';
 import { refreshOnlineStatus } from './polling';
-import type { PeerConnectionInfo } from '@/lib/p2p-auto-connect/types';
+import type { PeerConnectionInfo, ConnectionAttempt } from '@/lib/p2p-auto-connect/types';
+import type { ActiveSession } from '@/types/session-types';
 
 /**
  * Connect to a single peer with exponential backoff + online check.
@@ -95,7 +96,7 @@ export async function connectToPeer(
     return;
   }
 
-  const attempt = state.getConnectionAttempt(peerCid) || { attempts: 0, timeout: null };
+  const attempt: ConnectionAttempt = state.getConnectionAttempt(peerCid) || { attempts: 0, timeout: null };
   const isOnline: boolean = state.isPeerOnline(peerCid);
   const cacheValid: boolean = state.onlineStatusAge < 10_000;
 
@@ -193,8 +194,8 @@ export async function connectToAllRegisteredPeers(state: AutoConnectState): Prom
 /** Fallback: Get registered peers from GetSessions response. */
 async function getRegisteredPeersViaGetSessions(currentCid: bigint): Promise<Array<{ cid: bigint; username: string }>> {
   try {
-    const sessions = await connectionManager.getActiveSessions();
-    const mySession = sessions.find(s => s.cid === currentCid);
+    const sessions: ActiveSession[] = await connectionManager.getActiveSessions();
+    const mySession: ActiveSession | undefined = sessions.find(s => s.cid === currentCid);
 
     // Object.keys on a Map is always [], so this branch was always taken.
     const wirePeers: [string, { peer_username?: string; }][] = wireMapEntries<{ peer_username?: string }>(mySession?.peer_connections, 'peer_connections');

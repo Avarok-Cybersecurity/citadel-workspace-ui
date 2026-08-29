@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import type { UserData, UserSearchProps } from './user-search-types';
 import { UserSearchResults, RESULTS_LIST_ID } from './UserSearchResults';
-import type { User } from '@/types/workspace-entities';
+import type { User, UserRole } from '@/types/workspace-entities';
 
 // Re-export types for backward compatibility
 export type { UserData } from './user-search-types';
@@ -87,7 +87,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
       try {
         const members: User[] = Object.values(state.members || {});
 
-        const filteredMembers = members
+        const filteredMembers: { id: string; displayName: string; avatarUrl: string | undefined; email: string | undefined; role: UserRole | undefined; isOnline: boolean; lastActive: undefined; }[] = members
           .filter(member =>
             !exclude.includes(member.id) &&
             (

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect , type RefObject } from 'react';
+import { useState, useCallback, useRef, useEffect , type RefObject , type ChangeEvent } from 'react';
 import { FolderOpen } from 'lucide-react';
 import type { RevfsNode } from '@/types/revfs-types';
 import { pathExists } from '@/lib/revfs/tree-operations';
@@ -80,7 +80,7 @@ export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps): 
     }
   }, [inputValue, tree, currentPath, onNavigate]);
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
+  const handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
     setInputValue(e.target.value);
     setHasError(false);
   }, []);

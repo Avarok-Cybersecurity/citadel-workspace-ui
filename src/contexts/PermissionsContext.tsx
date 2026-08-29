@@ -45,7 +45,7 @@ interface PermissionsContextType {
   getDeniedReason: (domainId: string, permission: Permission) => string;
 }
 
-const PermissionsContext = createContext<PermissionsContextType | null>(null);
+const PermissionsContext: React.Context<PermissionsContextType | null> = createContext<PermissionsContextType | null>(null);
 
 /**
  * Permissions Provider component

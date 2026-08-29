@@ -163,7 +163,7 @@ export function useFileManagerHandlers({
   const { handleCutMultiple, handleCopyMultiple, handleSelectAll } =
     useFileManagerSelectionHandlers({ tree, currentPath, filterText, currentTreeKey, cut, copyToClipboard, selectItem });
 
-  const handleDrop = useCallback(async (targetPath: string, files: FileList): Promise<void> => {
+  const handleDrop: (targetPath: string, files: FileList) => Promise<void> = useCallback(async (targetPath: string, files: FileList): Promise<void> => {
     if (!myCid) { toast.error('Not connected'); return; }
     const isStandardTransfer: boolean = targetPath === SENT_FILES_DIR || targetPath.startsWith(SENT_FILES_DIR + '/');
     if (isStandardTransfer) { toast.info('Standard file transfer: Use P2P Chat to send files directly'); return; }

@@ -115,6 +115,10 @@ const TYPE_WORDS = new Set([
   'ReadableStream', 'WritableStream', 'TransformStream', 'TextEncoder', 'TextDecoder',
   'Int8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint32Array', 'Float64Array',
   'BigInt64Array', 'BigUint64Array', 'Crypto', 'SubtleCrypto', 'CryptoKey',
+  'FileSystemDirectoryHandle', 'FileSystemFileHandle', 'FileSystemHandle',
+  'FileSystemWritableFileStream', 'FileReader', 'FileList', 'Clipboard',
+  'ClipboardItem', 'Notification', 'ServiceWorker', 'ServiceWorkerRegistration',
+  'PushSubscription', 'PermissionStatus', 'MediaDevices', 'MediaDeviceInfo',
   'RegExpMatchArray', 'RegExpExecArray', 'PropertyKey', 'ThisType', 'InstanceType',
   'ConstructorParameters', 'OmitThisParameter', 'Capitalize', 'Uncapitalize',
   'Lowercase', 'Uppercase', 'NoInfer', 'IArguments', 'CallableFunction',
@@ -312,8 +316,12 @@ for (const source of program.getSourceFiles()) {
       const pool = ours.length > 0 ? ours : candidates;
       // One import is not an ambiguity even from several files.
       const specifiers = new Set(pool.map((c) => specifierForPath(c)).filter(Boolean));
-      if (specifiers.size !== 1) return null;
-      return [...specifiers][0];
+      if (specifiers.size === 1) return [...specifiers][0];
+      // Several packages declare it -- `Mock` is in vitest and in @vitest/spy.
+      // The one this file already imports from is the one it means.
+      const text = source.getFullText();
+      const already = [...specifiers].filter((spec) => text.includes(`from '${spec}'`));
+      return already.length === 1 ? already[0] : null;
     }
     // Declared right here. The in-file name test missed it -- a local `const fn
     // = ...` is not matched by a regex looking for `const fn` with a type

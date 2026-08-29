@@ -71,7 +71,7 @@ const initialState: WorkspaceState = {
 };
 
 // Create the context
-export const WorkspaceContext = createContext<{
+export const WorkspaceContext: React.Context<{ state: WorkspaceState; }> = createContext<{
   state: WorkspaceState;
 }>({
   state: initialState

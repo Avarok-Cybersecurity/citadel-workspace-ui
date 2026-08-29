@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode ,  type MutableRefObject } from 'react';
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode ,  type MutableRefObject , type Context } from 'react';
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
@@ -29,7 +29,7 @@ interface PromptRequest {
  * into the dialog on open and the input is the first focusable thing in it —
  * DialogContent renders its close button after the children.
  */
-const PromptContext = createContext<((request: PromptRequest) => Promise<string | null>) | null>(null);
+const PromptContext: Context<((request: PromptRequest) => Promise<string | null>) | null> = createContext<((request: PromptRequest) => Promise<string | null>) | null>(null);
 
 export function PromptDialogProvider({ children }: { children: ReactNode }): JSX.Element {
   const [request, setRequest] = useState<PromptRequest | null>(null);

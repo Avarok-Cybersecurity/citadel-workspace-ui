@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext , type Context } from 'react';
 import type { CallState } from './call-state';
 import type { CaptureFailure } from './media-capture';
 import type { CallMediaKinds } from '@/types/p2p-commands';
@@ -54,7 +54,7 @@ export interface CallContextValue {
  * outside the provider; refusing to render there would be worse than simply
  * having no call.
  */
-export const CallContext = createContext<CallContextValue>({
+export const CallContext: Context<CallContextValue> = createContext<CallContextValue>({
   call: null,
   localStream: null,
   remoteStreams: new Map(),

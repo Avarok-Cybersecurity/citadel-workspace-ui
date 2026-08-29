@@ -14,7 +14,7 @@ import { ConnectionRequestDialog } from './ConnectionRequestDialog';
 import WorkspaceService from '@/lib/workspace-service';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useRegisteredPeers } from '@/hooks';
-import { usePeerDiscovery  } from '@/components/p2p/usePeerDiscovery';
+import { usePeerDiscovery  , type Peer } from '@/components/p2p/usePeerDiscovery';
 import { sendPeerRegistration } from '@/lib/p2p/send-peer-registration';
 import { connectionManager } from '@/lib/connection';
 import type { NavigateFunction } from 'react-router';
@@ -131,7 +131,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
       // peer list carries both, so a member who has never appeared there cannot
       // be reached from here — and saying so is better than sending nothing and
       // reporting success.
-      const peer = discoveredPeers.find((candidate): boolean => candidate.username === selectedUser.id);
+      const peer: Peer | undefined = discoveredPeers.find((candidate): boolean => candidate.username === selectedUser.id);
       if (!peer) {
         throw new Error(
           `${selectedUser.displayName} is not reachable yet. They need to be online at least once before a request can be sent.`,

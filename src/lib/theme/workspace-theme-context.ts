@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext , type Context } from 'react';
 import type { WorkspaceTheme } from './theme-types';
 import { defaultTheme } from './presets';
 
@@ -30,7 +30,7 @@ export interface WorkspaceThemeContextValue {
   previewTheme: (theme: WorkspaceTheme | null) => void;
 }
 
-export const WorkspaceThemeContext = createContext<WorkspaceThemeContextValue>({
+export const WorkspaceThemeContext: Context<WorkspaceThemeContextValue> = createContext<WorkspaceThemeContextValue>({
   theme: defaultTheme(),
   savedTheme: defaultTheme(),
   isDefault: true,

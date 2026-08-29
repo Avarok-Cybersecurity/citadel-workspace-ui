@@ -23,7 +23,7 @@ export function showBrowserNotification(notification: AppNotification): void {
     // is the supported one there.
     void (async (): Promise<void> => {
       try {
-        const registration = await navigator.serviceWorker?.ready;
+        const registration: ServiceWorkerRegistration = await navigator.serviceWorker?.ready;
         if (registration) {
           await registration.showNotification(notification.title, {
             body: notification.content,

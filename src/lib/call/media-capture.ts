@@ -189,7 +189,7 @@ export async function enumerateDevices(): Promise<DeviceInventory> {
     return { microphones: [], cameras: [], speakers: [] };
   }
 
-  const devices = await navigator.mediaDevices.enumerateDevices();
+  const devices: MediaDeviceInfo[] = await navigator.mediaDevices.enumerateDevices();
   return {
     microphones: devices.filter((d) => d.kind === 'audioinput'),
     cameras: devices.filter((d) => d.kind === 'videoinput'),

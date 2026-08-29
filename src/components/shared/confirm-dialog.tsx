@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode ,  type MutableRefObject } from 'react';
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode ,  type MutableRefObject , type Context } from 'react';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 
 interface ConfirmRequest {
@@ -21,7 +21,7 @@ interface ConfirmRequest {
  * `if (!(await confirm({ ... }))) return;` — so the branch that reads as
  * "ask, then act" stays legible.
  */
-const ConfirmContext = createContext<((request: ConfirmRequest) => Promise<boolean>) | null>(null);
+const ConfirmContext: Context<((request: ConfirmRequest) => Promise<boolean>) | null> = createContext<((request: ConfirmRequest) => Promise<boolean>) | null>(null);
 
 export function ConfirmDialogProvider({ children }: { children: ReactNode }): JSX.Element {
   const [request, setRequest] = useState<ConfirmRequest | null>(null);

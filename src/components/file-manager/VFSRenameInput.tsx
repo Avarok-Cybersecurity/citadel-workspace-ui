@@ -5,7 +5,7 @@
  * Renders in place of the item name when in rename mode.
  */
 
-import { useState, useRef, useEffect, useCallback , type RefObject } from 'react';
+import { useState, useRef, useEffect, useCallback , type RefObject , type ChangeEvent } from 'react';
 import { Input } from '@/components/ui/input';
 import { isEnterCommit } from '@/lib/keyboard-commit';
 
@@ -83,7 +83,7 @@ export function VFSRenameInput({
     handleConfirm();
   }, [handleConfirm]);
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
+  const handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
     setValue(e.target.value);
     setError(null);
   }, []);

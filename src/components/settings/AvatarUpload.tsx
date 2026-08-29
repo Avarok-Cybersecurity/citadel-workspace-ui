@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback , type RefObject } from 'react';
+import { useState, useRef, useCallback , type RefObject , type ChangeEvent } from 'react';
 import { Upload, X, User } from 'lucide-react';
 import { processAvatarImage, validateAvatarFile, avatarToDataUrl } from '@/lib/image-processor';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
@@ -77,7 +77,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     }
   }, [disabled]);
 
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
+  const handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
     const file: File | undefined = e.target.files?.[0];
     if (file) {
       runAsyncSetup(async () => {

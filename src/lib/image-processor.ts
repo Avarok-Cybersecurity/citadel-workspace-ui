@@ -34,7 +34,7 @@ export async function processAvatarImage(
     }
 
     const img = new Image();
-    const reader = new FileReader();
+    const reader: FileReader = new FileReader();
 
     reader.onload = (e): void => {
       img.onload = (): void => {

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback ,  type RefObject } from 'react';
+import { useState, useRef, useCallback ,  type RefObject  } from 'react';
 import { formatBytes } from '@/lib/format-bytes';
 import type { FileTransferMode } from '@/types/messaging-layer';
 import { fileTransferService } from '@/lib/file-transfer';
@@ -62,7 +62,7 @@ export function useFileTransfer({
     setSelectedFile(file);
 
     if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
+      const reader: FileReader = new FileReader();
       reader.onload = (e): void => {
         setPreviewUrl(e.target?.result as string);
       };
@@ -76,7 +76,7 @@ export function useFileTransfer({
     e.preventDefault();
     setIsDragging(false);
 
-    const files = e.dataTransfer.files;
+    const files: FileList = e.dataTransfer.files;
     if (files.length > 0) {
       handleFileSelect(files[0]);
     }
@@ -93,7 +93,7 @@ export function useFileTransfer({
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    const files = e.target.files;
+    const files: FileList | null = e.target.files;
     if (files && files.length > 0) {
       handleFileSelect(files[0]);
     }

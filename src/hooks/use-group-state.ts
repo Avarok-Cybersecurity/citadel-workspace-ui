@@ -9,7 +9,7 @@
  * localStorage bridge between those copies never actually persisted anything.
  */
 
-import { useState, useEffect, useMemo, useCallback, useSyncExternalStore } from 'react';
+import { useState, useEffect, useMemo, useCallback, useSyncExternalStore , type Dispatch , type SetStateAction } from 'react';
 import type { GroupConversation } from '@/types/group';
 import {
   getGroups,
@@ -57,7 +57,7 @@ export function useGroupState(): GroupState {
     void restorePersistedGroups();
   }, []);
 
-  const setGroups = useCallback<React.Dispatch<React.SetStateAction<GroupConversation[]>>>(
+  const setGroups: Dispatch<SetStateAction<GroupConversation[]>> = useCallback<React.Dispatch<React.SetStateAction<GroupConversation[]>>>(
     (action) => {
       updateGroups((prev) =>
         typeof action === 'function'

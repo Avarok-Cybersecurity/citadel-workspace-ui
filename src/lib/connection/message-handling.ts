@@ -9,7 +9,7 @@ import type { ConnectionState } from './state';
 import type { ConnectionIO } from './io';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 import { debugLog } from '@/lib/debug-config';
-import type { TabSelectionContext } from '@/lib/connection/types';
+import type { TabSelectionContext, PendingRequest } from '@/lib/connection/types';
 
 /**
  * Route an incoming WebSocket message to the appropriate handler.
@@ -145,7 +145,7 @@ async function handleConnectionManagementResponse(
 }
 
 export function resolveRequest(requestId: string, data: unknown, state: ConnectionState): void {
-  const pending = state.getPendingRequest(requestId);
+  const pending: PendingRequest | undefined = state.getPendingRequest(requestId);
   if (pending) {
     pending.resolve(data);
     state.deletePendingRequest(requestId);
@@ -153,7 +153,7 @@ export function resolveRequest(requestId: string, data: unknown, state: Connecti
 }
 
 export function rejectRequest(requestId: string, message: string, state: ConnectionState): void {
-  const pending = state.getPendingRequest(requestId);
+  const pending: PendingRequest | undefined = state.getPendingRequest(requestId);
   if (pending) {
     pending.reject(new Error(message));
     state.deletePendingRequest(requestId);

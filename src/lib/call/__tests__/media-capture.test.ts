@@ -6,7 +6,7 @@
  * navigator.mediaDevices is stubbed because it is a browser capability with no
  * jsdom implementation; everything under test is our own logic around it.
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach  } from 'vitest';
 import type { CaptureFailure, CaptureResult } from '@/lib/call/media-capture';
 import {
   classifyCaptureError,
@@ -135,8 +135,8 @@ describe('captureLocalMedia', () => {
 });
 
 describe('canStartCall', () => {
-  const mic = { kind: 'audioinput' } as MediaDeviceInfo;
-  const cam = { kind: 'videoinput' } as MediaDeviceInfo;
+  const mic: MediaDeviceInfo = { kind: 'audioinput' } as MediaDeviceInfo;
+  const cam: MediaDeviceInfo = { kind: 'videoinput' } as MediaDeviceInfo;
 
   it('blocks a call with no microphone', () => {
     // Checked BEFORE ringing: discovering it afterwards wastes the callee's
