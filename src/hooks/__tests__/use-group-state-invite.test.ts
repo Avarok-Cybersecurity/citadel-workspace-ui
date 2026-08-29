@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach   } from 'vitest';
+import { describe, it, expect, vi, beforeEach    } from 'vitest';
 
 /**
  * Unit tests for `buildGroupFromInvite` / `applyGroupInvite`. Focus is on
@@ -166,7 +166,7 @@ describe('applyGroupInvite', () => {
     // try/catch, which turns the failure into a toast — so removing the dedupe
     // left this test green while it reported "Group Invitation Failed".
     let next: unknown[] | undefined;
-    const setGroups = vi.fn((updater: (prev: unknown[]) => unknown[]): void => {
+    const setGroups: ReturnType<typeof vi.fn> = vi.fn((updater: (prev: unknown[]) => unknown[]): void => {
       next = updater([{ id: 'g-dup' }]);
     });
 

@@ -104,7 +104,7 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
         if (connection.userContext?.selectedCid) {
           tabSelection = { selectedCid: connection.userContext.selectedCid };
         } else {
-          const maxRetries = 5;
+          const maxRetries: 5 = 5;
           const retryDelayMs = 200;
           for (let attempt: number = 1; attempt <= maxRetries; attempt++) {
             try {

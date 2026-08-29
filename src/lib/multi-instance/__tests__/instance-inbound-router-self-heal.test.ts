@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach  } from 'vitest';
+import { describe, it, expect, vi, beforeEach   } from 'vitest';
 import { eventEmitter } from '../../event-emitter';
 import { ORPHAN_BUFFER_TIMEOUT_MS } from '../orphan-buffer';
 
@@ -86,7 +86,7 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
       .mockReturnValueOnce('follower-x') // second lookup (replay): now owned by follower-x
       ;
 
-    const local = vi.fn();
+    const local: ReturnType<typeof vi.fn> = vi.fn();
     eventEmitter.on('websocket-message', local);
 
     const cidRoutedMessage: { MessageNotification: { cid: string; peer_cid: string; message: number[]; request_id: null; }; } = {

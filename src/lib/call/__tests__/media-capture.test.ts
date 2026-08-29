@@ -6,7 +6,7 @@
  * navigator.mediaDevices is stubbed because it is a browser capability with no
  * jsdom implementation; everything under test is our own logic around it.
  */
-import { describe, it, expect, vi, afterEach  } from 'vitest';
+import { describe, it, expect, vi, afterEach   } from 'vitest';
 import type { CaptureFailure, CaptureResult } from '@/lib/call/media-capture';
 import {
   classifyCaptureError,
@@ -164,7 +164,7 @@ describe('canStartCall', () => {
 
 describe('stopStream', () => {
   it('stops every track, which is what turns the camera light off', () => {
-    const stop = vi.fn();
+    const stop: ReturnType<typeof vi.fn> = vi.fn();
     const stream: MediaStream = {
       getTracks: () => [{ stop }, { stop }],
     } as unknown as MediaStream;

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi   } from 'vitest';
+import { describe, it, expect, vi    } from 'vitest';
 import { yieldToEventLoop, waitFor, waitForEvent } from '../scheduling';
 
 describe('yieldToEventLoop', () => {
@@ -112,7 +112,7 @@ describe('waitForEvent', () => {
   });
 
   it('ignores a second emission rather than settling twice', async () => {
-    const unsubscribe = vi.fn();
+    const unsubscribe: ReturnType<typeof vi.fn> = vi.fn();
     let emit!: (v: string) => void;
     const promise: Promise<string> = waitForEvent<string>(resolve => { emit = resolve; return unsubscribe; },
       { timeoutMs: 1000, description: 'double emit' });

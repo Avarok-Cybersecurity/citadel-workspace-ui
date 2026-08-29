@@ -8,6 +8,7 @@ import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
 import { debugLog } from '@/lib/debug-config';
 import type { UserRegistrationInfo } from '@/lib/user-service';
+import type { StoredSession } from '@/types/session-types';
 
 interface UseWorkspaceEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -70,7 +71,7 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
         const currentUser: UserRegistrationInfo | null = await userService.getCurrentUser();
 
         if (currentUser) {
-          const storedSession = await connectionManager.getTabSelectedSession();
+          const storedSession: StoredSession | null = await connectionManager.getTabSelectedSession();
           const role: string | undefined = storedSession?.role;
 
           setState(prev => ({

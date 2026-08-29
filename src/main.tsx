@@ -212,7 +212,7 @@ try {
     errorParagraph.appendChild(errorLabel);
     errorParagraph.appendChild(document.createTextNode(errorMessage));
 
-    const stackLabel = document.createElement('p');
+    const stackLabel: ReturnType<typeof document.createElement> = document.createElement('p');
     const stackStrong: HTMLElement = document.createElement('strong');
     stackStrong.textContent = 'Stack:';
     stackLabel.appendChild(stackStrong);
