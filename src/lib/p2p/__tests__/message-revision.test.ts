@@ -10,7 +10,7 @@ import { applyEdit, applyDelete } from '../message-revision';
 import type { P2PConversation, P2PMessage } from '../p2p-types';
 import type { RevisionOutcome } from '@/lib/p2p/message-revision';
 
-const ALICE = 1n;
+const ALICE: bigint = 1n;
 const BOB = 2n;
 
 function msg(id: string, senderCid: bigint, content: string): P2PMessage {

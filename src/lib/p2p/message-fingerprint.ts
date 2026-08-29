@@ -11,7 +11,7 @@
  * by one byte would silently break every join that depends on it.
  */
 export function fnv1a64(bytes: Uint8Array): string {
-  const M = 0xffffffffffffffffn;
+  const M: bigint = 0xffffffffffffffffn;
   let fp: bigint = 0xcbf29ce484222325n;
   for (const b of bytes) fp = ((fp ^ BigInt(b)) * 0x100000001b3n) & M;
   return fp.toString(16).padStart(16, '0');

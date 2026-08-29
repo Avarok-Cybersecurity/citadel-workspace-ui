@@ -60,7 +60,7 @@ describe('postAuthSetup', () => {
   });
 
   it('runs the full sequence in order: setConnectionId → loadWorkspace → listNodes → getTreeSchema', async () => {
-    const cid = 42n;
+    const cid: bigint = 42n;
     await postAuthSetup(cid);
 
     expect(spies.calls.map(c => c.name)).toEqual([

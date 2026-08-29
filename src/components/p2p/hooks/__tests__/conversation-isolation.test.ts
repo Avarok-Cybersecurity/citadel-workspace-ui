@@ -17,7 +17,7 @@ import { describe, it, expect } from 'vitest';
 import { mergeMessages } from '../useP2PMessages-types';
 import type { P2PMessage } from '@/lib/p2p/p2p-types';
 
-const ALICE = 10n;
+const ALICE: bigint = 10n;
 const BOB = 20n;
 
 function msg(id: string, senderCid: bigint, timestamp: number): P2PMessage {

@@ -12,7 +12,7 @@ import { describe, it, expect } from 'vitest';
 import { toGroupEvents } from '../group-events';
 import type { GroupEvent } from '@/lib/group-conversations/group-events';
 
-const SELF = 100n;
+const SELF: bigint = 100n;
 const KEY: { cid: bigint; mgid: bigint; } = { cid: 7n, mgid: 42n };
 
 /** Roster stand-in: names 9n, leaves everyone else to the cid-string fallback. */

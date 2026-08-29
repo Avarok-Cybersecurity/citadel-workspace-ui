@@ -7,7 +7,7 @@
  * were: one event was never emitted at all, the other was emitted without the
  * 'p2p:' prefix the subscriber listens for.
  */
-import { describe, it, expect, vi  } from 'vitest';
+import { describe, it, expect, vi   } from 'vitest';
 import { markMessagesAsRead } from '../messenger-compatibility';
 import type { P2PConversation, P2PMessage } from '../p2p-types';
 
@@ -18,7 +18,7 @@ function message(id: string, senderCid: bigint, status: P2PMessage['status']): P
 }
 
 describe('markMessagesAsRead', () => {
-  const peerCid = 42n;
+  const peerCid: bigint = 42n;
 
   function setup(messages: P2PMessage[]) {
     const conversation: P2PConversation = { peerCid, messages, unreadCount: messages.length } as unknown as P2PConversation;

@@ -37,7 +37,7 @@ vi.mock('../../websocket-service', () => ({
 
 const { deleteConversationPages } = await import('../message-page-delete');
 
-const ALICE = 111n;
+const ALICE: bigint = 111n;
 const BOB = 222n;
 const PEER = 999n;
 

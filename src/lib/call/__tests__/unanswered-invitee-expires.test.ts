@@ -15,7 +15,7 @@
  *
  * Drives the real manager and its real liveness binding with an injected clock.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 import { CallManager } from '../call-manager';
 import { RING_TIMEOUT_MS } from '../call-constants';
 import type { CallTransport } from '../call-transport';
@@ -23,7 +23,7 @@ import type { CallCodecCapabilities, CallMediaKinds } from '@/types/p2p-commands
 
 const AUDIO: CallMediaKinds = { audio: true, video: false, screen: false };
 const CAPS: CallCodecCapabilities = { audio: ['opus'], video: [] };
-const BOB = 2n;
+const BOB: bigint = 2n;
 const CAROL = 3n;
 
 const flush: () => Promise<unknown> = (): Promise<unknown> => new Promise((resolve) => setTimeout(resolve, 0));

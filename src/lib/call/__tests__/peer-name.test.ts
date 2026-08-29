@@ -49,7 +49,7 @@ describe('callPeerName', () => {
     // The point of the whole module: a caller nobody has registered with is
     // still not a twenty-digit number on screen.
     getPeers.mockReturnValue({ registeredPeers: [], allPeers: [] });
-    const cid = 13961676296247425873n;
+    const cid: bigint = 13961676296247425873n;
 
     const name: string = callPeerName(cid);
     expect(name).not.toBe(cid.toString());

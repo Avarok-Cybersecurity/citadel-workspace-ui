@@ -9,14 +9,14 @@
  * These drive the real wiring — manager, signal handling, liveness binding —
  * to prove the loop closes in both directions.
  */
-import { describe, it, expect, vi, beforeEach   } from 'vitest';
+import { describe, it, expect, vi, beforeEach    } from 'vitest';
 import { CallManager } from '../call-manager';
 import type { CallTransport } from '../call-transport';
 import type { CallCodecCapabilities, CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
 
 const AUDIO: CallMediaKinds = { audio: true, video: false, screen: false };
 const CAPS: CallCodecCapabilities = { audio: ['opus'], video: [] };
-const BOB = 2n;
+const BOB: bigint = 2n;
 
 type Link = 'good' | 'fair' | 'poor' | 'lost';
 

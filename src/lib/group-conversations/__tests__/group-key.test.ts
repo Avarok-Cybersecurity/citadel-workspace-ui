@@ -11,7 +11,7 @@ describe('group key encoding', () => {
   it('survives an mgid far beyond Number.MAX_SAFE_INTEGER', () => {
     // mgid is u128 on the backend; going through a JS number would silently
     // corrupt it, which is why both halves stay bigint.
-    const mgid = 340282366920938463463374607431768211455n;
+    const mgid: bigint = 340282366920938463463374607431768211455n;
     const id: string = groupKeyToId({ cid: 1n, mgid });
 
     expect(groupIdToKey(id).mgid).toBe(mgid);

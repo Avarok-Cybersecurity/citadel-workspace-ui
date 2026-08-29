@@ -7,7 +7,7 @@ import {
 } from '../peer-display';
 
 /** Two real CIDs from the P2P test fixtures. */
-const ALICE = 7040934265064422768n;
+const ALICE: bigint = 7040934265064422768n;
 const BOB = 11792220362710786214n;
 
 describe('shortPeerHandle', () => {

@@ -16,7 +16,7 @@ function pool(): ReceiverPool {
   });
 }
 
-const PEER = 7n;
+const PEER: bigint = 7n;
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());

@@ -17,7 +17,7 @@ import type { ConnectionState } from '../state';
 import type { ConnectionIO } from '../io';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 
-const CURRENT = 111n;
+const CURRENT: bigint = 111n;
 const OTHER = 222n;
 
 function harness(currentCid: bigint | undefined): { state: ConnectionState; io: ConnectionIO; } {

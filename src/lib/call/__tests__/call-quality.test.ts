@@ -13,7 +13,7 @@ import {
   LOST_SILENCE_MS,
 } from '../call-quality';
 
-const BOB = 2n;
+const BOB: bigint = 2n;
 const CAROL = 3n;
 
 function trackerWithGaps(count: number, at = 0): CallQualityTracker {

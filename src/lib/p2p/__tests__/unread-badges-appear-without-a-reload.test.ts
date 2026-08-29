@@ -21,7 +21,7 @@ vi.mock('../message-pagination-store', () => ({
 import { ConversationManager } from '../conversation-manager';
 import type { P2PMessage } from '../p2p-types';
 
-const ME = 1n;
+const ME: bigint = 1n;
 const PEER = 2n;
 
 function manager(): ConversationManager {

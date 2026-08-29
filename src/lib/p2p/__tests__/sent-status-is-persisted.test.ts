@@ -38,7 +38,7 @@ import { MessageSender } from '@/lib/p2p/message-sender';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
 import type { P2PMessage } from '@/lib/p2p/p2p-types';
 
-const PEER = 42n;
+const PEER: bigint = 42n;
 
 /** Captures exactly what would be written to storage. */
 function makeConfig(): { config: MessageSenderConfig; persisted: { id: string; updates: Partial<P2PMessage>; }[]; } {

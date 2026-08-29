@@ -23,7 +23,7 @@ import {
   hasLegacyFallback,
 } from '../message-page-keys';
 
-const PEER = 999n;
+const PEER: bigint = 999n;
 
 describe('conversation storage keys', () => {
   beforeEach(() => { cidRef.current = null; });

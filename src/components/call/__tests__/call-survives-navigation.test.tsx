@@ -11,7 +11,7 @@
  * Both halves are asserted here: the audio element is owned above the router,
  * and a control to leave appears exactly when the call's own surface is not.
  */
-import { describe, it, expect, vi, beforeEach  } from 'vitest';
+import { describe, it, expect, vi, beforeEach   } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -21,7 +21,7 @@ import { registerCallStage } from '../call-stage-presence';
 import { CallContext , type CallContextValue } from '@/lib/call/call-context';
 import type { CallState } from '@/lib/call/call-state';
 
-const PEER = 42n;
+const PEER: bigint = 42n;
 
 function callState(status: CallState['status']): CallState {
   return {

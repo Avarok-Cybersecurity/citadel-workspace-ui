@@ -16,7 +16,7 @@ vi.mock('@/lib/multi-instance/instance-manager', () => ({
   instanceManager: { get cid() { return h.cid; } },
 }));
 
-const SELF = 7n;
+const SELF: bigint = 7n;
 const OTHER = 42n;
 
 async function freshStore() {

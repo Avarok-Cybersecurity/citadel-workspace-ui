@@ -4,12 +4,12 @@
  * `messages: []` and nothing rehydrates it. These are the two that a user hits
  * in the ordinary offline-peer flow.
  */
-import { describe, it, expect, vi  } from 'vitest';
+import { describe, it, expect, vi   } from 'vitest';
 import { MessageAckHandler } from '../message-ack-handler';
 import { MessageSender } from '../message-sender';
 import type { P2PConversation } from '../p2p-types';
 
-const PEER = 42n;
+const PEER: bigint = 42n;
 
 function ackHandlerWith(updateMessageInPages: ReturnType<typeof vi.fn>) {
   const notifyMessageStatusListeners: ReturnType<typeof vi.fn> = vi.fn();

@@ -8,7 +8,7 @@
  * so this exercises the real orchestration logic with no browser, no peer and no
  * internal service.
  */
-import { describe, it, expect, vi, beforeEach  } from 'vitest';
+import { describe, it, expect, vi, beforeEach   } from 'vitest';
 import { CallManager, MEDIA_WIRE_VERSION } from '../call-manager';
 import type { CallTransport } from '../call-transport';
 import type { CallCodecCapabilities, CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
@@ -19,7 +19,7 @@ const AUDIO: CallMediaKinds = { audio: true, video: false, screen: false };
 const VIDEO: CallMediaKinds = { audio: true, video: true, screen: false };
 const CAPS: CallCodecCapabilities = { audio: ['opus'], video: [] };
 
-const BOB = 2n;
+const BOB: bigint = 2n;
 const CAROL = 3n;
 
 interface Harness {
