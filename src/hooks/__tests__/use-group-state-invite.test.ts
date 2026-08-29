@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach    } from 'vitest';
+import { describe, it, expect, vi, beforeEach     } from 'vitest';
 
 /**
  * Unit tests for `buildGroupFromInvite` / `applyGroupInvite`. Focus is on
@@ -188,7 +188,7 @@ describe('applyGroupInvite', () => {
   });
 
   it('does NOT throw and does NOT fire a "Group Invitation" notification for a malformed payload', async () => {
-    const setGroups = vi.fn();
+    const setGroups: ReturnType<typeof vi.fn> = vi.fn();
     await applyGroupInvite(
       { groupId: 'g', groupName: 'X', inviterId: 'garbage', inviterUsername: 'c' },
       setGroups,

@@ -217,7 +217,7 @@ try {
     stackStrong.textContent = 'Stack:';
     stackLabel.appendChild(stackStrong);
 
-    const stackPre = document.createElement('pre');
+    const stackPre: ReturnType<typeof document.createElement> = document.createElement('pre');
     stackPre.textContent = errorStack;
 
     container.appendChild(heading);

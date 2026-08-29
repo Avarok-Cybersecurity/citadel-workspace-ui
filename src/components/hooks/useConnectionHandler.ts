@@ -105,7 +105,7 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
           tabSelection = { selectedCid: connection.userContext.selectedCid };
         } else {
           const maxRetries: 5 = 5;
-          const retryDelayMs = 200;
+          const retryDelayMs: 200 = 200;
           for (let attempt: number = 1; attempt <= maxRetries; attempt++) {
             try {
               const timeoutPromise: Promise<null> = new Promise<null>((_, reject) =>
