@@ -40,6 +40,7 @@ export class CallManager {
   private state: CallState | null = null;
   /** Peers we have an open media session with, so close is exact. */
   private readonly openSessions: Set<bigint> = new Set<bigint>();
+  private readonly openingSessions: Map<bigint, Promise<void>> = new Map();
   /** Codec facts peers told us; consumed by the provider's codec sync. */
   readonly codecs: PeerCodecBook = new PeerCodecBook();
   private readonly deadline: CallDeadline;
@@ -78,7 +79,7 @@ export class CallManager {
     const o: CallManagerOptions = this.options;
     return {
       transport: o.transport, selfCid: o.selfCid, capabilities: o.capabilities,
-      codecs: this.codecs, openSessions: this.openSessions,
+      codecs: this.codecs, openSessions: this.openSessions, openingSessions: this.openingSessions,
       now: o.now, schedule: o.schedule, getState: () => this.state,
       apply: (event) => this.apply(event),
       keyframeRequested: (track) => o.onKeyframeRequested(track),

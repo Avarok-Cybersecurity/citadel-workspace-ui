@@ -18,6 +18,32 @@ function pause(m: CallManagerInternals, delayMs: number): Promise<void> {
 
 export async function openSessionFor(m: CallManagerInternals, cid: bigint): Promise<void> {
   if (m.openSessions.has(cid)) return;
+
+  // One open per peer at a time.
+  //
+  // `openSessions` records completion, so between the first `openSession` call
+  // and its resolution the guard above is false for a second caller — and there
+  // are two callers. `accept()` opens for every peer that has already answered,
+  // and the `CallAccept` handler opens for the peer that just answered; in a
+  // group call they run for the same peer at the same time. The service refuses
+  // the second with "a media open or teardown is already in progress with this
+  // peer; retry shortly", and CI reported that as the call failing.
+  //
+  // Joining the in-flight attempt rather than starting another: the second
+  // caller wants the session open, and it is being opened.
+  const inFlight: Promise<void> | undefined = m.openingSessions.get(cid);
+  if (inFlight) return inFlight;
+
+  const attempt: Promise<void> = openSessionOnce(m, cid);
+  m.openingSessions.set(cid, attempt);
+  try {
+    await attempt;
+  } finally {
+    m.openingSessions.delete(cid);
+  }
+}
+
+async function openSessionOnce(m: CallManagerInternals, cid: bigint): Promise<void> {
   const startedAt: number = m.now();
   let attemptsMade: number = 0;
   let longestAttemptMs: number = 0;

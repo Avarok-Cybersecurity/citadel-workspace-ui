@@ -17568,3 +17568,56 @@ against a 250 limit — and the file is at exactly 250 now. Two functions came o
 of it because the first one only got it to 252.
 
 2410 tests green.
+
+## Round 359 — two callers opening the same session, and a guard that could not see it
+
+Round 335 added `data-status-since` so a stuck call would say how long it had
+been stuck. It did, and it also produced the line that mattered:
+
+```
+Received: "clock at 00:00, stage says Call connecting for 25s"
+Received: "call failed: a media open or teardown is already in progress
+           with this peer; retry shortly"
+```
+
+The second names a real race. Two paths open a peer's media session:
+
+- `accept()` opens one for **every** peer that has already answered;
+- the `CallAccept` handler opens one for the peer that **just** answered.
+
+In a group call those run for the same peer at the same time. The guard is
+
+```ts
+if (m.openSessions.has(cid)) return;
+```
+
+and `openSessions` records **completion** — the peer is added after
+`transport.openSession` resolves. Between the call and its resolution the guard
+is false for everybody, which is exactly the window two concurrent callers
+occupy. The service refuses the second, and CI reported it as the call failing:
+all three of `call-group`'s "decodes frames from TWO distinct peers" cases.
+
+`openingSessions` holds the attempts in the air, by peer. A second caller joins
+the first rather than starting another — it wants the session open, and it is
+being opened.
+
+Three tests. The race is the one that matters, and its control is a deliberately
+slow open so the second call lands inside the first's window. The two positive
+controls guard the fix from being a lock that is too coarse: different peers must
+still open **concurrently**, because that is what `accept()` does on purpose, and
+a peer must be openable again once the first attempt has finished, or a closed
+session could never be reopened.
+
+### The 25 seconds
+
+The age says the status was re-entered — 25s, not the 60s the poll waited. It
+does not say whether the call state re-entered `connecting` or the stage
+component remounted, because `useStatusSince` is a ref and a remount resets it.
+That is a limit of round 335's design, worth writing down rather than reading
+past: a measurement anchored in a component cannot distinguish a change in the
+thing measured from a remount of the thing measuring.
+
+`call-manager.ts`'s length exemption goes 251 → 252, said out loud in the gate
+beside the number, for one field.
+
+2413 tests green.

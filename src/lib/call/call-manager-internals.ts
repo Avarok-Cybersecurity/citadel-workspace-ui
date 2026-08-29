@@ -43,6 +43,18 @@ export interface CallManagerInternals {
   readonly codecs: PeerCodecBook;
   /** Peers with an open media session, so close is exact. */
   readonly openSessions: Set<bigint>;
+  /**
+   * Opens that have started and not finished, by peer.
+   *
+   * `openSessions` records COMPLETION, so it cannot stop a second attempt that
+   * begins while the first is still in the air — and two do. `accept()` opens a
+   * session for every peer already answered, and the `CallAccept` handler opens
+   * one for the peer that just answered; in a group call those two run for the
+   * same peer at the same time. The service rejects the second with "a media
+   * open or teardown is already in progress with this peer; retry shortly",
+   * which CI reported as the call failing.
+   */
+  readonly openingSessions: Map<bigint, Promise<void>>;
   /** See CallManagerOptions.now. */
   now(): number;
   /** See CallManagerOptions.schedule. */
