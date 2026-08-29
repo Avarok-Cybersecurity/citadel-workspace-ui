@@ -138,8 +138,26 @@ export function copyNode(
  *   remove it (deletion propagates)
  */
 export function mergeTrees(local: RevfsNode, remote: RevfsNode): RevfsNode {
-  if (local.type === 'file' || remote.type === 'file') {
+  if (local.type === 'file' && remote.type === 'file') {
     return local.updatedAt >= remote.updatedAt ? cloneTree(local) : cloneTree(remote);
+  }
+
+  // Types disagree at this path: one side is a directory, the other a file.
+  //
+  // This used to be `||`, so a timestamp decided it -- and a newer file
+  // arriving at a directory's path replaced the directory AND everything
+  // underneath it. The loser there is not a competing version of the same
+  // thing; it is every descendant, and nothing records that they existed, so
+  // there is no recovering them and no sign anything was lost. A peer a moment
+  // behind, or a stale op replayed out of order, is enough.
+  //
+  // The directory wins, whatever the clocks say. That is the same rule the
+  // union merge below already follows: this file's own note says deletions are
+  // carried by explicit RemoveFile/RemoveDir operations and never inferred, and
+  // a directory disappearing because a file turned up at its path is a deletion
+  // nobody asked for.
+  if (local.type !== remote.type) {
+    return cloneTree(local.type === 'directory' ? local : remote);
   }
 
   const merged: RevfsNode = cloneTree(local);

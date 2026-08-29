@@ -14177,3 +14177,49 @@ The spec found the button by walking into the group labelled "CONVERSATIONS",
 so the failure read as *the button is missing* when the truth was *the section
 is conditional*. By testid now — the structural selector is what turned a
 product defect into a locator mystery.
+
+## Round 276 — a timestamp deciding whether a directory exists
+
+Reading `mergeTrees` while chasing the file-manager leg found something the
+function's own comment argues against. Its first line was:
+
+```ts
+if (local.type === 'file' || remote.type === 'file') {
+  return local.updatedAt >= remote.updatedAt ? clone(local) : clone(remote);
+}
+```
+
+Both files: last-write-wins, which is the intent. One a **directory** and the
+other a file at the same path: a timestamp decides whether a whole subtree
+survives — and the loser is not a competing version of the same thing, it is
+every descendant. Nothing in the tree records that they existed, so there is no
+recovering them and no sign anything was lost. A peer a moment behind, or a
+stale op replayed out of order, is enough.
+
+Ten lines below, the same function says:
+
+> deletions are handled by explicit RemoveFile/RemoveDir operations, not
+> inferred from missing children
+
+A directory disappearing because a file turned up at its path is a deletion
+nobody asked for. `&&` now, and on a type mismatch the directory wins whatever
+the clocks say.
+
+### The test passed for the wrong reason first
+
+The first draft's fixtures used `type: 'dir'`. The real union is
+`'file' | 'directory'` — `'dir'` is a value nothing in the system produces. The
+fix compared against `'dir'` too, so **test and fix agreed on a shape neither
+production code nor production data has**: green test, inert fix.
+
+What caught it was typing the helper's return as `RevfsNode` instead of casting
+with `as`. The cast was doing exactly what a cast does — telling the compiler to
+stop checking — and one `as RevfsNode` in a fixture was enough to make an entire
+test meaningless. It then also demanded `createdAt`, which the fixtures had
+silently omitted.
+
+*A fixture that needs a cast is a fixture that is not the thing.*
+
+Four tests, two of them positive controls: two files still resolve by last
+write, and two directories still union. Restoring the `||` fails exactly the two
+that are about the mismatch.
