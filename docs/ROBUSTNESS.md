@@ -16596,3 +16596,49 @@ and the positive control that a known failure carried on a payload is still
 recognised, which is what stops the fix from being "return a constant".
 
 Preflight: 50 checks. 2361 tests.
+
+## Round 339 — a red CI job carrying no test signal at all
+
+`test:tree-move` failed. Not on an assertion — the image never built:
+
+```
+> [sync-wasm-client 3/7] RUN curl …/wasm-pack/installer/init.sh -sSf | sh
+curl: (35) Recv failure: Connection reset by peer
+wasm-pack-init: failed to download …/wasm-pack-v0.13.1-…tar.gz
+```
+
+One reset connection, and a job goes red having run nothing. Every integration
+job depends on that image.
+
+**The retry idiom already existed**, in `docker/ui/Dockerfile`, written twice
+with a comment explaining that the registry can be mid-publish. The same file
+then ran `npm install` twice more without it, and two other Dockerfiles fetched
+from the network with none at all:
+
+| file | fetch | had a retry |
+|---|---|---|
+| `docker/ui` | `npm install` (deps) | yes, ×2 |
+| `docker/ui` | `npm install` (wasm client, workspace client) | **no**, ×2 |
+| `docker/sync` | wasm-pack installer | **no** ← this run |
+| `docker/sync` | nodesource setup | **no** |
+| `docker/workspace-server` | `rustup component add clippy` | **no** |
+
+All five now use the same loop, each followed by a verification step so a
+silent partial install fails at build time rather than at use.
+
+The retry has to wrap the whole `curl … | sh`, not go inside curl: the failure
+was in the downloader `init.sh` itself runs, so `curl --retry` on the installer
+would have retried the wrong request.
+
+`check-image-fetches-retry.mjs` fails a `RUN` that reaches the network without
+one. `apt-get` is out of scope and says why — it retries internally, reads from
+mirrors, and wrapping it would re-run `apt-get update` per attempt for nothing.
+
+Its first run crashed on a broken symlink under `typescript-client`. A gate
+that throws on the tree it is scanning is a gate nobody keeps, so it skips what
+it cannot stat.
+
+Negative control: restoring the original unguarded `curl … | sh` names it by
+file and line.
+
+Preflight: **51 checks**.
