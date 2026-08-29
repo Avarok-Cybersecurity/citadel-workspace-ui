@@ -29,7 +29,7 @@ function emitLater(response: unknown): void {
 
 describe('a write waiting for its answer', () => {
   it('is not resolved by another member\'s broadcast of the same variant', async () => {
-    const send = vi.fn().mockResolvedValue(undefined);
+    const send: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
     let settled: boolean = false;
 
     const pending: Promise<void> = awaitWriteResponse('UpdateNode', send, nodeWithId(MINE))
@@ -47,7 +47,7 @@ describe('a write waiting for its answer', () => {
   });
 
   it('is resolved by its own answer', async () => {
-    const send = vi.fn().mockResolvedValue(undefined);
+    const send: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
     const pending: Promise<void> = awaitWriteResponse('UpdateNode', send, nodeWithId(MINE));
 
     emitLater({ Node: { id: MINE, name: 'saved' } });
@@ -56,7 +56,7 @@ describe('a write waiting for its answer', () => {
   });
 
   it('still rejects on a refusal, which carries no node id at all', async () => {
-    const send = vi.fn().mockResolvedValue(undefined);
+    const send: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
     const pending: Promise<void> = awaitWriteResponse('UpdateNode', send, nodeWithId(MINE));
 
     // An Error has to settle the write whatever the matcher says, or a refusal
@@ -67,7 +67,7 @@ describe('a write waiting for its answer', () => {
   });
 
   it('tells a delete of one node from a delete of another', async () => {
-    const send = vi.fn().mockResolvedValue(undefined);
+    const send: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
     let settled: boolean = false;
 
     const pending: Promise<void> = awaitWriteResponse('DeleteNode', send, aboutNode(MINE))

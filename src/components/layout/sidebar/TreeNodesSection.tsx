@@ -68,7 +68,7 @@ export function TreeNodesSection({
   initialExpandedIds = [],
   maxHeight = "50vh",
 }: TreeNodesSectionProps): JSX.Element {
-  const location = useLocation();
+  const location: ReturnType<typeof useLocation> = useLocation();
   const navigate: NavigateFunction = useNavigate();
   const { setOpenMobile } = useSidebar();
 

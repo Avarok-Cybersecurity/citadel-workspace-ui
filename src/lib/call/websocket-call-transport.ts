@@ -45,7 +45,7 @@ export class WebSocketCallTransport implements CallTransport {
   constructor(private readonly options: WebSocketCallTransportOptions) {}
 
   async openSession(peerCid: bigint): Promise<void> {
-    const client = await websocketService.getWasmClient();
+    const client: Awaited<ReturnType<typeof websocketService.getWasmClient>> = await websocketService.getWasmClient();
     if (!client) throw new Error('Not connected');
 
     const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
@@ -86,7 +86,7 @@ export class WebSocketCallTransport implements CallTransport {
   }
 
   async closeSession(peerCid: bigint): Promise<void> {
-    const client = await websocketService.getWasmClient();
+    const client: Awaited<ReturnType<typeof websocketService.getWasmClient>> = await websocketService.getWasmClient();
     if (!client) return;
 
     await client.sendDirectToInternalService({

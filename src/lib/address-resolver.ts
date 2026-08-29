@@ -164,7 +164,7 @@ async function resolveDNS(hostname: string): Promise<string> {
       throw new Error(`DNS query failed with status ${response.status}`);
     }
 
-    const data = await response.json();
+    const data: Awaited<ReturnType<typeof response.json>> = await response.json();
 
     // Check for DNS errors
     if (data.Status !== 0) {

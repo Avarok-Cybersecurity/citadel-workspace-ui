@@ -86,7 +86,7 @@ export function useAsyncData<T>(
     setError(null);
 
     try {
-      const result = await fetchFn();
+      const result: Awaited<ReturnType<typeof fetchFn>> = await fetchFn();
 
       // Only update if this is still the latest fetch and component is mounted
       if (mountedRef.current && currentFetchId === fetchIdRef.current) {
@@ -172,7 +172,7 @@ export function useAsyncAction<T, Args extends unknown[] = []>(
     setError(null);
 
     try {
-      const result = await actionFn(...args);
+      const result: Awaited<ReturnType<typeof actionFn>> = await actionFn(...args);
 
       if (mountedRef.current) {
         setData(result);

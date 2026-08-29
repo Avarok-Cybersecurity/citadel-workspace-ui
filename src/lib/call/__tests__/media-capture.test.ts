@@ -107,7 +107,7 @@ describe('captureLocalMedia', () => {
   });
 
   it('reports the original failure when audio fails too', async () => {
-    const getUserMedia = vi.fn().mockRejectedValue(domError('NotAllowedError'));
+    const getUserMedia: ReturnType<typeof vi.fn> = vi.fn().mockRejectedValue(domError('NotAllowedError'));
     stubMediaDevices(getUserMedia);
 
     const result: CaptureResult = await captureLocalMedia({ audio: true, video: true });
@@ -117,7 +117,7 @@ describe('captureLocalMedia', () => {
   });
 
   it('does not retry when only audio was asked for', async () => {
-    const getUserMedia = vi.fn().mockRejectedValue(domError('NotFoundError'));
+    const getUserMedia: ReturnType<typeof vi.fn> = vi.fn().mockRejectedValue(domError('NotFoundError'));
     stubMediaDevices(getUserMedia);
 
     const result: CaptureResult = await captureLocalMedia({ audio: true, video: false });

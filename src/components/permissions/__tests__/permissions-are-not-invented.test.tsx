@@ -16,7 +16,7 @@
 import { describe, it, expect, vi, beforeEach     } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
-const getUserPermissions = vi.fn().mockResolvedValue(undefined);
+const getUserPermissions: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/lib/workspace-service', () => ({
   default: { getUserPermissions: (...args: unknown[]): unknown => getUserPermissions(...args) },
 }));

@@ -21,12 +21,12 @@ describe('the DM header status', () => {
   it('shows Away for a registered peer who is away', () => {
     // Registered is true here, as it is for every conversation peer. That must
     // not hide what the peer actually told us.
-    const status = getStatusDisplay(presence(MessagingLayerType.Away), false, true);
+    const status: ReturnType<typeof getStatusDisplay> = getStatusDisplay(presence(MessagingLayerType.Away), false, true);
     expect(status.text).toBe('Away');
   });
 
   it('shows a peer custom status text rather than the word Registered', () => {
-    const status = getStatusDisplay(
+    const status: ReturnType<typeof getStatusDisplay> = getStatusDisplay(
       presence(MessagingLayerType.CustomState, { customText: 'In a meeting' }),
       false,
       true,
@@ -49,7 +49,7 @@ describe('the DM header status', () => {
   });
 
   it('still puts a live connection ahead of a stale presence value', () => {
-    const status = getStatusDisplay(presence(MessagingLayerType.Offline), true, true);
+    const status: ReturnType<typeof getStatusDisplay> = getStatusDisplay(presence(MessagingLayerType.Offline), true, true);
     expect(status.text).toBe('Online');
   });
 

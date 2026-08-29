@@ -35,7 +35,7 @@ export async function handleWorkspaceRequestProxy(
 ): Promise<void> {
   debugLog('LeaderProxyHandlers', `Handling workspace request proxy from ${request.senderInstanceId}`);
 
-  const client = await getWebSocketClient();
+  const client: Awaited<ReturnType<typeof getWebSocketClient>> = await getWebSocketClient();
   if (!client) {
     debugLog('LeaderProxyHandlers', 'No WASM client available for workspace request');
     sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
@@ -55,7 +55,7 @@ export async function handleOpenMessengerProxy(
 ): Promise<void> {
   debugLog('LeaderProxyHandlers', `Handling openMessenger proxy from ${request.senderInstanceId}`);
 
-  const client = await getWebSocketClient();
+  const client: Awaited<ReturnType<typeof getWebSocketClient>> = await getWebSocketClient();
   if (!client) {
     debugLog('LeaderProxyHandlers', 'No WASM client available for openMessenger');
     sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
@@ -74,7 +74,7 @@ export async function handleEnsureMessengerProxy(
 ): Promise<void> {
   debugLog('LeaderProxyHandlers', `Handling ensureMessenger proxy from ${request.senderInstanceId}`);
 
-  const client = await getWebSocketClient();
+  const client: Awaited<ReturnType<typeof getWebSocketClient>> = await getWebSocketClient();
   if (!client) {
     debugLog('LeaderProxyHandlers', 'No WASM client available for ensureMessenger');
     sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
@@ -93,7 +93,7 @@ export async function handleSendP2PMessageProxy(
 ): Promise<void> {
   debugLog('LeaderProxyHandlers', `Handling sendP2PMessage proxy from ${request.senderInstanceId}`);
 
-  const client = await getWebSocketClient();
+  const client: Awaited<ReturnType<typeof getWebSocketClient>> = await getWebSocketClient();
   if (!client) {
     debugLog('LeaderProxyHandlers', 'No WASM client available for sendP2PMessage');
     sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');

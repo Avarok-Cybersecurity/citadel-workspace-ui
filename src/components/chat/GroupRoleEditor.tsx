@@ -41,7 +41,7 @@ export function GroupRoleEditor({
   const [isDefault, setIsDefault] = useState(role?.isDefault ?? false);
 
   // Validation
-  const isPositionValid = useMemo(() => {
+  const isPositionValid: ReturnType<typeof useMemo> = useMemo(() => {
     if (position < 1 || position > 99) return false;
     return !existingRoles.some(
       r => r.position === position && r.id !== role?.id

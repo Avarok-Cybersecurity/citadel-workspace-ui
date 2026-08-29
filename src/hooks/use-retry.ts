@@ -61,7 +61,7 @@ export function useRetry<T, A extends unknown[] = unknown[]>(
       }));
 
       try {
-        const result = await operation(...params);
+        const result: Awaited<ReturnType<typeof operation>> = await operation(...params);
         setState(prev => ({
           ...prev,
           data: result,
@@ -113,7 +113,7 @@ export function useRetry<T, A extends unknown[] = unknown[]>(
     await new Promise(resolve => setTimeout(resolve, delay));
 
     try {
-      const result = await operation(...state.lastParams);
+      const result: Awaited<ReturnType<typeof operation>> = await operation(...state.lastParams);
       setState(prev => ({
         ...prev,
         data: result,

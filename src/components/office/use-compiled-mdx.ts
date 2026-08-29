@@ -59,7 +59,7 @@ export function useCompiledMdx(
         }
 
         const processedContent: string = applyGfmStrikethrough(content);
-        const result = await evaluate(processedContent, {
+        const result: Awaited<ReturnType<typeof evaluate>> = await evaluate(processedContent, {
           ...runtime,
           remarkPlugins: [remarkGfm],
           useMDXComponents: () => components,

@@ -31,7 +31,7 @@ export const DisconnectConfirmModal = ({
 }: DisconnectConfirmModalProps): JSX.Element | null => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedAction, setSelectedAction] = useState<DisconnectAction | null>(null);
-  const confirm = useConfirm();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
 
   if (!session) return null;
 

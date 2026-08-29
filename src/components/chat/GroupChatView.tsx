@@ -31,7 +31,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   rules,
   totalMembers = 2,
 }) => {
-  const chat = useGroupChat(groupId);
+  const chat: ReturnType<typeof useGroupChat> = useGroupChat(groupId);
 
   return (
     <div className="flex flex-col h-full bg-background">

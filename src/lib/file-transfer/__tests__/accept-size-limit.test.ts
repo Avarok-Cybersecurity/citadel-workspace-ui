@@ -28,7 +28,7 @@ function offered(fileSize: number): FileTransfer {
 }
 
 function deps(transfer: FileTransfer, maxFileSize: number) {
-  const executeIntent = vi.fn().mockResolvedValue(undefined);
+  const executeIntent: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
   return {
     d: {
       state: {

@@ -19,10 +19,10 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const sendRequest = vi.fn().mockResolvedValue(undefined);
-const claimSession = vi.fn().mockResolvedValue(undefined);
-const disconnect = vi.fn().mockResolvedValue(undefined);
-const getActiveSessions = vi.fn();
+const sendRequest: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
+const claimSession: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
+const disconnect: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
+const getActiveSessions: ReturnType<typeof vi.fn> = vi.fn();
 
 vi.mock('../../connection', () => ({
   connectionManager: {

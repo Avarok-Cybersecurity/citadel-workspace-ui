@@ -34,7 +34,7 @@ beforeEach(() => {
 
 describe('areGroupsHydrated', () => {
   it('is false before the restore resolves, even with an empty store', async () => {
-    const store = await freshStore();
+    const store: Awaited<ReturnType<typeof freshStore>> = await freshStore();
 
     const restoring: Promise<void> = store.restorePersistedGroups();
 
@@ -48,7 +48,7 @@ describe('areGroupsHydrated', () => {
   });
 
   it('is true once the restore resolves, even when it found nothing', async () => {
-    const store = await freshStore();
+    const store: Awaited<ReturnType<typeof freshStore>> = await freshStore();
     h.stored = [];
 
     const restoring: Promise<void> = store.restorePersistedGroups();
@@ -62,7 +62,7 @@ describe('areGroupsHydrated', () => {
   });
 
   it('restores the groups it found', async () => {
-    const store = await freshStore();
+    const store: Awaited<ReturnType<typeof freshStore>> = await freshStore();
     h.stored = [{ id: 'g1', name: 'Engineering', members: [], unreadCount: 0 }];
 
     const restoring: Promise<void> = store.restorePersistedGroups();
@@ -74,7 +74,7 @@ describe('areGroupsHydrated', () => {
   });
 
   it('notifies subscribers when hydration completes', async () => {
-    const store = await freshStore();
+    const store: Awaited<ReturnType<typeof freshStore>> = await freshStore();
     const seen: boolean[] = [];
     store.subscribeToGroups(() => seen.push(store.areGroupsHydrated()));
 

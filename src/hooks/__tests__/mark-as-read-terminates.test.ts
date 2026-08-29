@@ -17,7 +17,7 @@
 
 import { describe, it, expect, vi, beforeEach   } from 'vitest';
 
-const persistGroups = vi.fn().mockResolvedValue(undefined);
+const persistGroups: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/lib/group-conversations/group-persistence', () => ({
   persistGroups: (...args: unknown[]): unknown => persistGroups(...args),
   restoreGroups: vi.fn().mockResolvedValue([]),

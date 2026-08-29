@@ -16,7 +16,7 @@ import { debugLog } from '@/lib/debug-config';
  * is opened rarely. Keeping it out of the initial chunk protects the landing
  * critical-path budget that check-bundle-budget.mjs enforces.
  */
-const WorkspaceAppearanceModal = lazy(() =>
+const WorkspaceAppearanceModal: ReturnType<typeof lazy> = lazy(() =>
   import('@/components/theme/WorkspaceAppearanceModal').then((m) => ({
     default: m.WorkspaceAppearanceModal,
   })),

@@ -63,7 +63,7 @@ describe('AppErrorBoundary', () => {
   });
 
   it('surfaces the error to the app rather than swallowing it', () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation((): void => {});
+    const consoleError: ReturnType<typeof vi.spyOn> = vi.spyOn(console, 'error').mockImplementation((): void => {});
 
     render(
       <AppErrorBoundary>

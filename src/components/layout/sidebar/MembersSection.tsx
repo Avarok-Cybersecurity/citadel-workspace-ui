@@ -36,7 +36,7 @@ import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 export const MembersSection: () => JSX.Element = (): JSX.Element => {
-  const location = useLocation();
+  const location: ReturnType<typeof useLocation> = useLocation();
   const confirm: ReturnType<typeof useConfirm> = useConfirm();
   const [showInvite, setShowInvite] = useState(false);
   const navigate: NavigateFunction = useNavigate();

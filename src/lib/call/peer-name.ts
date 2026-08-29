@@ -16,6 +16,6 @@ export function callPeerName(cid: bigint): string {
   const { registeredPeers, allPeers } = p2pRegistrationService.getPeers();
   // Registered peers first — a peer can appear in both, and the registered
   // record is the one whose username the rest of the app trusts.
-  const match = registeredPeers.find((p): boolean => p.cid === cid) ?? allPeers.find((p): boolean => p.cid === cid);
+  const match: ReturnType<typeof registeredPeers.find> = registeredPeers.find((p): boolean => p.cid === cid) ?? allPeers.find((p): boolean => p.cid === cid);
   return peerDisplayName({ cid, username: match?.username, fullName: match?.fullName });
 }

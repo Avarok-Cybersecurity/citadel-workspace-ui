@@ -189,7 +189,7 @@ try {
   startInstallPromptCapture();
   startKeyboardInsetTracking();
 
-  const root = createRoot(rootElement);
+  const root: ReturnType<typeof createRoot> = createRoot(rootElement);
   root.render(<App />);
 } catch (error) {
   console.error("main.tsx: Error during initialization:", error);

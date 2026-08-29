@@ -182,7 +182,7 @@ describe('PwaUpdatePrompt', () => {
     }
 
     it('re-checks when the user comes back to the tab', () => {
-      const update = vi.fn().mockResolvedValue(undefined);
+      const update: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
       registerWith(update);
 
       Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
@@ -192,7 +192,7 @@ describe('PwaUpdatePrompt', () => {
     });
 
     it('re-checks when connectivity returns', () => {
-      const update = vi.fn().mockResolvedValue(undefined);
+      const update: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
       registerWith(update);
 
       act(() => { window.dispatchEvent(new Event('online')); });
@@ -201,7 +201,7 @@ describe('PwaUpdatePrompt', () => {
     });
 
     it('does not check while offline, which could only fail', () => {
-      const update = vi.fn().mockResolvedValue(undefined);
+      const update: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
       registerWith(update);
       setOnline(false);
 
@@ -212,7 +212,7 @@ describe('PwaUpdatePrompt', () => {
     });
 
     it('stops listening once unmounted, so listeners cannot accumulate', () => {
-      const update = vi.fn().mockResolvedValue(undefined);
+      const update: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
       const { unmount } = renderPrompt();
       act(() => { registeredOptions.onRegisteredSW?.('/sw.js', { update }); });
 

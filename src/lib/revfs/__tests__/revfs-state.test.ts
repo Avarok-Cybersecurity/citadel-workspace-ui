@@ -114,7 +114,7 @@ describe('RevfsState', () => {
 
     it('listener error does not break other listeners', () => {
       const state: RevfsState = new RevfsState();
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation((): void => {});
+      const consoleSpy: ReturnType<typeof vi.spyOn> = vi.spyOn(console, 'error').mockImplementation((): void => {});
       const calls: string[] = [];
       state.onTreeChanged(() => { throw new Error('boom'); });
       state.onTreeChanged((key) => calls.push(key));

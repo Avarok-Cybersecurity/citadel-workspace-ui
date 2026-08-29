@@ -53,7 +53,7 @@ describe('a live document received from a peer', () => {
   beforeEach(() => saved.clear());
 
   it("persists the recipient's edits once adopted", async () => {
-    const store = freshStore();
+    const store: ReturnType<typeof freshStore> = freshStore();
 
     // The recipient's path: it knows the id and title from the chat message.
     await store.adoptDocument(DOC_ID, 'Design notes', '42', '7');
@@ -63,7 +63,7 @@ describe('a live document received from a peer', () => {
   });
 
   it('keeps the id it was given, so both sides edit the same document', async () => {
-    const store = freshStore();
+    const store: ReturnType<typeof freshStore> = freshStore();
 
     await store.adoptDocument(DOC_ID, 'Design notes', '42', '7');
 
@@ -73,7 +73,7 @@ describe('a live document received from a peer', () => {
   });
 
   it('is idempotent, so an open path can call it without checking', async () => {
-    const store = freshStore();
+    const store: ReturnType<typeof freshStore> = freshStore();
 
     await store.adoptDocument(DOC_ID, 'Design notes', '42', '7');
     await store.updateDocumentState(DOC_ID, editedDoc('first'));
@@ -86,7 +86,7 @@ describe('a live document received from a peer', () => {
   });
 
   it('THROWS rather than silently writing nothing for an untracked document', async () => {
-    const store = freshStore();
+    const store: ReturnType<typeof freshStore> = freshStore();
 
     // The original bug's shape: no record, and it resolved anyway.
     await expect(
