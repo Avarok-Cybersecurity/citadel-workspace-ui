@@ -18,7 +18,7 @@ describe('seedDocument', () => {
   it('puts the text where the editor actually looks for it', () => {
     const doc: ReturnType<typeof seedDocument> = seedDocument('hello world');
 
-    const fragment = doc.getXmlFragment('default');
+    const fragment: ReturnType<typeof doc.getXmlFragment> = doc.getXmlFragment('default');
     expect(fragment.length).toBe(1);
     // A Y.Text insert would leave this fragment empty and the page blank.
     expect(readSeededText(doc)).toContain('hello world');

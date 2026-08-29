@@ -37,7 +37,7 @@ export function HierarchySidebar(): JSX.Element {
   const [adminNode, setAdminNode] = useState<DomainNode | null>(null);
   // The app's dialog, not window.confirm — which is what `confirm` resolves to
   // if this line is missing, silently, with a `string` parameter.
-  const confirm = useConfirm();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
 
   // Build flat node list from state
   const nodes: DomainNode[] = useMemo(() => Object.values(state.nodes), [state.nodes]);
