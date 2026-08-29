@@ -17040,3 +17040,53 @@ docstring already said what would happen. Grepping the mechanism found two of
 them before a test did.
 
 2374 tests green; preflight 53/53.
+
+## Round 348 — the window is working, and a bug in it that turned out not to exist
+
+`test:peer-group` still fails, but for the first time the log says what is
+happening — rounds 331 and 332 both paid off in the same lines:
+
+```
+[ILM-BLOCKED] CID 11075297579332052132 -> peer 12302642574248667747:
+              msg_id=0 blocked, awaiting ACK, 8 queued for this peer
+[ILM-BLOCKED] … msg_id=3 blocked, awaiting ACK, 6 queued for this peer
+[ILM-BLOCKED] … msg_id=9 blocked, awaiting ACK, 3 queued for this peer
+```
+
+The CID is no longer cut in half (round 331), the queue depth is there at all
+(round 332), and the window is visibly working: **the head advances 0 → 3 → 9
+and the queue drains 8 → 6 → 3**, where before it sat at 96 and never moved.
+
+### A defect I was sure I had shipped
+
+`blocked_count` is both the retransmit clock and the stale-state clock, and it
+is reset on any successful send. Under stop-and-wait that could only ever be
+the head. With a window it is usually a *later* message, sent while the head
+sits unacknowledged — so the head's clock looked like it could be held below
+`RETRANSMIT_AFTER_BLOCKS` for as long as the window kept draining, and a lost
+head would never be resent.
+
+I wrote the test to prove it. **It passed.**
+
+The contiguity gate is why. Nothing behind a lost head is ever acknowledged —
+the receiver holds it, because acknowledging past a gap would cumulatively
+retire the gap. So `outstanding` only grows: the window fills within
+`SEND_WINDOW` sends, the sends stop, and the head's clock runs freely. The
+reset can delay the first retransmission by at most a window's worth of cycles.
+It cannot pin it.
+
+Two safeguards I added separately turn out to protect each other, which I did
+not design and would not have noticed without writing the test.
+
+Kept and negative-controlled — disabling the head's retransmission fails it —
+because it is what would notice if the gate went away and left the reset behind.
+
+### What is left
+
+`[ILM-BLOCKED-RECOVERY] … after 50 consecutive blocks` still fires, so a head
+was retransmitted about ten times across ten seconds and never acknowledged.
+That is loss below the crate, in the transport, and it needs the running stack.
+The window did not fix it and was never going to: it makes the queue behind a
+stuck head irrelevant, and this head is genuinely stuck.
+
+46 ILM tests green.
