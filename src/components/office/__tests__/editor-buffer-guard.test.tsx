@@ -93,7 +93,13 @@ describe('the MDX editor buffer', () => {
     // does not help the moment they click Save and stop editing. Without the
     // key, React reuses the instance across nodes, so `isEditing` stays true
     // while the buffer is swapped to a different node's body.
-    expect(view).toMatch(/const getInitialContent = useCallback\(/);
+    // Anything up to the end of the line between the name and `useCallback(`.
+    // This read `const getInitialContent = useCallback(` and broke the day the
+    // declaration was annotated: a source-text assertion that failed for a
+    // change to the text and not to the behaviour it names. The first repair
+    // used `[^=]*`, which fails too -- the annotation is `() => string`, and
+    // that contains an `=`.
+    expect(view).toMatch(/const getInitialContent\b[^\n]*useCallback\(/);
     expect(view).toMatch(/<BaseOffice[\s\S]{0,200}key=/);
   });
 });
