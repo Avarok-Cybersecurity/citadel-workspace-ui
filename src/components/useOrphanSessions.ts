@@ -23,7 +23,7 @@ import { eventEmitter } from "@/lib/event-emitter";
 import { postAuthSetup } from "@/lib/post-auth-setup";
 import { debugLog } from '@/lib/debug-config';
 import type { NavigateFunction } from 'react-router';
-import { disconnectRefusal } from './orphan-session-disconnect';
+import { signOutSession, type SignOutResult, type SignOutTarget } from './sign-out-session';
 
 export interface OrphanSessionWithWorkspace extends ActiveSession {
   workspaceName: string;
@@ -166,57 +166,43 @@ export function useOrphanSessions() {
     if (!disconnectTarget) return;
 
     const workspaceName: string = disconnectTarget.workspaceName;
-    const cid: bigint | undefined = disconnectTarget.session.cid;
-    const username: string = disconnectTarget.session.username;
-    const serverAddress: string = disconnectTarget.session.server_address;
+    const target: SignOutTarget = {
+      cid: disconnectTarget.session.cid,
+      username: disconnectTarget.session.username,
+      serverAddress: disconnectTarget.session.server_address,
+    };
 
     setDisconnectTarget(null);
+    setLoadingModal({ open: true, status: "disconnecting", workspaceName });
 
-    // A session with no CID cannot be signed out of, and pretending otherwise is
-    // worse than saying so. See orphan-session-disconnect.
-    const refusal: string | null = disconnectRefusal(cid);
-    if (refusal !== null) {
-      debugLog('OrphanSessionsNavbar', 'Refusing to disconnect a session with no CID', username);
-      setLoadingModal({ open: true, status: "error", workspaceName, errorMessage: refusal });
+    const result: SignOutResult = await signOutSession(
+      {
+        markUserDisconnected: (username, serverAddress) =>
+          serverAutoConnectService.markUserDisconnected(username, serverAddress),
+        currentWasmCid: () => wasmConnectionManager.getCurrentCid(),
+        stopWasm: () => wasmConnectionManager.stop(),
+        deregister: (cid) => websocketService.deregister(cid),
+        disconnect: (cid) => websocketService.disconnect(cid),
+        invalidateSessionCache: () => connectionManager.invalidateSessionCache(),
+        removeSession: (username, serverAddress) =>
+          connectionManager.removeSession(username, serverAddress),
+        reload: () => loadActiveSessions(),
+      },
+      target,
+      action,
+      () => setLoadingModal(prev => ({ ...prev, status: "cleaning" })),
+    );
+
+    if (result.status === 'done') {
+      setLoadingModal(prev => ({ ...prev, status: "ready" }));
       return;
     }
 
-    setLoadingModal({ open: true, status: "disconnecting", workspaceName });
-
-    try {
-      debugLog('OrphanSessionsNavbar', `${action === 'deregister' ? 'Deregistering' : 'Disconnecting'} session:`, cid);
-
-      await serverAutoConnectService.markUserDisconnected(username, serverAddress);
-
-      if (cid !== undefined && wasmConnectionManager.getCurrentCid() === cid.toString()) {
-        wasmConnectionManager.stop();
-      }
-
-      if (action === 'deregister') {
-        await websocketService.deregister(cid);
-      } else {
-        await websocketService.disconnect(cid);
-      }
-
-      connectionManager.invalidateSessionCache();
-      await connectionManager.removeSession(username, serverAddress);
-
-      setLoadingModal(prev => ({ ...prev, status: "cleaning" }));
-      await loadActiveSessions();
-      setLoadingModal(prev => ({ ...prev, status: "ready" }));
-
-      debugLog('OrphanSessionsNavbar', `Successfully ${action === 'deregister' ? 'deregistered' : 'disconnected'}`);
-    } catch (error) {
-      debugLog('OrphanSessionsNavbar', `Failed to ${action}:`, error);
-      setLoadingModal(prev => ({
-        ...prev,
-        status: "error",
-        errorMessage: error instanceof Error ? error.message : 'Unknown error',
-      }));
-
-      setTimeout(() => {
-        setLoadingModal(prev => ({ ...prev, open: false }));
-      }, 3000);
+    setLoadingModal(prev => ({ ...prev, status: "error", errorMessage: result.message }));
+    // A refusal is a decision the user can act on and stays until dismissed; a
+    // failure is transient and clears itself, as it always has.
+    if (result.status === 'failed') {
+      setTimeout(() => { setLoadingModal(prev => ({ ...prev, open: false })); }, 3000);
     }
   };
 

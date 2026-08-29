@@ -16,7 +16,8 @@
  * of the two ways to fail, because the user is told it worked.
  */
 import { describe, it, expect } from 'vitest';
-import { disconnectRefusal } from '../orphan-session-disconnect';
+import { disconnectRefusal, signOutRefusal } from '../orphan-session-disconnect';
+import { SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
 
 describe('signing out of a session', () => {
   it('is refused, with a reason, when the session has no CID', () => {
@@ -40,5 +41,27 @@ describe('signing out of a session', () => {
     // one thing worse than signing out of nothing is refusing to sign out of
     // something.
     expect(disconnectRefusal(0n)).toBeNull();
+  });
+});
+
+describe('signing out a session this connection does not own', () => {
+  it('refuses when another tab has it', () => {
+    // The one case where refusing is right: somebody is using it.
+    expect(signOutRefusal({ status: 'owned-by-another-tab', instanceId: 'tab-2' })).toBe(
+      SESSION_OWNED_ELSEWHERE.description,
+    );
+  });
+
+  it('proceeds once the claim succeeded', () => {
+    // Claiming is what makes the service's ownership gate permit the
+    // Disconnect. Without it the request was refused every time -- in silence
+    // until round 309, and with an honest message after it.
+    expect(signOutRefusal({ status: 'claimed' })).toBeNull();
+  });
+
+  it('proceeds for a live session no tab of this browser holds', () => {
+    // The service answers for itself if it disagrees; guessing on its behalf
+    // here would refuse sign-outs that would have worked.
+    expect(signOutRefusal({ status: 'already-active' })).toBeNull();
   });
 });

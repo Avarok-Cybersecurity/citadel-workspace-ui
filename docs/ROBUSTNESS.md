@@ -15585,3 +15585,38 @@ and it is recorded here rather than answered by me against a stack I cannot run.
 
 > A component that refuses owes the refusal to whoever asked. Logging it where
 > the asker cannot see is the same silence with a paper trail.
+
+## Round 310 — own it before destroying it
+
+Round 309 made the refused sign-out honest. This one makes it work.
+
+The service's ownership gate refuses any request for a session another
+connection holds, and an orphan's holder is the connection that opened it. So
+the fix is not to widen the gate — that gate exists because the local agent is
+reachable from any page a user visits, and an orphaned session is the *common*
+state, so letting anyone act on one would put "delete this account" behind a
+guessed CID. The fix is to do what the navigate path has always done and take
+the session over first: `claimSession` is the designed way to adopt an orphan,
+and `handleNavigate` two functions up has never touched one without it.
+
+Claiming does not change which session the tab is showing — that is
+`setSelectedUser`, called separately on the navigate path. It moves ownership at
+the service, which is the only thing the gate reads.
+
+One claim outcome is a genuine refusal and the rest are not.
+`owned-by-another-tab` means somebody is using it, and that is the one case
+where refusing a sign-out is right. `already-active` means the session is live
+and no tab of this browser holds it — worth attempting, and the service answers
+for itself if it disagrees. Guessing on its behalf would refuse sign-outs that
+would have worked; the control for that case fails against exactly that mistake.
+
+**The sequence moved out of the hook.** `useOrphanSessions` is a state
+container, and this is a procedure with five ordered steps whose order is the
+substance — claim before marking disconnected, mark before requesting so
+auto-connect cannot race it, stop the WASM client only if this session is the
+one it is running. `signOutSession` takes its effects as parameters, so the
+order can be read in one place and tested without a service.
+
+The hook is 248 lines, under the cap, and its exemption is gone — the ratchet
+reported that itself rather than letting a stale entry sit there shielding a
+future violation.
