@@ -269,8 +269,29 @@ for (const source of program.getSourceFiles()) {
   const lines = new Set(
     findings.map((f) => f.line).filter((line) => !rejected.has(`${relPath}:${line}`)),
   );
-  const onWantedLine = (node) =>
-    lines.has(ts.getLineAndCharacterOfPosition(source, node.getStart(source)).line + 1);
+  const lineOf = (pos) => ts.getLineAndCharacterOfPosition(source, pos).line + 1;
+  const onWantedLine = (node) => lines.has(lineOf(node.getStart(source)));
+  /**
+   * A finding anywhere in this function's SIGNATURE, not only on its first line.
+   *
+   * ESLint reports `explicit-function-return-type` at the point where the type
+   * would go, which for a multi-line parameter list is the closing paren --
+   *
+   *   const Modal = ({
+   *     open,
+   *     onClose,
+   *   }: ModalProps) => {        <-- reported here
+   *
+   * -- while the node starts three lines earlier. Matching on the start line
+   * alone found none of them: 95 arrows and 87 function declarations, proposed
+   * zero times.
+   */
+  const signatureCovers = (node) => {
+    const from = lineOf(node.getStart(source));
+    const to = lineOf(node.body ? node.body.getStart(source) : node.getEnd());
+    for (let line = from; line <= to; line += 1) if (lines.has(line)) return true;
+    return false;
+  };
 
   const edits = [];
   /** name -> module specifier, for types this file cannot yet see. */
