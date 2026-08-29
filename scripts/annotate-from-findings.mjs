@@ -93,6 +93,18 @@ const WIDEN_STRINGS = args.includes('--widen-strings');
 const ANY_AS_UNKNOWN = args.includes('--any-as-unknown');
 
 /** Type-position words that are never imported. */
+/**
+ * Names the index lists but a package will not actually let you import.
+ *
+ * `ClassProp` is declared inside class-variance-authority's types and not
+ * exported from its entry point: importing it is "declares 'ClassProp' locally,
+ * but it is not exported", which took four files down at once. The index is
+ * built from `getExportsOfModule` and still lists it, so the package's own
+ * entry point is what disagrees -- and the only honest answer from here is to
+ * refuse the type outright.
+ */
+const NOT_IMPORTABLE = new Set(['ClassProp']);
+
 const TYPE_WORDS = new Set([
       'null', 'undefined', 'void', 'never', 'unknown', 'this', 'keyof', 'typeof',
       'infer', 'extends', 'in', 'is', 'asserts', 'new', 'abstract',
@@ -300,14 +312,17 @@ for (const source of program.getSourceFiles()) {
     return true;
   };
 
-  const specifierFor = (name, node) => {
-    const symbols = checker.getSymbolsInScope(node, ts.SymbolFlags.Type | ts.SymbolFlags.Value);
-    const symbol = symbols.find((s) => s.getName() === name);
-    const declaration = symbol?.declarations?.[0];
-    // Scope first, then the program-wide index. Scope cannot see the case that
-    // needs an import, which is the only case this function is asked about.
-    let file = declaration?.getSourceFile()?.fileName;
-    if (!file) {
+  const specifierFor = (name) => {
+    // The index only, never `getSymbolsInScope`.
+    //
+    // Scope answers with any symbol visible in the module graph, EXPORTED or
+    // not: `ClassProp` is declared inside class-variance-authority's types and
+    // not exported, and importing it is an error -- "declares 'ClassProp'
+    // locally, but it is not exported" -- in four files at once. The index is
+    // built from `getExportsOfModule`, so a name in it is one that can actually
+    // be imported. Scope was also redundant: a name still in scope is one
+    // `unresolvedNames` has already accepted.
+    {
       const candidates = [...(declaredIn.get(name) ?? [])];
       const src = resolve(APP, 'src');
       // Ours first: `StoredSession` exists here and in the generated client
@@ -328,6 +343,10 @@ for (const source of program.getSourceFiles()) {
     // keyword -- and importing a module from itself is a compile error, which
     // is how this was found.
     if (file === source.fileName) return null;
+    return null;
+  };
+
+  const unusedSpecifierTail = (file) => {
     if (file.includes('/node_modules/')) {
       const after = file.split('/node_modules/').pop() ?? '';
       const parts = after.split('/');
@@ -468,6 +487,8 @@ function unresolvedNames(printed, source) {
   // A single upper-case letter is a type PARAMETER -- `T`, `K`, `V`. It has no
   // declaration to import and never will; refusing the whole type is right.
   if (names.some((name) => /^[A-Z]$/.test(name))) return refuse('type parameter', printed);
+  const blocked = names.find((name) => NOT_IMPORTABLE.has(name));
+  if (blocked) return refuse('not importable', blocked);
   const BUILTIN = new Set([
     'string', 'number', 'boolean', 'void', 'bigint', 'symbol', 'object', 'true', 'false',
     'Array', 'Promise', 'Map', 'Set', 'Record', 'Date', 'RegExp', 'Error', 'Uint8Array',

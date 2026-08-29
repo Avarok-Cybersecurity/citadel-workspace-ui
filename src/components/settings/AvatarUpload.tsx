@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback , type RefObject , type ChangeEvent } from 'react';
+import { useState, useRef, useCallback , type RefObject , type ChangeEvent , type DragEvent } from 'react';
 import { Upload, X, User } from 'lucide-react';
 import { processAvatarImage, validateAvatarFile, avatarToDataUrl } from '@/lib/image-processor';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
@@ -42,7 +42,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     }
   }, [onAvatarChange]);
 
-  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>): void => {
+  const handleDrop: (e: React.DragEvent<HTMLDivElement>) => void = useCallback((e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragActive(false);
@@ -57,7 +57,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     }
   }, [disabled, handleFile]);
 
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>): void => {
+  const handleDragOver: (e: React.DragEvent<HTMLDivElement>) => void = useCallback((e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     e.stopPropagation();
     if (!disabled) {
@@ -65,7 +65,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     }
   }, [disabled]);
 
-  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>): void => {
+  const handleDragLeave: (e: React.DragEvent<HTMLDivElement>) => void = useCallback((e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragActive(false);

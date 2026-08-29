@@ -7,7 +7,7 @@ import { markLastAccessed, readLastAccessed } from '@/lib/sessions/last-accessed
 import { useNavigate } from "react-router-dom";
 import { connectionManager } from "@/lib/connection";
 import { websocketService } from "@/lib/websocket-service";
-import type { ActiveSession } from "@/types/session-types";
+import type { ActiveSession, StoredSessions } from "@/types/session-types";
 import type { DisconnectAction } from "./DisconnectConfirmModal";
 import type { DisconnectStatus } from "./LoadingModal";
 import { useToast, useEventListener } from "@/hooks";
@@ -62,7 +62,7 @@ export function useOrphanSessions() {
       // CIDs are permanent, so a stale list is strictly better than an empty
       // one here.
       if (!ok) return;
-      const storedSessions = connectionManager.getStoredSessions();
+      const storedSessions: StoredSessions = connectionManager.getStoredSessions();
 
       const sessionsWithWorkspace: OrphanSessionWithWorkspace[] = withWorkspaceNames(
         activeSessions,

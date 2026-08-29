@@ -1,4 +1,5 @@
-/**
+
+import type { VisualViewport } from '@popperjs/core';/**
  * Make the app shell shrink when the on-screen keyboard opens, on browsers that
  * do not honour `interactive-widget=resizes-content`.
  *
@@ -25,7 +26,7 @@
 const KEYBOARD_THRESHOLD_PX: number = 120;
 
 export function startKeyboardInsetTracking(): () => void {
-  const viewport = typeof window !== 'undefined' ? window.visualViewport : undefined;
+  const viewport: VisualViewport | null | undefined = typeof window !== 'undefined' ? window.visualViewport : undefined;
   if (!viewport) return () => undefined;
 
   const root: HTMLElement = document.documentElement;

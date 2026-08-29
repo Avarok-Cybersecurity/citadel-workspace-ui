@@ -5,7 +5,7 @@
  * Handles conversation loading, event listeners, and message operations.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback , type UIEvent } from 'react';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { DELETE_MESSAGE_PROMPT } from '@/lib/chat/delete-message-prompt';
 import { P2PMessengerManager } from '@/lib/p2p';
@@ -153,7 +153,7 @@ export function useP2PMessages({
     }
   }, [isLoadingMore, currentPage, hasMorePages, peerCid, scrollRef, messenger]);
 
-  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>): void => {
+  const handleScroll: (event: React.UIEvent<HTMLDivElement>) => void = useCallback((event: React.UIEvent<HTMLDivElement>): void => {
     const target = event.currentTarget;
     if (target.scrollTop < 100 && hasMorePages && !isLoadingMore) {
       runAsyncSetup(loadOlderMessages);

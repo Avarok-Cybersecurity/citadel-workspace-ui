@@ -4,6 +4,7 @@ import type { FileTransferMode } from '@/types/messaging-layer';
 import { fileTransferService } from '@/lib/file-transfer';
 import { MAX_BYTE_CONTENTS_SIZE_BYTES } from '@/lib/file-transfer/send-operations';
 import { debugLog } from '@/lib/debug-config';
+import type { DragEvent } from 'react';
 
 interface UseFileTransferOptions {
   onClose: () => void;
@@ -72,7 +73,7 @@ export function useFileTransfer({
     }
   }, [maxFileSizeBytes]);
 
-  const handleDrop = useCallback((e: React.DragEvent): void => {
+  const handleDrop: (e: React.DragEvent) => void = useCallback((e: React.DragEvent): void => {
     e.preventDefault();
     setIsDragging(false);
 
@@ -82,12 +83,12 @@ export function useFileTransfer({
     }
   }, [handleFileSelect]);
 
-  const handleDragOver = useCallback((e: React.DragEvent): void => {
+  const handleDragOver: (e: React.DragEvent) => void = useCallback((e: React.DragEvent): void => {
     e.preventDefault();
     setIsDragging(true);
   }, []);
 
-  const handleDragLeave = useCallback((e: React.DragEvent): void => {
+  const handleDragLeave: (e: React.DragEvent) => void = useCallback((e: React.DragEvent): void => {
     e.preventDefault();
     setIsDragging(false);
   }, []);
