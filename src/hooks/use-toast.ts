@@ -88,14 +88,14 @@ function announce(description: React.ReactNode, variant: ToastVariant): React.Re
 }
 
 export function toast(options: ToastOptions): ToastHandle {
-  const payload = {
+  const payload: { description: React.ReactNode; duration: number | undefined; action: { label: string; onClick: () => void; } | undefined; id: string | number | undefined; } = {
     description: announce(body(options), options.variant ?? 'default'),
     duration: options.duration,
     action: options.action,
     id: options.id,
   };
 
-  const message = headline(options);
+  const message: React.ReactNode = headline(options);
 
   const id: string | number =
     options.variant === 'destructive'

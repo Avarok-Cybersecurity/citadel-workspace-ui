@@ -64,12 +64,12 @@ export function useGroupPermissions(
   }, [myMember, group.settings.roles]);
 
   // Check if owner
-  const isOwner = useMemo(() => {
+  const isOwner: boolean = useMemo((): boolean => {
     return currentCid === group.ownerId;
   }, [currentCid, group.ownerId]);
 
   // Check if admin (has manageRoles permission)
-  const isAdmin = useMemo(() => {
+  const isAdmin: boolean = useMemo((): boolean => {
     if (!myRole) return false;
     return myRole.permissions.manageRoles || isOwner;
   }, [myRole, isOwner]);

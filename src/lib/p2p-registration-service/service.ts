@@ -42,14 +42,14 @@ import {
 
 export class P2PRegistrationService {
   private static instance: P2PRegistrationService;
-  private isRunning = false;
+  private isRunning: boolean = false;
   private registeredPeers: Map<bigint, Peer> = new Map<bigint, Peer>();
   private allPeers: Map<bigint, Peer> = new Map<bigint, Peer>();
   private pollingInterval: NodeJS.Timeout | null = null;
   private pendingRequests: Map<string, PendingRequestEntry> = new Map<string, PendingRequestEntry>();
   private outgoingRegistrations: Set<bigint> = new Set<bigint>();
   private incomingRegistrations: Set<bigint> = new Set<bigint>();
-  private isCheckingPeers = false;
+  private isCheckingPeers: boolean = false;
   /** The options start() was called with, replayed on every reconnect re-sync. */
   private startOptions: PeerRegistrationOptions = {};
 

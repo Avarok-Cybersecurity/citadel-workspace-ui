@@ -10,8 +10,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { WorkspaceContext } from '@/contexts/WorkspaceContext';
+import { WorkspaceContext , type WorkspaceState } from '@/contexts/WorkspaceContext';
 import { GeneralTab } from '../GeneralTab';
+import type { UserEvent } from '@testing-library/user-event';
 
 vi.mock('@/lib/workspace-service', () => ({
   default: { updateWorkspace: vi.fn(), updateNode: vi.fn() },
@@ -20,7 +21,7 @@ vi.mock('@/lib/workspace-service', () => ({
 const node: { id: string; name: string; description: string; } = { id: 'n1', name: 'Design', description: 'The design office' };
 
 // Only the pieces GeneralTab reads; the real context type is far larger.
-const ctx = (nodes: Record<string, unknown>) =>
+const ctx = (nodes: Record<string, unknown>): { state: WorkspaceState; } =>
   ({ state: { workspace: null, nodes } }) as unknown as React.ComponentProps<
     typeof WorkspaceContext.Provider
   >['value'];
@@ -37,7 +38,7 @@ describe('GeneralTab', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('keeps typed input when an unrelated node event re-mints state.nodes', async () => {
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
     const { rerender } = renderTab({ n1: node });
 
     const nameInput: HTMLElement = await screen.findByDisplayValue('Design');
@@ -74,7 +75,7 @@ describe('GeneralTab', () => {
   });
 
   it('re-seeds when the admin switches to a different entity', async () => {
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
     const nodes: { n1: { id: string; name: string; description: string; }; n2: { id: string; name: string; description: string; }; } = { n1: node, n2: { id: 'n2', name: 'Legal', description: '' } };
     const { rerender } = render(
       <WorkspaceContext.Provider value={ctx(nodes)}>

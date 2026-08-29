@@ -131,7 +131,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
       // peer list carries both, so a member who has never appeared there cannot
       // be reached from here — and saying so is better than sending nothing and
       // reporting success.
-      const peer = discoveredPeers.find((candidate) => candidate.username === selectedUser.id);
+      const peer = discoveredPeers.find((candidate): boolean => candidate.username === selectedUser.id);
       if (!peer) {
         throw new Error(
           `${selectedUser.displayName} is not reachable yet. They need to be online at least once before a request can be sent.`,

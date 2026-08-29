@@ -11,7 +11,7 @@ export interface OnlineStatus {
 }
 
 /** How long "Back online" stays up before the banner retires itself. */
-export const RECONNECTED_NOTICE_MS = 3000;
+export const RECONNECTED_NOTICE_MS: number = 3000;
 
 /**
  * Track whether the browser has network connectivity.

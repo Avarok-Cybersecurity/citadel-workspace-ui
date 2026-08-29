@@ -39,7 +39,7 @@ export interface SaveChatSettingsDeps {
 }
 
 /** Chat rules are stored in a node's `rules` column; keep it within one screen. */
-export const MAX_CHAT_RULES_LENGTH = 2000;
+export const MAX_CHAT_RULES_LENGTH: number = 2000;
 
 /**
  * Returns whether the settings reached the server.

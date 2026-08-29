@@ -11,6 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
 import { getEntityMetadata } from '@/lib/entity-type-registry';
 import { debugLog } from '@/lib/debug-config';
+import type { PermissionsLoad } from '@/components/permissions/use-loaded-permissions';
+import type { PermissionDefinition } from '@/components/permissions/permission-constants';
 import {
   PERMISSION_CATEGORIES,
   ROLE_HIERARCHY,
@@ -38,7 +40,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
   // What the SERVER currently grants. The load used to be fired and its result
   // discarded even on success, so the matrix below rendered client-side default
   // constants and Save diffed against those — see use-loaded-permissions.
-  const load = useLoadedPermissions(userId, domainId);
+  const load: PermissionsLoad = useLoadedPermissions(userId, domainId);
 
   const [rolePermissions, setRolePermissions] = useState<RolePermissions>(() => {
     const initial: RolePermissions = {};
@@ -115,8 +117,8 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
     }
   };
 
-  const DomainIcon = getEntityMetadata(domainType).icon;
-  const allPermissions = Object.entries(PERMISSION_CATEGORIES);
+  const DomainIcon: React.ComponentType<{ className?: string; }> = getEntityMetadata(domainType).icon;
+  const allPermissions: [string, PermissionDefinition[]][] = Object.entries(PERMISSION_CATEGORIES);
 
   return (
     <div className="bg-background border border-border rounded-xl shadow-2xl shadow-black/40 max-h-[85vh] min-w-0 flex flex-col overflow-hidden">

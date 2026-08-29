@@ -28,8 +28,8 @@ import { debugLog } from '@/lib/debug-config';
 import type { ActiveSession } from '@/types/session-types';
 
 /** How long to wait for auto-connect to produce a session before giving up. */
-const RECONNECT_WAIT_MS = 8000;
-const RECONNECT_POLL_MS = 500;
+const RECONNECT_WAIT_MS: number = 8000;
+const RECONNECT_POLL_MS: number = 500;
 
 export type ConnectOutcome =
   | { kind: 'connected'; cid: bigint }

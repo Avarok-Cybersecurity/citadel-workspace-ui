@@ -59,7 +59,7 @@ describe('every square icon button', () => {
 
   it('reads a real corpus, so the rule is not passing over nothing', () => {
     expect(files.length).toBeGreaterThan(50);
-    const anyButton = files.some((f) => buttonTags().test(readFileSync(f, 'utf-8')));
+    const anyButton: boolean = files.some((f): boolean => buttonTags().test(readFileSync(f, 'utf-8')));
     expect(anyButton).toBe(true);
   });
 

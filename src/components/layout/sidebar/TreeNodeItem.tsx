@@ -64,7 +64,7 @@ export function TreeNodeItem({
   const isSelected: boolean = selectedNodeId === node.id;
   const isExpanded: boolean = expandedNodes.has(node.id);
   const hasChildren: boolean = children.length > 0;
-  const Icon = getEntityIcon(node.entity_type);
+  const Icon: React.ComponentType<{ className?: string; }> = getEntityIcon(node.entity_type);
   const typeName: string = getEntityTypeName(node.entity_type);
 
   // Cap at 5 levels of indentation to keep deep hierarchies navigable

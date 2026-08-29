@@ -24,9 +24,9 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
   const [hasInitialized, setHasInitialized] = useState(false);
   const { toast } = useToast();
 
-  const retryFnRef = useRef<(() => Promise<unknown>) | null>(null);
-  const retryInProgressRef = useRef(false);
-  const executeFnRef = useRef<(() => Promise<unknown>) | null>(null);
+  const retryFnRef: React.MutableRefObject<(() => Promise<unknown>) | null> = useRef<(() => Promise<unknown>) | null>(null);
+  const retryInProgressRef: React.MutableRefObject<boolean> = useRef(false);
+  const executeFnRef: React.MutableRefObject<(() => Promise<unknown>) | null> = useRef<(() => Promise<unknown>) | null>(null);
 
   const retryOperation: () => Promise<true | void> = useCallback(async (): Promise<true | void> => {
     if (onRetry) {

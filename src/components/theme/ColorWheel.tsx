@@ -10,8 +10,8 @@ interface ColorWheelProps {
   label: string;
 }
 
-const SIZE = 168;
-const RING_THICKNESS = 22;
+const SIZE: number = 168;
+const RING_THICKNESS: number = 22;
 const CENTER: number = SIZE / 2;
 const RING_RADIUS: number = CENTER - RING_THICKNESS / 2;
 

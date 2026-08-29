@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 import { applyGfmStrikethrough } from './mdx-preprocess';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
-import { verifyDocument } from '@/lib/mdx-integrity';
+import { verifyDocument , type IntegrityVerdict } from '@/lib/mdx-integrity';
 
 /**
  * Compile MDX source to a rendered element.
@@ -47,7 +47,7 @@ export function useCompiledMdx(
         // Pre-pass escapes JSX-significant chars inside `~~...~~` regions
         // so `~~value < 5~~` doesn't fail MDX parsing before remark-gfm
         // consumes it. See `applyGfmStrikethrough` for details.
-        const verdict = await verifyDocument(content, expectedHash);
+        const verdict: IntegrityVerdict = await verifyDocument(content, expectedHash);
         if (verdict.status === 'mismatch') {
           debugLog('BaseOffice', 'MDX integrity mismatch', verdict);
           setCompiled(null);

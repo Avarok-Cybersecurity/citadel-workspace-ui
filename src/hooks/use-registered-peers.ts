@@ -90,8 +90,8 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
             ? p.username
             : (cidStr ? `Peer ${cidStr.slice(-6)}` : 'Unknown Peer');
           const peerCidBigInt: bigint = p.cid ?? BigInt(0);
-          const isOnline = p2pAutoConnectService.isPeerOnline(peerCidBigInt);
-          let isConnected = false;
+          const isOnline: boolean = p2pAutoConnectService.isPeerOnline(peerCidBigInt);
+          let isConnected: boolean = false;
           try {
             const connectedPromise: Promise<boolean> = p2pAutoConnectService.isPeerConnected(peerCidBigInt);
             const timeoutPromise: Promise<boolean> = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1000));
@@ -115,7 +115,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
       setRegisteredPeers(peerList);
 
       // Clean up stale conversations
-      const isStartupInProgress = sessionStartupService.isStartupInProgress();
+      const isStartupInProgress: boolean = sessionStartupService.isStartupInProgress();
       if (startupCompleteRef.current && !isStartupInProgress) {
         const validPeerCids: Set<bigint> = new Set(peerList.filter(p => p.cid).map(p => BigInt(p.cid)));
         const connectedPeerCids: bigint[] = await p2pAutoConnectService.getConnectedPeers();

@@ -22,7 +22,7 @@ import {
   DEFAULT_PRIVACY_SETTINGS,
 } from '../privacy-settings';
 
-const STORAGE_KEY = 'citadel:privacy-settings';
+const STORAGE_KEY: "citadel:privacy-settings" = 'citadel:privacy-settings';
 
 describe('privacy settings across tabs', () => {
   let stop: (() => void) | undefined;

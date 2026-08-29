@@ -24,8 +24,8 @@ export const UserSearch: React.FC<UserSearchProps> = ({
   const [results, setResults] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const resultsRef = useRef<HTMLDivElement>(null);
+  const inputRef: React.RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
+  const resultsRef: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const { state } = useWorkspace();
 
   // Focus input on mount if initialFocus is true

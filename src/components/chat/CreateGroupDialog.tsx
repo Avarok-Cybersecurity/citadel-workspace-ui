@@ -30,7 +30,7 @@ import type { GroupRole } from '@/types/group-permissions';
 // Re-export types for backward compatibility
 export type { AvailablePeer, SelectedMember, CreateGroupDialogProps };
 
-const AVATAR_COLORS_LENGTH = 7;
+const AVATAR_COLORS_LENGTH: number = 7;
 
 export function CreateGroupDialog({
   open,

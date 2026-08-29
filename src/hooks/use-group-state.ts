@@ -40,7 +40,7 @@ export function useGroupState(): GroupState {
   const groups: GroupConversation[] = useSyncExternalStore(subscribeToGroups, getGroups);
   // Whether the persisted restore has finished. A consumer that looks a group
   // up before this is true has learned nothing about whether it exists.
-  const hydrated = useSyncExternalStore(subscribeToGroups, areGroupsHydrated, () => false);
+  const hydrated: boolean = useSyncExternalStore(subscribeToGroups, areGroupsHydrated, (): boolean => false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

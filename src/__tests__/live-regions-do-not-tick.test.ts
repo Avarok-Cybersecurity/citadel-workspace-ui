@@ -59,7 +59,7 @@ describe('live regions', () => {
         // code as a defect, and a scan that cries wolf gets relaxed until it
         // catches nothing.
         const between: string = source.slice(marker, at);
-        const escapedTheRegion = /<\/(div|span|p)>/.test(between);
+        const escapedTheRegion: boolean = /<\/(div|span|p)>/.test(between);
         if (escapedTheRegion) continue;
 
         // The aria-hidden has to be on the element that DIRECTLY wraps the

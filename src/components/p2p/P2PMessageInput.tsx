@@ -32,7 +32,7 @@ interface P2PMessageInputProps {
   onMessageTypeChange: (type: MessageType) => void;
 }
 
-export const P2PMessageInput = forwardRef<HTMLTextAreaElement, P2PMessageInputProps>(
+export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputProps & React.RefAttributes<HTMLTextAreaElement>> = forwardRef<HTMLTextAreaElement, P2PMessageInputProps>(
   function P2PMessageInput(
     {
       inputMessage,

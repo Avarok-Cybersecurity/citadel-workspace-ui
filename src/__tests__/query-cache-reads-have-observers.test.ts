@@ -54,7 +54,7 @@ describe('a value read back from the query cache', () => {
         if (key in NO_OBSERVER_NEEDED) continue;
 
         // An observer is a useQuery/useQueries naming the same key, anywhere.
-        const observed = new RegExp(`useQuer(?:y|ies)[^;]{0,400}?\\[\\s*'${key}'`, 's').test(all);
+        const observed: boolean = new RegExp(`useQuer(?:y|ies)[^;]{0,400}?\\[\\s*'${key}'`, 's').test(all);
         if (!observed) offenders.push(`${rel}: reads ['${key}'] which nothing observes`);
       }
     }

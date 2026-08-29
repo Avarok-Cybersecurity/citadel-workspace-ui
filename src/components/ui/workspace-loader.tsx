@@ -8,6 +8,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { debugLog } from '@/lib/debug-config';
 import { useToast } from '@/hooks/use-toast';
 import { WorkspaceLoaderSpinner } from './workspace-loader-ui';
+import type { NavigateFunction } from 'react-router';
 
 interface WorkspaceLoaderProps {
   children: React.ReactNode;
@@ -20,12 +21,12 @@ interface WorkspaceLoaderProps {
  */
 export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) => {
   const { state } = useWorkspace();
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const { toast } = useToast();
   const [hasConnection, setHasConnection] = useState<boolean | null>(null);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const [isAutoClaimingSession, setIsAutoClaimingSession] = useState(false);
-  const autoClaimAttempted = useRef(false);
+  const autoClaimAttempted: React.MutableRefObject<boolean> = useRef(false);
 
   // Check for dev mode
   const urlParams: URLSearchParams = new URLSearchParams(window.location.search);

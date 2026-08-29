@@ -52,7 +52,7 @@ describe('a members:loaded subscriber', () => {
 
       // Subscribing, not declaring or emitting. The type map names the event
       // and the response handler emits it; neither consumes a list.
-      const subscribes =
+      const subscribes: boolean =
         /on(?:Member)?Event(?:<[^>]*>)?\(\s*['"]members:loaded['"]/.test(source) ||
         /useEventListeners?(?:<[^>]*>)?\([^)]*['"]members:loaded['"]/.test(source) ||
         /eventEmitter\.(?:on|once)(?:<[^>]*>)?\(\s*['"]members:loaded['"]/.test(source);

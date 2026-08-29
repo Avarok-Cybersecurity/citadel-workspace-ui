@@ -39,7 +39,7 @@ export const OrphanSessionsNavbar: () => JSX.Element | null = (): JSX.Element | 
 
     let cancelled: boolean = false;
     let attempts: number = 0;
-    const MAX_ATTEMPTS = 8;
+    const MAX_ATTEMPTS: number = 8;
     const RETRY_MS: number = 1_500;
 
     const load = (): void => {

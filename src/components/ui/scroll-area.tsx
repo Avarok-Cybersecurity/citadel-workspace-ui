@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 
@@ -7,7 +8,7 @@ interface ScrollAreaProps extends React.ComponentPropsWithoutRef<typeof ScrollAr
   onScroll?: React.UIEventHandler<HTMLDivElement>;
 }
 
-const ScrollArea = React.forwardRef<
+const ScrollArea: React.ForwardRefExoticComponent<ScrollAreaProps & React.RefAttributes<HTMLDivElement>> = React.forwardRef<
   HTMLDivElement,
   ScrollAreaProps
 >(({ className, children, onScroll, ...props }, ref) => (

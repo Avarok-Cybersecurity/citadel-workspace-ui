@@ -25,7 +25,7 @@ import type { User as WorkspaceMember } from '@/types/workspace-entities';
  * back to the empty state after this long is a worse answer than the real list
  * and a better one than an indefinite "Loading members...".
  */
-const MEMBER_LOAD_TIMEOUT_MS = 15_000;
+const MEMBER_LOAD_TIMEOUT_MS: number = 15_000;
 
 export interface DomainMembers {
   members: WorkspaceMember[];

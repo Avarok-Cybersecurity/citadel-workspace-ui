@@ -14,7 +14,7 @@ export function ManageAccountsButton(): JSX.Element {
    * restore focus; this one did not, which is the difference a person notices
    * and no automated scan reports -- the markup is identical either way.
    */
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef: React.RefObject<HTMLButtonElement> = useRef<HTMLButtonElement>(null);
 
   return (
     <>

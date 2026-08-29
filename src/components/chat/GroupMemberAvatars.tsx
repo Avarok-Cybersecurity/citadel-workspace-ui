@@ -10,7 +10,7 @@ import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
 import { memberAvatarColor } from '@/lib/avatar-color';
 import type { GroupRole } from '@/types/group-permissions';
 
-const MAX_VISIBLE_AVATARS = 5;
+const MAX_VISIBLE_AVATARS: number = 5;
 
 
 export function GroupMemberAvatars({ group }: { group: GroupConversation }): JSX.Element {

@@ -33,7 +33,7 @@ interface P2PMessageListProps {
   onReplyMessage?: (messageId: string) => void;
 }
 
-export const P2PMessageList = forwardRef<HTMLDivElement, P2PMessageListProps>(
+export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps & React.RefAttributes<HTMLDivElement>> = forwardRef<HTMLDivElement, P2PMessageListProps>(
   function P2PMessageList(
     {
       messages,

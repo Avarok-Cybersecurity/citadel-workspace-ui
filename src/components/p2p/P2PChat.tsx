@@ -21,6 +21,7 @@ import { P2PMessageList } from './P2PMessageList';
 import { P2PMessageInput } from './P2PMessageInput';
 import { useP2PMessages, useP2PFileTransfer, useP2PTabs } from './hooks';
 import { useP2PCompose } from './hooks/useP2PCompose';
+import type { DirectCallBinding } from '@/components/p2p/hooks/use-direct-call';
 
 export type ChatMode = 'p2p' | 'group';
 
@@ -56,13 +57,13 @@ export function P2PChat({
   // Hooks first, before any early return in this component. Placing them lower
   // put them after one, which breaks React's hook ordering and fails
   // intermittently at runtime rather than reliably.
-  const callBinding = useDirectCall(peerCid, peerName);
+  const callBinding: DirectCallBinding = useDirectCall(peerCid, peerName);
 
   const isGroupMode: boolean = mode === 'group';
   const displaySenderName: boolean = showSenderName ?? isGroupMode;
   const displaySenderAvatar: boolean = showSenderAvatar ?? isGroupMode;
 
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
 
   const [showFileModal, setShowFileModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -114,7 +115,7 @@ export function P2PChat({
   // It also fought the pagination anchoring in useP2PMessages, which goes to
   // real trouble to preserve scroll position across a prepend.
   const FOLLOW_THRESHOLD_PX: number = 80;
-  const hasJumpedToLatest = useRef(false);
+  const hasJumpedToLatest: React.MutableRefObject<boolean> = useRef(false);
   useEffect(() => {
     const el: HTMLDivElement | null = scrollRef.current;
     if (!el || messages.length === 0) return;
