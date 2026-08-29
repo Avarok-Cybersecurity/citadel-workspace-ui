@@ -15961,3 +15961,44 @@ The other ten unread hook members are dead surface rather than dead features —
 on the file manager's selection hook is the one worth a second look: a
 multi-select file manager with no select-all is a missing affordance rather than
 a broken one, and that is a product decision.
+
+## Round 320 — select-all that worked by accident
+
+Round 319's hook scan named `selectAll` on `useVFSSelection` as a member nobody
+reads, and flagged it as a possible missing affordance. It is not missing:
+Ctrl+A is wired, and the handler does this instead —
+
+```ts
+visible.forEach((n, i) => selectItem(n.path, i === 0 ? 'replace' : 'toggle'));
+```
+
+It works. It works **only because `replace` clears the set before the toggles
+run**. Read in isolation, "toggle every item" is the opposite of "select all",
+and it becomes so the moment the first item stops being `replace`: reorder the
+loop, filter the first item out, or take a different branch at index zero, and
+Ctrl+A starts DESELECTING whatever was already picked.
+
+`selectAll(paths)` was on the hook the whole time, with no caller. One update
+instead of n, and it says what it means. Three tests pin the properties the loop
+had by coincidence — including that a filtered Ctrl+A drops what is not in the
+list, because leaving hidden files selected is how Delete removes something the
+user cannot see. The control (`new Set([...prev, ...paths])`) fails that one.
+
+Also this round, the CI evidence for round 316. `peer-group` failed again — that
+run predates the fix — and the log now shows exactly what the three-second sleep
+was racing:
+
+```
+Selected member: peergrp_2_…
+[ILM-BLOCKED-RECOVERY] CID 15079… -> peer 15…
+[ILM-BLOCKED-RECOVERY] CID 15470… -> peer 15…
+[ILM-BLOCKED]          CID 15079… -> peer 15470…
+Could not confirm group creation
+```
+
+The link stalls in both directions at the moment group creation needs to reach
+the peer, and a blocked-recovery cycle is fifty polls — ten seconds. Three
+seconds could never have covered it; thirty covers two.
+
+> An implementation that is correct because of the order its cases run in is
+> correct until somebody reorders them, and nothing will say why.

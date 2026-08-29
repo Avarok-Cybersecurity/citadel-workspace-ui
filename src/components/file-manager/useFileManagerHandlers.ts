@@ -22,7 +22,7 @@ interface HandlerDeps {
   copyToClipboard: (items: RevfsNode[], treeKey: TreeKey) => void;
   clearClipboard: () => void;
   clearSelection: () => void;
-  selectItem: (path: string, mode: 'replace' | 'toggle' | 'range') => void;
+  selectAll: (paths: string[]) => void;
   /** The grid's filter, so Select All cannot reach what is hidden. */ filterText: string;
   currentTreeKey: TreeKey | null;
   hasPasteItems: boolean;
@@ -47,7 +47,7 @@ interface HandlerDeps {
 
 export function useFileManagerHandlers({
   mkdir, rmdir, removeFile, downloadFile, uploadFile, rename, move, copy, refresh,
-  cut, copyToClipboard, clearClipboard, clearSelection, selectItem,
+  cut, copyToClipboard, clearClipboard, clearSelection, selectAll,
   currentTreeKey, hasPasteItems, clipboard, isCut,
   myCid, storageUsed, storageQuota, revfsEnabled, storageMode, selectedPeerCid,
   tree, currentPath, filterText, fileInputRef,
@@ -161,7 +161,7 @@ export function useFileManagerHandlers({
   }, [rmdir, removeFile, clearSelection, confirm]);
 
   const { handleCutMultiple, handleCopyMultiple, handleSelectAll } =
-    useFileManagerSelectionHandlers({ tree, currentPath, filterText, currentTreeKey, cut, copyToClipboard, selectItem });
+    useFileManagerSelectionHandlers({ tree, currentPath, filterText, currentTreeKey, cut, copyToClipboard, selectAll });
 
   const handleDrop: (targetPath: string, files: FileList) => Promise<void> = useCallback(async (targetPath: string, files: FileList): Promise<void> => {
     if (!myCid) { toast.error('Not connected'); return; }

@@ -48,7 +48,7 @@ export function useFileManagerContent() {
   const { tree, loading, error, mkdir, rmdir, uploadFile, downloadFile, removeFile, rename, move, copy, refresh, storageUsed, storageQuota, revfsEnabled } = activeTree;
 
   const { clipboard, cut, copy: copyToClipboard, clear: clearClipboard, hasItems: hasPasteItems, isCut } = useVFSClipboard();
-  const { selectedPaths, select: selectItem, clearSelection } = useVFSSelection();
+  const { selectedPaths, select: selectItem, selectAll, clearSelection } = useVFSSelection();
 
   const currentTreeKey: TreeKey | null = useMemo(() => {
     if (storageMode === TreeScope.Server && myCid) return serverTreeKey(myCid);
@@ -119,7 +119,7 @@ export function useFileManagerContent() {
 
   const handlers: ReturnType<typeof useFileManagerHandlers> = useFileManagerHandlers({
     mkdir, rmdir, removeFile, downloadFile, uploadFile, rename, move, copy, refresh,
-    cut, copyToClipboard, clearClipboard, clearSelection, selectItem,
+    cut, copyToClipboard, clearClipboard, clearSelection, selectAll,
     currentTreeKey, hasPasteItems, clipboard, isCut,
     myCid, storageUsed, storageQuota, revfsEnabled, storageMode, selectedPeerCid,
     tree, currentPath, filterText, fileInputRef,

@@ -11,7 +11,7 @@ interface SelectionDeps {
   currentTreeKey: TreeKey | null;
   cut: (items: RevfsNode[], treeKey: TreeKey) => void;
   copyToClipboard: (items: RevfsNode[], treeKey: TreeKey) => void;
-  selectItem: (path: string, mode: 'replace' | 'toggle' | 'range') => void;
+  selectAll: (paths: string[]) => void;
 }
 
 /**
@@ -21,7 +21,7 @@ interface SelectionDeps {
  * once Select All learned to honour the grid's filter.
  */
 export function useFileManagerSelectionHandlers({
-  tree, currentPath, filterText, currentTreeKey, cut, copyToClipboard, selectItem,
+  tree, currentPath, filterText, currentTreeKey, cut, copyToClipboard, selectAll,
 }: SelectionDeps): { handleCutMultiple: (nodes: RevfsNode[]) => void; handleCopyMultiple: (nodes: RevfsNode[]) => void; handleSelectAll: () => void; } {
   const handleCutMultiple: (nodes: RevfsNode[]) => void = useCallback((nodes: RevfsNode[]): void => {
     if (!currentTreeKey) return;
@@ -43,10 +43,15 @@ export function useFileManagerSelectionHandlers({
     // a filter select hidden files, which Delete then removed.
     const needle: string = filterText.toLowerCase();
     const visible: RevfsNode[] = needle ? currentNode.children.filter((n) => n.name.toLowerCase().includes(needle)) : currentNode.children;
-    visible.forEach((n, i) => {
-      selectItem(n.path, i === 0 ? 'replace' : 'toggle');
-    });
-  }, [tree, currentPath, filterText, selectItem]);
+    // One update, and it says what it means.
+    //
+    // This looped `selectItem(path, i === 0 ? 'replace' : 'toggle')`, which
+    // works only because `replace` clears the set before the toggles run: read
+    // in isolation, "toggle every item" is the opposite of "select all", and it
+    // would become so the moment the first item stopped being `replace`.
+    // `selectAll` is on the selection hook and had no caller.
+    selectAll(visible.map((n) => n.path));
+  }, [tree, currentPath, filterText, selectAll]);
 
   return { handleCutMultiple, handleCopyMultiple, handleSelectAll };
 }
