@@ -268,8 +268,11 @@ function unresolvedNames(printed, source) {
   // without a path, and `any` is not something to write down in a codebase that
   // bans it. Object and function type literals are allowed: they are printable
   // in full, and `tsc` says whether the result is right.
+  // `import(...)` is the compiler saying it cannot name this without a path;
+  // writing that is not something a person would do. `any` is banned outright
+  // in this codebase, so an inferred `any` is a finding for a human, not a
+  // string to write down.
   if (/\bimport\(|typeof import|\bany\b|\berror\b/.test(printed)) return null;
-  if (/^(any)$/.test(printed)) return null;
   if (!ALLOW_LITERAL && (/^["'`]/.test(printed) || /^-?\d/.test(printed) || /^(true|false)$/.test(printed))) return null;
   if (!ALLOW_BOOLEAN && printed === 'boolean') return null;
   const names = printed.match(/[A-Za-z_$][A-Za-z0-9_$]*/g) ?? [];
