@@ -1,4 +1,5 @@
-import { useState, useCallback, type Dispatch, type SetStateAction } from "react";
+import { useState, useCallback } from "react";
+import type { UseOrphanSessionsResult } from './useOrphanSessions-types';
 import { useAttentionGlow } from './use-attention-glow';
 import { readLastLocation } from '@/lib/sessions/last-location';
 import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
@@ -30,21 +31,6 @@ export interface OrphanSessionWithWorkspace extends ActiveSession {
   workspaceName: string;
   storedSessionIndex: number;
   lastAccessed?: number;
-}
-
-export interface UseOrphanSessionsResult {
-  sessions: OrphanSessionWithWorkspace[];
-  disconnectTarget: { session: ActiveSession; workspaceName: string } | null;
-  setDisconnectTarget: Dispatch<SetStateAction<{ session: ActiveSession; workspaceName: string } | null>>;
-  glowingSessionCid: bigint | null;
-  notificationCounts: Map<string, number>;
-  loadingModal: { open: boolean; status: DisconnectStatus; workspaceName: string; errorMessage?: string };
-  loadActiveSessions: () => Promise<void>;
-  handleNavigate: (session: OrphanSessionWithWorkspace) => Promise<void>;
-  handleDisconnect: (session: OrphanSessionWithWorkspace) => void;
-  handleConfirmDisconnect: (action: DisconnectAction) => Promise<void>;
-  handleLoadingComplete: () => void;
-  notificationService: typeof notificationService;
 }
 
 export function useOrphanSessions(): UseOrphanSessionsResult {

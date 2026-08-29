@@ -1,4 +1,5 @@
-import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
+import { useState, useEffect } from "react";
+import type { UseWorkspaceSwitcherResult } from './useWorkspaceSwitcher-types';
 import { mayLeaveEditor } from '@/lib/leave-editor';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
@@ -24,29 +25,6 @@ import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { StoredSessions, StoredSession } from '@/types/session-types';
 
 export type WorkflowStep = "connect" | "security" | "join";
-
-export interface UseWorkspaceSwitcherResult {
-  availableWorkspaces: StoredWorkspace[];
-  currentWorkspace: StoredWorkspace | null;
-  isOpen: boolean;
-  setIsOpen: Dispatch<SetStateAction<boolean>>;
-  isAddingWorkspace: boolean;
-  setIsAddingWorkspace: Dispatch<SetStateAction<boolean>>;
-  currentStep: WorkflowStep;
-  workspaceLogo: string | null;
-  isInitials: boolean;
-  isSwitching: boolean;
-  targetWorkspaceForNewAccount: { workspaceName: string; serverAddress: string } | null;
-  setTargetWorkspaceForNewAccount: Dispatch<SetStateAction<{ workspaceName: string; serverAddress: string } | null>>;
-  serverAddress: string;
-  serverPassword: string;
-  handleWorkspaceChange: (workspace: StoredWorkspace) => Promise<void>;
-  handleAddWorkspace: () => void;
-  handleAddAccountToWorkspace: (wsName: string, serverAddress: string) => void;
-  handleManageAccounts: () => void;
-  handleNext: (address?: string, password?: string) => void;
-  handleBack: () => void;
-}
 
 export function useWorkspaceSwitcher(workspaceName?: string): UseWorkspaceSwitcherResult {
   const [availableWorkspaces, setAvailableWorkspaces] = useState<StoredWorkspace[]>([]);
