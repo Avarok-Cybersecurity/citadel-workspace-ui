@@ -142,3 +142,44 @@ describe('what a control says when the answer never came', () => {
     expect(result.current.reason).toBe('not allowed');
   });
 });
+
+describe('"we never got an answer" as a value, not a sentence', () => {
+  it('is false while the answer might still arrive, and true once it will not', async (): Promise<void> => {
+    // The first consumer of this distinction read it out of the reason string
+    // with `startsWith`. A component matching on a sentence it does not own is
+    // a check that goes quietly false the day the sentence is reworded — and
+    // the surface it guards goes back to telling a workspace owner that an
+    // admin set their theme.
+    const { result, rerender } = renderHook(() =>
+      usePermission('office-unanswered', Permission.EditMdx),
+    );
+
+    expect(result.current.unanswered).toBe(false);
+
+    await waitFor((): void => { expect(state.fetches).toBeGreaterThanOrEqual(4); }, {
+      timeout: 10_000,
+    });
+    await waitFor((): void => {
+      rerender();
+      expect(result.current.unanswered).toBe(true);
+    }, { timeout: 5_000 });
+
+    // And the reason still says it, for the human reading a tooltip.
+    expect(result.current.reason).toMatch(/could not be checked/i);
+  }, 30_000);
+
+  it('is false for a domain that answered', async (): Promise<void> => {
+    // The negative control: without it, `unanswered` could be a constant true
+    // once any budget anywhere had been spent.
+    state.succeedFrom = 1;
+    const { result, rerender } = renderHook(() =>
+      usePermission('office-answers', Permission.EditMdx),
+    );
+
+    await waitFor((): void => {
+      rerender();
+      expect(result.current.allowed).toBe(true);
+    }, { timeout: 5_000 });
+    expect(result.current.unanswered).toBe(false);
+  }, 15_000);
+});

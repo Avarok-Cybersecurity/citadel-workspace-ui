@@ -67,11 +67,7 @@ export function WorkspaceAppearanceSection(): JSX.Element {
   // "Not an admin" and "we never got an answer" are different sentences, and
   // only the second one is a fault worth reporting. `usePermission` already
   // tells them apart; this is the first gate to say so out loud.
-  const unchecked: boolean =
-    !canEdit &&
-    !root.loading &&
-    !own.loading &&
-    (root.reason?.startsWith('Your permissions here could not be checked') ?? false);
+  const unchecked: boolean = !canEdit && !root.loading && !own.loading && root.unanswered;
 
   // "Why is this greyed out?" is a real support question, and the answer lives
   // in state nobody can see. Logging the inputs to the decision makes it

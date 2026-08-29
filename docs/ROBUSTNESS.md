@@ -16388,3 +16388,28 @@ and it is worth writing down that doing so **after** committing still found
 three, so the grep is not optional even when the first fix looks complete.
 
 Preflight: **48 checks**.
+
+## Round 333 — a distinction reconstructed from a sentence
+
+Round 329 gave `WorkspaceAppearanceSection` the ability to tell "you are not an
+admin" from "we never got an answer". It got it like this:
+
+```ts
+root.reason?.startsWith('Your permissions here could not be checked')
+```
+
+A component matching on a sentence it does not own. Reword the message in
+`use-permission.ts` — a thing anybody might do, for tone, for length, for
+translation — and that check goes quietly false forever, and the surface it
+guards goes back to telling a workspace owner that an admin set their theme.
+Nothing fails; the copy is simply wrong again.
+
+`usePermission` already computes the distinction internally as `gaveUp`. It is
+now `unanswered` on the result, and the component reads a boolean.
+
+Tested both ways: false while the answer might still arrive, true once the
+budget is spent, and false for a domain that answered — the last being the
+negative control, without which `unanswered` could be a constant. Pinning it to
+`false` fails the first test and leaves the other six green.
+
+Preflight: 48 checks.
