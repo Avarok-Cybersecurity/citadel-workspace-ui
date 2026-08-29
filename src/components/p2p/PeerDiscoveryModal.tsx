@@ -79,6 +79,18 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary-accent" />
               </div>
+            ) : peers === null ? (
+              /* Discovery has not succeeded, which is NOT "there is nobody
+                 here". It left `peers` empty and this rendered the sentence
+                 below -- a confident claim about the workspace, on the strength
+                 of a query that did not answer. The failure toast beside it is
+                 transient; this is what stays on screen once it fades, and the
+                 two said different things. */
+              <EmptyState
+                icon={Users}
+                title="Could not load the people in this workspace"
+                description="Nobody has been ruled out — the list simply has not arrived. Use Refresh to try again."
+              />
             ) : peers.length === 0 ? (
               /* The second line here used to read "Open another tab and connect
                  as a different user to test P2P" -- developer instructions,
@@ -90,7 +102,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
               />
             ) : (
               <div className="space-y-2">
-                {peers.map((peer) => (
+                {(peers ?? []).map((peer) => (
                   <PeerListItem
                     key={peer.cid}
                     peer={peer}
@@ -106,7 +118,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
             )}
           </ScrollArea>
 
-          {peers.length > 0 && (
+          {(peers?.length ?? 0) > 0 && (
             <div className="mt-4 p-3 bg-surface rounded-lg">
               <p className="text-xs text-muted-foreground">
                 <strong>Tip:</strong> Click "Connect" to establish a P2P connection with a peer.

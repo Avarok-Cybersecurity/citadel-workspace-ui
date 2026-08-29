@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { reachablePeer } from './reachable-peer';
 import { DirectoryTabContent } from './DirectoryTabContent';
 import { describeFailure } from '@/lib/failure-message';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -127,16 +128,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
         throw new Error('Not connected to a workspace.');
       }
 
-      // A member is identified by USERNAME; registration needs a CID. Only the
-      // peer list carries both, so a member who has never appeared there cannot
-      // be reached from here — and saying so is better than sending nothing and
-      // reporting success.
-      const peer: Peer | undefined = discoveredPeers.find((candidate): boolean => candidate.username === selectedUser.id);
-      if (!peer) {
-        throw new Error(
-          `${selectedUser.displayName} is not reachable yet. They need to be online at least once before a request can be sent.`,
-        );
-      }
+      const peer: Peer = reachablePeer(discoveredPeers, selectedUser);
 
       await sendPeerRegistration(BigInt(ownCid), BigInt(peer.cid), selectedUser.id);
 

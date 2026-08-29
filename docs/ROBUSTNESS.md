@@ -17090,3 +17090,56 @@ The window did not fix it and was never going to: it makes the queue behind a
 stuck head irrelevant, and this head is genuinely stuck.
 
 46 ILM tests green.
+
+## Round 349 — "No other users in this workspace yet", said because a query failed
+
+A new sweep, from the codebase's own warning in `use-auto-claim-session`:
+
+> used to fail into `debugLog` and nothing else — and debugLog is compiled out
+> of production
+
+`debugLog` is gated on `import.meta.env.DEV`. `errorLog` and `warnLog` are not.
+So a catch block whose only record is a `debugLog` leaves **no trace at all**
+for a real user. There are 94 of them, against 290 catch blocks in total.
+
+Most are legitimately best-effort and several say so — a remembered tree
+branch, a video-quality preference, a broadcast that missed. Counting them as
+defects would be the same mistake as a gate that cries wolf.
+
+The consequential ones are rounds 345–347's mechanism one layer out: **a failed
+load rendered as an empty result.** The worst is the one a user acts on.
+
+`PeerDiscoveryModal`, when discovery fails, shows:
+
+> **No other users in this workspace yet**
+> People who join this workspace appear here…
+
+on the one screen whose purpose is finding somebody to talk to. There IS a
+failure toast beside it — and a toast is transient, so what remains once it
+fades is a sentence that contradicts it. `peers` is `null` until discovery
+succeeds now, and `null` renders "Could not load the people in this workspace —
+nobody has been ruled out."
+
+The type change found a consumer I did not know about. `UserDirectory` searches
+the same list to turn a member into a CID, and told anybody it could not find
+that their colleague *"needs to be online at least once before a request can be
+sent"* — sending them to wait for something that had probably already happened.
+Extracted as `reachablePeer`, which now has three answers rather than two.
+
+**My own positive control failed**, on my assertion rather than the code: I
+wrote `/needs to be online/i` and the message says "They **need** to be online".
+Worth the ten seconds — an assertion that never matches is a test that cannot
+fail.
+
+The extraction took `UserDirectory` from 252 lines to 244, and the length gate
+then **failed the build because its exemption had become stale**. That is the
+ratchet doing exactly what it is for: an exemption is a ceiling, and one you no
+longer need has to be given back.
+
+### Still on the list
+
+Failed loads that still render as empty results, for a later pass:
+`use-domain-members`, `UserSearch`, `use-registered-peers`, `useGroupChat`
+(pagination), `useP2PMessages` (pagination), `use-loaded-permissions`.
+
+2380 tests green; preflight 53/53.
