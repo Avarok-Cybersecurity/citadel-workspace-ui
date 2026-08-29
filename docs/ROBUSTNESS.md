@@ -17644,7 +17644,12 @@ masked whenever all three unmounted together, and only these two remounting on
 their own let it grow. Somebody else clearing the room is not the same as owning
 your unsubscribe.
 
-Both now collect their unsubscribes and return them, with a `cancelled` guard so
+There were three. `useNodeEventSetup` has eight subscriptions and the same
+missing cleanup, and the first pass fixed two of the three -- a correct fix
+applied in one place, which is this repository's most productive defect class,
+committed here by the person who had just written the paragraph about it.
+
+All three now collect their unsubscribes and return them, with a `cancelled` guard so
 an unmount that beats the async setup still tears down what arrives afterwards.
 
 **The first version of the test measured nothing.** It counted listeners by
@@ -17658,4 +17663,14 @@ With the real counter, removing the cleanup fails both tests. Each has its
 positive control inside it: `mounted > 0` and `oneMount > 0`, because a hook
 that never subscribed would satisfy "nothing left behind" trivially.
 
-2415 tests green.
+The test runs over a table of the three hooks, and a new gate
+(`check-event-setups-are-covered.mjs`) requires every `use*EventSetup` file to
+appear in that table, so a fourth sibling cannot be written without its
+unsubscribe being proven. `useMessageEventSetup` is listed as exempt with its
+reason, not silently skipped. Both gate controls fail: dropping a hook from the
+table, and adding an uncovered sibling.
+
+Removing any one hook's cleanup fails exactly that hook's two tests and no
+others.
+
+2419 tests green.

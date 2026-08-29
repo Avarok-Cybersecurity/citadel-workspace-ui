@@ -22,9 +22,19 @@ function flattenTree(treeNode: TreeNode): DomainNode[] {
 
 export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
   useEffect(() => {
+    // onNodeEvent returns its unsubscribe synchronously; the setup that calls it
+    // is async, so an unmount can beat the subscription. `cancelled` tears down
+    // whatever arrives after that. See useMemberEventSetup for the same shape.
+    const unsubscribes: Array<() => void> = [];
+    let cancelled: boolean = false;
+    const keep = (unsubscribe: () => void): void => {
+      if (cancelled) unsubscribe();
+      else unsubscribes.push(unsubscribe);
+    };
+
     const setupNodeListeners = async (): Promise<void> => {
       // Loading state
-      await workspaceEvents.onNodeEvent('nodes:loading', (_connectionInfo: ConnectionInfo) => {
+      keep(workspaceEvents.onNodeEvent('nodes:loading', (_connectionInfo: ConnectionInfo) => {
         setState(prev => ({
           ...prev,
           loading: { ...prev.loading, nodes: true },
@@ -35,10 +45,10 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
         armLoadingDeadline('nodes', () =>
           setState(prev => ({ ...prev, loading: { ...prev.loading, nodes: false } }))
         );
-      });
+      }));
 
       // Multiple nodes loaded
-      await workspaceEvents.onNodeEvent('nodes:loaded', (payload: { nodes: DomainNode[]; connection: ConnectionInfo }) => {
+      keep(workspaceEvents.onNodeEvent('nodes:loaded', (payload: { nodes: DomainNode[]; connection: ConnectionInfo }) => {
         cancelLoadingDeadline('nodes');
         setState(prev => {
           const updatedNodes: { [x: string]: DomainNode; } = { ...prev.nodes };
@@ -57,28 +67,28 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
             loading: { ...prev.loading, nodes: false },
           };
         });
-      });
+      }));
 
       // Single node loaded (create/get/update)
-      await workspaceEvents.onNodeEvent('node:loaded', (payload: { node: DomainNode; connection: ConnectionInfo }) => {
+      keep(workspaceEvents.onNodeEvent('node:loaded', (payload: { node: DomainNode; connection: ConnectionInfo }) => {
         // Through the helper rather than inline. `upsertNode` and `removeNode`
         // existed in event-setup-utils with no callers, while this file spelled
         // both bodies out again -- so the shared helpers and the code that
         // actually runs were separate implementations of the same rule, and a
         // fix to either would have reached one of them.
         upsertNode(setState, payload.node);
-      });
+      }));
 
       // Node deleted (with cascaded children)
-      await workspaceEvents.onNodeEvent('node:deleted', (payload: { nodeId: string; childrenDeleted: string[]; connection: ConnectionInfo }) => {
+      keep(workspaceEvents.onNodeEvent('node:deleted', (payload: { nodeId: string; childrenDeleted: string[]; connection: ConnectionInfo }) => {
         removeNode(setState, payload.nodeId, payload.childrenDeleted);
-      });
+      }));
 
       // Someone ELSE saved this node's content. The server broadcasts to every
       // member except the editor, so without this the rest of the workspace kept
       // rendering the copy they loaded — a document could be edited and nobody
       // watching it would see the change until they navigated away and back.
-      await workspaceEvents.onNodeEvent('node:content-updated', (payload: { nodeId: string; mdxContent: string; mdxContentHash?: string; updatedBy: string; timestamp: number; connection: ConnectionInfo }) => {
+      keep(workspaceEvents.onNodeEvent('node:content-updated', (payload: { nodeId: string; mdxContent: string; mdxContentHash?: string; updatedBy: string; timestamp: number; connection: ConnectionInfo }) => {
         setState(prev => {
           const node: DomainNode = prev.nodes[payload.nodeId];
           // Not a node this client knows about; nothing to refresh.
@@ -101,10 +111,10 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
             },
           };
         });
-      });
+      }));
 
       // Node moved (reparented)
-      await workspaceEvents.onNodeEvent('node:moved', (payload: { nodeId: string; oldParentId: string | null; newParentId: string | null; connection: ConnectionInfo }) => {
+      keep(workspaceEvents.onNodeEvent('node:moved', (payload: { nodeId: string; oldParentId: string | null; newParentId: string | null; connection: ConnectionInfo }) => {
         setState(prev => {
           const node: DomainNode = prev.nodes[payload.nodeId];
           if (!node) return prev;
@@ -116,10 +126,10 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
             },
           };
         });
-      });
+      }));
 
       // Full tree structure loaded — flatten into the nodes map
-      await workspaceEvents.onNodeEvent('tree:structure:loaded', (payload: { root: TreeNode; connection: ConnectionInfo }) => {
+      keep(workspaceEvents.onNodeEvent('tree:structure:loaded', (payload: { root: TreeNode; connection: ConnectionInfo }) => {
         const flatNodes: DomainNode[] = flattenTree(payload.root);
         setState(prev => {
           const updatedNodes: Record<string, DomainNode> = {};
@@ -132,18 +142,24 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
             loading: { ...prev.loading, nodes: false },
           };
         });
-      });
+      }));
 
       // Tree schema loaded — feed to entity-type-registry (SSOT) and state
-      await workspaceEvents.onNodeEvent('tree:schema:loaded', (payload: { schema: TreeSchema; connection: ConnectionInfo }) => {
+      keep(workspaceEvents.onNodeEvent('tree:schema:loaded', (payload: { schema: TreeSchema; connection: ConnectionInfo }) => {
         setTreeSchema(payload.schema);
         setState(prev => ({
           ...prev,
           treeSchema: payload.schema,
         }));
-      });
+      }));
     };
 
     runAsyncSetup(setupNodeListeners);
+
+    return (): void => {
+      cancelled = true;
+      for (const unsubscribe of unsubscribes) unsubscribe();
+      unsubscribes.length = 0;
+    };
   }, [setState]);
 }
