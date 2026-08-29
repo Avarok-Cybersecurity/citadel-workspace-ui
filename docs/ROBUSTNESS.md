@@ -16673,3 +16673,44 @@ Negative-controlled both ways: removing a budget names the job; setting it to
 360 names it too.
 
 Preflight: **52 checks**.
+
+## Round 341 — a probe that manufactured fourteen defects
+
+Two properties no gate covers: does every keyboard-reachable control show a
+focus indicator, and is that indicator visible against what is behind it? The
+second is the one that matters — round 297 found a selected-row border
+measuring 1:1, so "the style is applied" and "the user can see it" are known to
+come apart here.
+
+Both are clean. Across seven backend-free screens, **39 controls, 39
+indicators, all at or above WCAG 2.2 SC 1.4.11's 3:1.**
+
+Getting there took two attempts, and the first one is the point of this entry.
+It reported **14 failures, most at exactly 1:1** — `rgb(27,28,39)` on
+`rgb(27,28,39)`, an invisible ring on four screens. Convincing, specific, and
+entirely an artifact of the probe.
+
+Tailwind's ring-with-offset is two shadows:
+
+```
+0 0 0 2px var(--tw-ring-offset-color),   ← the background, by design
+0 0 0 4px var(--tw-ring-color)            ← the actual ring
+```
+
+The probe took the **first** `rgba(...)` in the `box-shadow` string. It was
+measuring the offset against the surface it is deliberately painted to match,
+and reporting the gap as the indicator.
+
+What caught it was reading `--ring: 251 85% 75%` in `index.css` — a light
+purple — and noticing that a measurement of `rgb(27,28,39)` could not be true
+of it. Not a control, not a test: a sanity check against a value known
+independently.
+
+So the rule that already applies to assertions applies to measurements:
+**a new probe needs its own control before its output is worth anything.** A
+probe that reports zero and a probe that reports fourteen are equally
+untrustworthy until something independent agrees with one of them. The cost of
+getting this wrong is not a missed defect; it is fourteen fabricated ones and a
+"fix" to a stylesheet that was correct.
+
+Recorded so nobody re-runs this probe expecting a finding.
