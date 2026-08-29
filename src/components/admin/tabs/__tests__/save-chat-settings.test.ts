@@ -1,7 +1,11 @@
 import { describe, it, expect, vi  } from 'vitest';
 import { saveChatSettings, MAX_CHAT_RULES_LENGTH , type ChatSettingsNotice } from '../save-chat-settings';
 
-function deps(overrides: Partial<Parameters<typeof saveChatSettings>[0]> = {}) {
+function deps(overrides: Partial<Parameters<typeof saveChatSettings>[0]> = {}): {
+  notices: ChatSettingsNotice[];
+  write: ReturnType<typeof vi.fn>;
+  args: Parameters<typeof saveChatSettings>[0];
+} {
   const notices: ChatSettingsNotice[] = [];
   const write: ReturnType<typeof vi.fn> = vi.fn((): Promise<void> => Promise.resolve());
   return {

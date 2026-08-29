@@ -62,6 +62,18 @@
  * `VariantProps<typeof x>` reads the annotation rather than the config and a
  * config change stops matching in silence — the exact drift this gate exists
  * to catch, pointed the other way.
+ *
+ * Two test-double forms are exempt on the same grounds, and only these two:
+ *
+ *   - `vi.fn<Sig>(…)` — the signature is stated, in the type argument.
+ *   - `vi.spyOn(obj, 'method')` — the type is derived from the real method.
+ *     Annotating it DECOUPLES the double from what it doubles: the mock keeps
+ *     compiling after the real signature changes, which is the drift this gate
+ *     exists to catch.
+ *
+ * A bare `vi.fn()` is NOT exempt. It carries no signature at all, so an
+ * annotation is the only thing that can say what the double stands for — the
+ * case where it is worth the most.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -128,7 +140,9 @@ for (const result of results) {
   const findings = result.messages.filter((message) => {
     if (!(message.ruleId in RULES)) return false;
     if (message.ruleId !== '@typescript-eslint/typedef') return true;
-    if (/=\s*cva\(/.test(source[message.line - 1] ?? '')) return false;
+    const declaration = source[message.line - 1] ?? '';
+    if (/=\s*cva\(/.test(declaration)) return false;
+    if (/\bvi\.fn</.test(declaration) || /\bvi\.spyOn\(/.test(declaration)) return false;
     return !isConstAssertion(source, message.line);
   }).length;
   if (findings > 0) counts[relative(APP, result.filePath)] = findings;

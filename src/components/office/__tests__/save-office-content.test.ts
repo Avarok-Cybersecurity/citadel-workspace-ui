@@ -5,7 +5,7 @@ import { saveOfficeContent } from '../save-office-content';
  * Guards the two defects this logic used to have. Both were about telling the
  * user something untrue, which is worse than failing visibly.
  */
-function deps(overrides: Partial<Parameters<typeof saveOfficeContent>[0]> = {}) {
+function deps(overrides: Partial<Parameters<typeof saveOfficeContent>[0]> = {}): Parameters<typeof saveOfficeContent>[0] {
   return {
     nodeId: 'node-1',
     content: '# hello',

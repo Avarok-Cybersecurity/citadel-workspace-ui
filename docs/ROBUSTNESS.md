@@ -16178,3 +16178,24 @@ Negative control: adding `onRenamedAwayProp: vi.fn()` to the `MemberListItem`
 fixture is now TS2353. Without the annotation it compiled.
 
 Also: ten `render` helpers now return `RenderResult`. Debt 75 → 60.
+
+## Round 327 — test doubles: exempt the ones that state a signature, not the ones that don't
+
+Fourteen remaining findings were `vi.fn` / `vi.spyOn` / `vi.hoisted` bindings.
+The tempting move is to exempt all of them. That would be wrong in exactly the
+cases where the annotation is worth the most, so the rule splits them:
+
+| form | ruling | why |
+|---|---|---|
+| `vi.fn<Sig>(…)` | exempt | the signature is stated, in the type argument |
+| `vi.spyOn(obj, 'method')` | exempt | the type is derived from the real method; annotating **decouples** the double, so it keeps compiling after the real signature changes |
+| `vi.fn()` | **counted** | carries no signature at all — an annotation is the only thing that can say what the double stands for |
+
+Negative-controlled on the same line of the same file: a bare `vi.fn()` is
+counted, `vi.fn<() => void>()` is exempt.
+
+Also: two `deps()` fixture builders now return the production function's own
+parameter type (`Parameters<typeof saveOfficeContent>[0]`), which is what
+caught the `duration` field in round 326. Neither had drifted.
+
+Debt 60 → 52.
