@@ -21,6 +21,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type React from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
+import { permissionsService } from '@/lib/permissions-service';
 import { usePermissions, Permission } from '@/contexts/PermissionsContext';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { nextRetryDelayMs } from './permission-retry';
@@ -208,7 +209,7 @@ export function usePermission(
   const reason: string | null = allowed
     ? null
     : gaveUp
-      ? 'Your permissions here could not be checked — the request went unanswered. Reload to try again.'
+      ? `Your permissions here could not be checked: ${permissionsService.getLastFailure(domainId) ?? 'the request went unanswered'}. Reload to try again.`
       : getDeniedReason(domainId, permission);
 
   return {

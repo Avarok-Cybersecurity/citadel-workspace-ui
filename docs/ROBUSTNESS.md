@@ -15620,3 +15620,42 @@ order can be read in one place and tested without a service.
 The hook is 248 lines, under the cap, and its exemption is gone — the ratchet
 reported that itself rather than letting a stale entry sit there shielding a
 future violation.
+
+## Round 311 — three failures, one silence
+
+The run carrying round 300's fix printed round 298's sentence in the DOM:
+
+```
+<button disabled title="Your permissions here could not be checked —
+        the request went unanswered. Reload to try again.">Edit</button>
+```
+
+So the partial write that erased the identity was real and is fixed, and it was
+not the whole cause. The fetch still does not land.
+
+Four rounds have now narrowed this by adding one more sentence at a time to a
+disabled button's title — 289 put the reason in the DOM at all, 294 found that
+the CID was printing as `undefined` because Playwright renders bigints that way,
+298 separated "unanswered" from "denied", 300 fixed the assign-over-merge. Each
+was worth doing on its own. But the reason it took four is that
+`fetchPermissions` collapses three quite different failures into one silence:
+
+| what happened | what the caller saw |
+|---|---|
+| nobody is signed in on this tab | `null` |
+| the request went out, no answer came | a rejection |
+| the request threw on the way | a rejection |
+
+The service knows which branch it took at the moment it takes it, and now
+records it — with the user id it asked as, because a permissions answer that
+never arrives and one that arrives for somebody else are the same silence and
+only the id tells them apart. The disabled control says the specific thing now,
+so the next run does not need a fifth round to say which.
+
+**`current-user.ts`** came out of the same file while doing it: two sources for
+"who is this", not interchangeable — one synchronous, because the event
+listeners compare against it when a response arrives and an async lookup there
+would make the answer depend on listener order; one IndexedDB-backed and
+therefore async, and authoritative. That question is what every round of this
+archaeology kept returning to, and it now reads on its own. `service.ts` is 241
+lines, back under the cap it had just crossed.

@@ -6,17 +6,15 @@
  */
 
 import { awaitPermissionsLoaded } from './await-permissions-loaded';
+import { currentUserIdSync, resolveCurrentUserId as resolveUserId } from './current-user';
 import { isAdminRole, isOwnerRole, isPrivilegedRole } from '@/lib/role-predicate';
 import WorkspaceService from '@/lib/workspace-service';
-import { connectionManager } from '@/lib/connection';
 import { EventListenerManager } from '@/lib/utils/event-listener-manager';
 import { debugLog } from '@/lib/debug-config';
 import { INTERVAL } from '@/lib/timeout-constants';
 
 import { Permission, PERMISSION_LABELS } from './types';
 import type { UserRole, DomainPermissions } from './types';
-import type { CurrentConnectionInfo } from '@/lib/connection/types';
-import type { StoredSession } from '@/types/session-types';
 import {
   updateCacheEntry,
   hasPermission as cacheHasPermission,
@@ -31,6 +29,14 @@ export class PermissionsService extends EventListenerManager {
   private static instance: PermissionsService;
   private cache: Map<string, DomainPermissions> = new Map();
   private pendingRequests: Map<string, Promise<DomainPermissions>> = new Map();
+  /**
+   * Why the last fetch for a domain did not produce permissions.
+   *
+   * Nobody signed in, no answer, and a throw on the way are three different
+   * things that reached the caller as one silence. The service knows which
+   * branch it took at the moment it takes it.
+   */
+  private lastFailure: Map<string, string> = new Map();
   private initialized: boolean = false;
 
   private constructor() {
@@ -117,37 +123,10 @@ export class PermissionsService extends EventListenerManager {
     this.initialized = true;
   }
 
-  private getCurrentUserId(): string | null {
-    const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
-    return connectionInfo?.username || null;
-  }
-
-  /**
-   * The current user, resolved from whichever source actually knows.
-   *
-   * `currentConnectionInfo.username` is empty for a user who logged IN rather
-   * than registering, so the synchronous lookup above returns null and every
-   * fetch below bailed with "No current user, cannot fetch permissions". The
-   * cache then stayed empty, and because a permission check against an unloaded
-   * domain returns false, EVERY gate in the app denied — a workspace's own admin
-   * saw the same UI as a stranger, with nothing logged above debug level.
-   *
-   * The tab-selected session is the authoritative record of who is signed in
-   * here; it is async (IndexedDB-backed), which is why this is separate from the
-   * synchronous accessor the event listeners use for their equality checks.
-   */
-  /** Whether `userId` is the signed-in user, resolved from whichever source knows. */
-  private async isCurrentUser(userId: string): Promise<boolean> {
-    return userId === (await this.resolveCurrentUserId());
-  }
-
-  private async resolveCurrentUserId(): Promise<string | null> {
-    const fromConnection: string | null = this.getCurrentUserId();
-    if (fromConnection) return fromConnection;
-
-    const session: StoredSession | null = await connectionManager.getTabSelectedSession();
-    return session?.username ?? null;
-  }
+  /** See current-user; both are thin so the event listeners read the same way. */
+  private getCurrentUserId(): string | null { return currentUserIdSync(); }
+  private async isCurrentUser(userId: string): Promise<boolean> { return userId === (await resolveUserId()); }
+  private async resolveCurrentUserId(): Promise<string | null> { return resolveUserId(); }
 
   /**
    * Fetch permissions for a specific domain.
@@ -166,6 +145,7 @@ export class PermissionsService extends EventListenerManager {
     const userId: string | null = await this.resolveCurrentUserId();
     if (!userId) {
       debugLog('PermissionsService', 'No current user, cannot fetch permissions');
+      this.lastFailure.set(domainId, 'nobody is signed in on this tab');
       return null;
     }
 
@@ -173,7 +153,18 @@ export class PermissionsService extends EventListenerManager {
       try {
         await WorkspaceService.getUserPermissions(userId, domainId);
 
-        return awaitPermissionsLoaded(domainId, () => this.cache.get(domainId));
+        const loaded: DomainPermissions = await awaitPermissionsLoaded(domainId, () =>
+          this.cache.get(domainId),
+        );
+        this.lastFailure.delete(domainId);
+        return loaded;
+      } catch (error: unknown) {
+        // The message, and who it was asked for. A permissions answer that
+        // never arrives and one that arrives for somebody else are the same
+        // silence here, and only the user id tells them apart.
+        const reason: string = error instanceof Error ? error.message : 'the request failed';
+        this.lastFailure.set(domainId, `${reason} (asked as ${userId})`);
+        throw error;
       } finally {
         this.pendingRequests.delete(domainId);
       }
@@ -181,6 +172,11 @@ export class PermissionsService extends EventListenerManager {
 
     this.pendingRequests.set(domainId, requestPromise);
     return requestPromise;
+  }
+
+  /** Why the last fetch for this domain produced nothing, if it produced nothing. */
+  public getLastFailure(domainId: string): string | null {
+    return this.lastFailure.get(domainId) ?? null;
   }
 
   // ─── Permission Checks (delegated to cache module) ───────────────
