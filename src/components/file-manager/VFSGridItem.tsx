@@ -5,7 +5,7 @@ import type { SelectMode } from "@/hooks/useVFSSelection";
 import { VFSContextMenu } from "./VFSContextMenu";
 import { VFSRenameInput } from "./VFSRenameInput";
 import { cn } from "@/lib/utils";
-import { getFileIcon, formatSize, stateConfig } from "./vfs-content-helpers";
+import { getFileIcon, formatSize, stateConfig, type FileIcon, type FileStateStyle } from "./vfs-content-helpers";
 import { activateOnKey } from '@/lib/a11y';
 
 export interface GridItemProps {
@@ -57,7 +57,7 @@ export function GridItem({
   const isRoot: boolean = node.path === '/';
   const canModify: boolean = !isProtected && !isRoot;
 
-  const Icon = isDir
+  const Icon: FileIcon = isDir
     ? (isProtected ? FolderLock : Folder)
     : getFileIcon(node.name);
 
@@ -137,7 +137,12 @@ export function GridItem({
     }
   };
 
-  const state = node.fileState ? stateConfig[node.fileState] : null;
+  const state: FileStateStyle | null = node.fileState ? stateConfig[node.fileState] : null;
+  // NOT annotated. `StateIcon` is checked as the guard for rendering the badge,
+  // and since TS 4.4 an unannotated `const` holding that check narrows `state`
+  // along with it -- so `state.title` and `state.color` below are reachable
+  // only while this stays bare. Annotating it breaks the alias and takes the
+  // two of them with it.
   const StateIcon = state?.icon;
 
   return (

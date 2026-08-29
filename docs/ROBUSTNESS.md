@@ -15495,3 +15495,45 @@ keeping the list at all: a debt marker that means "known and reasoned about"
 is a different object from one that means "not yet read".
 
 > A component that gives up owes the news to whoever is still waiting on it.
+
+## Round 308 — 179 → 168, and a second variable that cannot be annotated
+
+`typeof Monitor` — naming one arbitrary lucide icon to mean "any icon" — was
+being spelled in three files, twice inside a `Record` and once as a bare
+declaration. It is `FileIcon` now, exported from the helper the three of them
+already share, along with `FileStateStyle` for the `{ icon, color, title }`
+record that two of them were writing out.
+
+**And a second `const` that has to stay bare.** Round 304 found `isEditing`;
+this round found `StateIcon`:
+
+```tsx
+const StateIcon = state?.icon;
+…
+{StateIcon && <span title={state.title} className={state.color}>…</span>}
+```
+
+`StateIcon` is the guard for rendering the badge, and since TS 4.4 an
+unannotated `const` holding that check narrows `state` along with it. Annotating
+it `FileIcon | undefined` breaks the alias, and `state.title` and `state.color`
+stop compiling — which is how it was found, immediately, by the compiler.
+
+Two of these in five rounds is a pattern rather than a curiosity: the sites that
+resist annotation are the ones where a `const` is doing double duty as a value
+and as a proof. Both now say so in place, so the next person reading them sees a
+decision rather than an omission.
+
+**Also this round, two hypotheses killed before acting on either.** The gate's
+`RECORDED_DEAD` list names `member:permissions-updated` as having no producer,
+which looked like a permission change never reaching the affected user. It does:
+the server broadcasts `MemberRoleUpdated` for a permissions change too — under a
+comment saying it reuses the role-shaped notification because *"what the client
+needs is 'your permissions moved, drop your cache'"* — and the permissions
+service listens for it, clears the cache and emits `permissions:role-changed`.
+The chain is complete. The dead listener is genuinely redundant, and the marker
+was already right.
+
+| | |
+|---|---|
+| Typing debt | 179 → **168** |
+| Sites that cannot be annotated | 2, both documented in place |

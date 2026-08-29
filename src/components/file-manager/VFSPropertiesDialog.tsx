@@ -30,7 +30,10 @@ interface VFSPropertiesDialogProps {
   onClose: () => void;
 }
 
-function getFileIcon(fileName: string) {
+/** The lucide icon component a file gets from its extension. */
+type FileIcon = typeof Monitor;
+
+function getFileIcon(fileName: string): FileIcon {
   const ext: string = fileName.split('.').pop()?.toLowerCase() ?? '';
   const imageExts: string[] = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'];
   const codeExts: string[] = ['ts', 'tsx', 'js', 'jsx', 'py', 'rs', 'go', 'java', 'c', 'cpp', 'h', 'css', 'html', 'json', 'yaml', 'yml', 'toml'];
@@ -63,7 +66,12 @@ function countItems(node: RevfsNode): { files: number; folders: number } {
   return { files, folders };
 }
 
-const stateLabels: Record<RevfsFileState, { label: string; icon: typeof Monitor }> = {
+interface StateLabel {
+  label: string;
+  icon: FileIcon;
+}
+
+const stateLabels: Record<RevfsFileState, StateLabel> = {
   [RevfsFileState.Hosted]: { label: 'Hosted (stored for peer)', icon: Monitor },
   [RevfsFileState.Remote]: { label: 'Remote (downloadable)', icon: Cloud },
   [RevfsFileState.Sent]: { label: 'Sent', icon: Upload },
@@ -79,10 +87,10 @@ export function VFSPropertiesDialog({
   if (!node) return null;
 
   const isDir: boolean = node.type === 'directory';
-  const Icon = isDir ? Folder : getFileIcon(node.name);
+  const Icon: FileIcon = isDir ? Folder : getFileIcon(node.name);
   const meta: RevfsFileMetadata | undefined = node.fileMetadata;
-  const state: { label: string; icon: typeof Monitor; } | null = node.fileState ? stateLabels[node.fileState] : null;
-  const StateIcon = state?.icon;
+  const state: StateLabel | null = node.fileState ? stateLabels[node.fileState] : null;
+  const StateIcon: FileIcon | undefined = state?.icon;
   const itemCounts: { files: number; folders: number; } | null = isDir ? countItems(node) : null;
 
   return (

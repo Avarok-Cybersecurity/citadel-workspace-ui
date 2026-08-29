@@ -25,7 +25,7 @@ export class WebSocketServiceCore {
   private readonly modules: ServiceModules;
 
   // Exposed for initialization.ts
-  get initOps() { return this.modules.initOps; }
+  get initOps(): ServiceModules['initOps'] { return this.modules.initOps; }
 
   constructor(config: WebSocketServiceConfig = {}) {
     // Resolves to a same-origin `/ws` path; resolve-url.ts owns that policy and explains it.

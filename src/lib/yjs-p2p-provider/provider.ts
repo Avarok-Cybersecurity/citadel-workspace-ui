@@ -215,7 +215,7 @@ export class YjsP2PProvider {
   setLocalStateField(field: string, value: unknown): void {
     this.awareness.setLocalStateField(field, value);
   }
-  getStates() { return this.awareness.getStates(); }
+  getStates(): ReturnType<Awareness['getStates']> { return this.awareness.getStates(); }
   get isConnected(): boolean { return this.connected && !this.destroyed; }
   get isSynced(): boolean { return this.initialSyncComplete; }
   getSyncState(): SyncState { return this.syncState; }
