@@ -14500,3 +14500,39 @@ And the gate landed in the wrong CI job first — `crate-coverage`, which instal
 nothing — where `check-gates-have-their-dependencies` caught it by name. That
 guard was written in round 246 after the same mistake took twenty-five other
 checks down with it. It has now paid for itself.
+
+## Round 284 — two operations, one snapshot, and a test that first proved nothing
+
+`file-manager` fails with a file that is there and then is not:
+
+```
+File visible: true
+Attempt 1: File visible: false, expected visible: retry...
+Final result: File visible: false, expected visible: FAIL
+```
+
+`handleRevfsOperation` awaits the tree, applies the remote op to what it read,
+and writes that back. **`getTree` is `async` even on the cached path**, so it
+yields — and two operations arriving together both read before either writes.
+The second applies its op to a snapshot taken before the first one's write, and
+`setTree` puts that snapshot back: the first operation is gone from memory,
+persisted over on disk, and repainted, because `setTree` notifies.
+
+Re-reading the tree after the await fixes it. Merging does not: this is the path
+that carries `RemoveFile` and `Rmdir`, and `mergeTrees` is union-only by design,
+so merging would undo every remote deletion. The `SyncResponse` branch above it
+already re-reads — it was the general branch that did not.
+
+### The first test proved nothing, and the control said so
+
+It drove a **local** write during the load. It passed with the fix reverted,
+because `getTree` already re-checks after its own await — that window is
+documented in this very file and is covered. The window that is not covered is
+two concurrent **remote** operations.
+
+Nothing about the first test looked wrong. The only thing that caught it was
+reverting the fix and finding the test still green. *A test you have not seen
+fail is a test you have not written yet* — and the version of that lesson worth
+keeping is that it applies just as much when you are certain of the diagnosis.
+
+Renamed to say what it actually tests.

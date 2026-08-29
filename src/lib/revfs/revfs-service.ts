@@ -180,7 +180,8 @@ export class RevfsService {
     }
 
     if (op.op_type === RevfsOpType.SyncResponse && op.tree) {
-      const currentTree: RevfsNode = await this.getTree(myCid, senderCid);
+      const loaded: RevfsNode = await this.getTree(myCid, senderCid);
+      const currentTree: RevfsNode = this.state.getTree(key) ?? loaded;
       const merged: RevfsNode = mergeTrees(currentTree, applyRemoteOp(currentTree, op, myCid));
       this.state.setTree(key, merged);
       const io: RevfsIO = this.ensureIO();
@@ -188,7 +189,11 @@ export class RevfsService {
       return;
     }
 
-    const tree: RevfsNode = await this.getTree(myCid, senderCid);
+    // Re-read AFTER the await: `getTree` yields even when cached, so two ops
+    // arriving together both read before either writes. See
+    // concurrent-remote-ops-do-not-clobber.test.ts.
+    const loaded: RevfsNode = await this.getTree(myCid, senderCid);
+    const tree: RevfsNode = this.state.getTree(key) ?? loaded;
     const newTree: RevfsNode = applyRemoteOp(tree, op, myCid);
     debugLog('RevfsService', `[revfs] handleRevfsOperation: applied ${op.op_type}, updating tree for key=${key}`);
     this.state.setTree(key, newTree);
