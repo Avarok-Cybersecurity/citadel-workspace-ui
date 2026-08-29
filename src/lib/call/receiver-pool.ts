@@ -76,15 +76,15 @@ export class ReceiverPool {
   /** Route one received frame to the peer it came from. */
   accept(peerCid: bigint, frame: WireFrame): void {
     const receiver: PeerReceiver = this.receiverFor(peerCid);
-    const hadVideo = receiver.getVideoStream() !== null;
-    const hadAudio = receiver.getAudioStream() !== null;
+    const hadVideo: boolean = receiver.getVideoStream() !== null;
+    const hadAudio: boolean = receiver.getAudioStream() !== null;
     receiver.accept(frame);
     this.quality.recordFrame(peerCid, Date.now());
     // Only re-render when a stream actually appears; a notify per frame would
     // re-render the whole call surface sixty times a second. Audio counts too:
     // an audio-only call's first frame is what tells the UI to attach a sink.
-    const videoAppeared = !hadVideo && receiver.getVideoStream() !== null;
-    const audioAppeared = !hadAudio && receiver.getAudioStream() !== null;
+    const videoAppeared: boolean = !hadVideo && receiver.getVideoStream() !== null;
+    const audioAppeared: boolean = !hadAudio && receiver.getAudioStream() !== null;
     if (videoAppeared || audioAppeared) {
       this.callbacks.onStreamsChanged();
     }

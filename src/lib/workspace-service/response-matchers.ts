@@ -25,12 +25,12 @@ function field(payload: unknown, key: string): unknown {
 
 /** `Node(DomainNode)` — the node itself, so its own `id`. */
 export function nodeWithId(nodeId: string) {
-  return (payload: unknown) => field(payload, 'id') === nodeId;
+  return (payload: unknown): boolean => field(payload, 'id') === nodeId;
 }
 
 /** `NodeDeleted` / `NodeMoved` — both name the node they are about. */
 export function aboutNode(nodeId: string) {
-  return (payload: unknown) => field(payload, 'node_id') === nodeId;
+  return (payload: unknown): boolean => field(payload, 'node_id') === nodeId;
 }
 
 /**
@@ -40,7 +40,7 @@ export function aboutNode(nodeId: string) {
  * all resolving the write.
  */
 export function newChildOf(parentId: string | null, name: string) {
-  return (payload: unknown) =>
+  return (payload: unknown): boolean =>
     field(payload, 'name') === name && (field(payload, 'parent_id') ?? null) === parentId;
 }
 
@@ -53,5 +53,5 @@ export function newChildOf(parentId: string | null, name: string) {
  * 15s window would resolve this one.
  */
 export function aboutMember(userId: string) {
-  return (payload: unknown) => field(payload, 'user_id') === userId;
+  return (payload: unknown): boolean => field(payload, 'user_id') === userId;
 }

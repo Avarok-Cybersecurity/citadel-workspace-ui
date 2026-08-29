@@ -5,7 +5,7 @@
  * In production: only error and warn emit; debug/info are no-ops.
  */
 
-const isDev = import.meta.env.DEV;
+const isDev: boolean = import.meta.env.DEV;
 
 /** No-op function for suppressed log levels in production. */
 const noop = (..._args: unknown[]): void => { /* intentionally empty */ };

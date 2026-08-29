@@ -72,7 +72,7 @@ async function doInit(service: WebSocketServiceCore): Promise<void> {
   // boot-leader holding a live socket that dropped every frame it received.
   service.initOps.registerLeadershipListener();
 
-  const isLeader = instanceManager.isLeader;
+  const isLeader: boolean = instanceManager.isLeader;
   debugLog('WebSocketService', `Leader election complete. This tab is ${isLeader ? 'LEADER' : 'FOLLOWER'}`);
 
   if (!isLeader) {

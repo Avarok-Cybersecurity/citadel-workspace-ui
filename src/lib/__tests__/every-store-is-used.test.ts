@@ -46,7 +46,7 @@ describe('every declared IndexedDB store', () => {
   });
 
   it('is read or written somewhere', () => {
-    const unused = STORE_NAMES.filter((name) => {
+    const unused = STORE_NAMES.filter((name): boolean => {
       // Either a direct call — dbPut('tabContext', …) — or a named constant
       // holding the store, which is how group-persistence refers to keyValue.
       const direct: RegExp = new RegExp(`db(Put|Get|Delete)\\(\\s*['"\`]${name}['"\`]`);

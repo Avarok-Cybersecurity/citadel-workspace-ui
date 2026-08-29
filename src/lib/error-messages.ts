@@ -120,7 +120,7 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
     .replace(/Error:\s*/i, '')
     .replace(/^\s+|\s+$/g, '');
 
-  const isProtocolJargon =
+  const isProtocolJargon: boolean =
     /\b(ratchet|handshake|ILM|CID|toolset|packet|codec|serde|deserializ|kem|psk)\b/i.test(
       cleanedMessage,
     );

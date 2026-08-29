@@ -30,7 +30,7 @@ export async function connectToPeer(
 ): Promise<void> {
   debugLog('P2PAutoConnectService', `connectToPeer: START peerCid=${peerCid?.toString().slice(0, 8)}, forceInitiator=${forceInitiator}`);
 
-  const shouldForceInitiator = forceInitiator;
+  const shouldForceInitiator: boolean = forceInitiator;
 
   if (!instanceManager.isLeader) {
     debugLog('P2PAutoConnectService', `[P2PAutoConnect] connectToPeer skipped for ${peerCid?.toString().slice(0, 8)} (not leader tab)`);
@@ -95,8 +95,8 @@ export async function connectToPeer(
   }
 
   const attempt = state.getConnectionAttempt(peerCid) || { attempts: 0, timeout: null };
-  const isOnline = state.isPeerOnline(peerCid);
-  const cacheValid = state.onlineStatusAge < 10_000;
+  const isOnline: boolean = state.isPeerOnline(peerCid);
+  const cacheValid: boolean = state.onlineStatusAge < 10_000;
 
   if (cacheValid && !isOnline && !shouldForceInitiator) {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Peer ${peerCid.toString().slice(0, 8)}... offline (cached), scheduling next check`);
@@ -171,7 +171,7 @@ export async function connectToAllRegisteredPeers(state: AutoConnectState): Prom
     }
   }
 
-  const shouldForceInitiator = state.forceInitiatorMode;
+  const shouldForceInitiator: boolean = state.forceInitiatorMode;
 
   debugLog('P2PAutoConnectService', `connectToAllRegisteredPeers: launching connections to ${registeredPeers.length} peers, forceInitiator=${shouldForceInitiator}`);
   for (const peer of registeredPeers) {

@@ -4,7 +4,7 @@
 export const MEDIA_WIRE_VERSION = 1;
 
 /** How long an unanswered call rings before giving up. */
-export const RING_TIMEOUT_MS = 45_000;
+export const RING_TIMEOUT_MS: 45000 = 45_000;
 
 /**
  * How long `connecting` may last before the call is declared failed.
@@ -15,7 +15,7 @@ export const RING_TIMEOUT_MS = 45_000;
  * on the transition INTO it, and the heartbeat watchdog does not arm until
  * `active` — so the call sits with the camera live and no timer anywhere.
  */
-export const CONNECT_TIMEOUT_MS = 30_000;
+export const CONNECT_TIMEOUT_MS: 30000 = 30_000;
 
 /**
  * How often each participant announces it is still there, on the reliable path.
@@ -26,7 +26,7 @@ export const CONNECT_TIMEOUT_MS = 30_000;
  * their camera on. Absence of media frames is NOT a substitute: a participant
  * who muted and turned their camera off sends nothing and is still present.
  */
-export const CALL_HEARTBEAT_INTERVAL_MS = 5_000;
+export const CALL_HEARTBEAT_INTERVAL_MS: 5000 = 5_000;
 
 /**
  * How long a participant may go unheard before being treated as gone.
@@ -35,7 +35,7 @@ export const CALL_HEARTBEAT_INTERVAL_MS = 5_000;
  * backgrounded tab does not eject someone mid-sentence, short enough that a
  * dead call does not linger.
  */
-export const CALL_HEARTBEAT_TIMEOUT_MS = 20_000;
+export const CALL_HEARTBEAT_TIMEOUT_MS: 20000 = 20_000;
 
 /**
  * How long the signal queue waits on one send before letting the next go.
@@ -51,4 +51,4 @@ export const CALL_HEARTBEAT_TIMEOUT_MS = 20_000;
  * case and degrades to concurrent exactly when waiting has become worse than
  * sending out of order.
  */
-export const SIGNAL_QUEUE_MAX_WAIT_MS = 3_000;
+export const SIGNAL_QUEUE_MAX_WAIT_MS: 3000 = 3_000;

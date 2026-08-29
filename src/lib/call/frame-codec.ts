@@ -69,7 +69,7 @@ export function videoChunkToFrame(
   const payload: Uint8Array<ArrayBuffer> = new Uint8Array(chunk.byteLength);
   chunk.copyTo(payload);
 
-  const isKey = chunk.type === 'key';
+  const isKey: boolean = chunk.type === 'key';
   return {
     track: track ?? videoTrackFor(thumbnail),
     kind: CALL_KIND_VIDEO,

@@ -52,7 +52,7 @@ const tick = (requestId: string, status: unknown): void =>
 
 /** Has `pending` settled yet? Checked without awaiting the 30s timeout. */
 async function settled(pending: Promise<unknown>): Promise<boolean> {
-  let done = false;
+  let done: boolean = false;
   void pending.then(() => {
     done = true;
   });

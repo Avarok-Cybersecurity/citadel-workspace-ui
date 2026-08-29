@@ -130,7 +130,7 @@ class InstanceInboundRouter {
     }
 
     if (requestId) {
-      const routed = this.routeByRequestId(message, messageType, requestId);
+      const routed: boolean = this.routeByRequestId(message, messageType, requestId);
       if (routed) return;
     }
 

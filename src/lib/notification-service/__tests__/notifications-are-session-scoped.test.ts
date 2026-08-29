@@ -13,8 +13,8 @@
 import { describe, it, expect } from 'vitest';
 import { notificationBelongsTo } from '../types';
 
-const ALICE = '111';
-const BOB = '222';
+const ALICE: "111" = '111';
+const BOB: "222" = '222';
 
 describe('notification session scoping', () => {
   it('shows a notification to the session it was recorded for', () => {

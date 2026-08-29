@@ -33,14 +33,14 @@ export const OrphanSessionsNavbar = () => {
   // BOUNDED retry rather than a poll: it stops the moment a session appears,
   // and it stops regardless after the window, so a genuinely session-less
   // landing page does not poll forever.
-  const foundSessions = sessions.length > 0;
+  const foundSessions: boolean = sessions.length > 0;
   useEffect(() => {
     if (foundSessions) return;
 
-    let cancelled = false;
+    let cancelled: boolean = false;
     let attempts: number = 0;
     const MAX_ATTEMPTS = 8;
-    const RETRY_MS = 1_500;
+    const RETRY_MS: 1500 = 1_500;
 
     const load = (): void => {
       if (cancelled) return;

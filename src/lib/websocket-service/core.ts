@@ -19,7 +19,7 @@ import { sendRequest as sendRequestFn } from './send-request';
 
 export class WebSocketServiceCore {
   client: WorkspaceClient | null = null;
-  isInitialized = false;
+  isInitialized: boolean = false;
   initializationPromise: Promise<void> | null = null;
 
   private readonly modules: ServiceModules;

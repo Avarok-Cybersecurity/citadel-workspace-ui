@@ -39,7 +39,7 @@ export function useUnsavedMdxGuard({
     if (baselineRef.current === null) baselineRef.current = content;
   }, [isEditing, content]);
 
-  const isDirty =
+  const isDirty: boolean =
     isEditing && baselineRef.current !== null && content !== baselineRef.current;
 
   // Published so in-app navigation can ask, not just the browser. See

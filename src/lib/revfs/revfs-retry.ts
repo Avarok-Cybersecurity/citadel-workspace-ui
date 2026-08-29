@@ -82,7 +82,7 @@ export async function retryPendingOps(
     }
 
     const ackPromise: Promise<boolean> = deps.state.registerAck(entry.operation.op_id, ACK_TIMEOUT_MS);
-    const sent = await deps.sendOp(peerCid, entry.operation);
+    const sent: boolean = await deps.sendOp(peerCid, entry.operation);
     if (!sent) {
       entry.retryCount += 1;
       continue;
@@ -106,7 +106,7 @@ export async function sendAndAwaitAck(
   key: TreeKey,
 ): Promise<void> {
   const ackPromise: Promise<boolean> = deps.state.registerAck(op.op_id, ACK_TIMEOUT_MS);
-  const sendResult = await deps.sendOp(peerCid, op);
+  const sendResult: boolean = await deps.sendOp(peerCid, op);
   if (!sendResult) {
     deps.state.addPendingOp(key, { operation: op, retryCount: 0, createdAt: Date.now() });
         await deps.io.execute({ type: 'persist-pending-ops', treeKey: key, ops: deps.state.getPendingOps(key) });

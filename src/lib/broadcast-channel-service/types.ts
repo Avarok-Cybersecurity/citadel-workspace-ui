@@ -29,4 +29,4 @@ export interface LeaderElectionMessage {
 
 export const CHANNEL_NAME = 'citadel-workspace-sync';
 export const REQUEST_EXPIRY_MS: number = 30 * 60 * 1000;
-export const CLEANUP_INTERVAL_MS = INTERVAL.CLEANUP_MS;
+export const CLEANUP_INTERVAL_MS: 60000 = INTERVAL.CLEANUP_MS;

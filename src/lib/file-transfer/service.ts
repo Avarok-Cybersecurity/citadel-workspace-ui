@@ -40,7 +40,7 @@ export class FileTransferService {
     this.io.registerTransferMapping(transferId, objectId)
   );
   private io: FileTransferIO;
-  private initialized = false;
+  private initialized: boolean = false;
 
   private constructor() {
     this.io = new FileTransferIO();

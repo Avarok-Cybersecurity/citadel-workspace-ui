@@ -32,9 +32,9 @@ import { debugLog } from '@/lib/debug-config';
 
 let groups: GroupConversation[] = [];
 const listeners: Set<() => void> = new Set<() => void>();
-let bindingsStarted = false;
+let bindingsStarted: boolean = false;
 
-let hydrated = false;
+let hydrated: boolean = false;
 
 export function getGroups(): GroupConversation[] {
   return groups;

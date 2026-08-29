@@ -26,7 +26,7 @@ export interface BeforeInstallPromptEvent extends Event {
 }
 
 let promptEvent: BeforeInstallPromptEvent | null = null;
-let installed = false;
+let installed: boolean = false;
 const listeners: Set<() => void> = new Set<() => void>();
 
 function emit(): void {
@@ -55,7 +55,7 @@ export function detectStandalone(): boolean {
   if (typeof window === 'undefined') return false;
   // `display-mode: standalone` covers Chromium/Firefox; `navigator.standalone`
   // is the iOS Safari equivalent, which does not implement the media query.
-  const iosStandalone = (window.navigator as { standalone?: boolean }).standalone === true;
+  const iosStandalone: boolean = (window.navigator as { standalone?: boolean }).standalone === true;
   return window.matchMedia('(display-mode: standalone)').matches || iosStandalone;
 }
 
@@ -65,7 +65,7 @@ export function clearPromptEvent(): void {
   emit();
 }
 
-let started = false;
+let started: boolean = false;
 
 /** Idempotent: safe to call from module scope and from a test. */
 export function startInstallPromptCapture(): void {

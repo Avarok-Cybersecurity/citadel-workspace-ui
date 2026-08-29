@@ -29,7 +29,7 @@ describe('an ambient announcement', () => {
   });
 
   it('goes out as soon as the error clears', () => {
-    let busy = true;
+    let busy: boolean = true;
     const announce = vi.fn();
     announceWhenQuiet(announce, { isBusy: () => busy });
     vi.advanceTimersByTime(2_000);
@@ -50,7 +50,7 @@ describe('an ambient announcement', () => {
   });
 
   it('says it once, not once per poll', () => {
-    let busy = true;
+    let busy: boolean = true;
     const announce = vi.fn();
     announceWhenQuiet(announce, { isBusy: () => busy });
     busy = false;

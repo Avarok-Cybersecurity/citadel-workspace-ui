@@ -30,7 +30,7 @@ export function useLoadedPermissions(userId: string, domainId: string): Permissi
 
   useEffect(() => {
     setLoad({ status: 'loading' });
-    let settled = false;
+    let settled: boolean = false;
 
     const onLoaded = (payload: {
       userId: string;

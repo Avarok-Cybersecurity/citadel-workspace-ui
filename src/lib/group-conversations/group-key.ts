@@ -21,7 +21,7 @@ export interface MessageGroupKey {
   mgid: bigint;
 }
 
-const SEPARATOR = ':';
+const SEPARATOR: ":" = ':';
 
 /**
  * `"<cid>:<mgid>"`. Chosen over JSON so the id stays usable in a route path

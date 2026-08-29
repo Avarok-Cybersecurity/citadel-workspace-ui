@@ -44,7 +44,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
         // Same store the sidebar and BaseOffice read from, so the tab cannot
         // disagree with what the rest of the app shows.
         const node = state.nodes[entityId];
-        const enabled = node ? node.chat_enabled : true;
+        const enabled: boolean = node ? node.chat_enabled : true;
         const rules: string = node?.rules ?? '';
 
         setChatEnabled(enabled);
@@ -60,14 +60,14 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
   }, [entityType, entityId, state.nodes]);
 
   useEffect(() => {
-    const dirty = chatEnabled !== originalEnabled || chatRules !== originalRules;
+    const dirty: boolean = chatEnabled !== originalEnabled || chatRules !== originalRules;
     setHasChanges(dirty);
     dirtyRef.current = dirty;
   }, [chatEnabled, chatRules, originalEnabled, originalRules]);
 
   const handleSave = async (): Promise<void> => {
     setSaving(true);
-    const saved = await saveChatSettings({
+    const saved: boolean = await saveChatSettings({
       entityType,
       entityId,
       chatEnabled,

@@ -43,7 +43,7 @@ export function determineSyncAction(
 
   // Find diverged chunks
   const diverged: number[] = localTree.findDivergedChunks(remoteProof);
-  const isCreator = localTree.isCreator(myCid);
+  const isCreator: boolean = localTree.isCreator(myCid);
 
   // Few chunks diverged - targeted sync
   if (diverged.length > 0 && diverged.length <= localTree.getProof().leafCount / 2) {

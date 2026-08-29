@@ -15,9 +15,9 @@ import { hasTrackTransforms } from './track-transforms';
 export const AUDIO_CODEC = 'opus';
 
 /** 48 kHz mono at 32 kbps: the standard operating point for speech. */
-export const AUDIO_SAMPLE_RATE = 48_000;
+export const AUDIO_SAMPLE_RATE: 48000 = 48_000;
 export const AUDIO_CHANNELS = 1;
-export const AUDIO_BITRATE = 32_000;
+export const AUDIO_BITRATE: 32000 = 32_000;
 
 /**
  * Video codecs in preference order.
@@ -136,8 +136,8 @@ export async function probeMediaCapabilities(): Promise<MediaCapabilityReport> {
     };
   }
 
-  const audio = await supportsAudioEncode();
-  const video = (await supportedVideoEncoders()).length > 0;
+  const audio: boolean = await supportsAudioEncode();
+  const video: boolean = (await supportedVideoEncoders()).length > 0;
 
   if (!audio) {
     // Video-only calling is not a product: a call is a conversation.
@@ -173,7 +173,7 @@ export async function supportedVideoEncoders(): Promise<
   const results: Array<{ codec: VideoCodec; hardware: boolean }> = [];
 
   for (const codec of VIDEO_CODEC_PREFERENCE) {
-    const hardware = await encoderSupported(codec, 'prefer-hardware');
+    const hardware: boolean = await encoderSupported(codec, 'prefer-hardware');
     if (hardware) {
       results.push({ codec, hardware: true });
       continue;

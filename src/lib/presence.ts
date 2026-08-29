@@ -50,7 +50,7 @@ export function memberIdToCid(memberId: string): bigint | null {
 function findPeer(memberId: string) {
   const { allPeers } = p2pRegistrationService.getPeers();
 
-  const byUsername = allPeers.find((peer) => peer.username === memberId);
+  const byUsername = allPeers.find((peer): boolean => peer.username === memberId);
   if (byUsername) return byUsername;
 
   const cid: bigint | null = memberIdToCid(memberId);

@@ -29,10 +29,10 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
 
   // Check for dev mode
   const urlParams = new URLSearchParams(window.location.search);
-  const isDevMode = urlParams.get('dev') === 'true' && import.meta.env.VITE_DEV_MODE === 'true';
+  const isDevMode: boolean = urlParams.get('dev') === 'true' && import.meta.env.VITE_DEV_MODE === 'true';
 
   // Check if workspace is still loading
-  const isLoading =
+  const isLoading: boolean =
     !state.workspace ||
     state.loading.workspace ||
     state.loading.nodes;
@@ -49,7 +49,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
     if (isDevMode) return;
 
     const connectionService: ConnectionService = ConnectionService.getInstance();
-    let mounted = true;
+    let mounted: boolean = true;
 
     // `mounted` made stale handlers inert but never removed them. See onConnectionChange.
     const unsubscribeConnection: () => void = connectionService.onConnectionChange((connection): void => {
@@ -81,7 +81,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   }, [loadingTimeout, hasConnection, isLoading, navigate, isDevMode, isAutoClaimingSession]);
 
   // Secondary safety net: workspace data loading timeout
-  const workspaceDataTimeout = useWorkspaceDataTimeout(hasConnection, isLoading, isDevMode);
+  const workspaceDataTimeout: boolean = useWorkspaceDataTimeout(hasConnection, isLoading, isDevMode);
 
   if (isDevMode) {
     debugLog('WorkspaceLoader', 'Dev mode: Bypassing workspace loader');

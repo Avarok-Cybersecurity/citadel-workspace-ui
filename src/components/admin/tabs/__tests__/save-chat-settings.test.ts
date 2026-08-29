@@ -24,7 +24,7 @@ function deps(overrides: Partial<Parameters<typeof saveChatSettings>[0]> = {}) {
 describe('saveChatSettings', () => {
   it('sends both fields and confirms only after the write resolves', async () => {
     const d = deps({ chatEnabled: false, chatRules: 'No spam' });
-    const result = await saveChatSettings(d.args);
+    const result: boolean = await saveChatSettings(d.args);
 
     expect(result).toBe(true);
     expect(d.write).toHaveBeenCalledWith('node-1', { chatEnabled: false, rules: 'No spam' });
@@ -37,7 +37,7 @@ describe('saveChatSettings', () => {
     const write = vi.fn((): Promise<never> => Promise.reject(new Error('offline')));
     const d = deps({ write });
 
-    const result = await saveChatSettings(d.args);
+    const result: boolean = await saveChatSettings(d.args);
 
     expect(result).toBe(false);
     expect(d.notices).toHaveLength(1);
@@ -48,7 +48,7 @@ describe('saveChatSettings', () => {
     // UpdateWorkspace carries no chat fields, so there is nowhere to put these.
     const d = deps({ entityType: 'workspace' });
 
-    const result = await saveChatSettings(d.args);
+    const result: boolean = await saveChatSettings(d.args);
 
     expect(result).toBe(false);
     expect(d.write).not.toHaveBeenCalled();
@@ -58,7 +58,7 @@ describe('saveChatSettings', () => {
   it('refuses when the node id has not loaded yet', async () => {
     const d = deps({ entityId: '' });
 
-    const result = await saveChatSettings(d.args);
+    const result: boolean = await saveChatSettings(d.args);
 
     expect(result).toBe(false);
     expect(d.write).not.toHaveBeenCalled();
@@ -67,7 +67,7 @@ describe('saveChatSettings', () => {
   it('rejects over-long rules before sending them', async () => {
     const d = deps({ chatRules: 'x'.repeat(MAX_CHAT_RULES_LENGTH + 1) });
 
-    const result = await saveChatSettings(d.args);
+    const result: boolean = await saveChatSettings(d.args);
 
     expect(result).toBe(false);
     expect(d.write).not.toHaveBeenCalled();

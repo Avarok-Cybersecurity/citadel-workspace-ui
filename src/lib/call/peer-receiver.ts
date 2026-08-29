@@ -27,7 +27,7 @@ export class PeerReceiver {
   /** Built on the first shared-screen frame; see acceptScreen. */
   private screen: VideoDecoderHandle | null = null;
   private screenSink: RemoteVideoSink | null = null;
-  private closed = false;
+  private closed: boolean = false;
 
   constructor(private readonly options: PeerReceiverOptions) {}
 

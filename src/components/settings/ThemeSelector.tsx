@@ -41,7 +41,7 @@ export function ThemeSelector() {
         {OPTIONS.map(({ value, label, Icon }) => {
           // Before mount the active theme is unknown; marking nothing selected is
           // honest, where guessing would briefly highlight the wrong option.
-          const selected = mounted && theme === value;
+          const selected: boolean = mounted && theme === value;
           return (
             <button
               key={value}

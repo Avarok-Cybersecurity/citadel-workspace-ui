@@ -128,7 +128,7 @@ export class NotificationService {
     // it would re-render every subscriber on every read receipt.
     { notifyHandlers = true }: { notifyHandlers?: boolean } = {},
   ): void {
-    let anyChanged = false;
+    let anyChanged: boolean = false;
     for (const [id, notification] of this.notifications.entries()) {
       if (!notification.read && shouldMark(notification)) {
         notification.read = true;
@@ -147,7 +147,7 @@ export class NotificationService {
   public removeNotification(notificationId: string): void {
     const notification: Notification | undefined = this.notifications.get(notificationId);
     if (notification) {
-      const wasUnread = !notification.read;
+      const wasUnread: boolean = !notification.read;
       this.notifications.delete(notificationId);
       this.notifyRemovedHandler(notification);
       if (wasUnread) { this.notifyUnreadChange(); }

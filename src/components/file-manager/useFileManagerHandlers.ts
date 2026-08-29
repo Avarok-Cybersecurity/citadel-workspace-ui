@@ -72,8 +72,8 @@ export function useFileManagerHandlers({
   }, [mkdir, prompt]);
 
   const handleDelete = useCallback(async (node: RevfsNode): Promise<void> => {
-    const isDirectory = node.type === 'directory';
-    const ok = await confirm({
+    const isDirectory: boolean = node.type === 'directory';
+    const ok: boolean = await confirm({
       title: isDirectory ? `Delete folder "${node.name}"?` : `Delete file "${node.name}"?`,
       description: isDirectory
         ? 'Everything inside it is deleted too. This cannot be undone.'
@@ -150,7 +150,7 @@ export function useFileManagerHandlers({
 
   const handleDeleteMultiple = useCallback(async (nodes: RevfsNode[]): Promise<void> => {
     const count: number = nodes.length;
-    const ok = await confirm({
+    const ok: boolean = await confirm({
       title: `Delete ${count} item${count !== 1 ? 's' : ''}?`,
       description: 'Any folders in the selection are deleted with their contents. This cannot be undone.',
     });
@@ -165,7 +165,7 @@ export function useFileManagerHandlers({
 
   const handleDrop = useCallback(async (targetPath: string, files: FileList): Promise<void> => {
     if (!myCid) { toast.error('Not connected'); return; }
-    const isStandardTransfer = targetPath === SENT_FILES_DIR || targetPath.startsWith(SENT_FILES_DIR + '/');
+    const isStandardTransfer: boolean = targetPath === SENT_FILES_DIR || targetPath.startsWith(SENT_FILES_DIR + '/');
     if (isStandardTransfer) { toast.info('Standard file transfer: Use P2P Chat to send files directly'); return; }
     if (!revfsEnabled) {
       setRevfsDisabledReason(storageMode === TreeScope.Server ? 'server_disabled' : 'peer_disabled');

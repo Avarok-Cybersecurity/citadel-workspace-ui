@@ -23,8 +23,8 @@ import {
 } from '../routing-rules';
 import { extractTargetCid } from '../message-routing';
 
-const targetCid = '1281805798482117626';
-const senderCid = '18170202856123884154';
+const targetCid: "1281805798482117626" = '1281805798482117626';
+const senderCid: "18170202856123884154" = '18170202856123884154';
 
 function notification(type: string, payload: Record<string, unknown>): Record<string, unknown> {
   return { [type]: payload };
@@ -94,7 +94,7 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     // Defensive: some pipelines wrap notifications with a top-level
     // `cid` AND a payload `cid`. The router checks top-level first, so
     // pin that precedence too.
-    const otherCid = '9999999999999999999';
+    const otherCid: "9999999999999999999" = '9999999999999999999';
     const msg = { cid: otherCid, FileTransferRequestNotification: SHAPES.FileTransferRequestNotification };
     expect(extractTargetCid(msg)).toBe(otherCid);
   });

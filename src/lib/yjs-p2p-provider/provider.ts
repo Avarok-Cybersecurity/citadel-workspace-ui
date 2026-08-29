@@ -39,12 +39,12 @@ export class YjsP2PProvider {
   private updateHandler: ((update: Uint8Array, origin: YjsOrigin) => void) | null = null;
   private awarenessHandler: ((update: { added: number[]; updated: number[]; removed: number[] }, origin: YjsOrigin) => void) | null = null;
 
-  private connected = false;
-  private destroyed = false;
-  private initialSyncComplete = false;
+  private connected: boolean = false;
+  private destroyed: boolean = false;
+  private initialSyncComplete: boolean = false;
   private ackCheckInterval: ReturnType<typeof setInterval> | null = null;
   private lastSyncInitiated: number = 0;
-  private syncInProgress = false;
+  private syncInProgress: boolean = false;
 
   constructor(documentId: string, peerCid: string, doc: Y.Doc, ownCid: string | null, creatorCid: string | null = null) {
     this.doc = doc;

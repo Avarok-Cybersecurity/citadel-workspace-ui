@@ -133,7 +133,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
     const end: number = textarea.selectionEnd;
 
     if (start === end) {
-      const prefix = ordered ? '1. ' : '- ';
+      const prefix: "1. " | "- " = ordered ? '1. ' : '- ';
       formatText(prefix);
     } else {
       const selectedText: string = value.substring(start, end);

@@ -102,7 +102,7 @@ async function handleAuthResponse(
   const hasPendingRequest: boolean | "" | undefined = reqId && state.hasPendingRequest(reqId);
   const tabSelection = await io.getSelectedUser();
   const isOurSession = cidBigInt && tabSelection?.selectedCid === cidBigInt;
-  const isFreshTab = !tabSelection?.selectedCid && !state.currentConnectionInfo;
+  const isFreshTab: boolean = !tabSelection?.selectedCid && !state.currentConnectionInfo;
 
   if (hasPendingRequest || isOurSession || isFreshTab) {
     debugLog('ConnectionService', `ConnectionManager: Processing connection success (hasPending=${hasPendingRequest}, isOurSession=${isOurSession}, isFreshTab=${isFreshTab})`);
@@ -129,7 +129,7 @@ async function handleConnectionManagementResponse(
   const hasPendingRequest: boolean | "" | undefined = cmReqId && state.hasPendingRequest(cmReqId);
   const tabSelection = await io.getSelectedUser();
   const isOurSession = cmCid && tabSelection?.selectedCid === cmCid;
-  const isFreshTab = !tabSelection?.selectedCid && !state.currentConnectionInfo;
+  const isFreshTab: boolean = !tabSelection?.selectedCid && !state.currentConnectionInfo;
 
   if (hasPendingRequest || isOurSession || isFreshTab) {
     debugLog('ConnectionService', 'ConnectionManager: Processing ConnectionManagementSuccess (hasPending:', hasPendingRequest, ', isOurSession:', isOurSession, ', isFreshTab:', isFreshTab, ')');

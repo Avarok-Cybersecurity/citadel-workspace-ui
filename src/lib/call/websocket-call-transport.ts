@@ -23,7 +23,7 @@ import { debugLog } from '@/lib/debug-config';
  * answering; this must exceed that or a slow-but-successful open would be
  * reported as a failure while the session actually came up.
  */
-const MEDIA_OPEN_TIMEOUT_MS = 10_000;
+const MEDIA_OPEN_TIMEOUT_MS: 10000 = 10_000;
 
 export interface WebSocketCallTransportOptions {
   selfCid: bigint;

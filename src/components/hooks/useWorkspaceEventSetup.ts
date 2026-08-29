@@ -25,7 +25,7 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
         const rawMetadata: Record<string, unknown> | undefined = payload.workspace.metadata;
 
         // Parse metadata as JSON to check initialization status
-        let isInitialized = false;
+        let isInitialized: boolean = false;
         let parsedMetadata: Record<string, unknown> | undefined;
         try {
           if (rawMetadata && typeof rawMetadata === 'object') {

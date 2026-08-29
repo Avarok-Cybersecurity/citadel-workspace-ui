@@ -35,7 +35,7 @@ interface FormFieldProps {
 
 function FormField({ id, name, label, value, onChange, placeholder, type, icon: Icon, hint, onBlur, maxLength, error, autoComplete }: FormFieldProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const isPassword = type === 'password';
+  const isPassword: boolean = type === 'password';
   const inputType: string | undefined = isPassword ? (showPassword ? 'text' : 'password') : type;
 
   return (

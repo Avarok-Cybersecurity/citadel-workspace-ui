@@ -49,7 +49,7 @@ class PeerRegistrationStore {
   private pendingRequests: PendingPeerRequest[] = [];
   private outgoingRequests: OutgoingPeerRequest[] = [];
   private pendingKVRequests: Map<string, KVPendingEntry> = new Map<string, KVPendingEntry>();
-  private isInitializedFlag = false;
+  private isInitializedFlag: boolean = false;
   private initializationPromise: Promise<void> | null = null;
   private pollIntervalId: NodeJS.Timeout | null = null;
 
@@ -201,7 +201,7 @@ class PeerRegistrationStore {
     const now: number = Date.now();
     if (this.outgoingRequests.length === 0) return;
     debugLog('PeerRegistrationStore', 'Poll checking', this.outgoingRequests.length, 'outgoing requests');
-    let needsPersist = false;
+    let needsPersist: boolean = false;
     for (const request of this.outgoingRequests) {
       const result = await processPollRequest(request, now);
       if (result === 'remove') { await this.removeOutgoingRequest(request.id); needsPersist = true; }

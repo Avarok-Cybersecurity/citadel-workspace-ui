@@ -13,7 +13,7 @@ export interface ServiceHealth {
   error?: string;
 }
 
-const DEFAULT_INTERVAL_MS = INTERVAL.HEALTH_CHECK_MS;
+const DEFAULT_INTERVAL_MS: 30000 = INTERVAL.HEALTH_CHECK_MS;
 
 class HealthCheckService extends PollingService {
   private static instance: HealthCheckService;
@@ -57,7 +57,7 @@ class HealthCheckService extends PollingService {
       // core.ts already carries this distinction, with a comment describing the
       // identical bug in `fetchActiveSessions`. The rule was written down and
       // this caller was never brought along.
-      const canReachAgent = websocketService.canSendRequests();
+      const canReachAgent: boolean = websocketService.canSendRequests();
 
       this.health = {
         isHealthy: canReachAgent,

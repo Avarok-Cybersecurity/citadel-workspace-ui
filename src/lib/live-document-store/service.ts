@@ -22,7 +22,7 @@ import {
 export class LiveDocumentStore {
   private static instance: LiveDocumentStore;
   private documentsCache: Map<string, StoredDocument> = new Map();
-  private initialized = false;
+  private initialized: boolean = false;
 
   private constructor() {}
 

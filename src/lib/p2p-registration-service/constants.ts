@@ -12,7 +12,7 @@ import { TIMEOUT, POLLING } from '../timeout-constants';
 export const AUTO_ACCEPT_KEY = 'p2p_auto_accept_registrations';
 
 /** Default polling interval (30 seconds) */
-export const POLLING_INTERVAL = POLLING.P2P_REGISTRATION_INTERVAL_MS;
+export const POLLING_INTERVAL: 30000 = POLLING.P2P_REGISTRATION_INTERVAL_MS;
 
 /**
  * Timeout for peer listing operations.
@@ -22,7 +22,7 @@ export const POLLING_INTERVAL = POLLING.P2P_REGISTRATION_INTERVAL_MS;
  * which is why the value beneath it (6s) had been below the real bound for as
  * long as it had been wrong. See check-peer-list-timeout-parity.
  */
-export const PEER_LIST_TIMEOUT = TIMEOUT.PEER_LIST_MS;
+export const PEER_LIST_TIMEOUT: 35000 = TIMEOUT.PEER_LIST_MS;
 
 /** Max concurrent peer registrations in a batch */
 export const CONCURRENT_REGISTRATIONS = 5;

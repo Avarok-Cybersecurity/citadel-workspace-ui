@@ -24,7 +24,7 @@ describe('cloneTree', () => {
     [tree] = placeFile(tree, '/a.txt', meta(), CID);
 
     const cloned = cloneTree(tree);
-    const file = cloned.children?.find((c) => c.name === 'a.txt');
+    const file = cloned.children?.find((c): boolean => c.name === 'a.txt');
 
     expect(typeof file?.fileMetadata?.uploadedByCid).toBe('bigint');
     expect(file?.fileMetadata?.uploadedByCid).toBe(CID);
@@ -34,7 +34,7 @@ describe('cloneTree', () => {
     let tree = createDefaultTree();
     [tree] = placeFile(tree, '/a.txt', meta(), CID);
 
-    const file = cloneTree(tree).children?.find((c) => c.name === 'a.txt');
+    const file = cloneTree(tree).children?.find((c): boolean => c.name === 'a.txt');
 
     expect(file?.fileMetadata?.uploadedByCid).toBe(18446744073709551615n);
   });
@@ -45,7 +45,7 @@ describe('cloneTree', () => {
     // Every mutation clones — this is where the corruption used to enter.
     [tree] = mkdir(tree, '/later');
 
-    const file = tree.children?.find((c) => c.name === 'a.txt');
+    const file = tree.children?.find((c): boolean => c.name === 'a.txt');
 
     expect(typeof file?.fileMetadata?.uploadedByCid).toBe('bigint');
   });
@@ -55,7 +55,7 @@ describe('cloneTree', () => {
     [tree] = mkdir(tree, '/dir');
 
     const cloned = cloneTree(tree);
-    const clonedDir = cloned.children!.find((c) => c.name === 'dir')!;
+    const clonedDir = cloned.children!.find((c): boolean => c.name === 'dir')!;
     clonedDir.name = 'changed';
 
     // The original must be untouched — a shallow copy here would corrupt the

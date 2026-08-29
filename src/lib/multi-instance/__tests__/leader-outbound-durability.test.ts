@@ -59,7 +59,7 @@ describe('the leader outbound handler', () => {
     await leaderOutboundHandler.handleOutboundRequest(request('r-1'));
 
     expect(sent, 'a request caught mid-flap must still be sent').toHaveLength(1);
-    const errorAcks = sendAck.mock.calls.filter((call) => JSON.stringify(call).includes('error'));
+    const errorAcks = sendAck.mock.calls.filter((call): boolean => JSON.stringify(call).includes('error'));
     expect(errorAcks, 'and must not be failed on the way').toEqual([]);
   });
 
@@ -73,7 +73,7 @@ describe('the leader outbound handler', () => {
     await leaderOutboundHandler.handleOutboundRequest(request('r-never'));
     const elapsed: number = Date.now() - started;
 
-    const errorAcks = sendAck.mock.calls.filter((call) => JSON.stringify(call).includes('error'));
+    const errorAcks = sendAck.mock.calls.filter((call): boolean => JSON.stringify(call).includes('error'));
     expect(errorAcks.length, 'a genuine absence must be reported').toBeGreaterThan(0);
     expect(elapsed, 'and reported well inside the queue retry deadline').toBeLessThan(5000);
   });

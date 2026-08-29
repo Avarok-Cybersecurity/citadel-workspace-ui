@@ -24,7 +24,7 @@ export function createRegistrationResponseHandler(
   deps: RegistrationHandlerDeps
 ) {
   const { handleConnectSuccess, setShowNotInitializedModal } = deps;
-  const matchId = (v: Record<string, unknown>) => v.request_id === requestId;
+  const matchId = (v: Record<string, unknown>): boolean => v.request_id === requestId;
   const rejectWith = (v: Record<string, unknown>, fallback: string): void => {
     cleanup(); reject(new Error((v.message as string) || fallback));
   };

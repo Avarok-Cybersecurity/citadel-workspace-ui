@@ -127,7 +127,7 @@ class LeaderOutboundHandler {
       // Waited for briefly rather than failed outright: a just-promoted leader
       // is active before its socket exists, and error-acking there loses a real
       // user operation to a leadership flap. See wait-for-socket.ts.
-      const ready = await waitForSocket(() => this.websocketSendFn);
+      const ready: boolean = await waitForSocket(() => this.websocketSendFn);
       if (!ready) {
         debugLog('LeaderOutboundHandler', 'WebSocket send function not set');
         this.sendAck(request.senderInstanceId, request.requestId, 'error', 'WebSocket not ready');
@@ -161,7 +161,7 @@ class LeaderOutboundHandler {
         return;
       }
 
-      const requiresIlm = this.requiresILM(request.payload);
+      const requiresIlm: boolean = this.requiresILM(request.payload);
       debugLog('LeaderOutboundHandler',
         `[LeaderOutboundHandler] Processing ${request.requestId} from ${request.senderInstanceId} (ILM: ${requiresIlm})`
       );

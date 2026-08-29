@@ -53,10 +53,10 @@ export function GridItem({
   hasPasteItems,
 }: GridItemProps) {
   const [dragOver, setDragOver] = useState(false);
-  const isDir = node.type === 'directory';
-  const isProtected = PROTECTED_DIRS.has(node.path);
-  const isRoot = node.path === '/';
-  const canModify = !isProtected && !isRoot;
+  const isDir: boolean = node.type === 'directory';
+  const isProtected: boolean = PROTECTED_DIRS.has(node.path);
+  const isRoot: boolean = node.path === '/';
+  const canModify: boolean = !isProtected && !isRoot;
 
   const Icon = isDir
     ? (isProtected ? FolderLock : Folder)
@@ -90,7 +90,7 @@ export function GridItem({
   // A single tap opens a folder where there is no hover and no reliable
   // double-tap. Guarded on the pointer, not on viewport width: a tablet at
   // desktop width still has no mouse.
-  const isCoarsePointer =
+  const isCoarsePointer: boolean =
     typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(hover: none)').matches;

@@ -116,7 +116,7 @@ export async function removeFileFromServer(
   // backend delete only goes out when this node is the LAST reference —
   // otherwise deleting one copy destroyed the bytes every other copy still
   // pointed at, under a green "deleted" toast.
-  const sharedElsewhere =
+  const sharedElsewhere: boolean =
     fileNode?.fileMetadata !== undefined &&
     countByteKeyRefs(tree, fileNode.fileMetadata.virtualDirectory) > 1;
   if (fileNode?.fileMetadata && !sharedElsewhere) {

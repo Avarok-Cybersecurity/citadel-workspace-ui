@@ -81,7 +81,7 @@ export async function handleEnsureMessengerProxy(
     return;
   }
 
-  const wasOpened = await client.ensureMessengerOpen(request.payload.cid as string);
+  const wasOpened: boolean = await client.ensureMessengerOpen(request.payload.cid as string);
 
   sendAck(request.senderInstanceId, request.requestId, 'processed', undefined, { wasOpened });
   debugLog('LeaderProxyHandlers', `ensureMessenger proxy processed for ${request.requestId}`);

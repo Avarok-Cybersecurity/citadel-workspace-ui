@@ -165,7 +165,7 @@ export async function handleIncomingRegistrationWithCid(
   peerUsername: string | undefined,
   pendingRequests: Map<string, PendingRequestEntry>
 ): Promise<void> {
-  const autoAccept = await getAutoAcceptSetting(notificationCid);
+  const autoAccept: boolean = await getAutoAcceptSetting(notificationCid);
 
   if (autoAccept) {
     debugLog('P2PRegistrationService', `[P2P] Auto-accepting registration from ${peerUsername || peerCid.toString()}`);

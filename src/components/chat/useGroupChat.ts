@@ -74,7 +74,7 @@ export function useGroupChat(groupId: string) {
           const newMsg: GroupMessage | undefined = event.message;
           if (newMsg) {
             setMessages((prev) => {
-              const exists = prev.some((m) => m.id === newMsg.id);
+              const exists: boolean = prev.some((m): boolean => m.id === newMsg.id);
               if (exists) {
                 debugLog('GroupChatView', 'Skipping duplicate message:', newMsg.id);
                 return prev;
@@ -85,7 +85,7 @@ export function useGroupChat(groupId: string) {
               // An explicit `behavior` in ScrollIntoViewOptions beats the
               // `scroll-behavior: auto !important` that index.css sets under
               // prefers-reduced-motion, so the media query has to be read here.
-              const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+              const reduced: boolean = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
               messagesEndRef.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' });
             }, 100);
           }

@@ -87,7 +87,7 @@ describe('a RE-VFS download', () => {
     // used to — would settle this download with someone else's outcome.
     tick('some-other-request', 'ReceptionComplete');
 
-    let settled = false;
+    let settled: boolean = false;
     void pending.then(() => {
       settled = true;
     });

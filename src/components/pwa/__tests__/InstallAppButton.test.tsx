@@ -45,7 +45,7 @@ function setStandalone(matches: boolean): void {
     removeEventListener: (): void => {},
     addListener: (): void => {},
     removeListener: (): void => {},
-    dispatchEvent: () => false,
+    dispatchEvent: (): boolean => false,
     onchange: null,
   })) as unknown as typeof window.matchMedia;
 }

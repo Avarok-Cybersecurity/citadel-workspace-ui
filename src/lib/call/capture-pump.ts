@@ -80,7 +80,7 @@ export class ScreenPump {
  * producing a black picture.
  */
 export class CapturePump {
-  private stopped = false;
+  private stopped: boolean = false;
   private readonly cleanups: Array<() => void> = [];
 
   constructor(private readonly callbacks: CapturePumpCallbacks) {}

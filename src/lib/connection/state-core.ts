@@ -22,10 +22,10 @@ import { debugLog } from '@/lib/debug-config';
 
 export class ConnectionStateCore {
   // Core state
-  protected _isInitialized = false;
+  protected _isInitialized: boolean = false;
   protected _storedSessions: StoredSessions = { sessions: [] };
   protected _currentConnectionInfo: CurrentConnectionInfo | null = null;
-  protected _isLeader = false;
+  protected _isLeader: boolean = false;
   protected _reconnectAttempts: number = 0;
 
   // Ready promise for initialization

@@ -43,9 +43,9 @@ export function GroupSettingsPanel({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const canEditSettings = can('editGroupSettings');
-  const canManageRoles = can('manageRoles');
-  const canDeleteGroup = can('deleteGroup');
+  const canEditSettings: boolean = can('editGroupSettings');
+  const canManageRoles: boolean = can('manageRoles');
+  const canDeleteGroup: boolean = can('deleteGroup');
 
   // Handle name save
   const handleNameSave: () => Promise<void> = useCallback(async (): Promise<void> => {

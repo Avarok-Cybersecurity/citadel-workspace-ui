@@ -19,7 +19,7 @@ export function applyGroupMessage(
   now: number,
 ): GroupConversation[] {
   const own: bigint | null = instanceManager.cid;
-  const fromSelf = own !== null && data.senderId === String(own);
+  const fromSelf: boolean = own !== null && data.senderId === String(own);
 
   return groups.map((group) => {
     if (group.id !== data.groupId) return group;

@@ -12,7 +12,7 @@ import { acceptTransfer } from '../transfer-lifecycle';
 import type { LifecycleDeps } from '../transfer-lifecycle';
 import type { FileTransfer } from '../types';
 
-const PEER = '42';
+const PEER: "42" = '42';
 const ONE_MB: number = 1024 * 1024;
 
 function offered(fileSize: number): FileTransfer {

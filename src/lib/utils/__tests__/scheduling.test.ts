@@ -47,7 +47,7 @@ describe('waitFor', () => {
   });
 
   it('returns as soon as the condition flips, not when the timeout elapses', async () => {
-    let ready = false;
+    let ready: boolean = false;
     setTimeout(() => { ready = true; }, 30);
     const start: number = Date.now();
     await waitFor(() => ready, { timeoutMs: 5000, intervalMs: 5, description: 'ready flag' });

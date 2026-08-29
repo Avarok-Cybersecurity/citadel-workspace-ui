@@ -30,7 +30,7 @@ export function GroupRoleManagement({ group, onSettingsChange }: GroupRoleManage
   const [editingRole, setEditingRole] = useState<GroupRole | null>(null);
   const [roleToDelete, setRoleToDelete] = useState<GroupRole | null>(null);
 
-  const canManageRoles = can('manageRoles');
+  const canManageRoles: boolean = can('manageRoles');
 
   const handleCreateRole: () => void = useCallback((): void => {
     setEditingRole(null);
@@ -93,9 +93,9 @@ export function GroupRoleManagement({ group, onSettingsChange }: GroupRoleManage
       <ScrollArea className="max-h-[300px]">
         <div className="space-y-2">
           {roles.map(role => {
-            const isDefault = role.id === defaultRole?.id;
-            const canEdit = canManageSpecificRole(myRole?.id, canManageRoles, role, canManageRole);
-            const canDelete = canEdit && !isDefault;
+            const isDefault: boolean = role.id === defaultRole?.id;
+            const canEdit: boolean = canManageSpecificRole(myRole?.id, canManageRoles, role, canManageRole);
+            const canDelete: boolean = canEdit && !isDefault;
 
             return (
               <div

@@ -72,7 +72,7 @@ describe('when the session cannot be written to LocalDB', () => {
 
   it('keeps the session in memory, which is what makes losing the write safe', async () => {
     const { state, io } = harness(true);
-    const ok = await storeSession({ username: 'alice' } as StoredSession, state as never, io as never);
+    const ok: boolean = await storeSession({ username: 'alice' } as StoredSession, state as never, io as never);
     expect(state.addOrUpdateSession).toHaveBeenCalled();
     expect(ok).toBe(false);
   });

@@ -37,8 +37,8 @@ export interface TeardownHooks {
 let liveClient: WorkspaceClient | null = null;
 let liveHooks: TeardownHooks | null = null;
 let liveReleaseHooks: Pick<TeardownHooks, 'releaseSession'> | null = null;
-let disconnectionHandlerRegistered = false;
-let sessionReleaseHandlerRegistered = false;
+let disconnectionHandlerRegistered: boolean = false;
+let sessionReleaseHandlerRegistered: boolean = false;
 
 export function setupDisconnectionHandler(client: WorkspaceClient, hooks: TeardownHooks): void {
   // The client AND the hooks change per socket; the LISTENER does not. Holding

@@ -36,7 +36,7 @@ export function useVFSKeyboardShortcuts({
     const handleKeyDown = (e: KeyboardEvent): void => {
       if (renamingPath || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-      const isMod = e.ctrlKey || e.metaKey;
+      const isMod: boolean = e.ctrlKey || e.metaKey;
       const selected: RevfsNode[] = getSelectedNodes();
 
       switch (e.key) {

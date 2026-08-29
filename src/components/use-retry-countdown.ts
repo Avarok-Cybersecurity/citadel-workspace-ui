@@ -36,7 +36,7 @@ export function useRetryCountdown({
     const startTime: number = Date.now();
     setCountdown(Math.ceil(retryDelayMs / 1000));
 
-    let hasTriggeredRetry = false;
+    let hasTriggeredRetry: boolean = false;
 
     const updateProgress = (): void => {
       const elapsed: number = Date.now() - startTime;

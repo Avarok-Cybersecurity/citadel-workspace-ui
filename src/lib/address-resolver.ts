@@ -9,7 +9,7 @@ import { NETWORK } from './timeout-constants';
  * - Default port is 12349 if not specified
  */
 
-const DEFAULT_PORT = NETWORK.WORKSPACE_SERVER_PORT;
+const DEFAULT_PORT: 12349 = NETWORK.WORKSPACE_SERVER_PORT;
 
 // IPv4 regex: matches 0-255 in each octet
 const IPV4_REGEX: RegExp = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
@@ -187,7 +187,7 @@ async function resolveDNS(hostname: string): Promise<string> {
     }
 
     // Find the first A record (type 1)
-    const aRecord = answers.find((record: { type: number; data: string }) => record.type === 1);
+    const aRecord = answers.find((record: { type: number; data: string }): boolean => record.type === 1);
     if (!aRecord) {
       throw new Error(`No A (IPv4) record found for '${hostname}'`);
     }

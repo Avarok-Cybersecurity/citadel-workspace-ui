@@ -50,9 +50,9 @@ export function VFSContextMenu({
   onPaste,
   hasPasteItems = false,
 }: VFSContextMenuProps) {
-  const isProtected = node ? PROTECTED_DIRS.has(node.path) : false;
-  const isDir = !node || node.type === 'directory';
-  const isRoot = node?.path === '/';
+  const isProtected: boolean = node ? PROTECTED_DIRS.has(node.path) : false;
+  const isDir: boolean = !node || node.type === 'directory';
+  const isRoot: boolean = node?.path === '/';
   const fileState: RevfsFileState | undefined = node?.fileState;
   const canModify: boolean | null = node && !isProtected && !isRoot;
 

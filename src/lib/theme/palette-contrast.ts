@@ -12,7 +12,7 @@ import { contrastRatio } from './hsl';
 export function ensureFillContrast(fill: HslColor, label: HslColor, min = 4.5): HslColor {
   if (contrastRatio(fill, label) >= min) return fill;
 
-  const away = label.l > fill.l ? -1 : 1;
+  const away: 1 | -1 = label.l > fill.l ? -1 : 1;
   let candidate: HslColor = fill;
 
   for (let step: number = 1; step <= 60; step += 1) {
@@ -36,13 +36,13 @@ export function ensureFillContrast(fill: HslColor, label: HslColor, min = 4.5): 
  * satisfying `card` alone can walk the colour straight into `background`.
  */
 export function ensureTextContrast(text: HslColor, surfaces: readonly HslColor[], min = 4.5): HslColor {
-  const clears = (c: HslColor) => surfaces.every((s) => contrastRatio(s, c) >= min);
+  const clears = (c: HslColor): boolean => surfaces.every((s): boolean => contrastRatio(s, c) >= min);
   if (clears(text)) return text;
 
   // Move away from the surfaces' average lightness, so the accent darkens on a
   // light theme and lightens on a dark one without needing to know which it is.
   const meanL: number = surfaces.reduce((acc, s) => acc + s.l, 0) / surfaces.length;
-  const away = meanL > text.l ? -1 : 1;
+  const away: 1 | -1 = meanL > text.l ? -1 : 1;
   let candidate: HslColor = text;
 
   for (let step: number = 1; step <= 100; step += 1) {

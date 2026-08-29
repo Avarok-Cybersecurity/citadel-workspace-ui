@@ -13,7 +13,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const setLeader = vi.fn();
-let isLeader = true;
+let isLeader: boolean = true;
 vi.mock('@/lib/multi-instance/instance-manager', () => ({
   instanceManager: {
     get isLeader() {
@@ -81,7 +81,7 @@ describe('relinquishing leadership', () => {
 
     relinquishLeadership(state);
 
-    const change = emitted.find((e) => e.event === 'instance:leader-changed');
+    const change = emitted.find((e): boolean => e.event === 'instance:leader-changed');
     expect(change?.payload).toMatchObject({ isLeader: false });
   });
 

@@ -22,8 +22,8 @@ export function OfflineBanner() {
   // and was reported nowhere: the health poll ran every 10s to zero listeners.
   const { isHealthy } = useServiceHealth();
   const ref = useRef<HTMLDivElement>(null);
-  const agentDown = isOnline && !isHealthy;
-  const showing = !isOnline || justReconnected || agentDown;
+  const agentDown: boolean = isOnline && !isHealthy;
+  const showing: boolean = !isOnline || justReconnected || agentDown;
 
   // Publish the banner's real height so the layout can make room for it. It is
   // `fixed`, so it took no space and covered the first ~36px of BOTH the sidebar
@@ -49,7 +49,7 @@ export function OfflineBanner() {
 
   if (!showing) return null;
 
-  const offline = !isOnline;
+  const offline: boolean = !isOnline;
 
   return (
     <div

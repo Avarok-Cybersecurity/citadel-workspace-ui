@@ -99,7 +99,7 @@ export async function handleAuthSuccess(
     // taken". Every other local write in this function was already protected
     // for exactly this reason; this was the one that was not, and the only one
     // that actually times out.
-    const persisted = await storeSession(session, state, io);
+    const persisted: boolean = await storeSession(session, state, io);
     if (!persisted) {
       debugLog(
         'ConnectionService',

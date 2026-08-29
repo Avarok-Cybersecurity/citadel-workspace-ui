@@ -69,7 +69,7 @@ export function GroupChatHeader({
   };
 
   // Check if user can access settings
-  const canAccessSettings = can('editGroupSettings') || can('manageRoles');
+  const canAccessSettings: boolean = can('editGroupSettings') || can('manageRoles');
 
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background">

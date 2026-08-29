@@ -29,7 +29,7 @@ export function RevfsDisabledModal({
   reason,
   onOpenSettings,
 }: RevfsDisabledModalProps) {
-  const isPeerDisabled = reason === 'peer_disabled';
+  const isPeerDisabled: boolean = reason === 'peer_disabled';
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

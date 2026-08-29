@@ -20,7 +20,7 @@ const isPeerOnline = vi.fn<(cid: bigint) => boolean>();
 const getPeers = vi.fn();
 
 vi.mock('../p2p-auto-connect-service', () => ({
-  p2pAutoConnectService: { isPeerOnline: (cid: bigint) => isPeerOnline(cid) },
+  p2pAutoConnectService: { isPeerOnline: (cid: bigint): boolean => isPeerOnline(cid) },
 }));
 vi.mock('../p2p-registration-service', () => ({
   p2pRegistrationService: { getPeers: () => getPeers() },

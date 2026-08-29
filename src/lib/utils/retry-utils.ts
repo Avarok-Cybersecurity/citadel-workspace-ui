@@ -90,7 +90,7 @@ export class RetryScheduler {
   private readonly options: Required<RetryOptions>;
   private currentAttempt: number = 0;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
-  private _isCancelled = false;
+  private _isCancelled: boolean = false;
 
   constructor(options: RetryOptions = {}) {
     this.options = { ...DEFAULT_OPTIONS, ...options };

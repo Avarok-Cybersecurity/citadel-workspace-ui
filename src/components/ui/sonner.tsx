@@ -33,7 +33,7 @@ export const MOBILE_TOAST_OFFSET: string =
   'calc(var(--app-header-height, 3.5rem) + var(--offline-banner-height, 0px) + 0.5rem)';
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
-  const isMobile = useIsMobile()
+  const isMobile: boolean = useIsMobile()
 
   return (
     <Sonner

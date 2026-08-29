@@ -117,7 +117,7 @@ export async function refreshOnlineStatus(state: AutoConnectState, force = false
 
     for (const peer of peers) {
       const cid: bigint | undefined = peer.cid;
-      const isOnline = peer.online_status ?? false;
+      const isOnline: boolean = peer.online_status ?? false;
       if (cid && isOnline) {
         onlineCids.push(cid);
       }

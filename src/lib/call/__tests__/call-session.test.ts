@@ -233,7 +233,7 @@ describe('codec negotiation', () => {
     // (AV1); a peer that only decodes VP9 must pull us down to VP9.
     expect(session.getCodec()).toBe('av01.0.05M.08');
 
-    const changed = session.renegotiateSendCodec([
+    const changed: boolean = session.renegotiateSendCodec([
       [{ codec: 'vp09.00.31.08', hardware: false, maxHeight: 720 }],
     ]);
 
@@ -245,7 +245,7 @@ describe('codec negotiation', () => {
     const session: CallSession = new CallSession(callbacks());
     await session.start({ audio: true, video: true, screen: false });
 
-    const changed = session.renegotiateSendCodec([
+    const changed: boolean = session.renegotiateSendCodec([
       [{ codec: 'av01.0.05M.08', hardware: false, maxHeight: 720 }],
     ]);
 

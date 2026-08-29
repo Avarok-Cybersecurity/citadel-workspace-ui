@@ -17,7 +17,7 @@ describe('starting messaging for a session', () => {
   it('reports true and says nothing when it comes up', async () => {
     const report = vi.fn();
 
-    const ready = await startMessagingOrReport('42', {
+    const ready: boolean = await startMessagingOrReport('42', {
       start: vi.fn().mockResolvedValue(undefined),
       report,
     });
@@ -29,7 +29,7 @@ describe('starting messaging for a session', () => {
   it('tells the user when it does not', async () => {
     const report = vi.fn();
 
-    const ready = await startMessagingOrReport('42', {
+    const ready: boolean = await startMessagingOrReport('42', {
       start: vi.fn().mockRejectedValue(new Error('handle refused')),
       report,
     });
@@ -56,7 +56,7 @@ describe('starting messaging for a session', () => {
   it('survives a rejection that is not an Error', async () => {
     const report = vi.fn();
 
-    const ready = await startMessagingOrReport('42', {
+    const ready: boolean = await startMessagingOrReport('42', {
       start: vi.fn().mockRejectedValue('wasm exploded'),
       report,
     });
@@ -67,11 +67,11 @@ describe('starting messaging for a session', () => {
 
   it('does not swallow the failure into a resolved-looking success', async () => {
     // The shape the old code had: caller could not tell the two apart.
-    const succeeded = await startMessagingOrReport('42', {
+    const succeeded: boolean = await startMessagingOrReport('42', {
       start: vi.fn().mockResolvedValue(undefined),
       report: vi.fn(),
     });
-    const failed = await startMessagingOrReport('42', {
+    const failed: boolean = await startMessagingOrReport('42', {
       start: vi.fn().mockRejectedValue(new Error('nope')),
       report: vi.fn(),
     });

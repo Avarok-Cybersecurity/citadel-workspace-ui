@@ -51,7 +51,7 @@ export function usePwaInstall(): PwaInstallState {
     getPromptEvent,
     () => null,
   );
-  const isInstalled = useSyncExternalStore(
+  const isInstalled: boolean = useSyncExternalStore(
     subscribeToInstallState,
     isAppInstalled,
     () => false,
@@ -72,7 +72,7 @@ export function usePwaInstall(): PwaInstallState {
   // Safari on iOS/iPadOS. Detected by the absence of a Chromium hook rather
   // than by browser name: iPadOS reports a Mac user-agent, so a name check
   // misses exactly the device most likely to install this.
-  const isIosSafari =
+  const isIosSafari: boolean =
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 

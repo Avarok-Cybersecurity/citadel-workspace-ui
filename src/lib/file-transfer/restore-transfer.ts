@@ -48,7 +48,7 @@ function isUsable(raw: Partial<FileTransfer>): raw is Partial<FileTransfer> & {
 export function restoreTransfer(raw: Partial<FileTransfer>): FileTransfer | null {
   if (!isUsable(raw)) return null;
 
-  const interrupted = !TERMINAL.has(raw.state);
+  const interrupted: boolean = !TERMINAL.has(raw.state);
 
   return {
     id: raw.id,

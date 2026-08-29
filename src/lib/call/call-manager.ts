@@ -169,7 +169,7 @@ export class CallManager {
     // answered: the caller (in the call by dialling, seeded 'connecting') and
     // any co-invitee whose accept already arrived. The rest get their session
     // when their CallAccept lands.
-    const ready = peers.filter((p) => p.status === 'connecting' || p.status === 'active');
+    const ready = peers.filter((p): boolean => p.status === 'connecting' || p.status === 'active');
     await Promise.all(ready.map((p) => openSessionFor(this.internals(), p.cid)));
   }
 

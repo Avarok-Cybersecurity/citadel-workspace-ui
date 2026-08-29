@@ -37,12 +37,12 @@ export function ThemePreview({
   selectedToken,
   onSelectToken,
 }: ThemePreviewProps) {
-  const region = (id: string) => PREVIEW_REGIONS.find((r) => r.id === id)!;
+  const region = (id: string) => PREVIEW_REGIONS.find((r): boolean => r.id === id)!;
 
   /** Shared behaviour for every clickable part of the mock. */
   const hotspot = (id: string) => {
     const r = region(id);
-    const selected = selectedToken === r.token;
+    const selected: boolean = selectedToken === r.token;
     return {
       type: 'button' as const,
       'data-testid': `preview-region-${id}`,

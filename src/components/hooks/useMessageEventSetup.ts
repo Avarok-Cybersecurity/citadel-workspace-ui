@@ -77,7 +77,7 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions):
 
     const setupErrorHandling = async (): Promise<void> => {
       await workspaceEvents.onOperationEvent('operation:error', (payload: ErrorPayload) => {
-        const needsInitialization = payload.message.includes(WORKSPACE_MISSING_ERROR);
+        const needsInitialization: boolean = payload.message.includes(WORKSPACE_MISSING_ERROR);
 
         setState(prev => ({
           ...prev,

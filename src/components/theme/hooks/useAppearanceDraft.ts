@@ -132,7 +132,7 @@ export function useAppearanceDraft({ open, onOpenChange, onSave }: UseAppearance
     }
   };
 
-  const dirty = draft !== savedTheme;
+  const dirty: boolean = draft !== savedTheme;
 
   return {
     draft, setDraft,

@@ -4,7 +4,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ProtocolOfferCorrelator } from '../protocol-offer-correlation';
 
-const SENDER = '42';
+const SENDER: "42" = '42';
 const FILE = { name: 'report.pdf', size: 8192 };
 
 describe('ProtocolOfferCorrelator', () => {

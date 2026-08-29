@@ -134,7 +134,7 @@ class GroupMessagingManagerClass {
     // transcript with the older page, and everything newer vanished from screen
     // until a new message arrived or the user reloaded. The response carries no
     // pagination cursor to correlate on, so the manager records the request.
-    const paginating = prepend || this.pendingOlder.delete(groupId);
+    const paginating: boolean = prepend || this.pendingOlder.delete(groupId);
 
     const newMessages: GroupMessage[] = paginating
       ? mergeOlder(current.messages, sortedMessages)

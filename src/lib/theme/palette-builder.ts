@@ -175,7 +175,7 @@ export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
  */
 
 function mutedAgainst(surface: HslColor, foreground: HslColor): HslColor {
-  const towardSurface = foreground.l > surface.l ? -1 : 1;
+  const towardSurface: 1 | -1 = foreground.l > surface.l ? -1 : 1;
 
   for (let offset: number = 30; offset >= 0; offset -= 2) {
     const candidate = { ...foreground, l: foreground.l + towardSurface * offset };

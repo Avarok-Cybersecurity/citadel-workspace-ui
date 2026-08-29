@@ -19,7 +19,7 @@ import {
   mintInstanceId,
 } from '../instance-identity';
 
-const MY_ID = '1700000000000000123';
+const MY_ID: "1700000000000000123" = '1700000000000000123';
 
 describe('self-traffic filtering', () => {
   it('drops our own messages', () => {
@@ -47,10 +47,10 @@ describe('identity conflict resolution', () => {
 
   it('exactly one of the pair yields', () => {
     const theirs: string = `${documentNonce}~higher`;
-    const weYield = shouldReissueIdentity(MY_ID, theirs, MY_ID);
+    const weYield: boolean = shouldReissueIdentity(MY_ID, theirs, MY_ID);
     // The twin computes the mirror case from the same two values. Both sides
     // must not yield (churn) and must not both keep it (the original bug).
-    const theyYield = theirs < documentNonce;
+    const theyYield: boolean = theirs < documentNonce;
     expect(weYield).not.toBe(theyYield);
   });
 
@@ -92,7 +92,7 @@ describe('minted ids', () => {
     // two documents can share an id no matter how much randomness it carries.
     // That is precisely why documentNonce and shouldReissueIdentity exist, and
     // they are tested above.
-    const collidingId = '1700000000000000123';
+    const collidingId: "1700000000000000123" = '1700000000000000123';
     expect(shouldReissueIdentity(collidingId, `${documentNonce}~higher`, collidingId)).toBe(true);
   });
 });

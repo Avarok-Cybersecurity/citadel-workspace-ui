@@ -113,7 +113,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     // the button would work exactly once more and then be dead again. A manual
     // press past the budget starts a fresh series instead, which also lets the
     // automatic countdown pick back up.
-    const exhausted = attempt >= maxRetries;
+    const exhausted: boolean = attempt >= maxRetries;
     const retryFn: (() => Promise<unknown>) | null = exhausted ? executeFnRef.current : retryFnRef.current;
     if (retryFn && !retryInProgressRef.current) {
       retryInProgressRef.current = true;

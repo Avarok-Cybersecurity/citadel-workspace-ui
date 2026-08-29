@@ -47,7 +47,7 @@ export interface InitializationConfig {
 }
 
 export class WebSocketInitialization {
-  private leadershipListenerRegistered = false;
+  private leadershipListenerRegistered: boolean = false;
 
   private readonly config: InitializationConfig;
   /** Owned while leader, so demotion can close it; `creating` blocks doubles. */
@@ -73,7 +73,7 @@ export class WebSocketInitialization {
     debugLog('WebSocketInit', `waitForLeaderElection: waiting up to ${ELECTION_TIMEOUT_MS}ms for leader election`);
 
     return new Promise<void>((resolve) => {
-      let resolved = false;
+      let resolved: boolean = false;
 
       const handler = ({ isLeader, leaderId }: { isLeader: boolean; leaderId: string }): void => {
         if (!resolved) {

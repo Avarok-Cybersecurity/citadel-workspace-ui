@@ -39,7 +39,7 @@ const RESPONSES: Record<string, unknown> = {
 
 /** Feed one response through the real router and report whether it surfaced. */
 function reachesWaiter(response: unknown): boolean {
-  let seen = false;
+  let seen: boolean = false;
   const handler = (): void => {
     seen = true;
   };

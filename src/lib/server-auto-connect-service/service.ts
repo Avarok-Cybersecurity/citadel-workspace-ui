@@ -36,8 +36,8 @@ export class ServerAutoConnectService extends EventListenerPollingService {
   private reconnectAttempts: Map<string, ConnectionAttempt> = new Map<string, ConnectionAttempt>();
   private activeSessionKeys: Set<string> = new Set<string>();
   private userDisconnectedSessions: Set<string> = new Set<string>();
-  private isEnabled = true;
-  private isInitialized = false;
+  private isEnabled: boolean = true;
+  private isInitialized: boolean = false;
 
   private constructor() {
     super();

@@ -30,7 +30,7 @@ function emitLater(response: unknown): void {
 describe('a write waiting for its answer', () => {
   it('is not resolved by another member\'s broadcast of the same variant', async () => {
     const send = vi.fn().mockResolvedValue(undefined);
-    let settled = false;
+    let settled: boolean = false;
 
     const pending: Promise<void> = awaitWriteResponse('UpdateNode', send, nodeWithId(MINE))
       .then(() => { settled = true; })
@@ -68,7 +68,7 @@ describe('a write waiting for its answer', () => {
 
   it('tells a delete of one node from a delete of another', async () => {
     const send = vi.fn().mockResolvedValue(undefined);
-    let settled = false;
+    let settled: boolean = false;
 
     const pending: Promise<void> = awaitWriteResponse('DeleteNode', send, aboutNode(MINE))
       .then(() => { settled = true; })

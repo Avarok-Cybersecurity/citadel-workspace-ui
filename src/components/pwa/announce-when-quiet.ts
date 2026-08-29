@@ -21,7 +21,7 @@
  */
 
 /** How long to wait for the error to clear before announcing anyway. */
-export const QUIET_WAIT_MS = 12_000;
+export const QUIET_WAIT_MS: 12000 = 12_000;
 /** How often to look. */
 export const QUIET_POLL_MS = 500;
 
@@ -41,7 +41,7 @@ export function announceWhenQuiet(
   announce: () => void,
   options: { isBusy?: () => boolean; waitMs?: number; pollMs?: number } = {},
 ): () => void {
-  const isBusy: () => boolean = options.isBusy ?? (() => anErrorIsShowing());
+  const isBusy: () => boolean = options.isBusy ?? ((): boolean => anErrorIsShowing());
   const waitMs: number = options.waitMs ?? QUIET_WAIT_MS;
   const pollMs: number = options.pollMs ?? QUIET_POLL_MS;
 
@@ -50,7 +50,7 @@ export function announceWhenQuiet(
     return () => undefined;
   }
 
-  let done = false;
+  let done: boolean = false;
   const finish = (): void => {
     if (done) return;
     done = true;

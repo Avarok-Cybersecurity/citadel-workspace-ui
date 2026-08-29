@@ -88,7 +88,7 @@ export function waitForEvent<T = void>(
   const { timeoutMs, description } = options;
 
   return new Promise<T>((resolve, reject) => {
-    let settled = false;
+    let settled: boolean = false;
 
     const finish = (fn: () => void): void => {
       if (settled) return;

@@ -150,7 +150,7 @@ export function useJoinRegistration(
     // The inline error is already in a live region, already associated with the
     // field through `aria-describedby`, and now the field takes focus. The toast
     // was the third copy of a message that two better channels were carrying.
-    const missingField =
+    const missingField: boolean =
       !formData.fullName || !formData.username || !formData.password || !formData.confirmPassword;
     const firstError: string | null =
       rawErrors.fullName ?? rawErrors.username ?? rawErrors.password ?? rawErrors.confirmPassword;

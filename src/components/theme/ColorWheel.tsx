@@ -116,7 +116,7 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
             WebkitMask: `radial-gradient(circle, transparent ${CENTER - RING_THICKNESS}px, #000 ${CENTER - RING_THICKNESS + 1}px)`,
           }}
           onKeyDown={(e) => {
-            const step = e.shiftKey ? 10 : 1;
+            const step: 10 | 1 = e.shiftKey ? 10 : 1;
             if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
               e.preventDefault();
               onChange({ ...value, h: (value.h + step) % 360 });
@@ -155,7 +155,7 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
             `,
           }}
           onKeyDown={(e) => {
-            const step = e.shiftKey ? 10 : 2;
+            const step: 10 | 2 = e.shiftKey ? 10 : 2;
             const moves: Record<string, Partial<HslColor>> = {
               ArrowRight: { s: Math.min(100, value.s + step) },
               ArrowLeft: { s: Math.max(0, value.s - step) },

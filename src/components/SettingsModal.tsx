@@ -22,7 +22,7 @@ interface SettingsModalProps {
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const connectionInfo = connectionManager.getConnectionInfo();
-  const isConnected = !!connectionInfo?.cid;
+  const isConnected: boolean = !!connectionInfo?.cid;
 
   const tabTriggerClass = "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5 text-xs rounded-lg transition-all data-[state=active]:shadow-md data-[state=active]:shadow-primary-accent/20";
 

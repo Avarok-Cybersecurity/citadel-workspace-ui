@@ -32,7 +32,7 @@ export async function removeSession(
 export async function removeAllSessions(
   state: ConnectionState, io: ConnectionIO, disconnectFn: () => Promise<void>,
 ): Promise<void> {
-  const wasConnected = Boolean(state.currentConnectionInfo);
+  const wasConnected: boolean = Boolean(state.currentConnectionInfo);
   state.clearSessions();
   if (wasConnected) await disconnectFn();
   try {

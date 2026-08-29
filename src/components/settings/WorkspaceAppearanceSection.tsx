@@ -55,7 +55,7 @@ export function WorkspaceAppearanceSection() {
     if (workspaceId) void fetchPermissionsForDomain(workspaceId);
   }, [fetchPermissionsForDomain, workspaceId]);
 
-  const canEdit =
+  const canEdit: boolean =
     hasPermission(WORKSPACE_ROOT_ID, Permission.Themes) ||
     (workspaceId !== undefined && hasPermission(workspaceId, Permission.Themes));
 

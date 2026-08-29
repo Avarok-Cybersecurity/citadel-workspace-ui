@@ -25,7 +25,7 @@ export function createVideoDecoder(
   onError: (error: Error) => void,
   onNeedKeyframe: () => void,
 ): VideoDecoderHandle {
-  let primed = false;
+  let primed: boolean = false;
 
   const decoder = new VideoDecoder({
     output: onFrame,

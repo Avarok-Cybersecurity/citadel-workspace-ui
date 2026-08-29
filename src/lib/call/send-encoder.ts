@@ -104,7 +104,7 @@ export class SendEncoder {
       const chosen = this.codec;
       // The probe's verdict for THIS codec decides the acceleration mode; see
       // createVideoEncoder for why assuming hardware kills the whole call.
-      const hardware = this.encoders.find((e) => e.codec === chosen)?.hardware ?? false;
+      const hardware: boolean = this.encoders.find((e): boolean => e.codec === chosen)?.hardware ?? false;
       this.videoEncoder = createVideoEncoder(
         chosen,
         false,

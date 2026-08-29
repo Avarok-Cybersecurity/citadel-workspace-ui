@@ -95,7 +95,7 @@ export function setupEventListeners(
     if (peerCid === undefined) return;
 
     if (isIncoming) {
-      const weRegisteredFirst = p2pRegistrationService.hasOutgoingRegistration(peerCid);
+      const weRegisteredFirst: boolean = p2pRegistrationService.hasOutgoingRegistration(peerCid);
       if (weRegisteredFirst) {
         state.addOnlinePeer(peerCid);
         debugLog('P2PAutoConnectService', `P2PAutoConnect: Mutual registration complete with ${peerCid.toString().slice(0, 8)}..., initiating immediate connection`);

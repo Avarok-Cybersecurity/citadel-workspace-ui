@@ -24,7 +24,7 @@ import { eventEmitter } from '../event-emitter';
 
 export abstract class EventListenerManager {
   private cleanupFunctions: (() => void)[] = [];
-  private isSetup = false;
+  private isSetup: boolean = false;
 
   /**
    * Subscribe to an event with automatic cleanup tracking.

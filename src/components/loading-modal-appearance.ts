@@ -19,8 +19,8 @@ export interface StatusAppearance {
 }
 
 export function statusAppearance(status: string): StatusAppearance {
-  const isError = status === 'error';
-  const isReady = status === 'ready';
+  const isError: boolean = status === 'error';
+  const isReady: boolean = status === 'ready';
 
   return {
     isLoading: !isReady && !isError,

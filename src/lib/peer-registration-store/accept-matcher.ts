@@ -35,7 +35,7 @@ export function waitForAcceptResponse(
 
       const msg: Record<string, Record<string, unknown> | undefined> = message as Record<string, Record<string, unknown> | undefined>;
 
-      const matchesByRequestId =
+      const matchesByRequestId: boolean =
         msg.PeerRegisterSuccess?.request_id === registerRequestId ||
         msg.PeerConnectSuccess?.request_id === registerRequestId;
 
@@ -45,11 +45,11 @@ export function waitForAcceptResponse(
         msg.PeerConnectNotification?.peer_cid;
       const responseCid: unknown = msg.PeerConnectNotification?.cid;
 
-      const matchesByPeerCid = !!targetKey && toCidKey(responsePeerCid as CidLike) === targetKey;
-      const matchesByCid = !!targetKey && toCidKey(responseCid as CidLike) === targetKey;
+      const matchesByPeerCid: boolean = !!targetKey && toCidKey(responsePeerCid as CidLike) === targetKey;
+      const matchesByCid: boolean = !!targetKey && toCidKey(responseCid as CidLike) === targetKey;
 
       const currentKey: string = toCidKey(currentCid);
-      const isOurNotification = !!msg.PeerConnectNotification && !!currentKey &&
+      const isOurNotification: boolean = !!msg.PeerConnectNotification && !!currentKey &&
         (toCidKey(msg.PeerConnectNotification.cid as CidLike) === currentKey ||
          toCidKey(msg.PeerConnectNotification.peer_cid as CidLike) === currentKey);
 

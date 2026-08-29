@@ -17,7 +17,7 @@ import { debugLog } from '@/lib/debug-config';
  * because two notification surfaces that disagree about when to interrupt are
  * worse than one that is slightly wrong.
  */
-let started = false;
+let started: boolean = false;
 
 /** Idempotent, like the store's own bindings: the first consumer arms it. */
 export function startGroupNotificationBindings(): void {

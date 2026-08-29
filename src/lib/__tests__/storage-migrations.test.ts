@@ -18,7 +18,7 @@ function fakeDb(existingStores: string[] = []) {
   const stores: Set<string> = new Set(existingStores);
   return {
     objectStoreNames: {
-      contains: (n: string) => stores.has(n),
+      contains: (n: string): boolean => stores.has(n),
       [Symbol.iterator]: () => stores[Symbol.iterator](),
     },
     createObjectStore: vi.fn((n: string) => stores.add(n)),

@@ -19,7 +19,7 @@ const someoneElse = {
   GroupMessageNotification: { group_id: 'g1', message: { content: 'their text' } },
 };
 
-const matcher = (payload: unknown) => {
+const matcher = (payload: unknown): boolean => {
   const p = payload as { group_id?: string; message?: { content?: string } };
   return p?.group_id === 'g1' && p?.message?.content === 'my text';
 };

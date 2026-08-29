@@ -14,7 +14,7 @@ vi.mock('@/lib/multi-instance/instance-manager', () => ({
 
 import { fileTransferService } from '../service';
 
-const PEER = '999';
+const PEER: "999" = '999';
 
 describe('file-transfer settings', () => {
   beforeEach(() => { cidRef.current = null; });

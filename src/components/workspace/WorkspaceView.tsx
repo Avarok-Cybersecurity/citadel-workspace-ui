@@ -36,7 +36,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   
   // Parse query parameters for P2P chat
   const params = new URLSearchParams(location.search);
-  const showP2P = params.get('showP2P') === 'true';
+  const showP2P: boolean = params.get('showP2P') === 'true';
   const peerCid: string | null = params.get('channel');
   const peerName: string | null = params.get('p2pUser');
 

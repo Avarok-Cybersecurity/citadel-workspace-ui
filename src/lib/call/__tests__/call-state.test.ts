@@ -277,8 +277,8 @@ describe('glare', () => {
   });
 
   it('is symmetric: exactly one side wins', () => {
-    const ours = glareWinner('call-aaa', 'call-bbb');
-    const theirs = glareWinner('call-bbb', 'call-aaa');
+    const ours: "ours" | "theirs" = glareWinner('call-aaa', 'call-bbb');
+    const theirs: "ours" | "theirs" = glareWinner('call-bbb', 'call-aaa');
 
     expect(ours === 'ours' ? theirs : ours).toBe('theirs');
   });

@@ -29,7 +29,7 @@ export class P2PConnectionState extends ConnectedPeersState {
   /**
    * Force initiator mode - set after ClaimSession to bypass deterministic CID check.
    */
-  private _forceInitiatorMode = false;
+  private _forceInitiatorMode: boolean = false;
 
   // ============================================================================
   // Pending Connections Management

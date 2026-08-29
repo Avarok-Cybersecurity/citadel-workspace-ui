@@ -35,7 +35,7 @@ export type FrameSink = (frame: WireFrame) => void;
  * at nothing. Shorter wastes bandwidth on a stable link; longer makes joining a
  * call feel broken.
  */
-const KEYFRAME_INTERVAL_MICROS = 4_000_000;
+const KEYFRAME_INTERVAL_MICROS: 4000000 = 4_000_000;
 
 export interface VideoEncoderHandle {
   encode: (frame: VideoFrame, congestion: CongestionState) => void;
@@ -87,7 +87,7 @@ export function createVideoEncoder(
         : VIDEO_PROFILE_MAIN);
   const hardwareAcceleration: HardwareAcceleration = hardware ? 'prefer-hardware' : 'no-preference';
   let lastKeyframeAt: number = -Infinity;
-  let forceKeyframe = true;
+  let forceKeyframe: boolean = true;
 
   const encoder = new VideoEncoder({
     output: (chunk): void => {
@@ -138,7 +138,7 @@ export function createVideoEncoder(
         }
       }
 
-      const dueForKeyframe = frame.timestamp - lastKeyframeAt >= KEYFRAME_INTERVAL_MICROS;
+      const dueForKeyframe: boolean = frame.timestamp - lastKeyframeAt >= KEYFRAME_INTERVAL_MICROS;
       encoder.encode(frame, { keyFrame: forceKeyframe || dueForKeyframe });
       forceKeyframe = false;
     },

@@ -83,7 +83,7 @@ describe('RevfsState', () => {
       const state: RevfsState = new RevfsState();
       const promise: Promise<boolean> = state.registerAck('op-1', 5000);
       state.resolveAck('op-1', true);
-      const result = await promise;
+      const result: boolean = await promise;
       expect(result).toBe(true);
     });
 

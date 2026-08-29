@@ -112,7 +112,7 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       const serverAddress: string = storedSession?.serverAddress ?? '';
 
       const requestId = crypto.randomUUID();
-      let responseReceived = false;
+      let responseReceived: boolean = false;
       const responsePromise: Promise<bigint> = new Promise<bigint>((resolve, reject) => {
         const timeout = setTimeout((): void => {
           if (!responseReceived) { eventEmitter.off('websocket-message', handler); reject(new Error('Connection timeout')); }
@@ -190,7 +190,7 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       await setSelectedUser({ selectedUsername: username.trim(), selectedServerAddress: serverAddress, selectedCid: cid });
       await postAuthSetup(cid);
 
-      const messagingReady = await startMessagingForSession(cid.toString());
+      const messagingReady: boolean = await startMessagingForSession(cid.toString());
 
       eventEmitter.emit('session:activated', {
         cid: cid.toString(), username: username.trim(),

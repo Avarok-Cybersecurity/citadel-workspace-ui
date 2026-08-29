@@ -21,7 +21,7 @@ export function useInstallAction(): {
 
   const installNow: () => void = useCallback((): void => {
     void (async (): Promise<void> => {
-      const accepted = await install();
+      const accepted: boolean = await install();
       // Only on acceptance. Declining is a choice, not an error to report back.
       if (accepted) {
         toast({

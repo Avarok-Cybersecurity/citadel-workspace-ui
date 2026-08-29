@@ -35,7 +35,7 @@ export class AutoConnectState {
   backendPollInterval: NodeJS.Timeout | null = null;
 
   /** Guard to prevent concurrent refresh operations */
-  isRefreshing = false;
+  isRefreshing: boolean = false;
 
   // ----- Delegating accessors for common core operations -----
 

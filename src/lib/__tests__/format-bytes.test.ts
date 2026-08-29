@@ -29,7 +29,7 @@ describe('formatBytes', () => {
     // The defect: a transfer bubble said "1.5 MB" and the transfer lifecycle
     // said "1.46 MB" about the same file, in the same view, because one used
     // toFixed(1) and the other toFixed(2).
-    const oneAndAHalfIsh = 1_530_000;
+    const oneAndAHalfIsh: 1530000 = 1_530_000;
     expect(formatBytes(oneAndAHalfIsh)).toBe(formatBytes(oneAndAHalfIsh));
     expect(formatBytes(oneAndAHalfIsh)).toBe('1.5 MB');
   });

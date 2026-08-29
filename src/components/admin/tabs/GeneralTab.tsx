@@ -62,7 +62,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
   }, [entityType, entityId, state.workspace, state.nodes]);
 
   useEffect(() => {
-    const dirty = name !== originalName || description !== originalDescription;
+    const dirty: boolean = name !== originalName || description !== originalDescription;
     setHasChanges(dirty);
     dirtyRef.current = dirty;
   }, [name, description, originalName, originalDescription]);

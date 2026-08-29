@@ -93,8 +93,8 @@ export function GroupMemberManagement({
   };
 
   // Check what actions are available for a member
-  const canKick = can('kickMembers');
-  const canAssign = can('assignRoles');
+  const canKick: boolean = can('kickMembers');
+  const canAssign: boolean = can('assignRoles');
 
   return (
     <div className="space-y-4">
@@ -134,9 +134,9 @@ export function GroupMemberManagement({
             </TableHeader>
             <TableBody>
               {sortedMembers.map((member, index) => {
-                const isOwnerMember = member.cid === group.ownerId;
-                const canManageThis = canManageMember(member.cid);
-                const canAssignThis = canAssign && canAssignRole(member.roleId);
+                const isOwnerMember: boolean = member.cid === group.ownerId;
+                const canManageThis: boolean = canManageMember(member.cid);
+                const canAssignThis: boolean = canAssign && canAssignRole(member.roleId);
 
                 return (
                   <TableRow

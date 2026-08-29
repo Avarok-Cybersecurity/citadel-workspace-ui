@@ -131,7 +131,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
                   <Wifi className="h-4 w-4 text-success-emphasis" />Active Sessions ({activeSessions.length})
                 </h3>
                 {activeSessions.map((session) => {
-                  const isCurrentSession = currentConnection?.cid === session.cid;
+                  const isCurrentSession: boolean = currentConnection?.cid === session.cid;
                   return (
                     <div key={session.cid} className="flex items-center justify-between p-4 rounded-lg bg-background border border-success/30">
                       <div className="flex items-center gap-3">
@@ -163,8 +163,8 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
                   <Clock className="h-4 w-4" />Saved Accounts ({storedSessions.length})
                 </h3>
                 {storedSessions.map((session) => {
-                  const isConnected = currentConnection?.serverAddress === session.serverAddress && currentConnection?.username === session.username;
-                  const hasActiveSession = activeSessions.some(a => a.username === session.username && a.server_address === session.serverAddress);
+                  const isConnected: boolean = currentConnection?.serverAddress === session.serverAddress && currentConnection?.username === session.username;
+                  const hasActiveSession: boolean = activeSessions.some(a => a.username === session.username && a.server_address === session.serverAddress);
                   return (
                     <div key={`${session.username}-${session.serverAddress}`} className={`flex items-center justify-between p-4 rounded-lg bg-background border ${hasActiveSession ? 'border-success/30' : 'border-surface/50'}`}>
                       <div className="flex items-center gap-3">

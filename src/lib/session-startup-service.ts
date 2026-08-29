@@ -50,7 +50,7 @@ export interface SessionActivatedEvent {
 class SessionStartupService {
   private static instance: SessionStartupService;
   private lastActivatedCid: string | null = null;
-  private isStartingUp = false;
+  private isStartingUp: boolean = false;
   // Track when the last reconnection startup completed (for time-based guards)
   private lastReconnectionCompletedAt: number = 0;
   // Grace period in ms after reconnection during which stale cleanup is skipped
@@ -78,7 +78,7 @@ class SessionStartupService {
       // - Login: User logged back in after explicit disconnect - must re-establish P2P connections
       // Both scenarios preserve the CID, so we can't use CID matching to block them.
       // This is critical for ILM to deliver queued messages after reconnection.
-      const isReconnection = event.activationType === 'claim' || event.activationType === 'login';
+      const isReconnection: boolean = event.activationType === 'claim' || event.activationType === 'login';
       debugLog('SessionStartupService', `isReconnection=${isReconnection} (type=${event.activationType}), lastActivatedCid=${this.lastActivatedCid?.slice(0, 8)}, isStartingUp=${this.isStartingUp}`);
 
       // Prevent duplicate activations for same CID (except for ClaimSession and Login)

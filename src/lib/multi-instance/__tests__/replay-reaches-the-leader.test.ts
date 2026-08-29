@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-let isLeader = false;
+let isLeader: boolean = false;
 vi.mock('@/lib/multi-instance/instance-manager', () => ({
   instanceManager: {
     get isLeader() {

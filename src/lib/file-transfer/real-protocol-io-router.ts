@@ -19,7 +19,7 @@ import type { TickCorrelation } from './tick-events';
 
 export class RealProtocolIORouter implements IFileTransferIORouter {
   private subscriptions: Map<string, () => void> = new Map<string, () => void>();
-  private disposed = false;
+  private disposed: boolean = false;
 
   // Map client transferId to protocol objectId for correlation
   private transferIdToObjectId: Map<string, string> = new Map<string, string>();

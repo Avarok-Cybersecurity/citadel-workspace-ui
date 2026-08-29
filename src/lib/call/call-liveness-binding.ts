@@ -46,7 +46,7 @@ export async function peerLostBecauseSilent(
 
 export class CallLivenessBinding {
   private readonly liveness: CallLiveness;
-  private running = false;
+  private running: boolean = false;
 
   /**
    * When each still-unanswered invitee was first seen with the call up.

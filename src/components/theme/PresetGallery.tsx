@@ -26,7 +26,7 @@ export function PresetGallery({ themes, selectedId, mode, onSelect }: PresetGall
     <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Theme">
       {themes.map((theme) => {
         const palette = mode === 'dark' ? theme.dark : theme.light;
-        const selected = theme.id === selectedId;
+        const selected: boolean = theme.id === selectedId;
 
         return (
           <button

@@ -33,7 +33,7 @@ describe('the outbound queue', () => {
 
     outboundQueue.onLeaderChange('new-leader');
 
-    const retries = emitted.filter((e) => e.event === 'outbound-retry');
+    const retries = emitted.filter((e): boolean => e.event === 'outbound-retry');
     expect(retries).toHaveLength(1);
   });
 

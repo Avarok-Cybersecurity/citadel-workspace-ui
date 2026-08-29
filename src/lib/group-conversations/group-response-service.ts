@@ -18,7 +18,7 @@ import { debugLog } from '@/lib/debug-config';
 import { toGroupEvents } from './group-events';
 import { p2pRegistrationService } from '../p2p-registration-service';
 
-let started = false;
+let started: boolean = false;
 
 async function resolveSelf(): Promise<{ cid: bigint; username: string } | null> {
   const cid: bigint | undefined = connectionManager.getConnectionInfo()?.cid;

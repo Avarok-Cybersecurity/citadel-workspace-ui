@@ -97,7 +97,7 @@ export function parseTickNotification(
   if (peerCid === null || peerCid === undefined) return null;
 
   const resolved: string | undefined = requestId ? ctx.requestIdToTransferId.get(requestId) : undefined;
-  const isForeign = requestId !== undefined && ctx.foreignRequestIds.has(requestId);
+  const isForeign: boolean = requestId !== undefined && ctx.foreignRequestIds.has(requestId);
 
   if (status === 'TransferBeginning') {
     return {

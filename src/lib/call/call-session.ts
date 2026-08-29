@@ -54,7 +54,7 @@ export class CallSession {
     (frame) => this.encodeScreen(frame, false),
     () => this.sender.closeScreen(),
   );
-  private closed = false;
+  private closed: boolean = false;
   /** In-flight `start()`, so a second press cannot capture a second stream. */
   private starting: Promise<CallMediaKinds | null> | null = null;
 

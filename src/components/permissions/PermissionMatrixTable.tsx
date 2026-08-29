@@ -95,7 +95,7 @@ export function PermissionMatrixTable({
                   <span className="text-sm text-foreground/80">{permission.label}</span>
                 </th>
                 {ROLE_HIERARCHY.map(role => {
-                  const isChecked = rolePermissions[role.value]?.has(permission.id) ?? false;
+                  const isChecked: boolean = rolePermissions[role.value]?.has(permission.id) ?? false;
                   return (
                     <td key={role.value} className="text-center px-3 py-2">
                       <div className="flex items-center justify-center">

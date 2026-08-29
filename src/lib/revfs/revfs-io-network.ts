@@ -31,7 +31,7 @@ export async function backendSendFile(
   virtualDir: string,
 ): Promise<RevfsIntentResult> {
   const requestId: string = crypto.randomUUID();
-  const isServerStorage = peerCid === null;
+  const isServerStorage: boolean = peerCid === null;
   debugLog('RevfsIO', `backendSendFile: name=${fileName} bytes=${content.byteLength} virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
 
   // ByteContents.data is a Rust Vec<u8>, which serialises as a number array —
@@ -155,7 +155,7 @@ export async function backendDeleteFile(
   virtualDir: string,
 ): Promise<RevfsIntentResult> {
   const requestId: string = crypto.randomUUID();
-  const isServerStorage = peerCid === null;
+  const isServerStorage: boolean = peerCid === null;
   debugLog('RevfsIO', `backendDeleteFile: virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
 
   const request = {

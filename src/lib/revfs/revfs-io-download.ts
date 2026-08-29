@@ -19,7 +19,7 @@ export async function backendDownloadFile(
   virtualDir: string,
 ): Promise<RevfsIntentResult> {
   const requestId: string = crypto.randomUUID();
-  const isServerStorage = peerCid === null;
+  const isServerStorage: boolean = peerCid === null;
   debugLog('RevfsIO', `backendDownloadFile: virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
 
   const request = {
@@ -84,8 +84,8 @@ export async function backendDownloadFile(
         }
 
         // Unit variants serialise as the bare string; a newtype carries a payload.
-        const isComplete = status === 'ReceptionComplete' || status === 'TransferComplete';
-        const isFailure =
+        const isComplete: boolean = status === 'ReceptionComplete' || status === 'TransferComplete';
+        const isFailure: boolean =
           status === 'Fail' ||
           (status !== null && typeof status === 'object' && 'Fail' in status);
 

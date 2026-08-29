@@ -29,7 +29,7 @@ export class PermissionsService extends EventListenerManager {
   private static instance: PermissionsService;
   private cache: Map<string, DomainPermissions> = new Map();
   private pendingRequests: Map<string, Promise<DomainPermissions>> = new Map();
-  private initialized = false;
+  private initialized: boolean = false;
 
   private constructor() {
     super();

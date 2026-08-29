@@ -78,7 +78,7 @@ export function VFSPropertiesDialog({
 }: VFSPropertiesDialogProps) {
   if (!node) return null;
 
-  const isDir = node.type === 'directory';
+  const isDir: boolean = node.type === 'directory';
   const Icon = isDir ? Folder : getFileIcon(node.name);
   const meta = node.fileMetadata;
   const state = node.fileState ? stateLabels[node.fileState] : null;

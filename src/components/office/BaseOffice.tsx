@@ -52,7 +52,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   }, []);
 
   // Determine if we're in a loading state
-  const isLoading = state.loading.nodes && !entityData;
+  const isLoading: boolean = state.loading.nodes && !entityData;
 
   const { compiled: compiledContent, renderError } = useCompiledMdx(
     content,
@@ -85,7 +85,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   const handleSave = async (): Promise<void> => {
     // The decision lives in saveOfficeContent so it can be tested without
     // rendering the MDX pipeline; this supplies the I/O and reacts to the answer.
-    const saved = await saveOfficeContent({
+    const saved: boolean = await saveOfficeContent({
       nodeId,
       content,
       displayName: entityData?.name || title,
@@ -153,10 +153,10 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   }
 
   // Use permission check result, defaulting to true if no domain ID (demo mode)
-  const hasEditPermission = !domainId || canEditMdx;
+  const hasEditPermission: boolean = !domainId || canEditMdx;
 
   // Check if chat is enabled for this office/room
-  const chatEnabled = entityData?.chat_enabled ?? false;
+  const chatEnabled: boolean = entityData?.chat_enabled ?? false;
   const chatChannelId: string | null | undefined = entityData?.chat_channel_id;
 
   // Get current user info from workspace state OR connection manager

@@ -66,7 +66,7 @@ export function GeneralSettingsTab() {
   // Listen for profile updates
   useEventListener<{ user: User }>('user:profile-updated', handleProfileUpdate);
 
-  const hasChanges = displayName !== originalDisplayName || avatarData !== originalAvatarData;
+  const hasChanges: boolean = displayName !== originalDisplayName || avatarData !== originalAvatarData;
 
   const handleSave = async (): Promise<void> => {
     if (!hasChanges) return;

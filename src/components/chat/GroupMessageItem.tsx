@@ -54,7 +54,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
   // Guarded against the 'You' fallback: `currentUserName` defaults to that when
   // the connection has no username yet, and a message from a user actually
   // called "You" must not be mistaken for the reader's own.
-  const isOwnMessage = Boolean(currentUserName) && currentUserName !== 'You'
+  const isOwnMessage: boolean = Boolean(currentUserName) && currentUserName !== 'You'
     ? message.sender_id === currentUserName
     : false;
   const initials: string = getInitials(message.sender_name);

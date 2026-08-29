@@ -105,8 +105,8 @@ export interface CongestionState {
 export const INITIAL_CONGESTION: CongestionState = { rung: 0, cleanStreak: 0 };
 
 export function applyReport(state: CongestionState, verdict: LinkVerdict): CongestionState {
-  const struggling = verdict === 'struggling';
-  const clean = verdict === 'clean';
+  const struggling: boolean = verdict === 'struggling';
+  const clean: boolean = verdict === 'clean';
 
   if (struggling) {
     return {

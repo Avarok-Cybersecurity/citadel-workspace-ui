@@ -58,7 +58,7 @@ function harness() {
     },
     /** Fires every live timer once (each liveness tick re-arms the next). */
     tick: (): number => {
-      const due = timers.filter((t) => !t.cancelled && !t.fired);
+      const due = timers.filter((t): boolean => !t.cancelled && !t.fired);
       for (const t of due) {
         t.fired = true;
         t.fn();
