@@ -113,7 +113,7 @@ export function PwaUpdatePrompt(): null {
         window.removeEventListener('online', check);
       };
     },
-    onRegisterError(error: any): void {
+    onRegisterError(error: unknown): void {
       debugLog('PWA', 'Service worker registration failed', error);
     },
   });

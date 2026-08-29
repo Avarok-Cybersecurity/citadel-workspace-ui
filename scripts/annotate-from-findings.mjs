@@ -482,7 +482,12 @@ for (const source of program.getSourceFiles()) {
         widened, node,
         ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType,
       );
-      const lifted = liftImports(printed);
+      // An implicit-any parameter prints as `any`, and writing that down turns
+      // an inference the compiler made quietly into a declaration the codebase
+      // bans -- `no-explicit-any` caught one and failed the lint gate. It is
+      // also the opposite of the point: the parameter has no type, and saying
+      // `any` is agreeing rather than fixing.
+      const lifted = printed === 'any' ? null : liftImports(printed);
       if (lifted !== null && canWrite(lifted, node)) {
         edits.push({ position: node.name.getEnd(), text: `: ${lifted}` });
       }
