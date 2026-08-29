@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
 import { useMarkdownFormat } from '../MarkdownToolbar';
 import type { MessageType } from '@/types/message-protocol';
+import type { Dispatch, SetStateAction } from 'react';
 
 interface UseP2PComposeParams {
   peerCid: bigint;
@@ -31,7 +32,7 @@ interface UseP2PComposeParams {
   createDocument: (title: string, initialContent: string) => Promise<void>;
 }
 
-export function useP2PCompose({ peerCid, messages, editMessage, createDocument }: UseP2PComposeParams) {
+export function useP2PCompose({ peerCid, messages, editMessage, createDocument }: UseP2PComposeParams): { inputRef: RefObject<HTMLTextAreaElement>; inputMessage: string; setInputMessage: Dispatch<SetStateAction<string>>; isSending: boolean; messageType: MessageType; showDocModal: boolean; setShowDocModal: Dispatch<SetStateAction<boolean>>; showMarkdownPreview: boolean; setShowMarkdownPreview: Dispatch<SetStateAction<boolean>>; applyFormat: (format: string, prefix: string, suffix: string) => void; replyingTo: P2PMessage | null; editingMessage: P2PMessage | null; handleReplyMessage: (messageId: string) => void; handleStartEdit: (messageId: string, content: string) => void; cancelComposeContext: () => void; handleSendMessage: () => Promise<void>; handleDocCreate: (title: string, initialContent: string) => Promise<void>; handleMessageTypeChange: (type: MessageType) => void; handleInputFocus: () => void; handleInputBlur: () => void; } {
   // Seeded from the draft store, so switching conversations and coming back
   // returns what was typed. The chat is keyed by peer — that keying is the fix
   // for drafts LEAKING between conversations, and it is why the text has to

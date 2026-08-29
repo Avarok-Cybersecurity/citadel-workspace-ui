@@ -12,8 +12,9 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { groupMessagesByDate } from './shared';
 import { debugLog } from '@/lib/debug-config';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
+import type { Dispatch, SetStateAction } from 'react';
 
-export function useGroupChat(groupId: string) {
+export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDivElement>; messagesEndRef: RefObject<HTMLDivElement>; messages: GroupMessage[]; hasMore: boolean; loading: boolean; loadingMore: boolean; sending: boolean; inputValue: string; setInputValue: Dispatch<SetStateAction<string>>; replyToId: string | null; setReplyToId: Dispatch<SetStateAction<string | null>>; editingId: string | null; setEditingId: Dispatch<SetStateAction<string | null>>; editContent: string; setEditContent: Dispatch<SetStateAction<string>>; loadMoreMessages: () => Promise<void>; handleSendMessage: () => Promise<void>; handleEditMessage: () => Promise<void>; handleDeleteMessage: (messageId: string) => Promise<void>; messagesByDate: Record<string, GroupMessage[]>; handleKeyPress: (e: React.KeyboardEvent) => void; } {
   const { toast } = useToast();
   const confirm: ReturnType<typeof useConfirm> = useConfirm();
   const scrollAreaRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);

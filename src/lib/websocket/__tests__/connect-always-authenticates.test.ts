@@ -26,7 +26,7 @@ const getActiveSessions = vi.fn();
 
 vi.mock('../../connection', () => ({
   connectionManager: {
-    getActiveSessions: () => getActiveSessions(),
+    getActiveSessions: (): unknown => getActiveSessions(),
     getStoredSessions: (): { sessions: never[]; } => ({ sessions: [] }),
   },
 }));

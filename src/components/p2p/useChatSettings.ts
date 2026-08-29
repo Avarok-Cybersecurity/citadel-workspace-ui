@@ -3,12 +3,13 @@ import { p2pMessengerManager } from '@/lib/p2p';
 import { fileTransferService, type FileTransferSettings, type TransferModePreference } from '@/lib/file-transfer';
 import type { ConversationMetadata } from '@/lib/p2p/p2p-types';
 import type { FileTransfer } from '@/lib/file-transfer/types';
+import type { Dispatch, SetStateAction } from 'react';
 import {
   FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES,
   REVFS_DEFAULT_QUOTA_BYTES
 } from '@/types/messaging-layer';
 
-export function useChatSettings(isOpen: boolean, peerCid: string) {
+export function useChatSettings(isOpen: boolean, peerCid: string): { stats: { messages: number; files: number; }; activeOuterTab: string; setActiveOuterTab: Dispatch<SetStateAction<string>>; activeFileTab: string; setActiveFileTab: Dispatch<SetStateAction<string>>; settings: FileTransferSettings; maxFileSizeMb: number; revfsQuotaMb: number; defaultMaxMb: number; formatSizeLimit: (bytes: number) => string; handleAutoAcceptChange: (enabled: boolean) => Promise<void>; handleMaxFileSizeChange: (values: number[]) => Promise<void>; handleTransferModeChange: (mode: TransferModePreference) => Promise<void>; handleAllowRevfsChange: (allowed: boolean) => Promise<void>; handleRevfsQuotaChange: (values: number[]) => Promise<void>; } {
   const [activeOuterTab, setActiveOuterTab] = useState('general');
   const [activeFileTab, setActiveFileTab] = useState('standard');
   const [settings, setSettings] = useState<FileTransferSettings>({

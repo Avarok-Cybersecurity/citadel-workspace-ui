@@ -13,13 +13,14 @@ import { P2PMessengerManager } from '@/lib/p2p';
 import { debugLog } from '@/lib/debug-config';
 import { ChatTab, MESSAGES_TAB, createLiveDocumentTab } from '../ChatTabBar';
 import type { DocumentMetadata } from '@/lib/live-document-store/types';
+import type { Dispatch, SetStateAction } from 'react';
 
 interface UseP2PTabsOptions {
   peerCid: bigint;
   currentUserCid?: bigint;
 }
 
-export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
+export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { tabs: ChatTab[]; activeTabId: string; activeTabIdRef: MutableRefObject<string>; tabsWithUnread: { hasUnread: boolean; id: string; type: "messages" | "live_document"; title: string; documentId?: string; }[]; activeTab: ChatTab | undefined; setMessagesHasUnread: Dispatch<SetStateAction<boolean>>; handleTabSelect: (tabId: string) => void; handleCloseTab: (tabId: string) => void; handleOpenDocument: (docId: string, title: string) => void; handleCreateDocument: (title: string, initialContent: string) => Promise<void>; } {
   const [tabs, setTabs] = useState<ChatTab[]>([MESSAGES_TAB]);
   const [activeTabId, setActiveTabId] = useState('messages');
   const [messagesHasUnread, setMessagesHasUnread] = useState(false);

@@ -24,7 +24,7 @@ export interface Peer {
   is_registered?: boolean;
 }
 
-export function usePeerDiscovery(isOpen: boolean) {
+export function usePeerDiscovery(isOpen: boolean): { peers: Peer[]; registeredPeers: Set<string>; outgoingRequests: Set<string>; incomingRequests: Map<string, PendingPeerRequest>; loading: boolean; acceptingPeerCid: string | null; currentCid: bigint | null; currentUsername: string; discoverPeers: (announce?: boolean) => Promise<void>; acceptIncomingRequest: (request: PendingPeerRequest) => Promise<void>; registerWithPeer: (peerCid: string, peerUsername: string) => Promise<void>; } {
   const [peers, setPeers] = useState<Peer[]>([]);
   // requestId -> peer name, so a PeerRegisterFailure — which carries a
   // request_id but no peer_cid — can say who it was for.

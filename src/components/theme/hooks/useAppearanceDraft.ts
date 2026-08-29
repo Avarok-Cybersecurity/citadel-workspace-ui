@@ -16,6 +16,7 @@ import { beginEdit, setToken } from '@/lib/theme/theme-editing';
 import { PREVIEW_REGIONS , type PreviewRegion } from '@/lib/theme/preview-regions';
 import type { WorkspaceTheme, ThemeTokenKey, ThemeMode, HslColor, ThemePalette } from '@/lib/theme/theme-types';
 import { debugLog } from '@/lib/debug-config';
+import type { Dispatch, SetStateAction } from 'react';
 
 /**
  * What the colour wheel is pointed at. The workspace icon is not a palette
@@ -29,7 +30,7 @@ interface UseAppearanceDraftParams {
   onSave: (theme: WorkspaceTheme) => Promise<void>;
 }
 
-export function useAppearanceDraft({ open, onOpenChange, onSave }: UseAppearanceDraftParams) {
+export function useAppearanceDraft({ open, onOpenChange, onSave }: UseAppearanceDraftParams): { draft: WorkspaceTheme; setDraft: Dispatch<SetStateAction<WorkspaceTheme>>; mode: ThemeMode; setMode: Dispatch<SetStateAction<ThemeMode>>; selection: Selection; setSelection: Dispatch<SetStateAction<Selection>>; selectedToken: keyof ThemePalette | null; saving: boolean; allThemes: WorkspaceTheme[]; palette: ThemePalette; activeRegion: PreviewRegion | null; editDraft: (change: (t: WorkspaceTheme) => WorkspaceTheme) => void; handleColorChange: (color: HslColor) => void; handleSave: () => Promise<void>; dirty: boolean; } {
   // savedTheme, NOT theme: `theme` becomes our own preview the moment we set
   // one, so comparing against it would make `dirty` permanently false.
   const { savedTheme, previewTheme } = useWorkspaceTheme();

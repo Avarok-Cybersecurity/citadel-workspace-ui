@@ -85,7 +85,7 @@ export class AuthOperations {
       },
     };
 
-    const connectRequest = { Connect: connectOptions };
+    const connectRequest: { Connect: { request_id: string; username: string; password: number[]; connect_mode: { Standard: { force_login: boolean; }; }; udp_mode: string; keep_alive_timeout: null; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; }; } = { Connect: connectOptions };
 
     debugLog('AuthOperations', `[Connect] Sending Connect request with request_id: ${requestId}`);
     debugLog('AuthOperations', `[Connect] isLeader: ${instanceManager.isLeader}`);

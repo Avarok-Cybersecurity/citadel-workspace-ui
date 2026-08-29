@@ -3,7 +3,7 @@
  * Extracted from magic numbers scattered across the codebase.
  */
 
-export const TIMEOUT = {
+export const TIMEOUT: { readonly SERVER_REQUEST_MS: 5000; readonly DISCONNECT_REQUEST_MS: 30000; readonly FILE_PICKER_MS: 120000; readonly LOCALDB_REQUEST_MS: 5000; readonly GET_SELECTED_USER_MS: 2000; readonly P2P_CONNECT_REQUEST_MS: 30000; readonly P2P_ACCEPT_REQUEST_MS: 10000; readonly P2P_DISCONNECT_MS: 10000; readonly P2P_MESSAGE_MS: 500; readonly SEARCH_DEBOUNCE_MS: 300; readonly SESSION_MANAGEMENT_MS: 3000; readonly CLAIM_SESSION_MS: 10000; readonly PEER_REGISTER_MS: 10000; readonly PERMISSION_FETCH_MS: 10000; readonly PEER_LIST_MS: 35000; readonly FILE_SEND_MS: 30000; readonly FILE_DOWNLOAD_MS: 60000; readonly OUTBOUND_ACK_MS: 30000; readonly CHECKSTATE_MS: 3000; readonly SW_ACTIVATION_MS: 3000; } = {
   /** Default timeout for server requests (WebSocket round-trip) */
   SERVER_REQUEST_MS: 5000,
   /** Timeout for disconnect requests (may involve cleanup) */

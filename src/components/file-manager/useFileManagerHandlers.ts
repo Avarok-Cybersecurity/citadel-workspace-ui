@@ -53,7 +53,7 @@ export function useFileManagerHandlers({
   tree, currentPath, filterText, fileInputRef,
   setUploadTargetDir, setRevfsDisabledReason, setRevfsDisabledModalOpen,
   setAttemptedFileSize, setStorageLimitModalOpen, setPropertiesNode,
-}: HandlerDeps) {
+}: HandlerDeps): { handleNewFolder: (parentPath: string) => Promise<void>; handleDelete: (node: RevfsNode) => Promise<void>; handleDownload: (node: RevfsNode) => void; handleUploadFile: (dirPath: string) => void; handleInfo: (node: RevfsNode) => void; handleRename: (path: string, newName: string) => Promise<void>; handleCut: (node: RevfsNode) => void; handleCopy: (node: RevfsNode) => void; handlePaste: (destPath: string) => Promise<void>; handleDeleteMultiple: (nodes: RevfsNode[]) => Promise<void>; handleCutMultiple: (nodes: RevfsNode[]) => void; handleCopyMultiple: (nodes: RevfsNode[]) => void; handleSelectAll: () => void; handleDrop: (targetPath: string, files: FileList) => Promise<void>; handleSync: () => Promise<void>; } {
   const confirm: ReturnType<typeof useConfirm> = useConfirm();
   const prompt: ReturnType<typeof usePrompt> = usePrompt();
 
