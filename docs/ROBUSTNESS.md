@@ -16413,3 +16413,38 @@ negative control, without which `unanswered` could be a constant. Pinning it to
 `false` fails the first test and leaves the other six green.
 
 Preflight: 48 checks.
+
+## Round 334 — a sentinel the server does not know is one
+
+Sweeping for round 333's shape — code matching on a message it does not own —
+found one that crosses a language boundary.
+
+`useMessageEventSetup.ts` decides whether to offer workspace initialization:
+
+```ts
+const WORKSPACE_MISSING_ERROR = 'No workspace found';
+const needsInitialization = payload.message.includes(WORKSPACE_MISSING_ERROR);
+```
+
+The string comes from the kernel, as `NetworkError::msg("No workspace found for
+user")`. Nothing bound them. The Rust side reads as an ordinary human-facing
+error — nothing at that call site says a client parses it — and the same file
+already carries three `NetworkError::msg("Workspace not found")` for the same
+condition, so the phrasing this depends on is *already* not the only one in use.
+Reword it and `needsInitialization` is false forever: the first user of a fresh
+deployment is never offered setup, and nothing fails.
+
+`check-workspace-missing-parity.mjs`, in the style of the transfer-cap and
+peer-list-timeout gates: both sides read as text, because a gate that imported
+either would pass whatever the other said.
+
+**The first draft of that gate reported a break that was not there.** It pinned
+a file and took the first workspace-ish `NetworkError::msg` in it — which is
+`"Workspace not found"`, three hundred lines above the one that matters. It
+now searches the kernel for the sentinel rather than guessing where it lives.
+A gate that cries wolf gets deleted, so that was worth the second pass.
+
+Negative-controlled from both ends: rewording the kernel message fails and
+prints what the kernel actually sends; renaming the client constant fails too.
+
+Preflight: **49 checks**.
