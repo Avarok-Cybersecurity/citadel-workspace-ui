@@ -159,7 +159,7 @@ export class AuthOperations {
       server_password: registerOptions.server_password ? '<redacted>' : null,
     });
 
-    const registerRequest = { Register: registerOptions };
+    const registerRequest: { Register: { request_id: string; server_addr: string; full_name: string; username: string; proposed_password: number[]; connect_after_register: boolean; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; server_password: { passwords: number[][]; } | null; }; } = { Register: registerOptions };
 
     debugLog('AuthOperations', `[Register] isLeader: ${instanceManager.isLeader}`);
 

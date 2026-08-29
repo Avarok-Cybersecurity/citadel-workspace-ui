@@ -209,7 +209,6 @@
   "src/lib/websocket/__tests__/auth-operations-register.test.ts": 1,
   "src/lib/websocket/__tests__/connect-always-authenticates.test.ts": 5,
   "src/lib/websocket/__tests__/pending-requests-die-with-the-socket.test.ts": 1,
-  "src/lib/websocket/auth-operations.ts": 1,
   "src/lib/websocket-service/__tests__/init-retry-is-a-real-attempt.test.ts": 1,
   "src/lib/websocket-service/__tests__/resolve-url.test.ts": 1,
   "src/lib/websocket-service/core.ts": 2,
