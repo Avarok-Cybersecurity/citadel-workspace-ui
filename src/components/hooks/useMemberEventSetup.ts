@@ -16,9 +16,34 @@ interface UseMemberEventSetupProps {
 
 export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): void {
   useEffect(() => {
+    // Kept, not discarded.
+    //
+    // `onMemberEvent` and `onWorkspaceEvent` return their unsubscribe
+    // SYNCHRONOUSLY, and `await` on a plain value throws nothing away by
+    // itself -- but nothing here captured the result, and the effect returned
+    // no cleanup. Every remount left another set of live listeners behind, each
+    // retaining a closure over `setState`, and every event then ran an
+    // ever-growing pile of dead handlers.
+    //
+    // Nothing broke visibly, because setState on an unmounted component is a
+    // no-op, which is exactly why it accumulated. `use-domain-members` carries
+    // the same paragraph about the same mistake, fixed there and not here.
+    //
+    // The sibling `useMessageEventSetup` calls `cleanupAllListeners()` on
+    // unmount, which does remove these -- and also removes every listener this
+    // hook did not create. That is not a substitute for owning your own
+    // unsubscribe.
+    const unsubscribes: Array<() => void> = [];
+    let cancelled: boolean = false;
+    /** Unsubscribes immediately if the effect has already been cleaned up. */
+    const keep = (unsubscribe: () => void): void => {
+      if (cancelled) unsubscribe();
+      else unsubscribes.push(unsubscribe);
+    };
+
     const setupMemberListeners = async (): Promise<void> => {
       // Member events
-      await workspaceEvents.onMemberEvent('members:loading', (payload) => {
+      keep(workspaceEvents.onMemberEvent('members:loading', (payload) => {
         setLoading(setState, 'members', true);
         // listMembers resolves on SEND, not on response — fall back to the empty
         // state rather than a spinner that can never resolve.
@@ -27,9 +52,9 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
         if (payload.domainId) {
           debugLog('UseMemberEventSetup', `Loading members for domain: ${payload.domainId}, request ID: ${payload.connection.request_id}`);
         }
-      });
+      }));
 
-      await workspaceEvents.onMemberEvent('members:loaded', async (payload) => {
+      keep(workspaceEvents.onMemberEvent('members:loaded', async (payload) => {
         cancelLoadingDeadline('members');
         setState(prev => {
           // Try to find the current user in the members list and update their role
@@ -103,7 +128,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
             loading: { ...prev.loading, members: false },
           };
         });
-      });
+      }));
 
       // `member:added` / `member:removed` had subscriptions here, but the only
       // emitters lived in handlers for response variants the server never
@@ -112,7 +137,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       // `members:reload`, emitted from the write path once the server confirms.
 
       // Member role updated event
-      await workspaceEvents.onMemberEvent('member:role-updated', (payload: { userId: string; role: string; connection: ConnectionInfo }) => {
+      keep(workspaceEvents.onMemberEvent('member:role-updated', (payload: { userId: string; role: string; connection: ConnectionInfo }) => {
         debugLog('UseMemberEventSetup', 'Member role updated:', payload.userId, payload.role);
         setState(prev => {
           // Update currentUser's role if it matches
@@ -137,10 +162,10 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
             currentUser: updatedCurrentUser,
           };
         });
-      });
+      }));
 
       // User permissions loaded event - updates currentUser's role
-      await workspaceEvents.onMemberEvent('user:permissions:loaded', (payload: { userId: string; role: string; connection?: ConnectionInfo }) => {
+      keep(workspaceEvents.onMemberEvent('user:permissions:loaded', (payload: { userId: string; role: string; connection?: ConnectionInfo }) => {
         debugLog('UseMemberEventSetup', 'User permissions loaded:', payload.userId, payload.role);
         setState(prev => {
           // Update currentUser's role if it matches
@@ -178,19 +203,25 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
             currentUser: updatedCurrentUser,
           };
         });
-      });
+      }));
 
       // Members reload event
-      await workspaceEvents.onWorkspaceEvent('members:reload', async () => {
+      keep(workspaceEvents.onWorkspaceEvent('members:reload', async () => {
         debugLog('UseMemberEventSetup', 'Reloading members list...');
         const params: URLSearchParams = new URLSearchParams(window.location.search);
         const domainId: string | null = params.get("nodeId");
         if (domainId) {
           await WorkspaceService.listMembers(domainId);
         }
-      });
+      }));
     };
 
     runAsyncSetup(setupMemberListeners);
+
+    return (): void => {
+      cancelled = true;
+      for (const unsubscribe of unsubscribes) unsubscribe();
+      unsubscribes.length = 0;
+    };
   }, [setState]);
 }

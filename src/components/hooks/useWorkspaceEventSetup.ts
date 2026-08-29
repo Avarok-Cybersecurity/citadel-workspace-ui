@@ -16,14 +16,39 @@ interface UseWorkspaceEventSetupProps {
 
 export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps): void {
   useEffect(() => {
+    // Kept, not discarded.
+    //
+    // `onMemberEvent` and `onWorkspaceEvent` return their unsubscribe
+    // SYNCHRONOUSLY, and `await` on a plain value throws nothing away by
+    // itself -- but nothing here captured the result, and the effect returned
+    // no cleanup. Every remount left another set of live listeners behind, each
+    // retaining a closure over `setState`, and every event then ran an
+    // ever-growing pile of dead handlers.
+    //
+    // Nothing broke visibly, because setState on an unmounted component is a
+    // no-op, which is exactly why it accumulated. `use-domain-members` carries
+    // the same paragraph about the same mistake, fixed there and not here.
+    //
+    // The sibling `useMessageEventSetup` calls `cleanupAllListeners()` on
+    // unmount, which does remove these -- and also removes every listener this
+    // hook did not create. That is not a substitute for owning your own
+    // unsubscribe.
+    const unsubscribes: Array<() => void> = [];
+    let cancelled: boolean = false;
+    /** Unsubscribes immediately if the effect has already been cleaned up. */
+    const keep = (unsubscribe: () => void): void => {
+      if (cancelled) unsubscribe();
+      else unsubscribes.push(unsubscribe);
+    };
+
     const setupWorkspaceListeners = async (): Promise<void> => {
       // Loading state
-      await workspaceEvents.onWorkspaceEvent('workspace:loading', () => {
+      keep(workspaceEvents.onWorkspaceEvent('workspace:loading', () => {
         setLoading(setState, 'workspace', true);
-      });
+      }));
 
       // Workspace loaded event
-      await workspaceEvents.onWorkspaceEvent('workspace:loaded', async (payload) => {
+      keep(workspaceEvents.onWorkspaceEvent('workspace:loaded', async (payload) => {
         const rawMetadata: Record<string, unknown> | undefined = payload.workspace.metadata;
 
         // Parse metadata as JSON to check initialization status
@@ -92,18 +117,24 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
         // tracked a workspace list. The switcher reads stored sessions, not
         // this. Removed rather than left as a decoy; one line brings it back if
         // something ever needs it.
-      });
+      }));
 
       // Workspace not initialized event
-      await workspaceEvents.onWorkspaceEvent('workspace:not-initialized', () => {
+      keep(workspaceEvents.onWorkspaceEvent('workspace:not-initialized', () => {
         setState(prev => ({
           ...prev,
           needsWorkspaceInitialization: true,
           loading: { ...prev.loading, workspace: false }
         }));
-      });
+      }));
     };
 
     runAsyncSetup(setupWorkspaceListeners);
+
+    return (): void => {
+      cancelled = true;
+      for (const unsubscribe of unsubscribes) unsubscribe();
+      unsubscribes.length = 0;
+    };
   }, [setState]);
 }

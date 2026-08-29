@@ -17621,3 +17621,41 @@ thing measured from a remount of the thing measuring.
 beside the number, for one field.
 
 2413 tests green.
+
+## Round 360 — two hooks that subscribed and never let go
+
+`use-domain-members` carries this paragraph about itself:
+
+> `onMemberEvent` returns its unsubscribe SYNCHRONOUSLY. It used to be wrapped
+> in `runAsyncSetup(async () => await ...)`, which threw the return value away,
+> so every remount left another live listener behind … Nothing broke visibly
+> (setState on an unmounted component is a no-op), which is exactly why it
+> accumulated. … `MembersTab.tsx had the identical defect`.
+
+Two more had it. `useMemberEventSetup` subscribes to five events and
+`useWorkspaceEventSetup` to three, both inside `runAsyncSetup`, and **neither
+effect returned a cleanup at all**. `useMemberEventSetup` lives in AppLayout's
+MembersSection, which remounts on every route change.
+
+The sibling `useMessageEventSetup` does return a cleanup — and it calls
+`workspaceEvents.cleanupAllListeners()`, which removes every listener in the
+application, including the ones these two hooks registered. So the leak was
+masked whenever all three unmounted together, and only these two remounting on
+their own let it grow. Somebody else clearing the room is not the same as owning
+your unsubscribe.
+
+Both now collect their unsubscribes and return them, with a `cancelled` guard so
+an unmount that beats the async setup still tears down what arrives afterwards.
+
+**The first version of the test measured nothing.** It counted listeners by
+subscribing a probe and counting the probe's own invocations, which is 1 no
+matter what the hook has done — so "no listener left behind" passed, and so did
+"does not accumulate", on a number that could not vary. Counted through
+`setState` instead, which is what every one of the hook's handlers calls and
+therefore what actually accumulates.
+
+With the real counter, removing the cleanup fails both tests. Each has its
+positive control inside it: `mounted > 0` and `oneMount > 0`, because a hook
+that never subscribed would satisfy "nothing left behind" trivially.
+
+2415 tests green.
