@@ -67,7 +67,12 @@ export function IncomingCallCard({
       className="pointer-events-auto fixed inset-x-3 top-16 z-[60] rounded-lg border border-border bg-popover p-4 shadow-xl motion-safe:animate-fade-in sm:inset-x-auto sm:right-4 sm:w-80"
     >
       {/* Assertive: a ring is time-limited, so a polite queue can outlast it. */}
-      <span role="alert" aria-live="assertive" className="sr-only">
+      <span
+        role="alert"
+        aria-live="assertive"
+        data-testid="incoming-call-announcement"
+        className="sr-only"
+      >
         {announcement}
       </span>
       <div className="flex items-center gap-3">
@@ -91,7 +96,13 @@ export function IncomingCallCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium text-popover-foreground">{callerName}</p>
-          <p className="truncate text-sm text-muted-foreground">{description}</p>
+          {/* The same words are also in the assertive live region above, so
+              both carry a testid: a spec matching on the TEXT resolves to two
+              elements and fails on strict mode, which is a real ambiguity
+              rather than a flake. */}
+          <p data-testid="incoming-call-kind" className="truncate text-sm text-muted-foreground">
+            {description}
+          </p>
         </div>
       </div>
 

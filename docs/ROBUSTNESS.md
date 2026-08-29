@@ -18119,3 +18119,33 @@ While extracting to fit the length cap, `group-roster.ts` and
 rather than slices, and `GroupChatPage` is at 239 lines.
 
 2448 tests green, all 59 preflight checks.
+
+## Round 371 — the same words twice, on purpose
+
+`Playwright shard 1/3` failed on
+
+    strict mode violation: getByText(/incoming video call/i) resolved to 2 elements
+
+`IncomingCallCard` renders that phrase twice, correctly: once visibly under the
+caller's name, and once inside an assertive `role="alert"` live region, because
+the card announces itself rather than taking focus. Two elements is what the UI
+is supposed to do; `getByText` on the shared words is the ambiguity.
+
+Both now carry a testid — `incoming-call-kind` and
+`incoming-call-announcement` — and the spec asserts each on its own terms. The
+announcement is worth its own assertion rather than being scoped away: it is
+populated in an effect precisely because a live region that mounts with its text
+already present is frequently never announced, and that is exactly the kind of
+thing a passing test should be holding in place.
+
+Swept the other 16 `getByText` assertions in the Playwright suite for the same
+collision. Most already scope with `.first()` or `toHaveCount`. The one
+candidate, `getByText('muted')`, has a single text source in the tree
+(`ParticipantTile`'s sr-only label), so it is not ambiguous. No gate written for
+this: 17 call sites, most already correct, is a sweep rather than a rule.
+
+The rest of the shard's failure, and the group-call one beside it, is
+"the call clock never started" — media negotiation, which needs the running
+stack.
+
+2448 tests green, all 59 preflight checks.

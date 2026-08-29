@@ -183,7 +183,19 @@ test.describe.serial('Audio and video calling', () => {
 
     // And the callee is rung wherever they are in the app.
     await expect(sessionB.page.getByTestId('incoming-call-card')).toBeVisible({ timeout: 60_000 });
-    await expect(sessionB.page.getByText(/incoming video call/i)).toBeVisible();
+
+    // By testid, not by text. The card renders these words twice on purpose --
+    // once visibly and once in an assertive live region for a screen reader --
+    // so `getByText(/incoming video call/i)` resolves to two elements and fails
+    // strict mode. That is the assertion being ambiguous, not the UI.
+    await expect(sessionB.page.getByTestId('incoming-call-kind')).toHaveText(/incoming video call/i);
+
+    // The announcement is the accessibility affordance and is checked on its
+    // own terms: it is populated in an effect, because a live region that
+    // mounts with its text already present is frequently never announced.
+    await expect(sessionB.page.getByTestId('incoming-call-announcement')).toHaveText(
+      /incoming video call/i,
+    );
   });
 
   test('accepting puts both sides in the call', async () => {
