@@ -39,7 +39,7 @@ const { deleteConversationPages } = await import('../message-page-delete');
 
 const ALICE: bigint = 111n;
 const BOB: bigint = 222n;
-const PEER = 999n;
+const PEER: bigint = 999n;
 
 /** Seed one conversation's metadata as `owner` (undefined = a legacy record). */
 function seedConversation(owner: bigint | undefined): void {

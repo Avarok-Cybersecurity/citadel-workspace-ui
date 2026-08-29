@@ -28,7 +28,7 @@ describe('shortPeerHandle', () => {
     // The old code sliced the first 8 characters of the decimal CID, so any two
     // peers sharing a prefix rendered as the same "name". Deriving from the low
     // bits instead means a shared prefix has no effect.
-    const a = 11111111100000001n;
+    const a: bigint = 11111111100000001n;
     const b = 11111111100000002n;
     expect(a.toString().slice(0, 8)).toBe(b.toString().slice(0, 8)); // old collision
     expect(shortPeerHandle(a)).not.toBe(shortPeerHandle(b));
