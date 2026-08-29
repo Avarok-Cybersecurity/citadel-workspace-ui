@@ -17332,3 +17332,54 @@ worth redoing, since a control that cannot fail is the thing this log keeps
 finding.
 
 2393 tests green; preflight 53/53 bar the push reminder.
+
+## Round 354 — a button that promised a thread this app cannot open
+
+Round 349's list is closed, and both remaining entries turned out to be sound:
+`useGroupChat` arms a loading deadline so a lost response cannot disable its
+button for ever, and `useP2PMessages` sits on a storage layer that already
+distinguishes genuine absence (returns null) from a read failure (throws), with
+a comment saying exactly why. Neither needed changing.
+
+Two more areas checked and left alone. Reduced motion is handled properly — a
+global `@media (prefers-reduced-motion: reduce)` clamp, a `.reduce-motion` class
+for the in-app switch with the duplication justified, and a reasoned exception
+for spinners — and it already has a gate. The appearance switches are wired at
+both ends; my grep missed `root.dataset.avatars` because it looked for the
+literal `data-avatars`, and there is already a gate asserting each preference
+has a consumer.
+
+Then a sweep for the class this codebase names itself: a control that cannot
+act. 236 buttons, 16 with no handler, and 14 of those are `ThemePreview`
+spreading `{...hotspot(...)}` or `AgentDownloadHint` spreading
+`{...interactive(handleCopy)}` — handlers my detector could not see.
+
+One was real:
+
+```tsx
+<button className="text-xs text-primary-accent hover:text-primary-accent mt-1">
+  {message.reply_count} replies
+</button>
+```
+
+Keyboard-focusable, announced as a button, coloured like a link, and with no
+`onClick`. `parent_message_id` exists in the protocol and `reply_count` is
+displayed, but **nothing in this app renders or opens a thread**, so there was
+nothing for it to do. Its hover was `hover:text-primary-accent` over a base of
+`text-primary-accent`, so it did not change on hover either — two things that
+looked interactive and were not.
+
+`onReply` exists and composes a NEW reply, which is not what "3 replies" offers.
+Wiring it there would have been worse than leaving it dead: a control that does
+something other than what it says.
+
+So it is a `<p>` now. The count is worth showing; the promise is not — the same
+call this codebase already made when it removed the "Invite User" button from
+under "No users found" rather than leave it there, because inviting a
+non-member is not a capability this app has.
+
+Control: restoring the button fails the not-a-button test and leaves the
+positive control green, which is what stops the fix from being "delete the
+count".
+
+2396 tests green; preflight 53/53.

@@ -106,9 +106,26 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
         />
 
         {message.reply_count > 0 && (
-          <button className="text-xs text-primary-accent hover:text-primary-accent mt-1">
+          /* Text, not a button.
+           *
+           * This was a <button> in the accent colour with a hover state: it
+           * took keyboard focus, was announced as a button, and did nothing at
+           * all — there is no `onClick`, and nothing in this app renders or
+           * opens a thread. `onReply` composes a NEW reply, which is not what
+           * "3 replies" offers, so wiring it there would have been worse than
+           * leaving it dead.
+           *
+           * The count is worth showing; the promise is not. Same call as the
+           * "Invite User" button that used to sit under "No users found" —
+           * pretending to a capability this app does not have.
+           *
+           * (Its hover was `hover:text-primary-accent` over a base of
+           * `text-primary-accent`, so it did not change on hover either. Two
+           * things that looked interactive and were not.)
+           */
+          <p className="text-xs text-muted-foreground mt-1" data-testid="group-reply-count">
             {message.reply_count} {message.reply_count === 1 ? 'reply' : 'replies'}
-          </button>
+          </p>
         )}
       </div>
 
