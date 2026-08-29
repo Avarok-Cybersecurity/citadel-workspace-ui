@@ -12,6 +12,19 @@
 import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
 import type { GroupRole } from '@/types/group-permissions';
 
+/**
+ * Roles that can be handed to somebody, highest first.
+ *
+ * Built-in roles are excluded: the owner role in particular is not assignable,
+ * and offering it in a dropdown that silently rejects it is worse than not
+ * offering it.
+ */
+export function assignableRoles(group: GroupConversation): GroupRole[] {
+  return group.settings.roles
+    .filter(r => !r.isBuiltIn)
+    .sort((a, b) => b.position - a.position);
+}
+
 export function membersByRank(group: GroupConversation): GroupMemberWithRole[] {
   return [...group.members]
     .flatMap((member): GroupMemberWithRole[] => {

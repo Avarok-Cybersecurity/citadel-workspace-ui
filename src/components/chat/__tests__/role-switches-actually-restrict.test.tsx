@@ -17,12 +17,22 @@
  * Each test carries its positive control: the permitted role must show the
  * thing, or "hidden when denied" would pass on a component that renders nothing
  * either way.
+ *
+ * Wiring them up then exposed a second problem of the same shape one level up.
+ * `useGroupPermissions` answers false both for a role that denies and for a
+ * user who is not in the member list at all -- and `buildGroupFromInvite` adds
+ * the accepting user on a best-effort basis, so the second happens for real.
+ * Those users were told "Your role in this group cannot send messages", naming
+ * a role they do not have. An absence rendered as a decision, which is the same
+ * mistake as the presence dot one directory over. Hence the third answer, and
+ * the last two tests here.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, renderHook } from '@testing-library/react';
 import type { GroupConversation } from '@/types/group';
 import type { GroupPermissions } from '@/types/group-permissions';
 import { DEFAULT_MEMBER_PERMISSIONS } from '@/types/group-permissions';
+import { groupRestriction, type GroupRestriction } from '../group-restriction';
 
 const SELF: bigint = 7n;
 const OWNER: bigint = 99n;
@@ -158,15 +168,66 @@ describe('the sendMessages switch', () => {
     expect(allowed).toBe(true);
     expect(muted).toBe(false);
 
+    const allowedRestriction: GroupRestriction = groupRestriction(true, allowed);
+    const mutedRestriction: GroupRestriction = groupRestriction(true, muted);
+    expect(mutedRestriction).toBe('denied-by-role');
+
     const permitted: ReturnType<typeof render> = render(
-      <GroupChatView groupId="g1" currentUserName="self" canSendMessages={allowed} />,
+      <GroupChatView groupId="g1" currentUserName="self" sendRestriction={allowedRestriction} />,
     );
     expect(screen.queryByTestId('group-message-input')).toBeTruthy();
     expect(screen.queryByTestId('group-send-restricted')).toBeNull();
     permitted.unmount();
 
-    render(<GroupChatView groupId="g1" currentUserName="self" canSendMessages={muted} />);
+    render(<GroupChatView groupId="g1" currentUserName="self" sendRestriction={mutedRestriction} />);
     expect(screen.queryByTestId('group-message-input')).toBeNull();
     expect(screen.getByTestId('group-send-restricted')).toBeTruthy();
+  });
+});
+
+describe('a user who is not in the member list', () => {
+  /** What `buildGroupFromInvite` produces when it cannot resolve self. */
+  function groupWithoutSelf(): GroupConversation {
+    const full: GroupConversation = groupWhereSelfHas(DEFAULT_MEMBER_PERMISSIONS);
+    return { ...full, members: full.members.filter((m) => m.cid === OWNER) };
+  }
+
+  it('is told that, not that their role forbids it', async () => {
+    const { useGroupPermissions } = await import('@/hooks/use-group-permissions');
+    const { GroupChatView } = await import('../GroupChatView');
+
+    const result: ReturnType<typeof useGroupPermissions> = renderHook(() =>
+      useGroupPermissions(groupWithoutSelf()),
+    ).result.current;
+
+    // The two states the old boolean squeezed into one.
+    expect(result.listedAsMember).toBe(false);
+    expect(result.can('sendMessages')).toBe(false);
+    const restriction: GroupRestriction = groupRestriction(
+      result.listedAsMember,
+      result.can('sendMessages'),
+    );
+    expect(restriction).toBe('not-listed');
+
+    render(<GroupChatView groupId="g1" currentUserName="self" sendRestriction={restriction} />);
+    const said: string = screen.getByTestId('group-send-restricted').textContent ?? '';
+    expect(said).toContain('not listed as a member');
+    // The specific wrong thing it used to say.
+    expect(said).not.toContain('permission');
+  });
+
+  it('sees the same distinction on the member list', async () => {
+    const { GroupMemberManagement } = await import('../GroupMemberManagement');
+
+    render(
+      <GroupMemberManagement
+        group={groupWithoutSelf()}
+        onRoleChange={async (): Promise<void> => {}}
+        onKickMember={async (): Promise<void> => {}}
+      />,
+    );
+    expect(screen.getByTestId('group-members-restricted').textContent ?? '').toContain(
+      'not listed as a member',
+    );
   });
 });

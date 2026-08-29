@@ -39,6 +39,14 @@ interface UseGroupPermissionsResult {
   canAssignRole: (roleId: string) => boolean;
   /** Get all permissions as a map for easy checking */
   permissions: GroupPermissions;
+  /**
+   * Whether the current user appears in this group's member list.
+   *
+   * `can(...)` answers false both for a role that denies and for a user who is
+   * not listed at all, and those need different words on screen. See
+   * components/chat/group-restriction.ts.
+   */
+  listedAsMember: boolean;
 }
 
 // ============================================================================
@@ -185,5 +193,6 @@ export function useGroupPermissions(
     canManageRole,
     canAssignRole,
     permissions,
+    listedAsMember: myMember !== undefined,
   };
 }

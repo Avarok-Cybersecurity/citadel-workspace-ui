@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2 } from 'lucide-react';
 import { useGroupChat } from './useGroupChat';
+import { restrictionText, type GroupRestriction } from './group-restriction';
 import { GroupMessageItem } from './GroupMessageItem';
 
 interface GroupChatViewProps {
@@ -23,12 +24,16 @@ interface GroupChatViewProps {
   /** Total number of members in this group (for read receipts) */
   totalMembers?: number;
   /**
-   * Whether this user's role permits sending. Required, not defaulted: the
+   * Whether this user may send, and if not, why. Required, not defaulted: the
    * `sendMessages` permission spent its whole life computed and consulted by
    * nobody because the one composer hardcoded `true`. A default here would put
    * it straight back.
+   *
+   * Three answers rather than two, because "your role forbids it" and "you are
+   * not in the member list" were both being reported as the former, and the
+   * latter names a role the reader does not have.
    */
-  canSendMessages: boolean;
+  sendRestriction: GroupRestriction;
 }
 
 export const GroupChatView: React.FC<GroupChatViewProps> = ({
@@ -37,7 +42,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   currentUserName,
   rules,
   totalMembers = 2,
-  canSendMessages,
+  sendRestriction,
 }) => {
   const chat: ReturnType<typeof useGroupChat> = useGroupChat(groupId);
 
@@ -146,10 +151,10 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
       {/* Input area. A role without `sendMessages` gets the reason, not a box
           that silently refuses -- a disabled composer with no explanation is
           indistinguishable from a broken one. */}
-      {!canSendMessages ? (
+      {sendRestriction !== 'allowed' ? (
         <div className="p-4 border-t border-surface/50">
           <p className="text-sm text-muted-foreground" data-testid="group-send-restricted">
-            Your role in this group cannot send messages.
+            {restrictionText(sendRestriction, 'send messages')}
           </p>
         </div>
       ) : (

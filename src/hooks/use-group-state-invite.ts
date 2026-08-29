@@ -59,7 +59,19 @@ function parseCid(raw: unknown): bigint | null {
  * inviterId) — the caller logs and drops the invite. If the local CID
  * can't be resolved we still build the group (so the UI doesn't
  * silently swallow a valid invite) but the members array will contain
- * only the inviter — a later event can backfill self.
+ * only the inviter.
+ *
+ * That case is now VISIBLE, though not as a toast. Once the `sendMessages` and
+ * `viewMemberList` role switches were wired up, a user missing from the member
+ * list was told "Your role in this group cannot send messages" — naming a role
+ * they do not have. The surfaces now distinguish the two (see
+ * components/chat/group-restriction.ts) and say "you are not listed as a
+ * member of this group yet" in place, at the moment the user tries to act.
+ *
+ * In place rather than a toast, deliberately: a toast at invite time can fire
+ * while the user is looking at something else and then be gone, and this state
+ * is not an event but a condition — it is still true ten minutes later, which
+ * is exactly when they will open the group and wonder.
  *
  * Caller is responsible for committing the result via `setGroups` and
  * for emitting any user-facing notification.

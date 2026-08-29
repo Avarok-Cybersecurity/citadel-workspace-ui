@@ -17885,3 +17885,54 @@ and forbids the two literal inventions — `?? false` in the poller stays legal,
 because there an answer *did* arrive.
 
 2431 tests green, all 59 preflight checks.
+
+## Round 366 — an absence is not a decision, and round 362 made that visible
+
+Wiring up the `sendMessages` and `viewMemberList` switches two rounds ago was
+correct, and it turned a latent problem into a user-facing one.
+
+`useGroupPermissions` answers `false` to two quite different questions through
+the same branch, marked `// No role = no permissions`:
+
+- you hold a role, and it does not permit this — a **decision**; and
+- you are not in this group's member list at all — an **absence**.
+
+The second happens for real. `buildGroupFromInvite` adds the accepting user on a
+best-effort basis inside a `try`, and its own docstring says the members array
+may "contain only the inviter". Before round 362 the permission was inert, so
+nothing came of it. After round 362 such a user opens the group and is told:
+
+> Your role in this group cannot send messages.
+> Your role in this group cannot see the member list.
+
+naming a role they do not have, about a group they were just invited to, with
+nothing to do about it. Confirmed by rendering the hook against a group whose
+members list omits self: `can('sendMessages')` false, `can('viewMemberList')`
+false, `isOwner` false.
+
+This is the presence dot's mistake one directory over — an absence rendered as a
+decision — committed while writing the round that fixed the presence dot.
+
+`GroupRestriction` is the third answer: `allowed | denied-by-role | not-listed`,
+in one module, with the wording in one place, consumed by the composer, the
+settings roster and office chat. A not-listed user now reads "You are not listed
+as a member of this group yet, so you cannot send messages."
+
+**The notice is in place, not a toast, deliberately.** A first version toasted
+at invite time. An existing test caught it firing on the *duplicate-invite*
+path, where the group is discarded — but the better objection is the design one:
+this is a condition, not an event. It is still true ten minutes later, which is
+exactly when the user opens the group and wonders. A toast fires while they are
+looking elsewhere and is then gone.
+
+Three controls, each failing exactly the two new tests: collapsing the three
+answers back to two, the hook reporting `listedAsMember: true` unconditionally,
+and making both sentences identical. The third matters most — without it the
+tests would pass on a build that says the right number of different things and
+the wrong words.
+
+While extracting to fit the length cap: `assignableRoles` joined `membersByRank`,
+and `GroupMemberManagement.tsx` dropped from 253 to 249, so its exemption is
+deleted rather than raised.
+
+2433 tests green, all 59 preflight checks.

@@ -5,7 +5,8 @@
  * Respects role hierarchy for actions.
  */
 
-import { membersByRank } from './members-by-rank';
+import { membersByRank, assignableRoles } from './members-by-rank';
+import { groupRestriction, restrictionText, type GroupRestriction } from './group-restriction';
 import { useState, useMemo, useCallback } from 'react';
 import { UserMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -44,7 +45,7 @@ export function GroupMemberManagement({
   invitablePeers = [],
   onInviteMember,
 }: GroupMemberManagementProps): JSX.Element {
-  const { can, canManageMember, canAssignRole } = useGroupPermissions(group);
+  const { can, canManageMember, canAssignRole, listedAsMember } = useGroupPermissions(group);
   const [memberToKick, setMemberToKick] = useState<GroupMemberWithRole | null>(null);
   const [isKicking, setIsKicking] = useState(false);
 
@@ -54,11 +55,7 @@ export function GroupMemberManagement({
   );
 
   // Roles that can be assigned (excludes built-in owner role)
-  const assignableRoles: GroupRole[] = useMemo((): GroupRole[] => {
-    return group.settings.roles
-      .filter(r => !r.isBuiltIn)
-      .sort((a, b) => b.position - a.position);
-  }, [group.settings.roles]);
+  const roles: GroupRole[] = useMemo((): GroupRole[] => assignableRoles(group), [group]);
 
   // Handle role change
   const handleRoleChange: (member: GroupMemberWithRole, newRoleId: string) => Promise<void> = useCallback(
@@ -87,11 +84,12 @@ export function GroupMemberManagement({
   const canKick: boolean = can('kickMembers');
   const canAssign: boolean = can('assignRoles');
 
-  if (!can('viewMemberList')) {
+  const viewRestriction: GroupRestriction = groupRestriction(listedAsMember, can('viewMemberList'));
+  if (viewRestriction !== 'allowed') {
     return (
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground" data-testid="group-members-restricted">
-          Your role in this group cannot see the member list.
+          {restrictionText(viewRestriction, 'see the member list')}
         </p>
       </div>
     );
@@ -177,7 +175,7 @@ export function GroupMemberManagement({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-background border-border">
-                            {assignableRoles
+                            {roles
                               .filter(r => canAssignRole(r.id))
                               .map(r => (
                                 <SelectItem

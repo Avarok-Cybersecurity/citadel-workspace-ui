@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import GroupChatView from '@/components/chat/GroupChatView';
 import { GroupCallControls , type GroupCallMember } from '@/components/call/GroupCallControls';
 import { usePermission } from '@/hooks/use-permission';
+import type { GroupRestriction } from '@/components/chat/group-restriction';
 import { Permission } from '@/lib/permissions-service/types';
 import { GroupCallDock } from '@/components/call/GroupCallDock';
 import { useDomainCallMembers } from '@/hooks/use-domain-call-members';
@@ -40,7 +41,10 @@ export function OfficeChatTabs({
   // roles. `unanswered` keeps a permission query that never came back from
   // reading as a denial -- a request that failed is not the answer "no".
   const send: ReturnType<typeof usePermission> = usePermission(nodeId, Permission.SendMessages);
-  const canSendMessages: boolean = send.allowed || send.loading || send.unanswered;
+  // Office chat has no membership list, so its only two answers are the
+  // permission's. An unanswered query is not a denial.
+  const sendRestriction: GroupRestriction =
+    send.allowed || send.loading || send.unanswered ? 'allowed' : 'denied-by-role';
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -75,7 +79,7 @@ export function OfficeChatTabs({
             currentUserId={currentUserId}
             currentUserName={currentUserName}
             rules={rules}
-            canSendMessages={canSendMessages}
+            sendRestriction={sendRestriction}
           />
         </TabsContent>
       </Tabs>
