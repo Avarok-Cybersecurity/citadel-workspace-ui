@@ -13953,3 +13953,40 @@ unexamined one.
 
 *A ratchet whose number you cannot break down is a ratchet you cannot argue
 with.*
+
+## Round 271 — a guard against copies is not a guard against absence
+
+Round 265 unified the absent-key predicate and added a test refusing a fifth
+spelling of `'Key not found'`. Two runs later, CI printed this on every boot:
+
+```
+[Alice] [ConnectionService] Failed to load stored sessions Error: Key not found
+```
+
+The round-265 guard could not see it. `connection/session-management` never
+tested the string at all — it caught everything into one line — so there was no
+copy to refuse. **A guard against copies of a fix is not a guard against the
+absence of one.**
+
+That distinction cost a whole round to learn, and it is the more useful half:
+the first guard protects the shape of a solution, this one protects the
+requirement.
+
+Enumerated every module that reads LocalDB and catches:
+
+| classifies | does not |
+|---|---|
+| `p2p/message-page-operations`, `p2p-registration-service/connection`, `server-auto-connect-service/persistence` | `connection/session-management`, `live-document-store/persistence`, `connection/io-websocket`, `peer-registration-store/{persistence,service}` |
+
+The two that mattered are fixed. An empty session list is what the reconnect
+machinery reads as "there is nothing to reconnect to" — so a read that FAILED
+and a store that is genuinely empty sent the user to the landing page by
+identical routes. And `loadDocumentFromDB` returning `null` is read upstream as
+"this document does not exist", which is a fine answer for an absent key and a
+wrong one for a broken read.
+
+The remaining three are on an allow-list **with the reason each is there** —
+their catches wrap writes or a JSON decode, not a read. Two controls: removing
+the classification from a reader names that file, and exempting a module that
+already classifies fails as a stale exemption. A list nobody can add to
+carelessly, and that cannot rot quietly.

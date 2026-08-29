@@ -10,6 +10,7 @@ import { debugLog } from '@/lib/debug-config';
 
 import { DOCUMENTS_KEY_PREFIX, DOCUMENTS_INDEX_KEY } from './types';
 import type { StoredDocument } from './types';
+import { isGenuinelyAbsent } from '@/lib/storage/absence';
 
 /**
  * Decode a value returned from LocalDB into a string.
@@ -37,7 +38,14 @@ export async function loadDocumentFromDB(docId: string): Promise<StoredDocument 
       return JSON.parse(valueStr) as StoredDocument;
     }
   } catch (error) {
-    debugLog('LiveDocumentStore', 'Failed to load document:', docId, error);
+    if (isGenuinelyAbsent(error)) {
+      debugLog('LiveDocumentStore', 'No stored document', docId);
+    } else {
+      // `null` is read upstream as "this document does not exist", which is a
+      // fine answer for an absent key and a wrong one for a read that failed.
+      debugLog('LiveDocumentStore', 'COULD NOT READ document; reporting it as ' +
+        'missing, which it may not be:', docId, error);
+    }
   }
 
   return null;

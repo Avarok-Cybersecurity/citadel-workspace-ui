@@ -8,6 +8,7 @@ import type { StoredSession } from '@/types/session-types';
 import { selectUserWithoutBlocking } from './select-user';
 import { debugLog } from '@/lib/debug-config';
 import { saveRecentServer } from '@/lib/server-utils';
+import { isGenuinelyAbsent } from '@/lib/storage/absence';
 
 /** Store a session to state and persist to LocalDB. */
 /**
@@ -47,7 +48,17 @@ export async function loadStoredSessions(
       debugLog('ConnectionService', 'Loaded', state.storedSessions.sessions.length, 'stored sessions');
     }
   } catch (error) {
-    debugLog('ConnectionService', 'Failed to load stored sessions', error);
+    if (isGenuinelyAbsent(error)) {
+      debugLog('ConnectionService', 'No stored sessions yet');
+      return;
+    }
+    // Not the same thing at all. An empty session list is what the reconnect
+    // machinery reads as "there is nothing to reconnect to", so a read that
+    // FAILED and a store that is genuinely empty send the user to the landing
+    // page by identical routes. This line fires on every first boot, which is
+    // exactly why a real failure printing beside it would never be noticed.
+    debugLog('ConnectionService', 'COULD NOT READ stored sessions; ' +
+      'proceeding as though there are none, which may drop a reconnectable session:', error);
   }
 }
 
