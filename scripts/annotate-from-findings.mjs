@@ -514,7 +514,10 @@ function unresolvedNames(printed, source) {
   // 400. The cap is a readability judgement, not a safety one, and the compile
   // judge is what decides safety. Two hundred was refusing types that are long
   // because the thing genuinely has that shape.
-  if (printed.length > 400) return refuse('too long', printed);
+  // 900. Length is a readability judgement and the compiler is what decides
+  // safety; a type that is long because the thing genuinely has that shape is
+  // still the truth, and a reader is better served by it than by nothing.
+  if (printed.length > 900) return refuse('too long', printed);
   // `import(...)` in a printed type is the compiler saying it cannot name this
   // without a path, and `any` is not something to write down in a codebase that
   // bans it. Object and function type literals are allowed: they are printable

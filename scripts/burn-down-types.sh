@@ -9,7 +9,7 @@ for pass in $(seq 1 "${1:-6}"); do
   # when it is failing -- so a failing gate read as zero and the loop reported
   # the work finished.
   before=$(python3 -c "import json;print(sum(json.load(open('scripts/explicit-types.baseline.json')).values()))")
-  node scripts/annotate-from-findings.mjs src --allow-literal --one-per-file >/dev/null 2>&1
+  node scripts/annotate-from-findings.mjs src --allow-literal --any-as-unknown --one-per-file >/dev/null 2>&1
   for round in 1 2 3; do
     BAD=$(npx tsc -p tsconfig.app.json --noEmit 2>&1 | sed -n 's/^\(src\/[^(]*\)(.*/\1/p' | sort -u)
     [ -z "$BAD" ] && break
