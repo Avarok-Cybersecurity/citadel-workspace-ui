@@ -188,6 +188,7 @@ export function useOrphanSessions(): UseOrphanSessionsResult {
         invalidateSessionCache: () => connectionManager.invalidateSessionCache(),
         removeSession: (username, serverAddress) =>
           connectionManager.removeSession(username, serverAddress),
+        forget: (cid) => setSessions(prev => prev.filter(s => s.cid !== cid)),
         reload: () => loadActiveSessions(),
       },
       target,

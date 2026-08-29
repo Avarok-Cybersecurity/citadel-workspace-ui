@@ -47,8 +47,28 @@ const dist = join(root, 'dist');
  * Ten, not fifty: the point of the number is that the NEXT ten kilobytes have
  * to be argued for too. A budget raised to whatever the current total happens
  * to be has stopped being a budget.
+ *
+ * Raised from 310 to 311 for 0.6 KB, and this time there IS a single import to
+ * blame — two of them, both bought something:
+ *
+ *   +0.4 KB  index/         `WorkspaceAppearanceSection` moved onto
+ *                           `usePermission`. It had built its own permission
+ *                           gate with a fetch-once effect, so one unanswered
+ *                           request left the workspace's own owner looking at a
+ *                           read-only theme editor captioned "Set by a
+ *                           workspace admin", permanently.
+ *   +0.1 KB  app-services/  `describeError`. Eight toasts interpolated a raw
+ *                           thrown value, and the revfs and websocket layers
+ *                           reject with structured payloads, so what a user
+ *                           actually read was "Failed to delete: [object
+ *                           Object]".
+ *
+ * One kilobyte, not ten: at 310.3 measured this leaves 0.7 KB, so the next
+ * growth has to be argued for as well. `callFailureDetail`, added in the same
+ * stretch, is correctly OFF the critical path and cost nothing — checked by
+ * grepping the built chunks rather than assumed.
  */
-const BUDGET_KB = 310;
+const BUDGET_KB = 311;
 
 const html = readFileSync(join(dist, 'index.html'), 'utf8');
 

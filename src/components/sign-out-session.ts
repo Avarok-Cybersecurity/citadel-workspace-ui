@@ -30,6 +30,25 @@ export interface SignOutIO {
   disconnect: (cid: bigint) => Promise<void>;
   invalidateSessionCache: () => void;
   removeSession: (username: string, serverAddress: string) => Promise<void>;
+  /**
+   * Drop this session from what is on screen, without asking anybody.
+   *
+   * `reload` re-queries the internal service, and that query can go
+   * unanswered — `loadActiveSessions` treats a query with no answer as "keep
+   * what you had", which is right in general: a timeout is not the answer "no
+   * sessions", and the strip vanishing would make the user sign in again.
+   *
+   * It is wrong for the one session the user has just removed. CI caught it as
+   * a deregistration that reported success, closed its modal, and left the row
+   * exactly where it was — the re-query after a deregister was not answered,
+   * so the list it kept was the list containing the account that had just been
+   * deleted.
+   *
+   * The client does not need the server to tell it about the row it just
+   * removed. This records that, and the next reload that DOES answer
+   * reconciles everything else.
+   */
+  forget: (cid: bigint) => void;
   reload: () => Promise<void>;
 }
 
@@ -78,6 +97,9 @@ export async function signOutSession(
 
     io.invalidateSessionCache();
     await io.removeSession(target.username, target.serverAddress);
+    // Before the reload, and not conditional on it: the request above
+    // succeeded, so this session is gone whatever the re-query manages to say.
+    io.forget(cid);
 
     onStage('cleaning');
     await io.reload();

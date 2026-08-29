@@ -16882,3 +16882,68 @@ Controls: the exact `globSync` import that broke CI is caught; the
 browser-context `navigator.` no longer fires; and the gate runs under Node 18.
 
 Preflight: **53 checks**.
+
+## Round 345 — a deregistered account that stayed on screen
+
+`test:prev-sessions` has been failing since before this session, and my notes
+said it was the OrphanSessionsNavbar not being visible. Those two assertions now
+**pass**. The live failure had moved:
+
+```
+Deregister success: true
+prev_sess_c_… still in navbar: true
+```
+
+The modal reached "ready", so `signOutSession` ran to completion — including
+`reload()`. And `loadActiveSessions` logged nothing, which it only does on the
+path where the query was not answered:
+
+```ts
+if (!ok) return;   // a timeout is not the answer "no sessions"
+```
+
+That policy is right in general and wrong for the one row the user just removed.
+The strip vanishing on a transient failure would make somebody sign in again;
+keeping the account they were just told was deleted is a different mistake. The
+client does not need the server to tell it about the row it removed itself.
+
+`signOutSession` now calls `io.forget(cid)` after the request succeeds and
+before the reload, so the removal stands whatever the re-query manages to say.
+
+**There was no test file for `signOutSession` at all** — round 310 extracted it
+into its own module specifically to make it testable, and the tests never
+followed. There are four now. The negative control is the important one:
+forgetting a row whose removal was *refused* would show a session that is still
+live and still theirs with no way back to it, so a failed request must not
+forget. Removing `io.forget` fails exactly the two positive cases and leaves
+both controls green.
+
+Why the re-query goes unanswered after a deregister but not a disconnect needs
+the running stack; the UI defect does not.
+
+### The budget, and an isolation experiment that proved nothing
+
+`Production Docker Build` then failed on the landing bundle: 310.3 KB against
+310. My first move was to blame `describeError` and remove it from
+`error-messages.ts` — the total did not move by a byte, because
+`describe-error.ts` has three other importers and stayed in the bundle
+regardless. **The experiment was incapable of showing what I asked it.**
+
+Comparing chunks against the last passing run instead:
+
+| module | chunk | delta |
+|---|---|---|
+| `usePermission` via `WorkspaceAppearanceSection` (round 329) | `index` | +0.4 KB |
+| `describeError` (round 337) | `app-services` | +0.1 KB |
+| `callFailureDetail` (round 336) | correctly **off**-path | 0 |
+
+Confirmed by grepping the built chunks for a distinctive string from each,
+rather than reasoning about the import graph.
+
+Budget raised 310 → **311**, with the two purchases named in the script beside
+the number: a workspace owner no longer permanently locked out of their own
+theme editor, and users no longer shown `[object Object]`. One kilobyte, not
+ten — 0.7 KB of headroom, so the next growth is argued for too, which is what
+that comment already asks of anybody raising it.
+
+2366 tests green; preflight 53/53.
