@@ -18396,3 +18396,49 @@ diagnosis.
 **The real cause at 375px is still unknown.** Saying so.
 
 2481 tests green, all 60 preflight checks.
+
+## Round 378 — a question nobody asked, answered "no"
+
+Round 377 measured one hypothesis for the 375px composer failure and threw it
+away. This is the next one, and it holds — and it is a regression I introduced
+in round 362.
+
+Wiring the office composer to `Permission.SendMessages` got two of the three
+absent cases right:
+
+```ts
+send.allowed || send.loading || send.unanswered ? 'allowed' : 'denied-by-role'
+```
+
+`loading` (nobody has answered yet) and `unanswered` (the retry budget ran out)
+both count as allowed. The third was missed. `usePermission(undefined, ...)`
+returns
+
+```ts
+{ allowed: false, loading: false, unanswered: false }
+```
+
+for **"there is no domain to ask about"** — which, at the call site, is
+indistinguishable from a real denial. So an office rendered before its node
+resolved, or at the workspace root where `nodeId` is `undefined` by
+construction, replaced the composer with *"You do not have permission to send
+messages here"*: blaming the reader's permissions for a question nobody put.
+
+`BaseOffice` spells the same convention two files away —
+`const hasEditPermission = !domainId || canEditMdx` — and treats no-domain as
+permitted. My line was written without looking at it.
+
+This is the class this campaign keeps finding, committed by the person writing
+the rounds about it, twice in a row: round 366 was the same mistake one hook
+over, and it was also mine. The shape is specific enough to name as a rule now:
+**when a permission API can say "I have nothing to ask", that is a third answer,
+and it is not "no".**
+
+Five tests, one per state the hook can be in, and three controls: dropping the
+no-domain case fails exactly it, always-allowed fails the real denial, and
+treating `loading` as denial fails that one.
+
+Whether this is the whole of the 375px failure is for CI to say. Unlike round
+377's hypothesis, it is a defect either way.
+
+2486 tests green, all 60 preflight checks.

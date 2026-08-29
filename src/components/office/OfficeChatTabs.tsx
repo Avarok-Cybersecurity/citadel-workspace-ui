@@ -40,13 +40,24 @@ export function OfficeChatTabs({
   const callMembers: GroupCallMember[] = useDomainCallMembers(nodeId);
   const [tab, setTab] = useState<OfficeTab>((): OfficeTab => rememberedTab(chatChannelId));
   // Office chat is governed by the workspace permission system, not by group
-  // roles. `unanswered` keeps a permission query that never came back from
-  // reading as a denial -- a request that failed is not the answer "no".
+  // roles, so its only two answers are the permission's.
   const send: ReturnType<typeof usePermission> = usePermission(nodeId, Permission.SendMessages);
-  // Office chat has no membership list, so its only two answers are the
-  // permission's. An unanswered query is not a denial.
+
+  // Three things that are NOT the answer "no", and reading any of them as a
+  // denial takes the composer away and blames the reader's permissions:
+  //
+  //   - `loading`: nobody has answered yet;
+  //   - `unanswered`: the retry budget ran out, which is a failed request;
+  //   - no `nodeId` at all: `usePermission` returns `allowed: false,
+  //     unanswered: false` for "there is no domain to ask about", which is a
+  //     definite-looking denial for a question that was never asked. BaseOffice
+  //     spells the same convention two files away as `!domainId || canEditMdx`,
+  //     and this line was written without it -- so an office rendered before
+  //     its node resolved replaced the composer with "You do not have
+  //     permission to send messages here."
+  const nothingToAsk: boolean = nodeId === undefined;
   const sendRestriction: GroupRestriction =
-    send.allowed || send.loading || send.unanswered ? 'allowed' : 'denied-by-role';
+    send.allowed || send.loading || send.unanswered || nothingToAsk ? 'allowed' : 'denied-by-role';
 
   return (
     <div className="w-full h-full flex flex-col">
