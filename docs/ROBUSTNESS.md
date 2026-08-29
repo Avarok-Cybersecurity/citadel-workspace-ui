@@ -15697,3 +15697,39 @@ DOM question and passes through an overlay, so the two compose.
 
 > `force: true` does not make a click land. It stops Playwright checking whether
 > it did.
+
+## Round 313 — 168 → 153, and two sweeps that found nothing
+
+Two hypotheses this round, both measured and both negative. Recording them
+because a sweep that finds nothing is worth exactly as much as one that finds
+something, and only if it is written down.
+
+**Catch blocks that swallow.** Ninety `catch` blocks in production code do
+nothing but log, twenty-six do nothing at all. That sounds like ninety silent
+failures. Reading the ones on user-initiated paths —
+`useOrphanSessions`, `use-session-exit`, `use-group-state-invite`,
+`usePeerDiscovery` — every one carries its reasoning: *"Best-effort: log the
+failure but keep cleaning up locally so the user ends up signed out on this
+device"*, *"the inner try/catch still swallows rejections so nothing escapes as
+an unhandled rejection AND a user-facing notification surfaces on failure"*. The
+class has been swept before and the residue is deliberate. A gate over it would
+be ninety lines of noise.
+
+**Forced clicks that follow an opening click.** Three in the Playwright specs,
+one of which was round 312's flake. The other two are tab switches inside a
+panel that has just opened — the same hazard, and they now wait, but neither has
+ever failed.
+
+The typing work continued alongside: `Y.Doc` on two live-document handles, the
+`ProgressEvent<FileReader>` and `HTMLImageElement` in the avatar resizer,
+`ConnectionAttempt | undefined` on a getter that had no return type, and named
+`Harness` / `StateDouble` interfaces for two test doubles that were being
+described by `ReturnType<typeof …>` of the function that happens to build them.
+
+`isOurSession` is now `Boolean(...)` rather than `bigint | boolean | undefined`
+— it decides whether to process a connection success, and a value that decides
+something should be the type it decides with.
+
+| | |
+|---|---|
+| Typing debt | 168 → **153** (251 at session start, −39%) |

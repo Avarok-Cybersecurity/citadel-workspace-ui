@@ -19,7 +19,20 @@ import { getActiveSessionsResult } from '../queries';
 import { pickSessionToClaim , type SessionChoice } from '@/lib/sessions/pick-session-to-claim';
 import type { ActiveSessionsResult } from '@/lib/connection/queries';
 
-function stateDouble() {
+interface StateDouble {
+  cachedSessions: unknown;
+  pendingGetSessions: unknown;
+  isCacheValid: () => boolean;
+  setCachedSessions: (sessions: unknown) => void;
+  setPendingGetSessions: (promise: unknown) => void;
+  setPendingRequest: (id: string, handlers: unknown) => void;
+  hasPendingRequest: (id: string) => boolean;
+  deletePendingRequest: (id: string) => void;
+  /** What the module under test wrote, for the assertions to read back. */
+  cachedForTest: () => unknown;
+}
+
+function stateDouble(): StateDouble {
   let cached: unknown = null;
   let pending: unknown = null;
   return {
@@ -41,7 +54,7 @@ describe('asking which sessions exist', () => {
   beforeEach(() => { state = stateDouble(); });
 
   it('reports failure rather than emptiness when the tab cannot send', async () => {
-    const io = {
+    const io: Record<string, unknown> = {
       canSendRequests: (): boolean => false,
       waitForWebSocketInit: (): Promise<void> => Promise.resolve(),
       sendWebSocketMessage: vi.fn(),
@@ -54,7 +67,7 @@ describe('asking which sessions exist', () => {
   });
 
   it('does not cache a failure', async () => {
-    const io = {
+    const io: Record<string, unknown> = {
       canSendRequests: (): boolean => false,
       waitForWebSocketInit: (): Promise<void> => Promise.resolve(),
       sendWebSocketMessage: vi.fn(),
@@ -69,7 +82,7 @@ describe('asking which sessions exist', () => {
   });
 
   it('caches a real answer, including a genuinely empty one', async () => {
-    const io = {
+    const io: Record<string, unknown> = {
       canSendRequests: (): boolean => true,
       waitForWebSocketInit: (): Promise<void> => Promise.resolve(),
       sendWebSocketMessage: vi.fn().mockImplementation(() => {

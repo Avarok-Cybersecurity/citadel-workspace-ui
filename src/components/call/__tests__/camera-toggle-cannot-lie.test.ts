@@ -21,7 +21,14 @@ type Manager = Parameters<typeof useCallMediaToggles>[0] extends MutableRefObjec
   ? M
   : never;
 
-function setup(videoTracks: number, selfVideo = false) {
+interface Harness {
+  hook: RenderHookResult<CallMediaToggles, unknown>;
+  setSelfMedia: ReturnType<typeof vi.fn>;
+  onCameraUnavailable: ReturnType<typeof vi.fn>;
+  tracks: { enabled: boolean; readyState: 'live' }[];
+}
+
+function setup(videoTracks: number, selfVideo: boolean = false): Harness {
   const setSelfMedia: ReturnType<typeof vi.fn> = vi.fn((): Promise<void> => Promise.resolve());
   // `readyState` matters now: the toggle filters to LIVE tracks, because an
   // ended one stays in the stream's list and flipping `enabled` on it is a
@@ -30,13 +37,13 @@ function setup(videoTracks: number, selfVideo = false) {
     enabled: false,
     readyState: 'live' as const,
   }));
-  const managerRef = {
+  const managerRef: MutableRefObject<Manager> = {
     current: {
       getState: () => ({ selfMedia: { audio: true, video: selfVideo, screen: false } }),
       setSelfMedia,
     },
   } as unknown as MutableRefObject<Manager>;
-  const sessionRef = {
+  const sessionRef: Parameters<typeof useCallMediaToggles>[1] = {
     current: { getLocalStream: (): { getVideoTracks: () => { enabled: boolean; readyState: "live"; }[]; getAudioTracks: () => never[]; } => ({ getVideoTracks: (): { enabled: boolean; readyState: "live"; }[] => tracks, getAudioTracks: (): never[] => [] }) },
   } as unknown as Parameters<typeof useCallMediaToggles>[1];
   const onCameraUnavailable: ReturnType<typeof vi.fn> = vi.fn();

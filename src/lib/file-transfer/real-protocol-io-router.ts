@@ -102,8 +102,8 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   async generateThumbnail(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader: FileReader = new FileReader();
-      reader.onload = e => {
-        const img = new Image();
+      reader.onload = (e: ProgressEvent<FileReader>): void => {
+        const img: HTMLImageElement = new Image();
         img.onload = (): void => {
           const canvas: HTMLCanvasElement = document.createElement('canvas');
           const MAX_SIZE: number = 100;

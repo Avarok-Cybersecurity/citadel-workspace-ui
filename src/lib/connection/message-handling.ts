@@ -102,7 +102,7 @@ async function handleAuthResponse(
 
   const hasPendingRequest: boolean | "" | undefined = reqId && state.hasPendingRequest(reqId);
   const tabSelection: TabSelectionContext | null = await io.getSelectedUser();
-  const isOurSession = cidBigInt && tabSelection?.selectedCid === cidBigInt;
+  const isOurSession: boolean = Boolean(cidBigInt && tabSelection?.selectedCid === cidBigInt);
   const isFreshTab: boolean = !tabSelection?.selectedCid && !state.currentConnectionInfo;
 
   if (hasPendingRequest || isOurSession || isFreshTab) {

@@ -62,7 +62,7 @@ export class LiveDocumentStore {
     const id: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
     const now: number = Date.now();
 
-    const doc = initialDoc || new Y.Doc();
+    const doc: Y.Doc = initialDoc || new Y.Doc();
     const state: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(doc);
     const rootHash: string = sha256Sync(state);
 
@@ -192,7 +192,7 @@ export class LiveDocumentStore {
     const stored: StoredDocument | null = await this.loadDocument(docId);
     if (!stored) return null;
 
-    const doc = targetDoc || new Y.Doc();
+    const doc: Y.Doc = targetDoc || new Y.Doc();
     const state: Uint8Array<ArrayBuffer> = new Uint8Array(stored.state);
     Y.applyUpdate(doc, state);
 

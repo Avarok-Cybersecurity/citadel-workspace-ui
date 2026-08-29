@@ -10,6 +10,7 @@
  */
 
 import { P2PConnectionState } from '../p2p-auto-connect/tracking';
+import type { ConnectionAttempt } from '@/lib/p2p-auto-connect/types';
 import type { PeerConnectionInfo } from './types';
 
 /**
@@ -122,7 +123,7 @@ export class AutoConnectState {
     this.core.clearAllConnectionAttempts();
   }
 
-  getConnectionAttempt(peerCid: bigint) {
+  getConnectionAttempt(peerCid: bigint): ConnectionAttempt | undefined {
     return this.core.getConnectionAttempt(peerCid);
   }
 
