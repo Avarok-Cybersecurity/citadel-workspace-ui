@@ -20,7 +20,7 @@ function fakeDb(existingStores: string[] = []) {
   return {
     objectStoreNames: {
       contains: (n: string): boolean => stores.has(n),
-      [Symbol.iterator]: () => stores[Symbol.iterator](),
+      [Symbol.iterator]: (): SetIterator<string> => stores[Symbol.iterator](),
     },
     createObjectStore: vi.fn((n: string) => stores.add(n)),
     deleteObjectStore: vi.fn((n: string) => stores.delete(n)),

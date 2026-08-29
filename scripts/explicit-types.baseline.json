@@ -71,7 +71,7 @@
   "src/lib/__tests__/post-auth-setup.test.ts": 1,
   "src/lib/__tests__/presence.test.ts": 1,
   "src/lib/__tests__/privacy-settings-are-obeyed.test.ts": 2,
-  "src/lib/__tests__/storage-migrations.test.ts": 2,
+  "src/lib/__tests__/storage-migrations.test.ts": 1,
   "src/lib/address-resolver.ts": 2,
   "src/lib/call/__tests__/call-liveness.test.ts": 2,
   "src/lib/call/__tests__/call-manager.test.ts": 1,
