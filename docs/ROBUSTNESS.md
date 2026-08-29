@@ -13908,3 +13908,48 @@ Removing the retry fails both.
 
 *A one-shot attempt whose failure is indistinguishable from success, with no
 path back.* Same family as round 253 and round 265.
+
+## Round 270 — what the 5,568 actually is
+
+The typing ratchet has been a single number since round 241, and a number
+nobody has broken down is a number that can quietly be measuring the wrong
+thing. Asked what the remaining debt consists of, the honest answer was "I do
+not know", so it was measured.
+
+| Rule | Findings | What it is |
+|---|---|---|
+| `typedef` | **4,051** | `const x = await f()` with no annotation — variables, members, properties, named-function params |
+| `explicit-function-return-type` | 1,262 | functions that do not state what they return |
+| `explicit-module-boundary-types` | 255 | exported functions that do not state what they return |
+| | **5,568** | |
+
+The 4,051 is exactly the shape that was asked for —
+`const storedSession: SomeType = await connectionManager.getTabSelectedSession()`
+— and it is three quarters of the total.
+
+### The part that is not straightforwardly debt
+
+Relaxing `allowExpressions` drops the middle row from 1,262 to 771. So **491
+findings are function expressions**, and a probe shows the rule flags a
+contextually-typed callback purely for having a block body:
+
+```ts
+interface Cfg { a: (n: number) => void; b: () => string }
+new Taker({
+  a: (n) => { void n; },   // flagged
+  b: () => 'x',            // not flagged
+});
+```
+
+Both have their return type pinned by `Cfg`. Annotating `a` restates what the
+interface already declares.
+
+**Left as it is, deliberately.** 491 of 5,568 is nine per cent, relaxing the
+option would also lose the genuinely untyped callbacks in that same 771, and the
+error direction is toward more explicitness, which is the stated goal. What
+changes is that the number is now interpretable: roughly 91% of it is
+unambiguous, and the rest is a known, quantified imprecision rather than an
+unexamined one.
+
+*A ratchet whose number you cannot break down is a ratchet you cannot argue
+with.*
