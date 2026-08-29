@@ -10,6 +10,8 @@
  * "Peer already registered" is NOT an error - expected after reconnect.
  */
 
+import { peerRecord } from './peer-record';
+import { isPlaceholderName } from '@/lib/peer-display';
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from '../multi-instance';
 import { connectionManager } from '../connection';
@@ -99,13 +101,7 @@ export class P2PRegistrationService {
           const peerCidBigInt: bigint = BigInt(peerCid);
           debugLog('P2PRegistrationService', `[P2P-SYNC] Follower received registeredPeers update: ${peerCidBigInt.toString().slice(0, 8)}... (${peerUsername ?? ''})`);
           this.setPeerRegisteredLocal(peerCidBigInt, peerUsername || '', isOutgoing, isIncoming);
-          const peer: Peer = {
-            cid: peerCidBigInt,
-            username: peerUsername || `User ${peerCidBigInt.toString().slice(0, 8)}`,
-            fullName: peerUsername || `User ${peerCidBigInt.toString().slice(0, 8)}`,
-            isOnline: true,
-            isRegistered: true
-          };
+          const peer: Peer = peerRecord(peerCidBigInt, peerUsername, true);
           eventEmitter.emit('p2p:peer-registered', { peer, isOutgoing, isIncoming, fromBroadcast: true });
         }
       }
@@ -113,15 +109,9 @@ export class P2PRegistrationService {
   }
 
   private setPeerRegisteredLocal(peerCid: bigint, peerUsername: string, isOutgoing?: boolean, isIncoming?: boolean): void {
-    const peer: Peer = this.allPeers.get(peerCid) || {
-      cid: peerCid,
-      username: peerUsername || `User ${peerCid.toString().slice(0, 8)}`,
-      fullName: peerUsername || `User ${peerCid.toString().slice(0, 8)}`,
-      isOnline: true,
-      isRegistered: true
-    };
+    const peer: Peer = this.allPeers.get(peerCid) || peerRecord(peerCid, peerUsername, true);
     peer.isRegistered = true;
-    if (peerUsername && peerUsername !== 'Unknown' && !peerUsername.startsWith('User ')) {
+    if (!isPlaceholderName(peerUsername)) {
       peer.username = peerUsername;
       peer.fullName = peerUsername;
     }

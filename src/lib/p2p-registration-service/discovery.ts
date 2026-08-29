@@ -5,6 +5,7 @@
  * and updating peer maps from backend responses.
  */
 
+import { isPlaceholderName } from '@/lib/peer-display';
 import { websocketService } from '../websocket-service';
 import { failOnSocketLoss } from '../websocket/request-response';
 import { broadcastChannelService } from '../broadcast-channel-service';
@@ -145,12 +146,12 @@ export function updatePeerMaps(
 ): void {
   const preservedUsernames: Map<bigint, string> = new Map<bigint, string>();
   for (const [cid, peer] of allPeersMap) {
-    if (peer.username && peer.username !== 'Unknown' && !peer.username.startsWith('User ')) {
+    if (!isPlaceholderName(peer.username)) {
       preservedUsernames.set(cid, peer.username);
     }
   }
   for (const [cid, peer] of registeredPeersMap) {
-    if (peer.username && peer.username !== 'Unknown' && !peer.username.startsWith('User ')) {
+    if (!isPlaceholderName(peer.username)) {
       preservedUsernames.set(cid, peer.username);
     }
   }

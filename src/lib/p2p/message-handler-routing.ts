@@ -5,6 +5,7 @@
  * presence, file transfers, and RevFS operations.
  */
 
+import { notifyMessageArrived } from './message-arrival-notification';
 import type { P2PMessagingLayerPayload } from '@/types/p2p-types';
 import {
   MessagingLayerType,
@@ -209,19 +210,7 @@ async function handleIncomingMessage(
       message,
     });
 
-    if (config.shouldShowNotification(peerCid)) {
-      const conversation: P2PConversation | undefined = config.getConversations().get(peerCid);
-      const peerUsername: string = conversation?.peerUsername || `Peer ${peerCid.toString().slice(0, 8)}`;
-
-      config.addNotification(
-        `New message from ${peerUsername}`,
-        message.content.substring(0, 100),
-        peerCid.toString(),
-        message.id,
-        recipientCid?.toString(),
-        { peerCid: peerCid.toString(), onOpen: () => eventEmitter.emit('p2p:open-conversation', { peerCid: peerCid.toString() }) }
-      );
-    }
+    notifyMessageArrived(config, peerCid, message, recipientCid);
   } else {
     debugLog('P2PMessageHandler', 'Skipping duplicate message notification:', message.id);
   }

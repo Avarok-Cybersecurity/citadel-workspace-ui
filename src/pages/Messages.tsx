@@ -1,3 +1,4 @@
+import { isPlaceholderName } from '@/lib/peer-display';
 import { AppLayout } from "@/components/layout/AppLayout";
 import { P2PPeerList } from "@/components/p2p/P2PPeerList";
 import { P2PChat } from "@/components/p2p/P2PChat";
@@ -36,7 +37,7 @@ const Messages: () => JSX.Element = (): JSX.Element => {
   const selectedPeerName: string = useMemo(() => {
     if (!selectedPeerCid) return '';
     const peer: RegisteredPeer | undefined = registeredPeers.find(p => p.cid === selectedPeerCid);
-    const username: string | undefined = peer && peer.username !== 'Unknown' ? peer.username : undefined;
+    const username: string | undefined = isPlaceholderName(peer?.username) ? undefined : peer?.username;
     // peerDisplayName, not a truncated CID: the decimal prefix is unreadable and
     // identical for peers whose CIDs share leading digits. See lib/peer-display.
     return peerDisplayName({ cid: selectedPeerCid, username });

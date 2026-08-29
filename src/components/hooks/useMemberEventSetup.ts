@@ -1,3 +1,4 @@
+import { isPlaceholderName } from '@/lib/peer-display';
 import { useEffect } from 'react';
 import { isMemberOnline } from '@/lib/presence';
 import { workspaceEvents, type ConnectionInfo } from '@/lib/workspace-events';
@@ -177,7 +178,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
             prev.currentUser.username === payload.userId ||
             prev.currentUser.id === payload.userId ||
             // Also match if currentUser has placeholder "Loading..." but payload matches stored session
-            (prev.currentUser.username === 'Loading...' && storedSession?.username === payload.userId)
+            (isPlaceholderName(prev.currentUser.username) && storedSession?.username === payload.userId)
           );
 
           if (isCurrentUser && prev.currentUser) {
@@ -185,8 +186,8 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
             updatedCurrentUser = {
               ...prev.currentUser,
               // Also update username if it was 'Loading...'
-              username: prev.currentUser.username === 'Loading...' ? payload.userId : prev.currentUser.username,
-              id: prev.currentUser.id === 'Loading...' ? payload.userId : prev.currentUser.id,
+              username: isPlaceholderName(prev.currentUser.username) ? payload.userId : prev.currentUser.username,
+              id: isPlaceholderName(prev.currentUser.id) ? payload.userId : prev.currentUser.id,
               role: payload.role
             };
 

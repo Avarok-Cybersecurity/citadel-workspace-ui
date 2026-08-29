@@ -14,6 +14,16 @@
  * When no username is known we derive a SHORT HANDLE instead: base36 of the
  * CID's low bits, which is compact, stable for a given peer, and visibly a
  * handle rather than a truncated number pretending to be a name.
+ *
+ * "No username is known" is not the same as "the username field is empty". The
+ * peer pipeline fills that field with placeholders -- 'Unknown', 'User 7040934',
+ * 'Peer 4f2a1c', 'Loading...' -- and five separate sites hand-rolled their own
+ * idea of which strings those were, using three different definitions. A peer
+ * called 'User 12345' was a placeholder to the registration service and a real
+ * name to the sidebar, so the same peer was named differently depending on
+ * which surface you looked at, and a placeholder that reached the wrong check
+ * was preserved forever in preference to the real name arriving behind it.
+ * `isPlaceholderName` is that judgement, once.
  */
 
 import { toCidKey, type CidLike } from './utils/cid-utils';
@@ -23,6 +33,41 @@ const HANDLE_LENGTH: number = 6;
 
 /** Characters that read ambiguously in a short code, mapped to clearer ones. */
 const AMBIGUOUS: Record<string, string> = { O: '0', I: '1', L: '1' };
+
+/**
+ * Names the pipeline invents when it does not know who someone is.
+ *
+ * Exact strings first, then the shapes: `User <digits>` (a truncated decimal
+ * CID) and `Peer <handle>` (this module's own derived handle, which must not be
+ * mistaken for a name a person chose if it is fed back in).
+ */
+const PLACEHOLDER_NAMES: readonly string[] = [
+  'Unknown',
+  'Unknown Peer',
+  'Unknown peer',
+  'Unknown User',
+  'Loading...',
+];
+
+const PLACEHOLDER_SHAPES: readonly RegExp[] = [
+  /^User \d+$/,
+  // Exactly this module's own handle -- uppercase base36, HANDLE_LENGTH long --
+  // and not merely anything after the word "Peer". A first pass matched
+  // `Peer [0-9A-Za-z]{4,13}`, which called "Peer Gynt" a placeholder.
+  new RegExp(`^Peer [0-9A-Z]{${HANDLE_LENGTH}}$`),
+];
+
+/**
+ * Whether `name` is one of the pipeline's inventions rather than something a
+ * person chose. Empty and whitespace-only names count: they are the absence of
+ * a name, which is what every caller means to test for.
+ */
+export function isPlaceholderName(name: string | null | undefined): boolean {
+  const trimmed: string = (name ?? '').trim();
+  if (!trimmed) return true;
+  if (PLACEHOLDER_NAMES.includes(trimmed)) return true;
+  return PLACEHOLDER_SHAPES.some(shape => shape.test(trimmed));
+}
 
 export interface PeerIdentity {
   cid: CidLike;
@@ -63,10 +108,10 @@ export function shortPeerHandle(cid: CidLike): string | null {
  */
 export function peerDisplayName(peer: PeerIdentity): string {
   const fullName: string | undefined = peer.fullName?.trim();
-  if (fullName) return fullName;
+  if (fullName && !isPlaceholderName(fullName)) return fullName;
 
   const username: string | undefined = peer.username?.trim();
-  if (username) return username;
+  if (username && !isPlaceholderName(username)) return username;
 
   const handle: string | null = shortPeerHandle(peer.cid);
   return handle ? `Peer ${handle}` : 'Unknown peer';
@@ -80,7 +125,8 @@ export function peerDisplayName(peer: PeerIdentity): string {
  * leading digits of a decimal CID (those were frequently identical across peers).
  */
 export function peerInitials(peer: PeerIdentity): string {
-  const name: string | undefined = peer.fullName?.trim() || peer.username?.trim();
+  const chosen: string | undefined = peer.fullName?.trim() || peer.username?.trim();
+  const name: string | undefined = isPlaceholderName(chosen) ? undefined : chosen;
   if (name) return name.slice(0, 1).toUpperCase();
 
   const handle: string | null = shortPeerHandle(peer.cid);
@@ -93,5 +139,5 @@ export function peerInitials(peer: PeerIdentity): string {
  * silently presenting a handle as though it were an identity.
  */
 export function isUnnamedPeer(peer: PeerIdentity): boolean {
-  return !peer.fullName?.trim() && !peer.username?.trim();
+  return isPlaceholderName(peer.fullName) && isPlaceholderName(peer.username);
 }

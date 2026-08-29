@@ -1,3 +1,4 @@
+import { isPlaceholderName } from '@/lib/peer-display';
 import React, { useEffect, useState } from 'react';
 import { sessionGet, sessionRemove, sessionSet } from '@/lib/safe-session-storage';
 import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
@@ -178,8 +179,8 @@ export const WorkspaceEventHandler: React.FC<{
         workspaceName={state.workspace?.name}
         workspaceId={state.workspace?.id || 'root'}
         serverAddress={connectionManager.getStoredSessionsArray()[0]?.serverAddress}
-        username={state.currentUser?.username && state.currentUser.username !== 'Loading...' ? state.currentUser.username : connectionManager.getStoredSessionsArray()[0]?.username}
-        fullName={state.currentUser?.name && state.currentUser.name !== 'Loading...' ? state.currentUser.name : connectionManager.getStoredSessionsArray()[0]?.fullName}
+        username={isPlaceholderName(state.currentUser?.username) ? connectionManager.getStoredSessionsArray()[0]?.username : state.currentUser?.username}
+        fullName={isPlaceholderName(state.currentUser?.name) ? connectionManager.getStoredSessionsArray()[0]?.fullName : state.currentUser?.name}
       />
     </>
   );

@@ -5,6 +5,7 @@
  * and accept/decline registration requests.
  */
 
+import { peerRecord } from './peer-record';
 import { websocketService } from '../websocket-service';
 import { peerRegistrationStore } from '../peer-registration-store';
 import { stringToBytes, bytesToString } from '../utils/encoding-utils';
@@ -99,13 +100,7 @@ export async function syncPeerConnectionsFromSession(
       continue;
     }
 
-    const peer: Peer = {
-      cid: peerCid,
-      username: peerInfo.peer_username || `User ${peerCid.toString().slice(0, 8)}`,
-      fullName: peerInfo.peer_username || `User ${peerCid.toString().slice(0, 8)}`,
-      isOnline: false,
-      isRegistered: true
-    };
+    const peer: Peer = peerRecord(peerCid, peerInfo.peer_username, false);
 
     allPeers.set(peerCid, peer);
     registeredPeers.set(peerCid, peer);
@@ -207,13 +202,7 @@ export async function acceptRegistrationRequest(
   await peerRegistrationStore.removeRequestByPeerCid(peerCid);
 
   if (registeredPeers) {
-    const peer: Peer = registeredPeers.get(peerCid) || {
-      cid: peerCid,
-      username: peerUsername || `User ${peerCid.toString().slice(0, 8)}`,
-      fullName: peerUsername || `User ${peerCid.toString().slice(0, 8)}`,
-      isOnline: true,
-      isRegistered: true
-    };
+    const peer: Peer = registeredPeers.get(peerCid) || peerRecord(peerCid, peerUsername, true);
     registeredPeers.set(peerCid, peer);
   }
 

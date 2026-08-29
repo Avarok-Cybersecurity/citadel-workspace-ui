@@ -17723,3 +17723,63 @@ the whole chain — role → `can('sendMessages')` → composer — and fails wh
 hook is made to ignore the role.
 
 2422 tests green, all 56 preflight checks.
+
+## Round 363 — one answer to what a peer is called
+
+`lib/peer-display.ts` was written in an earlier round so that "every surface
+answers the question identically", and its docstring names the rendering it
+exists to abolish: `User 70409342`, the first eight decimal digits of a CID.
+
+It had been bypassed twice over.
+
+**Four sites built their own handle anyway.** The conversation list and the
+registered-peer list took the LAST six decimal digits; the new-message
+notification took the FIRST eight; the authority derives base36 of the low 32
+bits. So one peer wore three different names depending on which surface you
+were looking at, and two of the three were the exact form the module was
+written to remove.
+
+**Five sites decided for themselves which strings were placeholders**, using
+three different definitions:
+
+| definition | sites | misses |
+|---|---|---|
+| `!== 'Unknown' && !startsWith('User ')` | 5 | `Loading...`, `Peer <handle>` |
+| `!== 'Unknown'` | 2 | `User <digits>` and both others |
+| `!== 'Loading...'` | 5 | `Unknown`, `User <digits>` |
+
+None covered all of them. A peer called `User 12345` was a placeholder to the
+registration service and a real name to the sidebar — so the preservation logic
+in `updatePeerMaps`, whose whole job is to keep a known name from being
+clobbered, preserved the *placeholder* in preference to the real name arriving
+behind it. Permanently.
+
+`isPlaceholderName` is now that judgement, once, and `peerDisplayName`,
+`peerInitials` and `isUnnamedPeer` all consult it — so a placeholder can no
+longer be rendered as somebody's name, or supply an avatar initial (every
+unnamed peer in the app shared the letter U).
+
+The eight sites that *produced* `User <digits>` now build their `Peer` record
+through `peerRecord`, which uses the authority. The handle it produces is one
+`isPlaceholderName` recognises, so the real name still replaces it on arrival.
+
+`check-peer-names-have-one-answer.mjs` forbids both shapes outside the module.
+Writing it is what found the eight producers: the four display copies were
+visible, the sources were not.
+
+**The gate's first version over-matched, and my own positive control caught it**
+— `/^Peer [0-9A-Za-z]{4,13}$/` called "Peer Gynt" a placeholder. It is now built
+from the module's own `HANDLE_LENGTH` and alphabet. The placeholder rule is also
+scoped to lines that talk about a name, because `'Unknown'` is a legitimate
+value for a file whose MIME type could not be determined — a different question
+with a different right answer.
+
+Four gate controls: a restated placeholder check, a name built from CID digits,
+the authority losing its export, and a MIME `'Unknown'` that must *not* trip it.
+
+While extracting to fit the length cap: the five-field `Peer` literal existed in
+five places across three files, and the arrival notification came out of
+`message-handler-routing.ts`, which dropped from 253 to 242 and no longer needs
+its length exemption at all.
+
+2429 tests green, all 57 preflight checks.

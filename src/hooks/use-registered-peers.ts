@@ -5,6 +5,7 @@
  * status tracking, and stale conversation cleanup.
  */
 
+import { isPlaceholderName, peerDisplayName } from '@/lib/peer-display';
 import { useState, useEffect, useRef, useCallback , type MutableRefObject } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { p2pRegistrationService } from '@/lib/p2p-registration-service';
@@ -69,9 +70,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
           if (existing) {
             const mergedPeer: { username: string | undefined; cid?: bigint; } = {
               ...p,
-              username: (existing.username && existing.username !== 'Unknown' && !existing.username.startsWith('User '))
-                ? existing.username
-                : p.username
+              username: isPlaceholderName(existing.username) ? p.username : existing.username
             };
             mergedPeersMap.set(cidStr, mergedPeer);
           } else {
@@ -86,9 +85,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
       try {
         peerList = await Promise.all(peersToUse.map(async p => {
           const cidStr: string = p.cid?.toString() || '';
-          const displayName: string = (p.username && p.username !== 'Unknown')
-            ? p.username
-            : (cidStr ? `Peer ${cidStr.slice(-6)}` : 'Unknown Peer');
+          const displayName: string = peerDisplayName({ cid: p.cid, username: p.username });
           const peerCidBigInt: bigint = p.cid ?? BigInt(0);
           const isOnline: boolean = p2pAutoConnectService.isPeerOnline(peerCidBigInt);
           let isConnected: boolean = false;
@@ -105,9 +102,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
         debugLog('UseRegisteredPeers', 'Promise.all mapping failed:', mapError);
         peerList = peersToUse.map(p => {
           const cidStr: string = p.cid?.toString() || '';
-          const displayName: string = (p.username && p.username !== 'Unknown')
-            ? p.username
-            : (cidStr ? `Peer ${cidStr.slice(-6)}` : 'Unknown Peer');
+          const displayName: string = peerDisplayName({ cid: p.cid, username: p.username });
           return { cid: cidStr, username: displayName, isOnline: false, isConnected: false };
         });
       }

@@ -4,6 +4,7 @@
  * Manages peers with active P2P conversations, sorted by last message time.
  */
 
+import { peerDisplayName } from '@/lib/peer-display';
 import { useState, useEffect, useCallback } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
@@ -52,9 +53,11 @@ export function useConversationPeers({
       const peerCidStr: string = c.peerCid.toString();
       // Find the username from registered peers
       const registeredPeer: RegisteredPeer | undefined = registeredPeers.find(p => p.cid === peerCidStr);
-      // Prefer registered peer username, then a friendly "Peer" label
-      const displayName: string = registeredPeer?.username ||
-        (peerCidStr ? `Peer ${peerCidStr.slice(-6)}` : 'Unknown Peer');
+      // One module decides how a peer is named. This site hand-rolled its own
+      // handle from the LAST six decimal digits, which differs from every other
+      // surface, so one peer appeared under two names depending on where you
+      // looked.
+      const displayName: string = peerDisplayName({ cid: c.peerCid, username: registeredPeer?.username });
       return {
         peerCid: peerCidStr,
         peerUsername: displayName,

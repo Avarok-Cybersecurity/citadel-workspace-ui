@@ -5,6 +5,7 @@
  * operations extracted from P2PMessengerManager for modularity.
  */
 
+import { peerDisplayName } from '@/lib/peer-display';
 import { websocketService } from '../websocket-service';
 import { wireMapEntries } from '@/lib/wire-map';
 import { connectionManager } from '../connection';
@@ -173,6 +174,6 @@ export async function autoRegisterPeer(
   };
   await websocketService.sendMessage(request);
   emit('p2p:peer-registered', {
-    peer: { cid: peerCid, username: `User ${peerCid.toString().slice(0, 8)}`, fullName: `User ${peerCid.toString().slice(0, 8)}`, isOnline: true, isRegistered: true }
+    peer: { cid: peerCid, username: peerDisplayName({ cid: peerCid }), fullName: peerDisplayName({ cid: peerCid }), isOnline: true, isRegistered: true }
   });
 }

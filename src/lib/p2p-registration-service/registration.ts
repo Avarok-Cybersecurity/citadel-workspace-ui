@@ -5,6 +5,7 @@
  * peer registration execution, and batch registration of unregistered peers.
  */
 
+import { isPlaceholderName, peerDisplayName } from '@/lib/peer-display';
 import { websocketService } from '../websocket-service';
 import { failOnSocketLoss } from '../websocket/request-response';
 import { broadcastChannelService } from '../broadcast-channel-service';
@@ -64,12 +65,14 @@ function rejectRequest(pending: Map<string, PendingRequestEntry>, requestId: str
 
 /** Ensure a peer exists in context maps and mark as registered. Returns the peer. */
 function ensurePeerRegistered(ctx: RegistrationContext, peerCid: bigint, peerUsername?: string): Peer {
-  const fallbackName: string = peerUsername || `User ${peerCid.toString().slice(0, 8)}`;
+  const fallbackName: string = peerDisplayName({ cid: peerCid, username: peerUsername });
   const peer: Peer = ctx.allPeers.get(peerCid) || {
     cid: peerCid, username: fallbackName, fullName: fallbackName, isOnline: true, isRegistered: true
   };
   peer.isRegistered = true;
-  if (peerUsername && (peer.username === 'Unknown' || peer.username.startsWith('User '))) {
+  // A real name replaces a placeholder, never the other way round: this runs on
+  // every registration event, and the later ones do not always carry the name.
+  if (peerUsername !== undefined && !isPlaceholderName(peerUsername) && isPlaceholderName(peer.username)) {
     peer.username = peerUsername;
     peer.fullName = peerUsername;
   }
