@@ -76,7 +76,7 @@ describe('yjs update coalescing', () => {
     // The assertion that matters: a peer applying what we sent ends up with
     // our document. Counting sends alone would pass on a batcher that dropped
     // edits.
-    const peer = new Y.Doc();
+    const peer: Y.Doc = new Y.Doc();
     for (const update of sent) Y.applyUpdate(peer, update);
     expect(peer.getText('t').toString()).toBe('hello world');
 
