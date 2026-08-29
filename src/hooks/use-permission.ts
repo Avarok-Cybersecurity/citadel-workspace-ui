@@ -112,6 +112,8 @@ export function usePermission(
   } = usePermissions();
 
   const [localLoading, setLocalLoading] = useState(false);
+  /** Set when the retry budget for the current domain has run out. */
+  const [spent, setSpent] = useState(false);
   /** Attempts made per domain, so a failure can be retried and still bounded. */
   const attemptedFetchRef: React.MutableRefObject<Map<string, number>> =
     useRef<Map<string, number>>(new Map());
@@ -136,7 +138,11 @@ export function usePermission(
     const attempt = (): void => {
       const soFar: number = attemptedFetchRef.current.get(domainId) ?? 0;
       const delay: number | null = nextRetryDelayMs(soFar);
-      if (cancelled || delay === null) return;
+      if (cancelled) return;
+      // In STATE, not only in the ref: the ref is mutated inside this effect
+      // and nothing re-renders when it changes, so a reason computed from it
+      // would be read once, before the budget was spent, and never again.
+      if (delay === null) { setSpent(true); return; }
 
       timer = window.setTimeout(() => {
         if (cancelled) return;
@@ -155,12 +161,30 @@ export function usePermission(
       }, delay);
     };
 
+    setSpent(false);
     attempt();
     return (): void => {
       cancelled = true;
       if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [domainId, permissions, fetchPermissionsForDomain, askAgain]);
+
+  /**
+   * Whether asking has been given up on for this domain.
+   *
+   * The budget is four attempts. What the user was told when it ran out was
+   * `getDeniedReason`'s empty-cache line -- "Permissions have not been loaded
+   * for this domain" -- which describes the cache rather than their situation,
+   * and sits under a control that looks refused. CI's report of the workspace
+   * admin's own Edit button read exactly that way for sixty seconds:
+   *
+   *   63 × locator resolved to <button disabled title="Permissions have not
+   *        been loaded for this domain" ...>Edit</button>
+   *
+   * Distinguishing "we never got an answer" from "the answer was no" is the
+   * difference between a fault to report and a permission to request.
+   */
+  const gaveUp: boolean = spent && domainId !== null && domainId !== undefined && !permissions.has(domainId);
 
   const refresh: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (!domainId) return;
@@ -181,7 +205,11 @@ export function usePermission(
 
   const allowed: boolean = hasPermission(domainId, permission);
   const loading: boolean = contextLoading || localLoading;
-  const reason: string | null = allowed ? null : getDeniedReason(domainId, permission);
+  const reason: string | null = allowed
+    ? null
+    : gaveUp
+      ? 'Your permissions here could not be checked — the request went unanswered. Reload to try again.'
+      : getDeniedReason(domainId, permission);
 
   return {
     allowed,

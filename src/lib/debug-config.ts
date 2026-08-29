@@ -13,22 +13,45 @@ const noop = (..._args: unknown[]): void => { /* intentionally empty */ };
 /**
  * Log debug messages. Only emits in development.
  */
+/**
+ * Render a value the console can show.
+ *
+ * A bare `bigint` argument is printed as `undefined` by Playwright's
+ * `consoleMessage.text()` -- measured directly:
+ *
+ *   console.log('x:', 123n)              ->  "x: undefined"
+ *   console.log('x:', { cid: 789n })     ->  "x: {cid: 789n}"
+ *
+ * Every CID in this app is a bigint, so every log line whose whole purpose was
+ * to name one has been reporting `undefined` in every captured run. It is worse
+ * than no log line, because it gets believed: "Disconnecting session:
+ * undefined" is what an open lead about the wire omitting `cid` was founded on,
+ * and the wire had never omitted it.
+ *
+ * Converted here rather than at eighty call sites, so a line written tomorrow
+ * is readable without anybody remembering this.
+ */
+function printable(value: unknown): unknown {
+  if (typeof value === 'bigint') return `${value}n`;
+  return value;
+}
+
 export const debugLog: (category: string, ...args: unknown[]) => void = isDev
-  ? (category, ...args): void => console.log(`[${category}]`, ...args)
+  ? (category, ...args): void => console.log(`[${category}]`, ...args.map(printable))
   : noop;
 
 /**
  * Log error messages. Always emits (errors should always be visible).
  */
 export function errorLog(category: string, ...args: unknown[]): void {
-  console.error(`[${category}]`, ...args);
+  console.error(`[${category}]`, ...args.map(printable));
 }
 
 /**
  * Log warning messages. Always emits (warnings should always be visible).
  */
 export function warnLog(category: string, ...args: unknown[]): void {
-  console.warn(`[${category}]`, ...args);
+  console.warn(`[${category}]`, ...args.map(printable));
 }
 
 /**

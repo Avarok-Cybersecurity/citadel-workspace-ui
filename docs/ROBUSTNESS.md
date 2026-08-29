@@ -15083,3 +15083,66 @@ keep watching; none of them is a defect.
 
 > A tint's contrast cannot be read off its class name. The number only exists
 > once something has been composited over something else.
+
+## Round 298 — "delete my account permanently" reported success on a queued request
+
+Round 289 put the refusal reason into the DOM. The next CI run said which branch
+the workspace admin's Edit button had taken, in the failure text itself:
+
+```
+63 × locator resolved to <button disabled tabindex="-1"
+     title="Permissions have not been loaded for this domain" ...>Edit</button>
+```
+
+That is `getDeniedReason`'s empty-cache line, not its denial line. So the answer
+is settled: the permission fetch never lands. It is not a server denial — the
+server's own log records `promoted to Admin`, and a denial would have read "You
+don't have the 'Edit MDX' permission. Your role: Admin".
+
+The sentence is now honest about that: **"Your permissions here could not be
+checked — the request went unanswered."** Not "have not been loaded", which
+describes the cache, under a control that looks refused; the difference between
+a fault to report and a permission to request. The flag lives in state rather
+than the attempt ref, because a ref mutated inside an effect re-renders nothing
+and a reason computed from it is read once, before the budget is spent, and
+never again.
+
+**Deregister answered for a request it had only queued.** `test:prev-sessions`
+reports, with round 294's wait for the operation to actually finish:
+
+```
+Deregister success: true
+Can login after deregister: true
+```
+
+`deregister.rs` called `remote.send(request).await` and reported
+`DeregisterSuccess` on it. This repository documents what that resolves on, in
+`file/upload.rs`, at length: *"resolves when the request is accepted by the
+SDK's mpsc channel, which is before the SDK's node loop has dequeued the
+request"*. So "delete my account permanently" answered yes to a queued request
+and nothing more, and the person was told their account was gone while it was
+still there.
+
+It waits for `NodeResult::DeRegistration` now, which carries the protocol's own
+`success` flag, bounded at thirty seconds so a silent SDK cannot leave the
+sign-out modal spinning. And the session leaves the connection map only once
+that answer is yes: removing it first — which is what this did — took the
+session out whatever the protocol decided, so a *refused* deregistration left a
+live SDK session with no entry representing it, gone from the UI and still
+connected.
+
+**Every CID this app has ever logged printed as `undefined`.** Playwright's
+`consoleMessage.text()` renders a bare bigint argument that way. Measured:
+
+```
+console.log('x:', 123n)          ->  "x: undefined"
+console.log('x:', { cid: 789n }) ->  "x: {cid: 789n}"
+```
+
+Fixed in `debugLog`/`errorLog`/`warnLog` rather than at eighty call sites, so a
+line written tomorrow is readable without anybody remembering this. Objects are
+left alone: the console already renders their bigints, and rewriting them would
+lose the structure it gives for free.
+
+> A log line that cannot print the one value it exists to print is worse than no
+> log line. It gets believed.

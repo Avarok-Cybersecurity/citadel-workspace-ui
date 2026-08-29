@@ -118,3 +118,27 @@ describe('a retry budget that has run out', () => {
     expect(result.current.allowed).toBe(true);
   }, 30_000);
 });
+
+describe('what a control says when the answer never came', () => {
+  it('reports an unanswered check, not a denial', async (): Promise<void> => {
+    // "Permissions have not been loaded for this domain" describes the cache.
+    // Under a control that looks refused, the user reads it as "you may not do
+    // this" -- and CI read it the same way for sixty seconds under the
+    // workspace admin's own Edit button.
+    const { result } = renderHook(() => usePermission('office-1', Permission.EditMdx));
+
+    await waitFor((): void => { expect(state.fetches).toBeGreaterThanOrEqual(4); }, {
+      timeout: 10_000,
+    });
+    await waitFor((): void => {
+      expect(result.current.reason).toMatch(/could not be checked/i);
+    }, { timeout: 10_000 });
+    expect(result.current.reason).not.toMatch(/have not been loaded/i);
+  }, 30_000);
+
+  it('still reports a real denial as a denial', async (): Promise<void> => {
+    // The budget is not spent, so this is the answer rather than the silence.
+    const { result } = renderHook(() => usePermission('office-1', Permission.EditMdx));
+    expect(result.current.reason).toBe('not allowed');
+  });
+});
