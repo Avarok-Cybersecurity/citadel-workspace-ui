@@ -14,9 +14,11 @@ import { ConnectionRequestDialog } from './ConnectionRequestDialog';
 import WorkspaceService from '@/lib/workspace-service';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useRegisteredPeers } from '@/hooks';
-import { usePeerDiscovery } from '@/components/p2p/usePeerDiscovery';
+import { usePeerDiscovery  } from '@/components/p2p/usePeerDiscovery';
 import { sendPeerRegistration } from '@/lib/p2p/send-peer-registration';
 import { connectionManager } from '@/lib/connection';
+import type { NavigateFunction } from 'react-router';
+import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 
 export const UserDirectory: () => JSX.Element = (): JSX.Element => {
   const { state } = useWorkspace();
@@ -28,7 +30,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
   const { peers: discoveredPeers } = usePeerDiscovery(true);
   const [requestMessage, setRequestMessage] = useState('');
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
 
   // Request member list on mount
   const [searchParams] = useSearchParams();
@@ -85,7 +87,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
       // peer by CID (`registeredPeers.find(p => p.cid === selectedPeerCid)`).
       // Passing the username under the right parameter name still matches
       // nothing — it would look fixed and behave identically.
-      const peer = registeredPeers.find((p) => p.username === userId);
+      const peer: RegisteredPeer | undefined = registeredPeers.find((p) => p.username === userId);
       if (!peer) {
         toast({
           title: 'Cannot open that conversation',

@@ -32,6 +32,7 @@ export type { CallManagerOptions } from './call-manager-internals';
 import { CallLivenessBinding } from './call-liveness-binding';
 import { announceSendCodec, handleInboundSignal } from './call-signal-handling';
 import { closeAllSessions, openSessionFor } from './media-session-lifecycle';
+import type { CallStatus, CallParticipant } from '@/lib/call/call-state';
 
 export { MEDIA_WIRE_VERSION, RING_TIMEOUT_MS } from './call-constants';
 
@@ -50,7 +51,7 @@ export class CallManager {
     this.liveness = new CallLivenessBinding(options, () => this.internals());
     this.deadline = new CallDeadline({
       schedule: options.schedule,
-      getStatus: () => this.state?.status ?? null,
+      getStatus: (): CallStatus | null => this.state?.status ?? null,
       onExpired: (status): undefined => {
         if (status !== 'connecting') return void this.end('unanswered');
         this.apply({ type: 'failed', reason: 'The call could not connect.' });
@@ -141,7 +142,7 @@ export class CallManager {
     // Everyone still expected in the call hears the accept — in a group that
     // includes co-invitees who have not answered yet, which is how two
     // invitees find each other without the caller relaying anything.
-    const peers = [...state.participants.values()].filter(
+    const peers: CallParticipant[] = [...state.participants.values()].filter(
       (p) => p.status !== 'left' && p.status !== 'declined',
     );
     //
@@ -169,7 +170,7 @@ export class CallManager {
     // answered: the caller (in the call by dialling, seeded 'connecting') and
     // any co-invitee whose accept already arrived. The rest get their session
     // when their CallAccept lands.
-    const ready = peers.filter((p): boolean => p.status === 'connecting' || p.status === 'active');
+    const ready: CallParticipant[] = peers.filter((p): boolean => p.status === 'connecting' || p.status === 'active');
     await Promise.all(ready.map((p) => openSessionFor(this.internals(), p.cid)));
   }
 

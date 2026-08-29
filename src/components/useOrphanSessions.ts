@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { readLastLocation } from '@/lib/sessions/last-location';
-import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
+import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
 import { describeFailure } from '@/lib/failure-message';
 import { withWorkspaceNames } from '@/lib/sessions/with-workspace';
 import { markLastAccessed, readLastAccessed } from '@/lib/sessions/last-accessed';
@@ -22,6 +22,8 @@ import { serverAutoConnectService } from "@/lib/server-auto-connect-service";
 import { eventEmitter } from "@/lib/event-emitter";
 import { postAuthSetup } from "@/lib/post-auth-setup";
 import { debugLog } from '@/lib/debug-config';
+import type { NavigateFunction } from 'react-router';
+import type { TabUserContext } from '@/lib/tab-context';
 
 export interface OrphanSessionWithWorkspace extends ActiveSession {
   workspaceName: string;
@@ -30,7 +32,7 @@ export interface OrphanSessionWithWorkspace extends ActiveSession {
 }
 
 export function useOrphanSessions() {
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const { toast } = useToast();
   const [sessions, setSessions] = useState<OrphanSessionWithWorkspace[]>([]);
   const [disconnectTarget, setDisconnectTarget] = useState<{
@@ -71,7 +73,7 @@ export function useOrphanSessions() {
       setSessions(sessionsWithWorkspace);
       debugLog('OrphanSessionsNavbar', 'Loaded active sessions:', sessionsWithWorkspace);
 
-      const tabSelection = await getSelectedUser();
+      const tabSelection: TabUserContext | null = await getSelectedUser();
       if (tabSelection?.selectedCid) {
         const sel: OrphanSessionWithWorkspace | undefined = sessionsWithWorkspace.find(s => s.cid === tabSelection.selectedCid);
         if (sel?.cid !== undefined) {
@@ -102,7 +104,7 @@ export function useOrphanSessions() {
         variant: 'success',
       });
 
-      const outcome = await claimSessionForThisTab(session.cid);
+      const outcome: ClaimOutcome = await claimSessionForThisTab(session.cid);
       if (outcome.status === 'owned-by-another-tab') {
         toast(SESSION_OWNED_ELSEWHERE);
         return;

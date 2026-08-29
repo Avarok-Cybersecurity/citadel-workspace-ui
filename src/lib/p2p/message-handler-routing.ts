@@ -21,6 +21,10 @@ import { deliverToConversation, shouldAck } from './inbound-message-delivery';
 import type { P2PMessage, PeerPresence } from './p2p-types';
 import type { MessageHandlerConfig } from './message-handler-types';
 import type { FileTransferMessageHandler } from './file-transfer-message-handler';
+import type { P2PConversation } from '@/lib/p2p/p2p-types';
+import type { RevisionOutcome } from '@/lib/p2p/message-revision';
+import type { MessagingLayer } from '@/types/messaging-layer';
+import type { DeliveryOutcome } from '@/lib/p2p/inbound-message-delivery';
 
 /**
  * Handle a MessagingLayer command by dispatching to the appropriate handler.
@@ -43,8 +47,8 @@ export async function handleMessagingLayerCommand(
       break;
 
     case MessagingLayerType.MessageEdit: {
-      const conversation = config.getOrCreateConversation(peerCid);
-      const outcome = applyEdit(conversation, layer.message_id, layer.contents, layer.edited_at, peerCid);
+      const conversation: P2PConversation = config.getOrCreateConversation(peerCid);
+      const outcome: RevisionOutcome = applyEdit(conversation, layer.message_id, layer.contents, layer.edited_at, peerCid);
       if (!outcome.applied) {
         // Do not swallow this. An edit for a message we do not have, or one the
         // peer did not send, means our view and theirs have diverged.
@@ -60,8 +64,8 @@ export async function handleMessagingLayerCommand(
     }
 
     case MessagingLayerType.MessageDelete: {
-      const conversation = config.getOrCreateConversation(peerCid);
-      const outcome = applyDelete(conversation, layer.message_id, peerCid);
+      const conversation: P2PConversation = config.getOrCreateConversation(peerCid);
+      const outcome: RevisionOutcome = applyDelete(conversation, layer.message_id, peerCid);
       if (!outcome.applied) {
         debugLog('P2PMessageHandler', `Ignored delete of ${layer.message_id}: ${outcome.reason}`);
         break;
@@ -142,7 +146,7 @@ async function handleIncomingMessage(
   peerCid: bigint,
   recipientCid?: bigint
 ): Promise<void> {
-  const layer = payload.layer;
+  const layer: MessagingLayer = payload.layer;
   if (!isMessage(layer)) {
     // Silent before this: a payload routed as a message but failing the shape
     // check vanished with no line anywhere - indistinguishable from one the
@@ -170,7 +174,7 @@ async function handleIncomingMessage(
     document_title: payload.document_title,
   };
 
-  const outcome = await deliverToConversation(
+  const outcome: DeliveryOutcome = await deliverToConversation(
     () => config.addMessageToConversation(peerCid, message),
     message.id
   );
@@ -206,7 +210,7 @@ async function handleIncomingMessage(
     });
 
     if (config.shouldShowNotification(peerCid)) {
-      const conversation = config.getConversations().get(peerCid);
+      const conversation: P2PConversation | undefined = config.getConversations().get(peerCid);
       const peerUsername: string = conversation?.peerUsername || `Peer ${peerCid.toString().slice(0, 8)}`;
 
       config.addNotification(
@@ -226,14 +230,14 @@ async function handleIncomingMessage(
 /** Handle a typing indicator from a peer. */
 function handleTypingIndicator(config: MessageHandlerConfig, peerCid: bigint): void {
   const timestamp: number = Date.now();
-  const conversation = config.getOrCreateConversation(peerCid);
+  const conversation: P2PConversation = config.getOrCreateConversation(peerCid);
   conversation.typing = true;
   conversation.lastTypingUpdate = timestamp;
 
   config.notifyTypingListeners(peerCid, true);
 
   setTimeout(() => {
-    const conv = config.getConversations().get(peerCid);
+    const conv: P2PConversation | undefined = config.getConversations().get(peerCid);
     if (conv && conv.lastTypingUpdate === timestamp) {
       conv.typing = false;
       config.notifyTypingListeners(peerCid, false);
@@ -243,7 +247,7 @@ function handleTypingIndicator(config: MessageHandlerConfig, peerCid: bigint): v
 
 /** Handle a presence update from a peer. */
 function handlePresenceUpdate(config: MessageHandlerConfig, peerCid: bigint, presence: PeerPresence): void {
-  const conversation = config.getOrCreateConversation(peerCid);
+  const conversation: P2PConversation = config.getOrCreateConversation(peerCid);
   conversation.presence = presence;
   config.notifyPresenceListeners(peerCid, presence);
 }

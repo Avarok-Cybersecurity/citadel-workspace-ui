@@ -23,6 +23,7 @@ import {
 } from './routing-rules';
 import { extractRequestId, extractTargetCid } from './message-routing';
 import { OrphanBuffer } from './orphan-buffer';
+import type { InstanceInfo } from '@/lib/multi-instance/instance-manager-types';
 
 debugLog('InstanceInboundRouter', '[ILM-Router] Module loading...');
 
@@ -208,7 +209,7 @@ class InstanceInboundRouter {
         this.processLocalMessage(message);
         return;
       }
-      const knownInstances = instanceManager.getAllInstances();
+      const knownInstances: InstanceInfo[] = instanceManager.getAllInstances();
       debugLog('InstanceInboundRouter', `[ILM-Router] No instance owns CID ${targetCid}, message may be lost`);
       debugLog('InstanceInboundRouter', `[ILM-Router] Known instances: ${knownInstances.map(i => `${i.instanceId}->${i.cid?.toString()}`).join(', ')}`);
       // Self-heal: buffer the orphan, then replay to the right tab when a

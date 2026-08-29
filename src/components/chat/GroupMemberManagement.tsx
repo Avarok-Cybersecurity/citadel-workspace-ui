@@ -30,6 +30,7 @@ import { memberAvatarColor } from '@/lib/avatar-color';
 import { getRoleIcon, type GroupMemberManagementProps } from './GroupMemberManagementHelpers';
 import { KickConfirmDialog } from './KickConfirmDialog';
 import { PeerPickerPopover } from './PeerPickerPopover';
+import type { GroupRole } from '@/types/group-permissions';
 
 // ============================================================================
 // Component
@@ -50,7 +51,7 @@ export function GroupMemberManagement({
   const sortedMembers: GroupMemberWithRole[] = useMemo(() => {
     return [...group.members]
       .flatMap(member => {
-        const role = group.settings.roles.find(r => r.id === member.roleId);
+        const role: GroupRole | undefined = group.settings.roles.find(r => r.id === member.roleId);
         if (!role) return [];
         return [{ ...member, role } as GroupMemberWithRole];
       })
@@ -63,7 +64,7 @@ export function GroupMemberManagement({
   }, [group.members, group.settings.roles]);
 
   // Roles that can be assigned (excludes built-in owner role)
-  const assignableRoles = useMemo(() => {
+  const assignableRoles: GroupRole[] = useMemo((): GroupRole[] => {
     return group.settings.roles
       .filter(r => !r.isBuiltIn)
       .sort((a, b) => b.position - a.position);
