@@ -51,7 +51,7 @@ export function GroupConversationRow({
   group,
   isActive = false,
   onClick,
-}: GroupConversationRowProps) {
+}: GroupConversationRowProps): JSX.Element {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const [maxAvatars, setMaxAvatars] = useState(MAX_AVATARS);

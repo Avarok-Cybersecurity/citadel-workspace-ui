@@ -7,6 +7,8 @@ import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
 import { debugLog } from '@/lib/debug-config';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
+import type { User } from '@/types/workspace-entities';
+import type { UserRole } from '@/types/workspace-entities';
 
 interface UseMemberEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -33,7 +35,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
           // Try to find the current user in the members list and update their role
           let updatedCurrentUser: { id: string; username: string; name: string; role?: string; displayName?: string; avatarUrl?: string; } | undefined = prev.currentUser;
           if (prev.currentUser && payload.members) {
-            const currentUserMember = payload.members.find(
+            const currentUserMember: User | undefined = payload.members.find(
               (m: { username?: string; role?: string; displayName?: string }) =>
                 m.username === prev.currentUser?.username
             );
@@ -46,7 +48,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
               };
 
               // Persist role to stored session for WorkspaceSwitcher (async)
-              const roleToSave = currentUserMember.role;
+              const roleToSave: UserRole = currentUserMember.role;
               if (roleToSave) {
                 runAsyncSetup(async () => {
                   const session = await connectionManager.getTabSelectedSession();

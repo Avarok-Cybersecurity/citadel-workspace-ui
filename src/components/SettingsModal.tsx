@@ -20,7 +20,7 @@ interface SettingsModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
+export function SettingsModal({ open, onOpenChange }: SettingsModalProps): JSX.Element {
   const connectionInfo = connectionManager.getConnectionInfo();
   const isConnected: boolean = !!connectionInfo?.cid;
 

@@ -24,7 +24,7 @@ import { ParentNodePermissionSection } from './PermissionNodeSections';
 /**
  * Main PermissionsSettingsTab component
  */
-export function PermissionsSettingsTab() {
+export function PermissionsSettingsTab(): JSX.Element {
   const { state } = useWorkspace();
   const {
     getRole,

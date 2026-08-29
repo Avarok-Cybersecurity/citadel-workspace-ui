@@ -3,7 +3,7 @@ import { getBubbleStyles, BUBBLE_MAX_WIDTH } from './types';
 import { BubbleFooter } from './BubbleFooter';
 import type { LiveDocumentBubbleProps } from './types';
 
-export function LiveDocumentBubble({ message, isOwn, onRetry, onOpenDocument }: LiveDocumentBubbleProps) {
+export function LiveDocumentBubble({ message, isOwn, onRetry, onOpenDocument }: LiveDocumentBubbleProps): JSX.Element {
   const isFailed: boolean = message.status === 'failed';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
 

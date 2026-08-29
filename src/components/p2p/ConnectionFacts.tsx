@@ -18,7 +18,7 @@ interface ConnectionFactsProps {
   revfsQuota: number;
 }
 
-export function ConnectionFacts({ peerCid, revfsQuota }: ConnectionFactsProps) {
+export function ConnectionFacts({ peerCid, revfsQuota }: ConnectionFactsProps): JSX.Element {
   const settings: { revfsQuota: number; } = { revfsQuota };
 
   return (

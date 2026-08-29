@@ -33,6 +33,7 @@ vi.mock('@/lib/event-emitter', () => ({
 vi.mock('@/hooks/use-toast', () => ({ toast: spies.toast }));
 
 import { buildGroupFromInvite, applyGroupInvite } from '../use-group-state-invite';
+import type { GroupConversation } from '@/types/group-entities';
 
 beforeEach(() => {
   spies.getConnectionInfo.mockReset();
@@ -45,7 +46,7 @@ beforeEach(() => {
 
 describe('buildGroupFromInvite', () => {
   it('returns a group with just the inviter when self can\'t be resolved', async () => {
-    const g = await buildGroupFromInvite({
+    const g: GroupConversation | null = await buildGroupFromInvite({
       groupId: 'g-1',
       groupName: 'Cool Crew',
       inviterId: '42',
@@ -62,7 +63,7 @@ describe('buildGroupFromInvite', () => {
 
   it('appends self when connection info is available', async () => {
     spies.getConnectionInfo.mockReturnValue({ cid: 7n, username: 'me' });
-    const g = await buildGroupFromInvite({
+    const g: GroupConversation | null = await buildGroupFromInvite({
       groupId: 'g-2',
       groupName: '',
       inviterId: '11',
@@ -77,7 +78,7 @@ describe('buildGroupFromInvite', () => {
   });
 
   it('returns null for a missing inviterId rather than throwing', async () => {
-    const g = await buildGroupFromInvite({
+    const g: GroupConversation | null = await buildGroupFromInvite({
       groupId: 'g-3',
       groupName: 'X',
       inviterId: undefined as unknown as string,
@@ -87,7 +88,7 @@ describe('buildGroupFromInvite', () => {
   });
 
   it('returns null for a non-numeric inviterId rather than throwing', async () => {
-    const g = await buildGroupFromInvite({
+    const g: GroupConversation | null = await buildGroupFromInvite({
       groupId: 'g-4',
       groupName: 'X',
       inviterId: 'not-a-number',
@@ -116,7 +117,7 @@ describe('buildGroupFromInvite', () => {
   });
 
   it('accepts a numeric inviterId by coercion', async () => {
-    const g = await buildGroupFromInvite({
+    const g: GroupConversation | null = await buildGroupFromInvite({
       groupId: 'g-5',
       groupName: 'X',
       inviterId: 99 as unknown as string,

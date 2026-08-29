@@ -44,7 +44,7 @@ export function MemberListItems({
   onRemoveMember,
   onManagePermissions,
   onShowAllMembers,
-}: MemberListItemsProps) {
+}: MemberListItemsProps): JSX.Element {
   return (
     <>
       {members.slice(0, MEMBERS_TO_SHOW).map((member) => (

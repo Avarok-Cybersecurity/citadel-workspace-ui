@@ -13,7 +13,7 @@ import { render, screen } from '@testing-library/react';
 import { P2PMessageList } from '../P2PMessageList';
 
 vi.mock('../MessageBubble', () => ({
-  MessageBubble: ({ message }: { message: { content: string } }) => <div>{message.content}</div>,
+  MessageBubble: ({ message }: { message: { content: string } }): JSX.Element => <div>{message.content}</div>,
 }));
 
 const base = {

@@ -16,7 +16,7 @@ interface WorkspaceSwitcherProps {
   workspaceName?: string;
 }
 
-export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => {
+export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JSX.Element => {
   const {
     availableWorkspaces,
     currentWorkspace,

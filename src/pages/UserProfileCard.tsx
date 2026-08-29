@@ -21,7 +21,7 @@ export function UserProfileCard({
   onClose,
   onSendMessage,
   onInvite,
-}: UserProfileCardProps) {
+}: UserProfileCardProps): JSX.Element {
   if (!selectedUser) {
     return (
       <Card className="bg-card border-border text-foreground h-full shadow-sm flex flex-col justify-center items-center p-6">

@@ -29,7 +29,7 @@ interface ParticipantTileProps {
  * the moment a call connects — which is exactly when the user is deciding
  * whether it worked.
  */
-export function ParticipantTile({ participant, stream, isSelf, quality = 'good' }: ParticipantTileProps) {
+export function ParticipantTile({ participant, stream, isSelf, quality = 'good' }: ParticipantTileProps): JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null);
   const showVideo: boolean = participant.media.video && stream !== null;
 
@@ -119,7 +119,7 @@ export function ParticipantTile({ participant, stream, isSelf, quality = 'good' 
   );
 }
 
-function QualityIcon({ quality }: { quality: ConnectionQuality }) {
+function QualityIcon({ quality }: { quality: ConnectionQuality }): JSX.Element {
   if (quality === 'lost') return <WifiOff className="h-3 w-3 text-destructive" aria-hidden="true" />;
   if (quality === 'poor') return <SignalLow className="h-3 w-3 text-destructive" aria-hidden="true" />;
   return <SignalMedium className="h-3 w-3 text-warning-emphasis" aria-hidden="true" />;

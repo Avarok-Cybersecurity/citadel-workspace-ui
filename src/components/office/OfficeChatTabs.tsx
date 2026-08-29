@@ -32,7 +32,7 @@ export function OfficeChatTabs({
   currentUserId,
   currentUserName,
   rules,
-}: OfficeChatTabsProps) {
+}: OfficeChatTabsProps): JSX.Element {
   const callMembers = useDomainCallMembers(nodeId);
 
   return (

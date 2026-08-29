@@ -62,7 +62,7 @@ export function MemberRow({
   onRoleChange,
   onAdvancedPermissions,
   onRemove,
-}: MemberRowProps) {
+}: MemberRowProps): JSX.Element {
   const lastAdminReason =
     'This is the only administrator. Promote another member to Admin first.';
   return (

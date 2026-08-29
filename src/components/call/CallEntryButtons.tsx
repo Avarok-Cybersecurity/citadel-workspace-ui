@@ -30,7 +30,7 @@ export function CallEntryButtons({
   capability,
   onStartCall,
   onLeave,
-}: CallEntryButtonsProps) {
+}: CallEntryButtonsProps): JSX.Element {
   if (inCall) {
     // One way out, and no second way in: offering "call" during a call is how
     // people end up starting a second one by accident.

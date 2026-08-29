@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { toastError } from '@/lib/toast-helpers';
 import { InstallAppButton } from "@/components/pwa/InstallAppButton";
 
-export const Landing = () => {
+export const Landing: () => JSX.Element = (): JSX.Element => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();

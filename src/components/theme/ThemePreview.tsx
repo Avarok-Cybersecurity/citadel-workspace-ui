@@ -36,7 +36,7 @@ export function ThemePreview({
   workspaceName,
   selectedToken,
   onSelectToken,
-}: ThemePreviewProps) {
+}: ThemePreviewProps): JSX.Element {
   const region = (id: string) => PREVIEW_REGIONS.find((r): boolean => r.id === id)!;
 
   /** Shared behaviour for every clickable part of the mock. */
@@ -204,11 +204,11 @@ export function ThemePreview({
   );
 }
 
-function Dot({ color }: { color: string }) {
+function Dot({ color }: { color: string }): JSX.Element {
   return <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />;
 }
 
-function SidebarRow({ color, width }: { color: string; width: string }) {
+function SidebarRow({ color, width }: { color: string; width: string }): JSX.Element {
   return <span className="h-1.5 rounded-full opacity-60" style={{ backgroundColor: color, width }} />;
 }
 
@@ -222,7 +222,7 @@ function SwatchButton({
   color: string;
   label: string;
   palette: ThemePalette;
-}) {
+}): JSX.Element {
   const props = hotspot as unknown as React.ButtonHTMLAttributes<HTMLButtonElement> & { className?: string };
   return (
     <button

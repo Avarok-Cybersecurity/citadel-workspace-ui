@@ -18,7 +18,7 @@ describe('pending connection requests badge', () => {
    * was entirely in this element, and the negative control below proves the
    * test discriminates.
    */
-  function PendingBadge({ count, onOpen }: { count: number; onOpen: () => void }) {
+  function PendingBadge({ count, onOpen }: { count: number; onOpen: () => void }): JSX.Element {
     return (
       <button
         type="button"

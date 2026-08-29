@@ -20,7 +20,7 @@ interface StepIndicatorProps {
  * states the position, `aria-current="step"` on the active one, and a
  * screen-reader-only word for each step's state.
  */
-export function StepIndicator({ currentStep, totalSteps, labels }: StepIndicatorProps) {
+export function StepIndicator({ currentStep, totalSteps, labels }: StepIndicatorProps): JSX.Element {
   return (
     <div
       className="flex items-center justify-center gap-0 mt-1"

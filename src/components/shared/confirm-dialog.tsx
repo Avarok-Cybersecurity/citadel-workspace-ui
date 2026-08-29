@@ -23,7 +23,7 @@ interface ConfirmRequest {
  */
 const ConfirmContext = createContext<((request: ConfirmRequest) => Promise<boolean>) | null>(null);
 
-export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
+export function ConfirmDialogProvider({ children }: { children: ReactNode }): JSX.Element {
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
   // The pending promise's resolve, so answering the dialog settles the caller.
   const resolveRef = useRef<((confirmed: boolean) => void) | null>(null);

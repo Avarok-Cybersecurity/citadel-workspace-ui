@@ -21,7 +21,7 @@ interface MembersHeaderActionsProps {
 const ACTION_CLASS =
   'h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground';
 
-export function MembersHeaderActions({ onDiscover, onInvite }: MembersHeaderActionsProps) {
+export function MembersHeaderActions({ onDiscover, onInvite }: MembersHeaderActionsProps): JSX.Element {
   return (
     <div className="flex items-center" data-testid="members-header-actions">
       <Button

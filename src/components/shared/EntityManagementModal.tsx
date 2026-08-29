@@ -65,7 +65,7 @@ export function EntityManagementModal<TMode extends string>({
   onSubmit,
   customContent,
   entityName,
-}: EntityManagementModalProps<TMode>) {
+}: EntityManagementModalProps<TMode>): JSX.Element {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<Record<string, string>>(() =>

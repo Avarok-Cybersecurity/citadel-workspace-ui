@@ -44,7 +44,7 @@ export function VFSToolbar({
   sortDirection = 'asc',
   onSortChange,
   selectionCount = 0,
-}: VFSToolbarProps) {
+}: VFSToolbarProps): JSX.Element {
   const segments: string[] = currentPath.split('/').filter(Boolean);
 
   const handleSortClick = (field: SortField): void => {

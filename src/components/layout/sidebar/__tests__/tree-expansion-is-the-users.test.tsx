@@ -42,7 +42,7 @@ const TREE: TreeNode = node('root', 'Workspace', [
   node('office-b', 'Design', [node('room-3', 'Research')]),
 ]);
 
-function Harness() {
+function Harness(): JSX.Element {
   const [, bump] = useState(0);
   return (
     <MemoryRouter>

@@ -14,7 +14,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { useDialogOverlay } from '../use-dialog-overlay';
 
-function Overlay({ onDismiss }: { onDismiss?: () => void }) {
+function Overlay({ onDismiss }: { onDismiss?: () => void }): JSX.Element {
   const { ref, dialogProps } = useDialogOverlay<HTMLDivElement>({ label: 'Sign in', onDismiss });
   return (
     <div ref={ref} {...dialogProps}>
@@ -26,7 +26,7 @@ function Overlay({ onDismiss }: { onDismiss?: () => void }) {
 }
 
 /** A control outside the dialog, standing in for what the scrim covers. */
-function Harness({ open, onDismiss }: { open: boolean; onDismiss?: () => void }) {
+function Harness({ open, onDismiss }: { open: boolean; onDismiss?: () => void }): JSX.Element {
   return (
     <>
       <button>behind the scrim</button>
@@ -88,7 +88,7 @@ describe('useDialogOverlay', () => {
 
   it('returns focus to whatever opened it', async () => {
     const user = userEvent.setup();
-    function Toggle() {
+    function Toggle(): JSX.Element {
       const [open, setOpen] = useState(false);
       return (
         <>

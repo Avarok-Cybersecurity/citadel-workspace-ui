@@ -24,7 +24,7 @@ export function MoveNodeDialog({
   nodes: Record<string, DomainNode>;
   onMove: (nodeId: string, newParentId: string | null) => void;
   onClose: () => void;
-}) {
+}): JSX.Element | null {
   const [moving, setMoving] = useState(false);
   const targets: DomainNode[] = useMemo(
     () => (node ? moveTargets(nodes, node.id) : []),

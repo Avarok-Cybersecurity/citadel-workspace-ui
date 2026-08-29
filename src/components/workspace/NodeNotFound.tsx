@@ -16,7 +16,7 @@ import { useNavigate } from 'react-router-dom';
  * editing, Save then failed for ever against a node that no longer existed,
  * with retry advice for an unrecoverable state.
  */
-export function NodeNotFound({ nodeId }: { nodeId: string }) {
+export function NodeNotFound({ nodeId }: { nodeId: string }): JSX.Element {
   const navigate = useNavigate();
 
   return (

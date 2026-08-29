@@ -21,7 +21,7 @@ interface PresetGalleryProps {
  * card in its dark palette. Showing light chips while editing dark would
  * misrepresent the choice.
  */
-export function PresetGallery({ themes, selectedId, mode, onSelect }: PresetGalleryProps) {
+export function PresetGallery({ themes, selectedId, mode, onSelect }: PresetGalleryProps): JSX.Element {
   return (
     <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Theme">
       {themes.map((theme) => {
@@ -76,6 +76,6 @@ export function PresetGallery({ themes, selectedId, mode, onSelect }: PresetGall
   );
 }
 
-function Chip({ color }: { color: string }) {
+function Chip({ color }: { color: string }): JSX.Element {
   return <span className="h-4 w-4 rounded-full" style={{ backgroundColor: color }} />;
 }

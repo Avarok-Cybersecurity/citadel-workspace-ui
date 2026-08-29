@@ -13,7 +13,7 @@ import WorkspaceService from '@/lib/workspace-service';
 import userService from '@/lib/user-service';
 import type { User } from 'citadel-workspace-client-ts';
 
-export function GeneralSettingsTab() {
+export function GeneralSettingsTab(): JSX.Element {
   const { toast } = useToast();
   const [displayName, setDisplayName] = useState('');
   const [avatarData, setAvatarData] = useState<string | null>(null);

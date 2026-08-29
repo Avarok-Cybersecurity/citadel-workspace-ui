@@ -38,7 +38,7 @@ interface MemberListItemProps {
   onSelect: (userId: string) => void;
 }
 
-export function MemberListItem({ member, variant, onSendMessage, onInvite, onSelect }: MemberListItemProps) {
+export function MemberListItem({ member, variant, onSendMessage, onInvite, onSelect }: MemberListItemProps): JSX.Element {
   // The row is selectable. It was not before, while UserProfileCard sat beside it
   // saying "Click on a user or search to view their profile" — so the panel could
   // only ever be filled from the search box, and clicking a name did nothing.

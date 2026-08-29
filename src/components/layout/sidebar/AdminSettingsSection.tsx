@@ -29,7 +29,7 @@ import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
  * - View/edit member roles
  * - Access admin-only settings
  */
-export const AdminSettingsSection = () => {
+export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | null => {
   const { state } = useWorkspace();
   const [showPermissionManager, setShowPermissionManager] = useState(false);
   const [showAdminInfo, setShowAdminInfo] = useState(false);

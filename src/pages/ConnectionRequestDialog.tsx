@@ -28,7 +28,7 @@ export function ConnectionRequestDialog({
   onRequestMessageChange,
   sendingRequest,
   onSend,
-}: ConnectionRequestDialogProps) {
+}: ConnectionRequestDialogProps): JSX.Element {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card text-foreground border-border">

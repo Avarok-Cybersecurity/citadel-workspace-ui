@@ -20,7 +20,7 @@ interface NotificationItemProps {
   notification: Notification;
 }
 
-const NotificationItem = ({ notification }: NotificationItemProps) => {
+const NotificationItem: ({ notification }: NotificationItemProps) => JSX.Element = ({ notification }: NotificationItemProps): JSX.Element => {
   const [isExpanded, setIsExpanded] = useState(false);
   const notificationService: NotificationService = NotificationService.getInstance();
   
@@ -38,7 +38,7 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
   const exactTime: string = format(notification.timestamp, 'PPpp');
   
   // Get the appropriate icon based on notification type
-  const getNotificationIcon = () => {
+  const getNotificationIcon: () => JSX.Element = (): JSX.Element => {
     switch (notification.type) {
       case NotificationType.MESSAGE:
         return <MessageSquare className="h-4 w-4" />;

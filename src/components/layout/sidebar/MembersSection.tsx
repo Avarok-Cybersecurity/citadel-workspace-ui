@@ -32,7 +32,7 @@ import type { User as WorkspaceMember } from '@/types/workspace-entities';
 import { MembersSectionModals } from './MembersSectionModals';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
-export const MembersSection = () => {
+export const MembersSection: () => JSX.Element = (): JSX.Element => {
   const location = useLocation();
   const confirm = useConfirm();
   const [showInvite, setShowInvite] = useState(false);

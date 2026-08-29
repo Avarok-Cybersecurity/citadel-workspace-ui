@@ -15,7 +15,7 @@ import { useState } from 'react';
 import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog';
 
 /** Mirrors TreeNodesSection: the dialog closes from caller state, on success only. */
-function Harness({ onConfirm }: { onConfirm: () => Promise<void> }) {
+function Harness({ onConfirm }: { onConfirm: () => Promise<void> }): JSX.Element {
   const [open, setOpen] = useState(true);
   const [error, setError] = useState<string | null>(null);
   return (

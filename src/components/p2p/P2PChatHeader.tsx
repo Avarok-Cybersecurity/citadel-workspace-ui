@@ -87,7 +87,7 @@ export function P2PChatHeader({
   isRegistered,
   onSettingsClick,
   call,
-}: P2PChatHeaderProps) {
+}: P2PChatHeaderProps): JSX.Element {
   const statusDisplay: StatusDisplay = getStatusDisplay(peerPresence, isConnected, isRegistered);
 
   return (

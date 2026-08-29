@@ -22,7 +22,7 @@ interface ToolbarButtonProps {
   title: string;
 }
 
-function ToolbarButton({ icon, onClick, active, disabled, title }: ToolbarButtonProps) {
+function ToolbarButton({ icon, onClick, active, disabled, title }: ToolbarButtonProps): JSX.Element {
   return (
     <button
       type="button"
@@ -46,7 +46,7 @@ function ToolbarButton({ icon, onClick, active, disabled, title }: ToolbarButton
   );
 }
 
-export function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
+export function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }): JSX.Element | null {
   if (!editor) return null;
 
   return (

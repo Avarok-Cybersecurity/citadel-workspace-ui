@@ -20,7 +20,7 @@ import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-ti
 import { debugLog } from '@/lib/debug-config';
 import { MemberRow, ROLE_COLORS } from './MemberRow';
 
-export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTabProps) {
+export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTabProps): JSX.Element {
   const { toast } = useToast();
   const deadlineKey: string = `admin-members:${entityId}`; // per entity: modals must not clash
   const [members, setMembers] = useState<MemberData[]>([]);

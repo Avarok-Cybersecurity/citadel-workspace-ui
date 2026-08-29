@@ -14,7 +14,7 @@ interface SecurityModeSelectProps {
   onChange?: (value: SecrecyMode) => void;
 }
 
-export const SecurityModeSelect = ({ value = 'BestEffort', onChange }: SecurityModeSelectProps) => {
+export const SecurityModeSelect = ({ value = 'BestEffort', onChange }: SecurityModeSelectProps): JSX.Element => {
   const handleValueChange = (newValue: SecrecyMode): void => {
     if (onChange) {
       onChange(newValue);

@@ -25,7 +25,7 @@ interface ServerConnectProps {
   initialPassword?: string;
 }
 
-export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialAddress, initialPassword }: ServerConnectProps) => {
+export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialAddress, initialPassword }: ServerConnectProps): JSX.Element => {
   const { toast } = useToast();
 
   const [serverAddress, setServerAddress] = useState(defaultServer || initialAddress || '');

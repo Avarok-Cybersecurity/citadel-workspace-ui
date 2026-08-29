@@ -41,7 +41,7 @@ function SidebarNode({
   onDelete,
   onUploadFile,
   onDrop,
-}: SidebarNodeProps) {
+}: SidebarNodeProps): JSX.Element {
   const [dragOver, setDragOver] = useState(false);
   const isProtected = PROTECTED_DIRS.has(node.path);
   const FolderIcon = isProtected ? FolderLock : expanded ? FolderOpen : Folder;
@@ -144,7 +144,7 @@ export function VFSTreeView({
   storageUsed,
   storageQuota,
   storageLabel,
-}: VFSTreeViewProps) {
+}: VFSTreeViewProps): JSX.Element {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['/']));
 
   const toggleExpand: (path: string) => void = useCallback((path: string): void => {

@@ -42,7 +42,7 @@ export function MembersTable({
   defaultRoles: _defaultRoles,
   onRoleChange,
   onRemoveMember,
-}: MembersTableProps) {
+}: MembersTableProps): JSX.Element {
   if (selectedMembers.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-border p-6 text-center">

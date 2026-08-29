@@ -23,7 +23,7 @@ interface VFSPathBarProps {
  * - Escape or blur reverts to current path if not submitted
  * - Error shake animation if invalid path
  */
-export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps) {
+export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps): JSX.Element {
   const [inputValue, setInputValue] = useState(currentPath);
   const [isEditing, setIsEditing] = useState(false);
   const [hasError, setHasError] = useState(false);

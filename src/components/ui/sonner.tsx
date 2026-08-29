@@ -31,7 +31,7 @@ type ToasterProps = React.ComponentProps<typeof Sonner>
  */
 export const MOBILE_TOAST_OFFSET: string =
   'calc(var(--app-header-height, 3.5rem) + var(--offline-banner-height, 0px) + 0.5rem)';
-const Toaster = ({ ...props }: ToasterProps) => {
+const Toaster = ({ ...props }: ToasterProps): JSX.Element => {
   const { theme = "system" } = useTheme()
   const isMobile: boolean = useIsMobile()
 

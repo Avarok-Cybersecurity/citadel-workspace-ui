@@ -37,7 +37,7 @@ import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 import { roleBadgeClass } from '@/lib/role-badge';
 import { isPrivilegedRole } from '@/lib/role-predicate';
 
-export function getRoleIcon(role: string) {
+export function getRoleIcon(role: string): JSX.Element {
   // This compared against lowercase only, so the shield NEVER rendered for a
   // member loaded from the server -- the wire sends PascalCase. It was the one
   // place a fix the neighbours already had was not applied; the predicate now
@@ -114,7 +114,7 @@ export function MembersSectionModals({
   onClearSelectedMember, onClearPermissionModalData,
   onEditMember, onRemoveMember, onManagePermissions,
   onCreateGroup,
-}: MembersSectionModalsProps) {
+}: MembersSectionModalsProps): JSX.Element {
   return (
     <>
       <MemberManagementModal isOpen={showAddModal} onClose={() => onSetShowAddModal(false)} mode="add" domainId={currentNodeId ?? undefined} />

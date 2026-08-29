@@ -10,7 +10,7 @@ import { useInstallAction } from './use-install-action';
  * browser has not offered a prompt, or we are already running installed — rather
  * than showing a button that does nothing.
  */
-export function InstallAppButton({ className }: { className?: string }) {
+export function InstallAppButton({ className }: { className?: string }): JSX.Element | null {
   const { canInstall, needsManualInstall, installNow } = useInstallAction();
 
   const style: string =

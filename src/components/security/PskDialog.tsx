@@ -14,7 +14,7 @@ interface PskDialogProps {
   onSave: () => void;
 }
 
-export const PskDialog = ({ open, onOpenChange, psk, onPskChange, onSave }: PskDialogProps) => {
+export const PskDialog = ({ open, onOpenChange, psk, onPskChange, onSave }: PskDialogProps): JSX.Element => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card text-foreground border-surface">

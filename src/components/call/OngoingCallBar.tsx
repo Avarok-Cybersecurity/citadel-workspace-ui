@@ -13,7 +13,7 @@ import { useCallDuration } from './use-call-duration';
  * hang-up control lives on the stage that just unmounted. A user could walk
  * away from a live microphone believing the call had ended with the page.
  */
-export function OngoingCallBar() {
+export function OngoingCallBar(): JSX.Element | null {
   const { call, leave } = useCall();
   const stageVisible: boolean = useCallStageVisible();
   const navigate = useNavigate();

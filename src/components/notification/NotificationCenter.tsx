@@ -19,7 +19,7 @@ import NotificationItem from '@/components/notification/NotificationItem';
 import { notificationBelongsTo } from '@/lib/notification-service/types';
 import { connectionManager } from '@/lib/connection';
 
-const NotificationCenter = () => {
+const NotificationCenter: () => JSX.Element = (): JSX.Element => {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | NotificationType>('all');

@@ -21,7 +21,7 @@ interface PaletteModeToggleProps {
   onRederive: () => void;
 }
 
-export function PaletteModeToggle({ mode, onModeChange, showRederive, onRederive }: PaletteModeToggleProps) {
+export function PaletteModeToggle({ mode, onModeChange, showRederive, onRederive }: PaletteModeToggleProps): JSX.Element {
   return (
     <div className="flex items-center gap-2">
       {/* A radiogroup, not Tabs. These pick WHICH PALETTE you are

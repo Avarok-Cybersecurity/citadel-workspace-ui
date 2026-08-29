@@ -39,7 +39,7 @@ export function WorkspaceAppearanceModal({
   workspaceName,
   canEdit,
   onSave,
-}: WorkspaceAppearanceModalProps) {
+}: WorkspaceAppearanceModalProps): JSX.Element {
   const {
     draft, setDraft,
     mode, setMode,

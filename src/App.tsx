@@ -27,22 +27,22 @@ import Landing from "./pages/Landing";
  * manager and the collaborative editor (TipTap + Yjs + ProseMirror) before it
  * could render — none of which that page uses.
  */
-const Office = lazy(() =>
+const Office = lazy((): Promise<{ default: never; } | { default: () => JSX.Element; }> =>
   import("@/components/Office").then(m => ({ default: m.Office }))
 );
 const Messages = lazy(() => import("./pages/Messages"));
-const Connect = lazy(() =>
+const Connect = lazy((): Promise<{ default: never; } | { default: () => JSX.Element; }> =>
   import("./pages/Connect").then(m => ({ default: m.Connect }))
 );
 const UserDirectory = lazy(() => import("./pages/UserDirectory"));
-const GroupChatPage = lazy(() =>
+const GroupChatPage = lazy((): Promise<{ default: never; } | { default: () => JSX.Element; }> =>
   import("./pages/GroupChatPage").then(m => ({ default: m.GroupChatPage }))
 );
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient: QueryClient = new QueryClient();
 
-const App = () => {
+const App: () => JSX.Element = (): JSX.Element => {
   return (
     <AppErrorBoundary>
       {/*

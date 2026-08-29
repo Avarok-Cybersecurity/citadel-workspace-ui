@@ -19,7 +19,7 @@ interface ChatSettingsRemoteTabProps {
 export function ChatSettingsRemoteTab({
   peerName, settings, revfsQuotaMb, defaultMaxMb, formatSizeLimit,
   onAllowRevfsChange, onRevfsQuotaChange,
-}: ChatSettingsRemoteTabProps) {
+}: ChatSettingsRemoteTabProps): JSX.Element {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">

@@ -20,7 +20,7 @@ interface TableProps {
   className?: string;
 }
 
-const TableComponent = ({ data, children, className }: TableProps) => {
+const TableComponent = ({ data, children, className }: TableProps): JSX.Element => {
   if (children) {
     return (
       <div className="my-6 w-full overflow-y-auto">

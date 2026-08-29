@@ -24,7 +24,7 @@ interface DeleteConfirmDialogProps {
   onConfirm: () => void;
 }
 
-export function DeleteConfirmDialog({ open, onOpenChange, username, onConfirm }: DeleteConfirmDialogProps) {
+export function DeleteConfirmDialog({ open, onOpenChange, username, onConfirm }: DeleteConfirmDialogProps): JSX.Element {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="bg-card border-surface">
@@ -65,7 +65,7 @@ interface ClearAllConfirmDialogProps {
   onConfirm: () => void;
 }
 
-export function ClearAllConfirmDialog({ open, onOpenChange, onConfirm }: ClearAllConfirmDialogProps) {
+export function ClearAllConfirmDialog({ open, onOpenChange, onConfirm }: ClearAllConfirmDialogProps): JSX.Element {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="bg-card border-surface">

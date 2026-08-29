@@ -22,7 +22,7 @@ export function AdminModal({
   entityType,
   entityId,
   defaultTab = 'general',
-}: AdminModalProps) {
+}: AdminModalProps): JSX.Element {
   const { state } = useWorkspace();
   const [entity, setEntity] = useState<EntityData | null>(null);
   const [loading, setLoading] = useState(true);

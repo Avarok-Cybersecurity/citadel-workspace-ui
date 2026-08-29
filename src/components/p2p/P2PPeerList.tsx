@@ -19,7 +19,7 @@ interface P2PPeerListProps {
   selectedPeerCid?: string;
 }
 
-export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps) {
+export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps): JSX.Element {
   const [peers, setPeers] = useState<PeerInfo[]>([]);
   const [availablePeers, setAvailablePeers] = useState<Peer[]>([]);
   const [showAvailablePeers, setShowAvailablePeers] = useState(false);

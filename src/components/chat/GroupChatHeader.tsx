@@ -52,7 +52,7 @@ export function GroupChatHeader({
   onOpenSettings,
   onLeaveGroup,
   callControls,
-}: GroupChatHeaderProps) {
+}: GroupChatHeaderProps): JSX.Element {
   const { isOwner, can } = useGroupPermissions(group);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);

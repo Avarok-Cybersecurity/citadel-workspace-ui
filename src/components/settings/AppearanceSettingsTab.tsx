@@ -21,7 +21,7 @@ import {
  * because it teaches the user not to trust the controls that DO work.
  */
 
-export function AppearanceSettingsTab() {
+export function AppearanceSettingsTab(): JSX.Element {
   const [settings, setSettings] = useState<AppearanceSettings>(loadAppearanceSettings);
 
   // Persisting and applying are the same act, and both live in the module that

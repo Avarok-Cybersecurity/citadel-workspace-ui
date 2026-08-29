@@ -27,7 +27,7 @@ export function KickConfirmDialog({
   isKicking,
   onOpenChange,
   onConfirm,
-}: KickConfirmDialogProps) {
+}: KickConfirmDialogProps): JSX.Element {
   return (
     <AlertDialog open={!!member} onOpenChange={onOpenChange}>
       <AlertDialogContent className="bg-background border-border">

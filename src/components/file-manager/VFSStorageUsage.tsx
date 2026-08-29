@@ -20,7 +20,7 @@ interface VFSStorageUsageProps {
  * - Warning (80-95%): yellow
  * - Critical (>= 95%): red
  */
-export function VFSStorageUsage({ usedBytes, quotaBytes, label }: VFSStorageUsageProps) {
+export function VFSStorageUsage({ usedBytes, quotaBytes, label }: VFSStorageUsageProps): JSX.Element {
   const percentage: number = quotaBytes > 0 ? Math.min((usedBytes / quotaBytes) * 100, 100) : 0;
   const isWarning: boolean = percentage >= 80 && percentage < 95;
   const isCritical: boolean = percentage >= 95;

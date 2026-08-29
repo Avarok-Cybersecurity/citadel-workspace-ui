@@ -41,7 +41,7 @@ export function GroupMemberManagement({
   onKickMember,
   invitablePeers = [],
   onInviteMember,
-}: GroupMemberManagementProps) {
+}: GroupMemberManagementProps): JSX.Element {
   const { can, canManageMember, canAssignRole } = useGroupPermissions(group);
   const [memberToKick, setMemberToKick] = useState<GroupMemberWithRole | null>(null);
   const [isKicking, setIsKicking] = useState(false);

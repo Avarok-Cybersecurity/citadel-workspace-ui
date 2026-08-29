@@ -19,7 +19,7 @@ import { errorLog } from '@/lib/debug-config';
  * no theme lookup.
  */
 
-function FullPageError({ onReload }: { onReload: () => void }) {
+function FullPageError({ onReload }: { onReload: () => void }): JSX.Element {
   return (
     <div
       role="alert"
@@ -66,7 +66,7 @@ function FullPageError({ onReload }: { onReload: () => void }) {
   );
 }
 
-export function AppErrorBoundary({ children }: { children: ReactNode }) {
+export function AppErrorBoundary({ children }: { children: ReactNode }): JSX.Element {
   const handleError = (error: Error, errorInfo: ErrorInfo): void => {
     // Always logged, in every build: this is the one error the user cannot
     // report usefully themselves, because the screen it happened on is gone.

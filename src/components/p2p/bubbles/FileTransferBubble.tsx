@@ -35,7 +35,7 @@ export function FileTransferBubble({
   onDecline,
   onCancel,
   onOpen
-}: FileTransferBubbleProps) {
+}: FileTransferBubbleProps): JSX.Element {
   const isFailed: boolean = message.status === 'failed' || message.transfer_state === 'error';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
 

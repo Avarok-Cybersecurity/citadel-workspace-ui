@@ -30,7 +30,7 @@ export function GroupDeleteConfirmDialog({
   groupName,
   isDeleting,
   onConfirm,
-}: GroupDeleteConfirmDialogProps) {
+}: GroupDeleteConfirmDialogProps): JSX.Element {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="bg-background border-border">

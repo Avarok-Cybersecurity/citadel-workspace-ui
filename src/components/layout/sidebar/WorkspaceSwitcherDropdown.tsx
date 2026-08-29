@@ -24,7 +24,7 @@ export function WorkspaceSwitcherDropdown({
   onAddAccountToWorkspace,
   onAddWorkspace,
   onManageAccounts,
-}: WorkspaceSwitcherDropdownProps) {
+}: WorkspaceSwitcherDropdownProps): JSX.Element {
   const groupedWorkspaces: [string, StoredWorkspace[]][] = Object.entries(
     availableWorkspaces
       .filter(workspace => workspace.id !== currentWorkspace?.id)

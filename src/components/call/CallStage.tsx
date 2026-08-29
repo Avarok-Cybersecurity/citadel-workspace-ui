@@ -59,7 +59,7 @@ export function CallStage({
   videoQuality,
   onVideoQualityChange,
   onLeave,
-}: CallStageProps) {
+}: CallStageProps): JSX.Element {
   const [videoSettingsOpen, setVideoSettingsOpen] = useState<boolean>(false);
   // Tells OngoingCallBar to stand down: the call's own surface is on screen, so
   // the user can already see and end the call from here.

@@ -31,7 +31,7 @@ export function PeerPickerPopover({
   label = 'Add Member',
   emptyMessage = 'No more peers available',
   'data-testid': testId = 'peer-picker',
-}: PeerPickerPopoverProps) {
+}: PeerPickerPopoverProps): JSX.Element {
   const [open, setOpen] = useState(false);
 
   return (

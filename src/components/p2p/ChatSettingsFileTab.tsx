@@ -30,7 +30,7 @@ export function ChatSettingsFileTab({
   maxFileSizeMb, revfsQuotaMb, defaultMaxMb, formatSizeLimit,
   onAutoAcceptChange, onMaxFileSizeChange, onTransferModeChange,
   onAllowRevfsChange, onRevfsQuotaChange,
-}: ChatSettingsFileTabProps) {
+}: ChatSettingsFileTabProps): JSX.Element {
   return (
     <Tabs value={activeFileTab} onValueChange={setActiveFileTab} className="w-full">
       <TabsList className="grid w-full grid-cols-2 bg-background h-10 mb-4" data-testid="inner-file-tabs">

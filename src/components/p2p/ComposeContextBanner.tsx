@@ -13,7 +13,7 @@ interface ComposeContextBannerProps {
  * the user has no way to tell an edit will overwrite rather than send, and no
  * way to back out.
  */
-export function ComposeContextBanner({ replyingTo, editingMessage, onCancel }: ComposeContextBannerProps) {
+export function ComposeContextBanner({ replyingTo, editingMessage, onCancel }: ComposeContextBannerProps): JSX.Element | null {
   const active: P2PMessage | null = editingMessage ?? replyingTo;
   if (!active) return null;
 

@@ -9,7 +9,7 @@ import type { PermissionsLoad } from './use-loaded-permissions';
  * reviewing someone's access was reading constants. The only honest fix is to
  * label the state, and to keep Save disabled until the server has answered.
  */
-export function PermissionMatrixNotice({ load }: { load: PermissionsLoad }) {
+export function PermissionMatrixNotice({ load }: { load: PermissionsLoad }): JSX.Element | null {
   if (load.status === 'loaded') return null;
 
   const failed = load.status === 'failed';

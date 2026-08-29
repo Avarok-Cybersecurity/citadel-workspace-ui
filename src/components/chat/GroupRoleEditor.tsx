@@ -29,7 +29,7 @@ export function GroupRoleEditor({
   existingRoles,
   suggestedPosition,
   onSave,
-}: GroupRoleEditorProps) {
+}: GroupRoleEditorProps): JSX.Element {
   const isEditing = !!role;
   const isBuiltIn = role?.isBuiltIn ?? false;
 

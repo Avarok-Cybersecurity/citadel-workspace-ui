@@ -16,7 +16,7 @@ interface ConversationPeerItemProps {
   onSelect: (cid: string) => void;
 }
 
-export function ConversationPeerItem({ peer, isSelected, onSelect }: ConversationPeerItemProps) {
+export function ConversationPeerItem({ peer, isSelected, onSelect }: ConversationPeerItemProps): JSX.Element {
   return (
     <Button
       variant="ghost"

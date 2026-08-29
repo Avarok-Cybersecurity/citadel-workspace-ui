@@ -10,7 +10,7 @@ import { useCall } from '@/lib/call/call-context';
  * the header's Join button, not a stage the user is not in. 'failed' stays IN,
  * because the failure panel is the only explanation the user gets.
  */
-export function GroupCallDock({ roomId }: { roomId: string }) {
+export function GroupCallDock({ roomId }: { roomId: string }): JSX.Element | null {
   const {
     call,
     localStream,

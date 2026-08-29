@@ -12,7 +12,7 @@ import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
  * Mounts calling for the whole app: the provider that owns a call, and the
  * ringing card that has to be reachable from wherever the user happens to be.
  */
-export function CallLayer({ children }: { children: React.ReactNode }) {
+export function CallLayer({ children }: { children: React.ReactNode }): JSX.Element {
   const [selfCid, setSelfCid] = useState<bigint | null>(null);
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export function CallLayer({ children }: { children: React.ReactNode }) {
  * Separate from CallLayer so it can consume the context CallLayer provides —
  * a component cannot read a provider it is itself rendering.
  */
-function RingingCall() {
+function RingingCall(): JSX.Element | null {
   const { call, accept, decline } = useCall();
   // Exactly one tab rings, and it is the one that can actually answer. A
   // follower has no WebSocket client, so accepting there opened no media

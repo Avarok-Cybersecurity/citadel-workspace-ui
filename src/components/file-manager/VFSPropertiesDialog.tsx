@@ -75,7 +75,7 @@ export function VFSPropertiesDialog({
   node,
   isOpen,
   onClose,
-}: VFSPropertiesDialogProps) {
+}: VFSPropertiesDialogProps): JSX.Element | null {
   if (!node) return null;
 
   const isDir: boolean = node.type === 'directory';

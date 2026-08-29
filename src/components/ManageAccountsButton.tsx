@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Users } from 'lucide-react';
 import { AccountManagementDialog } from './AccountManagementDialog';
 
-export function ManageAccountsButton() {
+export function ManageAccountsButton(): JSX.Element {
   const [dialogOpen, setDialogOpen] = useState(false);
   /**
    * The button, so closing the dialog can put focus back on it.

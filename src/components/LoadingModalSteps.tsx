@@ -12,7 +12,7 @@ interface LoadingModalStepsProps {
   currentStepIndex: number;
 }
 
-export function LoadingModalSteps({ steps, currentStepIndex }: LoadingModalStepsProps) {
+export function LoadingModalSteps({ steps, currentStepIndex }: LoadingModalStepsProps): JSX.Element {
   return (
     <div className="mt-6">
       <div className="flex justify-center gap-2">

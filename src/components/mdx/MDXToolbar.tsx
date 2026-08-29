@@ -39,7 +39,7 @@ interface ToolbarButton {
   onClick: () => void;
 }
 
-function ToolbarDivider() {
+function ToolbarDivider(): JSX.Element {
   return <div className="w-px h-6 bg-border mx-1" />;
 }
 
@@ -53,7 +53,7 @@ export function MDXToolbar({
   onCode,
   onLink,
   onImage,
-}: MDXToolbarProps) {
+}: MDXToolbarProps): JSX.Element {
   const formatGroup: ToolbarButton[] = [
     { icon: <Bold className="h-4 w-4" />, label: 'Bold', onClick: onBold },
     { icon: <Italic className="h-4 w-4" />, label: 'Italic', onClick: onItalic },
@@ -81,7 +81,7 @@ export function MDXToolbar({
     { icon: <Image className="h-4 w-4" />, label: 'Image', onClick: onImage },
   ];
 
-  const renderGroup = (buttons: ToolbarButton[]) =>
+  const renderGroup: (buttons: ToolbarButton[]) => JSX.Element[] = (buttons: ToolbarButton[]): JSX.Element[] =>
     buttons.map(({ icon, label, onClick }) => (
       <Tooltip key={label}>
         <TooltipTrigger asChild>

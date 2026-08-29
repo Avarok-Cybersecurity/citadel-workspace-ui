@@ -22,7 +22,7 @@ export function WorkspaceInitializationDetails({
   serverAddress,
   username,
   fullName,
-}: Props) {
+}: Props): JSX.Element {
   return (
                         <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 flex items-start gap-2">
                             <AlertCircle className="h-5 w-5 text-warning-emphasis flex-shrink-0 mt-0.5" />

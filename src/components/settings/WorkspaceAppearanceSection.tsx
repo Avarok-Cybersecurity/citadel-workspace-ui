@@ -30,7 +30,7 @@ const WorkspaceAppearanceModal = lazy(() =>
  * does this look", and the adjacency makes the split legible — the workspace
  * picks the colours, you pick light or dark.
  */
-export function WorkspaceAppearanceSection() {
+export function WorkspaceAppearanceSection(): JSX.Element {
   const { state } = useWorkspace();
   const { hasPermission, fetchPermissionsForDomain, getRole } = usePermissions();
   const { theme, isDefault } = useWorkspaceTheme();

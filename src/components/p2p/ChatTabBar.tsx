@@ -22,7 +22,7 @@ interface TabProps {
   onClose?: () => void;
 }
 
-function Tab({ tab, active, onSelect, onClose }: TabProps) {
+function Tab({ tab, active, onSelect, onClose }: TabProps): JSX.Element {
   const Icon = tab.type === 'messages' ? MessageSquare : FileText;
   const showNotificationDot: boolean | undefined = tab.hasUnread && !active;
 
@@ -78,7 +78,7 @@ function Tab({ tab, active, onSelect, onClose }: TabProps) {
   );
 }
 
-export function ChatTabBar({ tabs, activeTabId, onTabSelect, onTabClose }: ChatTabBarProps) {
+export function ChatTabBar({ tabs, activeTabId, onTabSelect, onTabClose }: ChatTabBarProps): JSX.Element {
   return (
     <div className="flex items-center border-b border-surface/50 bg-background overflow-x-auto">
       {tabs.map((tab) => (

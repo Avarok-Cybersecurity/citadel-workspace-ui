@@ -37,7 +37,7 @@ export function StorageLimitModal({
   quotaBytes,
   attemptedFileSize,
   onManageStorage,
-}: StorageLimitModalProps) {
+}: StorageLimitModalProps): JSX.Element {
   const availableBytes: number = Math.max(0, quotaBytes - usedBytes);
   const percentage: number = quotaBytes > 0 ? Math.min((usedBytes / quotaBytes) * 100, 100) : 0;
 

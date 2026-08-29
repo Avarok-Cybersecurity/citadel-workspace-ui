@@ -22,7 +22,7 @@ export function TextBubble({
   onEdit,
   onDelete,
   onReply,
-}: BaseBubbleProps) {
+}: BaseBubbleProps): JSX.Element {
   const isFailed: boolean = message.status === 'failed';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
   const displayName: string = senderName || 'Unknown';

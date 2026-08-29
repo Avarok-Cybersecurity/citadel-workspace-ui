@@ -20,7 +20,7 @@ interface JoinProps {
   profileDraft?: { initial: JoinFormData; onChange: (next: JoinFormData) => void };
 }
 
-export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress, serverPassword, securitySettings, profileDraft }: JoinProps) => {
+export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress, serverPassword, securitySettings, profileDraft }: JoinProps): JSX.Element => {
   const {
     formData,
     isRegistering,

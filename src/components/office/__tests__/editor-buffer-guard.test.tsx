@@ -45,7 +45,7 @@ describe('the MDX editor buffer', () => {
     nodes = { n1: { id: 'n1', name: 'Engineering', mdx_content: '# Saved body' } };
     const user = userEvent.setup();
 
-    function Harness() {
+    function Harness(): JSX.Element {
       const [, bump] = useState(0);
       // Deliberately UNSTABLE — a new identity every render, exactly as
       // WorkspaceView's bare arrow was. This is what put the load effect back in

@@ -15,7 +15,7 @@ interface TypeButtonProps {
   disabled?: boolean;
 }
 
-function TypeButton({ icon, label, active, onClick, disabled }: TypeButtonProps) {
+function TypeButton({ icon, label, active, onClick, disabled }: TypeButtonProps): JSX.Element {
   return (
     <button
       type="button"
@@ -42,7 +42,7 @@ function TypeButton({ icon, label, active, onClick, disabled }: TypeButtonProps)
   );
 }
 
-export function TypeSelectorBar({ selectedType, onTypeChange, disabled }: TypeSelectorBarProps) {
+export function TypeSelectorBar({ selectedType, onTypeChange, disabled }: TypeSelectorBarProps): JSX.Element {
   return (
     <div className="flex items-center gap-1 px-2 py-1.5 border-t border-surface/50 bg-background">
       <span className="text-xs text-muted-foreground mr-2 hidden sm:inline">Type:</span>

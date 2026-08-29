@@ -15,7 +15,7 @@ interface BubbleFooterProps {
   onRetry?: () => void;
 }
 
-function getMessageStatusIcon(message: P2PMessage) {
+function getMessageStatusIcon(message: P2PMessage): JSX.Element | null {
   switch (message.status) {
     case 'pending':
       return <Clock className="h-3 w-3 text-muted-foreground" data-testid="message-status-pending" />;
@@ -32,9 +32,9 @@ function getMessageStatusIcon(message: P2PMessage) {
   }
 }
 
-export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
+export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps): JSX.Element {
   const isFailed: boolean = message.status === 'failed';
-  const statusIcon = getMessageStatusIcon(message);
+  const statusIcon: JSX.Element | null = getMessageStatusIcon(message);
 
   return (
     <>

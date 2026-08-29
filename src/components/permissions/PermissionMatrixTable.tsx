@@ -27,7 +27,7 @@ export function PermissionMatrixTable({
   allPermissions,
   rolePermissions,
   togglePermission,
-}: PermissionMatrixTableProps) {
+}: PermissionMatrixTableProps): JSX.Element {
   return (
     <>
   {/* Matrix Table */}

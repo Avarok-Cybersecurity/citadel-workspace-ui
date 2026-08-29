@@ -7,7 +7,7 @@ import { FileManagerContent } from "./file-manager/FileManagerContent";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { debugLog } from '@/lib/debug-config';
 
-export const Office = () => {
+export const Office: () => JSX.Element = (): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
   const params: URLSearchParams = new URLSearchParams(location.search);

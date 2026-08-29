@@ -31,7 +31,7 @@ interface PromptRequest {
  */
 const PromptContext = createContext<((request: PromptRequest) => Promise<string | null>) | null>(null);
 
-export function PromptDialogProvider({ children }: { children: ReactNode }) {
+export function PromptDialogProvider({ children }: { children: ReactNode }): JSX.Element {
   const [request, setRequest] = useState<PromptRequest | null>(null);
   const [value, setValue] = useState('');
   const resolveRef = useRef<((result: string | null) => void) | null>(null);

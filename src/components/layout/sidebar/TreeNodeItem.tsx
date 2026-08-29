@@ -59,7 +59,7 @@ export function TreeNodeItem({
   onAdminSettings,
   onSetDefault,
   onMoveNode,
-}: TreeNodeItemProps) {
+}: TreeNodeItemProps): JSX.Element {
   const { node, children } = treeNode;
   const isSelected: boolean = selectedNodeId === node.id;
   const isExpanded: boolean = expandedNodes.has(node.id);

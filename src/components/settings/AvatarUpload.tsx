@@ -10,7 +10,7 @@ interface AvatarUploadProps {
   disabled?: boolean;
 }
 
-export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }: AvatarUploadProps) {
+export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }: AvatarUploadProps): JSX.Element {
   const [preview, setPreview] = useState<string | null>(
     currentAvatar ? avatarToDataUrl(currentAvatar) : null
   );

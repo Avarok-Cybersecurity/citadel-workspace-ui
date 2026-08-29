@@ -27,7 +27,7 @@ interface BaseOfficeProps {
   nodeId?: string;
 }
 
-export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps) => {
+export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps): JSX.Element => {
   const { state } = useWorkspace();
 
   // Get the entity data from workspace state (unified node hierarchy)
@@ -166,7 +166,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   const currentUserName: string = state.currentUser?.displayName || state.currentUser?.username || tabSession?.fullName || tabSession?.username || 'Unknown User';
 
   // Content view (MDX editor or rendered content)
-  const contentView = isEditing ? (
+  const contentView: JSX.Element = isEditing ? (
     <div className="px-6 lg:px-10 pt-8 pb-4 max-w-4xl">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-foreground">Edit Content</h2>

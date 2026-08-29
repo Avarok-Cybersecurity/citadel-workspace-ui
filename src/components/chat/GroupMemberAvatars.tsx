@@ -12,7 +12,7 @@ import { memberAvatarColor } from '@/lib/avatar-color';
 const MAX_VISIBLE_AVATARS = 5;
 
 
-export function GroupMemberAvatars({ group }: { group: GroupConversation }) {
+export function GroupMemberAvatars({ group }: { group: GroupConversation }): JSX.Element {
   // Get members sorted by role position
   const sortedMembers: GroupMemberWithRole[] = useMemo(() => {
     return [...group.members]

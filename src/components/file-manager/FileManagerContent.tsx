@@ -11,7 +11,7 @@ import { StorageLimitModal } from "./StorageLimitModal";
 import { RevfsDisabledModal } from "./RevfsDisabledModal";
 import { VFSPropertiesDialog } from "./VFSPropertiesDialog";
 
-export const FileManagerContent = () => {
+export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
   const fm = useFileManagerContent();
 
   // ── Early returns ──────────────────────────────────────────────────────

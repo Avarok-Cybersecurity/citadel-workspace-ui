@@ -21,7 +21,7 @@ export function VFSRenameInput({
   onConfirm,
   onCancel,
   isDirectory = false,
-}: VFSRenameInputProps) {
+}: VFSRenameInputProps): JSX.Element {
   const [value, setValue] = useState(currentName);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);

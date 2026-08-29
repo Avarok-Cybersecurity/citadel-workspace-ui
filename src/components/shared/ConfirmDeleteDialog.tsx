@@ -30,7 +30,7 @@ export function ConfirmDeleteDialog({
   onConfirm,
   description,
   confirmLabel = 'Delete',
-}: ConfirmDeleteDialogProps) {
+}: ConfirmDeleteDialogProps): JSX.Element {
   const [pending, setPending] = useState(false);
 
   // AlertDialogAction IS a Radix Close: without preventDefault the dialog shuts

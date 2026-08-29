@@ -16,7 +16,7 @@ interface AdvancedSettingsProps {
   onChange: <K extends keyof SecuritySettingsValues>(key: K, value: SecuritySettingsValues[K]) => void;
 }
 
-export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) => {
+export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps): JSX.Element => {
   const [showPSKDialog, setShowPSKDialog] = useState(false);
   const [psk, setPsk] = useState(values.headerObfuscatorSettings?.psk || "");
 

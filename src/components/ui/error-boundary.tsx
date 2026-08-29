@@ -34,7 +34,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     this.setState({ hasError: false, error: null });
   };
 
-  render() {
+  render(): string | number | boolean | JSX.Element | Iterable<ReactNode> | null | undefined {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;

@@ -26,7 +26,7 @@ export function LoginAdvancedOptions({
   onConfigureSecurity,
   securitySettings,
   setSecuritySettings,
-}: LoginAdvancedOptionsProps) {
+}: LoginAdvancedOptionsProps): JSX.Element {
   return (
     <>
       {/* Advanced Options */}

@@ -30,7 +30,7 @@ export function CollaborativeEditor({
   peerName: _peerName = 'Peer',
   creatorCid,
   onSave,
-}: CollaborativeEditorProps) {
+}: CollaborativeEditorProps): JSX.Element {
   const prompt = usePrompt();
   const {
     doc,

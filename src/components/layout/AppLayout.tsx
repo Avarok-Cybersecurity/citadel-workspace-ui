@@ -15,7 +15,7 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-export const AppLayout = ({ children }: AppLayoutProps) => {
+export const AppLayout = ({ children }: AppLayoutProps): JSX.Element => {
   // Records where this session is, so claiming it tomorrow returns here rather
   // than to the default office. Inside AppLayout because that is exactly the
   // set of routes worth returning to -- the pre-auth screens do not mount it.

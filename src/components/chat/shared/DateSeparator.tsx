@@ -10,7 +10,7 @@
  * run that follows: a screen reader should hear "Tuesday", not two decorative
  * lines around it.
  */
-export function DateSeparator({ date }: { date: string }) {
+export function DateSeparator({ date }: { date: string }): JSX.Element {
   return (
     <div className="my-4 flex items-center justify-center">
       <div className="h-px flex-1 bg-border" aria-hidden="true" />

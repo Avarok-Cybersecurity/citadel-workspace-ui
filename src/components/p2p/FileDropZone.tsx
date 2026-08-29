@@ -1,7 +1,7 @@
 import { Upload, FolderOpen, FileImage, FileText, FileVideo, FileAudio, File, X } from 'lucide-react';
 import { activateOnKey } from '@/lib/a11y';
 
-function getFileIcon(mimeType: string) {
+function getFileIcon(mimeType: string): JSX.Element {
   if (mimeType.startsWith('image/')) return <FileImage className="h-8 w-8 text-primary-accent" />;
   if (mimeType.startsWith('video/')) return <FileVideo className="h-8 w-8 text-primary-accent" />;
   if (mimeType.startsWith('audio/')) return <FileAudio className="h-8 w-8 text-success-emphasis" />;
@@ -41,7 +41,7 @@ export function FileDropZone({
   onBrowseClick,
   onNativePickerClick,
   onRemoveFile,
-}: FileDropZoneProps) {
+}: FileDropZoneProps): JSX.Element {
   if (selectedFile) {
     return (
       <div className="bg-surface rounded-lg p-4">

@@ -26,7 +26,7 @@ export function LiveDocumentModal({
   onClose,
   onCreateDocument,
   initialContent = '',
-}: LiveDocumentModalProps) {
+}: LiveDocumentModalProps): JSX.Element {
   const [title, setTitle] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);

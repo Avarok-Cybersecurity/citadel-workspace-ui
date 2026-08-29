@@ -4,7 +4,7 @@ import { DisconnectConfirmModal } from "./DisconnectConfirmModal";
 import { DisconnectLoadingModal } from "./LoadingModal";
 import { useOrphanSessions } from "./useOrphanSessions";
 
-export const OrphanSessionsNavbar = () => {
+export const OrphanSessionsNavbar: () => JSX.Element | null = (): JSX.Element | null => {
   const {
     sessions,
     disconnectTarget,

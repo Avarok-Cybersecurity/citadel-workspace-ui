@@ -47,7 +47,7 @@ interface FilePreviewDialogProps {
   onClose: () => void;
 }
 
-const getFileIcon = (fileName: string) => {
+const getFileIcon: (fileName: string) => JSX.Element = (fileName: string): JSX.Element => {
   const extension: string | undefined = fileName.split('.').pop()?.toLowerCase();
 
   switch (extension) {
@@ -68,7 +68,7 @@ const getFileIcon = (fileName: string) => {
   }
 };
 
-function SavedLocation({ path }: { path: string }) {
+function SavedLocation({ path }: { path: string }): JSX.Element {
   const [copied, setCopied] = useState(false);
 
   if (!path) {
@@ -113,7 +113,7 @@ function SavedLocation({ path }: { path: string }) {
   );
 }
 
-export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogProps) => {
+export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogProps): JSX.Element | null => {
   if (!file) return null;
 
   return (

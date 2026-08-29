@@ -34,7 +34,7 @@ import { groupGoneMessage } from '@/lib/group-conversations/group-gone-message';
 // Component
 // ============================================================================
 
-export function GroupChatPage() {
+export function GroupChatPage(): JSX.Element {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();

@@ -13,7 +13,7 @@ interface LoginProps {
   onCancel: () => void;
 }
 
-export function Login({ onNext, onCancel }: LoginProps) {
+export function Login({ onNext, onCancel }: LoginProps): JSX.Element {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [showSecuritySettings, setShowSecuritySettings] = useState(false);
   const [showPassword, setShowPassword] = useState(false);

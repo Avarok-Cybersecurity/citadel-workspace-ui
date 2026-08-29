@@ -25,7 +25,7 @@ interface EntityFieldProps {
   disabled: boolean;
 }
 
-export function EntityField({ field, value, onChange, disabled }: EntityFieldProps) {
+export function EntityField({ field, value, onChange, disabled }: EntityFieldProps): JSX.Element {
   switch (field.type) {
     case 'input':
       return (

@@ -29,7 +29,7 @@ export function DirectoryTabContent({
   onSendMessage,
   onInvite,
   onSelect,
-}: DirectoryTabContentProps) {
+}: DirectoryTabContentProps): JSX.Element {
   if (members.length === 0) {
     return (
       <div className="divide-y divide-border" data-testid="directory-member-list">

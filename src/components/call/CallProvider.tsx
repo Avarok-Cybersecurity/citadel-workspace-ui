@@ -46,7 +46,7 @@ function sameQualities(
   return true;
 }
 
-export function CallProvider({ selfCid, senderConfig, children }: CallProviderProps) {
+export function CallProvider({ selfCid, senderConfig, children }: CallProviderProps): JSX.Element {
   const [call, setCall] = useState<CallState | null>(null);
   const [streamsVersion, setStreamsVersion] = useState(0);
   const [qualities, setQualities] = useState<Map<bigint, ConnectionQuality>>(new Map());

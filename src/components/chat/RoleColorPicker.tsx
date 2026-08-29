@@ -16,7 +16,7 @@ interface RoleColorPickerProps {
   onChange: (color: string) => void;
 }
 
-export function RoleColorPicker({ color, onChange }: RoleColorPickerProps) {
+export function RoleColorPicker({ color, onChange }: RoleColorPickerProps): JSX.Element {
   return (
   <div className="space-y-2">
     <Label className="text-sm text-foreground/80">Role Color (optional)</Label>

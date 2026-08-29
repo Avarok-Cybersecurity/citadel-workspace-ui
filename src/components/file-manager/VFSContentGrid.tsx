@@ -47,7 +47,7 @@ export function VFSContentGrid({
   cutItemPaths = new Set(), hasPasteItems = false,
   selectedPaths = new Set(), onSelect, onSelectAll, onClearSelection,
   sortField = 'name', sortDirection = 'asc', filterText = '',
-}: VFSContentGridProps) {
+}: VFSContentGridProps): JSX.Element {
   const [rootDragOver, setRootDragOver] = useState(false);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
 

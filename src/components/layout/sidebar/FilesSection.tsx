@@ -68,7 +68,7 @@ function mapTransferToDisplay(
   };
 }
 
-const getFileIcon = (fileName: string) => {
+const getFileIcon: (fileName: string) => JSX.Element = (fileName: string): JSX.Element => {
   const extension: string | undefined = fileName.split('.').pop()?.toLowerCase();
 
   switch (extension) {
@@ -89,7 +89,7 @@ const getFileIcon = (fileName: string) => {
   }
 };
 
-export const FilesSection = () => {
+export const FilesSection: () => JSX.Element = (): JSX.Element => {
   const [files, setFiles] = useState<FileDisplay[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileDisplay | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);

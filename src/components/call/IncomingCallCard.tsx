@@ -32,7 +32,7 @@ export function IncomingCallCard({
   roomName,
   onAccept,
   onDecline,
-}: IncomingCallCardProps) {
+}: IncomingCallCardProps): JSX.Element {
   const kind = media.video ? 'video' : 'audio';
   const description: string = roomName
     ? `Incoming ${kind} call in ${roomName}`

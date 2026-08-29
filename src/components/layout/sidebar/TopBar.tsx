@@ -35,7 +35,7 @@ interface TopBarProps {
   currentWorkspace?: string;
 }
 
-export const TopBar = ({ currentWorkspace }: TopBarProps) => {
+export const TopBar = ({ currentWorkspace }: TopBarProps): JSX.Element => {
   // Installing was only offered on the landing page, so anyone already signed
   // in had no way to it except the browser's own omnibox icon, which is easy to
   // miss and absent on some platforms. Renders nothing unless the browser has

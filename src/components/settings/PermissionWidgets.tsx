@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 /**
  * Role badge component with appropriate styling
  */
-export function RoleBadge({ role }: { role: UserRole | null }) {
+export function RoleBadge({ role }: { role: UserRole | null }): JSX.Element {
   if (!role) {
     return <Badge variant="outline" className="text-muted-foreground border-border">Unknown</Badge>;
   }
@@ -46,7 +46,7 @@ export function RoleBadge({ role }: { role: UserRole | null }) {
 /**
  * Permission status icon
  */
-export function PermissionStatus({ allowed }: { allowed: boolean }) {
+export function PermissionStatus({ allowed }: { allowed: boolean }): JSX.Element {
   if (allowed) {
     return (
       <div className="flex items-center gap-1.5 text-success-emphasis">
@@ -66,7 +66,7 @@ export function PermissionStatus({ allowed }: { allowed: boolean }) {
 /**
  * Permission table for a specific domain
  */
-export function GroupedPermissionTable({ domainId }: { domainId: string }) {
+export function GroupedPermissionTable({ domainId }: { domainId: string }): JSX.Element {
   const { hasPermission, getPermissionLabel } = usePermissions();
   const [expandedCategories, setExpandedCategories] = useState<string[]>(['content', 'messaging']);
 

@@ -42,7 +42,7 @@ export function ChatSettingsPanel({
   onClose,
   peerCid,
   peerName,
-}: ChatSettingsPanelProps) {
+}: ChatSettingsPanelProps): JSX.Element {
   const confirm = useConfirm();
 
   // The workspace-wide privacy settings, so this panel's switches and the

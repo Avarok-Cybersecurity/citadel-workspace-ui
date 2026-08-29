@@ -27,7 +27,7 @@ import type { BaseBubbleProps } from './types';
  * `content` is a string, so this memo holds even while the surrounding bubble
  * re-renders with fresh inline callbacks — no change to the bubble's API.
  */
-const RenderedMarkdown = memo(function RenderedMarkdown({ content }: { content: string }) {
+const RenderedMarkdown = memo(function RenderedMarkdown({ content }: { content: string }): JSX.Element {
   return <ReactMarkdown components={markdownComponents}>{content}</ReactMarkdown>;
 });
 
@@ -38,27 +38,27 @@ type CodeProps = { inline?: boolean; children?: ReactNode };
 // Custom components for markdown rendering in chat bubbles
 const markdownComponents = {
   // Headers - smaller for chat context
-  h1: ({ children }: ChildrenProps) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
-  h2: ({ children }: ChildrenProps) => <h2 className="text-base font-semibold mb-1.5">{children}</h2>,
-  h3: ({ children }: ChildrenProps) => <h3 className="text-sm font-semibold mb-1">{children}</h3>,
+  h1: ({ children }: ChildrenProps): JSX.Element => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+  h2: ({ children }: ChildrenProps): JSX.Element => <h2 className="text-base font-semibold mb-1.5">{children}</h2>,
+  h3: ({ children }: ChildrenProps): JSX.Element => <h3 className="text-sm font-semibold mb-1">{children}</h3>,
 
   // Paragraphs
-  p: ({ children }: ChildrenProps) => <p className="text-sm mb-2 last:mb-0">{children}</p>,
+  p: ({ children }: ChildrenProps): JSX.Element => <p className="text-sm mb-2 last:mb-0">{children}</p>,
 
   // Lists
-  ul: ({ children }: ChildrenProps) => <ul className="list-disc list-inside text-sm mb-2 pl-2">{children}</ul>,
-  ol: ({ children }: ChildrenProps) => <ol className="list-decimal list-inside text-sm mb-2 pl-2">{children}</ol>,
-  li: ({ children }: ChildrenProps) => <li className="mb-0.5">{children}</li>,
+  ul: ({ children }: ChildrenProps): JSX.Element => <ul className="list-disc list-inside text-sm mb-2 pl-2">{children}</ul>,
+  ol: ({ children }: ChildrenProps): JSX.Element => <ol className="list-decimal list-inside text-sm mb-2 pl-2">{children}</ol>,
+  li: ({ children }: ChildrenProps): JSX.Element => <li className="mb-0.5">{children}</li>,
 
   // Links
-  a: ({ href, children }: LinkProps) => (
+  a: ({ href, children }: LinkProps): JSX.Element => (
     <a href={href} className="text-primary-accent hover:text-primary-accent underline" target="_blank" rel="noopener noreferrer">
       {children}
     </a>
   ),
 
   // Code
-  code: ({ inline, children }: CodeProps) =>
+  code: ({ inline, children }: CodeProps): JSX.Element =>
     inline ? (
       <code className="bg-black/30 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
     ) : (
@@ -66,26 +66,26 @@ const markdownComponents = {
         {children}
       </code>
     ),
-  pre: ({ children }: ChildrenProps) => (
+  pre: ({ children }: ChildrenProps): JSX.Element => (
     <pre className="bg-black/30 p-2 rounded text-xs font-mono overflow-x-auto mb-2">{children}</pre>
   ),
 
   // Block quotes
-  blockquote: ({ children }: ChildrenProps) => (
+  blockquote: ({ children }: ChildrenProps): JSX.Element => (
     <blockquote className="border-l-2 border-primary-accent/50 pl-2 italic text-sm opacity-90 mb-2">
       {children}
     </blockquote>
   ),
 
   // Horizontal rule
-  hr: () => <hr className="border-t border-border my-2" />,
+  hr: (): JSX.Element => <hr className="border-t border-border my-2" />,
 
   // Bold and italic (handled automatically by markdown)
-  strong: ({ children }: ChildrenProps) => <strong className="font-bold">{children}</strong>,
-  em: ({ children }: ChildrenProps) => <em className="italic">{children}</em>,
+  strong: ({ children }: ChildrenProps): JSX.Element => <strong className="font-bold">{children}</strong>,
+  em: ({ children }: ChildrenProps): JSX.Element => <em className="italic">{children}</em>,
 
   // Strikethrough
-  del: ({ children }: ChildrenProps) => <del className="line-through opacity-70">{children}</del>,
+  del: ({ children }: ChildrenProps): JSX.Element => <del className="line-through opacity-70">{children}</del>,
 };
 
 export function MarkdownBubble({
@@ -98,7 +98,7 @@ export function MarkdownBubble({
   onEdit,
   onDelete,
   onReply,
-}: BaseBubbleProps) {
+}: BaseBubbleProps): JSX.Element {
   const isFailed: boolean = message.status === 'failed';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
   const displayName: string = senderName || 'Unknown';

@@ -10,7 +10,7 @@ import WorkspaceService from '@/lib/workspace-service';
 import { Loader2 } from 'lucide-react';
 import { debugLog } from '@/lib/debug-config';
 
-export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTabProps) {
+export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTabProps): JSX.Element {
   const { state } = useWorkspace();
   const { toast } = useToast();
   const [name, setName] = useState('');

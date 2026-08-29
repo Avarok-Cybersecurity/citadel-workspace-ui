@@ -9,7 +9,7 @@ import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { Loader2 } from 'lucide-react';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 
-export function ConnectionsSettingsTab() {
+export function ConnectionsSettingsTab(): JSX.Element {
   const { toast } = useToast();
   const [autoReconnect, setAutoReconnect] = useState(true);
   const [autoAcceptRegistrations, setAutoAcceptRegistrations] = useState(false);

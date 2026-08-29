@@ -19,7 +19,7 @@ interface PendingRequestsBadgeProps {
   onOpen: () => void;
 }
 
-export function PendingRequestsBadge({ count, onOpen }: PendingRequestsBadgeProps) {
+export function PendingRequestsBadge({ count, onOpen }: PendingRequestsBadgeProps): JSX.Element | null {
   if (count === 0) return null;
 
   return (

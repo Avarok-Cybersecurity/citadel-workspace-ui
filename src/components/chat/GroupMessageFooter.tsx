@@ -44,7 +44,7 @@ function getReadStatus(message: GroupMessage, totalMembers: number): ReadStatus 
   return 'partial';
 }
 
-function getReadStatusIcon(status: ReadStatus) {
+function getReadStatusIcon(status: ReadStatus): JSX.Element | null {
   switch (status) {
     case 'sent':
       return <Check className="h-3 w-3 text-muted-foreground" data-testid="message-status-sent" />;
@@ -65,7 +65,7 @@ interface ReadByTooltipContentProps {
   status: ReadStatus;
 }
 
-function ReadByTooltipContent({ readBy, totalMembers, status }: ReadByTooltipContentProps) {
+function ReadByTooltipContent({ readBy, totalMembers, status }: ReadByTooltipContentProps): JSX.Element {
   if (status === 'all_read') {
     return (
       <div className="text-sm">
@@ -113,10 +113,10 @@ function ReadByTooltipContent({ readBy, totalMembers, status }: ReadByTooltipCon
   );
 }
 
-export function GroupMessageFooter({ message, isOwn, totalMembers }: GroupMessageFooterProps) {
+export function GroupMessageFooter({ message, isOwn, totalMembers }: GroupMessageFooterProps): JSX.Element {
   const readBy: GroupMessageReadBy[] = message.read_by || [];
   const status: ReadStatus = getReadStatus(message, totalMembers);
-  const statusIcon = getReadStatusIcon(status);
+  const statusIcon: JSX.Element | null = getReadStatusIcon(status);
 
   return (
     <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>

@@ -28,7 +28,7 @@ export function RevfsDisabledModal({
   onClose,
   reason,
   onOpenSettings,
-}: RevfsDisabledModalProps) {
+}: RevfsDisabledModalProps): JSX.Element {
   const isPeerDisabled: boolean = reason === 'peer_disabled';
 
   return (

@@ -28,7 +28,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { CallProvider } from '../CallProvider';
 import { useCall } from '@/lib/call/call-context';
 
-function CapabilityProbe() {
+function CapabilityProbe(): JSX.Element {
   const { capability } = useCall();
   return <span data-testid="reason">{capability.supported ? 'available' : capability.reason}</span>;
 }

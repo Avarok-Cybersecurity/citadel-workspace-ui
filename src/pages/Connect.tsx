@@ -11,7 +11,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { activateOnKey } from '@/lib/a11y';
 
-export const Connect = () => {
+export const Connect: () => JSX.Element = (): JSX.Element => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [servers, setServers] = useState<StoredServer[]>([]);

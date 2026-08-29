@@ -50,7 +50,7 @@ export function canManageSpecificRole(
 }
 
 /** Confirmation dialog for deleting a group role. */
-export function DeleteRoleDialog({ roleToDelete, onOpenChange, onConfirm }: DeleteRoleDialogProps) {
+export function DeleteRoleDialog({ roleToDelete, onOpenChange, onConfirm }: DeleteRoleDialogProps): JSX.Element {
   return (
     <AlertDialog open={!!roleToDelete} onOpenChange={onOpenChange}>
       <AlertDialogContent className="bg-background border-border">

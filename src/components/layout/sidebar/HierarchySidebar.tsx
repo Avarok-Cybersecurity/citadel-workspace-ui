@@ -20,7 +20,7 @@ import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
  * Orchestrator component that wires TreeNodesSection to workspace state.
  * Replaces the hardcoded OfficesSection + RoomsSection with a schema-driven tree.
  */
-export function HierarchySidebar() {
+export function HierarchySidebar(): JSX.Element {
   const location = useLocation();
   const navigate = useNavigate();
   const { state } = useWorkspace();

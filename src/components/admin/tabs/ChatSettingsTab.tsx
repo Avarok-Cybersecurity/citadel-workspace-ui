@@ -12,7 +12,7 @@ import { Loader2, MessageSquare, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { debugLog } from '@/lib/debug-config';
 
-export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: AdminTabProps) {
+export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: AdminTabProps): JSX.Element {
   const { toast } = useToast();
   const { state } = useWorkspace();
   const [chatEnabled, setChatEnabled] = useState(true);

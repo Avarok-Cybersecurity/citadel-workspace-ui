@@ -2,7 +2,7 @@ import { Loader2, Users, FolderOpen, Server, RefreshCw } from "lucide-react";
 
 interface ConnectingScreenProps {}
 
-export function ConnectingScreen(_props: ConnectingScreenProps) {
+export function ConnectingScreen(_props: ConnectingScreenProps): JSX.Element {
   return (
     <div className="flex flex-col items-center justify-center h-full bg-background text-muted-foreground gap-4 p-8">
       <Loader2 className="h-8 w-8 animate-spin" />
@@ -15,7 +15,7 @@ interface NoPeersScreenProps {
   onSwitchToServer: () => void;
 }
 
-export function NoPeersScreen({ onSwitchToServer }: NoPeersScreenProps) {
+export function NoPeersScreen({ onSwitchToServer }: NoPeersScreenProps): JSX.Element {
   return (
     <div className="flex flex-col items-center justify-center h-full bg-background text-muted-foreground gap-4 p-8">
       <Users className="h-12 w-12" />
@@ -35,7 +35,7 @@ export function NoPeersScreen({ onSwitchToServer }: NoPeersScreenProps) {
   );
 }
 
-export function LoadingScreen() {
+export function LoadingScreen(): JSX.Element {
   return (
     <div className="flex flex-col items-center justify-center h-full bg-background text-muted-foreground gap-4">
       <Loader2 className="h-8 w-8 animate-spin" />
@@ -55,7 +55,7 @@ interface ErrorScreenProps {
   onRetry: () => void;
 }
 
-export function ErrorScreen({ error, onRetry }: ErrorScreenProps) {
+export function ErrorScreen({ error, onRetry }: ErrorScreenProps): JSX.Element {
   return (
     <div className="flex flex-col items-center justify-center h-full bg-background text-muted-foreground gap-4 p-8">
       <FolderOpen className="h-12 w-12" />

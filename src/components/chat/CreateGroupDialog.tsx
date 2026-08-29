@@ -37,7 +37,7 @@ export function CreateGroupDialog({
   availablePeers,
   onCreateGroup,
   currentUsername,
-}: CreateGroupDialogProps) {
+}: CreateGroupDialogProps): JSX.Element {
   const defaultRoles = useMemo(() => createDefaultRoles(), []);
   const memberRole = useMemo(
     () => getDefaultRole({ roles: defaultRoles, defaultRoleId: '' }),

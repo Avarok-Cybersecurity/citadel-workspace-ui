@@ -34,7 +34,7 @@ interface ToolbarButtonProps {
   active?: boolean;
 }
 
-function ToolbarButton({ icon, onClick, title, active = false }: ToolbarButtonProps) {
+function ToolbarButton({ icon, onClick, title, active = false }: ToolbarButtonProps): JSX.Element {
   return (
     <button
       type="button"
@@ -56,11 +56,11 @@ function ToolbarButton({ icon, onClick, title, active = false }: ToolbarButtonPr
   );
 }
 
-function Separator() {
+function Separator(): JSX.Element {
   return <div className="w-px h-5 bg-border mx-1" />;
 }
 
-export function MarkdownToolbar({ visible, onFormat, showPreview, onTogglePreview }: MarkdownToolbarProps) {
+export function MarkdownToolbar({ visible, onFormat, showPreview, onTogglePreview }: MarkdownToolbarProps): JSX.Element {
   const formatHandlers: { bold: () => void; italic: () => void; strike: () => void; superscript: () => void; subscript: () => void; h1: () => void; h2: () => void; h3: () => void; bullet: () => void; numbered: () => void; link: () => void; table: () => void; code: () => void; quote: () => void; } = {
     bold: (): void => onFormat('bold', '**', '**'),
     italic: (): void => onFormat('italic', '*', '*'),

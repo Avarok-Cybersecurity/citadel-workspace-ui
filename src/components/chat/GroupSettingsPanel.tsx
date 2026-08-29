@@ -35,7 +35,7 @@ export function GroupSettingsPanel({
   invitablePeers,
   onInviteMember,
   onDeleteGroup,
-}: GroupSettingsPanelProps) {
+}: GroupSettingsPanelProps): JSX.Element {
   const { can } = useGroupPermissions(group);
   const [activeTab, setActiveTab] = useState('members');
   const [groupName, setGroupName] = useState(group.name);

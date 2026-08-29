@@ -23,7 +23,7 @@ export function LiveDocumentView({
   currentUserCid,
   currentUserName,
   onSave,
-}: LiveDocumentViewProps) {
+}: LiveDocumentViewProps): JSX.Element {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 

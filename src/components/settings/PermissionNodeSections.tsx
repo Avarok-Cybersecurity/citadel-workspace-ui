@@ -26,7 +26,7 @@ export function ChildNodePermissionSection({
   nodeId: string;
   nodeName: string;
   entityType: NodeEntityType;
-}) {
+}): JSX.Element {
   const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
   const role = getRole(nodeId);
   const metadata = getEntityMetadata(entityType);
@@ -68,7 +68,7 @@ export function ParentNodePermissionSection({
   nodeName: string;
   entityType: NodeEntityType;
   children: Array<{ id: string; name: string; entityType: NodeEntityType }>;
-}) {
+}): JSX.Element {
   const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
   const role = getRole(nodeId);
   const metadata = getEntityMetadata(entityType);

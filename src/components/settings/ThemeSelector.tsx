@@ -21,7 +21,7 @@ const OPTIONS = [
  * exclusive values, and the roles make that relationship available to a screen
  * reader instead of leaving it implied by the styling.
  */
-export function ThemeSelector() {
+export function ThemeSelector(): JSX.Element {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 

@@ -14,7 +14,7 @@ interface SecurityLevelSelectProps {
   onChange?: (value: SecurityLevel | string) => void;
 }
 
-export const SecurityLevelSelect = ({ value = 'Standard', onChange }: SecurityLevelSelectProps) => {
+export const SecurityLevelSelect = ({ value = 'Standard', onChange }: SecurityLevelSelectProps): JSX.Element => {
   const handleValueChange = (newValue: string): void => {
     if (onChange) {
       onChange(newValue);

@@ -14,7 +14,7 @@ import { useCall } from '@/lib/call/call-context';
  * This lives under `CallLayer`, above the router, so it is mounted for the whole
  * session and the audio is independent of what the user is looking at.
  */
-export function CallAudioHost() {
+export function CallAudioHost(): JSX.Element {
   const { remoteAudioStreams } = useCall();
 
   return (
@@ -26,7 +26,7 @@ export function CallAudioHost() {
   );
 }
 
-function RemoteAudio({ stream }: { stream: MediaStream }) {
+function RemoteAudio({ stream }: { stream: MediaStream }): JSX.Element {
   const ref = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {

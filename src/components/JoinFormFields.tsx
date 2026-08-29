@@ -33,7 +33,7 @@ interface FormFieldProps {
   error?: string | null;
 }
 
-function FormField({ id, name, label, value, onChange, placeholder, type, icon: Icon, hint, onBlur, maxLength, error, autoComplete }: FormFieldProps) {
+function FormField({ id, name, label, value, onChange, placeholder, type, icon: Icon, hint, onBlur, maxLength, error, autoComplete }: FormFieldProps): JSX.Element {
   const [showPassword, setShowPassword] = useState(false);
   const isPassword: boolean = type === 'password';
   const inputType: string | undefined = isPassword ? (showPassword ? 'text' : 'password') : type;
@@ -107,7 +107,7 @@ function FormField({ id, name, label, value, onChange, placeholder, type, icon: 
   );
 }
 
-function PasswordStrength({ password }: { password: string }) {
+function PasswordStrength({ password }: { password: string }): JSX.Element | null {
   const strength: { level: number; label: string; color: string; } = useMemo((): { level: number; label: string; color: string; } => {
     if (!password) return { level: 0, label: '', color: '' };
     let score: number = 0;
@@ -174,7 +174,7 @@ interface JoinFormFieldsProps {
   };
 }
 
-export function JoinFormFields({ formData, onChange, onBlur, fieldErrors }: JoinFormFieldsProps) {
+export function JoinFormFields({ formData, onChange, onBlur, fieldErrors }: JoinFormFieldsProps): JSX.Element {
   return (
     <div className="space-y-4">
       <FormField

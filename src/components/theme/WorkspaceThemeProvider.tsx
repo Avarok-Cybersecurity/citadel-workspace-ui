@@ -24,7 +24,7 @@ import { debugLog } from '@/lib/debug-config';
  * everyone into dark mode, or let a user's preference silently override the
  * workspace's colours.
  */
-export function WorkspaceThemeProvider({ children }: { children: ReactNode }) {
+export function WorkspaceThemeProvider({ children }: { children: ReactNode }): JSX.Element {
   const { state } = useWorkspace();
   const { resolvedTheme } = useTheme();
 

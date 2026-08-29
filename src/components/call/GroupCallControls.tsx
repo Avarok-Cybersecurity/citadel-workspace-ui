@@ -26,7 +26,7 @@ interface GroupCallControlsProps {
  * per-media cap refusals, and "Join call" when this room's call is already
  * ringing so two people cannot end up in two rival calls in one room.
  */
-export function GroupCallControls({ roomId, roomName, members }: GroupCallControlsProps) {
+export function GroupCallControls({ roomId, roomName, members }: GroupCallControlsProps): JSX.Element {
   const { call, capability, startCall, accept, leave } = useCall();
   const mode = groupCallEntryMode(call, roomId, members.length);
 
@@ -121,8 +121,8 @@ function EntryButton({
   onClick: () => void;
   size?: 'icon' | 'sm';
   children: ReactNode;
-}) {
-  const button = (
+}): JSX.Element {
+  const button: JSX.Element = (
     <Button
       variant={size === 'sm' ? 'secondary' : 'ghost'}
       size={size}

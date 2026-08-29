@@ -49,7 +49,7 @@ export function VFSContextMenu({
   onCopy,
   onPaste,
   hasPasteItems = false,
-}: VFSContextMenuProps) {
+}: VFSContextMenuProps): JSX.Element {
   const isProtected: boolean = node ? PROTECTED_DIRS.has(node.path) : false;
   const isDir: boolean = !node || node.type === 'directory';
   const isRoot: boolean = node?.path === '/';

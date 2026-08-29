@@ -25,7 +25,7 @@ interface AccountManagementDialogProps {
   onRestoreFocus?: () => void;
 }
 
-export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: AccountManagementDialogProps) {
+export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: AccountManagementDialogProps): JSX.Element {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [storedSessions, setStoredSessions] = useState(connectionManager.getStoredSessionsArray());

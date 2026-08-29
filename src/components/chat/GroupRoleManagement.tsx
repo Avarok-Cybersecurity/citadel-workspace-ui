@@ -18,7 +18,7 @@ interface GroupRoleManagementProps {
   onSettingsChange: (settings: GroupSettings) => void;
 }
 
-export function GroupRoleManagement({ group, onSettingsChange }: GroupRoleManagementProps) {
+export function GroupRoleManagement({ group, onSettingsChange }: GroupRoleManagementProps): JSX.Element {
   const {
     roles, defaultRole, createRole, updateRole, deleteRole,
     setDefaultRole, canManageRole, suggestPosition,

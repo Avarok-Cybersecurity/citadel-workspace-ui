@@ -52,7 +52,7 @@ export function P2PChat({
   onEditMessage,
   onDeleteMessage,
   onReplyMessage,
-}: P2PChatProps) {
+}: P2PChatProps): JSX.Element {
   // Hooks first, before any early return in this component. Placing them lower
   // put them after one, which breaks React's hook ordering and fails
   // intermittently at runtime rather than reliably.

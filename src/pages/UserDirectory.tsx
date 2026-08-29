@@ -18,7 +18,7 @@ import { usePeerDiscovery } from '@/components/p2p/usePeerDiscovery';
 import { sendPeerRegistration } from '@/lib/p2p/send-peer-registration';
 import { connectionManager } from '@/lib/connection';
 
-export const UserDirectory = () => {
+export const UserDirectory: () => JSX.Element = (): JSX.Element => {
   const { state } = useWorkspace();
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [tab, setTab] = useState('all');

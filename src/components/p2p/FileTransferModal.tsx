@@ -28,7 +28,7 @@ export function FileTransferModal({
   onSendWithNativePicker: _onSendWithNativePicker,
   peerCid,
   maxFileSizeMb = 100,
-}: FileTransferModalProps) {
+}: FileTransferModalProps): JSX.Element {
   const {
     selectedFile,
     previewUrl,

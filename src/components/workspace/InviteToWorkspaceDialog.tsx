@@ -39,7 +39,7 @@ export function InviteToWorkspaceDialog({
   onOpenChange,
   workspaceName,
   serverAddress,
-}: InviteToWorkspaceDialogProps) {
+}: InviteToWorkspaceDialogProps): JSX.Element {
   const [copied, setCopied] = useState(false);
 
   const copy = (): void => {

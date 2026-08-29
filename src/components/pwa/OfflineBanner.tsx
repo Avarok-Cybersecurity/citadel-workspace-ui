@@ -15,7 +15,7 @@ import { useServiceHealth } from '@/hooks/use-service-health';
  * STATE, not an event. A toast that has already faded cannot answer "why is
  * nothing loading?" thirty seconds later.
  */
-export function OfflineBanner() {
+export function OfflineBanner(): JSX.Element | null {
   const { isOnline, justReconnected } = useOnlineStatus();
   // The local agent can be unreachable while the DEVICE is online — it runs on
   // localhost. That produced exactly the symptom this banner exists to explain,

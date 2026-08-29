@@ -63,7 +63,7 @@ export function NodeManagementModal({
   entityType,
   parentId,
   node,
-}: NodeManagementModalProps) {
+}: NodeManagementModalProps): JSX.Element {
   const { toast } = useToast();
   const meta = getEntityMetadata(entityType);
   const modes = buildModes(meta.label);

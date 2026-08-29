@@ -4,7 +4,7 @@ import { debugLog } from '@/lib/debug-config';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
-const NotFound = () => {
+const NotFound: () => JSX.Element = (): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
 

@@ -41,7 +41,7 @@ export function MessageBubble({
   onEdit,
   onDelete,
   onReply,
-}: MessageBubbleProps) {
+}: MessageBubbleProps): JSX.Element {
   const containerStyles: string = getBubbleContainerStyles(isOwn);
 
   // Common props for all bubble types
@@ -57,7 +57,7 @@ export function MessageBubble({
     onReply,
   };
 
-  const renderBubble = () => {
+  const renderBubble: () => JSX.Element = (): JSX.Element => {
     switch (message.message_type) {
       case 'markdown':
         return <MarkdownBubble {...commonProps} />;

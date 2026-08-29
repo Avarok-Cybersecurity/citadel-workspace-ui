@@ -30,7 +30,7 @@ const RING_RADIUS: number = CENTER - RING_THICKNESS / 2;
  * reachable only by dragging is unusable with a keyboard or a screen reader, and
  * this is the primary editing control of the whole feature.
  */
-export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
+export function ColorWheel({ value, onChange, label }: ColorWheelProps): JSX.Element {
   // Typing a hex goes through a draft: parsing on every keystroke would reject
   // "1a2" on the way to "1a2b3c" and fight the user's cursor.
   const [hexDraft, setHexDraft] = useState(() => toHex(value).slice(1));

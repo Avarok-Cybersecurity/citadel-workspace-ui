@@ -42,7 +42,7 @@ export function LandingSteps({
   handleJoinNext,
   handleJoinBack,
   handleLoginNext,
-}: LandingStepsProps) {
+}: LandingStepsProps): JSX.Element {
   return (
     <>
       {currentStep === 'server' && (

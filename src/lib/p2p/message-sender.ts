@@ -26,6 +26,7 @@ import {
 import { debugLog } from '@/lib/debug-config';
 import { markSendFailed } from './mark-send-failed';
 import { resendMessage } from './resend-message';
+import type { P2PCommand } from '@/types/p2p-commands';
 
 export type { MessageSenderConfig, SendMessageOptions } from './message-sender-types';
 
@@ -83,7 +84,7 @@ export class MessageSender {
 
     const layer: MessagingLayer = createMessage(content, timestamp);
 
-    const command = createMessagingLayerCommand(
+    const command: P2PCommand = createMessagingLayerCommand(
       layer,
       currentCid,
       recipientCid,

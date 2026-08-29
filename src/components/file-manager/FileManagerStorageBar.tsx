@@ -17,7 +17,7 @@ export function FileManagerStorageBar({
   registeredPeers,
   selectedPeerCid,
   setSelectedPeerCid,
-}: FileManagerStorageBarProps) {
+}: FileManagerStorageBarProps): JSX.Element {
   return (
     // Wraps rather than clipping. The bar had neither `flex-wrap` nor an
     // overflow container, and its clipping ancestor is `main`'s

@@ -20,7 +20,7 @@ interface EmptyStateProps {
   action?: { label: string; onClick: () => void };
 }
 
-export function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
+export function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps): JSX.Element {
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-6 py-12 text-center">
       <Icon className="h-10 w-10 text-muted-foreground/60" aria-hidden="true" />

@@ -9,7 +9,7 @@ import { useRegisteredPeers } from "@/hooks";
 import { peerDisplayName } from "@/lib/peer-display";
 import { tryParseCid } from '@/lib/utils/cid-utils';
 
-const Messages = () => {
+const Messages: () => JSX.Element = (): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
   // Parsed, not trusted. `?channel=` comes straight from the URL and was handed

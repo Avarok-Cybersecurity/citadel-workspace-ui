@@ -51,7 +51,7 @@ export function GridItem({
   onDrop,
   onSelect,
   hasPasteItems,
-}: GridItemProps) {
+}: GridItemProps): JSX.Element {
   const [dragOver, setDragOver] = useState(false);
   const isDir: boolean = node.type === 'directory';
   const isProtected: boolean = PROTECTED_DIRS.has(node.path);

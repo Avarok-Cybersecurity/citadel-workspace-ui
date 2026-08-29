@@ -7,7 +7,7 @@
  * at all, while a genuinely slow one (cold cache, poor connection) still gets
  * visible feedback instead of a blank frame.
  */
-export function RouteFallback() {
+export function RouteFallback(): JSX.Element {
   return (
     <div
       role="status"

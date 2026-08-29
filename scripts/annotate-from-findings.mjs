@@ -182,6 +182,55 @@ for (const source of program.getSourceFiles()) {
    * which is the same answer the first version gave to every name it did not
    * recognise, just arrived at with evidence.
    */
+  /**
+   * Rewrite `import("/abs/path").Name` into `Name`, planning the import.
+   *
+   * That form is the compiler saying "this type has a name, but not one this
+   * file can see". It was refused outright, and it is 1,428 of the remaining
+   * findings -- half of everything left. The path is right there; naming it is
+   * the same work `specifierFor` already does for a bare name.
+   *
+   * `typeof import(...)` has no name to lift, and is still refused.
+   */
+  const liftImports = (printed) => {
+    if (/typeof import\(/.test(printed)) return null;
+    let rewritten = printed;
+    for (const match of printed.matchAll(/import\("([^"]+)"\)\.([A-Za-z_$][\w$]*)/g)) {
+      const [whole, path, name] = match;
+      // `JSX` is a global namespace here; importing it is redundant, and the
+      // two files it landed in went over the 250-line ceiling for a line that
+      // changed nothing.
+      if (TYPE_WORDS.has(name)) { rewritten = rewritten.split(whole).join(name); continue; }
+      const specifier = specifierForPath(path);
+      if (!specifier) return null;
+      if (imports.has(name) && imports.get(name) !== specifier) return null;
+      imports.set(name, specifier);
+      rewritten = rewritten.split(whole).join(name);
+    }
+    return rewritten;
+  };
+
+  const specifierForPath = (path) => {
+    if (path.includes('/node_modules/')) {
+      const after = path.split('/node_modules/').pop() ?? '';
+      const parts = after.split('/');
+      let pkg = after.startsWith('@') ? `${parts[0]}/${parts[1]}` : parts[0];
+      // `@types/react` is a declaration package: importing it is an error --
+      // "Cannot import type declaration files. Consider importing 'react'" --
+      // and it produced 214 of them in one run. The types live under the name
+      // of the package they describe.
+      if (pkg.startsWith('@types/')) {
+        const described = pkg.slice('@types/'.length);
+        pkg = described.includes('__') ? `@${described.replace('__', '/')}` : described;
+      }
+      return pkg && !pkg.startsWith('typescript') ? pkg : null;
+    }
+    const src = resolve(APP, 'src');
+    if (!path.startsWith(src)) return null;
+    const rel = relative(src, path).replace(/\.tsx?$/, '');
+    return `@/${rel}`;
+  };
+
   const canWrite = (printed, node) => {
     const missing = unresolvedNames(printed, source);
     if (missing === null) return false;
@@ -230,12 +279,13 @@ for (const source of program.getSourceFiles()) {
           checker.getReturnTypeOfSignature(signature), node,
           ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType,
         );
-        if ((canWrite(printed, node) || printed === 'JSX.Element') && printed !== 'any') {
+        const lifted = liftImports(printed);
+        if (lifted !== null && (canWrite(lifted, node) || lifted === 'JSX.Element')) {
           const insertAt = ts.isArrowFunction(node)
             ? node.equalsGreaterThanToken.getFullStart()
             : node.body.getFullStart();
           if (!ts.isArrowFunction(node) || source.getFullText().slice(0, insertAt).trimEnd().endsWith(')')) {
-            edits.push({ position: insertAt, text: `: ${printed}` });
+            edits.push({ position: insertAt, text: `: ${lifted}` });
           }
         }
       }
@@ -260,7 +310,10 @@ for (const source of program.getSourceFiles()) {
         type, node,
         ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType,
       );
-      if (canWrite(printed, node)) edits.push({ position: node.name.getEnd(), text: `: ${printed}` });
+      const lifted = liftImports(printed);
+      if (lifted !== null && canWrite(lifted, node)) {
+        edits.push({ position: node.name.getEnd(), text: `: ${lifted}` });
+      }
     }
 
     ts.forEachChild(node, visit);
