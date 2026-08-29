@@ -30,13 +30,24 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    include: ['**/*.{test,spec}.{ts,tsx}'],
-    // Exclude integration tests that are meant to be run as standalone scripts
-    exclude: [
-      '**/node_modules/**',
-      '**/dist/**',
-      'integration-tests/**',
+    // Named rather than excluded. `**/*.test.ts` minus a list of directories
+    // was whack-a-mole: every Playwright spec added anywhere under
+    // integration-tests/ arrived here as a vitest failure.
+    //
+    // The integration SPECS are standalone scripts driven by their own runner
+    // and by Playwright. Their `src/lib/` helpers are ordinary modules, and
+    // excluding the whole tree meant none of them could have a unit test --
+    // which is why the console-line formatter shipped cutting a CID in half
+    // for as long as it did.
+    include: [
+      'src/**/*.{test,spec}.{ts,tsx}',
+      // The gate scripts have tests too, and the first draft of this list
+      // dropped them: 342 files before, 342 after, one swapped for another.
+      // check-every-test-runs.mjs exists because of that.
+      'scripts/**/*.{test,spec}.{ts,tsx}',
+      'integration-tests/src/lib/**/*.{test,spec}.ts',
     ],
+    exclude: ['**/node_modules/**', '**/dist/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

@@ -8,6 +8,7 @@
  */
 
 import type { Page } from 'playwright';
+import { formatConsoleLine } from './console-line';
 
 export type ConsoleMessageType = 'log' | 'debug' | 'info' | 'warning' | 'error' | 'pageerror';
 
@@ -109,7 +110,7 @@ export async function startDiagnostics(
       const shouldPrint = !realTimeOnlyErrors || type === 'error' || type === 'warning' || type === 'pageerror';
       if (shouldPrint) {
         const prefix = type === 'error' || type === 'pageerror' ? '❌' : type === 'warning' ? '⚠️' : '📝';
-        console.log(`  ${prefix} [${type.toUpperCase()}] ${text.substring(0, 150)}`);
+        console.log(`  ${prefix} [${type.toUpperCase()}] ${formatConsoleLine(text)}`);
       }
     }
   };

@@ -16317,3 +16317,44 @@ Negative control on the wall itself: appending `export const X = { a: 1 };` to
 one file fails it; so does `export function f() { return 1; }`.
 
 Preflight: 46 checks, green. 2333 tests green.
+
+## Round 331 — a CI log that named the wrong peer, and the test file nobody ran
+
+`test:peer-group` fails on `group creation produced no group id`, and the log
+around it carries the reason:
+
+```
+⚠️ [WARNING] %cWARN%c /workspace/citadel-internal-service/…/src/lib.rs:668 %c
+[ILM-BLOCKED-RECOVERY] CID 15079777622326333560 -> peer 15
+```
+
+The peer is `15079777622326333560`. The log says `15`, and `15` is a plausible
+CID — small ones exist. Nothing marked the line as cut, so a reader chasing a
+stuck link would have started from a peer that does not exist.
+
+`diagnostics.ts` printed `text.substring(0, 150)`. The WASM tracing formatter
+puts `%cWARN%c`, a container-absolute source path and another `%c` in front of
+every message — about 110 of those 150 characters — so the budget was spent on
+the prefix. Two faults, two fixes: the styles and the path prefix are trimmed
+*before* the limit, and a line that is truncated now says so (`… (+N chars)`).
+A truncated diagnostic that reads as complete is worse than none.
+
+**Why it survived: nothing under `integration-tests/` could have a unit test.**
+`vitest.config.ts` excluded the whole tree. The helpers there are ordinary
+modules; only the specs need another runner. The include is now named rather
+than excluded.
+
+**And that change immediately demonstrated its own hazard.** The first draft
+was `src/**` plus the integration helpers, which silently dropped
+`scripts/__tests__/lighthouse-shortfall.test.ts`: 342 files before, 342 after,
+one swapped for another. Nothing in the run said a file had stopped running,
+because nothing counts the files that exist.
+
+So `check-every-test-runs.mjs`: every `*.test.ts` / `*.spec.ts` on disk is
+either collected by vitest or in `RUN_ELSEWHERE` naming the runner that does
+run it. 343 collected, 69 elsewhere across three runners.
+
+Negative-controlled twice: dropping `scripts/**` from the include names the
+orphaned file, and a new test file in an uncovered directory is caught too.
+
+Preflight: **47 checks**.
