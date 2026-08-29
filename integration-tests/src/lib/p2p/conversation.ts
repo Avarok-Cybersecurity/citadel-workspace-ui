@@ -97,17 +97,10 @@ export async function openConversation(
       return true;
     }
 
-    // Strategy 3: Look in WORKSPACE MEMBERS section
-    const workspaceMembersGroup = page.locator('[data-sidebar="group"]:has([data-sidebar="group-label"]:text("WORKSPACE MEMBERS"))');
-    const peerInWorkspace = workspaceMembersGroup.locator(`text="${peerUsername}"`).first();
-    if (await isVisibleWithin(peerInWorkspace, 500)) {
-      console.log(`  Found ${peerUsername} in WORKSPACE MEMBERS section`);
-      await peerInWorkspace.click();
-      await sleep(2000);
-      await waitForChatReady(page, peerUsername);
-      await takeScreenshot(page, `${username}_conversation_opened`);
-      return true;
-    }
+    // A "WORKSPACE MEMBERS" strategy used to sit here. That heading does not
+    // exist -- the members list was deliberately given one noun -- so it never
+    // matched, and strategy 2 above already finds the peer's row wherever the
+    // sidebar puts it.
 
     // Strategy 4: Try button match anywhere in the page
     const peerBtn = page.locator(`button:has-text("${peerUsername}")`).first();

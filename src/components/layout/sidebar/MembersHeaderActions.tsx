@@ -23,7 +23,7 @@ const ACTION_CLASS =
 
 export function MembersHeaderActions({ onDiscover, onInvite }: MembersHeaderActionsProps) {
   return (
-    <div className="flex items-center">
+    <div className="flex items-center" data-testid="members-header-actions">
       <Button
         variant="ghost"
         size="icon"

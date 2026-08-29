@@ -14309,3 +14309,35 @@ spec may search for what it made, and must not search for what the product
 decided to call something.**
 
 148 → **145**.
+
+## Round 279 — the gate for the class, and the last eight of them
+
+Round 278's sweep is now a gate: **a string a spec searches for must exist in
+the app**, or be listed as data the spec itself created, with the reason.
+
+That is the other half of `check-controls-are-addressed-by-testid`. The existing
+gate catches a control *pressed* by its words. This catches one *looked for* by
+words the app no longer contains — which is worse, because it does not fail. It
+waits out a timeout, or falls through to the next strategy, and the report names
+the feature rather than the string.
+
+All eight survivors cleared:
+
+| Site | Was | Now |
+|---|---|---|
+| `openConversation` strategy 3 | `WORKSPACE MEMBERS` group | deleted; strategy 2 already covers it |
+| `registration.ts` method 2 | hovered `WORKSPACE MEMBERS` | `members-header-actions` |
+| `permissions.test` | `Root Workspace`, twice, in a fallback list | both dropped |
+| `permissions.test` | `[role=dialog]:has-text("Connection Preferences")` | the dialog that is actually there |
+| `previous-sessions` | `.or(text="Previous Sessions:")` | dropped; the rename is years old |
+| `security-settings` | `has-text("ADVANCED SETTINGS")` first | dropped; two live alternatives remain |
+| `file-manager` | `has-text("Delete File")`, then `has-text("Delete")` | `vfs-delete` on both menu items |
+
+**A dead entry in a fallback list is worse than no entry.** It reads as coverage.
+`permissions.test` had four workspace selectors and two of them could never
+match, so the list was half the size it looked. `file-manager` spent two seconds
+per delete waiting for a label nothing renders, then fell back to `has-text
+("Delete")` — which also matches "Delete Folder", so the fallback was ambiguous
+as well as slow.
+
+44 preflight checks now. Reintroducing any one string fails the gate by name.

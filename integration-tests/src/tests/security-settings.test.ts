@@ -214,7 +214,7 @@ async function testAdvancedSettings(page: Page): Promise<{
 
   try {
     // Find the "ADVANCED SETTINGS" toggle button
-    const advancedToggle = page.locator('button:has-text("ADVANCED SETTINGS"), button:has-text("Advanced Settings"), button:has-text("Advanced")').first();
+    const advancedToggle = page.locator('button:has-text("Advanced Settings"), button:has-text("Advanced")').first();
 
     results.toggleVisible = await isVisibleWithin(advancedToggle, 3000);
     console.log(`  Advanced toggle visible: ${results.toggleVisible}`);

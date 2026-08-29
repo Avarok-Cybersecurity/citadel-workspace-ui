@@ -99,7 +99,7 @@ export function VFSContextMenu({
                   </ContextMenuItem>
                 )}
                 <ContextMenuSeparator className="bg-border" />
-                <ContextMenuItem onClick={onDelete} className="hover:bg-destructive/25 text-destructive cursor-pointer">
+                <ContextMenuItem onClick={onDelete} data-testid="vfs-delete" className="hover:bg-destructive/25 text-destructive cursor-pointer">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Folder
                 </ContextMenuItem>
@@ -153,7 +153,7 @@ export function VFSContextMenu({
             {(fileState === RevfsFileState.Remote || fileState === RevfsFileState.Hosted) && (
               <>
                 <ContextMenuSeparator className="bg-border" />
-                <ContextMenuItem onClick={onDelete} className="hover:bg-destructive/25 text-destructive cursor-pointer">
+                <ContextMenuItem onClick={onDelete} data-testid="vfs-delete" className="hover:bg-destructive/25 text-destructive cursor-pointer">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete
                 </ContextMenuItem>

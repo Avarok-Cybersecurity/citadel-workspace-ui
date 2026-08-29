@@ -611,10 +611,11 @@ async function deleteFileViaContextMenu(page: Page, label: string, fileName: str
     await sleep(1500);
 
     // Click Delete option in context menu
-    let deleteOption = page.locator('[role="menuitem"]:has-text("Delete File")');
-    if (!await isVisibleWithin(deleteOption, 2000)) {
-      deleteOption = page.locator('[role="menuitem"]:has-text("Delete")').first();
-    }
+    // By testid. This looked for "Delete File" first -- a label nothing renders
+    // -- and spent two seconds waiting for nothing before falling back to a
+    // match on the word "Delete", which also matches "Delete Folder" and any
+    // other destructive item the menu grows.
+    const deleteOption = page.getByTestId('vfs-delete').first();
 
     if (await isVisibleWithin(deleteOption, 1000)) {
       console.log('  Found delete option, clicking...');

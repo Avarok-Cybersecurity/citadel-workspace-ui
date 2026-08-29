@@ -448,7 +448,7 @@ async function runTest(): Promise<boolean> {
     // CSS and silently match nothing.
     const label = page
       .locator('text="Active Sessions"')
-      .or(page.locator('text="Previous Sessions:"'))
+
       .first();
     results.previousSessionsLabel = await isVisibleWithin(label, 3000);
     console.log(`  Previous Sessions label: ${results.previousSessionsLabel}`);

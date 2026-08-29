@@ -71,11 +71,17 @@ export async function p2pRegister(
     modalOpened = await isVisibleWithin(modalTitle, 8000);
   }
 
-  // Method 2: the button only appears on hover over WORKSPACE MEMBERS.
+  // Method 2: the button may only be revealed on hover over the members header.
+  //
+  // That header used to read "WORKSPACE MEMBERS" and this hovered it by name.
+  // The members list was deliberately given one noun and now reads "Members" or
+  // "<Entity> Members", so the hover target was never found and this whole
+  // method has been dead. Hover the header's actions instead, which is where
+  // the button lives regardless of what the heading says.
   if (!modalOpened) {
-    const membersSection = page.locator('text="WORKSPACE MEMBERS"').first();
+    const membersSection = page.getByTestId('members-header-actions').first();
     if (await isVisibleWithin(membersSection, 2000)) {
-      console.log('  Hovering over WORKSPACE MEMBERS...');
+      console.log('  Hovering over the members header...');
       await membersSection.hover();
 
       const discoverBtn = page.locator('button[title="Discover Peers"], button:has(svg.lucide-user-plus)').first();

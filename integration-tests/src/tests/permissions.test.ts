@@ -240,9 +240,11 @@ async function permissionsTabHasLockIcon(page: Page): Promise<boolean> {
 async function workspaceAccordionExists(page: Page): Promise<boolean> {
   const dialog = getSettingsDialog(page);
   // Look for workspace text or Building2 icon
+  // "Root Workspace" was in this list twice. The sidebar's members heading was
+  // given one noun and no screen says those words any more, so both entries
+  // were dead -- and a dead entry in a fallback list is worse than none: it
+  // reads as coverage, and the list quietly gets shorter than it looks.
   const workspaceSelectors = [
-    'text="Root Workspace"',
-    'span:has-text("Root Workspace")',
     'text="Your Permissions"',
     '[data-state] button:has-text("Workspace")',
   ];
@@ -463,7 +465,10 @@ async function runTest(): Promise<boolean> {
     }
 
     // Verify modal is closed
-    const modalStillOpen = await isVisibleWithin(page.locator('[role="dialog"]:has-text("Connection Preferences")'), 500);
+    // No dialog is titled "Connection Preferences"; this has been asking
+    // whether a modal that cannot exist is still open, and always getting
+    // false. Ask about the dialog that is actually there.
+    const modalStillOpen = await isVisibleWithin(page.locator('[role="dialog"]'), 500);
     if (modalStillOpen) {
       console.log('  Modal still open, trying Escape key...');
       await page.keyboard.press('Escape');
