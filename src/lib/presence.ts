@@ -50,7 +50,7 @@ export function memberIdToCid(memberId: string): bigint | null {
 function findPeer(memberId: string) {
   const { allPeers } = p2pRegistrationService.getPeers();
 
-  const byUsername = allPeers.find((peer): boolean => peer.username === memberId);
+  const byUsername: ReturnType<typeof allPeers.find> = allPeers.find((peer): boolean => peer.username === memberId);
   if (byUsername) return byUsername;
 
   const cid: bigint | null = memberIdToCid(memberId);
@@ -65,7 +65,7 @@ function findPeer(memberId: string) {
  * agent does not report it.
  */
 export function isMemberOnline(memberId: string): boolean {
-  const peer = findPeer(memberId);
+  const peer: ReturnType<typeof findPeer> = findPeer(memberId);
   if (!peer) {
     debugLog('Presence', 'no registered peer for member, reporting offline:', memberId);
     return false;

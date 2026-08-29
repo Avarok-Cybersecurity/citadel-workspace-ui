@@ -9,7 +9,7 @@
  * These assert on the map after the call, which is the state the scheduler
  * actually reads.
  */
-import { describe, it, expect, vi  } from 'vitest';
+import { describe, it, expect, vi   } from 'vitest';
 import { cancelRetry } from '../reconnect-logic';
 import type { ConnectionAttempt } from '../types';
 
@@ -29,7 +29,7 @@ describe('cancelRetry', () => {
   });
 
   it('clears the timer and removes the entry when a retry was pending', () => {
-    const clearSpy = vi.spyOn(globalThis, 'clearTimeout');
+    const clearSpy: ReturnType<typeof vi.spyOn> = vi.spyOn(globalThis, 'clearTimeout');
     const timer: NodeJS.Timeout = setTimeout((): void => {}, 10_000) as unknown as ReturnType<typeof setTimeout>;
     const attempts: Map<string, ConnectionAttempt> = new Map<string, ConnectionAttempt>([
       [key, { sessionKey: key, attempts: 3, timeout: timer }],

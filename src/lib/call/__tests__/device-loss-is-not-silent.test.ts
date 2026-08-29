@@ -14,7 +14,7 @@
  * hangup would tell the user their microphone had been disconnected.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 import { CallSession } from '../call-session';
 
 interface FakeTrack {
@@ -73,7 +73,7 @@ describe('a capture device stopping mid-call', () => {
   beforeEach(() => { tracks = []; });
 
   it('is reported, with the kind that died', async () => {
-    const cbs = callbacks();
+    const cbs: ReturnType<typeof callbacks> = callbacks();
     await startedSession(cbs);
 
     tracks[0].fireEnded();
@@ -84,7 +84,7 @@ describe('a capture device stopping mid-call', () => {
   it('is NOT reported during ordinary teardown', async () => {
     // Without the closed-guard this fires on every hangup, and the user is told
     // their microphone was disconnected every time they end a call.
-    const cbs = callbacks();
+    const cbs: ReturnType<typeof callbacks> = callbacks();
     const session: CallSession = await startedSession(cbs);
 
     session.close();
@@ -94,7 +94,7 @@ describe('a capture device stopping mid-call', () => {
   });
 
   it('reports each device separately when a hub takes both', async () => {
-    const cbs = callbacks();
+    const cbs: ReturnType<typeof callbacks> = callbacks();
     tracks = [makeTrack('audio'), makeTrack('video')];
     Object.defineProperty(navigator, 'mediaDevices', {
       value: {

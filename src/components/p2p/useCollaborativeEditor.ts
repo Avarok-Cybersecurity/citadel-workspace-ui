@@ -80,7 +80,7 @@ export function useCollaborativeEditor({
     let prevUsersKey: string = '';
 
     const updateUsers = (): void => {
-      const states = provider.getStates();
+      const states: ReturnType<typeof provider.getStates> = provider.getStates();
       const users: { name: string; isActive: boolean }[] = [];
       const now: number = Date.now();
 
@@ -143,7 +143,7 @@ export function useCollaborativeEditor({
     const handleAwarenessChange = (): void => {
       if (!provider) return;
 
-      const states = provider.getStates();
+      const states: ReturnType<typeof provider.getStates> = provider.getStates();
       const newComments: FlashComment[] = [];
 
       states.forEach((rawState, _clientId) => {

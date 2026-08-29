@@ -118,7 +118,7 @@ class InstanceInboundRouter {
       return;
     }
 
-    const messageType = getMessageType(message);
+    const messageType: ReturnType<typeof getMessageType> = getMessageType(message);
     const requestId: string | null = extractRequestId(message);
     debugLog('InstanceInboundRouter',
       `[ILM-Router] routeMessage: type=${messageType}, requestId=${requestId}, pendingMapSize=${this.pendingRequestMap.size}`

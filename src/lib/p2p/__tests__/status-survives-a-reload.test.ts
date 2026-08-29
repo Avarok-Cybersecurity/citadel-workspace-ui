@@ -4,7 +4,7 @@
  * `messages: []` and nothing rehydrates it. These are the two that a user hits
  * in the ordinary offline-peer flow.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { MessageAckHandler } from '../message-ack-handler';
 import { MessageSender } from '../message-sender';
 import type { P2PConversation } from '../p2p-types';
@@ -12,7 +12,7 @@ import type { P2PConversation } from '../p2p-types';
 const PEER = 42n;
 
 function ackHandlerWith(updateMessageInPages: ReturnType<typeof vi.fn>) {
-  const notifyMessageStatusListeners = vi.fn();
+  const notifyMessageStatusListeners: ReturnType<typeof vi.fn> = vi.fn();
   const handler: MessageAckHandler = new MessageAckHandler({
     // Empty, exactly as it is after a reload.
     getConversations: () => new Map<bigint, P2PConversation>(),
@@ -24,7 +24,7 @@ function ackHandlerWith(updateMessageInPages: ReturnType<typeof vi.fn>) {
 
 describe('an ack for a message outside the in-memory window', () => {
   it('is applied to the stored page instead of being dropped', async () => {
-    const updateMessageInPages = vi.fn(async (): Promise<boolean> => true);
+    const updateMessageInPages: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<boolean> => true);
     const { handler, notifyMessageStatusListeners } = ackHandlerWith(updateMessageInPages);
 
     await handler.handleMessageAck(
@@ -39,7 +39,7 @@ describe('an ack for a message outside the in-memory window', () => {
   });
 
   it('does not claim an update when the message is in neither place', async () => {
-    const updateMessageInPages = vi.fn(async (): Promise<boolean> => false);
+    const updateMessageInPages: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<boolean> => false);
     const { handler, notifyMessageStatusListeners } = ackHandlerWith(updateMessageInPages);
 
     await handler.handleMessageAck({ message_id: 'gone', ack_type: 'read' } as never, PEER);
@@ -51,7 +51,7 @@ describe('an ack for a message outside the in-memory window', () => {
 describe('retrying a failed message after a reload', () => {
   it('finds it in storage rather than throwing', async () => {
     const stored: { id: string; status: string; contents: string; } = { id: 'm2', status: 'failed', contents: 'hi' };
-    const findStoredMessage = vi.fn(async (): Promise<{ id: string; status: string; contents: string; }> => stored);
+    const findStoredMessage: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<{ id: string; status: string; contents: string; }> => stored);
     const conversation: P2PConversation = { messages: [] } as unknown as P2PConversation;
 
     const sender: MessageSender = new MessageSender({
@@ -107,7 +107,7 @@ describe('opening a conversation after a reload', () => {
     };
     const { markMessagesAsRead } = await import('../messenger-compatibility');
 
-    const sendMessageAck = vi.fn(async (): Promise<void> => {});
+    const sendMessageAck: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<void> => {});
     await markMessagesAsRead(
       conversationManager as never,
       sendMessageAck,

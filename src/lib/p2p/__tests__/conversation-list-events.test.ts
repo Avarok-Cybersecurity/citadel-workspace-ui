@@ -7,7 +7,7 @@
  * were: one event was never emitted at all, the other was emitted without the
  * 'p2p:' prefix the subscriber listens for.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { markMessagesAsRead } from '../messenger-compatibility';
 import type { P2PConversation, P2PMessage } from '../p2p-types';
 
@@ -23,26 +23,26 @@ describe('markMessagesAsRead', () => {
   function setup(messages: P2PMessage[]) {
     const conversation: P2PConversation = { peerCid, messages, unreadCount: messages.length } as unknown as P2PConversation;
     const conversationManager = { getConversation: vi.fn((): P2PConversation => conversation) };
-    const emit = vi.fn();
-    const sendAck = vi.fn((): Promise<void> => Promise.resolve());
+    const emit: ReturnType<typeof vi.fn> = vi.fn();
+    const sendAck: ReturnType<typeof vi.fn> = vi.fn((): Promise<void> => Promise.resolve());
     return { conversation, conversationManager, emit, sendAck };
   }
 
   it("emits the prefixed 'p2p:conversation-updated' the sidebar subscribes to", async () => {
-    const s = setup([message('m1', peerCid, 'delivered')]);
+    const s: ReturnType<typeof setup> = setup([message('m1', peerCid, 'delivered')]);
 
     await markMessagesAsRead(
       s.conversationManager as never, s.sendAck, s.emit, peerCid
     );
 
-    const names = s.emit.mock.calls.map(c => c[0]);
+    const names: ReturnType<typeof s.emit.mock.calls.map> = s.emit.mock.calls.map(c => c[0]);
     expect(names).toContain('p2p:conversation-updated');
     // The unprefixed name had no subscriber anywhere - guard against it coming back.
     expect(names).not.toContain('conversation-updated');
   });
 
   it('clears the unread count it reports', async () => {
-    const s = setup([message('m1', peerCid, 'delivered')]);
+    const s: ReturnType<typeof setup> = setup([message('m1', peerCid, 'delivered')]);
 
     await markMessagesAsRead(
       s.conversationManager as never, s.sendAck, s.emit, peerCid
@@ -55,7 +55,7 @@ describe('markMessagesAsRead', () => {
 
   it('does nothing when there is no conversation', async () => {
     const conversationManager = { getConversation: vi.fn((): undefined => undefined) };
-    const emit = vi.fn();
+    const emit: ReturnType<typeof vi.fn> = vi.fn();
 
     await markMessagesAsRead(
       conversationManager as never, vi.fn(() => Promise.resolve()), emit, peerCid

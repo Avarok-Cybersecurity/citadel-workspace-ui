@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach  } from 'vitest';
 import { resolveWebsocketUrl, MissingWebsocketLocationError } from '../resolve-url';
 
 /**
@@ -72,14 +72,14 @@ describe('resolveWebsocketUrl', () => {
     afterEach(() => vi.restoreAllMocks());
 
     it('warns that CSP will block an off-origin override', () => {
-      const spy = warn();
+      const spy: ReturnType<typeof warn> = warn();
       resolveWebsocketUrl(undefined, 'wss://elsewhere.example.com/ws', http);
       expect(spy).toHaveBeenCalledOnce();
       expect(spy.mock.calls[0][0]).toMatch(/not same-origin|BLOCK/);
     });
 
     it('stays quiet for a same-origin override (wss on an https page)', () => {
-      const spy = warn();
+      const spy: ReturnType<typeof warn> = warn();
       // `wss://h` and `https://h` are the same origin - baking this is legitimate and must not warn.
       expect(resolveWebsocketUrl(undefined, 'wss://workspace.example.com/ws', https))
         .toBe('wss://workspace.example.com/ws');
@@ -87,20 +87,20 @@ describe('resolveWebsocketUrl', () => {
     });
 
     it('stays quiet for a relative override, which is same-origin by construction', () => {
-      const spy = warn();
+      const spy: ReturnType<typeof warn> = warn();
       resolveWebsocketUrl('/ws', undefined, http);
       expect(spy).not.toHaveBeenCalled();
     });
 
     it('warns on a same-host override that differs only by port', () => {
-      const spy = warn();
+      const spy: ReturnType<typeof warn> = warn();
       // The exact regression this PR exists to kill: `ws://localhost:12345` from a page on :8080.
       resolveWebsocketUrl(undefined, 'ws://localhost:12345', http);
       expect(spy).toHaveBeenCalledOnce();
     });
 
     it('never puts a credential from the URL into the log, wherever it hides', () => {
-      const spy = warn();
+      const spy: ReturnType<typeof warn> = warn();
       // A websocket URL is a plausible place to park a token, and it can hide in any component:
       // the query, the userinfo, or a PATH SEGMENT. Console output gets swept into log collectors,
       // so the warning names the origin and nothing beyond it.
@@ -117,7 +117,7 @@ describe('resolveWebsocketUrl', () => {
     });
 
     it('names the WEBSOCKET scheme in the warning, not the resolved http one', () => {
-      const spy = warn();
+      const spy: ReturnType<typeof warn> = warn();
       // `//elsewhere.example/ws` resolves against the page to `http://…`, but the browser will dial
       // `ws://…`. Logging the http form would name a URL nobody ever requested.
       resolveWebsocketUrl(undefined, '//elsewhere.example/ws', http);
@@ -127,7 +127,7 @@ describe('resolveWebsocketUrl', () => {
     });
 
     it('warns on a PROTOCOL-RELATIVE override, which is off-origin despite having no scheme', () => {
-      const spy = warn();
+      const spy: ReturnType<typeof warn> = warn();
       // `//elsewhere.example/ws` does not parse standalone, so a naive "unparseable means relative,
       // therefore same-origin" check waves it through - yet the browser resolves it against the
       // page scheme to an off-origin URL and CSP blocks it. Resolving against the page catches it.

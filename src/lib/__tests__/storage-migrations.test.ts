@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import type { Migration } from '@/lib/storage-migrations';
 import {
   DB_VERSION,
@@ -56,13 +56,13 @@ describe('runMigrations', () => {
     // Every step from 0, so this covers v1 creating six and v2 removing the
     // four nothing ever used -- the property that matters is the END state
     // matching the schema, not what any one step did.
-    const db = fakeDb();
+    const db: ReturnType<typeof fakeDb> = fakeDb();
     runMigrations(db as never, 0, DB_VERSION, {} as never);
     expect([...db._stores].sort()).toEqual([...STORE_NAMES].sort());
   });
 
   it('removes the retired stores from a v1 database', () => {
-    const db = fakeDb([...STORE_NAMES, ...RETIRED_STORE_NAMES]);
+    const db: ReturnType<typeof fakeDb> = fakeDb([...STORE_NAMES, ...RETIRED_STORE_NAMES]);
     runMigrations(db as never, 1, DB_VERSION, {} as never);
     for (const name of RETIRED_STORE_NAMES) {
       expect(db._stores.has(name)).toBe(false);
@@ -73,7 +73,7 @@ describe('runMigrations', () => {
   });
 
   it('does nothing when the database is already current', () => {
-    const db = fakeDb([...STORE_NAMES]);
+    const db: ReturnType<typeof fakeDb> = fakeDb([...STORE_NAMES]);
     runMigrations(db as never, DB_VERSION, DB_VERSION, {} as never);
     expect(db.createObjectStore).not.toHaveBeenCalled();
   });

@@ -13,7 +13,7 @@ import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 
 const Messages: () => JSX.Element = (): JSX.Element => {
-  const location = useLocation();
+  const location: ReturnType<typeof useLocation> = useLocation();
   const navigate: NavigateFunction = useNavigate();
   // Parsed, not trusted. `?channel=` comes straight from the URL and was handed
   // to `BigInt(...)` during render — so `/messages?channel=abc` threw a

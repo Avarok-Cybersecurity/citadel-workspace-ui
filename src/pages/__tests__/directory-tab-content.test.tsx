@@ -7,7 +7,7 @@
  * on exactly one of them.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { DirectoryTabContent } from '../DirectoryTabContent';
 import type { MemberDisplay } from '../MemberListItem';
@@ -15,7 +15,7 @@ import type { MemberDisplay } from '../MemberListItem';
 const member = (id: string, isOnline: boolean): MemberDisplay =>
   ({ id, displayName: `User ${id}`, isOnline }) as MemberDisplay;
 
-const noop = vi.fn();
+const noop: ReturnType<typeof vi.fn> = vi.fn();
 const handlers = { onSendMessage: noop, onInvite: noop, onSelect: noop };
 
 describe('an empty directory tab', () => {

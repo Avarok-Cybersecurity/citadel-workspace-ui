@@ -55,7 +55,7 @@ export function attachForwardListeners(handlers: {
 }): void {
   eventEmitter.on('channel:inbound-message',
     (data: { payload: unknown; senderInstanceId: string; requestId?: string }) => {
-      const messageType = getMessageType(data.payload);
+      const messageType: ReturnType<typeof getMessageType> = getMessageType(data.payload);
       debugLog('InstanceInboundRouter', `[ILM-Router] Received forwarded message: type=${messageType}`);
 
       if (data.requestId && !isP2PMessageHandlerAttached()) {

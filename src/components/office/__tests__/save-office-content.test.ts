@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { saveOfficeContent } from '../save-office-content';
 
 /**
@@ -19,7 +19,7 @@ function deps(overrides: Partial<Parameters<typeof saveOfficeContent>[0]> = {}) 
 
 describe('saveOfficeContent', () => {
   it('writes the content and confirms it', async () => {
-    const d = deps();
+    const d: ReturnType<typeof deps> = deps();
 
     await expect(saveOfficeContent(d)).resolves.toBe(true);
 
@@ -30,7 +30,7 @@ describe('saveOfficeContent', () => {
   });
 
   it('refuses to save with no node, and does not claim it did', async () => {
-    const d = deps({ nodeId: undefined });
+    const d: ReturnType<typeof deps> = deps({ nodeId: undefined });
 
     await expect(saveOfficeContent(d)).resolves.toBe(false);
 
@@ -42,7 +42,7 @@ describe('saveOfficeContent', () => {
   });
 
   it('reports a failed write as a failure', async () => {
-    const d = deps({ write: vi.fn().mockRejectedValue(new Error('offline')) });
+    const d: ReturnType<typeof deps> = deps({ write: vi.fn().mockRejectedValue(new Error('offline')) });
 
     await expect(saveOfficeContent(d)).resolves.toBe(false);
 
@@ -56,7 +56,7 @@ describe('saveOfficeContent', () => {
 
   it('logs the failure rather than swallowing it', async () => {
     const error: Error = new Error('offline');
-    const d = deps({ write: vi.fn().mockRejectedValue(error) });
+    const d: ReturnType<typeof deps> = deps({ write: vi.fn().mockRejectedValue(error) });
 
     await saveOfficeContent(d);
 
@@ -64,7 +64,7 @@ describe('saveOfficeContent', () => {
   });
 
   it('names the page in the confirmation', async () => {
-    const d = deps({ displayName: 'Design' });
+    const d: ReturnType<typeof deps> = deps({ displayName: 'Design' });
 
     await saveOfficeContent(d);
 

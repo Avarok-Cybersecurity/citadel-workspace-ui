@@ -17,7 +17,7 @@ import { connectionManager } from '@/lib/connection';
 import { rememberLocation } from '@/lib/sessions/last-location';
 
 export function useRememberLocation(): void {
-  const location = useLocation();
+  const location: ReturnType<typeof useLocation> = useLocation();
 
   useEffect(() => {
     const cid: bigint | undefined = connectionManager.getConnectionInfo()?.cid;

@@ -6,7 +6,7 @@
  * WebCodecs and MediaStreamTrackGenerator have no jsdom implementation, so they
  * are stubbed; what is under test is our own lifecycle logic around them.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach  } from 'vitest';
 import { PeerReceiver } from '../peer-receiver';
 import { CALL_FLAG_KEYFRAME, CALL_KIND_AUDIO, CALL_KIND_VIDEO } from '@/types/p2p-commands';
 import type { WireFrame } from '../frame-codec';
@@ -16,9 +16,9 @@ const decoderInstances: Array<{ close: ReturnType<typeof vi.fn>; decode: ReturnT
 function stubCodec() {
   return class {
     state: string = 'configured';
-    decode = vi.fn();
-    close = vi.fn((): void => { this.state = 'closed'; });
-    configure = vi.fn();
+    decode: ReturnType<typeof vi.fn> = vi.fn();
+    close: ReturnType<typeof vi.fn> = vi.fn((): void => { this.state = 'closed'; });
+    configure: ReturnType<typeof vi.fn> = vi.fn();
     constructor() {
       decoderInstances.push(this as unknown as { close: ReturnType<typeof vi.fn>; decode: ReturnType<typeof vi.fn> });
     }
@@ -37,7 +37,7 @@ beforeEach(() => {
     class {
       kind: string;
       writable = { getWriter: () => ({ write: vi.fn().mockResolvedValue(undefined), close: vi.fn().mockResolvedValue(undefined) }) };
-      stop = vi.fn();
+      stop: ReturnType<typeof vi.fn> = vi.fn();
       constructor(init: { kind: string }) { this.kind = init.kind; }
     },
   );
@@ -117,7 +117,7 @@ describe('PeerReceiver', () => {
   });
 
   it('asks for a keyframe after a video gap', () => {
-    const onNeedKeyframe = vi.fn();
+    const onNeedKeyframe: ReturnType<typeof vi.fn> = vi.fn();
     const receiver: PeerReceiver = new PeerReceiver({ ...options, onNeedKeyframe });
 
     receiver.handleGap(1, true);
@@ -128,7 +128,7 @@ describe('PeerReceiver', () => {
   it('does not ask for a keyframe after an audio gap', () => {
     // Opus frames decode independently; the missing ones are simply gone, and
     // requesting a keyframe would be asking for something meaningless.
-    const onNeedKeyframe = vi.fn();
+    const onNeedKeyframe: ReturnType<typeof vi.fn> = vi.fn();
     const receiver: PeerReceiver = new PeerReceiver({ ...options, onNeedKeyframe });
 
     receiver.handleGap(0, false);

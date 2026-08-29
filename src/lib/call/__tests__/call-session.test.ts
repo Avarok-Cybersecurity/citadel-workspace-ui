@@ -4,7 +4,7 @@
  * light on after a call ends, which is the single most alarming bug a calling
  * feature can ship.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach  } from 'vitest';
 import { CallSession } from '../call-session';
 import type { CallMediaKinds } from '@/types/call-signals';
 
@@ -15,10 +15,10 @@ function stubCodecClass() {
   return class {
     state: string = 'configured';
     encodeQueueSize: number = 0;
-    encode = vi.fn();
-    decode = vi.fn();
-    configure = vi.fn();
-    close = vi.fn((): void => { this.state = 'closed'; });
+    encode: ReturnType<typeof vi.fn> = vi.fn();
+    decode: ReturnType<typeof vi.fn> = vi.fn();
+    configure: ReturnType<typeof vi.fn> = vi.fn();
+    close: ReturnType<typeof vi.fn> = vi.fn((): void => { this.state = 'closed'; });
     constructor() { codecInstances.push(this as unknown as { close: ReturnType<typeof vi.fn> }); }
     static isConfigSupported: () => Promise<{ supported: boolean; }> = async (): Promise<{ supported: boolean; }> => ({ supported: true });
   };
@@ -69,7 +69,7 @@ beforeEach(() => {
     'MediaStreamTrackGenerator',
     class {
       writable = { getWriter: () => ({ write: vi.fn().mockResolvedValue(undefined), close: vi.fn().mockResolvedValue(undefined) }) };
-      stop = vi.fn();
+      stop: ReturnType<typeof vi.fn> = vi.fn();
       constructor(public init: { kind: string }) {}
     },
   );
@@ -115,7 +115,7 @@ describe('starting a call', () => {
       value: { getUserMedia: vi.fn().mockRejectedValue(new DOMException('no', 'NotFoundError')) },
       configurable: true,
     });
-    const cbs = callbacks();
+    const cbs: ReturnType<typeof callbacks> = callbacks();
     const session: CallSession = new CallSession(cbs);
 
     const got: CallMediaKinds | null = await session.start({ audio: true, video: false, screen: false });
@@ -158,7 +158,7 @@ describe('teardown', () => {
   });
 
   it('ignores frames arriving after close', async () => {
-    const cbs = callbacks();
+    const cbs: ReturnType<typeof callbacks> = callbacks();
     const session: CallSession = new CallSession(cbs);
     await session.start({ audio: true, video: true, screen: false });
     session.close();
@@ -174,7 +174,7 @@ describe('peers', () => {
   it('notifies once when a peer’s stream appears, not per frame', async () => {
     // A notify per frame would re-render the whole call surface sixty times a
     // second.
-    const cbs = callbacks();
+    const cbs: ReturnType<typeof callbacks> = callbacks();
     const session: CallSession = new CallSession(cbs);
     await session.start({ audio: true, video: true, screen: false });
 
@@ -201,7 +201,7 @@ describe('peers', () => {
   it('asks the peer for a keyframe when its stream cannot start on a delta', async () => {
     // A decoder handed delta frames first emits garbage; the request must reach
     // the peer's encoder, not sit in a buffer nothing drains.
-    const cbs = callbacks();
+    const cbs: ReturnType<typeof callbacks> = callbacks();
     const session: CallSession = new CallSession(cbs);
     await session.start({ audio: true, video: true, screen: false });
 
@@ -212,7 +212,7 @@ describe('peers', () => {
   });
 
   it('rebuilds a peer’s decoder when they announce a different send codec', async () => {
-    const cbs = callbacks();
+    const cbs: ReturnType<typeof callbacks> = callbacks();
     const session: CallSession = new CallSession(cbs);
     await session.start({ audio: true, video: true, screen: false });
     session.acceptFrame(2n, { track: 1, kind: 1, timestamp: 0, flags: 1, payload: new Uint8Array([1]) });

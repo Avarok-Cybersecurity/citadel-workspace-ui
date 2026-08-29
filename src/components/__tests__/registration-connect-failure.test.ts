@@ -7,15 +7,15 @@
  * "Registration timed out". The user then retried and was told the username
  * already exists, for an account they did not know they owned.
  */
-import { describe, it, expect, vi  } from 'vitest';
+import { describe, it, expect, vi   } from 'vitest';
 import { createRegistrationResponseHandler } from '../registration-response-handler';
 
 const REQ: "req-1" = 'req-1';
 
 function harness() {
-  const resolve = vi.fn();
-  const reject = vi.fn();
-  const cleanup = vi.fn();
+  const resolve: ReturnType<typeof vi.fn> = vi.fn();
+  const reject: ReturnType<typeof vi.fn> = vi.fn();
+  const cleanup: ReturnType<typeof vi.fn> = vi.fn();
   const handler: (raw: unknown) => void = createRegistrationResponseHandler(REQ, resolve, reject, cleanup, {
     handleConnectSuccess: async (_p, res) => res({ cid: '42' }),
     setShowNotInitializedModal: vi.fn(),

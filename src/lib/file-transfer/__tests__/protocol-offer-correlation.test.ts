@@ -1,7 +1,7 @@
 /**
  * The two halves of a transfer race, so correlation must work in both orders.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { ProtocolOfferCorrelator } from '../protocol-offer-correlation';
 
 const SENDER: string = '42';
@@ -9,7 +9,7 @@ const FILE: { name: string; size: number; } = { name: 'report.pdf', size: 8192 }
 
 describe('ProtocolOfferCorrelator', () => {
   it('joins when the bytes are announced first', () => {
-    const register = vi.fn();
+    const register: ReturnType<typeof vi.fn> = vi.fn();
     const c: ProtocolOfferCorrelator = new ProtocolOfferCorrelator(register);
 
     c.noteProtocolOffer('90210', SENDER, FILE.name, FILE.size);
@@ -19,7 +19,7 @@ describe('ProtocolOfferCorrelator', () => {
   });
 
   it('joins when the bubble arrives first', () => {
-    const register = vi.fn();
+    const register: ReturnType<typeof vi.fn> = vi.fn();
     const c: ProtocolOfferCorrelator = new ProtocolOfferCorrelator(register);
 
     // On a slow link the protocol notification can trail the message. Dropping
@@ -33,7 +33,7 @@ describe('ProtocolOfferCorrelator', () => {
   });
 
   it('does not join across senders', () => {
-    const register = vi.fn();
+    const register: ReturnType<typeof vi.fn> = vi.fn();
     const c: ProtocolOfferCorrelator = new ProtocolOfferCorrelator(register);
 
     c.noteProtocolOffer('90212', SENDER, FILE.name, FILE.size);
@@ -45,7 +45,7 @@ describe('ProtocolOfferCorrelator', () => {
   });
 
   it('keeps concurrent transfers from the same sender distinct', () => {
-    const register = vi.fn();
+    const register: ReturnType<typeof vi.fn> = vi.fn();
     const c: ProtocolOfferCorrelator = new ProtocolOfferCorrelator(register);
 
     c.noteProtocolOffer('100', SENDER, 'a.bin', 10);

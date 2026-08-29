@@ -13,9 +13,9 @@
  * Only the raise was missing — the same built-from-one-end shape this campaign
  * keeps finding.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 
-const emitLoadingEvent = vi.fn();
+const emitLoadingEvent: ReturnType<typeof vi.fn> = vi.fn();
 vi.mock('@/lib/workspace-response-handler', () => ({
   workspaceResponseHandler: { emitLoadingEvent: (...a: unknown[]): unknown => emitLoadingEvent(...a) },
 }));

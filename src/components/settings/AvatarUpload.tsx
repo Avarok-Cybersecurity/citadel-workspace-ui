@@ -23,7 +23,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     setError(null);
 
     // Validate file
-    const validation = validateAvatarFile(file);
+    const validation: ReturnType<typeof validateAvatarFile> = validateAvatarFile(file);
     if (!validation.isValid) {
       setError(validation.error || 'Invalid file');
       return;

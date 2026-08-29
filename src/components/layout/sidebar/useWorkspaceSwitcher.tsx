@@ -46,8 +46,8 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
   // pattern in src/pages/Landing.tsx.
   const [serverAddress, setServerAddress] = useState<string>("");
   const [serverPassword, setServerPassword] = useState<string>("");
-  const location = useLocation();
-  const confirm = useConfirm();
+  const location: ReturnType<typeof useLocation> = useLocation();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
   const navigate: NavigateFunction = useNavigate();
   const { state } = useWorkspace();
   const { theme } = useWorkspaceTheme();

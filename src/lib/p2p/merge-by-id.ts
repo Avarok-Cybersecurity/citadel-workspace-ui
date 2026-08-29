@@ -50,7 +50,7 @@ export function mergeById<T extends HasId>(
     if (existing.length === 0) return [...incoming];
 
     const seen: Set<string> = new Set(existing.map((m) => m.id));
-    const fresh = incoming.filter((m): boolean => !seen.has(m.id));
+    const fresh: ReturnType<typeof incoming.filter> = incoming.filter((m): boolean => !seen.has(m.id));
     if (fresh.length === 0) return existing;
 
     return [...existing, ...fresh].sort((a, b) => a.timestamp - b.timestamp);

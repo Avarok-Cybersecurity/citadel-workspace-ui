@@ -15,7 +15,7 @@ import {
   resetInstallPromptCaptureForTests,
 } from '../install-prompt-store';
 
-const toast = vi.fn();
+const toast: ReturnType<typeof vi.fn> = vi.fn();
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast }) }));
 
 /** A stand-in for the event Chromium fires; the DOM lib does not declare it. */
@@ -78,7 +78,7 @@ describe('InstallAppButton', () => {
   it('suppresses the browser mini-infobar so the app controls placement', () => {
     render(<InstallAppButton />);
     const event: Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string; platform: string; }>; platforms: string[]; } = makePromptEvent('accepted');
-    const prevented = vi.spyOn(event, 'preventDefault');
+    const prevented: ReturnType<typeof vi.spyOn> = vi.spyOn(event, 'preventDefault');
     act(() => { window.dispatchEvent(event); });
     expect(prevented).toHaveBeenCalled();
   });

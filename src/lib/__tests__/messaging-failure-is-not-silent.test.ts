@@ -10,12 +10,12 @@
  * "Login successful — connected to workspace successfully".
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { startMessagingOrReport, MESSAGING_UNAVAILABLE_TITLE } from '../start-messaging';
 
 describe('starting messaging for a session', () => {
   it('reports true and says nothing when it comes up', async () => {
-    const report = vi.fn();
+    const report: ReturnType<typeof vi.fn> = vi.fn();
 
     const ready: boolean = await startMessagingOrReport('42', {
       start: vi.fn().mockResolvedValue(undefined),
@@ -27,7 +27,7 @@ describe('starting messaging for a session', () => {
   });
 
   it('tells the user when it does not', async () => {
-    const report = vi.fn();
+    const report: ReturnType<typeof vi.fn> = vi.fn();
 
     const ready: boolean = await startMessagingOrReport('42', {
       start: vi.fn().mockRejectedValue(new Error('handle refused')),
@@ -39,7 +39,7 @@ describe('starting messaging for a session', () => {
   });
 
   it('carries the real reason, not a generic apology', async () => {
-    const report = vi.fn();
+    const report: ReturnType<typeof vi.fn> = vi.fn();
 
     await startMessagingOrReport('42', {
       start: vi.fn().mockRejectedValue(new Error('handle refused')),
@@ -54,7 +54,7 @@ describe('starting messaging for a session', () => {
   });
 
   it('survives a rejection that is not an Error', async () => {
-    const report = vi.fn();
+    const report: ReturnType<typeof vi.fn> = vi.fn();
 
     const ready: boolean = await startMessagingOrReport('42', {
       start: vi.fn().mockRejectedValue('wasm exploded'),

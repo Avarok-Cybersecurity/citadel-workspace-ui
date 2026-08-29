@@ -3,20 +3,20 @@
  * does not call it. Reinstating `onReload={() => window.location.reload()}`
  * leaves tsc and every helper test green — only this one moves.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach  } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AppErrorBoundary } from '../AppErrorBoundary';
 import type { UserEvent } from '@testing-library/user-event';
 
-const originalSW = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
+const originalSW: ReturnType<typeof Object.getOwnPropertyDescriptor> = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
 
 function Boom(): JSX.Element {
   throw new Error('render crashed');
 }
 
 describe('AppErrorBoundary recovery', () => {
-  const postMessage = vi.fn();
+  const postMessage: ReturnType<typeof vi.fn> = vi.fn();
   let consoleError: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {

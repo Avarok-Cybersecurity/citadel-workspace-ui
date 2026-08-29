@@ -106,7 +106,7 @@ export class WebSocketCallTransport implements CallTransport {
     // getClient(), not getWasmClient(): the async variant awaits init(), and a
     // frame path cannot afford an await per frame. By the time frames flow the
     // client is initialised, so the synchronous accessor is the correct one.
-    const client = websocketService.getClient();
+    const client: ReturnType<typeof websocketService.getClient> = websocketService.getClient();
     if (!client) return;
 
     try {

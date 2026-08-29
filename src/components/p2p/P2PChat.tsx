@@ -86,7 +86,7 @@ export function P2PChat({
   });
 
   // File transfer hook
-  const fileTransfer = useP2PFileTransfer({ peerCid, peerName });
+  const fileTransfer: ReturnType<typeof useP2PFileTransfer> = useP2PFileTransfer({ peerCid, peerName });
 
   // Composition hook (input, reply/edit context, send, live-doc flow)
   const {

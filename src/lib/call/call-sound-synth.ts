@@ -34,7 +34,7 @@ function ensureContext(): AudioContext | null {
 function scheduleTone(c: AudioContext, tone: ToneSpec): void {
   const start: number = c.currentTime + tone.atMs / 1000;
   const end: number = start + tone.durationMs / 1000;
-  const envelope = c.createGain();
+  const envelope: ReturnType<typeof c.createGain> = c.createGain();
   envelope.gain.setValueAtTime(0, start);
   envelope.gain.linearRampToValueAtTime(tone.gain, start + RAMP_S);
   envelope.gain.setValueAtTime(tone.gain, Math.max(start + RAMP_S, end - RAMP_S));
@@ -42,7 +42,7 @@ function scheduleTone(c: AudioContext, tone: ToneSpec): void {
   envelope.connect(c.destination);
 
   for (const freqHz of tone.freqsHz) {
-    const osc = c.createOscillator();
+    const osc: ReturnType<typeof c.createOscillator> = c.createOscillator();
     osc.type = 'sine';
     osc.frequency.value = freqHz;
     osc.connect(envelope);

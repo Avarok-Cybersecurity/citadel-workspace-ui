@@ -19,12 +19,12 @@ export type { CursorUser, FlashComment } from './collaborator-cursor-helpers';
  * Used by Tiptap's CollaborationCursor extension
  */
 export function createCollaboratorCursor(user: CursorUser): HTMLElement {
-  const cursor = document.createElement('span');
+  const cursor: ReturnType<typeof document.createElement> = document.createElement('span');
   cursor.className = 'collaborator-cursor';
   cursor.setAttribute('data-user', user.name);
   cursor.style.setProperty('--cursor-color', user.color);
 
-  const line = document.createElement('span');
+  const line: ReturnType<typeof document.createElement> = document.createElement('span');
   line.className = 'collaborator-cursor__line';
   line.style.backgroundColor = user.color;
   cursor.appendChild(line);

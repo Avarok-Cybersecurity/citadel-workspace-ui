@@ -43,7 +43,7 @@ export function ChatSettingsPanel({
   peerCid,
   peerName,
 }: ChatSettingsPanelProps): JSX.Element {
-  const confirm = useConfirm();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
 
   // The workspace-wide privacy settings, so this panel's switches and the
   // Privacy settings tab cannot disagree about what is being broadcast.

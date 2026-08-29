@@ -55,7 +55,7 @@ export class MerkleTree<T, C = Uint8Array> {
     strategy: ChunkingStrategy<T, C>,
     chunkSize?: number
   ): MerkleTree<T, C> {
-    const rawChunks = strategy.chunk(data, chunkSize);
+    const rawChunks: ReturnType<typeof strategy.chunk> = strategy.chunk(data, chunkSize);
 
     const chunks: Chunk<C>[] = rawChunks.map((c, index) => ({
       index,
@@ -191,7 +191,7 @@ export class MerkleTree<T, C = Uint8Array> {
 
     for (const remote of remoteChunks) {
       if (remote.index >= 0 && remote.index < newChunks.length) {
-        const data = this.strategy.deserialize(new Uint8Array(remote.data));
+        const data: ReturnType<typeof this.strategy.deserialize> = this.strategy.deserialize(new Uint8Array(remote.data));
         newChunks[remote.index] = {
           index: remote.index,
           data,

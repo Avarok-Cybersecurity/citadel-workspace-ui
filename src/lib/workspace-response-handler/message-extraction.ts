@@ -102,7 +102,7 @@ function decodeByteArrayPayload(
   try {
     const contentBytes: Uint8Array<ArrayBuffer> = new Uint8Array(field as number[]);
     const contentStr: string = bytesToString(contentBytes);
-    const workspacePayload = JSON.parse(contentStr);
+    const workspacePayload: ReturnType<typeof JSON.parse> = JSON.parse(contentStr);
 
     if (workspacePayload.Response) {
       return workspacePayload.Response as WorkspaceProtocolResponse;

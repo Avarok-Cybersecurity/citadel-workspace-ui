@@ -4,7 +4,7 @@
  * the module boundary because it IS the injected audio layer — its own logic
  * is covered against fakes in call-sounds.test.ts.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { CallSoundEffects } from '../CallSoundEffects';
 import { CallContext, type CallContextValue } from '@/lib/call/call-context';
@@ -80,7 +80,7 @@ beforeEach(() => {
 
 describe('CallSoundEffects', () => {
   it('rings for an incoming call and stops on accept, chiming when active', async () => {
-    const view = mount(callState('ringing-in'));
+    const view: ReturnType<typeof mount> = mount(callState('ringing-in'));
     await waitFor(() => expect(player.startRing).toHaveBeenCalledWith('incoming', 'call-9'));
 
     update(view, callState('connecting'));
@@ -97,7 +97,7 @@ describe('CallSoundEffects', () => {
   });
 
   it('stops on decline without any chime', async () => {
-    const view = mount(callState('ringing-in'));
+    const view: ReturnType<typeof mount> = mount(callState('ringing-in'));
     await waitFor(() => expect(player.startRing).toHaveBeenCalled());
 
     update(view, null);
@@ -106,7 +106,7 @@ describe('CallSoundEffects', () => {
   });
 
   it('chimes the lower tone when an active call ends', async () => {
-    const view = mount(callState('active'));
+    const view: ReturnType<typeof mount> = mount(callState('active'));
     await waitFor(() => expect(player.chime).toHaveBeenCalledWith('connected'));
 
     update(view, callState('ended'));

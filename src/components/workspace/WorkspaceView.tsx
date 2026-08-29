@@ -21,7 +21,7 @@ interface WorkspaceViewProps {
 
 export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   const { state } = useWorkspace();
-  const location = useLocation();
+  const location: ReturnType<typeof useLocation> = useLocation();
   const [tabSelection, setTabSelection] = useState<TabUserContext | null>(null);
   const [tabSession, setTabSession] = useState<StoredSession | null>(null);
 

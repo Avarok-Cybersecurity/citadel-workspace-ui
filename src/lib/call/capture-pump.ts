@@ -114,7 +114,7 @@ export class CapturePump {
     readable: ReadableStream<VideoFrame | AudioData>,
     handle: (chunk: VideoFrame | AudioData) => void,
   ): void {
-    const reader = readable.getReader();
+    const reader: ReturnType<typeof readable.getReader> = readable.getReader();
     this.cleanups.push(() => void reader.cancel().catch(() => undefined));
 
     const loop = async (): Promise<void> => {

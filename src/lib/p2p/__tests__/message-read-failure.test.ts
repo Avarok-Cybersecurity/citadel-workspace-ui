@@ -9,9 +9,9 @@
  * the only record that they exist. One 5-second timeout silently destroyed a
  * conversation, with nothing above debugLog to say so.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 
-const sendLocalDBGet = vi.fn();
+const sendLocalDBGet: ReturnType<typeof vi.fn> = vi.fn();
 vi.mock('../../websocket-service', () => ({
   websocketService: {
     sendLocalDBGet: (...args: unknown[]): unknown => sendLocalDBGet(...args),

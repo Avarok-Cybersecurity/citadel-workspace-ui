@@ -10,7 +10,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { usePermissions  } from '@/contexts/PermissionsContext';
+import { usePermissions   } from '@/contexts/PermissionsContext';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { getEntityMetadata, type NodeEntityType , type EntityTypeMetadata } from '@/lib/entity-type-registry';
 import { RoleBadge, GroupedPermissionTable } from './PermissionWidgets';
@@ -28,7 +28,7 @@ export function ChildNodePermissionSection({
   entityType: NodeEntityType;
 }): JSX.Element {
   const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
-  const role = getRole(nodeId);
+  const role: ReturnType<typeof getRole> = getRole(nodeId);
   const metadata: EntityTypeMetadata = getEntityMetadata(entityType);
   const Icon: ComponentType<{ className?: string; }> = metadata.icon;
 
@@ -70,7 +70,7 @@ export function ParentNodePermissionSection({
   children: Array<{ id: string; name: string; entityType: NodeEntityType }>;
 }): JSX.Element {
   const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
-  const role = getRole(nodeId);
+  const role: ReturnType<typeof getRole> = getRole(nodeId);
   const metadata: EntityTypeMetadata = getEntityMetadata(entityType);
   const Icon: ComponentType<{ className?: string; }> = metadata.icon;
 

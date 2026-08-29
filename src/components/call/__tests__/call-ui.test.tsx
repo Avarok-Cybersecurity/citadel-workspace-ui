@@ -3,7 +3,7 @@
  * that is off, a peer who is muted, a call that failed, a call still ringing.
  * Each looks broken if it renders as nothing.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ParticipantTile } from '../ParticipantTile';
@@ -101,7 +101,7 @@ describe('CallControls', () => {
     // also flips. Paired, they contradict — "Mute microphone, pressed"
     // announces as *muted* while the microphone is live, which on a privacy
     // control is the worst possible direction to be wrong in.
-    const onToggleMic = vi.fn();
+    const onToggleMic: ReturnType<typeof vi.fn> = vi.fn();
     const { rerender } = render(
       <CallControls media={VIDEO} canToggleVideo onToggleMic={onToggleMic} onToggleCamera={noop} onLeave={noop} running={false} />,
     );
@@ -168,7 +168,7 @@ describe('IncomingCallCard', () => {
   });
 
   it('offers answering a video call without video', async () => {
-    const onAccept = vi.fn();
+    const onAccept: ReturnType<typeof vi.fn> = vi.fn();
     render(<IncomingCallCard callerName="Alice" media={VIDEO} onAccept={onAccept} onDecline={vi.fn()} />);
 
     await userEvent.click(screen.getByTestId('incoming-call-accept-audio'));
@@ -248,7 +248,7 @@ describe('CallEntryButtons', () => {
   const supported: { supported: boolean; } = { supported: true };
 
   it('offers audio and video separately', async () => {
-    const onStartCall = vi.fn();
+    const onStartCall: ReturnType<typeof vi.fn> = vi.fn();
     render(
       <CallEntryButtons targetName="Alice" canCall inCall={false} capability={supported} onStartCall={onStartCall} onLeave={vi.fn()} />,
     );
@@ -288,7 +288,7 @@ describe('CallEntryButtons', () => {
 
   it('replaces both buttons with a single leave control during a call', async () => {
     // Offering "call" during a call is how people start a second one by mistake.
-    const onLeave = vi.fn();
+    const onLeave: ReturnType<typeof vi.fn> = vi.fn();
     render(
       <CallEntryButtons targetName="Alice" canCall inCall capability={supported} onStartCall={vi.fn()} onLeave={onLeave} />,
     );

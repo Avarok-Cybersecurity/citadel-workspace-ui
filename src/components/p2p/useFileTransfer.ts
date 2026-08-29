@@ -1,10 +1,9 @@
-import { useState, useRef, useCallback ,  type RefObject  } from 'react';
+import { useState, useRef, useCallback ,  type RefObject  , type DragEvent } from 'react';
 import { formatBytes } from '@/lib/format-bytes';
 import type { FileTransferMode } from '@/types/messaging-layer';
 import { fileTransferService } from '@/lib/file-transfer';
 import { MAX_BYTE_CONTENTS_SIZE_BYTES } from '@/lib/file-transfer/send-operations';
 import { debugLog } from '@/lib/debug-config';
-import type { DragEvent } from 'react';
 
 interface UseFileTransferOptions {
   onClose: () => void;

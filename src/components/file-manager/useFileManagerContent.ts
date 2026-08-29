@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo , type RefObject } from "react";
 import { useRevfsTree, useServerRevfsTree } from "@/hooks/useRevfsTree";
 import { useVFSClipboard } from "@/hooks/useVFSClipboard";
-import { useVFSSelection } from "@/hooks/useVFSSelection";
+import { useVFSSelection  } from "@/hooks/useVFSSelection";
 import { connectionManager } from "@/lib/connection";
 import { p2pRegistrationService, type Peer } from "@/lib/p2p-registration-service";
 import { peerPairKey, serverTreeKey } from "@/lib/revfs/tree-operations";
@@ -117,7 +117,7 @@ export function useFileManagerContent() {
     setSortDirection(direction);
   }, []);
 
-  const handlers = useFileManagerHandlers({
+  const handlers: ReturnType<typeof useFileManagerHandlers> = useFileManagerHandlers({
     mkdir, rmdir, removeFile, downloadFile, uploadFile, rename, move, copy, refresh,
     cut, copyToClipboard, clearClipboard, clearSelection, selectItem,
     currentTreeKey, hasPasteItems, clipboard, isCut,

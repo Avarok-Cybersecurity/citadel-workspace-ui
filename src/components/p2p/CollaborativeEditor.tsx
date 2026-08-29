@@ -33,7 +33,7 @@ export function CollaborativeEditor({
   creatorCid,
   onSave,
 }: CollaborativeEditorProps): JSX.Element {
-  const prompt = usePrompt();
+  const prompt: ReturnType<typeof usePrompt> = usePrompt();
   const {
     doc,
     provider,

@@ -160,7 +160,7 @@ export async function executeAcceptRequest(request: PendingPeerRequest): Promise
  * Resend a PeerRegister request for an outgoing request
  */
 export async function resendPeerRegister(request: OutgoingPeerRequest): Promise<void> {
-  const client = websocketService.getClient();
+  const client: ReturnType<typeof websocketService.getClient> = websocketService.getClient();
   if (!client) throw new Error('No WebSocket client available');
 
   await websocketService.claimSession(request.fromCid);

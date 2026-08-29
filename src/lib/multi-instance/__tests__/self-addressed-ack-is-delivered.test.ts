@@ -9,7 +9,7 @@
  * a Connect, a workspace mutation or a P2P message run up to four times, then
  * reported as failed when the caller's own 30s timer expired.
  */
-import { describe, it, expect, vi, beforeEach  } from 'vitest';
+import { describe, it, expect, vi, beforeEach   } from 'vitest';
 
 const posted: unknown[] = [];
 vi.mock('@/lib/event-emitter', () => ({
@@ -39,7 +39,7 @@ describe('a self-addressed ack', () => {
   });
 
   it('still posts an ack addressed to a different tab', () => {
-    const send = vi.spyOn(instanceChannel, 'send' as never);
+    const send: ReturnType<typeof vi.spyOn> = vi.spyOn(instanceChannel, 'send' as never);
     instanceChannel.sendAck('another-tab', 'r-other', { status: 'processed' });
     expect(send).toHaveBeenCalled();
     send.mockRestore();

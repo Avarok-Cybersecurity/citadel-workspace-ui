@@ -41,7 +41,7 @@ export function handleAckMessage(
   ctx: MessageHandlerContext,
   message: YjsAckMessage
 ): void {
-  const pending = ctx.pendingAcks.get(message.message_id);
+  const pending: ReturnType<typeof ctx.pendingAcks.get> = ctx.pendingAcks.get(message.message_id);
   if (pending) {
     ctx.pendingAcks.delete(message.message_id);
     debugLog('YjsP2PProvider', `[Yjs] Received ACK for ${message.message_id}`);

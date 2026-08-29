@@ -8,7 +8,7 @@
  * contains role="dialog" would pass on an overlay that still leaks focus, which
  * is the half that actually strands people.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
@@ -72,7 +72,7 @@ describe('useDialogOverlay', () => {
 
   it('dismisses on Escape when the caller allows it', async () => {
     const user: UserEvent = userEvent.setup();
-    const onDismiss = vi.fn();
+    const onDismiss: ReturnType<typeof vi.fn> = vi.fn();
     render(<Harness open onDismiss={onDismiss} />);
 
     await user.keyboard('{Escape}');

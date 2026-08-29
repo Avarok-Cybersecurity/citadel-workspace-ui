@@ -14,10 +14,10 @@
  * had, because every test used a numeric id.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 
 const isPeerOnline = vi.fn<(cid: bigint) => boolean>();
-const getPeers = vi.fn();
+const getPeers: ReturnType<typeof vi.fn> = vi.fn();
 
 vi.mock('../p2p-auto-connect-service', () => ({
   p2pAutoConnectService: { isPeerOnline: (cid: bigint): boolean => isPeerOnline(cid) },

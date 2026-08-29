@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { TreeScope } from "@/types/revfs-types";
+import { TreeScope  } from "@/types/revfs-types";
 import { useFileManagerContent } from "./useFileManagerContent";
 import { ConnectingScreen, NoPeersScreen, LoadingScreen, ErrorScreen } from "./FileManagerStatusScreens";
 import { FileManagerStorageBar } from "./FileManagerStorageBar";
@@ -12,7 +12,7 @@ import { RevfsDisabledModal } from "./RevfsDisabledModal";
 import { VFSPropertiesDialog } from "./VFSPropertiesDialog";
 
 export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
-  const fm = useFileManagerContent();
+  const fm: ReturnType<typeof useFileManagerContent> = useFileManagerContent();
 
   // ── Early returns ──────────────────────────────────────────────────────
 

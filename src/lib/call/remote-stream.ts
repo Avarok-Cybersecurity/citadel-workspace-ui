@@ -31,7 +31,7 @@ export function createRemoteVideoSink(): RemoteVideoSink {
 
   if (Generator) {
     const track: MediaStreamTrack & { writable: WritableStream<VideoFrame | AudioData>; } = new Generator({ kind: 'video' });
-    const writer = track.writable.getWriter();
+    const writer: ReturnType<typeof track.writable.getWriter> = track.writable.getWriter();
     const stream: MediaStream = new MediaStream([track]);
 
     return {
@@ -54,7 +54,7 @@ export function createRemoteVideoSink(): RemoteVideoSink {
   // Sized on the first frame; a zero-sized canvas produces a black stream.
   canvas.width = 640;
   canvas.height = 360;
-  const context = canvas.getContext('2d');
+  const context: ReturnType<typeof canvas.getContext> = canvas.getContext('2d');
 
   // Degrade rather than throw. If neither route to a MediaStream exists, the
   // call should continue without this peer's video — throwing here would take
@@ -116,7 +116,7 @@ export function createRemoteAudioSink(): RemoteAudioSink {
   }
 
   const track: MediaStreamTrack & { writable: WritableStream<VideoFrame | AudioData>; } = new Generator({ kind: 'audio' });
-  const writer = track.writable.getWriter();
+  const writer: ReturnType<typeof track.writable.getWriter> = track.writable.getWriter();
   const stream: MediaStream = new MediaStream([track]);
 
   return {

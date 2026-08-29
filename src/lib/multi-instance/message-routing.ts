@@ -25,7 +25,7 @@ export function extractRequestId(message: Record<string, unknown>): string | nul
     return null;
   }
 
-  const messageType = getMessageType(message);
+  const messageType: ReturnType<typeof getMessageType> = getMessageType(message);
 
   // Skip request_id extraction for notification messages that should be routed by CID
   if (CID_ROUTED_NOTIFICATIONS.has(messageType)) {
@@ -61,7 +61,7 @@ export function extractTargetCid(message: Record<string, unknown>): string | nul
   }
 
   // Check nested in message type (e.g., { MessageNotification: { cid: ... } })
-  const messageType = getMessageType(message);
+  const messageType: ReturnType<typeof getMessageType> = getMessageType(message);
   const payload: Record<string, unknown> | undefined = message[messageType] as Record<string, unknown> | undefined;
 
   if (payload && typeof payload === 'object') {

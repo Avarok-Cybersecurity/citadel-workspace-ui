@@ -54,8 +54,8 @@ export function useFileManagerHandlers({
   setUploadTargetDir, setRevfsDisabledReason, setRevfsDisabledModalOpen,
   setAttemptedFileSize, setStorageLimitModalOpen, setPropertiesNode,
 }: HandlerDeps) {
-  const confirm = useConfirm();
-  const prompt = usePrompt();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
+  const prompt: ReturnType<typeof usePrompt> = usePrompt();
 
   const handleNewFolder: (parentPath: string) => Promise<void> = useCallback(async (parentPath: string): Promise<void> => {
     const name: string | null = await prompt({

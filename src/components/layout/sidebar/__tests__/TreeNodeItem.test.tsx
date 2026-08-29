@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach  } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { TreeNodeItem } from '../TreeNodeItem';
 import type { DomainNode, TreeNode } from '../tree-node-types';
@@ -41,8 +41,8 @@ const withChild: TreeNode = {
 };
 
 function renderNode(expanded: string[] = []) {
-  const onToggleExpand = vi.fn();
-  const onNodeSelect = vi.fn();
+  const onToggleExpand: ReturnType<typeof vi.fn> = vi.fn();
+  const onNodeSelect: ReturnType<typeof vi.fn> = vi.fn();
   // The real provider and list wrapper, not stand-ins: SidebarMenuButton reads
   // context from one and SidebarMenuItem is an <li> that belongs in the other.
   // Substituting either would test a different component than the one that ships.

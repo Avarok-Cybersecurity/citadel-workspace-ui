@@ -12,7 +12,7 @@
  * against a fake transport elsewhere; constructing the real thing here would
  * pull in WebCodecs and a capture pump to observe one identity comparison.
  */
-import { describe, it, expect, vi, beforeEach  } from 'vitest';
+import { describe, it, expect, vi, beforeEach   } from 'vitest';
 import { renderHook, act, waitFor , type RenderHookResult } from '@testing-library/react';
 
 const built: Array<{ selfCid: bigint; end: ReturnType<typeof vi.fn>; status: string }> = [];
@@ -20,7 +20,7 @@ const built: Array<{ selfCid: bigint; end: ReturnType<typeof vi.fn>; status: str
 vi.mock('@/lib/call/call-manager', () => ({
   CallManager: class {
     selfCid: bigint;
-    end = vi.fn();
+    end: ReturnType<typeof vi.fn> = vi.fn();
     status: string = 'active';
     constructor(config: { selfCid: bigint }) {
       this.selfCid = config.selfCid;

@@ -49,7 +49,7 @@ describe('yjs update coalescing', () => {
     const provider: YjsP2PProvider = makeProvider(doc);
     sent.length = 0;
 
-    const text = doc.getText('t');
+    const text: ReturnType<typeof doc.getText> = doc.getText('t');
     for (const ch of 'hello world') {
       text.insert(text.length, ch);
     }
@@ -67,7 +67,7 @@ describe('yjs update coalescing', () => {
     const provider: YjsP2PProvider = makeProvider(doc);
     sent.length = 0;
 
-    const text = doc.getText('t');
+    const text: ReturnType<typeof doc.getText> = doc.getText('t');
     for (const ch of 'hello world') {
       text.insert(text.length, ch);
     }

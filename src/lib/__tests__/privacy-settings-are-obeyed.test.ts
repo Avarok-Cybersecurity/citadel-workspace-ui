@@ -8,7 +8,7 @@
  *
  * These assert at the send points, which is where the promise is kept or broken.
  */
-import { describe, it, expect, vi, beforeEach   } from 'vitest';
+import { describe, it, expect, vi, beforeEach    } from 'vitest';
 import type { PrivacySettings } from '@/lib/privacy-settings';
 import type { PresenceManager } from '@/lib/p2p/presence-manager';
 import {
@@ -75,7 +75,7 @@ describe('typing indicators', () => {
     );
     vi.resetModules();
     const { PresenceManager } = await import('../p2p/presence-manager');
-    const sendCommand = vi.fn((): Promise<void> => Promise.resolve());
+    const sendCommand: ReturnType<typeof vi.fn> = vi.fn((): Promise<void> => Promise.resolve());
     const manager: PresenceManager = new PresenceManager({
       sendCommand,
       getConnectedPeers: () => [7n],
@@ -114,7 +114,7 @@ describe('read receipts', () => {
     const message: { id: string; senderCid: bigint; status: "delivered"; } = { id: 'm1', senderCid: 7n, status: 'delivered' as const };
     const conversation: { messages: { id: string; senderCid: bigint; status: "delivered"; }[]; unreadCount: number; } = { messages: [message], unreadCount: 1 };
     const conversationManager: { getConversation: () => { messages: { id: string; senderCid: bigint; status: "delivered"; }[]; unreadCount: number; }; } = { getConversation: (): { messages: { id: string; senderCid: bigint; status: "delivered"; }[]; unreadCount: number; } => conversation };
-    const sendMessageAck = vi.fn((): Promise<void> => Promise.resolve());
+    const sendMessageAck: ReturnType<typeof vi.fn> = vi.fn((): Promise<void> => Promise.resolve());
 
     await markMessagesAsRead(
       conversationManager as never,

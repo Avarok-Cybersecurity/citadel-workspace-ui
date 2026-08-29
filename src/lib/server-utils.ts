@@ -67,7 +67,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
                   if (Array.isArray(value)) {
                     // If it's a byte array, convert to string
                     const jsonStr: string = bytesToString(value);
-                    const parsed = JSON.parse(jsonStr);
+                    const parsed: ReturnType<typeof JSON.parse> = JSON.parse(jsonStr);
                     if (Array.isArray(parsed)) {
                       servers.push(...parsed);
                     } else if (parsed.servers) {

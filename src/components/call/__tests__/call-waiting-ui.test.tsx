@@ -3,7 +3,7 @@
  * bridge between accepting and the first frame. These are the moments the
  * user decides whether the feature works.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CallStage } from '../CallStage';
@@ -57,7 +57,7 @@ describe('CallStage outgoing-call panel', () => {
   });
 
   it('offers a Cancel that hangs up', async () => {
-    const onLeave = vi.fn();
+    const onLeave: ReturnType<typeof vi.fn> = vi.fn();
     render(<CallStage call={callState()} {...stageProps} onLeave={onLeave} />);
 
     await userEvent.click(screen.getByTestId('call-cancel'));
@@ -89,7 +89,7 @@ describe('CallStage outgoing-call panel', () => {
     // users would get the animation Tailwind cannot conditionally remove.
     const { container } = render(<CallStage call={callState()} {...stageProps} />);
 
-    const halos = container.querySelectorAll('.motion-safe\\:animate-ring-pulse');
+    const halos: ReturnType<typeof container.querySelectorAll> = container.querySelectorAll('.motion-safe\\:animate-ring-pulse');
     expect(halos.length).toBeGreaterThan(0);
     expect(container.querySelector('[class*="animate-ring-pulse"]:not([class*="motion-safe"])')).toBeNull();
   });

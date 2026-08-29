@@ -95,9 +95,9 @@ export const FilesSection: () => JSX.Element = (): JSX.Element => {
   const [selectedFile, setSelectedFile] = useState<FileDisplay | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const { registeredPeers } = useRegisteredPeers();
-  const confirm = useConfirm();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
   const navigate: NavigateFunction = useNavigate();
-  const location = useLocation();
+  const location: ReturnType<typeof useLocation> = useLocation();
 
   /**
    * Load completed incoming transfers from FileTransferService

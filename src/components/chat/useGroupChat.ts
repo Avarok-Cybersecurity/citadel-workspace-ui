@@ -15,7 +15,7 @@ import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-ti
 
 export function useGroupChat(groupId: string) {
   const { toast } = useToast();
-  const confirm = useConfirm();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
   const scrollAreaRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const messagesEndRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
 

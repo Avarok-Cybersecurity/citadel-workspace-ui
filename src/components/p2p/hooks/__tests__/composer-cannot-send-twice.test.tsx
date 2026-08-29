@@ -10,14 +10,14 @@
  * composer when the bubble appears rather than when the network resolves.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 import { clearAllDraftsForTests } from '@/lib/chat/draft-store';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act, waitFor  } from '@testing-library/react';
 import { useP2PCompose } from '../useP2PCompose';
 
-const sendMessage = vi.fn();
-const stopTypingPolling = vi.fn();
-const startTypingPolling = vi.fn();
+const sendMessage: ReturnType<typeof vi.fn> = vi.fn();
+const stopTypingPolling: ReturnType<typeof vi.fn> = vi.fn();
+const startTypingPolling: ReturnType<typeof vi.fn> = vi.fn();
 
 vi.mock('@/lib/p2p/p2p-messenger-manager', () => ({
   P2PMessengerManager: {

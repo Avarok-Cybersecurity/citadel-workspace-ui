@@ -114,21 +114,21 @@ describe('validateTheme', () => {
     // The important one: a partial palette would apply as an override, leaving
     // that token at whatever the previous theme set — one stray colour with no
     // explanation.
-    const broken = JSON.parse(JSON.stringify(defaultTheme()));
+    const broken: ReturnType<typeof JSON.parse> = JSON.parse(JSON.stringify(defaultTheme()));
     delete broken.light.border;
 
     expect(validateTheme(broken)).toBeNull();
   });
 
   it('refuses a colour with an out-of-range channel', () => {
-    const broken = JSON.parse(JSON.stringify(defaultTheme()));
+    const broken: ReturnType<typeof JSON.parse> = JSON.parse(JSON.stringify(defaultTheme()));
     broken.dark.primary.l = 140;
 
     expect(validateTheme(broken)).toBeNull();
   });
 
   it('refuses a colour whose channels are strings', () => {
-    const broken = JSON.parse(JSON.stringify(defaultTheme()));
+    const broken: ReturnType<typeof JSON.parse> = JSON.parse(JSON.stringify(defaultTheme()));
     broken.light.primary = { h: '257', s: '45', l: '45' };
 
     expect(validateTheme(broken)).toBeNull();
@@ -138,21 +138,21 @@ describe('validateTheme', () => {
     ['id', ''],
     ['name', ''],
   ])('refuses an empty %s', (field, value) => {
-    const broken = JSON.parse(JSON.stringify(defaultTheme()));
+    const broken: ReturnType<typeof JSON.parse> = JSON.parse(JSON.stringify(defaultTheme()));
     broken[field] = value;
 
     expect(validateTheme(broken)).toBeNull();
   });
 
   it('refuses a negative radius', () => {
-    const broken = JSON.parse(JSON.stringify(defaultTheme()));
+    const broken: ReturnType<typeof JSON.parse> = JSON.parse(JSON.stringify(defaultTheme()));
     broken.radius = -1;
 
     expect(validateTheme(broken)).toBeNull();
   });
 
   it('refuses a missing icon colour', () => {
-    const broken = JSON.parse(JSON.stringify(defaultTheme()));
+    const broken: ReturnType<typeof JSON.parse> = JSON.parse(JSON.stringify(defaultTheme()));
     broken.icon = { emoji: '🛡️' };
 
     expect(validateTheme(broken)).toBeNull();

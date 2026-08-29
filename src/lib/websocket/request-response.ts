@@ -69,7 +69,7 @@ export function requestResponse<T>(options: RequestResponseOptions<T>): Promise<
     };
 
     const handler = (message: Record<string, unknown>): void => {
-      const successData = matcher.matchSuccess(message);
+      const successData: ReturnType<typeof matcher.matchSuccess> = matcher.matchSuccess(message);
       if (successData !== undefined) {
         cleanup();
         resolve(successData);

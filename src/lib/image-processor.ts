@@ -60,7 +60,7 @@ export async function processAvatarImage(
           canvas.width = width;
           canvas.height = height;
 
-          const ctx = canvas.getContext('2d');
+          const ctx: ReturnType<typeof canvas.getContext> = canvas.getContext('2d');
           if (!ctx) {
             reject(new Error('Could not get canvas context'));
             return;

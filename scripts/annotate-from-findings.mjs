@@ -412,6 +412,28 @@ for (const source of program.getSourceFiles()) {
       const lifted = liftImports(printed === 'any' && ANY_AS_UNKNOWN ? 'unknown' : printed);
       if (lifted !== null && canWrite(lifted, node)) {
         edits.push({ position: node.name.getEnd(), text: `: ${lifted}` });
+      } else if (
+        node.initializer &&
+        ts.isCallExpression(node.initializer) &&
+        node.initializer.typeArguments === undefined &&
+        (ts.isIdentifier(node.initializer.expression) ||
+          ts.isPropertyAccessExpression(node.initializer.expression))
+      ) {
+        // `ReturnType<typeof f>` for `const x = f()`.
+        //
+        // Most of what is left is this shape: `const onOpen = vi.fn()`,
+        // `const location = useLocation()`, `const confirm = useConfirm()`.
+        // The inferred type is a `Mock<...>` or a router type the file would
+        // have to import, and half the time the compiler prints it as `any`.
+        // `ReturnType<typeof vi.fn>` needs no import at all -- the callee is
+        // right there being called -- and is exactly what a person writes.
+        //
+        // Refused where the call passes type arguments, because then the
+        // caller has said something `ReturnType` would throw away. Generic
+        // inference from the ARGUMENTS is the case this can still get wrong,
+        // which is what the compile judge is for.
+        const callee = node.initializer.expression.getText(source);
+        edits.push({ position: node.name.getEnd(), text: `: ReturnType<typeof ${callee}>` });
       }
     }
 

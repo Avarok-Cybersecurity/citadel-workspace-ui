@@ -13,7 +13,7 @@
  * presses twice. Past the budget the press starts a fresh series instead.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ConnectionRetryModal } from '../ConnectionRetryModal';
@@ -23,7 +23,7 @@ vi.mock('@/lib/websocket-service', () => ({
 }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
-const onRetry = vi.fn();
+const onRetry: ReturnType<typeof vi.fn> = vi.fn();
 
 function renderExhausted() {
   // maxRetries=1 so the very first failure spends the whole budget -- the same
@@ -67,7 +67,7 @@ describe('manual retry after the automatic budget is spent', () => {
   });
 
   it('closes on a retry that succeeds', async () => {
-    const onClose = vi.fn();
+    const onClose: ReturnType<typeof vi.fn> = vi.fn();
     render(
       <ConnectionRetryModal isOpen onClose={onClose} onRetry={onRetry} maxRetries={1} />,
     );

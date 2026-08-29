@@ -187,7 +187,7 @@ async function resolveDNS(hostname: string): Promise<string> {
     }
 
     // Find the first A record (type 1)
-    const aRecord = answers.find((record: { type: number; data: string }): boolean => record.type === 1);
+    const aRecord: ReturnType<typeof answers.find> = answers.find((record: { type: number; data: string }): boolean => record.type === 1);
     if (!aRecord) {
       throw new Error(`No A (IPv4) record found for '${hostname}'`);
     }

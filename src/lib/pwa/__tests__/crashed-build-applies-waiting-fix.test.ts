@@ -6,10 +6,10 @@
  * activate a waiting worker. Recovery otherwise means closing every tab on the
  * origin, which nothing tells the user.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach  } from 'vitest';
 import { applyWaitingUpdate, reloadApplyingAnyWaitingUpdate } from '../apply-waiting-update';
 
-const original = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
+const original: ReturnType<typeof Object.getOwnPropertyDescriptor> = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
 
 function installContainer(registration: unknown): { fire: (type: string) => void; } {
   const listeners: Record<string, (() => void)[]> = {};
@@ -34,7 +34,7 @@ describe('applyWaitingUpdate', () => {
   });
 
   it('sends SKIP_WAITING to a waiting worker and resolves once it takes control', async () => {
-    const postMessage = vi.fn();
+    const postMessage: ReturnType<typeof vi.fn> = vi.fn();
     const { fire } = installContainer({ waiting: { postMessage } });
 
     const result: Promise<boolean> = applyWaitingUpdate();
@@ -65,7 +65,7 @@ describe('applyWaitingUpdate', () => {
 
   it('reloads even when activation fails — the user pressed a button', async () => {
     installContainer({ waiting: { postMessage: vi.fn() } });
-    const reload = vi.fn();
+    const reload: ReturnType<typeof vi.fn> = vi.fn();
 
     const done: Promise<void> = reloadApplyingAnyWaitingUpdate(reload);
     await Promise.resolve();
@@ -77,7 +77,7 @@ describe('applyWaitingUpdate', () => {
 
   it('reloads when there is no service worker at all', async () => {
     Object.defineProperty(navigator, 'serviceWorker', { value: undefined, configurable: true });
-    const reload = vi.fn();
+    const reload: ReturnType<typeof vi.fn> = vi.fn();
 
     await reloadApplyingAnyWaitingUpdate(reload);
 

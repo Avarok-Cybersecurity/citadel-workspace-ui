@@ -14,7 +14,7 @@
  * gated variant and asserts the raw event arrives — mechanically, for every
  * entry in the table, including ones added later.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi  } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';
 import { SUCCESS_RESPONSES } from '../await-write-response';
 import { WorkspaceResponseHandler } from '@/lib/workspace-response-handler/service';
@@ -46,7 +46,7 @@ const PAYLOADS: Record<string, unknown> = {
  * fail. The `handled` flag below is what makes it discriminating.
  */
 function dispatch(variant: string): { events: string[]; handled: boolean } {
-  const spy = vi.spyOn(eventEmitter, 'emit');
+  const spy: ReturnType<typeof vi.spyOn> = vi.spyOn(eventEmitter, 'emit');
   try {
     // The shape extractWorkspaceResponse actually accepts: msg.Response IS the
     // WorkspaceProtocolResponse.

@@ -11,12 +11,12 @@
  * getUserMedia is stubbed to resolve on our signal, which is the only way to
  * have two starts genuinely in flight at once.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach  } from 'vitest';
 import { CallSession } from '../call-session';
 import type { CallMediaKinds } from '@/types/call-signals';
 
 const g: Record<string, unknown> = globalThis as unknown as Record<string, unknown>;
-const savedMedia = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+const savedMedia: ReturnType<typeof Object.getOwnPropertyDescriptor> = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
 const savedKeys: Record<string, unknown> = {};
 const KEYS: string[] = ['AudioEncoder', 'AudioDecoder', 'VideoEncoder', 'VideoDecoder',
   'MediaStreamTrackProcessor', 'MediaStreamTrackGenerator'];
@@ -66,7 +66,7 @@ beforeEach(() => {
         // Held open so a second start() can arrive mid-prompt, exactly as a
         // user double-clicking does.
         release = (): void => {
-          const stream = makeStream();
+          const stream: ReturnType<typeof makeStream> = makeStream();
           streams.push(stream);
           resolve(stream as unknown as MediaStream);
         };

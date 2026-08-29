@@ -10,7 +10,7 @@ import type { NavigateFunction } from 'react-router';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 export const Office: () => JSX.Element = (): JSX.Element => {
-  const location = useLocation();
+  const location: ReturnType<typeof useLocation> = useLocation();
   const navigate: NavigateFunction = useNavigate();
   const params: URLSearchParams = new URLSearchParams(location.search);
   const nodeId: string | null = params.get("nodeId");

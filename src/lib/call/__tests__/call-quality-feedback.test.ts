@@ -9,7 +9,7 @@
  * These drive the real wiring — manager, signal handling, liveness binding —
  * to prove the loop closes in both directions.
  */
-import { describe, it, expect, vi, beforeEach  } from 'vitest';
+import { describe, it, expect, vi, beforeEach   } from 'vitest';
 import { CallManager } from '../call-manager';
 import type { CallTransport } from '../call-transport';
 import type { CallCodecCapabilities, CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
@@ -67,7 +67,7 @@ function harness(observed?: (cid: bigint) => Link | undefined) {
 
 describe('quality feedback, outbound', () => {
   it('tells a peer how their stream is reaching us', async () => {
-    const h = harness((): "poor" => 'poor');
+    const h: ReturnType<typeof harness> = harness((): "poor" => 'poor');
     await h.active();
     h.tick();
 
@@ -79,7 +79,7 @@ describe('quality feedback, outbound', () => {
   it('says nothing when it has not seen enough media to judge', async () => {
     // Absence of evidence must not read as a healthy link, or a call would
     // report 'good' before a single frame had arrived.
-    const h = harness((): undefined => undefined);
+    const h: ReturnType<typeof harness> = harness((): undefined => undefined);
     await h.active();
     h.tick();
 

@@ -6,7 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import type { NavigateFunction } from 'react-router';
 
 const NotFound: () => JSX.Element = (): JSX.Element => {
-  const location = useLocation();
+  const location: ReturnType<typeof useLocation> = useLocation();
   const navigate: NavigateFunction = useNavigate();
 
   useEffect(() => {

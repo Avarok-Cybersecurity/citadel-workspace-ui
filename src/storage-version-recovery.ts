@@ -18,7 +18,7 @@ function resetLocalData(button: HTMLButtonElement): void {
   button.textContent = 'Resetting…';
   sessionRemove(RELOAD_ATTEMPTED_KEY);
 
-  const request = indexedDB.deleteDatabase(DB_NAME);
+  const request: ReturnType<typeof indexedDB.deleteDatabase> = indexedDB.deleteDatabase(DB_NAME);
   const reload = (): void => window.location.reload();
   request.onsuccess = reload;
   request.onerror = reload;
@@ -62,11 +62,11 @@ export function showStorageVersionRecovery(): void {
   panel.style.cssText =
     'max-width:34rem;margin:12vh auto;padding:2rem;font-family:system-ui,sans-serif;line-height:1.6';
 
-  const heading = document.createElement('h1');
+  const heading: ReturnType<typeof document.createElement> = document.createElement('h1');
   heading.textContent = 'This version is older than your saved data';
   heading.style.cssText = 'font-size:1.25rem;margin:0 0 0.75rem';
 
-  const body = document.createElement('p');
+  const body: ReturnType<typeof document.createElement> = document.createElement('p');
   body.textContent =
     'Your browser is running an older build of Citadel than the data stored on this device. ' +
     'That usually means a cached copy loaded, or the app was rolled back. Getting the current ' +
@@ -92,7 +92,7 @@ export function showStorageVersionRecovery(): void {
 
   // Only after the safe option has been tried and landed back here.
   if (sessionGet(RELOAD_ATTEMPTED_KEY)) {
-    const stillStuck = document.createElement('p');
+    const stillStuck: ReturnType<typeof document.createElement> = document.createElement('p');
     stillStuck.textContent =
       'Still seeing this after reloading? Then this device is running the version the ' +
       'server is serving, and reloading cannot help. Resetting removes the data Citadel ' +

@@ -41,7 +41,7 @@ export class WorkspaceResponseHandler {
 
   private processWorkspaceResponse(response: WorkspaceProtocolResponse): void {
     debugLog('WorkspaceResponseHandler', 'Processing workspace response', response);
-    const connectionInfo = buildConnectionInfo();
+    const connectionInfo: ReturnType<typeof buildConnectionInfo> = buildConnectionInfo();
 
     // Try workspace/member/node/permission handlers
     if (handleWorkspaceVariants(response, connectionInfo)) return;
@@ -58,7 +58,7 @@ export class WorkspaceResponseHandler {
    * Emit loading events before making requests.
    */
   public emitLoadingEvent(eventType: string, data?: { domainId?: string }): void {
-    const connectionInfo = buildConnectionInfo();
+    const connectionInfo: ReturnType<typeof buildConnectionInfo> = buildConnectionInfo();
 
     switch (eventType) {
       case 'workspace:loading':

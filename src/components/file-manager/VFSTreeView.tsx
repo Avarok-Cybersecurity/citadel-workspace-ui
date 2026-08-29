@@ -42,7 +42,7 @@ function SidebarNode({
   onDrop,
 }: SidebarNodeProps): JSX.Element {
   const [dragOver, setDragOver] = useState(false);
-  const isProtected = PROTECTED_DIRS.has(node.path);
+  const isProtected: ReturnType<typeof PROTECTED_DIRS.has> = PROTECTED_DIRS.has(node.path);
   const FolderIcon = isProtected ? FolderLock : expanded ? FolderOpen : Folder;
 
   const handleDragOver = (e: React.DragEvent): void => {

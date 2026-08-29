@@ -10,12 +10,12 @@
  * This is the other half, on the real object.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach  } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';
 import { instanceManager } from '../instance-manager';
 
 describe('registerInstance', () => {
-  const heard = vi.fn();
+  const heard: ReturnType<typeof vi.fn> = vi.fn();
 
   beforeEach(() => {
     heard.mockReset();

@@ -15,9 +15,9 @@
  * These assert on what reaches the PAGE STORE, not on the in-memory object. The
  * in-memory object was always correct, which is exactly why this was invisible.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 
-const wireSend = vi.fn();
+const wireSend: ReturnType<typeof vi.fn> = vi.fn();
 
 // Mock only the wire call and the fire-and-forget background connect. Everything
 // between them — including the status bookkeeping under test — stays real.

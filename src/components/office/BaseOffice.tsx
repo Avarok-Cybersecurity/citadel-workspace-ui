@@ -75,7 +75,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   );
 
   const { isDirty } = useUnsavedMdxGuard({ isEditing, content, ownerId: nodeId ?? WORKSPACE_ROOT_ID });
-  const confirm = useConfirm();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
 
   // Cancel used to be a bare toggle. The load effect below then restored the
   // stored document over the buffer, so the edits were gone with no prompt.

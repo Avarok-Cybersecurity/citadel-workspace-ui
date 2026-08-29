@@ -7,11 +7,11 @@
  *
  * The admin tabs already carry this dirty guard; this hook never got it.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 const themeRef: { current: Record<string, string>; } = { current: { primary: 'blue' } as Record<string, string> };
-const previewTheme = vi.fn();
+const previewTheme: ReturnType<typeof vi.fn> = vi.fn();
 
 vi.mock('@/lib/theme/workspace-theme-context', () => ({
   useWorkspaceTheme: () => ({ savedTheme: themeRef.current, previewTheme }),

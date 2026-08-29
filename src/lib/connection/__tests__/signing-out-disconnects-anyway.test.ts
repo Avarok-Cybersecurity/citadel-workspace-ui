@@ -11,7 +11,7 @@
  * an action the user asked for. Here the suppressed action is the one that ends
  * a session, which makes it the worse direction of the two.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { handleLogout } from '../session-management';
 import { removeAllSessions } from '../session-list';
 
@@ -59,7 +59,7 @@ describe('signing out when the local write times out', () => {
 
   it('removing every session disconnects too', async () => {
     const { state, io } = harness(true);
-    const disconnectFn = vi.fn(async (): Promise<void> => {});
+    const disconnectFn: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<void> => {});
     await removeAllSessions(state as never, io as never, disconnectFn);
     expect(disconnectFn).toHaveBeenCalled();
   });

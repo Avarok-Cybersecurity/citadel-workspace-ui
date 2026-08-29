@@ -40,7 +40,7 @@ export function useP2PMessages({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
-  const confirm = useConfirm();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
 
   // Main effect for conversation loading and subscriptions
   useEffect(() => {
