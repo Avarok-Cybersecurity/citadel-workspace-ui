@@ -173,7 +173,7 @@ class InstanceChannel {
   }
 
   sendAck(targetInstanceId: string, requestId: string, result: AckResult): void {
-    const message = {
+    const message: Omit<ChannelMessage, 'senderInstanceId' | 'timestamp'> = {
       type: 'outbound-ack' as const,
       targetInstanceId,
       requestId,

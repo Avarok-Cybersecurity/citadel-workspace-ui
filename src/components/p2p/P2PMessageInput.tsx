@@ -48,8 +48,8 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
       onFormat,
       onTogglePreview,
       onMessageTypeChange,
-    },
-    ref
+    }: P2PMessageInputProps,
+    ref: React.ForwardedRef<HTMLTextAreaElement>
   ) {
     const isMarkdownMode: boolean = messageType === 'markdown';
     const isLiveDocMode: boolean = messageType === 'live_document';

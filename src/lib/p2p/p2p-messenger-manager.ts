@@ -14,7 +14,7 @@ import type { MessagingLayer } from '@/types/messaging-layer';
 import { markP2PMessageHandlerAttached } from './p2p-handler-ready';
 import { editMessage, deleteMessage } from './messenger-revision';
 import { websocketService } from '../websocket-service';
-import { notificationService } from '../notification-service';
+import { notificationService, type Notification as AppNotification } from '../notification-service';
 import { EventListenerManager } from '../utils/event-listener-manager';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 
@@ -90,7 +90,7 @@ export class P2PMessengerManager extends EventListenerManager {
       handleCheckStateResponse: (peerCid): void => this.checkStateManager.handleCheckStateResponse(peerCid),
       markPeerReady: (peerCid): void => this.checkStateManager.markPeerReady(peerCid),
       shouldShowNotification: (peerCid): boolean => this.activeConversationPeerCid !== peerCid,
-      addNotification: (title, body, senderId, messageId, recipientCid, options) =>
+      addNotification: (title, body, senderId, messageId, recipientCid, options): AppNotification =>
         notificationService.addMessageNotification(title, body, senderId, messageId, recipientCid, options)
     });
     this.setupEventListeners();

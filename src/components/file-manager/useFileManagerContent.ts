@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo , type RefObject } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, type RefObject, type Dispatch, type SetStateAction } from "react";
 import { useRevfsTree, useServerRevfsTree } from "@/hooks/useRevfsTree";
 import { useVFSClipboard } from "@/hooks/useVFSClipboard";
 import { useVFSSelection  } from "@/hooks/useVFSSelection";
@@ -14,7 +14,51 @@ import type { UseRevfsTreeResult, UseServerRevfsTreeResult } from '@/hooks/useRe
 
 export { findNodeByPath } from '@/lib/revfs/tree-operations';
 
-export function useFileManagerContent() {
+/**
+ * Derived from the hooks it composes rather than restated: the handler block
+ * and the three tree/clipboard/selection members would otherwise be a second
+ * copy of shapes that already have one authority.
+ */
+export type UseFileManagerContentResult = ReturnType<typeof useFileManagerHandlers> & {
+  myCid: bigint | null;
+  registeredPeers: Peer[];
+  selectedPeerCid: bigint | null;
+  setSelectedPeerCid: Dispatch<SetStateAction<bigint | null>>;
+  storageMode: TreeScope;
+  setStorageMode: Dispatch<SetStateAction<TreeScope>>;
+  tree: UseServerRevfsTreeResult['tree'];
+  loading: UseServerRevfsTreeResult['loading'];
+  error: UseServerRevfsTreeResult['error'];
+  refresh: UseServerRevfsTreeResult['refresh'];
+  storageUsed: UseServerRevfsTreeResult['storageUsed'];
+  storageQuota: UseServerRevfsTreeResult['storageQuota'];
+  revfsEnabled: UseServerRevfsTreeResult['revfsEnabled'];
+  storageLabel: string;
+  currentPath: string;
+  setCurrentPath: Dispatch<SetStateAction<string>>;
+  fileInputRef: RefObject<HTMLInputElement>;
+  uploadTargetDir: string;
+  storageLimitModalOpen: boolean;
+  setStorageLimitModalOpen: Dispatch<SetStateAction<boolean>>;
+  attemptedFileSize: number;
+  revfsDisabledModalOpen: boolean;
+  setRevfsDisabledModalOpen: Dispatch<SetStateAction<boolean>>;
+  revfsDisabledReason: 'peer_disabled' | 'server_disabled';
+  propertiesNode: RevfsNode | null;
+  setPropertiesNode: Dispatch<SetStateAction<RevfsNode | null>>;
+  sortField: 'name' | 'date' | 'size' | 'type';
+  sortDirection: 'asc' | 'desc';
+  filterText: string;
+  setFilterText: Dispatch<SetStateAction<string>>;
+  handleSortChange: (field: 'name' | 'date' | 'size' | 'type', direction: 'asc' | 'desc') => void;
+  cutItemPaths: Set<string>;
+  hasPasteItems: ReturnType<typeof useVFSClipboard>['hasItems'];
+  selectedPaths: ReturnType<typeof useVFSSelection>['selectedPaths'];
+  selectItem: ReturnType<typeof useVFSSelection>['select'];
+  clearSelection: ReturnType<typeof useVFSSelection>['clearSelection'];
+};
+
+export function useFileManagerContent(): UseFileManagerContentResult {
   const [myCid, setMyCid] = useState<bigint | null>(null);
   const [registeredPeers, setRegisteredPeers] = useState<Peer[]>([]);
   const [selectedPeerCid, setSelectedPeerCid] = useState<bigint | null>(null);

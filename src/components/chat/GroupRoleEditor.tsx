@@ -31,11 +31,9 @@ export function GroupRoleEditor({
   // NOT annotated, and it is the one on this screen that cannot be.
   //
   // Since TS 4.4 a `const` holding a condition narrows what it tested, so
-  // `isEditing` narrows `role` from `Role | null` wherever it is checked. An
-  // annotation discards that, and line 85 stops compiling. The gate's own
-  // annotator refuses `boolean` on a variable for exactly this reason; the
-  // refusal is the substance, not an omission.
-  const isEditing = !!role;
+  // Tested against `role` directly where the role's own fields are read; the
+  // boolean is for labels only, which is why it can now carry a type.
+  const isEditing: boolean = role !== null;
   const isBuiltIn: boolean = role?.isBuiltIn ?? false;
 
   // Initialize state
@@ -89,7 +87,7 @@ export function GroupRoleEditor({
       <DialogContent className="sm:max-w-[450px] bg-background border-border text-foreground max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">
-            {isEditing ? `Edit Role: ${role.name}` : 'Create New Role'}
+            {role ? `Edit Role: ${role.name}` : 'Create New Role'}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
             {isBuiltIn

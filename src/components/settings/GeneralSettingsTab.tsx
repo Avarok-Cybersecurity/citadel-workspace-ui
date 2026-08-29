@@ -47,7 +47,7 @@ export function GeneralSettingsTab(): JSX.Element {
   // Handle profile updates
   // MetadataValue is a tagged enum: { type: "String", content: "..." }
   const handleProfileUpdate: (data: { user: User; }) => void = useCallback((data: { user: User }): void => {
-    const avatarMeta = data.user.metadata?.avatar;
+    const avatarMeta: NonNullable<User['metadata']>[string] | undefined = data.user.metadata?.avatar;
     const avatar: string | undefined = (avatarMeta && 'content' in avatarMeta && typeof avatarMeta.content === 'string') ? avatarMeta.content : undefined;
     if (avatar) {
       setAvatarData(avatar);

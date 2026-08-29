@@ -16121,3 +16121,31 @@ restating the payload shape.
 
 Explicit-type debt: 106 → 93. Production debt is now 18, of which 4 are the
 documented narrowing cases. 2331 tests green.
+
+## Round 325 — production TypeScript reaches zero untyped declarations
+
+The last twelve production sites, and then the four that had been written off.
+
+The twelve were ordinary: three hook result shapes (`useOrphanSessions`,
+`useWorkspaceSwitcher`, `useFileManagerContent` — the last derived from the
+hooks it composes with `ReturnType<…>` and `X['member']` rather than restating
+them), two `forwardRef` parameter lists, `LifecycleDeps`, a `ChannelMessage`
+send shape, and a serialization shape spelled as `Omit<…> & { … }`.
+
+The four were the interesting ones. Each was an aliased condition — a `const`
+whose lack of an annotation was load-bearing, because TS 4.4 narrowing carries
+the alias's subject with it. Each carried a comment saying so. The comments
+were true and the conclusion was wrong: the alias was avoidable in all four.
+
+| site | was | now |
+|---|---|---|
+| `PermissionMatrixNotice` | `const failed = load.status === 'failed'` | test `load.status` at each of the two reads |
+| `VFSTreeView` | `showStorageUsage` (boolean about a pair) | `storageUsage: { used, quota } \| null` — names the pair that exists |
+| `VFSGridItem` | `{StateIcon && …}` narrowing `state` | `{state && StateIcon && …}` — guard on the typed value |
+| `GroupRoleEditor` | `isEditing ? role.name : …` | `role ? role.name : …`; `isEditing: boolean` is for labels |
+
+All four are behaviour-identical by construction: in each, the alias and the
+value it narrowed are true together and false together. 2331 tests green.
+
+**`src/` production code: 0 untyped declarations.** 251 at the start of the
+burn-down. The remaining 75 are in `__tests__`.

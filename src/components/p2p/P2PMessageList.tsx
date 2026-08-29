@@ -55,7 +55,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
       onEditMessage,
       onDeleteMessage,
       onReplyMessage,
-    },
+    }: P2PMessageListProps,
     ref: React.ForwardedRef<HTMLDivElement>
   ) {
     return (

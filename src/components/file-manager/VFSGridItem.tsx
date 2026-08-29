@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Folder, FolderLock } from "lucide-react";
+import { Folder, FolderLock, type LucideIcon } from "lucide-react";
 import { RevfsFileState, PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
 import type { SelectMode } from "@/hooks/useVFSSelection";
 import { VFSContextMenu } from "./VFSContextMenu";
@@ -138,12 +138,9 @@ export function GridItem({
   };
 
   const state: FileStateStyle | null = node.fileState ? stateConfig[node.fileState] : null;
-  // NOT annotated. `StateIcon` is checked as the guard for rendering the badge,
-  // and since TS 4.4 an unannotated `const` holding that check narrows `state`
-  // along with it -- so `state.title` and `state.color` below are reachable
-  // only while this stays bare. Annotating it breaks the alias and takes the
-  // two of them with it.
-  const StateIcon = state?.icon;
+  // Guarded on `state` below rather than on this alias: relying on the alias to
+  // narrow `state` is what kept it unannotatable.
+  const StateIcon: LucideIcon | undefined = state?.icon;
 
   return (
     <VFSContextMenu
@@ -181,7 +178,7 @@ export function GridItem({
           isDir ? (isProtected ? "text-muted-foreground" : "text-warning-emphasis") : "text-foreground/80",
         )} />
 
-        {StateIcon && (
+        {state && StateIcon && (
           <span title={state.title} className={cn("absolute top-2 right-2", state.color)}>
             <StateIcon className="h-3.5 w-3.5" />
           </span>

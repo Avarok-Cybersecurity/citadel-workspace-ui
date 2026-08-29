@@ -149,7 +149,10 @@ async function loadMessagePageByKey(key: string): Promise<MessagePage | null> {
  */
 export async function saveMessagePage(peerCid: bigint, pageNumber: number, page: MessagePage): Promise<void> {
   const key: string = `${conversationPrefix(peerCid)}_${pageNumber}`;
-  const serializablePage = {
+  const serializablePage: Omit<MessagePage, 'peerCid' | 'messages'> & {
+    peerCid: string;
+    messages: (Omit<P2PMessage, 'senderCid' | 'recipientCid'> & { senderCid: string; recipientCid: string })[];
+  } = {
     ...page,
     peerCid: page.peerCid.toString(),
     messages: page.messages.map(m => ({

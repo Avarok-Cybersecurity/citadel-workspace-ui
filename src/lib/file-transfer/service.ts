@@ -30,6 +30,7 @@ import {
 } from './protocol-transfer-events';
 import {
   sendFile, sendFileWithNativePicker, cancelTransfer, acceptTransfer, declineTransfer,
+  type LifecycleDeps,
 } from './transfer-lifecycle';
 
 export class FileTransferService {
@@ -74,7 +75,7 @@ export class FileTransferService {
     debugLog('FileTransferService', 'Initialized');
   }
 
-  private get deps() {
+  private get deps(): LifecycleDeps {
     return {
       state: this.state,
       io: this.io,

@@ -191,10 +191,13 @@ export function VFSTreeView({
     return rows;
   };
 
-  // Deliberately unannotated: TS 4.4 aliased-condition narrowing is what makes
-  // storageUsed/storageQuota `number` inside the guarded branch below. Any
-  // annotation, even `boolean`, discards it and both reads become `number | undefined`.
-  const showStorageUsage = storageUsed !== undefined && storageQuota !== undefined;
+  // Names the pair that exists rather than a boolean about it: a boolean alias
+  // narrows the two only while it carries no annotation, so this is the typed
+  // form of the same guard.
+  const storageUsage: { used: number; quota: number } | null =
+    storageUsed !== undefined && storageQuota !== undefined
+      ? { used: storageUsed, quota: storageQuota }
+      : null;
 
   return (
     // Hidden below md. A fixed 208px tree beside the grid left ~167px on a
@@ -223,10 +226,10 @@ export function VFSTreeView({
       </div>
 
       {/* Storage usage bar (fixed at bottom) */}
-      {showStorageUsage && (
+      {storageUsage && (
         <VFSStorageUsage
-          usedBytes={storageUsed}
-          quotaBytes={storageQuota}
+          usedBytes={storageUsage.used}
+          quotaBytes={storageUsage.quota}
           label={storageLabel}
         />
       )}

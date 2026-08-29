@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, type Dispatch, type SetStateAction } from "react";
 import { useAttentionGlow } from './use-attention-glow';
 import { readLastLocation } from '@/lib/sessions/last-location';
 import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
@@ -32,7 +32,22 @@ export interface OrphanSessionWithWorkspace extends ActiveSession {
   lastAccessed?: number;
 }
 
-export function useOrphanSessions() {
+export interface UseOrphanSessionsResult {
+  sessions: OrphanSessionWithWorkspace[];
+  disconnectTarget: { session: ActiveSession; workspaceName: string } | null;
+  setDisconnectTarget: Dispatch<SetStateAction<{ session: ActiveSession; workspaceName: string } | null>>;
+  glowingSessionCid: bigint | null;
+  notificationCounts: Map<string, number>;
+  loadingModal: { open: boolean; status: DisconnectStatus; workspaceName: string; errorMessage?: string };
+  loadActiveSessions: () => Promise<void>;
+  handleNavigate: (session: OrphanSessionWithWorkspace) => Promise<void>;
+  handleDisconnect: (session: OrphanSessionWithWorkspace) => void;
+  handleConfirmDisconnect: (action: DisconnectAction) => Promise<void>;
+  handleLoadingComplete: () => void;
+  notificationService: typeof notificationService;
+}
+
+export function useOrphanSessions(): UseOrphanSessionsResult {
   const navigate: NavigateFunction = useNavigate();
   const { toast } = useToast();
   const [sessions, setSessions] = useState<OrphanSessionWithWorkspace[]>([]);
