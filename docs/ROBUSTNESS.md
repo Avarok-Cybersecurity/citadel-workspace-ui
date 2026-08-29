@@ -14223,3 +14223,47 @@ silently omitted.
 Four tests, two of them positive controls: two files still resolve by last
 write, and two directories still union. Restoring the `||` fails exactly the two
 that are about the mismatch.
+
+## Round 277 — a check pinned to a heading the app stopped using
+
+`test:reconnect-p2p-only` fails on:
+
+```
+FAIL: P2P connect to X sent, but the peer never appeared as connected
+```
+
+That message was written to be honest — an earlier round added it because the
+function used to return `true` here regardless. It is honest, and it has been
+reporting the wrong thing.
+
+`connectP2P`'s entire verification was:
+
+```ts
+const dmSection = page.locator('text="CONNECTED PEERS"').locator('..').locator('..');
+```
+
+There is no section called CONNECTED PEERS. `members-section-label.ts` says why,
+in its own words:
+
+> It called itself three different things depending on state the user cannot
+> see: "Workspace Members", "Connected Peers", or "<Entity> Members" … A person
+> in this workspace is a MEMBER … One noun.
+
+That was a good change. From the day it landed, this locator matched nothing, so
+the check could never pass and every P2P connection was reported as having
+failed — which reads as a **protocol** failure and is a heading that changed.
+
+Two more sites did the same thing, found by grepping the mechanism: a strategy in
+`openConversation` that has quietly fallen through to the next one ever since,
+and a UI fallback in `verifyP2PConnected` that could not fire, so every edge case
+it existed for went to the timeout instead. *A strategy that finds nothing does
+not announce itself; it just tries the next one.*
+
+All three now read the peer's own row — `peer-row-<username>`, and the row's
+status text, which is the same string a screen reader is given, so the check and
+the accessibility affordance stand or fall together.
+
+Three tests, one of them the control that matters: a row that is merely **online**
+must NOT say Connected. Without it, "the row says Connected" is satisfied by a row
+that says it unconditionally, and the helper would report every attempt as a
+success — the mirror image of the bug it replaces.

@@ -80,12 +80,16 @@ export async function openConversation(
       return true;
     }
 
-    // Strategy 2: Look in CONNECTED PEERS section using proper ancestor traversal
-    // Go up to SidebarGroup (data-sidebar="group") which contains both header and content
-    const connectedPeersGroup = page.locator('[data-sidebar="group"]:has([data-sidebar="group-label"]:text("CONNECTED PEERS"))');
-    const peerInConnected = connectedPeersGroup.locator(`text="${peerUsername}"`).first();
+    // Strategy 2: the peer's own row, wherever the sidebar happens to put it.
+    //
+    // This walked into a group headed "CONNECTED PEERS", a heading the app
+    // deliberately stopped using when the members list was given one noun. The
+    // strategy has therefore been dead, and every conversation opened through
+    // one of the others -- silently, since a strategy that finds nothing just
+    // falls through to the next.
+    const peerInConnected = page.getByTestId(`peer-row-${peerUsername}`).first();
     if (await isVisibleWithin(peerInConnected, 500)) {
-      console.log(`  Found ${peerUsername} in CONNECTED PEERS section`);
+      console.log(`  Found ${peerUsername} in the sidebar peer list`);
       await peerInConnected.click();
       await sleep(2000);
       await waitForChatReady(page, peerUsername);

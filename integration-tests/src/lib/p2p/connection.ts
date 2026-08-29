@@ -6,7 +6,6 @@ import type { Page } from 'playwright';
 import { sleep } from '../utils.js';
 import { takeScreenshot } from '../screenshots.js';
 import { UxIssueTracker } from '../ux-tracker.js';
-import { isVisibleWithin } from '../utils.js';
 
 /**
  * Connect to a registered P2P peer.
@@ -110,11 +109,27 @@ export async function connectP2P(
     // Wait for connection to establish
     await sleep(3000);
 
-    // Verify peer in sidebar (CONNECTED PEERS section)
-    const dmSection = page.locator('text="CONNECTED PEERS"').locator('..').locator('..');
-    const peerInSidebar = dmSection.locator(`text="${peerUsername}"`).first();
-
-    const peerVisible = await isVisibleWithin(peerInSidebar, 5000);
+    // Verify the peer's row says it is connected.
+    //
+    // This used to walk into a section headed "CONNECTED PEERS". That heading
+    // was deliberately removed: the members list called itself three different
+    // things depending on state the user could not see, and was given one noun.
+    // From that day this locator matched nothing, so the check could never
+    // pass, and every P2P connection was reported as
+    //
+    //   FAIL: P2P connect to X sent, but the peer never appeared as connected
+    //
+    // which reads as a protocol failure and is a heading that changed.
+    //
+    // The row's own status text is the right thing to read: it is the string a
+    // screen reader is given, so asserting it also keeps that affordance honest.
+    const peerRow = page.getByTestId(`peer-row-${peerUsername}`);
+    let peerVisible = false;
+    for (let attempt = 0; attempt < 10 && !peerVisible; attempt += 1) {
+      const text: string | null = await peerRow.first().textContent().catch(() => null);
+      peerVisible = (text ?? '').includes('Connected');
+      if (!peerVisible) await sleep(1000);
+    }
 
     if (peerVisible) {
       console.log(`  P2P connect to ${peerUsername} SUCCESS`);
@@ -370,10 +385,12 @@ export async function waitForP2PConnection(
         return true;
       }
 
-      // FALLBACK: Check UI visibility (less deterministic but catches edge cases)
-      const connectedPeersGroup = page.locator('[data-sidebar="group"]:has([data-sidebar="group-label"]:text("CONNECTED PEERS"))');
-      const peerInConnected = connectedPeersGroup.locator(`text="${peerUsername}"`).first();
-      const isVisible = await isVisibleWithin(peerInConnected, 200);
+      // FALLBACK: the row's own status. Same dead heading as above; this
+      // fallback could not fire, so every edge case it was written for went to
+      // the timeout instead.
+      const peerRow = page.getByTestId(`peer-row-${peerUsername}`).first();
+      const rowText: string | null = await peerRow.textContent().catch(() => null);
+      const isVisible: boolean = (rowText ?? '').includes('Connected');
 
       if (isVisible) {
         console.log(`  ${username}: P2P connected to ${peerUsername} (UI visible, attempt ${attempt})`);

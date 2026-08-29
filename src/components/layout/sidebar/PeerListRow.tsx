@@ -39,6 +39,12 @@ export function PeerListRow({
       <SidebarMenuButton
         onClick={onClick}
         data-peer-cid={cid}
+        // Addressable by the name the caller knows. The P2P helpers verify a
+        // connection by looking for the peer under a section headed "CONNECTED
+        // PEERS" -- a heading this app deliberately stopped using when the
+        // members list was given one noun, so the check could not pass and
+        // reported every connection as having failed.
+        data-testid={`peer-row-${username}`}
         className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors h-8 py-1"
       >
         <div className="flex items-center gap-2 w-full">
