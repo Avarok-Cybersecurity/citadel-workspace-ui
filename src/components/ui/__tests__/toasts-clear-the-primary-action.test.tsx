@@ -23,7 +23,7 @@ import { Toaster } from '../sonner';
 vi.mock('next-themes', (): { useTheme: () => { theme: string; }; } => ({ useTheme: (): { theme: string; } => ({ theme: 'light' }) }));
 
 const isMobile = vi.fn();
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => isMobile() }));
+vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: (): unknown => isMobile() }));
 
 afterEach(cleanup);
 

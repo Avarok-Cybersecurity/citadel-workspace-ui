@@ -423,10 +423,10 @@ export function createFileTransferCancel(
 // ============================================================================
 
 /** How often to poll for typing changes (ms) */
-export const TYPING_POLL_INTERVAL_MS = 1000;
+export const TYPING_POLL_INTERVAL_MS: number = 1000;
 
 /** How long to display typing indicator after receiving (ms) */
-export const TYPING_DISPLAY_DURATION_MS = 2000;
+export const TYPING_DISPLAY_DURATION_MS: number = 2000;
 
 // ============================================================================
 // File Transfer Constants
@@ -439,7 +439,7 @@ export const FILE_TRANSFER_REQUEST_TTL_MS: number = 7 * 24 * 60 * 60 * 1000;
 export const FILE_TRANSFER_EXPIRY_CHECK_INTERVAL_MS: number = 6 * 60 * 60 * 1000;
 
 /** Maximum number of auto-resend attempts for file transfer requests */
-export const FILE_TRANSFER_MAX_RESEND_ATTEMPTS = 3;
+export const FILE_TRANSFER_MAX_RESEND_ATTEMPTS: number = 3;
 
 /** Default max file size for transfers (100 MB) */
 export const FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES: number = 100 * 1024 * 1024;

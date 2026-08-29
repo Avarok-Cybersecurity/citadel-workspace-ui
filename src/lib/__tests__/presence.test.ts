@@ -23,7 +23,7 @@ vi.mock('../p2p-auto-connect-service', () => ({
   p2pAutoConnectService: { isPeerOnline: (cid: bigint): boolean => isPeerOnline(cid) },
 }));
 vi.mock('../p2p-registration-service', () => ({
-  p2pRegistrationService: { getPeers: () => getPeers() },
+  p2pRegistrationService: { getPeers: (): unknown => getPeers() },
 }));
 
 const { isMemberOnline, memberIdToCid } = await import('../presence');

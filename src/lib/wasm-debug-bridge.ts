@@ -25,7 +25,7 @@ export function parseAndFormatMixedContent(input: unknown): string {
   
   // First, check if the entire string is valid JSON
   try {
-    const parsed = JSON.parse(input);
+    const parsed: unknown = JSON.parse(input);
     const formatted: unknown = formatForDebug(parsed);
     return typeof formatted === 'string' ? formatted : JSON.stringify(formatted);
   } catch {
@@ -96,7 +96,7 @@ export function parseAndFormatMixedContent(input: unknown): string {
   return parts.map(part => {
     if (part.type === 'json') {
       try {
-        const parsed = JSON.parse(part.content);
+        const parsed: unknown = JSON.parse(part.content);
         // formatForDebug returns the formatted object, we need to stringify it
         const formatted: unknown = formatForDebug(parsed);
         return typeof formatted === 'string' ? formatted : JSON.stringify(formatted);

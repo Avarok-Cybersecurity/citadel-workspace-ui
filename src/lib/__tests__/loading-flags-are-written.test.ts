@@ -17,7 +17,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const emitLoadingEvent = vi.fn();
 vi.mock('@/lib/workspace-response-handler', () => ({
-  workspaceResponseHandler: { emitLoadingEvent: (...a: unknown[]) => emitLoadingEvent(...a) },
+  workspaceResponseHandler: { emitLoadingEvent: (...a: unknown[]): unknown => emitLoadingEvent(...a) },
 }));
 
 import { listNodes } from '@/lib/workspace-service/node-operations';

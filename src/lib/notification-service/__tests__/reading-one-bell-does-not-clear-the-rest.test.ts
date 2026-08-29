@@ -15,8 +15,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { NotificationService } from '../service';
 
-const ALICE: "111" = '111';
-const BOB: "222" = '222';
+const ALICE: string = '111';
+const BOB: string = '222';
 
 function service(): NotificationService {
   const instance: NotificationService = NotificationService.getInstance();

@@ -49,7 +49,7 @@ describe('markMessagesAsRead', () => {
     );
 
     expect(s.conversation.unreadCount).toBe(0);
-    const payload = s.emit.mock.calls.find(c => c[0] === 'p2p:conversation-updated')?.[1];
+    const payload: unknown = s.emit.mock.calls.find(c => c[0] === 'p2p:conversation-updated')?.[1];
     expect(payload).toMatchObject({ peerCid });
   });
 

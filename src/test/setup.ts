@@ -45,7 +45,7 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
 if (typeof Element !== 'undefined' && !Element.prototype.setPointerCapture) {
   Element.prototype.setPointerCapture = function setPointerCapture(): void {};
   Element.prototype.releasePointerCapture = function releasePointerCapture(): void {};
-  Element.prototype.hasPointerCapture = function hasPointerCapture() {
+  Element.prototype.hasPointerCapture = function hasPointerCapture(): false {
     return false;
   };
 }

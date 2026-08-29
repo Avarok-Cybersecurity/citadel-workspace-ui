@@ -11,7 +11,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { acceptTransfer , type LifecycleDeps } from '../transfer-lifecycle';
 import type { FileTransfer } from '../types';
 
-const PEER: "42" = '42';
+const PEER: string = '42';
 const ONE_MB: number = 1024 * 1024;
 
 function offered(fileSize: number): FileTransfer {

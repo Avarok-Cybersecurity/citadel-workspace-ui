@@ -58,7 +58,7 @@ export function formatForDebug(obj: unknown): unknown {
   if (typeof obj === 'string') {
     // Try converting to json map
     try {
-      const json = JSON.parse(obj);
+      const json: unknown = JSON.parse(obj);
       obj = json;
     } catch {
       return obj;

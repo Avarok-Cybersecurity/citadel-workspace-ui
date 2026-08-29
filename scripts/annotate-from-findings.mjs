@@ -80,6 +80,17 @@ const ALLOW_LITERAL = args.includes('--allow-literal');
  * the compile judge: annotate, compile, keep what holds.
  */
 const WIDEN_STRINGS = args.includes('--widen-strings');
+/**
+ * Write `unknown` where the compiler inferred `any`.
+ *
+ * This project's own rule is "avoid `any` — use `unknown` with type guards", so
+ * an inferred `any` is a gap rather than a type, and `unknown` is both the
+ * honest annotation and a stricter one. Stricter is the point and also the
+ * risk: every use of the value now has to prove what it is, which is exactly
+ * what a type guard is for and exactly what will not compile where nobody
+ * checked. Written under the compile judge, kept where it holds.
+ */
+const ANY_AS_UNKNOWN = args.includes('--any-as-unknown');
 
 /** Type-position words that are never imported. */
 const TYPE_WORDS = new Set([
@@ -322,7 +333,7 @@ for (const source of program.getSourceFiles()) {
           checker.getReturnTypeOfSignature(signature), node,
           ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType,
         );
-        const lifted = liftImports(printed);
+        const lifted = liftImports(printed === 'any' && ANY_AS_UNKNOWN ? 'unknown' : printed);
         if (lifted !== null && (canWrite(lifted, node) || lifted === 'JSX.Element')) {
           const insertAt = ts.isArrowFunction(node)
             ? node.equalsGreaterThanToken.getFullStart()
@@ -353,7 +364,7 @@ for (const source of program.getSourceFiles()) {
         type, node,
         ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType,
       );
-      const lifted = liftImports(printed);
+      const lifted = liftImports(printed === 'any' && ANY_AS_UNKNOWN ? 'unknown' : printed);
       if (lifted !== null && canWrite(lifted, node)) {
         edits.push({ position: node.name.getEnd(), text: `: ${lifted}` });
       }
@@ -407,7 +418,10 @@ function unresolvedNames(printed, source) {
   // in this codebase, so an inferred `any` is a finding for a human, not a
   // string to write down.
   if (/\bimport\(|typeof import/.test(printed)) return refuse('import(...)', printed);
-  if (/\bany\b/.test(printed)) return refuse('any', printed);
+  if (/\bany\b/.test(printed)) {
+    if (ANY_AS_UNKNOWN && printed === 'any') return [];
+    return refuse('any', printed);
+  }
   if (/\berror\b/.test(printed)) return refuse('error', printed);
   if (!ALLOW_LITERAL && (/^["'`]/.test(printed) || /^-?\d/.test(printed) || /^(true|false)$/.test(printed))) return refuse('literal', printed);
   if (!ALLOW_BOOLEAN && printed === 'boolean') return refuse('boolean', printed);

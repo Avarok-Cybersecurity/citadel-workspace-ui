@@ -52,7 +52,7 @@ vi.mock('@/lib/multi-instance', () => ({
 import { connectToServer } from '../use-connect-to-server';
 import type { ConnectOutcome } from '@/pages/connect/use-connect-to-server';
 
-const SERVER: "127.0.0.1:12349" = '127.0.0.1:12349';
+const SERVER: string = '127.0.0.1:12349';
 
 beforeEach(() => {
   vi.clearAllMocks();

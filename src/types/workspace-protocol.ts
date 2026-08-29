@@ -309,7 +309,7 @@ export function createMessagePayload(messageContents: Uint8Array): WorkspaceProt
  */
 export function serializeWorkspacePayload(payload: WorkspaceProtocolPayloadTS): Uint8Array {
   // Create a deep copy of the payload to avoid modifying the original
-  const payloadCopy = JSON.parse(JSON.stringify(payload, (key, value) => {
+  const payloadCopy: unknown = JSON.parse(JSON.stringify(payload, (key, value): unknown => {
     // Special handling for Uint8Array - convert to a special format object
     if (value instanceof Uint8Array) {
       // Convert to base64 for safe JSON serialization

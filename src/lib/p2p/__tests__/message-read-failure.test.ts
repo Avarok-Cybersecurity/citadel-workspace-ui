@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const sendLocalDBGet = vi.fn();
 vi.mock('../../websocket-service', () => ({
   websocketService: {
-    sendLocalDBGet: (...args: unknown[]) => sendLocalDBGet(...args),
+    sendLocalDBGet: (...args: unknown[]): unknown => sendLocalDBGet(...args),
     sendLocalDBSet: vi.fn().mockResolvedValue(undefined),
     sendLocalDBDelete: vi.fn().mockResolvedValue(undefined),
   },

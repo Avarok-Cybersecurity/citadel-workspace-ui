@@ -21,14 +21,14 @@ const canSendRequests = vi.fn();
 
 vi.mock('@/lib/websocket-service', () => ({
   websocketService: {
-    isConnected: () => isConnected(),
-    canSendRequests: () => canSendRequests(),
+    isConnected: (): unknown => isConnected(),
+    canSendRequests: (): unknown => canSendRequests(),
   },
 }));
 vi.mock('../websocket-service', () => ({
   websocketService: {
-    isConnected: () => isConnected(),
-    canSendRequests: () => canSendRequests(),
+    isConnected: (): unknown => isConnected(),
+    canSendRequests: (): unknown => canSendRequests(),
   },
 }));
 

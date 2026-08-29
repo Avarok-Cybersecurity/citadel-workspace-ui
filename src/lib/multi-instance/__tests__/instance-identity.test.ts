@@ -19,7 +19,7 @@ import {
   mintInstanceId,
 } from '../instance-identity';
 
-const MY_ID: "1700000000000000123" = '1700000000000000123';
+const MY_ID: string = '1700000000000000123';
 
 describe('self-traffic filtering', () => {
   it('drops our own messages', () => {
@@ -92,7 +92,7 @@ describe('minted ids', () => {
     // two documents can share an id no matter how much randomness it carries.
     // That is precisely why documentNonce and shouldReissueIdentity exist, and
     // they are tested above.
-    const collidingId: "1700000000000000123" = '1700000000000000123';
+    const collidingId: string = '1700000000000000123';
     expect(shouldReissueIdentity(collidingId, `${documentNonce}~higher`, collidingId)).toBe(true);
   });
 });

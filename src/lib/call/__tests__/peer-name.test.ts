@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // testable without standing up a peer registration.
 const getPeers = vi.fn();
 vi.mock('@/lib/p2p-registration-service', () => ({
-  p2pRegistrationService: { getPeers: () => getPeers() },
+  p2pRegistrationService: { getPeers: (): unknown => getPeers() },
 }));
 
 const { callPeerName } = await import('../peer-name');

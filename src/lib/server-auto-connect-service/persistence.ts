@@ -56,7 +56,7 @@ export async function loadUserDisconnectedSessions(): Promise<Set<string>> {
     const result: { value: number[]; } | null = await websocketService.sendLocalDBGet(GLOBAL_CID, USER_DISCONNECTED_KEY);
     if (result?.value) {
       const decoded: string = bytesToString(result.value);
-      const sessions = JSON.parse(decoded);
+      const sessions: unknown = JSON.parse(decoded);
       if (Array.isArray(sessions)) {
         debugLog('ServerAutoConnectService', `Loaded ${sessions.length} user-disconnected sessions from LocalDB`);
         return new Set(sessions);

@@ -50,7 +50,7 @@ if (!before.ok) {
   process.exit(1);
 }
 
-run('node', ['scripts/annotate-from-findings.mjs', prefix, '--allow-boolean', '--allow-literal', '--widen-strings']);
+run('node', ['scripts/annotate-from-findings.mjs', prefix, '--allow-boolean', '--allow-literal', '--widen-strings', '--any-as-unknown']);
 
 // `prefer-as-const` and friends: a literal annotation the linter rewrites is
 // still a literal annotation, so lint-fixable problems are settled here rather

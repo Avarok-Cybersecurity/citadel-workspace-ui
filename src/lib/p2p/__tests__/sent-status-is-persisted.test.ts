@@ -22,7 +22,7 @@ const wireSend = vi.fn();
 // Mock only the wire call and the fire-and-forget background connect. Everything
 // between them — including the status bookkeeping under test — stays real.
 vi.mock('@/lib/p2p/message-send-operations', () => ({
-  sendP2PCommand: (_config: unknown, peerCid: bigint, command: unknown) => wireSend(peerCid, command),
+  sendP2PCommand: (_config: unknown, peerCid: bigint, command: unknown): unknown => wireSend(peerCid, command),
   sendRawMessage: async (): Promise<undefined> => undefined,
   sendMessageAck: async (): Promise<undefined> => undefined,
   sendRawBytes: async (): Promise<undefined> => undefined,

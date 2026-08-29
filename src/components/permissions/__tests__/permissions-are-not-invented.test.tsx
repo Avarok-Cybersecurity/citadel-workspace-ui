@@ -18,7 +18,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 
 const getUserPermissions = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/lib/workspace-service', () => ({
-  default: { getUserPermissions: (...args: unknown[]) => getUserPermissions(...args) },
+  default: { getUserPermissions: (...args: unknown[]): unknown => getUserPermissions(...args) },
 }));
 
 const { eventEmitter } = await import('@/lib/event-emitter');

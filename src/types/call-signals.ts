@@ -31,10 +31,10 @@ export type CallDeclineReason = 'busy' | 'rejected' | 'unsupported' | 'no-device
 export type CallEndReason = 'hangup' | 'error' | 'timeout' | 'unanswered';
 
 /** Track numbering, shared with the Rust transport's TrackId. */
-export const CALL_TRACK_AUDIO = 0;
-export const CALL_TRACK_VIDEO = 1;
+export const CALL_TRACK_AUDIO: number = 0;
+export const CALL_TRACK_VIDEO: number = 1;
 /** Low-resolution video, sent to everyone who is not the active speaker. */
-export const CALL_TRACK_VIDEO_THUMBNAIL = 2;
+export const CALL_TRACK_VIDEO_THUMBNAIL: number = 2;
 /**
  * A shared screen, which is video but not a face.
  *
@@ -47,12 +47,12 @@ export const CALL_TRACK_VIDEO_THUMBNAIL = 2;
 export const CALL_TRACK_SCREEN: number = 3;
 
 /** TrackKind on the wire: matches citadel_media's TrackKind discriminants. */
-export const CALL_KIND_AUDIO = 0;
-export const CALL_KIND_VIDEO = 1;
+export const CALL_KIND_AUDIO: number = 0;
+export const CALL_KIND_VIDEO: number = 1;
 
 /** FrameFlags bits, matching citadel_media::FrameFlags. */
-export const CALL_FLAG_KEYFRAME = 0b0001;
-export const CALL_FLAG_DISCARDABLE = 0b0010;
+export const CALL_FLAG_KEYFRAME: number = 0b0001;
+export const CALL_FLAG_DISCARDABLE: number = 0b0010;
 
 export type CallSignalPayload =
   | {

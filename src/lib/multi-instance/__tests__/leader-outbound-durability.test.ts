@@ -19,8 +19,8 @@ const sendAck = vi.fn();
 
 vi.mock('../instance-channel', () => ({
   instanceChannel: {
-    sendAck: (...args: unknown[]) => sendAck(...args),
-    send: (...args: unknown[]) => sendAck(...args),
+    sendAck: (...args: unknown[]): unknown => sendAck(...args),
+    send: (...args: unknown[]): unknown => sendAck(...args),
     instanceId: 'me',
   },
 }));
