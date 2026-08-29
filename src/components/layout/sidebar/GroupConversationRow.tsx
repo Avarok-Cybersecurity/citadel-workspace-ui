@@ -5,7 +5,7 @@
  * Used in the Conversations section alongside P2P direct messages.
  */
 
-import { useMemo, useRef, useEffect, useState    } from 'react';
+import { useMemo, useRef, useEffect, useState    , type RefObject } from 'react';
 import { memberAvatarColor } from '@/lib/avatar-color';
 import { useNavigate } from 'react-router-dom';
 import { SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
@@ -55,7 +55,7 @@ export function GroupConversationRow({
   onClick,
 }: GroupConversationRowProps): JSX.Element {
   const navigate: NavigateFunction = useNavigate();
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const [maxAvatars, setMaxAvatars] = useState(MAX_AVATARS);
 
   // Get members with their roles, sorted by position

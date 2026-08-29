@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { yieldToEventLoop, waitFor, waitForEvent } from '../scheduling';
 
 describe('yieldToEventLoop', () => {
@@ -93,7 +93,7 @@ describe('waitFor', () => {
 
 describe('waitForEvent', () => {
   it('resolves with the emitted value and unsubscribes', async () => {
-    const unsubscribe = vi.fn();
+    const unsubscribe: ReturnType<typeof vi.fn> = vi.fn();
     const promise: Promise<string> = waitForEvent<string>(resolve => {
       setTimeout(() => resolve('connected'), 10);
       return unsubscribe;

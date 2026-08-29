@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 
 /**
  * Unit tests for `buildGroupFromInvite` / `applyGroupInvite`. Focus is on
@@ -130,7 +130,7 @@ describe('buildGroupFromInvite', () => {
 
 describe('applyGroupInvite', () => {
   it('appends the new group and fires a notification on the happy path', async () => {
-    const setGroups = vi.fn();
+    const setGroups: ReturnType<typeof vi.fn> = vi.fn();
     await applyGroupInvite(
       { groupId: 'g-1', groupName: 'X', inviterId: '5', inviterUsername: 'alice' },
       setGroups,

@@ -37,7 +37,7 @@ import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 export const MembersSection: () => JSX.Element = (): JSX.Element => {
   const location = useLocation();
-  const confirm = useConfirm();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
   const [showInvite, setShowInvite] = useState(false);
   const navigate: NavigateFunction = useNavigate();
   const { state } = useWorkspace();

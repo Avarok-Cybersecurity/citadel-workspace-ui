@@ -32,7 +32,7 @@ describe('seedDocument', () => {
   });
 
   it('keeps the user\'s line structure, including blank lines', () => {
-    const doc = seedDocument('first\n\nthird');
+    const doc: ReturnType<typeof seedDocument> = seedDocument('first\n\nthird');
 
     expect(doc.getXmlFragment('default').length).toBe(3);
   });

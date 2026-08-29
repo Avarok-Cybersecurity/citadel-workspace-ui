@@ -7,6 +7,7 @@ import { bytesToString } from '@/lib/utils/encoding-utils';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
 import { debugLog } from '@/lib/debug-config';
+import type { UserRegistrationInfo } from '@/lib/user-service';
 
 interface UseWorkspaceEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -66,7 +67,7 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
 
         // Try to load user information if not already loaded
         const userService = UserService;
-        const currentUser = await userService.getCurrentUser();
+        const currentUser: UserRegistrationInfo | null = await userService.getCurrentUser();
 
         if (currentUser) {
           const storedSession = await connectionManager.getTabSelectedSession();

@@ -203,7 +203,7 @@ try {
     const container: HTMLDivElement = document.createElement('div');
     container.style.cssText = 'padding: 20px; color: red; font-family: monospace;';
 
-    const heading = document.createElement('h2');
+    const heading: ReturnType<typeof document.createElement> = document.createElement('h2');
     heading.textContent = 'React Initialization Error';
 
     const errorParagraph = document.createElement('p');

@@ -27,6 +27,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { debugLog } from '@/lib/debug-config';
 import { makeSessionAlreadyConnectedHandler } from './session-already-connected';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import {
   NOT_FAILING, onFailure, onDismiss, onSuccess, isRetryDialogOpen,
   type RetryVisibility,
@@ -79,7 +80,7 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
       sendP2PMessageReliable: (localCid, peerCid, message) =>
         websocketService.sendP2PMessageReliable(localCid, peerCid, message),
       getCurrentCid: async () => {
-        const info = connectionManager.getConnectionInfo();
+        const info: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
         return info?.cid ?? null;
       },
       sendInternalServiceRequest: (request: unknown) =>

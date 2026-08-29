@@ -12,7 +12,7 @@
  * nothing" about an app that said exactly the right thing. Documenting it did
  * not stop it happening again; making the selector true does.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 import { isValidElement } from 'react';
 
 const sonner = vi.hoisted(() => ({
@@ -22,7 +22,7 @@ const sonner = vi.hoisted(() => ({
   dismiss: vi.fn(),
 }));
 vi.mock('sonner', () => {
-  const toast = Object.assign(sonner.plain, {
+  const toast: ReturnType<typeof Object.assign> = Object.assign(sonner.plain, {
     error: sonner.error,
     success: sonner.success,
     dismiss: sonner.dismiss,

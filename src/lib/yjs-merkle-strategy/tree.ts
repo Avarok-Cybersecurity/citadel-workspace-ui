@@ -107,7 +107,7 @@ export class YjsMerkleTree {
   }
 
   exportFullState(): Uint8Array {
-    const doc = this.tree.reconstructData();
+    const doc: ReturnType<typeof this.tree.reconstructData> = this.tree.reconstructData();
     return Y.encodeStateAsUpdate(doc);
   }
 

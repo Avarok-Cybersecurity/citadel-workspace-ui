@@ -9,7 +9,7 @@
  * second call rejects would pass on the broken version too — the broken version
  * rejects precisely because it never tried.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 import { initService } from '../initialization';
 import { GLOBAL_INIT_KEY } from '../../websocket';
 import type { WebSocketServiceCore } from '../core';
@@ -63,7 +63,7 @@ describe('initService', () => {
   it('still shares one in-flight attempt between concurrent callers', async () => {
     let release!: (v: unknown) => void;
     const pending: Promise<unknown> = new Promise((r): void => { release = r; });
-    const create = vi.fn((): Promise<unknown> => pending);
+    const create: ReturnType<typeof vi.fn> = vi.fn((): Promise<unknown> => pending);
     const service: WebSocketServiceCore = coreWith(create);
 
     const a: Promise<void> = initService(service);
