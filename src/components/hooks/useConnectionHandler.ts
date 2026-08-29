@@ -28,6 +28,7 @@ import { postAuthSetup } from '@/lib/post-auth-setup';
 import { debugLog } from '@/lib/debug-config';
 import { makeSessionAlreadyConnectedHandler } from './session-already-connected';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import type { StoredSession } from '@/types/session-types';
 import {
   NOT_FAILING, onFailure, onDismiss, onSuccess, isRetryDialogOpen,
   type RetryVisibility,
@@ -127,7 +128,7 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
         lastProcessedCid = cidString;
         const cidBigInt: bigint = typeof connection.cid === 'bigint' ? connection.cid : BigInt(connection.cid);
 
-        const allStoredSessions = connectionManager.getStoredSessionsArray();
+        const allStoredSessions: StoredSession[] = connectionManager.getStoredSessionsArray();
         const storedSession = allStoredSessions.find(s => s.cid?.toString() === cidString);
         if (!storedSession) return;
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach     } from 'vitest';
+import { describe, it, expect, vi, beforeEach      } from 'vitest';
 
 /**
  * Unit tests for `buildGroupFromInvite` / `applyGroupInvite`. Focus is on
@@ -205,7 +205,7 @@ describe('applyGroupInvite', () => {
     // (not void). Static reviewers and downstream code rely on this
     // to chain failure handling (analytics, retry queues, etc.)
     // without re-implementing the IIFE wrapper at every call site.
-    const setGroups = vi.fn();
+    const setGroups: ReturnType<typeof vi.fn> = vi.fn();
     const result: Promise<void> = applyGroupInvite(
       { groupId: 'g-promise', groupName: 'X', inviterId: '7', inviterUsername: 'd' },
       setGroups,
