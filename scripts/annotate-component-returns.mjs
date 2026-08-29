@@ -63,7 +63,22 @@ function typechecks() {
 let written = 0;
 for (const [file, hits] of wanted) {
   const before = readFileSync(file, 'utf-8');
-  for (const spelling of ['JSX.Element', 'JSX.Element | null']) {
+  // One line at a time, not the whole file at once: a file with four of these
+  // where one is not a component had all four reverted together, and the run
+  // reported "0 across 4 files" while three of them were perfectly fine.
+  for (const line of hits) {
+    for (const spelling of ['JSX.Element', 'JSX.Element | null', 'React.ReactNode']) {
+      const current = readFileSync(file, 'utf-8');
+      const lines = current.split('\n');
+      const original = lines[line - 1];
+      lines[line - 1] = original.replace(/\)(\s*)=>/, `): ${spelling}$1=>`);
+      if (lines[line - 1] === original) break;
+      writeFileSync(file, lines.join('\n'));
+      if (typechecks()) { written += 1; break; }
+      writeFileSync(file, current);
+    }
+  }
+  if (false) for (const spelling of ['JSX.Element', 'JSX.Element | null']) {
     const lines = before.split('\n');
     for (const line of hits) {
       lines[line - 1] = lines[line - 1].replace(/\)(\s*)=>/, `): ${spelling}$1=>`);

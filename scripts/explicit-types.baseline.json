@@ -69,7 +69,7 @@
   "src/components/ui/context-menu.tsx": 6,
   "src/components/ui/dialog.tsx": 4,
   "src/components/ui/dropdown-menu.tsx": 6,
-  "src/components/ui/form.tsx": 7,
+  "src/components/ui/form.tsx": 5,
   "src/components/ui/label.tsx": 2,
   "src/components/ui/popover.tsx": 2,
   "src/components/ui/select.tsx": 3,
