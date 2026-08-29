@@ -17383,3 +17383,53 @@ positive control green, which is what stops the fix from being "delete the
 count".
 
 2396 tests green; preflight 53/53.
+
+## Round 355 — two `Peer` types, and the rule that says why there should be one
+
+Two checks first, both sound. Form errors are properly associated —
+`aria-invalid` and `aria-describedby` are wired in Login, JoinFormFields and
+P2PPeerList. Reduced motion has a gate of its own.
+
+Then the thing round 349 stumbled over. Fixing `PeerDiscoveryModal` meant
+changing a type, and the compiler objected: there are **two** `Peer` types for
+the same peers.
+
+| field | `p2p-registration-service` | `usePeerDiscovery` |
+|---|---|---|
+| `cid` | `bigint` | **`string`** |
+| online | `isOnline` | `is_online` |
+| registered | `isRegistered: boolean` | `is_registered?: boolean` |
+
+They are not assignable to each other, so every crossing needs a conversion, and
+a conversion that is forgotten is a comparison that silently never matches.
+`normalizeCid` truncating to the last ten digits — in this repo's notes — is the
+same family.
+
+The `cid` row is the one CLAUDE.md already rules on:
+
+> CID canonical type is `bigint` … **NEVER** use string CIDs in function
+> parameters, **interface definitions**, Map/Set keys, or serialization
+> boundaries.
+
+**Seventy-six field types do.** None carries a reason, and the surrounding code
+argues against it: `usePeerDiscovery` calls `.toString()` on CIDs that arrive as
+bigint. That is drift, not design.
+
+Seventy-six cannot be fixed in one change, and a risky sweep through the group
+creation path without a stack to test against would be worse than the debt. So
+it gets the treatment `check-explicit-types` got, which took that rule from
+7,823 to zero: a per-file baseline that may only shrink.
+
+**The first version of the gate counted 48.** It matched
+`name: string;` declarations and missed the inline spelling —
+`Array<{ cid: string; … }>`, `(value: { cid: string }) => void` — including one
+two lines below a field it did catch, in the very file used to size the problem.
+A gate that sees one spelling of a rule reports the codebase as cleaner than it
+is, which is worse than not having it. That was round 343's mistake in the
+dependency gate; measuring the blind spot before wiring it up is the change.
+
+Controlled three ways: a new declaration-form string CID fails, a new inline one
+fails, and converting a field to bigint makes the ratchet demand its baseline be
+written down.
+
+Preflight: **54 checks**.
