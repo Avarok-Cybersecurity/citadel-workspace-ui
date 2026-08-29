@@ -15816,3 +15816,43 @@ So the transport is not corrupting, the application is not refusing, and the
 loss is somewhere between one ILM's `send_message_internal` and the other's
 inbound channel. That still needs the running stack — but the ground under it
 has been cleared of two things that looked like answers.
+
+## Round 316 — three seconds is not a wait
+
+`test:peer-group` fails with `group creation produced no group id`, and with
+round 302's quiet the whole sequence is now readable: the peer list loads, the
+Connect is sent, the badge appears, the request is accepted, the P2P connection
+is established, the dialog opens, the name is filled, the member is selected —
+and then nothing.
+
+The helper is why:
+
+```ts
+await createBtn.click();
+await sleep(3000);
+const url = page.url();
+```
+
+Creating a group is a round trip to the peer. On a link that is retransmitting —
+which CI's is — three seconds is not enough, so the URL has not changed yet, the
+fallback looks for a sidebar row that is not there yet either, and the helper
+reports the product as broken for a group that arrives a second later. **A fixed
+sleep turns a slow success into a failure and names the product for it.**
+
+It waits for the navigation now, up to thirty seconds, and falls through to the
+sidebar only if that never happens.
+
+Two more things in the same twenty lines:
+
+`button:has-text("Create Group")` with `.last()` — the dialog's heading region
+carries those words too, so this picked by DOM order. That is round 287's
+mechanism exactly, and the dialog has had `create-group-submit` since that
+round; only its siblings were converted.
+
+And the sidebar fallback returned **`group-${Date.now()}`** — a fabricated id.
+Every later step keyed on it would fail somewhere else, reading as a different
+defect entirely. The row's own testid is `group-row-<id>`, and the id in it is
+the group's.
+
+> A helper that invents an identifier when it cannot find one has not recovered
+> from the failure. It has moved it.

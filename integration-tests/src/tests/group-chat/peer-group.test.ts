@@ -197,7 +197,11 @@ async function createPeerGroup(
   await takeScreenshot(page, `${creator.username}_group_members_added`);
 
   // Click "Create Group" button
-  const createBtn = page.locator('button:has-text("Create Group")').last();
+  // By testid. `button:has-text("Create Group")` also matches the dialog's own
+  // heading region and whatever else carries those words, so this was
+  // `.last()` -- picking by DOM order, which is how round 287's locator came to
+  // resolve to the row behind a modal and report it as a product failure.
+  const createBtn = page.getByTestId('create-group-submit');
   if (!await isVisibleWithin(createBtn, 3000)) {
     console.log('    Create Group button not found');
     uxTracker.log('critical', 'functional', 'Create Group button not found in dialog');
@@ -206,7 +210,19 @@ async function createPeerGroup(
   }
 
   await createBtn.click();
-  await sleep(3000);
+
+  // WAIT for the navigation, do not sleep at it.
+  //
+  // This slept three seconds and then read the URL. Creating a group is a round
+  // trip to the peer, and on a link that is retransmitting -- which CI's is --
+  // three seconds is not enough: the URL had not changed yet, the fallback
+  // looked for a sidebar row that was not there yet either, and the helper
+  // reported "group creation produced no group id" for a group that arrived a
+  // second later. A fixed sleep turns a slow success into a failure and names
+  // the product for it.
+  await page
+    .waitForURL(/\/groups\/[^/]+/, { timeout: 30_000 })
+    .catch(() => { /* fall through to the sidebar check below */ });
 
   await takeScreenshot(page, `${creator.username}_group_created`);
 
@@ -221,12 +237,20 @@ async function createPeerGroup(
     return groupId;
   }
 
-  // Alternative: Look for group in sidebar
-  const groupRow = page.locator(`text="${groupName}"`).first();
-  if (await isVisibleWithin(groupRow, 3000)) {
-    console.log(`    Group "${groupName}" visible in sidebar`);
-    // Return a placeholder ID - the actual ID would come from state
-    return `group-${Date.now()}`;
+  // Alternative: the row in the sidebar, which carries the real id.
+  //
+  // This returned `group-${Date.now()}` -- a fabricated id that no later step
+  // can use, so a caller that "succeeded" here then failed on something that
+  // read like a different defect. `group-row-<id>` is what the sidebar renders,
+  // and the id in it is the group's own.
+  const groupRow = page.locator(`[data-testid^="group-row-"]:has-text("${groupName}")`).first();
+  if (await isVisibleWithin(groupRow, 10_000)) {
+    const testId: string | null = await groupRow.getAttribute('data-testid');
+    const fromRow: string | undefined = testId?.slice('group-row-'.length);
+    if (fromRow) {
+      console.log(`    Group "${groupName}" visible in sidebar as ${fromRow}`);
+      return fromRow;
+    }
   }
 
   console.log('    Could not confirm group creation');
