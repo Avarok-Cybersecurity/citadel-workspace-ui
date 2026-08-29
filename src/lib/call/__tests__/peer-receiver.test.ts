@@ -51,7 +51,7 @@ function frame(kind: number, flags: number = CALL_FLAG_KEYFRAME): WireFrame {
 }
 
 describe('PeerReceiver', () => {
-  const options = { videoCodec: 'vp09.00.31.08', onNeedKeyframe: vi.fn() };
+  const options: { videoCodec: string; onNeedKeyframe: ReturnType<typeof vi.fn> } = { videoCodec: 'vp09.00.31.08', onNeedKeyframe: vi.fn() };
 
   it('creates no decoder until a frame actually arrives', () => {
     // A peer who never turns their camera on should not cost a decoder and a

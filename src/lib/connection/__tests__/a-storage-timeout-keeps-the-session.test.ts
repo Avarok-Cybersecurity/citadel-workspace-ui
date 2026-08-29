@@ -25,7 +25,7 @@ function harness(storeFails: boolean) {
     setStoredSessions: vi.fn(),
     removeSession: vi.fn(),
   };
-  const io = {
+  const io: { storeSessionsToLocalDB: ReturnType<typeof vi.fn>; loadSessionsFromLocalDB: ReturnType<typeof vi.fn>; setSelectedUser: ReturnType<typeof vi.fn>; setWorkspaceConnectionId: ReturnType<typeof vi.fn>; updateConnectionService: ReturnType<typeof vi.fn> } = {
     storeSessionsToLocalDB: vi.fn(async () => {
       if (storeFails) throw new Error('LocalDBSetKV request timed out');
     }),

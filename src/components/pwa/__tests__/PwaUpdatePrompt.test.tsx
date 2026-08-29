@@ -34,7 +34,7 @@ let registeredOptions: {
 } = {};
 
 /** Drives the two flags vite-plugin-pwa exposes, so a test can flip either. */
-const state = {
+const state: { offlineReady: boolean; needRefresh: boolean; setOfflineReady: ReturnType<typeof vi.fn>; setNeedRefresh: ReturnType<typeof vi.fn> } = {
   offlineReady: false,
   needRefresh: false,
   setOfflineReady: vi.fn(),

@@ -13,7 +13,7 @@ import { MDXToolbar } from '../MDXToolbar';
 afterEach(cleanup);
 
 function renderToolbar() {
-  const handlers = {
+  const handlers: { onBold: ReturnType<typeof vi.fn>; onItalic: ReturnType<typeof vi.fn>; onUnderline: ReturnType<typeof vi.fn>; onHeading: ReturnType<typeof vi.fn>; onList: ReturnType<typeof vi.fn>; onBlockquote: ReturnType<typeof vi.fn>; onCode: ReturnType<typeof vi.fn>; onLink: ReturnType<typeof vi.fn>; onImage: ReturnType<typeof vi.fn> } = {
     onBold: vi.fn(), onItalic: vi.fn(), onUnderline: vi.fn(),
     onHeading: vi.fn(), onList: vi.fn(), onBlockquote: vi.fn(),
     onCode: vi.fn(), onLink: vi.fn(), onImage: vi.fn(),

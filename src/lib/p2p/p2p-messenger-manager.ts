@@ -233,10 +233,10 @@ export function getP2PMessengerManager(): P2PMessengerManager {
 // assign to exposed fields write through to the real instance rather than
 // silently landing on the empty placeholder target.
 export const p2pMessengerManager: P2PMessengerManager = new Proxy({} as P2PMessengerManager, {
-  get(_target: P2PMessengerManager, prop: string | symbol, receiver): unknown {
+  get(_target: P2PMessengerManager, prop: string | symbol, receiver: unknown): unknown {
     return Reflect.get(getP2PMessengerManager(), prop, receiver);
   },
-  set(_target: P2PMessengerManager, prop: string | symbol, value, receiver): boolean {
+  set(_target: P2PMessengerManager, prop: string | symbol, value: unknown, receiver: unknown): boolean {
     return Reflect.set(getP2PMessengerManager(), prop, value, receiver);
   },
 });

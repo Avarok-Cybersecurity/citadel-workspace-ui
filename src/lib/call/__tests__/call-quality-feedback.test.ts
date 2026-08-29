@@ -23,7 +23,7 @@ type Link = 'good' | 'fair' | 'poor' | 'lost';
 function harness(observed?: (cid: bigint) => Link | undefined) {
   const timers: Array<() => void> = [];
   const reported: Link[] = [];
-  const transport = {
+  const transport: { openSession: ReturnType<typeof vi.fn>; closeSession: ReturnType<typeof vi.fn>; sendFrame: ReturnType<typeof vi.fn>; sendSignal: ReturnType<typeof vi.fn> } = {
     openSession: vi.fn().mockResolvedValue(undefined),
     closeSession: vi.fn().mockResolvedValue(undefined),
     sendFrame: vi.fn(),

@@ -41,7 +41,7 @@ function makeTrack(kind: 'audio' | 'video') {
 }
 
 function fakeStream(withVideo: boolean): MediaStream {
-  const tracks = withVideo
+  const tracks: ReturnType<typeof makeTrack>[] = withVideo
     ? [makeTrack('video'), makeTrack('audio')]
     : [makeTrack('audio')];
   stopped.push(...tracks);
@@ -68,7 +68,7 @@ beforeEach(() => {
   vi.stubGlobal(
     'MediaStreamTrackGenerator',
     class {
-      writable = { getWriter: () => ({ write: vi.fn().mockResolvedValue(undefined), close: vi.fn().mockResolvedValue(undefined) }) };
+      writable: { getWriter: () => { write: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> } } = { getWriter: () => ({ write: vi.fn().mockResolvedValue(undefined), close: vi.fn().mockResolvedValue(undefined) }) };
       stop: ReturnType<typeof vi.fn> = vi.fn();
       constructor(public init: { kind: string }) {}
     },
@@ -79,7 +79,7 @@ beforeEach(() => {
   vi.stubGlobal(
     'MediaStreamTrackProcessor',
     class {
-      readable = { getReader: () => ({ read: (): Promise<unknown> => new Promise((): void => {}), cancel: vi.fn().mockResolvedValue(undefined) }) };
+      readable: { getReader: () => { read: () => Promise<unknown>; cancel: ReturnType<typeof vi.fn> } } = { getReader: () => ({ read: (): Promise<unknown> => new Promise((): void => {}), cancel: vi.fn().mockResolvedValue(undefined) }) };
       constructor(public init: { track: unknown }) {}
     },
   );

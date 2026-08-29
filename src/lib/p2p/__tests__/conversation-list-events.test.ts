@@ -22,7 +22,7 @@ describe('markMessagesAsRead', () => {
 
   function setup(messages: P2PMessage[]) {
     const conversation: P2PConversation = { peerCid, messages, unreadCount: messages.length } as unknown as P2PConversation;
-    const conversationManager = { getConversation: vi.fn((): P2PConversation => conversation) };
+    const conversationManager: { getConversation: ReturnType<typeof vi.fn> } = { getConversation: vi.fn((): P2PConversation => conversation) };
     const emit: ReturnType<typeof vi.fn> = vi.fn();
     const sendAck: ReturnType<typeof vi.fn> = vi.fn((): Promise<void> => Promise.resolve());
     return { conversation, conversationManager, emit, sendAck };
@@ -54,7 +54,7 @@ describe('markMessagesAsRead', () => {
   });
 
   it('does nothing when there is no conversation', async () => {
-    const conversationManager = { getConversation: vi.fn((): undefined => undefined) };
+    const conversationManager: { getConversation: ReturnType<typeof vi.fn> } = { getConversation: vi.fn((): undefined => undefined) };
     const emit: ReturnType<typeof vi.fn> = vi.fn();
 
     await markMessagesAsRead(

@@ -27,7 +27,7 @@ function makeTrack() {
 
 /** A stream whose tracks record whether anything ever stopped them. */
 function makeStream() {
-  const tracks = [makeTrack()];
+  const tracks: ReturnType<typeof makeTrack>[] = [makeTrack()];
   return {
     getTracks: () => tracks,
     getAudioTracks: () => tracks,

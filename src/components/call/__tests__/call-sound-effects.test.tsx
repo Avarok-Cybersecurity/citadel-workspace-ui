@@ -10,7 +10,7 @@ import { CallSoundEffects } from '../CallSoundEffects';
 import { CallContext, type CallContextValue } from '@/lib/call/call-context';
 import type { CallState } from '@/lib/call/call-state';
 
-const player = {
+const player: { startRing: ReturnType<typeof vi.fn>; stopRing: ReturnType<typeof vi.fn>; chime: ReturnType<typeof vi.fn>; isRinging: ReturnType<typeof vi.fn> } = {
   startRing: vi.fn(() => Promise.resolve()),
   stopRing: vi.fn(),
   chime: vi.fn(),

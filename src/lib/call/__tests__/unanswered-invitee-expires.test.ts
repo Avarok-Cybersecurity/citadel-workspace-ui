@@ -31,7 +31,7 @@ const flush: () => Promise<unknown> = (): Promise<unknown> => new Promise((resol
 function harness() {
   let now: number = 0;
   const timers: Array<{ fn: () => void; cancelled: boolean; fired: boolean }> = [];
-  const transport = {
+  const transport: { openSession: ReturnType<typeof vi.fn>; closeSession: ReturnType<typeof vi.fn>; sendFrame: ReturnType<typeof vi.fn>; sendSignal: ReturnType<typeof vi.fn> } = {
     openSession: vi.fn().mockResolvedValue(undefined),
     closeSession: vi.fn().mockResolvedValue(undefined),
     sendFrame: vi.fn(),

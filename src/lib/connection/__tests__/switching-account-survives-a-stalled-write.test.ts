@@ -20,11 +20,11 @@ function harness(selectStalls: boolean) {
   const session: { username: string; serverAddress: string; password: string; cid: bigint; } = {
     username: 'alice', serverAddress: '127.0.0.1:12349', password: 'pw', cid: 42n,
   };
-  const state = {
+  const state: { findSession: ReturnType<typeof vi.fn>; isLeader: boolean } = {
     findSession: vi.fn(() => session),
     isLeader: true,
   };
-  const io = {
+  const io: { setSelectedUser: ReturnType<typeof vi.fn>; connect: ReturnType<typeof vi.fn> } = {
     // Never settles, which is what a blocked IndexedDB upgrade looks like.
     setSelectedUser: vi.fn(() => (selectStalls ? new Promise<void>(() => {}) : Promise.resolve())),
     connect: vi.fn(async () => {}),
@@ -50,7 +50,7 @@ describe('switching account while tab context is stalled', () => {
 describe('selectUserWithoutBlocking', () => {
   it('reports false when the write does not land', async () => {
     vi.useFakeTimers();
-    const io = { setSelectedUser: vi.fn((): Promise<void> => new Promise<void>((): void => {})) };
+    const io: { setSelectedUser: ReturnType<typeof vi.fn> } = { setSelectedUser: vi.fn((): Promise<void> => new Promise<void>((): void => {})) };
     const result: Promise<boolean> = selectUserWithoutBlocking(io as never, {
       selectedUsername: 'alice', selectedServerAddress: 'x',
     });
@@ -61,7 +61,7 @@ describe('selectUserWithoutBlocking', () => {
 
   it('reports true when it does', async () => {
     // The positive control: without it, `false` could be a constant.
-    const io = { setSelectedUser: vi.fn(async (): Promise<void> => {}) };
+    const io: { setSelectedUser: ReturnType<typeof vi.fn> } = { setSelectedUser: vi.fn(async (): Promise<void> => {}) };
     expect(
       await selectUserWithoutBlocking(io as never, {
         selectedUsername: 'alice', selectedServerAddress: 'x',
@@ -72,7 +72,7 @@ describe('selectUserWithoutBlocking', () => {
   it('rethrows a real failure, which is not the same as a slow one', async () => {
     // A rejected write means something is wrong with the call, not with the
     // clock. Swallowing both would hide a genuine defect behind a timeout.
-    const io = { setSelectedUser: vi.fn(async (): Promise<never> => { throw new Error('quota exceeded'); }) };
+    const io: { setSelectedUser: ReturnType<typeof vi.fn> } = { setSelectedUser: vi.fn(async (): Promise<never> => { throw new Error('quota exceeded'); }) };
     await expect(
       selectUserWithoutBlocking(io as never, {
         selectedUsername: 'alice', selectedServerAddress: 'x',

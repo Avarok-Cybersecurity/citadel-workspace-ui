@@ -44,7 +44,7 @@ function setup(tree: RevfsNode): { ctx: DirOpsContext; executed: Record<string, 
   // caller that started checking its result would fail against a working
   // backend — which is exactly what happened when serverRmdir began reporting
   // files it could not delete.
-  const io = {
+  const io: { execute: ReturnType<typeof vi.fn> } = {
     execute: vi.fn((intent: Record<string, unknown>) => {
       executed.push(intent);
       return Promise.resolve({ type: intent.type, success: true });

@@ -21,7 +21,7 @@ function capture() {
     setCurrentConnectionInfo: vi.fn(),
     invalidateCache: vi.fn(),
   };
-  const io = {
+  const io: { storeSessionsToLocalDB: ReturnType<typeof vi.fn>; setSelectedUser: ReturnType<typeof vi.fn>; setWorkspaceConnectionId: ReturnType<typeof vi.fn>; updateConnectionService: ReturnType<typeof vi.fn>; saveRecentServer: ReturnType<typeof vi.fn> } = {
     storeSessionsToLocalDB: vi.fn().mockResolvedValue(undefined),
     setSelectedUser: vi.fn().mockResolvedValue(undefined),
     setWorkspaceConnectionId: vi.fn(),

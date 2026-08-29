@@ -48,7 +48,7 @@ interface Harness {
 interface Timer { fn: () => void; delayMs: number; cancelled: boolean; fired: boolean }
 
 function harness(): Harness {
-  const transport = {
+  const transport: { openSession: ReturnType<typeof vi.fn>; closeSession: ReturnType<typeof vi.fn>; sendFrame: ReturnType<typeof vi.fn>; sendSignal: ReturnType<typeof vi.fn> } = {
     openSession: vi.fn().mockResolvedValue(undefined),
     closeSession: vi.fn().mockResolvedValue(undefined),
     sendFrame: vi.fn(),

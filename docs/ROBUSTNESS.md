@@ -14944,3 +14944,43 @@ close, instead of reading a stall as a slow success.
 
 > A value that prints as `undefined` in one tool and correctly in another is
 > worse than a value that prints wrong in both: the first one gets believed.
+
+## Round 295 — 237 → 203, and a detector that nearly deleted three live components
+
+Two of the largest remaining entries in the typing ledger were vendored shadcn
+modules with no importers at all: `ui/form.tsx` (177 lines, five findings, and
+the only thing in the app that imports `react-hook-form`) and `ui/progress.tsx`
+(27 lines). Deleted rather than annotated, for the same reason as round 290.
+
+**The scan that found them was wrong twice over.** A first orphan detector
+matched imports of the form `@/components/ui/<name>`, `./<name>` and
+`../ui/<name>`, and reported thirteen orphans totalling 987 lines. Three of them
+— `error-display`, `protocol-warning`, `workspace-loader` — are imported as
+`./ui/error-display` from `src/components/` and `./components/ui/workspace-loader`
+from `App.tsx`, paths the pattern did not cover. Checking each candidate by hand
+before deleting anything is the only reason they are still here.
+
+The corrected scan resolves any specifier whose last segment is the module name,
+and finds one orphan where the first found thirteen. A detector that reports
+false positives is the same defect as one that cannot fail, pointed the other
+way: both replace a measurement with a shape that resembles one.
+
+**`annotate-test-doubles.mjs`.** 47 of the remaining findings sat around one
+shape — `const io = { setSelectedUser: vi.fn(...), connect: vi.fn(...) }`. The
+general annotator refuses these because the compiler's type for them is an
+anonymous shape whose members are `Mock<Procedure>`, a name that would need an
+import, and a codemod that adds imports breaks builds. The import is not needed:
+`ReturnType<typeof vi.fn>` names the same type through a binding the file
+already has, because the file called `vi.fn` to build it. Anything in the
+literal that is not a `vi.fn(...)` call or a plain literal skips the whole
+declaration — a half-described shape is worse than an inferred one.
+
+The rejection ledger also held 21 entries for `ui/sidebar.tsx` at line numbers
+that stopped existing when round 290 rewrote it. A ledger keyed by `path:line`
+goes stale the moment a file moves, and stale entries are invisible refusals.
+
+| | |
+|---|---|
+| Typing debt | 237 → **203** |
+| Of which in `__tests__` | 112 |
+| Remaining rule split | 126 typedef · 79 return-type · 13 module-boundary |

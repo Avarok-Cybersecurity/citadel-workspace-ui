@@ -19,7 +19,7 @@ vi.mock('@/lib/theme/workspace-theme-context', () => ({
 
 import { useAppearanceDraft } from '../useAppearanceDraft';
 
-const params = { open: true, onOpenChange: vi.fn(), onSave: vi.fn() };
+const params: { open: boolean; onOpenChange: ReturnType<typeof vi.fn>; onSave: ReturnType<typeof vi.fn> } = { open: true, onOpenChange: vi.fn(), onSave: vi.fn() };
 
 describe('useAppearanceDraft', () => {
   it('keeps an unsaved edit when the workspace object is re-minted', () => {

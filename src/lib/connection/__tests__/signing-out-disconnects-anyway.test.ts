@@ -22,7 +22,7 @@ function harness(writeFails: boolean) {
     clearSessions: vi.fn(),
     currentConnectionInfo: { cid: 7n },
   };
-  const io = {
+  const io: { storeSessionsToLocalDB: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> } = {
     storeSessionsToLocalDB: vi.fn(async () => {
       if (writeFails) throw new Error('LocalDBSetKV request timed out');
     }),
