@@ -24,7 +24,7 @@ const SILENT: number = CALL_HEARTBEAT_TIMEOUT_MS + 1_000;
 /** Lets already-resolved sends inside fire-and-forget handlers settle. */
 const flush: () => Promise<unknown> = (): Promise<unknown> => new Promise((resolve) => setTimeout(resolve, 0));
 
-function harness() {
+function harness(): { manager: CallManager; transport: { openSession: ReturnType<typeof vi.fn>; closeSession: ReturnType<typeof vi.fn>; sendFrame: ReturnType<typeof vi.fn>; sendSignal: ReturnType<typeof vi.fn>; }; setNow: (ms: number) => void; tick: () => number; heartbeatsTo: (cid: bigint) => number; beat: (from: bigint, callId?: string) => Promise<void>; accept: (from: bigint) => Promise<void>; } {
   let now: number = 0;
   const timers: Array<{ fn: () => void; cancelled: boolean; fired: boolean }> = [];
   const transport: { openSession: ReturnType<typeof vi.fn>; closeSession: ReturnType<typeof vi.fn>; sendFrame: ReturnType<typeof vi.fn>; sendSignal: ReturnType<typeof vi.fn> } = {

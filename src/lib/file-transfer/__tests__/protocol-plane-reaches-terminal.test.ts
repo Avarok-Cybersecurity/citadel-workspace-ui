@@ -128,7 +128,7 @@ describe('parseTickNotification against the canonical wire shapes', () => {
 const transfer = (over: Partial<FileTransfer> = {}): FileTransfer =>
   ({ id: 't1', state: 'transferring', progress: 0, updatedAt: 0, ...over }) as FileTransfer;
 
-function depsFor(t: FileTransfer) {
+function depsFor(t: FileTransfer): { deps: P2PTransferDeps; saveTransfer: ReturnType<typeof vi.fn>; emitStateChange: ReturnType<typeof vi.fn>; } {
   const saveTransfer: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<void> => {});
   const emitStateChange: ReturnType<typeof vi.fn> = vi.fn();
   return {

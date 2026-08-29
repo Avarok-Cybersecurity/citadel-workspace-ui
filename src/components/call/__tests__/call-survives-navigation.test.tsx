@@ -35,7 +35,7 @@ function callState(status: CallState['status']): CallState {
   } as unknown as CallState;
 }
 
-function harness(overrides: Partial<CallContextValue>) {
+function harness(overrides: Partial<CallContextValue>): { value: CallContextValue; leave: ReturnType<typeof vi.fn>; } {
   const leave: ReturnType<typeof vi.fn> = vi.fn((): Promise<void> => Promise.resolve());
   const value: CallContextValue = {
     call: callState('active'),

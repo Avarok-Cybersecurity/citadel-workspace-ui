@@ -40,7 +40,7 @@ const withChild: TreeNode = {
   children: [{ node: node('room-1', 'Frontend'), children: [] }],
 };
 
-function renderNode(expanded: string[] = []) {
+function renderNode(expanded: string[] = []): { onToggleExpand: ReturnType<typeof vi.fn>; onNodeSelect: ReturnType<typeof vi.fn>; } {
   const onToggleExpand: ReturnType<typeof vi.fn> = vi.fn();
   const onNodeSelect: ReturnType<typeof vi.fn> = vi.fn();
   // The real provider and list wrapper, not stand-ins: SidebarMenuButton reads

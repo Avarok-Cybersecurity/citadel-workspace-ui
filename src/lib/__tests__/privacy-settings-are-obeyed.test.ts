@@ -63,7 +63,7 @@ describe('privacy settings storage', () => {
 });
 
 describe('typing indicators', () => {
-  async function makeManager(showTypingIndicators: boolean) {
+  async function makeManager(showTypingIndicators: boolean): Promise<{ manager: PresenceManager; sendCommand: ReturnType<typeof vi.fn>; }> {
     // Write to storage, THEN reset modules, so the manager and the settings
     // module it imports are both fresh and read the same value. Without the
     // reset the manager keeps a binding to an earlier settings instance whose
@@ -103,7 +103,7 @@ describe('read receipts', () => {
    * message, so their unread badge has to clear. Only the ack, the part that
    * tells the sender, is theirs to withhold.
    */
-  async function markRead(sendReadReceipts: boolean) {
+  async function markRead(sendReadReceipts: boolean): Promise<{ sendMessageAck: ReturnType<typeof vi.fn>; message: { id: string; senderCid: bigint; status: "delivered"; }; conversation: { messages: { id: string; senderCid: bigint; status: "delivered"; }[]; unreadCount: number; }; }> {
     localStorage.setItem(
       'citadel:privacy-settings',
       JSON.stringify({ ...DEFAULT_PRIVACY_SETTINGS, sendReadReceipts }),

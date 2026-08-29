@@ -27,7 +27,7 @@ function offered(fileSize: number): FileTransfer {
   } as unknown as FileTransfer;
 }
 
-function deps(transfer: FileTransfer, maxFileSize: number) {
+function deps(transfer: FileTransfer, maxFileSize: number): { d: LifecycleDeps; executeIntent: ReturnType<typeof vi.fn>; } {
   const executeIntent: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
   return {
     d: {

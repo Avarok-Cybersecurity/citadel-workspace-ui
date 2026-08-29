@@ -13,7 +13,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { handleAuthSuccess } from '../session-management';
 import type { StoredSession } from '@/types/session-types';
 
-function capture() {
+function capture(): { stored: StoredSession[]; state: { addOrUpdateSession: (session: StoredSession) => void; readonly storedSessions: { sessions: StoredSession[]; activeSessionIndex: number; }; setCurrentConnectionInfo: ReturnType<typeof vi.fn>; updateCurrentConnectionInfo: ReturnType<typeof vi.fn>; invalidateCache: ReturnType<typeof vi.fn>; }; io: { storeSessionsToLocalDB: ReturnType<typeof vi.fn>; setSelectedUser: ReturnType<typeof vi.fn>; setWorkspaceConnectionId: ReturnType<typeof vi.fn>; updateConnectionService: ReturnType<typeof vi.fn>; saveRecentServer: ReturnType<typeof vi.fn>; }; } {
   const stored: StoredSession[] = [];
   const state = {
     addOrUpdateSession: (session: StoredSession): void => { stored.push(session); },

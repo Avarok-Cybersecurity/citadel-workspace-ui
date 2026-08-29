@@ -16,7 +16,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { switchAccount } from '../lifecycle';
 import { selectUserWithoutBlocking } from '../select-user';
 
-function harness(selectStalls: boolean) {
+function harness(selectStalls: boolean): { state: { findSession: ReturnType<typeof vi.fn>; isLeader: boolean; updateCurrentConnectionInfo: ReturnType<typeof vi.fn>; }; io: { setSelectedUser: ReturnType<typeof vi.fn>; connect: ReturnType<typeof vi.fn>; }; session: { username: string; serverAddress: string; password: string; cid: bigint; }; remembered: Partial<{ username: string; serverAddress: string; cid: bigint; }>; } {
   const session: { username: string; serverAddress: string; password: string; cid: bigint; } = {
     username: 'alice', serverAddress: '127.0.0.1:12349', password: 'pw', cid: 42n,
   };

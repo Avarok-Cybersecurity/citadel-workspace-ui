@@ -20,7 +20,7 @@ function message(id: string, senderCid: bigint, status: P2PMessage['status']): P
 describe('markMessagesAsRead', () => {
   const peerCid: bigint = 42n;
 
-  function setup(messages: P2PMessage[]) {
+  function setup(messages: P2PMessage[]): { conversation: P2PConversation; conversationManager: { getConversation: ReturnType<typeof vi.fn>; }; emit: ReturnType<typeof vi.fn>; sendAck: ReturnType<typeof vi.fn>; } {
     const conversation: P2PConversation = { peerCid, messages, unreadCount: messages.length } as unknown as P2PConversation;
     const conversationManager: { getConversation: ReturnType<typeof vi.fn> } = { getConversation: vi.fn((): P2PConversation => conversation) };
     const emit: ReturnType<typeof vi.fn> = vi.fn();

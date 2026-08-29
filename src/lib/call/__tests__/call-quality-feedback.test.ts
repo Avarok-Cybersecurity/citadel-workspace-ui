@@ -20,7 +20,7 @@ const BOB: bigint = 2n;
 
 type Link = 'good' | 'fair' | 'poor' | 'lost';
 
-function harness(observed?: (cid: bigint) => Link | undefined) {
+function harness(observed?: (cid: bigint) => Link | undefined): { manager: CallManager; transport: { openSession: ReturnType<typeof vi.fn>; closeSession: ReturnType<typeof vi.fn>; sendFrame: ReturnType<typeof vi.fn>; sendSignal: ReturnType<typeof vi.fn>; }; reported: Link[]; tick: () => void; heartbeats: () => { kind: "CallHeartbeat"; call_id: string; link?: "good" | "fair" | "poor" | "lost"; }[]; active: () => Promise<void>; } {
   const timers: Array<() => void> = [];
   const reported: Link[] = [];
   const transport: { openSession: ReturnType<typeof vi.fn>; closeSession: ReturnType<typeof vi.fn>; sendFrame: ReturnType<typeof vi.fn>; sendSignal: ReturnType<typeof vi.fn> } = {

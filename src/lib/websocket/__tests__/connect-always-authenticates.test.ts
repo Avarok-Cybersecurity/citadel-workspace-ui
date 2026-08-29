@@ -33,7 +33,7 @@ vi.mock('../../connection', () => ({
 
 const { AuthOperations } = await import('../auth-operations');
 
-function operations() {
+function operations(): InstanceType<typeof AuthOperations> {
   return new AuthOperations({
     init: vi.fn().mockResolvedValue(undefined),
     sendRequest,

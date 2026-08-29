@@ -19,7 +19,7 @@ const member: MemberDisplay = {
   isOnline: true,
 };
 
-function renderRow(overrides: Partial<Parameters<typeof MemberListItem>[0]> = {}) {
+function renderRow(overrides: Partial<Parameters<typeof MemberListItem>[0]> = {}): Parameters<typeof MemberListItem>[0] {
   const props: Parameters<typeof MemberListItem>[0] = {
     member,
     variant: 'all' as const,

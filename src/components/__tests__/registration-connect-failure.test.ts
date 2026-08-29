@@ -12,7 +12,7 @@ import { createRegistrationResponseHandler } from '../registration-response-hand
 
 const REQ: "req-1" = 'req-1';
 
-function harness() {
+function harness(): { handler: (raw: unknown) => void; resolve: ReturnType<typeof vi.fn>; reject: ReturnType<typeof vi.fn>; cleanup: ReturnType<typeof vi.fn>; } {
   const resolve: ReturnType<typeof vi.fn> = vi.fn();
   const reject: ReturnType<typeof vi.fn> = vi.fn();
   const cleanup: ReturnType<typeof vi.fn> = vi.fn();

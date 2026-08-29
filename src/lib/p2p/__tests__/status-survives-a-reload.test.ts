@@ -11,7 +11,7 @@ import type { P2PConversation } from '../p2p-types';
 
 const PEER: bigint = 42n;
 
-function ackHandlerWith(updateMessageInPages: ReturnType<typeof vi.fn>) {
+function ackHandlerWith(updateMessageInPages: ReturnType<typeof vi.fn>): { handler: MessageAckHandler; notifyMessageStatusListeners: ReturnType<typeof vi.fn>; } {
   const notifyMessageStatusListeners: ReturnType<typeof vi.fn> = vi.fn();
   const handler: MessageAckHandler = new MessageAckHandler({
     // Empty, exactly as it is after a reload.

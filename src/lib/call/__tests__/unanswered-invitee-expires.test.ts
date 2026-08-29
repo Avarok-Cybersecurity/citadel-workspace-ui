@@ -28,7 +28,7 @@ const CAROL: bigint = 3n;
 
 const flush: () => Promise<unknown> = (): Promise<unknown> => new Promise((resolve) => setTimeout(resolve, 0));
 
-function harness() {
+function harness(): { manager: CallManager; transport: { openSession: ReturnType<typeof vi.fn>; closeSession: ReturnType<typeof vi.fn>; sendFrame: ReturnType<typeof vi.fn>; sendSignal: ReturnType<typeof vi.fn>; }; setNow: (ms: number) => void; tick: () => number; accept: (from: bigint) => Promise<void>; beat: (from: bigint) => Promise<void>; bye: (from: bigint) => Promise<void>; } {
   let now: number = 0;
   const timers: Array<{ fn: () => void; cancelled: boolean; fired: boolean }> = [];
   const transport: { openSession: ReturnType<typeof vi.fn>; closeSession: ReturnType<typeof vi.fn>; sendFrame: ReturnType<typeof vi.fn>; sendSignal: ReturnType<typeof vi.fn> } = {
