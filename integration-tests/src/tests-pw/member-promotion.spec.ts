@@ -31,7 +31,7 @@ import {
 } from '../lib/index.js';
 import type { Page } from '@playwright/test';
 
-const editButton = (page: Page) => page.getByRole('button', { name: 'Edit', exact: true }).first();
+const editButton = (page: Page) => page.getByTestId('office-edit-content').first();
 
 adminMemberTest('promoting a member to Owner gives them editing rights', async ({ admin, member }) => {
     adminMemberTest.setTimeout(300_000);

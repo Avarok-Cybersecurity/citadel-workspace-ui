@@ -16,7 +16,6 @@
   "integration-tests/src/tests/misc-routes.test.ts": 1,
   "integration-tests/src/tests/native-file-picker.test.ts": 3,
   "integration-tests/src/tests/notification-center.test.ts": 1,
-  "integration-tests/src/tests/office-mdx-content.test.ts": 1,
   "integration-tests/src/tests/office-room-crud.test.ts": 1,
   "integration-tests/src/tests/permissions.test.ts": 2,
   "integration-tests/src/tests/previous-sessions.test.ts": 1,

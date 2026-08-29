@@ -79,12 +79,14 @@ export const OfficeLayout = ({
                   variant="ghost"
                   className="text-foreground/80 hover:bg-primary-accent/15 hover:text-foreground"
                   onClick={onEditToggle}
+                  data-testid="office-cancel-edit"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={onSave}
                   className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  data-testid="office-save-content"
                 >
                   Save Changes
                 </Button>
@@ -98,6 +100,11 @@ export const OfficeLayout = ({
                   variant="outline"
                   className="border-primary-accent/50 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground hover:border-primary-accent"
                   onClick={canEdit ? onEditToggle : undefined}
+                  // "Edit" is the most generic label in the app, and two specs
+                  // were pressing this by it with `.first()` -- which is how a
+                  // locator comes to match something else entirely and report
+                  // it as a product failure. See ROBUSTNESS.md round 287.
+                  data-testid="office-edit-content"
                 >
                   Edit
                 </Button>

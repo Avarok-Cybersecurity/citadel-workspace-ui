@@ -75,7 +75,7 @@ const HOME_OFFICE = 'General';
  * sidebar's "Edit"/"Edit Node" menu items, which are role=menuitem anyway.
  */
 const editButton = (page: Page) =>
-  page.getByRole('button', { name: 'Edit', exact: true }).first();
+  page.getByTestId('office-edit-content').first();
 
 /**
  * The Edit button while it is still permission-gated. DisabledWithTooltip does
@@ -179,7 +179,7 @@ async function testSaveAndPersist(page: Page): Promise<{
 
   const results = { saveVisible: false, navigated: false, persists: false };
 
-  const saveBtn = page.getByRole('button', { name: 'Save Changes' }).first();
+  const saveBtn = page.getByTestId('office-save-content').first();
   results.saveVisible = await isVisibleWithin(saveBtn, 5000);
   console.log(`  Save button visible: ${results.saveVisible}`);
 

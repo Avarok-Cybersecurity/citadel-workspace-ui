@@ -15733,3 +15733,38 @@ something should be the type it decides with.
 | | |
 |---|---|
 | Typing debt | 168 → **153** (251 at session start, −39%) |
+
+## Round 314 — "Edit" is the most generic label in the app
+
+141 controls in the specs are addressed by their copy. Reading them is what the
+baseline is for, and most of them should stay: `getByRole('textbox', { name:
+'Workspace Address' })` finds a field by its LABEL, which is the accessible way
+to find it and doubles as an assertion that the label exists. Converting those
+to testids would trade an accessibility guarantee for a lookup.
+
+The dangerous ones are buttons pressed by their words, and one label stands out:
+
+```ts
+const editButton = (page: Page) =>
+  page.getByRole('button', { name: 'Edit', exact: true }).first();
+```
+
+"Edit" appears on node menus, member rows, role editors and the office header.
+`.first()` picks whichever the DOM happens to order first — which is exactly how
+round 287's `peer-group` failure worked: a locator with two candidates resolved
+to the one behind a modal overlay, and reported "pointer events intercepted" as
+though the product were broken.
+
+Three specs and one legacy test press the office header's Edit and Save by copy,
+including `node-content-propagation`, which is the spec this session has spent
+five rounds diagnosing. If that locator had ever resolved to a different Edit,
+every one of those rounds would have been chasing a phantom. It did not — the
+title in the DOM dump proves the button it found was the office one — but the
+risk was carried through all five for no reason.
+
+`office-edit-content`, `office-save-content` and `office-cancel-edit` now exist,
+and the four call sites use them. The remaining 140 are recorded, and the note
+above is the judgement the baseline is there to hold.
+
+> A locator that needs `.first()` is a locator that has already matched
+> something it did not mean to.
