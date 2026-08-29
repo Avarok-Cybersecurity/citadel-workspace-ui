@@ -27,6 +27,7 @@ import {
   setupConsoleCapture,
   TestHarness,
   runTestMain,
+  pollUntil,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -439,12 +440,20 @@ async function runChatSettingsTest(): Promise<boolean> {
         const autoAcceptSwitch = page1.locator('[data-testid="auto-accept-switch"]');
         const wasChecked = await autoAcceptSwitch.isChecked().catch(() => false);
 
-        // Toggle it
+        // Toggle it, and WAIT for the state to move.
+        //
+        // This slept 300ms and then read `isChecked()` once. The switch writes
+        // its preference through storage before the checked state settles, so
+        // 300ms is a guess at how long that takes — and when it is wrong the
+        // report says the toggle does not work, which is a claim about the
+        // product made from a number in the test.
         await autoAcceptSwitch.click();
-        await sleep(300);
-
-        const isNowChecked = await autoAcceptSwitch.isChecked().catch(() => false);
-        results.chatSettings.settingsToggle.autoAcceptToggleWorks = wasChecked !== isNowChecked;
+        const flipped: boolean = await pollUntil(
+          async (): Promise<boolean> =>
+            (await autoAcceptSwitch.isChecked().catch(() => wasChecked)) !== wasChecked,
+          5000,
+        );
+        results.chatSettings.settingsToggle.autoAcceptToggleWorks = flipped;
 
         // Toggle it back
         await autoAcceptSwitch.click();

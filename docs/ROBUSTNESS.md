@@ -15856,3 +15856,46 @@ the group's.
 
 > A helper that invents an identifier when it cannot find one has not recovered
 > from the failure. It has moved it.
+
+## Round 317 — fifty-four sleeps in front of a verdict, and what that number is worth
+
+Round 316 removed a `sleep(3000)` that was turning a slow group creation into a
+reported product failure. The obvious next question is how many more there are,
+so this round counted rather than assumed.
+
+**107** `await sleep(N)` calls in this suite are followed within five lines by
+something that decides an outcome. **54** are followed within three lines by an
+assignment to a reported `results.*` field — the PASS/FAIL table the run prints.
+
+Fifty-four sounds like fifty-four defects. It is not, and the difference is the
+point of counting rather than sweeping. Most of them sit in front of a call that
+does its own waiting:
+
+```ts
+await sleep(3000);
+results.p2pSetup.accepted = await acceptP2PRequest(page2, BOB, uxTracker);
+```
+
+`acceptP2PRequest` waits. The sleep is three seconds of padding — worth removing
+for the runtime, not a correctness hazard.
+
+The dangerous ones are where the sleep is the ONLY wait before a read that
+settles the verdict:
+
+```ts
+await autoAcceptSwitch.click();
+await sleep(300);
+const isNowChecked = await autoAcceptSwitch.isChecked().catch(() => false);
+results.chatSettings.settingsToggle.autoAcceptToggleWorks = wasChecked !== isNowChecked;
+```
+
+The switch writes its preference through storage before the checked state
+settles, so 300ms is a guess at how long that takes — and when the guess is
+short the report says the toggle does not work. That is a claim about the
+product made from a number in the test.
+
+`pollUntil` exists now for the conditions a locator state cannot express — a
+switch that has flipped, a counter that has moved, a URL that has changed —
+returning the moment the predicate holds. The auto-accept check uses it.
+
+> A sleep in front of a wait is slow. A sleep in place of one is a verdict.
