@@ -14049,3 +14049,38 @@ as an importer. Round 246's gate flagged itself the same way. Comments are
 stripped and the file excludes itself; the control now fails as it should.
 
 Types 5,568 → **5,531** — 37 of them were in code nothing loaded.
+
+## Round 273 — the collision that was moved, not fixed
+
+`li.group` from round 272's diagnostic is a **Sonner toast**. Sonner renders each
+toast as an `<li>` whose first class is `group`.
+
+So the thing covering the account avatar at 375px was a toast — and the reason it
+was up there is a fix recorded in this very file:
+
+> At 375px the "Ready to work offline" toast occupied 559–651px and the join
+> form's submit button 572–607px … the last button of first-run registration was
+> not clickable while an ambient notice was on screen, and nothing failed.
+
+Toasts were moved to `top-center` on phones. They then landed on the **top bar**.
+While any toast is showing, the only route to Profile, Settings and Sign Out is
+untappable on a phone.
+
+*Moving a collision is not fixing one.* The first fix checked the one control
+that had failed, in the one position it had failed in, and the check that would
+have caught the new position is the same check that caught the old one — it was
+simply never pointed at the header.
+
+The mobile toaster now offsets below the fixed header. It reads
+`--app-header-height`, which `AppLayout` already writes, rather than repeating
+`3.5rem` — that number is spelled in four places already and a fifth copy would
+drift the moment the header changed. It also clears
+`--offline-banner-height`, because the banner pushes the header down and a toast
+that ignored it would land on the header again *exactly when the app is telling
+you it is offline*.
+
+Two tests: the offset must reference both variables, and the rendered container
+must carry it on a phone and not on a desktop — where a bottom-right toast lands
+in empty margin and moving it would be a change for no reason. Sonner renders its
+positioned list only once something is in it, so the second test fires a real
+toast rather than inspecting an empty toaster. Removing the offset fails it.

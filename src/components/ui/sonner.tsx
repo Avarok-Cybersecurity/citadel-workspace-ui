@@ -18,7 +18,19 @@ type ToasterProps = React.ComponentProps<typeof Sonner>
  * Bottom-right is fine on a desktop, where a toast lands in empty margin. On a
  * phone there is no margin: the toast spans the width and the primary action is
  * at the bottom of the form. So on small viewports they come from the top.
+ *
+ * And then they landed on the TOP BAR. A CI probe at 375px reported the account
+ * avatar `on screen | covered by li.group` -- a Sonner toast, which renders each
+ * toast as an `<li>` whose first class is `group`. While any toast was up, the
+ * only route to Profile, Settings and Sign Out was untappable on a phone.
+ *
+ * Moving a collision is not fixing one. The mobile offset now clears the fixed
+ * header, reading the height from the variable AppLayout writes rather than
+ * repeating the number -- `3.5rem` is already spelled in four places, and a
+ * fifth copy would drift the moment the header changed.
  */
+export const MOBILE_TOAST_OFFSET: string =
+  'calc(var(--app-header-height, 3.5rem) + var(--offline-banner-height, 0px) + 0.5rem)';
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
   const isMobile = useIsMobile()
@@ -27,6 +39,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       position={isMobile ? "top-center" : "bottom-right"}
+      offset={isMobile ? MOBILE_TOAST_OFFSET : undefined}
       className="toaster group"
       toastOptions={{
         classNames: {
