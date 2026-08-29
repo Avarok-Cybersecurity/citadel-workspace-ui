@@ -106,7 +106,7 @@ describe('yjs update coalescing', () => {
     const provider: YjsP2PProvider = makeProvider(doc);
     sent.length = 0;
 
-    const other = new Y.Doc();
+    const other: Y.Doc = new Y.Doc();
     other.getText('t').insert(0, 'from the peer');
     Y.applyUpdate(doc, Y.encodeStateAsUpdate(other), 'remote');
 
