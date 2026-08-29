@@ -16002,3 +16002,42 @@ seconds could never have covered it; thirty covers two.
 
 > An implementation that is correct because of the order its cases run in is
 > correct until somebody reorders them, and nothing will say why.
+
+## Round 321 — one test's teardown is the next one's precondition
+
+Round 299's backoff reached CI, and the call specs moved:
+
+| | before | after |
+|---|---|---|
+| shard 3 (`screen-share`, `responsive`) | failed | **passes** |
+| `call-audio-video` | failed | **flaky** — passes on retry |
+| `call-group` | failed with *"a media open or teardown is already in progress"* | fails with **no error at all** |
+
+That last change is the useful one. The self-inflicted collision is gone; what
+remains is `clock at 00:00` for sixty seconds — a call that never becomes
+active and never fails either. Which is three different states wearing one
+symptom: ringing, connecting, or no stage on screen at all. `expectCallLive`
+now reports the stage's own `aria-label` — "Outgoing call, ringing", "Call
+connecting", "Call in progress" — so the next run names the state instead of the
+clock.
+
+**And a flake with a cause worth naming.** `accessibility.spec.ts` runs serial,
+sharing one page, and the notification-centre test waited thirty seconds for a
+dialog that never opened. The test before it ends with:
+
+```ts
+await page.keyboard.press('Escape');
+```
+
+which starts a Radix close animation and returns immediately. So the next test's
+click landed while the previous dialog was still on screen, was swallowed by its
+overlay, and the assertion failed on a dialog that never got the chance to open.
+
+In a serial describe, **one test's teardown is the next one's precondition**, and
+`press('Escape')` is a keystroke rather than a state. `closeAnyOverlay` presses
+it and then waits for `[role="dialog"]` to reach zero, which is the state. All
+three Escapes in that file use it, and the bell is waited for rather than forced
+blind — the same lesson as round 312, one file over.
+
+> A keystroke is not a state. Pressing Escape says what you want; counting the
+> dialogs says what happened.

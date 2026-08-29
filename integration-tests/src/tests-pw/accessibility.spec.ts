@@ -223,7 +223,24 @@ async function click(page: Page, name: RegExp | string): Promise<void> {
  */
 const SCHEMES: readonly ColourScheme[] = ['dark', 'light'];
 
+/**
+ * Close whatever overlay is open, and wait until it is actually gone.
+ *
+ * These tests share one page and run in order, so each one's teardown is the
+ * next one's precondition. `keyboard.press('Escape')` starts a Radix close
+ * animation and returns immediately — so the next test's click landed while the
+ * previous dialog was still on screen, was swallowed by its overlay, and the
+ * assertion failed on a dialog that never opened. Measured as "notification
+ * centre" waiting thirty seconds for `[role="dialog"]` after the settings test
+ * had pressed Escape and moved on.
+ */
+async function closeAnyOverlay(page: Page): Promise<void> {
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[role="dialog"]')).toHaveCount(0, { timeout: 10_000 });
+}
+
 for (const scheme of SCHEMES) {
+
 test.describe(`Accessibility (first-run surfaces, ${scheme})`, () => {
   test.beforeEach(async ({ page }) => {
     await freshPage(page, scheme);
@@ -476,7 +493,7 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
     await pressAccountMenuItem(page, 'account-menu-settings');
     await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
     await expectNoBlockingViolations(page, 'settings/light');
-    await page.keyboard.press('Escape');
+    await closeAnyOverlay(page);
     await expect(page.locator('[role="dialog"]')).toHaveCount(0, { timeout: 15_000 });
 
     await page.evaluate(() => {
@@ -500,16 +517,21 @@ test.describe.serial('Accessibility (authenticated surfaces)', () => {
 
     await expectNoBlockingViolations(page, 'settings');
 
-    await page.keyboard.press('Escape');
+    await closeAnyOverlay(page);
   });
 
   test('notification centre', async () => {
-    await page.getByTestId('notification-bell').click({ force: true });
+    // Waited for, not forced blind: the bell is behind whatever the previous
+    // test left on screen, and `force` clicks coordinates rather than a
+    // control that is ready. See ROBUSTNESS.md round 312.
+    const bell = page.getByTestId('notification-bell');
+    await expect(bell).toBeEnabled({ timeout: 10_000 });
+    await bell.click({ force: true });
     await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
 
     await expectNoBlockingViolations(page, 'notifications');
 
-    await page.keyboard.press('Escape');
+    await closeAnyOverlay(page);
   });
 
   test('user directory', async () => {

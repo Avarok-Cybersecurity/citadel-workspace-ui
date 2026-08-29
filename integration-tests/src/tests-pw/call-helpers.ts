@@ -119,7 +119,19 @@ export async function expectCallLive(page: Page, timeout: number = 60_000): Prom
           return `call failed: ${(await failure.innerText()).replace(/\s+/g, ' ').trim().slice(0, 200)}`;
         }
         const clock: string = ((await page.getByTestId('call-duration').textContent()) ?? '').trim();
-        return clock !== '' && clock !== '00:00' ? 'running' : `clock at ${clock || '(absent)'}`;
+        if (clock !== '' && clock !== '00:00') return 'running';
+
+        // Name the STATE, not only the symptom.
+        //
+        // "clock at 00:00" is true of a call that is ringing, one that is
+        // connecting, and one whose stage is not on screen at all — three
+        // different failures that took a run each to tell apart. The stage's
+        // own aria-label says which: "Outgoing call, ringing", "Call
+        // connecting", "Call in progress".
+        const stage: Locator = page.getByTestId('call-stage');
+        const state: string | null =
+          (await stage.count()) > 0 ? await stage.first().getAttribute('aria-label') : null;
+        return `clock at ${clock || '(absent)'}, stage says ${state ?? '(no stage)'}`;
       },
       { timeout, message: 'the call clock never started, so the call never became active' },
     )
