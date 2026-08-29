@@ -96,7 +96,7 @@ describe('yjs update coalescing', () => {
     provider.destroy();
 
     expect(sent).toHaveLength(1);
-    const peer = new Y.Doc();
+    const peer: Y.Doc = new Y.Doc();
     Y.applyUpdate(peer, sent[0]);
     expect(peer.getText('t').toString()).toBe('unsaved');
   });
