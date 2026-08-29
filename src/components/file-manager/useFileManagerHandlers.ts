@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { describeError } from '@/lib/describe-error';
 import { useFileManagerSelectionHandlers } from './useFileManagerSelectionHandlers';
 import { toast } from "sonner";
 import type { RevfsNode, TreeKey, RevfsFileMetadata } from "@/types/revfs-types";
@@ -68,7 +69,7 @@ export function useFileManagerHandlers({
     // prompt did, so this guard is unchanged.
     if (!name?.trim()) return;
     const path: string = parentPath === '/' ? `/${name.trim()}` : `${parentPath}/${name.trim()}`;
-    mkdir(path).catch(err => toast.error(`Failed to create folder: ${err}`));
+    mkdir(path).catch(err => toast.error(`Failed to create folder: ${describeError(err)}`));
   }, [mkdir, prompt]);
 
   const handleDelete: (node: RevfsNode) => Promise<void> = useCallback(async (node: RevfsNode): Promise<void> => {
@@ -82,7 +83,7 @@ export function useFileManagerHandlers({
     if (!ok) return;
 
     const removal: Promise<void> = isDirectory ? rmdir(node.path) : removeFile(node.path);
-    removal.catch(err => toast.error(`Failed to delete: ${err}`));
+    removal.catch(err => toast.error(`Failed to delete: ${describeError(err)}`));
   }, [rmdir, removeFile, confirm]);
 
   const handleDownload: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => {
@@ -93,7 +94,7 @@ export function useFileManagerHandlers({
       downloadFile(node.path)
         .then(() => toast.success(`Downloaded: ${node.name}`))
         .catch(err =>
-          toast.error(`Download failed: ${err instanceof Error ? err.message : err}`)
+          toast.error(`Download failed: ${describeError(err)}`)
         );
     } else {
       toast.info(`${node.name} — ${node.fileState === RevfsFileState.Hosted ? 'Hosted for peer (encrypted, cannot open)' : 'Info only'}`);
@@ -114,7 +115,7 @@ export function useFileManagerHandlers({
       await rename(path, newName);
       toast.success(`Renamed to "${newName}"`);
     } catch (err) {
-      toast.error(`Failed to rename: ${err}`);
+      toast.error(`Failed to rename: ${describeError(err)}`);
     }
   }, [rename]);
 
@@ -144,7 +145,7 @@ export function useFileManagerHandlers({
       toast.success(`Pasted ${clipboard.items.length} item(s)`);
       clearClipboard();
     } catch (err) {
-      toast.error(`Failed to paste: ${err}`);
+      toast.error(`Failed to paste: ${describeError(err)}`);
     }
   }, [hasPasteItems, currentTreeKey, clipboard, isCut, move, copy, clearClipboard]);
 
@@ -157,7 +158,7 @@ export function useFileManagerHandlers({
     if (!ok) return;
     Promise.all(nodes.map(node => node.type === 'directory' ? rmdir(node.path) : removeFile(node.path)))
       .then(() => { toast.success(`Deleted ${count} item${count !== 1 ? 's' : ''}`); clearSelection(); })
-      .catch(err => toast.error(`Failed to delete: ${err}`));
+      .catch(err => toast.error(`Failed to delete: ${describeError(err)}`));
   }, [rmdir, removeFile, clearSelection, confirm]);
 
   const { handleCutMultiple, handleCopyMultiple, handleSelectAll } =
@@ -197,7 +198,7 @@ export function useFileManagerHandlers({
         );
         toast.success(`Uploaded: ${file.name}`);
       } catch (err) {
-        toast.error(`Failed to upload ${file.name}: ${err instanceof Error ? err.message : err}`);
+        toast.error(`Failed to upload ${file.name}: ${describeError(err)}`);
       }
     }
   }, [myCid, uploadFile, storageUsed, storageQuota, revfsEnabled, storageMode,
@@ -235,7 +236,7 @@ export function useFileManagerHandlers({
       // Server mode: nothing is exchanged with a peer, so do not claim it was.
       await refresh();
       toast.success('Tree refreshed');
-    } catch (err) { toast.error(`Sync failed: ${err}`); }
+    } catch (err) { toast.error(`Sync failed: ${describeError(err)}`); }
   }, [storageMode, myCid, selectedPeerCid, refresh]);
 
   return {

@@ -16524,3 +16524,41 @@ happening here — it is the first half, negotiation not finishing, and that
 needs the running stack.
 
 Preflight: 49 checks. 2351 tests.
+
+## Round 337 — "Failed to delete: [object Object]"
+
+Round 336 was raw service text in front of a user. Sweeping that mechanism
+found the same thing one layer down, and worse.
+
+`useFileManagerHandlers.ts` had eight `toast.error(\`… ${err}\`)`, written three
+different ways, none of them safe:
+
+| thrown | what the toast said |
+|---|---|
+| `new Error('timed out')` | `Failed to delete: Error: timed out` |
+| `{ code: 5 }` | `Failed to delete: [object Object]` |
+| `'timed out'` | `Failed to delete: timed out` |
+
+The middle row is the defect, and it is not hypothetical: the revfs and
+websocket layers both reject with structured payloads. `[object Object]`
+contains nothing to search for, report, or act on. The first row is milder and
+still wrong — `Error:` is a JavaScript class name, not a word addressed to
+anybody. Two more outside that file: a system notification in the notification
+centre (`Could not load user profile: ${error}`) and a rethrow whose message
+reaches a send-failure toast.
+
+`describeError` renders an Error, a string, `{ message }`, `{ error }`, and for
+anything else **names the fields it found** rather than quoting
+`[object Object]` — so a screenshot still says which layer threw.
+
+`check-user-facing-errors.mjs` fails a bare `${err}` / `${error}` / `${e}`
+inside a toast or a notification call. Deliberately not inside `debugLog` or
+`console.error`: the raw structure is what a developer wants there.
+
+Its first run flagged **its own docstring**, which quotes the pattern it
+forbids. A gate that flags the explanation of itself teaches the reader to
+ignore it, so comment lines are skipped.
+
+Negative control: restoring one raw `${err}` names it by file and line.
+
+Preflight: **50 checks**. 2359 tests.

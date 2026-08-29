@@ -5,6 +5,7 @@
  * Delegates low-level operations to message-send-operations.
  */
 
+import { describeError } from '@/lib/describe-error';
 import {
   createMessagingLayerCommand,
 } from '@/types/p2p-types';
@@ -58,7 +59,7 @@ export class MessageSender {
         debugLog('MessageSender', `Successfully registered peer ${recipientCid.toString()}`);
       } catch (error) {
         debugLog('MessageSender', `Failed to register peer ${recipientCid.toString()}:`, error);
-        throw new Error(`Failed to register peer for P2P communication: ${error}`);
+        throw new Error(`Failed to register peer for P2P communication: ${describeError(error)}`);
       }
     } else {
       debugLog('MessageSender', `Peer ${recipientCid.toString()} already ${isAlreadyConnected ? 'connected' : 'registered'}, skipping registration`);

@@ -1,4 +1,5 @@
 import NotificationService, { NotificationPriority } from './notification-service';
+import { describeError } from '@/lib/describe-error';
 import { websocketService } from './websocket-service';
 import { getTabData, setTabData, removeTabData } from './tab-context';
 import { connectionManager } from './connection';
@@ -98,7 +99,7 @@ export class UserService {
       debugLog('UserService', 'Error loading user registration:', error);
       this.notificationService.addSystemNotification(
         'User Profile Error',
-        `Could not load user profile: ${error}`,
+        `Could not load user profile: ${describeError(error)}`,
         NotificationPriority.HIGH,
         cid // Associate with the session
       );
