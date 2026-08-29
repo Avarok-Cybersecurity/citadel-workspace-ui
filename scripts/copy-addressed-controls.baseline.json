@@ -11,7 +11,7 @@
   "integration-tests/src/tests/file-manager-extended.test.ts": 2,
   "integration-tests/src/tests/file-manager.test.ts": 13,
   "integration-tests/src/tests/file-transfer.test.ts": 5,
-  "integration-tests/src/tests/group-chat/peer-group.test.ts": 4,
+  "integration-tests/src/tests/group-chat/peer-group.test.ts": 3,
   "integration-tests/src/tests/live-doc-sync.test.ts": 4,
   "integration-tests/src/tests/misc-routes.test.ts": 1,
   "integration-tests/src/tests/native-file-picker.test.ts": 3,

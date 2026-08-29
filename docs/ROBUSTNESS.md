@@ -14131,3 +14131,49 @@ Also fixed on the way: this round's first draft asserted
 `eventEmitter.listenerCount?.(...) ?? 0`, which would have compared 0 to 0 had
 the method not existed. It does exist; the optional call was removed so the
 assertion cannot go quiet.
+
+## Round 275 — you could not create your first group
+
+Round 261's fix is now decisively proven in CI. `test:peer-group`'s log reads:
+
+```
+✓ Found pending request badge (attempt 1)
+✓ Modal opened successfully
+✓ Found Accept button, clicking...
+✓ P2P request accepted!
+```
+
+three times over, where the same leg previously printed "Accept button not found
+in modal" twenty times. It then fails somewhere entirely new:
+
+```
+peergrp_1: Creating group "TestGroup_3" with 2 members...
+New Group button not found in sidebar
+```
+
+The only control that opens the create-group dialog lives inside the
+CONVERSATIONS section, and that whole section was rendered only when
+
+```jsx
+peersWithConversations.length > 0 || groupConversations.length > 0
+```
+
+— that is, **only once you already had a conversation**. A user with registered
+peers who had not yet talked to anyone had no way to start a group at all. You
+needed a conversation to get the button that starts one.
+
+Three fresh accounts, P2P registered and accepted, zero conversations: exactly
+the state a new workspace is in.
+
+Gated on `registeredPeers` now, with an empty-state line inside so the section is
+not a bare header. Still hidden when there are no peers at all — a create-group
+dialog with nobody to add is a dead end, and offering it is worse than not.
+
+Three tests, two of them positive controls: the case that always worked must
+keep working, or "the button is there" could be satisfied by a button that is
+now simply always on. Reverting the gate fails exactly one.
+
+The spec found the button by walking into the group labelled "CONVERSATIONS",
+so the failure read as *the button is missing* when the truth was *the section
+is conditional*. By testid now — the structural selector is what turned a
+product defect into a locator mystery.

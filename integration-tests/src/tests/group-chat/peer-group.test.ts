@@ -131,7 +131,11 @@ async function createPeerGroup(
 
   // Click "+" button next to CONVERSATIONS header in sidebar
   // The button is a small icon-only button within the SidebarGroup containing "CONVERSATIONS"
-  const newGroupBtn = page.locator('[data-sidebar="group"]:has([data-sidebar="group-label"]:has-text("CONVERSATIONS")) button').first();
+  // By testid. Finding it by walking into the group labelled "CONVERSATIONS"
+  // made the failure read as "the button is missing" when the truth was that
+  // the whole section is conditional -- which is a fact worth reporting
+  // plainly, not one to discover through a structural selector.
+  const newGroupBtn = page.getByTestId('new-group-chat-button').first();
 
   if (!await isVisibleWithin(newGroupBtn, 5000)) {
     console.log('    New Group button not found in sidebar');

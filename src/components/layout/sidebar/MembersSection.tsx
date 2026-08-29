@@ -165,7 +165,13 @@ export const MembersSection = () => {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      {(peersWithConversations.length > 0 || groupConversations.length > 0) && (
+      {/* Shown when there is anyone to talk to, not once a conversation already
+          exists. The only control that opens the create-group dialog lives in
+          here, so gating on conversations meant nobody could create their FIRST
+          group: you needed a conversation to get the button that starts one.
+          Still hidden with no peers at all -- a create-group dialog with nobody
+          to add is a dead end, and offering it is worse than not. */}
+      {(registeredPeers.length > 0 || groupConversations.length > 0) && (
         <SidebarGroup className="flex-shrink-0 min-h-[2rem] mb-4">
           <div className="flex items-center justify-between px-3">
             <SidebarGroupLabel className="text-primary-accent font-semibold text-xs px-0">CONVERSATIONS</SidebarGroupLabel>
@@ -186,6 +192,12 @@ export const MembersSection = () => {
               {groupConversations.map((group) => (
                 <GroupConversationRow key={group.id} group={group} onClick={(g) => navigate(`/groups/${g.id}`)} />
               ))}
+              {peersWithConversations.length === 0 && groupConversations.length === 0 && (
+                <SidebarMenuItem className="px-3 py-2 text-sm text-muted-foreground">
+                  No conversations yet. Pick somebody above, or use the button to
+                  start a group.
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
