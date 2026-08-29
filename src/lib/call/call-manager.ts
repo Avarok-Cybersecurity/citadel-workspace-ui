@@ -11,6 +11,7 @@
  * (call-signal-handling, media-session-lifecycle) behind CallManagerInternals.
  */
 
+import { stillInCall } from './participant-presence';
 import { sendAnnotation } from './annotation-signal';
 import type {
   CallDeclineReason,
@@ -143,9 +144,7 @@ export class CallManager {
     // Everyone still expected in the call hears the accept — in a group that
     // includes co-invitees who have not answered yet, which is how two
     // invitees find each other without the caller relaying anything.
-    const peers: CallParticipant[] = [...state.participants.values()].filter(
-      (p) => p.status !== 'left' && p.status !== 'declined',
-    );
+    const peers: CallParticipant[] = [...state.participants.values()].filter(stillInCall);
     //
     // Per-peer catch, like every other fan-out in this file. Without it
     // Promise.all rejects on the first unreachable co-invitee and never reaches

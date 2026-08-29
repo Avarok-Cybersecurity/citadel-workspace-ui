@@ -7,6 +7,7 @@
  * it keeps the number down and gives up the readability the number was standing
  * in for. call-state.ts is now the shape of a call, this is how it changes.
  */
+import { stillInCall } from './participant-presence';
 import type { CallMediaKinds } from '@/types/p2p-commands';
 import {
   NO_MEDIA,
@@ -49,7 +50,7 @@ function anyoneActive(participants: Map<bigint, CallParticipant>): boolean {
 function everyoneGone(participants: Map<bigint, CallParticipant>): boolean {
   if (participants.size === 0) return false;
   for (const p of participants.values()) {
-    if (p.status !== 'declined' && p.status !== 'left') return false;
+    if (stillInCall(p)) return false;
   }
   return true;
 }

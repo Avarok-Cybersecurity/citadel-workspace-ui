@@ -8,6 +8,7 @@
  * reproducible only by two humans with good timing.
  */
 
+import { stillInCall } from './participant-presence';
 import type {
   CallDeclineReason,
   CallEndReason,
@@ -108,7 +109,7 @@ export function glareWinner(ourCallId: string, theirCallId: string): 'ours' | 't
 /** Whether another participant can join without overloading the mesh. */
 export function canAddParticipant(state: CallState, withVideo: boolean): boolean {
   const active: number = [...state.participants.values()].filter(
-    (p) => p.status !== 'left' && p.status !== 'declined',
+    stillInCall,
   ).length;
   return active < (withVideo ? MAX_VIDEO_PARTICIPANTS : MAX_AUDIO_PARTICIPANTS);
 }

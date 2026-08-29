@@ -6,6 +6,7 @@
  * renders whatever this decides and decides nothing itself.
  */
 
+import { stillInCall } from './participant-presence';
 import {
   MAX_AUDIO_PARTICIPANTS,
   MAX_VIDEO_PARTICIPANTS,
@@ -35,7 +36,7 @@ export function groupCallEntryMode(
         // Someone already started this room's call. Joining is the only sane
         // offer — a "start" here puts two people in two calls in one room.
         const participantCount: number = [...call.participants.values()].filter(
-          (p) => p.status !== 'left' && p.status !== 'declined',
+          stillInCall,
         ).length;
         return {
           kind: 'join',

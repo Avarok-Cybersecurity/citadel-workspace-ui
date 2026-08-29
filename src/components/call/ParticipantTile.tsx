@@ -1,3 +1,4 @@
+import { hasAnswered } from '@/lib/call/participant-presence';
 import { useEffect, useRef , type RefObject } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { MicOff, SignalLow, SignalMedium, Volume2, WifiOff } from 'lucide-react';
@@ -100,6 +101,14 @@ export function ParticipantTile({ participant, stream, isSelf, quality = 'good' 
         )}
       >
         <span className="truncate text-xs text-foreground">{label}</span>
+        {/* `invited` means the phone is still ringing. The tile read no status
+            at all, so somebody who might never answer looked exactly like
+            somebody who had. Text and not just a colour, per WCAG 1.4.1. */}
+        {!hasAnswered(participant) && !isSelf && (
+          <span className="shrink-0 text-xs text-muted-foreground" data-testid="participant-ringing">
+            ringing…
+          </span>
+        )}
         {!participant.media.audio && (
           <>
             <MicOff className="h-3 w-3 shrink-0 text-destructive" aria-hidden="true" />

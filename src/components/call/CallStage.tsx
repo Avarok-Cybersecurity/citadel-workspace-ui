@@ -1,3 +1,4 @@
+import { stillInCall } from '@/lib/call/participant-presence';
 import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ParticipantTile, type ConnectionQuality } from './ParticipantTile';
@@ -68,7 +69,7 @@ export function CallStage({
   useEffect(() => registerCallStage(), []);
 
   const visible: CallParticipant[] = useMemo(
-    () => [...call.participants.values()].filter((p) => p.status !== 'declined' && p.status !== 'left'),
+    () => [...call.participants.values()].filter(stillInCall),
     [call.participants],
   );
 

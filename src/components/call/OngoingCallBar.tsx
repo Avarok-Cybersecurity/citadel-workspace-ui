@@ -1,3 +1,4 @@
+import { stillInCall, hasAnswered } from '@/lib/call/participant-presence';
 import { useNavigate } from 'react-router-dom';
 import { PhoneOff, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -29,10 +30,14 @@ export function OngoingCallBar(): JSX.Element | null {
   // `participants` holds the other side only — self is rendered separately by
   // the stage. Filtered the same way the stage filters, so the count the bar
   // reports and the tiles the user would see on Return agree.
-  const others: CallParticipant[] = [...call.participants.values()].filter(
-    (p) => p.status !== 'declined' && p.status !== 'left',
-  );
+  const others: CallParticipant[] = [...call.participants.values()].filter(stillInCall);
   const who: string = others.length === 1 ? others[0].username : `${others.length} people`;
+
+  // "In call with alice" was said while alice's phone was still ringing.
+  // `stillInCall` is the right filter for "do not tear this down yet" and the
+  // wrong one for a claim about who is on the call: `invited` means rung, and
+  // that person may never pick up.
+  const anyoneAnswered: boolean = others.some(hasAnswered);
 
   const returnToCall = (): void => {
     if (call.roomId) {
@@ -56,7 +61,7 @@ export function OngoingCallBar(): JSX.Element | null {
     >
       <Radio className="h-4 w-4 shrink-0 text-primary-accent" aria-hidden="true" />
       <span className="min-w-0 truncate text-sm">
-        In call with {who}
+        {anyoneAnswered ? 'In call with' : 'Calling'} {who}
         <span
           className="ml-2 tabular-nums text-muted-foreground"
           // Inside a polite live region that re-announces on every content

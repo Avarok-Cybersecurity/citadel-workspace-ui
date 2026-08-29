@@ -7,6 +7,7 @@
  * signals from poisoning a live call.
  */
 
+import { stillInCall } from './participant-presence';
 import type { CallSignalPayload } from '@/types/p2p-commands';
 import { eventEmitter } from '@/lib/event-emitter';
 import { glareWinner } from './call-state';
@@ -123,7 +124,7 @@ export async function announceSendCodec(
 
   await Promise.all(
     [...state.participants.values()]
-      .filter((p) => p.status !== 'left' && p.status !== 'declined')
+      .filter(stillInCall)
       .map((p) =>
         m.transport
           .sendSignal(p.cid, {

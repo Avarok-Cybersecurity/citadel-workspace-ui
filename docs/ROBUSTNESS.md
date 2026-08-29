@@ -18269,3 +18269,51 @@ every folder gone fails the positive control, and a way-out that navigates
 nowhere fails one.
 
 2472 tests green, all 60 preflight checks.
+
+## Round 375 — rung is not answered
+
+`ParticipantStatus` has five values, and
+
+```ts
+status !== 'left' && status !== 'declined'
+```
+
+was written out **seven** times — the stage, the ongoing-call bar, the reducer,
+the signal handler, the call manager, the group-call entry and the state module
+— in two different orders. The bar's own comment says the filters "have to
+agree" and does not make them:
+
+> Filtered the same way the stage filters, so the count the bar reports and the
+> tiles the user would see on Return agree.
+
+That predicate is right for *"do not tear this call down yet"* and wrong for any
+claim about who is **on** the call, because it counts `invited` — the phone is
+ringing and that person may never pick up. So:
+
+- the ongoing-call bar announced **"In call with bob"** to the whole app, screen
+  readers included, before bob had done anything; and
+- `ParticipantTile` read no status at all, so somebody being rung rendered
+  identically to somebody who had answered.
+
+Two predicates now, in one place: `stillInCall` (unchanged behaviour, seven
+copies collapsed) and `hasAnswered`, which is the distinction those copies could
+not express. The bar says "Calling bob" until someone picks up; the tile says
+"ringing…" in text, not colour alone.
+
+**A control found an unverified change.** After wiring the bar I reverted it and
+the suite stayed green — nothing asserted the new wording, so the change was
+unproven. The assertion now lives in the existing harness rather than a second
+one, and both directions fail their own control.
+
+**And a fixture asserting an impossible state.** `call-survives-navigation`
+built its participant with `status: 'joined'`. There is no `'joined'` in
+`ParticipantStatus` and nothing in the app produces one; the fixture's
+`as unknown as CallState` let it through. The test had been passing against a
+state the app can never be in. Corrected to `'active'`, which is what a joined
+participant actually is — and with it corrected, that test becomes a second
+control on this round.
+
+`call-manager.ts` came in a line under its exemption, so the exemption is
+ratcheted from 252 to 251 rather than left slack.
+
+2478 tests green, all 60 preflight checks.

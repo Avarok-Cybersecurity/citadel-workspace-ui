@@ -23,14 +23,18 @@ import type { CallState } from '@/lib/call/call-state';
 
 const PEER: bigint = 42n;
 
-function callState(status: CallState['status']): CallState {
+function callState(status: CallState['status'], peerStatus: string = 'active'): CallState {
   return {
     callId: 'c1',
     status,
     roomId: null,
     selfMedia: { audio: true, video: false, screen: false },
     participants: new Map([
-      [PEER, { cid: PEER, username: 'bob', status: 'joined', media: { audio: true, video: false, screen: false }, speaking: false }],
+      // 'active', not 'joined'. `ParticipantStatus` has no 'joined' and
+      // nothing in the app produces one -- the `as unknown as CallState` below
+      // let a status that cannot exist sit in this fixture, so the test was
+      // asserting against a state the app can never be in.
+      [PEER, { cid: PEER, username: 'bob', status: peerStatus, media: { audio: true, video: false, screen: false }, speaking: false }],
     ]),
   } as unknown as CallState;
 }
@@ -112,6 +116,19 @@ describe('OngoingCallBar', () => {
     const { value } = harness({});
     renderBar(value);
     expect(screen.getByText(/in call with bob/i)).toBeInTheDocument();
+  });
+
+  it('says it is still calling while the other side is only being rung', () => {
+    // `invited` means bob's phone is ringing and he may never pick up. The bar
+    // filtered on "not left and not declined", which is the right test for
+    // whether to keep the call alive and the wrong one for a claim about who
+    // is on it -- so it announced "In call with bob" to the whole app,
+    // including a screen reader, before bob had done anything.
+    const { value } = harness({ call: callState('connecting', 'invited') });
+    renderBar(value);
+
+    expect(screen.getByText(/calling bob/i)).toBeInTheDocument();
+    expect(screen.queryByText(/in call with bob/i)).toBeNull();
   });
 
   it('stands down while the call surface IS on screen', () => {
