@@ -1,10 +1,11 @@
+
 import * as React from "react"
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group"
 import { Circle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const RadioGroup = React.forwardRef<
+const RadioGroup: React.ForwardRefExoticComponent<React.ComponentPropsWithoutRef<typeof RadioGroupPrimitive.Root> & React.RefAttributes<React.ElementRef<typeof RadioGroupPrimitive.Root>>> = React.forwardRef<
   React.ElementRef<typeof RadioGroupPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof RadioGroupPrimitive.Root>
 >(({ className, ...props }, ref) => {
@@ -18,7 +19,7 @@ const RadioGroup = React.forwardRef<
 })
 RadioGroup.displayName = RadioGroupPrimitive.Root.displayName
 
-const RadioGroupItem = React.forwardRef<
+const RadioGroupItem: React.ForwardRefExoticComponent<React.ComponentPropsWithoutRef<typeof RadioGroupPrimitive.Item> & React.RefAttributes<React.ElementRef<typeof RadioGroupPrimitive.Item>>> = React.forwardRef<
   React.ElementRef<typeof RadioGroupPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof RadioGroupPrimitive.Item>
 >(({ className, ...props }, ref) => {

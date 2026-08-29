@@ -457,6 +457,28 @@ for (const source of program.getSourceFiles()) {
       } else if (
         node.initializer &&
         ts.isCallExpression(node.initializer) &&
+        node.initializer.typeArguments?.length === 2 &&
+        /(^|\.)forwardRef$/.test(node.initializer.expression.getText(source))
+      ) {
+        // `React.forwardRef<Element, Props>(...)` has one possible result type,
+        // and its two type arguments are written right there in the source:
+        //
+        //   React.ForwardRefExoticComponent<Props & React.RefAttributes<Element>>
+        //
+        // That is what the compiler prints too, except it prints it EXPANDED --
+        // hundreds of characters naming prop types the package does not export,
+        // like SlotProps and LucideProps. Rebuilding it from the arguments
+        // needs no import beyond React, which every one of these files already
+        // has. The shadcn primitives are built almost entirely of this shape:
+        // sidebar, dialog, sheet, select, dropdown-menu, context-menu.
+        const [element, props] = node.initializer.typeArguments.map((t) => t.getText(source));
+        edits.push({
+          position: node.name.getEnd(),
+          text: `: React.ForwardRefExoticComponent<${props} & React.RefAttributes<${element}>>`,
+        });
+      } else if (
+        node.initializer &&
+        ts.isCallExpression(node.initializer) &&
         node.initializer.typeArguments === undefined &&
         (ts.isIdentifier(node.initializer.expression) ||
           ts.isPropertyAccessExpression(node.initializer.expression))

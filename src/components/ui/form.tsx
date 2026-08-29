@@ -85,7 +85,7 @@ const FormItem: React.ForwardRefExoticComponent<React.HTMLAttributes<HTMLDivElem
 })
 FormItem.displayName = "FormItem"
 
-const FormLabel = React.forwardRef<
+const FormLabel: React.ForwardRefExoticComponent<React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> & React.RefAttributes<React.ElementRef<typeof LabelPrimitive.Root>>> = React.forwardRef<
   React.ElementRef<typeof LabelPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>
 >(({ className, ...props }, ref) => {
@@ -102,7 +102,7 @@ const FormLabel = React.forwardRef<
 })
 FormLabel.displayName = "FormLabel"
 
-const FormControl = React.forwardRef<
+const FormControl: React.ForwardRefExoticComponent<React.ComponentPropsWithoutRef<typeof Slot> & React.RefAttributes<React.ElementRef<typeof Slot>>> = React.forwardRef<
   React.ElementRef<typeof Slot>,
   React.ComponentPropsWithoutRef<typeof Slot>
 >(({ ...props }, ref) => {

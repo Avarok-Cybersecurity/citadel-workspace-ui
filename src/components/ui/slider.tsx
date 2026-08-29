@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import * as SliderPrimitive from "@radix-ui/react-slider"
 
@@ -25,7 +26,7 @@ type SliderProps = React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root> &
   label: string;
 };
 
-const Slider = React.forwardRef<
+const Slider: React.ForwardRefExoticComponent<SliderProps & React.RefAttributes<React.ElementRef<typeof SliderPrimitive.Root>>> = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
   SliderProps
 >(({ className, label, ...props }, ref) => (
