@@ -66,6 +66,8 @@ interface DisconnectLoadingModalProps {
   workspaceName: string;
   errorMessage?: string;
   onComplete?: () => void;
+  /** The way out of a stalled or failed operation. See LoadingModal. */
+  onCancel?: () => void;
 }
 
 export const DisconnectLoadingModal = ({
@@ -74,6 +76,7 @@ export const DisconnectLoadingModal = ({
   workspaceName,
   errorMessage,
   onComplete,
+  onCancel,
 }: DisconnectLoadingModalProps): JSX.Element => (
   <LoadingModal
     open={open}
@@ -81,6 +84,7 @@ export const DisconnectLoadingModal = ({
     displayName={workspaceName}
     errorMessage={errorMessage}
     onComplete={onComplete}
+    onCancel={onCancel}
     config={DISCONNECT_MODAL_CONFIG}
   />
 );
@@ -94,6 +98,8 @@ interface ConnectLoadingModalProps {
   username?: string;
   errorMessage?: string;
   onComplete?: () => void;
+  /** The way out of a stalled or failed operation. See LoadingModal. */
+  onCancel?: () => void;
 }
 
 export const ConnectLoadingModal = ({
@@ -102,6 +108,7 @@ export const ConnectLoadingModal = ({
   username,
   errorMessage,
   onComplete,
+  onCancel,
 }: ConnectLoadingModalProps): JSX.Element => (
   <LoadingModal
     open={open}
@@ -109,6 +116,7 @@ export const ConnectLoadingModal = ({
     displayName={username}
     errorMessage={errorMessage}
     onComplete={onComplete}
+    onCancel={onCancel}
     config={CONNECT_MODAL_CONFIG}
   />
 );

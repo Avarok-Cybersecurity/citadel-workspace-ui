@@ -111,7 +111,7 @@ export const LoadingModal = ({
   // skipping the call.
   const { ref: dialogRef, dialogProps } = useDialogOverlay<HTMLDivElement>({
     label: title,
-    onDismiss: onCancel && (isLoading || isError) ? onCancel : undefined,
+    onDismiss: onCancel && (isError || (isLoading && timedOut)) ? onCancel : undefined,
     enabled: shouldRender,
   });
 
@@ -197,18 +197,39 @@ export const LoadingModal = ({
           </div>
         )}
 
-        {/* Cancel button */}
-        {onCancel && (isLoading || isError) && (
-          <div className="mt-4 flex justify-center">
+        {/* The way out.
+            
+            No caller ever passed `onCancel`, so this never rendered and Escape
+            was inert -- a `fixed inset-0 z-[100]` overlay with no control on
+            it. An operation that hung showed "This is taking longer than
+            expected" and then nothing at all: the only way back to the app was
+            to reload the page and lose whatever was in flight anyway.
+
+            Offered once there is something to escape FROM -- an error, or a
+            wait that has already outlasted its budget -- and not beside a
+            spinner that is working, where it would invite people to abandon
+            something about to succeed.
+
+            "Dismiss", not "Cancel": nothing here can abort a request the
+            service has already accepted, and a button that says Cancel next to
+            a spinner promises exactly that. */}
+        {onCancel && (isError || (isLoading && timedOut)) && (
+          <div className="mt-4 flex flex-col items-center gap-1">
             <Button
               variant="ghost"
               size="sm"
               className="text-muted-foreground hover:text-foreground"
               onClick={onCancel}
+              data-testid="loading-modal-dismiss"
             >
               <X className="h-4 w-4 mr-1" />
-              Cancel
+              Dismiss
             </Button>
+            {isLoading && (
+              <span className="text-xs text-muted-foreground">
+                The operation keeps running.
+              </span>
+            )}
           </div>
         )}
       </div>

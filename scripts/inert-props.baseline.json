@@ -1,0 +1,41 @@
+{
+  "src/components/LoadingModal.tsx:LoadingModal": [
+    "timeoutMs"
+  ],
+  "src/components/LoadingModalConfigs.tsx:ConnectLoadingModal": [
+    "errorMessage"
+  ],
+  "src/components/layout/sidebar/TopBar.tsx:TopBar": [
+    "currentWorkspace"
+  ],
+  "src/components/layout/sidebar/TreeNodesSection.tsx:TreeNodesSection": [
+    "initialExpandedIds",
+    "maxHeight"
+  ],
+  "src/components/p2p/CollaborativeEditor.tsx:CollaborativeEditor": [
+    "creatorCid"
+  ],
+  "src/components/p2p/FileTransferModal.tsx:FileTransferModal": [
+    "maxFileSizeMb",
+    "onSendWithNativePicker"
+  ],
+  "src/components/p2p/LiveDocumentView.tsx:LiveDocumentView": [
+    "onSave"
+  ],
+  "src/components/p2p/MarkdownToolbar.tsx:MarkdownToolbar": [
+    "inputRef"
+  ],
+  "src/components/p2p/P2PChat.tsx:P2PChat": [
+    "groupId",
+    "mode",
+    "onDeleteMessage",
+    "onEditMessage",
+    "onReplyMessage",
+    "rules",
+    "showSenderAvatar",
+    "showSenderName"
+  ],
+  "src/components/ui/empty-state.tsx:EmptyState": [
+    "action"
+  ]
+}

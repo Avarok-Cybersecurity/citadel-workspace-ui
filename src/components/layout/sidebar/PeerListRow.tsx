@@ -17,6 +17,8 @@ interface PeerListRowProps {
   isOnline: boolean;
   isConnected: boolean;
   unreadCount?: number;
+  /** Whether this is the conversation currently on screen. See active-conversation. */
+  isActive?: boolean;
   onClick: () => void;
 }
 
@@ -26,6 +28,7 @@ export function PeerListRow({
   isOnline,
   isConnected,
   unreadCount,
+  isActive = false,
   onClick,
 }: PeerListRowProps): JSX.Element {
   const statusColor: "bg-success" | "bg-warning" | "bg-destructive" = isConnected
@@ -45,7 +48,14 @@ export function PeerListRow({
         // members list was given one noun, so the check could not pass and
         // reported every connection as having failed.
         data-testid={`peer-row-${username}`}
-        className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors h-8 py-1"
+        // Announced, not only coloured. The status dot beside it already
+        // carries a text equivalent for exactly this reason; a highlight that
+        // exists only as a background is invisible to a screen reader and to
+        // anyone who cannot separate these two purples.
+        aria-current={isActive ? 'page' : undefined}
+        className={`text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors h-8 py-1 ${
+          isActive ? 'bg-primary-accent/20 text-primary-accent' : ''
+        }`}
       >
         <div className="flex items-center gap-2 w-full">
           {/* Avatar with status indicator */}

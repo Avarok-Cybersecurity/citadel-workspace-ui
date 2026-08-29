@@ -230,6 +230,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps): JSX.Element => {
         workspaceName={workspaceName}
         errorMessage={disconnectError}
         onComplete={handleDisconnectComplete}
+        onCancel={handleDisconnectComplete}
       />
 
       {/* Settings modal */}

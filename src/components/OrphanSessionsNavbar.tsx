@@ -113,6 +113,9 @@ export const OrphanSessionsNavbar: () => JSX.Element | null = (): JSX.Element | 
         workspaceName={loadingModal.workspaceName}
         errorMessage={loadingModal.errorMessage}
         onComplete={handleLoadingComplete}
+        // The way out of a sign-out that has stalled. Closing the modal does
+        // not abandon the request; it gives the app back.
+        onCancel={handleLoadingComplete}
       />
     </>
   );

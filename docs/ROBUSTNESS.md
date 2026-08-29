@@ -14984,3 +14984,53 @@ goes stale the moment a file moves, and stale entries are invisible refusals.
 | Typing debt | 237 → **203** |
 | Of which in `__tests__` | 112 |
 | Remaining rule split | 126 typedef · 79 return-type · 13 module-boundary |
+
+## Round 296 — props that are honoured and never passed
+
+Round 291 found `TreeNodesSection.initialExpandedIds`: a prop with a default, a
+consumer, and no caller. That is a shape a machine can look for — an OPTIONAL
+prop on a component's own props type that no JSX site in the app ever passes —
+so this round looked for it, and `scripts/check-inert-props.mjs` now keeps
+looking.
+
+**The sidebar could not say which conversation was open.**
+`GroupConversationRow` has carried an `isActive` prop, a default, and the class
+that highlights the row (`bg-primary-accent/20 text-primary-accent`) since it
+was written. Its only caller never passed one. `PeerListRow` had no such prop at
+all. So the hierarchy above marked the selected node and the conversation list
+below marked nothing: after opening a few conversations over a session, nothing
+said which one was on screen. Both rows take it now, derived from the route by
+one pure function, and both announce it as `aria-current="page"` — a highlight
+that exists only as a background is invisible to a screen reader and to anyone
+who cannot separate two purples, which is the same rule the status dot beside it
+already follows.
+
+`conversationHref` moved in beside `activeConversation` while doing it. The
+reader and the writer have to agree on three query-parameter names and were
+spelling them in separate files; one of them changing is a highlight that never
+matches anything.
+
+**A stalled operation had no way out.** `LoadingModal` has an `onCancel` prop, a
+button that renders on it, and an Escape handler that uses it. None of its three
+callers passed one. So a sign-out or a connect that hung showed "This is taking
+longer than expected" after sixty seconds and then nothing at all: a
+`fixed inset-0 z-[100]` overlay with no control on it, escapable only by
+reloading the page — which abandons the request anyway, and everything unsaved
+with it.
+
+It is offered now once there is something to escape FROM: an error, or a wait
+that has already outlasted its budget. Not beside a working spinner, where it
+invites people to abandon something about to succeed. And labelled **Dismiss**,
+not Cancel, under a line reading "The operation keeps running" — nothing here
+can abort a request the service has already accepted, and a button saying Cancel
+beside a spinner promises exactly that.
+
+**The gate.** Required props are excluded (the compiler already refuses those),
+`children` is excluded (it arrives as element content), a component with a
+spread at any call site is skipped entirely, and only the component's own
+top-level properties count — recursing into nested object types reports the
+fields of a callback's argument, which no caller passes because no caller could.
+Ten components, nineteen props, ratcheted.
+
+> A prop with a default, a consumer, and no caller is a feature built from one
+> end. It reads as working code, because the component honours it perfectly.

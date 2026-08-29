@@ -102,6 +102,7 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
         status={connectStatus}
         username={formData.username}
         onComplete={handleConnectModalComplete}
+        onCancel={handleConnectModalComplete}
       />
     </div>
   );
