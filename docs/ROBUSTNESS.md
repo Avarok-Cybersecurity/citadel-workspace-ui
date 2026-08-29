@@ -14839,3 +14839,60 @@ the innermost submodule, and a change there is unverifiable without rebuilding
 the running stack. What is safe to say now is that the recovery has no
 escalation and no report — after ninety-three failed attempts nothing tells the
 user, or the log reader, that this link is not delivering.
+
+## Round 293 — ILM: the head of the queue could not be retransmitted
+
+Round 292 recorded the CI numbers and stopped there, on the grounds that a
+change to `intersession-layer-messaging` could not be verified without
+rebuilding the running stack. That was wrong: the crate has an in-memory
+harness (`InMemoryBackend`, `InMemoryNetwork`) behind a `testing` feature, and
+the whole workload reproduces in seconds with no stack at all.
+
+**Reproduced.** Two ILMs, an eighteen-message burst, and a wrapper on the
+receiver's wire that drops four acknowledgements in five — close to the 24-ACKs
+-per-214-sends the failing run measured:
+
+```
+10 of 18 messages never arrived with 4-in-5 ACKs lost: [8, 9, …, 17]
+```
+
+Sixty seconds, and the missing ids are contiguous from the stall onward. The
+same burst on a clean wire drains in ten milliseconds.
+
+**Two defects, each with its own control.**
+
+`can_send` refuses any id that is not greater than `last_sent`, so a message
+that has been sent and not acknowledged *cannot be sent again through the normal
+route*. The only thing that ever repeated it was the emergency branch — fired
+after ten blocked cycles, and it discards `last_acked` as well, so every message
+the peer had already confirmed went out again. Ordinary packet loss was being
+handled by a path built for a peer that had reconnected with fresh state. The
+head is now retransmitted on a clock (five cycles, one second), leaving both
+marks alone, and the emergency reset moves out to fifty cycles where it belongs.
+
+The loop also **stopped at the first message it could not send**, so everything
+queued behind an unacknowledged head waited for it. Skipping ahead had been
+explicitly rejected in a comment — it would raise `last_sent` past the blocked
+id and strand it forever — and the retransmission above is exactly what makes it
+safe. Bounded at eight per cycle rather than unbounded, so a link that is
+dropping packets is not answered with the whole backlog every 200ms.
+
+**What the controls cost.** A first pipelining test asserted a "five messages
+per second" ceiling that does not exist — an acknowledgement triggers another
+outbound cycle, so a healthy link is round-trip-clocked, not poll-clocked. The
+test passed with the change reverted, which is the only reason the claim was
+caught. It was deleted rather than kept, and the two remaining tests are bounded
+so that each fails against the code it was written for:
+
+| test | with the fix | with it reverted |
+|---|---|---|
+| `a_lost_message_is_retransmitted` (8s bound) | 5.0s | 10.4s, all 6 missing |
+| `a_burst_survives_lost_acks` (1.5s bound) | 0.01s | 1.7s, 5 of 18 missing |
+
+Both bounds are multiples of the 200ms poll interval rather than of anything
+machine-dependent. The 8s bound is what separates retransmission from the
+emergency path — a looser one passes either way and asserts only that the crate
+has an emergency path.
+
+> "Unverifiable without the stack" was a claim about the stack. It should have
+> been a question about the crate.
