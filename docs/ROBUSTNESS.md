@@ -16714,3 +16714,73 @@ getting this wrong is not a missed defect; it is fourteen fabricated ones and a
 "fix" to a stylesheet that was correct.
 
 Recorded so nobody re-runs this probe expecting a finding.
+
+## Round 342 — one round trip per window, not per message
+
+I claimed a ≥19-second latency from the 200ms poll interval, then withdrew it
+on the grounds that the ACK handler wakes the outbound loop. Both were guesses.
+Measured on the crate's own in-memory network:
+
+| condition | before |
+|---|---|
+| 96 messages, clean link | **34ms** — 355µs each |
+| 6 messages, four ACKs in five dropped | **16.3s** — 2.7s each |
+
+So there is no poll-interval cost, and the withdrawal was right for the wrong
+reason. The cost is entirely a **loss-recovery** cost, and stop-and-wait pays it
+once per message: the outbound path sent the lowest unsent id and stopped, so
+the whole queue waited on the head's acknowledgement. CI's file-manager run had
+96 queued behind one such head — over four minutes.
+
+**`SEND_WINDOW = 8`.** Acknowledgement is cumulative, so one surviving ACK
+retires the whole window; at four-in-five loss the chance that one of eight
+survives is 83%. Sixty messages at that loss rate: **45s+ (timed out) → 0.02s**.
+
+### What the window breaks, and the gate that fixes it
+
+Two hazards that stop-and-wait could not reach, because one message in flight
+makes both impossible:
+
+- **Order.** 5 can arrive while 4 is on the wire. revfs applies operations in
+  receive order, so a write landing before its create is worse than a slow sync.
+- **Loss.** `update_ack` keeps the maximum. An ACK for 5 tells the sender 4 is
+  done. Acknowledging out of order does not reorder anything; it deletes.
+
+The receiver now delivers a peer's ids only in contiguous order and
+acknowledges only what it has delivered, against a durable `last_delivered`
+frontier. Both duplicate-ACK paths are gated identically — a message held
+behind a gap has been received and stored, and must not be acknowledged.
+
+### What the tests caught that I had wrong
+
+**The first version of the ordering tests passed with the contiguity gate
+deliberately disabled.** They dropped message 0 — and the window stays shut
+until a peer has acknowledged something, so that puts exactly one message in
+flight and produces no gap at all. The drop had to move mid-stream before the
+hazard existed. With it moved, disabling the gate reports *"delivered id 4
+while 3 was still missing"* and loses message 3 outright.
+
+Two unsound assumptions of mine, both caught by the existing suite rather than
+by review:
+
+1. **Seeding the frontier from `last_received_from`.** I argued that under
+   one-in-flight everything received was delivered. False when delivery
+   *fails*: a message whose local delivery hit a closed channel stays pending
+   while `last_received_from` has moved past it. The seed claimed it as
+   delivered and dropped it. Now seeded only for peers with nothing pending
+   inbound, where it is true by definition.
+2. **Requiring the first id to be zero.** A sender resuming from a persisted
+   counter against a receiver with no frontier would hold every message for
+   ever. The lowest pending id starts the run instead — safe precisely because
+   the window is shut until the first ACK.
+
+`GAP_PATIENCE_SECS` is a backstop: a message held longer than 20s is delivered
+out of order with a `warn!`, because `send_raw_message` is public and takes any
+id, and a conversation that never moves again is worse than one loud
+out-of-order delivery.
+
+Positive control: `SEND_WINDOW = 1` keeps every correctness test green and puts
+the 45 seconds back — so the window is what produces the speedup, and reverting
+is a one-constant change.
+
+45 ILM tests green; preflight 52/52.
