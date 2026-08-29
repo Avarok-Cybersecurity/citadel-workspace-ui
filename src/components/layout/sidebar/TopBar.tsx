@@ -42,7 +42,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   // actually offered a prompt and we are not already the installed copy.
   const { canInstall, installNow } = useInstallAction();
   const { toggleSidebar } = useSidebar();
-  const isMobile = useIsMobile();
+  const isMobile: boolean = useIsMobile();
   const { state } = useWorkspace();
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -60,7 +60,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   // renders "U"/"User" even though tab-context knows the username.
   const [sessionFallback, setSessionFallback] = useState<{ username: string; fullName?: string } | null>(null);
   useEffect(() => {
-    let cancelled = false;
+    let cancelled: boolean = false;
     void (async (): Promise<void> => {
       const tab = await getSelectedUser();
       if (cancelled) return;
@@ -78,7 +78,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
 
 
   const userRole: string | undefined = state.currentUser?.role;
-  const isAdmin = isPrivilegedRole(userRole);
+  const isAdmin: boolean = isPrivilegedRole(userRole);
 
 
   return (

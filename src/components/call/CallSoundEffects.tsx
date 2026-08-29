@@ -43,7 +43,7 @@ export function CallSoundEffects(): null {
           // Accept, decline, timeout, failure, hangup: the ring stops NOW.
           player.stopRing();
           if (status === 'active' && prev !== 'active') player.chime('connected');
-          const wasLive = prev === 'active' || prev === 'connecting';
+          const wasLive: boolean = prev === 'active' || prev === 'connecting';
           if (wasLive && (status === null || status === 'ended' || status === 'failed')) {
             player.chime('ended');
           }

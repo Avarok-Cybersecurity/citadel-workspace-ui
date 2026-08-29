@@ -37,7 +37,7 @@ export const AdminSettingsSection = () => {
   // An Owner counts. This check used to accept Admin only, so an Owner saw the
   // admin ring in TopBar and the shield in the workspace switcher and then got
   // nothing here -- an administrator in two places and not in the third.
-  const isAdmin = isPrivilegedRole(state.currentUser?.role);
+  const isAdmin: boolean = isPrivilegedRole(state.currentUser?.role);
 
   if (!isAdmin) {
     return null;

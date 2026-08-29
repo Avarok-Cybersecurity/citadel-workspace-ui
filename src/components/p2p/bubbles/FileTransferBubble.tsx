@@ -36,7 +36,7 @@ export function FileTransferBubble({
   onCancel,
   onOpen
 }: FileTransferBubbleProps) {
-  const isFailed = message.status === 'failed' || message.transfer_state === 'error';
+  const isFailed: boolean = message.status === 'failed' || message.transfer_state === 'error';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
 
   const state = message.transfer_state || 'pending';

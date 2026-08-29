@@ -70,10 +70,10 @@ export function useP2PMessages({
         setHasMorePages(false);
       }
 
-      const syncedConnected = messenger.isConnected(peerCid);
+      const syncedConnected: boolean = messenger.isConnected(peerCid);
       if (syncedConnected) setIsConnected(true);
 
-      const autoConnectConnected = await p2pAutoConnectService.isPeerConnected(peerCid);
+      const autoConnectConnected: boolean = await p2pAutoConnectService.isPeerConnected(peerCid);
       if (autoConnectConnected) {
         setIsConnected(true);
         setPeerPresence({ status: MessagingLayerType.Online, lastUpdate: Date.now() });
@@ -87,8 +87,8 @@ export function useP2PMessages({
     });
 
     const checkInitialConnection = async (): Promise<void> => {
-      const syncConnected = messenger.isConnected(peerCid);
-      const autoConnected = await p2pAutoConnectService.isPeerConnected(peerCid);
+      const syncConnected: boolean = messenger.isConnected(peerCid);
+      const autoConnected: boolean = await p2pAutoConnectService.isPeerConnected(peerCid);
       setIsConnected(syncConnected || autoConnected);
     };
     runAsyncSetup(checkInitialConnection);

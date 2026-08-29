@@ -4,7 +4,7 @@ import { BubbleFooter } from './BubbleFooter';
 import type { LiveDocumentBubbleProps } from './types';
 
 export function LiveDocumentBubble({ message, isOwn, onRetry, onOpenDocument }: LiveDocumentBubbleProps) {
-  const isFailed = message.status === 'failed';
+  const isFailed: boolean = message.status === 'failed';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
 
   const handleClick = (): void => {

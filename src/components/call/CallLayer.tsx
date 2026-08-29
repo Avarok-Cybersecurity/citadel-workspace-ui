@@ -68,7 +68,7 @@ function RingingCall() {
   // follower has no WebSocket client, so accepting there opened no media
   // session and the caller heard nothing -- while the leader tab, which could
   // have taken the call, rang alongside it.
-  const isLeaderTab = useIsLeaderTab();
+  const isLeaderTab: boolean = useIsLeaderTab();
 
   if (!isLeaderTab) return null;
   if (!call || call.status !== 'ringing-in') return null;

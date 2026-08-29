@@ -60,7 +60,7 @@ export function useDirectCall(peerCid: bigint, peerName: string): DirectCallBind
   // has nothing more to say, and leaving its surface up makes Leave look like it
   // did not work — but a call that FAILED still owes them the reason, which the
   // stage renders.
-  const active =
+  const active: boolean =
     call !== null &&
     call.roomId === null &&
     call.participants.has(peerCid) &&

@@ -26,7 +26,7 @@ import {
 import { getRoleIcon, getRoleColor, capitalizeRole } from './MembersSectionModals';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 
-const MEMBERS_TO_SHOW = 5;
+const MEMBERS_TO_SHOW: 5 = 5;
 
 interface MemberListItemsProps {
   members: WorkspaceMember[];

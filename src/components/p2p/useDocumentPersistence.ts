@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
 
 /** Yjs fires per keystroke and each save re-encodes the whole document. */
-const DOCUMENT_PERSIST_DEBOUNCE_MS = 800;
+const DOCUMENT_PERSIST_DEBOUNCE_MS: 800 = 800;
 
 /**
  * Loads a live document from storage and keeps it saved.
@@ -24,7 +24,7 @@ const DOCUMENT_PERSIST_DEBOUNCE_MS = 800;
  */
 export function useDocumentPersistence(documentId: string, doc: Y.Doc): void {
   useEffect(() => {
-    let cancelled = false;
+    let cancelled: boolean = false;
     void liveDocumentStore
       .loadIntoYDoc(documentId, doc)
       .then((loaded) => {

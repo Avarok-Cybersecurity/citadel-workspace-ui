@@ -70,7 +70,7 @@ export function CallStage({
     [call.participants],
   );
 
-  const anyVideo = call.selfMedia.video || visible.some((p) => p.media.video);
+  const anyVideo: boolean = call.selfMedia.video || visible.some((p): boolean => p.media.video);
   const tileCount: number = visible.length + 1;
 
   const { share, someoneElseIsSharing } = useStageShare({

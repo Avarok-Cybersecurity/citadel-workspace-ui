@@ -61,9 +61,9 @@ export function TreeNodeItem({
   onMoveNode,
 }: TreeNodeItemProps) {
   const { node, children } = treeNode;
-  const isSelected = selectedNodeId === node.id;
-  const isExpanded = expandedNodes.has(node.id);
-  const hasChildren = children.length > 0;
+  const isSelected: boolean = selectedNodeId === node.id;
+  const isExpanded: boolean = expandedNodes.has(node.id);
+  const hasChildren: boolean = children.length > 0;
   const Icon = getEntityIcon(node.entity_type);
   const typeName: string = getEntityTypeName(node.entity_type);
 

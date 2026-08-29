@@ -55,7 +55,7 @@ export function useCallCapability({
   }, [browserCapability, isLeaderTab]);
 
   useEffect(() => {
-    let cancelled = false;
+    let cancelled: boolean = false;
     // Imported on demand, like the session below: the probe lives in
     // codec-support, which drags the whole codec table in with it.
     void import('@/lib/call/codec-support')

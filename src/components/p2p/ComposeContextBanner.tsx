@@ -17,7 +17,7 @@ export function ComposeContextBanner({ replyingTo, editingMessage, onCancel }: C
   const active: P2PMessage | null = editingMessage ?? replyingTo;
   if (!active) return null;
 
-  const isEditing = editingMessage !== null;
+  const isEditing: boolean = editingMessage !== null;
   const Icon = isEditing ? Pencil : Reply;
 
   return (

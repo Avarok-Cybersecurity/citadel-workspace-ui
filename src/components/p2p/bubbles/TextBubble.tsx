@@ -23,7 +23,7 @@ export function TextBubble({
   onDelete,
   onReply,
 }: BaseBubbleProps) {
-  const isFailed = message.status === 'failed';
+  const isFailed: boolean = message.status === 'failed';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
   const displayName: string = senderName || 'Unknown';
   const hasActions: (() => void) | undefined = onEdit || onDelete || onReply;

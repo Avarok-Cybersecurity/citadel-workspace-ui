@@ -89,7 +89,7 @@ export function TreeNodesSection({
     const query: string = searchQuery;
 
     function filterNode(tn: TreeNode): TreeNode | null {
-      const nameMatches = matchesSearch(tn.node.name, query);
+      const nameMatches: boolean = matchesSearch(tn.node.name, query);
       const filteredChildren: TreeNode[] = tn.children
         .map(filterNode)
         .filter((c): c is TreeNode => c !== null);

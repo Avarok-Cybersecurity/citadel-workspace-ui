@@ -58,9 +58,9 @@ export function P2PChat({
   // intermittently at runtime rather than reliably.
   const callBinding = useDirectCall(peerCid, peerName);
 
-  const isGroupMode = mode === 'group';
-  const displaySenderName = showSenderName ?? isGroupMode;
-  const displaySenderAvatar = showSenderAvatar ?? isGroupMode;
+  const isGroupMode: boolean = mode === 'group';
+  const displaySenderName: boolean = showSenderName ?? isGroupMode;
+  const displaySenderAvatar: boolean = showSenderAvatar ?? isGroupMode;
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -113,7 +113,7 @@ export function P2PChat({
   //
   // It also fought the pagination anchoring in useP2PMessages, which goes to
   // real trouble to preserve scroll position across a prepend.
-  const FOLLOW_THRESHOLD_PX = 80;
+  const FOLLOW_THRESHOLD_PX: 80 = 80;
   const hasJumpedToLatest = useRef(false);
   useEffect(() => {
     const el: HTMLDivElement | null = scrollRef.current;
@@ -151,7 +151,7 @@ export function P2PChat({
     );
   }
 
-  const isViewingDocument = activeTab?.type === 'live_document';
+  const isViewingDocument: boolean = activeTab?.type === 'live_document';
 
 
   return (

@@ -31,7 +31,7 @@ interface ParticipantTileProps {
  */
 export function ParticipantTile({ participant, stream, isSelf, quality = 'good' }: ParticipantTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const showVideo = participant.media.video && stream !== null;
+  const showVideo: boolean = participant.media.video && stream !== null;
 
   useEffect(() => {
     const element: HTMLVideoElement | null = videoRef.current;

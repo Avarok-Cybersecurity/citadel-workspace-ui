@@ -85,7 +85,7 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
     }
   }, 1000);
 
-  let inputShown = false;
+  let inputShown: boolean = false;
   let inputContainer: HTMLElement | null = null;
 
   tooltip.addEventListener('click', (e) => {

@@ -27,7 +27,7 @@ export function GroupCallDock({ roomId }: { roomId: string }) {
     leave,
   } = useCall();
 
-  const docked =
+  const docked: boolean =
     call !== null &&
     call.roomId === roomId &&
     call.status !== 'ended' &&

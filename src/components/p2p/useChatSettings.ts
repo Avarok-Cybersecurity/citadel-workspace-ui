@@ -34,7 +34,7 @@ export function useChatSettings(isOpen: boolean, peerCid: string) {
 
   useEffect(() => {
     if (!isOpen || !peerCid) return;
-    let cancelled = false;
+    let cancelled: boolean = false;
     void (async (): Promise<void> => {
       try {
         const metadata = await p2pMessengerManager.getConversationMetadata(BigInt(peerCid));

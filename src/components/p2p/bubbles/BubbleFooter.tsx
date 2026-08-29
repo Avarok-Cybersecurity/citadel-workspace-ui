@@ -33,7 +33,7 @@ function getMessageStatusIcon(message: P2PMessage) {
 }
 
 export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
-  const isFailed = message.status === 'failed';
+  const isFailed: boolean = message.status === 'failed';
   const statusIcon = getMessageStatusIcon(message);
 
   return (

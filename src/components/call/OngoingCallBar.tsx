@@ -15,7 +15,7 @@ import { useCallDuration } from './use-call-duration';
  */
 export function OngoingCallBar() {
   const { call, leave } = useCall();
-  const stageVisible = useCallStageVisible();
+  const stageVisible: boolean = useCallStageVisible();
   const navigate = useNavigate();
   const duration: string = useCallDuration(call?.status === 'active');
 

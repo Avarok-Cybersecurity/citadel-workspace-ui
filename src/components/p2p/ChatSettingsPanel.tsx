@@ -266,7 +266,7 @@ export function ChatSettingsPanel({
                   className="w-full p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive-emphasis text-sm hover:bg-destructive/20 transition-colors"
                   onClick={() => {
                     void (async (): Promise<void> => {
-                      const ok = await confirm({
+                      const ok: boolean = await confirm({
                         title: `Clear all chat history with ${peerName}?`,
                         description: 'Messages stored on this device are removed. This cannot be undone.',
                         confirmLabel: 'Clear history',

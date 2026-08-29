@@ -52,12 +52,17 @@ if (!before.ok) {
 
 run('node', ['scripts/annotate-from-findings.mjs', prefix, '--allow-boolean', '--allow-literal']);
 
+// `prefer-as-const` and friends: a literal annotation the linter rewrites is
+// still a literal annotation, so lint-fixable problems are settled here rather
+// than left for a human to find in a 300-file diff.
+run('npx', ['eslint', '--fix', prefix]);
+
 let round = 0;
 for (;;) {
   round += 1;
   const check = typecheck();
   if (check.ok) break;
-  if (check.files.length === 0 || round > 25) {
+  if (check.files.length === 0 || round > 80) {
     console.error('\n  Errors that name no file, or too many rounds — reverting everything.\n');
     run('git', ['checkout', '--', prefix]);
     process.exit(1);

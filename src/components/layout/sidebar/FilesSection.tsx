@@ -147,7 +147,7 @@ export const FilesSection = () => {
   };
 
   const params = new URLSearchParams(location.search);
-  const isFileManagerActive = params.get('section') === 'files';
+  const isFileManagerActive: boolean = params.get('section') === 'files';
 
   const handleFileManagerClick = async (): Promise<void> => {
     // Deletes nodeId from the URL, which unmounts the editor.
