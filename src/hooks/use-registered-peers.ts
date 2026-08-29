@@ -20,7 +20,14 @@ export interface RegisteredPeer {
   username: string;
   /** True, false, or null when no poll has landed. See lib/presence.ts. */
   isOnline: boolean | null;
-  isConnected: boolean;
+  /**
+   * True, false, or null when the check did not answer in time.
+   *
+   * A one-second race that resolves `false` is a stopwatch, not an answer: a
+   * connected peer whose check was slow rendered as merely online. Same shape
+   * as `isOnline` above.
+   */
+  isConnected: boolean | null;
 }
 
 interface UseRegisteredPeersReturn {
@@ -89,13 +96,15 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
           const displayName: string = peerDisplayName({ cid: p.cid, username: p.username });
           const peerCidBigInt: bigint = p.cid ?? BigInt(0);
           const isOnline: boolean | null = p2pAutoConnectService.peerOnlineStatus(peerCidBigInt);
-          let isConnected: boolean = false;
+          let isConnected: boolean | null = null;
           try {
             const connectedPromise: Promise<boolean> = p2pAutoConnectService.isPeerConnected(peerCidBigInt);
-            const timeoutPromise: Promise<boolean> = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1000));
-            isConnected = await Promise.race([connectedPromise, timeoutPromise]);
+            // Null, not false: the timeout means the check did not finish, which
+            // is not the same as it having answered "no".
+            const timeoutPromise: Promise<null> = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000));
+            isConnected = await Promise.race<boolean | null>([connectedPromise, timeoutPromise]);
           } catch {
-            isConnected = false;
+            isConnected = null;
           }
           return { cid: cidStr, username: displayName, isOnline, isConnected };
         }));
@@ -105,7 +114,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
           const cidStr: string = p.cid?.toString() || '';
           const displayName: string = peerDisplayName({ cid: p.cid, username: p.username });
           // The listing failed; nobody has said whether these peers are online.
-          return { cid: cidStr, username: displayName, isOnline: null, isConnected: false };
+          return { cid: cidStr, username: displayName, isOnline: null, isConnected: null };
         });
       }
 

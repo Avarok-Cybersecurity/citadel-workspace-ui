@@ -19,7 +19,8 @@ export interface ConversationPeer {
   peerUsername: string;
   /** True, false, or null when no poll has landed. See lib/presence.ts. */
   isOnline: boolean | null;
-  isConnected: boolean;
+  /** True, false, or null when the check did not answer. */
+  isConnected: boolean | null;
   unreadCount: number;
   lastMessageTime?: number;
 }
@@ -50,7 +51,7 @@ export function useConversationPeers({
       .filter(c => c.messages.length > 0)
       .filter(c => c.peerCid.toString() !== currentCid);
 
-    const convPeers: { peerCid: string; peerUsername: string; isOnline: boolean | null; isConnected: boolean; unreadCount: number; lastMessageTime: number; }[] = await Promise.all(filteredConversations.map(async c => {
+    const convPeers: { peerCid: string; peerUsername: string; isOnline: boolean | null; isConnected: boolean | null; unreadCount: number; lastMessageTime: number; }[] = await Promise.all(filteredConversations.map(async c => {
       const peerCidStr: string = c.peerCid.toString();
       // Find the username from registered peers
       const registeredPeer: RegisteredPeer | undefined = registeredPeers.find(p => p.cid === peerCidStr);

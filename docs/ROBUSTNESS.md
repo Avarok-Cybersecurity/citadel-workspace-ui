@@ -17936,3 +17936,40 @@ and `GroupMemberManagement.tsx` dropped from 253 to 249, so its exemption is
 deleted rather than raised.
 
 2433 tests green, all 59 preflight checks.
+
+## Round 367 — a stopwatch is not an answer
+
+Completing the previous round rather than leaving it at one field. A sweep for
+`catch → false` across the whole tree found ten sites; eight are legitimately
+correct (a codec the browser cannot parse genuinely is not supported; storage
+that throws genuinely cannot store). One was not:
+
+```ts
+const timeoutPromise = new Promise<boolean>(resolve => setTimeout(() => resolve(false), 1000));
+isConnected = await Promise.race([connectedPromise, timeoutPromise]);
+```
+
+A one-second race resolving `false` is a stopwatch, not an answer. A connected
+peer whose check was slow rendered as merely online — amber dot, and a screen
+reader told "Online" — and the `catch` collapsed the same way.
+
+`isConnected` is now `boolean | null` alongside `isOnline`, the timeout resolves
+null, and the row's fourth state has its own words and its own colour.
+
+**The colour is asserted separately from the label**, because they are separate
+affordances: a row reading "Presence not known yet" under a red dot still tells
+a sighted user "Offline". The control for that — leaving the null dot red —
+fails only the colour test and none of the label ones, which is the proof the
+two assertions are independent.
+
+**The test went into the existing file, not a new one.** There was already
+`a-peer-row-says-it-is-connected.test.tsx` covering the three known states. A
+second file for the same component would have duplicated those three and left
+two places to keep in step — the copy problem in test form, in a round about
+copies.
+
+Three controls, each failing exactly its own tests: null falling back to
+"Offline", the null dot rendering red, and a timed-out check counting as
+connected.
+
+2436 tests green, all 59 preflight checks.

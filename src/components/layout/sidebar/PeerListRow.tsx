@@ -21,7 +21,8 @@ interface PeerListRowProps {
    * poll returned, which is an assertion about somebody who may be right there.
    */
   isOnline: boolean | null;
-  isConnected: boolean;
+  /** True, false, or null when the check did not answer in time. */
+  isConnected: boolean | null;
   unreadCount?: number;
   /** Whether this is the conversation currently on screen. See active-conversation. */
   isActive?: boolean;
@@ -38,7 +39,7 @@ export function PeerListRow({
   onClick,
 }: PeerListRowProps): JSX.Element {
   const statusColor: "bg-success" | "bg-warning" | "bg-destructive" | "bg-muted-foreground" =
-    isConnected
+    isConnected === true
       ? 'bg-success'
       : isOnline === true
       ? 'bg-warning'
@@ -46,7 +47,7 @@ export function PeerListRow({
       ? 'bg-destructive'
       : 'bg-muted-foreground';
 
-  const statusLabel: string = isConnected
+  const statusLabel: string = isConnected === true
     ? 'Connected'
     : isOnline === true
     ? 'Online'
