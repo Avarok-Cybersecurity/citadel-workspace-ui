@@ -78,7 +78,6 @@ const RECORDED_UNCONSUMED = new Map([
   ['member:loaded', 'the members list is driven by members:loaded (plural)'],
   ['node:types:loaded', 'node types are read synchronously from the store'],
   ['operation:deleted', 'no consumer; deletions are reflected by the node:* events'],
-  ['server:shutdown', 'no consumer — a shutdown notice the UI never shows'],
   ['p2p:channel-ready', 'readiness is polled by the auto-connect service, not awaited'],
   ['p2p:conversations-cleaned', 'diagnostic after a stale-conversation sweep'],
   ['p2p:open-conversation', 'no consumer — deep-linking into a conversation is not wired'],

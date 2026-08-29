@@ -2,6 +2,7 @@ import { WifiOff, Wifi } from 'lucide-react';
 import { useLayoutEffect, useRef , type RefObject } from 'react';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { useServiceHealth } from '@/hooks/use-service-health';
+import { useServerShutdown } from '@/hooks/use-server-shutdown';
 
 /**
  * Tell the user when the device has lost connectivity.
@@ -21,9 +22,14 @@ export function OfflineBanner(): JSX.Element | null {
   // localhost. That produced exactly the symptom this banner exists to explain,
   // and was reported nowhere: the health poll ran every 10s to zero listeners.
   const { isHealthy } = useServiceHealth();
+  // A PLANNED restart, announced by the server itself. Highest priority of the
+  // four states: when the server has said it is going away, that explains the
+  // offline and agent-down conditions that follow it, and "the server is
+  // restarting" is a better thing to read than "you appear to be offline".
+  const shutdown: string | null = useServerShutdown();
   const ref: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const agentDown: boolean = isOnline && !isHealthy;
-  const showing: boolean = !isOnline || justReconnected || agentDown;
+  const showing: boolean = Boolean(shutdown) || !isOnline || justReconnected || agentDown;
 
   // Publish the banner's real height so the layout can make room for it. It is
   // `fixed`, so it took no space and covered the first ~36px of BOTH the sidebar
@@ -64,7 +70,15 @@ export function OfflineBanner(): JSX.Element | null {
       // so the alarming "agent unreachable" state was labelled as the green
       // "back online" one, and anything asserting on these ids read the two as
       // each other.
-      data-testid={offline ? 'offline-banner' : agentDown ? 'agent-down-banner' : 'reconnected-banner'}
+      data-testid={
+        shutdown
+          ? 'server-restarting-banner'
+          : offline
+            ? 'offline-banner'
+            : agentDown
+              ? 'agent-down-banner'
+              : 'reconnected-banner'
+      }
       className={[
         // Below the header, not over it. At z-100 anchored to top-0 this covered
         // the whole 56px bar — taking the sidebar toggle, workspace switcher,
@@ -85,12 +99,17 @@ export function OfflineBanner(): JSX.Element | null {
         'fixed inset-x-0 top-[var(--app-header-height,0px)] z-[110] flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium',
         // Not red: being offline is a condition to inform about, not an error
         // the user caused or can fix by retrying.
-        offline || agentDown
+        shutdown || offline || agentDown
           ? 'bg-muted text-foreground border-b border-surface'
           : 'bg-primary/15 text-primary-foreground border-b border-primary/30',
       ].join(' ')}
     >
-      {agentDown ? (
+      {shutdown ? (
+        <>
+          <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{shutdown}</span>
+        </>
+      ) : agentDown ? (
         <>
           <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
           {/* Names the agent, not "the server": this is the local process the

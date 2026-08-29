@@ -15387,3 +15387,42 @@ it is bare instead of looking like something nobody got to.
 
 > An annotation that discards what the compiler knew passes the same gate as one
 > that adds what it did not.
+
+## Round 305 — the server announces its own restarts, and nobody was listening
+
+`ServerShutdown` is a distinct response variant carrying an operator message and
+a drain window. The response handler decodes both and emits `server:shutdown`,
+under a comment that says exactly why the variant exists:
+
+> Distinct from `Error` so the UI can show a reconnect notice rather than a red
+> toast on a planned restart.
+
+Nothing listened. The announcement was decoded, emitted, and dropped — so a
+planned restart reached the user as the same generic connection failure a crash
+would have given them, thirty seconds later, with nothing to say how long.
+
+The banner shows it now, as a fourth state above offline and agent-down: when
+the server has said it is going away, that explains the conditions that follow
+it, and "the server is restarting" is a better thing to read than "you appear to
+be offline". The operator's own words are used when there are any — somebody
+restarting for a known reason has said something more useful than this file can
+guess — and the notice comes down on the next successful connection, or on a
+timer, because a restart that never came back stops being the explanation.
+Leaving it up tells the user to keep waiting for something that is not coming.
+
+**The gate already knew.** `check-event-listeners-have-emitters` had it recorded
+as `['server:shutdown', 'no consumer — a shutdown notice the UI never shows']`,
+and when the listener appeared it failed with
+
+```
+STALE MARKER: 'server:shutdown' is in RECORDED_UNCONSUMED but now HAS a listener.
+```
+
+which is a ratchet doing the second half of its job: not only refusing new
+orphans, but refusing to let a fixed one keep its excuse. Twenty-six recorded
+orphans remain, three of them marked `REAL GAP` in the same file —
+`revfs:persist-failed`, `outbound-failed`, `outbound-error`. Those are the next
+ones.
+
+> An announcement decoded, emitted, and dropped costs more than one never sent:
+> the protocol paid for it, and the user got nothing.
