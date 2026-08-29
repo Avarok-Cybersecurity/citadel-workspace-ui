@@ -71,20 +71,27 @@ export function GroupChatHeader({
   // Check if user can access settings
   const canAccessSettings: boolean = can('editGroupSettings') || can('manageRoles');
 
+  // `viewMemberList` was offered as a switch in the role editor, summarised in
+  // the role list, and read by nothing -- so a role with it off saw the whole
+  // membership anyway. Both the avatar strip and the count disclose it.
+  const canSeeMembers: boolean = can('viewMemberList');
+
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background">
       {/* Left: Group Info. min-w-0 lets the name truncate at narrow widths
           instead of shoving the call controls off-screen. */}
       <div className="flex items-center gap-3 min-w-0">
         {/* Overlapping Avatars */}
-        <GroupMemberAvatars group={group} />
+        {canSeeMembers && <GroupMemberAvatars group={group} />}
 
         {/* Group Name & Member Count */}
         <div className="min-w-0">
           <h2 className="text-base font-semibold text-foreground truncate">{group.name}</h2>
-          <p className="text-xs text-muted-foreground">
-            {group.members.length} member{group.members.length !== 1 ? 's' : ''}
-          </p>
+          {canSeeMembers && (
+            <p className="text-xs text-muted-foreground">
+              {group.members.length} member{group.members.length !== 1 ? 's' : ''}
+            </p>
+          )}
         </div>
       </div>
 

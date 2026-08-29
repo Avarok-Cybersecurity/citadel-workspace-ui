@@ -5,6 +5,7 @@
  * Respects role hierarchy for actions.
  */
 
+import { membersByRank } from './members-by-rank';
 import { useState, useMemo, useCallback } from 'react';
 import { UserMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -47,21 +48,10 @@ export function GroupMemberManagement({
   const [memberToKick, setMemberToKick] = useState<GroupMemberWithRole | null>(null);
   const [isKicking, setIsKicking] = useState(false);
 
-  // Get members with resolved roles, sorted by hierarchy
-  const sortedMembers: GroupMemberWithRole[] = useMemo(() => {
-    return [...group.members]
-      .flatMap(member => {
-        const role: GroupRole | undefined = group.settings.roles.find(r => r.id === member.roleId);
-        if (!role) return [];
-        return [{ ...member, role } as GroupMemberWithRole];
-      })
-      .sort((a, b) => {
-        if (a.role.position !== b.role.position) {
-          return b.role.position - a.role.position;
-        }
-        return a.username.localeCompare(b.username);
-      });
-  }, [group.members, group.settings.roles]);
+  const sortedMembers: GroupMemberWithRole[] = useMemo(
+    (): GroupMemberWithRole[] => membersByRank(group),
+    [group],
+  );
 
   // Roles that can be assigned (excludes built-in owner role)
   const assignableRoles: GroupRole[] = useMemo((): GroupRole[] => {
@@ -96,6 +86,16 @@ export function GroupMemberManagement({
   // Check what actions are available for a member
   const canKick: boolean = can('kickMembers');
   const canAssign: boolean = can('assignRoles');
+
+  if (!can('viewMemberList')) {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground" data-testid="group-members-restricted">
+          Your role in this group cannot see the member list.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

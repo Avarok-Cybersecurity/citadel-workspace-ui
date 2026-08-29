@@ -7,13 +7,14 @@
 
 import { useMemo, useRef, useEffect, useState    , type RefObject } from 'react';
 import { memberAvatarColor } from '@/lib/avatar-color';
+import { useGroupPermissions } from '@/hooks/use-group-permissions';
 import { useNavigate } from 'react-router-dom';
 import { SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { rowClass } from './selected-row';
 import { Badge } from '@/components/ui/badge';
+import { membersByRank } from '@/components/chat/members-by-rank';
 import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
 import type { NavigateFunction } from 'react-router';
-import type { GroupRole } from '@/types/group-permissions';
 
 // ============================================================================
 // Types
@@ -58,24 +59,12 @@ export function GroupConversationRow({
   const navigate: NavigateFunction = useNavigate();
   const containerRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const [maxAvatars, setMaxAvatars] = useState(MAX_AVATARS);
+  const { can } = useGroupPermissions(group);
 
-  // Get members with their roles, sorted by position
-  const sortedMembers: GroupMemberWithRole[] = useMemo(() => {
-    return [...group.members]
-      .flatMap(member => {
-        const role: GroupRole | undefined = group.settings.roles.find(r => r.id === member.roleId);
-        if (!role) return []; // Filter out members with missing roles
-        return [{ ...member, role } as GroupMemberWithRole];
-      })
-      .sort((a, b) => {
-        // Owner first (highest position)
-        if (a.role.position !== b.role.position) {
-          return b.role.position - a.role.position;
-        }
-        // Then alphabetical
-        return a.username.localeCompare(b.username);
-      });
-  }, [group.members, group.settings.roles]);
+  const sortedMembers: GroupMemberWithRole[] = useMemo(
+    (): GroupMemberWithRole[] => membersByRank(group),
+    [group],
+  );
 
   // Calculate how many avatars can fit
   useEffect(() => {
@@ -105,8 +94,14 @@ export function GroupConversationRow({
     return (): void => resizeObserver.disconnect();
   }, []);
 
+  // The sidebar row discloses the membership just as the chat header does, so
+  // it answers to the same permission. Without this, a role with
+  // `viewMemberList` off still saw every group's roster in the sidebar.
+  const canSeeMembers: boolean = can('viewMemberList');
+
   // Get display avatars and overflow count
   const { displayMembers, overflowCount } = useMemo(() => {
+    if (!canSeeMembers) return { displayMembers: [], overflowCount: 0 };
     if (sortedMembers.length <= maxAvatars) {
       return { displayMembers: sortedMembers, overflowCount: 0 };
     }
@@ -114,7 +109,7 @@ export function GroupConversationRow({
       displayMembers: sortedMembers.slice(0, maxAvatars),
       overflowCount: sortedMembers.length - maxAvatars,
     };
-  }, [sortedMembers, maxAvatars]);
+  }, [sortedMembers, maxAvatars, canSeeMembers]);
 
   // Handle click
   const handleClick = (): void => {

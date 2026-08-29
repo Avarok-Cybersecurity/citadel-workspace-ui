@@ -16,6 +16,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useGroupPermissions } from '@/hooks/use-group-permissions';
 import { useRegisteredPeers , type RegisteredPeer } from '@/hooks/use-registered-peers';
 import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
 import { GroupCallControls } from '@/components/call/GroupCallControls';
@@ -53,6 +54,9 @@ export function GroupChatPage(): JSX.Element {
 
   // State
   const [group, setGroup] = useState<GroupConversation | null>(null);
+  // `group` is null until it loads, which is why the hook takes null. Both of
+  // these permissions were computed and read by nobody until this call site.
+  const { can } = useGroupPermissions(group);
   const [showSettings, setShowSettings] = useState(false);
 
   // Get current user info
@@ -219,6 +223,7 @@ export function GroupChatPage(): JSX.Element {
             currentUserId={currentUserId}
             currentUserName={currentUserName}
             totalMembers={group.members.length}
+            canSendMessages={can('sendMessages')}
           />
         </div>
       )}

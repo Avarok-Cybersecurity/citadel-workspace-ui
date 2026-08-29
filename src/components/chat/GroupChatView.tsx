@@ -22,6 +22,13 @@ interface GroupChatViewProps {
   rules?: string;
   /** Total number of members in this group (for read receipts) */
   totalMembers?: number;
+  /**
+   * Whether this user's role permits sending. Required, not defaulted: the
+   * `sendMessages` permission spent its whole life computed and consulted by
+   * nobody because the one composer hardcoded `true`. A default here would put
+   * it straight back.
+   */
+  canSendMessages: boolean;
 }
 
 export const GroupChatView: React.FC<GroupChatViewProps> = ({
@@ -30,6 +37,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   currentUserName,
   rules,
   totalMembers = 2,
+  canSendMessages,
 }) => {
   const chat: ReturnType<typeof useGroupChat> = useGroupChat(groupId);
 
@@ -135,7 +143,16 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
         </div>
       )}
 
-      {/* Input area */}
+      {/* Input area. A role without `sendMessages` gets the reason, not a box
+          that silently refuses -- a disabled composer with no explanation is
+          indistinguishable from a broken one. */}
+      {!canSendMessages ? (
+        <div className="p-4 border-t border-surface/50">
+          <p className="text-sm text-muted-foreground" data-testid="group-send-restricted">
+            Your role in this group cannot send messages.
+          </p>
+        </div>
+      ) : (
       <div className="p-4 border-t border-surface/50">
         <div className="flex gap-2">
           <Textarea
@@ -165,6 +182,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
           </Button>
         </div>
       </div>
+      )}
     </div>
   );
 };

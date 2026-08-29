@@ -6,29 +6,18 @@
  */
 
 import { useMemo } from 'react';
+import { membersByRank } from './members-by-rank';
 import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
 import { memberAvatarColor } from '@/lib/avatar-color';
-import type { GroupRole } from '@/types/group-permissions';
 
 const MAX_VISIBLE_AVATARS: number = 5;
 
 
 export function GroupMemberAvatars({ group }: { group: GroupConversation }): JSX.Element {
-  // Get members sorted by role position
-  const sortedMembers: GroupMemberWithRole[] = useMemo(() => {
-    return [...group.members]
-      .flatMap(member => {
-        const role: GroupRole | undefined = group.settings.roles.find(r => r.id === member.roleId);
-        if (!role) return [];
-        return [{ ...member, role } as GroupMemberWithRole];
-      })
-      .sort((a, b) => {
-        if (a.role.position !== b.role.position) {
-          return b.role.position - a.role.position;
-        }
-        return a.username.localeCompare(b.username);
-      });
-  }, [group.members, group.settings.roles]);
+  const sortedMembers: GroupMemberWithRole[] = useMemo(
+    (): GroupMemberWithRole[] => membersByRank(group),
+    [group],
+  );
 
   const visibleMembers: GroupMemberWithRole[] = sortedMembers.slice(0, MAX_VISIBLE_AVATARS);
   const overflowCount: number = Math.max(0, sortedMembers.length - MAX_VISIBLE_AVATARS);

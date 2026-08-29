@@ -17674,3 +17674,52 @@ Removing any one hook's cleanup fails exactly that hook's two tests and no
 others.
 
 2419 tests green.
+
+## Round 362 — two role switches that governed nothing
+
+`GroupPermissions` has eight keys. `GroupRoleEditor` renders a labelled switch
+for every one of them, `formatPermissions` summarises them on the role list, and
+`useGroupPermissions` computes them carefully, including a deliberate
+"No role = no permissions" branch.
+
+Two of the eight were read by nothing:
+
+- **`sendMessages`** — "Can send messages in the group chat". The only group
+  composer's caller passed `canSendMessages={true}` as a literal. An admin could
+  create a muted role, assign it, and the member sent messages anyway.
+- **`viewMemberList`** — "Can see all members of the group". The chat header's
+  avatar strip and member count, the settings roster, and the sidebar row all
+  rendered the membership unconditionally.
+
+Group roles are entirely client-side state in `group-store`; there is no server
+behind them to enforce what the client declines to. So this was not a missing
+second line of defence — it was the only one, and it was a label. The role's own
+settings page stated a restriction that was not true.
+
+Both are now read at every site that displays what they govern, and a denied
+user gets **the reason** rather than a disabled box or an empty list: a composer
+that silently refuses is indistinguishable from a broken one, and a blank roster
+reads as "no members".
+
+Office chat answers to the workspace permission system instead, so it now gates
+on `Permission.SendMessages` — and on `allowed || loading || unanswered`, so a
+permission query that never came back is not read as a denial.
+
+`useGroupPermissions` now takes `GroupConversation | null`, because the page
+that owns the group renders a spinner until it loads and hooks cannot be called
+conditionally. A group nobody has loaded grants nothing — the same answer it
+already gave for a member with no role.
+
+While extracting to fit the length cap: the members-with-roles sort was written
+out three times, byte-identical, in the header strip, the settings roster and
+the sidebar row. It is now `membersByRank` in one place.
+
+`check-group-permissions-are-enforced.mjs` reads the eight keys out of the
+interface and requires each to be consulted somewhere. Three controls fail it:
+reverting the `sendMessages` wiring, reverting `viewMemberList`, and adding a
+ninth key. Three behavioural controls fail exactly their own test: each roster
+rendering unconditionally, and the composer ignoring its prop. A fourth drives
+the whole chain — role → `can('sendMessages')` → composer — and fails when the
+hook is made to ignore the role.
+
+2422 tests green, all 56 preflight checks.

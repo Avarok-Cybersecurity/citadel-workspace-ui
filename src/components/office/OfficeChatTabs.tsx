@@ -3,6 +3,8 @@ import { FileText, MessageSquare } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import GroupChatView from '@/components/chat/GroupChatView';
 import { GroupCallControls , type GroupCallMember } from '@/components/call/GroupCallControls';
+import { usePermission } from '@/hooks/use-permission';
+import { Permission } from '@/lib/permissions-service/types';
 import { GroupCallDock } from '@/components/call/GroupCallDock';
 import { useDomainCallMembers } from '@/hooks/use-domain-call-members';
 
@@ -34,6 +36,11 @@ export function OfficeChatTabs({
   rules,
 }: OfficeChatTabsProps): JSX.Element {
   const callMembers: GroupCallMember[] = useDomainCallMembers(nodeId);
+  // Office chat is governed by the workspace permission system, not by group
+  // roles. `unanswered` keeps a permission query that never came back from
+  // reading as a denial -- a request that failed is not the answer "no".
+  const send: ReturnType<typeof usePermission> = usePermission(nodeId, Permission.SendMessages);
+  const canSendMessages: boolean = send.allowed || send.loading || send.unanswered;
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -68,6 +75,7 @@ export function OfficeChatTabs({
             currentUserId={currentUserId}
             currentUserName={currentUserName}
             rules={rules}
+            canSendMessages={canSendMessages}
           />
         </TabsContent>
       </Tabs>
