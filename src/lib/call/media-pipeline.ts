@@ -111,7 +111,7 @@ export function createVideoEncoder(
   let appliedRung: number = -1;
 
   return {
-    encode(frame, congestion): void {
+    encode(frame: VideoFrame, congestion: CongestionState): void {
       // As the decoder guard below: a fatal error closes the codec async, and
       // encode() on a closed codec throws out of the capture pump's read loop,
       // which then exits for good. The owner rebuilds it; stay quiet here.
@@ -174,7 +174,7 @@ export function createAudioEncoder(sink: FrameSink, onError: (error: Error) => v
   });
 
   return {
-    encode(data): void {
+    encode(data: AudioData): void {
       // As the decoder guard below: a fatal error closes the codec async, and
       // encode() on a closed codec throws out of the capture pump's read loop,
       // which then exits for good. The owner rebuilds it; stay quiet here.

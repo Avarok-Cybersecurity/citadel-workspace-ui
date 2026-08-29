@@ -82,7 +82,7 @@ export const MIGRATIONS: Migration[] = [
   {
     version: 1,
     description: 'Create the initial key-value, session, message, peer, tab and instance stores',
-    run: (db, _tx): void => {
+    run: (db: IDBPDatabase<unknown>, _tx: IDBPTransaction<unknown, string[], "versionchange">): void => {
       // The v1 store list, spelled out rather than read from STORE_NAMES. A
       // released migration must keep doing what it did when it was released:
       // reading the current list would mean a user upgrading from v0 creates
@@ -101,7 +101,7 @@ export const MIGRATIONS: Migration[] = [
   {
     version: 2,
     description: 'Drop the session, message, peer and instance stores, which nothing ever used',
-    run: (db, _tx): void => {
+    run: (db: IDBPDatabase<unknown>, _tx: IDBPTransaction<unknown, string[], "versionchange">): void => {
       // Safe to delete rather than migrate: no commit in the history of this
       // repository ever wrote to them, so no user can have data there. They
       // were created on the assumption they would be used and were not, while

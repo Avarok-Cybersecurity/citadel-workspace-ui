@@ -118,6 +118,8 @@ const ONE_PER_FILE = args.includes('--one-per-file');
  * code changed rather than a type guessed, and they are what will be left.
  */
 const REJECTED_PATH = resolve(APP, 'scripts', 'annotate-rejected.json');
+/** Finding lines no visitor reached at all -- the tool's blind spots. */
+const unreached = [];
 const rejected = new Set(
   existsSync(REJECTED_PATH) ? JSON.parse(readFileSync(REJECTED_PATH, 'utf-8')) : [],
 );
@@ -269,8 +271,15 @@ for (const source of program.getSourceFiles()) {
   const lines = new Set(
     findings.map((f) => f.line).filter((line) => !rejected.has(`${relPath}:${line}`)),
   );
+  /** Finding lines a visitor actually reached, to find the ones none does. */
+  const visited = new Set();
   const lineOf = (pos) => ts.getLineAndCharacterOfPosition(source, pos).line + 1;
-  const onWantedLine = (node) => lines.has(lineOf(node.getStart(source)));
+  const onWantedLine = (node) => {
+    const line = lineOf(node.getStart(source));
+    if (!lines.has(line)) return false;
+    visited.add(line);
+    return true;
+  };
   /**
    * A finding anywhere in this function's SIGNATURE, not only on its first line.
    *
@@ -289,7 +298,9 @@ for (const source of program.getSourceFiles()) {
   const signatureCovers = (node) => {
     const from = lineOf(node.getStart(source));
     const to = lineOf(node.body ? node.body.getStart(source) : node.getEnd());
-    for (let line = from; line <= to; line += 1) if (lines.has(line)) return true;
+    for (let line = from; line <= to; line += 1) {
+      if (lines.has(line)) { visited.add(line); return true; }
+    }
     return false;
   };
 
@@ -454,12 +465,23 @@ for (const source of program.getSourceFiles()) {
     if (
       ts.isParameter(node) &&
       !node.type &&
-      node.initializer &&
       ts.isIdentifier(node.name) &&
       onWantedLine(node)
     ) {
-      const widened = checker.getBaseTypeOfLiteralType(checker.getTypeAtLocation(node));
-      const printed = checker.typeToString(widened, node);
+      // With OR without a default.
+      //
+      // A default says what the parameter is. Without one the type comes from
+      // context -- `run: (db, _tx) => {}` inside an object whose shape is
+      // declared elsewhere -- and the checker knows it for the same reason the
+      // code compiles. Requiring a default missed every one of those:
+      // `upgrade(db, oldVersion, newVersion, tx)` and its neighbours were
+      // reached by no visitor at all.
+      const at = checker.getTypeAtLocation(node);
+      const widened = node.initializer ? checker.getBaseTypeOfLiteralType(at) : at;
+      const printed = checker.typeToString(
+        widened, node,
+        ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType,
+      );
       const lifted = liftImports(printed);
       if (lifted !== null && canWrite(lifted, node)) {
         edits.push({ position: node.name.getEnd(), text: `: ${lifted}` });
@@ -579,6 +601,12 @@ for (const source of program.getSourceFiles()) {
   };
   visit(source);
 
+  if (WHY) {
+    for (const line of lines) {
+      if (!visited.has(line)) unreached.push(`${relPath}:${line}`);
+    }
+  }
+
   if (edits.length === 0) continue;
   const applied = ONE_PER_FILE ? edits.slice(0, 1) : edits;
   touched += 1;
@@ -674,6 +702,22 @@ function unresolvedNames(printed, source) {
 
 if (!DRY) writeFileSync(PROPOSED_PATH, `${JSON.stringify(proposed)}\n`);
 console.log(`${DRY ? 'Would annotate' : 'Annotated'} ${annotated} finding(s) across ${touched} file(s) under ${prefix}.`);
+if (WHY && unreached.length > 0) {
+  console.log(`\n  ${unreached.length} finding(s) no visitor reached:`);
+  const byFile = new Map();
+  for (const site of unreached) {
+    const file = site.rsplit ? site : site.slice(0, site.lastIndexOf(':'));
+    byFile.set(file, (byFile.get(file) ?? 0) + 1);
+  }
+  for (const [file, count] of [...byFile].sort((a, b) => b[1] - a[1]).slice(0, 8)) {
+    console.log(`    ${String(count).padStart(4)}  ${file}`);
+  }
+  for (const site of unreached.slice(0, 12)) {
+    const [file, line] = [site.slice(0, site.lastIndexOf(':')), Number(site.slice(site.lastIndexOf(':') + 1))];
+    const text = readFileSync(resolve(APP, file), 'utf-8').split('\n')[line - 1] ?? '';
+    console.log(`      ${site}  ${text.trim().slice(0, 74)}`);
+  }
+}
 if (WHY) {
   const sorted = [...refusals.entries()].sort((a, b) => b[1] - a[1]);
   const total = sorted.reduce((sum, [, n]) => sum + n, 0);

@@ -82,7 +82,7 @@ export function PwaUpdatePrompt(): null {
         action: { label: 'Reload', onClick: () => window.location.reload() },
       });
     },
-    onRegisteredSW(url, registration): void {
+    onRegisteredSW(url: string, registration: ServiceWorkerRegistration | undefined): void {
       debugLog('PWA', 'Service worker registered', url);
       if (!registration) return;
 
@@ -113,7 +113,7 @@ export function PwaUpdatePrompt(): null {
         window.removeEventListener('online', check);
       };
     },
-    onRegisterError(error): void {
+    onRegisterError(error: any): void {
       debugLog('PWA', 'Service worker registration failed', error);
     },
   });

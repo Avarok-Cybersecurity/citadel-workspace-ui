@@ -5,7 +5,7 @@
  * No JSON.stringify/parse, no revivers/replacers - data is stored as-is.
  */
 
-import { openDB, IDBPDatabase, DBSchema } from 'idb';
+import { openDB, IDBPDatabase, DBSchema , type IDBPTransaction } from 'idb';
 import { errorLog, warnLog } from './debug-config';
 import { DB_NAME, DB_VERSION, runMigrations, missingStores , type StoreName } from './storage-migrations';
 
@@ -62,7 +62,7 @@ export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
     });
 
     const opening: Promise<IDBPDatabase<CitadelDBSchema>> = openDB<CitadelDBSchema>(DB_NAME, DB_VERSION, {
-      upgrade(db, oldVersion, newVersion, tx): void {
+      upgrade(db: IDBPDatabase<CitadelDBSchema>, oldVersion: number, newVersion: number | null, tx: IDBPTransaction<CitadelDBSchema, ("keyValue" | "tabContext")[], "versionchange">): void {
         runMigrations(db, oldVersion, newVersion, tx);
 
         const missing: ("keyValue" | "tabContext")[] = missingStores(db.objectStoreNames);
@@ -82,7 +82,7 @@ export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
        * app hangs with no explanation — and this app is explicitly multi-tab, so
        * it is the normal case during an update, not an edge case.
        */
-      blocked(currentVersion, blockedVersion): void {
+      blocked(currentVersion: number, blockedVersion: number | null): void {
         const detail: string =
           `Database upgrade to v${blockedVersion} is blocked by another tab still on v${currentVersion}. ` +
           'Close other Citadel tabs to finish updating.';
@@ -103,7 +103,7 @@ export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
        * to upgrade. Closing our connection lets that upgrade proceed; the next
        * database call transparently reopens at the new version.
        */
-      blocking(currentVersion, blockedVersion): void {
+      blocking(currentVersion: number, blockedVersion: number | null): void {
         warnLog(
           'Storage',
           `Closing our v${currentVersion} connection so another tab can upgrade to v${blockedVersion}`

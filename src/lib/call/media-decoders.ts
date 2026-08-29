@@ -42,7 +42,7 @@ export function createVideoDecoder(
   decoder.configure({ codec, optimizeForLatency: true });
 
   return {
-    decode(frame): void {
+    decode(frame: WireFrame): void {
       // A fatal error closes the codec asynchronously; a frame can race that
       // callback, and decode() on a closed codec throws out of the caller's
       // event handler. The owner rebuilds the decoder — this just stays quiet.
@@ -85,7 +85,7 @@ export function createAudioDecoder(
   });
 
   return {
-    decode(frame): void {
+    decode(frame: WireFrame): void {
       // Same closed-codec race as the video decoder; see above.
       if (decoder.state === 'closed') return;
       decoder.decode(new EncodedAudioChunk(frameToDecoderChunk(frame)));

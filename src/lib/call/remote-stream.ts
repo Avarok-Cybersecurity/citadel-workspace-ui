@@ -36,7 +36,7 @@ export function createRemoteVideoSink(): RemoteVideoSink {
 
     return {
       stream,
-      write(frame): void {
+      write(frame: VideoFrame): void {
         // Frames are scarce GPU handles; the writer takes ownership and closes
         // them. Failing to close leaks until the decoder stalls.
         void writer.write(frame).catch(() => frame.close());
@@ -72,7 +72,7 @@ export function createRemoteVideoSink(): RemoteVideoSink {
 
   return {
     stream,
-    write(frame): void {
+    write(frame: VideoFrame): void {
       try {
         if (canvas.width !== frame.displayWidth || canvas.height !== frame.displayHeight) {
           canvas.width = frame.displayWidth;
@@ -108,7 +108,7 @@ export function createRemoteAudioSink(): RemoteAudioSink {
   if (!Generator) {
     return {
       stream: null,
-      write(data): void {
+      write(data: AudioData): void {
         data.close();
       },
       close(): void {},
@@ -121,7 +121,7 @@ export function createRemoteAudioSink(): RemoteAudioSink {
 
   return {
     stream,
-    write(data): void {
+    write(data: AudioData): void {
       void writer.write(data).catch(() => data.close());
     },
     close(): void {

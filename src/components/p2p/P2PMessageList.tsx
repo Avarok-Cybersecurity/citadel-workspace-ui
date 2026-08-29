@@ -56,7 +56,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
       onDeleteMessage,
       onReplyMessage,
     },
-    ref
+    ref: React.ForwardedRef<HTMLDivElement>
   ) {
     return (
       <ScrollArea className="flex-1 p-4" ref={ref} onScroll={onScroll}>
