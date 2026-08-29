@@ -82,7 +82,7 @@ function countNodes(node: RevfsNode): { dirs: number; files: number } {
   return { dirs, files };
 }
 
-function calculateMaxDepth(node: RevfsNode, currentDepth = 0): number {
+function calculateMaxDepth(node: RevfsNode, currentDepth: number = 0): number {
   if (!node.children || node.children.length === 0) {
     return currentDepth;
   }

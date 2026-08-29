@@ -23,7 +23,7 @@ import { isGenuinelyAbsent } from '@/lib/storage/absence';
  */
 export async function listRegisteredPeersWithRetry(
   pendingRequests: Map<string, PendingRequestEntry>,
-  maxRetries = DEFAULT_LIST_RETRIES
+  maxRetries: number = DEFAULT_LIST_RETRIES
 ): Promise<PeerInfoResponse[]> {
   let lastError: Error | null = null;
   for (let i: number = 0; i < maxRetries; i++) {

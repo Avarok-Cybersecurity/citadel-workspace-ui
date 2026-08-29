@@ -21,7 +21,7 @@ const OTHER: bigint = 42n;
 
 async function freshStore() {
   vi.resetModules();
-  const store = await import('../group-store');
+  const store: typeof import('../group-store') = await import('../group-store');
   // The emitter must come from the SAME module graph as the store. Importing it
   // at the top of the file gives the pre-reset instance, so every event went to
   // an emitter the store was not listening on — and the "does not count own

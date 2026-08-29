@@ -117,7 +117,7 @@ export class LiveDocumentStore {
     if (await this.loadDocument(docId)) return;
 
     const now: number = Date.now();
-    const doc = new Y.Doc();
+    const doc: Y.Doc = new Y.Doc();
     const state: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(doc);
     const rootHash: string = sha256Sync(state);
 

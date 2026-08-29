@@ -63,7 +63,7 @@ describe('group persistence', () => {
 
   it('reports no groups rather than throwing when the read fails', async () => {
     cidRef.current = 111n;
-    const utils = await import('@/lib/storage-utils');
+    const utils: typeof import('@/lib/storage-utils') = await import('@/lib/storage-utils');
     vi.mocked(utils.dbGet).mockRejectedValueOnce(new Error('storage unavailable'));
 
     await expect(loadPersistedGroups()).resolves.toEqual([]);

@@ -446,6 +446,26 @@ for (const source of program.getSourceFiles()) {
       }
     }
 
+    // A parameter with a default and no type: `function f(open = false)`.
+    //
+    // The default says what it is, and the compiler agrees -- it infers the
+    // parameter's type from exactly that. Twenty-five findings read "Expected a
+    // type annotation" for this shape and nothing had ever visited them.
+    if (
+      ts.isParameter(node) &&
+      !node.type &&
+      node.initializer &&
+      ts.isIdentifier(node.name) &&
+      onWantedLine(node)
+    ) {
+      const widened = checker.getBaseTypeOfLiteralType(checker.getTypeAtLocation(node));
+      const printed = checker.typeToString(widened, node);
+      const lifted = liftImports(printed);
+      if (lifted !== null && canWrite(lifted, node)) {
+        edits.push({ position: node.name.getEnd(), text: `: ${lifted}` });
+      }
+    }
+
     if (
       (ts.isVariableDeclaration(node) || ts.isPropertyDeclaration(node)) &&
       !node.type && ts.isIdentifier(node.name) && onWantedLine(node)
@@ -475,6 +495,30 @@ for (const source of program.getSourceFiles()) {
       const lifted = liftImports(printed === 'any' && ANY_AS_UNKNOWN ? 'unknown' : printed);
       if (lifted !== null && canWrite(lifted, node)) {
         edits.push({ position: node.name.getEnd(), text: `: ${lifted}` });
+      } else if (
+        node.initializer &&
+        ts.isNewExpression(node.initializer) &&
+        !node.initializer.typeArguments &&
+        /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$/.test(node.initializer.expression.getText(source))
+      ) {
+        // `const doc = new Y.Doc()` is a `Y.Doc`. The constructor names the
+        // type, and it is already in scope because it is being called.
+        edits.push({
+          position: node.name.getEnd(),
+          text: `: ${node.initializer.expression.getText(source)}`,
+        });
+      } else if (
+        node.initializer &&
+        ts.isAwaitExpression(node.initializer) &&
+        ts.isCallExpression(node.initializer.expression) &&
+        node.initializer.expression.expression.kind === ts.SyntaxKind.ImportKeyword &&
+        node.initializer.expression.arguments.length === 1 &&
+        ts.isStringLiteral(node.initializer.expression.arguments[0])
+      ) {
+        // `const store = await import('@/lib/x')` is `typeof import('@/lib/x')`
+        // -- which is real TypeScript and needs no import of its own.
+        const module = node.initializer.expression.arguments[0].text;
+        edits.push({ position: node.name.getEnd(), text: `: typeof import('${module}')` });
       } else if (
         node.initializer &&
         ts.isCallExpression(node.initializer) &&

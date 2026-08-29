@@ -90,7 +90,7 @@ export function createVideoEncoder(
   let lastKeyframeAt: number = -Infinity;
   let forceKeyframe: boolean = true;
 
-  const encoder = new VideoEncoder({
+  const encoder: VideoEncoder = new VideoEncoder({
     output: (chunk): void => {
       if (chunk.type === 'key') lastKeyframeAt = chunk.timestamp;
       sink(videoChunkToFrame(chunk, thumbnail, screen?.track));

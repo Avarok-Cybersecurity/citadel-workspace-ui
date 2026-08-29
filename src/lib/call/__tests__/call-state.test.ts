@@ -21,7 +21,7 @@ const ALICE: { cid: bigint; username: string; } = { cid: 1n, username: 'alice' }
 const BOB: { cid: bigint; username: string; } = { cid: 2n, username: 'bob' };
 const CAROL: { cid: bigint; username: string; } = { cid: 3n, username: 'carol' };
 
-function outgoing(invitees = [BOB], roomId: string | null = null): CallState {
+function outgoing(invitees: { cid: bigint; username: string; }[] = [BOB], roomId: string | null = null): CallState {
   return reduce(null, {
     type: 'invite-sent',
     callId: 'call-1',

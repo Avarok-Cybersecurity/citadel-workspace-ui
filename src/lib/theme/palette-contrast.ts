@@ -9,7 +9,7 @@
 import type { HslColor } from './theme-types';
 import { contrastRatio } from './hsl';
 
-export function ensureFillContrast(fill: HslColor, label: HslColor, min = 4.5): HslColor {
+export function ensureFillContrast(fill: HslColor, label: HslColor, min: number = 4.5): HslColor {
   if (contrastRatio(fill, label) >= min) return fill;
 
   const away: 1 | -1 = label.l > fill.l ? -1 : 1;

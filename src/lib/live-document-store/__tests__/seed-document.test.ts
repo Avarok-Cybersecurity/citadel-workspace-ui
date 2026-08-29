@@ -42,7 +42,7 @@ describe('seedDocument', () => {
     // it, so a seed that does not survive this round trip is not a seed.
     const encoded: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(seedDocument('carried across'));
 
-    const loaded = new Y.Doc();
+    const loaded: Y.Doc = new Y.Doc();
     Y.applyUpdate(loaded, encoded);
 
     expect(readSeededText(loaded)).toContain('carried across');

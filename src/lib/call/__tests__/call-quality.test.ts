@@ -16,7 +16,7 @@ import {
 const BOB: bigint = 2n;
 const CAROL: bigint = 3n;
 
-function trackerWithGaps(count: number, at = 0): CallQualityTracker {
+function trackerWithGaps(count: number, at: number = 0): CallQualityTracker {
   const tracker: CallQualityTracker = new CallQualityTracker();
   tracker.recordFrame(BOB, at);
   for (let i: number = 0; i < count; i += 1) tracker.recordGap(BOB, at + i);

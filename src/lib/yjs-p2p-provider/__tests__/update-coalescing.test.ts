@@ -45,7 +45,7 @@ afterEach(() => {
 
 describe('yjs update coalescing', () => {
   it('sends one message for a burst of edits, not one per keystroke', () => {
-    const doc = new Y.Doc();
+    const doc: Y.Doc = new Y.Doc();
     const provider: YjsP2PProvider = makeProvider(doc);
     sent.length = 0;
 

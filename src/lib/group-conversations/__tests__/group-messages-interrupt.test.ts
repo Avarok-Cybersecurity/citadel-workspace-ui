@@ -9,7 +9,7 @@
  * sidebar.
  */
 
-import { describe, it, expect, vi, beforeEach  } from 'vitest';
+import { describe, it, expect, vi, beforeEach   } from 'vitest';
 
 const addMessageNotification: ReturnType<typeof vi.fn> = vi.fn();
 vi.mock('@/lib/notification-service', () => ({
@@ -27,7 +27,7 @@ const { startGroupNotificationBindings } = await import('../group-notifications'
 
 startGroupNotificationBindings();
 
-function receive(senderId: string, content = 'hello', groupId = 'g1'): void {
+function receive(senderId: string, content: string = 'hello', groupId = 'g1'): void {
   eventEmitter.emit('group:message-received', {
     groupId,
     senderId,

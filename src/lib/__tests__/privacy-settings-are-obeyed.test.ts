@@ -8,7 +8,7 @@
  *
  * These assert at the send points, which is where the promise is kept or broken.
  */
-import { describe, it, expect, vi, beforeEach    } from 'vitest';
+import { describe, it, expect, vi, beforeEach     } from 'vitest';
 import type { PrivacySettings } from '@/lib/privacy-settings';
 import type { PresenceManager } from '@/lib/p2p/presence-manager';
 import {
@@ -40,7 +40,7 @@ describe('privacy settings storage', () => {
     );
     // A fresh module instance, so nothing is cached from an earlier write.
     vi.resetModules();
-    const fresh = await import('../privacy-settings');
+    const fresh: typeof import('../privacy-settings') = await import('../privacy-settings');
 
     const read: PrivacySettings = fresh.getPrivacySettings();
     expect(read.showOnlineStatus).toBe(false);

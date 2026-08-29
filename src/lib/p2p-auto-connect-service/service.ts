@@ -202,7 +202,7 @@ export class P2PAutoConnectService {
     });
   }
 
-  public async waitForPeerConnected(peerCid: bigint, timeoutMs = WAIT_FOR_PEER_TIMEOUT_MS): Promise<boolean> {
+  public async waitForPeerConnected(peerCid: bigint, timeoutMs: number = WAIT_FOR_PEER_TIMEOUT_MS): Promise<boolean> {
     const currentCid: bigint | null = await getCurrentCid();
     if (!currentCid) return false;
 

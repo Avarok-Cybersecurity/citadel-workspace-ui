@@ -18,7 +18,7 @@ import * as Y from 'yjs';
  * y-prosemirror represents them.
  */
 export function seedDocument(initialContent: string): Y.Doc {
-  const doc = new Y.Doc();
+  const doc: Y.Doc = new Y.Doc();
   const fragment: ReturnType<typeof doc.getXmlFragment> = doc.getXmlFragment('default');
 
   // Blank lines are preserved as empty paragraphs; a document that silently

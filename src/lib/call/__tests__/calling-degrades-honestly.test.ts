@@ -71,7 +71,7 @@ describe('hasTrackTransforms', () => {
 
     delete g.MediaStreamTrackGenerator;
     vi.resetModules();
-    const again = await import('../track-transforms');
+    const again: typeof import('../track-transforms') = await import('../track-transforms');
     expect(again.hasTrackTransforms()).toBe(false);
   });
 });

@@ -4,12 +4,12 @@
  * No mocking needed — RevfsState is pure in-memory state.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi  } from 'vitest';
 import { RevfsState } from '../revfs-state';
 import type { RevfsNode, RevfsPendingOp } from '@/types/revfs-types';
 import { RevfsOpType } from '@/types/revfs-types';
 
-function makeTree(path = '/'): RevfsNode {
+function makeTree(path: string = '/'): RevfsNode {
   return { name: '/', type: 'directory', path, children: [], createdAt: 1, updatedAt: 1 };
 }
 

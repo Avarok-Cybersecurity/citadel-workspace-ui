@@ -35,7 +35,7 @@ export class YjsChunkingStrategy implements ChunkingStrategy<Y.Doc, Uint8Array> 
    */
   reconstruct(chunks: Uint8Array[]): Y.Doc {
     const fullState: Uint8Array<ArrayBufferLike> = this.binaryStrategy.reconstruct(chunks);
-    const doc = new Y.Doc();
+    const doc: Y.Doc = new Y.Doc();
     Y.applyUpdate(doc, fullState, 'merkle-reconstruct');
     return doc;
   }

@@ -6,7 +6,7 @@
  * WebCodecs and MediaStreamTrackGenerator have no jsdom implementation, so they
  * are stubbed; what is under test is our own lifecycle logic around them.
  */
-import { describe, it, expect, vi, beforeEach, afterEach  } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach   } from 'vitest';
 import { PeerReceiver } from '../peer-receiver';
 import { CALL_FLAG_KEYFRAME, CALL_KIND_AUDIO, CALL_KIND_VIDEO } from '@/types/p2p-commands';
 import type { WireFrame } from '../frame-codec';
@@ -46,7 +46,7 @@ beforeEach(() => {
 
 afterEach(() => { vi.unstubAllGlobals(); });
 
-function frame(kind: number, flags = CALL_FLAG_KEYFRAME): WireFrame {
+function frame(kind: number, flags: number = CALL_FLAG_KEYFRAME): WireFrame {
   return { track: kind === CALL_KIND_VIDEO ? 1 : 0, kind, timestamp: 0, flags, payload: new Uint8Array([1]) };
 }
 

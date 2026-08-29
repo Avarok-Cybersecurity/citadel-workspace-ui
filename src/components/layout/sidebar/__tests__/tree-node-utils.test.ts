@@ -7,7 +7,7 @@ import type { TreeNode } from '@/components/layout/sidebar/tree-node-types';
  * A node carrying only the fields buildTreeFromNodes reads. Filling in the rest
  * of DomainNode would obscure what each case is actually about.
  */
-function node(id: string, parent_id: string | null, name = id): DomainNode {
+function node(id: string, parent_id: string | null, name: string = id): DomainNode {
   return {
     id,
     parent_id,

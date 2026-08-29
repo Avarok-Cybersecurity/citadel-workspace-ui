@@ -28,7 +28,7 @@ export function createVideoDecoder(
 ): VideoDecoderHandle {
   let primed: boolean = false;
 
-  const decoder = new VideoDecoder({
+  const decoder: VideoDecoder = new VideoDecoder({
     output: onFrame,
     error: (error): void => {
       // A decode error means the reference chain is broken; only a keyframe

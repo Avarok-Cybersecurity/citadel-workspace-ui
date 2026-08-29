@@ -172,7 +172,7 @@ describe('GroupCallControls — in call', () => {
 });
 
 describe('GroupCallDock — scoping', () => {
-  function renderDock(value: CallContextValue, roomId = ROOM) {
+  function renderDock(value: CallContextValue, roomId: string = ROOM) {
     return render(
       <CallContext.Provider value={value}>
         <GroupCallDock roomId={roomId} />

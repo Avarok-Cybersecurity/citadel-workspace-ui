@@ -195,7 +195,7 @@ export class P2PRegistrationService {
     return doListAllPeers(this.pendingRequests);
   }
 
-  public async listRegisteredPeersWithRetry(maxRetries = 2): Promise<PeerInfoResponse[]> {
+  public async listRegisteredPeersWithRetry(maxRetries: number = 2): Promise<PeerInfoResponse[]> {
     return doListRegisteredPeersWithRetry(this.pendingRequests, maxRetries);
   }
 
