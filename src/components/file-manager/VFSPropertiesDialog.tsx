@@ -21,9 +21,8 @@ import {
   Upload,
   Download,
 } from "lucide-react";
-import type { RevfsNode } from "@/types/revfs-types";
+import type { RevfsNode, RevfsFileMetadata } from "@/types/revfs-types";
 import { RevfsFileState } from "@/types/revfs-types";
-import type { RevfsFileMetadata } from '@/types/revfs-types';
 
 interface VFSPropertiesDialogProps {
   node: RevfsNode | null;

@@ -6,8 +6,7 @@ import {
   ChevronRight,
   ChevronDown,
 } from "lucide-react";
-import type { RevfsNode } from "@/types/revfs-types";
-import { PROTECTED_DIRS } from "@/types/revfs-types";
+import { PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
 import { VFSContextMenu } from "./VFSContextMenu";
 import { VFSStorageUsage } from "./VFSStorageUsage";
 import { cn } from "@/lib/utils";

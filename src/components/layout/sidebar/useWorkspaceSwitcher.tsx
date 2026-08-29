@@ -11,8 +11,8 @@ import { ConnectionService } from "@/lib/connection-service";
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess, toastError } from "@/lib/toast-helpers";
-import { getSelectedUser, setSelectedUser } from "@/lib/tab-context";
-import { getWorkspaceLogo } from "@/lib/workspace-metadata-service";
+import { getSelectedUser, setSelectedUser , type TabUserContext } from "@/lib/tab-context";
+import { getWorkspaceLogo , type WorkspaceLogo } from "@/lib/workspace-metadata-service";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { yieldToEventLoop } from '@/lib/utils/scheduling';
@@ -20,9 +20,7 @@ import { useWorkspaceTheme } from '@/lib/theme/workspace-theme-context';
 
 export type { StoredWorkspace } from './stored-workspace-list';
 import type { NavigateFunction } from 'react-router';
-import type { TabUserContext } from '@/lib/tab-context';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
-import type { WorkspaceLogo } from '@/lib/workspace-metadata-service';
 import type { StoredSessions, StoredSession } from '@/types/session-types';
 
 export type WorkflowStep = "connect" | "security" | "join";

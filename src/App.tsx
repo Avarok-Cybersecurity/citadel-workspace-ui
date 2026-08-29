@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense , type LazyExoticComponent } from "react";
 import { ThemeProvider } from "next-themes";
 import { ConfirmDialogProvider } from "@/components/shared/confirm-dialog";
 import { PromptDialogProvider } from "@/components/shared/prompt-dialog";
@@ -20,7 +20,6 @@ import { OngoingCallBar } from "./components/call/OngoingCallBar";
 // Landing is the route almost every session starts on, so it is imported eagerly:
 // code-splitting it would only add a network round trip before first paint.
 import Landing from "./pages/Landing";
-import type { LazyExoticComponent } from 'react';
 
 /**
  * Every other route is split out. Nothing here was split before, so a visitor to

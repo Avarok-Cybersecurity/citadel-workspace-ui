@@ -22,14 +22,13 @@ import { getUserInitials } from "@/lib/workspace-metadata-service";
 import { LeaderIndicator } from "@/components/ui/leader-indicator";
 import { isDiagnosticsUiEnabled } from "@/lib/debug-config";
 import { connectionManager } from "@/lib/connection";
-import { getSelectedUser } from "@/lib/tab-context";
+import { getSelectedUser , type TabUserContext } from "@/lib/tab-context";
 import { useState, useEffect } from "react";
 import { ExitConfirmModal } from "@/components/ExitConfirmModal";
 import { ProfileModal } from "@/components/settings/ProfileModal";
 import { DisconnectLoadingModal } from "@/components/LoadingModal";
 import { cn } from "@/lib/utils";
 import { useSessionExit } from './use-session-exit';
-import type { TabUserContext } from '@/lib/tab-context';
 import type { StoredSession } from '@/types/session-types';
 
 interface TopBarProps {

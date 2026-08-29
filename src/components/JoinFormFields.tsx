@@ -1,7 +1,6 @@
-import { User, AtSign, Lock, Eye, EyeOff } from "lucide-react";
+import { User, AtSign, Lock, Eye, EyeOff , type LucideIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo } from "react";
-import type { LucideIcon } from "lucide-react";
 import { CREDENTIAL_LIMITS, validatePassword } from "@/lib/credential-rules";
 
 interface FormFieldProps {

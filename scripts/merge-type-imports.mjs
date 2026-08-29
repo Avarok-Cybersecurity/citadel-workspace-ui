@@ -40,7 +40,10 @@ for (const file of files(SRC)) {
   let changed = false;
 
   lines.forEach((line, index) => {
-    const typeOnly = line.match(/^import type \{ ([A-Za-z_$][\w$]*) \} from '([^']+)';$/);
+    // Either quote style. The first version matched only single quotes, and
+    // this file uses double ones -- so three type imports it could have folded
+    // stayed as three lines and pushed the file over the ceiling.
+    const typeOnly = line.match(/^import type \{ ([A-Za-z_$][\w$]*) \} from ['"]([^'"]+)['"];$/);
     if (!typeOnly) return;
     const [, name, module] = typeOnly;
 
@@ -49,12 +52,20 @@ for (const file of files(SRC)) {
     const host = lines.findIndex(
       (other, otherIndex) =>
         otherIndex !== index &&
-        new RegExp(`^import \\{ [^}]*\\} from '${module.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}';$`).test(other),
+        new RegExp(`^import (?:type )?\\{ [^}]*\\} from ['"]${module.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}['"];$`).test(other),
     );
     if (host < 0) return;
+    // Only when this module has exactly ONE type-only line. Folding two of them
+    // into the same value import lost a name -- `RevfsFileMetadata` vanished
+    // and the file stopped compiling. Several lines from one module are the
+    // grouping pass's job, below.
+    const sameModule = lines.filter((other) =>
+      new RegExp(`^import type \\{ [^}]+ \\} from ['"]${module.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"];$`).test(other),
+    );
+    if (sameModule.length !== 1) return;
     if (new RegExp(`\\b${name}\\b`).test(lines[host])) { drop.add(index); changed = true; return; }
 
-    lines[host] = lines[host].replace(/\} from '/, `, type ${name} } from '`);
+    lines[host] = lines[host].replace(/\} from (['"])/, `, type ${name} } from $1`);
     drop.add(index);
     merged += 1;
     changed = true;
@@ -64,7 +75,7 @@ for (const file of files(SRC)) {
   const kept = lines.filter((_, index) => !drop.has(index));
   const byModule = new Map();
   kept.forEach((line, index) => {
-    const match = line.match(/^import type \{ ([^}]+) \} from '([^']+)';$/);
+    const match = line.match(/^import type \{ ([^}]+) \} from ['"]([^'"]+)['"];$/);
     if (!match) return;
     const [, names, module] = match;
     if (!byModule.has(module)) byModule.set(module, { at: index, names: [], lines: [] });

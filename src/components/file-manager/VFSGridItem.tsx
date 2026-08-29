@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Folder, FolderLock } from "lucide-react";
-import type { RevfsNode } from "@/types/revfs-types";
-import { RevfsFileState, PROTECTED_DIRS } from "@/types/revfs-types";
+import { RevfsFileState, PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
 import type { SelectMode } from "@/hooks/useVFSSelection";
 import { VFSContextMenu } from "./VFSContextMenu";
 import { VFSRenameInput } from "./VFSRenameInput";

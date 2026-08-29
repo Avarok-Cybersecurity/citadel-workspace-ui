@@ -11,7 +11,7 @@ import type { ActiveSession } from "@/types/session-types";
 import type { DisconnectAction } from "./DisconnectConfirmModal";
 import type { DisconnectStatus } from "./LoadingModal";
 import { useToast, useEventListener } from "@/hooks";
-import { setSelectedUser, getSelectedUser } from "@/lib/tab-context";
+import { setSelectedUser, getSelectedUser , type TabUserContext } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { startMessagingForSession } from "@/lib/start-messaging";
 import { instanceManager, instanceChannel } from "@/lib/multi-instance";
@@ -23,7 +23,6 @@ import { eventEmitter } from "@/lib/event-emitter";
 import { postAuthSetup } from "@/lib/post-auth-setup";
 import { debugLog } from '@/lib/debug-config';
 import type { NavigateFunction } from 'react-router';
-import type { TabUserContext } from '@/lib/tab-context';
 
 export interface OrphanSessionWithWorkspace extends ActiveSession {
   workspaceName: string;

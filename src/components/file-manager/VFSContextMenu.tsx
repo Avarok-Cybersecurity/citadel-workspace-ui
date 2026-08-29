@@ -17,8 +17,7 @@ import {
   Copy,
   ClipboardPaste,
 } from "lucide-react";
-import type { RevfsNode } from "@/types/revfs-types";
-import { RevfsFileState, PROTECTED_DIRS } from "@/types/revfs-types";
+import { RevfsFileState, PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
 import type { ReactNode } from "react";
 
 interface VFSContextMenuProps {

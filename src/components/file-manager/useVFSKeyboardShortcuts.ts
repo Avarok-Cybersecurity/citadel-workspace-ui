@@ -1,6 +1,5 @@
 import { useEffect, useCallback } from "react";
-import type { RevfsNode } from "@/types/revfs-types";
-import { PROTECTED_DIRS } from "@/types/revfs-types";
+import { PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
 import { findNodeByPath } from "./vfs-content-helpers";
 
 interface KeyboardShortcutsDeps {

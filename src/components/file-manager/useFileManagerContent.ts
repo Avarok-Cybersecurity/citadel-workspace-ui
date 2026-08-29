@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo , type RefObject } from "react";
 import { useRevfsTree, useServerRevfsTree } from "@/hooks/useRevfsTree";
 import { useVFSClipboard } from "@/hooks/useVFSClipboard";
 import { useVFSSelection } from "@/hooks/useVFSSelection";
@@ -11,7 +11,6 @@ import { INTERVAL } from "@/lib/timeout-constants";
 import { useFileManagerHandlers } from "./useFileManagerHandlers";
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { UseRevfsTreeResult, UseServerRevfsTreeResult } from '@/hooks/useRevfsTree-types';
-import type { RefObject } from 'react';
 
 export { findNodeByPath } from '@/lib/revfs/tree-operations';
 

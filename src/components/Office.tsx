@@ -1,5 +1,5 @@
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef , type MutableRefObject } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AppLayout } from "./layout/AppLayout";
 import { WorkspaceView } from "./workspace/WorkspaceView";
@@ -8,7 +8,6 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { debugLog } from '@/lib/debug-config';
 import type { NavigateFunction } from 'react-router';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
-import type { MutableRefObject } from 'react';
 
 export const Office: () => JSX.Element = (): JSX.Element => {
   const location = useLocation();
