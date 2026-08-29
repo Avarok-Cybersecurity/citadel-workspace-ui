@@ -107,7 +107,6 @@
   "src/hooks/use-retry.ts": 4,
   "src/hooks/useServerRevfsTree.ts": 1,
   "src/lib/__tests__/diagnostics-ui.test.ts": 1,
-  "src/lib/__tests__/peer-display.test.ts": 1,
   "src/lib/__tests__/post-auth-setup.test.ts": 1,
   "src/lib/__tests__/presence.test.ts": 1,
   "src/lib/__tests__/privacy-settings-are-obeyed.test.ts": 3,
