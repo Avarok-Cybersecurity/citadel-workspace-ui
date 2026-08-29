@@ -3,7 +3,7 @@
 import { ConnectionState } from './state';
 import { ConnectionIO, connectionIO } from './io';
 import type { CurrentConnectionInfo, AuthSuccessParams } from './types';
-import type { StoredSession, ActiveSession } from '@/types/session-types';
+import type { StoredSession, ActiveSession, StoredSessions } from '@/types/session-types';
 import { POST_DISCONNECT_DELAY_MS } from './constants';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
@@ -188,7 +188,7 @@ export class ConnectionManager {
     await clearStoredSessions(this.state, this.io);
   }
 
-  public getStoredSessions() { return this.state.storedSessions; }
+  public getStoredSessions(): StoredSessions { return this.state.storedSessions; }
 
   public async handleAuthSuccess(params: AuthSuccessParams): Promise<void> {
     await handleAuthSuccess(params, this.state, this.io);

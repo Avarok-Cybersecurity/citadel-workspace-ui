@@ -183,6 +183,14 @@ for (const file of program.getSourceFiles()) {
     const isType = flags & (ts.SymbolFlags.Type | ts.SymbolFlags.Interface |
       ts.SymbolFlags.TypeAlias | ts.SymbolFlags.Class | ts.SymbolFlags.Enum);
     if (!isType) continue;
+    // Only where it is DECLARED, never where it is re-exported. `src/types/
+    // index.ts` is a barrel, so every type in it looked like a second
+    // declaration and every one of them came out ambiguous -- StoredSession,
+    // ActiveSession, Peer and the rest, all for a file that declares nothing.
+    const declaredHere = (exported.declarations ?? []).some(
+      (d) => d.getSourceFile().fileName === file.fileName,
+    );
+    if (!declaredHere) continue;
     // Every candidate is kept. Which one is meant is decided later, on the
     // SPECIFIER each would produce: three files in one package are not an
     // ambiguity, they are one import.

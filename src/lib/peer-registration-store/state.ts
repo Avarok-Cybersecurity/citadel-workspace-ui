@@ -12,6 +12,7 @@ import { debugLog } from '@/lib/debug-config';
 import type { PendingPeerRequest, OutgoingPeerRequest } from './types';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { TabUserContext } from '@/lib/tab-context';
+import type { StoredSession } from '@/types/session-types';
 
 /**
  * Get current session CID.
@@ -42,7 +43,7 @@ export async function getCurrentSessionCid(): Promise<bigint | null> {
   // "cannot scope by account" and shows what it has.
   try {
     const tabSelection: TabUserContext | null = await getSelectedUser();
-    const tabSession = await connectionManager.getTabSelectedSession();
+    const tabSession: StoredSession | null = await connectionManager.getTabSelectedSession();
     return tabSelection?.selectedCid || tabSession?.cid || null;
   } catch (error) {
     debugLog('PeerRegistrationStore', 'Could not read the selected session; treating it as unknown:', error);

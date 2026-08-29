@@ -4,7 +4,7 @@ import type { ConnectionState } from './state';
 import { markLastAccessed } from '@/lib/sessions/last-accessed';
 import type { ConnectionIO } from './io';
 import type { AuthSuccessParams } from './types';
-import type { StoredSession } from '@/types/session-types';
+import type { StoredSession, StoredSessions } from '@/types/session-types';
 import { selectUserWithoutBlocking } from './select-user';
 import { debugLog } from '@/lib/debug-config';
 import { saveRecentServer } from '@/lib/server-utils';
@@ -42,7 +42,7 @@ export async function loadStoredSessions(
   state: ConnectionState, io: ConnectionIO,
 ): Promise<void> {
   try {
-    const loaded = await io.loadSessionsFromLocalDB();
+    const loaded: StoredSessions | null = await io.loadSessionsFromLocalDB();
     if (loaded) {
       state.setStoredSessions(loaded);
       debugLog('ConnectionService', 'Loaded', state.storedSessions.sessions.length, 'stored sessions');

@@ -1,4 +1,5 @@
 import { connectionManager } from '../connection';
+import type { ActiveSession } from '@/types/session-types';
 
 /**
  * Whether this browser's WebSocket owns the given session.
@@ -9,7 +10,7 @@ import { connectionManager } from '../connection';
  */
 export async function ownsSession(cid: bigint): Promise<boolean> {
   try {
-    const sessions = await connectionManager.getActiveSessions();
+    const sessions: ActiveSession[] = await connectionManager.getActiveSessions();
     return sessions.some((session) => session.cid === cid);
   } catch {
     // Unknown ownership: assume not ours and initiate from our own side, which

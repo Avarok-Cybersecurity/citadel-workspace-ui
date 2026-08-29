@@ -25,7 +25,7 @@ import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser } from '@/lib/tab-context';
 import { instanceManager, instanceChannel } from '@/lib/multi-instance';
 import { debugLog } from '@/lib/debug-config';
-import type { ActiveSession } from '@/types/session-types';
+import type { ActiveSession, StoredSession } from '@/types/session-types';
 
 /** How long to wait for auto-connect to produce a session before giving up. */
 const RECONNECT_WAIT_MS: number = 8000;
@@ -66,7 +66,7 @@ async function adoptSession(session: ActiveSession): Promise<void> {
     throw new Error(SESSION_OWNED_ELSEWHERE.description);
   }
 
-  const stored = connectionManager.getStoredSessionsArray();
+  const stored: StoredSession[] = connectionManager.getStoredSessionsArray();
   const index: number = stored.findIndex(
     (s) => s.username === session.username && s.serverAddress === session.server_address,
   );
@@ -91,7 +91,7 @@ export async function connectToServer(serverAddress: string): Promise<ConnectOut
     return { kind: 'connected', cid: live.cid };
   }
 
-  const stored = connectionManager
+  const stored: StoredSession | undefined = connectionManager
     .getStoredSessionsArray()
     .find((s) => s.serverAddress === serverAddress);
 

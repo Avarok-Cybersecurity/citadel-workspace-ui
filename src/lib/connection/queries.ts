@@ -8,7 +8,7 @@
 import type { ConnectionState } from './state';
 import { failOnSocketLoss } from '../websocket/request-response';
 import type { ConnectionIO } from './io';
-import type { ActiveSession } from '@/types/session-types';
+import type { ActiveSession, StoredSession } from '@/types/session-types';
 import {
   WEBSOCKET_INIT_TIMEOUT_MS,
   GET_SESSIONS_TIMEOUT_MS,
@@ -175,7 +175,7 @@ export async function handleConnectFailure(
     debugLog('ConnectionService', 'ConnectionManager: Active sessions after error:', activeSessions);
 
     const activeIndex: number = state.getActiveSessionIndex();
-    const currentSession = state.storedSessions.sessions[activeIndex];
+    const currentSession: StoredSession = state.storedSessions.sessions[activeIndex];
 
     const matchingSession: ActiveSession | undefined = activeSessions.find(
       (s) =>

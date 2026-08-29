@@ -17,6 +17,7 @@ import { debugLog } from '@/lib/debug-config';
 import { getPrivacySettings } from '@/lib/privacy-settings';
 import type { P2PConversation } from '@/lib/p2p/p2p-types';
 import type { SessionSecuritySettings } from '@/lib/security-utils';
+import type { ActiveSession } from '@/types/session-types';
 
 type EmitFn = (event: string, data: unknown) => void;
 
@@ -29,10 +30,10 @@ export async function syncConnectionsFromBackend(
   onConnect: (peerCid: bigint) => void
 ): Promise<void> {
   try {
-    const activeSessions = await connectionManager.getActiveSessions();
+    const activeSessions: ActiveSession[] = await connectionManager.getActiveSessions();
     const currentCid: bigint | null = await getCurrentCid();
     if (!currentCid) return;
-    const mySession = activeSessions.find(s => s.cid === currentCid);
+    const mySession: ActiveSession | undefined = activeSessions.find(s => s.cid === currentCid);
     // A third site reading the wire HashMap as an object, and the one that
     // decides which conversations are marked connected -- so after a reconnect
     // every conversation stayed grey until something else noticed.

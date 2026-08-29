@@ -8,6 +8,7 @@ import { setLoading, runAsyncSetup } from './event-setup-utils';
 import { debugLog } from '@/lib/debug-config';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 import type { User, UserRole } from '@/types/workspace-entities';
+import type { StoredSession } from '@/types/session-types';
 
 interface UseMemberEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -50,7 +51,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
               const roleToSave: UserRole = currentUserMember.role;
               if (roleToSave) {
                 runAsyncSetup(async () => {
-                  const session = await connectionManager.getTabSelectedSession();
+                  const session: StoredSession | null = await connectionManager.getTabSelectedSession();
                   if (session) {
                     await connectionManager.updateSessionRole(session.username, session.serverAddress, roleToSave);
                   }
@@ -125,7 +126,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
 
             // Persist role to stored session for WorkspaceSwitcher (async)
             runAsyncSetup(async () => {
-              const session = await connectionManager.getTabSelectedSession();
+              const session: StoredSession | null = await connectionManager.getTabSelectedSession();
               if (session) {
                 await connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
               }
@@ -146,7 +147,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
           let updatedCurrentUser: { id: string; username: string; name: string; role?: string; displayName?: string; avatarUrl?: string; } | undefined = prev.currentUser;
 
           // Check against currentUser username/id OR the stored session username
-          const storedSession = connectionManager.getStoredSessionsArray()[0];
+          const storedSession: StoredSession = connectionManager.getStoredSessionsArray()[0];
           const isCurrentUser: boolean | undefined = prev.currentUser && (
             prev.currentUser.username === payload.userId ||
             prev.currentUser.id === payload.userId ||
@@ -166,7 +167,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
 
             // Persist role to stored session for WorkspaceSwitcher (async)
             runAsyncSetup(async () => {
-              const session = await connectionManager.getTabSelectedSession();
+              const session: StoredSession | null = await connectionManager.getTabSelectedSession();
               if (session) {
                 await connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
               }

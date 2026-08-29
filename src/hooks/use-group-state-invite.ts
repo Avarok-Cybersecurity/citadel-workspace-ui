@@ -22,6 +22,7 @@ import { toast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
 import type { GroupRole } from '@/types/group-permissions';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import type { StoredSession } from '@/types/session-types';
 
 export interface GroupInvitePayload {
   groupId: string;
@@ -95,7 +96,7 @@ export async function buildGroupFromInvite(
     const { connectionManager } = await import('@/lib/connection');
     const info: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
     if (info) {
-      const session = await connectionManager.getTabSelectedSession();
+      const session: StoredSession | null = await connectionManager.getTabSelectedSession();
       const selfUsername: string = info.username || session?.username || 'me';
       selfMember = {
         cid: info.cid,

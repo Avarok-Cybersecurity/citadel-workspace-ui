@@ -14,6 +14,7 @@ import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import { discoverPeersViaGetSessions, fetchRegisteredPeers, fetchAllPeers } from './peer-discovery-requests';
 import type { WebSocketMessage } from '@/types/ws-message-types';
+import type { StoredSession } from '@/types/session-types';
 
 export interface Peer {
   cid: string;
@@ -42,7 +43,7 @@ export function usePeerDiscovery(isOpen: boolean) {
   useEffect(() => {
     const loadConnectionInfo = async (): Promise<void> => {
       const tabSelection: TabUserContext | null = await getSelectedUser();
-      const tabSession = await connectionManager.getTabSelectedSession();
+      const tabSession: StoredSession | null = await connectionManager.getTabSelectedSession();
       const cid: bigint | null = tabSelection?.selectedCid || tabSession?.cid || connectionManager.getConnectionInfo()?.cid || null;
       const username: string = tabSelection?.selectedUsername || tabSession?.username || state.currentUser?.username || 'Unknown';
       setCurrentCid(cid);

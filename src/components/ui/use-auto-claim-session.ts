@@ -21,6 +21,7 @@ import { describeFailure } from '@/lib/failure-message';
 import { TIMEOUT } from '@/lib/timeout-constants';
 import type { useToast } from '@/hooks/use-toast';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import type { ActiveSession } from '@/types/session-types';
 
 interface AutoClaimOptions {
   isDevMode: boolean;
@@ -69,8 +70,8 @@ useEffect(() => {
 
       const existingSelection: TabUserContext | null = await getSelectedUser();
       if (!existingSelection?.selectedCid) {
-        const activeSessions = await connectionManager.getActiveSessions();
-        const session = activeSessions.find(s => s.cid === currentConnection.cid);
+        const activeSessions: ActiveSession[] = await connectionManager.getActiveSessions();
+        const session: ActiveSession | undefined = activeSessions.find(s => s.cid === currentConnection.cid);
         if (session) {
           await setSelectedUser({
             selectedUsername: session.username,
@@ -162,7 +163,7 @@ useEffect(() => {
         return;
       }
 
-      const session = sessionToUse;
+      const session: ActiveSession = sessionToUse;
       debugLog('WorkspaceLoader', ' Auto-claiming session:', session.username, session.cid);
 
       const outcome: ClaimOutcome = await claimSessionForThisTab(session.cid);

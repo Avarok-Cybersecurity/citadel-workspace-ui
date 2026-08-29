@@ -8,7 +8,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { websocketService } from '@/lib/websocket-service';
 import { instanceManager } from '@/lib/multi-instance';
-import type { StoredSession, ActiveSession } from '@/types/session-types';
+import type { StoredSession, ActiveSession, StoredSessions } from '@/types/session-types';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { BASE_DELAY, MAX_DELAY , type ConnectionAttempt } from './types';
@@ -33,7 +33,7 @@ export async function reconnectToDisconnectedSessions(
 
   const { connectionManager } = await import('@/lib/connection');
 
-  const storedSessions = connectionManager.getStoredSessions();
+  const storedSessions: StoredSessions = connectionManager.getStoredSessions();
   if (!storedSessions.sessions || storedSessions.sessions.length === 0) return;
 
   let activeSessions: ActiveSession[] = [];

@@ -1,4 +1,4 @@
-import type { ActiveSession } from '@/types/session-types';
+import type { ActiveSession, PeerSessionInformation } from '@/types/session-types';
 import type { OrphanSessionWithWorkspace } from '@/components/useOrphanSessions';
 
 /** Just the fields this pairing needs from a stored session. */
@@ -22,7 +22,7 @@ export function withWorkspaceNames(
   storedSessions: StoredLike[],
   readLastAccessed: (cid: ActiveSession['cid']) => number,
 ): OrphanSessionWithWorkspace[] {
-  const paired = activeSessions.map((activeSession) => {
+  const paired: { workspaceName: string; storedSessionIndex: number; lastAccessed: number; cid: bigint; username: string; server_address: string; full_name?: string; peer_connections?: Record<string, PeerSessionInformation>; }[] = activeSessions.map((activeSession): { workspaceName: string; storedSessionIndex: number; lastAccessed: number; cid: bigint; username: string; server_address: string; full_name?: string; peer_connections?: Record<string, PeerSessionInformation>; } => {
     const storedIndex: number = storedSessions.findIndex(
       (stored) =>
         stored.username === activeSession.username &&

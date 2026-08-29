@@ -15,7 +15,7 @@ import { handleAuthSuccess } from '../session-management';
 import type { ConnectionState } from '../state';
 import type { ConnectionIO } from '../io';
 import type { AuthSuccessParams } from '../types';
-import type { StoredSessions } from '@/types/session-types';
+import type { StoredSessions, StoredSession } from '@/types/session-types';
 
 function setup(): { io: ConnectionIO; state: ConnectionState; written: StoredSessions[]; } {
   const stored: StoredSessions = { sessions: [] };
@@ -61,7 +61,7 @@ describe('handleAuthSuccess credential storage', () => {
     const { io, state, written } = setup();
     await handleAuthSuccess(params(true), state, io);
 
-    const session = written.at(-1)?.sessions.find(s => s.username === 'alice');
+    const session: StoredSession | undefined = written.at(-1)?.sessions.find(s => s.username === 'alice');
     expect(session).toBeDefined();
     expect(session!.password).toBe('hunter2');
   });
@@ -70,7 +70,7 @@ describe('handleAuthSuccess credential storage', () => {
     const { io, state, written } = setup();
     await handleAuthSuccess(params(false), state, io);
 
-    const session = written.at(-1)?.sessions.find(s => s.username === 'alice');
+    const session: StoredSession | undefined = written.at(-1)?.sessions.find(s => s.username === 'alice');
     expect(session).toBeDefined();
     // The session itself is still stored — the user is signed in, and orphan
     // reclaim and the server list both need the record. Only the secret is

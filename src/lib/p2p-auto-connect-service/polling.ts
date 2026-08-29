@@ -16,6 +16,7 @@ import { ONLINE_STATUS_CACHE_TTL_MS, POLL_INTERVAL_MS } from './constants';
 import { getCurrentCid } from './cid-resolver';
 import type { PeerConnectionInfo } from '@/lib/p2p-auto-connect/types';
 import type { PeerInfoResponse } from '@/lib/p2p-registration-service/types';
+import type { ActiveSession } from '@/types/session-types';
 
 /**
  * Start periodic GetSessions polling for backend state sync.
@@ -65,8 +66,8 @@ export function stopBackendPolling(state: AutoConnectState): void {
 export async function refreshFromBackend(state: AutoConnectState, localCid: bigint): Promise<void> {
   try {
     const localCidBigInt: bigint = ensureBigInt(localCid);
-    const sessions = await connectionManager.getActiveSessions();
-    const mySession = sessions.find(s => s.cid === localCidBigInt);
+    const sessions: ActiveSession[] = await connectionManager.getActiveSessions();
+    const mySession: ActiveSession | undefined = sessions.find(s => s.cid === localCidBigInt);
 
     const existingPeerMap: Map<bigint, PeerConnectionInfo> = state.getPeerMapForSession(localCidBigInt);
 

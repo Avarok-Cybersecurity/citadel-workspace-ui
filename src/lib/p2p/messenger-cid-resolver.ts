@@ -15,6 +15,7 @@ import type { PresenceManager } from './presence-manager';
 import type { TabUserContext } from '@/lib/tab-context';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { P2PConversation } from '@/lib/p2p/p2p-types';
+import type { StoredSession } from '@/types/session-types';
 
 type EmitFn = (event: string, data: unknown) => void;
 
@@ -32,7 +33,7 @@ export async function resolveCurrentCid(): Promise<bigint | null> {
   } catch { /* continue */ }
   try {
     const timeout: Promise<null> = new Promise<null>((resolve) => setTimeout((): void => resolve(null), 500));
-    const tabSession = await Promise.race([connectionManager.getTabSelectedSession(), timeout]);
+    const tabSession: StoredSession | null = await Promise.race([connectionManager.getTabSelectedSession(), timeout]);
     if (tabSession?.cid) return tabSession.cid;
   } catch { /* continue */ }
   const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();

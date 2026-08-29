@@ -12,6 +12,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { activateOnKey } from '@/lib/a11y';
 import { usePrompt } from '@/components/shared/prompt-dialog';
 import type { FlashComment } from '@/components/p2p/collaborator-cursor-helpers';
+import type { Editor } from '@tiptap/core';
 
 interface CollaborativeEditorProps {
   documentId: string;
@@ -53,7 +54,7 @@ export function CollaborativeEditor({
     creatorCid,
   });
 
-  const editor = useEditor({
+  const editor: Editor | null = useEditor({
     extensions: [
       StarterKit.configure({
         history: false,

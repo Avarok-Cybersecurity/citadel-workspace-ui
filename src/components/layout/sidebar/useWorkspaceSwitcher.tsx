@@ -23,6 +23,7 @@ import type { NavigateFunction } from 'react-router';
 import type { TabUserContext } from '@/lib/tab-context';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { WorkspaceLogo } from '@/lib/workspace-metadata-service';
+import type { StoredSessions, StoredSession } from '@/types/session-types';
 
 export type WorkflowStep = "connect" | "security" | "join";
 
@@ -56,7 +57,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
 
   useEffect(() => {
     const loadStoredWorkspaces = async (): Promise<void> => {
-      const storedSessions = connectionManager.getStoredSessions();
+      const storedSessions: StoredSessions = connectionManager.getStoredSessions();
       const tabSelectedUser: TabUserContext | null = await getSelectedUser();
       const connInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
       const currentCid: bigint | null = connInfo?.cid ?? null;
@@ -119,8 +120,8 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
       // microtask, which runs before paint.
       await yieldToEventLoop();
 
-      const storedSessions = connectionManager.getStoredSessions();
-      const targetSession = storedSessions.sessions.find(
+      const storedSessions: StoredSessions = connectionManager.getStoredSessions();
+      const targetSession: StoredSession | undefined = storedSessions.sessions.find(
         (s) => s.username === workspace.username && s.serverAddress === workspace.serverAddress
       );
 

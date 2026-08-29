@@ -16,6 +16,7 @@ import { INTERVAL } from '@/lib/timeout-constants';
 import { Permission, PERMISSION_LABELS } from './types';
 import type { UserRole, DomainPermissions } from './types';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import type { StoredSession } from '@/types/session-types';
 import {
   updateCacheEntry,
   hasPermission as cacheHasPermission,
@@ -144,7 +145,7 @@ export class PermissionsService extends EventListenerManager {
     const fromConnection: string | null = this.getCurrentUserId();
     if (fromConnection) return fromConnection;
 
-    const session = await connectionManager.getTabSelectedSession();
+    const session: StoredSession | null = await connectionManager.getTabSelectedSession();
     return session?.username ?? null;
   }
 

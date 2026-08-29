@@ -3,6 +3,7 @@ import { websocketService } from './websocket-service';
 import { getTabData, setTabData, removeTabData } from './tab-context';
 import { connectionManager } from './connection';
 import { debugLog } from '@/lib/debug-config';
+import type { StoredSession } from '@/types/session-types';
 
 // Interface for user registration information
 export interface UserRegistrationInfo {
@@ -44,7 +45,7 @@ export class UserService {
   public async loadUserRegistration(serverAddress: string, cid: string): Promise<UserRegistrationInfo | null> {
     try {
       // First check if we have a tab-selected session that matches
-      const selectedSession = await connectionManager.getTabSelectedSession();
+      const selectedSession: StoredSession | null = await connectionManager.getTabSelectedSession();
 
       if (selectedSession && selectedSession.serverAddress === serverAddress) {
         // Use the selected session's user info

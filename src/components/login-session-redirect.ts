@@ -7,6 +7,7 @@ import { setSelectedUser } from "@/lib/tab-context";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { debugLog } from '@/lib/debug-config';
 import type { ToastOptions } from '@/hooks/use-toast';
+import type { StoredSessions } from '@/types/session-types';
 
 interface SessionRedirectTarget {
   cid: bigint;
@@ -48,7 +49,7 @@ export async function redirectToExistingSession(
       return;
     }
 
-    const storedSessions = connectionManager.getStoredSessions();
+    const storedSessions: StoredSessions = connectionManager.getStoredSessions();
     const storedIndex: number = storedSessions.sessions.findIndex(
       (stored) =>
         stored.username === session.username &&

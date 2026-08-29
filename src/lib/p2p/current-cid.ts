@@ -17,6 +17,7 @@ import { getSelectedUser } from '../tab-context';
 import { CID_LOOKUP_TIMEOUT_MS } from '../p2p-auto-connect-service/constants';
 import type { TabUserContext } from '@/lib/tab-context';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import type { StoredSession } from '@/types/session-types';
 
 /**
  * Get current CID with proper priority for multi-tab support:
@@ -51,9 +52,9 @@ export async function getCurrentCid(): Promise<bigint | null> {
 
   // 3) Tab session from stored sessions (with timeout)
   try {
-    const tabSessionPromise = connectionManager.getTabSelectedSession();
+    const tabSessionPromise: Promise<StoredSession | null> = connectionManager.getTabSelectedSession();
     const timeout: Promise<null> = new Promise<null>((resolve) => setTimeout((): void => resolve(null), CID_LOOKUP_TIMEOUT_MS));
-    const tabSession = await Promise.race([tabSessionPromise, timeout]);
+    const tabSession: StoredSession | null = await Promise.race([tabSessionPromise, timeout]);
     if (tabSession?.cid) {
       return tabSession.cid;
     }

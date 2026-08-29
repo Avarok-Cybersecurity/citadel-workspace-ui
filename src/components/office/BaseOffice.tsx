@@ -21,6 +21,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
+import type { StoredSession } from '@/types/session-types';
 
 interface BaseOfficeProps {
   title: string;
@@ -47,7 +48,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   // Load tab session asynchronously
   useEffect(() => {
     runAsyncSetup(async () => {
-      const session = await connectionManager.getTabSelectedSession();
+      const session: StoredSession | null = await connectionManager.getTabSelectedSession();
       setTabSession(session);
     });
   }, []);

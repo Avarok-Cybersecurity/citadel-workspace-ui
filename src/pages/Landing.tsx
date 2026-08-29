@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { toastError } from '@/lib/toast-helpers';
 import { InstallAppButton } from "@/components/pwa/InstallAppButton";
 import type { NavigateFunction } from 'react-router';
+import type { ActiveSession } from '@/types/session-types';
 
 export const Landing: () => JSX.Element = (): JSX.Element => {
   const navigate: NavigateFunction = useNavigate();
@@ -53,7 +54,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
         await connectionManager.waitForReady();
 
         // Get active sessions from internal service
-        const activeSessions = await connectionManager.getActiveSessions();
+        const activeSessions: ActiveSession[] = await connectionManager.getActiveSessions();
 
         if (activeSessions && activeSessions.length > 0) {
           debugLog('Landing', 'Landing: Found orphan sessions:', activeSessions.length);

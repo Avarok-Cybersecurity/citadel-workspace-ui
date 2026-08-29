@@ -20,6 +20,7 @@ import { debugLog } from '@/lib/debug-config';
 import { redirectToExistingSession } from './login-session-redirect';
 import { mapSecuritySettings  , type SessionSecuritySettings } from '@/lib/security-utils';
 import type { NavigateFunction } from 'react-router';
+import type { StoredSessions, StoredSession, ActiveSession } from '@/types/session-types';
 import type {
   SecurityLevel, SecrecyMode, EncryptionAlgorithm, KemAlgorithm, SigAlgorithm,
 } from "@/types";
@@ -107,8 +108,8 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       // exists to label the stored session, not to reach anything. The login
       // form no longer asks for it, because a field that cannot change where
       // you connect should not look like it can.
-      const storedSessions = connectionManager.getStoredSessions();
-      const storedSession = storedSessions.sessions.find(s => s.username === username.trim());
+      const storedSessions: StoredSessions = connectionManager.getStoredSessions();
+      const storedSession: StoredSession | undefined = storedSessions.sessions.find(s => s.username === username.trim());
       const serverAddress: string = storedSession?.serverAddress ?? '';
 
       const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
@@ -146,8 +147,8 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
               } else {
                 runAsyncSetup(async () => {
                   try {
-                    const sessions = await connectionManager.getActiveSessions();
-                    const match = sessions.find(s => s.username === username.trim());
+                    const sessions: ActiveSession[] = await connectionManager.getActiveSessions();
+                    const match: ActiveSession | undefined = sessions.find(s => s.username === username.trim());
                     if (match?.cid !== undefined) {
                       try { await doRedirect({ cid: match.cid, username: match.username ?? username.trim(), server_address: match.server_address }); }
                       finally { setLoading(false); }
