@@ -14722,3 +14722,28 @@ that only cleared the ref fails the new test.
 
 > A control that refuses and cannot say why is indistinguishable from a bug in
 > the server, to the user and to whoever reads the failure.
+
+## Round 290 — 249 → 237, by deleting rather than annotating
+
+`components/ui/sidebar.tsx` held 12 of the 249 remaining typing findings — the
+single largest file in the ledger — as a vendored shadcn module of 24 exports,
+799 lines, and an 800-line exemption from the 250-line cap.
+
+Ten of the 24 are imported anywhere in the app. The other fourteen were
+unreferenced components carrying five of those findings. Annotating them would
+have been work spent making dead code look maintained, so they are gone; the
+file is 487 lines and its exemption ratchets down with it.
+
+The seven findings in the code that survives are now written out: `React.ElementType`
+for the two `Slot`-or-element `Comp` bindings, an explicit function type on the
+keyboard handler, and the three `forwardRef` components with their prop types
+hoisted into named aliases so the annotation does not restate them.
+
+The `cva` variants needed a decision rather than an annotation.
+`VariantProps<typeof sidebarMenuButtonVariants>` infers the variant shape from
+the const — and an annotated const is opaque to that inference, so the two
+cannot both exist. The variant names are written down once as an interface and
+the config below stays the thing that produces classes.
+
+The codemod passes are spent: six more returned 251 → 249. What is left needs
+decisions like this one, a file at a time.
