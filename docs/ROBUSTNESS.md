@@ -18352,3 +18352,47 @@ fail it — restoring the local-only version, and flipping `accept` to `true`,
 which would otherwise look identical to "one message was sent".
 
 2481 tests green, all 60 preflight checks.
+
+## Round 377 — a hypothesis measured and thrown away
+
+`touch-controls.spec.ts` — "message actions are reachable on a touch device" —
+fails every attempt at 375x667, on `sendGroupMessage` returning false, which is
+the "Message input not found" path. Rounds 369 and 373 are in that run and did
+not close it.
+
+The tab switch passes and the composer does not appear, so the composer is
+present-but-not-visible or the panel never opened. The obvious candidate: the
+office chat panel is `flex-1 overflow-hidden` with no `min-h-0`, while
+`GroupChatPage` wraps the same component in `flex-1 min-h-0`. A flex item
+defaults to `min-height: auto` and refuses to shrink below its content, so the
+panel would grow past its column and clip the composer at the bottom.
+
+Plausible, specific, and **wrong**.
+
+Rather than ship it, I built the flex chain in headless chromium at 375x667,
+reading the panel's real class list out of the source, and measured where the
+composer lands. It lands inside the viewport — **with and without `min-h-0`**.
+The reason is in the spec: `min-height: auto` applies only to flex items whose
+overflow is `visible`, and both the ScrollArea and the panel are
+`overflow-hidden`, so they already shrink. The change was a no-op and the check
+could not fail on it, which makes it exactly the kind of check this campaign
+keeps deleting. Both are reverted.
+
+What the measurement cost was ten minutes. What it bought was not shipping a
+confident no-op into four already-failing jobs and calling them addressed.
+
+The one thing worth keeping from the round is upstream of the symptom.
+`switchToChatTab` clicked the trigger and returned `true` — it never checked
+that the panel opened. So "should open the office Chat tab" passed on a click
+that may have landed and done nothing, and the failure surfaced two steps later
+as "Message input not found", which reads as a missing composer rather than a
+tab that never opened. It now waits for Radix's `data-state="active"` on the
+trigger and returns false with a named UX finding otherwise.
+
+That does not fix the app. It makes the next run say where the failure is
+instead of misdirecting, which is the difference between one more red job and a
+diagnosis.
+
+**The real cause at 375px is still unknown.** Saying so.
+
+2481 tests green, all 60 preflight checks.

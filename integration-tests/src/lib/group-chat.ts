@@ -168,13 +168,48 @@ export async function switchToChatTab(
 
     for (const selector of selectors) {
       const chatTab = page.locator(selector).first();
-      if (await isVisibleWithin(chatTab, 2000)) {
-        await chatTab.click();
-        await sleep(1500);
-        console.log(`  Switched to Chat tab (${selector})`);
-        await takeScreenshot(page, `${username}_chat_tab`);
-        return true;
+      if (!(await isVisibleWithin(chatTab, 2000))) continue;
+
+      await chatTab.click();
+
+      // The click is not the switch. This used to return true here, so
+      // "should open the office Chat tab" passed on a click that landed and
+      // did nothing -- and the failure surfaced later as "Message input not
+      // found", which reads as a missing composer rather than a tab that never
+      // opened. Radix marks the open trigger `data-state="active"`, so that is
+      // the thing to wait for.
+      const opened = await chatTab
+        .evaluate(
+          (el) =>
+            new Promise<boolean>((resolve) => {
+              const check = (): boolean => el.getAttribute('data-state') === 'active';
+              if (check()) return resolve(true);
+              const observer = new MutationObserver(() => {
+                if (check()) {
+                  observer.disconnect();
+                  resolve(true);
+                }
+              });
+              observer.observe(el, { attributes: true, attributeFilter: ['data-state'] });
+              setTimeout(() => {
+                observer.disconnect();
+                resolve(check());
+              }, 5000);
+            }),
+        )
+        .catch(() => false);
+
+      await takeScreenshot(page, `${username}_chat_tab`);
+      if (!opened) {
+        console.log(`  WARNING: clicked the Chat tab (${selector}) and it did not become active`);
+        if (options.uxTracker) {
+          options.uxTracker.log('critical', 'functional', 'Chat tab click did not open the chat panel');
+        }
+        return false;
       }
+
+      console.log(`  Switched to Chat tab (${selector})`);
+      return true;
     }
 
     // Check if chat tab content is already visible (might already be on chat tab)
