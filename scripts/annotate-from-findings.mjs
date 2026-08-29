@@ -429,17 +429,24 @@ for (const source of program.getSourceFiles()) {
       (ts.isVariableDeclaration(node) || ts.isPropertyDeclaration(node)) &&
       !node.type && ts.isIdentifier(node.name) && onWantedLine(node)
     ) {
-      // NOT widened. `getBaseTypeOfLiteralType` turns `const CODEC =
-      // 'av01.0.05M.08'` into `string`, and every call site expecting the
-      // literal union stops compiling -- 30-odd errors on the first full run.
-      // Writing the literal instead narrows a numeric constant so that callers
-      // passing a different number stop compiling, which is the same failure
-      // from the other side.
+      // Widening is decided per KIND of literal, because the two directions
+      // fail differently:
       //
-      // Both directions break, so literal-typed declarations are left alone.
-      // They are the one class this tool cannot decide, because the answer
-      // depends on how the value is USED and not on what it is.
-      const type = checker.getTypeAtLocation(node);
+      //  - a string literal widened to `string` breaks every call site
+      //    expecting the union it belongs to (30-odd errors on the first run);
+      //  - a number or bigint literal written down narrows the constant so a
+      //    caller passing another value stops compiling, and `prefer-as-const`
+      //    rejects the shape as well.
+      //
+      // So numbers and bigints widen and strings do not, unless asked.
+      const inferred = checker.getTypeAtLocation(node);
+      const shown = checker.typeToString(inferred);
+      const isString = /^["'`]/.test(shown);
+      const isNumericLiteral = /^-?\d[\d_.eE+]*n?$/.test(shown);
+      const type =
+        isNumericLiteral || (ALLOW_LITERAL && WIDEN_STRINGS && isString)
+          ? checker.getBaseTypeOfLiteralType(inferred)
+          : inferred;
       const printed = checker.typeToString(
         type, node,
         ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType,
