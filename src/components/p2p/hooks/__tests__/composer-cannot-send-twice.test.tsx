@@ -21,13 +21,13 @@ const startTypingPolling: ReturnType<typeof vi.fn> = vi.fn();
 
 vi.mock('@/lib/p2p/p2p-messenger-manager', () => ({
   P2PMessengerManager: {
-    getInstance: () => ({ sendMessage, stopTypingPolling, startTypingPolling }),
+    getInstance: (): { sendMessage: typeof sendMessage; stopTypingPolling: typeof stopTypingPolling; startTypingPolling: typeof startTypingPolling } => ({ sendMessage, stopTypingPolling, startTypingPolling }),
   },
 }));
 
-vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
+vi.mock('@/hooks/use-toast', () => ({ useToast: (): { toast: ReturnType<typeof vi.fn> } => ({ toast: vi.fn() }) }));
 
-function setup() {
+function setup(): ReturnType<typeof renderHook<ReturnType<typeof useP2PCompose>, unknown>> {
   return renderHook(() =>
     useP2PCompose({
       peerCid: 42n,

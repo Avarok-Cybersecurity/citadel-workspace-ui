@@ -15319,3 +15319,30 @@ crate, and finding out needs the running stack rather than another log.
 
 > A log line inside a 200ms loop has a level chosen for the state that persists,
 > not for the moment it starts.
+
+## Round 303 — 203 → 189, and what the compiler will not tell you
+
+A codemod for the 79 remaining `explicit-function-return-type` findings, using
+the checker's own inferred return type and accepting only bare words the file
+can already name — `void`, `boolean`, `Promise<void>`, `JSX.Element` and the
+like — would have annotated **one**. The rest infer to anonymous object shapes,
+and writing those out is a decision about what the shape IS, not a transcription
+of what the compiler says it is.
+
+So the remaining work is naming things. Four test files this round, and each one
+turned an inferred shape into a named interface:
+
+| | |
+|---|---|
+| `FakeTrack` | what a stubbed `MediaStreamTrack` has to have. Two files were each spelling it inline, one as `ReturnType<typeof makeTrack>` |
+| `FakeStream` | the same for a stream, so `let streams: FakeStream[]` reads as what it holds |
+| `Mock` | a local alias, because `ReturnType<typeof vi.fn>` five times in one return type is noise, not information |
+
+`ReturnType<typeof makeTrack>` is what the codemods reach for and it is worse
+than the interface: it names the function that happens to build the value rather
+than the value, so a reader has to go and look, and a second builder of the same
+shape has no way to say so.
+
+The residue is 189, and it is mostly this: shapes that exist and have no name.
+That is slower than a codemod and it leaves the file better than a codemod would
+have.

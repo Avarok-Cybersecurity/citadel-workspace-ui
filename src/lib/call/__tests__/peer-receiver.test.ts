@@ -13,7 +13,7 @@ import type { WireFrame } from '../frame-codec';
 
 const decoderInstances: Array<{ close: ReturnType<typeof vi.fn>; decode: ReturnType<typeof vi.fn> }> = [];
 
-function stubCodec() {
+function stubCodec(): new (...args: unknown[]) => unknown {
   return class {
     state: string = 'configured';
     decode: ReturnType<typeof vi.fn> = vi.fn();
@@ -36,7 +36,8 @@ beforeEach(() => {
     'MediaStreamTrackGenerator',
     class {
       kind: string;
-      writable = { getWriter: () => ({ write: vi.fn().mockResolvedValue(undefined), close: vi.fn().mockResolvedValue(undefined) }) };
+      writable: { getWriter: () => { write: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> } } =
+        { getWriter: (): { write: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> } => ({ write: vi.fn().mockResolvedValue(undefined), close: vi.fn().mockResolvedValue(undefined) }) };
       stop: ReturnType<typeof vi.fn> = vi.fn();
       constructor(init: { kind: string }) { this.kind = init.kind; }
     },

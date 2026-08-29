@@ -21,33 +21,47 @@ const savedKeys: Record<string, unknown> = {};
 const KEYS: string[] = ['AudioEncoder', 'AudioDecoder', 'VideoEncoder', 'VideoDecoder',
   'MediaStreamTrackProcessor', 'MediaStreamTrackGenerator'];
 
-function makeTrack() {
+interface FakeTrack {
+  kind: string;
+  enabled: boolean;
+  stop: ReturnType<typeof vi.fn>;
+  addEventListener: ReturnType<typeof vi.fn>;
+}
+
+function makeTrack(): FakeTrack {
   return { kind: 'audio', enabled: true, stop: vi.fn(), addEventListener: vi.fn() };
 }
 
+interface FakeStream {
+  getTracks: () => FakeTrack[];
+  getAudioTracks: () => FakeTrack[];
+  getVideoTracks: () => never[];
+  tracks: FakeTrack[];
+}
+
 /** A stream whose tracks record whether anything ever stopped them. */
-function makeStream() {
-  const tracks: ReturnType<typeof makeTrack>[] = [makeTrack()];
+function makeStream(): FakeStream {
+  const tracks: FakeTrack[] = [makeTrack()];
   return {
-    getTracks: () => tracks,
-    getAudioTracks: () => tracks,
+    getTracks: (): FakeTrack[] => tracks,
+    getAudioTracks: (): FakeTrack[] => tracks,
     getVideoTracks: (): never[] => [],
     tracks,
   };
 }
 
 let release: (() => void) | null = null;
-let streams: ReturnType<typeof makeStream>[] = [];
+let streams: FakeStream[] = [];
 let getUserMedia: ReturnType<typeof vi.fn>;
 
-beforeEach(() => {
+beforeEach((): void => {
   for (const k of KEYS) savedKeys[k] = g[k];
   g.AudioEncoder = Object.assign(function () {}, {
-    isConfigSupported: () => Promise.resolve({ supported: true }),
+    isConfigSupported: (): Promise<{ supported: boolean }> => Promise.resolve({ supported: true }),
   });
   g.AudioDecoder = function (): void {};
   g.VideoEncoder = Object.assign(function () {}, {
-    isConfigSupported: () => Promise.resolve({ supported: false }),
+    isConfigSupported: (): Promise<{ supported: boolean }> => Promise.resolve({ supported: false }),
   });
   g.VideoDecoder = function (): void {};
   // The pump reads frames off this; a reader that never yields keeps the pump
@@ -56,7 +70,7 @@ beforeEach(() => {
     this.readable = { getReader: (): { read: () => Promise<unknown>; cancel: () => Promise<void>; } => ({ read: (): Promise<unknown> => new Promise((): void => {}), cancel: (): Promise<void> => Promise.resolve() }) };
   };
   g.MediaStreamTrackGenerator = function (this: Record<string, unknown>): void {
-    this.writable = { getWriter: () => ({ write: vi.fn(), close: vi.fn() }) };
+    this.writable = { getWriter: (): { write: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> } => ({ write: vi.fn(), close: vi.fn() }) };
   };
 
   streams = [];

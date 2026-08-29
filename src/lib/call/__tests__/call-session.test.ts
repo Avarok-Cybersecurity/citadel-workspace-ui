@@ -11,7 +11,7 @@ import type { CallMediaKinds } from '@/types/call-signals';
 const stopped: Array<{ stop: ReturnType<typeof vi.fn> }> = [];
 const codecInstances: Array<{ close: ReturnType<typeof vi.fn> }> = [];
 
-function stubCodecClass() {
+function stubCodecClass(): new (...args: unknown[]) => unknown {
   return class {
     state: string = 'configured';
     encodeQueueSize: number = 0;
@@ -24,8 +24,18 @@ function stubCodecClass() {
   };
 }
 
+interface FakeTrack {
+  kind: 'audio' | 'video';
+  readyState: string;
+  enabled: boolean;
+  stop: ReturnType<typeof vi.fn>;
+  addEventListener: (event: string, fn: () => void) => void;
+  /** Test-only: what the browser does when a device is unplugged. */
+  fireEnded: () => void;
+}
+
 /** A track that records its 'ended' listener, so a test can fire it. */
-function makeTrack(kind: 'audio' | 'video') {
+function makeTrack(kind: 'audio' | 'video'): FakeTrack {
   const listeners: Array<() => void> = [];
   return {
     kind,
@@ -41,7 +51,7 @@ function makeTrack(kind: 'audio' | 'video') {
 }
 
 function fakeStream(withVideo: boolean): MediaStream {
-  const tracks: ReturnType<typeof makeTrack>[] = withVideo
+  const tracks: FakeTrack[] = withVideo
     ? [makeTrack('video'), makeTrack('audio')]
     : [makeTrack('audio')];
   stopped.push(...tracks);
@@ -52,7 +62,15 @@ function fakeStream(withVideo: boolean): MediaStream {
   } as unknown as MediaStream;
 }
 
-function callbacks() {
+type Mock = ReturnType<typeof vi.fn>;
+
+function callbacks(): {
+  onFrame: Mock;
+  onStreamsChanged: Mock;
+  onCaptureFailed: Mock;
+  onNeedKeyframe: Mock;
+  onTrackEnded: Mock;
+} {
   return { onFrame: vi.fn(), onStreamsChanged: vi.fn(), onCaptureFailed: vi.fn(), onNeedKeyframe: vi.fn(), onTrackEnded: vi.fn() };
 }
 
