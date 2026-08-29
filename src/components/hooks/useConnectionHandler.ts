@@ -75,7 +75,7 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
     const notificationService: NotificationService = NotificationService.getInstance();
     const messagingService: MessagingService = MessagingService.getInstance();
     const connectionService: ConnectionService = ConnectionService.getInstance();
-    const userService = UserService;
+    const userService: typeof UserService = UserService;
 
     revfsService.initialize({
       sendP2PMessageReliable: (localCid, peerCid, message) =>

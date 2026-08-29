@@ -54,7 +54,7 @@ export function handleHashMismatch(ctx: SendingContext, _remoteHash: string): vo
 
   if (ctx.ownCid === ctx.creatorCid) {
     debugLog('YjsP2PProvider', `[Yjs] Creator authority: broadcasting full state`);
-    const doc = (ctx as AckCheckerContext).doc;
+    const doc: Y.Doc = (ctx as AckCheckerContext).doc;
     const fullState: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(doc);
     sendSyncMessage(ctx, 'full_state', fullState, true);
   } else {

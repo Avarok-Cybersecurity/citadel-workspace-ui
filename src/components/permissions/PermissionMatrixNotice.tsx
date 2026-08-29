@@ -12,6 +12,8 @@ import type { PermissionsLoad } from './use-loaded-permissions';
 export function PermissionMatrixNotice({ load }: { load: PermissionsLoad }): JSX.Element | null {
   if (load.status === 'loaded') return null;
 
+  // Deliberately unannotated: aliased-condition narrowing is what gives `load`
+  // its `reason` field in the guarded branch. Annotating discards it.
   const failed = load.status === 'failed';
 
   return (

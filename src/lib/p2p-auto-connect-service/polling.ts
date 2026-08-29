@@ -108,7 +108,7 @@ export async function refreshFromBackend(state: AutoConnectState, localCid: bigi
  * Refresh online status from internal service (with caching).
  * @param force - If true, bypass cache and force refresh
  */
-export async function refreshOnlineStatus(state: AutoConnectState, force = false): Promise<void> {
+export async function refreshOnlineStatus(state: AutoConnectState, force: boolean = false): Promise<void> {
   if (!force && state.onlineStatusAge < ONLINE_STATUS_CACHE_TTL_MS) {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Using cached online status (${Math.round(state.onlineStatusAge / 1000)}s old)`);
     return;

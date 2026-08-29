@@ -30,7 +30,7 @@ export function withSerialLock<T>(key: string, operation: () => Promise<T>): Pro
   // This one keeps a failed operation from cancelling everything queued behind
   // it: without it, one rejection ends the chain for that key and every later
   // write silently never runs.
-  const run = (chains.get(key) ?? Promise.resolve()).catch((): undefined => undefined).then(operation);
+  const run: Promise<T> = (chains.get(key) ?? Promise.resolve()).catch((): undefined => undefined).then(operation);
 
   // And this one keeps a rejected promise from sitting in the map with nobody
   // awaiting it, which is an unhandled rejection. The caller still receives the

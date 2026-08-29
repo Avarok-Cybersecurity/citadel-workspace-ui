@@ -110,7 +110,7 @@ export function HierarchySidebar(): JSX.Element {
         toastError(toast, 'Loading', 'Workspace schema is still loading. Please try again in a moment.');
         return;
       }
-      const workspaceRule = state.treeSchema.rules?.find(
+      const workspaceRule: { parent_type: string; allowed_child_types: string[] } | undefined = state.treeSchema.rules?.find(
         r => r.parent_type === 'Workspace'
       );
       const allowedTypes: string[] = workspaceRule?.allowed_child_types ?? [];

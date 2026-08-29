@@ -187,7 +187,7 @@ export class MerkleTree<T, C = Uint8Array> {
    * Returns a new tree with merged chunks
    */
   applyRemoteChunks(remoteChunks: SerializedChunk[]): MerkleTree<T, C> {
-    const newChunks = [...this.chunks];
+    const newChunks: Chunk<C>[] = [...this.chunks];
 
     for (const remote of remoteChunks) {
       if (remote.index >= 0 && remote.index < newChunks.length) {

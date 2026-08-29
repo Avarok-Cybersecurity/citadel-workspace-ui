@@ -127,9 +127,9 @@ async function handleConnectionManagementResponse(
   const cmCid: bigint | undefined = cmSuccess.cid as bigint | undefined;
   debugLog('ConnectionService', 'ConnectionManager: Received ConnectionManagementSuccess, request_id:', cmReqId, 'cid:', cmCid?.toString());
 
-  const hasPendingRequest: boolean | "" | undefined = cmReqId && state.hasPendingRequest(cmReqId);
+  const hasPendingRequest: boolean = cmReqId !== undefined && state.hasPendingRequest(cmReqId);
   const tabSelection: TabSelectionContext | null = await io.getSelectedUser();
-  const isOurSession = cmCid && tabSelection?.selectedCid === cmCid;
+  const isOurSession: boolean = cmCid !== undefined && tabSelection?.selectedCid === cmCid;
   const isFreshTab: boolean = !tabSelection?.selectedCid && !state.currentConnectionInfo;
 
   if (hasPendingRequest || isOurSession || isFreshTab) {

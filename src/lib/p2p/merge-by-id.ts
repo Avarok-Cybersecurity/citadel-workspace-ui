@@ -56,7 +56,7 @@ export function mergeById<T extends HasId>(
     return [...existing, ...fresh].sort((a, b) => a.timestamp - b.timestamp);
   }
 
-  const byId = new Map<string, T>();
+  const byId: Map<string, T> = new Map<string, T>();
   for (const item of existing) byId.set(item.id, item);
   for (const item of incoming) byId.set(item.id, item);
 

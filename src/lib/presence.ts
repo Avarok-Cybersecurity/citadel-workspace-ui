@@ -27,7 +27,7 @@
  * and treating one as unknown would be a fifth version of the same bug.
  */
 
-import { p2pRegistrationService } from './p2p-registration-service';
+import { p2pRegistrationService, type Peer } from './p2p-registration-service';
 import { p2pAutoConnectService } from './p2p-auto-connect-service';
 import { debugLog } from './debug-config';
 
@@ -47,7 +47,7 @@ export function memberIdToCid(memberId: string): bigint | null {
  * Searches by username FIRST: that is what a member id is, and a numeric
  * username would otherwise be looked up as somebody else's CID.
  */
-function findPeer(memberId: string) {
+function findPeer(memberId: string): Peer | undefined {
   const { allPeers } = p2pRegistrationService.getPeers();
 
   const byUsername: ReturnType<typeof allPeers.find> = allPeers.find((peer): boolean => peer.username === memberId);

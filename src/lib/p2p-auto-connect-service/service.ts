@@ -83,7 +83,7 @@ export class P2PAutoConnectService {
 
   // === Online Status ===
 
-  public async refreshOnlineStatus(force = false): Promise<void> {
+  public async refreshOnlineStatus(force: boolean = false): Promise<void> {
     return refreshOnlineStatusFn(this.state, force);
   }
 

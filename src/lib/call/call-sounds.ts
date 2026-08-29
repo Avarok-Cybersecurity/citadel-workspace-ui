@@ -118,7 +118,7 @@ export function createCallSoundPlayer(deps: CallSoundDeps): CallSoundPlayer {
  * it simply ring — a duplicated ring in an exotic browser beats a silent call.
  */
 function acquireRingLock(callId: string): Promise<(() => void) | null> {
-  const locks = typeof navigator === 'undefined' ? undefined : navigator.locks;
+  const locks: LockManager | undefined = typeof navigator === 'undefined' ? undefined : navigator.locks;
   if (!locks) return Promise.resolve(() => {});
   return new Promise((resolve) => {
     locks

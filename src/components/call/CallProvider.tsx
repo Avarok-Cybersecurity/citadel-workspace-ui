@@ -212,7 +212,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       return;
     }
     const tick = (): void => {
-      const next = sessionRef.current?.connectionQuality(Date.now()) ?? new Map();
+      const next: Map<bigint, ConnectionQuality> = sessionRef.current?.connectionQuality(Date.now()) ?? new Map();
       // Replace only on a real change, or every tick re-renders the call surface.
       setQualities((prev) => (sameQualities(prev, next) ? prev : next));
     };

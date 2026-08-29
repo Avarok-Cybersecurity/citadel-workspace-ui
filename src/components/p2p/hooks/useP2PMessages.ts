@@ -154,7 +154,7 @@ export function useP2PMessages({
   }, [isLoadingMore, currentPage, hasMorePages, peerCid, scrollRef, messenger]);
 
   const handleScroll: (event: React.UIEvent<HTMLDivElement>) => void = useCallback((event: React.UIEvent<HTMLDivElement>): void => {
-    const target = event.currentTarget;
+    const target: HTMLDivElement = event.currentTarget;
     if (target.scrollTop < 100 && hasMorePages && !isLoadingMore) {
       runAsyncSetup(loadOlderMessages);
     }

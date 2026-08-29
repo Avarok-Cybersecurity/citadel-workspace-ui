@@ -5,6 +5,7 @@ import {
   FolderOpen,
   ChevronRight,
   ChevronDown,
+  type LucideIcon,
 } from "lucide-react";
 import { PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
 import { VFSContextMenu } from "./VFSContextMenu";
@@ -43,7 +44,7 @@ function SidebarNode({
 }: SidebarNodeProps): JSX.Element {
   const [dragOver, setDragOver] = useState(false);
   const isProtected: ReturnType<typeof PROTECTED_DIRS.has> = PROTECTED_DIRS.has(node.path);
-  const FolderIcon = isProtected ? FolderLock : expanded ? FolderOpen : Folder;
+  const FolderIcon: LucideIcon = isProtected ? FolderLock : expanded ? FolderOpen : Folder;
 
   const handleDragOver = (e: React.DragEvent): void => {
     e.preventDefault();
@@ -190,6 +191,9 @@ export function VFSTreeView({
     return rows;
   };
 
+  // Deliberately unannotated: TS 4.4 aliased-condition narrowing is what makes
+  // storageUsed/storageQuota `number` inside the guarded branch below. Any
+  // annotation, even `boolean`, discards it and both reads become `number | undefined`.
   const showStorageUsage = storageUsed !== undefined && storageQuota !== undefined;
 
   return (

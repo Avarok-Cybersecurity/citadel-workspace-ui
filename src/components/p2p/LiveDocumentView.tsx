@@ -46,7 +46,7 @@ export function LiveDocumentView({
     const editorContent: string = document.querySelector('.ProseMirror')?.innerHTML || '';
     const blob: Blob = new Blob([editorContent], { type: 'text/html' });
     const url: string = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a: HTMLAnchorElement = document.createElement('a');
     a.href = url;
     a.download = `${documentTitle}.html`;
     document.body.appendChild(a);

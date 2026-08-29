@@ -18,7 +18,7 @@ import { TIMEOUT } from '@/lib/timeout-constants';
  * reload either way — the user pressed a button and is owed an outcome.
  */
 export async function applyWaitingUpdate(): Promise<boolean> {
-  const container = navigator.serviceWorker as ServiceWorkerContainer | undefined;
+  const container: ServiceWorkerContainer | undefined = navigator.serviceWorker as ServiceWorkerContainer | undefined;
   if (!container) return false;
 
   const registration: ServiceWorkerRegistration | undefined = await container.getRegistration().catch((): undefined => undefined);

@@ -37,6 +37,14 @@
  * `variableDeclarationIgnoreFunction` is on: `const f = (a: string): number =>
  * …` states its types in the signature, and demanding a second annotation on
  * the binding is noise.
+ *
+ * A declaration ending in `as const` is exempt for the same reason, and a
+ * stronger one: a const-assertion gives the binding the narrowest type the
+ * value admits. There is no annotation that improves on it — every one is
+ * either identical or wider, and writing it out duplicates the literal keys
+ * and values, which is the SSOT violation the annotation was meant to prevent.
+ * The gate exists because inference can drift when a value's shape changes
+ * three modules away; here the value IS the type, so it cannot.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -70,6 +78,25 @@ const eslint = new ESLint({
   overrideConfig: { rules: RULES },
 });
 
+/**
+ * Whether the declaration reported at `line` ends in a const-assertion.
+ *
+ * Walks forward from the declaration balancing brackets and looks at the line
+ * that closes it. Covers both the one-liner (`const A = 1 as const;`) and the
+ * object/array literal spanning many lines.
+ */
+function isConstAssertion(lines, line) {
+  let depth = 0;
+  for (let i = line - 1; i < Math.min(lines.length, line + 500); i += 1) {
+    for (const character of lines[i]) {
+      if ('([{'.includes(character)) depth += 1;
+      else if (')]}'.includes(character)) depth -= 1;
+    }
+    if (depth <= 0) return /\bas const\s*;?\s*$/.test(lines[i].replace(/\/\/.*$/, '').trim());
+  }
+  return false;
+}
+
 const results = await eslint.lintFiles(['src/**/*.ts', 'src/**/*.tsx']);
 
 if (results.length < 100) {
@@ -80,7 +107,12 @@ if (results.length < 100) {
 /** `{ 'src/x.ts': 3 }` — files with no findings are absent. */
 const counts = {};
 for (const result of results) {
-  const findings = result.messages.filter((message) => message.ruleId in RULES).length;
+  const source = readFileSync(result.filePath, 'utf-8').split('\n');
+  const findings = result.messages.filter((message) => {
+    if (!(message.ruleId in RULES)) return false;
+    if (message.ruleId !== '@typescript-eslint/typedef') return true;
+    return !isConstAssertion(source, message.line);
+  }).length;
   if (findings > 0) counts[relative(APP, result.filePath)] = findings;
 }
 const total = Object.values(counts).reduce((sum, n) => sum + n, 0);

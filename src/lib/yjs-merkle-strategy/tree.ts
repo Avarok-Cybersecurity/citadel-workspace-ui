@@ -53,7 +53,7 @@ export class YjsMerkleTree {
     chunkSize: number = 1024
   ): YjsMerkleTree {
     const strategy: YjsChunkingStrategy = new YjsChunkingStrategy(chunkSize);
-    const tree = MerkleTree.fromData(doc, strategy, chunkSize);
+    const tree: MerkleTree<Y.Doc, Uint8Array> = MerkleTree.fromData(doc, strategy, chunkSize);
     return new YjsMerkleTree(tree, strategy, documentId, creatorCid);
   }
 

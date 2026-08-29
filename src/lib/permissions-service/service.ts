@@ -131,7 +131,7 @@ export class PermissionsService extends EventListenerManager {
   /**
    * Fetch permissions for a specific domain.
    */
-  public async fetchPermissions(domainId: string, forceRefresh = false): Promise<DomainPermissions | null> {
+  public async fetchPermissions(domainId: string, forceRefresh: boolean = false): Promise<DomainPermissions | null> {
     if (!forceRefresh) {
       const cached: DomainPermissions | undefined = this.cache.get(domainId);
       if (cached && Date.now() - cached.lastUpdated < INTERVAL.PERMISSION_CACHE_MS) {

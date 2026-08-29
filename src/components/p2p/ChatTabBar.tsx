@@ -1,4 +1,4 @@
-import { MessageSquare, FileText, X } from 'lucide-react';
+import { MessageSquare, FileText, X, type LucideIcon } from 'lucide-react';
 
 export interface ChatTab {
   id: string;
@@ -23,7 +23,7 @@ interface TabProps {
 }
 
 function Tab({ tab, active, onSelect, onClose }: TabProps): JSX.Element {
-  const Icon = tab.type === 'messages' ? MessageSquare : FileText;
+  const Icon: LucideIcon = tab.type === 'messages' ? MessageSquare : FileText;
   const showNotificationDot: boolean | undefined = tab.hasUnread && !active;
 
   return (

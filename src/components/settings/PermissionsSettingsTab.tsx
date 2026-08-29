@@ -15,7 +15,8 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { usePermissions  } from '@/contexts/PermissionsContext';
+import { usePermissions } from '@/contexts/PermissionsContext';
+import type { UserRole } from '@/lib/permissions-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import type { NodeEntityType } from '@/lib/entity-type-registry';
 import { RoleBadge, GroupedPermissionTable } from './PermissionWidgets';
@@ -38,7 +39,7 @@ export function PermissionsSettingsTab(): JSX.Element {
 
   const workspaceId: string | undefined = state.workspace?.id;
   const workspaceName: string = state.workspace?.name || 'Workspace';
-  const workspaceRole = workspaceId ? getRole(workspaceId) : null;
+  const workspaceRole: UserRole | null = workspaceId ? getRole(workspaceId) : null;
 
   // Fetch workspace permissions on mount
   useEffect(() => {

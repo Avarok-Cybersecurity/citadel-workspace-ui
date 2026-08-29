@@ -67,7 +67,7 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
         });
 
         // Try to load user information if not already loaded
-        const userService = UserService;
+        const userService: typeof UserService = UserService;
         const currentUser: UserRegistrationInfo | null = await userService.getCurrentUser();
 
         if (currentUser) {

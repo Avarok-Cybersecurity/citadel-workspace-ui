@@ -33,7 +33,7 @@ export async function processAvatarImage(
       return;
     }
 
-    const img = new Image();
+    const img: HTMLImageElement = new Image();
     const reader: FileReader = new FileReader();
 
     reader.onload = (e): void => {

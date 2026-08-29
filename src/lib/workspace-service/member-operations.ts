@@ -32,7 +32,7 @@ import { eventEmitter } from '@/lib/event-emitter';
  * it.
  */
 async function afterMemberWrite<T>(write: Promise<T>): Promise<T> {
-  const result = await write;
+  const result: T = await write;
   eventEmitter.emit('members:reload', undefined);
   return result;
 }

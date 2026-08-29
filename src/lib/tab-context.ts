@@ -105,7 +105,7 @@ export async function setTabData<T>(key: string, value: T): Promise<void> {
  */
 export async function getTabData<T>(key: string): Promise<T | null> {
   const storageKey: string = getTabSpecificKey(key);
-  const data = await dbGet<T>('tabContext', storageKey);
+  const data: T | undefined = await dbGet<T>('tabContext', storageKey);
   return data ?? null;
 }
 

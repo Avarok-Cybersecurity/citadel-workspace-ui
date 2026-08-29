@@ -1,4 +1,4 @@
-import { X, Reply, Pencil } from 'lucide-react';
+import { X, Reply, Pencil, type LucideIcon } from 'lucide-react';
 import type { P2PMessage } from '@/lib/p2p/p2p-types';
 
 interface ComposeContextBannerProps {
@@ -18,7 +18,7 @@ export function ComposeContextBanner({ replyingTo, editingMessage, onCancel }: C
   if (!active) return null;
 
   const isEditing: boolean = editingMessage !== null;
-  const Icon = isEditing ? Pencil : Reply;
+  const Icon: LucideIcon = isEditing ? Pencil : Reply;
 
   return (
     <div

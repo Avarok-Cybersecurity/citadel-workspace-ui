@@ -16054,3 +16054,39 @@ response), `resolvedIP`, and `Comp` in the button primitive.
 
 Explicit-type debt: 145 → 138. `npx vitest run` 342 files / 2331 tests green;
 `tsc -p tsconfig.app.json --noEmit` clean.
+
+## Round 323 — twenty-eight more declarations typed, and one exemption
+
+Mostly mechanical: DOM handles (`HTMLAnchorElement`, `HTMLImageElement`,
+`HTMLDivElement`), lucide icon aliases (`LucideIcon`), service singletons,
+`MerkleTree`'s two generic arguments, and four `force = false` parameters that
+had no declared type at all.
+
+Two were not mechanical and are worth naming:
+
+`message-handling.ts` had `const hasPendingRequest: boolean | "" | undefined`
+and `const isOurSession = cmCid && …`. Both are `&&` chains over possibly-undefined
+values, so the empty string and `undefined` were live members of the type and
+both went straight into a `debugLog` that reports them as the reason a branch
+was taken. They now test `!== undefined` and are `boolean`.
+
+Two more had to be reverted with a note. `showStorageUsage` and `failed` are
+aliased conditions: TS 4.4 narrowing is what makes the guarded branch see
+`number` rather than `number | undefined`, and what gives a tagged union its
+payload field. Any annotation — even the correct `boolean` — discards it, and
+the compiler said so. That is the third and fourth instance of this in the
+burn-down; each now carries the reason in-line.
+
+**Gate change.** A declaration ending in `as const` is now exempt. A
+const-assertion already gives the binding the narrowest type its value admits:
+no annotation improves on it, every one is identical or wider, and writing one
+out duplicates the literal keys and values — the SSOT violation the annotation
+was meant to prevent. The gate's rationale is drift in an inferred shape; here
+the value *is* the type, so there is nothing to drift.
+
+Negative-controlled both ways in the same file: `export const X = { a: 1 };`
+is counted, `export const X = { a: 1 } as const;` is exempt. Four findings
+across four files.
+
+Explicit-type debt: 138 → 106 (−23%). 2331 tests green, `tsc` and
+`eslint --max-warnings 0` clean.

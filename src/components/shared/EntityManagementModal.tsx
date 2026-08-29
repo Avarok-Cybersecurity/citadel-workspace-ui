@@ -80,7 +80,7 @@ export function EntityManagementModal<TMode extends string>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const modeConfig = modes[mode];
+  const modeConfig: ModeConfig = modes[mode];
 
   // Unguarded on purpose: onOpenChange is Radix's only dismissal channel, so
   // gating it on isSubmitting removed the X, Escape and outside-click at once.
