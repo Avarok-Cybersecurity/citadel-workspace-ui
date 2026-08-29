@@ -16249,3 +16249,36 @@ other four green, so they discriminate the fix rather than the file.
 This is the same class as the `duration` fixture two rounds ago and the
 workspace-metadata bug before it: **a comment that describes an invariant the
 callers are trusted to maintain, and one of them doesn't.**
+
+## Round 329 — the second permission gate, which inherited none of the first's fixes
+
+`usePermission` carries three things that took a round each: a bounded retry,
+so one fetch that came back empty during start-up does not refuse a control for
+the life of the page; a reset on reconnection and on a session change, so a
+budget spent too early is spent again when the answer may differ; and a reason
+that tells "the answer was no" apart from "we never got an answer".
+
+Exactly one component used it. `WorkspaceAppearanceSection` had built its own
+gate — a `useEffect` that fetched each of two domains once, and
+`hasPermission(...)` on the result. One fetch returning `null` (a request sent
+before this tab knew who was signed in — round 328's bug, from the other end)
+left `canEdit` false permanently, with:
+
+> Set by a workspace admin. Your light or dark choice above stays yours.
+
+...shown to the workspace's own owner, over a button reading **View**.
+
+It now uses `usePermission` for both domains, and distinguishes unchecked from
+denied in the copy. That is the same repair as round 328, one layer up: the
+mechanism existed and one caller had it.
+
+**A gate, so it is the last time.** `check-permission-gates.mjs` fails any file
+that reads `hasPermission` / `hasAnyPermission` / `hasAllPermissions` outside
+the hook and the context. A file that *displays* permission state rather than
+gating on it — the permission matrix does — goes on an allowlist with a
+sentence saying what it renders. 815 files checked; one entry.
+
+Negative control: restoring the old `hasPermission` gate in that file makes the
+check fail and names it.
+
+Preflight: **46 checks**, all green.

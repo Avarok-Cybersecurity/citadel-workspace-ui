@@ -1,9 +1,10 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Palette } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { usePermissions, Permission } from '@/contexts/PermissionsContext';
+import { usePermission } from '@/hooks/use-permission';
 import { useWorkspaceTheme } from '@/lib/theme/workspace-theme-context';
 import { serializeTheme } from '@/lib/theme/theme-serialization';
 import WorkspaceService from '@/lib/workspace-service';
@@ -32,7 +33,7 @@ const WorkspaceAppearanceModal: ReturnType<typeof lazy> = lazy(() =>
  */
 export function WorkspaceAppearanceSection(): JSX.Element {
   const { state } = useWorkspace();
-  const { hasPermission, fetchPermissionsForDomain, getRole } = usePermissions();
+  const { getRole } = usePermissions();
   const { theme, isDefault } = useWorkspaceTheme();
   const [open, setOpen] = useState(false);
 
@@ -49,15 +50,28 @@ export function WorkspaceAppearanceSection(): JSX.Element {
   //    the sentinel 'workspace-root' carries none. Asking only for the sentinel
   //    reports the workspace's own admin as an unprivileged member.
   //
-  // So both domains are loaded, and either may grant.
-  useEffect(() => {
-    void fetchPermissionsForDomain(WORKSPACE_ROOT_ID);
-    if (workspaceId) void fetchPermissionsForDomain(workspaceId);
-  }, [fetchPermissionsForDomain, workspaceId]);
+  // So both domains are asked, and either may grant.
+  //
+  // Through `usePermission` rather than a fetch-once effect. That effect asked
+  // each domain exactly once: a fetch that returned null — a request sent
+  // before this tab knew who was signed in, say — left `canEdit` false for the
+  // life of the page, with no retry, no reason, and the copy below telling the
+  // workspace's own owner that an admin had set their theme. Every one of
+  // those problems already had a fix in `usePermission`; this was the second
+  // gate, and it had inherited none of them.
+  const root: ReturnType<typeof usePermission> = usePermission(WORKSPACE_ROOT_ID, Permission.Themes);
+  const own: ReturnType<typeof usePermission> = usePermission(workspaceId, Permission.Themes);
 
-  const canEdit: boolean =
-    hasPermission(WORKSPACE_ROOT_ID, Permission.Themes) ||
-    (workspaceId !== undefined && hasPermission(workspaceId, Permission.Themes));
+  const canEdit: boolean = root.allowed || own.allowed;
+
+  // "Not an admin" and "we never got an answer" are different sentences, and
+  // only the second one is a fault worth reporting. `usePermission` already
+  // tells them apart; this is the first gate to say so out loud.
+  const unchecked: boolean =
+    !canEdit &&
+    !root.loading &&
+    !own.loading &&
+    (root.reason?.startsWith('Your permissions here could not be checked') ?? false);
 
   // "Why is this greyed out?" is a real support question, and the answer lives
   // in state nobody can see. Logging the inputs to the decision makes it
@@ -93,7 +107,9 @@ export function WorkspaceAppearanceSection(): JSX.Element {
         <p className="text-xs text-muted-foreground">
           {canEdit
             ? 'The colours everyone in this workspace sees. Your light or dark choice above stays yours.'
-            : 'Set by a workspace admin. Your light or dark choice above stays yours.'}
+            : unchecked
+              ? 'Your permissions here could not be checked, so this is read-only for now. Reload to try again.'
+              : 'Set by a workspace admin. Your light or dark choice above stays yours.'}
         </p>
       </div>
 
