@@ -14896,3 +14896,51 @@ has an emergency path.
 
 > "Unverifiable without the stack" was a claim about the stack. It should have
 > been a question about the crate.
+
+## Round 294 — a bigint reads as `undefined`, a refusal reads as nothing, and a click reads as an outcome
+
+`test:prev-sessions` fails three checks: Disconnect Removes, Deregister Removes,
+Deregister Permanent. Its own log seemed to explain the first:
+
+```
+[OrphanSessionsNavbar] Disconnecting session: undefined
+```
+
+**That line is a lie, and it has been misleading this work for rounds.**
+Playwright's `consoleMessage.text()` renders a BigInt argument as `undefined`.
+Measured directly:
+
+```
+console.log('bigint arg:', 123n)          →  "bigint arg: undefined"
+console.log('object with bigint:', {cid: 789n}) →  "object with bigint: {cid: 789n}"
+```
+
+A bare bigint is `undefined`; the same bigint inside an object prints fine. Every
+CID read out of a captured console line in this repo has been reading `undefined`
+for a real value — including the open lead that `ActiveSession.cid` "is declared
+`bigint` but the wire sometimes omits it", which was founded on exactly this
+artifact. The GetSessions handler populates `cid: *cid` for every session and
+always has.
+
+**A refusal the frontend could not hear.** `disconnect()`'s `matchFailure` reads
+`DisconnectFailure`. Nothing in the internal service constructs that variant:
+the C2S handler is shared with the peer path and answers both with
+`PeerDisconnectFailure`. So "disconnect: Server connection not found" arrived,
+matched nothing, and the caller sat out its full thirty-second budget before
+failing with a timeout that said nothing — while the modal above it spun over a
+decision the service had already made. Both variants are matched now. A scan of
+every response variant the frontend matches against every variant the service
+constructs found exactly one orphan, and this was it.
+
+**A click read as an outcome.** `disconnectViaNavbar` returned `true` two
+seconds after pressing Confirm. Confirming starts an async chain — mark
+disconnected, stop the WASM client, send Disconnect and await it, invalidate,
+reload — and the caller then navigates the page, which abandons whatever is
+still in flight. So all three checks reported the product broken whenever the
+round trip outlasted the sleep. The app already says when it is finished: the
+disconnect loading modal is on screen for the duration and closes on "ready".
+It waits for that now, and reports the modal's own error text when it does not
+close, instead of reading a stall as a slow success.
+
+> A value that prints as `undefined` in one tool and correctly in another is
+> worse than a value that prints wrong in both: the first one gets believed.

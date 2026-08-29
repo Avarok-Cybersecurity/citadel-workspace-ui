@@ -259,6 +259,45 @@ async function clickSessionIcon(page: Page, username: string): Promise<boolean> 
  * Navigates to landing page and waits for OrphanSessionsNavbar to render
  * before interacting with session icons.
  */
+/**
+ * Wait for the sign-out to actually finish, rather than for the click to land.
+ *
+ * Confirming starts an async chain -- mark the user disconnected, stop the WASM
+ * client, send Disconnect and await its response (a 30s budget), invalidate the
+ * cache, reload the list. This function used to return `true` two seconds after
+ * the click, and the caller then navigated the page, which abandons whatever
+ * was still in flight. So the three checks it feeds reported the product broken
+ * whenever the round trip took longer than the sleep: the session was still
+ * there because the request was never finished, not because the service kept
+ * it.
+ *
+ * The app already says when it is done: `disconnect-loading-modal` is on screen
+ * for the duration and closes on "ready". Waiting for THAT is waiting for the
+ * operation. An error leaves it open with the reason, which is reported here
+ * rather than being read as a slow success.
+ */
+async function waitForDisconnectToFinish(
+  page: Page,
+  action: 'disconnect' | 'deregister'
+): Promise<boolean> {
+  const modal = page.locator('[data-testid="disconnect-loading-modal"]');
+
+  // It may already have come and gone on a fast local run, so a modal that
+  // never appears is not a failure -- only one that never leaves.
+  await modal.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+
+  try {
+    await modal.waitFor({ state: 'detached', timeout: 60000 });
+  } catch {
+    const reason = (await modal.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+    console.log(`  ${action} never completed; the modal still says: ${reason.slice(0, 200)}`);
+    return false;
+  }
+
+  console.log(action === 'deregister' ? '  Deregistered successfully' : '  Disconnected successfully');
+  return true;
+}
+
 async function disconnectViaNavbar(
   page: Page,
   username: string,
@@ -334,9 +373,7 @@ async function disconnectViaNavbar(
     .first();
   if (await isVisibleWithin(confirmBtn, 5000)) {
     await confirmBtn.click();
-    await sleep(action === 'deregister' ? 3000 : 2000);
-    console.log(action === 'deregister' ? '  Deregistered successfully' : '  Disconnected successfully');
-    return true;
+    return await waitForDisconnectToFinish(page, action);
   }
 
   console.log('  Confirmation button not found');

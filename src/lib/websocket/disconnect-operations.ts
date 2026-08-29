@@ -58,12 +58,26 @@ export class DisconnectOperations {
           }
           return undefined;
         },
+        // BOTH failure variants, because the one this used to read alone is
+        // never sent. The service answers a failed C2S disconnect with
+        // `PeerDisconnectFailure` -- the handler is shared with the peer path
+        // and returns that variant for both -- and nothing in the service ever
+        // constructs `DisconnectFailure` at all. So "Server connection not
+        // found" was invisible here: no match, no rejection, and the caller sat
+        // out the full thirty-second budget before failing with a timeout that
+        // said nothing about the reason.
         matchFailure: (message) => {
-          const response: { DisconnectFailure?: { request_id?: string | null; cid?: bigint; message?: string; }; } = ((message as { Response?: Record<string, unknown> }).Response || message) as {
+          const response: {
             DisconnectFailure?: { request_id?: string | null; cid?: bigint; message?: string };
+            PeerDisconnectFailure?: { request_id?: string | null; cid?: bigint; message?: string };
+          } = ((message as { Response?: Record<string, unknown> }).Response || message) as {
+            DisconnectFailure?: { request_id?: string | null; cid?: bigint; message?: string };
+            PeerDisconnectFailure?: { request_id?: string | null; cid?: bigint; message?: string };
           };
-          if (response.DisconnectFailure) {
-            const f: { request_id?: string | null; cid?: bigint; message?: string; } = response.DisconnectFailure;
+          const failure: { request_id?: string | null; cid?: bigint; message?: string } | undefined =
+            response.DisconnectFailure ?? response.PeerDisconnectFailure;
+          if (failure) {
+            const f: { request_id?: string | null; cid?: bigint; message?: string; } = failure;
             if (f.request_id === requestId || (f.request_id === null && f.cid === cid)) {
               errorLog('Disconnect failed:', f.message);
               return f.message || 'Failed to disconnect';
