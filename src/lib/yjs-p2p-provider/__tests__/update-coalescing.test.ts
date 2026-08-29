@@ -102,7 +102,7 @@ describe('yjs update coalescing', () => {
   });
 
   it('ignores remote-origin updates, which must not be echoed back', () => {
-    const doc = new Y.Doc();
+    const doc: Y.Doc = new Y.Doc();
     const provider: YjsP2PProvider = makeProvider(doc);
     sent.length = 0;
 

@@ -185,7 +185,7 @@
   "src/lib/workspace-service/__tests__/a-broadcast-is-not-my-answer.test.ts": 4,
   "src/lib/workspace-service/member-operations.ts": 1,
   "src/lib/yjs-merkle-strategy/tree.ts": 1,
-  "src/lib/yjs-p2p-provider/__tests__/update-coalescing.test.ts": 2,
+  "src/lib/yjs-p2p-provider/__tests__/update-coalescing.test.ts": 1,
   "src/lib/yjs-p2p-provider/ack-checker.ts": 1,
   "src/lib/yjs-p2p-provider/index.ts": 1,
   "src/lib/yjs-p2p-provider/provider.ts": 17,
