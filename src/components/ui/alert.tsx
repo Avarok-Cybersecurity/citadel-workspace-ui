@@ -20,7 +20,9 @@ const alertVariants = cva(
   }
 )
 
-const Alert = React.forwardRef<
+const Alert: React.ForwardRefExoticComponent<
+  React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants> & React.RefAttributes<HTMLDivElement>
+> = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
 >(({ className, variant, ...props }, ref) => (

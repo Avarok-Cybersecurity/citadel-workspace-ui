@@ -4,7 +4,7 @@ import * as TabsPrimitive from "@radix-ui/react-tabs"
 
 import { cn } from "@/lib/utils"
 
-const Tabs = TabsPrimitive.Root
+const Tabs: typeof TabsPrimitive.Root = TabsPrimitive.Root
 
 const TabsList: React.ForwardRefExoticComponent<React.ComponentPropsWithoutRef<typeof TabsPrimitive.List> & React.RefAttributes<React.ElementRef<typeof TabsPrimitive.List>>> = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,

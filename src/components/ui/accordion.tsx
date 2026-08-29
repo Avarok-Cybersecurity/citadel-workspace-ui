@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const Accordion = AccordionPrimitive.Root
+const Accordion: typeof AccordionPrimitive.Root = AccordionPrimitive.Root
 
 const AccordionItem: React.ForwardRefExoticComponent<React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Item> & React.RefAttributes<React.ElementRef<typeof AccordionPrimitive.Item>>> = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Item>,
