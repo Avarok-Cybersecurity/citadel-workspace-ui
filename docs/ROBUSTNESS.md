@@ -18020,3 +18020,48 @@ The CID stayed a `bigint` across the event and became a string only where the
 URL is built, which the CID ratchet caught on the first attempt.
 
 2440 tests green, all 59 preflight checks.
+
+## Round 369 — a remount took the reader out of the conversation
+
+CI reported `test:room-chat` failing every direction with
+
+    WARNING: Message input not found
+
+The composer is not inside the loading branch and renders unconditionally, so
+"not found" meant it was not in the DOM at all.
+
+`OfficeChatTabs` rendered `<Tabs defaultValue="content">` — uncontrolled, so the
+selection lives in the component instance. `BaseOffice` is keyed
+`key={nodeId ?? WORKSPACE_ROOT_ID}` precisely so React remounts it when the node
+changes. Every one of those remounts put a user who was reading a room's chat
+back on the Content document, mid-sentence, with no action of their own and
+nothing on screen explaining it — and the composer left the DOM with it, which
+is exactly what the integration run reports.
+
+The file's own docstring already said "inactive tab panels unmount", which is
+why the call docks above them. The panels unmounting was known. The SELECTION
+not surviving was not.
+
+The tab is now controlled and seeded from `office-tab-memory`, keyed per chat
+channel — two rooms are two conversations, and returning to one you were reading
+should not depend on which room you visited in between. In memory rather than
+storage: it is a within-session convenience, and it resets on reload, which is a
+moment the user caused.
+
+Three controls, each failing exactly its own test: `defaultValue` restored, one
+global memory instead of per-room, and defaulting to chat (which fails the
+positive control, since a component that always showed chat would satisfy the
+remount test while being wrong).
+
+**What this does not claim.** It has not been proven against the running stack
+that this is the whole of `test:room-chat`'s failure — the run predates rounds
+362-368 and I cannot run integration tests here. The defect is real and fixed on
+its own terms; whether the job goes green is for the next run to say.
+
+Also checked while here, because round 362 gates that composer on
+`Permission.SendMessages`: `UserRole::Member` does include it
+(`citadel-workspace-types/src/structs.rs`), so ordinary members keep their
+composer. `Guest` does not, and now gets a sentence saying so rather than a
+missing box.
+
+2443 tests green, all 59 preflight checks.

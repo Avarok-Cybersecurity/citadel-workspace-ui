@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { FileText, MessageSquare } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import GroupChatView from '@/components/chat/GroupChatView';
@@ -8,6 +8,7 @@ import type { GroupRestriction } from '@/components/chat/group-restriction';
 import { Permission } from '@/lib/permissions-service/types';
 import { GroupCallDock } from '@/components/call/GroupCallDock';
 import { useDomainCallMembers } from '@/hooks/use-domain-call-members';
+import { rememberedTab, rememberTab, type OfficeTab } from './office-tab-memory';
 
 interface OfficeChatTabsProps {
   contentView: ReactNode;
@@ -37,6 +38,7 @@ export function OfficeChatTabs({
   rules,
 }: OfficeChatTabsProps): JSX.Element {
   const callMembers: GroupCallMember[] = useDomainCallMembers(nodeId);
+  const [tab, setTab] = useState<OfficeTab>((): OfficeTab => rememberedTab(chatChannelId));
   // Office chat is governed by the workspace permission system, not by group
   // roles. `unanswered` keeps a permission query that never came back from
   // reading as a denial -- a request that failed is not the answer "no".
@@ -49,7 +51,19 @@ export function OfficeChatTabs({
   return (
     <div className="w-full h-full flex flex-col">
       <GroupCallDock roomId={chatChannelId} />
-      <Tabs defaultValue="content" className="w-full flex-1 min-h-0 flex flex-col">
+      <Tabs
+        // Controlled, and seeded from what this room was last left on.
+        // `defaultValue` put the selection in the component instance, and
+        // BaseOffice is keyed on the node id so that it remounts -- which threw
+        // a reader back to Content mid-conversation with no action of theirs.
+        value={tab}
+        onValueChange={(next): void => {
+          const chosen: OfficeTab = next === 'chat' ? 'chat' : 'content';
+          setTab(chosen);
+          rememberTab(chatChannelId, chosen);
+        }}
+        className="w-full flex-1 min-h-0 flex flex-col"
+      >
         <div className="px-4 pt-4 border-b border-border flex-shrink-0 flex items-center justify-between gap-2">
           <TabsList className="bg-background">
             {/* data-[state=active]:text-primary-foreground pairs with the fill above it. Without it the active tab kept the page's text colour, which is ink in light mode: 2.18:1 on the purple fill. Dark mode hid it, because there the page text is already near-white. */}
