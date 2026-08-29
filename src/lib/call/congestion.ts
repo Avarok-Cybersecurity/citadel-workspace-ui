@@ -81,12 +81,12 @@ export const QUALITY_LADDER: readonly QualityLevel[] = [
 ];
 
 /** Loss above this means the link cannot carry what we are sending. */
-const LOSS_DEGRADE = 0.05;
+const LOSS_DEGRADE: number = 0.05;
 /** Sustained delay above this means we are queuing, not just jittering. */
-const DELAY_DEGRADE_MS = 250;
+const DELAY_DEGRADE_MS: number = 250;
 /** Only climb back when things are genuinely clean. */
-const LOSS_RECOVER = 0.01;
-const DELAY_RECOVER_MS = 120;
+const LOSS_RECOVER: number = 0.01;
+const DELAY_RECOVER_MS: number = 120;
 
 /**
  * Consecutive clean reports required before improving.
@@ -95,7 +95,7 @@ const DELAY_RECOVER_MS = 120;
  * failed will usually fail again, and oscillating between rungs is more
  * visually disruptive than sitting one rung lower than strictly necessary.
  */
-export const RECOVERY_STREAK = 5;
+export const RECOVERY_STREAK: number = 5;
 
 export interface CongestionState {
   rung: number;

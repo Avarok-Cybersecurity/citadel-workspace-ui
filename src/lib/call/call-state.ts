@@ -85,8 +85,8 @@ export type CallEvent =
 export const NO_MEDIA: CallMediaKinds = { audio: false, video: false, screen: false };
 
 // Beyond these, a mesh sender's uplink and encoder count stop being survivable.
-export const MAX_VIDEO_PARTICIPANTS = 8;
-export const MAX_AUDIO_PARTICIPANTS = 12;
+export const MAX_VIDEO_PARTICIPANTS: number = 8;
+export const MAX_AUDIO_PARTICIPANTS: number = 12;
 
 export function initialState(callId: string): CallState {
   return {

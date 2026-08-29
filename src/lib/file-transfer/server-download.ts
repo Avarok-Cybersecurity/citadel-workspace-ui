@@ -37,7 +37,7 @@ const DOWNLOAD_SECURITY_LEVEL = 'Standard';
  * retryable download into an unrecoverable one, so it is stated explicitly rather
  * than left to a default.
  */
-const DELETE_ON_PULL = false;
+const DELETE_ON_PULL: boolean = false;
 
 /**
  * Pull a staged file for `transfer`, resolving with the local download path.

@@ -51,7 +51,7 @@ let dbPromise: Promise<IDBPDatabase<CitadelDBSchema>> | null = null;
  * so reaching this means the holder is a build that predates that handler, or
  * a frozen tab. Either way it will not resolve on its own.
  */
-const BLOCKED_GIVE_UP_MS: 10000 = 10_000;
+const BLOCKED_GIVE_UP_MS: number = 10_000;
 
 export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
   if (!dbPromise) {

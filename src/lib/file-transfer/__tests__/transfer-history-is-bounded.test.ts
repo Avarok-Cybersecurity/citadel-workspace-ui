@@ -21,7 +21,7 @@ import {
 } from '../prune-transfers';
 import type { FileTransfer } from '../types';
 
-const NOW: 1700000000000 = 1_700_000_000_000;
+const NOW: number = 1_700_000_000_000;
 
 function record(id: string, state: string, updatedAt: number): Partial<FileTransfer> {
   return { id, state: state as FileTransfer['state'], updatedAt };

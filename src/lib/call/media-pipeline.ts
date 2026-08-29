@@ -35,7 +35,7 @@ export type FrameSink = (frame: WireFrame) => void;
  * at nothing. Shorter wastes bandwidth on a stable link; longer makes joining a
  * call feel broken.
  */
-const KEYFRAME_INTERVAL_MICROS: 4000000 = 4_000_000;
+const KEYFRAME_INTERVAL_MICROS: number = 4_000_000;
 
 export interface VideoEncoderHandle {
   encode: (frame: VideoFrame, congestion: CongestionState) => void;

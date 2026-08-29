@@ -36,8 +36,8 @@ const SIDEBAR_WIDTHS: Record<AppearanceSettings['sidebarWidth'], string> = {
 };
 
 /** Bounds match the slider. A stored value outside them is not honoured. */
-const MIN_FONT_SIZE = 12;
-const MAX_FONT_SIZE = 18;
+const MIN_FONT_SIZE: number = 12;
+const MAX_FONT_SIZE: number = 18;
 
 function coerce(stored: unknown): AppearanceSettings {
   const merged = { ...defaultAppearanceSettings, ...(stored as Partial<AppearanceSettings>) };

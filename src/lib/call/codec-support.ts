@@ -15,9 +15,9 @@ import { hasTrackTransforms } from './track-transforms';
 export const AUDIO_CODEC = 'opus';
 
 /** 48 kHz mono at 32 kbps: the standard operating point for speech. */
-export const AUDIO_SAMPLE_RATE: 48000 = 48_000;
-export const AUDIO_CHANNELS = 1;
-export const AUDIO_BITRATE: 32000 = 32_000;
+export const AUDIO_SAMPLE_RATE: number = 48_000;
+export const AUDIO_CHANNELS: number = 1;
+export const AUDIO_BITRATE: number = 32_000;
 
 /**
  * Video codecs in preference order.

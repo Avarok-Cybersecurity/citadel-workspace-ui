@@ -21,7 +21,7 @@
  */
 
 /** How long to wait for the error to clear before announcing anyway. */
-export const QUIET_WAIT_MS: 12000 = 12_000;
+export const QUIET_WAIT_MS: number = 12_000;
 /** How often to look. */
 export const QUIET_POLL_MS = 500;
 

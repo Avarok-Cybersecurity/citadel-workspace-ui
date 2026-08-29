@@ -6,9 +6,9 @@
 
 import { INTERVAL } from '../timeout-constants';
 
-export const POLL_INTERVAL_VISIBLE_MS: 5000 = INTERVAL.LEADER_TIMEOUT_MS; // 5 seconds when tab is visible
-export const POLL_INTERVAL_HIDDEN_MS: 30000 = INTERVAL.HEALTH_CHECK_MS; // 30 seconds when tab is hidden
-export const MAX_CONSECUTIVE_FAILURES = 5; // Circuit breaker threshold
+export const POLL_INTERVAL_VISIBLE_MS: number = INTERVAL.LEADER_TIMEOUT_MS; // 5 seconds when tab is visible
+export const POLL_INTERVAL_HIDDEN_MS: number = INTERVAL.HEALTH_CHECK_MS; // 30 seconds when tab is hidden
+export const MAX_CONSECUTIVE_FAILURES: number = 5; // Circuit breaker threshold
 
 export interface SessionState {
   cid: string;

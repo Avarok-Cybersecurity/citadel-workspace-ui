@@ -19,7 +19,7 @@ export const BROADCAST_MESSAGE_TYPES: string[] = [
 export const CID_FIELDS: string[] = ['cid', 'peer_cid', 'session_cid'];
 
 // Timeout for request tracking (5 minutes)
-export const REQUEST_TRACKING_TIMEOUT_MS: 300000 = INTERVAL.REQUEST_TRACKING_MS;
+export const REQUEST_TRACKING_TIMEOUT_MS: number = INTERVAL.REQUEST_TRACKING_MS;
 
 /**
  * Notification message types that should be routed by CID, NOT by request_id.

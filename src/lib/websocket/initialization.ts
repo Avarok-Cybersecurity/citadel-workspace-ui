@@ -69,7 +69,7 @@ export class WebSocketInitialization {
       return;
     }
 
-    const ELECTION_TIMEOUT_MS: 3000 = INTERVAL.LEADER_ELECTION_MS;
+    const ELECTION_TIMEOUT_MS: number = INTERVAL.LEADER_ELECTION_MS;
     debugLog('WebSocketInit', `waitForLeaderElection: waiting up to ${ELECTION_TIMEOUT_MS}ms for leader election`);
 
     return new Promise<void>((resolve) => {

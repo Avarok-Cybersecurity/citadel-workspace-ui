@@ -25,7 +25,7 @@ import { debugLog } from '@/lib/debug-config';
  * dropped by) the leader; 2s comfortably covers a busy follower while
  * staying acceptable for an interactive notification's worst case.
  */
-export const ORPHAN_BUFFER_TIMEOUT_MS = 2000;
+export const ORPHAN_BUFFER_TIMEOUT_MS: number = 2000;
 
 /** A message held in the buffer pending a cid-report response or a forward ack. */
 export interface OrphanedMessage {

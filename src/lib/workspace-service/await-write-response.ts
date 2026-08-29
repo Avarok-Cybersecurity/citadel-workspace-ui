@@ -30,7 +30,7 @@ import { eventEmitter } from '../event-emitter';
 import { debugLog } from '@/lib/debug-config';
 
 /** How long to wait before treating silence as a failure. */
-export const WRITE_RESPONSE_TIMEOUT_MS: 15000 = 15_000;
+export const WRITE_RESPONSE_TIMEOUT_MS: number = 15_000;
 
 /** The response variants that mean a given request succeeded. */
 export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {

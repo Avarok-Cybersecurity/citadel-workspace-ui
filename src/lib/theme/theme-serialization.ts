@@ -17,7 +17,7 @@ import { defaultTheme } from './presets';
  * misinterprets — it gets the default instead, and the workspace still renders.
  */
 
-const ENVELOPE_VERSION = 1;
+const ENVELOPE_VERSION: number = 1;
 
 interface ThemeEnvelope {
   v: number;

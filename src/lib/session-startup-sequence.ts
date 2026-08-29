@@ -21,7 +21,7 @@ import type { SessionActivatedEvent } from './session-startup-service';
  * A placeholder for a readiness signal the internal service does not yet emit —
  * see the @human-review note at its use site.
  */
-const SDK_TEARDOWN_SETTLE_MS = 2000;
+const SDK_TEARDOWN_SETTLE_MS: number = 2000;
 
 export async function runStartupSequence(
   event: SessionActivatedEvent,

@@ -105,7 +105,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
         const img = new Image();
         img.onload = (): void => {
           const canvas: HTMLCanvasElement = document.createElement('canvas');
-          const MAX_SIZE = 100;
+          const MAX_SIZE: number = 100;
           let width: number = img.width;
           let height: number = img.height;
 

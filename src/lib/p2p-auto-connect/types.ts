@@ -52,4 +52,4 @@ export const DEFAULT_BACKOFF_CONFIG: BackoffConfig = {
 export const ONLINE_STATUS_CACHE_TTL_MS: number = SERVICE_ONLINE_STATUS_CACHE_TTL_MS;
 
 /** Fresh connection threshold for race condition prevention. */
-export const FRESH_CONNECTION_THRESHOLD_MS = 5000;
+export const FRESH_CONNECTION_THRESHOLD_MS: number = 5000;

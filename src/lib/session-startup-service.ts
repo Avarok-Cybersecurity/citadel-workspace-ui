@@ -55,7 +55,7 @@ class SessionStartupService {
   private lastReconnectionCompletedAt: number = 0;
   // Grace period in ms after reconnection during which stale cleanup is skipped
   // 15s is needed because Test 8 has multiple steps between reconnection and verification
-  private static readonly RECONNECTION_GRACE_PERIOD_MS = 15000;
+  private static readonly RECONNECTION_GRACE_PERIOD_MS: number = 15000;
 
   private constructor() {
     this.setupEventListeners();

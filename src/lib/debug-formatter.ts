@@ -3,7 +3,7 @@
  * Mirrors the Rust debug formatting logic for bytes and maps
  */
 
-const SAMPLE_ENDS_COUNT = 5;
+const SAMPLE_ENDS_COUNT: number = 5;
 
 /**
  * Format byte arrays for debug output, showing only first and last few bytes

@@ -99,4 +99,4 @@ export const AVAROK_DARK: ThemePalette = {
 };
 
 /** Corner rounding the product ships with, in rem. */
-export const AVAROK_RADIUS = 0.75;
+export const AVAROK_RADIUS: number = 0.75;

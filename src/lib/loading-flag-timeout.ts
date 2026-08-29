@@ -18,7 +18,7 @@
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
 /** How long to wait before deciding a response is not coming. */
-export const LOADING_DEADLINE_MS: 15000 = 15_000;
+export const LOADING_DEADLINE_MS: number = 15_000;
 
 /** Start (or restart) the deadline for `key`. */
 export function armLoadingDeadline(key: string, onExpired: () => void): void {

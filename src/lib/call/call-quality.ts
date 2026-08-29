@@ -20,12 +20,12 @@ import type { ConnectionQuality } from '@/components/call/ParticipantTile';
  * warning, and short enough that recovery is visible while the user is still
  * looking at the tile.
  */
-export const QUALITY_WINDOW_MS: 10000 = 10_000;
+export const QUALITY_WINDOW_MS: number = 10_000;
 
 /** Gaps within the window before a link stops being reported as good. */
-export const FAIR_THRESHOLD = 2;
+export const FAIR_THRESHOLD: number = 2;
 /** Gaps within the window that mean the picture is visibly breaking up. */
-export const POOR_THRESHOLD = 6;
+export const POOR_THRESHOLD: number = 6;
 
 /**
  * Silence before a participant is reported as lost.
@@ -34,7 +34,7 @@ export const POOR_THRESHOLD = 6;
  * dead link or a participant who muted and turned their camera off, and the
  * second must not be shown as a fault.
  */
-export const LOST_SILENCE_MS: 12000 = 12_000;
+export const LOST_SILENCE_MS: number = 12_000;
 
 interface PeerQualityState {
   /** Timestamps of recent gaps, oldest first. */

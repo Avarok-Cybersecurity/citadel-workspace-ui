@@ -8,7 +8,7 @@ export interface ConnectionRetryModalProps {
   errorMessage?: string;
   onRetry?: () => Promise<void>;
   maxRetries?: number;
-  maxBackoffSeconds?: number; // Maximum backoff time in seconds (default: 300 = 5 minutes)
+  maxBackoffSeconds?: number; // Maximum backoff time in seconds (default: number = 5 minutes)
 }
 
 /**

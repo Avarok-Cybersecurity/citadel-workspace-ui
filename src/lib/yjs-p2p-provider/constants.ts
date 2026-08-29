@@ -4,11 +4,11 @@
  * Yjs-specific timing constants local to this module.
  */
 
-export const YJS_ACK_TIMEOUT_MS = 5000;
-export const YJS_SYNC_COOLDOWN_MS = 10000;
-export const YJS_SYNC_RESET_DELAY_MS = 2000;
-export const YJS_HEALTH_CHECK_INTERVAL_MS = 5000;
-export const YJS_MAX_RETRIES = 3;
+export const YJS_ACK_TIMEOUT_MS: number = 5000;
+export const YJS_SYNC_COOLDOWN_MS: number = 10000;
+export const YJS_SYNC_RESET_DELAY_MS: number = 2000;
+export const YJS_HEALTH_CHECK_INTERVAL_MS: number = 5000;
+export const YJS_MAX_RETRIES: number = 3;
 
 /**
  * How long edits are gathered before one merged update is sent.
@@ -27,4 +27,4 @@ export const YJS_MAX_RETRIES = 3;
  * added latency before a collaborator sees a keystroke, which is well inside
  * what collaborative editors normally batch.
  */
-export const YJS_UPDATE_COALESCE_MS = 300;
+export const YJS_UPDATE_COALESCE_MS: number = 300;

@@ -20,8 +20,8 @@
  * second thing to keep in step with the first.
  */
 
-const SOCKET_READY_WINDOW_MS = 1500;
-const POLL_MS = 50;
+const SOCKET_READY_WINDOW_MS: number = 1500;
+const POLL_MS: number = 50;
 
 export async function waitForSocket(read: () => unknown): Promise<boolean> {
   const deadline: number = Date.now() + SOCKET_READY_WINDOW_MS;

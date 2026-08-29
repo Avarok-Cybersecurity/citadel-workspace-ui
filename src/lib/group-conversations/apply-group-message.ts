@@ -2,7 +2,7 @@ import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import type { GroupConversation } from '@/types/group';
 
 /** How much of a message the sidebar previews before eliding. */
-const PREVIEW_CHARS = 50;
+const PREVIEW_CHARS: number = 50;
 
 /**
  * Fold an incoming group message into the list.

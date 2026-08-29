@@ -22,7 +22,7 @@
  * Below this, a difference is browser chrome retracting rather than a keyboard.
  * A keyboard takes a large fraction of a phone screen; toolbars are tens of px.
  */
-const KEYBOARD_THRESHOLD_PX = 120;
+const KEYBOARD_THRESHOLD_PX: number = 120;
 
 export function startKeyboardInsetTracking(): () => void {
   const viewport = typeof window !== 'undefined' ? window.visualViewport : undefined;

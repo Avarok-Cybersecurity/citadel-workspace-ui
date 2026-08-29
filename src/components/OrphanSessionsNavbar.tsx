@@ -40,7 +40,7 @@ export const OrphanSessionsNavbar = () => {
     let cancelled: boolean = false;
     let attempts: number = 0;
     const MAX_ATTEMPTS = 8;
-    const RETRY_MS: 1500 = 1_500;
+    const RETRY_MS: number = 1_500;
 
     const load = (): void => {
       if (cancelled) return;

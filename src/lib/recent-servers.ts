@@ -20,7 +20,7 @@ const RECENT_SERVERS_KEY = 'citadel_recent_servers';
  * handful, scrolling to find one is slower than typing the address. Capping it
  * also stops localStorage growing for the lifetime of the install.
  */
-const MAX_RECENT_SERVERS = 10;
+const MAX_RECENT_SERVERS: number = 10;
 
 /**
  * Save a server to localStorage for offline/fallback access.

@@ -19,7 +19,7 @@
 import { toCidKey, type CidLike } from './utils/cid-utils';
 
 /** Number of base36 characters in a derived handle. */
-const HANDLE_LENGTH = 6;
+const HANDLE_LENGTH: number = 6;
 
 /** Characters that read ambiguously in a short code, mapped to clearer ones. */
 const AMBIGUOUS: Record<string, string> = { O: '0', I: '1', L: '1' };

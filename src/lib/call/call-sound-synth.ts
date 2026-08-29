@@ -21,7 +21,7 @@ export interface ToneSpec {
 }
 
 /** Attack/release ramp so tones start and stop without an audible click. */
-const RAMP_S = 0.015;
+const RAMP_S: number = 0.015;
 
 let ctx: AudioContext | null = null;
 

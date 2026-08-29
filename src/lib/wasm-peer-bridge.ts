@@ -51,7 +51,7 @@ import { debugLog } from '@/lib/debug-config';
  */
 // DEBUG: Rate-limited logging for diagnostic purposes
 let lastLogTime: number = 0;
-const LOG_INTERVAL_MS = 3000; // Log once every 3 seconds
+const LOG_INTERVAL_MS: number = 3000; // Log once every 3 seconds
 let callCount: number = 0;
 
 function __citadel_get_peers_for_session(localCid: bigint): BigUint64Array {

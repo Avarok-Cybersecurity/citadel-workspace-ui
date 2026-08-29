@@ -31,7 +31,7 @@ const UNFINISHED: ReadonlySet<string> = new Set([
 export const TRANSFER_HISTORY_MS: number = 7 * 24 * 60 * 60 * 1000;
 
 /** How many finished transfers to keep regardless of age, newest first. */
-export const TRANSFER_HISTORY_MAX = 200;
+export const TRANSFER_HISTORY_MAX: number = 200;
 
 function lastTouched(t: Partial<FileTransfer>): number {
   return t.updatedAt ?? t.createdAt ?? 0;

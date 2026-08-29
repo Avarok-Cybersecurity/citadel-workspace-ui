@@ -13,7 +13,7 @@ import { eventEmitter } from '@/lib/event-emitter';
  * the oldest entries degrades the message back to the hedge, which is exactly
  * what it says.
  */
-const MAX_REMEMBERED = 50;
+const MAX_REMEMBERED: number = 50;
 const ended: Set<string> = new Set<string>();
 
 export function bindEndedGroups(): void {

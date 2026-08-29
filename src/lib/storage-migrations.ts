@@ -38,7 +38,7 @@ import { debugLog, errorLog } from './debug-config';
  * Current schema version. Bump this and add a matching entry to MIGRATIONS in
  * the same commit — the test in storage-migrations.test.ts fails if they drift.
  */
-export const DB_VERSION = 2;
+export const DB_VERSION: number = 2;
 
 export const DB_NAME = 'citadel-workspace';
 

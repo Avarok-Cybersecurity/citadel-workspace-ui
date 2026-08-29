@@ -5,7 +5,7 @@ import { INTERVAL } from './timeout-constants';
 import { debugLog } from './debug-config';
 
 /** How often to re-probe while waiting for the service to become healthy. */
-const HEALTH_POLL_INTERVAL_MS = 1000;
+const HEALTH_POLL_INTERVAL_MS: number = 1000;
 
 export interface ServiceHealth {
   isHealthy: boolean;
@@ -13,7 +13,7 @@ export interface ServiceHealth {
   error?: string;
 }
 
-const DEFAULT_INTERVAL_MS: 30000 = INTERVAL.HEALTH_CHECK_MS;
+const DEFAULT_INTERVAL_MS: number = INTERVAL.HEALTH_CHECK_MS;
 
 class HealthCheckService extends PollingService {
   private static instance: HealthCheckService;

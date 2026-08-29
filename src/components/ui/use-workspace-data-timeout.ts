@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { debugLog } from '@/lib/debug-config';
 
 /** How long workspace data may take to arrive before the loader says so. */
-const WORKSPACE_DATA_TIMEOUT_MS: 10000 = 10_000;
+const WORKSPACE_DATA_TIMEOUT_MS: number = 10_000;
 
 /**
  * True once a tab has a connection but the workspace data has still not arrived.

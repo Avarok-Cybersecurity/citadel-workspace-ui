@@ -11,8 +11,8 @@ import { debugLog } from '@/lib/debug-config';
 import { INTERVAL } from '../timeout-constants';
 import type { ChannelMessage } from './channel-types';
 
-const HEARTBEAT_INTERVAL_MS: 2000 = INTERVAL.HEARTBEAT_MS;
-const LEADER_TIMEOUT_MS: 5000 = INTERVAL.LEADER_TIMEOUT_MS;
+const HEARTBEAT_INTERVAL_MS: number = INTERVAL.HEARTBEAT_MS;
+const LEADER_TIMEOUT_MS: number = INTERVAL.LEADER_TIMEOUT_MS;
 
 export interface LeaderElectionState {
   lastLeaderHeartbeat: number;

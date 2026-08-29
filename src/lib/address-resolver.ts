@@ -9,7 +9,7 @@ import { NETWORK } from './timeout-constants';
  * - Default port is 12349 if not specified
  */
 
-const DEFAULT_PORT: 12349 = NETWORK.WORKSPACE_SERVER_PORT;
+const DEFAULT_PORT: number = NETWORK.WORKSPACE_SERVER_PORT;
 
 // IPv4 regex: matches 0-255 in each octet
 const IPV4_REGEX: RegExp = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
@@ -168,7 +168,7 @@ async function resolveDNS(hostname: string): Promise<string> {
 
     // Check for DNS errors
     if (data.Status !== 0) {
-      // DNS RCODE: 0=NOERROR, 1=FORMERR, 2=SERVFAIL, 3=NXDOMAIN, etc.
+      // DNS RCODE: number =NOERROR, 1=FORMERR, 2=SERVFAIL, 3=NXDOMAIN, etc.
       const errorMessages: Record<number, string> = {
         1: 'Format error',
         2: 'Server failure',

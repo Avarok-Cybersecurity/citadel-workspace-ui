@@ -8,7 +8,7 @@ import { TIMEOUT } from '../timeout-constants';
 
 export const STORAGE_KEY = 'pending_peer_requests';
 export const OUTGOING_STORAGE_KEY = 'outgoing_peer_requests';
-export const REQUEST_TIMEOUT_MS: 5000 = TIMEOUT.LOCALDB_REQUEST_MS;
+export const REQUEST_TIMEOUT_MS: number = TIMEOUT.LOCALDB_REQUEST_MS;
 
 /** Outgoing request poll loop interval (5 minutes) */
 export const OUTGOING_POLL_INTERVAL_MS: number = 5 * 60 * 1000;
