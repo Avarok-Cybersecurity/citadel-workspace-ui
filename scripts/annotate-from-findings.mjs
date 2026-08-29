@@ -26,7 +26,7 @@
  * Usage: node scripts/annotate-from-findings.mjs [pathPrefix] [--dry] [--limit N]
  */
 import { createRequire } from 'node:module';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ESLint } from 'eslint';
@@ -103,6 +103,26 @@ const ANY_AS_UNKNOWN = args.includes('--any-as-unknown');
  * whatever survives is kept, whatever fails costs exactly itself.
  */
 const ONE_PER_FILE = args.includes('--one-per-file');
+
+/**
+ * Sites the compiler has already rejected, as `path:line`.
+ *
+ * Without a memory the tool proposes the same failing annotation every pass:
+ * the site that cannot take a type is retried forever and the ones behind it in
+ * the same file are never reached. The count sat at 660 for three passes for
+ * exactly that reason.
+ *
+ * "Rejected" is not "wrong". It is "the compiler would not accept THIS type
+ * here", which is a fact about the surrounding code -- a narrowing an
+ * annotation would discard, a generic whose arguments matter. Those need the
+ * code changed rather than a type guessed, and they are what will be left.
+ */
+const REJECTED_PATH = resolve(APP, 'scripts', 'annotate-rejected.json');
+const rejected = new Set(
+  existsSync(REJECTED_PATH) ? JSON.parse(readFileSync(REJECTED_PATH, 'utf-8')) : [],
+);
+const PROPOSED_PATH = resolve(APP, 'scripts', 'annotate-proposed.json');
+const proposed = [];
 
 /** Type-position words that are never imported. */
 /**
@@ -245,7 +265,10 @@ for (const source of program.getSourceFiles()) {
    * node and forgiving enough to find it, and `tsc` is what says whether the
    * result is right.
    */
-  const lines = new Set(findings.map((f) => f.line));
+  const relPath = relative(APP, source.fileName);
+  const lines = new Set(
+    findings.map((f) => f.line).filter((line) => !rejected.has(`${relPath}:${line}`)),
+  );
   const onWantedLine = (node) =>
     lines.has(ts.getLineAndCharacterOfPosition(source, node.getStart(source)).line + 1);
 
@@ -460,6 +483,9 @@ for (const source of program.getSourceFiles()) {
   if (DRY) continue;
 
   let text = readFileSync(source.fileName, 'utf-8');
+  for (const edit of applied) {
+    proposed.push(`${relPath}:${ts.getLineAndCharacterOfPosition(source, edit.position).line + 1}`);
+  }
   for (const edit of applied.sort((a, b) => b.position - a.position)) {
     text = text.slice(0, edit.position) + edit.text + text.slice(edit.position);
   }
@@ -540,6 +566,7 @@ function unresolvedNames(printed, source) {
 }
 
 
+if (!DRY) writeFileSync(PROPOSED_PATH, `${JSON.stringify(proposed)}\n`);
 console.log(`${DRY ? 'Would annotate' : 'Annotated'} ${annotated} finding(s) across ${touched} file(s) under ${prefix}.`);
 if (WHY) {
   const sorted = [...refusals.entries()].sort((a, b) => b[1] - a[1]);

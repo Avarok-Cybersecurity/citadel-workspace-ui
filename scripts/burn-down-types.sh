@@ -13,6 +13,9 @@ for pass in $(seq 1 "${1:-6}"); do
   for round in 1 2 3; do
     BAD=$(npx tsc -p tsconfig.app.json --noEmit 2>&1 | sed -n 's/^\(src\/[^(]*\)(.*/\1/p' | sort -u)
     [ -z "$BAD" ] && break
+    # Remember every site in a rejected file, so the next pass reaches the ones
+    # behind it instead of proposing the same failure again.
+    python3 scripts/record-rejected.py "$BAD" >/dev/null
     echo "$BAD" | xargs git checkout --
   done
   node scripts/merge-type-imports.mjs >/dev/null 2>&1
