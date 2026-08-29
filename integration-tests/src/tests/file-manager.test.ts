@@ -972,6 +972,12 @@ async function runTest(): Promise<boolean> {
       // peerSeesFolderRemoved is deliberately NOT gated — see the note where it
       // is reported.
 
+    // CHECK is advisory and FAIL is fatal, and three criteria that decide the
+    // run printed CHECK. The last run reported PASS on every visible line and
+    // then "OVERALL: TEST FAILED", which tells a reader nothing: the run had in
+    // fact failed on "Peer Sees File", printed as CHECK. Anything `allPassed`
+    // reads says FAIL when it is false; only genuinely ungated observations
+    // stay CHECK.
     console.log('\nAccount Creation:');
     console.log(`  Alice:                     ${results.accountCreation.alice ? 'PASS' : 'FAIL'}`);
     console.log(`  Bob:                       ${results.accountCreation.bob ? 'PASS' : 'FAIL'}`);
@@ -1013,15 +1019,20 @@ async function runTest(): Promise<boolean> {
     // to propagate in server-backed mode is a product decision about revfs
     // semantics, not something to settle from a test.
     console.log(`  Peer Sees Folder Removed:  ${results.folderOperations.peerSeesFolderRemoved ? 'PASS' : 'KNOWN GAP (see note above)'}`);
-    console.log(`  Peer Sees Changes:         ${results.folderOperations.peerSeesChanges ? 'PASS' : 'CHECK'}`);
+    console.log(`  Peer Sees Changes:         ${results.folderOperations.peerSeesChanges ? 'PASS' : 'FAIL'}`);
 
     console.log('\nFile Operations:');
     console.log(`  Upload File:               ${results.fileOperations.uploadFile ? 'PASS' : 'FAIL'}`);
     console.log(`  File Visible:              ${results.fileOperations.fileVisible ? 'PASS' : 'FAIL'}`);
-    console.log(`  Peer Sees File:            ${results.fileOperations.peerSeesFile ? 'PASS' : 'CHECK'}`);
+    console.log(`  Peer Sees File:            ${results.fileOperations.peerSeesFile ? 'PASS' : 'FAIL'}`);
     console.log(`  Delete File:               ${results.fileOperations.deleteFile ? 'PASS' : 'FAIL'}`);
     console.log(`  File Removed:              ${results.fileOperations.fileRemoved ? 'PASS' : 'FAIL'}`);
-    console.log(`  Peer Sees File Removed:    ${results.fileOperations.peerSeesFileRemoved ? 'PASS' : 'CHECK'}`);
+    console.log(`  Peer Sees File Removed:    ${results.fileOperations.peerSeesFileRemoved ? 'PASS' : 'FAIL'}`);
+
+    // Gated, and never printed: a run could fail on this alone and the report
+    // showed nothing but passes above a bare "OVERALL: TEST FAILED".
+    console.log('\nNavigation:');
+    console.log(`  Bob Reaches File Manager:  ${results.navigation.bobToFileManager ? 'PASS' : 'FAIL'}`);
 
     console.log('\nContext Menu:');
     console.log(`  Open Context Menu:         ${results.contextMenu.openContextMenu ? 'PASS' : 'FAIL'}`);

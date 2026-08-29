@@ -14799,3 +14799,43 @@ account of whether the channel exists.
 
 > The state a refresh throws away is the measure of how much of the UI is
 > memory rather than record.
+
+## Round 292 — a report that could not say what failed, over an ILM that delivers a fraction of what it sends
+
+`test:file-manager` printed PASS on every visible line and then:
+
+```
+OVERALL: TEST FAILED
+```
+
+Three criteria that decide the run printed `CHECK`, which reads as advisory, and
+a fourth — `navigation.bobToFileManager` — was gated and never printed at all.
+The run had failed on `Peer Sees File`, shown as `CHECK` between two passes.
+Anything `allPassed` reads now says `FAIL`; only genuinely ungated observations
+stay `CHECK`. Grepping the mechanism across the other suites found one apparent
+match in `peer-group` and one in `offline-messaging`, both false positives of
+the scan — this was the only instance.
+
+**What the report was hiding is worse than the report.** Bob never sees the file
+Alice uploads, and the console capture says why:
+
+```
+[ILM-OUTBOUND] CID 11489…793: 18 messages in 1 group
+[ILM-BLOCKED]  CID 11489…793 -> peer 25430…947: msg_id=… blocked (awaiting ACK), consecutive_blocks=…
+[ILM-BLOCKED-RECOVERY] clearing stale state after 10 consecutive blocks
+```
+
+Over one run: **936 blocked, 214 send events, 24 ACKs received, 13 delivered,
+and 93 recovery cycles.** `MAX_CONSECUTIVE_BLOCKS` is 10, so recovery fires,
+clears `last_sent`/`last_acked`, the message is re-sent, no ACK arrives, and it
+blocks ten more times — ninety-three times over. That is not a recovery, it is a
+livelock with a log line, and the queue in front of it grows.
+
+It plausibly accounts for `Peer Sees Folder Removed`, recorded here previously as
+a revfs semantics question, and for parts of the other peer-to-peer suites.
+
+Recorded rather than fixed: the ACK path is in `intersession-layer-messaging`,
+the innermost submodule, and a change there is unverifiable without rebuilding
+the running stack. What is safe to say now is that the recovery has no
+escalation and no report — after ninety-three failed attempts nothing tells the
+user, or the log reader, that this link is not delivering.
