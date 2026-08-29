@@ -35,7 +35,7 @@ export function ensureFillContrast(fill: HslColor, label: HslColor, min: number 
  * Checked against all surfaces at once rather than one at a time, because
  * satisfying `card` alone can walk the colour straight into `background`.
  */
-export function ensureTextContrast(text: HslColor, surfaces: readonly HslColor[], min = 4.5): HslColor {
+export function ensureTextContrast(text: HslColor, surfaces: readonly HslColor[], min: number = 4.5): HslColor {
   const clears = (c: HslColor): boolean => surfaces.every((s): boolean => contrastRatio(s, c) >= min);
   if (clears(text)) return text;
 

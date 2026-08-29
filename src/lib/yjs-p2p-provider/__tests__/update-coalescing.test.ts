@@ -63,7 +63,7 @@ describe('yjs update coalescing', () => {
   });
 
   it('the merged update reconstructs the document exactly', () => {
-    const doc = new Y.Doc();
+    const doc: Y.Doc = new Y.Doc();
     const provider: YjsP2PProvider = makeProvider(doc);
     sent.length = 0;
 

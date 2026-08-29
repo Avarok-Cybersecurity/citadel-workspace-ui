@@ -73,7 +73,7 @@ export function createAudioDecoder(
   onData: (data: AudioData) => void,
   onError: (error: Error) => void,
 ): AudioDecoderHandle {
-  const decoder = new AudioDecoder({
+  const decoder: AudioDecoder = new AudioDecoder({
     output: onData,
     error: (error): void => onError(error instanceof Error ? error : new Error(String(error))),
   });

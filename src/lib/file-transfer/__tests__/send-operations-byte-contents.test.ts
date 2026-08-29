@@ -34,7 +34,7 @@ import type { SendFileParams } from '../io-router-types';
 // toString on BlobPart). Build a fake File via Object.defineProperty so
 // `source instanceof File` succeeds AND `size` / `arrayBuffer()` return
 // the test bytes faithfully.
-function makeFakeFile(name: string, bytes: Uint8Array, size = bytes.byteLength): File {
+function makeFakeFile(name: string, bytes: Uint8Array, size: number = bytes.byteLength): File {
   const file: File = new File([new Uint8Array(0)], name);
   Object.defineProperty(file, 'size', { value: size, configurable: true });
   Object.defineProperty(file, 'arrayBuffer', {

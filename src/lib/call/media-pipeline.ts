@@ -161,7 +161,7 @@ export interface AudioEncoderHandle {
 }
 
 export function createAudioEncoder(sink: FrameSink, onError: (error: Error) => void): AudioEncoderHandle {
-  const encoder = new AudioEncoder({
+  const encoder: AudioEncoder = new AudioEncoder({
     output: (chunk): void => sink(audioChunkToFrame(chunk)),
     error: (error): void => onError(error instanceof Error ? error : new Error(String(error))),
   });

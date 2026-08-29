@@ -24,7 +24,7 @@ export function seedDocument(initialContent: string): Y.Doc {
   // Blank lines are preserved as empty paragraphs; a document that silently
   // reflows the user's text is a smaller version of the same complaint.
   const paragraphs = initialContent.split('\n').map((line) => {
-    const element = new Y.XmlElement('paragraph');
+    const element: Y.XmlElement = new Y.XmlElement('paragraph');
     if (line.length > 0) element.insert(0, [new Y.XmlText(line)]);
     return element;
   });
