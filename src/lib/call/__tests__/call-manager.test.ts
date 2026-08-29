@@ -83,7 +83,17 @@ function harness(): Harness {
   };
 }
 
-function invite(callId: string = 'their-call', overrides: Partial<Extract<CallSignalPayload, { kind: 'CallInvite' }>> = {}): { kind: "CallInvite"; call_id: string; media: CallMediaKinds; codecs: CallCodecCapabilities; media_wire_version: number; group?: { room_id: string; members: string[]; } | undefined; video_send_codec?: string | null | undefined; } {
+interface InviteResult {
+  kind: "CallInvite";
+  call_id: string;
+  media: CallMediaKinds;
+  codecs: CallCodecCapabilities;
+  media_wire_version: number;
+  group?: { room_id: string; members: string[]; } | undefined;
+  video_send_codec?: string | null | undefined;
+}
+
+function invite(callId: string = 'their-call', overrides: Partial<Extract<CallSignalPayload, { kind: 'CallInvite' }>> = {}): InviteResult {
   return {
     kind: 'CallInvite' as const,
     call_id: callId,
