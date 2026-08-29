@@ -15768,3 +15768,51 @@ above is the judgement the baseline is there to hold.
 
 > A locator that needs `.first()` is a locator that has already matched
 > something it did not mean to.
+
+## Round 315 — the quiet made the flow readable, and killed two hypotheses
+
+Rounds 301–302 landed. The same file-manager leg, same shape of run:
+
+| | round 293 | round 302 |
+|---|---|---|
+| `[ILM-OUTBOUND]` | 31,918 | **1,345** |
+| `[ILM-BLOCKED]` | 1,302 | **30** |
+| `[ILM-RETRANSMIT]` | 211 | 236 |
+| `[ILM-ACK-RECV]` | 94 | 100 |
+
+Twenty-four times less outbound noise, forty-three times fewer blocked lines. And
+with the noise gone the flow is legible for the first time:
+
+```
+[Bob]   sendRevfsOp: op=SyncRequest path=/ … sending 272 bytes
+[Alice] [MSG-ROUTE] SUCCESS - sent to ILM for dest
+[Alice] handleRevfsOperation: sender=98565… op=SyncRequest path=/
+[Alice] sendRevfsOp: op=SyncResponse … sending 984 bytes … sent successfully
+```
+
+The request/response cycle works. What follows it is both sides blocked and
+retransmitting at each other.
+
+**Two hypotheses, both killed by counting.**
+
+*"The application is refusing delivery, so nothing gets ACKed."* Nineteen
+messages delivered, nineteen acknowledged, zero delivery failures, zero revfs
+errors. Every message that arrives is delivered and acknowledged. Not this.
+
+*"WireWrapper decoding fails on the wire, so messages never reach ILM."*
+Twenty-two decode failures in the run — and they are **by design**. This app
+sends P2P traffic by two routes on purpose: Yjs document updates
+(`yjs-p2p-provider/sending.ts`) and the plain messaging service go out as raw
+bytes; everything else goes through ILM's `WireWrapper`. Every one of the former
+arrives at the ISM decoder and fails it.
+
+That branch was logged at `warn!` as *"Error while deserializing ISM (?)
+message"*, which is what an unframed payload looks like from inside the decoder
+and is not what it is. Twenty-two of them read as corruption on the wire and
+cost a round of investigation. It is `debug!` now and says what it means: **an
+expected branch logged as a warning is a false lead with a timestamp.**
+
+So the transport is not corrupting, the application is not refusing, and the
+loss is somewhere between one ILM's `send_message_internal` and the other's
+inbound channel. That still needs the running stack — but the ground under it
+has been cleared of two things that looked like answers.
