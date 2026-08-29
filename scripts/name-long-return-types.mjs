@@ -73,20 +73,42 @@ for (const file of files(join(APP, 'src'))) {
   for (let index = 0; index < lines.length && named < LIMIT; index += 1) {
     const line = lines[index];
     if (line.length < MIN_LENGTH) continue;
-    const match = line.match(/^(export )?function (\w+)\(/);
-    if (!match) continue;
+    // Indented declarations too. Anchoring at column zero missed every nested
+    // helper, which is where the longest of these live.
     // The return annotation: `): { ... } {` at the end of the line.
     const returns = line.match(/\):\s*(\{.*\})\s*\{$/);
     if (!returns || returns[1].length < MIN_LENGTH) continue;
 
+    // The function's NAME may be several lines up: a multi-line parameter list
+    // puts `): { ... } {` on a line of its own, and requiring both on one line
+    // missed every one of the long ones -- which is exactly the shape that gets
+    // long in the first place.
+    let match = null;
+    let declaredAt = index;
+    for (let up = index; up >= 0 && up > index - 30; up -= 1) {
+      match = lines[up].match(/^(\s*)(?:export )?function (\w+)\(/);
+      if (match) { declaredAt = up; break; }
+    }
+    if (!match) continue;
+
     const typeName = nameFor(match[2]);
     if (original.includes(`interface ${typeName}`)) continue;
     const body = returns[1].slice(1, -1);
-    const declaration = [`interface ${typeName} {`, ...fields(body).map((f) => `  ${f};`), '}', ''];
+    const indent = match[1] ?? '';
+    const declaration = [
+      `${indent}interface ${typeName} {`,
+      ...fields(body).map((f) => `${indent}  ${f};`),
+      `${indent}}`,
+      '',
+    ];
 
     const next = [...lines];
     next[index] = line.replace(/\):\s*\{.*\}\s*\{$/, `): ${typeName} {`);
-    next.splice(index, 0, ...declaration);
+    // ABOVE THE FUNCTION, not above the annotation. The annotation line is in
+    // the middle of a multi-line parameter list, and inserting there put an
+    // interface inside the signature -- which does not compile, so every one of
+    // them was silently reverted and the tool reported "named 0".
+    next.splice(declaredAt, 0, ...declaration);
     writeFileSync(file, next.join('\n'));
     if (typechecks()) {
       named += 1;

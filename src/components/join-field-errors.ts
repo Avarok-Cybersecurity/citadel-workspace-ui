@@ -18,11 +18,16 @@ import { validateFullName, validateUsername, validatePassword } from '@/lib/cred
  * the user learns about the 17-character password maximum while typing rather
  * than after a round trip.
  */
+interface JoinFieldErrorsResult {
+  rawErrors: { fullName: string | null; username: string | null; password: string | null; confirmPassword: string | null; };
+  fieldErrors: { fullName: string | null; username: string | null; password: string | null; confirmPassword: string | null; };
+}
+
 export function joinFieldErrors(
   formData: JoinFormData,
   touched: Record<string, boolean>,
   submitAttempted: boolean,
-): { rawErrors: { fullName: string | null; username: string | null; password: string | null; confirmPassword: string | null; }; fieldErrors: { fullName: string | null; username: string | null; password: string | null; confirmPassword: string | null; }; } {
+): JoinFieldErrorsResult {
   const rawErrors: { fullName: string | null; username: string | null; password: string | null; confirmPassword: string | null; } = {
     fullName: validateFullName(formData.fullName),
     username: validateUsername(formData.username),
