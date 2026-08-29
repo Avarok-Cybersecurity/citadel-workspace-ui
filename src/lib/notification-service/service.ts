@@ -86,7 +86,7 @@ export class NotificationService {
   }
 
   public markAsRead(notificationId: string): void {
-    const notification = this.notifications.get(notificationId);
+    const notification: Notification | undefined = this.notifications.get(notificationId);
     if (notification && !notification.read) {
       notification.read = true;
       this.notifications.set(notificationId, notification);
@@ -145,7 +145,7 @@ export class NotificationService {
   }
 
   public removeNotification(notificationId: string): void {
-    const notification = this.notifications.get(notificationId);
+    const notification: Notification | undefined = this.notifications.get(notificationId);
     if (notification) {
       const wasUnread = !notification.read;
       this.notifications.delete(notificationId);

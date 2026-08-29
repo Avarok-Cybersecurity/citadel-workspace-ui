@@ -24,7 +24,7 @@ import type { WebSocketServiceCore } from './core';
 function embeddedRequestId(request: Record<string, unknown>): string | undefined {
   const [payload] = Object.values(request);
   if (payload === null || typeof payload !== 'object') return undefined;
-  const id = (payload as Record<string, unknown>).request_id;
+  const id: unknown = (payload as Record<string, unknown>).request_id;
   return typeof id === 'string' ? id : undefined;
 }
 

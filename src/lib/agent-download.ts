@@ -41,7 +41,7 @@ export const RELEASES_PAGE =
  * download that would not work.
  */
 export function agentPlatformCandidates(nav: Navigator = navigator): AgentPlatform[] {
-  const uaData = (nav as Navigator & { userAgentData?: { platform?: string } }).userAgentData;
+  const uaData: { platform?: string; } | undefined = (nav as Navigator & { userAgentData?: { platform?: string } }).userAgentData;
   const platform: string = (uaData?.platform ?? nav.platform ?? '').toLowerCase();
   const ua: string = (nav.userAgent ?? '').toLowerCase();
 

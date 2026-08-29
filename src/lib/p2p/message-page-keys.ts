@@ -20,7 +20,7 @@ import { PAGINATED_PREFIX } from './p2p-types';
  * see `legacyConversationPrefix`.
  */
 export function conversationPrefix(peerCid: bigint): string {
-  const own = instanceManager.cid;
+  const own: bigint | null = instanceManager.cid;
   // No session yet: fall back to the legacy shape rather than inventing an
   // owner. A record filed under a guessed account is worse than an unscoped one.
   if (!own) return legacyConversationPrefix(peerCid);

@@ -54,7 +54,7 @@ export async function peerRmdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigi
   // both trees while every encrypted blob stayed in the host's storage, with no
   // tree entry left to reach it from. `removeFileFromPeer` deletes with the
   // peer's cid for exactly this reason.
-  const target = findNode(tree, path);
+  const target: RevfsNode | null = findNode(tree, path);
   const orphaned: RevfsNode[] = target ? collectFiles(target) : [];
 
   const [newTree, op] = treeRmdir(tree, path);
@@ -205,7 +205,7 @@ export async function serverRmdir(ctx: DirOpsContext, myCid: bigint, path: strin
   // stores files keyed by virtual path. So propagating a directory removal means
   // deleting each file that lived under it, or the bytes stay on the server and
   // the user's quota never comes back.
-  const target = findNode(tree, path);
+  const target: RevfsNode | null = findNode(tree, path);
   const orphaned: RevfsNode[] = target ? collectFiles(target) : [];
 
   const [newTree] = treeRmdir(tree, path);

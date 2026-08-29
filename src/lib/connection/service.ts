@@ -170,7 +170,7 @@ export class ConnectionManager {
 
   public async reconnectToStoredSessions(): Promise<void> {
     debugLog('ConnectionService', 'ConnectionManager: Reconnecting to stored sessions');
-    const currentSession = await this.getTabSelectedSession();
+    const currentSession: StoredSession | null = await this.getTabSelectedSession();
     if (currentSession?.cid) {
       await this.io.disconnect(currentSession.cid);
     }

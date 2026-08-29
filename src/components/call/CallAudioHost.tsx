@@ -30,7 +30,7 @@ function RemoteAudio({ stream }: { stream: MediaStream }) {
   const ref = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
-    const element = ref.current;
+    const element: HTMLAudioElement | null = ref.current;
     if (!element) return;
     element.srcObject = stream;
     // Autoplay can be refused before the user has interacted with the page.

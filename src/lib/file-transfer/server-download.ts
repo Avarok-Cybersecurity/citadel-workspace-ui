@@ -46,7 +46,7 @@ const DELETE_ON_PULL = false;
  * so the caller can mark the transfer errored instead of falsely completing it.
  */
 export function downloadFileFromServer(transfer: FileTransfer): Promise<string | undefined> {
-  const virtualDirectory = transfer.virtualPath;
+  const virtualDirectory: string | undefined = transfer.virtualPath;
   if (!virtualDirectory) {
     return Promise.reject(
       new Error(`Transfer ${transfer.id} has no staged path on the server to download from.`)
@@ -88,7 +88,7 @@ export function downloadFileFromServer(transfer: FileTransfer): Promise<string |
     };
 
     const handleMessage = (message: unknown): void => {
-      const msg = message as Record<string, unknown>;
+      const msg: Record<string, unknown> = message as Record<string, unknown>;
 
       // The transfer itself completing (or failing) arrives as a status notification,
       // matched on our own CID — the same correlation the RE-VFS path uses.
@@ -142,7 +142,7 @@ export async function completeStagedDownload(
   transfer: FileTransfer
 ): Promise<void> {
   try {
-    const downloadPath = (await deps.io.executeIntent({
+    const downloadPath: string | undefined = (await deps.io.executeIntent({
       type: 'download-from-server',
       transfer,
     })) as string | undefined;

@@ -45,7 +45,7 @@ function emittedEvents(): Set<string> {
 
 describe('the reconnect modal', () => {
   it('listens for an event that is actually emitted', () => {
-    const listened = modal.match(/useEventListener\('([\w:-]+)'/)?.[1];
+    const listened: string | undefined = modal.match(/useEventListener\('([\w:-]+)'/)?.[1];
 
     expect(listened).toBeDefined();
     expect(
@@ -66,7 +66,7 @@ describe('the reconnect modal', () => {
     // the callback body left every test green while the budget went back to
     // accumulating across the tab's whole lifetime. Verified by reinstating the
     // bug: three passes.
-    const bound = /reset:\s*(\w+)/.exec(modal)?.[1];
+    const bound: string | undefined = /reset:\s*(\w+)/.exec(modal)?.[1];
     expect(bound, 'reset is not destructured from useRetry at all').toBeDefined();
 
     // The callback body only: from the arrow that opens it to its closing

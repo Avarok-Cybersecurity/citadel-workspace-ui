@@ -42,7 +42,7 @@ describe('ComposeContextBanner', () => {
     const onCancel = vi.fn();
     render(<ComposeContextBanner replyingTo={message('x')} editingMessage={null} onCancel={onCancel} />);
 
-    const cancel = screen.getByRole('button', { name: 'Cancel reply' });
+    const cancel: HTMLElement = screen.getByRole('button', { name: 'Cancel reply' });
     await userEvent.click(cancel);
 
     expect(onCancel).toHaveBeenCalledTimes(1);

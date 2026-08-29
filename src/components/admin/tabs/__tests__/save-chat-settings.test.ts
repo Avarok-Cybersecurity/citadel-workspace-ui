@@ -34,7 +34,7 @@ describe('saveChatSettings', () => {
   });
 
   it('reports failure and does not claim success when the write rejects', async () => {
-    const write = vi.fn(() => Promise.reject(new Error('offline')));
+    const write = vi.fn((): Promise<never> => Promise.reject(new Error('offline')));
     const d = deps({ write });
 
     const result = await saveChatSettings(d.args);

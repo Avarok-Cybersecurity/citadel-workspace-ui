@@ -25,7 +25,7 @@ export function useEventEmitterSetup({ setState }: UseEventEmitterSetupProps): v
       let avatarUrl: string | undefined;
       if (user.metadata?.avatar) {
         const avatar = user.metadata.avatar;
-        const avatarData = typeof avatar === 'string'
+        const avatarData: string | undefined = typeof avatar === 'string'
           ? avatar
           : avatar?.content || avatar?.String;
         if (avatarData) {

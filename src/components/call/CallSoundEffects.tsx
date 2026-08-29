@@ -18,15 +18,15 @@ type SoundModule = typeof import('@/lib/call/call-sounds');
  * applied to the player in the order they happened even while the first
  * import is still in flight.
  */
-export function CallSoundEffects() {
+export function CallSoundEffects(): null {
   const { call } = useCall();
   const status: CallStatus | null = call?.status ?? null;
-  const callId = call?.callId ?? null;
+  const callId: string | null = call?.callId ?? null;
   const prevStatusRef = useRef<CallStatus | null>(null);
   const loadedRef = useRef(false);
 
   useEffect(() => {
-    const prev = prevStatusRef.current;
+    const prev: CallStatus | null = prevStatusRef.current;
     prevStatusRef.current = status;
     // Nothing has happened and nothing needs stopping: leave the module unloaded.
     if (status === null && prev === null) return;

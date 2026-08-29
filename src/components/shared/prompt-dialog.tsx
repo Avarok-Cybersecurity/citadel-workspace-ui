@@ -43,7 +43,7 @@ export function PromptDialogProvider({ children }: { children: ReactNode }) {
     setValue('');
   }, []);
 
-  const prompt = useCallback((next: PromptRequest) => {
+  const prompt = useCallback((next: PromptRequest): Promise<string | null> => {
     // Never strand a previous caller's promise.
     resolveRef.current?.(null);
     setRequest(next);

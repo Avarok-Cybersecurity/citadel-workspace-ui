@@ -63,7 +63,7 @@ let cached: PrivacySettings | null = null;
 
 function readFromStorage(): PrivacySettings {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored: string | null = localStorage.getItem(STORAGE_KEY);
     // Merged over defaults, never returned verbatim: a blob saved by an older
     // build is missing every field added since, and `undefined` reads as "off"
     // for a boolean — silently turning a privacy setting the user never saw

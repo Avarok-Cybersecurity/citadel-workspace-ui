@@ -43,9 +43,9 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
   useEffect(() => {
     const handleYjsCommand = ({ payload }: { peerCid: bigint; payload: Record<string, unknown> }): void => {
       if (payload.type !== 'yjs_sync') return;
-      const docId = typeof payload.document_id === 'string' ? payload.document_id : undefined;
+      const docId: string | undefined = typeof payload.document_id === 'string' ? payload.document_id : undefined;
       if (!docId) return;
-      const tab = tabsRef.current.find(t => t.documentId === docId);
+      const tab: ChatTab | undefined = tabsRef.current.find(t => t.documentId === docId);
       if (tab && activeTabIdRef.current !== tab.id) {
         setTabActivity(prev => ({ ...prev, [tab.id]: true }));
       }
@@ -79,7 +79,7 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
         );
     }
 
-    const existingTab = tabs.find(t => t.documentId === docId);
+    const existingTab: ChatTab | undefined = tabs.find(t => t.documentId === docId);
     if (existingTab) {
       setActiveTabId(existingTab.id);
     } else {
@@ -118,7 +118,7 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
     hasUnread: tab.id === 'messages' ? messagesHasUnread : tabActivity[tab.id] || false,
   }));
 
-  const activeTab = tabs.find(t => t.id === activeTabId);
+  const activeTab: ChatTab | undefined = tabs.find(t => t.id === activeTabId);
 
   return {
     tabs,

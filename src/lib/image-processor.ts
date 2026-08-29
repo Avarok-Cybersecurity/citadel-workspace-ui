@@ -56,7 +56,7 @@ export async function processAvatarImage(
           }
 
           // Create canvas and draw resized image
-          const canvas = document.createElement('canvas');
+          const canvas: HTMLCanvasElement = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
 

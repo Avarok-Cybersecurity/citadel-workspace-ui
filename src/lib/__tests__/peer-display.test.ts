@@ -20,7 +20,7 @@ describe('shortPeerHandle', () => {
   });
 
   it('is short and readable', () => {
-    const handle = shortPeerHandle(ALICE);
+    const handle: string | null = shortPeerHandle(ALICE);
     expect(handle).toMatch(/^[0-9A-Z]{6}$/);
   });
 
@@ -35,7 +35,7 @@ describe('shortPeerHandle', () => {
   });
 
   it('avoids glyphs that read ambiguously in a short code', () => {
-    const handles = [ALICE, BOB, 1n, 999999n, 2n ** 63n].map(shortPeerHandle);
+    const handles: (string | null)[] = [ALICE, BOB, 1n, 999999n, 2n ** 63n].map(shortPeerHandle);
     for (const h of handles) expect(h).not.toMatch(/[OIL]/);
   });
 

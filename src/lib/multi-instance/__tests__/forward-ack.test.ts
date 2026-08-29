@@ -15,7 +15,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { OrphanBuffer } from '../orphan-buffer';
 
-const MSG = { MessageNotification: { cid: 1, peer_cid: 2 } } as Record<string, unknown>;
+const MSG: Record<string, unknown> = { MessageNotification: { cid: 1, peer_cid: 2 } } as Record<string, unknown>;
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());

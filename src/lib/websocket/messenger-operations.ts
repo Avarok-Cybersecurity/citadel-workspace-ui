@@ -40,7 +40,7 @@ export class MessengerOperations {
     debugLog('MessengerOperations', 'Opening messenger handle for CID', { cid: cid.toString() });
 
     if (instanceManager.isLeader) {
-      const client = this.config.getClient();
+      const client: WorkspaceClient | null = this.config.getClient();
       if (!client) {
         throw new Error('WebSocket client not available (leader without client)');
       }
@@ -79,7 +79,7 @@ export class MessengerOperations {
     }
 
     if (instanceManager.isLeader) {
-      const client = this.config.getClient();
+      const client: WorkspaceClient | null = this.config.getClient();
       if (!client) {
         throw new Error('WebSocket client not available (leader without client)');
       }
@@ -135,7 +135,7 @@ export class MessengerOperations {
     });
 
     if (instanceManager.isLeader) {
-      const client = this.config.getClient();
+      const client: WorkspaceClient | null = this.config.getClient();
       if (!client) {
         throw new Error('WebSocket client not available (leader without client)');
       }

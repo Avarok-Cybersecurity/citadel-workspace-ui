@@ -114,7 +114,7 @@ window.addEventListener('unhandledrejection', (e) => {
 
 
 try {
-  const rootElement = document.getElementById("root");
+  const rootElement: HTMLElement | null = document.getElementById("root");
 
   if (!rootElement) {
     throw new Error("Root element not found");
@@ -195,25 +195,25 @@ try {
   console.error("main.tsx: Error during initialization:", error);
 
   // Show error on page if React fails — use safe DOM APIs (no innerHTML)
-  const rootElement = document.getElementById("root");
+  const rootElement: HTMLElement | null = document.getElementById("root");
   if (rootElement) {
     const errorMessage: string = error instanceof Error ? error.message : String(error);
     const errorStack: string = error instanceof Error ? error.stack ?? '' : '';
 
-    const container = document.createElement('div');
+    const container: HTMLDivElement = document.createElement('div');
     container.style.cssText = 'padding: 20px; color: red; font-family: monospace;';
 
     const heading = document.createElement('h2');
     heading.textContent = 'React Initialization Error';
 
     const errorParagraph = document.createElement('p');
-    const errorLabel = document.createElement('strong');
+    const errorLabel: HTMLElement = document.createElement('strong');
     errorLabel.textContent = 'Error: ';
     errorParagraph.appendChild(errorLabel);
     errorParagraph.appendChild(document.createTextNode(errorMessage));
 
     const stackLabel = document.createElement('p');
-    const stackStrong = document.createElement('strong');
+    const stackStrong: HTMLElement = document.createElement('strong');
     stackStrong.textContent = 'Stack:';
     stackLabel.appendChild(stackStrong);
 

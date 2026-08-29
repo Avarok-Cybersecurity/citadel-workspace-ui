@@ -38,7 +38,7 @@ describe('round trip', () => {
   it('preserves a user theme, including its edits and derived flag', () => {
     const edited: WorkspaceTheme = setToken(beginEdit(findPreset('nord')!), 'light', 'primary', { h: 12, s: 34, l: 56 });
 
-    const restored = deserializeTheme(metadataCarrying(edited));
+    const restored: WorkspaceTheme | null = deserializeTheme(metadataCarrying(edited));
 
     expect(restored).toEqual(edited);
     expect(restored?.light.primary).toEqual({ h: 12, s: 34, l: 56 });
@@ -70,7 +70,7 @@ describe('round trip', () => {
     // the whole of it. A save that replaced the document erased
     // `initialized`, and the workspace reopened its setup modal over a working
     // workspace — with a backdrop that swallowed every click.
-    const document = metadataCarrying(defaultTheme());
+    const document: Record<string, unknown> = metadataCarrying(defaultTheme());
 
     expect(document.initialized).toBe(true);
     expect(deserializeTheme(document)).toEqual(defaultTheme());

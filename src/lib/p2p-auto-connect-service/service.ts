@@ -145,13 +145,13 @@ export class P2PAutoConnectService {
   // === Legacy API (uses current CID from context) ===
 
   public async isPeerConnected(peerCid: bigint): Promise<boolean> {
-    const currentCid = await getCurrentCid();
+    const currentCid: bigint | null = await getCurrentCid();
     if (!currentCid) return false;
     return this.isPeerConnectedForSession(currentCid, peerCid);
   }
 
   public async getConnectedPeers(): Promise<bigint[]> {
-    const currentCid = await getCurrentCid();
+    const currentCid: bigint | null = await getCurrentCid();
     if (!currentCid) return [];
     return this.getPeersForSession(currentCid);
   }
@@ -159,7 +159,7 @@ export class P2PAutoConnectService {
   // === Connection State Reset ===
 
   public async resetConnectionState(): Promise<void> {
-    const currentCid = await getCurrentCid();
+    const currentCid: bigint | null = await getCurrentCid();
     const peerCount: number = currentCid ? (this.state.getPeersForSession(currentCid).length) : 0;
 
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Resetting connection state for reconnection`);
@@ -183,7 +183,7 @@ export class P2PAutoConnectService {
   // === Background Connection Helpers ===
 
   public async ensurePeerConnectedInBackground(peerCid: bigint): Promise<void> {
-    const currentCid = await getCurrentCid();
+    const currentCid: bigint | null = await getCurrentCid();
     if (!currentCid || currentCid === peerCid) return;
 
     if (this.isPeerConnectedForSession(currentCid, peerCid)) {
@@ -203,7 +203,7 @@ export class P2PAutoConnectService {
   }
 
   public async waitForPeerConnected(peerCid: bigint, timeoutMs = WAIT_FOR_PEER_TIMEOUT_MS): Promise<boolean> {
-    const currentCid = await getCurrentCid();
+    const currentCid: bigint | null = await getCurrentCid();
     if (!currentCid) return false;
 
     if (this.isPeerConnectedForSession(currentCid, peerCid)) return true;

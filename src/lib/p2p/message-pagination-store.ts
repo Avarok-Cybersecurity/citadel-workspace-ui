@@ -72,7 +72,7 @@ export class MessagePaginationStore {
 
       for (const key of metadataKeys) {
         try {
-          const metadata = await loadMetadataByKey(key);
+          const metadata: ConversationMetadata | null = await loadMetadataByKey(key);
           if (metadata) {
             results.push(metadata);
           }
@@ -122,10 +122,10 @@ export class MessagePaginationStore {
     getCurrentCid: () => Promise<bigint | null>,
     getPeerUsername: () => string | undefined
   ): Promise<void> {
-    let metadata = await loadMetadata(peerCid);
+    let metadata: ConversationMetadata | null = await loadMetadata(peerCid);
     const isNewConversation = !metadata;
 
-    const ownerCid = await getCurrentCid();
+    const ownerCid: bigint | null = await getCurrentCid();
 
     if (!metadata) {
       metadata = {
@@ -152,7 +152,7 @@ export class MessagePaginationStore {
       metadata.ownerCid = ownerCid;
     }
 
-    let currentPage = await loadMessagePage(peerCid, metadata.latestPage);
+    let currentPage: MessagePage | null = await loadMessagePage(peerCid, metadata.latestPage);
     if (!currentPage) {
       currentPage = {
         peerCid,
@@ -202,10 +202,10 @@ export class MessagePaginationStore {
   }
 
   public async loadLatestMessages(peerCid: bigint): Promise<P2PMessage[]> {
-    const metadata = await tryLoadMetadata(peerCid);
+    const metadata: ConversationMetadata | null = await tryLoadMetadata(peerCid);
     if (!metadata) return [];
 
-    const latestPage = await tryLoadMessagePage(peerCid, metadata.latestPage);
+    const latestPage: MessagePage | null = await tryLoadMessagePage(peerCid, metadata.latestPage);
     return latestPage?.messages || [];
   }
 

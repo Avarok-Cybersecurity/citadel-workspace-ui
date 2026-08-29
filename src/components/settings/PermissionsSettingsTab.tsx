@@ -35,7 +35,7 @@ export function PermissionsSettingsTab() {
   } = usePermissions();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const workspaceId = state.workspace?.id;
+  const workspaceId: string | undefined = state.workspace?.id;
   const workspaceName: string = state.workspace?.name || 'Workspace';
   const workspaceRole = workspaceId ? getRole(workspaceId) : null;
 
@@ -51,7 +51,7 @@ export function PermissionsSettingsTab() {
   // Group nodes by parent/child hierarchy using parent_id relationships
   const nodesWithChildren = useMemo(() => {
     const allNodes = Object.values(state.nodes);
-    const childParentIds = new Set(allNodes.filter(n => n.parent_id).map(n => n.parent_id));
+    const childParentIds: Set<string | null> = new Set(allNodes.filter(n => n.parent_id).map(n => n.parent_id));
     const parentNodes = allNodes.filter(n => childParentIds.has(n.id));
     const leafNodes = allNodes.filter(n => !childParentIds.has(n.id) && n.parent_id);
 

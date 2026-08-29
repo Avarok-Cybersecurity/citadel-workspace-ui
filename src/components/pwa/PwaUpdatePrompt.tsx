@@ -32,12 +32,12 @@ const UPDATE_CHECK_INTERVAL_MS: number = 60 * 60 * 1000;
 
 /** One identity for the update offer, so re-offering replaces rather than stacks. */
 const UPDATE_TOAST_ID = 'pwa-update-available';
-export function PwaUpdatePrompt() {
+export function PwaUpdatePrompt(): null {
   const { toast } = useToast();
 
   const cleanupRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => () => cleanupRef.current?.(), []);
+  useEffect((): () => void | undefined => (): void | undefined => cleanupRef.current?.(), []);
 
   // Whether the user clicked Reload in THIS window.
   //

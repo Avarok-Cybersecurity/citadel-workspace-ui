@@ -72,7 +72,7 @@ export class FileTransferIO extends RealProtocolIORouter {
     // `BigInt(<uuid>)`, which throws SyntaxError synchronously while the request
     // literal is built — before anything is sent — so RespondFileTransfer was
     // never issued for any incoming transfer and the bytes never landed.
-    const objectId = this.resolveObjectId(intent.transferId);
+    const objectId: string | undefined = this.resolveObjectId(intent.transferId);
     if (objectId === undefined) {
       throw new Error(
         'This transfer has not been announced over the protocol yet. ' +
@@ -88,7 +88,7 @@ export class FileTransferIO extends RealProtocolIORouter {
     // The send was fire-and-forget, so nothing noticed: the recipient's bubble
     // sat at "Downloading... 0%" and the sender's at "Waiting for acceptance"
     // for ever, and no chat transfer ever moved a byte.
-    const ownCid = await this.getCurrentCid();
+    const ownCid: bigint | null = await this.getCurrentCid();
     if (ownCid === null) {
       throw new Error('No active session to accept this transfer with.');
     }
@@ -125,7 +125,7 @@ export class FileTransferIO extends RealProtocolIORouter {
     // state. Without the in-band signal the peer was never told, and their
     // bubble stayed pending/transferring for a transfer that no longer
     // existed. Signal first: local cleanup cannot fail, the send can.
-    const ownCid = await this.getCurrentCid();
+    const ownCid: bigint | null = await this.getCurrentCid();
     if (ownCid === null) {
       throw new Error('No active session to cancel this transfer from.');
     }
@@ -148,7 +148,7 @@ export class FileTransferIO extends RealProtocolIORouter {
 
   private async uploadToServer(intent: UploadToServerIntent): Promise<string> {
     const { file, transferId, recipientCid } = intent;
-    const ownCid = await this.getCurrentCid();
+    const ownCid: bigint | null = await this.getCurrentCid();
     if (ownCid === null) {
       throw new Error('No active session to send this file from.');
     }

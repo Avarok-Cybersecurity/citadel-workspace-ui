@@ -106,7 +106,7 @@ describe('CallControls', () => {
       <CallControls media={VIDEO} canToggleVideo onToggleMic={onToggleMic} onToggleCamera={noop} onLeave={noop} running={false} />,
     );
 
-    const mic = screen.getByRole('button', { name: 'Microphone' });
+    const mic: HTMLElement = screen.getByRole('button', { name: 'Microphone' });
     expect(mic).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(mic);
     expect(onToggleMic).toHaveBeenCalled();
@@ -163,7 +163,7 @@ describe('IncomingCallCard', () => {
     // reflex must not answer a call by accident.
     render(<IncomingCallCard callerName="Alice" media={VIDEO} onAccept={vi.fn()} onDecline={vi.fn()} />);
 
-    const buttons = screen.getAllByRole('button');
+    const buttons: HTMLElement[] = screen.getAllByRole('button');
     expect(buttons[0]).toHaveAttribute('data-testid', 'incoming-call-decline');
   });
 
@@ -213,7 +213,7 @@ describe('CallStage', () => {
       <CallStage call={callState({ status: 'failed', reason: 'this peer connected without UDP' })} {...props} />,
     );
 
-    const error = screen.getByTestId('call-error');
+    const error: HTMLElement = screen.getByTestId('call-error');
     expect(error).toHaveAttribute('role', 'alert');
     expect(screen.getByText(/without UDP/)).toBeInTheDocument();
   });
@@ -245,7 +245,7 @@ describe('CallStage', () => {
 });
 
 describe('CallEntryButtons', () => {
-  const supported = { supported: true };
+  const supported: { supported: boolean; } = { supported: true };
 
   it('offers audio and video separately', async () => {
     const onStartCall = vi.fn();

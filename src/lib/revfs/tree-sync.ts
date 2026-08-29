@@ -35,7 +35,7 @@ export function applyRemoteOp(
     case RevfsOpType.Mkdir: {
       const parent: string = parentPath(op.path);
       const name: string = baseName(op.path);
-      const parentNode = findNode(newTree, parent);
+      const parentNode: RevfsNode | null = findNode(newTree, parent);
       if (!parentNode || parentNode.type !== 'directory') return newTree;
       if (findNode(newTree, op.path)) return newTree; // idempotent
       if (!parentNode.children) parentNode.children = [];
@@ -54,7 +54,7 @@ export function applyRemoteOp(
     case RevfsOpType.Rmdir: {
       if (PROTECTED_DIRS.has(op.path)) return newTree;
       const parent: string = parentPath(op.path);
-      const parentNode = findNode(newTree, parent);
+      const parentNode: RevfsNode | null = findNode(newTree, parent);
       if (!parentNode?.children) return newTree;
       const idx: number = parentNode.children.findIndex(c => c.path === op.path);
       if (idx >= 0) {
@@ -68,7 +68,7 @@ export function applyRemoteOp(
       if (!op.metadata) return newTree;
       const parent: string = parentPath(op.path);
       const name: string = baseName(op.path);
-      const parentNode = findNode(newTree, parent);
+      const parentNode: RevfsNode | null = findNode(newTree, parent);
       if (!parentNode || parentNode.type !== 'directory') return newTree;
       if (!parentNode.children) parentNode.children = [];
 
@@ -101,7 +101,7 @@ export function applyRemoteOp(
 
     case RevfsOpType.RemoveFile: {
       const parent: string = parentPath(op.path);
-      const parentNode = findNode(newTree, parent);
+      const parentNode: RevfsNode | null = findNode(newTree, parent);
       if (!parentNode?.children) return newTree;
       const idx: number = parentNode.children.findIndex(c => c.path === op.path);
       if (idx >= 0) {
@@ -123,7 +123,7 @@ export function applyRemoteOp(
       if (PROTECTED_DIRS.has(op.path)) return newTree;
 
       const parent: string = parentPath(op.path);
-      const parentNode = findNode(newTree, parent);
+      const parentNode: RevfsNode | null = findNode(newTree, parent);
       if (!parentNode?.children) return newTree;
 
       const idx: number = parentNode.children.findIndex(c => c.path === op.path);
@@ -155,14 +155,14 @@ export function applyRemoteOp(
       if (PROTECTED_DIRS.has(op.path)) return newTree;
 
       const sourceParent: string = parentPath(op.path);
-      const sourceParentNode = findNode(newTree, sourceParent);
+      const sourceParentNode: RevfsNode | null = findNode(newTree, sourceParent);
       if (!sourceParentNode?.children) return newTree;
 
       const sourceIdx: number = sourceParentNode.children.findIndex(c => c.path === op.path);
       if (sourceIdx < 0) return newTree;
 
       const destParentPathVal: string = parentPath(op.destPath);
-      const destParentNode = findNode(newTree, destParentPathVal);
+      const destParentNode: RevfsNode | null = findNode(newTree, destParentPathVal);
       if (!destParentNode || destParentNode.type !== 'directory') return newTree;
 
       if (!destParentNode.children) destParentNode.children = [];
@@ -194,11 +194,11 @@ export function applyRemoteOp(
       if (!op.destPath) return newTree;
       if (PROTECTED_DIRS.has(op.path)) return newTree;
 
-      const sourceNode = findNode(newTree, op.path);
+      const sourceNode: RevfsNode | null = findNode(newTree, op.path);
       if (!sourceNode) return newTree;
 
       const destParentPathVal: string = parentPath(op.destPath);
-      const destParentNode = findNode(newTree, destParentPathVal);
+      const destParentNode: RevfsNode | null = findNode(newTree, destParentPathVal);
       if (!destParentNode || destParentNode.type !== 'directory') return newTree;
 
       if (!destParentNode.children) destParentNode.children = [];

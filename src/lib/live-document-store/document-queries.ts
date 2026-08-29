@@ -12,17 +12,17 @@ import type { StoredDocument } from './types';
 type Load = (docId: string) => Promise<StoredDocument | null>;
 
 export async function getRevisionChain(load: Load, docId: string): Promise<RevisionEntry[]> {
-  const doc = await load(docId);
+  const doc: StoredDocument | null = await load(docId);
   return doc?.revisionChain ?? [];
 }
 
 export async function getRootHash(load: Load, docId: string): Promise<string | null> {
-  const doc = await load(docId);
+  const doc: StoredDocument | null = await load(docId);
   return doc?.metadata.rootHash ?? null;
 }
 
 export async function getCreatorCid(load: Load, docId: string): Promise<string | null> {
-  const doc = await load(docId);
+  const doc: StoredDocument | null = await load(docId);
   return doc?.metadata.creatorCid ?? null;
 }
 

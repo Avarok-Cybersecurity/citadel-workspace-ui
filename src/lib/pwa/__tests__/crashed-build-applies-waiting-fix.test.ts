@@ -14,7 +14,7 @@ const original = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
 function installContainer(registration: unknown) {
   const listeners: Record<string, (() => void)[]> = {};
   const container = {
-    getRegistration: () => Promise.resolve(registration),
+    getRegistration: (): Promise<unknown> => Promise.resolve(registration),
     addEventListener: (type: string, fn: () => void): void => {
       (listeners[type] ??= []).push(fn);
     },

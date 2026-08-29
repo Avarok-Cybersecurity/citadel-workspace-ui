@@ -83,7 +83,7 @@ export function deserializeTheme(
 
   if (!isRecord(document)) return null;
 
-  const envelope = document.theme;
+  const envelope: unknown = document.theme;
   if (!isRecord(envelope)) return null;
   if (envelope.v !== ENVELOPE_VERSION) return null;
 
@@ -107,23 +107,23 @@ export function validateTheme(value: unknown): WorkspaceTheme | null {
   if (typeof radius !== 'number' || !Number.isFinite(radius) || radius < 0) return null;
   if (typeof darkIsDerived !== 'boolean') return null;
 
-  const light = validatePalette(value.light);
-  const dark = validatePalette(value.dark);
-  const icon = validateIcon(value.icon);
+  const light: ThemePalette | null = validatePalette(value.light);
+  const dark: ThemePalette | null = validatePalette(value.dark);
+  const icon: WorkspaceIcon | null = validateIcon(value.icon);
   if (!light || !dark || !icon) return null;
 
   return { id, name, isPreset, icon, radius, light, dark, darkIsDerived };
 }
 
 /** Token keys, taken from a real palette so this cannot drift from the type. */
-const TOKEN_KEYS = Object.keys(defaultTheme().light) as (keyof ThemePalette)[];
+const TOKEN_KEYS: (keyof ThemePalette)[] = Object.keys(defaultTheme().light) as (keyof ThemePalette)[];
 
 function validatePalette(value: unknown): ThemePalette | null {
   if (!isRecord(value)) return null;
 
   const palette: ThemePalette = {} as ThemePalette;
   for (const key of TOKEN_KEYS) {
-    const color = validateColor(value[key]);
+    const color: HslColor | null = validateColor(value[key]);
     if (!color) return null;
     palette[key] = color;
   }
@@ -142,10 +142,10 @@ function validateColor(value: unknown): HslColor | null {
 function validateIcon(value: unknown): WorkspaceIcon | null {
   if (!isRecord(value)) return null;
 
-  const color = validateColor(value.color);
+  const color: HslColor | null = validateColor(value.color);
   if (!color) return null;
 
-  const emoji = value.emoji;
+  const emoji: unknown = value.emoji;
   if (emoji !== undefined && typeof emoji !== 'string') return null;
 
   return emoji === undefined ? { color } : { emoji, color };

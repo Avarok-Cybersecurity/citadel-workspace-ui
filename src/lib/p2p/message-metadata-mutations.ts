@@ -40,7 +40,7 @@ export async function findMessageInPages(
 
   for (let pageNum: number = metadata.latestPage; pageNum >= 0; pageNum--) {
     const page = await tryLoadMessagePage(peerCid, pageNum);
-    const found = page?.messages.find((m) => m.id === messageId);
+    const found: P2PMessage | undefined = page?.messages.find((m) => m.id === messageId);
     if (found) return found;
   }
 

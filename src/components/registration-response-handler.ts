@@ -33,10 +33,10 @@ export function createRegistrationResponseHandler(
     if (!message) return;
     debugLog('Join', 'Registration response received, expecting:', requestId);
 
-    const cs = getVariant(message, 'ConnectSuccess');
+    const cs: Record<string, unknown> | undefined = getVariant(message, 'ConnectSuccess');
     if (cs && matchId(cs)) { cleanup(); handleConnectSuccess(cs, resolve, reject).catch(reject); return; }
 
-    const rf = getVariant(message, 'RegisterFailure');
+    const rf: Record<string, unknown> | undefined = getVariant(message, 'RegisterFailure');
     if (rf && matchId(rf)) { rejectWith(rf, 'Registration failed'); return; }
 
     // With connect_after_register the internal service re-dispatches a Connect
@@ -46,13 +46,13 @@ export function createRegistrationResponseHandler(
     // to the 30s timeout and reported "Registration timed out" for a
     // registration that had SUCCEEDED. The user then retried and was told the
     // username already exists, for an account they did not know they owned.
-    const cf = getVariant(message, 'ConnectFailure');
+    const cf: Record<string, unknown> | undefined = getVariant(message, 'ConnectFailure');
     if (cf && matchId(cf)) {
       rejectWith(cf, 'Your account was created, but signing in failed. Please try logging in.');
       return;
     }
 
-    const we = getVariant(message, 'WorkspaceError');
+    const we: Record<string, unknown> | undefined = getVariant(message, 'WorkspaceError');
     if (we && matchId(we)) {
       cleanup();
       if (we.error === 'WorkspaceNotInitialized') { setShowNotInitializedModal(true); reject(new Error('Workspace not initialized')); }
@@ -60,16 +60,16 @@ export function createRegistrationResponseHandler(
       return;
     }
 
-    const ise = getVariant(message, 'InternalServiceError');
+    const ise: Record<string, unknown> | undefined = getVariant(message, 'InternalServiceError');
     if (ise && matchId(ise)) { rejectWith(ise, 'Internal service error'); return; }
 
     if (hasVariant(message, 'Response')) {
-      const response = getVariant(message, 'Response')!;
-      const wcs = response.ConnectSuccess as Record<string, unknown> | undefined;
+      const response: Record<string, unknown> = getVariant(message, 'Response')!;
+      const wcs: Record<string, unknown> | undefined = response.ConnectSuccess as Record<string, unknown> | undefined;
       if (wcs && matchId(wcs)) { cleanup(); handleConnectSuccess(wcs, resolve, reject).catch(reject); return; }
-      const wrf = response.RegisterFailure as Record<string, unknown> | undefined;
+      const wrf: Record<string, unknown> | undefined = response.RegisterFailure as Record<string, unknown> | undefined;
       if (wrf && matchId(wrf)) { rejectWith(wrf, 'Registration failed'); return; }
-      const wcf = response.ConnectFailure as Record<string, unknown> | undefined;
+      const wcf: Record<string, unknown> | undefined = response.ConnectFailure as Record<string, unknown> | undefined;
       if (wcf && matchId(wcf)) { rejectWith(wcf, 'Connection after registration failed'); return; }
     }
   };

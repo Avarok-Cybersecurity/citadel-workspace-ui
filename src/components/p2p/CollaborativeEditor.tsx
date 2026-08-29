@@ -112,7 +112,7 @@ export function CollaborativeEditor({
     setContextMenu(null);
 
     void (async (): Promise<void> => {
-      const raw = await prompt({
+      const raw: string | null = await prompt({
         title: 'Flash comment',
         description: 'Shown to everyone in the document for a few seconds.',
         label: 'Comment',

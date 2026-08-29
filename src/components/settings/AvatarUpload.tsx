@@ -19,7 +19,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = useCallback(async (file: File): Promise<void> => {
+  const handleFile: (file: File) => Promise<void> = useCallback(async (file: File): Promise<void> => {
     setError(null);
 
     // Validate file
@@ -78,7 +78,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
   }, [disabled]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
-    const file = e.target.files?.[0];
+    const file: File | undefined = e.target.files?.[0];
     if (file) {
       runAsyncSetup(async () => {
         await handleFile(file);

@@ -53,8 +53,8 @@ export function VFSContextMenu({
   const isProtected = node ? PROTECTED_DIRS.has(node.path) : false;
   const isDir = !node || node.type === 'directory';
   const isRoot = node?.path === '/';
-  const fileState = node?.fileState;
-  const canModify = node && !isProtected && !isRoot;
+  const fileState: RevfsFileState | undefined = node?.fileState;
+  const canModify: boolean | null = node && !isProtected && !isRoot;
 
   return (
     <ContextMenu>

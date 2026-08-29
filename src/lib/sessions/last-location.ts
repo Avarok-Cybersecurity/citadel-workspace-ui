@@ -43,7 +43,7 @@ export function rememberLocation(cid: bigint | string, path: string): void {
 /** Where this session was, or null when there is nothing to go back to. */
 export function readLastLocation(cid: bigint | string): string | null {
   try {
-    const stored = localStorage.getItem(keyFor(cid));
+    const stored: string | null = localStorage.getItem(keyFor(cid));
     // Re-checked on the way out as well as in: a value written by an older
     // build, or by hand, must not become a navigation target.
     return stored && isRestorableLocation(stored) ? stored : null;

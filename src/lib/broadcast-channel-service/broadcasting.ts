@@ -39,7 +39,7 @@ export function broadcastWorkspaceResponse(
   const responseType: string = Object.keys(response)[0];
   debugLog('BroadcastChannelService', `Broadcasting ${responseType} as workspace-response`);
 
-  const responseRecord = response as Record<string, Record<string, unknown>>;
+  const responseRecord: Record<string, Record<string, unknown>> = response as Record<string, Record<string, unknown>>;
   const targetCid: bigint | undefined =
     (responseRecord.PeerConnectNotification?.cid as bigint | undefined) ||
     (responseRecord.PeerRegisterNotification?.cid as bigint | undefined) ||

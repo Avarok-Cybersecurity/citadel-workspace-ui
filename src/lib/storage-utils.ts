@@ -58,7 +58,7 @@ export function getDB(): Promise<IDBPDatabase<CitadelDBSchema>> {
     let rejectBlocked: ((reason: Error) => void) | null = null;
     // Rejects only if `blocked` actually fired, so a slow-but-progressing
     // upgrade is never killed by a timer.
-    const blockedGuard = new Promise<never>((_, reject): void => {
+    const blockedGuard: Promise<never> = new Promise<never>((_, reject): void => {
       rejectBlocked = reject;
     });
 
@@ -172,7 +172,7 @@ export async function dbPut<S extends StoreName>(store: S, key: string, value: u
  */
 export async function dbGet<T>(store: StoreName, key: string): Promise<T | undefined> {
   const db: IDBPDatabase<CitadelDBSchema> = await getDB();
-  const result = await db.get(store, key);
+  const result: unknown = await db.get(store, key);
   return result as T | undefined;
 }
 

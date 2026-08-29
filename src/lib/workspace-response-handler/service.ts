@@ -32,7 +32,7 @@ export class WorkspaceResponseHandler {
 
   private setupMessageHandler(): void {
     eventEmitter.on('websocket-message', (raw: unknown) => {
-      const response = extractWorkspaceResponse(raw);
+      const response: WorkspaceProtocolResponse | null = extractWorkspaceResponse(raw);
       if (response) {
         this.processWorkspaceResponse(response);
       }

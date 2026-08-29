@@ -102,10 +102,10 @@ export function MarkdownBubble({
   const isFailed = message.status === 'failed';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
   const displayName: string = senderName || 'Unknown';
-  const hasActions = onEdit || onDelete || onReply;
+  const hasActions: (() => void) | undefined = onEdit || onDelete || onReply;
 
   // Show avatar only for non-own messages in group mode
-  const shouldShowAvatar = showSenderAvatar && !isOwn;
+  const shouldShowAvatar: boolean | undefined = showSenderAvatar && !isOwn;
 
   // min-w-0 down the chain — the fix TextBubble documents in detail and does
   // not itself need, because TextBubble renders plain text. THIS is the bubble

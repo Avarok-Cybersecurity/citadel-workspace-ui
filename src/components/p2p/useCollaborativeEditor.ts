@@ -88,7 +88,7 @@ export function useCollaborativeEditor({
         const state: AwarenessState = rawState as AwarenessState;
         if (state.user?.name) {
           const hasCursor = state.cursor !== undefined && state.cursor !== null;
-          const hasRecentActivity = state.lastUpdate && (now - state.lastUpdate) < 30000;
+          const hasRecentActivity: boolean | 0 | undefined = state.lastUpdate && (now - state.lastUpdate) < 30000;
           const isActive = hasCursor || hasRecentActivity || state.user.name === currentUserName;
           users.push({ name: state.user.name, isActive });
         }

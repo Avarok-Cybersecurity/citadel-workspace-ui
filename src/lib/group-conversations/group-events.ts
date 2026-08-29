@@ -50,7 +50,7 @@ export interface GroupEvent {
 export type PeerNameResolver = (cid: bigint) => string;
 
 function variant(message: Record<string, unknown>, name: string): Record<string, unknown> | undefined {
-  const value = message[name];
+  const value: unknown = message[name];
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : undefined;
 }
 
@@ -66,7 +66,7 @@ function variant(message: Record<string, unknown>, name: string): Record<string,
  * applied and a creator's roster stayed just themselves forever.
  */
 function memberCids(state: Record<string, unknown>, key: 'EnteredGroup' | 'LeftGroup'): bigint[] {
-  const inner = variant(state, key);
+  const inner: Record<string, unknown> | undefined = variant(state, key);
   if (!inner || !Array.isArray(inner.cids)) return [];
   const cids: bigint[] = [];
   for (const raw of inner.cids) {
@@ -94,7 +94,7 @@ export function toGroupEvents(
   selfUsername: string,
   peerName: PeerNameResolver,
 ): GroupEvent[] {
-  const created = variant(message, 'GroupCreateSuccess') ?? variant(message, 'GroupChannelCreateSuccess');
+  const created: Record<string, unknown> | undefined = variant(message, 'GroupCreateSuccess') ?? variant(message, 'GroupChannelCreateSuccess');
   if (created) {
     return [{
       name: 'group:created',
@@ -122,7 +122,7 @@ export function toGroupEvents(
     'GroupDisconnectFailure',
     'GroupEndFailure',
   ]) {
-    const failed = variant(message, name);
+    const failed: Record<string, unknown> | undefined = variant(message, name);
     if (failed) {
       return [{
         name: 'group:failed',
@@ -135,7 +135,7 @@ export function toGroupEvents(
     }
   }
 
-  const invited = variant(message, 'GroupInviteNotification');
+  const invited: Record<string, unknown> | undefined = variant(message, 'GroupInviteNotification');
   if (invited) {
     const inviterCid: bigint = BigInt((invited.peer_cid ?? 0) as string | number | bigint);
     return [{
@@ -149,10 +149,10 @@ export function toGroupEvents(
     }];
   }
 
-  const memberChange = variant(message, 'GroupMemberStateChangeNotification');
+  const memberChange: Record<string, unknown> | undefined = variant(message, 'GroupMemberStateChangeNotification');
   if (memberChange) {
     const groupId: string = groupKeyToId(parseGroupKey(memberChange.group_key));
-    const state = (memberChange.state ?? {}) as Record<string, unknown>;
+    const state: Record<string, unknown> = (memberChange.state ?? {}) as Record<string, unknown>;
     return [
       ...memberCids(state, 'EnteredGroup').map((cid) => ({
         name: 'group:member-joined' as const,
@@ -165,7 +165,7 @@ export function toGroupEvents(
     ];
   }
 
-  const left = variant(message, 'GroupLeaveNotification');
+  const left: Record<string, unknown> | undefined = variant(message, 'GroupLeaveNotification');
   if (left) {
     return [{
       name: 'group:member-left',
@@ -176,7 +176,7 @@ export function toGroupEvents(
     }];
   }
 
-  const ended = variant(message, 'GroupEndNotification');
+  const ended: Record<string, unknown> | undefined = variant(message, 'GroupEndNotification');
   if (ended) {
     // Gated on `success`. This ignored the field entirely, so a FAILED end
     // still removed the group from the owner's sidebar — the group survived on
@@ -199,7 +199,7 @@ export function toGroupEvents(
   //
   // The same notification is how a KICKED member learns they were removed, and
   // it was equally unhandled.
-  const disconnected = variant(message, 'GroupDisconnectNotification');
+  const disconnected: Record<string, unknown> | undefined = variant(message, 'GroupDisconnectNotification');
   if (disconnected) {
     return [{
       name: 'group:deleted',
@@ -210,7 +210,7 @@ export function toGroupEvents(
   // Both spellings: the internal service declares GroupListGroupsSuccess and
   // GroupListGroupsResponse with the same `group_list` field, and which one a
   // given build sends is not something the UI should have to know.
-  const listed = variant(message, 'GroupListGroupsSuccess') ?? variant(message, 'GroupListGroupsResponse');
+  const listed: Record<string, unknown> | undefined = variant(message, 'GroupListGroupsSuccess') ?? variant(message, 'GroupListGroupsResponse');
   if (listed) {
     // `group_list` is Option<Vec<..>> on the wire. Null is NOT "you are in no
     // groups" — it is no answer, and reconciling against it would delete every

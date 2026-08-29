@@ -29,7 +29,7 @@ export type ClaimOutcome =
 
 /** Does another instance already own this CID? */
 function otherTabOwns(cid: bigint): string | null {
-  const owner = instanceManager.findInstanceByCid(cid);
+  const owner: string | null = instanceManager.findInstanceByCid(cid);
   return owner && owner !== instanceManager.instanceId ? owner : null;
 }
 
@@ -49,7 +49,7 @@ export async function claimSessionForThisTab(cid: bigint): Promise<ClaimOutcome>
       throw error;
     }
 
-    const owner = otherTabOwns(cid);
+    const owner: string | null = otherTabOwns(cid);
     if (owner) {
       debugLog('ClaimSession', `${cid} is owned by instance ${owner}; not adopting`);
       return { status: 'owned-by-another-tab', instanceId: owner };

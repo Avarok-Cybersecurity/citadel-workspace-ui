@@ -75,7 +75,7 @@ export async function autoReconnect(
 
   // Check if session is already active
   const freshActiveSessions: ActiveSession[] = await getActiveSessions();
-  const alreadyActive = freshActiveSessions.find(
+  const alreadyActive: ActiveSession | undefined = freshActiveSessions.find(
     (s) => s.username === session!.username && s.server_address === session!.serverAddress
   );
 
@@ -200,7 +200,7 @@ async function handleSessionAlreadyConnectedError(
   debugLog('ConnectionService', 'ConnectionManager: Session already connected error - likely stale session');
 
   const errorMessage: string = error instanceof Error ? error.message : String(error);
-  const extractedCid = state.extractCidFromErrorMessage(errorMessage);
+  const extractedCid: string | null = state.extractCidFromErrorMessage(errorMessage);
   if (extractedCid) {
     io.emitEvent('session-already-connected', { cid: extractedCid, message: errorMessage });
     return;
@@ -208,7 +208,7 @@ async function handleSessionAlreadyConnectedError(
 
   try {
     const sessions: ActiveSession[] = await getActiveSessions();
-    const match = sessions.find(
+    const match: ActiveSession | undefined = sessions.find(
       (s) => s.username === session.username && s.server_address === session.serverAddress
     );
     if (match) {

@@ -34,7 +34,7 @@ export function ParticipantTile({ participant, stream, isSelf, quality = 'good' 
   const showVideo = participant.media.video && stream !== null;
 
   useEffect(() => {
-    const element = videoRef.current;
+    const element: HTMLVideoElement | null = videoRef.current;
     if (!element || !stream) return;
     element.srcObject = stream;
     return (): void => {

@@ -33,17 +33,17 @@ export function waitForAcceptResponse(
       const message = narrowWebSocketMessage(raw);
       if (!message) return;
 
-      const msg = message as Record<string, Record<string, unknown> | undefined>;
+      const msg: Record<string, Record<string, unknown> | undefined> = message as Record<string, Record<string, unknown> | undefined>;
 
       const matchesByRequestId =
         msg.PeerRegisterSuccess?.request_id === registerRequestId ||
         msg.PeerConnectSuccess?.request_id === registerRequestId;
 
-      const responsePeerCid =
+      const responsePeerCid: unknown =
         msg.PeerRegisterSuccess?.peer_cid ||
         msg.PeerConnectSuccess?.peer_cid ||
         msg.PeerConnectNotification?.peer_cid;
-      const responseCid = msg.PeerConnectNotification?.cid;
+      const responseCid: unknown = msg.PeerConnectNotification?.cid;
 
       const matchesByPeerCid = !!targetKey && toCidKey(responsePeerCid as CidLike) === targetKey;
       const matchesByCid = !!targetKey && toCidKey(responseCid as CidLike) === targetKey;

@@ -99,7 +99,7 @@ describe('CallStage connecting state', () => {
   it('shows a connecting indicator between accept and the first frame', () => {
     render(<CallStage call={callState({ status: 'connecting' })} {...stageProps} />);
 
-    const banner = screen.getByTestId('call-connecting');
+    const banner: HTMLElement = screen.getByTestId('call-connecting');
     expect(banner).toHaveAttribute('role', 'status');
     expect(screen.getByText('Connecting…')).toBeInTheDocument();
     // The participants grid renders behind it: never a dead-looking gap.

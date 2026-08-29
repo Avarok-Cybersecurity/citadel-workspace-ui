@@ -26,8 +26,8 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   // Load tab context and session asynchronously
   useEffect(() => {
     const loadTabInfo = async (): Promise<void> => {
-      const selection = await getSelectedUser();
-      const session = await connectionManager.getTabSelectedSession();
+      const selection: TabUserContext | null = await getSelectedUser();
+      const session: StoredSession | null = await connectionManager.getTabSelectedSession();
       setTabSelection(selection);
       setTabSession(session);
     };
@@ -37,14 +37,14 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   // Parse query parameters for P2P chat
   const params = new URLSearchParams(location.search);
   const showP2P = params.get('showP2P') === 'true';
-  const peerCid = params.get('channel');
-  const peerName = params.get('p2pUser');
+  const peerCid: string | null = params.get('channel');
+  const peerName: string | null = params.get('p2pUser');
 
   // Get entity data from unified node hierarchy
   const node = nodeId ? state.nodes[nodeId] : null;
 
   // Determine whether this node has children (e.g., Office) or is a leaf (e.g., Room)
-  const isLeafNode = node && isVariant(node.entity_type as Record<string, unknown>, 'Child')
+  const isLeafNode: boolean | null = node && isVariant(node.entity_type as Record<string, unknown>, 'Child')
     && (!node.allowed_child_types || node.allowed_child_types.length === 0);
 
   // useCallback, not a bare arrow. A new identity every render put this in
@@ -71,8 +71,8 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
     // 3) connectionInfo.cid (global connection)
     // tabSelection and tabSession are loaded asynchronously via useEffect
     const connectionInfo = connectionManager.getConnectionInfo();
-    const rawCid = tabSelection?.selectedCid ?? tabSession?.cid ?? connectionInfo?.cid;
-    const currentUserCid = rawCid !== undefined ? String(rawCid) : undefined;
+    const rawCid: bigint | undefined = tabSelection?.selectedCid ?? tabSession?.cid ?? connectionInfo?.cid;
+    const currentUserCid: string | undefined = rawCid !== undefined ? String(rawCid) : undefined;
     const currentUserName: string = tabSession?.fullName || connectionInfo?.fullName || 'You';
 
     // Both `BigInt(...)` calls below are funnelled through
@@ -82,7 +82,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
     // rather than baked into this render path. peerCid coming from
     // `params.get('channel')` is the historical crash surface;
     // currentUserCid is defensive against corrupted IndexedDB state.
-    const parsedPeerCid = tryParseCid(peerCid);
+    const parsedPeerCid: bigint | undefined = tryParseCid(peerCid);
     if (parsedPeerCid === undefined) {
       // Invalid CID in URL — fall through to normal workspace view
       return (
@@ -93,7 +93,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
         />
       );
     }
-    const parsedCurrentUserCid = tryParseCid(currentUserCid);
+    const parsedCurrentUserCid: bigint | undefined = tryParseCid(currentUserCid);
 
     return (
       <div className="h-full bg-background">

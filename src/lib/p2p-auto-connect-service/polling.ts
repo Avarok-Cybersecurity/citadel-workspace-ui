@@ -34,7 +34,7 @@ export function startBackendPolling(state: AutoConnectState): void {
   state.backendPollInterval = setInterval(async () => {
     if (state.isRefreshing) return;
 
-    const currentCid = await getCurrentCid();
+    const currentCid: bigint | null = await getCurrentCid();
     if (!currentCid || currentCid === 0n) return;
 
     state.isRefreshing = true;
@@ -116,7 +116,7 @@ export async function refreshOnlineStatus(state: AutoConnectState, force = false
     const onlineCids: bigint[] = [];
 
     for (const peer of peers) {
-      const cid = peer.cid;
+      const cid: bigint | undefined = peer.cid;
       const isOnline = peer.online_status ?? false;
       if (cid && isOnline) {
         onlineCids.push(cid);

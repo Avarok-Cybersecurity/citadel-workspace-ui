@@ -18,7 +18,7 @@ export function applyGroupMessage(
   data: { groupId: string; senderId: string; content: string },
   now: number,
 ): GroupConversation[] {
-  const own = instanceManager.cid;
+  const own: bigint | null = instanceManager.cid;
   const fromSelf = own !== null && data.senderId === String(own);
 
   return groups.map((group) => {

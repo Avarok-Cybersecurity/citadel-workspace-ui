@@ -31,8 +31,8 @@ export function OfflineBanner() {
   // top-14 lands exactly where content begins. Measured rather than hardcoded
   // because the copy wraps to two lines at 375px.
   useLayoutEffect(() => {
-    const root = document.documentElement;
-    const el = ref.current;
+    const root: HTMLElement = document.documentElement;
+    const el: HTMLDivElement | null = ref.current;
     if (!showing || !el) {
       root.style.removeProperty('--offline-banner-height');
       return;

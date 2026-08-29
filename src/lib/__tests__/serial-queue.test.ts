@@ -75,7 +75,7 @@ describe('withSerialLock', () => {
     // that is stated at the code rather than pretended to be tested here.
     const after = vi.fn();
 
-    const failed = withSerialLock('tree', () => Promise.reject(new Error('nope')));
+    const failed: Promise<never> = withSerialLock('tree', (): Promise<never> => Promise.reject(new Error('nope')));
     const queued: Promise<void> = withSerialLock('tree', async () => { after(); });
 
     await expect(failed).rejects.toThrow('nope');
@@ -85,7 +85,7 @@ describe('withSerialLock', () => {
 
   it('reports each operation\'s own outcome to its own caller', async () => {
     const first: Promise<string> = withSerialLock('tree', async () => 'first');
-    const second = withSerialLock('tree', () => Promise.reject(new Error('second')));
+    const second: Promise<never> = withSerialLock('tree', (): Promise<never> => Promise.reject(new Error('second')));
     const third: Promise<string> = withSerialLock('tree', async () => 'third');
 
     await expect(first).resolves.toBe('first');

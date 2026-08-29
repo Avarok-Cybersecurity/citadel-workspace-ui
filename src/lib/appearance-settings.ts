@@ -57,7 +57,7 @@ function coerce(stored: unknown): AppearanceSettings {
 
 export function loadAppearanceSettings(): AppearanceSettings {
   try {
-    const stored = localStorage.getItem(APPEARANCE_STORAGE_KEY);
+    const stored: string | null = localStorage.getItem(APPEARANCE_STORAGE_KEY);
     if (stored) return coerce(JSON.parse(stored));
   } catch {
     // A corrupt value must not take the app's font size with it.
@@ -73,7 +73,7 @@ export function loadAppearanceSettings(): AppearanceSettings {
  * itself between sessions.
  */
 export function applyAppearanceSettings(settings: AppearanceSettings): void {
-  const root = document.documentElement;
+  const root: HTMLElement = document.documentElement;
   root.style.fontSize = `${settings.fontSize}px`;
   root.style.setProperty('--appearance-sidebar-width', SIDEBAR_WIDTHS[settings.sidebarWidth]);
   root.classList.toggle('reduce-motion', !settings.animationsEnabled);

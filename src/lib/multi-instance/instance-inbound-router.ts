@@ -118,7 +118,7 @@ class InstanceInboundRouter {
     }
 
     const messageType = getMessageType(message);
-    const requestId = extractRequestId(message);
+    const requestId: string | null = extractRequestId(message);
     debugLog('InstanceInboundRouter',
       `[ILM-Router] routeMessage: type=${messageType}, requestId=${requestId}, pendingMapSize=${this.pendingRequestMap.size}`
     );
@@ -151,7 +151,7 @@ class InstanceInboundRouter {
     this.pendingRequestMap.delete(requestId);
 
     if (messageType === 'ConnectSuccess' || messageType === 'RegisterSuccess') {
-      const cid = extractTargetCid(message);
+      const cid: string | null = extractTargetCid(message);
       if (cid) {
         debugLog('InstanceInboundRouter', `[ILM-Router] Registering CID ${cid} for instance ${pending.instanceId}`);
         instanceManager.registerInstance(pending.instanceId, BigInt(cid));
@@ -171,7 +171,7 @@ class InstanceInboundRouter {
   }
 
   private routeByCid(message: Record<string, unknown>, messageType: string): void {
-    const targetCid = extractTargetCid(message);
+    const targetCid: string | null = extractTargetCid(message);
     debugLog('InstanceInboundRouter', `[ILM-Router] Routing ${messageType} (CID: ${targetCid || 'none'})`);
 
     if (!targetCid) {
@@ -179,7 +179,7 @@ class InstanceInboundRouter {
       return;
     }
 
-    const targetInstance = instanceManager.findInstanceByCid(BigInt(targetCid));
+    const targetInstance: string | null = instanceManager.findInstanceByCid(BigInt(targetCid));
 
     if (targetInstance) {
       if (targetInstance === instanceManager.instanceId) {

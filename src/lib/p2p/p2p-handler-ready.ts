@@ -59,7 +59,7 @@ function flushHeld(reason: string): void {
   // Taken before replaying: a replayed message routes through the same path
   // that could hold it, and re-entering a list being iterated is how a replay
   // loop starts.
-  const queued = held;
+  const queued: unknown[] = held;
   held = [];
   debugLog('P2PHandlerReady', `[ILM-Router] releasing ${queued.length} held message(s): ${reason}`);
   releasing = true;

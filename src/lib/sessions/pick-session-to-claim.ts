@@ -30,7 +30,7 @@ export function pickSessionToClaim(
   if (activeSessions.length === 0) return { session: undefined, staleSelection: false };
 
   if (selectedCid) {
-    const remembered = activeSessions.find((s) => s.cid === selectedCid);
+    const remembered: ActiveSession | undefined = activeSessions.find((s) => s.cid === selectedCid);
     if (remembered) return { session: remembered, staleSelection: false };
     return { session: activeSessions[0], staleSelection: true };
   }

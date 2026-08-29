@@ -18,6 +18,6 @@ import { instanceManager } from '@/lib/multi-instance';
  * silently filing them under one would be worse.
  */
 export function scopedSettingsKey(peerCid: string): string {
-  const own = instanceManager.cid;
+  const own: bigint | null = instanceManager.cid;
   return own ? `${own.toString()}:${peerCid}` : peerCid;
 }

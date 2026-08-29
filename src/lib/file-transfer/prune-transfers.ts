@@ -50,10 +50,10 @@ export function pruneTransfers(
   transfers: Record<string, Partial<FileTransfer>>,
   now: number,
 ): Record<string, Partial<FileTransfer>> {
-  const entries = Object.entries(transfers);
+  const entries: [string, Partial<FileTransfer>][] = Object.entries(transfers);
 
-  const unfinished = entries.filter(([, t]) => UNFINISHED.has(t.state ?? ''));
-  const finished = entries
+  const unfinished: [string, Partial<FileTransfer>][] = entries.filter(([, t]) => UNFINISHED.has(t.state ?? ''));
+  const finished: [string, Partial<FileTransfer>][] = entries
     .filter(([, t]) => !UNFINISHED.has(t.state ?? ''))
     .filter(([, t]) => now - lastTouched(t) <= TRANSFER_HISTORY_MS)
     .sort((a, b) => lastTouched(b[1]) - lastTouched(a[1]))

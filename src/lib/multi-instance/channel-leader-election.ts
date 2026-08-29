@@ -23,7 +23,7 @@ export interface LeaderElectionState {
 }
 
 export function handleLeaderElection(state: LeaderElectionState, message: ChannelMessage): void {
-  const payload = message.payload as Record<string, unknown> | undefined;
+  const payload: Record<string, unknown> | undefined = message.payload as Record<string, unknown> | undefined;
   if (payload?.isLeader) {
     const theirId: bigint = BigInt((payload.instanceIdBigInt as string) || '0');
     const myId: bigint = instanceManager.instanceIdAsBigInt;
@@ -54,7 +54,7 @@ export function handleLeaderElection(state: LeaderElectionState, message: Channe
     }
 
     // STICKY LEADERSHIP RULE 3: If there's already an established leader, ignore new claims
-    const currentLeaderId = instanceManager.leaderId;
+    const currentLeaderId: string | null = instanceManager.leaderId;
     if (currentLeaderId && currentLeaderId !== message.senderInstanceId) {
       const timeSinceHeartbeat: number = Date.now() - state.lastLeaderHeartbeat;
       if (timeSinceHeartbeat < LEADER_TIMEOUT_MS) {

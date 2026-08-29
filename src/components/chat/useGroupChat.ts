@@ -71,7 +71,7 @@ export function useGroupChat(groupId: string) {
           setLoadingMore(false);
           break;
         case 'new_message': {
-          const newMsg = event.message;
+          const newMsg: GroupMessage | undefined = event.message;
           if (newMsg) {
             setMessages((prev) => {
               const exists = prev.some((m) => m.id === newMsg.id);
@@ -113,7 +113,7 @@ export function useGroupChat(groupId: string) {
   const loadMoreMessages: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (!hasMore || loadingMore) return;
 
-    const oldestTimestamp = groupMessagingManager.getOldestTimestamp(groupId);
+    const oldestTimestamp: bigint | undefined = groupMessagingManager.getOldestTimestamp(groupId);
     if (!oldestTimestamp) return;
 
     setLoadingMore(true);

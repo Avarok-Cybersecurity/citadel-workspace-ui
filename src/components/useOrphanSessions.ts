@@ -73,7 +73,7 @@ export function useOrphanSessions() {
 
       const tabSelection = await getSelectedUser();
       if (tabSelection?.selectedCid) {
-        const sel = sessionsWithWorkspace.find(s => s.cid === tabSelection.selectedCid);
+        const sel: OrphanSessionWithWorkspace | undefined = sessionsWithWorkspace.find(s => s.cid === tabSelection.selectedCid);
         if (sel?.cid !== undefined) {
           try {
             await wasmConnectionManager.addSession(sel.cid.toString());

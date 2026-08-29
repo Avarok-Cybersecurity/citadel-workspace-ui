@@ -140,7 +140,7 @@ export class PermissionsService extends EventListenerManager {
   }
 
   private async resolveCurrentUserId(): Promise<string | null> {
-    const fromConnection = this.getCurrentUserId();
+    const fromConnection: string | null = this.getCurrentUserId();
     if (fromConnection) return fromConnection;
 
     const session = await connectionManager.getTabSelectedSession();
@@ -152,16 +152,16 @@ export class PermissionsService extends EventListenerManager {
    */
   public async fetchPermissions(domainId: string, forceRefresh = false): Promise<DomainPermissions | null> {
     if (!forceRefresh) {
-      const cached = this.cache.get(domainId);
+      const cached: DomainPermissions | undefined = this.cache.get(domainId);
       if (cached && Date.now() - cached.lastUpdated < INTERVAL.PERMISSION_CACHE_MS) {
         return cached;
       }
     }
 
-    const pending = this.pendingRequests.get(domainId);
+    const pending: Promise<DomainPermissions> | undefined = this.pendingRequests.get(domainId);
     if (pending) return pending;
 
-    const userId = await this.resolveCurrentUserId();
+    const userId: string | null = await this.resolveCurrentUserId();
     if (!userId) {
       debugLog('PermissionsService', 'No current user, cannot fetch permissions');
       return null;

@@ -14,7 +14,7 @@ import type { RevfsNode } from '@/types/revfs-types';
 export function findNodeByPath(tree: RevfsNode, path: string): RevfsNode | null {
   if (tree.path === path) return tree;
   for (const child of tree.children ?? []) {
-    const found = findNodeByPath(child, path);
+    const found: RevfsNode | null = findNodeByPath(child, path);
     if (found) return found;
   }
   return null;

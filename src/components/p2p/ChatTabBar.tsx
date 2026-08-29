@@ -24,7 +24,7 @@ interface TabProps {
 
 function Tab({ tab, active, onSelect, onClose }: TabProps) {
   const Icon = tab.type === 'messages' ? MessageSquare : FileText;
-  const showNotificationDot = tab.hasUnread && !active;
+  const showNotificationDot: boolean | undefined = tab.hasUnread && !active;
 
   return (
     // The tab and its close control are SIBLINGS. A real <button> nested inside

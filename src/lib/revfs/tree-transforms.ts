@@ -51,7 +51,7 @@ export function renameNode(
   const newPath: string = parent === '/' ? `/${newName}` : `${parent}/${newName}`;
 
   const newTree: RevfsNode = cloneTree(tree);
-  const parentNode = findNode(newTree, parent);
+  const parentNode: RevfsNode | null = findNode(newTree, parent);
   if (!parentNode || !parentNode.children) {
     throw new Error(`Parent directory not found: ${parent}`);
   }
@@ -122,7 +122,7 @@ export function moveNode(
   const newTree: RevfsNode = cloneTree(tree);
 
   const sourceParent: string = parentPath(normalizedSource);
-  const sourceParentNode = findNode(newTree, sourceParent);
+  const sourceParentNode: RevfsNode | null = findNode(newTree, sourceParent);
   if (!sourceParentNode || !sourceParentNode.children) {
     throw new Error(`Source parent not found: ${sourceParent}`);
   }
@@ -132,7 +132,7 @@ export function moveNode(
     throw new Error(`Source not found: ${normalizedSource}`);
   }
 
-  const destParentNode = findNode(newTree, normalizedDest);
+  const destParentNode: RevfsNode | null = findNode(newTree, normalizedDest);
   if (!destParentNode || destParentNode.type !== 'directory') {
     throw new Error(`Destination directory not found: ${normalizedDest}`);
   }

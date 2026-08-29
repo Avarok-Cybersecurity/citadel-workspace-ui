@@ -17,7 +17,7 @@ vi.mock('@/lib/p2p-auto-connect-service', () => ({
   p2pAutoConnectService: {
     markChannelReady: (): void => {},
     isPeerConnected: async (): Promise<boolean> => true,
-    ensurePeerConnectedInBackground: async () => undefined,
+    ensurePeerConnectedInBackground: async (): Promise<undefined> => undefined,
   },
 }));
 
@@ -57,7 +57,7 @@ function harness(addBehaviour: () => Promise<boolean>) {
     },
   } as unknown as MessageHandlerConfig;
 
-  const payload = {
+  const payload: never = {
     layer: { type: MessagingLayerType.Message, contents: 'hello', timestamp: 1 },
     message_id: 'm-1',
     index: 1,
@@ -76,7 +76,7 @@ function harness(addBehaviour: () => Promise<boolean>) {
 
 describe('an arrived message whose write fails', () => {
   it('is still rendered and still notified', async () => {
-    const h = harness(async () => {
+    const h = harness(async (): Promise<never> => {
       throw new Error('LocalDB set timed out');
     });
 
@@ -87,7 +87,7 @@ describe('an arrived message whose write fails', () => {
   });
 
   it('is NOT acked as delivered, because it will not survive a reload', async () => {
-    const h = harness(async () => {
+    const h = harness(async (): Promise<never> => {
       throw new Error('LocalDB set timed out');
     });
 

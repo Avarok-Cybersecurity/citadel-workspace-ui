@@ -84,8 +84,8 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
 
   for (const type of Object.keys(SHAPES)) {
     it(`extracts target cid from ${type}`, () => {
-      const msg = notification(type, SHAPES[type]);
-      const extracted = extractTargetCid(msg);
+      const msg: Record<string, unknown> = notification(type, SHAPES[type]);
+      const extracted: string | null = extractTargetCid(msg);
       expect(extracted, `${type} should yield the recipient cid`).toBe(targetCid);
     });
   }
@@ -104,7 +104,7 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     // walks the list in order. Pinning this so a future "tighten extraction
     // to cid-only" change has to remove the fallback explicitly rather than
     // by accident.
-    const msg = notification('FileTransferRequestNotification', { peer_cid: senderCid, metadata: { object_id: '42' } });
+    const msg: Record<string, unknown> = notification('FileTransferRequestNotification', { peer_cid: senderCid, metadata: { object_id: '42' } });
     expect(extractTargetCid(msg)).toBe(senderCid);
   });
 
@@ -112,7 +112,7 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     // Required for the self-heal trigger path — extractTargetCid must
     // return null (not undefined or empty string) so the router's
     // `if (!targetCid)` branch reliably fires.
-    const msg = notification('FileTransferRequestNotification', { metadata: { object_id: '42' }, request_id: 'r-no-cid' });
+    const msg: Record<string, unknown> = notification('FileTransferRequestNotification', { metadata: { object_id: '42' }, request_id: 'r-no-cid' });
     expect(extractTargetCid(msg)).toBeNull();
   });
 });

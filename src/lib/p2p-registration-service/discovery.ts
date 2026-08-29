@@ -32,7 +32,7 @@ function assertValidSession(cid: bigint | null): asserts cid is bigint {
 export async function listAllPeers(
   pendingRequests: Map<string, PendingRequestEntry>
 ): Promise<PeerInfoResponse[]> {
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   assertValidSession(currentCid);
 
   const requestId = crypto.randomUUID();
@@ -42,7 +42,7 @@ export async function listAllPeers(
     ListAllPeers: { request_id: requestId, cid: currentCid }
   };
 
-  const responsePromise = new Promise<Record<string, unknown>>((resolve, reject): void => {
+  const responsePromise: Promise<Record<string, unknown>> = new Promise<Record<string, unknown>>((resolve, reject): void => {
     pendingRequests.set(requestId, { resolve, reject });
     setTimeout(() => {
       if (pendingRequests.has(requestId)) {
@@ -54,7 +54,7 @@ export async function listAllPeers(
   });
 
   await websocketService.sendMessage(request);
-  const response = await failOnSocketLoss('ListAllPeers', responsePromise);
+  const response: Record<string, unknown> = await failOnSocketLoss('ListAllPeers', responsePromise);
 
   // `peer_information` is a Rust HashMap, which arrives as a JS Map — so
   // `Object.values(...)` yielded `[]` with no error. This is the service that
@@ -74,7 +74,7 @@ export async function listRegisteredPeers(
   pendingRequests: Map<string, PendingRequestEntry>
 ): Promise<PeerInfoResponse[]> {
   debugLog('P2PRegistrationService', '[P2P] listRegisteredPeers: called');
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   debugLog('P2PRegistrationService', `[P2P] listRegisteredPeers: currentCid=${currentCid?.toString() ?? 'null'}`);
   assertValidSession(currentCid);
 
@@ -85,7 +85,7 @@ export async function listRegisteredPeers(
     ListRegisteredPeers: { request_id: requestId, cid: currentCid }
   };
 
-  const responsePromise = new Promise<Record<string, unknown>>((resolve, reject): void => {
+  const responsePromise: Promise<Record<string, unknown>> = new Promise<Record<string, unknown>>((resolve, reject): void => {
     pendingRequests.set(requestId, { resolve, reject });
     setTimeout(() => {
       if (pendingRequests.has(requestId)) {
@@ -97,7 +97,7 @@ export async function listRegisteredPeers(
   });
 
   await websocketService.sendMessage(request);
-  const response = await failOnSocketLoss('ListAllPeers', responsePromise);
+  const response: Record<string, unknown> = await failOnSocketLoss('ListAllPeers', responsePromise);
 
   debugLog('P2PRegistrationService', '[P2P-ListRegisteredPeers] Raw response:', JSON.stringify(response, (k, v) => typeof v === 'bigint' ? v.toString() : v));
 
@@ -157,7 +157,7 @@ export function updatePeerMaps(
 
   allPeersMap.clear();
   for (const peer of allPeers) {
-    const cid = peer.cid;
+    const cid: bigint | undefined = peer.cid;
     if (cid !== undefined) {
       const username: string = preservedUsernames.get(cid) || peer.username || 'Unknown';
       allPeersMap.set(cid, {
@@ -174,7 +174,7 @@ export function updatePeerMaps(
   const registeredCids: Set<bigint> = new Set<bigint>();
 
   for (const peer of registeredPeers) {
-    const cid = peer.cid;
+    const cid: bigint | undefined = peer.cid;
     if (cid !== undefined) {
       registeredCids.add(cid);
       const username: string = preservedUsernames.get(cid) || peer.username || 'Unknown';

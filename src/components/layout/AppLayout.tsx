@@ -90,9 +90,9 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
  * owner publishes means it is below the header where there is one and at the top
  * where there is not, without the banner having to know about routes.
  */
-function AppHeaderHeightVar() {
+function AppHeaderHeightVar(): null {
   useEffect(() => {
-    const root = document.documentElement;
+    const root: HTMLElement = document.documentElement;
     root.style.setProperty('--app-header-height', '3.5rem');
     return (): void => {
       root.style.removeProperty('--app-header-height');

@@ -46,12 +46,12 @@ export function copyNode(
 
   const newTree: RevfsNode = cloneTree(tree);
 
-  const sourceNode = findNode(newTree, normalizedSource);
+  const sourceNode: RevfsNode | null = findNode(newTree, normalizedSource);
   if (!sourceNode) {
     throw new Error(`Source not found: ${normalizedSource}`);
   }
 
-  const destParentNode = findNode(newTree, normalizedDest);
+  const destParentNode: RevfsNode | null = findNode(newTree, normalizedDest);
   if (!destParentNode || destParentNode.type !== 'directory') {
     throw new Error(`Destination directory not found: ${normalizedDest}`);
   }

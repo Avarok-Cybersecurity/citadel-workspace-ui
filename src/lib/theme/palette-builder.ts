@@ -73,7 +73,7 @@ import { ensureFillContrast, ensureTextContrast } from './palette-contrast';
 
 export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
   const { background, primary, primaryAccent } = seed;
-  const step = ELEVATION[mode];
+  const step: { card: number; surface: number; accent: number; border: number; input: number; } = ELEVATION[mode];
   const status = DEFAULT_STATUS[mode];
 
   const rawCard: HslColor = lighten(background, step.card);

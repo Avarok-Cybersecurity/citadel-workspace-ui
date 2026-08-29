@@ -91,7 +91,7 @@ export function useConnectionHandler() {
     debugLog('WorkspaceApp', 'Subscribing to connection changes');
     const unsubscribeConnection: () => void = connectionService.onConnectionChange(async (connection): Promise<void> => {
       debugLog('WorkspaceApp', `onConnectionChange called, cid=${connection?.cid?.toString()}, isConnected=${connection?.isConnected}`);
-      const cidValue = typeof connection?.cid === 'string' ? parseInt(connection.cid, 10) : connection?.cid;
+      const cidValue: number | bigint | null = typeof connection?.cid === 'string' ? parseInt(connection.cid, 10) : connection?.cid;
       if (connection && connection.cid && cidValue !== 0) {
         const cidString: string = connection.cid.toString();
         if (lastProcessedCid === cidString) {
@@ -107,7 +107,7 @@ export function useConnectionHandler() {
           const retryDelayMs = 200;
           for (let attempt: number = 1; attempt <= maxRetries; attempt++) {
             try {
-              const timeoutPromise = new Promise<null>((_, reject) =>
+              const timeoutPromise: Promise<null> = new Promise<null>((_, reject) =>
                 setTimeout(() => reject(new Error('getSelectedUser timeout')), TIMEOUT.GET_SELECTED_USER_MS)
               );
               tabSelection = await Promise.race([getSelectedUser(), timeoutPromise]);

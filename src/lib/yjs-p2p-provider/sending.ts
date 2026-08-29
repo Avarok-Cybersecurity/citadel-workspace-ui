@@ -90,7 +90,7 @@ export function sendSyncMessage(
   if (!ctx.ownCid) return;
 
   const messageId: string = generateMessageId(ctx.documentId);
-  const hash = docHash ?? (ctx.merkleTree?.getRootHash());
+  const hash: string | undefined = docHash ?? (ctx.merkleTree?.getRootHash());
 
   const message: YjsSyncMessage = {
     type: 'yjs_sync',

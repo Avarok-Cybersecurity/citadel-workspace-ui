@@ -57,7 +57,7 @@ export function VFSContentGrid({
     onCut, onCutMultiple, onPaste, onSelectAll, onClearSelection,
   });
 
-  const currentNode = findNodeByPath(tree, currentPath);
+  const currentNode: RevfsNode | null = findNodeByPath(tree, currentPath);
   const allChildren: RevfsNode[] = currentNode?.children ?? [];
   const children: RevfsNode[] = filterText
     ? allChildren.filter(n => matchesSearch(n.name, filterText))

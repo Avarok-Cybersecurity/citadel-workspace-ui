@@ -40,7 +40,7 @@ export class LiveDocumentStore {
     try {
       const index: string[] = await loadIndexFromDB();
       for (const docId of index) {
-        const doc = await loadDocumentFromDB(docId);
+        const doc: StoredDocument | null = await loadDocumentFromDB(docId);
         if (doc) {
           this.documentsCache.set(docId, doc);
         }
@@ -134,7 +134,7 @@ export class LiveDocumentStore {
 
   /** Update a document's Yjs state */
   async updateDocumentState(docId: string, ydoc: Y.Doc): Promise<void> {
-    const existing = this.documentsCache.get(docId);
+    const existing: StoredDocument | undefined = this.documentsCache.get(docId);
     if (!existing) {
       // Resolving here wrote NOTHING while reporting success, and only the
       // CREATOR of a document ever had a cache entry — the recipient's open
@@ -177,10 +177,10 @@ export class LiveDocumentStore {
 
   /** Get the revision chain for a document */
   async loadDocument(docId: string): Promise<StoredDocument | null> {
-    const cached = this.documentsCache.get(docId);
+    const cached: StoredDocument | undefined = this.documentsCache.get(docId);
     if (cached) return cached;
 
-    const doc = await loadDocumentFromDB(docId);
+    const doc: StoredDocument | null = await loadDocumentFromDB(docId);
     if (doc) {
       this.documentsCache.set(docId, doc);
     }
@@ -189,7 +189,7 @@ export class LiveDocumentStore {
 
   /** Load a document into a Y.Doc instance */
   async loadIntoYDoc(docId: string, targetDoc?: Y.Doc): Promise<Y.Doc | null> {
-    const stored = await this.loadDocument(docId);
+    const stored: StoredDocument | null = await this.loadDocument(docId);
     if (!stored) return null;
 
     const doc = targetDoc || new Y.Doc();
@@ -201,7 +201,7 @@ export class LiveDocumentStore {
 
   /** Get document metadata */
   async getDocumentMetadata(docId: string): Promise<DocumentMetadata | null> {
-    const doc = await this.loadDocument(docId);
+    const doc: StoredDocument | null = await this.loadDocument(docId);
     return doc?.metadata || null;
   }
 

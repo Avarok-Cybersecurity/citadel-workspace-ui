@@ -19,14 +19,14 @@ import type { PendingPeerRequest, OutgoingPeerRequest } from './types';
  * that read returns everyone's, the loaders filter it by owner too.
  */
 export function pendingKey(): string {
-  const own = instanceManager.cid;
+  const own: bigint | null = instanceManager.cid;
   // No session yet: the legacy shape rather than an invented owner. A record
   // filed under a guessed account is worse than an unscoped one.
   return own ? `${STORAGE_KEY}_${own.toString()}` : STORAGE_KEY;
 }
 
 export function outgoingKey(): string {
-  const own = instanceManager.cid;
+  const own: bigint | null = instanceManager.cid;
   return own ? `${OUTGOING_STORAGE_KEY}_${own.toString()}` : OUTGOING_STORAGE_KEY;
 }
 
@@ -51,13 +51,13 @@ export function hasLegacyOutgoing(): boolean {
  * because there is no account for these to belong to yet.
  */
 export function ownPending(requests: PendingPeerRequest[]): PendingPeerRequest[] {
-  const own = instanceManager.cid;
+  const own: bigint | null = instanceManager.cid;
   if (own === null) return [];
   return requests.filter((r) => r.cid === own);
 }
 
 export function ownOutgoing(requests: OutgoingPeerRequest[]): OutgoingPeerRequest[] {
-  const own = instanceManager.cid;
+  const own: bigint | null = instanceManager.cid;
   if (own === null) return [];
   return requests.filter((r) => r.fromCid === own);
 }

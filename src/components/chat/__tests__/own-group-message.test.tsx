@@ -18,7 +18,7 @@ import { GroupMessageItem } from '../GroupMessageItem';
 
 const ALICE = 'alice_citadel';
 
-function message(senderId: string) {
+function message(senderId: string): never {
   return {
     id: 'm1',
     group_id: 'g1',

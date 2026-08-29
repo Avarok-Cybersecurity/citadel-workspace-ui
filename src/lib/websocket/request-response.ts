@@ -76,7 +76,7 @@ export function requestResponse<T>(options: RequestResponseOptions<T>): Promise<
         return;
       }
 
-      const failureMsg = matcher.matchFailure(message);
+      const failureMsg: string | undefined = matcher.matchFailure(message);
       if (failureMsg !== undefined) {
         cleanup();
         reject(new Error(failureMsg));
@@ -140,7 +140,7 @@ export function requestResponseSoft(options: {
         return;
       }
 
-      const failureMsg = matchFailure(message);
+      const failureMsg: string | undefined = matchFailure(message);
       if (failureMsg !== undefined) {
         cleanup();
         if (onFailure) onFailure(failureMsg);

@@ -73,7 +73,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
   useEffect(() => {
     if (isOpen && !hasInitialized && attempt === 0) {
       setHasInitialized(true);
-      const executeFn = executeFnRef.current;
+      const executeFn: (() => Promise<unknown>) | null = executeFnRef.current;
       if (executeFn) {
         runAsyncSetup(() => executeFn());
       }
@@ -114,7 +114,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
     // press past the budget starts a fresh series instead, which also lets the
     // automatic countdown pick back up.
     const exhausted = attempt >= maxRetries;
-    const retryFn = exhausted ? executeFnRef.current : retryFnRef.current;
+    const retryFn: (() => Promise<unknown>) | null = exhausted ? executeFnRef.current : retryFnRef.current;
     if (retryFn && !retryInProgressRef.current) {
       retryInProgressRef.current = true;
       runAsyncSetup(async () => {

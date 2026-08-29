@@ -71,7 +71,7 @@ export class RevfsOpfsStorage {
 
   async loadTree(key: TreeKey): Promise<RevfsNode | null> {
     const dir = await this.getTreeDir(key);
-    const json = await this.readFile(dir, TREE_FILE);
+    const json: string | null = await this.readFile(dir, TREE_FILE);
     if (!json) return null;
     return deserializeTree<RevfsNode>(json);
   }
@@ -83,7 +83,7 @@ export class RevfsOpfsStorage {
 
   async loadPendingOps(key: TreeKey): Promise<RevfsPendingOp[]> {
     const dir = await this.getTreeDir(key);
-    const json = await this.readFile(dir, PENDING_OPS_FILE);
+    const json: string | null = await this.readFile(dir, PENDING_OPS_FILE);
     if (!json) return [];
     return deserializeTree<RevfsPendingOp[]>(json);
   }

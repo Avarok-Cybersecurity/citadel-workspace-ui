@@ -75,7 +75,7 @@ function countNodes(node: RevfsNode): { dirs: number; files: number } {
   let dirs: number = node.type === 'directory' ? 1 : 0;
   let files: number = node.type === 'file' ? 1 : 0;
   for (const child of node.children ?? []) {
-    const childCounts = countNodes(child);
+    const childCounts: { dirs: number; files: number; } = countNodes(child);
     dirs += childCounts.dirs;
     files += childCounts.files;
   }
@@ -100,13 +100,13 @@ describe('deep nested tree stress tests', () => {
     expect(allFilePaths).toHaveLength(totalFiles);
 
     for (const dirPath of allDirPaths) {
-      const node = findNode(tree, dirPath);
+      const node: RevfsNode | null = findNode(tree, dirPath);
       expect(node).not.toBeNull();
       expect(node!.type).toBe('directory');
     }
 
     for (const filePath of allFilePaths) {
-      const node = findNode(tree, filePath);
+      const node: RevfsNode | null = findNode(tree, filePath);
       expect(node).not.toBeNull();
       expect(node!.type).toBe('file');
       expect(node!.fileMetadata).toBeDefined();
@@ -116,12 +116,12 @@ describe('deep nested tree stress tests', () => {
   it('finds deepest node efficiently', () => {
     const { tree, allDirPaths } = createDeepTree(MAX_DEPTH, FILES_PER_LEVEL);
     const deepestPath: string = allDirPaths[allDirPaths.length - 1];
-    const deepNode = findNode(tree, deepestPath);
+    const deepNode: RevfsNode | null = findNode(tree, deepestPath);
     expect(deepNode).not.toBeNull();
     expect(deepNode!.name).toBe(`level-${MAX_DEPTH - 1}`);
 
     const deepFilePath: string = `${deepestPath}/file-${MAX_DEPTH}-0.dat`;
-    const deepFile = findNode(tree, deepFilePath);
+    const deepFile: RevfsNode | null = findNode(tree, deepFilePath);
     expect(deepFile).not.toBeNull();
     expect(deepFile!.type).toBe('file');
   });
@@ -134,7 +134,7 @@ describe('deep nested tree stress tests', () => {
 
   it('counts all nodes correctly in deep tree', () => {
     const { tree, totalDirs, totalFiles } = createDeepTree(MAX_DEPTH, FILES_PER_LEVEL);
-    const counts = countNodes(tree);
+    const counts: { dirs: number; files: number; } = countNodes(tree);
     expect(counts.dirs).toBe(totalDirs + 3);
     expect(counts.files).toBe(totalFiles);
   });
@@ -164,7 +164,7 @@ describe('deep nested tree stress tests', () => {
     const deepestPath: string = allDirPaths[allDirPaths.length - 1];
     const newSubDir: string = `${deepestPath}/even-deeper`;
     const [newTree] = mkdir(tree, newSubDir);
-    const node = findNode(newTree, newSubDir);
+    const node: RevfsNode | null = findNode(newTree, newSubDir);
     expect(node).not.toBeNull();
     expect(node!.type).toBe('directory');
   });
@@ -175,7 +175,7 @@ describe('deep nested tree stress tests', () => {
     const newFilePath: string = `${deepestPath}/extra-file.txt`;
     const meta = makeMeta({ fileId: 'extra', fileName: 'extra-file.txt' });
     const [newTree] = placeFile(tree, newFilePath, meta, CID_A);
-    const node = findNode(newTree, newFilePath);
+    const node: RevfsNode | null = findNode(newTree, newFilePath);
     expect(node).not.toBeNull();
     expect(node!.type).toBe('file');
   });
@@ -217,7 +217,7 @@ describe('deep nested tree stress tests', () => {
     const meta = makeMeta({ fileId: 'remote-deep', fileName: 'remote.dat', uploadedByCid: CID_A });
     const placeOp = { op_id: '2', op_type: RevfsOpType.PlaceFile, path: `${deepPath}/remote-dir/remote.dat`, metadata: meta, timestamp: Date.now() };
     result = applyRemoteOp(result, placeOp, CID_B);
-    const file = findNode(result, `${deepPath}/remote-dir/remote.dat`);
+    const file: RevfsNode | null = findNode(result, `${deepPath}/remote-dir/remote.dat`);
     expect(file).not.toBeNull();
     // CID_A uploaded; the viewer (CID_B) received the bytes, so hosts them.
     expect(file!.fileState).toBe(RevfsFileState.Hosted);

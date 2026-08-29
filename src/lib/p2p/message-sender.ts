@@ -73,7 +73,7 @@ export class MessageSender {
     const conversation: P2PConversation = this.config.getOrCreateConversation(recipientCid);
     const index: number = conversation.lastMessageIndex + 1;
 
-    const currentCid = await this.config.getCurrentCid();
+    const currentCid: bigint | null = await this.config.getCurrentCid();
     if (!currentCid) {
       throw new Error('Not connected to server');
     }

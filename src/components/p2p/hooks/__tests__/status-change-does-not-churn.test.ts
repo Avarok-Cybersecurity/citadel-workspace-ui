@@ -31,7 +31,7 @@ function captureStatusHandler() {
   let statusHandler: ((id: string, status: string) => void) | undefined;
   const updates: Array<(prev: P2PMessage[]) => P2PMessage[]> = [];
 
-  const messenger = {
+  const messenger: never = {
     onMessage: () => (): void => {},
     onMessageStatusChange: (cb: (id: string, status: string) => void) => {
       statusHandler = cb;

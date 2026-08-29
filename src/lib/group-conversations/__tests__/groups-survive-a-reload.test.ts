@@ -12,7 +12,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const store = new Map<string, unknown>();
+const store: Map<string, unknown> = new Map<string, unknown>();
 const cidRef = { current: null as bigint | null };
 
 vi.mock('@/lib/storage-utils', () => ({
@@ -25,7 +25,7 @@ vi.mock('@/lib/multi-instance/instance-manager', () => ({
 
 import { loadPersistedGroups, persistGroups } from '../group-persistence';
 
-const groupWithBigintMember = [{
+const groupWithBigintMember: never = [{
   id: 'g1',
   name: 'Design',
   members: [{ cid: 12345678901234567890n, username: 'ada' }],

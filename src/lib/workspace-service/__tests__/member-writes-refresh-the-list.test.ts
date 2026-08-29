@@ -25,7 +25,7 @@ import { addMember, removeMember, updateMemberRole } from '../member-operations'
 import { eventEmitter } from '@/lib/event-emitter';
 import { UserRoleTS } from '@/types/workspace-types';
 
-const sender = { sendProtocolRequest: vi.fn((): Promise<void> => Promise.resolve()) } as never;
+const sender: never = { sendProtocolRequest: vi.fn((): Promise<void> => Promise.resolve()) } as never;
 
 function countReloads(run: () => Promise<unknown>): Promise<number> {
   let count: number = 0;

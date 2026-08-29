@@ -89,7 +89,7 @@ export async function removeFileFromPeer(
   // Bytes first, node second — the same ordering as the server path. Removing
   // the node first and then discarding the delete result left the bytes with
   // nothing referencing them: storage consumed, and no node left to retry from.
-  const fileNode = ctx.findFileInTree(tree, filePath);
+  const fileNode: RevfsNode | null = ctx.findFileInTree(tree, filePath);
   // A copy shares its original's byte key (see tree-byte-refs.ts), so the
   // backend delete only goes out when this node is the LAST reference —
   // otherwise deleting one copy destroyed the bytes every other copy still
@@ -130,7 +130,7 @@ export async function downloadFileFromPeer(
   const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
   const io: RevfsIO = ctx.ensureIO();
 
-  const fileNode = ctx.findFileInTree(tree, filePath);
+  const fileNode: RevfsNode | null = ctx.findFileInTree(tree, filePath);
   if (!fileNode?.fileMetadata) {
     throw new Error(`File not found or has no metadata: ${filePath}`);
   }
@@ -174,7 +174,7 @@ export async function addSentFile(
   };
 
   const [newTree, op] = treePlaceFile(tree, filePath, metadata, myCid);
-  const fileNode = ctx.findFileInTree(newTree, filePath);
+  const fileNode: RevfsNode | null = ctx.findFileInTree(newTree, filePath);
   if (fileNode) fileNode.fileState = RevfsFileState.Sent;
 
   ctx.state.setTree(key, newTree);
@@ -202,7 +202,7 @@ export async function addReceivedFile(
   };
 
   const [newTree] = treePlaceFile(tree, filePath, metadata, myCid);
-  const fileNode = ctx.findFileInTree(newTree, filePath);
+  const fileNode: RevfsNode | null = ctx.findFileInTree(newTree, filePath);
   if (fileNode) fileNode.fileState = RevfsFileState.Received;
 
   ctx.state.setTree(key, newTree);

@@ -76,7 +76,7 @@ export function canMessageUser(
   userId: string
 ): boolean {
   const list: UserConnection[] = userConnections.get(CURRENT_USER) || [];
-  const connection = list.find(conn => conn.connectedUserId === userId);
+  const connection: UserConnection | undefined = list.find(conn => conn.connectedUserId === userId);
   return connection?.isRegistered === true && connection?.isConnected === true;
 }
 

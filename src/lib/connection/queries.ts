@@ -47,12 +47,12 @@ export async function getActiveSessionsResult(
   state: ConnectionState,
   io: ConnectionIO,
 ): Promise<ActiveSessionsResult> {
-  const cached = state.cachedSessions;
+  const cached: ActiveSession[] | null = state.cachedSessions;
   if (cached && state.isCacheValid()) {
     return { ok: true, sessions: cached };
   }
 
-  const pending = state.pendingGetSessions;
+  const pending: Promise<ActiveSessionsResult> | null = state.pendingGetSessions;
   if (pending) {
     return pending;
   }
@@ -160,7 +160,7 @@ export async function handleConnectFailure(
   }
 
   debugLog('ConnectionService', 'ConnectionManager: Session already connected error detected');
-  const extractedCid = state.extractCidFromErrorMessage(errorMessage);
+  const extractedCid: string | null = state.extractCidFromErrorMessage(errorMessage);
 
   if (extractedCid) {
     debugLog('ConnectionService', 'ConnectionManager: Existing session CID from message:', extractedCid);
@@ -176,7 +176,7 @@ export async function handleConnectFailure(
     const activeIndex: number = state.getActiveSessionIndex();
     const currentSession = state.storedSessions.sessions[activeIndex];
 
-    const matchingSession = activeSessions.find(
+    const matchingSession: ActiveSession | undefined = activeSessions.find(
       (s) =>
         currentSession &&
         s.username === currentSession.username &&

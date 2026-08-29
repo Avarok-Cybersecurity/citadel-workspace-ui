@@ -41,8 +41,8 @@ describe('P2PChatHeader layout', () => {
   it('keeps the call buttons in the same group as settings', () => {
     renderHeader();
 
-    const audio = screen.getByTestId('call-start-audio');
-    const settings = screen.getByTestId('chat-settings-button');
+    const audio: HTMLElement = screen.getByTestId('call-start-audio');
+    const settings: HTMLElement = screen.getByTestId('chat-settings-button');
 
     // Sharing an ancestor that is NOT the justify-between row is what puts them
     // together on the right rather than spread across the header.
@@ -51,7 +51,7 @@ describe('P2PChatHeader layout', () => {
 
   it('leaves the justify-between row exactly two children to separate', () => {
     const { container } = renderHeader();
-    const row = container.querySelector('.justify-between');
+    const row: Element | null = container.querySelector('.justify-between');
 
     expect(row).not.toBeNull();
     expect(row?.children).toHaveLength(2);

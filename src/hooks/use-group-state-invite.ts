@@ -68,7 +68,7 @@ export async function buildGroupFromInvite(
     debugLog('UseGroupConversations', 'Invalid invite payload (missing required field):', data);
     return null;
   }
-  const inviterCid = parseCid(data.inviterId);
+  const inviterCid: bigint | null = parseCid(data.inviterId);
   if (inviterCid === null) {
     debugLog(
       'UseGroupConversations',
@@ -171,7 +171,7 @@ export async function applyGroupInvite(
   setGroups: (updater: (prev: GroupConversation[]) => GroupConversation[]) => void,
 ): Promise<void> {
   try {
-    const newGroup = await buildGroupFromInvite(data);
+    const newGroup: GroupConversation | null = await buildGroupFromInvite(data);
     if (!newGroup) {
       // Malformed payload — `buildGroupFromInvite` has already logged the why.
       return;

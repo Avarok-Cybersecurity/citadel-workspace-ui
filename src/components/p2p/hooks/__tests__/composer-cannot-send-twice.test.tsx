@@ -75,7 +75,7 @@ describe('P2P composer in-flight guard', () => {
     sendMessage.mockImplementation(
       (_cid: bigint, _text: string, options: { onOptimisticAppend?: () => void }) =>
         new Promise<void>((resolve) => {
-          appended = () => options.onOptimisticAppend?.();
+          appended = (): void | undefined => options.onOptimisticAppend?.();
           release = (): void => resolve();
         }),
     );

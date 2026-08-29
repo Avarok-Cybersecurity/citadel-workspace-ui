@@ -38,7 +38,7 @@ function Harness({ open, onDismiss }: { open: boolean; onDismiss?: () => void })
 describe('useDialogOverlay', () => {
   it('announces itself as a modal dialog with a name', () => {
     render(<Harness open />);
-    const dialog = screen.getByRole('dialog', { name: 'Sign in' });
+    const dialog: HTMLElement = screen.getByRole('dialog', { name: 'Sign in' });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
   });
 
@@ -99,7 +99,7 @@ describe('useDialogOverlay', () => {
     }
     render(<Toggle />);
 
-    const opener = screen.getByRole('button', { name: 'open' });
+    const opener: HTMLElement = screen.getByRole('button', { name: 'open' });
     await user.click(opener);
     expect(screen.getByLabelText('username')).toHaveFocus();
 

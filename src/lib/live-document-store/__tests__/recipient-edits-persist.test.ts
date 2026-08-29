@@ -16,14 +16,14 @@ import * as Y from 'yjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const saved = new Map<string, unknown>();
+const saved: Map<string, unknown> = new Map<string, unknown>();
 vi.mock('../persistence', () => ({
   saveDocumentToDB: async (id: string, doc: unknown): Promise<void> => {
     saved.set(id, doc);
   },
-  loadDocumentFromDB: async (id: string) => saved.get(id) ?? null,
-  saveIndexToDB: async () => undefined,
-  loadIndexFromDB: async () => [],
+  loadDocumentFromDB: async (id: string): Promise<{} | null> => saved.get(id) ?? null,
+  saveIndexToDB: async (): Promise<undefined> => undefined,
+  loadIndexFromDB: async (): Promise<never[]> => [],
   deleteDocumentFromDB: async (id: string): Promise<void> => {
     saved.delete(id);
   },

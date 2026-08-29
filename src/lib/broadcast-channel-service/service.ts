@@ -185,7 +185,7 @@ export class BroadcastChannelService extends PollingService {
   }
 
   public isResponseForThisCid(requestId: string, tabCid: bigint): boolean {
-    const entry = this.pendingRequests.get(requestId);
+    const entry: PendingRequest | undefined = this.pendingRequests.get(requestId);
     return entry?.cid === tabCid;
   }
 

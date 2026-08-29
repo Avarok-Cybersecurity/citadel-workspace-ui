@@ -26,7 +26,7 @@ export function CallLayer({ children }: { children: React.ReactNode }) {
 
   const senderConfig = useMemo<Pick<MessageSenderConfig, 'getCurrentCid'>>(
     () => ({
-      getCurrentCid: async () => connectionManager.getConnectionInfo()?.cid ?? null,
+      getCurrentCid: async (): Promise<bigint | null> => connectionManager.getConnectionInfo()?.cid ?? null,
     }),
     [],
   );

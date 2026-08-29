@@ -64,7 +64,7 @@ describe('WorkspaceAppearanceModal', () => {
 
     await userEvent.click(screen.getByTestId('preview-region-sidebar'));
 
-    const editor = screen.getByTestId('appearance-color-editor');
+    const editor: HTMLElement = screen.getByTestId('appearance-color-editor');
     expect(within(editor).getByText('Sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('color-wheel')).toBeInTheDocument();
   });

@@ -72,7 +72,7 @@ describe('selectUserWithoutBlocking', () => {
   it('rethrows a real failure, which is not the same as a slow one', async () => {
     // A rejected write means something is wrong with the call, not with the
     // clock. Swallowing both would hide a genuine defect behind a timeout.
-    const io = { setSelectedUser: vi.fn(async () => { throw new Error('quota exceeded'); }) };
+    const io = { setSelectedUser: vi.fn(async (): Promise<never> => { throw new Error('quota exceeded'); }) };
     await expect(
       selectUserWithoutBlocking(io as never, {
         selectedUsername: 'alice', selectedServerAddress: 'x',

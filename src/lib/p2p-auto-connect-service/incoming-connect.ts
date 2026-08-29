@@ -36,7 +36,7 @@ export async function handleIncomingPeerConnect(
     return;
   }
 
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   if (!currentCid) {
     debugLog('P2PAutoConnectService', 'No current CID, cannot process incoming connection');
     return;

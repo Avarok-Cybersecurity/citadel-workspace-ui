@@ -34,7 +34,7 @@ export async function editMessage(
   messageId: string,
   contents: string,
 ): Promise<void> {
-  const ownCid = await resolveCurrentCid();
+  const ownCid: bigint | null = await resolveCurrentCid();
   if (!ownCid) throw new Error('Not connected to server');
 
   const conversation = conversationManager.getConversation(peerCid);
@@ -64,7 +64,7 @@ export async function deleteMessage(
   peerCid: bigint,
   messageId: string,
 ): Promise<void> {
-  const ownCid = await resolveCurrentCid();
+  const ownCid: bigint | null = await resolveCurrentCid();
   if (!ownCid) throw new Error('Not connected to server');
 
   const conversation = conversationManager.getConversation(peerCid);

@@ -45,7 +45,7 @@ export class MessageAckHandler {
     const conversations: Map<bigint, P2PConversation> = this.config.getConversations();
 
     conversations.forEach((conversation, peerCid) => {
-      const message = conversation.messages.find(m => m.id === payload.message_id);
+      const message: P2PMessage | undefined = conversation.messages.find(m => m.id === payload.message_id);
       if (message) {
         debugLog('MessageAckHandler', '[P2P] handleMessageAck FOUND message, updating status:', message.status, '->', payload.ack_type);
         newStatus = payload.ack_type === 'failed' ? 'failed' : payload.ack_type;

@@ -25,17 +25,17 @@ import { debugLog } from '@/lib/debug-config';
 const STORE = 'keyValue';
 
 function key(): string | null {
-  const own = instanceManager.cid;
+  const own: bigint | null = instanceManager.cid;
   // Without a session there is no account to file these under, and guessing is
   // how one account inherits another's groups.
   return own ? `groups:${own.toString()}` : null;
 }
 
 export async function loadPersistedGroups(): Promise<GroupConversation[]> {
-  const k = key();
+  const k: string | null = key();
   if (!k) return [];
   try {
-    const stored = await dbGet<GroupConversation[]>(STORE, k);
+    const stored: GroupConversation[] | undefined = await dbGet<GroupConversation[]>(STORE, k);
     return Array.isArray(stored) ? stored : [];
   } catch (error) {
     // A read failure is not "no groups" — but it is also not recoverable here,
@@ -47,7 +47,7 @@ export async function loadPersistedGroups(): Promise<GroupConversation[]> {
 }
 
 export async function persistGroups(groups: GroupConversation[]): Promise<void> {
-  const k = key();
+  const k: string | null = key();
   if (!k) return;
   try {
     await dbPut(STORE, k, groups);

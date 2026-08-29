@@ -27,10 +27,10 @@ export function fnv1a64(bytes: Uint8Array): string {
 export function describeForwarded(payload: unknown): string {
   try {
     if (!payload || typeof payload !== 'object') return 'type=<non-object>';
-    const record = payload as Record<string, unknown>;
+    const record: Record<string, unknown> = payload as Record<string, unknown>;
     const variant: string = Object.keys(record)[0] ?? '<empty>';
-    const body = record[variant] as Record<string, unknown> | undefined;
-    const raw = body?.message;
+    const body: Record<string, unknown> | undefined = record[variant] as Record<string, unknown> | undefined;
+    const raw: unknown = body?.message;
     if (Array.isArray(raw)) return `type=${variant} fp=${fnv1a64(new Uint8Array(raw))}`;
     if (raw instanceof Uint8Array) return `type=${variant} fp=${fnv1a64(raw)}`;
     return `type=${variant}`;

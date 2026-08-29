@@ -57,7 +57,7 @@ describe('the toaster', () => {
     // hard-coded constants agreeing with themselves.
     isMobile.mockReturnValue(true);
     render(<Toaster />);
-    const phone = await yPositionWithAToast();
+    const phone: string | null = await yPositionWithAToast();
     cleanup();
     toast.dismiss();
     isMobile.mockReturnValue(false);

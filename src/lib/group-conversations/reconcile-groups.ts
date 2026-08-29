@@ -74,7 +74,7 @@ export function reconcileGroups(
 
 /** Apply a server list, if one was asked for. Idempotent; safe to call twice. */
 export function applyGroupList(serverIds: readonly string[]): void {
-  const asked = askedWith;
+  const asked: Set<string> | null = askedWith;
   if (!asked) return;
   askedWith = null;
   updateGroups((prev) => reconcileGroups(prev, serverIds, asked));

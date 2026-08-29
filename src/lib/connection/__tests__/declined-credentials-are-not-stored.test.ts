@@ -17,7 +17,7 @@ import type { ConnectionIO } from '../io';
 import type { AuthSuccessParams } from '../types';
 import type { StoredSessions } from '@/types/session-types';
 
-function setup() {
+function setup(): { io: ConnectionIO; state: ConnectionState; written: StoredSessions[]; } {
   const stored: StoredSessions = { sessions: [] };
   const written: StoredSessions[] = [];
   const io: ConnectionIO = {

@@ -44,7 +44,7 @@ describe('ConfirmDeleteDialog', () => {
 
     await user.click(screen.getByRole('button', { name: 'Delete' }));
 
-    const alert = await screen.findByRole('alert');
+    const alert: HTMLElement = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Could not delete this node.');
     // The dialog itself must still be mounted — an error rendered into an
     // unmounted description is the exact defect.
@@ -66,7 +66,7 @@ describe('ConfirmDeleteDialog', () => {
     const onConfirm = vi.fn((): Promise<void> => new Promise<void>((r): void => { release = (): void => r(); }));
     render(<Harness onConfirm={onConfirm} />);
 
-    const button = screen.getByRole('button', { name: 'Delete' });
+    const button: HTMLElement = screen.getByRole('button', { name: 'Delete' });
     await user.click(button);
     await waitFor(() => expect(button).toBeDisabled());
     await user.click(button);

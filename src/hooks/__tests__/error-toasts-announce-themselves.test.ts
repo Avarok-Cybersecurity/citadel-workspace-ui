@@ -34,7 +34,7 @@ import { toast } from '../use-toast';
 
 /** The role on the DESCRIPTION Sonner was handed, if any. */
 function roleOf(call: unknown[] | undefined): string | undefined {
-  const description = (call?.[1] as { description?: unknown } | undefined)?.description;
+  const description: unknown = (call?.[1] as { description?: unknown } | undefined)?.description;
   return isValidElement(description)
     ? (description.props as { role?: string }).role
     : undefined;

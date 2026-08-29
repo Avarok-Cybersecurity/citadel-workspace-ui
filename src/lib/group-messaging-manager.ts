@@ -172,7 +172,7 @@ class GroupMessagingManagerClass {
       messages
     });
 
-    const editedMessage = messages.find(m => m.id === messageId);
+    const editedMessage: GroupMessage | undefined = messages.find(m => m.id === messageId);
     this.eventEmitter.emit({
       type: 'message_edited',
       groupId,

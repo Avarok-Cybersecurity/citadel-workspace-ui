@@ -11,8 +11,8 @@ export const Office = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const params = new URLSearchParams(location.search);
-  const nodeId = params.get("nodeId");
-  const section = params.get("section");
+  const nodeId: string | null = params.get("nodeId");
+  const section: string | null = params.get("section");
   const { state } = useWorkspace();
 
   // Track if we've already navigated to prevent loops

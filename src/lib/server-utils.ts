@@ -48,21 +48,21 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
         const message = narrowWebSocketMessage(raw);
         if (!message) return;
 
-        const getAllKVSuccess = getVariant(message, 'LocalDBGetAllKVSuccess');
+        const getAllKVSuccess: Record<string, unknown> | undefined = getVariant(message, 'LocalDBGetAllKVSuccess');
         if (getAllKVSuccess && getAllKVSuccess.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
 
           // Extract servers from the response
           const servers: StoredServer[] = [];
-          const kvMap = getAllKVSuccess.map as Record<string, unknown> | undefined;
+          const kvMap: Record<string, unknown> | undefined = getAllKVSuccess.map as Record<string, unknown> | undefined;
 
           if (kvMap) {
             // Look for server-related keys
             Object.keys(kvMap).forEach(key => {
               if (key.startsWith('server_') || key === 'known_servers') {
                 try {
-                  const value = kvMap[key];
+                  const value: unknown = kvMap[key];
                   if (Array.isArray(value)) {
                     // If it's a byte array, convert to string
                     const jsonStr: string = bytesToString(value);
@@ -84,7 +84,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
 
           resolve({ servers });
         } else {
-          const getAllKVFailure = getVariant(message, 'LocalDBGetAllKVFailure');
+          const getAllKVFailure: Record<string, unknown> | undefined = getVariant(message, 'LocalDBGetAllKVFailure');
           if (getAllKVFailure && getAllKVFailure.request_id === requestId) {
             clearTimeout(timeout);
             eventEmitter.off('websocket-message', handler);
@@ -156,8 +156,8 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
         const message = narrowWebSocketMessage(raw);
         if (!message) return;
 
-        const setKVSuccess = getVariant(message, 'LocalDBSetKVSuccess');
-        const setKVFailure = getVariant(message, 'LocalDBSetKVFailure');
+        const setKVSuccess: Record<string, unknown> | undefined = getVariant(message, 'LocalDBSetKVSuccess');
+        const setKVFailure: Record<string, unknown> | undefined = getVariant(message, 'LocalDBSetKVFailure');
         if (setKVSuccess && setKVSuccess.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);

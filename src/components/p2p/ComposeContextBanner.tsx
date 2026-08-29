@@ -14,7 +14,7 @@ interface ComposeContextBannerProps {
  * way to back out.
  */
 export function ComposeContextBanner({ replyingTo, editingMessage, onCancel }: ComposeContextBannerProps) {
-  const active = editingMessage ?? replyingTo;
+  const active: P2PMessage | null = editingMessage ?? replyingTo;
   if (!active) return null;
 
   const isEditing = editingMessage !== null;

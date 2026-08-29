@@ -52,12 +52,12 @@ function resetLocalData(button: HTMLButtonElement): void {
  * causes.
  */
 export function showStorageVersionRecovery(): void {
-  const rootElement = document.getElementById('root');
+  const rootElement: HTMLElement | null = document.getElementById('root');
   if (!rootElement || rootElement.dataset.recovery === 'storage-version') return;
   rootElement.dataset.recovery = 'storage-version';
   rootElement.replaceChildren();
 
-  const panel = document.createElement('div');
+  const panel: HTMLDivElement = document.createElement('div');
   panel.setAttribute('role', 'alert');
   panel.style.cssText =
     'max-width:34rem;margin:12vh auto;padding:2rem;font-family:system-ui,sans-serif;line-height:1.6';
@@ -73,7 +73,7 @@ export function showStorageVersionRecovery(): void {
     'version will fix it — your data is untouched.';
   body.style.cssText = 'margin:0 0 1.25rem';
 
-  const button = document.createElement('button');
+  const button: HTMLButtonElement = document.createElement('button');
   button.textContent = 'Get the current version';
   button.style.cssText =
     'padding:0.6rem 1rem;border-radius:0.5rem;border:1px solid currentColor;background:transparent;' +
@@ -100,7 +100,7 @@ export function showStorageVersionRecovery(): void {
       'Your account and anything on the server are not affected.';
     stillStuck.style.cssText = 'margin:1.5rem 0 0.75rem;font-size:0.9rem;opacity:0.85';
 
-    const reset = document.createElement('button');
+    const reset: HTMLButtonElement = document.createElement('button');
     reset.textContent = 'Reset local data on this device';
     reset.style.cssText =
       'padding:0.6rem 1rem;border-radius:0.5rem;border:1px solid currentColor;' +

@@ -83,12 +83,12 @@ export class ConnectedPeersState {
   setPeerDisconnected(localCid: bigint, peerCid: bigint): void {
     const [localCidBigInt, peerCidBigInt] = ensureBigIntPair(localCid, peerCid);
 
-    const localPeerMap = this.connectedPeers.get(localCidBigInt);
+    const localPeerMap: Map<bigint, PeerConnectionInfo> | undefined = this.connectedPeers.get(localCidBigInt);
     if (localPeerMap) {
       localPeerMap.delete(peerCidBigInt);
     }
 
-    const peerPeerMap = this.connectedPeers.get(peerCidBigInt);
+    const peerPeerMap: Map<bigint, PeerConnectionInfo> | undefined = this.connectedPeers.get(peerCidBigInt);
     if (peerPeerMap) {
       peerPeerMap.delete(localCidBigInt);
     }
@@ -104,7 +104,7 @@ export class ConnectedPeersState {
   getPeersForSession(localCid: bigint): bigint[] {
     const localCidBigInt: bigint = ensureBigInt(localCid);
 
-    const peerMap = this.connectedPeers.get(localCidBigInt);
+    const peerMap: Map<bigint, PeerConnectionInfo> | undefined = this.connectedPeers.get(localCidBigInt);
     if (!peerMap) {
       const allCids: bigint[] = Array.from(this.connectedPeers.keys());
       if (allCids.length > 0) {
@@ -119,13 +119,13 @@ export class ConnectedPeersState {
 
   isPeerConnectedForSession(localCid: bigint, peerCid: bigint): boolean {
     const [localCidBigInt, peerCidBigInt] = ensureBigIntPair(localCid, peerCid);
-    const peerMap = this.connectedPeers.get(localCidBigInt);
+    const peerMap: Map<bigint, PeerConnectionInfo> | undefined = this.connectedPeers.get(localCidBigInt);
     return peerMap?.has(peerCidBigInt) ?? false;
   }
 
   getPeerConnectionInfo(localCid: bigint, peerCid: bigint): PeerConnectionInfo | null {
     const [localCidBigInt, peerCidBigInt] = ensureBigIntPair(localCid, peerCid);
-    const peerMap = this.connectedPeers.get(localCidBigInt);
+    const peerMap: Map<bigint, PeerConnectionInfo> | undefined = this.connectedPeers.get(localCidBigInt);
     return peerMap?.get(peerCidBigInt) ?? null;
   }
 

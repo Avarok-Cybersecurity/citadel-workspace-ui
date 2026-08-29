@@ -36,7 +36,7 @@ export function applyEdit(
   editedAt: number,
   editorCid: bigint,
 ): RevisionOutcome {
-  const message = conversation.messages.find((m) => m.id === messageId);
+  const message: P2PMessage | undefined = conversation.messages.find((m) => m.id === messageId);
   if (!message) return { applied: false, reason: 'unknown-message' };
   if (message.senderCid !== editorCid) return { applied: false, reason: 'not-sender' };
 

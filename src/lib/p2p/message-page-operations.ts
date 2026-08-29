@@ -33,7 +33,7 @@ export async function loadMetadataByKey(key: string): Promise<ConversationMetada
       } else {
         return null;
       }
-      const parsed = JSON.parse(valueStr) as Record<string, unknown>;
+      const parsed: Record<string, unknown> = JSON.parse(valueStr) as Record<string, unknown>;
       return {
         ...parsed,
         // Parsed back to bigint, like peerCid. Serialized as a string and left
@@ -57,7 +57,7 @@ export async function loadMetadataByKey(key: string): Promise<ConversationMetada
  * Load metadata for a specific peer.
  */
 export async function loadMetadata(peerCid: bigint): Promise<ConversationMetadata | null> {
-  const scoped = await loadMetadataByKey(`${conversationPrefix(peerCid)}_metadata`);
+  const scoped: ConversationMetadata | null = await loadMetadataByKey(`${conversationPrefix(peerCid)}_metadata`);
   if (scoped || !hasLegacyFallback(peerCid)) return scoped;
 
   // Nothing under the account-scoped key. Records written before conversations
@@ -67,7 +67,7 @@ export async function loadMetadata(peerCid: bigint): Promise<ConversationMetadat
   // Only OURS, though: an unattributed record predates the ownerCid stamp and
   // could belong to anyone, but adopting it is the same guess the old shared
   // key made. A record stamped for a different account is left alone.
-  const legacy = await loadMetadataByKey(`${legacyConversationPrefix(peerCid)}_metadata`);
+  const legacy: ConversationMetadata | null = await loadMetadataByKey(`${legacyConversationPrefix(peerCid)}_metadata`);
   if (!legacy) return null;
   if (legacy.ownerCid !== undefined && legacy.ownerCid !== instanceManager.cid) {
     debugLog('MessagePageOperations', `[P2P] Legacy conversation ${peerCid.toString().slice(0, 8)} belongs to another account`);
@@ -101,7 +101,7 @@ export async function saveMetadata(peerCid: bigint, metadata: ConversationMetada
  * Load a specific page of messages for a peer.
  */
 export async function loadMessagePage(peerCid: bigint, pageNumber: number): Promise<MessagePage | null> {
-  const scoped = await loadMessagePageByKey(`${conversationPrefix(peerCid)}_${pageNumber}`);
+  const scoped: MessagePage | null = await loadMessagePageByKey(`${conversationPrefix(peerCid)}_${pageNumber}`);
   if (scoped || !hasLegacyFallback(peerCid)) return scoped;
   // Pre-scoping history: loadMetadata has already refused a record owned by
   // another account, so reaching here means this conversation is ours.

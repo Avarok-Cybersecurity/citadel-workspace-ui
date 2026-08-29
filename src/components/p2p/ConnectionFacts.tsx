@@ -40,7 +40,7 @@ export function ConnectionFacts({ peerCid, revfsQuota }: ConnectionFactsProps) {
     <span className="text-sm text-foreground/80">
       {((): string => {
         try {
-          const ts = localStorage.getItem(`peer-first-seen:${peerCid}`);
+          const ts: string | null = localStorage.getItem(`peer-first-seen:${peerCid}`);
           if (!ts) {
             localStorage.setItem(`peer-first-seen:${peerCid}`, Date.now().toString());
             return 'Just now';

@@ -17,7 +17,7 @@ import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
  * Returns `null` when the message is not workspace-relevant (e.g. P2P-only).
  */
 export function extractWorkspaceResponse(raw: unknown): WorkspaceProtocolResponse | null {
-  const message = narrowWebSocketMessage(raw);
+  const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
   if (!message) return null;
   return extractFromMessage(message);
 }
@@ -27,7 +27,7 @@ export function extractWorkspaceResponse(raw: unknown): WorkspaceProtocolRespons
  */
 function extractFromMessage(message: WebSocketMessage): WorkspaceProtocolResponse | null {
   // Cast to record for multi-variant optional chaining
-  const msg = message as Record<string, Record<string, unknown> | undefined>;
+  const msg: Record<string, Record<string, unknown> | undefined> = message as Record<string, Record<string, unknown> | undefined>;
 
   // --- MessageNotification ---
   if (msg.MessageNotification) {

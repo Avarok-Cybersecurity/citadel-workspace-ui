@@ -30,7 +30,7 @@ interface TransferStore {
 
 export async function loadPersistedTransfers(state: TransferStore): Promise<void> {
   try {
-    const settingsRaw = localStorage.getItem(SETTINGS_KEY);
+    const settingsRaw: string | null = localStorage.getItem(SETTINGS_KEY);
     if (settingsRaw) {
       const parsed: Record<string, FileTransferSettings> = JSON.parse(settingsRaw) as Record<string, FileTransferSettings>;
       for (const [peerCid, settings] of Object.entries(parsed)) {
@@ -38,11 +38,11 @@ export async function loadPersistedTransfers(state: TransferStore): Promise<void
       }
     }
 
-    const transfersRaw = localStorage.getItem(TRANSFERS_KEY);
+    const transfersRaw: string | null = localStorage.getItem(TRANSFERS_KEY);
     if (transfersRaw) {
-      const parsed = JSON.parse(transfersRaw) as Record<string, Partial<FileTransfer>>;
+      const parsed: Record<string, Partial<FileTransfer>> = JSON.parse(transfersRaw) as Record<string, Partial<FileTransfer>>;
       for (const raw of Object.values(parsed)) {
-        const transfer = restoreTransfer(raw);
+        const transfer: FileTransfer | null = restoreTransfer(raw);
         if (transfer) state.setTransfer(transfer);
       }
     }
@@ -58,7 +58,7 @@ export async function loadPersistedTransfers(state: TransferStore): Promise<void
 
 export function persistTransfer(transfer: FileTransfer): void {
   try {
-    const raw = localStorage.getItem(TRANSFERS_KEY);
+    const raw: string | null = localStorage.getItem(TRANSFERS_KEY);
     const transfers: Record<string, Partial<FileTransfer>> = raw ? JSON.parse(raw) : {};
 
     // Serializable metadata only — no Blob or File.
@@ -91,7 +91,7 @@ export function persistTransfer(transfer: FileTransfer): void {
 
 export function persistSettings(peerCid: string, settings: FileTransferSettings): void {
   try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
+    const raw: string | null = localStorage.getItem(SETTINGS_KEY);
     const all: Record<string, FileTransferSettings> = raw ? JSON.parse(raw) : {};
     all[peerCid] = settings;
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(all));

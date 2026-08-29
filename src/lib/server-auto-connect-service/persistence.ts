@@ -22,7 +22,7 @@ import { GLOBAL_CID, LOCALDB_KEY, USER_DISCONNECTED_KEY } from './types';
  */
 export async function loadEnabledSetting(): Promise<boolean> {
   try {
-    const result = await websocketService.sendLocalDBGet(GLOBAL_CID, LOCALDB_KEY);
+    const result: { value: number[]; } | null = await websocketService.sendLocalDBGet(GLOBAL_CID, LOCALDB_KEY);
     if (result?.value) {
       const decoded: string = bytesToString(result.value);
       return decoded === 'true';
@@ -53,7 +53,7 @@ export async function saveEnabledSetting(enabled: boolean): Promise<void> {
  */
 export async function loadUserDisconnectedSessions(): Promise<Set<string>> {
   try {
-    const result = await websocketService.sendLocalDBGet(GLOBAL_CID, USER_DISCONNECTED_KEY);
+    const result: { value: number[]; } | null = await websocketService.sendLocalDBGet(GLOBAL_CID, USER_DISCONNECTED_KEY);
     if (result?.value) {
       const decoded: string = bytesToString(result.value);
       const sessions = JSON.parse(decoded);

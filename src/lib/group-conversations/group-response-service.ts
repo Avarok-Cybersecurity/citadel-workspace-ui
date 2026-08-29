@@ -21,7 +21,7 @@ import { p2pRegistrationService } from '../p2p-registration-service';
 let started = false;
 
 async function resolveSelf(): Promise<{ cid: bigint; username: string } | null> {
-  const cid = connectionManager.getConnectionInfo()?.cid;
+  const cid: bigint | undefined = connectionManager.getConnectionInfo()?.cid;
   if (cid === undefined || cid === null) return null;
 
   const tab = await getSelectedUser();
@@ -38,7 +38,7 @@ export function startGroupResponseService(): void {
 
   eventEmitter.on('websocket-message', (raw: unknown) => {
     if (!raw || typeof raw !== 'object') return;
-    const message = raw as Record<string, unknown>;
+    const message: Record<string, unknown> = raw as Record<string, unknown>;
 
     void (async (): Promise<void> => {
       const self = await resolveSelf();

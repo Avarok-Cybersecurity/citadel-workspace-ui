@@ -36,7 +36,7 @@ export async function handleTransferCancel(
   data: FileTransferCancelData & { type: MessagingLayerType.FileTransferCancel },
   _senderCid: string
 ): Promise<void> {
-  const transfer = deps.state.getTransfer(data.transfer_id);
+  const transfer: FileTransfer | undefined = deps.state.getTransfer(data.transfer_id);
   if (!transfer) return;
   // A cancel that races the completion loses: once the bytes have fully
   // arrived (or the transfer already failed), rewriting the outcome would

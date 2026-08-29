@@ -19,7 +19,7 @@ beforeAll(() => {
   }
 });
 
-const components = {} as never;
+const components: never = {} as never;
 
 describe('a document whose hash does not match', () => {
   it('is not rendered, and says why', async () => {

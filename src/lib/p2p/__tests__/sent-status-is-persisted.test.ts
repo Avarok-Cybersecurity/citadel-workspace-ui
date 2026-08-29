@@ -23,14 +23,14 @@ const wireSend = vi.fn();
 // between them — including the status bookkeeping under test — stays real.
 vi.mock('@/lib/p2p/message-send-operations', () => ({
   sendP2PCommand: (_config: unknown, peerCid: bigint, command: unknown) => wireSend(peerCid, command),
-  sendRawMessage: async () => undefined,
-  sendMessageAck: async () => undefined,
-  sendRawBytes: async () => undefined,
+  sendRawMessage: async (): Promise<undefined> => undefined,
+  sendMessageAck: async (): Promise<undefined> => undefined,
+  sendRawBytes: async (): Promise<undefined> => undefined,
 }));
 vi.mock('@/lib/p2p-auto-connect-service', () => ({
   p2pAutoConnectService: {
     isPeerConnected: async (): Promise<boolean> => true,
-    ensurePeerConnectedInBackground: async () => undefined,
+    ensurePeerConnectedInBackground: async (): Promise<undefined> => undefined,
   },
 }));
 
@@ -100,7 +100,7 @@ describe('terminal send status', () => {
       throw new Error('peer unreachable');
     });
     const { config } = makeConfig();
-    config.updateMessageInPages = async () => {
+    config.updateMessageInPages = async (): Promise<never> => {
       throw new Error('quota exceeded');
     };
 

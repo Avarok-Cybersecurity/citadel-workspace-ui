@@ -121,7 +121,7 @@ export function subscribeToConversationEvents({
     if (messagePeerCid === peerCid) {
       setMessages(prev => {
         if (prev.some(m => m.id === messageId)) return prev;
-        const newMessage = eventMessage || (() => {
+        const newMessage: P2PMessage | undefined = eventMessage || ((): P2PMessage | undefined => {
           const conversation = messenger.getConversation(peerCid);
           return conversation?.messages.find(m => m.id === messageId);
         })();

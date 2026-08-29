@@ -71,7 +71,7 @@ export function TreeNodesSection({
   const navigate = useNavigate();
   const { setOpenMobile } = useSidebar();
 
-  const treeData = useMemo(() => {
+  const treeData: TreeNode | null = useMemo((): TreeNode | null => {
     if (tree) return tree;
     if (nodes) return buildTreeFromNodes(nodes);
     return null;
@@ -81,7 +81,7 @@ export function TreeNodesSection({
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter tree based on search query
-  const filteredTreeData = useMemo(() => {
+  const filteredTreeData: TreeNode | null = useMemo((): TreeNode | null => {
     if (!treeData || !searchQuery.trim()) return treeData;
     // Folded, not merely lower-cased: "jose" has to find "José". The sort
     // beside this already uses localeCompare, so without folding a list could
@@ -163,7 +163,7 @@ export function TreeNodesSection({
 
   // Empty state
   // Display data uses filtered tree when searching
-  const displayTreeData = searchQuery.trim() ? filteredTreeData : treeData;
+  const displayTreeData: TreeNode | null = searchQuery.trim() ? filteredTreeData : treeData;
 
   if (!isLoading && !treeData) {
     return (

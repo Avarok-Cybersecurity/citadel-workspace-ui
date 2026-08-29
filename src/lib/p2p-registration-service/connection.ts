@@ -121,7 +121,7 @@ export async function syncPeerConnectionsFromSession(
  */
 export async function getAutoAcceptSetting(cidOverride?: bigint): Promise<boolean> {
   try {
-    const currentCid = cidOverride ?? await getCurrentCid();
+    const currentCid: bigint | null = cidOverride ?? await getCurrentCid();
     if (!currentCid || currentCid === 0n) return false;
 
     const result = await websocketService.sendLocalDBGet(currentCid, AUTO_ACCEPT_KEY);
@@ -143,7 +143,7 @@ export async function getAutoAcceptSetting(cidOverride?: bigint): Promise<boolea
  * Set auto-accept setting in LocalDB.
  */
 export async function setAutoAcceptSetting(autoAccept: boolean): Promise<void> {
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   if (!currentCid || currentCid === 0n) {
     throw new Error('No active user session');
   }
@@ -194,7 +194,7 @@ export async function acceptRegistrationRequest(
   pendingRequests: Map<string, PendingRequestEntry>,
   registeredPeers?: Map<bigint, Peer>
 ): Promise<void> {
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   if (!currentCid || currentCid === 0n) {
     throw new Error('No active user session');
   }

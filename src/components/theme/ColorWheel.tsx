@@ -40,7 +40,7 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
   }, [value]);
 
   const commitHex: () => void = useCallback((): void => {
-    const parsed = fromHex(hexDraft);
+    const parsed: HslColor | null = fromHex(hexDraft);
     if (parsed) onChange(parsed);
     // Invalid input snaps back to the current colour rather than clearing —
     // silently emptying the field would lose the value the user was editing.
@@ -52,7 +52,7 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
 
   const hueFromPointer = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      const rect = ringRef.current?.getBoundingClientRect();
+      const rect: DOMRect | undefined = ringRef.current?.getBoundingClientRect();
       if (!rect) return;
       const x: number = event.clientX - rect.left - rect.width / 2;
       const y: number = event.clientY - rect.top - rect.height / 2;
@@ -66,7 +66,7 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
 
   const slFromPointer = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      const rect = squareRef.current?.getBoundingClientRect();
+      const rect: DOMRect | undefined = squareRef.current?.getBoundingClientRect();
       if (!rect) return;
       const x: number = clamp01((event.clientX - rect.left) / rect.width);
       const y: number = clamp01((event.clientY - rect.top) / rect.height);
@@ -162,7 +162,7 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
               ArrowUp: { l: Math.min(100, value.l + step) },
               ArrowDown: { l: Math.max(0, value.l - step) },
             };
-            const move = moves[e.key];
+            const move: Partial<HslColor> = moves[e.key];
             if (move) {
               e.preventDefault();
               onChange({ ...value, ...move });
@@ -193,7 +193,7 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
             data-testid="color-wheel-native"
             value={toHex(value)}
             onChange={(e) => {
-              const parsed = fromHex(e.target.value);
+              const parsed: HslColor | null = fromHex(e.target.value);
               if (parsed) onChange(parsed);
             }}
             // The native swatch is unstyleable across browsers, so it is scaled

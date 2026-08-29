@@ -86,7 +86,7 @@ describe('OfflineBanner', () => {
     setOnline(false);
     render(<OfflineBanner />);
 
-    const banner = screen.getByTestId('offline-banner');
+    const banner: HTMLElement = screen.getByTestId('offline-banner');
     expect(banner).toHaveAttribute('role', 'status');
     expect(banner).toHaveAttribute('aria-live', 'polite');
   });

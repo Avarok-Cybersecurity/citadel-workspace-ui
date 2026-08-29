@@ -22,7 +22,7 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const key = myCid && peerCid ? peerPairKey(myCid, peerCid) : null;
+  const key: string | null = myCid && peerCid ? peerPairKey(myCid, peerCid) : null;
 
   const storageUsed: number = useMemo(() => {
     if (!tree) return 0;
@@ -85,7 +85,7 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     await revfsService.uploadFileToPeer(myCid, peerCid, dirPath, fileName, metadata, content);
   }, [myCid, peerCid]);
 
-  const downloadFile = useCallback(async (filePath: string) => {
+  const downloadFile = useCallback(async (filePath: string): Promise<string | undefined> => {
     if (!myCid || !peerCid) return undefined;
     return revfsService.downloadFileFromPeer(myCid, peerCid, filePath);
   }, [myCid, peerCid]);

@@ -15,7 +15,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const h = vi.hoisted(() => ({ stored: [] as unknown[], resolveLoad: (): void => {} }));
 
 vi.mock('../group-persistence', () => ({
-  loadPersistedGroups: () =>
+  loadPersistedGroups: (): Promise<unknown> =>
     new Promise((resolve) => {
       // Held open so a test can observe the window the page used to fall into.
       h.resolveLoad = (): void => resolve(h.stored);

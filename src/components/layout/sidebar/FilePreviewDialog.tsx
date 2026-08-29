@@ -48,7 +48,7 @@ interface FilePreviewDialogProps {
 }
 
 const getFileIcon = (fileName: string) => {
-  const extension = fileName.split('.').pop()?.toLowerCase();
+  const extension: string | undefined = fileName.split('.').pop()?.toLowerCase();
 
   switch (extension) {
     case 'xlsx':

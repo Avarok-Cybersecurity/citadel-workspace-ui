@@ -55,7 +55,7 @@ export function resolveTransferForProtocolEvent(
   event: { transferId?: string; cid: bigint; peerCid: bigint; direction: 'outgoing' | 'incoming' | 'unknown' }
 ): FileTransfer | undefined {
   if (event.transferId) {
-    const exact = state.getTransfer(event.transferId);
+    const exact: FileTransfer | undefined = state.getTransfer(event.transferId);
     if (exact) return exact;
   }
 
@@ -83,7 +83,7 @@ export async function handleProtocolProgress(
   deps: P2PTransferDeps,
   event: TransferProgressEvent
 ): Promise<void> {
-  const transfer = resolveTransferForProtocolEvent(deps.state, event);
+  const transfer: FileTransfer | undefined = resolveTransferForProtocolEvent(deps.state, event);
   if (!transfer || isTerminalTransferState(transfer.state)) return;
 
   if (transfer.state !== 'transferring') {
@@ -117,7 +117,7 @@ export async function handleProtocolComplete(
   deps: P2PTransferDeps,
   event: TransferCompleteEvent
 ): Promise<void> {
-  const transfer = resolveTransferForProtocolEvent(deps.state, event);
+  const transfer: FileTransfer | undefined = resolveTransferForProtocolEvent(deps.state, event);
   if (!transfer) return;
   await applyTransferOutcome(deps, transfer.id, {
     success: event.success,
@@ -140,7 +140,7 @@ export async function handleProtocolStatus(
   // Status notifications always carry the object_id; if it never joined to a
   // transfer of ours, the response belongs to another consumer (e.g. revfs).
   if (!event.transferId) return;
-  const transfer = deps.state.getTransfer(event.transferId);
+  const transfer: FileTransfer | undefined = deps.state.getTransfer(event.transferId);
   if (!transfer) return;
 
   if (!event.success) {

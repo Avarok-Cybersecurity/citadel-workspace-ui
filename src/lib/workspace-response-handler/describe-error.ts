@@ -48,7 +48,7 @@ export function describeWorkspaceError(wsError: unknown): string {
     const [variant, detail] = Object.entries(wsError as Record<string, unknown>)[0] ?? [];
 
     if (variant === 'PermissionDenied' && typeof detail === 'string') {
-      const permission = permissionFrom(detail);
+      const permission: string | undefined = permissionFrom(detail);
       if (permission) return PERMISSION_SENTENCE[permission];
       return 'You do not have permission to do that here.';
     }

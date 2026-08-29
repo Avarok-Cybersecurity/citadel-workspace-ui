@@ -85,7 +85,7 @@ export function WorkspaceAppearanceModal({
               radius={draft.radius}
               workspaceName={workspaceName}
               selectedToken={selectedToken}
-              onSelectToken={canEdit ? (token): void => setSelection({ kind: 'token', token }) : () => undefined}
+              onSelectToken={canEdit ? (token): void => setSelection({ kind: 'token', token }) : (): undefined => undefined}
             />
 
             <div className="space-y-2">

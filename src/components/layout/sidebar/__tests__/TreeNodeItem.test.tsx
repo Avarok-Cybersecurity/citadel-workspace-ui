@@ -68,15 +68,15 @@ describe('TreeNodeItem', () => {
   it('renders the expand toggle as a real button', () => {
     renderNode();
 
-    const toggle = screen.getByTestId('tree-node-toggle-office-1');
+    const toggle: HTMLElement = screen.getByTestId('tree-node-toggle-office-1');
     expect(toggle.tagName).toBe('BUTTON');
   });
 
   it('keeps the toggle outside the row button', () => {
     renderNode();
 
-    const row = screen.getByTestId('tree-node-office-1');
-    const toggle = screen.getByTestId('tree-node-toggle-office-1');
+    const row: HTMLElement = screen.getByTestId('tree-node-office-1');
+    const toggle: HTMLElement = screen.getByTestId('tree-node-toggle-office-1');
 
     // The regression: a focusable control inside another control.
     expect(row.contains(toggle)).toBe(false);

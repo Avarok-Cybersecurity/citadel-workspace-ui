@@ -47,7 +47,7 @@ export function GeneralSettingsTab() {
   // MetadataValue is a tagged enum: { type: "String", content: "..." }
   const handleProfileUpdate = useCallback((data: { user: User }): void => {
     const avatarMeta = data.user.metadata?.avatar;
-    const avatar = (avatarMeta && 'content' in avatarMeta && typeof avatarMeta.content === 'string') ? avatarMeta.content : undefined;
+    const avatar: string | undefined = (avatarMeta && 'content' in avatarMeta && typeof avatarMeta.content === 'string') ? avatarMeta.content : undefined;
     if (avatar) {
       setAvatarData(avatar);
       setOriginalAvatarData(avatar);

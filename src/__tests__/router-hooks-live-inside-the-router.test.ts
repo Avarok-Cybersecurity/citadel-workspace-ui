@@ -70,7 +70,7 @@ function reachable(entry: string): string[] {
   const seen: Set<string> = new Set<string>();
   const queue: string[] = [entry];
   while (queue.length) {
-    const file = queue.pop();
+    const file: string | undefined = queue.pop();
     if (!file || seen.has(file)) continue;
     seen.add(file);
     const text: string = readFileSync(file, 'utf8');
@@ -104,7 +104,7 @@ describe('components mounted above the router', () => {
 
     const offenders: string[] = [];
     for (const name of above) {
-      const spec = imports.get(name);
+      const spec: string | undefined = imports.get(name);
       if (!spec) continue;
       const entry: string | null = resolveLocal(join(SRC, 'App.tsx'), spec);
       if (!entry) continue;

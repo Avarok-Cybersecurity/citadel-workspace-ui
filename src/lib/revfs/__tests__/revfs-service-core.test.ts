@@ -163,7 +163,7 @@ describe('RevfsService', () => {
         virtualDirectory: '/vfs/doc', uploadedByCid: ALICE,
       };
       await service.uploadFileToPeer(ALICE, BOB, '/Sent Files', 'doc.pdf', meta, new Uint8Array([1, 2, 3]));
-      const path = await service.downloadFileFromPeer(ALICE, BOB, '/Sent Files/doc.pdf');
+      const path: string | undefined = await service.downloadFileFromPeer(ALICE, BOB, '/Sent Files/doc.pdf');
       expect(path).toBe('/tmp/file');
     });
 

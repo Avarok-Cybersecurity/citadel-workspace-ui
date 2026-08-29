@@ -38,7 +38,7 @@ describe('MemberListItem', () => {
   it('exposes the row as a named control that selects the member', () => {
     const { onSelect } = renderRow();
 
-    const row = screen.getByRole('button', { name: 'View profile for Ada Lovelace' });
+    const row: HTMLElement = screen.getByRole('button', { name: 'View profile for Ada Lovelace' });
     row.click();
 
     expect(onSelect).toHaveBeenCalledWith('member-1');
@@ -47,8 +47,8 @@ describe('MemberListItem', () => {
   it('keeps the action buttons outside the row control', () => {
     renderRow();
 
-    const row = screen.getByRole('button', { name: 'View profile for Ada Lovelace' });
-    const message = screen.getByRole('button', { name: 'Message Ada Lovelace' });
+    const row: HTMLElement = screen.getByRole('button', { name: 'View profile for Ada Lovelace' });
+    const message: HTMLElement = screen.getByRole('button', { name: 'Message Ada Lovelace' });
 
     // The regression this guards: if the actions end up INSIDE the row button,
     // the row claims to be one control while containing others, and which one a

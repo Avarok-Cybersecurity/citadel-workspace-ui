@@ -22,7 +22,7 @@ export function useCallDuration(running: boolean): string {
     // One second is the resolution the display has; a faster interval would
     // re-render the call surface for no visible difference.
     const tick = (): void => {
-      const started = startedAt.current;
+      const started: number | null = startedAt.current;
       if (started === null) return;
       const seconds: number = Math.floor((Date.now() - started) / 1000);
       const mm: string = String(Math.floor(seconds / 60)).padStart(2, '0');

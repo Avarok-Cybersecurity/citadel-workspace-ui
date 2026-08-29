@@ -61,7 +61,7 @@ class InstanceManager {
     // Through the guarded accessors: `sessionStorage` throws outright under
     // strict privacy settings and some embedded contexts, and this runs during
     // boot. Unguarded it rendered a blank page -- see safe-session-storage.
-    const stored = sessionGet(INSTANCE_ID_KEY);
+    const stored: string | null = sessionGet(INSTANCE_ID_KEY);
     if (stored) return stored;
 
     const minted: string = mintInstanceId();
@@ -155,7 +155,7 @@ class InstanceManager {
   // ============ Setters ============
 
   setCid(cid: bigint | null): void {
-    const previousCid = this._cid;
+    const previousCid: bigint | null = this._cid;
     this._cid = cid;
     this.knownInstances.set(this._instanceId, cid);
 

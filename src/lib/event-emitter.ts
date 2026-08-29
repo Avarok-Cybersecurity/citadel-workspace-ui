@@ -56,7 +56,7 @@ export class EventEmitter {
 
    
   emit<T = unknown>(event: string, payload?: T): void {
-    const handlers = this.listeners.get(event);
+    const handlers: Set<StoredHandler> | undefined = this.listeners.get(event);
     if (handlers) {
       handlers.forEach(handler => {
         try {
@@ -108,7 +108,7 @@ export class EventEmitter {
       this.listeners.delete(event);
     } else {
       // Remove specific handler
-      const handlers = this.listeners.get(event);
+      const handlers: Set<StoredHandler> | undefined = this.listeners.get(event);
       if (handlers) {
         handlers.delete(handler as StoredHandler);
         if (handlers.size === 0) {

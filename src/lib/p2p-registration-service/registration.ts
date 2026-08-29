@@ -32,7 +32,7 @@ export interface RegistrationContext {
 
 /** Route an incoming WebSocket message to the appropriate handler. */
 export function handleWebSocketMessage(message: WebSocketMessage, ctx: RegistrationContext): void {
-  const msg = message as Record<string, Record<string, unknown> | undefined>;
+  const msg: Record<string, Record<string, unknown> | undefined> = message as Record<string, Record<string, unknown> | undefined>;
   if (msg.ListAllPeersResponse) {
     resolveRequest(ctx.pendingRequests, msg.ListAllPeersResponse.request_id as string, msg.ListAllPeersResponse);
   } else if (msg.ListAllPeersFailure) {
@@ -53,12 +53,12 @@ export function handleWebSocketMessage(message: WebSocketMessage, ctx: Registrat
 }
 
 function resolveRequest(pending: Map<string, PendingRequestEntry>, requestId: string, data: Record<string, unknown>): void {
-  const entry = pending.get(requestId);
+  const entry: PendingRequestEntry | undefined = pending.get(requestId);
   if (entry) { entry.resolve(data); pending.delete(requestId); }
 }
 
 function rejectRequest(pending: Map<string, PendingRequestEntry>, requestId: string, errorMsg: string): void {
-  const entry = pending.get(requestId);
+  const entry: PendingRequestEntry | undefined = pending.get(requestId);
   if (entry) { entry.reject(new Error(errorMsg)); pending.delete(requestId); }
 }
 
@@ -89,8 +89,8 @@ function broadcastPeerUpdate(peerCid: bigint, username: string, flags: { isOutgo
 
 function handlePeerRegisterSuccess(data: Record<string, unknown>, ctx: RegistrationContext): void {
   resolveRequest(ctx.pendingRequests, data.request_id as string, data);
-  const peerCid = data.peer_cid as bigint | undefined;
-  const peerUsername = data.peer_username as string | undefined;
+  const peerCid: bigint | undefined = data.peer_cid as bigint | undefined;
+  const peerUsername: string | undefined = data.peer_username as string | undefined;
   if (peerCid !== undefined) {
     ctx.outgoingRegistrations.add(peerCid);
     const peer: Peer = ensurePeerRegistered(ctx, peerCid, peerUsername);
@@ -102,7 +102,7 @@ function handlePeerRegisterSuccess(data: Record<string, unknown>, ctx: Registrat
 function handlePeerRegisterFailure(data: Record<string, unknown>, ctx: RegistrationContext): void {
   const requestId: string = data.request_id as string;
   const errorMsg: string = (data.message as string) || 'Failed to register peer';
-  const peerCid = data.peer_cid as bigint | undefined;
+  const peerCid: bigint | undefined = data.peer_cid as bigint | undefined;
 
   if (errorMsg.includes('already registered')) {
     debugLog('P2PRegistrationService', `[P2P] Peer ${peerCid?.toString()} already registered - treating as success`);
@@ -119,9 +119,9 @@ function handlePeerRegisterFailure(data: Record<string, unknown>, ctx: Registrat
 }
 
 function handlePeerRegisterNotification(data: Record<string, unknown>, ctx: RegistrationContext): void {
-  const notificationCid = data.cid as bigint | undefined;
-  const peerCid = data.peer_cid as bigint | undefined;
-  const peerUsername = data.peer_username as string | undefined;
+  const notificationCid: bigint | undefined = data.cid as bigint | undefined;
+  const peerCid: bigint | undefined = data.peer_cid as bigint | undefined;
+  const peerUsername: string | undefined = data.peer_username as string | undefined;
   debugLog('P2PRegistrationService', '[P2P] Peer registered with us:', {
     cid: notificationCid?.toString(), peer_cid: peerCid?.toString(),
     peer_username: peerUsername, request_id: data.request_id
@@ -164,7 +164,7 @@ export async function registerPeer(
   peerCid: bigint, options: PeerRegistrationOptions,
   pendingRequests: Map<string, PendingRequestEntry>
 ): Promise<void> {
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   if (!currentCid || currentCid === 0n) throw new Error('No active user session (CID 0 is service connection)');
   if (peerCid === currentCid) throw new Error('Cannot register with self');
 
@@ -178,7 +178,7 @@ export async function registerPeer(
       peer_session_password: null
     }
   };
-  const responsePromise = new Promise<Record<string, unknown>>((resolve, reject): void => {
+  const responsePromise: Promise<Record<string, unknown>> = new Promise<Record<string, unknown>>((resolve, reject): void => {
     pendingRequests.set(requestId, { resolve, reject });
     setTimeout(() => {
       if (pendingRequests.has(requestId)) {

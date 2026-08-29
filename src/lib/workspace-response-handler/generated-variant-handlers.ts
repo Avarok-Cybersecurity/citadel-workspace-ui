@@ -63,8 +63,8 @@ export function handleGeneratedVariants(
     const payload = response.Members as
       | { domain_id?: string | null; members: Record<string, unknown>[] }
       | Record<string, unknown>[];
-    const rawMembers = Array.isArray(payload) ? payload : payload.members;
-    const domainId = Array.isArray(payload) ? undefined : payload.domain_id ?? undefined;
+    const rawMembers: Record<string, unknown>[] = Array.isArray(payload) ? payload : payload.members;
+    const domainId: string | undefined = Array.isArray(payload) ? undefined : payload.domain_id ?? undefined;
 
     eventEmitter.emit('members:loaded', {
       members: rawMembers.map((m) => mapWasmMember(m)),

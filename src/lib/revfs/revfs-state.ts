@@ -71,7 +71,7 @@ export class RevfsState {
   }
 
   resolveAck(opId: string, success: boolean): void {
-    const ack = this.pendingAcks.get(opId);
+    const ack: PendingAck | undefined = this.pendingAcks.get(opId);
     if (ack) {
       clearTimeout(ack.timeout);
       this.pendingAcks.delete(opId);

@@ -69,7 +69,7 @@ function mapTransferToDisplay(
 }
 
 const getFileIcon = (fileName: string) => {
-  const extension = fileName.split('.').pop()?.toLowerCase();
+  const extension: string | undefined = fileName.split('.').pop()?.toLowerCase();
 
   switch (extension) {
     case 'xlsx':
@@ -106,7 +106,7 @@ export const FilesSection = () => {
       .filter(t => t.state === 'complete' && t.isIncoming)
       .sort((a, b) => b.updatedAt - a.updatedAt); // Most recent first
 
-    const usernameForCid = (cid: string) =>
+    const usernameForCid = (cid: string): string | undefined =>
       registeredPeers.find(peer => peer.cid.toString() === cid)?.username;
 
     setFiles(downloads.map(transfer => mapTransferToDisplay(transfer, usernameForCid)));

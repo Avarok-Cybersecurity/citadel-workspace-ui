@@ -134,7 +134,7 @@ export function tryParseCid(value: string | undefined | null): bigint | undefine
   // slip through as "valid" CIDs and get used for routing / persisted
   // sessions. Require a plain non-empty decimal string and a positive result
   // within the u64 range (a longer digit string can't be a real CID).
-  const trimmed = value?.trim();
+  const trimmed: string | undefined = value?.trim();
   if (!trimmed || !/^[0-9]+$/.test(trimmed)) {
     return undefined;
   }

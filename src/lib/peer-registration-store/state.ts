@@ -17,7 +17,7 @@ import type { PendingPeerRequest, OutgoingPeerRequest } from './types';
  *           3) tab context (async), 4) tab session (async)
  */
 export async function getCurrentSessionCid(): Promise<bigint | null> {
-  const instanceCid = instanceManager.cid;
+  const instanceCid: bigint | null = instanceManager.cid;
   if (instanceCid) {
     return instanceCid;
   }
@@ -54,7 +54,7 @@ export async function getCurrentSessionCid(): Promise<bigint | null> {
 export async function getFilteredPendingRequests(
   pendingRequests: PendingPeerRequest[]
 ): Promise<PendingPeerRequest[]> {
-  const currentCid = await getCurrentSessionCid();
+  const currentCid: bigint | null = await getCurrentSessionCid();
   if (!currentCid) {
     return [...pendingRequests];
   }
@@ -67,7 +67,7 @@ export async function getFilteredPendingRequests(
 export async function getFilteredPendingCount(
   pendingRequests: PendingPeerRequest[]
 ): Promise<number> {
-  const currentCid = await getCurrentSessionCid();
+  const currentCid: bigint | null = await getCurrentSessionCid();
   const allCount: number = pendingRequests.length;
   if (!currentCid) {
     debugLog('PeerRegistrationStore', `[P2P] getPendingCount: no currentCid, returning allCount=${allCount}`);
@@ -112,7 +112,7 @@ export function hasOutgoingRequestTo(
 export async function getFilteredOutgoingRequests(
   outgoingRequests: OutgoingPeerRequest[]
 ): Promise<OutgoingPeerRequest[]> {
-  const currentCid = await getCurrentSessionCid();
+  const currentCid: bigint | null = await getCurrentSessionCid();
   if (!currentCid) {
     return [...outgoingRequests];
   }

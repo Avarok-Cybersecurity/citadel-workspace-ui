@@ -70,7 +70,7 @@ export async function handleTransferRequest(
   getAutoAccept: (cid: string) => boolean,
   acceptTransfer: (id: string) => Promise<void>
 ): Promise<void> {
-  const currentCid = await deps.io.getCurrentCid();
+  const currentCid: bigint | null = await deps.io.getCurrentCid();
   if (!currentCid) return;
 
   const transfer: FileTransfer = {
@@ -127,7 +127,7 @@ export async function handleTransferResponse(
   data: FileTransferResponseData & { type: MessagingLayerType.FileTransferResponse },
   _senderCid: string
 ): Promise<void> {
-  const transfer = deps.state.getTransfer(data.transfer_id);
+  const transfer: FileTransfer | undefined = deps.state.getTransfer(data.transfer_id);
   if (!transfer || transfer.isIncoming) return;
   // Never regress a terminal transfer: a late or duplicated response must not
   // resurrect a bubble that already completed, failed or was cancelled.

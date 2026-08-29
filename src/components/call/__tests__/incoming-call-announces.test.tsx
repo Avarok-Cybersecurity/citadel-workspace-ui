@@ -20,7 +20,7 @@ describe('IncomingCallCard', () => {
       <IncomingCallCard callerName="Ada" media={media} onAccept={vi.fn()} onDecline={vi.fn()} />,
     );
 
-    const region = screen.getByRole('alert');
+    const region: HTMLElement = screen.getByRole('alert');
     // Deliberately empty on mount: a live region that arrives WITH its content
     // is frequently not announced, because AT watches it for changes.
     expect(region).toHaveTextContent('');

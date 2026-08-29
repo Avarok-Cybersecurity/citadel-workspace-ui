@@ -37,7 +37,7 @@ export async function connectToPeer(
     return;
   }
 
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   if (!currentCid) {
     debugLog('P2PAutoConnectService', 'connectToPeer: ABORT - no currentCid');
     return;
@@ -117,7 +117,7 @@ export async function connectToPeer(
       debugLog('P2PAutoConnectService', `P2PAutoConnect: Peer ${peerCid.toString().slice(0, 8)}... already connected (treating as success)`);
       state.removePendingConnection(peerCid);
       state.cancelRetry(peerCid);
-      const cid = await getCurrentCid();
+      const cid: bigint | null = await getCurrentCid();
       if (cid) {
         state.setPeerConnectedLocal(cid, peerCid);
       }
@@ -142,7 +142,7 @@ export async function connectToPeer(
  * Connect to all registered peers (on startup or after accept).
  */
 export async function connectToAllRegisteredPeers(state: AutoConnectState): Promise<void> {
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   debugLog('P2PAutoConnectService', `connectToAllRegisteredPeers: currentCid=${currentCid?.toString().slice(0, 8) || 'null'}`);
 
   if (!currentCid || currentCid === 0n) {
@@ -175,7 +175,7 @@ export async function connectToAllRegisteredPeers(state: AutoConnectState): Prom
 
   debugLog('P2PAutoConnectService', `connectToAllRegisteredPeers: launching connections to ${registeredPeers.length} peers, forceInitiator=${shouldForceInitiator}`);
   for (const peer of registeredPeers) {
-    const peerCid = peer.cid;
+    const peerCid: bigint | undefined = peer.cid;
     if (peerCid && peerCid !== currentCid) {
       connectToPeer(state, peerCid, shouldForceInitiator).catch((err) => {
         debugLog('P2PAutoConnectService', `Failed to initiate connection to ${peerCid}:`, err);
@@ -238,7 +238,7 @@ export function handlePeerDisconnect(state: AutoConnectState, localCid: bigint, 
 
 /** Clear a peer from connected state (without emitting events). */
 export async function clearPeerFromConnected(state: AutoConnectState, peerCid: bigint): Promise<void> {
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   if (currentCid) {
     state.setPeerDisconnected(currentCid, peerCid);
   }

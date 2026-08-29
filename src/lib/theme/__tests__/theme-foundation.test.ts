@@ -252,7 +252,7 @@ describe('css variable mapping', () => {
   });
 
   it('applies and clears every token on an element', () => {
-    const el = document.createElement('div');
+    const el: HTMLDivElement = document.createElement('div');
 
     applyTheme(defaultTheme(), 'dark', el);
     expect(el.style.getPropertyValue('--background')).toBe('235 18% 13%');
@@ -264,7 +264,7 @@ describe('css variable mapping', () => {
   });
 
   it('applies the mode it is asked for, not the one the document is in', () => {
-    const el = document.createElement('div');
+    const el: HTMLDivElement = document.createElement('div');
 
     applyTheme(defaultTheme(), 'light', el);
 

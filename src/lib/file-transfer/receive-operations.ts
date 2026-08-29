@@ -111,7 +111,7 @@ export function createTransferRequestHandler(
   callback: (event: TransferRequestEvent) => void
 ): (message: Record<string, unknown>) => void {
   return (message: Record<string, unknown>) => {
-    const notification = message.FileTransferRequestNotification as
+    const notification: FileTransferRequestNotification | undefined = message.FileTransferRequestNotification as
       | FileTransferRequestNotification
       | undefined;
     if (!notification) return;
@@ -144,7 +144,7 @@ export function createProgressHandler(
   correlation: TickCorrelation
 ): (message: Record<string, unknown>) => void {
   return (message: Record<string, unknown>) => {
-    const notification = message.FileTransferTickNotification as
+    const notification: FileTransferTickNotification | undefined = message.FileTransferTickNotification as
       | FileTransferTickNotification
       | undefined;
     if (!notification) return;
@@ -170,7 +170,7 @@ export function createCompleteHandler(
   correlation: TickCorrelation
 ): (message: Record<string, unknown>) => void {
   return (message: Record<string, unknown>) => {
-    const notification = message.FileTransferTickNotification as
+    const notification: FileTransferTickNotification | undefined = message.FileTransferTickNotification as
       | FileTransferTickNotification
       | undefined;
     if (!notification) return;
@@ -195,13 +195,13 @@ export function createStatusChangeHandler(
   correlation: TickCorrelation
 ): (message: Record<string, unknown>) => void {
   return (message: Record<string, unknown>) => {
-    const notification = message.FileTransferStatusNotification as
+    const notification: FileTransferStatusNotification | undefined = message.FileTransferStatusNotification as
       | FileTransferStatusNotification
       | undefined;
     if (!notification) return;
 
     const objectId: string = notification.object_id.toString();
-    const transferId = correlation.objectIdToTransferId.get(objectId);
+    const transferId: string | undefined = correlation.objectIdToTransferId.get(objectId);
     // The status notification is the one recipient-side message that carries
     // BOTH the object_id and the accept request's request_id, so it is a
     // second chance to join the tick stream to its transfer (belt to

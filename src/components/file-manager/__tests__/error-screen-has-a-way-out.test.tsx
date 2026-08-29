@@ -19,7 +19,7 @@ describe('file manager error screen', () => {
     const onRetry = vi.fn();
     render(<ErrorScreen error="Request timed out" onRetry={onRetry} />);
 
-    const button = screen.getByRole('button');
+    const button: HTMLElement = screen.getByRole('button');
     await userEvent.click(button);
 
     expect(onRetry).toHaveBeenCalledTimes(1);

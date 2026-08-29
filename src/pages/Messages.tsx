@@ -18,22 +18,22 @@ const Messages = () => {
   // per-page fallback. `WorkspaceView` funnels this same param through
   // `tryParseCid`, with a comment calling `params.get('channel')` "the
   // historical crash surface"; the fix was applied there and not here.
-  const channelParam = new URLSearchParams(location.search).get("channel");
-  const channel = tryParseCid(channelParam) === undefined ? null : channelParam;
+  const channelParam: string | null = new URLSearchParams(location.search).get("channel");
+  const channel: string | null = tryParseCid(channelParam) === undefined ? null : channelParam;
   const [selectedPeerCid, setSelectedPeerCid] = useState<string | null>(channel);
-  const parsedPeerCid = tryParseCid(selectedPeerCid);
+  const parsedPeerCid: bigint | undefined = tryParseCid(selectedPeerCid);
   const { registeredPeers } = useRegisteredPeers();
 
   // Get current user info
   const connectionInfo = connectionManager.getConnectionInfo();
-  const currentUserCid = connectionInfo?.cid;
+  const currentUserCid: bigint | undefined = connectionInfo?.cid;
   const currentUserName: string = connectionInfo?.username || 'You';
 
   // Resolve peer CID to username
   const selectedPeerName: string = useMemo(() => {
     if (!selectedPeerCid) return '';
     const peer = registeredPeers.find(p => p.cid === selectedPeerCid);
-    const username = peer && peer.username !== 'Unknown' ? peer.username : undefined;
+    const username: string | undefined = peer && peer.username !== 'Unknown' ? peer.username : undefined;
     // peerDisplayName, not a truncated CID: the decimal prefix is unreadable and
     // identical for peers whose CIDs share leading digits. See lib/peer-display.
     return peerDisplayName({ cid: selectedPeerCid, username });

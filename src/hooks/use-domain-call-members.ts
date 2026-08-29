@@ -37,10 +37,10 @@ export function useDomainCallMembers(domainId: string | undefined): GroupCallMem
       (payload: MembersPayload) => {
         if (!isForDomain(payload.domainId, domainId)) return;
 
-        const selfCid = connectionManager.getConnectionInfo()?.cid ?? undefined;
+        const selfCid: bigint | undefined = connectionManager.getConnectionInfo()?.cid ?? undefined;
         const callable: GroupCallMember[] = [];
         for (const user of payload.members) {
-          const cid = tryParseCid(user.id);
+          const cid: bigint | undefined = tryParseCid(user.id);
           if (cid === undefined || cid === selfCid) continue;
           callable.push({ cid, username: user.username || user.displayName || user.id });
         }

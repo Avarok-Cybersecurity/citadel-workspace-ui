@@ -72,7 +72,7 @@ export class MessageHandler {
           return;
         }
         const command: P2PCommand = deserializeP2PCommand(messageBytes);
-        const peerCidBigint = ensureBigIntOrNull(peer_cid);
+        const peerCidBigint: bigint | null = ensureBigIntOrNull(peer_cid);
         if (peerCidBigint !== null) {
           await this.handleP2PCommand(command, peerCidBigint);
         }
@@ -91,10 +91,10 @@ export class MessageHandler {
     const notification = response.MessageNotification;
     const { message: rawMessage, peer_cid, cid } = notification;
 
-    const currentCid = await this.config.getCurrentCid();
-    const peerCidBigint = ensureBigIntOrNull(peer_cid) ?? undefined;
-    const notificationCidBigint = ensureBigIntOrNull(cid) ?? undefined;
-    const effectiveCid = currentCid ?? notificationCidBigint;
+    const currentCid: bigint | null = await this.config.getCurrentCid();
+    const peerCidBigint: bigint | undefined = ensureBigIntOrNull(peer_cid) ?? undefined;
+    const notificationCidBigint: bigint | undefined = ensureBigIntOrNull(cid) ?? undefined;
+    const effectiveCid: bigint | undefined = currentCid ?? notificationCidBigint;
 
     if (!currentCid && notificationCidBigint) {
       debugLog('MessageHandler', '[P2P] WARNING: currentCid is null, using notification CID as fallback:', notificationCidBigint?.toString());

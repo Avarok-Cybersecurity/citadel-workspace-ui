@@ -114,7 +114,7 @@ export class CheckStateManager {
    * Send CheckStateResponse to a peer
    */
   public async sendCheckStateResponse(peerCid: bigint): Promise<void> {
-    const currentCid = await this.config.getCurrentCid();
+    const currentCid: bigint | null = await this.config.getCurrentCid();
     if (!currentCid) return;
 
     const response = createCheckStateResponse();
@@ -149,7 +149,7 @@ export class CheckStateManager {
     }
 
     // Share a handshake already under way rather than starting a second one.
-    const existing = this.inFlightChecks.get(peerCid);
+    const existing: Promise<void> | undefined = this.inFlightChecks.get(peerCid);
     if (existing) {
       debugLog('CheckstateManager', '[P2P] Joining in-flight CheckState for peer:', peerCid);
       return existing;
@@ -168,7 +168,7 @@ export class CheckStateManager {
   private async runCheckState(peerCid: bigint): Promise<void> {
     debugLog('CheckstateManager', '[P2P] Initiating CheckState handshake with peer:', peerCid);
 
-    const currentCid = await this.config.getCurrentCid();
+    const currentCid: bigint | null = await this.config.getCurrentCid();
     if (!currentCid) {
       throw new Error('Not connected to server');
     }

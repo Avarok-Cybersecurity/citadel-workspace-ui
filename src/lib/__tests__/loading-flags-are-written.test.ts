@@ -23,7 +23,7 @@ vi.mock('@/lib/workspace-response-handler', () => ({
 import { listNodes } from '@/lib/workspace-service/node-operations';
 import { listMembers } from '@/lib/workspace-service/member-operations';
 
-const sender = { currentCid: 1n, sendProtocolRequest: async () => undefined } as never;
+const sender: never = { currentCid: 1n, sendProtocolRequest: async (): Promise<undefined> => undefined } as never;
 
 describe('a list request announces that it is loading', () => {
   beforeEach(() => emitLoadingEvent.mockClear());

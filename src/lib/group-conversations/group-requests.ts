@@ -15,7 +15,7 @@ import { groupIdToKey } from './group-key';
 
 async function requireCid(): Promise<bigint> {
   const connectionInfo = (await import('../connection')).connectionManager.getConnectionInfo();
-  const cid = connectionInfo?.cid || null;
+  const cid: bigint | null = connectionInfo?.cid || null;
   if (!cid) {
     throw new Error('Not connected to server');
   }

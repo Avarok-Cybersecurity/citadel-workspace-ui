@@ -41,7 +41,7 @@ export function findPendingRequest(
   requests: ConnectionRequest[],
   requestId: string
 ): ConnectionRequest {
-  const request = requests.find(req => req.id === requestId);
+  const request: ConnectionRequest | undefined = requests.find(req => req.id === requestId);
   if (!request) {
     throw new Error(`Connection request ${requestId} not found`);
   }

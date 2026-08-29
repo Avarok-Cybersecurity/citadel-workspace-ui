@@ -49,7 +49,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     e.preventDefault();
-    const file = e.target.files?.[0];
+    const file: File | undefined = e.target.files?.[0];
     if (file) {
       runAsyncSetup(async () => {
         await handleFile(file);

@@ -80,7 +80,7 @@ export function useVFSSelection(): UseVFSSelectionResult {
     setLastSelectedPath(null);
   }, []);
 
-  const isSelected = useCallback((path: string) => {
+  const isSelected: (path: string) => boolean = useCallback((path: string) => {
     return selectedPaths.has(path);
   }, [selectedPaths]);
 
@@ -89,7 +89,7 @@ export function useVFSSelection(): UseVFSSelectionResult {
   const getSelectedNodes: (tree: RevfsNode) => RevfsNode[] = useCallback((tree: RevfsNode): RevfsNode[] => {
     const nodes: RevfsNode[] = [];
     for (const path of selectedPaths) {
-      const node = findNodeByPath(tree, path);
+      const node: RevfsNode | null = findNodeByPath(tree, path);
       if (node) nodes.push(node);
     }
     return nodes;

@@ -22,7 +22,7 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
 
       // Workspace loaded event
       await workspaceEvents.onWorkspaceEvent('workspace:loaded', async (payload) => {
-        const rawMetadata = payload.workspace.metadata;
+        const rawMetadata: Record<string, unknown> | undefined = payload.workspace.metadata;
 
         // Parse metadata as JSON to check initialization status
         let isInitialized = false;
@@ -70,7 +70,7 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
 
         if (currentUser) {
           const storedSession = await connectionManager.getTabSelectedSession();
-          const role = storedSession?.role;
+          const role: string | undefined = storedSession?.role;
 
           setState(prev => ({
             ...prev,

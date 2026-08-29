@@ -140,7 +140,7 @@ export class WebSocketServiceCore {
     // memory if a future caller invoked this method on an active
     // connection (no current callers, but the method's name commits to
     // a full teardown).
-    const client = this.client;
+    const client: WorkspaceClient | null = this.client;
     if (client) {
       client.stopMessageProcessing();
       try {

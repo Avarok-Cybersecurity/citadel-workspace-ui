@@ -64,7 +64,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   );
 
   // Determine the domain ID for permission checks
-  const domainId = nodeId;
+  const domainId: string | undefined = nodeId;
 
   // Check if user can edit the MDX content using the permissions system
   const { allowed: canEditMdx, reason: editDeniedReason } = usePermission(
@@ -157,7 +157,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
 
   // Check if chat is enabled for this office/room
   const chatEnabled = entityData?.chat_enabled ?? false;
-  const chatChannelId = entityData?.chat_channel_id;
+  const chatChannelId: string | null | undefined = entityData?.chat_channel_id;
 
   // Get current user info from workspace state OR connection manager
   // The workspace state currentUser may not be populated yet during initial render

@@ -127,7 +127,7 @@ export function findNode(tree: RevfsNode, path: string): RevfsNode | null {
   if (tree.path === target) return tree;
   if (tree.children) {
     for (const child of tree.children) {
-      const found = findNode(child, target);
+      const found: RevfsNode | null = findNode(child, target);
       if (found) return found;
     }
   }

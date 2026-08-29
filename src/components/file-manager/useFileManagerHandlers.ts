@@ -58,7 +58,7 @@ export function useFileManagerHandlers({
   const prompt = usePrompt();
 
   const handleNewFolder = useCallback(async (parentPath: string): Promise<void> => {
-    const name = await prompt({
+    const name: string | null = await prompt({
       title: 'New folder',
       label: 'Folder name',
       placeholder: 'Designs',

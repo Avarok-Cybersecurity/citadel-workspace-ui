@@ -123,7 +123,7 @@ export class WorkspaceService implements ProtocolSender {
   // Member operations
   public addMember(userId: string, role: UserRoleTS, domainId?: string, metadata?: Uint8Array): Promise<void> { return members.addMember(this, userId, role, domainId, metadata); }
   public getMember(userId: string): Promise<void> { return members.getMember(this, userId); }
-  public updateMemberRole(userId: string, role: string, metadata?: Uint8Array) { return members.updateMemberRole(this, userId, role, metadata); }
+  public updateMemberRole(userId: string, role: string, metadata?: Uint8Array): Promise<unknown> { return members.updateMemberRole(this, userId, role, metadata); }
   public updateMemberPermissions(userId: string, domainId: string, perms: PermissionTS[], op: UpdateOperationTS): Promise<void> { return members.updateMemberPermissions(this, userId, domainId, perms, op); }
   public removeMember(userId: string, domainId?: string): Promise<void> { return members.removeMember(this, userId, domainId); }
   public listMembers(domainId?: string): Promise<void> { return members.listMembers(this, domainId); }
@@ -160,7 +160,7 @@ export class WorkspaceService implements ProtocolSender {
     const requestType: string = typeof request === 'string' ? request : Object.keys(request)[0];
     const expectedResponseTypes: string[] = this.getExpectedResponseTypes(requestType);
 
-    const responsePromise = new Promise<unknown>((resolve, reject): void => {
+    const responsePromise: Promise<unknown> = new Promise<unknown>((resolve, reject): void => {
       const timeoutId = setTimeout((): void => {
         eventEmitter.off('workspace:raw-response', handler);
         reject(new Error(`Request timed out after ${timeoutMs}ms waiting for response to ${requestType}`));

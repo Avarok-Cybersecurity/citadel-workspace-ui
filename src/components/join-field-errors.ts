@@ -33,7 +33,7 @@ export function joinFieldErrors(
         : null,
   };
 
-  const visible = (field: keyof typeof rawErrors) =>
+  const visible = (field: keyof typeof rawErrors): string | null =>
     touched[field] || submitAttempted ? rawErrors[field] : null;
 
   return {

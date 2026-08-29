@@ -28,7 +28,7 @@ export async function syncConnectionsFromBackend(
 ): Promise<void> {
   try {
     const activeSessions = await connectionManager.getActiveSessions();
-    const currentCid = await getCurrentCid();
+    const currentCid: bigint | null = await getCurrentCid();
     if (!currentCid) return;
     const mySession = activeSessions.find(s => s.cid === currentCid);
     // A third site reading the wire HashMap as an object, and the one that
@@ -67,7 +67,7 @@ export function updateFileTransferState(
 ): void {
   const conversation = conversationManager.getConversation(peerCid);
   if (!conversation) return;
-  const message = conversation.messages.find(m => m.transfer_id === transferId);
+  const message: P2PMessage | undefined = conversation.messages.find(m => m.transfer_id === transferId);
   if (!message) return;
   if (updates.transfer_state !== undefined) message.transfer_state = updates.transfer_state;
   if (updates.transfer_progress !== undefined) message.transfer_progress = updates.transfer_progress;
@@ -159,7 +159,7 @@ export async function autoRegisterPeer(
   peerCid: bigint,
   ownCid?: bigint | null
 ): Promise<void> {
-  const cidToUse = ownCid ?? await getCurrentCid();
+  const cidToUse: bigint | null = ownCid ?? await getCurrentCid();
   if (!cidToUse) throw new Error('No CID provided for registration');
   const request = {
     PeerRegister: {

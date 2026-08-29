@@ -136,7 +136,7 @@ class PeerRegistrationStore {
   }
 
   public async handleIncomingRequest(notification: PeerRegisterNotification): Promise<void> {
-    const request = processIncomingNotification(this.pendingRequests, notification);
+    const request: PendingPeerRequest | null = processIncomingNotification(this.pendingRequests, notification);
     if (!request) return;
     this.pendingRequests.push(request);
     debugLog('PeerRegistrationStore', '[P2P] Added pending request', request);
@@ -147,7 +147,7 @@ class PeerRegistrationStore {
   }
 
   public async acceptRequest(requestId: string): Promise<void> {
-    const request = this.pendingRequests.find(r => r.id === requestId);
+    const request: PendingPeerRequest | undefined = this.pendingRequests.find(r => r.id === requestId);
     if (!request) throw new Error('Request not found');
     await executeAcceptRequest(request);
     await this.removeRequest(requestId);
@@ -155,7 +155,7 @@ class PeerRegistrationStore {
   }
 
   public async declineRequest(requestId: string): Promise<void> {
-    const request = this.pendingRequests.find(r => r.id === requestId);
+    const request: PendingPeerRequest | undefined = this.pendingRequests.find(r => r.id === requestId);
     if (!request) throw new Error('Request not found');
     // Tell the sender. Removing the local entry was the whole of decline, so a
     // declined request came back every five minutes forever — see
@@ -229,7 +229,7 @@ class PeerRegistrationStore {
   }
 
   private async emitUpdate(): Promise<void> {
-    const currentCid = await getCurrentSessionCid();
+    const currentCid: bigint | null = await getCurrentSessionCid();
     const currentSessionRequests: PendingPeerRequest[] = await this.getPendingRequests();
     debugLog('PeerRegistrationStore', `[P2P] emitUpdate: currentCid=${currentCid?.toString()}, total=${this.pendingRequests.length}, filtered=${currentSessionRequests.length}`);
     eventEmitter.emit('peer-requests:updated', { requests: currentSessionRequests, count: currentSessionRequests.length });

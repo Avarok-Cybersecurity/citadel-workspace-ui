@@ -15,15 +15,15 @@ import { render, screen } from '@testing-library/react';
 // The landing route throws on render. Mocked before App is imported so the
 // route actually mounts this instead of the real page.
 vi.mock('@/pages/Landing', () => ({
-  default: () => {
+  default: (): never => {
     throw new Error('forced render failure');
   },
 }));
 
 // Nothing here should reach the network; these providers are heavy and their
 // behaviour is not what is under test.
-vi.mock('@/components/pwa/PwaUpdatePrompt', () => ({ PwaUpdatePrompt: () => null }));
-vi.mock('@/components/pwa/OfflineBanner', () => ({ OfflineBanner: () => null }));
+vi.mock('@/components/pwa/PwaUpdatePrompt', () => ({ PwaUpdatePrompt: (): null => null }));
+vi.mock('@/components/pwa/OfflineBanner', () => ({ OfflineBanner: (): null => null }));
 
 import App from '../../App';
 

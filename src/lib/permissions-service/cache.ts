@@ -59,7 +59,7 @@ export function hasPermission(
   domainId: string,
   permission: Permission,
 ): boolean {
-  const cached = cache.get(domainId);
+  const cached: DomainPermissions | undefined = cache.get(domainId);
 
   if (cached) {
     if (isPrivilegedRole(cached.role)) return true;
@@ -69,7 +69,7 @@ export function hasPermission(
 
   // Hierarchy fallback: check workspace-root for inherited permissions
   if (domainId !== WORKSPACE_ROOT_ID) {
-    const root = cache.get(WORKSPACE_ROOT_ID);
+    const root: DomainPermissions | undefined = cache.get(WORKSPACE_ROOT_ID);
     if (root) {
       if (isPrivilegedRole(root.role)) return true;
       if (root.permissions.has(Permission.All)) return true;
@@ -87,11 +87,11 @@ export function getRole(
   cache: Map<string, DomainPermissions>,
   domainId: string,
 ): UserRole | null {
-  const cached = cache.get(domainId);
+  const cached: DomainPermissions | undefined = cache.get(domainId);
   if (cached?.role) return cached.role;
 
   if (domainId !== WORKSPACE_ROOT_ID) {
-    const root = cache.get(WORKSPACE_ROOT_ID);
+    const root: DomainPermissions | undefined = cache.get(WORKSPACE_ROOT_ID);
     if (root?.role) return root.role;
   }
 
@@ -106,7 +106,7 @@ export function getDeniedReason(
   domainId: string,
   permission: Permission,
 ): string {
-  const cached = cache.get(domainId);
+  const cached: DomainPermissions | undefined = cache.get(domainId);
   if (!cached) {
     return 'Permissions have not been loaded for this domain';
   }

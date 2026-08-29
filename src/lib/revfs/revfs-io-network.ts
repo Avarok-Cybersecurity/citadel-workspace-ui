@@ -83,7 +83,7 @@ export async function backendSendFile(
     };
 
     const handleMessage = (message: unknown): void => {
-      const msg = message as Record<string, unknown>;
+      const msg: Record<string, unknown> = message as Record<string, unknown>;
 
       // SendFileRequestSuccess is emitted the moment the internal service
       // QUEUES the SendObject — before the receiving side has accepted
@@ -110,7 +110,7 @@ export async function backendSendFile(
         status?: Record<string, unknown> | string;
       } | undefined;
       if (tick && tick.request_id === requestId) {
-        const status = tick.status;
+        const status: string | Record<string, unknown> | undefined = tick.status;
         if (status === 'TransferComplete') {
           debugLog('RevfsIO', 'backendSendFile transfer complete');
           settle({ type: 'backend-send-file', success: true, virtualDir });
@@ -175,7 +175,7 @@ export async function backendDeleteFile(
     }, BACKEND_TIMEOUT_MS);
 
     const handleMessage = (message: unknown): void => {
-      const msg = message as Record<string, unknown>;
+      const msg: Record<string, unknown> = message as Record<string, unknown>;
 
       const success = msg.DeleteVirtualFileSuccess as { request_id?: string } | undefined;
       if (success?.request_id === requestId) {

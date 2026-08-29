@@ -32,7 +32,7 @@ export function mkdir(tree: RevfsNode, path: string): [RevfsNode, RevfsOperation
   const name: string = baseName(normalized);
 
   const newTree: RevfsNode = cloneTree(tree);
-  const parentNode = findNode(newTree, parent);
+  const parentNode: RevfsNode | null = findNode(newTree, parent);
   if (!parentNode || parentNode.type !== 'directory') {
     throw new Error(`Parent directory not found: ${parent}`);
   }
@@ -80,7 +80,7 @@ export function rmdir(tree: RevfsNode, path: string): [RevfsNode, RevfsOperation
 
   const parent: string = parentPath(normalized);
   const newTree: RevfsNode = cloneTree(tree);
-  const parentNode = findNode(newTree, parent);
+  const parentNode: RevfsNode | null = findNode(newTree, parent);
   if (!parentNode || !parentNode.children) {
     throw new Error(`Parent directory not found: ${parent}`);
   }
@@ -121,7 +121,7 @@ export function placeFile(
   const name: string = baseName(normalized);
 
   const newTree: RevfsNode = cloneTree(tree);
-  const parentNode = findNode(newTree, parent);
+  const parentNode: RevfsNode | null = findNode(newTree, parent);
   if (!parentNode || parentNode.type !== 'directory') {
     throw new Error(`Parent directory not found: ${parent}`);
   }
@@ -183,7 +183,7 @@ export function removeFile(tree: RevfsNode, path: string): [RevfsNode, RevfsOper
   const parent: string = parentPath(normalized);
 
   const newTree: RevfsNode = cloneTree(tree);
-  const parentNode = findNode(newTree, parent);
+  const parentNode: RevfsNode | null = findNode(newTree, parent);
   if (!parentNode || !parentNode.children) {
     throw new Error(`Parent directory not found: ${parent}`);
   }

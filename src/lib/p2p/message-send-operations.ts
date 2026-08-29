@@ -24,7 +24,7 @@ export async function sendRawMessage(
   recipientCid: bigint,
   layer: MessagingLayer
 ): Promise<void> {
-  const currentCid = await config.getCurrentCid();
+  const currentCid: bigint | null = await config.getCurrentCid();
   if (!currentCid) {
     throw new Error('Not connected to server');
   }
@@ -71,7 +71,7 @@ export async function sendP2PCommand(
   command: P2PCommand,
   senderCid?: bigint
 ): Promise<void> {
-  const currentCid = senderCid || await config.getCurrentCid();
+  const currentCid: bigint | null = senderCid || await config.getCurrentCid();
   if (!currentCid) {
     throw new Error('Not connected to server');
   }
@@ -95,7 +95,7 @@ export async function sendRawBytes(
   peerCid: bigint,
   bytes: Uint8Array
 ): Promise<void> {
-  const currentCid = await config.getCurrentCid();
+  const currentCid: bigint | null = await config.getCurrentCid();
   if (!currentCid) {
     throw new Error('Not connected to server');
   }

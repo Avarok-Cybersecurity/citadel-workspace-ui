@@ -123,8 +123,8 @@ export async function executeSendFile(
     }, TIMEOUT.FILE_SEND_MS);
 
     const handleMessage = (message: Record<string, unknown>): void => {
-      const success = message.SendFileRequestSuccess as SendFileSuccessResponse | undefined;
-      const failure = message.SendFileRequestFailure as SendFileFailureResponse | undefined;
+      const success: SendFileSuccessResponse | undefined = message.SendFileRequestSuccess as SendFileSuccessResponse | undefined;
+      const failure: SendFileFailureResponse | undefined = message.SendFileRequestFailure as SendFileFailureResponse | undefined;
 
       if (success?.request_id === requestId) {
         clearTimeout(timeout);
@@ -170,7 +170,7 @@ export function executeCancelTransfer(
     reason: params.reason,
   });
 
-  const objectId = transferIdToObjectId.get(params.transferId);
+  const objectId: string | undefined = transferIdToObjectId.get(params.transferId);
   if (objectId) {
     objectIdToTransferId.delete(objectId);
     transferIdToObjectId.delete(params.transferId);

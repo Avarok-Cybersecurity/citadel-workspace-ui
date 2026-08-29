@@ -21,14 +21,14 @@ const stored: Map<string, string> = new Map<string, string>();
 
 vi.mock('../../websocket-service', () => ({
   websocketService: {
-    sendLocalDBGet: async (_cid: bigint, key: string) => {
-      const value = stored.get(key);
+    sendLocalDBGet: async (_cid: bigint, key: string): Promise<{ value: string; }> => {
+      const value: string | undefined = stored.get(key);
       if (value === undefined) throw new Error(`no such key: ${key}`);
       // The shape the real client returns: { value } where value may be a
       // string or a byte array.
       return { value };
     },
-    sendLocalDBSet: async () => undefined,
+    sendLocalDBSet: async (): Promise<undefined> => undefined,
     sendLocalDBDelete: async (_cid: bigint, key: string): Promise<void> => {
       deleted.push(key);
     },

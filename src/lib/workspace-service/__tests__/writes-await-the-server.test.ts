@@ -59,7 +59,7 @@ describe('a write', () => {
 
   it('fails rather than hanging when the server never answers', async () => {
     vi.useFakeTimers();
-    const send = vi.fn(async () => undefined);
+    const send = vi.fn(async (): Promise<undefined> => undefined);
 
     const pending: Promise<void> = awaitWriteResponse('DeleteNode', send);
     const assertion: Promise<void> = expect(pending).rejects.toThrow(/did not answer/);
@@ -68,7 +68,7 @@ describe('a write', () => {
   });
 
   it('surfaces a send failure as itself', async () => {
-    const send = vi.fn(async () => {
+    const send = vi.fn(async (): Promise<never> => {
       throw new Error('socket is closed');
     });
 

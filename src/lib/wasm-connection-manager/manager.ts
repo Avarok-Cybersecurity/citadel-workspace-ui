@@ -154,7 +154,7 @@ export class WasmConnectionManager {
 
   resetCircuitBreaker(cid?: string): void {
     if (cid) {
-      const session = this.sessions.get(cid);
+      const session: SessionState | undefined = this.sessions.get(cid);
       if (session) {
         session.consecutiveFailures = 0;
         session.circuitBreakerOpen = false;
@@ -179,7 +179,7 @@ export class WasmConnectionManager {
   }
 
   private async ensureMessengerOpenForSession(cid: string): Promise<void> {
-    const session = this.sessions.get(cid);
+    const session: SessionState | undefined = this.sessions.get(cid);
     if (!session) {
       debugLog('WasmConnectionManager', 'Session not found, skipping', { cid });
       return;

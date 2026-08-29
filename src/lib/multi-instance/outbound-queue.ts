@@ -108,7 +108,7 @@ class OutboundQueue extends PollingService {
   }
 
   acknowledge(requestId: string, result: AckResult): void {
-    const message = this.queue.get(requestId);
+    const message: QueuedMessage | undefined = this.queue.get(requestId);
 
     if (!message) {
       debugLog('OutboundQueue', `[OutboundQueue] ACK for unknown requestId: ${requestId}`);
@@ -140,7 +140,7 @@ class OutboundQueue extends PollingService {
   }
 
   remove(requestId: string): void {
-    const message = this.queue.get(requestId);
+    const message: QueuedMessage | undefined = this.queue.get(requestId);
     if (message?.timeoutId) {
       clearTimeout(message.timeoutId);
     }

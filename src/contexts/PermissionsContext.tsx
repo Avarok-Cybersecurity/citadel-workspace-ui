@@ -70,7 +70,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setLoading(true);
     setError(null);
     try {
-      const result = await permissionsService.fetchPermissions(domainId);
+      const result: DomainPermissions | null = await permissionsService.fetchPermissions(domainId);
       // Only sync if we got a result - avoids infinite loop when no user is logged in
       if (result) {
         syncWithService();
@@ -226,7 +226,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
  * Hook to access permissions context
  */
 export function usePermissions(): PermissionsContextType {
-  const context = useContext(PermissionsContext);
+  const context: PermissionsContextType | null = useContext(PermissionsContext);
   if (!context) {
     throw new Error('usePermissions must be used within a PermissionsProvider');
   }

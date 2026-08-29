@@ -102,7 +102,7 @@ export class MessagingService {
     // false for every recipient, and this method could never send anything. It
     // has no callers today, which is the only reason that has not surfaced; a
     // guard that cannot pass is a landmine for whoever wires it up next.
-    const cid = memberIdToCid(recipientId);
+    const cid: bigint | null = memberIdToCid(recipientId);
     if (cid === null || !(await p2pAutoConnectService.isPeerConnected(cid))) {
       throw new Error(
         `Cannot send message to ${recipientId}: no peer connection is established.`,
@@ -123,7 +123,7 @@ export class MessagingService {
     };
 
     try {
-      const cid = connectionManager.getConnectionInfo()?.cid;
+      const cid: bigint | undefined = connectionManager.getConnectionInfo()?.cid;
 
       if (!cid) {
         throw new Error('Not connected to workspace');

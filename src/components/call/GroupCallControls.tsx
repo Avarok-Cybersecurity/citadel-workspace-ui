@@ -78,12 +78,12 @@ export function GroupCallControls({ roomId, roomName, members }: GroupCallContro
   }
 
   // 'start' and 'busy' render the same two buttons; only the reasons differ.
-  const unsupported = !capability.supported
+  const unsupported: string | null = !capability.supported
     ? capability.reason ?? 'Calls are not supported in this browser.'
     : null;
-  const busy = mode.kind === 'busy' ? mode.reason : null;
-  const audioReason = unsupported ?? busy ?? (mode.kind === 'start' ? mode.audioReason : null);
-  const videoReason = unsupported ?? busy ?? (mode.kind === 'start' ? mode.videoReason : null);
+  const busy: string | null = mode.kind === 'busy' ? mode.reason : null;
+  const audioReason: string | null = unsupported ?? busy ?? (mode.kind === 'start' ? mode.audioReason : null);
+  const videoReason: string | null = unsupported ?? busy ?? (mode.kind === 'start' ? mode.videoReason : null);
 
   return (
     <div className="flex items-center gap-1">

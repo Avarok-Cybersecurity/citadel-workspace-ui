@@ -42,7 +42,7 @@ function browserScripts(): string[] {
 function exemptions(files: string[]): Set<string> {
   const exempt: Set<string> = new Set<string>();
   for (const file of files) {
-    const name = file.split('/').pop();
+    const name: string | undefined = file.split('/').pop();
     const lines: string[] = readFileSync(file, 'utf-8').split('\n');
     lines.forEach((line, index) => {
       if (!/copy-under-test:/.test(line)) return;
@@ -68,7 +68,7 @@ describe('the browser-driving check scripts', () => {
   it('address controls by testid, not by what a button says', () => {
     const offenders: string[] = [];
     for (const file of scripts) {
-      const name = file.split('/').pop();
+      const name: string | undefined = file.split('/').pop();
       for (const [index, line] of readFileSync(file, 'utf-8').split('\n').entries()) {
         // Comment lines are where the reasoning lives, and this repo's
         // reasoning routinely quotes the very locators it bans.

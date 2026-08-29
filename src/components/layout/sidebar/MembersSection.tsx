@@ -39,7 +39,7 @@ export const MembersSection = () => {
   const navigate = useNavigate();
   const { state } = useWorkspace();
   const params = new URLSearchParams(location.search);
-  const currentNodeId = params.get("nodeId");
+  const currentNodeId: string | null = params.get("nodeId");
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -77,7 +77,7 @@ export const MembersSection = () => {
 
   useEventListener('open-pending-requests-modal', () => { setShowPendingRequests(true); });
 
-  const activeDomainId = currentNodeId;
+  const activeDomainId: string | null = currentNodeId;
   const { members, isLoadingMembers } = useDomainMembers(activeDomainId);
 
   const handleEditMember = (m: WorkspaceMember): void => { setSelectedMember(m); setShowEditModal(true); };

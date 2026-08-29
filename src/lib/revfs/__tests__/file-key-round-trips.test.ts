@@ -71,7 +71,7 @@ describe('the key a file is addressed by', () => {
       await service.removeFileFromServer(ALICE, FILE_PATH);
     });
 
-    const backendKeys = intents
+    const backendKeys: (string | undefined)[] = intents
       .filter((i) => i.type.startsWith('backend-'))
       .map(keyOf);
 
@@ -95,7 +95,7 @@ describe('the key a file is addressed by', () => {
       await service.downloadFileFromServer(ALICE, '/renamed.txt');
     });
 
-    const backendKeys = intents.filter((i) => i.type.startsWith('backend-')).map(keyOf);
+    const backendKeys: (string | undefined)[] = intents.filter((i) => i.type.startsWith('backend-')).map(keyOf);
 
     // The backend has send/download/delete and NO way to re-path an object, so
     // a rename cannot move the bytes. Deriving the key from the current

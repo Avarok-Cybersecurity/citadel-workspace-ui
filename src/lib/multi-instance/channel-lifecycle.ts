@@ -19,7 +19,7 @@ interface UnloadChannel {
 
 export function setupBeforeUnloadHandler(channel: UnloadChannel): void {
   window.addEventListener('beforeunload', () => {
-    const myCid = instanceManager.cid;
+    const myCid: bigint | null = instanceManager.cid;
 
     if (myCid) {
       const otherInstancesWithSameCid = instanceManager.getAllInstances()

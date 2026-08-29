@@ -62,7 +62,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
       const workspaces: StoredWorkspace[] = toStoredWorkspaces(storedSessions.sessions, state.workspace?.name, currentCid);
       setAvailableWorkspaces(workspaces);
 
-      const active = pickCurrentWorkspace(workspaces, tabSelectedUser);
+      const active: StoredWorkspace | undefined = pickCurrentWorkspace(workspaces, tabSelectedUser);
       if (active) setCurrentWorkspace(active);
     };
     runAsyncSetup(loadStoredWorkspaces);
@@ -79,7 +79,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     // stored. This used to pass the raw metadata bytes and test for a `.logo`
     // property that a byte array can never have, so it always fell through to
     // initials.
-    const name = state.workspace?.name ?? workspaceName;
+    const name: string | undefined = state.workspace?.name ?? workspaceName;
     if (!name) return;
 
     const logo = getWorkspaceLogo(name, theme.icon);

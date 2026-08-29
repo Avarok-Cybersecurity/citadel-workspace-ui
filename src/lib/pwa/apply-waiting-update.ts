@@ -21,7 +21,7 @@ export async function applyWaitingUpdate(): Promise<boolean> {
   const container = navigator.serviceWorker as ServiceWorkerContainer | undefined;
   if (!container) return false;
 
-  const registration = await container.getRegistration().catch(() => undefined);
+  const registration = await container.getRegistration().catch((): undefined => undefined);
   const waiting = registration?.waiting;
   if (!waiting) return false;
 

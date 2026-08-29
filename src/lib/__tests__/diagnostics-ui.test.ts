@@ -56,7 +56,7 @@ describe('isDiagnosticsUiEnabled', () => {
   });
 
   it('stays off rather than throwing when storage is unavailable', async () => {
-    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation((): never => {
       throw new Error('storage partitioned');
     });
     const isEnabled: () => boolean = await loadWithProdEnv();

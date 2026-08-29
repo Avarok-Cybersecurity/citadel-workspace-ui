@@ -22,7 +22,7 @@ const members = {
   'user-2': { id: 'user-2', username: 'grace', displayName: 'Grace Hopper', role: 'Member' },
 };
 
-function renderSearch() {
+function renderSearch(): HTMLElement {
   render(
     <WorkspaceContext.Provider
       value={{ state: { members } as never }}
@@ -37,7 +37,7 @@ afterEach(cleanup);
 
 describe('UserSearch', () => {
   it('describes itself as a combobox controlling a list', () => {
-    const input = renderSearch();
+    const input: HTMLElement = renderSearch();
 
     // Without these the input and its results have no announced relationship,
     // however correct the visuals are.
@@ -47,7 +47,7 @@ describe('UserSearch', () => {
   });
 
   it('reports the panel as expanded once it opens', async () => {
-    const input = renderSearch();
+    const input: HTMLElement = renderSearch();
 
     fireEvent.focus(input);
 
@@ -56,7 +56,7 @@ describe('UserSearch', () => {
   });
 
   it('closes the panel on Escape', async () => {
-    const input = renderSearch();
+    const input: HTMLElement = renderSearch();
 
     fireEvent.focus(input);
     await waitFor(() => expect(screen.getByRole('listbox')).toBeInTheDocument());
@@ -70,12 +70,12 @@ describe('UserSearch', () => {
   });
 
   it('makes each result an option that is itself focusable', async () => {
-    const input = renderSearch();
+    const input: HTMLElement = renderSearch();
 
     fireEvent.focus(input);
     await waitFor(() => expect(screen.getByRole('listbox')).toBeInTheDocument());
 
-    const options = screen.getAllByRole('option');
+    const options: HTMLElement[] = screen.getAllByRole('option');
     expect(options.length).toBeGreaterThan(0);
 
     // role="option" belongs on the focusable element, not on a wrapper around

@@ -28,7 +28,7 @@ describe('WASM Debug Bridge', () => {
 
   /** Get the full joined log line that contains the substring */
   function findLog(substring: string): string | undefined {
-    const entry = capturedLogs.find(args => args.some(arg => arg.includes(substring)));
+    const entry: string[] | undefined = capturedLogs.find(args => args.some(arg => arg.includes(substring)));
     return entry?.join(' ');
   }
 
@@ -88,7 +88,7 @@ describe('WASM Debug Bridge', () => {
     const complexInput = 'Start {"user": "john", "data": [1, 2, 3]} middle text {"status": "ok"} end';
     window.wasmDebugLog(complexInput);
 
-    const sanitizedLog = findLog('sanitized log:');
+    const sanitizedLog: string | undefined = findLog('sanitized log:');
     expect(sanitizedLog).toBeDefined();
     expect(sanitizedLog).toContain('Start');
     expect(sanitizedLog).toContain('middle text');
@@ -100,7 +100,7 @@ describe('WASM Debug Bridge', () => {
   it('should handle arrays as top-level JSON', () => {
     window.wasmDebugLog('[1, 2, 3, 4, 5]');
     expect(logContains('sanitized log:')).toBe(true);
-    const sanitizedLog = findLog('sanitized log:');
+    const sanitizedLog: string | undefined = findLog('sanitized log:');
     expect(sanitizedLog).toBeDefined();
     expect(sanitizedLog).toMatch(/\[.*1.*2.*3.*4.*5.*\]/);
   });

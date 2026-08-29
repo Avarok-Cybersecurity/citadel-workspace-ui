@@ -36,7 +36,7 @@ describe('pruning the transfer history', () => {
     // Dropping one drops the only record Accept, Decline and Cancel work from
     // -- which is the bug the persistence layer was written to fix.
     const ancient: number = NOW - TRANSFER_HISTORY_MS * 10;
-    const kept = pruneTransfers(
+    const kept: Record<string, Partial<FileTransfer>> = pruneTransfers(
       mapOf(
         record('a', 'pending', ancient),
         record('b', 'transferring', ancient),
@@ -49,7 +49,7 @@ describe('pruning the transfer history', () => {
   });
 
   it('drops a finished transfer once it is older than the window', () => {
-    const kept = pruneTransfers(
+    const kept: Record<string, Partial<FileTransfer>> = pruneTransfers(
       mapOf(
         record('recent', 'complete', NOW - 1000),
         record('stale', 'complete', NOW - TRANSFER_HISTORY_MS - 1),
@@ -60,10 +60,10 @@ describe('pruning the transfer history', () => {
   });
 
   it('caps a burst inside the window, newest kept', () => {
-    const many = Array.from({ length: TRANSFER_HISTORY_MAX + 50 }, (_, i) =>
+    const many: Partial<FileTransfer>[] = Array.from({ length: TRANSFER_HISTORY_MAX + 50 }, (_, i): Partial<FileTransfer> =>
       record(`t${i}`, 'complete', NOW - i),
     );
-    const kept = pruneTransfers(mapOf(...many), NOW);
+    const kept: Record<string, Partial<FileTransfer>> = pruneTransfers(mapOf(...many), NOW);
     expect(Object.keys(kept)).toHaveLength(TRANSFER_HISTORY_MAX);
     expect(kept['t0']).toBeDefined();
     expect(kept[`t${TRANSFER_HISTORY_MAX + 49}`]).toBeUndefined();
@@ -72,16 +72,16 @@ describe('pruning the transfer history', () => {
   it('does not let the cap evict an unfinished transfer', () => {
     // The cap applies to history. A live transfer is not history, and losing it
     // to a burst of completed ones would be the original bug with extra steps.
-    const many = Array.from({ length: TRANSFER_HISTORY_MAX + 50 }, (_, i) =>
+    const many: Partial<FileTransfer>[] = Array.from({ length: TRANSFER_HISTORY_MAX + 50 }, (_, i): Partial<FileTransfer> =>
       record(`t${i}`, 'complete', NOW - i),
     );
-    const kept = pruneTransfers(mapOf(...many, record('live', 'pending', NOW - 999_999)), NOW);
+    const kept: Record<string, Partial<FileTransfer>> = pruneTransfers(mapOf(...many, record('live', 'pending', NOW - 999_999)), NOW);
     expect(kept['live']).toBeDefined();
   });
 
   it('treats every terminal state as history, not just complete', () => {
     const stale: number = NOW - TRANSFER_HISTORY_MS - 1;
-    const kept = pruneTransfers(
+    const kept: Record<string, Partial<FileTransfer>> = pruneTransfers(
       mapOf(
         record('a', 'declined', stale),
         record('b', 'cancelled', stale),
@@ -99,7 +99,7 @@ describe('pruning the transfer history', () => {
     // safe by state; a finished one with no timestamp is genuinely old and
     // going is correct -- but it must be the STATE that decides, not a
     // fabricated date.
-    const kept = pruneTransfers(mapOf({ id: 'x', state: 'transferring' }), NOW);
+    const kept: Record<string, Partial<FileTransfer>> = pruneTransfers(mapOf({ id: 'x', state: 'transferring' }), NOW);
     expect(kept['x']).toBeDefined();
   });
 });

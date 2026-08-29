@@ -20,15 +20,15 @@ type EmitFn = (event: string, data: unknown) => void;
  * Priority: instanceManager.cid > selectedUser > tabSession > connectionInfo
  */
 export async function resolveCurrentCid(): Promise<bigint | null> {
-  const instanceCid = instanceManager.cid;
+  const instanceCid: bigint | null = instanceManager.cid;
   if (instanceCid) return instanceCid;
   try {
-    const timeout = new Promise<null>((resolve) => setTimeout((): void => resolve(null), 500));
+    const timeout: Promise<null> = new Promise<null>((resolve) => setTimeout((): void => resolve(null), 500));
     const tabSelection = await Promise.race([getSelectedUser(), timeout]);
     if (tabSelection?.selectedCid) return tabSelection.selectedCid;
   } catch { /* continue */ }
   try {
-    const timeout = new Promise<null>((resolve) => setTimeout((): void => resolve(null), 500));
+    const timeout: Promise<null> = new Promise<null>((resolve) => setTimeout((): void => resolve(null), 500));
     const tabSession = await Promise.race([connectionManager.getTabSelectedSession(), timeout]);
     if (tabSession?.cid) return tabSession.cid;
   } catch { /* continue */ }

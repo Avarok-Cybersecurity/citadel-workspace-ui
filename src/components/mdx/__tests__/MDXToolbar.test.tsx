@@ -26,7 +26,7 @@ describe('MDXToolbar', () => {
   it('gives every button an accessible name', () => {
     renderToolbar();
 
-    const unnamed = screen
+    const unnamed: HTMLElement[] = screen
       .getAllByRole('button')
       .filter((b) => !(b.getAttribute('aria-label') || b.textContent || '').trim());
 
@@ -36,7 +36,7 @@ describe('MDXToolbar', () => {
   it('names them distinguishably, not just non-empty', () => {
     renderToolbar();
 
-    const names = screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'));
+    const names: (string | null)[] = screen.getAllByRole('button').map((b): string | null => b.getAttribute('aria-label'));
     // Twelve buttons all called "Format" would satisfy the check above while
     // remaining just as unusable.
     expect(new Set(names).size).toBe(names.length);

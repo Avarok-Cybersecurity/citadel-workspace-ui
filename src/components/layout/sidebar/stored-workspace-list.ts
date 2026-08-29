@@ -56,7 +56,7 @@ export function pickCurrentWorkspace(
   workspaces: readonly StoredWorkspace[],
   tabSelection: TabSelection | null | undefined,
 ): StoredWorkspace | undefined {
-  const selected = tabSelection?.selectedUsername
+  const selected: StoredWorkspace | undefined = tabSelection?.selectedUsername
     ? workspaces.find(
         (w) =>
           w.username === tabSelection.selectedUsername &&

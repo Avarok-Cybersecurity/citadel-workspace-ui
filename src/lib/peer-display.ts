@@ -62,13 +62,13 @@ export function shortPeerHandle(cid: CidLike): string | null {
  * user chose, while `username` is the login identifier.
  */
 export function peerDisplayName(peer: PeerIdentity): string {
-  const fullName = peer.fullName?.trim();
+  const fullName: string | undefined = peer.fullName?.trim();
   if (fullName) return fullName;
 
-  const username = peer.username?.trim();
+  const username: string | undefined = peer.username?.trim();
   if (username) return username;
 
-  const handle = shortPeerHandle(peer.cid);
+  const handle: string | null = shortPeerHandle(peer.cid);
   return handle ? `Peer ${handle}` : 'Unknown peer';
 }
 
@@ -80,10 +80,10 @@ export function peerDisplayName(peer: PeerIdentity): string {
  * leading digits of a decimal CID (those were frequently identical across peers).
  */
 export function peerInitials(peer: PeerIdentity): string {
-  const name = peer.fullName?.trim() || peer.username?.trim();
+  const name: string | undefined = peer.fullName?.trim() || peer.username?.trim();
   if (name) return name.slice(0, 1).toUpperCase();
 
-  const handle = shortPeerHandle(peer.cid);
+  const handle: string | null = shortPeerHandle(peer.cid);
   return handle ? handle.slice(0, 2) : '?';
 }
 

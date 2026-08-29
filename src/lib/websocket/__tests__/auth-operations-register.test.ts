@@ -19,7 +19,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Without the explicit generic, vi.fn infers a zero-arg signature and
 // the calls array becomes []; the cast in each assertion below would
 // then fail strict TS with "Conversion of type '[]' to type [...]".
-const sendSpy = vi.fn<(request: unknown, requestId?: string) => Promise<void>>(async () => undefined);
+const sendSpy = vi.fn<(request: unknown, requestId?: string) => Promise<void>>(async (): Promise<undefined> => undefined);
 
 vi.mock('../../address-resolver', () => ({
   resolveServerAddress: async (s: string): Promise<string> => s,
@@ -56,7 +56,7 @@ describe('AuthOperations.register — server_password wire format', () => {
     await makeAuth().register('req-1', 'alice', 'password', 'Alice', '127.0.0.1:12349', 'sekret');
     expect(sendSpy).toHaveBeenCalledTimes(1);
     const [request] = sendSpy.mock.calls[0] as [Record<string, unknown>, string];
-    const opts = (request.Register as Record<string, unknown>);
+    const opts: Record<string, unknown> = (request.Register as Record<string, unknown>);
     const sp = opts.server_password as { passwords: number[][] };
     expect(sp).not.toBeNull();
     expect(Array.isArray(sp.passwords)).toBe(true);
@@ -70,14 +70,14 @@ describe('AuthOperations.register — server_password wire format', () => {
     await makeAuth().register('req-2', 'bob', 'password', 'Bob', '127.0.0.1:12349');
     expect(sendSpy).toHaveBeenCalledTimes(1);
     const [request] = sendSpy.mock.calls[0] as [Record<string, unknown>, string];
-    const opts = (request.Register as Record<string, unknown>);
+    const opts: Record<string, unknown> = (request.Register as Record<string, unknown>);
     expect(opts.server_password).toBeNull();
   });
 
   it('sends proposed_password as bytes (not a raw string)', async () => {
     await makeAuth().register('req-3', 'carol', 'pw', 'Carol', '127.0.0.1:12349');
     const [request] = sendSpy.mock.calls[0] as [Record<string, unknown>, string];
-    const opts = (request.Register as Record<string, unknown>);
+    const opts: Record<string, unknown> = (request.Register as Record<string, unknown>);
     const pw: number[] = opts.proposed_password as number[];
     expect(Array.isArray(pw)).toBe(true);
     expect(new TextDecoder().decode(new Uint8Array(pw))).toBe('pw');

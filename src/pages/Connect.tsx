@@ -77,7 +77,7 @@ export const Connect = () => {
       return;
     }
 
-    const selectedServerInfo = servers.find(s => s.serverAddress === selectedServer);
+    const selectedServerInfo: StoredServer | undefined = servers.find(s => s.serverAddress === selectedServer);
     if (!selectedServerInfo) return;
 
     try {

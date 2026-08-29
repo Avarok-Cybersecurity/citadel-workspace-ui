@@ -182,7 +182,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       await workspaceEvents.onWorkspaceEvent('members:reload', async () => {
         debugLog('UseMemberEventSetup', 'Reloading members list...');
         const params = new URLSearchParams(window.location.search);
-        const domainId = params.get("nodeId");
+        const domainId: string | null = params.get("nodeId");
         if (domainId) {
           await WorkspaceService.listMembers(domainId);
         }

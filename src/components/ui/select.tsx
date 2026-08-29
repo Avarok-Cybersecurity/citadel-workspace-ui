@@ -33,7 +33,7 @@ function useLabelledBy(id: string | undefined): string | undefined {
   const [labelId, setLabelId] = React.useState<string | undefined>(undefined);
   React.useEffect(() => {
     if (!id) return;
-    const label = document.querySelector<HTMLElement>(`label[for="${CSS.escape(id)}"]`);
+    const label: HTMLElement | null = document.querySelector<HTMLElement>(`label[for="${CSS.escape(id)}"]`);
     if (!label) return;
     if (!label.id) label.id = `${id}-label`;
     setLabelId(label.id);

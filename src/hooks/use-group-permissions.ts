@@ -48,16 +48,16 @@ export function useGroupPermissions(
   group: GroupConversation
 ): UseGroupPermissionsResult {
   const connectionInfo = connectionManager.getConnectionInfo();
-  const currentCid = connectionInfo?.cid;
+  const currentCid: bigint | undefined = connectionInfo?.cid;
 
   // Find current user's member info
-  const myMember = useMemo(() => {
+  const myMember: GroupMember | undefined = useMemo((): GroupMember | undefined => {
     if (!currentCid) return undefined;
     return group.members.find(m => m.cid === currentCid);
   }, [group.members, currentCid]);
 
   // Find current user's role
-  const myRole = useMemo(() => {
+  const myRole: GroupRole | undefined = useMemo((): GroupRole | undefined => {
     if (!myMember) return undefined;
     return group.settings.roles.find(r => r.id === myMember.roleId);
   }, [myMember, group.settings.roles]);
@@ -121,10 +121,10 @@ export function useGroupPermissions(
       if (!myRole) return false;
       if (!permissions.kickMembers && !permissions.assignRoles) return false;
 
-      const targetMember = group.members.find(m => m.cid === memberCid);
+      const targetMember: GroupMember | undefined = group.members.find(m => m.cid === memberCid);
       if (!targetMember) return false;
 
-      const targetRole = group.settings.roles.find(r => r.id === targetMember.roleId);
+      const targetRole: GroupRole | undefined = group.settings.roles.find(r => r.id === targetMember.roleId);
       if (!targetRole) return false;
 
       // Check hierarchy
@@ -139,7 +139,7 @@ export function useGroupPermissions(
       if (!myRole) return false;
       if (!permissions.manageRoles) return false;
 
-      const targetRole = group.settings.roles.find(r => r.id === roleId);
+      const targetRole: GroupRole | undefined = group.settings.roles.find(r => r.id === roleId);
       if (!targetRole) return false;
 
       // Cannot manage built-in roles
@@ -157,7 +157,7 @@ export function useGroupPermissions(
       if (!myRole) return false;
       if (!permissions.assignRoles) return false;
 
-      const targetRole = group.settings.roles.find(r => r.id === roleId);
+      const targetRole: GroupRole | undefined = group.settings.roles.find(r => r.id === roleId);
       if (!targetRole) return false;
 
       // Can only assign roles below own position

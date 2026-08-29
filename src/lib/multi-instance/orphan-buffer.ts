@@ -87,7 +87,7 @@ export class OrphanBuffer {
     }, this.timeoutMs);
 
     const entry: OrphanedMessage = { message, messageType, fallbackTimer, ...forward };
-    const existing = this.entries.get(cid);
+    const existing: OrphanedMessage[] | undefined = this.entries.get(cid);
     if (existing) {
       existing.push(entry);
     } else {
@@ -104,7 +104,7 @@ export class OrphanBuffer {
    * if the CID has no buffered entries.
    */
   drainForCid(cid: string, onEach: DrainHandler): void {
-    const buffered = this.entries.get(cid);
+    const buffered: OrphanedMessage[] | undefined = this.entries.get(cid);
     if (!buffered || buffered.length === 0) return;
     debugLog('OrphanBuffer', `Draining ${buffered.length} buffered message(s) for CID ${cid}`);
     this.entries.delete(cid);
@@ -129,7 +129,7 @@ export class OrphanBuffer {
    */
   ack(requestId: string): boolean {
     for (const [cid, buffered] of this.entries) {
-      const entry = buffered.find(e => e.requestId === requestId);
+      const entry: OrphanedMessage | undefined = buffered.find(e => e.requestId === requestId);
       if (!entry) continue;
       clearTimeout(entry.fallbackTimer);
       const remaining: OrphanedMessage[] = buffered.filter(e => e !== entry);
@@ -141,7 +141,7 @@ export class OrphanBuffer {
   }
 
   private removeByTimer(cid: string, timer: ReturnType<typeof setTimeout>): void {
-    const buffered = this.entries.get(cid);
+    const buffered: OrphanedMessage[] | undefined = this.entries.get(cid);
     if (!buffered) return;
     const remaining: OrphanedMessage[] = buffered.filter(e => e.fallbackTimer !== timer);
     if (remaining.length === 0) {

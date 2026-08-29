@@ -193,7 +193,7 @@ export const DEFAULT_THEME_ID = 'avarok-purple';
 
 /** The theme applied when a workspace has never chosen one. */
 export function defaultTheme(): WorkspaceTheme {
-  const found = PRESET_THEMES.find((t) => t.id === DEFAULT_THEME_ID);
+  const found: WorkspaceTheme | undefined = PRESET_THEMES.find((t) => t.id === DEFAULT_THEME_ID);
   if (!found) {
     // Unreachable unless the default is renamed without updating the id — worth
     // failing loudly, since the alternative is an unstyled app.

@@ -33,7 +33,7 @@ export function extractRequestId(message: Record<string, unknown>): string | nul
     return null;
   }
 
-  const payload = message[messageType] as Record<string, unknown> | undefined;
+  const payload: Record<string, unknown> | undefined = message[messageType] as Record<string, unknown> | undefined;
 
   if (payload && typeof payload === 'object') {
     if (payload.request_id) {
@@ -62,7 +62,7 @@ export function extractTargetCid(message: Record<string, unknown>): string | nul
 
   // Check nested in message type (e.g., { MessageNotification: { cid: ... } })
   const messageType = getMessageType(message);
-  const payload = message[messageType] as Record<string, unknown> | undefined;
+  const payload: Record<string, unknown> | undefined = message[messageType] as Record<string, unknown> | undefined;
 
   if (payload && typeof payload === 'object') {
     for (const field of CID_FIELDS) {
@@ -72,7 +72,7 @@ export function extractTargetCid(message: Record<string, unknown>): string | nul
     }
 
     // Check for Response wrapper
-    const response = payload.Response as Record<string, unknown> | undefined;
+    const response: Record<string, unknown> | undefined = payload.Response as Record<string, unknown> | undefined;
     if (response) {
       for (const field of CID_FIELDS) {
         if (response[field]) {

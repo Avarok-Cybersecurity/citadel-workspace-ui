@@ -102,7 +102,7 @@ export async function handleMessagingLayerCommand(
 
     case MessagingLayerType.RevfsOperation:
       if (isRevfsOperation(layer)) {
-        const myCid = await config.getCurrentCid();
+        const myCid: bigint | null = await config.getCurrentCid();
         if (myCid) {
           void revfsService.handleRevfsOperation(peerCid, myCid, layer.operation);
         }
@@ -116,7 +116,7 @@ export async function handleMessagingLayerCommand(
     case MessagingLayerType.FileTransferCancel:
     case MessagingLayerType.FileTransferChunk: {
       debugLog('P2PMessageHandler', 'Received file transfer message:', layer.type, 'from:', peerCid?.toString().slice(0, 8));
-      const effectiveRecipientCid = recipientCid || (await config.getCurrentCid());
+      const effectiveRecipientCid: bigint | null = recipientCid || (await config.getCurrentCid());
       eventEmitter.emit('p2p:file-transfer-message', {
         layer,
         senderCid: peerCid.toString(),

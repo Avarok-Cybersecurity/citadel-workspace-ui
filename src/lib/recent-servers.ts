@@ -52,7 +52,7 @@ export function saveRecentServer(server: StoredServer): void {
  */
 export function getRecentServers(): StoredServer[] {
   try {
-    const raw = localStorage.getItem(RECENT_SERVERS_KEY);
+    const raw: string | null = localStorage.getItem(RECENT_SERVERS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];

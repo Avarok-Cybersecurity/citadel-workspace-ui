@@ -116,7 +116,7 @@ export function P2PChat({
   const FOLLOW_THRESHOLD_PX = 80;
   const hasJumpedToLatest = useRef(false);
   useEffect(() => {
-    const el = scrollRef.current;
+    const el: HTMLDivElement | null = scrollRef.current;
     if (!el || messages.length === 0) return;
 
     // The first paint of a conversation must land on the newest message —

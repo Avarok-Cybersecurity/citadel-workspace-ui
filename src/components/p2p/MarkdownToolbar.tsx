@@ -201,7 +201,7 @@ export function useMarkdownFormat(
   getValue: () => string
 ) {
   const handleFormat = useCallback((format: string, prefix: string, suffix: string): void => {
-    const input = inputRef.current;
+    const input: HTMLInputElement | HTMLTextAreaElement | null = inputRef.current;
     if (!input) return;
 
     const start: number = input.selectionStart || 0;

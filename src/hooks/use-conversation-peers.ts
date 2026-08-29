@@ -40,7 +40,7 @@ export function useConversationPeers({
     const conversations = messenger.getAllConversations();
 
     // Get current user's CID to filter out self-conversations
-    const currentCid = connectionManager.getConnectionInfo()?.cid?.toString();
+    const currentCid: string | undefined = connectionManager.getConnectionInfo()?.cid?.toString();
 
     // Only include peers with actual messages, excluding self-conversations
     const filteredConversations = conversations
@@ -50,7 +50,7 @@ export function useConversationPeers({
     const convPeers = await Promise.all(filteredConversations.map(async c => {
       const peerCidStr: string = c.peerCid.toString();
       // Find the username from registered peers
-      const registeredPeer = registeredPeers.find(p => p.cid === peerCidStr);
+      const registeredPeer: RegisteredPeer | undefined = registeredPeers.find(p => p.cid === peerCidStr);
       // Prefer registered peer username, then a friendly "Peer" label
       const displayName: string = registeredPeer?.username ||
         (peerCidStr ? `Peer ${peerCidStr.slice(-6)}` : 'Unknown Peer');

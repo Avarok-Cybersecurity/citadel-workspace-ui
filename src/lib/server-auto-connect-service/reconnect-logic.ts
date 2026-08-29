@@ -104,7 +104,7 @@ export async function attemptReconnect(
   sessionKey: string,
   session: StoredSession
 ): Promise<void> {
-  const attempt = reconnectAttempts.get(sessionKey);
+  const attempt: ConnectionAttempt | undefined = reconnectAttempts.get(sessionKey);
   if (!attempt) return;
 
   try {
@@ -151,7 +151,7 @@ export function cancelRetry(
   reconnectAttempts: Map<string, ConnectionAttempt>,
   sessionKey: string
 ): void {
-  const attempt = reconnectAttempts.get(sessionKey);
+  const attempt: ConnectionAttempt | undefined = reconnectAttempts.get(sessionKey);
   if (!attempt) return;
 
   // Clear the timer if there is one, but delete the entry EITHER WAY.

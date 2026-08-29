@@ -18,7 +18,7 @@ export function markGroupRead(
   prev: GroupConversation[],
   groupId: string,
 ): GroupConversation[] {
-  const target = prev.find((group) => group.id === groupId);
+  const target: GroupConversation | undefined = prev.find((group) => group.id === groupId);
   if (!target || target.unreadCount === 0) return prev;
   return prev.map((group) =>
     group.id === groupId ? { ...group, unreadCount: 0 } : group,

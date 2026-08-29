@@ -42,7 +42,7 @@ export function usePeerDiscovery(isOpen: boolean) {
     const loadConnectionInfo = async (): Promise<void> => {
       const tabSelection = await getSelectedUser();
       const tabSession = await connectionManager.getTabSelectedSession();
-      const cid = tabSelection?.selectedCid || tabSession?.cid || connectionManager.getConnectionInfo()?.cid || null;
+      const cid: bigint | null = tabSelection?.selectedCid || tabSession?.cid || connectionManager.getConnectionInfo()?.cid || null;
       const username: string = tabSelection?.selectedUsername || tabSession?.username || state.currentUser?.username || 'Unknown';
       setCurrentCid(cid);
       setCurrentUsername(username);
@@ -83,12 +83,12 @@ export function usePeerDiscovery(isOpen: boolean) {
       // the user was told "Request Sent" and then nothing. Correlated by
       // request_id: the failure carries no peer_cid.
       if (hasVariant(message, 'PeerRegisterFailure')) {
-        const failure = getVariant(message, 'PeerRegisterFailure')!;
-        const requestId = failure.request_id as string | undefined;
-        const peerName = requestId ? sentRequests.current.get(requestId) : undefined;
+        const failure: Record<string, unknown> = getVariant(message, 'PeerRegisterFailure')!;
+        const requestId: string | undefined = failure.request_id as string | undefined;
+        const peerName: string | undefined = requestId ? sentRequests.current.get(requestId) : undefined;
         if (requestId && peerName) {
           sentRequests.current.delete(requestId);
-          const reason = typeof failure.message === 'string' ? failure.message : undefined;
+          const reason: string | undefined = typeof failure.message === 'string' ? failure.message : undefined;
           toastError(
             toast,
             'Request Failed',
@@ -99,11 +99,11 @@ export function usePeerDiscovery(isOpen: boolean) {
         }
       }
       if (hasVariant(message, 'PeerRegisterSuccess')) {
-        const peerCid = (getVariant(message, 'PeerRegisterSuccess')!.peer_cid as bigint | undefined)?.toString();
+        const peerCid: string | undefined = (getVariant(message, 'PeerRegisterSuccess')!.peer_cid as bigint | undefined)?.toString();
         if (peerCid) { setRegisteredPeers(prev => new Set([...prev, peerCid])); }
       }
       if (hasVariant(message, 'PeerConnectSuccess')) {
-        const peerCid = (getVariant(message, 'PeerConnectSuccess')!.peer_cid as bigint | undefined)?.toString();
+        const peerCid: string | undefined = (getVariant(message, 'PeerConnectSuccess')!.peer_cid as bigint | undefined)?.toString();
         if (peerCid) { setRegisteredPeers(prev => new Set([...prev, peerCid])); }
       }
     };

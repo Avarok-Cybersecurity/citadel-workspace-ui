@@ -29,7 +29,7 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
   line.style.backgroundColor = user.color;
   cursor.appendChild(line);
 
-  const tooltip = document.createElement('div');
+  const tooltip: HTMLDivElement = document.createElement('div');
   tooltip.className = 'collaborator-cursor__tooltip';
   tooltip.style.backgroundColor = hexToRgba(user.color, 0.9);
   tooltip.textContent = user.name;
@@ -41,7 +41,7 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
 
   const updateTooltipPosition = (): void => {
     rafId = null;
-    const cursorRect = cursor.getBoundingClientRect();
+    const cursorRect: DOMRect = cursor.getBoundingClientRect();
     const newLeft: number = cursorRect.left;
     const newTop: number = cursorRect.top - tooltip.offsetHeight - 4;
 
@@ -107,18 +107,18 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
       inputContainer = document.createElement('div');
       inputContainer.className = 'collaborator-cursor__input-container';
 
-      const header = document.createElement('div');
+      const header: HTMLDivElement = document.createElement('div');
       header.className = 'collaborator-cursor__input-header';
       header.textContent = `Flash Comment to ${user.name}`;
       inputContainer.appendChild(header);
 
-      const input = document.createElement('textarea');
+      const input: HTMLTextAreaElement = document.createElement('textarea');
       input.className = 'collaborator-cursor__input';
       input.placeholder = 'Type your comment (100 words max)...';
       input.maxLength = 600;
       inputContainer.appendChild(input);
 
-      const wordCount = document.createElement('div');
+      const wordCount: HTMLDivElement = document.createElement('div');
       wordCount.className = 'collaborator-cursor__word-count';
       wordCount.textContent = '0/100 words';
       inputContainer.appendChild(wordCount);
@@ -130,10 +130,10 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
         wordCount.style.color = count > 100 ? '#ef4444' : '#9ca3af';
       });
 
-      const buttons = document.createElement('div');
+      const buttons: HTMLDivElement = document.createElement('div');
       buttons.className = 'collaborator-cursor__buttons';
 
-      const sendBtn = document.createElement('button');
+      const sendBtn: HTMLButtonElement = document.createElement('button');
       sendBtn.className = 'collaborator-cursor__send-btn';
       sendBtn.textContent = 'Send';
       sendBtn.addEventListener('click', (e) => {
@@ -142,7 +142,7 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
         const words: string[] = text.split(/\s+/).filter(w => w.length > 0);
 
         if (text && words.length <= 100) {
-          const cursorRect = cursor.getBoundingClientRect();
+          const cursorRect: DOMRect = cursor.getBoundingClientRect();
 
           const flashComment: FlashComment = {
             id: generateFlashCommentId(),
@@ -171,7 +171,7 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
       });
       buttons.appendChild(sendBtn);
 
-      const cancelBtn = document.createElement('button');
+      const cancelBtn: HTMLButtonElement = document.createElement('button');
       cancelBtn.className = 'collaborator-cursor__cancel-btn';
       cancelBtn.textContent = 'Cancel';
       cancelBtn.addEventListener('click', (e) => {

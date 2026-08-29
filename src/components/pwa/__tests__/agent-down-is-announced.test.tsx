@@ -32,7 +32,7 @@ describe('the agent-down banner', () => {
     render(<OfflineBanner />);
     announceHealth(false);
 
-    const banner = screen.getByRole('status');
+    const banner: HTMLElement = screen.getByRole('status');
     expect(banner).toHaveTextContent(/agent/i);
     // Polite, not assertive: an ambient condition, not a response to an action.
     expect(banner).toHaveAttribute('aria-live', 'polite');

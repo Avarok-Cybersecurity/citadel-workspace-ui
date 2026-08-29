@@ -24,7 +24,7 @@ export function syncThemeColorMeta(
 ): void {
   if (!root || typeof document === 'undefined') return;
 
-  const meta = document.querySelector('meta[name="theme-color"]');
+  const meta: Element | null = document.querySelector('meta[name="theme-color"]');
   if (!meta) return;
 
   const raw: string = getComputedStyle(root).getPropertyValue('--background').trim();

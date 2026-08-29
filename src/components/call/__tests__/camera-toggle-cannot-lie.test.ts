@@ -36,7 +36,7 @@ function setup(videoTracks: number, selfVideo = false) {
     },
   } as unknown as MutableRefObject<Manager>;
   const sessionRef = {
-    current: { getLocalStream: () => ({ getVideoTracks: () => tracks, getAudioTracks: () => [] }) },
+    current: { getLocalStream: () => ({ getVideoTracks: () => tracks, getAudioTracks: (): never[] => [] }) },
   } as unknown as Parameters<typeof useCallMediaToggles>[1];
   const onCameraUnavailable = vi.fn();
   const hook = renderHook(() =>

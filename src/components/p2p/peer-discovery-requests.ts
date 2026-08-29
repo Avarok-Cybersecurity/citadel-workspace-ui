@@ -45,7 +45,7 @@ export async function discoverPeersViaGetSessions(currentCid: bigint | null): Pr
       const message = narrowWebSocketMessage(raw);
       if (!message) return;
       if (hasVariant(message, 'GetSessionsResponse')) {
-        const resp = getVariant(message, 'GetSessionsResponse')!;
+        const resp: Record<string, unknown> = getVariant(message, 'GetSessionsResponse')!;
         if (resp.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
@@ -93,14 +93,14 @@ export async function fetchRegisteredPeers(currentCid: bigint): Promise<Set<stri
       const message = narrowWebSocketMessage(raw);
       if (!message) return;
       if (hasVariant(message, 'ListRegisteredPeersResponse')) {
-        const resp = getVariant(message, 'ListRegisteredPeersResponse')!;
+        const resp: Record<string, unknown> = getVariant(message, 'ListRegisteredPeersResponse')!;
         if (resp.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
           resolve(resp as { peers?: Record<string, unknown>; request_id?: string });
         }
       } else if (hasVariant(message, 'ListRegisteredPeersFailure')) {
-        const fail = getVariant(message, 'ListRegisteredPeersFailure')!;
+        const fail: Record<string, unknown> = getVariant(message, 'ListRegisteredPeersFailure')!;
         if (fail.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
@@ -143,14 +143,14 @@ export async function fetchAllPeers(currentCid: bigint): Promise<Peer[]> {
       const message = narrowWebSocketMessage(raw);
       if (!message) return;
       if (hasVariant(message, 'ListAllPeersResponse')) {
-        const resp = getVariant(message, 'ListAllPeersResponse')!;
+        const resp: Record<string, unknown> = getVariant(message, 'ListAllPeersResponse')!;
         if (resp.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);
           resolve(resp as { peer_information?: Record<string, PeerEntry>; request_id?: string });
         }
       } else if (hasVariant(message, 'ListAllPeersFailure')) {
-        const fail = getVariant(message, 'ListAllPeersFailure')!;
+        const fail: Record<string, unknown> = getVariant(message, 'ListAllPeersFailure')!;
         if (fail.request_id === requestId) {
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handleMessage);

@@ -153,7 +153,7 @@ export class WebSocketInitialization {
    */
   async closeLeaderClient(): Promise<void> {
     if (this.creating) await this.creating.catch(() => undefined);
-    const client = this.leaderClient;
+    const client: WorkspaceClient | null = this.leaderClient;
     if (!client) return;
     this.leaderClient = null;
     await closeLeaderSocket(client);
@@ -178,7 +178,7 @@ export class WebSocketInitialization {
         }
 
         if (broadcastChannelService.getIsLeader()) {
-          const messageType = Object.keys(message)[0] as ResponseType | undefined;
+          const messageType: ResponseType | undefined = Object.keys(message)[0] as ResponseType | undefined;
           // CID-routed notifications already flow through the inbound router's
           // CID path; broadcasting them again here would cause duplicate
           // delivery on the receiving tab. Single source of truth in

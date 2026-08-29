@@ -30,7 +30,7 @@ export function startGroupNotificationBindings(): void {
     senderName?: string;
     content: string;
   }) => {
-    const own = instanceManager.cid;
+    const own: bigint | null = instanceManager.cid;
 
     // 1. Never for your own message. The server answers the SENDER with the
     //    same notification it broadcasts to everyone else -- that echo is what

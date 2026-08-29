@@ -62,7 +62,7 @@ export async function resendMessage(
     debugLog('MessageSender', `[P2P] Resending to ${peerCid} without CheckState confirmation`);
   }
 
-  const currentCid = await config.getCurrentCid();
+  const currentCid: bigint | null = await config.getCurrentCid();
   if (!currentCid) {
     const reason: Error = new Error('Not connected to server');
     markSendFailed(config, message, messageId, reason, 'Not connected to server');

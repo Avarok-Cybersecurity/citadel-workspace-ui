@@ -62,12 +62,12 @@ function handleWebSocketMessage(raw: unknown, callbacks: StoreCallbacks): void {
   }
 
   if (hasVariant(message, 'LocalDBGetKVSuccess')) {
-    const v = getVariant(message, 'LocalDBGetKVSuccess')!;
+    const v: Record<string, unknown> = getVariant(message, 'LocalDBGetKVSuccess')!;
     resolveKVResponse(kv, v.request_id as string, v.value as number[] | undefined);
   }
 
   if (hasVariant(message, 'LocalDBSetKVFailure') || hasVariant(message, 'LocalDBGetKVFailure')) {
-    const failure = ((message as Record<string, unknown>).LocalDBSetKVFailure ||
+    const failure: Record<string, unknown> = ((message as Record<string, unknown>).LocalDBSetKVFailure ||
       (message as Record<string, unknown>).LocalDBGetKVFailure) as Record<string, unknown>;
     rejectKVFailure(kv, failure.request_id as string, failure.message as string);
   }
@@ -80,8 +80,8 @@ function handlePeerRegistrationEvents(
   callbacks: StoreCallbacks
 ): void {
   if (hasVariant(message, 'PeerRegisterSuccess')) {
-    const v = getVariant(message, 'PeerRegisterSuccess')!;
-    const peer_cid = v.peer_cid as bigint | undefined;
+    const v: Record<string, unknown> = getVariant(message, 'PeerRegisterSuccess')!;
+    const peer_cid: bigint | undefined = v.peer_cid as bigint | undefined;
     debugLog('PeerRegistrationStore', 'PeerRegisterSuccess received', {
       request_id: v.request_id,
       cid: (v.cid as bigint | undefined)?.toString(),
@@ -95,8 +95,8 @@ function handlePeerRegistrationEvents(
   }
 
   if (hasVariant(message, 'PeerRegisterFailure')) {
-    const v = getVariant(message, 'PeerRegisterFailure')!;
-    const peer_cid = v.peer_cid as bigint | undefined;
+    const v: Record<string, unknown> = getVariant(message, 'PeerRegisterFailure')!;
+    const peer_cid: bigint | undefined = v.peer_cid as bigint | undefined;
     debugLog('PeerRegistrationStore', 'PeerRegisterFailure received', {
       request_id: v.request_id,
       cid: (v.cid as bigint | undefined)?.toString(),
@@ -111,8 +111,8 @@ function handlePeerRegistrationEvents(
   }
 
   if (hasVariant(message, 'PeerConnectSuccess')) {
-    const v = getVariant(message, 'PeerConnectSuccess')!;
-    const peer_cid = v.peer_cid as bigint | undefined;
+    const v: Record<string, unknown> = getVariant(message, 'PeerConnectSuccess')!;
+    const peer_cid: bigint | undefined = v.peer_cid as bigint | undefined;
     if (peer_cid !== undefined) {
       debugLog('PeerRegistrationStore', `Clearing requests for connected peer ${peer_cid.toString()}`);
       callbacks.removeRequestByPeerCid(peer_cid).catch(

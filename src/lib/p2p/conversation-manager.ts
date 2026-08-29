@@ -52,7 +52,7 @@ export class ConversationManager {
   }
 
   public getOrCreateConversation(peerCid: bigint, peerUsername?: string): P2PConversation {
-    let conversation = this.cache.conversations.get(peerCid);
+    let conversation: P2PConversation | undefined = this.cache.conversations.get(peerCid);
     if (!conversation) {
       const isConnectedLocal = this.connections.get(peerCid) === true;
       const isConnectedAutoConnect: Promise<boolean> = p2pAutoConnectService.isPeerConnected(peerCid);
@@ -114,7 +114,7 @@ export class ConversationManager {
     //
     // Same predicate as the persisted side, deliberately: an own message is not
     // unread, and a message that has not been delivered is not yet news.
-    const currentCid = await this.config.getCurrentCid();
+    const currentCid: bigint | null = await this.config.getCurrentCid();
     if (message.senderCid !== currentCid && message.status === 'delivered') {
       conversation.unreadCount += 1;
     }
@@ -150,7 +150,7 @@ export class ConversationManager {
   }
 
   public setPeerUsername(peerCid: bigint, username: string): void {
-    const conversation = this.cache.conversations.get(peerCid);
+    const conversation: P2PConversation | undefined = this.cache.conversations.get(peerCid);
     if (conversation) {
       conversation.peerUsername = username;
       void messagePaginationStore.updatePeerUsernameInMetadata(peerCid, username);
@@ -167,7 +167,7 @@ export class ConversationManager {
    * nothing".
    */
   public clearMessages(peerCid: bigint): void {
-    const conversation = this.cache.conversations.get(peerCid);
+    const conversation: P2PConversation | undefined = this.cache.conversations.get(peerCid);
     if (!conversation) return;
     conversation.messages = [];
     conversation.lastMessageIndex = 0;
@@ -191,7 +191,7 @@ export class ConversationManager {
     }
 
     const staleCids: bigint[] = [];
-    const currentCid = await this.config.getCurrentCid();
+    const currentCid: bigint | null = await this.config.getCurrentCid();
 
     for (const [peerCid] of this.cache.conversations.entries()) {
       if (currentCid && peerCid === currentCid) continue;

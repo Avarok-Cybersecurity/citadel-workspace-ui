@@ -40,7 +40,7 @@ describe('GeneralTab', () => {
     const user = userEvent.setup();
     const { rerender } = renderTab({ n1: node });
 
-    const nameInput = await screen.findByDisplayValue('Design');
+    const nameInput: HTMLElement = await screen.findByDisplayValue('Design');
     await user.clear(nameInput);
     await user.type(nameInput, 'Design Ops');
     expect(screen.getByRole('button', { name: /save/i })).toBeEnabled();

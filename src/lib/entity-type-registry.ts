@@ -74,7 +74,7 @@ export function getEntityMetadata(entityType: NodeEntityType | string): EntityTy
 
   // Primary: read from schema (SSOT)
   if (schemaConfigs) {
-    const config = schemaConfigs.get(key);
+    const config: EntityTypeConfig | undefined = schemaConfigs.get(key);
     if (config) {
       return {
         icon: resolveIcon(config.icon),

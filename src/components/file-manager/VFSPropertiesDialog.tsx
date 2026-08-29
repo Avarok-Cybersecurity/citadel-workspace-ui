@@ -83,7 +83,7 @@ export function VFSPropertiesDialog({
   const meta = node.fileMetadata;
   const state = node.fileState ? stateLabels[node.fileState] : null;
   const StateIcon = state?.icon;
-  const itemCounts = isDir ? countItems(node) : null;
+  const itemCounts: { files: number; folders: number; } | null = isDir ? countItems(node) : null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

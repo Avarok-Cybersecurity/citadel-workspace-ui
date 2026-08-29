@@ -195,7 +195,7 @@ export function resolveKVResponse(
   requestId: string,
   value: number[] | undefined
 ): void {
-  const pending = kv.get(requestId);
+  const pending: KVPendingEntry | undefined = kv.get(requestId);
   if (!pending) return;
   kv.delete(requestId);
   try {
@@ -219,7 +219,7 @@ export function resolveKVSetSuccess(
   kv: Map<string, KVPendingEntry>,
   requestId: string
 ): void {
-  const pending = kv.get(requestId);
+  const pending: KVPendingEntry | undefined = kv.get(requestId);
   if (pending) { kv.delete(requestId); pending.resolve(undefined); }
 }
 
@@ -229,6 +229,6 @@ export function rejectKVFailure(
   requestId: string,
   message: string
 ): void {
-  const pending = kv.get(requestId);
+  const pending: KVPendingEntry | undefined = kv.get(requestId);
   if (pending) { kv.delete(requestId); pending.reject(new Error(message || 'LocalDB operation failed')); }
 }

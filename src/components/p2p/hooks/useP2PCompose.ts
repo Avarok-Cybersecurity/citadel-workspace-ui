@@ -72,7 +72,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
   const [editingMessage, setEditingMessage] = useState<P2PMessage | null>(null);
 
   const handleReplyMessage = useCallback((messageId: string): void => {
-    const target = messages.find((m) => m.id === messageId);
+    const target: P2PMessage | undefined = messages.find((m) => m.id === messageId);
     if (!target) return;
     setEditingMessage(null);
     setReplyingTo(target);
@@ -80,7 +80,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
   }, [messages]);
 
   const handleStartEdit = useCallback((messageId: string, content: string): void => {
-    const target = messages.find((m) => m.id === messageId);
+    const target: P2PMessage | undefined = messages.find((m) => m.id === messageId);
     if (!target) return;
     setReplyingTo(null);
     setEditingMessage(target);

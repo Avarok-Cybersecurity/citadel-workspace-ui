@@ -68,7 +68,7 @@ export class P2PConnectionState extends ConnectedPeersState {
   }
 
   deleteConnectionAttempt(peerCid: bigint): void {
-    const attempt = this.connectionAttempts.get(peerCid);
+    const attempt: ConnectionAttempt | undefined = this.connectionAttempts.get(peerCid);
     if (attempt?.timeout) {
       clearTimeout(attempt.timeout);
     }

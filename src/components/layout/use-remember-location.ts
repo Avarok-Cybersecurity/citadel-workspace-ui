@@ -20,7 +20,7 @@ export function useRememberLocation(): void {
   const location = useLocation();
 
   useEffect(() => {
-    const cid = connectionManager.getConnectionInfo()?.cid;
+    const cid: bigint | undefined = connectionManager.getConnectionInfo()?.cid;
     // No CID means no session to attribute this to — during boot, or on a
     // follower tab before it has one. Recording under a wrong key would send
     // somebody else back here.

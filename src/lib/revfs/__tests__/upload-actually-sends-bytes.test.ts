@@ -35,7 +35,7 @@ const CONTENT: Uint8Array<ArrayBuffer> = new Uint8Array([0xde, 0xad, 0xbe, 0xef]
 
 /** The SendFile payload from the most recent send. */
 function lastSendFile(): Record<string, unknown> {
-  const request = sent[sent.length - 1];
+  const request: Record<string, unknown> = sent[sent.length - 1];
   return (request?.SendFile ?? {}) as Record<string, unknown>;
 }
 

@@ -37,7 +37,7 @@ export class SessionManagement {
    * Unwrap the optional Response wrapper that some messages arrive with.
    */
   private static unwrapResponse(message: unknown): ConnectionManagementResponse {
-    const msg = message as { Response?: Record<string, unknown> } & Record<string, unknown>;
+    const msg: { Response?: Record<string, unknown>; } & Record<string, unknown> = message as { Response?: Record<string, unknown> } & Record<string, unknown>;
     return (msg.Response || msg) as ConnectionManagementResponse;
   }
 
@@ -143,7 +143,7 @@ export class SessionManagement {
   }
 
   releaseSession(sessionCid: bigint): void {
-    const client = this.config.getClient();
+    const client: WorkspaceClient | null = this.config.getClient();
     if (!client) {
       debugLog('SessionManagement', 'Cannot release session - not the leader (no client)');
       return;

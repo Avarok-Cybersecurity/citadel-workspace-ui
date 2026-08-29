@@ -38,7 +38,7 @@ function buildTree(): RevfsNode {
   return tree;
 }
 
-function setup(tree: RevfsNode) {
+function setup(tree: RevfsNode): { ctx: DirOpsContext; executed: Record<string, unknown>[]; } {
   const executed: Array<Record<string, unknown>> = [];
   // Echoes the intent type with success, so it models a backend that ACCEPTS.
   // Returning a bare `{}` could represent neither success nor failure, so any
@@ -63,14 +63,14 @@ function setup(tree: RevfsNode) {
 
 describe('collectFiles', () => {
   it('returns every file beneath a directory, including nested ones', () => {
-    const docs = buildTree().children?.find((c) => c.name === 'docs');
+    const docs: RevfsNode | undefined = buildTree().children?.find((c) => c.name === 'docs');
     expect(collectFiles(docs!).map((f) => f.name).sort()).toEqual(['a.txt', 'b.txt']);
   });
 
   it('returns nothing for an empty directory', () => {
     let tree: RevfsNode = createDefaultTree();
     [tree] = mkdir(tree, '/empty');
-    const empty = tree.children?.find((c) => c.name === 'empty');
+    const empty: RevfsNode | undefined = tree.children?.find((c) => c.name === 'empty');
     expect(collectFiles(empty!)).toEqual([]);
   });
 });
@@ -81,7 +81,7 @@ describe('serverRmdir', () => {
 
     await serverRmdir(ctx, MY_CID, '/docs');
 
-    const deletes = executed.filter((i) => i.type === 'backend-delete-file');
+    const deletes: Record<string, unknown>[] = executed.filter((i) => i.type === 'backend-delete-file');
     expect(deletes.map((d) => d.virtualDir).sort()).toEqual(['/docs/a.txt', '/docs/deep/b.txt']);
   });
 
@@ -90,7 +90,7 @@ describe('serverRmdir', () => {
 
     await serverRmdir(ctx, MY_CID, '/docs');
 
-    const deleted = executed.filter((i) => i.type === 'backend-delete-file').map((d) => d.virtualDir);
+    const deleted: unknown[] = executed.filter((i) => i.type === 'backend-delete-file').map((d): unknown => d.virtualDir);
     expect(deleted).not.toContain('/keep/c.txt');
   });
 
@@ -154,7 +154,7 @@ describe('peerRmdir', () => {
 
     await peerRmdir(ctx, MY_CID, PEER_CID, '/docs');
 
-    const deletes = executed.filter((i) => i.type === 'backend-delete-file');
+    const deletes: Record<string, unknown>[] = executed.filter((i) => i.type === 'backend-delete-file');
     // This sent only the tree op. The peer applied it, both sides forgot the
     // files, and every encrypted blob stayed in the host's storage forever —
     // unreferenced and unreclaimable, with no tree entry left to reach it from.
@@ -166,7 +166,7 @@ describe('peerRmdir', () => {
 
     await peerRmdir(ctx, MY_CID, PEER_CID, '/docs');
 
-    const deletes = executed.filter((i) => i.type === 'backend-delete-file');
+    const deletes: Record<string, unknown>[] = executed.filter((i) => i.type === 'backend-delete-file');
     expect(deletes.length).toBeGreaterThan(0);
     for (const d of deletes) {
       expect(d.peerCid).toBe(PEER_CID);
@@ -178,7 +178,7 @@ describe('peerRmdir', () => {
 
     await peerRmdir(ctx, MY_CID, PEER_CID, '/docs');
 
-    const deleted = executed
+    const deleted: unknown[] = executed
       .filter((i) => i.type === 'backend-delete-file')
       .map((d) => d.virtualDir);
     expect(deleted).not.toContain('/keep/c.txt');

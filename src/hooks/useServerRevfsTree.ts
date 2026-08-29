@@ -24,7 +24,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
   const [serverCapabilities, setServerCapabilities] = useState<ServerCapabilities>(DEFAULT_SERVER_CAPABILITIES);
   const [capabilitiesReceived, setCapabilitiesReceived] = useState(false);
 
-  const key = myCid ? serverTreeKey(myCid) : null;
+  const key: string | null = myCid ? serverTreeKey(myCid) : null;
 
   // Calculate storage usage from tree (server-stored files)
   const storageUsed: number = useMemo(() => {
@@ -119,7 +119,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     await revfsService.uploadFileToServer(myCid, dirPath, fileName, metadata, content);
   }, [myCid]);
 
-  const downloadFile = useCallback(async (filePath: string) => {
+  const downloadFile = useCallback(async (filePath: string): Promise<string | undefined> => {
     if (!myCid) return undefined;
     return revfsService.downloadFileFromServer(myCid, filePath);
   }, [myCid]);

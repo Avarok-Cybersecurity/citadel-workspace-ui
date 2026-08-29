@@ -62,8 +62,8 @@ describe('initService', () => {
 
   it('still shares one in-flight attempt between concurrent callers', async () => {
     let release!: (v: unknown) => void;
-    const pending = new Promise((r): void => { release = r; });
-    const create = vi.fn(() => pending);
+    const pending: Promise<unknown> = new Promise((r): void => { release = r; });
+    const create = vi.fn((): Promise<unknown> => pending);
     const service: WebSocketServiceCore = coreWith(create);
 
     const a: Promise<void> = initService(service);

@@ -70,7 +70,7 @@ export function GroupChatPage() {
     // the group deleted.
     if (!hydrated) return;
 
-    const loadedGroup = getGroup(groupId);
+    const loadedGroup: GroupConversation | undefined = getGroup(groupId);
     if (!loadedGroup) {
       toast({ ...groupGoneMessage(groupId), variant: 'destructive' });
       navigate('/workspace');

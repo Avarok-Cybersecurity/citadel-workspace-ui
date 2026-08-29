@@ -153,7 +153,7 @@ async function resolveDNS(hostname: string): Promise<string> {
   debugLog('AddressResolver', `DNS resolution: Querying Google DNS for '${hostname}'...`);
 
   try {
-    const response = await fetch(dnsUrl, {
+    const response: Response = await fetch(dnsUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/dns-json',

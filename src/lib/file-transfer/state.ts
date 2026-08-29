@@ -77,7 +77,7 @@ export class FileTransferState {
   };
 
   getSettings(peerCid: string): FileTransferSettings {
-    const stored = this.peerSettings.get(peerCid);
+    const stored: FileTransferSettings | undefined = this.peerSettings.get(peerCid);
 
     // Merge OVER the defaults rather than returning the stored object as-is.
     //

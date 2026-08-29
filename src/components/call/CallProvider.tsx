@@ -95,7 +95,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   useEffect(
     () => (): void => {
       const manager = managerRef.current;
-      const state = manager?.getState();
+      const state: CallState | null | undefined = manager?.getState();
       if (manager && state && state.status !== 'ended' && state.status !== 'failed') {
         void manager.end('hangup');
       }
@@ -115,7 +115,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       // The manager's own state, not the React copy: a call that started
       // milliseconds ago has not necessarily reached this closure yet, and the
       // whole failure is a second start racing the first.
-      const busy = callBusyReason(managerRef.current?.getState() ?? null);
+      const busy: string | null = callBusyReason(managerRef.current?.getState() ?? null);
       if (busy) {
         toast.error(busy);
         return;
@@ -126,7 +126,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       if (!manager) return reportCallSystemUnavailable('start');
 
       const session = await ensureSession();
-      const got = await session.start({ audio: true, video, screen: false });
+      const got: CallMediaKinds | null = await session.start({ audio: true, video, screen: false });
       // Capture failing means there is nothing to send, so nobody is rung — a
       // ringing phone for a call that cannot carry audio wastes their time.
       if (!got) {
@@ -149,7 +149,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       if (!manager) return reportCallSystemUnavailable('accept');
 
       const session = await ensureSession();
-      const got = await session.start(media);
+      const got: CallMediaKinds | null = await session.start(media);
       if (!got) {
         await manager.decline('no-devices');
         teardown();

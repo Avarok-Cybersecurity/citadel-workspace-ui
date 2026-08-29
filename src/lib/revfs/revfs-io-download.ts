@@ -51,7 +51,7 @@ export async function backendDownloadFile(
     };
 
     const handleMessage = (message: unknown): void => {
-      const msg = message as Record<string, unknown>;
+      const msg: Record<string, unknown> = message as Record<string, unknown>;
 
       // A REVFS pull reports progress through FileTransferTickNotification.
       //
@@ -72,7 +72,7 @@ export async function backendDownloadFile(
       } | undefined;
 
       if (tick && tick.request_id === requestId) {
-        const status = tick.status;
+        const status: string | Record<string, unknown> | undefined = tick.status;
 
         // ReceptionBeginning carries the local path the bytes are written to.
         if (status !== null && typeof status === 'object' && 'ReceptionBeginning' in status) {

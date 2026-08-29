@@ -196,7 +196,7 @@ export async function updateSessionRole(
   state: ConnectionState, io: ConnectionIO,
   storeSessionFn: (session: StoredSession) => Promise<void>,
 ): Promise<void> {
-  const session = state.findSession(username, serverAddress);
+  const session: StoredSession | undefined = state.findSession(username, serverAddress);
   if (session) {
     session.role = role;
     await storeSessionFn(session);

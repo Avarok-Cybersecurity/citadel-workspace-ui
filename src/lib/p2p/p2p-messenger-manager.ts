@@ -149,7 +149,7 @@ export class P2PMessengerManager extends EventListenerManager {
 
   // ===== Public API: Messaging =====
   public async sendMessage(recipientCid: bigint, content: string, options?: SendMessageOptions): Promise<P2PMessage> { return this.messageSender.sendMessage(recipientCid, content, options); }
-  public async resendMessage(peerCid: bigint, messageId: string): Promise<void> { const c = this.conversationManager.getConversation(peerCid); if (!c) throw new Error(`Conversation with ${peerCid} not found`); return this.messageSender.resendMessage(peerCid, messageId, c); }
+  public async resendMessage(peerCid: bigint, messageId: string): Promise<void> { const c: P2PConversation | undefined = this.conversationManager.getConversation(peerCid); if (!c) throw new Error(`Conversation with ${peerCid} not found`); return this.messageSender.resendMessage(peerCid, messageId, c); }
   public async sendRawMessage(recipientCid: bigint, layer: MessagingLayer): Promise<void> { return this.messageSender.sendRawMessage(recipientCid, layer); }
   public async editMessage(peerCid: bigint, messageId: string, contents: string): Promise<void> { return editMessage(this.conversationManager, (e, d) => this.emit(e, d), (p, l) => this.sendRawMessage(p, l), peerCid, messageId, contents); }
   public async deleteMessage(peerCid: bigint, messageId: string): Promise<void> { return deleteMessage(this.conversationManager, (e, d) => this.emit(e, d), (p, l) => this.sendRawMessage(p, l), peerCid, messageId); }

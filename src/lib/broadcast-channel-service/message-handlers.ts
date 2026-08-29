@@ -21,15 +21,15 @@ export async function handleWorkspaceResponse(
 ): Promise<void> {
   if (!isLeader && message.data) {
     const tabSelection = await getSelectedUser();
-    const tabCid = tabSelection?.selectedCid;
+    const tabCid: bigint | undefined = tabSelection?.selectedCid;
 
     if (message.targetCid && tabCid && message.targetCid !== tabCid) {
       debugLog('BroadcastChannelService', `Skipping notification for CID ${message.targetCid.toString().slice(0, 8)}... (we are ${tabCid.toString().slice(0, 8)}...)`);
       return;
     }
 
-    const d = message.data as Record<string, Record<string, unknown> | unknown>;
-    const requestId = d.request_id ||
+    const d: Record<string, unknown> = message.data as Record<string, Record<string, unknown> | unknown>;
+    const requestId: unknown = d.request_id ||
       (d.ListAllPeersResponse as Record<string, unknown> | undefined)?.request_id ||
       (d.ListRegisteredPeersResponse as Record<string, unknown> | undefined)?.request_id ||
       (d.GetSessionsResponse as Record<string, unknown> | undefined)?.request_id ||
@@ -51,7 +51,7 @@ export function handleRegisterRequest(
   message: BroadcastMessage,
   pendingRequests: Map<string, PendingRequest>
 ): void {
-  const data = message.data as Record<string, unknown> | null;
+  const data: Record<string, unknown> | null = message.data as Record<string, unknown> | null;
   if (data && data.requestId && data.cid) {
     pendingRequests.set(data.requestId as string, {
       cid: data.cid as bigint,
@@ -98,19 +98,19 @@ export async function handleP2PNotification(
   });
 
   if (!isLeader && message.data) {
-    const p2pData = message.data as Record<string, unknown>;
-    const notification = p2pData.notification as Record<string, unknown> | undefined;
-    const messageBytes = p2pData.messageBytes;
+    const p2pData: Record<string, unknown> = message.data as Record<string, unknown>;
+    const notification: Record<string, unknown> | undefined = p2pData.notification as Record<string, unknown> | undefined;
+    const messageBytes: unknown = p2pData.messageBytes;
     if (!notification) {
       debugLog('BroadcastChannelService', '[BroadcastChannel] handleP2PNotification: No notification in data');
       return;
     }
 
     const tabSelection = await getSelectedUser();
-    const tabCid = tabSelection?.selectedCid ?? instanceManager.cid;
-    const notificationCid = notification.cid?.toString();
-    const peerCid = notification.peer_cid?.toString();
-    const tabCidStr = tabCid?.toString();
+    const tabCid: bigint | null = tabSelection?.selectedCid ?? instanceManager.cid;
+    const notificationCid: string | undefined = notification.cid?.toString();
+    const peerCid: string | undefined = notification.peer_cid?.toString();
+    const tabCidStr: string | undefined = tabCid?.toString();
 
     debugLog('BroadcastChannelService', '[BroadcastChannel] handleP2PNotification checking session match:', {
       notificationCid,

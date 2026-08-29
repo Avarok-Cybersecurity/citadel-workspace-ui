@@ -88,7 +88,7 @@ export async function uploadFileToServer(
   };
 
   const [newTree] = treePlaceFile(tree, filePath, serverMetadata, myCid);
-  const fileNode = ctx.findFileInTree(newTree, filePath);
+  const fileNode: RevfsNode | null = ctx.findFileInTree(newTree, filePath);
   if (fileNode) fileNode.fileState = RevfsFileState.ServerStored;
 
   ctx.state.setTree(key, newTree);
@@ -111,7 +111,7 @@ export async function removeFileFromServer(
   // the server with nothing in the tree referencing them — storage consumed
   // permanently, with no node left to retry from. Removing the node is the
   // irreversible half locally, so it goes last.
-  const fileNode = ctx.findFileInTree(tree, filePath);
+  const fileNode: RevfsNode | null = ctx.findFileInTree(tree, filePath);
   // A copy shares its original's byte key (see tree-byte-refs.ts), so the
   // backend delete only goes out when this node is the LAST reference —
   // otherwise deleting one copy destroyed the bytes every other copy still
@@ -152,7 +152,7 @@ export async function downloadFileFromServer(
   const tree: RevfsNode = await ctx.getServerTree(myCid);
   const io: RevfsIO = ctx.ensureIO();
 
-  const fileNode = ctx.findFileInTree(tree, filePath);
+  const fileNode: RevfsNode | null = ctx.findFileInTree(tree, filePath);
   if (!fileNode?.fileMetadata) {
     throw new Error(`File not found or has no metadata: ${filePath}`);
   }

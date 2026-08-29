@@ -23,7 +23,7 @@ import {
   saveAppearanceSettings,
 } from '../appearance-settings';
 
-const root = () => document.documentElement;
+const root: () => HTMLElement = (): HTMLElement => document.documentElement;
 
 describe('appearance settings', () => {
   beforeEach(() => {

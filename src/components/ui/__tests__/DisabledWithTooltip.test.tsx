@@ -36,7 +36,7 @@ describe('DisabledWithTooltip', () => {
       </Wrapper>
     );
 
-    const button = screen.getByRole('button', { name: 'Delete office' });
+    const button: HTMLElement = screen.getByRole('button', { name: 'Delete office' });
     expect(button).toBeDisabled();
     // Also out of the tab order: a control that cannot be activated should not
     // collect focus on the way past it.

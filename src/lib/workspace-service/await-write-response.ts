@@ -83,7 +83,7 @@ export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
 };
 
 function describeFailure(response: Record<string, unknown>): string {
-  const detail = response.Error;
+  const detail: unknown = response.Error;
   if (typeof detail === 'string') return detail;
   if (detail && typeof detail === 'object') {
     const [variant, value] = Object.entries(detail)[0] ?? [];

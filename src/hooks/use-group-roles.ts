@@ -30,11 +30,11 @@ export function useGroupRoles(
     return [...roles].sort((a, b) => b.position - a.position);
   }, [roles]);
 
-  const defaultRole = useMemo(() => {
+  const defaultRole: GroupRole | undefined = useMemo((): GroupRole | undefined => {
     return roles.find(r => r.isDefault);
   }, [roles]);
 
-  const ownerRole = useMemo(() => {
+  const ownerRole: GroupRole | undefined = useMemo((): GroupRole | undefined => {
     return roles.find(r => r.isBuiltIn && r.position === 100);
   }, [roles]);
 
@@ -47,8 +47,8 @@ export function useGroupRoles(
 
   const canManageRole = useCallback(
     (actorRoleId: string, targetRoleId: string): boolean => {
-      const actorRole = getRoleById(actorRoleId);
-      const targetRole = getRoleById(targetRoleId);
+      const actorRole: GroupRole | undefined = getRoleById(actorRoleId);
+      const targetRole: GroupRole | undefined = getRoleById(targetRoleId);
 
       if (!actorRole || !targetRole) return false;
       if (targetRole.isBuiltIn) return false;
@@ -148,7 +148,7 @@ export function useGroupRoles(
 
   const deleteRole = useCallback(
     (roleId: string): GroupSettings => {
-      const roleToDelete = getRoleById(roleId);
+      const roleToDelete: GroupRole | undefined = getRoleById(roleId);
 
       if (!roleToDelete || roleToDelete.isBuiltIn || roleToDelete.isDefault) {
         debugLog('UseGroupRoles', 'Cannot delete built-in or default role');

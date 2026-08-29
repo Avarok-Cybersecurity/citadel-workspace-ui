@@ -22,10 +22,10 @@ function makeContext(): RegistrationContext & { pendingRequests: Map<string, Pen
 }
 
 /** Register a pending request and return a promise plus its settle state. */
-function pend(ctx: RegistrationContext, requestId: string) {
+function pend(ctx: RegistrationContext, requestId: string): Promise<Record<string, unknown>> {
   let resolve!: (v: Record<string, unknown>) => void;
   let reject!: (e: Error) => void;
-  const promise = new Promise<Record<string, unknown>>((res, rej): void => { resolve = res; reject = rej; });
+  const promise: Promise<Record<string, unknown>> = new Promise<Record<string, unknown>>((res, rej): void => { resolve = res; reject = rej; });
   ctx.pendingRequests.set(requestId, { resolve, reject });
   return promise;
 }
@@ -33,7 +33,7 @@ function pend(ctx: RegistrationContext, requestId: string) {
 describe('handleWebSocketMessage', () => {
   it('resolves the pending request for a peer list response', async () => {
     const ctx = makeContext();
-    const promise = pend(ctx, 'req-1');
+    const promise: Promise<Record<string, unknown>> = pend(ctx, 'req-1');
 
     handleWebSocketMessage(
       { ListAllPeersResponse: { request_id: 'req-1', peers: [] } } as never,
@@ -46,7 +46,7 @@ describe('handleWebSocketMessage', () => {
 
   it('rejects the pending request when the peer list fails', async () => {
     const ctx = makeContext();
-    const promise = pend(ctx, 'req-2');
+    const promise: Promise<Record<string, unknown>> = pend(ctx, 'req-2');
 
     handleWebSocketMessage(
       { ListAllPeersFailure: { request_id: 'req-2', message: 'no session' } } as never,
@@ -75,7 +75,7 @@ describe('handleWebSocketMessage', () => {
     // Documented invariant: after a reconnect our local state is stale, so
     // re-registering an existing peer is expected and must not surface as an error.
     const ctx = makeContext();
-    const promise = pend(ctx, 'req-3');
+    const promise: Promise<Record<string, unknown>> = pend(ctx, 'req-3');
 
     handleWebSocketMessage(
       { PeerRegisterFailure: { request_id: 'req-3', peer_cid: 42n, message: 'Peer is already registered' } } as never,
@@ -89,7 +89,7 @@ describe('handleWebSocketMessage', () => {
 
   it('rejects a genuine registration failure', async () => {
     const ctx = makeContext();
-    const promise = pend(ctx, 'req-4');
+    const promise: Promise<Record<string, unknown>> = pend(ctx, 'req-4');
 
     handleWebSocketMessage(
       { PeerRegisterFailure: { request_id: 'req-4', peer_cid: 42n, message: 'peer not found' } } as never,

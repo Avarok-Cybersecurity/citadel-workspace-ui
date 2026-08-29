@@ -42,7 +42,7 @@ let inMemoryTabId: string | null = null;
  * sibling was not.
  */
 export function getTabId(): string {
-  const stored = sessionGet(TAB_ID_KEY);
+  const stored: string | null = sessionGet(TAB_ID_KEY);
   if (stored) return stored;
 
   const minted: string = mintTabId();

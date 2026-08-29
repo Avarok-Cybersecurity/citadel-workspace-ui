@@ -27,7 +27,7 @@ export async function sendFile(
   file: File,
   mode: FileTransferMode
 ): Promise<string> {
-  const senderCid = await deps.io.getCurrentCid();
+  const senderCid: bigint | null = await deps.io.getCurrentCid();
   if (!senderCid) {
     throw new Error('No active session');
   }
@@ -90,7 +90,7 @@ export async function sendFileWithNativePicker(
   title?: string,
   allowedExtensions?: string[]
 ): Promise<string> {
-  const senderCid = await deps.io.getCurrentCid();
+  const senderCid: bigint | null = await deps.io.getCurrentCid();
   if (!senderCid) {
     throw new Error('No active session');
   }
@@ -160,7 +160,7 @@ export async function sendFileWithNativePicker(
 }
 
 export async function cancelTransfer(deps: LifecycleDeps, transferId: string): Promise<void> {
-  const transfer = deps.state.getTransfer(transferId);
+  const transfer: FileTransfer | undefined = deps.state.getTransfer(transferId);
   if (!transfer) {
     throw new Error('Transfer not found');
   }
@@ -182,7 +182,7 @@ export async function cancelTransfer(deps: LifecycleDeps, transferId: string): P
 }
 
 export async function acceptTransfer(deps: LifecycleDeps, transferId: string): Promise<void> {
-  const transfer = deps.state.getTransfer(transferId);
+  const transfer: FileTransfer | undefined = deps.state.getTransfer(transferId);
   if (!transfer) throw new Error('Transfer not found');
   if (!transfer.isIncoming) throw new Error('Cannot accept outgoing transfer');
   if (transfer.state !== 'pending' && transfer.state !== 'staged') {
@@ -221,7 +221,7 @@ export async function declineTransfer(
   transferId: string,
   reason?: string
 ): Promise<void> {
-  const transfer = deps.state.getTransfer(transferId);
+  const transfer: FileTransfer | undefined = deps.state.getTransfer(transferId);
   if (!transfer) {
     throw new Error('Transfer not found');
   }

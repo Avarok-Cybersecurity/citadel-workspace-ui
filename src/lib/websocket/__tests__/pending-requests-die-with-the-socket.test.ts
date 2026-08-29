@@ -13,7 +13,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { requestResponse, requestResponseSoft } from '../request-response';
 import { eventEmitter } from '../../event-emitter';
 
-const never = { matchSuccess: () => undefined, matchFailure: () => undefined };
+const never = { matchSuccess: (): undefined => undefined, matchFailure: (): undefined => undefined };
 
 /** A request that has been sent and is waiting. */
 function pending(timeoutMs = 60_000): Promise<string> {

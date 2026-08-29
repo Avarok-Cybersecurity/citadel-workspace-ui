@@ -27,7 +27,7 @@ export function HierarchySidebar() {
   const { toast } = useToast();
 
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const selectedNodeId = params.get('nodeId');
+  const selectedNodeId: string | null = params.get('nodeId');
 
   // Modal state
   const [createModal, setCreateModal] = useState<{ parentId: string; entityType: string } | null>(null);
@@ -137,7 +137,7 @@ export function HierarchySidebar() {
     const parentNode: DomainNode = state.nodes[parentId];
     if (!parentNode) return;
 
-    const allowedTypes = parentNode.allowed_child_types;
+    const allowedTypes: string[] | null = parentNode.allowed_child_types;
     if (!allowedTypes || allowedTypes.length === 0) {
       toastError(toast, 'Cannot Add Here', `No child types are allowed under "${parentNode.name}".`);
       return;

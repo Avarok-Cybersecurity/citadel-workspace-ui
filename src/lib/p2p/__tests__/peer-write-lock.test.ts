@@ -10,7 +10,7 @@ import { withPeerLock } from '../peer-write-lock';
  * These assert the property that prevents that — no interleaving per peer —
  * rather than the implementation, so the chain can be rewritten freely.
  */
-const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
+const tick = (ms = 0): Promise<unknown> => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('withPeerLock', () => {
   it('does not interleave operations for the same peer', async () => {
@@ -66,7 +66,7 @@ describe('withPeerLock', () => {
   });
 
   it('keeps running queued work after one operation rejects', async () => {
-    const failing = withPeerLock(9n, async () => {
+    const failing: Promise<never> = withPeerLock(9n, async (): Promise<never> => {
       throw new Error('write failed');
     });
     await expect(failing).rejects.toThrow('write failed');

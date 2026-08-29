@@ -32,7 +32,7 @@ export const UserDirectory = () => {
 
   // Request member list on mount
   const [searchParams] = useSearchParams();
-  const domainIdParam = searchParams.get('nodeId') || state.workspace?.id;
+  const domainIdParam: string | undefined = searchParams.get('nodeId') || state.workspace?.id;
   useEffect(() => {
     debugLog('UserDirectory', 'Requesting member list for domain:', domainIdParam);
     WorkspaceService.listMembers(domainIdParam || undefined)
@@ -120,7 +120,7 @@ export const UserDirectory = () => {
       // which pushed the request into an in-memory array and scheduled a demo
       // simulation — nothing touched the socket, and the user was told "Request
       // Sent" for a request that did not exist.
-      const ownCid = connectionManager.getConnectionInfo()?.cid;
+      const ownCid: bigint | undefined = connectionManager.getConnectionInfo()?.cid;
       if (ownCid === undefined || ownCid === null) {
         throw new Error('Not connected to a workspace.');
       }

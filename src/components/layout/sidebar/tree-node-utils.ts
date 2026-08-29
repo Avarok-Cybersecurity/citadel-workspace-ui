@@ -12,11 +12,11 @@ export function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
 
   // Build lookup maps
   const nodeMap: Map<string, DomainNode> = new Map<string, DomainNode>();
-  const childrenMap = new Map<string | null, DomainNode[]>();
+  const childrenMap: Map<string | null, DomainNode[]> = new Map<string | null, DomainNode[]>();
 
   for (const node of nodes) {
     nodeMap.set(node.id, node);
-    const parentId = node.parent_id;
+    const parentId: string | null = node.parent_id;
     const siblings: DomainNode[] = childrenMap.get(parentId) ?? [];
     siblings.push(node);
     childrenMap.set(parentId, siblings);

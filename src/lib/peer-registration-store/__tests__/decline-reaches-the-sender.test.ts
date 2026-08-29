@@ -47,7 +47,7 @@ describe('executeDeclineRequest', () => {
     await executeDeclineRequest(request);
 
     expect(h.sent).toHaveLength(1);
-    const payload = h.sent[0].PeerRegisterRespond as Record<string, unknown>;
+    const payload: Record<string, unknown> = h.sent[0].PeerRegisterRespond as Record<string, unknown>;
     expect(payload).toBeDefined();
     expect(payload.accept).toBe(false);
     expect(payload.peer_cid).toBe(42n);

@@ -30,7 +30,7 @@ function stateDouble() {
     setPendingRequest: vi.fn(),
     hasPendingRequest: () => false,
     deletePendingRequest: vi.fn(),
-    cachedForTest: () => cached,
+    cachedForTest: (): unknown => cached,
   };
 }
 
@@ -87,7 +87,7 @@ describe('asking which sessions exist', () => {
 });
 
 describe('choosing a session to claim', () => {
-  const live = [{ cid: 1n }, { cid: 2n }] as never[];
+  const live: never[] = [{ cid: 1n }, { cid: 2n }] as never[];
 
   it('prefers the session this tab had selected', () => {
     expect(pickSessionToClaim(live, 2n).session).toEqual({ cid: 2n });

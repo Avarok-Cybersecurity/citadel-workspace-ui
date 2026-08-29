@@ -49,7 +49,7 @@ export function CallEntryButtons({
     );
   }
 
-  const reason = !capability.supported
+  const reason: string | null = !capability.supported
     ? capability.reason ?? 'Calls are not supported in this browser.'
     : !canCall
       ? `${targetName} is not connected right now.`

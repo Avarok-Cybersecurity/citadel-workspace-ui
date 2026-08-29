@@ -102,7 +102,7 @@ export function resetDarkToDerived(theme: WorkspaceTheme): WorkspaceTheme {
  */
 export function resetToPreset(theme: WorkspaceTheme): WorkspaceTheme | null {
   const base: string = theme.name.replace(/ Copy( \d+)?$/, '');
-  const preset = findPreset(base.toLowerCase().replace(/\s+/g, '-'));
+  const preset: WorkspaceTheme | undefined = findPreset(base.toLowerCase().replace(/\s+/g, '-'));
   if (!preset) return null;
 
   return { ...preset, id: theme.id, name: theme.name, isPreset: false };

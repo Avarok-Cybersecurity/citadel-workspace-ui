@@ -14,8 +14,8 @@ const IPHONE = nav('iPhone', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac O
 describe('AgentDownloadHint', () => {
   it('offers both mac builds, since the architecture cannot be told apart', () => {
     render(<AgentDownloadHint navigatorRef={MAC} />);
-    const arm = screen.getByRole('link', { name: /Apple Silicon/i });
-    const intel = screen.getByRole('link', { name: /Intel/i });
+    const arm: HTMLElement = screen.getByRole('link', { name: /Apple Silicon/i });
+    const intel: HTMLElement = screen.getByRole('link', { name: /Intel/i });
     expect(arm).toHaveAttribute('href', expect.stringContaining(AGENT_ASSETS['macos-arm64']));
     expect(intel).toHaveAttribute('href', expect.stringContaining(AGENT_ASSETS['macos-x64']));
   });
@@ -37,7 +37,7 @@ describe('AgentDownloadHint', () => {
 
   it('always shows the run command, including both flags that have no safe default', () => {
     render(<AgentDownloadHint navigatorRef={MAC} />);
-    const cmd = screen.getByText(/--bind 127\.0\.0\.1:12345 --backend filesystem/);
+    const cmd: HTMLElement = screen.getByText(/--bind 127\.0\.0\.1:12345 --backend filesystem/);
     expect(cmd).toBeInTheDocument();
   });
 
@@ -61,7 +61,7 @@ describe('copy control', () => {
       clipboard: { writeText: (t: string) => { writes.push(t); return Promise.resolve(); } },
     });
     const { getByRole } = render(<AgentDownloadHint navigatorRef={MAC} />);
-    const btn = getByRole('button', { name: /copy the run command/i });
+    const btn: HTMLElement = getByRole('button', { name: /copy the run command/i });
     btn.focus();
     await userEvent.keyboard('{Enter}');
     expect(writes).toHaveLength(1);

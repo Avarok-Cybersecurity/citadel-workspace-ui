@@ -51,8 +51,8 @@ export function setupDisconnectionHandler(client: WorkspaceClient, hooks: Teardo
   disconnectionHandlerRegistered = true;
 
   eventEmitter.on('websocket-disconnected', async () => {
-    const client = liveClient;
-    const hooks = liveHooks;
+    const client: WorkspaceClient | null = liveClient;
+    const hooks: TeardownHooks | null = liveHooks;
     if (!client || !hooks) return;
     debugLog('WebSocketInit', 'WebSocket disconnected event received, stopping message processing and resetting state');
     client.stopMessageProcessing();

@@ -24,7 +24,7 @@ import { useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('@mdx-js/mdx', () => ({
-  evaluate: async () => ({ default: () => null }),
+  evaluate: async () => ({ default: (): null => null }),
 }));
 vi.mock('@/hooks/use-permission', () => ({
   usePermission: () => ({ allowed: true, reason: null }),
@@ -69,10 +69,10 @@ describe('the MDX editor buffer', () => {
       </ConfirmDialogProvider>
     );
 
-    const edit = await screen.findByRole('button', { name: /edit/i });
+    const edit: HTMLElement = await screen.findByRole('button', { name: /edit/i });
     await user.click(edit);
 
-    const textarea = await screen.findByRole('textbox');
+    const textarea: HTMLElement = await screen.findByRole('textbox');
     await user.clear(textarea);
     await user.type(textarea, 'work in progress');
 

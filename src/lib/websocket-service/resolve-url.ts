@@ -107,7 +107,7 @@ export function resolveWebsocketUrl(
   /** The page's location; `undefined` outside a browser, where an override is then required. */
   location: UrlLocation | undefined,
 ): string {
-  const override = configuredUrl || buildTimeUrl;
+  const override: string | undefined = configuredUrl || buildTimeUrl;
   if (override) {
     warnIfOffOrigin(override, location);
     return override;

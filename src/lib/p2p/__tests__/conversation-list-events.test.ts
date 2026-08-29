@@ -54,7 +54,7 @@ describe('markMessagesAsRead', () => {
   });
 
   it('does nothing when there is no conversation', async () => {
-    const conversationManager = { getConversation: vi.fn(() => undefined) };
+    const conversationManager = { getConversation: vi.fn((): undefined => undefined) };
     const emit = vi.fn();
 
     await markMessagesAsRead(

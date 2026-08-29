@@ -90,10 +90,10 @@ export class P2PRegistrationService {
     eventEmitter.on('broadcast-state-sync', (raw: unknown) => {
       const data: BroadcastStateSyncData = raw as BroadcastStateSyncData;
       if (data?.type === 'registered-peer-update' && !instanceManager.isLeader) {
-        const peerCid = data.peerCid as string | undefined;
-        const peerUsername = data.peerUsername as string | undefined;
-        const isOutgoing = data.isOutgoing as boolean | undefined;
-        const isIncoming = data.isIncoming as boolean | undefined;
+        const peerCid: string | undefined = data.peerCid as string | undefined;
+        const peerUsername: string | undefined = data.peerUsername as string | undefined;
+        const isOutgoing: boolean | undefined = data.isOutgoing as boolean | undefined;
+        const isIncoming: boolean | undefined = data.isIncoming as boolean | undefined;
         if (peerCid !== undefined) {
           const peerCidBigInt: bigint = BigInt(peerCid);
           debugLog('P2PRegistrationService', `[P2P-SYNC] Follower received registeredPeers update: ${peerCidBigInt.toString().slice(0, 8)}... (${peerUsername ?? ''})`);

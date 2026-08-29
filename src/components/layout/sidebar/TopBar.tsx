@@ -74,10 +74,10 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
   const username: string = state.currentUser?.username || sessionFallback?.username || "User";
   const name: string = state.currentUser?.name || sessionFallback?.fullName || username;
   const userInitials: string = getUserInitials(name);
-  const avatarUrl = state.currentUser?.avatarUrl;
+  const avatarUrl: string | undefined = state.currentUser?.avatarUrl;
 
 
-  const userRole = state.currentUser?.role;
+  const userRole: string | undefined = state.currentUser?.role;
   const isAdmin = isPrivilegedRole(userRole);
 
 

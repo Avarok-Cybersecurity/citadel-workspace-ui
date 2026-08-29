@@ -45,7 +45,7 @@ async function waitForSession(serverAddress: string): Promise<ActiveSession | nu
   const deadline: number = Date.now() + RECONNECT_WAIT_MS;
   while (Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, RECONNECT_POLL_MS));
-    const found = await findSessionForServer(serverAddress);
+    const found: ActiveSession | null = await findSessionForServer(serverAddress);
     if (found) return found;
   }
   return null;
@@ -85,7 +85,7 @@ async function adoptSession(session: ActiveSession): Promise<void> {
 }
 
 export async function connectToServer(serverAddress: string): Promise<ConnectOutcome> {
-  const live = await findSessionForServer(serverAddress);
+  const live: ActiveSession | null = await findSessionForServer(serverAddress);
   if (live) {
     await adoptSession(live);
     return { kind: 'connected', cid: live.cid };
@@ -113,7 +113,7 @@ export async function connectToServer(serverAddress: string): Promise<ConnectOut
   debugLog('Connect', `No live session for ${serverAddress}; asking auto-connect to re-establish one`);
   await connectionManager.triggerAutoConnect();
 
-  const revived = await waitForSession(serverAddress);
+  const revived: ActiveSession | null = await waitForSession(serverAddress);
   if (revived) {
     await adoptSession(revived);
     return { kind: 'connected', cid: revived.cid };

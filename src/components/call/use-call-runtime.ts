@@ -69,7 +69,7 @@ export function useCallRuntime({
     const builtFor: bigint | null = managerCidRef.current;
     if (builtFor === null || builtFor === selfCid) return;
     const manager: CallManager | null = managerRef.current;
-    const state = manager?.getState();
+    const state: CallState | null | undefined = manager?.getState();
     if (manager && state && state.status !== 'ended' && state.status !== 'failed') {
       void manager.end('hangup');
     }
@@ -129,7 +129,7 @@ export function useCallRuntime({
           // killing the surviving call too.
           if (next && (next.status === 'ended' || next.status === 'failed')) {
             queueMicrotask(() => {
-              const live = managerRef.current?.getState();
+              const live: CallState | null | undefined = managerRef.current?.getState();
               if (!live || live.status === 'ended' || live.status === 'failed') teardown();
             });
           }

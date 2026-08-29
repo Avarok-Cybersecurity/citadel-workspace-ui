@@ -26,10 +26,10 @@ export function TextBubble({
   const isFailed = message.status === 'failed';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
   const displayName: string = senderName || 'Unknown';
-  const hasActions = onEdit || onDelete || onReply;
+  const hasActions: (() => void) | undefined = onEdit || onDelete || onReply;
 
   // Show avatar only for non-own messages in group mode
-  const shouldShowAvatar = showSenderAvatar && !isOwn;
+  const shouldShowAvatar: boolean | undefined = showSenderAvatar && !isOwn;
 
   return (
     // min-w-0 here and on the column below, or max-w-[80%] does not hold. A flex

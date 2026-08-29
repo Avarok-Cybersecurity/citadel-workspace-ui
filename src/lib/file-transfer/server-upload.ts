@@ -54,7 +54,7 @@ export function awaitSendFileAck(requestId: string): Promise<void> {
     };
 
     const handleMessage = (message: unknown): void => {
-      const msg = message as Record<string, unknown>;
+      const msg: Record<string, unknown> = message as Record<string, unknown>;
 
       const success = msg.SendFileRequestSuccess as { request_id?: string } | undefined;
       if (success?.request_id === requestId) {

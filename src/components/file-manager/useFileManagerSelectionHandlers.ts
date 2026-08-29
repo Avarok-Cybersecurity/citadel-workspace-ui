@@ -37,7 +37,7 @@ export function useFileManagerSelectionHandlers({
 
   const handleSelectAll: () => void = useCallback((): void => {
     if (!tree) return;
-    const currentNode = tree.path === currentPath ? tree : findNodeByPath(tree, currentPath);
+    const currentNode: RevfsNode | null = tree.path === currentPath ? tree : findNodeByPath(tree, currentPath);
     if (!currentNode?.children) return;
     // Filtered, matching the grid: reading children directly let Ctrl+A under
     // a filter select hidden files, which Delete then removed.

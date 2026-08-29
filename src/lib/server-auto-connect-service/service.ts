@@ -93,15 +93,15 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     });
 
     this.listen<WebSocketMessage>('websocket-message', async (message) => {
-      const connectSuccess = getVariant(message, 'ConnectSuccess');
+      const connectSuccess: Record<string, unknown> | undefined = getVariant(message, 'ConnectSuccess');
       if (connectSuccess) {
         await this.handleConnectionSuccess(connectSuccess as { cid?: bigint; username?: string; server_addr?: string });
       }
-      const connectFailure = getVariant(message, 'ConnectFailure');
+      const connectFailure: Record<string, unknown> | undefined = getVariant(message, 'ConnectFailure');
       if (connectFailure) {
         this.handleConnectionFailure(connectFailure as { message?: string });
       }
-      const disconnectNotification = getVariant(message, 'DisconnectNotification');
+      const disconnectNotification: Record<string, unknown> | undefined = getVariant(message, 'DisconnectNotification');
       if (disconnectNotification) {
         this.handleDisconnect(disconnectNotification as { cid?: bigint });
       }
@@ -181,8 +181,8 @@ export class ServerAutoConnectService extends EventListenerPollingService {
   }
 
   private async handleConnectionSuccess(connectSuccess: { cid?: bigint; username?: string; server_addr?: string }): Promise<void> {
-    const username = connectSuccess.username;
-    const serverAddress = connectSuccess.server_addr;
+    const username: string | undefined = connectSuccess.username;
+    const serverAddress: string | undefined = connectSuccess.server_addr;
 
     if (username) {
       const sessionKey: string = `${username}@${serverAddress}`;
@@ -201,7 +201,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
   }
 
   private handleDisconnect(notification: { cid?: bigint }): void {
-    const cid = notification.cid?.toString();
+    const cid: string | undefined = notification.cid?.toString();
     debugLog('ServerAutoConnectService', `Disconnect notification for CID ${cid}`);
     if (this.isEnabled) {
       setTimeout(() => this.triggerReconnect(), 1000);

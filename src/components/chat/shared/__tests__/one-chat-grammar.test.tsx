@@ -23,7 +23,7 @@ describe('the date separator', () => {
   it('names the date to a screen reader without reading the rules around it', () => {
     render(<DateSeparator date="Tuesday" />);
 
-    const separator = screen.getByRole('separator', { name: 'Tuesday' });
+    const separator: HTMLElement = screen.getByRole('separator', { name: 'Tuesday' });
     expect(separator).toHaveTextContent('Tuesday');
   });
 });

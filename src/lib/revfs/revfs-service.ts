@@ -79,7 +79,7 @@ export class RevfsService {
 
   async getTree(myCid: bigint, peerCid: bigint): Promise<RevfsNode> {
     const key: string = peerPairKey(myCid, peerCid);
-    const cached = this.state.getTree(key);
+    const cached: RevfsNode | undefined = this.state.getTree(key);
     if (cached) return cached;
 
     const io: RevfsIO = this.ensureIO();
@@ -98,7 +98,7 @@ export class RevfsService {
     // without writing anything back, so nothing restores what it overwrote.
     // The loaded-tree branch has the same defect with a stale snapshot, which
     // is why the check sits above both rather than inside one.
-    const appliedDuringLoad = this.state.getTree(key);
+    const appliedDuringLoad: RevfsNode | undefined = this.state.getTree(key);
     if (appliedDuringLoad) return appliedDuringLoad;
 
     if (result.type === 'load-tree' && result.tree) {
@@ -114,13 +114,13 @@ export class RevfsService {
 
   async getServerTree(myCid: bigint): Promise<RevfsNode> {
     const key: string = serverTreeKey(myCid);
-    const cached = this.state.getTree(key);
+    const cached: RevfsNode | undefined = this.state.getTree(key);
     if (cached) return cached;
 
     const io: RevfsIO = this.ensureIO();
     const result = await io.execute({ type: 'load-tree', treeKey: key });
     // Same race as getTree above; server-scoped ops write through setTree too.
-    const appliedDuringLoad = this.state.getTree(key);
+    const appliedDuringLoad: RevfsNode | undefined = this.state.getTree(key);
     if (appliedDuringLoad) return appliedDuringLoad;
 
     if (result.type === 'load-tree' && result.tree) {
@@ -238,7 +238,7 @@ export class RevfsService {
   private findFileInTree(tree: RevfsNode, path: string): RevfsNode | null {
     if (tree.path === path && tree.type === 'file') return tree;
     for (const child of tree.children ?? []) {
-      const found = this.findFileInTree(child, path);
+      const found: RevfsNode | null = this.findFileInTree(child, path);
       if (found) return found;
     }
     return null;

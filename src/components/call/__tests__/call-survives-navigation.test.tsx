@@ -64,7 +64,7 @@ beforeEach(() => {
 
 describe('CallAudioHost', () => {
   it('renders one audio element per remote stream, independent of any tile', () => {
-    const stream = new (class {} as unknown as typeof MediaStream)();
+    const stream: MediaStream = new (class {} as unknown as typeof MediaStream)();
     const { value } = harness({ remoteAudioStreams: new Map([[PEER, stream]]) });
 
     const { container } = render(
@@ -104,7 +104,7 @@ describe('OngoingCallBar', () => {
     const { value, leave } = harness({});
     renderBar(value);
 
-    const button = screen.getByRole('button', { name: /leave call/i });
+    const button: HTMLElement = screen.getByRole('button', { name: /leave call/i });
     await userEvent.click(button);
     expect(leave).toHaveBeenCalledTimes(1);
   });

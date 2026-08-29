@@ -145,7 +145,7 @@ describe('applyGroupInvite', () => {
   });
 
   it('reports a failure to the user rather than dropping the invite silently', async () => {
-    const setGroups = vi.fn(() => {
+    const setGroups = vi.fn((): never => {
       throw new Error('store rejected the invite');
     });
 

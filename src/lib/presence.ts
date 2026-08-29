@@ -53,7 +53,7 @@ function findPeer(memberId: string) {
   const byUsername = allPeers.find((peer) => peer.username === memberId);
   if (byUsername) return byUsername;
 
-  const cid = memberIdToCid(memberId);
+  const cid: bigint | null = memberIdToCid(memberId);
   return cid === null ? undefined : allPeers.find((peer) => peer.cid === cid);
 }
 

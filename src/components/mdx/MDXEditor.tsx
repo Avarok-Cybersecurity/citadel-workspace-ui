@@ -35,7 +35,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
   ) => {
     if (!textAreaRef.current) return;
 
-    const textarea = textAreaRef.current;
+    const textarea: HTMLTextAreaElement = textAreaRef.current;
     const start: number = textarea.selectionStart;
     const end: number = textarea.selectionEnd;
     const selectedText: string = value.substring(start, end);
@@ -76,7 +76,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
     const prefix: string = '#'.repeat(level) + ' ';
     if (!textAreaRef.current) return;
 
-    const textarea = textAreaRef.current;
+    const textarea: HTMLTextAreaElement = textAreaRef.current;
     const start: number = textarea.selectionStart;
     const lineStart: number = value.lastIndexOf('\n', start - 1) + 1;
     const lineEnd: number = value.indexOf('\n', start);
@@ -112,7 +112,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
   const handleMediaInsert = (markdownText: string): void => {
     if (!textAreaRef.current) return;
 
-    const textarea = textAreaRef.current;
+    const textarea: HTMLTextAreaElement = textAreaRef.current;
     const start: number = textarea.selectionStart;
 
     const newText: string = value.substring(0, start) + markdownText + value.substring(start);
@@ -128,7 +128,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
   const handleList = (ordered: boolean = false): void => {
     if (!textAreaRef.current) return;
 
-    const textarea = textAreaRef.current;
+    const textarea: HTMLTextAreaElement = textAreaRef.current;
     const start: number = textarea.selectionStart;
     const end: number = textarea.selectionEnd;
 

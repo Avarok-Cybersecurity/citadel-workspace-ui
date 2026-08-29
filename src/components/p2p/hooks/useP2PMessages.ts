@@ -128,7 +128,7 @@ export function useP2PMessages({
     try {
       const olderPage = await messenger.loadMessagePage(peerCid, currentPage - 1);
       if (olderPage && olderPage.messages.length > 0) {
-        const scrollElement = scrollRef.current;
+        const scrollElement: HTMLDivElement | null = scrollRef.current;
         const previousScrollHeight: number = scrollElement?.scrollHeight || 0;
 
         setMessages(prev => prependMessages(prev, olderPage.messages));

@@ -152,7 +152,7 @@ export function useJoinRegistration(
     // was the third copy of a message that two better channels were carrying.
     const missingField =
       !formData.fullName || !formData.username || !formData.password || !formData.confirmPassword;
-    const firstError =
+    const firstError: string | null =
       rawErrors.fullName ?? rawErrors.username ?? rawErrors.password ?? rawErrors.confirmPassword;
     if (missingField || firstError) {
       setSubmitAttempted(true);

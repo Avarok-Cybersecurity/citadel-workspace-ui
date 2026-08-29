@@ -26,7 +26,7 @@ export class RevisionChain {
    * Add a new revision to the chain
    */
   addRevision(rootHash: string): RevisionEntry {
-    const prevHash = this.entries.length > 0
+    const prevHash: string | undefined = this.entries.length > 0
       ? this.entries[this.entries.length - 1].rootHash
       : undefined;
 

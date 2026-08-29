@@ -56,7 +56,7 @@ export class RevfsIO {
   private async sendRevfsOp(peerCid: bigint, operation: RevfsOperation): Promise<RevfsIntentResult> {
     try {
       debugLog('RevfsIO', `sendRevfsOp: op=${operation.op_type} path=${operation.path} peerCid=${peerCid}`);
-      const localCid = await this.deps.getCurrentCid();
+      const localCid: bigint | null = await this.deps.getCurrentCid();
       if (!localCid) throw new Error('No local CID available');
       debugLog('RevfsIO', `sendRevfsOp: localCid=${localCid}`);
 
@@ -98,7 +98,7 @@ export class RevfsIO {
   }
 
   private async loadTree(key: string): Promise<RevfsIntentResult> {
-    const tree = await this.storage.loadTree(key);
+    const tree: RevfsNode | null = await this.storage.loadTree(key);
     return { type: 'load-tree', tree };
   }
 

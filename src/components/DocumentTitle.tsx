@@ -28,11 +28,11 @@ const ROUTE_TITLES: ReadonlyArray<readonly [RegExp, string]> = [
 
 /** Exported for the test, and so the NotFound copy has one home. */
 export function titleForPath(pathname: string): string {
-  const match = ROUTE_TITLES.find(([pattern]) => pattern.test(pathname));
+  const match: readonly [RegExp, string] | undefined = ROUTE_TITLES.find(([pattern]) => pattern.test(pathname));
   return match ? match[1] : `Page not found · ${SUFFIX}`;
 }
 
-export function DocumentTitle() {
+export function DocumentTitle(): null {
   const { pathname } = useLocation();
 
   useEffect(() => {

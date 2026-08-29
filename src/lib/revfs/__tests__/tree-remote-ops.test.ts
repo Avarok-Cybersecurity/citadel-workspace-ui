@@ -59,7 +59,7 @@ describe('applyRemoteOp', () => {
       metadata: meta, timestamp: Date.now(),
     };
     const result: RevfsNode = applyRemoteOp(tree, op, CID_B);
-    const file = findNode(result, '/docs/file.pdf');
+    const file: RevfsNode | null = findNode(result, '/docs/file.pdf');
     expect(file).not.toBeNull();
     // A uploaded, so the bytes travelled to B: B is the one HOSTING them.
     // This expected Remote, encoding the inversion that made an uploader's own
@@ -97,7 +97,7 @@ describe('applyRemoteOp', () => {
       tree: remoteTree, timestamp: Date.now(),
     };
     const result: RevfsNode = applyRemoteOp(createDefaultTree(), op, CID_B);
-    const file = findNode(result, '/docs/test.pdf');
+    const file: RevfsNode | null = findNode(result, '/docs/test.pdf');
     expect(file).not.toBeNull();
     // ...and flipping to B's perspective makes it Hosted, since B holds it.
     expect(file!.fileState).toBe(RevfsFileState.Hosted);
@@ -127,7 +127,7 @@ describe('applyRemoteOp', () => {
     const meta2 = makeMeta({ fileId: 'v2', uploadedByCid: CID_A });
     const op2 = { op_id: '2', op_type: RevfsOpType.PlaceFile, path: '/docs/f.pdf', metadata: meta2, timestamp: Date.now() };
     tree = applyRemoteOp(tree, op2, CID_B);
-    const file = findNode(tree, '/docs/f.pdf');
+    const file: RevfsNode | null = findNode(tree, '/docs/f.pdf');
     expect(file!.fileMetadata!.fileId).toBe('v2');
     expect(findNode(tree, '/docs')!.children!.filter(c => c.type === 'file')).toHaveLength(1);
   });

@@ -75,7 +75,7 @@ export class YjsP2PProvider {
     initiateSync: () => void;
   } {
     // eslint-disable-next-line @typescript-eslint/no-this-alias -- required for getter/setter context binding
-    const self = this;
+    const self: this = this;
     return {
       get ownCid() { return self.ownCid; },
       get peerCid() { return self.peerCid; },
@@ -136,7 +136,7 @@ export class YjsP2PProvider {
       if (peerCid.toString() !== this.peerCid) return;
       // Filter by document_id when present (sync/awareness/ack carry it;
       // a future generic Yjs command might not).
-      const docId = typeof payload.document_id === 'string' ? payload.document_id : undefined;
+      const docId: string | undefined = typeof payload.document_id === 'string' ? payload.document_id : undefined;
       if (docId !== undefined && docId !== this.documentId) return;
       this.handleMessage(payload as unknown as YjsP2PMessage);
     });

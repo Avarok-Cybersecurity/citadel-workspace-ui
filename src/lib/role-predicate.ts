@@ -64,6 +64,6 @@ export function isOwnerRole(role: unknown): boolean {
  * AdminSettingsSection's omission of Owner was the bug this name prevents.
  */
 export function isPrivilegedRole(role: unknown): boolean {
-  const normalized = normalizeRole(role);
+  const normalized: string | null = normalizeRole(role);
   return normalized === 'admin' || normalized === 'owner';
 }

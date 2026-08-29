@@ -30,7 +30,7 @@ const persisted = (over: Record<string, unknown> = {}): Partial<FileTransfer> =>
 describe('restoring a transfer after a reload', () => {
   it('keeps a finished transfer as it was, so history survives', () => {
     for (const state of ['complete', 'declined', 'cancelled', 'expired', 'error']) {
-      const restored = restoreTransfer(persisted({ state }));
+      const restored: FileTransfer | null = restoreTransfer(persisted({ state }));
       expect(restored?.state, state).toBe(state);
     }
   });
@@ -41,14 +41,14 @@ describe('restoring a transfer after a reload', () => {
     // that never moves again — the "Downloading… 40%" forever this same store
     // produced elsewhere.
     for (const state of ['pending', 'uploading', 'staged', 'transferring']) {
-      const restored = restoreTransfer(persisted({ state, progress: 40 }));
+      const restored: FileTransfer | null = restoreTransfer(persisted({ state, progress: 40 }));
       expect(restored?.state, state).toBe('error');
       expect(restored?.progress, state).toBe(0);
     }
   });
 
   it('says why an interrupted transfer failed', () => {
-    const restored = restoreTransfer(persisted({ state: 'transferring' }));
+    const restored: FileTransfer | null = restoreTransfer(persisted({ state: 'transferring' }));
     expect(restored?.errorMessage).toMatch(/reload/i);
     expect(restored?.errorMessage, 'and what to do about it').toMatch(/again/i);
   });
@@ -62,7 +62,7 @@ describe('restoring a transfer after a reload', () => {
   });
 
   it('fills in what a partial record is missing rather than dropping it', () => {
-    const restored = restoreTransfer({ id: 't', fileName: 'x', state: 'complete' });
+    const restored: FileTransfer | null = restoreTransfer({ id: 't', fileName: 'x', state: 'complete' });
     expect(restored).not.toBeNull();
     expect(restored?.fileSize).toBe(0);
     expect(restored?.mode).toBe('p2p');

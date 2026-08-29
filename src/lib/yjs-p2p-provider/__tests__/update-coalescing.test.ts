@@ -22,11 +22,11 @@ vi.mock('../sending', () => ({
   sendUpdate: (_ctx: unknown, update: Uint8Array): void => {
     sent.push(update);
   },
-  sendSyncMessage: () => undefined,
-  broadcastAwareness: () => undefined,
+  sendSyncMessage: (): undefined => undefined,
+  broadcastAwareness: (): undefined => undefined,
 }));
 vi.mock('@/lib/event-emitter', () => ({
-  eventEmitter: { on: () => () => undefined, off: () => undefined, emit: () => undefined },
+  eventEmitter: { on: (): () => undefined => (): undefined => undefined, off: (): undefined => undefined, emit: (): undefined => undefined },
 }));
 
 import { YjsP2PProvider } from '../provider';

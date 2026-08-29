@@ -36,7 +36,7 @@ export function WorkspaceAppearanceSection() {
   const { theme, isDefault } = useWorkspaceTheme();
   const [open, setOpen] = useState(false);
 
-  const workspaceId = state.workspace?.id;
+  const workspaceId: string | undefined = state.workspace?.id;
 
   // Two things had to be handled here, both found by running the Playwright spec
   // rather than by reading the code.

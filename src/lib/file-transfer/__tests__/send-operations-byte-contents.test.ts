@@ -19,7 +19,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * fires *before* the buffer allocation by spying on `arrayBuffer()`.
  */
 
-const sendRequestSpy = vi.hoisted(() => vi.fn<(request: unknown) => Promise<void>>(async () => undefined));
+const sendRequestSpy = vi.hoisted(() => vi.fn<(request: unknown) => Promise<void>>(async (): Promise<undefined> => undefined));
 
 vi.mock('../../websocket-service', () => ({
   websocketService: {

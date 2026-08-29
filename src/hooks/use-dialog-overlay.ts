@@ -46,10 +46,10 @@ export function useDialogOverlay<T extends HTMLElement = HTMLDivElement>({
 
   useEffect(() => {
     if (!enabled) return;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const previouslyFocused: HTMLElement | null = document.activeElement as HTMLElement | null;
     // The first field, not the container: a screen reader announces the dialog
     // from its label and the user lands where they need to type.
-    const first = ref.current?.querySelector<HTMLElement>(FOCUSABLE);
+    const first: HTMLElement | null | undefined = ref.current?.querySelector<HTMLElement>(FOCUSABLE);
     (first ?? ref.current)?.focus();
 
     return (): void => {
@@ -68,12 +68,12 @@ export function useDialogOverlay<T extends HTMLElement = HTMLDivElement>({
       }
       if (event.key !== 'Tab' || !ref.current) return;
 
-      const items = Array.from(ref.current.querySelectorAll<HTMLElement>(FOCUSABLE));
+      const items: HTMLElement[] = Array.from(ref.current.querySelectorAll<HTMLElement>(FOCUSABLE));
       if (items.length === 0) return;
 
-      const first = items[0];
-      const last = items[items.length - 1];
-      const active = document.activeElement;
+      const first: HTMLElement = items[0];
+      const last: HTMLElement = items[items.length - 1];
+      const active: Element | null = document.activeElement;
 
       // Wrap at both ends. Without this, Tab from the last field leaves the
       // dialog for controls hidden behind the scrim.

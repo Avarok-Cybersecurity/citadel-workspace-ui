@@ -79,8 +79,8 @@ export function handleInboundAck(message: ChannelMessage): void {
 // ── Instance Announce ─────────────────────────────────────────────────────
 
 export function handleInstanceAnnounce(state: LeaderElectionState, message: ChannelMessage): void {
-  const announcePayload = message.payload as Record<string, unknown> | undefined;
-  const cid = (announcePayload?.cid as bigint | null) || null;
+  const announcePayload: Record<string, unknown> | undefined = message.payload as Record<string, unknown> | undefined;
+  const cid: bigint | null = (announcePayload?.cid as bigint | null) || null;
   debugLog('InstanceChannel', `handleInstanceAnnounce: from=${message.senderInstanceId}, cid=${cid?.toString()}`);
 
   instanceManager.registerInstance(message.senderInstanceId, cid);
@@ -118,8 +118,8 @@ export function handleSessionRelease(message: ChannelMessage): void {
     return;
   }
 
-  const releasePayload = message.payload as Record<string, unknown> | undefined;
-  const releaseCid = releasePayload?.cid;
+  const releasePayload: Record<string, unknown> | undefined = message.payload as Record<string, unknown> | undefined;
+  const releaseCid: unknown = releasePayload?.cid;
   if (!releaseCid) {
     debugLog('InstanceChannel', 'Received session-release without CID');
     return;
@@ -132,9 +132,9 @@ export function handleSessionRelease(message: ChannelMessage): void {
 // ── CID Update ────────────────────────────────────────────────────────────
 
 export function handleCidUpdate(message: ChannelMessage): void {
-  const cidPayload = message.payload as Record<string, unknown> | undefined;
-  const cidValue = cidPayload?.cid;
-  const cidBigInt = cidValue ? BigInt(cidValue as string) : null;
+  const cidPayload: Record<string, unknown> | undefined = message.payload as Record<string, unknown> | undefined;
+  const cidValue: unknown = cidPayload?.cid;
+  const cidBigInt: bigint | null = cidValue ? BigInt(cidValue as string) : null;
 
   instanceManager.registerInstance(message.senderInstanceId, cidBigInt);
 

@@ -19,14 +19,14 @@ declare global {
 export function parseAndFormatMixedContent(input: unknown): string {
   // If input is not a string, format it directly
   if (typeof input !== 'string') {
-    const formatted = formatForDebug(input);
+    const formatted: unknown = formatForDebug(input);
     return typeof formatted === 'string' ? formatted : JSON.stringify(formatted);
   }
   
   // First, check if the entire string is valid JSON
   try {
     const parsed = JSON.parse(input);
-    const formatted = formatForDebug(parsed);
+    const formatted: unknown = formatForDebug(parsed);
     return typeof formatted === 'string' ? formatted : JSON.stringify(formatted);
   } catch {
     // Not valid JSON as a whole, continue with mixed parsing
@@ -98,7 +98,7 @@ export function parseAndFormatMixedContent(input: unknown): string {
       try {
         const parsed = JSON.parse(part.content);
         // formatForDebug returns the formatted object, we need to stringify it
-        const formatted = formatForDebug(parsed);
+        const formatted: unknown = formatForDebug(parsed);
         return typeof formatted === 'string' ? formatted : JSON.stringify(formatted);
       } catch {
         // If parsing fails somehow, return the original content

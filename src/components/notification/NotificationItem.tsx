@@ -74,13 +74,13 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
     // from whoever raised the notification -- so a callback in it is a claim
     // until it is checked. It used to be typed `any`, which let this call
     // anything at all under that key, including a string.
-    const onCardClick = notification.data?.onCardClick;
+    const onCardClick: unknown = notification.data?.onCardClick;
     if (typeof onCardClick === 'function') {
       (onCardClick as () => void)();
     }
   };
 
-  const isClickable = notification.type === NotificationType.PEER_REGISTRATION && notification.data?.onCardClick;
+  const isClickable: unknown = notification.type === NotificationType.PEER_REGISTRATION && notification.data?.onCardClick;
 
   return (
     <Card

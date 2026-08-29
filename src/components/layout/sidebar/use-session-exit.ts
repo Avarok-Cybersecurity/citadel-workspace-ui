@@ -69,7 +69,7 @@ export function useSessionExit() {
       setTimeout(() => setShowDisconnectModal(false), 3000);
       return;
     }
-    const cid = tabSelection?.selectedCid ?? currentSession?.cid ?? null;
+    const cid: bigint | null = tabSelection?.selectedCid ?? currentSession?.cid ?? null;
 
     // Stop WASM connection manager polling regardless of below outcome
     wasmConnectionManager.stop();

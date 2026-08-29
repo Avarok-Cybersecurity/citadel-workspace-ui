@@ -31,13 +31,13 @@ export function WorkspaceThemeProvider({ children }: { children: ReactNode }) {
   /** Set while the editor is previewing; takes precedence over the saved theme. */
   const [preview, setPreview] = useState<WorkspaceTheme | null>(null);
 
-  const saved = useMemo(() => {
+  const saved: WorkspaceTheme | null = useMemo((): WorkspaceTheme | null => {
     const metadata = state.workspace?.metadata;
     if (!metadata) return null;
 
     // deserializeTheme returns null for anything that is not a theme envelope,
     // because metadata is a general-purpose field other features also write to.
-    const parsed = deserializeTheme(metadata);
+    const parsed: WorkspaceTheme | null = deserializeTheme(metadata);
     if (!parsed) {
       debugLog('WorkspaceTheme', 'Workspace metadata carries no usable theme; using the default');
     }
@@ -57,7 +57,7 @@ export function WorkspaceThemeProvider({ children }: { children: ReactNode }) {
     return (): void => clearTheme();
   }, []);
 
-  const previewTheme = useCallback((next: WorkspaceTheme | null): void => setPreview(next), []);
+  const previewTheme: (next: WorkspaceTheme | null) => void = useCallback((next: WorkspaceTheme | null): void => setPreview(next), []);
 
   const value = useMemo(
     () => ({

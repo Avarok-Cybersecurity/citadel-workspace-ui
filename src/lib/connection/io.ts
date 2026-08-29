@@ -17,7 +17,7 @@ export class ConnectionIO {
 
   async executeIntent(intent: ConnectionIntent): Promise<unknown> {
     // Try WebSocket intents first
-    const wsResult = await this.ws.executeWebSocketIntent(intent);
+    const wsResult: unknown = await this.ws.executeWebSocketIntent(intent);
     if (wsResult !== undefined) return wsResult;
 
     // Service-layer intents

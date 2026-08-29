@@ -29,7 +29,7 @@ export class WorkspaceOperations {
     }
 
     if (instanceManager.isLeader) {
-      const client = this.config.getClient();
+      const client: WorkspaceClient | null = this.config.getClient();
       if (!client) {
         throw new Error('WebSocket client not available (leader without client)');
       }

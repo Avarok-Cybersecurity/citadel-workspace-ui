@@ -64,9 +64,9 @@ export async function disconnectSession(
   state: ConnectionState,
   io: ConnectionIO,
 ): Promise<void> {
-  const cid = session?.cid ?? state.currentConnectionInfo?.cid;
-  const username = session?.username ?? state.currentConnectionInfo?.username;
-  const serverAddress = session?.serverAddress ?? state.currentConnectionInfo?.serverAddress;
+  const cid: bigint | undefined = session?.cid ?? state.currentConnectionInfo?.cid;
+  const username: string | undefined = session?.username ?? state.currentConnectionInfo?.username;
+  const serverAddress: string | undefined = session?.serverAddress ?? state.currentConnectionInfo?.serverAddress;
 
   if (!cid) {
     debugLog('ConnectionService', 'disconnect() called but no CID available - skipping backend disconnect');
@@ -117,7 +117,7 @@ export async function switchAccount(
   disconnectFn: () => Promise<void>,
   storeSessionFn: (session: StoredSession) => Promise<void>,
 ): Promise<void> {
-  const session = state.findSession(username, serverAddress);
+  const session: StoredSession | undefined = state.findSession(username, serverAddress);
   if (!session) {
     throw new Error('Session not found');
   }

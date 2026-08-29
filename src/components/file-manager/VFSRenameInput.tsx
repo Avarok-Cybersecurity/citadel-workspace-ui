@@ -56,7 +56,7 @@ export function VFSRenameInput({
 
   const handleConfirm: () => void = useCallback((): void => {
     const trimmed: string = value.trim();
-    const validationError = validate(trimmed);
+    const validationError: string | null = validate(trimmed);
     if (validationError) {
       setError(validationError);
       return;

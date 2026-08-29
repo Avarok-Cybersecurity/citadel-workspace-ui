@@ -28,7 +28,7 @@ export function moveTargets(
   const forbidden: Set<string> = descendantsOf(nodes, nodeId);
   forbidden.add(nodeId);
 
-  const childType = childTypeOf(node);
+  const childType: string | null = childTypeOf(node);
 
   return Object.values(nodes).filter((candidate) => {
     if (forbidden.has(candidate.id)) return false;
@@ -40,7 +40,7 @@ export function moveTargets(
 
 /** The `Child("Room")` string, or null for a workspace-typed node. */
 function childTypeOf(node: DomainNode): string | null {
-  const entity = node.entity_type as unknown;
+  const entity: unknown = node.entity_type as unknown;
   if (entity && typeof entity === 'object' && 'Child' in entity) {
     return String((entity as { Child: unknown }).Child);
   }
@@ -64,7 +64,7 @@ function descendantsOf(nodes: Record<string, DomainNode>, rootId: string): Set<s
   const limit: number = Object.keys(nodes).length + 1;
 
   for (let step: number = 0; queue.length > 0 && step < limit; step += 1) {
-    const current = queue.pop();
+    const current: string | undefined = queue.pop();
     if (current === undefined) continue;
     for (const child of nodes[current]?.children ?? []) {
       if (found.has(child)) continue;

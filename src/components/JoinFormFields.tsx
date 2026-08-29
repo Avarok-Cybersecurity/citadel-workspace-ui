@@ -36,7 +36,7 @@ interface FormFieldProps {
 function FormField({ id, name, label, value, onChange, placeholder, type, icon: Icon, hint, onBlur, maxLength, error, autoComplete }: FormFieldProps) {
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === 'password';
-  const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
+  const inputType: string | undefined = isPassword ? (showPassword ? 'text' : 'password') : type;
 
   return (
     <div className="space-y-1.5">

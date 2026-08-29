@@ -21,7 +21,7 @@ export function bindEndedGroups(): void {
     ended.add(data.groupId);
     // Insertion order, so the oldest goes first.
     while (ended.size > MAX_REMEMBERED) {
-      const oldest = ended.values().next().value;
+      const oldest: string | undefined = ended.values().next().value;
       if (oldest === undefined) break;
       ended.delete(oldest);
     }

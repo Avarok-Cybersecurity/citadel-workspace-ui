@@ -69,7 +69,7 @@ function countNodes(node: RevfsNode): { dirs: number; files: number } {
   let dirs: number = node.type === 'directory' ? 1 : 0;
   let files: number = node.type === 'file' ? 1 : 0;
   for (const child of node.children ?? []) {
-    const childCounts = countNodes(child);
+    const childCounts: { dirs: number; files: number; } = countNodes(child);
     dirs += childCounts.dirs;
     files += childCounts.files;
   }
@@ -92,7 +92,7 @@ describe('deep nested tree stress tests (extra)', () => {
     expect(findNode(result, '/level-0')).not.toBeNull();
     expect(findNode(result, '/level-0/level-1/level-2/level-3/level-4')).not.toBeNull();
 
-    const deepFile = findNode(result, '/level-0/level-1/level-2/level-3/level-4/file-5-0.dat');
+    const deepFile: RevfsNode | null = findNode(result, '/level-0/level-1/level-2/level-3/level-4/file-5-0.dat');
     expect(deepFile).not.toBeNull();
     // Flipped to the receiving viewer's perspective: they hold the bytes.
     expect(deepFile!.fileState).toBe(RevfsFileState.Hosted);
@@ -123,7 +123,7 @@ describe('deep nested tree stress tests (extra)', () => {
     }
 
     for (let s: number = 0; s < SIBLINGS_PER_LEVEL; s++) {
-      const node = findNode(tree, `/wide-0-sibling-${s}`);
+      const node: RevfsNode | null = findNode(tree, `/wide-0-sibling-${s}`);
       expect(node).not.toBeNull();
       expect(findNode(tree, `/wide-0-sibling-${s}/data-${s}.bin`)).not.toBeNull();
     }
@@ -131,14 +131,14 @@ describe('deep nested tree stress tests (extra)', () => {
 
   it('immutability preserved in deep tree operations', () => {
     const { tree: originalTree, allDirPaths } = createDeepTree(10, 2);
-    const originalNodeCount = countNodes(originalTree);
+    const originalNodeCount: { dirs: number; files: number; } = countNodes(originalTree);
 
     const deepPath: string = allDirPaths[allDirPaths.length - 1];
     mkdir(originalTree, `${deepPath}/new-dir`);
     const meta = makeMeta({ fileId: 'new' });
     placeFile(originalTree, `${deepPath}/new.txt`, meta, CID_A);
 
-    const afterNodeCount = countNodes(originalTree);
+    const afterNodeCount: { dirs: number; files: number; } = countNodes(originalTree);
     expect(afterNodeCount.dirs).toBe(originalNodeCount.dirs);
     expect(afterNodeCount.files).toBe(originalNodeCount.files);
   });

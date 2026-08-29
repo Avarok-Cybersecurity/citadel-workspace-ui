@@ -47,7 +47,7 @@ export function useRetryCountdown({
         hasTriggeredRetry = true;
         retryInProgressRef.current = true;
 
-        const retryFn = retryFnRef.current;
+        const retryFn: (() => Promise<unknown>) | null = retryFnRef.current;
         if (retryFn) {
           runAsyncSetup(async () => {
             try {

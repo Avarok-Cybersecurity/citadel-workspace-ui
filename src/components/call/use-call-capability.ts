@@ -27,7 +27,7 @@ export function useCallCapability({
     if (!call.outgoing) return;
     if (announcedOutcome.current === call.callId) return;
 
-    const message = callOutcomeMessage(call.reason, callOutcomePeerName(call));
+    const message: string | null = callOutcomeMessage(call.reason, callOutcomePeerName(call));
     if (!message) return;
     announcedOutcome.current = call.callId;
     toast(message);

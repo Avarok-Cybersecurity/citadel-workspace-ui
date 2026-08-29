@@ -129,7 +129,7 @@ export function runMigrations<DBTypes>(
   tx: IDBPTransaction<DBTypes, StoreNames<DBTypes>[], 'versionchange'>
 ): void {
   const target: number = newVersion ?? DB_VERSION;
-  const pending = MIGRATIONS.filter(m => m.version > oldVersion && m.version <= target).sort(
+  const pending: Migration<unknown>[] = MIGRATIONS.filter(m => m.version > oldVersion && m.version <= target).sort(
     (a, b) => a.version - b.version
   );
 

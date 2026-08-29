@@ -28,7 +28,7 @@ export function startKeyboardInsetTracking(): () => void {
   const viewport = typeof window !== 'undefined' ? window.visualViewport : undefined;
   if (!viewport) return () => undefined;
 
-  const root = document.documentElement;
+  const root: HTMLElement = document.documentElement;
 
   const publish = (): void => {
     const hidden: number = window.innerHeight - viewport.height;

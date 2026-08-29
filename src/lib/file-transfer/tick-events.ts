@@ -89,14 +89,14 @@ export function parseTickNotification(
   ctx: TickCorrelation
 ): ParsedTick {
   const { status, cid } = notification;
-  const peerCid = notification.peer_cid;
-  const requestId = notification.request_id ?? undefined;
+  const peerCid: bigint | null = notification.peer_cid;
+  const requestId: string | undefined = notification.request_id ?? undefined;
 
   // No peer means a C2S transfer (server storage), which is not a chat
   // transfer and has nothing in our state to update.
   if (peerCid === null || peerCid === undefined) return null;
 
-  const resolved = requestId ? ctx.requestIdToTransferId.get(requestId) : undefined;
+  const resolved: string | undefined = requestId ? ctx.requestIdToTransferId.get(requestId) : undefined;
   const isForeign = requestId !== undefined && ctx.foreignRequestIds.has(requestId);
 
   if (status === 'TransferBeginning') {
@@ -117,7 +117,7 @@ export function parseTickNotification(
       return null;
     }
     const objectId: string = metadata.object_id.toString();
-    const transferId = ctx.objectIdToTransferId.get(objectId) ?? resolved;
+    const transferId: string | undefined = ctx.objectIdToTransferId.get(objectId) ?? resolved;
     if (requestId) {
       if (transferId) ctx.requestIdToTransferId.set(requestId, transferId);
       ctx.requestIdToDownloadPath.set(requestId, downloadPath);

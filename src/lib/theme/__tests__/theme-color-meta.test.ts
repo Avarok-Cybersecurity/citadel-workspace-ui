@@ -11,7 +11,7 @@ describe('syncThemeColorMeta', () => {
     document.documentElement.style.removeProperty('--background');
   });
 
-  const meta = () => document.querySelector('meta[name="theme-color"]')?.getAttribute('content');
+  const meta: () => string | null | undefined = (): string | null | undefined => document.querySelector('meta[name="theme-color"]')?.getAttribute('content');
 
   it('writes the computed background as hex', () => {
     document.documentElement.style.setProperty('--background', '235 18% 13%');
