@@ -888,3 +888,37 @@ h1, h2, h3, h4, h5, h6 {
   min-width: 24px;
   min-height: 24px;
 }
+
+/* A phone toast must clear the fixed header.
+ *
+ * Toasts come from the top on small viewports because at the bottom they sat on
+ * the join form's submit button. They then sat on the TOP BAR instead, and a CI
+ * probe reported the account avatar as `covered by li.group` -- a Sonner toast,
+ * which renders each toast as an <li> whose first class is `group`. While one
+ * was up, Profile, Settings and Sign Out were untappable.
+ *
+ * Set as a CSS variable rather than through Sonner's `offset` prop. That prop
+ * accepts a string, and a browser probe measured `--offset-top: 32px` with it
+ * set -- the default -- so the value was not reaching the DOM.
+ *
+ * `!important` because Sonner writes `--offset-top` as an INLINE style, which a
+ * stylesheet rule cannot outrank without it. That was measured too: the first
+ * version of this block had no `!important` and changed nothing at all, which
+ * is precisely the failure a jsdom test cannot see and a browser measurement
+ * can. Measured by scripts/check-toast-clears-header.mjs.
+ */
+@media (max-width: 767px) {
+  [data-sonner-toaster] {
+    /* BOTH variables. Below its own breakpoint Sonner's stylesheet positions
+       the toaster with `top: var(--mobile-offset-top)`, not `--offset-top` --
+       so overriding only the latter changed the computed value and moved
+       nothing. Measured: --offset-top resolved to the calc and the toast stayed
+       at y=16. */
+    --offset-top: calc(
+      var(--app-header-height, 3.5rem) + var(--offline-banner-height, 0px) + 0.5rem
+    ) !important;
+    --mobile-offset-top: calc(
+      var(--app-header-height, 3.5rem) + var(--offline-banner-height, 0px) + 0.5rem
+    ) !important;
+  }
+}

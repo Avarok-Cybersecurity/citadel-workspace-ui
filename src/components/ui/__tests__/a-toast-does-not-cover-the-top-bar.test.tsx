@@ -13,9 +13,17 @@
  *
  * Moving a collision is not fixing one.
  *
- * The offset is asserted to READ the header-height variable rather than to
- * equal a number: `3.5rem` is already written in four places, and a fifth copy
- * would drift the moment the header changed.
+ * WHERE the toast lands is measured in a browser, by
+ * scripts/check-toast-clears-header.mjs, and not here. This file's first
+ * version asserted that the toaster's style attribute mentioned
+ * `--app-header-height`, and it passed through two versions of the fix that
+ * moved nothing at all -- Sonner's `offset` prop silently not applying, and
+ * then an override of `--offset-top` when its stylesheet reads
+ * `--mobile-offset-top` below its own breakpoint. jsdom has no layout, so no
+ * assertion here can tell a toast that moved from one that did not.
+ *
+ * What is left here is the part jsdom CAN see: that the offset is expressed in
+ * terms of the header's own variable rather than a repeated number.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, act, waitFor } from '@testing-library/react';
@@ -35,7 +43,7 @@ describe('the toaster on a phone', () => {
     expect(MOBILE_TOAST_OFFSET).toContain('--offline-banner-height');
   });
 
-  it('applies that offset to the container, and only on a phone', async (): Promise<void> => {
+  it('renders its list once something is in it, which is where position is measured', async (): Promise<void> => {
     // Sonner renders its positioned list only once there is something in it, so
     // the offset cannot be observed on an empty toaster.
     isMobile.mockReturnValue(true);
@@ -46,7 +54,8 @@ describe('the toaster on a phone', () => {
       expect(found, 'the toaster should render its list once a toast exists').not.toBeNull();
       return found as HTMLElement;
     });
-    expect(mobileList.getAttribute('style') ?? '').toContain('--app-header-height');
+    // Deliberately NOT asserting the offset here: see the note at the top.
+    expect(mobileList).toBeInTheDocument();
     act((): void => { toast.dismiss(); });
     mobile.unmount();
 
@@ -60,7 +69,7 @@ describe('the toaster on a phone', () => {
       expect(found).not.toBeNull();
       return found as HTMLElement;
     });
-    expect(desktopList.getAttribute('style') ?? '').not.toContain('--app-header-height');
+    expect(desktopList).toBeInTheDocument();
     act((): void => { toast.dismiss(); });
     desktop.unmount();
   });

@@ -14454,3 +14454,49 @@ server is a single spelling of the wrong thing — and it is the half that a
 Both controls fail as they should: reintroducing a literal names the file, and
 changing the constant fails the parity check while leaving the duplication check
 green.
+
+## Round 283 — two fixes that changed nothing, and the measurement that said so
+
+Round 273 moved the mobile toast off the top bar. CI's next run reported, again:
+
+```
+avatar 35x35 at (326,7) | on screen | covered by li.group | 0 open menu(s)
+```
+
+Unchanged. The fix had done nothing, and the jsdom test written beside it was
+green throughout.
+
+Measuring it in a real browser took three attempts, and each wrong one is worth
+recording because each *looked* right:
+
+| Attempt | What was measured |
+|---|---|
+| Sonner's `offset` prop, a `calc(...)` string | `--offset-top: 32px` — the default. The prop's type accepts a string; it did not take effect |
+| CSS override of `--offset-top` | resolved to the calc, **and the toast stayed at y=16** |
+| plus `--mobile-offset-top` | **y=113** |
+
+Below its own breakpoint Sonner positions the toaster with
+`top: var(--mobile-offset-top)`. Overriding only `--offset-top` changed a
+computed value and moved nothing. `!important` was needed too, because Sonner
+writes both as inline styles.
+
+A fourth mistake in the middle: the first probe read the built `dist/`, and
+`vite preview` serves what is already built — so an un-rebuilt change measured
+as "no effect" for a reason that had nothing to do with the change.
+
+**The jsdom test asserted that the toaster's style attribute mentioned
+`--app-header-height`. It passed through all three attempts.** It could not see
+position, so it could not see that nothing had moved. That assertion is gone;
+what is left there is the part jsdom genuinely can check — that the offset is
+expressed in terms of the header's own variable rather than a fifth copy of
+`3.5rem`.
+
+`scripts/check-toast-clears-header.mjs` measures the toast's `getBoundingClientRect().top`
+against the header height in Chromium, and runs beside the other preview-world
+gates. Removing the mobile variable puts it back at y=16 and the gate says so in
+those words.
+
+And the gate landed in the wrong CI job first — `crate-coverage`, which installs
+nothing — where `check-gates-have-their-dependencies` caught it by name. That
+guard was written in round 246 after the same mistake took twenty-five other
+checks down with it. It has now paid for itself.
