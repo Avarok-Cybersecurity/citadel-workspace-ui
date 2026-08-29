@@ -22,7 +22,7 @@ import { debugLog } from '@/lib/debug-config';
  * the messenger is constructed during boot, and bounded because a tab where it
  * somehow never attaches must not grow this forever.
  */
-const MAX_HELD = 64;
+const MAX_HELD: 64 = 64;
 
 /**
  * How long a message may wait for the handler before being emitted anyway.
@@ -33,9 +33,9 @@ const MAX_HELD = 64;
  * IS listening beats holding forever. An unbounded hold would trade a rare lost
  * message for a permanently stranded one, which is not an improvement.
  */
-const HOLD_RELEASE_MS = 2000;
+const HOLD_RELEASE_MS: 2000 = 2000;
 
-let attached = false;
+let attached: boolean = false;
 let held: unknown[] = [];
 let replay: ((message: unknown) => void) | null = null;
 let releaseTimer: ReturnType<typeof setTimeout> | null = null;
@@ -47,7 +47,7 @@ let releaseTimer: ReturnType<typeof setTimeout> | null = null;
  * and the messages are stranded permanently, which is strictly worse than the
  * loss this module exists to prevent.
  */
-let releasing = false;
+let releasing: boolean = false;
 
 /** Deliver everything held, whether or not the handler ever attached. */
 function flushHeld(reason: string): void {

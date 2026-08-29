@@ -123,7 +123,7 @@ export class MessagePaginationStore {
     getPeerUsername: () => string | undefined
   ): Promise<void> {
     let metadata: ConversationMetadata | null = await loadMetadata(peerCid);
-    const isNewConversation = !metadata;
+    const isNewConversation: boolean = !metadata;
 
     const ownerCid: bigint | null = await getCurrentCid();
 

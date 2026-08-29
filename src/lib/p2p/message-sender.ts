@@ -45,8 +45,8 @@ export class MessageSender {
 
     const { replyTo, mentions, attachments, messageType = 'text', documentId, documentTitle } = options || {};
 
-    const isAlreadyConnected = await p2pAutoConnectService.isPeerConnected(recipientCid) || this.config.isConnected(recipientCid);
-    const isAlreadyRegistered = p2pRegistrationService.isPeerRegistered(recipientCid);
+    const isAlreadyConnected: boolean = await p2pAutoConnectService.isPeerConnected(recipientCid) || this.config.isConnected(recipientCid);
+    const isAlreadyRegistered: boolean = p2pRegistrationService.isPeerRegistered(recipientCid);
 
     if (!isAlreadyRegistered && !isAlreadyConnected) {
       debugLog('MessageSender', `Peer ${recipientCid.toString()} not registered and not connected, registering now...`);
@@ -65,7 +65,7 @@ export class MessageSender {
 
     void p2pAutoConnectService.ensurePeerConnectedInBackground(recipientCid);
 
-    const peerReady = await this.config.tryEnsurePeerReady(recipientCid);
+    const peerReady: boolean = await this.config.tryEnsurePeerReady(recipientCid);
     if (!peerReady) {
       debugLog('MessageSender', `[P2P] Sending to ${recipientCid.toString()} without CheckState confirmation (transport handles delivery)`);
     }

@@ -57,7 +57,7 @@ export async function resendMessage(
 
   await p2pAutoConnectService.ensurePeerConnectedInBackground(peerCid);
 
-  const peerReady = await config.tryEnsurePeerReady(peerCid);
+  const peerReady: boolean = await config.tryEnsurePeerReady(peerCid);
   if (!peerReady) {
     debugLog('MessageSender', `[P2P] Resending to ${peerCid} without CheckState confirmation`);
   }

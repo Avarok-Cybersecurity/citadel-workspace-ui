@@ -174,7 +174,7 @@ async function handleIncomingMessage(
     () => config.addMessageToConversation(peerCid, message),
     message.id
   );
-  const wasAdded = outcome.present;
+  const wasAdded: boolean = outcome.present;
 
   // Logs the CONTENT, which the other lines do not, so a failing run says which
   // message was dropped and whether the store accepted it.

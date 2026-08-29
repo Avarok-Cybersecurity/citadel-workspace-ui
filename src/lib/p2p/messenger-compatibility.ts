@@ -105,7 +105,7 @@ export async function markMessagesAsRead(
   // The LOCAL side of "read" always happens: the user did read these, so the
   // unread badge must clear and the transcript must reflect it. Only the ack —
   // the part that tells the sender — is the user's to withhold.
-  const sendReceipts = getPrivacySettings().sendReadReceipts;
+  const sendReceipts: boolean = getPrivacySettings().sendReadReceipts;
 
   const markedMessageIds: string[] = [];
   for (const message of messagesToMark) {

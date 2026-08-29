@@ -136,14 +136,14 @@ export class MessageHandler {
       eventEmitter.emit('p2p:raw-message', { peerCid: peerCidBigint.toString(), message: contentBytes });
       BroadcastChannelService.getInstance().broadcastP2PRawMessage(rawMessageData);
 
-      const isOwnOutgoingEcho = peerCidBigint === effectiveCid;
+      const isOwnOutgoingEcho: boolean = peerCidBigint === effectiveCid;
       if (isOwnOutgoingEcho && notificationCidBigint !== effectiveCid) {
         debugLog('MessageHandler', '[P2P] Outgoing echo for different session, broadcasting to follower tabs');
         BroadcastChannelService.getInstance().broadcastP2PNotification({ notification, messageBytes: contentBytes });
         return;
       }
 
-      const isForDifferentSession = notificationCidBigint !== undefined && notificationCidBigint !== effectiveCid;
+      const isForDifferentSession: boolean = notificationCidBigint !== undefined && notificationCidBigint !== effectiveCid;
       if (isForDifferentSession) {
         debugLog('MessageHandler', '[P2P] Message for different session, broadcasting to follower tabs');
         BroadcastChannelService.getInstance().broadcastP2PNotification({ notification, messageBytes: contentBytes });
@@ -152,8 +152,8 @@ export class MessageHandler {
 
       debugLog('MessageHandler', 'P2P MessageNotification received from peer:', peerCidBigint.toString());
 
-      const isAlreadyConnected = this.config.isConnected(peerCidBigint);
-      const isAlreadyRegistered = p2pRegistrationService.isPeerRegistered(peerCidBigint);
+      const isAlreadyConnected: boolean = this.config.isConnected(peerCidBigint);
+      const isAlreadyRegistered: boolean = p2pRegistrationService.isPeerRegistered(peerCidBigint);
 
       if (!isAlreadyRegistered && !isAlreadyConnected) {
         debugLog('P2PMessageHandler', `Received message from unregistered peer ${peerCidBigint.toString()} - protocol violation`);

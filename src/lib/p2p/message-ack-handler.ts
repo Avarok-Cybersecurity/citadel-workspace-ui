@@ -38,7 +38,7 @@ export class MessageAckHandler {
       message_id: payload.message_id.slice(0, 8),
     });
 
-    let statusUpdated = false;
+    let statusUpdated: boolean = false;
     let newStatus: P2PMessage['status'] = 'sent';
     const updatedMessages: Array<{ peerCid: bigint; messageId: string; status: P2PMessage['status']; error?: string }> = [];
 
@@ -83,7 +83,7 @@ export class MessageAckHandler {
       // single check for ever even though it had been read.
       const status: P2PMessage['status'] =
         payload.ack_type === 'failed' ? 'failed' : payload.ack_type;
-      const patched = await this.config.updateMessageInPages(peerCid, payload.message_id, {
+      const patched: boolean = await this.config.updateMessageInPages(peerCid, payload.message_id, {
         status,
         error: payload.error,
       });

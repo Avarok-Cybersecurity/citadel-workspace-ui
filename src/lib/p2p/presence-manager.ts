@@ -150,7 +150,7 @@ export class PresenceManager {
 
     state.intervalId = setInterval(() => {
       const currentText: string = getCurrentText();
-      const textChanged = currentText !== state.lastText;
+      const textChanged: boolean = currentText !== state.lastText;
       state.lastText = currentText;
 
       // Only send typing indicator if text actually changed and is non-empty

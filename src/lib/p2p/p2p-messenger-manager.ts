@@ -38,8 +38,8 @@ export class P2PMessengerManager extends EventListenerManager {
   private messageStatusListeners: ((messageId: string, status: P2PMessage['status']) => void)[] = [];
   private connectionListeners: ((peerCid: bigint, connected: boolean) => void)[] = [];
   private initPromise: Promise<void> | null = null;
-  private isReady = false;
-  private cachedMessagesLoaded = false;
+  private isReady: boolean = false;
+  private cachedMessagesLoaded: boolean = false;
   private activeConversationPeerCid: bigint | null = null;
   private readonly conversationManager: ConversationManager;
   private readonly presenceManager: PresenceManager;
@@ -70,12 +70,12 @@ export class P2PMessengerManager extends EventListenerManager {
       emitEvent: (event, data): void => this.emit(event, data),
       notifyMessageListeners: (message): void => this.messageListeners.forEach(l => l(message)),
       notifyMessageStatusListeners: (messageId, status): void => this.messageStatusListeners.forEach(l => l(messageId, status)),
-      isConnected: (peerCid) => this.conversationManager.isConnected(peerCid),
+      isConnected: (peerCid): boolean => this.conversationManager.isConnected(peerCid),
       tryEnsurePeerReady: (peerCid): Promise<boolean> => this.checkStateManager.tryEnsurePeerReady(peerCid)
     });
     this.messageHandler = new MessageHandler({
       getCurrentCid: (): Promise<bigint | null> => resolveCurrentCid(),
-      isConnected: (peerCid) => this.conversationManager.isConnected(peerCid),
+      isConnected: (peerCid): boolean => this.conversationManager.isConnected(peerCid),
       getOrCreateConversation: (peerCid): P2PConversation => this.conversationManager.getOrCreateConversation(peerCid),
       addMessageToConversation: (peerCid, message): Promise<boolean> => this.conversationManager.addMessageToConversation(peerCid, message),
       updateMessageInPages: (peerCid, messageId, updates): Promise<boolean> => messagePaginationStore.updateMessageInPages(peerCid, messageId, updates),
@@ -88,7 +88,7 @@ export class P2PMessengerManager extends EventListenerManager {
       handleCheckState: (peerCid): Promise<void> => this.checkStateManager.handleCheckState(peerCid),
       handleCheckStateResponse: (peerCid): void => this.checkStateManager.handleCheckStateResponse(peerCid),
       markPeerReady: (peerCid): void => this.checkStateManager.markPeerReady(peerCid),
-      shouldShowNotification: (peerCid) => this.activeConversationPeerCid !== peerCid,
+      shouldShowNotification: (peerCid): boolean => this.activeConversationPeerCid !== peerCid,
       addNotification: (title, body, senderId, messageId, recipientCid, options) =>
         notificationService.addMessageNotification(title, body, senderId, messageId, recipientCid, options)
     });
@@ -235,7 +235,7 @@ export const p2pMessengerManager: P2PMessengerManager = new Proxy({} as P2PMesse
   get(_target, prop, receiver) {
     return Reflect.get(getP2PMessengerManager(), prop, receiver);
   },
-  set(_target, prop, value, receiver) {
+  set(_target, prop, value, receiver): boolean {
     return Reflect.set(getP2PMessengerManager(), prop, value, receiver);
   },
 });

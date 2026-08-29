@@ -68,7 +68,7 @@ describe('holding messages until the P2P handler attaches', () => {
     // buffer never drains and the message is stranded forever — worse than the
     // loss this exists to prevent.
     setP2PReplay((m) => {
-      const reheld = holdUntilP2PHandlerAttached(m);
+      const reheld: boolean = holdUntilP2PHandlerAttached(m);
       expect(reheld).toBe(false);
       delivered.push(m);
     });

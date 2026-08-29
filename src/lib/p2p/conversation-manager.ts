@@ -54,9 +54,9 @@ export class ConversationManager {
   public getOrCreateConversation(peerCid: bigint, peerUsername?: string): P2PConversation {
     let conversation: P2PConversation | undefined = this.cache.conversations.get(peerCid);
     if (!conversation) {
-      const isConnectedLocal = this.connections.get(peerCid) === true;
+      const isConnectedLocal: boolean = this.connections.get(peerCid) === true;
       const isConnectedAutoConnect: Promise<boolean> = p2pAutoConnectService.isPeerConnected(peerCid);
-      const isOnlineRegistration = p2pAutoConnectService.isPeerOnline(peerCid);
+      const isOnlineRegistration: boolean = p2pAutoConnectService.isPeerOnline(peerCid);
       const isOnline: true | Promise<boolean> = isConnectedLocal || isConnectedAutoConnect || isOnlineRegistration;
 
       conversation = {

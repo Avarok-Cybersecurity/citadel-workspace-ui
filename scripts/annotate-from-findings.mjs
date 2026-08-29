@@ -40,6 +40,24 @@ const DRY = args.includes('--dry');
 const limitAt = args.indexOf('--limit');
 const LIMIT = limitAt >= 0 ? Number(args[limitAt + 1]) : Infinity;
 const prefix = args.find((a) => !a.startsWith('--') && a !== String(LIMIT)) ?? 'src';
+/**
+ * Write the two kinds this tool refuses by default, and let `tsc` judge.
+ *
+ * Both are refusals about CONSEQUENCE rather than correctness -- the annotation
+ * is right and can still break the build:
+ *
+ *   --allow-boolean  since TS 4.4 a `const` holding a condition narrows what it
+ *                    tested, and any annotation discards that.
+ *   --allow-literal  writing `2` narrows a numeric constant so callers passing
+ *                    another number stop compiling; writing `number` widens a
+ *                    string constant so callers expecting the union stop.
+ *
+ * Neither can be decided from the declaration alone: the answer depends on how
+ * the value is USED. So they are written, compiled, and reverted where they do
+ * not hold, by scripts/annotate-and-keep-what-compiles.mjs.
+ */
+const ALLOW_BOOLEAN = args.includes('--allow-boolean');
+const ALLOW_LITERAL = args.includes('--allow-literal');
 
 /** Type-position words that are never imported. */
 const TYPE_WORDS = new Set([
@@ -252,8 +270,8 @@ function unresolvedNames(printed, source) {
   // in full, and `tsc` says whether the result is right.
   if (/\bimport\(|typeof import|\bany\b|\berror\b/.test(printed)) return null;
   if (/^(any)$/.test(printed)) return null;
-  if (/^["'`]/.test(printed) || /^-?\d/.test(printed) || /^(true|false)$/.test(printed)) return null;
-  if (printed === 'boolean') return null;
+  if (!ALLOW_LITERAL && (/^["'`]/.test(printed) || /^-?\d/.test(printed) || /^(true|false)$/.test(printed))) return null;
+  if (!ALLOW_BOOLEAN && printed === 'boolean') return null;
   const names = printed.match(/[A-Za-z_$][A-Za-z0-9_$]*/g) ?? [];
   const BUILTIN = new Set([
     'string', 'number', 'boolean', 'void', 'bigint', 'symbol', 'object', 'true', 'false',

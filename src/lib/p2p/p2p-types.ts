@@ -18,7 +18,7 @@ import type { P2PAttachment } from '@/types/p2p-types';
 // Page 0 = oldest messages, higher pages = newer messages
 // ============================================================================
 
-export const MESSAGES_PER_PAGE = 50;
+export const MESSAGES_PER_PAGE: 50 = 50;
 export const PAGINATED_PREFIX = 'msgs_with_peer_';
 
 /**

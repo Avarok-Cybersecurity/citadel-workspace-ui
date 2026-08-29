@@ -35,7 +35,7 @@ export async function persistMessageStatus(
   message: P2PMessage
 ): Promise<void> {
   try {
-    const written = await config.updateMessageInPages(peerCid, messageId, {
+    const written: boolean = await config.updateMessageInPages(peerCid, messageId, {
       status: message.status,
       error: message.error,
     });
