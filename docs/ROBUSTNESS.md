@@ -17783,3 +17783,50 @@ five places across three files, and the arrival notification came out of
 its length exemption at all.
 
 2429 tests green, all 57 preflight checks.
+
+## Round 364 — the fetch that happens before any RUN
+
+A CI run died on
+
+    unexpected status from HEAD request to
+    https://registry-1.docker.io/v2/library/rust/manifests/1.92.0: 502 Bad Gateway
+
+and took `test:tree-permissions` with it: a red job carrying no test signal at
+all, because every integration job needs those images to build.
+
+That is the same shape, and the same sentence, as the failure
+`check-image-fetches-retry.mjs` was written for two rounds earlier — a
+`curl … | sh` with no retry. That gate requires a RUN line which downloads
+something to sit in a retry loop. It cannot see this fetch, because this one
+happens **before any RUN**: resolving `FROM rust:1.92.0` against the registry.
+
+So the retry had reached one kind of network fetch in an image build and not the
+other. Written by someone who had just written the gate for the first kind.
+
+`scripts/pull-base-images.sh` pre-pulls every base image the Dockerfiles name,
+five attempts with backoff, before each of the five `docker compose --build`
+steps across the two workflows. The image list is **derived from the
+Dockerfiles**, never restated — it found six, two of which
+(`debian:bookworm-slim`, `rustlang/rust:nightly-slim`) I had not noticed when
+reading the FROM lines by hand.
+
+`check-base-image-pulls-retry.mjs` requires every image-building step to be
+preceded, **in the same job**, by that script. Controls: dropping one pre-pull
+(names exactly that step, not the other four), moving the pre-pull to a
+different job, and deleting the script.
+
+The script has its own two controls: an image that cannot be pulled exits 1,
+and a search that finds no Dockerfiles exits 1 rather than reporting success
+over an empty list. `mapfile` was replaced with a read loop, because it is bash
+4 and macOS ships 3.2 — a script that only runs on the runner is one whose
+failure nobody can rehearse.
+
+**Where the propagation stopped, and why.** The obvious next step was the ~17
+`npm ci` / `npm install` steps in these workflows, which look like the identical
+gap. They are not: npm retries network failures itself — `fetch-retries=2`,
+three attempts, on 5xx and connection errors — and cargo does the same. Only
+BuildKit's manifest resolution does not. Checked, not assumed; the answer
+changed the work, and it is recorded in the gate so nobody spends the round
+again.
+
+All 58 preflight checks.
