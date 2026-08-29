@@ -27,7 +27,7 @@ import { MessagingLayerType } from '@/types/messaging-layer';
 import type { FileTransferMessageHandler } from '@/lib/p2p/file-transfer-message-handler';
 
 const PEER: bigint = 42n;
-const ME = 7n;
+const ME: bigint = 7n;
 
 function harness(addBehaviour: () => Promise<boolean>): { rendered: string[]; acked: string[]; notified: string[]; run: () => Promise<void>; } {
   const rendered: string[] = [];

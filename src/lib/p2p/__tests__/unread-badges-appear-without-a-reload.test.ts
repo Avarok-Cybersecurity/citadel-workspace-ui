@@ -22,7 +22,7 @@ import { ConversationManager } from '../conversation-manager';
 import type { P2PMessage } from '../p2p-types';
 
 const ME: bigint = 1n;
-const PEER = 2n;
+const PEER: bigint = 2n;
 
 function manager(): ConversationManager {
   return new ConversationManager({

@@ -11,7 +11,7 @@ import type { P2PConversation, P2PMessage } from '../p2p-types';
 import type { RevisionOutcome } from '@/lib/p2p/message-revision';
 
 const ALICE: bigint = 1n;
-const BOB = 2n;
+const BOB: bigint = 2n;
 
 function msg(id: string, senderCid: bigint, content: string): P2PMessage {
   return {

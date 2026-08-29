@@ -17,7 +17,7 @@ vi.mock('@/lib/multi-instance/instance-manager', () => ({
 }));
 
 const SELF: bigint = 7n;
-const OTHER = 42n;
+const OTHER: bigint = 42n;
 
 async function freshStore() {
   vi.resetModules();

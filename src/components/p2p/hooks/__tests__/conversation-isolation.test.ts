@@ -18,7 +18,7 @@ import { mergeMessages } from '../useP2PMessages-types';
 import type { P2PMessage } from '@/lib/p2p/p2p-types';
 
 const ALICE: bigint = 10n;
-const BOB = 20n;
+const BOB: bigint = 20n;
 
 function msg(id: string, senderCid: bigint, timestamp: number): P2PMessage {
   return { id, senderCid, recipientCid: 1n, content: 'x', timestamp, index: 0, status: 'delivered' } as P2PMessage;

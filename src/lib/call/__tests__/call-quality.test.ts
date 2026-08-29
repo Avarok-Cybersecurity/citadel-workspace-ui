@@ -14,7 +14,7 @@ import {
 } from '../call-quality';
 
 const BOB: bigint = 2n;
-const CAROL = 3n;
+const CAROL: bigint = 3n;
 
 function trackerWithGaps(count: number, at = 0): CallQualityTracker {
   const tracker: CallQualityTracker = new CallQualityTracker();

@@ -38,7 +38,7 @@ vi.mock('../../websocket-service', () => ({
 const { deleteConversationPages } = await import('../message-page-delete');
 
 const ALICE: bigint = 111n;
-const BOB = 222n;
+const BOB: bigint = 222n;
 const PEER = 999n;
 
 /** Seed one conversation's metadata as `owner` (undefined = a legacy record). */

@@ -7,7 +7,7 @@
  * drive the REAL wiring (manager → signal handling → liveness binding) with an
  * injected clock, so the far side is proven to end the call on silence alone.
  */
-import { describe, it, expect, vi, beforeEach  } from 'vitest';
+import { describe, it, expect, vi, beforeEach   } from 'vitest';
 import { CallManager } from '../call-manager';
 import { CALL_HEARTBEAT_TIMEOUT_MS } from '../call-constants';
 import type { CallTransport } from '../call-transport';
@@ -17,7 +17,7 @@ import type { CallState } from '@/lib/call/call-state';
 const AUDIO: CallMediaKinds = { audio: true, video: false, screen: false };
 const CAPS: CallCodecCapabilities = { audio: ['opus'], video: [] };
 const BOB: bigint = 2n;
-const CAROL = 3n;
+const CAROL: bigint = 3n;
 /** Comfortably past CALL_HEARTBEAT_TIMEOUT_MS (20s). */
 const SILENT: number = CALL_HEARTBEAT_TIMEOUT_MS + 1_000;
 
