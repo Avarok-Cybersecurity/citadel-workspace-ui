@@ -14536,3 +14536,33 @@ fail is a test you have not written yet* — and the version of that lesson wort
 keeping is that it applies just as much when you are certain of the diagnosis.
 
 Renamed to say what it actually tests.
+
+## Round 285 — an action that reported success and did nothing
+
+Round 281 made the disconnect confirmation pressable again, and the moment it
+was, CI showed what was behind it:
+
+```
+[OrphanSessionsNavbar] Disconnecting session: undefined
+prev_sess_b still in navbar: true
+```
+
+`ActiveSession.cid` is declared `bigint` and is not always present. The session
+loader in the same file already guards `sel?.cid !== undefined` — somebody knew.
+The disconnect path did not, so `websocketService.disconnect(undefined)` was
+called, the loading modal ran through "disconnecting" to "ready", and the
+session was still in the strip afterwards.
+
+Three checks failing on an action that reported success, which is the worse of
+the two ways to fail: the user is told it worked.
+
+It now refuses, with a sentence somebody can act on. The decision is its own
+module so it can be tested on its own — and the test that matters is not the
+refusal but the two controls beside it: a session WITH a CID must still sign
+out, or nobody could sign out of anything; and **CID zero must be allowed**.
+`0n` is falsy, a guard written `if (!cid)` would refuse it, and the one thing
+worse than signing out of nothing is refusing to sign out of something.
+
+The type still says `bigint`. That it is sometimes absent is a mismatch between
+the declaration and the data that this guard tolerates rather than fixes, and it
+is written down here as the next thing to chase.

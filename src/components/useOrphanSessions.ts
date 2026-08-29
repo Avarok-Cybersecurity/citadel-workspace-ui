@@ -23,6 +23,7 @@ import { eventEmitter } from "@/lib/event-emitter";
 import { postAuthSetup } from "@/lib/post-auth-setup";
 import { debugLog } from '@/lib/debug-config';
 import type { NavigateFunction } from 'react-router';
+import { disconnectRefusal } from './orphan-session-disconnect';
 
 export interface OrphanSessionWithWorkspace extends ActiveSession {
   workspaceName: string;
@@ -165,11 +166,21 @@ export function useOrphanSessions() {
     if (!disconnectTarget) return;
 
     const workspaceName: string = disconnectTarget.workspaceName;
-    const cid: bigint = disconnectTarget.session.cid;
+    const cid: bigint | undefined = disconnectTarget.session.cid;
     const username: string = disconnectTarget.session.username;
     const serverAddress: string = disconnectTarget.session.server_address;
 
     setDisconnectTarget(null);
+
+    // A session with no CID cannot be signed out of, and pretending otherwise is
+    // worse than saying so. See orphan-session-disconnect.
+    const refusal: string | null = disconnectRefusal(cid);
+    if (refusal !== null) {
+      debugLog('OrphanSessionsNavbar', 'Refusing to disconnect a session with no CID', username);
+      setLoadingModal({ open: true, status: "error", workspaceName, errorMessage: refusal });
+      return;
+    }
+
     setLoadingModal({ open: true, status: "disconnecting", workspaceName });
 
     try {
