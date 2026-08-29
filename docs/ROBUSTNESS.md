@@ -14383,3 +14383,41 @@ what says it is about the new thing.
 
 *A fix measured only against the failure it was written for will pass, and can
 still cost more than it bought.*
+
+## Round 281 — the two destructive choices, pressed by their old names
+
+`prev-sessions`' three remaining failures — Disconnect Removes, Deregister
+Removes, Deregister Permanent — all come from one line:
+
+```
+Confirmation button not found
+```
+
+The modal offers **"Sign out"** and **"Delete account permanently"**. The spec
+pressed `button:has-text("Disconnect")` and `button:has-text("Deregister")`.
+
+The modal's own comment records why the words changed:
+
+> This read "Deregister permanently removes this account from the server" …
+> "Deregister" as if the difference were obvious.
+
+That was a good change, and from the day it landed those three checks have been
+reporting the *product* as broken.
+
+### What the round-279 gate cannot see
+
+It would not have caught this, and the reason is worth writing down. The gate
+asks whether a searched string exists **anywhere** in the app. "Disconnect" and
+"Deregister" both do — in aria-labels, in titles, in other components. They are
+simply not the labels of these two buttons any more.
+
+*Existing somewhere is not the same as being the name of the control you are
+pressing.* The gate catches a string the app has stopped saying at all; it
+cannot catch one that moved. Only addressing controls by identity does that,
+which is what the other ratchet is for — and this file was grandfathered into
+its baseline.
+
+Both buttons named, and a test that presses each. The second one matters most:
+two destructive choices sit side by side, and the control that signs you out and
+the control that destroys the account must never be reachable by the same
+locator. 145 → **143**.

@@ -19,7 +19,7 @@
   "integration-tests/src/tests/office-mdx-content.test.ts": 1,
   "integration-tests/src/tests/office-room-crud.test.ts": 1,
   "integration-tests/src/tests/permissions.test.ts": 2,
-  "integration-tests/src/tests/previous-sessions.test.ts": 3,
+  "integration-tests/src/tests/previous-sessions.test.ts": 1,
   "integration-tests/src/tests/revfs-peer.test.ts": 7,
   "integration-tests/src/tests/revfs-server.test.ts": 10,
   "integration-tests/src/tests/security-settings.test.ts": 13,

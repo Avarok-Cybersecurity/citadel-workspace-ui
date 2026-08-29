@@ -316,26 +316,27 @@ async function disconnectViaNavbar(
   const dialog = page.locator(dialogSelector).first();
   const dialogVisible = await isVisibleWithin(dialog, 5000);
 
-  if (action === 'deregister') {
-    // Look for Deregister button, scoped to dialog if visible
-    const scope = dialogVisible ? dialog : page;
-    const deregisterBtn = scope.locator('button:has-text("Deregister")').first();
-    if (await isVisibleWithin(deregisterBtn, 5000)) {
-      await deregisterBtn.click();
-      await sleep(3000);
-      console.log('  Deregistered successfully');
-      return true;
-    }
-  } else {
-    // Look for Disconnect confirmation button — exclude the overlay button via :not([data-testid])
-    const scope = dialogVisible ? dialog : page;
-    const confirmBtn = scope.locator('button:has-text("Disconnect"):not([data-testid])').first();
-    if (await isVisibleWithin(confirmBtn, 5000)) {
-      await confirmBtn.click();
-      await sleep(2000);
-      console.log('  Disconnected successfully');
-      return true;
-    }
+  // By testid. These looked for buttons reading "Deregister" and "Disconnect".
+  // The modal deliberately stopped using those words -- its own comment says it
+  // "read 'Deregister permanently removes this account' ... as if the difference
+  // were obvious" -- and now offers "Sign out" and "Delete account permanently",
+  // which is plainly better copy. From that day neither button was found, and
+  // three checks in this file have reported the product as broken:
+  // Disconnect Removes, Deregister Removes, Deregister Permanent.
+  //
+  // Note this is a case the spec-copy gate cannot catch: "Disconnect" and
+  // "Deregister" both still appear elsewhere in the app, so the strings exist
+  // -- just not on these controls. Existing somewhere is not the same as being
+  // the label of the thing you are pressing.
+  const scope = dialogVisible ? dialog : page;
+  const confirmBtn = scope
+    .getByTestId(action === 'deregister' ? 'confirm-delete-account' : 'confirm-sign-out')
+    .first();
+  if (await isVisibleWithin(confirmBtn, 5000)) {
+    await confirmBtn.click();
+    await sleep(action === 'deregister' ? 3000 : 2000);
+    console.log(action === 'deregister' ? '  Deregistered successfully' : '  Disconnected successfully');
+    return true;
   }
 
   console.log('  Confirmation button not found');

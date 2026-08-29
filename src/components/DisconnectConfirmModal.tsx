@@ -116,6 +116,7 @@ export const DisconnectConfirmModal = ({
           <div className="flex flex-col sm:flex-row gap-2 w-full">
             <Button
               onClick={() => handleConfirm("disconnect")}
+              data-testid="confirm-sign-out"
               variant="outline"
               className="flex-1 bg-transparent border-warning text-warning-emphasis hover:bg-warning/15 hover:text-warning-emphasis/15"
               disabled={isProcessing}
@@ -131,6 +132,7 @@ export const DisconnectConfirmModal = ({
             </Button>
             <Button
               onClick={() => handleConfirm("deregister")}
+              data-testid="confirm-delete-account"
               className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
               disabled={isProcessing}
             >
