@@ -17482,3 +17482,50 @@ Making an assertion stricter is a change to what it can be wrong about, not only
 to what it can catch.
 
 2398 tests green.
+
+## Round 357 — three rounds fixing the writer, and the reader was asking for something else
+
+With rounds 347 and 353 both in the run, the Edit button still says:
+
+> Your permissions here could not be checked: nobody is signed in on this tab.
+
+Round 328 fixed *when* the selection is written. Round 347 fixed *how* — from the
+connection record rather than a network query. Round 353 made a spent retry
+budget start again once it is written. Three rounds on the writing side, and the
+sentence did not move.
+
+Because the reader was asking a different question:
+
+```ts
+public async getTabSelectedSession(): Promise<StoredSession | null> {
+  const tab = await this.io.getSelectedUser();
+  if (!tab?.selectedUsername || !tab?.selectedServerAddress) { …fallback… }
+  return this.state.findSession(tab.selectedUsername, tab.selectedServerAddress) || null;
+}
+```
+
+It reads the selection and then looks for a **stored session** — a saved-account
+record — and returns null when there is none. `resolveCurrentUserId` wants a
+username, which the selection already carries.
+
+Stored sessions hold saved credentials. A user who declined to save them, or
+whose store has not loaded yet, has a perfectly good selection and nothing for
+`findSession` to find. So the selection could be written correctly, at the right
+time, with the budget restarting exactly as designed, and the answer was still
+null — because the question asked on the way back was "which saved account is
+this", not "who is this".
+
+`resolveCurrentUserId` now reads `selectedUsername` from the selection, and
+falls back to the stored session only when there is no selection at all.
+
+Two positive controls, because there are two ways to overfit: the connection
+record must still win (it is synchronous, and listener comparisons depend on
+that), and the stored-session fallback must still work (removing the old path
+entirely would satisfy the new test and lose the case it was written for).
+
+This is the same shape as round 347 one layer along — asking a heavier question
+than the one you need answered, and reading its failure as an answer. It took
+three rounds on the writer to make it obvious that the writer was not the
+problem.
+
+2402 tests green.

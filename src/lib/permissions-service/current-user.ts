@@ -22,6 +22,7 @@
  */
 
 import { connectionManager } from '@/lib/connection';
+import { getSelectedUser, type TabUserContext } from '@/lib/tab-context';
 import type { StoredSession } from '@/types/session-types';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
@@ -35,6 +36,24 @@ export function currentUserIdSync(): string | null {
 export async function resolveCurrentUserId(): Promise<string | null> {
   const fromConnection: string | null = currentUserIdSync();
   if (fromConnection) return fromConnection;
+
+  // The SELECTION, before the session it points at.
+  //
+  // This went straight to `getTabSelectedSession`, which reads the selection
+  // and then calls `findSession(username, serverAddress)` — so it answers
+  // "which saved account is this tab using", and returns null when there is no
+  // stored record to find. A username is a much smaller question, and the
+  // selection already carries it.
+  //
+  // The difference is not hypothetical: stored sessions hold saved credentials,
+  // so a user who declined to save them, or whose store has not loaded yet, has
+  // a perfectly good selection and no session to match it. Every permission
+  // fetch then bails with "nobody is signed in on this tab" — the sentence CI
+  // kept returning on the workspace admin's own Edit button, through three
+  // rounds of fixes to how and when the selection gets WRITTEN, while the thing
+  // reading it back was asking for something else entirely.
+  const tab: TabUserContext | null = await getSelectedUser();
+  if (tab?.selectedUsername) return tab.selectedUsername;
 
   const session: StoredSession | null = await connectionManager.getTabSelectedSession();
   return session?.username ?? null;
