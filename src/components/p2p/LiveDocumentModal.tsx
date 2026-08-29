@@ -78,6 +78,7 @@ export function LiveDocumentModal({
         <div className="py-4">
           <Input
             placeholder="Document title..."
+            data-testid="live-doc-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -108,6 +109,7 @@ export function LiveDocumentModal({
             Cancel
           </Button>
           <Button
+            data-testid="live-doc-create"
             onClick={handleCreate}
             disabled={!title.trim() || isCreating}
             className="bg-primary text-primary-foreground"

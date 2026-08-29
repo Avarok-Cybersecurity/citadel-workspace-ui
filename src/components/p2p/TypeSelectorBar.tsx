@@ -31,6 +31,10 @@ function TypeButton({ icon, label, active, onClick, disabled }: TypeButtonProps)
         ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       `}
       title={label}
+      // The label is hidden below `sm`, so on a phone this button has no text
+      // at all -- which is also why a spec cannot find it by its words. The
+      // testid is derived from the label so every type gets one for free.
+      data-testid={`message-type-${label.toLowerCase().replace(/\s+/g, '-')}`}
     >
       {icon}
       <span className="hidden sm:inline">{label}</span>

@@ -1,7 +1,7 @@
 {
   "integration-tests/src/lib/account.ts": 5,
   "integration-tests/src/lib/group-chat.ts": 3,
-  "integration-tests/src/lib/live-docs.ts": 4,
+  "integration-tests/src/lib/live-docs.ts": 1,
   "integration-tests/src/lib/p2p/conversation.ts": 2,
   "integration-tests/src/lib/p2p/registration.ts": 3,
   "integration-tests/src/lib/p2p/session.ts": 3,

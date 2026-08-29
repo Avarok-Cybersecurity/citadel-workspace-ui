@@ -19,38 +19,30 @@ export async function createLiveDoc(
 ): Promise<boolean> {
   console.log(`\n=== ${username}: Creating Live Doc "${docName}" ===`);
 
-  // Look for the Live Docs section or create button
-  const createBtn = page.locator('button:has-text("Create Live Doc"), button:has-text("New Document")').first();
-
-  if (!await isVisibleWithin(createBtn, 5000)) {
-    // Try clicking a + button near LIVE DOCS section
-    const liveDocsSection = page.locator('text="LIVE DOCS"').first();
-    if (await isVisibleWithin(liveDocsSection, 2000)) {
-      await liveDocsSection.hover();
-      await sleep(500);
-      const addBtn = page.locator('button:has(svg.lucide-plus)').first();
-      if (await isVisibleWithin(addBtn, 2000)) {
-        await addBtn.click();
-        await sleep(1000);
-      }
-    }
-  } else {
-    await createBtn.click();
-    await sleep(1000);
+  // A live document is created from the composer's type selector, not from a
+  // "Create Live Doc" button or a "LIVE DOCS" sidebar section. Neither of those
+  // strings exists anywhere in the app, and both branches this function used to
+  // take were therefore dead: it did nothing at all and then honestly reported
+  // that the document was not there.
+  const liveDocType = page.getByTestId('message-type-live-doc').first();
+  if (!(await isVisibleWithin(liveDocType, 5000))) {
+    console.log('  FAIL: the Live Doc composer type is not available here');
+    await takeScreenshot(page, `${username}_live_doc_type_missing`);
+    return false;
   }
+  await liveDocType.click();
+  await sleep(500);
 
-  // Fill in document name if modal appears
-  const nameInput = page.locator('input[placeholder*="name"], input[placeholder*="title"]').first();
-  if (await isVisibleWithin(nameInput, 3000)) {
-    await nameInput.fill(docName);
-    await sleep(300);
-
-    const confirmBtn = page.locator('button:has-text("Create"), button:has-text("Save"), button[type="submit"]').first();
-    if (await confirmBtn.isVisible()) {
-      await confirmBtn.click();
-      await sleep(2000);
-    }
+  const nameInput = page.getByTestId('live-doc-title').first();
+  if (!(await isVisibleWithin(nameInput, 5000))) {
+    console.log('  FAIL: the Live Doc dialog did not open');
+    await takeScreenshot(page, `${username}_live_doc_dialog_missing`);
+    return false;
   }
+  await nameInput.fill(docName);
+  await sleep(300);
+  await page.getByTestId('live-doc-create').first().click();
+  await sleep(2000);
 
   // Every branch above — create button never found, modal never opened, name
   // never entered — used to fall through to `return true`, so this reported
@@ -79,19 +71,13 @@ export async function openLiveDoc(
 ): Promise<boolean> {
   console.log(`\n=== ${username}: Opening Live Doc "${docName}" ===`);
 
-  // Look in LIVE DOCS section
-  const liveDocsSection = page.locator('text="LIVE DOCS"').locator('..').locator('..');
-  const docLink = liveDocsSection.locator(`text="${docName}"`).first();
-
-  if (await isVisibleWithin(docLink, 5000)) {
-    await docLink.click();
-    await sleep(2000);
-    await takeScreenshot(page, `${username}_live_doc_opened`);
-    console.log(`  Live Doc "${docName}" opened`);
-    return true;
-  }
-
-  // Try alternative selectors
+  // A live document arrives in the transcript as a message bubble, not in a
+  // "LIVE DOCS" sidebar section -- that section does not exist, so this branch
+  // has been dead and every open went through the fallback below, which is the
+  // one that was actually doing the work.
+  //
+  // The document's NAME is legitimate to search for here: it is data this test
+  // created, not a label the product chose.
   const altDocLink = page.locator(`button:has-text("${docName}"), a:has-text("${docName}")`).first();
   if (await isVisibleWithin(altDocLink, 3000)) {
     await altDocLink.click();

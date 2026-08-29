@@ -14267,3 +14267,45 @@ Three tests, one of them the control that matters: a row that is merely **online
 must NOT say Connected. Without it, "the row says Connected" is satisfied by a row
 that says it unconditionally, and the helper would report every attempt as a
 success — the mirror image of the bug it replaces.
+
+## Round 278 — sweeping for every check pinned to a heading
+
+Three rounds in a row have been the same class, so it was worth asking how many
+more there are. Every literal UI string the integration suite searches for,
+checked against whether the app contains it anywhere:
+
+| String | Sites | Verdict |
+|---|---|---|
+| `CONNECTED PEERS` | 3 | dead — fixed in round 277 |
+| `LIVE DOCS` | 2 | dead |
+| `Create Live Doc` / `New Document` | 1 | dead |
+| `WORKSPACE MEMBERS` | 2 | dead strategy in `openConversation` |
+| `ADVANCED SETTINGS` | 1 | dead |
+| `Previous Sessions:` | 1 | dead |
+| `Root Workspace`, `Connection Preferences` | 2 | dead |
+| `Delete File` | 1 | dead, but falls back to `Delete` |
+| `Test Alert 1` | 1 | fine — the test creates it |
+
+**`createLiveDoc` could not create anything.** Its primary locator was
+`button:has-text("Create Live Doc"), button:has-text("New Document")`; its
+fallback hovered a `LIVE DOCS` section. None of those three strings is anywhere
+in the app. Both branches were dead, so the function clicked nothing, opened
+nothing, filled nothing — and then honestly reported that the document was not
+there, because an earlier round had already replaced its constant `return true`.
+
+That is the whole of `test:live-doc`: "User 2 did NOT receive User 1's text",
+for a document that was never created.
+
+A live document is created from the composer's **type selector** and a title
+dialog. Both now carry testids, and the type buttons derive theirs from the
+label so every type gets one — which also matters because that label is
+`hidden sm:inline`, so on a phone the button has no text at all. A spec could
+not have found it by its words there even in principle.
+
+`openLiveDoc`'s LIVE DOCS branch is gone too; the fallback underneath was doing
+all the work. Searching for the document's own NAME is kept and is right — that
+is data the test created, not a label the product chose. **That is the line: a
+spec may search for what it made, and must not search for what the product
+decided to call something.**
+
+148 → **145**.
