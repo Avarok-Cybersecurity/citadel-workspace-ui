@@ -7,7 +7,7 @@
  */
 
 import type { ProxyResponseData } from './outbound-queue-types';
-import type { WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
+import type { WorkspaceProtocolRequest, WorkspaceClient } from 'citadel-workspace-client-ts';
 import { debugLog } from '@/lib/debug-config';
 
 interface ProxyRequest {
@@ -24,7 +24,7 @@ type SendAckFn = (
   data?: ProxyResponseData
 ) => void;
 
-async function getWebSocketClient() {
+async function getWebSocketClient(): Promise<WorkspaceClient | null> {
   const { websocketService } = await import('../websocket-service');
   return websocketService.getClient();
 }

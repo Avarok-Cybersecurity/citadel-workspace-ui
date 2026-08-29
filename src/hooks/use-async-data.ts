@@ -167,7 +167,7 @@ export function useAsyncAction<T, Args extends unknown[] = []>(
     };
   }, []);
 
-  const execute = useCallback(async (...args: Args): Promise<T | null> => {
+  const execute: (...args: Args) => Promise<T | null> = useCallback(async (...args: Args): Promise<T | null> => {
     setLoading(true);
     setError(null);
 

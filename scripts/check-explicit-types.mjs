@@ -45,6 +45,23 @@
  * and values, which is the SSOT violation the annotation was meant to prevent.
  * The gate exists because inference can drift when a value's shape changes
  * three modules away; here the value IS the type, so it cannot.
+ *
+ * A `cva(...)` declaration is exempt for the same reason, established by
+ * trying both annotations that could work and watching each fail:
+ *
+ *   - `const alertVariants: (props?: VariantProps<typeof alertVariants> & …)`
+ *     is TS2502, "referenced directly or indirectly in its own type
+ *     annotation". The component's props are derived from the variants, so
+ *     naming the type needs the type.
+ *   - `const badgeVariants: ReturnType<typeof cva>` compiles, and erases the
+ *     variant union: `VariantProps` of it is `{}`, and three call sites lose
+ *     `variant` as a prop. It type-checks the declaration by breaking its
+ *     consumers.
+ *
+ * The only remaining form spells the variant keys out by hand, at which point
+ * `VariantProps<typeof x>` reads the annotation rather than the config and a
+ * config change stops matching in silence — the exact drift this gate exists
+ * to catch, pointed the other way.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -111,6 +128,7 @@ for (const result of results) {
   const findings = result.messages.filter((message) => {
     if (!(message.ruleId in RULES)) return false;
     if (message.ruleId !== '@typescript-eslint/typedef') return true;
+    if (/=\s*cva\(/.test(source[message.line - 1] ?? '')) return false;
     return !isConstAssertion(source, message.line);
   }).length;
   if (findings > 0) counts[relative(APP, result.filePath)] = findings;

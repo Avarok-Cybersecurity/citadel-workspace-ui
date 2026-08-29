@@ -1,4 +1,4 @@
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import { memo , type ReactNode , type NamedExoticComponent } from 'react';
 import { AlertCircle, MoreVertical, Reply, Edit2, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -34,7 +34,7 @@ type LinkProps = { href?: string; children?: ReactNode };
 type CodeProps = { inline?: boolean; children?: ReactNode };
 
 // Custom components for markdown rendering in chat bubbles
-const markdownComponents = {
+const markdownComponents: Components = {
   // Headers - smaller for chat context
   h1: ({ children }: ChildrenProps): JSX.Element => <h1 className="text-lg font-bold mb-2">{children}</h1>,
   h2: ({ children }: ChildrenProps): JSX.Element => <h2 className="text-base font-semibold mb-1.5">{children}</h2>,

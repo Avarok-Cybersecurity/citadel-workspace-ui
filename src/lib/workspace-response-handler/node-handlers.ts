@@ -20,7 +20,7 @@ export function handleNodeVariants(
   connectionInfo: ConnectionInfo,
 ): boolean {
   if (isVariant(response, 'Node')) {
-    const node = response.Node;
+    const node: Extract<WorkspaceProtocolResponse, { Node: unknown }>['Node'] = response.Node;
     debugLog('WorkspaceResponseHandler', 'Node response received', {
       id: node.id, name: node.name, entityType: node.entity_type,
     });

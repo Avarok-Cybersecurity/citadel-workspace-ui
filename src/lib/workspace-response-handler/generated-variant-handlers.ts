@@ -140,7 +140,7 @@ export function handleGeneratedVariants(
   }
 
   if (isVariant(response, 'UserProfileUpdated')) {
-    const user = response.UserProfileUpdated;
+    const user: Extract<WorkspaceProtocolResponse, { UserProfileUpdated: unknown }>['UserProfileUpdated'] = response.UserProfileUpdated;
     debugLog('WorkspaceResponseHandler', 'UserProfileUpdated received', {
       userId: user.id, name: user.name,
     });

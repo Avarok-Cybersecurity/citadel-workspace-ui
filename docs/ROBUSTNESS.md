@@ -16090,3 +16090,34 @@ across four files.
 
 Explicit-type debt: 138 → 106 (−23%). 2331 tests green, `tsc` and
 `eslint --max-warnings 0` clean.
+
+## Round 324 — the cva blocker, established rather than assumed
+
+Five `src/components/ui/*` primitives had carried an untyped `cva(...)` since
+the start of the burn-down, marked as "blocked" on the belief that
+`VariantProps<typeof x>` cannot survive an annotation. That belief was never
+tested. It is now, both ways:
+
+| annotation | result |
+|---|---|
+| `(props?: VariantProps<typeof alertVariants> & …) => string` | **TS2502** — referenced in its own type annotation |
+| `ReturnType<typeof cva>` | compiles, and `VariantProps` of it is `{}`: three call sites lose `variant` as a prop |
+
+The second is the interesting one. It type-checks the declaration by breaking
+its consumers — the kind of green that means nothing. The only remaining form
+writes the variant keys out by hand, after which `VariantProps<typeof x>` reads
+the annotation instead of the config, and a config change stops matching in
+silence. That is this gate's own failure mode, aimed backwards.
+
+So `cva(...)` declarations are exempt, on the same footing as `as const`: the
+value is the type and no annotation improves on it. Negative-controlled with a
+declaration of identical shape built by a different factory — counted — and by
+`cva` — exempt.
+
+`label.tsx`'s `Label` was not blocked and is now a
+`ForwardRefExoticComponent`; ditto `getWebSocketClient`, `uploadFile`, and four
+response-variant payloads, which use `Extract<…>['Variant']` rather than
+restating the payload shape.
+
+Explicit-type debt: 106 → 93. Production debt is now 18, of which 4 are the
+documented narrowing cases. 2331 tests green.

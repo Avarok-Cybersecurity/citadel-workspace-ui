@@ -88,7 +88,7 @@ export class MessageHandler {
   private async handleMessageNotification(
     response: InternalServiceResponse & { MessageNotification: MessageNotificationPayload }
   ): Promise<void> {
-    const notification = response.MessageNotification;
+    const notification: MessageNotificationPayload = response.MessageNotification;
     const { message: rawMessage, peer_cid, cid } = notification;
 
     const currentCid: bigint | null = await this.config.getCurrentCid();
