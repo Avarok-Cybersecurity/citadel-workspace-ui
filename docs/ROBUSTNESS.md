@@ -16784,3 +16784,58 @@ the 45 seconds back — so the window is what produces the speedup, and revertin
 is a one-constant change.
 
 45 ILM tests green; preflight 52/52.
+
+## Round 343 — I broke CI with a gate, under a gate written to prevent it
+
+Round 340's `check-ci-job-timeouts.mjs` used `js-yaml`, and the job it runs in
+installs nothing. CI went red on `Cannot find module 'js-yaml'`.
+
+The workflow file already warns about this, by name:
+
+> the crate-coverage job installs nothing — it failed there with `Cannot find
+> package 'eslint'` and took the other twenty-five gates in that job down with
+> it, **which is the same mistake check-service-logs-are-captured made with
+> js-yaml**
+
+Third time. Second time with js-yaml.
+
+And there is a gate for it — `check-gates-have-their-dependencies.mjs`, whose
+docstring quotes both prior incidents. **It did not catch me.** Its detector
+was:
+
+```js
+/^\s*import\s[^'"]*from\s+['"]([^'".][^'"]*)['"]/gm        // ESM imports
+/createRequire\([^)]*\)\(\s*['"]([^'"]+)['"]/g              // createRequire(x)('pkg')
+```
+
+I wrote the two-step form, which is what anybody actually writes:
+
+```js
+const require = createRequire(import.meta.url);
+const yaml = require('js-yaml');
+```
+
+Neither pattern matches it. A *check that cannot see*: it knew about the hazard,
+named the package, and looked for one spelling of it.
+
+Two fixes, and the gate is the more valuable one:
+
+1. `check-ci-job-timeouts.mjs` now reads the workflow as text — no dependency at
+   all, so it cannot care which job it lands in. Same 23 jobs across 4
+   workflows; both negative controls still discriminate.
+2. The detector also matches a bare `require('pkg')`. These are `.mjs`, so a
+   `require(` can only have come from a `createRequire`.
+
+**The fix to the gate needed its own correction.** I replaced the inline
+pattern with the broader one — and in `createRequire(import.meta.url)('js-yaml')`
+the package name is the argument of the *result* call, so nothing follows
+`require(` but `import.meta.url`. The broader pattern does not subsume the
+narrower one, and I had silently dropped a case the gate already caught. Its own
+negative control found it: control A failed correctly, control B passed when it
+should have failed. Both patterns now run; both forms are caught.
+
+The lesson is the one this log keeps arriving at from new directions: a gate is
+only as good as the spelling it looks for, and the only way to know which
+spellings it sees is to write each one down and watch it fail.
+
+Preflight: 52 checks.
