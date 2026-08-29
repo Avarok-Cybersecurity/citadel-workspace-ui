@@ -15459,3 +15459,39 @@ That is two of the three `REAL GAP` markers cleared in two rounds, and the gate
 now reads 25 recorded-unheard instead of 27. The last is `outbound-failed` /
 `outbound-error`: the multi-instance queue knows a proxied request is dead about
 ten seconds before `sendToLeader` times out, and says so to nobody.
+
+## Round 307 — the caller waited out a decision already taken
+
+`outbound-queue` proxies a follower tab's request through the leader. It retries
+MAX_RETRIES times on a deadline its own comment describes as *"deliberately
+shorter than sendToLeader's 30s"*, then emits `outbound-failed` and drops the
+entry. Nothing listened.
+
+So the queue stopped trying, and the caller went on waiting for an
+acknowledgement nobody was going to obtain — about ten seconds of a spinner over
+a decision already taken, ending in a timeout that reports the wrong reason.
+`sendToLeader` settles on `outbound-failed` now, with the queue's own error,
+and its listener is removed on every exit path. A handler registered per call
+that outlives its promise is a leak per proxied request, and this path runs on
+every request a follower tab makes — so that has its own test and its own
+control.
+
+`outbound-error` was marked `REAL GAP` beside it and is not one:
+`channel-messaging` calls `acknowledge()` — which emits it — and emits
+`outbound-ack` on the same path, so the caller already learns. The marker now
+says that instead.
+
+**All three `REAL GAP` markers are cleared**, across rounds 305–307:
+
+| marker | what it was | round |
+|---|---|---|
+| `server:shutdown` | a planned restart the UI never showed | 305 |
+| `revfs:persist-failed` | a failed tree write announced to nobody | 306 |
+| `outbound-failed` | a dead request the caller waited 10s longer for | 307 |
+
+Twenty-four recorded-unheard events remain, and the file now says of each why it
+is unheard rather than that nobody has looked. That distinction is the point of
+keeping the list at all: a debt marker that means "known and reasoned about"
+is a different object from one that means "not yet read".
+
+> A component that gives up owes the news to whoever is still waiting on it.

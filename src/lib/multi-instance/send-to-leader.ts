@@ -25,14 +25,36 @@ export function sendToLeader(
       if (event.requestId === id) {
         clearTimeout(timeout);
         eventEmitter.off('outbound-ack', ackHandler);
+        eventEmitter.off('outbound-failed', failedHandler);
         resolve({ status: event.status, error: event.error, data: event.data });
       }
     };
 
+    // The queue gives up before this promise's own deadline does, and said so
+    // to nobody.
+    //
+    // `outbound-queue` retries a proxied request MAX_RETRIES times on a
+    // deadline deliberately shorter than the 30s below, then emits
+    // `outbound-failed` and drops it. Nothing listened, so the caller went on
+    // waiting for an ack that the queue had already stopped trying to obtain --
+    // about ten seconds of a spinner over a decision already taken.
+    //
+    // Settled with the same shape the timeout produces, and the queue has
+    // already removed the entry, so nothing here re-acknowledges it.
+    const failedHandler = (event: { requestId: string; error?: string }): void => {
+      if (event.requestId !== id) return;
+      clearTimeout(timeout);
+      eventEmitter.off('outbound-ack', ackHandler);
+      eventEmitter.off('outbound-failed', failedHandler);
+      resolve({ status: 'error', error: event.error ?? 'The leader never acknowledged this request' });
+    };
+
     eventEmitter.on('outbound-ack', ackHandler);
+    eventEmitter.on('outbound-failed', failedHandler);
 
     const timeout: NodeJS.Timeout = setTimeout((): void => {
       eventEmitter.off('outbound-ack', ackHandler);
+      eventEmitter.off('outbound-failed', failedHandler);
       // Drop it from the queue. The ack path calls acknowledge(); this one did
       // not, so a timed-out request stayed in the map forever — and
       // `onLeaderChange` replays every queued entry. The caller had ALREADY
