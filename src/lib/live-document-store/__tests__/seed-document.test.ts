@@ -16,7 +16,7 @@ import { seedDocument, readSeededText } from '../seed-document';
 
 describe('seedDocument', () => {
   it('puts the text where the editor actually looks for it', () => {
-    const doc = seedDocument('hello world');
+    const doc: ReturnType<typeof seedDocument> = seedDocument('hello world');
 
     const fragment = doc.getXmlFragment('default');
     expect(fragment.length).toBe(1);

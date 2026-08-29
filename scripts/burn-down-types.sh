@@ -19,6 +19,12 @@ for pass in $(seq 1 "${1:-6}"); do
   npx eslint --fix src >/dev/null 2>&1
   node scripts/check-explicit-types.mjs --write --allow-regressions >/dev/null 2>&1
   after=$(python3 -c "import json;print(sum(json.load(open('scripts/explicit-types.baseline.json')).values()))")
+  # Commit each pass. `git checkout --` reverts to HEAD, so without this a later
+  # pass's revert threw away every earlier pass's work on that file -- the count
+  # went 666, 663, 660, 666, 663, 660, 666 and never finished.
+  if [ "$after" -lt "$before" ]; then
+    git add -A && git commit -q -m "refactor: typing pass -- $before to $after"
+  fi
   echo "pass $pass: $before -> $after"
   [ "$before" = "$after" ] && break
 done

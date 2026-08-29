@@ -22,7 +22,7 @@ import type { NavigateFunction } from 'react-router';
  * Replaces the hardcoded OfficesSection + RoomsSection with a schema-driven tree.
  */
 export function HierarchySidebar(): JSX.Element {
-  const location = useLocation();
+  const location: ReturnType<typeof useLocation> = useLocation();
   const navigate: NavigateFunction = useNavigate();
   const { state } = useWorkspace();
   const { toast } = useToast();
