@@ -137,7 +137,7 @@
   "src/lib/p2p/merge-by-id.ts": 1,
   "src/lib/p2p/message-handler.ts": 1,
   "src/lib/p2p/message-page-operations.ts": 1,
-  "src/lib/p2p/p2p-messenger-manager.ts": 8,
+  "src/lib/p2p/p2p-messenger-manager.ts": 7,
   "src/lib/p2p-auto-connect-service/polling.ts": 1,
   "src/lib/p2p-auto-connect-service/service.ts": 1,
   "src/lib/p2p-auto-connect-service/state.ts": 2,
