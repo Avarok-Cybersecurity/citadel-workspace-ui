@@ -150,7 +150,7 @@ async function createPeerGroup(
   await takeScreenshot(page, `${creator.username}_create_group_dialog`);
 
   // Fill in group name - input has id="groupName" and placeholder with "'s Group"
-  const nameInput = page.locator('input#groupName, input[placeholder*="Group"]').first();
+  const nameInput = page.getByTestId('create-group-name').first();
   if (await isVisibleWithin(nameInput, 3000)) {
     await nameInput.fill(groupName);
     console.log(`    Group name filled: ${groupName}`);
@@ -166,7 +166,7 @@ async function createPeerGroup(
     console.log(`    Adding member: ${member.username}`);
 
     // Click "Add Member" button
-    const addMemberBtn = page.locator('button:has-text("Add Member")').first();
+    const addMemberBtn = page.getByTestId('create-group-add-member').first();
     if (!await isVisibleWithin(addMemberBtn, 2000)) {
       console.log(`    Add Member button not found for ${member.username}`);
       continue;
@@ -176,7 +176,14 @@ async function createPeerGroup(
     await sleep(500);
 
     // Select the peer from the popover
-    const peerOption = page.locator(`[role="option"]:has-text("${member.username}"), button:has-text("${member.username}")`).first();
+    // The option INSIDE the dialog, by its own id.
+    //
+    // This matched `button:has-text("<username>")`, and the sidebar's peer row
+    // is a button with the username in it -- so the click resolved to a control
+    // behind the modal and Playwright reported, correctly and unhelpfully,
+    // "<div class=...bg-black/80> intercepts pointer events" for thirty
+    // seconds. The dialog has carried `create-group-peer-<username>` all along.
+    const peerOption = page.getByTestId(`create-group-peer-${member.username}`).first();
     if (await isVisibleWithin(peerOption, 2000)) {
       await peerOption.click();
       console.log(`    Selected member: ${member.username}`);

@@ -14598,3 +14598,26 @@ Also: the pairing's inline return type had grown to a 240-character object
 literal repeated twice in one line, written by the annotator. It is a named
 `Paired` interface now. *An explicit type that nobody can read is explicit and
 not much else.*
+
+## Round 287 — a click that landed behind the dialog
+
+`test:peer-group` now gets through P2P setup and the create-group dialog, fills
+the name, and then spends thirty seconds failing to add a member:
+
+```
+waiting for locator('[role="option"]:has-text("peergrp_2"), button:has-text("peergrp_2")')
+  - locator resolved to <button ... data-testid="peer-row-peergrp_2" ...>
+  - <div class="fixed inset-0 z-50 bg-black/80"> intercepts pointer events
+```
+
+Playwright's report is exactly right and exactly unhelpful: the click cannot
+land because something is on top of the element. The something is the modal
+overlay, and the element is **in the sidebar behind it** — the locator's second
+alternative, `button:has-text("<username>")`, matches the peer row as happily as
+it matches the option inside the dialog, and `.first()` picked the wrong one.
+
+The dialog has carried `create-group-peer-<username>` all along. So has its name
+field and its submit. Three locators replaced; 143 → **141**.
+
+*A locator with two alternatives is a locator that will one day match the wrong
+one, and the failure will be a report about pointer events.*
