@@ -31,6 +31,9 @@ env:
 jobs:
   unit-tests:
     name: Unit Tests
+    # Observed the same work as the parent job, 6m there; this bounds a hang, not performance.
+    # Without it a stuck job holds a runner for GitHub's 360-minute default.
+    timeout-minutes: 25
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -67,6 +70,9 @@ jobs:
 
   typecheck:
     name: TypeScript Type Check - ${{ matrix.project }}
+    # Observed the same work as the parent job, under a minute there; this bounds a hang, not performance.
+    # Without it a stuck job holds a runner for GitHub's 360-minute default.
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -229,6 +235,9 @@ jobs:
 
   lint:
     name: ESLint - ${{ matrix.project }}
+    # Observed the same work as the parent job, 1m there; this bounds a hang, not performance.
+    # Without it a stuck job holds a runner for GitHub's 360-minute default.
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -282,6 +291,9 @@ jobs:
     # executed against a running stack. Sharded rather than one job per spec, so
     # adding a spec needs no matrix edit. Mirrors the parent repo's job.
     name: Playwright - shard ${{ matrix.shard }}
+    # Observed the same work as the parent job, 41m there; this bounds a hang, not performance.
+    # Without it a stuck job holds a runner for GitHub's 360-minute default.
+    timeout-minutes: 80
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -358,6 +370,9 @@ jobs:
 
   integration-tests:
     name: Integration Test - ${{ matrix.test }}
+    # Observed the same work as the parent job, 26m there; this bounds a hang, not performance.
+    # Without it a stuck job holds a runner for GitHub's 360-minute default.
+    timeout-minutes: 55
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

@@ -16642,3 +16642,34 @@ Negative control: restoring the original unguarded `curl … | sh` names it by
 file and line.
 
 Preflight: **51 checks**.
+
+## Round 340 — twenty-three jobs, none of them bounded
+
+Following round 339's question — what else in this pipeline can burn time
+without producing a result — `timeout-minutes` appeared nowhere. Not in one
+workflow: in any of the four.
+
+GitHub's default is 360 minutes. A job that hangs — a spec waiting on a stack
+that never came up, a `compose up --wait` against an image that will not start —
+holds a runner for six hours and says nothing for six hours. The slowest job
+here is 41 minutes, and a full run already takes hours to clear the queue, so
+one hang pushes every later run behind it.
+
+And a hang is the expensive kind of failure to begin with: no assertion, no
+diff, no line saying what it was waiting for. Round 339's build failure at
+least printed `Connection reset by peer`.
+
+All 23 jobs across all four workflows now carry a budget of roughly twice their
+observed maximum, with the observation recorded beside each. The two
+`release-agent` and three `publish-images` jobs matter most — a hang there holds
+a release, not a test.
+
+`check-ci-job-timeouts.mjs` fails a job without one, and also one above a
+120-minute ceiling, so nobody restores the six-hour default by writing it out.
+It fails loudly if a workflow file is missing or has no jobs, rather than
+reporting agreement it did not check.
+
+Negative-controlled both ways: removing a budget names the job; setting it to
+360 names it too.
+
+Preflight: **52 checks**.
