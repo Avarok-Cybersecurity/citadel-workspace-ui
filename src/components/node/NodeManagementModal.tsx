@@ -90,7 +90,7 @@ export function NodeManagementModal({
     }
   };
 
-  const initialData = node
+  const initialData: { name: string; description: string; } | undefined = node
     ? { name: node.name, description: node.description ?? '' }
     : undefined;
 

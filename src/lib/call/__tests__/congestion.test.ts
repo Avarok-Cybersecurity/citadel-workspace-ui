@@ -115,7 +115,7 @@ describe('dropping frames at the source', () => {
   it('never drops a keyframe', () => {
     // Dropping one corrupts every frame after it until the next keyframe —
     // strictly worse than sending it late.
-    const worst = { rung: QUALITY_LADDER.length - 1, cleanStreak: 0 };
+    const worst: { rung: number; cleanStreak: number; } = { rung: QUALITY_LADDER.length - 1, cleanStreak: 0 };
     expect(shouldDropFrame(worst, true, 100)).toBe(false);
   });
 
@@ -130,8 +130,8 @@ describe('dropping frames at the source', () => {
   it('tolerates less queueing the worse the link gets', () => {
     // Queue depth is latency the user hears as delay, so a struggling link
     // should hold less of it, not more.
-    const mild = { rung: 1, cleanStreak: 0 };
-    const severe = { rung: 3, cleanStreak: 0 };
+    const mild: { rung: number; cleanStreak: number; } = { rung: 1, cleanStreak: 0 };
+    const severe: { rung: number; cleanStreak: number; } = { rung: 3, cleanStreak: 0 };
 
     expect(shouldDropFrame(mild, false, 7)).toBe(true);
     expect(shouldDropFrame(severe, false, 3)).toBe(true);

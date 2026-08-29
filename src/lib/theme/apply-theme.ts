@@ -77,7 +77,7 @@ export function clearTheme(
  * the type — adding a token to ThemePalette is a compile error here until it is
  * listed.
  */
-const ZERO = { h: 0, s: 0, l: 0 };
+const ZERO: { h: number; s: number; l: number; } = { h: 0, s: 0, l: 0 };
 const EMPTY_PALETTE_SHAPE: ThemePalette = {
   background: ZERO, foreground: ZERO, card: ZERO, cardForeground: ZERO,
   popover: ZERO, popoverForeground: ZERO, surface: ZERO, surfaceForeground: ZERO,

@@ -113,7 +113,7 @@ export function P2PChat({
   //
   // It also fought the pagination anchoring in useP2PMessages, which goes to
   // real trouble to preserve scroll position across a prepend.
-  const FOLLOW_THRESHOLD_PX: 80 = 80;
+  const FOLLOW_THRESHOLD_PX: number = 80;
   const hasJumpedToLatest = useRef(false);
   useEffect(() => {
     const el: HTMLDivElement | null = scrollRef.current;

@@ -32,7 +32,7 @@ function pend(ctx: RegistrationContext, requestId: string): Promise<Record<strin
 
 describe('handleWebSocketMessage', () => {
   it('resolves the pending request for a peer list response', async () => {
-    const ctx = makeContext();
+    const ctx: RegistrationContext & { pendingRequests: Map<string, PendingRequestEntry>; } = makeContext();
     const promise: Promise<Record<string, unknown>> = pend(ctx, 'req-1');
 
     handleWebSocketMessage(
@@ -45,7 +45,7 @@ describe('handleWebSocketMessage', () => {
   });
 
   it('rejects the pending request when the peer list fails', async () => {
-    const ctx = makeContext();
+    const ctx: RegistrationContext & { pendingRequests: Map<string, PendingRequestEntry>; } = makeContext();
     const promise: Promise<Record<string, unknown>> = pend(ctx, 'req-2');
 
     handleWebSocketMessage(
@@ -57,7 +57,7 @@ describe('handleWebSocketMessage', () => {
   });
 
   it('records an outgoing registration on success', () => {
-    const ctx = makeContext();
+    const ctx: RegistrationContext & { pendingRequests: Map<string, PendingRequestEntry>; } = makeContext();
 
     handleWebSocketMessage(
       { PeerRegisterSuccess: { request_id: 'r', peer_cid: 42n, peer_username: 'bob' } } as never,
@@ -74,7 +74,7 @@ describe('handleWebSocketMessage', () => {
   it('treats "already registered" as success, not failure', async () => {
     // Documented invariant: after a reconnect our local state is stale, so
     // re-registering an existing peer is expected and must not surface as an error.
-    const ctx = makeContext();
+    const ctx: RegistrationContext & { pendingRequests: Map<string, PendingRequestEntry>; } = makeContext();
     const promise: Promise<Record<string, unknown>> = pend(ctx, 'req-3');
 
     handleWebSocketMessage(
@@ -88,7 +88,7 @@ describe('handleWebSocketMessage', () => {
   });
 
   it('rejects a genuine registration failure', async () => {
-    const ctx = makeContext();
+    const ctx: RegistrationContext & { pendingRequests: Map<string, PendingRequestEntry>; } = makeContext();
     const promise: Promise<Record<string, unknown>> = pend(ctx, 'req-4');
 
     handleWebSocketMessage(
@@ -102,7 +102,7 @@ describe('handleWebSocketMessage', () => {
   });
 
   it('upgrades a synthesized handle when the success carries a real username', () => {
-    const ctx = makeContext();
+    const ctx: RegistrationContext & { pendingRequests: Map<string, PendingRequestEntry>; } = makeContext();
     ctx.allPeers.set(42n, {
       cid: 42n, username: 'User 42', fullName: 'User 42', isOnline: true, isRegistered: false,
     });
@@ -116,7 +116,7 @@ describe('handleWebSocketMessage', () => {
   });
 
   it('ignores an unknown message shape without throwing', () => {
-    const ctx = makeContext();
+    const ctx: RegistrationContext & { pendingRequests: Map<string, PendingRequestEntry>; } = makeContext();
     expect(() => handleWebSocketMessage({ SomethingElse: {} } as never, ctx)).not.toThrow();
     expect(ctx.registeredPeers.size).toBe(0);
   });

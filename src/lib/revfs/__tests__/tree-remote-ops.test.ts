@@ -28,7 +28,7 @@ import { CID_A, CID_B, makeMeta } from './tree-test-helpers';
 describe('applyRemoteOp', () => {
   it('applies remote mkdir idempotently', () => {
     const tree: RevfsNode = createDefaultTree();
-    const op = { op_id: '1', op_type: RevfsOpType.Mkdir, path: '/shared', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.Mkdir, path: '/shared', timestamp: Date.now() };
     const result: RevfsNode = applyRemoteOp(tree, op, CID_B);
     expect(findNode(result, '/shared')).not.toBeNull();
     const result2: RevfsNode = applyRemoteOp(result, op, CID_B);
@@ -38,14 +38,14 @@ describe('applyRemoteOp', () => {
   it('applies remote rmdir', () => {
     let tree: RevfsNode = createDefaultTree();
     [tree] = mkdir(tree, '/tmp');
-    const op = { op_id: '1', op_type: RevfsOpType.Rmdir, path: '/tmp', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.Rmdir, path: '/tmp', timestamp: Date.now() };
     const result: RevfsNode = applyRemoteOp(tree, op, CID_B);
     expect(findNode(result, '/tmp')).toBeNull();
   });
 
   it('does not remove protected dirs via remote op', () => {
     const tree: RevfsNode = createDefaultTree();
-    const op = { op_id: '1', op_type: RevfsOpType.Rmdir, path: SENT_FILES_DIR, timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.Rmdir, path: SENT_FILES_DIR, timestamp: Date.now() };
     const result: RevfsNode = applyRemoteOp(tree, op, CID_B);
     expect(findNode(result, SENT_FILES_DIR)).not.toBeNull();
   });
@@ -72,14 +72,14 @@ describe('applyRemoteOp', () => {
     [tree] = mkdir(tree, '/docs');
     const meta = makeMeta();
     [tree] = placeFile(tree, '/docs/test.pdf', meta, CID_A);
-    const op = { op_id: '1', op_type: RevfsOpType.RemoveFile, path: '/docs/test.pdf', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.RemoveFile, path: '/docs/test.pdf', timestamp: Date.now() };
     const result: RevfsNode = applyRemoteOp(tree, op, CID_B);
     expect(findNode(result, '/docs/test.pdf')).toBeNull();
   });
 
   it('returns tree unchanged for RemoveFile on missing file', () => {
     const tree: RevfsNode = createDefaultTree();
-    const op = { op_id: '1', op_type: RevfsOpType.RemoveFile, path: '/nope.txt', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.RemoveFile, path: '/nope.txt', timestamp: Date.now() };
     const result: RevfsNode = applyRemoteOp(tree, op, CID_B);
     expect(result.children).toHaveLength(2);
   });
@@ -92,7 +92,7 @@ describe('applyRemoteOp', () => {
     // A uploaded it, so from A's side the blob lives on the peer: Remote.
     expect(findNode(remoteTree, '/docs/test.pdf')!.fileState).toBe(RevfsFileState.Remote);
 
-    const op = {
+    const op: { op_id: string; op_type: RevfsOpType; path: string; tree: RevfsNode; timestamp: number; } = {
       op_id: '1', op_type: RevfsOpType.SyncResponse, path: '/',
       tree: remoteTree, timestamp: Date.now(),
     };
@@ -105,7 +105,7 @@ describe('applyRemoteOp', () => {
 
   it('returns tree unchanged for SyncResponse with null tree', () => {
     const tree: RevfsNode = createDefaultTree();
-    const op = { op_id: '1', op_type: RevfsOpType.SyncResponse, path: '/', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.SyncResponse, path: '/', timestamp: Date.now() };
     const result: RevfsNode = applyRemoteOp(tree, op, CID_B);
     expect(result.children).toHaveLength(2);
   });
@@ -113,7 +113,7 @@ describe('applyRemoteOp', () => {
   it('returns tree unchanged for PlaceFile without metadata', () => {
     let tree: RevfsNode = createDefaultTree();
     [tree] = mkdir(tree, '/docs');
-    const op = { op_id: '1', op_type: RevfsOpType.PlaceFile, path: '/docs/f.txt', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.PlaceFile, path: '/docs/f.txt', timestamp: Date.now() };
     const result: RevfsNode = applyRemoteOp(tree, op, CID_B);
     expect(findNode(result, '/docs/f.txt')).toBeNull();
   });
@@ -134,14 +134,14 @@ describe('applyRemoteOp', () => {
 
   it('returns tree unchanged for Rmdir on non-existent path', () => {
     const tree: RevfsNode = createDefaultTree();
-    const op = { op_id: '1', op_type: RevfsOpType.Rmdir, path: '/nope', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.Rmdir, path: '/nope', timestamp: Date.now() };
     const result: RevfsNode = applyRemoteOp(tree, op, CID_B);
     expect(result.children).toHaveLength(2);
   });
 
   it('returns tree unchanged for Mkdir with missing parent', () => {
     const tree: RevfsNode = createDefaultTree();
-    const op = { op_id: '1', op_type: RevfsOpType.Mkdir, path: '/a/b', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.Mkdir, path: '/a/b', timestamp: Date.now() };
     const result: RevfsNode = applyRemoteOp(tree, op, CID_B);
     expect(findNode(result, '/a/b')).toBeNull();
   });
@@ -157,7 +157,7 @@ describe('applyRemoteOp', () => {
       { name: 'recv.txt', type: 'file', path: '/mix/recv.txt', fileState: RevfsFileState.Received, createdAt: 1, updatedAt: 1 },
     ];
 
-    const op = { op_id: '1', op_type: RevfsOpType.SyncResponse, path: '/', tree: remoteTree, timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; tree: RevfsNode; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.SyncResponse, path: '/', tree: remoteTree, timestamp: Date.now() };
     const result: RevfsNode = applyRemoteOp(createDefaultTree(), op, CID_B);
     expect(findNode(result, '/mix/hosted.txt')!.fileState).toBe(RevfsFileState.Remote);
     expect(findNode(result, '/mix/remote.txt')!.fileState).toBe(RevfsFileState.Hosted);

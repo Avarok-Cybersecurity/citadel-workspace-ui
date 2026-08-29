@@ -19,7 +19,7 @@ interface ConnectionFactsProps {
 }
 
 export function ConnectionFacts({ peerCid, revfsQuota }: ConnectionFactsProps) {
-  const settings = { revfsQuota };
+  const settings: { revfsQuota: number; } = { revfsQuota };
 
   return (
     <>

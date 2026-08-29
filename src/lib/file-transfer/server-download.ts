@@ -76,7 +76,7 @@ export function downloadFileFromServer(transfer: FileTransfer): Promise<string |
   });
 
   return failOnSocketLoss('ServerDownload', new Promise<string | undefined>((resolve, reject) => {
-    const timeout = setTimeout((): void => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       eventEmitter.off('websocket-message', handleMessage);
       reject(new Error(`Download of "${transfer.fileName}" timed out.`));
     }, TIMEOUT.FILE_SEND_MS);
@@ -92,7 +92,7 @@ export function downloadFileFromServer(transfer: FileTransfer): Promise<string |
 
       // The transfer itself completing (or failing) arrives as a status notification,
       // matched on our own CID — the same correlation the RE-VFS path uses.
-      const status = msg.FileTransferStatusNotification as
+      const status: { cid?: bigint; success?: boolean; response?: { download_path?: string; }; } | undefined = msg.FileTransferStatusNotification as
         | { cid?: bigint; success?: boolean; response?: { download_path?: string } }
         | undefined;
       if (status && status.cid === cid) {
@@ -107,7 +107,7 @@ export function downloadFileFromServer(transfer: FileTransfer): Promise<string |
       }
 
       // The request being rejected outright is correlated by request_id.
-      const failure = msg.DownloadFileFailure as
+      const failure: { request_id?: string; message?: string; } | undefined = msg.DownloadFileFailure as
         | { request_id?: string; message?: string }
         | undefined;
       if (failure?.request_id === requestId) {

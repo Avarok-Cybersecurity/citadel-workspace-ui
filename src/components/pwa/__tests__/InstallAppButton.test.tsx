@@ -19,8 +19,8 @@ const toast = vi.fn();
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast }) }));
 
 /** A stand-in for the event Chromium fires; the DOM lib does not declare it. */
-function makePromptEvent(outcome: 'accepted' | 'dismissed') {
-  const event = new Event('beforeinstallprompt') as Event & {
+function makePromptEvent(outcome: 'accepted' | 'dismissed'): Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string; platform: string; }>; platforms: string[]; } {
+  const event: Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string; platform: string; }>; platforms: string[]; } = new Event('beforeinstallprompt') as Event & {
     prompt: () => Promise<void>;
     userChoice: Promise<{ outcome: string; platform: string }>;
     platforms: string[];
@@ -31,8 +31,8 @@ function makePromptEvent(outcome: 'accepted' | 'dismissed') {
   return event;
 }
 
-function fireInstallPrompt(outcome: 'accepted' | 'dismissed' = 'accepted') {
-  const event = makePromptEvent(outcome);
+function fireInstallPrompt(outcome: 'accepted' | 'dismissed' = 'accepted'): Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string; platform: string; }>; platforms: string[]; } {
+  const event: Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string; platform: string; }>; platforms: string[]; } = makePromptEvent(outcome);
   act(() => { window.dispatchEvent(event); });
   return event;
 }
@@ -77,7 +77,7 @@ describe('InstallAppButton', () => {
 
   it('suppresses the browser mini-infobar so the app controls placement', () => {
     render(<InstallAppButton />);
-    const event = makePromptEvent('accepted');
+    const event: Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string; platform: string; }>; platforms: string[]; } = makePromptEvent('accepted');
     const prevented = vi.spyOn(event, 'preventDefault');
     act(() => { window.dispatchEvent(event); });
     expect(prevented).toHaveBeenCalled();
@@ -85,7 +85,7 @@ describe('InstallAppButton', () => {
 
   it('confirms an accepted install', async () => {
     render(<InstallAppButton />);
-    const event = fireInstallPrompt('accepted');
+    const event: Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string; platform: string; }>; platforms: string[]; } = fireInstallPrompt('accepted');
     await act(async () => { screen.getByRole('button', { name: /install app/i }).click(); });
 
     expect(event.prompt).toHaveBeenCalled();

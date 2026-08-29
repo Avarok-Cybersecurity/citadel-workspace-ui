@@ -33,7 +33,7 @@ function message(senderId: string): never {
 }
 
 /** The handlers the item needs; none is exercised by these assertions. */
-const props = {
+const props: { onEdit: () => void; onDelete: () => void; onReply: () => void; onOpenThread: () => void; totalMembers: number; } = {
   onEdit: (): void => {},
   onDelete: (): void => {},
   onReply: (): void => {},

@@ -19,7 +19,7 @@ function stubCodecClass() {
     configure = vi.fn();
     close = vi.fn((): void => { this.state = 'closed'; });
     constructor() { codecInstances.push(this as unknown as { close: ReturnType<typeof vi.fn> }); }
-    static isConfigSupported = async () => ({ supported: true });
+    static isConfigSupported: () => Promise<{ supported: boolean; }> = async (): Promise<{ supported: boolean; }> => ({ supported: true });
   };
 }
 
@@ -177,7 +177,7 @@ describe('peers', () => {
     const session: CallSession = new CallSession(cbs);
     await session.start({ audio: true, video: true, screen: false });
 
-    const frame = { track: 1, kind: 1, timestamp: 0, flags: 1, payload: new Uint8Array([1]) };
+    const frame: { track: number; kind: number; timestamp: number; flags: number; payload: Uint8Array<ArrayBuffer>; } = { track: 1, kind: 1, timestamp: 0, flags: 1, payload: new Uint8Array([1]) };
     session.acceptFrame(2n, frame);
     session.acceptFrame(2n, frame);
     session.acceptFrame(2n, frame);

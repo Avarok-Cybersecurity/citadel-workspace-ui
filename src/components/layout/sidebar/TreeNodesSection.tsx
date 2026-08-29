@@ -114,12 +114,12 @@ export function TreeNodesSection({
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const handleNodeSelect = useCallback(
+  const handleNodeSelect: (nodeId: string) => void = useCallback(
     (nodeId: string) => {
       if (onNodeSelect) {
         onNodeSelect(nodeId);
       } else {
-        const params = new URLSearchParams(location.search);
+        const params: URLSearchParams = new URLSearchParams(location.search);
         params.set("nodeId", nodeId);
         params.delete("section");
         navigate(buildWorkspacePath(params));

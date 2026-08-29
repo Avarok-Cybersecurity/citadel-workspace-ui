@@ -22,13 +22,13 @@ import type { MemberData, UserRole } from '../types';
 export function useMemberAdminActions(
   entityId: string,
   setMembers: React.Dispatch<React.SetStateAction<MemberData[]>>,
-) {
+): { updatingRoles: Set<string>; changeRole: (userId: string, newRole: UserRole) => Promise<void>; removeMember: (member: MemberData) => Promise<void>; } {
   const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set());
 
   const reason = (error: unknown, fallback: string): string =>
     error instanceof Error && error.message ? error.message : fallback;
 
-  const changeRole = useCallback(
+  const changeRole: (userId: string, newRole: UserRole) => Promise<void> = useCallback(
     async (userId: string, newRole: UserRole) => {
       setUpdatingRoles((prev) => new Set(prev).add(userId));
       try {
@@ -59,7 +59,7 @@ export function useMemberAdminActions(
     [setMembers],
   );
 
-  const removeMember = useCallback(
+  const removeMember: (member: MemberData) => Promise<void> = useCallback(
     async (member: MemberData) => {
       try {
         await WorkspaceService.removeMember(member.userId, entityId);

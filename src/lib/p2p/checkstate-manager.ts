@@ -75,7 +75,7 @@ export class CheckStateManager {
    */
   public clearPeerReadyState(peerCid: bigint): void {
     this.peerReadyState.delete(peerCid);
-    const pending = this.pendingCheckStates.get(peerCid);
+    const pending: { resolve: () => void; reject: (e: Error) => void; } | undefined = this.pendingCheckStates.get(peerCid);
     if (pending) {
       pending.reject(new Error('Peer disconnected'));
       this.pendingCheckStates.delete(peerCid);
@@ -88,7 +88,7 @@ export class CheckStateManager {
   public handleCheckStateResponse(peerCid: bigint): void {
     debugLog('CheckstateManager', '[P2P] Received CheckStateResponse from peer:', peerCid);
     this.peerReadyState.set(peerCid, true);
-    const pending = this.pendingCheckStates.get(peerCid);
+    const pending: { resolve: () => void; reject: (e: Error) => void; } | undefined = this.pendingCheckStates.get(peerCid);
     if (pending) {
       pending.resolve();
       this.pendingCheckStates.delete(peerCid);
@@ -126,7 +126,7 @@ export class CheckStateManager {
     );
 
     try {
-      const bytes = serializeP2PCommand(command);
+      const bytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand(command);
       await this.config.sendToP2P(peerCid, bytes);
       debugLog('CheckstateManager', '[P2P] Sent CheckStateResponse to peer:', peerCid);
     } catch (error) {
@@ -197,7 +197,7 @@ export class CheckStateManager {
 
     // Send the CheckState request
     try {
-      const bytes = serializeP2PCommand(command);
+      const bytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand(command);
       await this.config.sendToP2P(peerCid, bytes);
       debugLog('CheckstateManager', '[P2P] Sent CheckState to peer:', peerCid);
     } catch (error) {

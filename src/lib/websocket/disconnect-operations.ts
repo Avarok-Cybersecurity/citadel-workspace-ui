@@ -46,11 +46,11 @@ export class DisconnectOperations {
       operationName: 'Disconnect',
       matcher: {
         matchSuccess: (message) => {
-          const response = ((message as { Response?: Record<string, unknown> }).Response || message) as {
+          const response: { DisconnectNotification?: { request_id?: string | null; cid?: bigint; }; } = ((message as { Response?: Record<string, unknown> }).Response || message) as {
             DisconnectNotification?: { request_id?: string | null; cid?: bigint };
           };
           if (response.DisconnectNotification) {
-            const n = response.DisconnectNotification;
+            const n: { request_id?: string | null; cid?: bigint; } = response.DisconnectNotification;
             if (n.request_id === requestId || (n.request_id === null && n.cid === cid)) {
               debugLog('DisconnectOperations', 'Disconnect successful for CID:', cid.toString());
               return true;
@@ -59,11 +59,11 @@ export class DisconnectOperations {
           return undefined;
         },
         matchFailure: (message) => {
-          const response = ((message as { Response?: Record<string, unknown> }).Response || message) as {
+          const response: { DisconnectFailure?: { request_id?: string | null; cid?: bigint; message?: string; }; } = ((message as { Response?: Record<string, unknown> }).Response || message) as {
             DisconnectFailure?: { request_id?: string | null; cid?: bigint; message?: string };
           };
           if (response.DisconnectFailure) {
-            const f = response.DisconnectFailure;
+            const f: { request_id?: string | null; cid?: bigint; message?: string; } = response.DisconnectFailure;
             if (f.request_id === requestId || (f.request_id === null && f.cid === cid)) {
               errorLog('Disconnect failed:', f.message);
               return f.message || 'Failed to disconnect';
@@ -96,7 +96,7 @@ export class DisconnectOperations {
       operationName: 'Deregister',
       matcher: {
         matchSuccess: (message) => {
-          const response = ((message as { Response?: Record<string, unknown> }).Response || message) as {
+          const response: { DeregisterSuccess?: { request_id: string; }; } = ((message as { Response?: Record<string, unknown> }).Response || message) as {
             DeregisterSuccess?: { request_id: string };
           };
           if (response.DeregisterSuccess?.request_id === requestId) {
@@ -106,7 +106,7 @@ export class DisconnectOperations {
           return undefined;
         },
         matchFailure: (message) => {
-          const response = ((message as { Response?: Record<string, unknown> }).Response || message) as {
+          const response: { DeregisterFailure?: { request_id: string; message?: string; }; } = ((message as { Response?: Record<string, unknown> }).Response || message) as {
             DeregisterFailure?: { request_id: string; message?: string };
           };
           if (response.DeregisterFailure?.request_id === requestId) {

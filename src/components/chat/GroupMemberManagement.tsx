@@ -70,7 +70,7 @@ export function GroupMemberManagement({
   }, [group.settings.roles]);
 
   // Handle role change
-  const handleRoleChange = useCallback(
+  const handleRoleChange: (member: GroupMemberWithRole, newRoleId: string) => Promise<void> = useCallback(
     async (member: GroupMemberWithRole, newRoleId: string) => {
       if (newRoleId !== member.roleId) {
         await onRoleChange(member.cid.toString(), newRoleId);

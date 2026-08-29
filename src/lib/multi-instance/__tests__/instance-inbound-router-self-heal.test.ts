@@ -39,7 +39,7 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
   it('asks every other instance to re-broadcast its CID when the target CID is unowned', () => {
     instanceManagerMock.findInstanceByCid.mockReturnValue(null);
 
-    const cidRoutedMessage = {
+    const cidRoutedMessage: { MessageNotification: { cid: string; peer_cid: string; message: number[]; request_id: null; }; } = {
       MessageNotification: {
         cid: '12345',
         peer_cid: '99',
@@ -60,7 +60,7 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
     const local = vi.fn();
     eventEmitter.on('websocket-message', local);
 
-    const cidRoutedMessage = {
+    const cidRoutedMessage: { FileTransferRequestNotification: { cid: string; peer_cid: string; request_id: null; }; } = {
       FileTransferRequestNotification: {
         cid: '67890',
         peer_cid: '11',
@@ -89,7 +89,7 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
     const local = vi.fn();
     eventEmitter.on('websocket-message', local);
 
-    const cidRoutedMessage = {
+    const cidRoutedMessage: { MessageNotification: { cid: string; peer_cid: string; message: number[]; request_id: null; }; } = {
       MessageNotification: {
         cid: '44444',
         peer_cid: '99',
@@ -136,7 +136,7 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
     const local = vi.fn();
     eventEmitter.on('websocket-message', local);
 
-    const cidRoutedMessage = {
+    const cidRoutedMessage: { MessageNotification: { cid: string; peer_cid: string; message: number[]; request_id: null; }; } = {
       MessageNotification: {
         cid: '99999',
         peer_cid: '11',
@@ -174,7 +174,7 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
   it('does NOT request a CID report when an instance already owns the target CID', () => {
     instanceManagerMock.findInstanceByCid.mockReturnValue('follower-instance');
 
-    const cidRoutedMessage = {
+    const cidRoutedMessage: { MessageNotification: { cid: string; peer_cid: string; message: number[]; request_id: null; }; } = {
       MessageNotification: {
         cid: '12345',
         peer_cid: '99',
@@ -200,7 +200,7 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
     const local = vi.fn();
     eventEmitter.on('websocket-message', local);
 
-    const cidRoutedMessage = {
+    const cidRoutedMessage: { PeerRegisterNotification: { cid: string; peer_cid: string; request_id: null; }; } = {
       PeerRegisterNotification: {
         cid: '12345',
         peer_cid: '99',

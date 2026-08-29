@@ -59,7 +59,7 @@ describe('buildTransferAnnouncement', () => {
     const payload = buildTransferAnnouncement(
       transfer({ fileName: 'a.png', fileSize: 99, fileType: 'image/png', thumbnail: 'data:x' }),
     );
-    const layer = payload.layer as { file_name: string; file_size: number; file_type: string; thumbnail?: string };
+    const layer: { file_name: string; file_size: number; file_type: string; thumbnail?: string; } = payload.layer as { file_name: string; file_size: number; file_type: string; thumbnail?: string };
 
     expect(layer).toMatchObject({ file_name: 'a.png', file_size: 99, file_type: 'image/png', thumbnail: 'data:x' });
   });
@@ -68,7 +68,7 @@ describe('buildTransferAnnouncement', () => {
     const payload = buildTransferAnnouncement(
       transfer({ mode: 'async', virtualPath: '/staged/a.png' }),
     );
-    const layer = payload.layer as { transfer_mode: string; virtual_path?: string };
+    const layer: { transfer_mode: string; virtual_path?: string; } = payload.layer as { transfer_mode: string; virtual_path?: string };
 
     expect(layer.transfer_mode).toBe('async');
     expect(layer.virtual_path).toBe('/staged/a.png');

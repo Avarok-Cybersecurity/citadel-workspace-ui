@@ -12,7 +12,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { vi } from 'vitest';
 
-const cidRef = { current: null as bigint | null };
+const cidRef: { current: bigint | null; } = { current: null as bigint | null };
 vi.mock('@/lib/multi-instance/instance-manager', () => ({
   instanceManager: { get cid() { return cidRef.current; } },
 }));

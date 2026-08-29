@@ -94,7 +94,7 @@ export function GroupConversationRow({
 
     updateMaxAvatars();
 
-    const resizeObserver = new ResizeObserver(updateMaxAvatars);
+    const resizeObserver: ResizeObserver = new ResizeObserver(updateMaxAvatars);
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
     }

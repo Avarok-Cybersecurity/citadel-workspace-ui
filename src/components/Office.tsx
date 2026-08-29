@@ -10,7 +10,7 @@ import { debugLog } from '@/lib/debug-config';
 export const Office = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const params = new URLSearchParams(location.search);
+  const params: URLSearchParams = new URLSearchParams(location.search);
   const nodeId: string | null = params.get("nodeId");
   const section: string | null = params.get("section");
   const { state } = useWorkspace();
@@ -28,7 +28,7 @@ export const Office = () => {
     if (defaultNode) {
       hasNavigatedToDefault.current = true;
       debugLog('Office', `[Office] Navigating to default node: ${defaultNode.name} (${defaultNode.id})`);
-      const newParams = new URLSearchParams(location.search);
+      const newParams: URLSearchParams = new URLSearchParams(location.search);
       newParams.set("nodeId", defaultNode.id);
       navigate(`/workspace?${newParams.toString()}`, { replace: true });
     }

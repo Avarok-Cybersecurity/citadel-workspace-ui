@@ -17,7 +17,7 @@ vi.mock('@/lib/notification-service', () => ({
   NotificationPriority: { HIGH: 'high', NORMAL: 'normal' },
 }));
 
-const cidRef = { current: null as bigint | null };
+const cidRef: { current: bigint | null; } = { current: null as bigint | null };
 vi.mock('@/lib/multi-instance', () => ({
   instanceManager: { get cid() { return cidRef.current; } },
 }));

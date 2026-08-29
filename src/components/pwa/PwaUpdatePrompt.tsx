@@ -95,7 +95,7 @@ export function PwaUpdatePrompt(): null {
         });
       };
 
-      const timer = setInterval(check, UPDATE_CHECK_INTERVAL_MS);
+      const timer: NodeJS.Timeout = setInterval(check, UPDATE_CHECK_INTERVAL_MS);
 
       // Also check at the two moments a user is most likely to have missed one:
       // coming back to the tab, and coming back online.

@@ -28,13 +28,13 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
   // The pending promise's resolve, so answering the dialog settles the caller.
   const resolveRef = useRef<((confirmed: boolean) => void) | null>(null);
 
-  const settle = useCallback((confirmed: boolean): void => {
+  const settle: (confirmed: boolean) => void = useCallback((confirmed: boolean): void => {
     resolveRef.current?.(confirmed);
     resolveRef.current = null;
     setRequest(null);
   }, []);
 
-  const confirm = useCallback((next: ConfirmRequest): Promise<boolean> => {
+  const confirm: (next: ConfirmRequest) => Promise<boolean> = useCallback((next: ConfirmRequest): Promise<boolean> => {
     // A second request while one is open would strand the first caller's
     // promise for ever; answer it as declined rather than leaking it.
     resolveRef.current?.(false);
@@ -61,7 +61,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
 }
 
 export function useConfirm(): (request: ConfirmRequest) => Promise<boolean> {
-  const confirm = useContext(ConfirmContext);
+  const confirm: ((request: ConfirmRequest) => Promise<boolean>) | null = useContext(ConfirmContext);
   if (!confirm) {
     // Explicit rather than a silent fallback to window.confirm: a missing
     // provider is a wiring mistake, and falling back would hide it behind the

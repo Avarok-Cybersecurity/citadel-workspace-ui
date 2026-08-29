@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { IncomingCallCard } from '../IncomingCallCard';
 
-const media = { audio: true, video: true, screen: false };
+const media: { audio: boolean; video: boolean; screen: boolean; } = { audio: true, video: true, screen: false };
 
 describe('IncomingCallCard', () => {
   beforeEach(() => vi.useFakeTimers());

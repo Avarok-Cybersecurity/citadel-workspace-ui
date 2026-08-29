@@ -91,7 +91,7 @@ export function GroupChatPage() {
     navigate('/workspace');
   }, [groupId, leaveGroup, navigate]);
 
-  const handleKickMember = useCallback(
+  const handleKickMember: (memberCid: string) => Promise<void> = useCallback(
     async (memberCid: string) => {
       if (!groupId) return;
       await kickMember(groupId, memberCid);
@@ -99,7 +99,7 @@ export function GroupChatPage() {
     [groupId, kickMember]
   );
 
-  const handleRoleChange = useCallback(
+  const handleRoleChange: (memberCid: string, roleId: string) => Promise<void> = useCallback(
     async (memberCid: string, roleId: string) => {
       if (!groupId) return;
       await updateMemberRole(groupId, memberCid, roleId);
@@ -109,7 +109,7 @@ export function GroupChatPage() {
 
   // Everyone except the current user — startCall invites this exact list, so
   // including ourselves would make the engine ring us in our own call.
-  const callMembers = useMemo(() => {
+  const callMembers: { cid: bigint; username: string; }[] = useMemo((): { cid: bigint; username: string; }[] => {
     if (!group) return [];
     return group.members
       .filter((m) => m.cid.toString() !== currentUserId)
@@ -124,7 +124,7 @@ export function GroupChatPage() {
     return registeredPeers.filter((p) => !existing.has(p.cid));
   }, [group, registeredPeers]);
 
-  const handleInviteMember = useCallback(
+  const handleInviteMember: (peerCid: string) => Promise<void> = useCallback(
     async (peerCid: string) => {
       if (!groupId) return;
       try {
@@ -141,11 +141,11 @@ export function GroupChatPage() {
     [groupId, invitePeer, toast],
   );
 
-  const handleSettingsChange = useCallback((settings: GroupSettings): void => {
+  const handleSettingsChange: (settings: GroupSettings) => void = useCallback((settings: GroupSettings): void => {
     setGroup(prev => (prev ? { ...prev, settings } : null));
   }, []);
 
-  const handleNameChange = useCallback(
+  const handleNameChange: (name: string) => Promise<void> = useCallback(
     async (name: string) => {
       setGroup(prev => (prev ? { ...prev, name } : null));
     },

@@ -120,7 +120,7 @@ export async function awaitWriteResponse(
   }
 
   const settled: Promise<void> = new Promise<void>((resolve, reject) => {
-    const timeoutId = setTimeout((): void => {
+    const timeoutId: NodeJS.Timeout = setTimeout((): void => {
       eventEmitter.off('workspace:raw-response', handler);
       reject(
         new Error(

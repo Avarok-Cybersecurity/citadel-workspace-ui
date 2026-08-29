@@ -191,7 +191,7 @@ describe('playTones (autoplay / missing audio hardware)', () => {
   });
 
   it('does not throw or reject when the context stays suspended (autoplay refused)', async () => {
-    const fakeCtx = {
+    const fakeCtx: { state: string; currentTime: number; resume: () => Promise<never>; } = {
       state: 'suspended',
       currentTime: 0,
       resume: (): Promise<never> => Promise.reject(new Error('autoplay blocked')),

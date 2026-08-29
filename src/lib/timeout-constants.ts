@@ -63,7 +63,7 @@ export const TIMEOUT = {
   SW_ACTIVATION_MS: 3000,
 } as const;
 
-export const INTERVAL = {
+export const INTERVAL: { readonly HEALTH_CHECK_MS: 30000; readonly HEARTBEAT_MS: 2000; readonly LEADER_ELECTION_MS: 3000; readonly LEADER_TIMEOUT_MS: 5000; readonly CLEANUP_MS: 60000; readonly REQUEST_TRACKING_MS: 300000; readonly PERMISSION_CACHE_MS: 60000; } = {
   /** Health check polling interval */
   HEALTH_CHECK_MS: 30000,
   /** WebSocket heartbeat/keep-alive interval */
@@ -80,7 +80,7 @@ export const INTERVAL = {
   PERMISSION_CACHE_MS: 60000,
 } as const;
 
-export const POLLING = {
+export const POLLING: { readonly P2P_REGISTRATION_INTERVAL_MS: 30000; readonly SERVER_POLL_INTERVAL_MS: 60000; readonly OUTGOING_REQUESTS_INTERVAL_MS: 300000; readonly GET_SESSIONS_POLL_INTERVAL_MS: 5000; } = {
   /** P2P registration polling interval */
   P2P_REGISTRATION_INTERVAL_MS: 30000,
   /** Server auto-reconnect polling interval */
@@ -91,7 +91,7 @@ export const POLLING = {
   GET_SESSIONS_POLL_INTERVAL_MS: 5000,
 } as const;
 
-export const NETWORK = {
+export const NETWORK: { readonly WORKSPACE_SERVER_PORT: 12349; } = {
   // INTERNAL_SERVICE_PORT was removed: its only consumer was the old
   // `ws://localhost:${INTERNAL_SERVICE_PORT}` default, which is gone now that the socket URL is
   // derived from the page (see websocket-service/resolve-url.ts). Leaving it would invite someone

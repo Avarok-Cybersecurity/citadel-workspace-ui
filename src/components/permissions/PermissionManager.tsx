@@ -64,9 +64,9 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
     }));
   }, [load]);
 
-  const togglePermission = useCallback((role: string, permissionId: string): void => {
+  const togglePermission: (role: string, permissionId: string) => void = useCallback((role: string, permissionId: string): void => {
     setRolePermissions(prev => {
-      const next = { ...prev };
+      const next: { [x: string]: Set<string>; } = { ...prev };
       const perms: Set<string> = new Set(next[role]);
       if (perms.has(permissionId)) {
         perms.delete(permissionId);

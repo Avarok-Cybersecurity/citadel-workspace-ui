@@ -122,7 +122,7 @@ export class ConnectionIOWebSocket {
   }
 
   async loadSessionsFromLocalDB(): Promise<StoredSessions | null> {
-    const result = await this.localDBGet(0n, SESSION_STORAGE_KEY);
+    const result: { value: number[]; } | null = await this.localDBGet(0n, SESSION_STORAGE_KEY);
     if (result && result.value) {
       try {
         const jsonStr: string = bytesToString(result.value);

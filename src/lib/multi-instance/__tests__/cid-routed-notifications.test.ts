@@ -95,7 +95,7 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     // `cid` AND a payload `cid`. The router checks top-level first, so
     // pin that precedence too.
     const otherCid: "9999999999999999999" = '9999999999999999999';
-    const msg = { cid: otherCid, FileTransferRequestNotification: SHAPES.FileTransferRequestNotification };
+    const msg: { cid: "9999999999999999999"; FileTransferRequestNotification: Record<string, unknown>; } = { cid: otherCid, FileTransferRequestNotification: SHAPES.FileTransferRequestNotification };
     expect(extractTargetCid(msg)).toBe(otherCid);
   });
 

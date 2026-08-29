@@ -47,7 +47,7 @@ export function useConversationPeers({
       .filter(c => c.messages.length > 0)
       .filter(c => c.peerCid.toString() !== currentCid);
 
-    const convPeers = await Promise.all(filteredConversations.map(async c => {
+    const convPeers: { peerCid: string; peerUsername: string; isOnline: boolean; isConnected: boolean; unreadCount: number; lastMessageTime: number; }[] = await Promise.all(filteredConversations.map(async c => {
       const peerCidStr: string = c.peerCid.toString();
       // Find the username from registered peers
       const registeredPeer: RegisteredPeer | undefined = registeredPeers.find(p => p.cid === peerCidStr);

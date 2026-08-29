@@ -16,7 +16,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { withSerialLock } from '../serial-queue';
 
 /** A store with the exact hazard: a gap between reading and writing. */
-function racyStore(initial: string[]) {
+function racyStore(initial: string[]): { read: () => string[]; write: (next: string[]) => Promise<void>; readonly current: string[]; } {
   let value: string[] = initial;
   return {
     read: (): string[] => value,
@@ -32,7 +32,7 @@ function racyStore(initial: string[]) {
 
 describe('withSerialLock', () => {
   it('does not lose a concurrent write to the same key', async () => {
-    const store = racyStore(['a', 'b', 'c']);
+    const store: { read: () => string[]; write: (next: string[]) => Promise<void>; readonly current: string[]; } = racyStore(['a', 'b', 'c']);
     const remove = (item: string) => async (): Promise<void> => {
       const current: string[] = store.read();
       await Promise.resolve();

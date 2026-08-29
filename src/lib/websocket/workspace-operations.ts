@@ -38,7 +38,7 @@ export class WorkspaceOperations {
     } else {
       debugLog('WorkspaceOperations', '[Follower] Proxying workspace request through leader');
 
-      const proxyRequest = {
+      const proxyRequest: { __workspaceRequestProxy: boolean; cid: string; request: unknown; } = {
         __workspaceRequestProxy: true,
         cid: cid.toString(),
         request: request

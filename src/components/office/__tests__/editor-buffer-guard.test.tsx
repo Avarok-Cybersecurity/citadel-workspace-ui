@@ -24,15 +24,15 @@ import { useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('@mdx-js/mdx', () => ({
-  evaluate: async () => ({ default: (): null => null }),
+  evaluate: async (): Promise<{ default: () => null; }> => ({ default: (): null => null }),
 }));
 vi.mock('@/hooks/use-permission', () => ({
-  usePermission: () => ({ allowed: true, reason: null }),
+  usePermission: (): { allowed: boolean; reason: null; } => ({ allowed: true, reason: null }),
 }));
 
 let nodes: Record<string, { id: string; name: string; mdx_content: string }> = {};
 vi.mock('@/contexts/WorkspaceContext', () => ({
-  useWorkspace: () => ({
+  useWorkspace: (): { state: { nodes: Record<string, { id: string; name: string; mdx_content: string; }>; loading: { nodes: boolean; }; currentUser: { id: string; }; }; setState: () => void; } => ({
     state: { nodes, loading: { nodes: false }, currentUser: { id: 'u1' } },
     setState: (): void => {},
   }),

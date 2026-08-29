@@ -36,8 +36,8 @@ export async function discoverPeersViaGetSessions(currentCid: bigint | null): Pr
     GetSessions: { request_id: requestId, cid: 0 }
   };
 
-  const responsePromise = new Promise<{ sessions?: SessionEntry[]; request_id?: string }>((resolve, reject): void => {
-    const timeout = setTimeout((): void => {
+  const responsePromise: Promise<{ sessions?: SessionEntry[]; request_id?: string; }> = new Promise<{ sessions?: SessionEntry[]; request_id?: string }>((resolve, reject): void => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       reject(new Error('GetSessions timed out'));
     }, TIMEOUT.SERVER_REQUEST_MS);
 
@@ -58,7 +58,7 @@ export async function discoverPeersViaGetSessions(currentCid: bigint | null): Pr
   });
 
   await websocketService.sendMessage(request);
-  const response = await responsePromise;
+  const response: { sessions?: SessionEntry[]; request_id?: string; } = await responsePromise;
   const sessions: SessionEntry[] = response.sessions || [];
   debugLog('PeerDiscoveryModal', 'GetSessions returned', sessions.length, 'sessions');
 
@@ -83,8 +83,8 @@ export async function fetchRegisteredPeers(currentCid: bigint): Promise<Set<stri
     ListRegisteredPeers: { request_id: requestId, cid: currentCid }
   };
 
-  const responsePromise = new Promise<{ peers?: Record<string, unknown>; request_id?: string }>((resolve, reject): void => {
-    const timeout = setTimeout((): void => {
+  const responsePromise: Promise<{ peers?: Record<string, unknown>; request_id?: string; }> = new Promise<{ peers?: Record<string, unknown>; request_id?: string }>((resolve, reject): void => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       broadcastChannelService.clearRequest(requestId);
       reject(new Error('Request timed out'));
     }, 10000);
@@ -113,7 +113,7 @@ export async function fetchRegisteredPeers(currentCid: bigint): Promise<Set<stri
   });
 
   await websocketService.sendMessage(request);
-  const response = await responsePromise;
+  const response: { peers?: Record<string, unknown>; request_id?: string; } = await responsePromise;
 
   // Same HashMap-as-Map hazard: an empty set here meant peers who were ALREADY
   // registered were offered for registration again.
@@ -133,8 +133,8 @@ export async function fetchAllPeers(currentCid: bigint): Promise<Peer[]> {
     ListAllPeers: { request_id: requestId, cid: currentCid }
   };
 
-  const responsePromise = new Promise<{ peer_information?: Record<string, PeerEntry>; request_id?: string }>((resolve, reject): void => {
-    const timeout = setTimeout((): void => {
+  const responsePromise: Promise<{ peer_information?: Record<string, PeerEntry>; request_id?: string; }> = new Promise<{ peer_information?: Record<string, PeerEntry>; request_id?: string }>((resolve, reject): void => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       broadcastChannelService.clearRequest(requestId);
       reject(new Error('Request timed out'));
     }, 10000);
@@ -163,7 +163,7 @@ export async function fetchAllPeers(currentCid: bigint): Promise<Peer[]> {
   });
 
   await websocketService.sendMessage(request);
-  const response = await responsePromise;
+  const response: { peer_information?: Record<string, PeerEntry>; request_id?: string; } = await responsePromise;
 
   // `peer_information` is a Rust HashMap: over the WASM boundary it is a JS Map,
   // and Object.values() on a Map returns [] — so this path found no peers at all

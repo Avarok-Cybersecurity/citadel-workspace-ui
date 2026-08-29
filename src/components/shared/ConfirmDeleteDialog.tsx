@@ -37,7 +37,7 @@ export function ConfirmDeleteDialog({
   // on the click, before an async onConfirm settles. Every caller here already
   // closes itself from its own state, and one of them renders its error message
   // into this dialog's description — unreachable while Radix closed it first.
-  const handleConfirm = useCallback(
+  const handleConfirm: (event: React.MouseEvent) => void = useCallback(
     (event: React.MouseEvent) => {
       event.preventDefault();
       if (pending) return;

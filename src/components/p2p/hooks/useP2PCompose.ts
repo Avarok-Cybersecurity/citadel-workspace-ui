@@ -51,7 +51,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
 
   const { toast } = useToast();
   const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
-  const applyFormat = useMarkdownFormat(inputRef, setInputMessage, (): string => inputMessage);
+  const applyFormat: (format: string, prefix: string, suffix: string) => void = useMarkdownFormat(inputRef, setInputMessage, (): string => inputMessage);
 
   useEffect(() => { inputMessageRef.current = inputMessage; }, [inputMessage]);
 
@@ -71,7 +71,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
   // composer and the next submit commits the change.
   const [editingMessage, setEditingMessage] = useState<P2PMessage | null>(null);
 
-  const handleReplyMessage = useCallback((messageId: string): void => {
+  const handleReplyMessage: (messageId: string) => void = useCallback((messageId: string): void => {
     const target: P2PMessage | undefined = messages.find((m) => m.id === messageId);
     if (!target) return;
     setEditingMessage(null);
@@ -79,7 +79,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
     inputRef.current?.focus();
   }, [messages]);
 
-  const handleStartEdit = useCallback((messageId: string, content: string): void => {
+  const handleStartEdit: (messageId: string, content: string) => void = useCallback((messageId: string, content: string): void => {
     const target: P2PMessage | undefined = messages.find((m) => m.id === messageId);
     if (!target) return;
     setReplyingTo(null);
@@ -128,7 +128,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
   };
 
 
-  const handleDocCreate = useCallback(async (title: string, initialContent: string): Promise<void> => {
+  const handleDocCreate: (title: string, initialContent: string) => Promise<void> = useCallback(async (title: string, initialContent: string): Promise<void> => {
     await createDocument(title, initialContent);
     setShowDocModal(false);
     setInputMessage('');

@@ -50,7 +50,7 @@ function functionBodies(): Array<{ file: string; name: string; body: string }> {
 }
 
 describe('in lib/connection', () => {
-  const bodies = functionBodies();
+  const bodies: { file: string; name: string; body: string; }[] = functionBodies();
 
   it('reads real function bodies, so the rule is not passing over nothing', () => {
     expect(bodies.length).toBeGreaterThan(10);

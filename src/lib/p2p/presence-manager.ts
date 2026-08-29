@@ -142,7 +142,7 @@ export class PresenceManager {
     // Stop any existing polling for this peer
     this.stopTypingPolling(recipientCid);
 
-    const state = {
+    const state: { intervalId: NodeJS.Timeout | null; lastText: string; lastSentTyping: number; } = {
       intervalId: null as NodeJS.Timeout | null,
       lastText: getCurrentText(),
       lastSentTyping: 0
@@ -168,7 +168,7 @@ export class PresenceManager {
    * Call this when the user blurs the input field or sends a message.
    */
   public stopTypingPolling(recipientCid: bigint): void {
-    const state = this.typingPollingState.get(recipientCid);
+    const state: { intervalId: NodeJS.Timeout | null; lastText: string; lastSentTyping: number; } | undefined = this.typingPollingState.get(recipientCid);
     if (state?.intervalId) {
       clearInterval(state.intervalId);
     }

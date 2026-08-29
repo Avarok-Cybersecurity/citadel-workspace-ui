@@ -39,7 +39,7 @@ vi.mock('@/lib/event-emitter', () => ({
 import { relinquishLeadership } from '@/lib/multi-instance/channel-leader-election';
 import { INTERVAL } from '@/lib/timeout-constants';
 
-function makeState() {
+function makeState(): { state: never; sent: { type: string; }[]; } {
   const sent: Array<{ type: string }> = [];
   return {
     state: {
@@ -81,7 +81,7 @@ describe('relinquishing leadership', () => {
 
     relinquishLeadership(state);
 
-    const change = emitted.find((e): boolean => e.event === 'instance:leader-changed');
+    const change: { event: string; payload: unknown; } | undefined = emitted.find((e): boolean => e.event === 'instance:leader-changed');
     expect(change?.payload).toMatchObject({ isLeader: false });
   });
 

@@ -25,7 +25,7 @@ type SentRequest = {
 // selection (IndexedDB). Mocked here rather than left to fail, because the CID
 // is the second half of what this file is about: see the cid-0 test below.
 vi.mock('../../tab-context', () => ({
-  getSelectedUser: async () => ({ selectedCid: 7n }),
+  getSelectedUser: async (): Promise<{ selectedCid: bigint; }> => ({ selectedCid: 7n }),
 }));
 const sendRequest = vi.fn(async (_request: unknown): Promise<void> => undefined);
 // Accepting also sends an in-band response signal to the SENDER, whose UI

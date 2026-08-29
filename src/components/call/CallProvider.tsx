@@ -104,7 +104,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     [teardown, managerRef],
   );
 
-  const startCall = useCallback(
+  const startCall: (peers: Array<{ cid: bigint; username: string; }>, video: boolean, roomId?: string) => Promise<void> = useCallback(
     async (peers: Array<{ cid: bigint; username: string }>, video: boolean, roomId?: string) => {
       // Before capturing anything. The group entry path has refused a second
       // call since it was written; this one never did, so from any other

@@ -147,7 +147,7 @@ export function VFSTreeView({
 }: VFSTreeViewProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['/']));
 
-  const toggleExpand = useCallback((path: string): void => {
+  const toggleExpand: (path: string) => void = useCallback((path: string): void => {
     setExpanded(prev => {
       const next: Set<string> = new Set(prev);
       if (next.has(path)) next.delete(path);

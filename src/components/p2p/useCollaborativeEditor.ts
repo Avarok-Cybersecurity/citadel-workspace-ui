@@ -98,7 +98,7 @@ export function useCollaborativeEditor({
         users.unshift({ name: currentUserName, isActive: true });
       }
 
-      const finalUsers = users.length > 0 ? users : [{ name: currentUserName, isActive: true }];
+      const finalUsers: { name: string; isActive: boolean; }[] = users.length > 0 ? users : [{ name: currentUserName, isActive: true }];
       const newUsersKey: string = finalUsers.map(u => `${u.name}:${u.isActive}`).join('|');
       if (newUsersKey !== prevUsersKey) {
         prevUsersKey = newUsersKey;
@@ -109,7 +109,7 @@ export function useCollaborativeEditor({
     provider.awareness.on('change', updateUsers);
     updateUsers();
 
-    const activityInterval = setInterval(updateUsers, 10000);
+    const activityInterval: NodeJS.Timeout = setInterval(updateUsers, 10000);
 
     return (): void => {
       provider.awareness.off('change', updateUsers);
@@ -181,7 +181,7 @@ export function useCollaborativeEditor({
     };
   }, [provider, currentUserName, userColor]);
 
-  const handleContextMenu = useCallback((e: React.MouseEvent): void => {
+  const handleContextMenu: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
@@ -193,7 +193,7 @@ export function useCollaborativeEditor({
     return (): void => document.removeEventListener('click', handleClick);
   }, []);
 
-  const dismissFlashComment = useCallback((commentId: string): void => {
+  const dismissFlashComment: (commentId: string) => void = useCallback((commentId: string): void => {
     setFlashComments(prev => prev.filter(c => c.id !== commentId));
   }, []);
 

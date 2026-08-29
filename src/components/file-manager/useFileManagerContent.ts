@@ -26,7 +26,7 @@ export function useFileManagerContent() {
       setRegisteredPeers(peers);
     };
     update();
-    const interval = setInterval(update, INTERVAL.HEARTBEAT_MS);
+    const interval: NodeJS.Timeout = setInterval(update, INTERVAL.HEARTBEAT_MS);
     return (): void => clearInterval(interval);
   }, []);
 

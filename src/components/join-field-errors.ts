@@ -22,8 +22,8 @@ export function joinFieldErrors(
   formData: JoinFormData,
   touched: Record<string, boolean>,
   submitAttempted: boolean,
-) {
-  const rawErrors = {
+): { rawErrors: { fullName: string | null; username: string | null; password: string | null; confirmPassword: string | null; }; fieldErrors: { fullName: string | null; username: string | null; password: string | null; confirmPassword: string | null; }; } {
+  const rawErrors: { fullName: string | null; username: string | null; password: string | null; confirmPassword: string | null; } = {
     fullName: validateFullName(formData.fullName),
     username: validateUsername(formData.username),
     password: validatePassword(formData.password),

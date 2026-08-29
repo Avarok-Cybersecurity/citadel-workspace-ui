@@ -30,7 +30,7 @@ export async function applyWaitingUpdate(): Promise<boolean> {
       clearTimeout(timer);
       resolve(true);
     };
-    const timer = setTimeout((): void => {
+    const timer: NodeJS.Timeout = setTimeout((): void => {
       container.removeEventListener('controllerchange', onControllerChange);
       resolve(false);
     }, TIMEOUT.SW_ACTIVATION_MS);

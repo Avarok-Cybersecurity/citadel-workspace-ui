@@ -60,7 +60,7 @@ export async function syncPeerConnectionsFromSession(
 
   // peer_connections is a Rust HashMap: a JS Map here, on which Object.keys is
   // []. Cached-peer sync after a reconnect therefore synced nothing.
-  const peerEntries = wireMapEntries<{ cid: bigint; peer_cid: bigint; peer_username: string }>(
+  const peerEntries: [string, { cid: bigint; peer_cid: bigint; peer_username: string; }][] = wireMapEntries<{ cid: bigint; peer_cid: bigint; peer_username: string }>(
     peerConnections, 'peer_connections',
   );
   const peerCids: string[] = peerEntries.map(([cid]) => cid);
@@ -124,7 +124,7 @@ export async function getAutoAcceptSetting(cidOverride?: bigint): Promise<boolea
     const currentCid: bigint | null = cidOverride ?? await getCurrentCid();
     if (!currentCid || currentCid === 0n) return false;
 
-    const result = await websocketService.sendLocalDBGet(currentCid, AUTO_ACCEPT_KEY);
+    const result: { value: number[]; } | null = await websocketService.sendLocalDBGet(currentCid, AUTO_ACCEPT_KEY);
     if (result?.value) {
       const decoded: string = bytesToString(result.value);
       return decoded === 'true';

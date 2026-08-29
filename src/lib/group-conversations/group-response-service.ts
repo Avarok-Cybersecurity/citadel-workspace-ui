@@ -41,7 +41,7 @@ export function startGroupResponseService(): void {
     const message: Record<string, unknown> = raw as Record<string, unknown>;
 
     void (async (): Promise<void> => {
-      const self = await resolveSelf();
+      const self: { cid: bigint; username: string; } | null = await resolveSelf();
       if (!self) return;
 
       // The wire names peers only by CID; the registration roster is the one

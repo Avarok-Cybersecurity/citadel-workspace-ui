@@ -26,7 +26,7 @@ export class YjsChunkingStrategy implements ChunkingStrategy<Y.Doc, Uint8Array> 
    * Chunk a YJS document by serializing to binary first
    */
   chunk(doc: Y.Doc, chunkSize?: number): Uint8Array[] {
-    const state = Y.encodeStateAsUpdate(doc);
+    const state: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(doc);
     return this.binaryStrategy.chunk(state, chunkSize);
   }
 
@@ -35,7 +35,7 @@ export class YjsChunkingStrategy implements ChunkingStrategy<Y.Doc, Uint8Array> 
    * Note: Creates a NEW document - caller must decide how to merge
    */
   reconstruct(chunks: Uint8Array[]): Y.Doc {
-    const fullState = this.binaryStrategy.reconstruct(chunks);
+    const fullState: Uint8Array<ArrayBufferLike> = this.binaryStrategy.reconstruct(chunks);
     const doc = new Y.Doc();
     Y.applyUpdate(doc, fullState, 'merkle-reconstruct');
     return doc;

@@ -28,7 +28,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   const autoClaimAttempted = useRef(false);
 
   // Check for dev mode
-  const urlParams = new URLSearchParams(window.location.search);
+  const urlParams: URLSearchParams = new URLSearchParams(window.location.search);
   const isDevMode: boolean = urlParams.get('dev') === 'true' && import.meta.env.VITE_DEV_MODE === 'true';
 
   // Check if workspace is still loading
@@ -58,7 +58,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
       }
     });
 
-    const timeout = setTimeout((): void => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       if (mounted && isLoading && !hasConnection) {
         setLoadingTimeout(true);
       }

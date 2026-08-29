@@ -81,7 +81,7 @@ describe('where a node may be moved', () => {
   it('terminates on an already-cyclic tree', () => {
     // Stored data should never contain a cycle, but a walk that assumes so
     // turns a rendering bug into a hung tab.
-    const cyclic = {
+    const cyclic: { a: DomainNode; b: DomainNode; } = {
       a: node('a', 'b', ['b'], ['Office'], 'Office'),
       b: node('b', 'a', ['a'], ['Office'], 'Office'),
     };

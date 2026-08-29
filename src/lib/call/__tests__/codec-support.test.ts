@@ -17,7 +17,7 @@ const AV1 = 'av01.0.05M.08';
 const VP9 = 'vp09.00.31.08';
 const H264 = 'avc1.42E01F';
 
-function decoders(...codecs: string[]) {
+function decoders(...codecs: string[]): { codec: string; hardware: boolean; maxHeight: number; }[] {
   return codecs.map((codec) => ({ codec, hardware: false, maxHeight: 720 }));
 }
 

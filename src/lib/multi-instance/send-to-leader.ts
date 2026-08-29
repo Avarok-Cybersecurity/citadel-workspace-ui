@@ -31,7 +31,7 @@ export function sendToLeader(
 
     eventEmitter.on('outbound-ack', ackHandler);
 
-    const timeout = setTimeout((): void => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       eventEmitter.off('outbound-ack', ackHandler);
       // Drop it from the queue. The ack path calls acknowledge(); this one did
       // not, so a timed-out request stayed in the map forever — and

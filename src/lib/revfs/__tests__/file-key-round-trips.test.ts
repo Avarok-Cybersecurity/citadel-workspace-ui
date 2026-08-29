@@ -54,7 +54,7 @@ const keyOf = (intent: RevfsIntent): string | undefined =>
 
 describe('the key a file is addressed by', () => {
   it('is the file path on upload, download and delete alike', async () => {
-    const metadata = {
+    const metadata: { fileId: string; fileName: string; fileSize: number; fileType: string; virtualDirectory: string; uploadedByCid: bigint; } = {
       fileId: 'f1',
       fileName: 'notes.txt',
       fileSize: 1,
@@ -80,7 +80,7 @@ describe('the key a file is addressed by', () => {
   });
 
   it('keeps addressing the ORIGINAL key after a rename', async () => {
-    const metadata = {
+    const metadata: { fileId: string; fileName: string; fileSize: number; fileType: string; virtualDirectory: string; uploadedByCid: bigint; } = {
       fileId: 'f1',
       fileName: 'notes.txt',
       fileSize: 1,

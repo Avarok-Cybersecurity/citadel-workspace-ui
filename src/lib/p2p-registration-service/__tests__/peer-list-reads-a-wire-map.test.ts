@@ -18,7 +18,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const h = vi.hoisted(() => ({ response: {} as Record<string, unknown> }));
+const h: { response: Record<string, unknown>; } = vi.hoisted((): { response: Record<string, unknown>; } => ({ response: {} as Record<string, unknown> }));
 
 vi.mock('@/lib/websocket-service', () => ({
   websocketService: { sendMessage: vi.fn(() => Promise.resolve()) },
@@ -29,18 +29,18 @@ vi.mock('@/lib/broadcast-channel-service', () => ({
 // `getCurrentCid` resolves through these; without them it falls back to real
 // IndexedDB, which jsdom does not have.
 vi.mock('@/lib/multi-instance', () => ({ instanceManager: { cid: 1n } }));
-vi.mock('../tab-context', () => ({ getSelectedUser: () => Promise.resolve({ selectedCid: 1n }) }));
+vi.mock('../tab-context', (): { getSelectedUser: () => Promise<{ selectedCid: bigint; }>; } => ({ getSelectedUser: (): Promise<{ selectedCid: bigint; }> => Promise.resolve({ selectedCid: 1n }) }));
 vi.mock('../connection', () => ({
   connectionManager: {
-    getConnectionInfo: () => ({ cid: 1n }),
-    getTabSelectedSession: () => Promise.resolve({ cid: 1n }),
+    getConnectionInfo: (): { cid: bigint; } => ({ cid: 1n }),
+    getTabSelectedSession: (): Promise<{ cid: bigint; }> => Promise.resolve({ cid: 1n }),
   },
 }));
 
 async function callListAllPeers() {
   vi.resetModules();
   const { listAllPeers } = await import('../discovery');
-  const pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+  const pending: Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; }> = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
   const promise = listAllPeers(pending as never);
   // Settle whatever request was registered with the response under test.
   await Promise.resolve();

@@ -21,10 +21,10 @@ export function useEventEmitterSetup({ setState }: UseEventEmitterSetupProps): v
     const userProfileHandler = (data: { user: { name?: string; metadata?: { avatar?: { content?: string; String?: string } | string } }; connection: unknown }): void => {
       debugLog('UseEventEmitterSetup', 'WorkspaceEventHandler: Received user profile update', data);
 
-      const user = data.user;
+      const user: { name?: string; metadata?: { avatar?: { content?: string; String?: string; } | string; }; } = data.user;
       let avatarUrl: string | undefined;
       if (user.metadata?.avatar) {
-        const avatar = user.metadata.avatar;
+        const avatar: string | { content?: string; String?: string; } = user.metadata.avatar;
         const avatarData: string | undefined = typeof avatar === 'string'
           ? avatar
           : avatar?.content || avatar?.String;

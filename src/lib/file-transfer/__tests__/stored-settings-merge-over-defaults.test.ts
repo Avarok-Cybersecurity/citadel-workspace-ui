@@ -19,7 +19,7 @@ describe('FileTransferState.getSettings', () => {
 
     // What a user who saved settings before `allowRevfsStorage` and
     // `revfsQuota` existed has sitting in localStorage today.
-    const legacy = { autoAccept: true, maxFileSize: 1234, transferMode: 'browser' };
+    const legacy: { autoAccept: boolean; maxFileSize: number; transferMode: string; } = { autoAccept: true, maxFileSize: 1234, transferMode: 'browser' };
     state.setSettings('42', legacy as unknown as FileTransferSettings);
 
     const settings: FileTransferSettings = state.getSettings('42');

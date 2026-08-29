@@ -87,7 +87,7 @@ export function determineSyncAction(
  * Useful for quick comparison without full Merkle tree
  */
 export function computeDocumentHash(doc: Y.Doc): string {
-  const state = Y.encodeStateAsUpdate(doc);
+  const state: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(doc);
   return sha256Sync(state);
 }
 
@@ -95,6 +95,6 @@ export function computeDocumentHash(doc: Y.Doc): string {
  * Compute state vector hash (for sync step comparison)
  */
 export function computeStateVectorHash(doc: Y.Doc): string {
-  const sv = Y.encodeStateVector(doc);
+  const sv: Uint8Array<ArrayBufferLike> = Y.encodeStateVector(doc);
   return sha256Sync(sv);
 }

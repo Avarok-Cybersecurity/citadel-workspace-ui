@@ -6,8 +6,8 @@ import { resolveWebsocketUrl, MissingWebsocketLocationError } from '../resolve-u
  * and the app cannot connect at all - so the precedence and the scheme mapping are pinned.
  */
 describe('resolveWebsocketUrl', () => {
-  const http = { protocol: 'http:', host: 'localhost:8080' };
-  const https = { protocol: 'https:', host: 'workspace.example.com' };
+  const http: { protocol: string; host: string; } = { protocol: 'http:', host: 'localhost:8080' };
+  const https: { protocol: string; host: string; } = { protocol: 'https:', host: 'workspace.example.com' };
 
   it('defaults to a SAME-ORIGIN /ws path', () => {
     // This is the whole point: the production CSP is `connect-src 'self'`, so an off-origin

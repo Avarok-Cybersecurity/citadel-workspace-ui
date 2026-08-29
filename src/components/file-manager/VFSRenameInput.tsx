@@ -38,7 +38,7 @@ export function VFSRenameInput({
     }
   }, [currentName, isDirectory]);
 
-  const validate = useCallback((name: string): string | null => {
+  const validate: (name: string) => string | null = useCallback((name: string): string | null => {
     if (!name.trim()) {
       return 'Name cannot be empty';
     }
@@ -68,7 +68,7 @@ export function VFSRenameInput({
     onConfirm(trimmed);
   }, [value, currentName, validate, onConfirm, onCancel]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent): void => {
+  const handleKeyDown: (e: React.KeyboardEvent) => void = useCallback((e: React.KeyboardEvent): void => {
     if (isEnterCommit(e)) {
       e.preventDefault();
       handleConfirm();

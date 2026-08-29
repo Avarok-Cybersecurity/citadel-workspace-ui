@@ -10,7 +10,7 @@ import {
 
 const WORKFLOW: string = join(process.cwd(), '..', '.github', 'workflows', 'release-agent.yml');
 
-const nav = (platform: string, userAgent: string, maxTouchPoints = 0) =>
+const nav: (platform: string, userAgent: string, maxTouchPoints?: number) => Navigator = (platform: string, userAgent: string, maxTouchPoints = 0): Navigator =>
   ({ platform, userAgent, maxTouchPoints }) as unknown as Navigator;
 
 describe('agent asset names match the release workflow', () => {

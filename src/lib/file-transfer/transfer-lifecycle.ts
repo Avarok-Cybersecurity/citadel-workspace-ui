@@ -97,7 +97,7 @@ export async function sendFileWithNativePicker(
 
   debugLog('transfer-lifecycle', 'Starting native file picker flow');
 
-  const fileInfo = (await deps.io.executeIntent({
+  const fileInfo: { file_path: string; file_name: string; file_size: bigint; } = (await deps.io.executeIntent({
     type: 'pick-file',
     cid: senderCid,
     title,

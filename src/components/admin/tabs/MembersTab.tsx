@@ -85,7 +85,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
 
   const { updatingRoles, changeRole, removeMember } = useMemberAdminActions(entityId, setMembers);
 
-  const handleRoleChange = changeRole;
+  const handleRoleChange: (userId: string, newRole: UserRole) => Promise<void> = changeRole;
 
   const handleRemoveMember = async (): Promise<void> => {
     if (!memberToRemove) return;

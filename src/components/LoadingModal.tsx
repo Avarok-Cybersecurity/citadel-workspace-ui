@@ -64,7 +64,7 @@ export const LoadingModal = ({
       });
     } else {
       setIsVisible(false);
-      const timer = setTimeout((): void => {
+      const timer: NodeJS.Timeout = setTimeout((): void => {
         setShouldRender(false);
       }, 300);
       return (): void => clearTimeout(timer);
@@ -74,7 +74,7 @@ export const LoadingModal = ({
   // Auto-close after showing "ready" status
   useEffect(() => {
     if (status === "ready" && open) {
-      const timer = setTimeout((): void => {
+      const timer: NodeJS.Timeout = setTimeout((): void => {
         onComplete?.();
       }, config.autoCloseDelay ?? 1500);
       return (): void => clearTimeout(timer);
@@ -87,7 +87,7 @@ export const LoadingModal = ({
       setTimedOut(false);
       return;
     }
-    const timer = setTimeout((): void => {
+    const timer: NodeJS.Timeout = setTimeout((): void => {
       setTimedOut(true);
     }, timeoutMs);
     return (): void => clearTimeout(timer);

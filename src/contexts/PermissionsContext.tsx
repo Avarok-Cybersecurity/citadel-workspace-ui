@@ -66,7 +66,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   /**
    * Fetch permissions for a specific domain
    */
-  const fetchPermissionsForDomain = useCallback(async (domainId: string): Promise<DomainPermissions | null> => {
+  const fetchPermissionsForDomain: (domainId: string) => Promise<DomainPermissions | null> = useCallback(async (domainId: string): Promise<DomainPermissions | null> => {
     setLoading(true);
     setError(null);
     try {
@@ -89,7 +89,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   /**
    * Refresh all permissions or a specific domain
    */
-  const refreshPermissions = useCallback(async (domainId?: string): Promise<void> => {
+  const refreshPermissions: (domainId?: string) => Promise<void> = useCallback(async (domainId?: string): Promise<void> => {
     if (domainId) {
       await fetchPermissionsForDomain(domainId);
     } else {
@@ -113,41 +113,41 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   /**
    * Permission check functions (delegated to service)
    */
-  const hasPermission = useCallback((domainId: string, permission: Permission): boolean => {
+  const hasPermission: (domainId: string, permission: Permission) => boolean = useCallback((domainId: string, permission: Permission): boolean => {
     return permissionsService.hasPermission(domainId, permission);
   }, []);
 
-  const hasAnyPermission = useCallback((domainId: string, perms: Permission[]): boolean => {
+  const hasAnyPermission: (domainId: string, perms: Permission[]) => boolean = useCallback((domainId: string, perms: Permission[]): boolean => {
     return permissionsService.hasAnyPermission(domainId, perms);
   }, []);
 
-  const hasAllPermissions = useCallback((domainId: string, perms: Permission[]): boolean => {
+  const hasAllPermissions: (domainId: string, perms: Permission[]) => boolean = useCallback((domainId: string, perms: Permission[]): boolean => {
     return permissionsService.hasAllPermissions(domainId, perms);
   }, []);
 
   /**
    * Role checks
    */
-  const getRole = useCallback((domainId: string): UserRole | null => {
+  const getRole: (domainId: string) => UserRole | null = useCallback((domainId: string): UserRole | null => {
     return permissionsService.getRole(domainId);
   }, []);
 
-  const isAdmin = useCallback((domainId: string): boolean => {
+  const isAdmin: (domainId: string) => boolean = useCallback((domainId: string): boolean => {
     return permissionsService.isAdmin(domainId);
   }, []);
 
-  const isOwner = useCallback((domainId: string): boolean => {
+  const isOwner: (domainId: string) => boolean = useCallback((domainId: string): boolean => {
     return permissionsService.isOwner(domainId);
   }, []);
 
   /**
    * Utilities
    */
-  const getPermissionLabel = useCallback((permission: Permission): string => {
+  const getPermissionLabel: (permission: Permission) => string = useCallback((permission: Permission): string => {
     return permissionsService.getPermissionLabel(permission);
   }, []);
 
-  const getDeniedReason = useCallback((domainId: string, permission: Permission): string => {
+  const getDeniedReason: (domainId: string, permission: Permission) => string = useCallback((domainId: string, permission: Permission): string => {
     return permissionsService.getDeniedReason(domainId, permission);
   }, []);
 

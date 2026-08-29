@@ -119,7 +119,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
       }
     };
 
-    const debounceTimeout = setTimeout(searchUsers, 300);
+    const debounceTimeout: NodeJS.Timeout = setTimeout(searchUsers, 300);
 
     return (): void => {
       clearTimeout(debounceTimeout);

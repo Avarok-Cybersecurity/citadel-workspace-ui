@@ -38,7 +38,7 @@ export async function backendSendFile(
   // the same shape the working file-transfer upload sends.
   const data: number[] = Array.from(content);
 
-  const request = {
+  const request: { SendFile: { request_id: string; source: { ByteContents: { file_name: string; data: number[]; }; }; cid: bigint; peer_cid: bigint | null; chunk_size: null; transfer_type: { RemoteEncryptedVirtualFilesystem: { virtual_path: string; security_level: string; }; }; }; } = {
     SendFile: {
       request_id: requestId,
       // The externally-tagged FileSource enum. This used to be a bare string
@@ -93,7 +93,7 @@ export async function backendSendFile(
       // existed nowhere. It is only a dispatch ack; keep waiting for the
       // Sender-side tick stream, which the internal service now stamps with
       // this request_id (kernel/revfs_correlation.rs).
-      const dispatched = msg.SendFileRequestSuccess as { request_id?: string } | undefined;
+      const dispatched: { request_id?: string; } | undefined = msg.SendFileRequestSuccess as { request_id?: string } | undefined;
       if (dispatched?.request_id === requestId) {
         debugLog('RevfsIO', 'backendSendFile dispatched, awaiting transfer completion');
         armTimeout();
@@ -105,7 +105,7 @@ export async function backendSendFile(
       // receiver only acks the file header after ACCEPTING the transfer, so
       // this cannot fire for a push nobody accepted. Unit variants serialise
       // as the bare string; Fail is a newtype carrying the message.
-      const tick = msg.FileTransferTickNotification as {
+      const tick: { request_id?: string; status?: Record<string, unknown> | string; } | undefined = msg.FileTransferTickNotification as {
         request_id?: string;
         status?: Record<string, unknown> | string;
       } | undefined;
@@ -126,7 +126,7 @@ export async function backendSendFile(
         return;
       }
 
-      const failure = msg.SendFileRequestFailure as { request_id?: string; message?: string } | undefined;
+      const failure: { request_id?: string; message?: string; } | undefined = msg.SendFileRequestFailure as { request_id?: string; message?: string } | undefined;
       if (failure?.request_id === requestId) {
         debugLog('RevfsIO', 'backendSendFile failed:', failure.message);
         settle({ type: 'backend-send-file', success: false });
@@ -158,7 +158,7 @@ export async function backendDeleteFile(
   const isServerStorage: boolean = peerCid === null;
   debugLog('RevfsIO', `backendDeleteFile: virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
 
-  const request = {
+  const request: { DeleteVirtualFile: { request_id: string; virtual_directory: string; cid: bigint; peer_cid: bigint | null; }; } = {
     DeleteVirtualFile: {
       request_id: requestId,
       virtual_directory: virtualDir,
@@ -168,7 +168,7 @@ export async function backendDeleteFile(
   };
 
   return new Promise((resolve) => {
-    const timeout = setTimeout((): void => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       eventEmitter.off('websocket-message', handleMessage);
       debugLog('RevfsIO', 'backendDeleteFile timed out');
       resolve({ type: 'backend-delete-file', success: false });
@@ -177,7 +177,7 @@ export async function backendDeleteFile(
     const handleMessage = (message: unknown): void => {
       const msg: Record<string, unknown> = message as Record<string, unknown>;
 
-      const success = msg.DeleteVirtualFileSuccess as { request_id?: string } | undefined;
+      const success: { request_id?: string; } | undefined = msg.DeleteVirtualFileSuccess as { request_id?: string } | undefined;
       if (success?.request_id === requestId) {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handleMessage);
@@ -185,7 +185,7 @@ export async function backendDeleteFile(
         resolve({ type: 'backend-delete-file', success: true });
       }
 
-      const failure = msg.DeleteVirtualFileFailure as { request_id?: string; message?: string } | undefined;
+      const failure: { request_id?: string; message?: string; } | undefined = msg.DeleteVirtualFileFailure as { request_id?: string; message?: string } | undefined;
       if (failure?.request_id === requestId) {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handleMessage);

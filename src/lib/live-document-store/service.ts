@@ -63,7 +63,7 @@ export class LiveDocumentStore {
     const now: number = Date.now();
 
     const doc = initialDoc || new Y.Doc();
-    const state = Y.encodeStateAsUpdate(doc);
+    const state: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(doc);
     const rootHash: string = sha256Sync(state);
 
     const metadata: DocumentMetadata = {
@@ -118,7 +118,7 @@ export class LiveDocumentStore {
 
     const now: number = Date.now();
     const doc = new Y.Doc();
-    const state = Y.encodeStateAsUpdate(doc);
+    const state: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(doc);
     const rootHash: string = sha256Sync(state);
 
     const storedDoc: StoredDocument = {
@@ -146,7 +146,7 @@ export class LiveDocumentStore {
       throw new Error(`Live document ${docId} is not tracked locally, so its edits cannot be saved.`);
     }
 
-    const state = Y.encodeStateAsUpdate(ydoc);
+    const state: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(ydoc);
     const rootHash: string = sha256Sync(state);
     const now: number = Date.now();
     const newRevision: number = (existing.metadata.revision ?? 0) + 1;

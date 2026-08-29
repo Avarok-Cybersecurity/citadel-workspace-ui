@@ -36,7 +36,7 @@ export function handleSyncStep1(
   if (ctx.syncState === 'synced' && ctx.initialSyncComplete) {
     debugLog('YjsP2PProvider', `[Yjs] Ignoring SyncStep1 - already synced`);
     // Just send SyncStep2 with any updates they might need
-    const diff = Y.encodeStateAsUpdate(ctx.doc, stateVector);
+    const diff: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(ctx.doc, stateVector);
     if (diff.length > 2) { // More than empty update
       sendSyncMessage(ctx, 'sync_step2', diff, false); // No ACK needed for response
     }
@@ -46,12 +46,12 @@ export function handleSyncStep1(
   debugLog('YjsP2PProvider', `[Yjs] Received SyncStep1 from peer`);
 
   // Compute diff that peer needs
-  const diff = Y.encodeStateAsUpdate(ctx.doc, stateVector);
+  const diff: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(ctx.doc, stateVector);
 
   // Only send our state vector back if we're in idle state (haven't initiated sync yet)
   // This prevents the ping-pong pattern
   if (ctx.syncState === 'idle') {
-    const myStateVector = Y.encodeStateVector(ctx.doc);
+    const myStateVector: Uint8Array<ArrayBufferLike> = Y.encodeStateVector(ctx.doc);
     sendSyncMessage(ctx, 'sync_step1', myStateVector, false);
   }
 
@@ -165,7 +165,7 @@ export function handleRequestFullState(
 
   debugLog('YjsP2PProvider', `[Yjs] Sending full state as creator`);
 
-  const fullState = Y.encodeStateAsUpdate(ctx.doc);
+  const fullState: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(ctx.doc);
   sendSyncMessage(ctx, 'full_state', fullState, true);
 }
 

@@ -48,7 +48,7 @@ export function removeNode(
   childrenDeleted: string[],
 ): void {
   setState(prev => {
-    const updated = { ...prev.nodes };
+    const updated: { [x: string]: DomainNode; } = { ...prev.nodes };
     delete updated[nodeId];
     for (const childId of childrenDeleted) {
       delete updated[childId];

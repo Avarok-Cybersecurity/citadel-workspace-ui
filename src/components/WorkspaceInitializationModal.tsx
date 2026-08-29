@@ -55,7 +55,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
         setError(null);
 
         try {
-            const metadata = { initialized: true };
+            const metadata: { initialized: boolean; } = { initialized: true };
             const metadataBytes: Uint8Array<ArrayBuffer> = new TextEncoder().encode(JSON.stringify(metadata));
             const metadataArray: number[] = Array.from(metadataBytes);
 

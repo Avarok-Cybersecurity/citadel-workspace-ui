@@ -104,12 +104,12 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     return unsub;
   }, [key]);
 
-  const mkdir = useCallback(async (path: string): Promise<void> => {
+  const mkdir: (path: string) => Promise<void> = useCallback(async (path: string): Promise<void> => {
     if (!myCid) return;
     await revfsService.serverMkdir(myCid, path);
   }, [myCid]);
 
-  const rmdir = useCallback(async (path: string): Promise<void> => {
+  const rmdir: (path: string) => Promise<void> = useCallback(async (path: string): Promise<void> => {
     if (!myCid) return;
     await revfsService.serverRmdir(myCid, path);
   }, [myCid]);
@@ -119,27 +119,27 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     await revfsService.uploadFileToServer(myCid, dirPath, fileName, metadata, content);
   }, [myCid]);
 
-  const downloadFile = useCallback(async (filePath: string): Promise<string | undefined> => {
+  const downloadFile: (filePath: string) => Promise<string | undefined> = useCallback(async (filePath: string): Promise<string | undefined> => {
     if (!myCid) return undefined;
     return revfsService.downloadFileFromServer(myCid, filePath);
   }, [myCid]);
 
-  const removeFile = useCallback(async (filePath: string): Promise<void> => {
+  const removeFile: (filePath: string) => Promise<void> = useCallback(async (filePath: string): Promise<void> => {
     if (!myCid) return;
     await revfsService.removeFileFromServer(myCid, filePath);
   }, [myCid]);
 
-  const rename = useCallback(async (path: string, newName: string): Promise<void> => {
+  const rename: (path: string, newName: string) => Promise<void> = useCallback(async (path: string, newName: string): Promise<void> => {
     if (!myCid) return;
     await revfsService.serverRename(myCid, path, newName);
   }, [myCid]);
 
-  const move = useCallback(async (sourcePath: string, destParentPath: string): Promise<void> => {
+  const move: (sourcePath: string, destParentPath: string) => Promise<void> = useCallback(async (sourcePath: string, destParentPath: string): Promise<void> => {
     if (!myCid) return;
     await revfsService.serverMove(myCid, sourcePath, destParentPath);
   }, [myCid]);
 
-  const copy = useCallback(async (sourcePath: string, destParentPath: string): Promise<void> => {
+  const copy: (sourcePath: string, destParentPath: string) => Promise<void> = useCallback(async (sourcePath: string, destParentPath: string): Promise<void> => {
     if (!myCid) return;
     await revfsService.serverCopy(myCid, sourcePath, destParentPath);
   }, [myCid]);

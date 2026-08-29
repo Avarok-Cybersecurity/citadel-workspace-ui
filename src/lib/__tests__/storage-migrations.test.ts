@@ -80,7 +80,7 @@ describe('runMigrations', () => {
   it('runs every intervening step, so an old install is not a special case', () => {
     // A user returning from v1 to v4 must get steps 2, 3 and 4 — not just 4.
     const ran: number[] = [];
-    const steps = [2, 3, 4].map(version => ({
+    const steps: { version: number; description: string; run: () => void; }[] = [2, 3, 4].map(version => ({
       version,
       description: `step ${version}`,
       run: (): void => { ran.push(version); },

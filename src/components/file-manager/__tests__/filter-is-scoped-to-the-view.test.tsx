@@ -39,7 +39,7 @@ function treeWith(children: RevfsNode[]): RevfsNode {
 const noop = (): void => {};
 const asyncNoop = async (): Promise<void> => {};
 /** Everything the grid needs that this test does not exercise. */
-const props = {
+const props: { currentPath: string; onNavigate: () => void; onNewFolder: () => void; onDelete: () => void; onDownload: () => void; onUploadFile: () => void; onInfo: () => void; onRename: () => Promise<void>; onCut: () => void; onCopy: () => void; onPaste: () => Promise<void>; onDrop: () => void; } = {
   currentPath: '/docs',
   onNavigate: noop,
   onNewFolder: noop,

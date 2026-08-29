@@ -51,7 +51,7 @@ export async function sendGroupMessage(
     'SendGroupMessage',
     () => sender.sendProtocolRequest(requestPart),
     (payload) => {
-      const p = payload as { group_id?: string; message?: { content?: string } } | undefined;
+      const p: { group_id?: string; message?: { content?: string; }; } | undefined = payload as { group_id?: string; message?: { content?: string } } | undefined;
       return p?.group_id === groupId && p?.message?.content === content;
     }
   );

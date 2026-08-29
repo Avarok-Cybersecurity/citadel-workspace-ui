@@ -44,7 +44,7 @@ export class SessionManagement {
   /**
    * Create a matcher for ConnectionManagement success/failure responses.
    */
-  private connectionManagementMatcher(requestId: string) {
+  private connectionManagementMatcher(requestId: string): { matchSuccess: (message: Record<string, unknown>) => SessionManagementResult | undefined; matchFailure: (message: Record<string, unknown>) => string | undefined; } {
     return {
       matchSuccess: (message: Record<string, unknown>): SessionManagementResult | undefined => {
         const response: ConnectionManagementResponse = SessionManagement.unwrapResponse(message);

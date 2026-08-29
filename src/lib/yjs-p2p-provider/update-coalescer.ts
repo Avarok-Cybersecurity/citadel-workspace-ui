@@ -44,7 +44,7 @@ export class UpdateCoalescer {
     }
     if (this.pending.length === 0) return;
 
-    const batch = this.pending;
+    const batch: Uint8Array<ArrayBufferLike>[] = this.pending;
     this.pending = [];
     // Merging a single update is wasted work and an extra chance to be wrong.
     this.send(batch.length === 1 ? batch[0] : Y.mergeUpdates(batch));

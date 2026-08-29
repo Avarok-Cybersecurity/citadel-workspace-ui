@@ -62,7 +62,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
             if (orphanSessionCid) {
               try {
                 await websocketService.setOrphanMode(true);
-                const result = await websocketService.claimSession(orphanSessionCid, true) as { cid?: bigint };
+                const result: { cid?: bigint; } = await websocketService.claimSession(orphanSessionCid, true) as { cid?: bigint };
                 if (result?.cid) {
                   ConnectionService.getInstance().updateConnectionStatus({
                     cid: result.cid,

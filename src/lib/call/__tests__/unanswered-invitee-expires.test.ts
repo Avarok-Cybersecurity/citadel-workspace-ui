@@ -43,7 +43,7 @@ function harness() {
     capabilities: CAPS,
     now: () => now,
     schedule: (fn) => {
-      const timer = { fn, cancelled: false, fired: false };
+      const timer: { fn: () => void; cancelled: boolean; fired: boolean; } = { fn, cancelled: false, fired: false };
       timers.push(timer);
       return () => {
         timer.cancelled = true;
@@ -60,7 +60,7 @@ function harness() {
       now = ms;
     },
     tick: (): number => {
-      const due = timers.filter((t): boolean => !t.cancelled && !t.fired);
+      const due: { fn: () => void; cancelled: boolean; fired: boolean; }[] = timers.filter((t): boolean => !t.cancelled && !t.fired);
       for (const t of due) {
         t.fired = true;
         t.fn();

@@ -55,7 +55,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
       }
 
       // Merge cached and fresh peers
-      const mergedPeersMap = new Map<string, { cid?: bigint; username?: string }>();
+      const mergedPeersMap: Map<string, { cid?: bigint; username?: string; }> = new Map<string, { cid?: bigint; username?: string }>();
 
       for (const p of cachedPeers) {
         const cidStr: string = p.cid?.toString() || '';
@@ -65,9 +65,9 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
       for (const p of freshPeers) {
         const cidStr: string = p.cid?.toString() || '';
         if (cidStr) {
-          const existing = mergedPeersMap.get(cidStr);
+          const existing: { cid?: bigint; username?: string; } | undefined = mergedPeersMap.get(cidStr);
           if (existing) {
-            const mergedPeer = {
+            const mergedPeer: { username: string | undefined; cid?: bigint; } = {
               ...p,
               username: (existing.username && existing.username !== 'Unknown' && !existing.username.startsWith('User '))
                 ? existing.username
@@ -80,7 +80,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
         }
       }
 
-      const peersToUse = Array.from(mergedPeersMap.values());
+      const peersToUse: { cid?: bigint; username?: string; }[] = Array.from(mergedPeersMap.values());
 
       let peerList: RegisteredPeer[] = [];
       try {

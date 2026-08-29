@@ -50,7 +50,7 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
   const ringRef = useRef<HTMLDivElement>(null);
   const squareRef = useRef<HTMLDivElement>(null);
 
-  const hueFromPointer = useCallback(
+  const hueFromPointer: (event: ReactPointerEvent<HTMLDivElement>) => void = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const rect: DOMRect | undefined = ringRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -64,7 +64,7 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
     [onChange, value],
   );
 
-  const slFromPointer = useCallback(
+  const slFromPointer: (event: ReactPointerEvent<HTMLDivElement>) => void = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const rect: DOMRect | undefined = squareRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -75,7 +75,7 @@ export function ColorWheel({ value, onChange, label }: ColorWheelProps) {
     [onChange, value],
   );
 
-  const drag = (handler: (e: ReactPointerEvent<HTMLDivElement>) => void) => ({
+  const drag: (handler: (e: ReactPointerEvent<HTMLDivElement>) => void) => { onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => void; onPointerMove: (e: ReactPointerEvent<HTMLDivElement>) => void; onPointerUp: (e: ReactPointerEvent<HTMLDivElement>) => void; } = (handler: (e: ReactPointerEvent<HTMLDivElement>) => void): { onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => void; onPointerMove: (e: ReactPointerEvent<HTMLDivElement>) => void; onPointerUp: (e: ReactPointerEvent<HTMLDivElement>) => void; } => ({
     onPointerDown: (e: ReactPointerEvent<HTMLDivElement>): void => {
       e.currentTarget.setPointerCapture(e.pointerId);
       handler(e);

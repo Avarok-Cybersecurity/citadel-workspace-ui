@@ -210,7 +210,7 @@ describe('deep nested tree stress tests', () => {
     const { tree } = createDeepTree(20, 2);
     const deepPath: string = '/level-0/level-1/level-2/level-3/level-4/level-5/level-6/level-7/level-8/level-9';
 
-    const mkdirOp = { op_id: '1', op_type: RevfsOpType.Mkdir, path: `${deepPath}/remote-dir`, timestamp: Date.now() };
+    const mkdirOp: { op_id: string; op_type: RevfsOpType; path: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.Mkdir, path: `${deepPath}/remote-dir`, timestamp: Date.now() };
     let result: RevfsNode = applyRemoteOp(tree, mkdirOp, CID_B);
     expect(findNode(result, `${deepPath}/remote-dir`)).not.toBeNull();
 
@@ -222,7 +222,7 @@ describe('deep nested tree stress tests', () => {
     // CID_A uploaded; the viewer (CID_B) received the bytes, so hosts them.
     expect(file!.fileState).toBe(RevfsFileState.Hosted);
 
-    const removeOp = { op_id: '3', op_type: RevfsOpType.RemoveFile, path: `${deepPath}/remote-dir/remote.dat`, timestamp: Date.now() };
+    const removeOp: { op_id: string; op_type: RevfsOpType; path: string; timestamp: number; } = { op_id: '3', op_type: RevfsOpType.RemoveFile, path: `${deepPath}/remote-dir/remote.dat`, timestamp: Date.now() };
     result = applyRemoteOp(result, removeOp, CID_B);
     expect(findNode(result, `${deepPath}/remote-dir/remote.dat`)).toBeNull();
   });

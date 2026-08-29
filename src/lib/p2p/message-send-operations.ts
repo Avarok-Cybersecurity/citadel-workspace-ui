@@ -76,7 +76,7 @@ export async function sendP2PCommand(
     throw new Error('Not connected to server');
   }
 
-  const messageBytes = serializeP2PCommand(command);
+  const messageBytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand(command);
 
   debugLog('MessageSendOperations', `[P2P] *** sendP2PCommand *** from ${currentCid.toString().slice(0, 8)}... to ${peerCid.toString().slice(0, 8)}... (${messageBytes.length} bytes)`);
 

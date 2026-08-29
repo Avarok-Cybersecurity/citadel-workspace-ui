@@ -36,14 +36,14 @@ export function PromptDialogProvider({ children }: { children: ReactNode }) {
   const [value, setValue] = useState('');
   const resolveRef = useRef<((result: string | null) => void) | null>(null);
 
-  const settle = useCallback((result: string | null): void => {
+  const settle: (result: string | null) => void = useCallback((result: string | null): void => {
     resolveRef.current?.(result);
     resolveRef.current = null;
     setRequest(null);
     setValue('');
   }, []);
 
-  const prompt = useCallback((next: PromptRequest): Promise<string | null> => {
+  const prompt: (next: PromptRequest) => Promise<string | null> = useCallback((next: PromptRequest): Promise<string | null> => {
     // Never strand a previous caller's promise.
     resolveRef.current?.(null);
     setRequest(next);
@@ -98,7 +98,7 @@ export function PromptDialogProvider({ children }: { children: ReactNode }) {
 }
 
 export function usePrompt(): (request: PromptRequest) => Promise<string | null> {
-  const prompt = useContext(PromptContext);
+  const prompt: ((request: PromptRequest) => Promise<string | null>) | null = useContext(PromptContext);
   if (!prompt) {
     throw new Error('usePrompt must be used within a PromptDialogProvider');
   }

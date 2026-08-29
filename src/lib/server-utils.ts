@@ -37,7 +37,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
 
     // Create a promise to wait for the response
     return failOnSocketLoss('ListKnownServers', new Promise((resolve, reject) => {
-      const timeout = setTimeout((): void => {
+      const timeout: NodeJS.Timeout = setTimeout((): void => {
         eventEmitter.off('websocket-message', handler);
         reject(new Error('List known servers request timed out'));
       }, TIMEOUT.LOCALDB_REQUEST_MS);
@@ -145,7 +145,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
 
     // Store back to LocalDB
     return failOnSocketLoss('StoreKnownServer', new Promise((resolve, reject) => {
-      const timeout = setTimeout((): void => {
+      const timeout: NodeJS.Timeout = setTimeout((): void => {
         eventEmitter.off('websocket-message', handler);
         reject(new Error('Store known server request timed out'));
       }, TIMEOUT.LOCALDB_REQUEST_MS);

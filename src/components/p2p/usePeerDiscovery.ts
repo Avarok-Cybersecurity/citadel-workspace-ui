@@ -144,7 +144,7 @@ export function usePeerDiscovery(isOpen: boolean) {
    * "Not Connected" in red on a page that was about to work: a tick later the
    * CID landed and the effect re-ran and succeeded silently.
    */
-  const discoverPeers = useCallback(async (announce = true): Promise<void> => {
+  const discoverPeers: (announce?: boolean) => Promise<void> = useCallback(async (announce = true): Promise<void> => {
     if (!currentCid) {
       if (announce) {
         toastError(toast, "Not Connected", "Please connect to a workspace first");

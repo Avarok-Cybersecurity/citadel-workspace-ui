@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest';
 import { getStatusDisplay } from '../P2PChatHeader';
 import { MessagingLayerType } from '@/types/messaging-layer';
 
-const presence = (status: MessagingLayerType, extra = {}) =>
+const presence: (status: MessagingLayerType, extra?: {}) => Parameters<typeof getStatusDisplay>[0] = (status: MessagingLayerType, extra = {}) =>
   ({ status, lastUpdate: 0, ...extra }) as Parameters<typeof getStatusDisplay>[0];
 
 describe('the DM header status', () => {

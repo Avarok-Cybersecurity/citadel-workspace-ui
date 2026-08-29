@@ -21,8 +21,8 @@ import {
   resetInstallPromptCaptureForTests,
 } from '../install-prompt-store';
 
-function fireInstallPrompt() {
-  const event = new Event('beforeinstallprompt') as Event & {
+function fireInstallPrompt(): Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string; platform: string; }>; } {
+  const event: Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string; platform: string; }>; } = new Event('beforeinstallprompt') as Event & {
     prompt: () => Promise<void>;
     userChoice: Promise<{ outcome: string; platform: string }>;
   };

@@ -26,7 +26,7 @@ vi.mock('@/lib/call/call-manager', () => ({
       this.selfCid = config.selfCid;
       built.push(this);
     }
-    getState() {
+    getState(): { status: string; } {
       return { status: this.status };
     }
   },
@@ -36,7 +36,7 @@ vi.mock('@/lib/call/websocket-call-transport', () => ({
 }));
 vi.mock('@/lib/call/codec-support', () => ({
   localCapabilities: (): Promise<{}> => Promise.resolve({}),
-  probeMediaCapabilities: () => Promise.resolve({ supported: true }),
+  probeMediaCapabilities: (): Promise<{ supported: boolean; }> => Promise.resolve({ supported: true }),
 }));
 vi.mock('@/lib/call/peer-name', () => ({ callPeerName: (): string => 'Peer' }));
 

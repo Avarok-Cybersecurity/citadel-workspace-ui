@@ -64,7 +64,7 @@ export class WorkspaceService implements ProtocolSender {
       if (isVariant(payload as Record<string, unknown>, 'Request') && payload.Request) {
         const tsRequest: WorkspaceProtocolRequestTS = payload.Request;
         if (isVariant(tsRequest as Record<string, unknown>, 'GetWorkspace')) {
-          const wsReq = tsRequest.GetWorkspace;
+          const wsReq: { workspace_id?: string | null; } | null | undefined = tsRequest.GetWorkspace;
           request = {
             GetWorkspace: {
               workspace_id: (wsReq && typeof wsReq === 'object' && 'workspace_id' in wsReq) ? wsReq.workspace_id ?? null : null
@@ -73,7 +73,7 @@ export class WorkspaceService implements ProtocolSender {
         } else if (typeof tsRequest === 'string' && tsRequest === 'ListWorkspaces') {
           request = 'ListWorkspaces';
         } else if (isVariant(tsRequest as Record<string, unknown>, 'CreateWorkspace')) {
-          const req = tsRequest.CreateWorkspace!;
+          const req: { name: string; description: string; workspace_master_password: string; metadata?: number[]; } = tsRequest.CreateWorkspace!;
           request = {
             CreateWorkspace: {
               name: req.name,
@@ -83,7 +83,7 @@ export class WorkspaceService implements ProtocolSender {
             }
           };
         } else if (isVariant(tsRequest as Record<string, unknown>, 'UpdateWorkspace')) {
-          const req = tsRequest.UpdateWorkspace!;
+          const req: { workspace_id?: string | null; name?: string; description?: string; workspace_master_password: string; metadata?: number[]; } = tsRequest.UpdateWorkspace!;
           request = {
             UpdateWorkspace: {
               workspace_id: req.workspace_id ?? null,
@@ -161,7 +161,7 @@ export class WorkspaceService implements ProtocolSender {
     const expectedResponseTypes: string[] = this.getExpectedResponseTypes(requestType);
 
     const responsePromise: Promise<unknown> = new Promise<unknown>((resolve, reject): void => {
-      const timeoutId = setTimeout((): void => {
+      const timeoutId: NodeJS.Timeout = setTimeout((): void => {
         eventEmitter.off('workspace:raw-response', handler);
         reject(new Error(`Request timed out after ${timeoutMs}ms waiting for response to ${requestType}`));
       }, timeoutMs);

@@ -132,7 +132,7 @@ try {
   //
   // Registration is idempotent per scope, so PwaUpdatePrompt's hook attaches to
   // this same registration and keeps owning the toast and the reload action.
-  const updateSW = registerSW({
+  const updateSW: (reloadPage?: boolean) => Promise<void> = registerSW({
     immediate: true,
     // onNeedReload is what suppresses the library's automatic reload.
     //

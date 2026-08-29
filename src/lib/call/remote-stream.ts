@@ -29,7 +29,7 @@ export function createRemoteVideoSink(): RemoteVideoSink {
   const Generator = trackGenerator();
 
   if (Generator) {
-    const track = new Generator({ kind: 'video' });
+    const track: MediaStreamTrack & { writable: WritableStream<VideoFrame | AudioData>; } = new Generator({ kind: 'video' });
     const writer = track.writable.getWriter();
     const stream: MediaStream = new MediaStream([track]);
 
@@ -114,7 +114,7 @@ export function createRemoteAudioSink(): RemoteAudioSink {
     };
   }
 
-  const track = new Generator({ kind: 'audio' });
+  const track: MediaStreamTrack & { writable: WritableStream<VideoFrame | AudioData>; } = new Generator({ kind: 'audio' });
   const writer = track.writable.getWriter();
   const stream: MediaStream = new MediaStream([track]);
 

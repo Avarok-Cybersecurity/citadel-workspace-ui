@@ -16,7 +16,7 @@ interface MemberManagementModalProps {
   member?: { id: string; username: string; role: string };
 }
 
-const ROLE_OPTIONS = [
+const ROLE_OPTIONS: { value: string; label: string; }[] = [
   { value: "Owner", label: "Owner" },
   { value: "Admin", label: "Admin" },
   { value: "Member", label: "Member" },

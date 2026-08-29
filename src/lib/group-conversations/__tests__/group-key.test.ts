@@ -3,7 +3,7 @@ import { groupKeyToId, groupIdToKey, isValidGroupId, parseGroupKey } from '../gr
 
 describe('group key encoding', () => {
   it('round-trips a key through its id', () => {
-    const key = { cid: 12345678901234567890n, mgid: 98765432109876543210n };
+    const key: { cid: bigint; mgid: bigint; } = { cid: 12345678901234567890n, mgid: 98765432109876543210n };
 
     expect(groupIdToKey(groupKeyToId(key))).toEqual(key);
   });

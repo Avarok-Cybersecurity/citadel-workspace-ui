@@ -108,7 +108,7 @@ export function CollaborativeEditor({
     // comment belongs to is the one under the cursor when the menu was opened,
     // not wherever the selection sits once the dialog closes.
     const cursorPos: number = editor.view.state.selection.from;
-    const coords = editor.view.coordsAtPos(cursorPos);
+    const coords: { left: number; right: number; top: number; bottom: number; } = editor.view.coordsAtPos(cursorPos);
     setContextMenu(null);
 
     void (async (): Promise<void> => {

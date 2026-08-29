@@ -33,7 +33,7 @@ export interface MetadataEnvelope<TKind extends string, TPayload> {
 /** Narrow unknown bytes to a decodable string without assuming they are text. */
 export function decodeMetadataBytes(bytes: WorkspaceMetadataBytes | Uint8Array | null | undefined): string | null {
   if (!bytes) return null;
-  const array = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const array: Uint8Array<ArrayBufferLike> = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   if (array.length === 0) return null;
 
   try {

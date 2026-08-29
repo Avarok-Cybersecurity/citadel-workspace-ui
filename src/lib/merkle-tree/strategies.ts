@@ -83,7 +83,7 @@ export class JsonChunkingStrategy<T> implements ChunkingStrategy<T, Uint8Array> 
 
   reconstruct(chunks: Uint8Array[]): T {
     const binaryStrategy: BinaryChunkingStrategy = new BinaryChunkingStrategy();
-    const bytes = binaryStrategy.reconstruct(chunks);
+    const bytes: Uint8Array<ArrayBufferLike> = binaryStrategy.reconstruct(chunks);
     const json: string = new TextDecoder().decode(bytes);
     return JSON.parse(json) as T;
   }

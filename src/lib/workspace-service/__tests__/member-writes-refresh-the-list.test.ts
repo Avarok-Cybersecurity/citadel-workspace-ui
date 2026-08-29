@@ -13,7 +13,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const h = vi.hoisted(() => ({ resolveWrite: true }));
+const h: { resolveWrite: boolean; } = vi.hoisted((): { resolveWrite: boolean; } => ({ resolveWrite: true }));
 
 vi.mock('../await-write-response', () => ({
   awaitWriteResponse: vi.fn(() =>

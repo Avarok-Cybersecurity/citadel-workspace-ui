@@ -107,7 +107,7 @@ export function useGroupPermissions(
   }, [myRole, isOwner]);
 
   // Check if can perform action
-  const can = useCallback(
+  const can: (action: keyof GroupPermissions) => boolean = useCallback(
     (action: keyof GroupPermissions): boolean => {
       return permissions[action];
     },
@@ -115,7 +115,7 @@ export function useGroupPermissions(
   );
 
   // Check if can manage a member
-  const canManageMember = useCallback(
+  const canManageMember: (memberCid: bigint) => boolean = useCallback(
     (memberCid: bigint): boolean => {
       if (!currentCid || memberCid === currentCid) return false; // Cannot manage self
       if (!myRole) return false;
@@ -134,7 +134,7 @@ export function useGroupPermissions(
   );
 
   // Check if can manage a role
-  const canManageRole = useCallback(
+  const canManageRole: (roleId: string) => boolean = useCallback(
     (roleId: string): boolean => {
       if (!myRole) return false;
       if (!permissions.manageRoles) return false;
@@ -152,7 +152,7 @@ export function useGroupPermissions(
   );
 
   // Check if can assign a role
-  const canAssignRole = useCallback(
+  const canAssignRole: (roleId: string) => boolean = useCallback(
     (roleId: string): boolean => {
       if (!myRole) return false;
       if (!permissions.assignRoles) return false;

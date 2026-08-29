@@ -80,7 +80,7 @@ describe('group store', () => {
     const id: string = freshId();
     emitCreated(id);
 
-    const joined = { groupId: id, memberCid: '9', memberUsername: 'bob' };
+    const joined: { groupId: string; memberCid: string; memberUsername: string; } = { groupId: id, memberCid: '9', memberUsername: 'bob' };
     eventEmitter.emit('group:member-joined', joined);
     eventEmitter.emit('group:member-joined', joined);
 

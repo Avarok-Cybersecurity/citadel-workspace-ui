@@ -31,7 +31,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
         cancelLoadingDeadline('members');
         setState(prev => {
           // Try to find the current user in the members list and update their role
-          let updatedCurrentUser = prev.currentUser;
+          let updatedCurrentUser: { id: string; username: string; name: string; role?: string; displayName?: string; avatarUrl?: string; } | undefined = prev.currentUser;
           if (prev.currentUser && payload.members) {
             const currentUserMember = payload.members.find(
               (m: { username?: string; role?: string; displayName?: string }) =>
@@ -72,7 +72,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
           const membersRecord: Record<string, import('@/types/workspace-entities').User> = {};
           if (payload.members) {
             for (const m of payload.members) {
-              const member = m as { id?: string; username?: string; displayName?: string; role?: string };
+              const member: { id?: string; username?: string; displayName?: string; role?: string; } = m as { id?: string; username?: string; displayName?: string; role?: string };
               const id: string | undefined = member.id || member.username;
               if (!id) {
                 debugLog('UseMemberEventSetup', 'Dropping member with no stable id/username', member);
@@ -114,7 +114,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
         debugLog('UseMemberEventSetup', 'Member role updated:', payload.userId, payload.role);
         setState(prev => {
           // Update currentUser's role if it matches
-          let updatedCurrentUser = prev.currentUser;
+          let updatedCurrentUser: { id: string; username: string; name: string; role?: string; displayName?: string; avatarUrl?: string; } | undefined = prev.currentUser;
           if (prev.currentUser && (prev.currentUser.username === payload.userId || prev.currentUser.id === payload.userId)) {
             debugLog('UseMemberEventSetup', `Updating current user role to: ${payload.role}`);
             updatedCurrentUser = {
@@ -142,7 +142,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
         debugLog('UseMemberEventSetup', 'User permissions loaded:', payload.userId, payload.role);
         setState(prev => {
           // Update currentUser's role if it matches
-          let updatedCurrentUser = prev.currentUser;
+          let updatedCurrentUser: { id: string; username: string; name: string; role?: string; displayName?: string; avatarUrl?: string; } | undefined = prev.currentUser;
 
           // Check against currentUser username/id OR the stored session username
           const storedSession = connectionManager.getStoredSessionsArray()[0];
@@ -181,7 +181,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       // Members reload event
       await workspaceEvents.onWorkspaceEvent('members:reload', async () => {
         debugLog('UseMemberEventSetup', 'Reloading members list...');
-        const params = new URLSearchParams(window.location.search);
+        const params: URLSearchParams = new URLSearchParams(window.location.search);
         const domainId: string | null = params.get("nodeId");
         if (domainId) {
           await WorkspaceService.listMembers(domainId);

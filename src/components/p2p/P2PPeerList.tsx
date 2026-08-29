@@ -68,7 +68,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
     };
   }, [loadPeers, messenger]);
 
-  const handlePeersUpdated = useCallback((data: { allPeers: Peer[]; registeredPeers: Peer[] }): void => {
+  const handlePeersUpdated: (data: { allPeers: Peer[]; registeredPeers: Peer[]; }) => void = useCallback((data: { allPeers: Peer[]; registeredPeers: Peer[] }): void => {
     setAvailablePeers(data.allPeers);
     loadPeers();
   }, [loadPeers]);

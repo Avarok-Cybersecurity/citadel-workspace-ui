@@ -53,7 +53,7 @@ function harness(): Harness {
     capabilities: CAPS,
     now: () => 0,
     schedule: (fn) => {
-      const timer = { fn, cancelled: false };
+      const timer: { fn: () => void; cancelled: boolean; } = { fn, cancelled: false };
       timers.push(timer);
       return () => {
         timer.cancelled = true;
@@ -74,7 +74,7 @@ function harness(): Harness {
       transport.sendSignal.mock.calls.filter((c) => c[0] === cid).map((c) => c[1]),
     keyframeRequests,
     fireTimers: (): number => {
-      const live = timers.filter((t): boolean => !t.cancelled);
+      const live: { fn: () => void; cancelled: boolean; }[] = timers.filter((t): boolean => !t.cancelled);
       for (const t of live) t.fn();
       return live.length;
     },
@@ -338,7 +338,7 @@ describe('sending frames', () => {
   let h: Harness;
   beforeEach(() => { h = harness(); });
 
-  const frame = { track: 1, kind: 1, timestamp: 0, flags: 1, payload: new Uint8Array([1]) };
+  const frame: { track: number; kind: number; timestamp: number; flags: number; payload: Uint8Array<ArrayBuffer>; } = { track: 1, kind: 1, timestamp: 0, flags: 1, payload: new Uint8Array([1]) };
 
   it('fans one encoded frame out to every connected participant', async () => {
     // Encode once, send many: an encoder per peer is what makes mesh calls melt

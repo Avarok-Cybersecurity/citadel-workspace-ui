@@ -32,7 +32,7 @@ function deliverRequest(ctx: ReturnType<typeof context>): void {
   handleWebSocketMessage({ PeerRegisterNotification: notification } as never, ctx as never);
 }
 
-const notification = {
+const notification: { cid: bigint; peer_cid: bigint; peer_username: string; request_id: string; } = {
   cid: 7n,
   peer_cid: 42n,
   peer_username: 'alice',

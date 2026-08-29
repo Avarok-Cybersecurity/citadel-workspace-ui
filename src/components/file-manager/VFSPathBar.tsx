@@ -39,7 +39,7 @@ export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps) {
   // Clear error state after animation
   useEffect(() => {
     if (hasError) {
-      const timeout = setTimeout((): void => setHasError(false), 500);
+      const timeout: NodeJS.Timeout = setTimeout((): void => setHasError(false), 500);
       return (): void => clearTimeout(timeout);
     }
   }, [hasError]);
@@ -57,7 +57,7 @@ export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps) {
     setHasError(false);
   }, [currentPath]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>): void => {
+  const handleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void = useCallback((e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (isEnterCommit(e)) {
       e.preventDefault();
       const normalizedPath: string = inputValue.trim() || '/';

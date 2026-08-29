@@ -98,7 +98,7 @@ export function waitForEvent<T = void>(
       fn();
     };
 
-    const timer = setTimeout(
+    const timer: NodeJS.Timeout = setTimeout(
       () => finish(() => reject(new Error(`Timed out after ${timeoutMs}ms waiting for: ${description}`))),
       timeoutMs
     );

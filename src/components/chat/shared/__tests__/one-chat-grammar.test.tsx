@@ -50,13 +50,13 @@ describe('both chat surfaces', () => {
   });
 
   it('group messages by date with one shared rule', () => {
-    const sameDay = groupMessagesByDate([
+    const sameDay: Record<string, { timestamp: number; }[]> = groupMessagesByDate([
       { timestamp: 1700000000000 },
       { timestamp: 1700000001000 },
     ]);
     expect(Object.keys(sameDay)).toHaveLength(1);
 
-    const twoDays = groupMessagesByDate([
+    const twoDays: Record<string, { timestamp: number; }[]> = groupMessagesByDate([
       { timestamp: 1700000000000 },
       { timestamp: 1700000000000 + 86_400_000 * 2 },
     ]);

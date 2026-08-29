@@ -22,7 +22,7 @@ export async function backendDownloadFile(
   const isServerStorage: boolean = peerCid === null;
   debugLog('RevfsIO', `backendDownloadFile: virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
 
-  const request = {
+  const request: { DownloadFile: { request_id: string; virtual_directory: string; cid: bigint; peer_cid: bigint | null; security_level: string; delete_on_pull: boolean; }; } = {
     DownloadFile: {
       request_id: requestId,
       virtual_directory: virtualDir,
@@ -34,7 +34,7 @@ export async function backendDownloadFile(
   };
 
   return new Promise((resolve) => {
-    const timeout = setTimeout((): void => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       eventEmitter.off('websocket-message', handleMessage);
       debugLog('RevfsIO', 'backendDownloadFile timed out');
       resolve({ type: 'backend-download-file', success: false });
@@ -66,7 +66,7 @@ export async function backendDownloadFile(
       // Correlated on request_id, like every sibling in this file. The previous
       // `status.cid === cid` matched ANY transfer notification for the session,
       // so a concurrent standard transfer settled an unrelated pending download.
-      const tick = msg.FileTransferTickNotification as {
+      const tick: { request_id?: string; status?: Record<string, unknown> | string; } | undefined = msg.FileTransferTickNotification as {
         request_id?: string;
         status?: Record<string, unknown> | string;
       } | undefined;
@@ -76,7 +76,7 @@ export async function backendDownloadFile(
 
         // ReceptionBeginning carries the local path the bytes are written to.
         if (status !== null && typeof status === 'object' && 'ReceptionBeginning' in status) {
-          const beginning = status.ReceptionBeginning as { path?: string } | [string, unknown];
+          const beginning: { path?: string; } | [string, unknown] = status.ReceptionBeginning as { path?: string } | [string, unknown];
           receivedPath = Array.isArray(beginning)
             ? String(beginning[0])
             : beginning?.path;
@@ -101,7 +101,7 @@ export async function backendDownloadFile(
         return;
       }
 
-      const failure = msg.DownloadFileFailure as { request_id?: string; message?: string } | undefined;
+      const failure: { request_id?: string; message?: string; } | undefined = msg.DownloadFileFailure as { request_id?: string; message?: string } | undefined;
       if (failure?.request_id === requestId) {
         debugLog('RevfsIO', 'backendDownloadFile failed:', failure.message);
         settle({ type: 'backend-download-file', success: false });

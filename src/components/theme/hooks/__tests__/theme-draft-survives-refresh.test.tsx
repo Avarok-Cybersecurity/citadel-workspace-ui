@@ -10,7 +10,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
-const themeRef = { current: { primary: 'blue' } as Record<string, string> };
+const themeRef: { current: Record<string, string>; } = { current: { primary: 'blue' } as Record<string, string> };
 const previewTheme = vi.fn();
 
 vi.mock('@/lib/theme/workspace-theme-context', () => ({

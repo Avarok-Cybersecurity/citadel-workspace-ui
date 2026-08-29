@@ -39,7 +39,7 @@ class WorkspaceNavigation {
    * The workspace route, with any additional query parameters.
    */
   public getWorkspacePath(additionalParams?: Record<string, string>): string {
-    const params = new URLSearchParams(additionalParams);
+    const params: URLSearchParams = new URLSearchParams(additionalParams);
     const query: string = params.toString();
     return query ? `/workspace?${query}` : '/workspace';
   }
@@ -48,7 +48,7 @@ class WorkspaceNavigation {
    * The workspace route, preserving the caller's existing query parameters.
    */
   public buildWorkspacePath(existingParams?: URLSearchParams): string {
-    const params = existingParams ? new URLSearchParams(existingParams) : new URLSearchParams();
+    const params: URLSearchParams = existingParams ? new URLSearchParams(existingParams) : new URLSearchParams();
     // A stale `id` from a link someone shared before this was removed would
     // otherwise ride along forever.
     params.delete('id');

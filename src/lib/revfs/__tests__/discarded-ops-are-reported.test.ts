@@ -11,13 +11,13 @@ import { retryPendingOps } from '../revfs-retry';
 
 const EXHAUSTED: number = 5; // MAX_OP_RETRIES
 
-function op(id: string, retryCount: number) {
+function op(id: string, retryCount: number): { operation: { op_id: string; op_type: string; }; retryCount: number; } {
   return { operation: { op_id: id, op_type: 'RenameFile' }, retryCount };
 }
 
-function depsWith(entries: ReturnType<typeof op>[]) {
+function depsWith(entries: ReturnType<typeof op>[]): { removed: string[]; deps: Parameters<typeof retryPendingOps>[0]; } {
   const removed: string[] = [];
-  let queue = [...entries];
+  let queue: { operation: { op_id: string; op_type: string; }; retryCount: number; }[] = [...entries];
   return {
     removed,
     deps: {

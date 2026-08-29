@@ -31,7 +31,7 @@ const CONTENT: Uint8Array<ArrayBuffer> = new Uint8Array([1, 2, 3]);
 /** Capture the request_id the upload used, so events can be addressed to it. */
 function startUpload(peerCid: bigint | null = 42n) {
   let requestId: string = '';
-  const deps = {
+  const deps: { sendInternalServiceRequest: (request: unknown) => Promise<void>; } = {
     sendInternalServiceRequest: async (request: unknown): Promise<void> => {
       const payload: Record<string, string> = (request as Record<string, Record<string, string>>).SendFile;
       requestId = payload.request_id;

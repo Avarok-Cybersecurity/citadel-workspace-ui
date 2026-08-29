@@ -79,7 +79,7 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
     return false;
   };
 
-  const cleanupInterval = setInterval((): void => {
+  const cleanupInterval: NodeJS.Timeout = setInterval((): void => {
     if (checkRemoval()) {
       clearInterval(cleanupInterval);
     }

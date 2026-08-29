@@ -64,12 +64,12 @@ export function VFSContentGrid({
     : allChildren;
 
   const handleBackgroundClick: () => void = useCallback((): void => { onClearSelection?.(); }, [onClearSelection]);
-  const handleRename = useCallback((node: RevfsNode): void => { setRenamingPath(node.path); }, []);
-  const handleRenameConfirm = useCallback(async (node: RevfsNode, newName: string): Promise<void> => {
+  const handleRename: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => { setRenamingPath(node.path); }, []);
+  const handleRenameConfirm: (node: RevfsNode, newName: string) => Promise<void> = useCallback(async (node: RevfsNode, newName: string): Promise<void> => {
     setRenamingPath(null); await onRename(node.path, newName);
   }, [onRename]);
   const handleRenameCancel: () => void = useCallback((): void => { setRenamingPath(null); }, []);
-  const handlePasteItem = useCallback(async (node: RevfsNode): Promise<void> => { await onPaste(node.path); }, [onPaste]);
+  const handlePasteItem: (node: RevfsNode) => Promise<void> = useCallback(async (node: RevfsNode): Promise<void> => { await onPaste(node.path); }, [onPaste]);
 
   const sorted: RevfsNode[] = [...children].sort((a, b) => {
     if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
@@ -93,7 +93,7 @@ export function VFSContentGrid({
     if (e.dataTransfer.files.length > 0) onDrop(currentPath, e.dataTransfer.files);
   };
 
-  const emptyContextProps = {
+  const emptyContextProps: { node: RevfsNode | null; onNewFolder: () => void; onDelete: () => void; onDownload: () => void; onUploadFile: () => void; onInfo: () => void; onPaste: (() => Promise<void>) | undefined; hasPasteItems: boolean; } = {
     node: null as RevfsNode | null,
     onNewFolder: (): void => onNewFolder(currentPath),
     onDelete: (): void => {}, onDownload: (): void => {},

@@ -76,7 +76,7 @@ export class RevfsIO {
         payload,
       };
 
-      const bytes = serializeP2PCommand(command);
+      const bytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand(command);
       debugLog('RevfsIO', `sendRevfsOp: sending ${bytes.length} bytes to peer ${peerCid}`);
       await this.deps.sendP2PMessageReliable(localCid, peerCid, bytes);
       debugLog('RevfsIO', 'sendRevfsOp: sent successfully');

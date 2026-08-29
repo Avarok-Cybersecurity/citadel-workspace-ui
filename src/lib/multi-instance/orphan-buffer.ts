@@ -78,7 +78,7 @@ export class OrphanBuffer {
     messageType: string,
     forward?: { requestId: string; targetInstanceId: string },
   ): void {
-    const fallbackTimer = setTimeout((): void => {
+    const fallbackTimer: NodeJS.Timeout = setTimeout((): void => {
       this.removeByTimer(cid, fallbackTimer);
       debugLog('OrphanBuffer',
         `Orphan buffer timeout for CID ${cid} (${messageType}); falling back to local processing`,

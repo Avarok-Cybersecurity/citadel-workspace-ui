@@ -50,8 +50,8 @@ describe('an ack for a message outside the in-memory window', () => {
 
 describe('retrying a failed message after a reload', () => {
   it('finds it in storage rather than throwing', async () => {
-    const stored = { id: 'm2', status: 'failed', contents: 'hi' };
-    const findStoredMessage = vi.fn(async () => stored);
+    const stored: { id: string; status: string; contents: string; } = { id: 'm2', status: 'failed', contents: 'hi' };
+    const findStoredMessage = vi.fn(async (): Promise<{ id: string; status: string; contents: string; }> => stored);
     const conversation: P2PConversation = { messages: [] } as unknown as P2PConversation;
 
     const sender: MessageSender = new MessageSender({
@@ -88,7 +88,7 @@ describe('retrying a failed message after a reload', () => {
 
 describe('opening a conversation after a reload', () => {
   it('sends read receipts for the messages actually on screen', async () => {
-    const stored = [
+    const stored: { id: string; senderCid: bigint; status: string; }[] = [
       { id: 'a', senderCid: PEER, status: 'delivered' },
       { id: 'b', senderCid: PEER, status: 'delivered' },
     ];
@@ -100,10 +100,10 @@ describe('opening a conversation after a reload', () => {
         updateUnreadCount: vi.fn(async () => {}),
       },
     }));
-    const conversationManager = {
+    const conversationManager: { getConversation: () => { messages: never[]; unreadCount: number; }; } = {
       // Empty, exactly as after a reload — while the transcript on screen came
       // from the page store.
-      getConversation: () => ({ messages: [], unreadCount: 2 }),
+      getConversation: (): { messages: never[]; unreadCount: number; } => ({ messages: [], unreadCount: 2 }),
     };
     const { markMessagesAsRead } = await import('../messenger-compatibility');
 

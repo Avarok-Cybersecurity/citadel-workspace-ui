@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { shouldSendOnKey } from '../should-send-on-key';
 
-const key = (over: Partial<{ key: string; shiftKey: boolean; isComposing: boolean }> = {}) => ({
+const key: (over?: Partial<{ key: string; shiftKey: boolean; isComposing: boolean; }>) => { key: string; shiftKey: boolean; nativeEvent: { isComposing: boolean; }; } = (over: Partial<{ key: string; shiftKey: boolean; isComposing: boolean }> = {}): { key: string; shiftKey: boolean; nativeEvent: { isComposing: boolean; }; } => ({
   key: over.key ?? 'Enter',
   shiftKey: over.shiftKey ?? false,
   nativeEvent: { isComposing: over.isComposing ?? false },

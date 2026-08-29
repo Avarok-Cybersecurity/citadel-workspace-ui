@@ -38,7 +38,7 @@ export const MembersSection = () => {
   const [showInvite, setShowInvite] = useState(false);
   const navigate = useNavigate();
   const { state } = useWorkspace();
-  const params = new URLSearchParams(location.search);
+  const params: URLSearchParams = new URLSearchParams(location.search);
   const currentNodeId: string | null = params.get("nodeId");
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -99,7 +99,7 @@ export const MembersSection = () => {
     // unmounts the buffer as completely as selecting another node does.
     if (!(await mayLeaveEditor(confirm))) return;
 
-    const searchParams = new URLSearchParams(location.search);
+    const searchParams: URLSearchParams = new URLSearchParams(location.search);
     searchParams.set('showP2P', 'true');
     searchParams.set('p2pUser', username);
     searchParams.set('channel', cid);

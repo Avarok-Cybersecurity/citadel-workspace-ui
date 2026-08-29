@@ -83,7 +83,7 @@ function countNodes(node: RevfsNode): { dirs: number; files: number } {
 describe('deep nested tree stress tests (extra)', () => {
   it('handles SyncResponse with deeply nested tree', () => {
     const { tree: remoteTree } = createDeepTree(15, 2);
-    const op = {
+    const op: { op_id: string; op_type: RevfsOpType; path: string; tree: RevfsNode; timestamp: number; } = {
       op_id: '1', op_type: RevfsOpType.SyncResponse, path: '/',
       tree: remoteTree, timestamp: Date.now(),
     };

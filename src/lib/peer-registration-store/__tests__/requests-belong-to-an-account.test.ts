@@ -39,7 +39,7 @@ describe('the storage key', () => {
 
   it('names the account, so two accounts cannot share a list', () => {
     instanceManager.cid = 111n;
-    const a = { pending: pendingKey(), outgoing: outgoingKey() };
+    const a: { pending: string; outgoing: string; } = { pending: pendingKey(), outgoing: outgoingKey() };
     instanceManager.cid = 222n;
     expect(pendingKey()).not.toBe(a.pending);
     expect(outgoingKey()).not.toBe(a.outgoing);

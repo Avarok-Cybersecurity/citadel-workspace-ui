@@ -168,7 +168,7 @@ class LeaderOutboundHandler {
 
       // Re-read after the awaits above: a demotion can clear it, and the
       // narrowing from the readiness check no longer holds here.
-      const send = this.websocketSendFn;
+      const send: ((message: Record<string, unknown>) => Promise<void>) | null = this.websocketSendFn;
       if (!send) {
         this.sendAck(request.senderInstanceId, request.requestId, 'error', 'WebSocket not ready');
         return;

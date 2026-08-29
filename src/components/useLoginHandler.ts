@@ -114,7 +114,7 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       const requestId = crypto.randomUUID();
       let responseReceived: boolean = false;
       const responsePromise: Promise<bigint> = new Promise<bigint>((resolve, reject) => {
-        const timeout = setTimeout((): void => {
+        const timeout: NodeJS.Timeout = setTimeout((): void => {
           if (!responseReceived) { eventEmitter.off('websocket-message', handler); reject(new Error('Connection timeout')); }
         }, 30000);
 

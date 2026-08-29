@@ -4,12 +4,12 @@ import userEvent from '@testing-library/user-event';
 import { AgentDownloadHint } from '../AgentDownloadHint';
 import { AGENT_ASSETS } from '@/lib/agent-download';
 
-const nav = (platform: string, userAgent: string, maxTouchPoints = 0) =>
+const nav: (platform: string, userAgent: string, maxTouchPoints?: number) => Navigator = (platform: string, userAgent: string, maxTouchPoints = 0): Navigator =>
   ({ platform, userAgent, maxTouchPoints }) as unknown as Navigator;
 
-const MAC = nav('MacIntel', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)');
-const WIN = nav('Win32', 'Mozilla/5.0 (Windows NT 10.0)');
-const IPHONE = nav('iPhone', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)');
+const MAC: Navigator = nav('MacIntel', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)');
+const WIN: Navigator = nav('Win32', 'Mozilla/5.0 (Windows NT 10.0)');
+const IPHONE: Navigator = nav('iPhone', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)');
 
 describe('AgentDownloadHint', () => {
   it('offers both mac builds, since the architecture cannot be told apart', () => {

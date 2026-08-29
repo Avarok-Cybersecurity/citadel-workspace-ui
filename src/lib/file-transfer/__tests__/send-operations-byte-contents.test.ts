@@ -122,7 +122,7 @@ describe('executeSendFile — source discrimination', () => {
     // arrayBuffer() is async — wait until the production code has dispatched
     // the request rather than guessing at the number of microtask turns.
     await vi.waitFor(() => expect(sendRequestSpy).toHaveBeenCalledTimes(1));
-    const sent = extractSendFile();
+    const sent: { request_id: string; source: unknown; cid: bigint; peer_cid: bigint; chunk_size: number | null; transfer_type: string; } = extractSendFile();
     expect(sent.source).toEqual({
       ByteContents: {
         file_name: 'hello.bin',

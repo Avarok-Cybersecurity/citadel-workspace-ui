@@ -13,7 +13,7 @@ export interface RegisterSWOptions {
   onRegisterError?: (error: unknown) => void;
 }
 
-export function useRegisterSW(_options?: RegisterSWOptions) {
+export function useRegisterSW(_options?: RegisterSWOptions): { offlineReady: [boolean, (value: boolean) => void]; needRefresh: [boolean, (value: boolean) => void]; updateServiceWorker: (_reloadPage?: boolean) => Promise<void>; } {
   return {
     offlineReady: [false, (): void => {}] as [boolean, (value: boolean) => void],
     needRefresh: [false, (): void => {}] as [boolean, (value: boolean) => void],

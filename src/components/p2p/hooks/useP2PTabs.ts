@@ -54,18 +54,18 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
     return (): void => { eventEmitter.off('yjs:p2p-command', handleYjsCommand); };
   }, []);
 
-  const handleTabSelect = useCallback((tabId: string): void => {
+  const handleTabSelect: (tabId: string) => void = useCallback((tabId: string): void => {
     setActiveTabId(tabId);
     if (tabId === 'messages') setMessagesHasUnread(false);
     setTabActivity(prev => ({ ...prev, [tabId]: false }));
   }, []);
 
-  const handleCloseTab = useCallback((tabId: string): void => {
+  const handleCloseTab: (tabId: string) => void = useCallback((tabId: string): void => {
     setTabs(prev => prev.filter(t => t.id !== tabId));
     if (activeTabId === tabId) setActiveTabId('messages');
   }, [activeTabId]);
 
-  const handleOpenDocument = useCallback((docId: string, title: string): void => {
+  const handleOpenDocument: (docId: string, title: string) => void = useCallback((docId: string, title: string): void => {
     // Adopt before opening. Only the CREATOR had a store record, so on the
     // recipient's side updateDocumentState found nothing and silently wrote
     // nothing — every edit they made was lost when the tab closed. Adoption is
@@ -89,7 +89,7 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
     }
   }, [tabs, currentUserCid, peerCid]);
 
-  const handleCreateDocument = useCallback(async (title: string, initialContent: string): Promise<void> => {
+  const handleCreateDocument: (title: string, initialContent: string) => Promise<void> = useCallback(async (title: string, initialContent: string): Promise<void> => {
     // Was `if (!currentUserCid) return;` — a success-shaped no-op that closed
     // the modal and cleared the compose box having created nothing.
     if (!currentUserCid) throw new Error('Cannot create a document before the session has a CID');

@@ -61,7 +61,7 @@ export class RevfsState {
 
   registerAck(opId: string, timeoutMs: number): Promise<boolean> {
     return new Promise<boolean>((resolve, reject) => {
-      const timeout = setTimeout((): void => {
+      const timeout: NodeJS.Timeout = setTimeout((): void => {
         this.pendingAcks.delete(opId);
         reject(new Error(`ACK timeout for op ${opId}`));
       }, timeoutMs);

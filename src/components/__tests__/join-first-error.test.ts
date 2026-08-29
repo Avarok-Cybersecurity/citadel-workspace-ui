@@ -7,13 +7,13 @@
 import { describe, it, expect } from 'vitest';
 import { firstInvalidField, JOIN_FIELD_ORDER } from '../join-first-error';
 
-const filled = {
+const filled: { fullName: string; username: string; password: string; confirmPassword: string; } = {
   fullName: 'Ada Lovelace',
   username: 'ada',
   password: 'password123',
   confirmPassword: 'password123',
 };
-const noErrors = { fullName: null, username: null, password: null, confirmPassword: null };
+const noErrors: { fullName: null; username: null; password: null; confirmPassword: null; } = { fullName: null, username: null, password: null, confirmPassword: null };
 
 describe('the first field to fix', () => {
   it('is nothing when the form is submittable', () => {

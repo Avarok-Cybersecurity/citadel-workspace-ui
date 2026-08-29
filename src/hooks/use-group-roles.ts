@@ -38,14 +38,14 @@ export function useGroupRoles(
     return roles.find(r => r.isBuiltIn && r.position === 100);
   }, [roles]);
 
-  const getRoleById = useCallback(
+  const getRoleById: (roleId: string) => GroupRole | undefined = useCallback(
     (roleId: string): GroupRole | undefined => {
       return roles.find(r => r.id === roleId);
     },
     [roles]
   );
 
-  const canManageRole = useCallback(
+  const canManageRole: (actorRoleId: string, targetRoleId: string) => boolean = useCallback(
     (actorRoleId: string, targetRoleId: string): boolean => {
       const actorRole: GroupRole | undefined = getRoleById(actorRoleId);
       const targetRole: GroupRole | undefined = getRoleById(targetRoleId);
@@ -58,7 +58,7 @@ export function useGroupRoles(
     [getRoleById]
   );
 
-  const validatePosition = useCallback(
+  const validatePosition: (position: number, excludeRoleId?: string) => boolean = useCallback(
     (position: number, excludeRoleId?: string): boolean => {
       if (position < 1 || position > 99) return false;
 
@@ -79,7 +79,7 @@ export function useGroupRoles(
     return suggested > 0 ? suggested : 5;
   }, [roles]);
 
-  const createRole = useCallback(
+  const createRole: (name: string, position: number, permissions: GroupPermissions, color?: string) => GroupRole = useCallback(
     (
       name: string,
       position: number,
@@ -146,7 +146,7 @@ export function useGroupRoles(
     [roles, settings, onSettingsChange]
   );
 
-  const deleteRole = useCallback(
+  const deleteRole: (roleId: string) => GroupSettings = useCallback(
     (roleId: string): GroupSettings => {
       const roleToDelete: GroupRole | undefined = getRoleById(roleId);
 
@@ -168,9 +168,9 @@ export function useGroupRoles(
     [roles, settings, getRoleById, onSettingsChange]
   );
 
-  const setDefaultRole = useCallback(
+  const setDefaultRole: (roleId: string) => GroupSettings = useCallback(
     (roleId: string): GroupSettings => {
-      const updatedRoles = roles.map(role => ({
+      const updatedRoles: { isDefault: boolean; id: string; name: string; position: number; color?: string; permissions: GroupPermissions; isBuiltIn: boolean; }[] = roles.map(role => ({
         ...role,
         isDefault: role.id === roleId,
       }));

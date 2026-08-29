@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { isEnterCommit } from '../keyboard-commit';
 import { shouldSendOnKey } from '@/components/chat/should-send-on-key';
 
-const key = (k: string, isComposing = false) => ({ key: k, nativeEvent: { isComposing } });
+const key: (k: string, isComposing?: boolean) => { key: string; nativeEvent: { isComposing: boolean; }; } = (k: string, isComposing = false): { key: string; nativeEvent: { isComposing: boolean; }; } => ({ key: k, nativeEvent: { isComposing } });
 
 describe('isEnterCommit', () => {
   it('commits on Enter', () => {

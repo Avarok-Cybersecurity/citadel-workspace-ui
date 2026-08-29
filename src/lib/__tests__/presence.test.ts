@@ -28,7 +28,7 @@ vi.mock('../p2p-registration-service', () => ({
 
 const { isMemberOnline, memberIdToCid } = await import('../presence');
 
-const peer = (username: string, cid: bigint, isOnline = false) => ({
+const peer: (username: string, cid: bigint, isOnline?: boolean) => { cid: bigint; username: string; fullName: string; isOnline: boolean; isRegistered: boolean; } = (username: string, cid: bigint, isOnline = false): { cid: bigint; username: string; fullName: string; isOnline: boolean; isRegistered: boolean; } => ({
   cid,
   username,
   fullName: '',

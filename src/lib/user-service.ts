@@ -80,7 +80,7 @@ export class UserService {
 
       // For now, return a placeholder until we get the response
       // The actual user info will be updated when we receive the response
-      const placeholderUser = {
+      const placeholderUser: { username: string; fullName: string; serverAddress: string; serverPassword: undefined; } = {
         username: 'Loading...',
         fullName: 'Loading...',
         serverAddress,

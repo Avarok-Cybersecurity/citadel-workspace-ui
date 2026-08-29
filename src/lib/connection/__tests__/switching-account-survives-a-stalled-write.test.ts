@@ -17,7 +17,7 @@ import { switchAccount } from '../lifecycle';
 import { selectUserWithoutBlocking } from '../select-user';
 
 function harness(selectStalls: boolean) {
-  const session = {
+  const session: { username: string; serverAddress: string; password: string; cid: bigint; } = {
     username: 'alice', serverAddress: '127.0.0.1:12349', password: 'pw', cid: 42n,
   };
   const state = {

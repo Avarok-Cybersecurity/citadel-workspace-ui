@@ -37,12 +37,12 @@ export function GroupRoleManagement({ group, onSettingsChange }: GroupRoleManage
     setShowEditor(true);
   }, []);
 
-  const handleEditRole = useCallback((role: GroupRole): void => {
+  const handleEditRole: (role: GroupRole) => void = useCallback((role: GroupRole): void => {
     setEditingRole(role);
     setShowEditor(true);
   }, []);
 
-  const handleDeleteRole = useCallback((role: GroupRole): void => {
+  const handleDeleteRole: (role: GroupRole) => void = useCallback((role: GroupRole): void => {
     setRoleToDelete(role);
   }, []);
 
@@ -66,7 +66,7 @@ export function GroupRoleManagement({ group, onSettingsChange }: GroupRoleManage
     [editingRole, createRole, updateRole]
   );
 
-  const handleSetDefault = useCallback(
+  const handleSetDefault: (roleId: string) => void = useCallback(
     (roleId: string) => { setDefaultRole(roleId); },
     [setDefaultRole]
   );

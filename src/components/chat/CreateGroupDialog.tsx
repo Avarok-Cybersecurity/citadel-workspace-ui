@@ -61,7 +61,7 @@ export function CreateGroupDialog({
     return defaultRoles.filter(r => !r.isBuiltIn);
   }, [defaultRoles]);
 
-  const handleAddMember = useCallback(
+  const handleAddMember: (peer: AvailablePeer) => void = useCallback(
     (peer: AvailablePeer) => {
       const newMember: SelectedMember = {
         cid: peer.cid,
@@ -74,11 +74,11 @@ export function CreateGroupDialog({
     [memberRole, defaultRoles]
   );
 
-  const handleRemoveMember = useCallback((cid: string): void => {
+  const handleRemoveMember: (cid: string) => void = useCallback((cid: string): void => {
     setSelectedMembers(prev => prev.filter(m => m.cid !== cid));
   }, []);
 
-  const handleRoleChange = useCallback((cid: string, roleId: string): void => {
+  const handleRoleChange: (cid: string, roleId: string) => void = useCallback((cid: string, roleId: string): void => {
     setSelectedMembers(prev =>
       prev.map(m => (m.cid === cid ? { ...m, roleId } : m))
     );

@@ -63,7 +63,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   }
 
   onTransferRequest(callback: (event: TransferRequestEvent) => void): () => void {
-    const handler = createTransferRequestHandler(callback);
+    const handler: (message: Record<string, unknown>) => void = createTransferRequestHandler(callback);
     eventEmitter.on('websocket-message', handler);
     const unsubscribe = (): void => eventEmitter.off('websocket-message', handler);
     this.subscriptions.set(`request-${Date.now()}`, unsubscribe);
@@ -71,7 +71,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   }
 
   onProgress(callback: (event: TransferProgressEvent) => void): () => void {
-    const handler = createProgressHandler(callback, this.tickCorrelation);
+    const handler: (message: Record<string, unknown>) => void = createProgressHandler(callback, this.tickCorrelation);
     eventEmitter.on('websocket-message', handler);
     const unsubscribe = (): void => eventEmitter.off('websocket-message', handler);
     this.subscriptions.set(`progress-${Date.now()}`, unsubscribe);
@@ -79,7 +79,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   }
 
   onComplete(callback: (event: TransferCompleteEvent) => void): () => void {
-    const handler = createCompleteHandler(callback, this.tickCorrelation);
+    const handler: (message: Record<string, unknown>) => void = createCompleteHandler(callback, this.tickCorrelation);
     eventEmitter.on('websocket-message', handler);
     const unsubscribe = (): void => eventEmitter.off('websocket-message', handler);
     this.subscriptions.set(`complete-${Date.now()}`, unsubscribe);
@@ -87,7 +87,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   }
 
   onStatusChange(callback: (event: TransferStatusEvent) => void): () => void {
-    const handler = createStatusChangeHandler(callback, this.tickCorrelation);
+    const handler: (message: Record<string, unknown>) => void = createStatusChangeHandler(callback, this.tickCorrelation);
     eventEmitter.on('websocket-message', handler);
     const unsubscribe = (): void => eventEmitter.off('websocket-message', handler);
     this.subscriptions.set(`status-${Date.now()}`, unsubscribe);

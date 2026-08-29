@@ -114,7 +114,7 @@ export class YjsP2PProvider {
       if (origin === 'remote') return;
       const changedClients: number[] = added.concat(updated).concat(removed);
       if (changedClients.length > 0) {
-        const update = encodeAwarenessUpdate(this.awareness, changedClients);
+        const update: Uint8Array<ArrayBufferLike> = encodeAwarenessUpdate(this.awareness, changedClients);
         broadcastAwareness(this.ctx, update);
       }
     };
@@ -151,7 +151,7 @@ export class YjsP2PProvider {
     this.syncInProgress = true;
     this.lastSyncInitiated = now;
     debugLog('YjsP2PProvider', `[Yjs] Initiating sync for document ${this.documentId} with peer ${this.peerCid}`);
-    const stateVector = Y.encodeStateVector(this.doc);
+    const stateVector: Uint8Array<ArrayBufferLike> = Y.encodeStateVector(this.doc);
     sendSyncMessage(this.ctx, 'sync_step1', stateVector, false);
     this.syncState = 'awaiting_step1_response';
     setTimeout(() => { this.syncInProgress = false; }, YJS_SYNC_RESET_DELAY_MS);

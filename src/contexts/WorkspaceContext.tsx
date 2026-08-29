@@ -78,7 +78,7 @@ export const WorkspaceContext = createContext<{
 });
 
 // Custom hook to use the workspace context
-export const useWorkspace = () => useContext(WorkspaceContext);
+export const useWorkspace: () => { state: WorkspaceState; } = (): { state: WorkspaceState; } => useContext(WorkspaceContext);
 
 // Provider component
 export interface WorkspaceProviderProps {
@@ -94,7 +94,7 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({
   // provider, and context propagation bypasses React's element-identity
   // bailout — so all 20 useWorkspace() consumers re-rendered whenever the
   // provider did, regardless of whether `state` had changed.
-  const value = useMemo(() => ({ state }), [state]);
+  const value: { state: WorkspaceState; } = useMemo((): { state: WorkspaceState; } => ({ state }), [state]);
 
   return (
     <WorkspaceContext.Provider value={value}>

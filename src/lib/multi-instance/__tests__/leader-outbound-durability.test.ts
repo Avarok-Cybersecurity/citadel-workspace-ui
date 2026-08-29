@@ -33,7 +33,7 @@ function becomeLeaderTab(): void {
   eventEmitter.emit('instance:leader-changed', { isLeader: true, leaderId: 'me' });
 }
 
-const request = (requestId: string) => ({
+const request: (requestId: string) => { requestId: string; senderInstanceId: string; payload: Record<string, unknown>; } = (requestId: string): { requestId: string; senderInstanceId: string; payload: Record<string, unknown>; } => ({
   requestId,
   senderInstanceId: 'follower-1',
   payload: { Message: { peer_cid: 1n } } as Record<string, unknown>,

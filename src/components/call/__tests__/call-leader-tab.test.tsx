@@ -8,7 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 
-const state = { isLeader: true };
+const state: { isLeader: boolean; } = { isLeader: true };
 vi.mock('@/lib/multi-instance', () => ({
   instanceManager: {
     get isLeader() {
@@ -17,7 +17,7 @@ vi.mock('@/lib/multi-instance', () => ({
   },
 }));
 vi.mock('@/lib/call/codec-support', () => ({
-  probeMediaCapabilities: () => Promise.resolve({ supported: true }),
+  probeMediaCapabilities: (): Promise<{ supported: boolean; }> => Promise.resolve({ supported: true }),
   localCapabilities: (): Promise<{}> => Promise.resolve({}),
 }));
 vi.mock('@/lib/call/call-manager', () => ({ CallManager: class {} }));

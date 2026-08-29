@@ -75,7 +75,7 @@ export class P2POperations {
       operationName: 'PeerConnect',
       matcher: {
         matchSuccess: (msg) => {
-          const r = msg as { PeerConnectSuccess?: { request_id: string } };
+          const r: { PeerConnectSuccess?: { request_id: string; }; } = msg as { PeerConnectSuccess?: { request_id: string } };
           if (r.PeerConnectSuccess?.request_id === requestId) {
             debugLog('P2POperations', 'P2P connection established', { targetCid: targetCid.toString() });
             return true;
@@ -83,7 +83,7 @@ export class P2POperations {
           return undefined;
         },
         matchFailure: (msg) => {
-          const r = msg as { PeerConnectFailure?: { request_id: string; message?: string } };
+          const r: { PeerConnectFailure?: { request_id: string; message?: string; }; } = msg as { PeerConnectFailure?: { request_id: string; message?: string } };
           if (r.PeerConnectFailure?.request_id === requestId) {
             const error: string = r.PeerConnectFailure.message || 'PeerConnect failed';
             errorLog('P2P connection failed:', error);
@@ -130,7 +130,7 @@ export class P2POperations {
       sendRequest: this.config.sendMessage,
       operationName: 'PeerConnectAccept',
       matchSuccess: (msg) => {
-        const r = msg as { PeerConnectAcceptSuccess?: { request_id: string } };
+        const r: { PeerConnectAcceptSuccess?: { request_id: string; }; } = msg as { PeerConnectAcceptSuccess?: { request_id: string } };
         if (r.PeerConnectAcceptSuccess?.request_id === requestId) {
           debugLog('P2POperations', 'P2P connection accept sent', { peerCid });
           return true;
@@ -138,7 +138,7 @@ export class P2POperations {
         return false;
       },
       matchFailure: (msg) => {
-        const r = msg as { PeerConnectAcceptFailure?: { request_id: string; message?: string } };
+        const r: { PeerConnectAcceptFailure?: { request_id: string; message?: string; }; } = msg as { PeerConnectAcceptFailure?: { request_id: string; message?: string } };
         if (r.PeerConnectAcceptFailure?.request_id === requestId) {
           return r.PeerConnectAcceptFailure.message || 'PeerConnectAccept failed';
         }
@@ -177,7 +177,7 @@ export class P2POperations {
       operationName: 'PeerDisconnect',
       matcher: {
         matchSuccess: (msg) => {
-          const r = msg as {
+          const r: { PeerDisconnectSuccess?: { request_id: string; }; DisconnectNotification?: { request_id?: string; peer_cid?: bigint; }; } = msg as {
             PeerDisconnectSuccess?: { request_id: string };
             DisconnectNotification?: { request_id?: string; peer_cid?: bigint };
           };
@@ -186,7 +186,7 @@ export class P2POperations {
             return true;
           }
           if (r.DisconnectNotification) {
-            const n = r.DisconnectNotification;
+            const n: { request_id?: string; peer_cid?: bigint; } = r.DisconnectNotification;
             if (n.request_id === requestId || n.peer_cid === peerCid) {
               debugLog('P2POperations', 'P2P disconnect notification received', { peerCid: peerCid.toString() });
               return true;
@@ -195,7 +195,7 @@ export class P2POperations {
           return undefined;
         },
         matchFailure: (msg) => {
-          const r = msg as { PeerDisconnectFailure?: { request_id: string; message?: string } };
+          const r: { PeerDisconnectFailure?: { request_id: string; message?: string; }; } = msg as { PeerDisconnectFailure?: { request_id: string; message?: string } };
           if (r.PeerDisconnectFailure?.request_id === requestId) {
             const error: string = r.PeerDisconnectFailure.message || 'PeerDisconnect failed';
             errorLog('P2P disconnect failed:', error);

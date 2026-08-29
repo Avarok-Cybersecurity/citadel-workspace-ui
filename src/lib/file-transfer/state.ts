@@ -109,7 +109,7 @@ export class FileTransferState {
 
     // Return unsubscribe function
     return () => {
-      const callbacks = this.progressCallbacks.get(transferId);
+      const callbacks: ((progress: TransferProgressEvent) => void)[] | undefined = this.progressCallbacks.get(transferId);
       if (callbacks) {
         const index: number = callbacks.indexOf(callback);
         if (index !== -1) {
@@ -124,7 +124,7 @@ export class FileTransferState {
   }
 
   notifyProgressCallbacks(transferId: string, event: TransferProgressEvent): void {
-    const callbacks = this.progressCallbacks.get(transferId);
+    const callbacks: ((progress: TransferProgressEvent) => void)[] | undefined = this.progressCallbacks.get(transferId);
     if (callbacks) {
       callbacks.forEach(cb => cb(event));
     }

@@ -39,7 +39,7 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions):
         const peerCidStr: string = (payload.peerCid ?? 0n).toString();
 
         setState(prev => {
-          const peerMessages = prev.messages.byPeer[peerCidStr] || [];
+          const peerMessages: { content: string; timestamp: number; id?: string; pending?: boolean; }[] = prev.messages.byPeer[peerCidStr] || [];
           const updatedTypingPeerIds: string[] = prev.typing.peerIds.filter(id => id !== peerCidStr);
           return {
             ...prev,

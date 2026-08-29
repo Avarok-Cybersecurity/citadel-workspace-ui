@@ -22,7 +22,7 @@ import { isGenuinelyAbsent } from '@/lib/storage/absence';
  */
 export async function loadMetadataByKey(key: string): Promise<ConversationMetadata | null> {
   try {
-    const response = await websocketService.sendLocalDBGet(0n, key);
+    const response: { value: number[]; } | null = await websocketService.sendLocalDBGet(0n, key);
     if (response?.value) {
       const rawValue: number[] = response.value;
       let valueStr: string;
@@ -86,7 +86,7 @@ async function loadLegacyMessagePage(peerCid: bigint, pageNumber: number): Promi
  */
 export async function saveMetadata(peerCid: bigint, metadata: ConversationMetadata): Promise<void> {
   const key: string = `${conversationPrefix(peerCid)}_metadata`;
-  const serializableMetadata = {
+  const serializableMetadata: { peerCid: string; ownerCid: string | undefined; peerUsername?: string; totalMessageCount: number; oldestMessageTimestamp: number; newestMessageTimestamp: number; latestPage: number; messagesPerPage: number; unreadCount: number; lastMessageIndex: number; lastUpdated: number; } = {
     ...metadata,
     peerCid: metadata.peerCid.toString(),
     // Stamped so this record can later be proved ours — see ConversationMetadata.
@@ -110,7 +110,7 @@ export async function loadMessagePage(peerCid: bigint, pageNumber: number): Prom
 
 async function loadMessagePageByKey(key: string): Promise<MessagePage | null> {
   try {
-    const response = await websocketService.sendLocalDBGet(0n, key);
+    const response: { value: number[]; } | null = await websocketService.sendLocalDBGet(0n, key);
     if (response?.value) {
       const rawValue: number[] = response.value;
       let valueStr: string;
@@ -121,7 +121,7 @@ async function loadMessagePageByKey(key: string): Promise<MessagePage | null> {
       } else {
         return null;
       }
-      const parsed = JSON.parse(valueStr) as MessagePage & {
+      const parsed: MessagePage & { peerCid: string | bigint; messages: Array<P2PMessage & { senderCid: string | bigint; recipientCid: string | bigint; }>; } = JSON.parse(valueStr) as MessagePage & {
         peerCid: string | bigint;
         messages: Array<P2PMessage & { senderCid: string | bigint; recipientCid: string | bigint }>;
       };

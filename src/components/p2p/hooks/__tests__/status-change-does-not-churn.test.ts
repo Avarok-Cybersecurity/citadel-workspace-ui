@@ -27,7 +27,7 @@ const CONVERSATION: P2PMessage[] = [
 ] as unknown as P2PMessage[];
 
 /** Wire up the real subscription and return the status-change callback. */
-function captureStatusHandler() {
+function captureStatusHandler(): { statusHandler: (id: string, status: string) => void; updates: ((prev: P2PMessage[]) => P2PMessage[])[]; } {
   let statusHandler: ((id: string, status: string) => void) | undefined;
   const updates: Array<(prev: P2PMessage[]) => P2PMessage[]> = [];
 

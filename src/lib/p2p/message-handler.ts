@@ -132,7 +132,7 @@ export class MessageHandler {
       // fp joins this to ILM's `[ILM-DELIVER] ... fp=`.
       debugLog('MessageHandler', 'P2P message received:', contentBytes.length, 'bytes fp=' + fnv1a64(contentBytes));
 
-      const rawMessageData = { peerCid: peerCidBigint, message: contentBytes };
+      const rawMessageData: { peerCid: bigint; message: Uint8Array<ArrayBufferLike>; } = { peerCid: peerCidBigint, message: contentBytes };
       eventEmitter.emit('p2p:raw-message', { peerCid: peerCidBigint.toString(), message: contentBytes });
       BroadcastChannelService.getInstance().broadcastP2PRawMessage(rawMessageData);
 

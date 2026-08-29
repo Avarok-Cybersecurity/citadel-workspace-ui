@@ -22,7 +22,7 @@ function stubCodec() {
     constructor() {
       decoderInstances.push(this as unknown as { close: ReturnType<typeof vi.fn>; decode: ReturnType<typeof vi.fn> });
     }
-    static isConfigSupported = async () => ({ supported: true });
+    static isConfigSupported: () => Promise<{ supported: boolean; }> = async (): Promise<{ supported: boolean; }> => ({ supported: true });
   };
 }
 

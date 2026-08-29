@@ -84,7 +84,7 @@ class InstanceChannel {
     });
   }
 
-  private readonly identityRepair = {
+  private readonly identityRepair: { reissue: () => string; announce: () => void; } = {
     // Both ids, not just the instance one. sessionStorage is copied on
     // Duplicate Tab, so the twins share the TAB id too -- and every
     // `tab-<id>-*` storage key with it, including the selected session.

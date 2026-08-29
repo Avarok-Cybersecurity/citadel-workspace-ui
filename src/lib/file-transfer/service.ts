@@ -226,7 +226,7 @@ export class FileTransferService {
   private async handleFileTransferMessage(message: IncomingFileTransferMessage): Promise<void> {
     const { layer: rawLayer, senderCid } = message;
     const layer: MessagingLayer = rawLayer as MessagingLayer;
-    const deps = this.deps;
+    const deps: { state: FileTransferState; io: FileTransferIO; emitStateChange: (transfer: FileTransfer) => void; saveTransfer: (transfer: FileTransfer) => Promise<void>; saveSettings: (peerCid: string, settings: FileTransferSettings) => Promise<void>; handleAsyncSend: (t: FileTransfer, f: File) => Promise<void>; } = this.deps;
 
     if (isFileTransferRequest(layer)) {
       // Join the two halves BEFORE handleTransferRequest, because auto-accept

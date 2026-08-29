@@ -13,7 +13,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const store: Map<string, unknown> = new Map<string, unknown>();
-const cidRef = { current: null as bigint | null };
+const cidRef: { current: bigint | null; } = { current: null as bigint | null };
 
 vi.mock('@/lib/storage-utils', () => ({
   dbGet: vi.fn(async (_s: string, k: string) => store.get(k)),

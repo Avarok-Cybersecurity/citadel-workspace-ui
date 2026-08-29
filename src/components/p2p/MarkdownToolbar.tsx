@@ -61,7 +61,7 @@ function Separator() {
 }
 
 export function MarkdownToolbar({ visible, onFormat, showPreview, onTogglePreview }: MarkdownToolbarProps) {
-  const formatHandlers = {
+  const formatHandlers: { bold: () => void; italic: () => void; strike: () => void; superscript: () => void; subscript: () => void; h1: () => void; h2: () => void; h3: () => void; bullet: () => void; numbered: () => void; link: () => void; table: () => void; code: () => void; quote: () => void; } = {
     bold: (): void => onFormat('bold', '**', '**'),
     italic: (): void => onFormat('italic', '*', '*'),
     strike: (): void => onFormat('strike', '~~', '~~'),
@@ -199,8 +199,8 @@ export function useMarkdownFormat(
   inputRef: React.RefObject<HTMLTextAreaElement | HTMLInputElement>,
   setValue: (value: string) => void,
   getValue: () => string
-) {
-  const handleFormat = useCallback((format: string, prefix: string, suffix: string): void => {
+): (format: string, prefix: string, suffix: string) => void {
+  const handleFormat: (format: string, prefix: string, suffix: string) => void = useCallback((format: string, prefix: string, suffix: string): void => {
     const input: HTMLInputElement | HTMLTextAreaElement | null = inputRef.current;
     if (!input) return;
 

@@ -30,7 +30,7 @@ vi.mock('../../multi-instance', () => ({
 }));
 
 vi.mock('../../security-utils', () => ({
-  getDefaultSecuritySettings: () => ({
+  getDefaultSecuritySettings: (): { security_level: string; secrecy_mode: string; header_obfuscator_settings: string; crypto_params: { kem: string; sig: string; }; } => ({
     security_level: 'Standard',
     secrecy_mode: 'Perfect',
     header_obfuscator_settings: 'Disabled',
@@ -57,7 +57,7 @@ describe('AuthOperations.register — server_password wire format', () => {
     expect(sendSpy).toHaveBeenCalledTimes(1);
     const [request] = sendSpy.mock.calls[0] as [Record<string, unknown>, string];
     const opts: Record<string, unknown> = (request.Register as Record<string, unknown>);
-    const sp = opts.server_password as { passwords: number[][] };
+    const sp: { passwords: number[][]; } = opts.server_password as { passwords: number[][] };
     expect(sp).not.toBeNull();
     expect(Array.isArray(sp.passwords)).toBe(true);
     expect(sp.passwords).toHaveLength(1);

@@ -31,7 +31,7 @@ export function decodeValue(value: unknown): string {
 export async function loadDocumentFromDB(docId: string): Promise<StoredDocument | null> {
   try {
     const key: string = `${DOCUMENTS_KEY_PREFIX}_${docId}`;
-    const response = await websocketService.sendLocalDBGet(0n, key);
+    const response: { value: number[]; } | null = await websocketService.sendLocalDBGet(0n, key);
 
     if (response?.value) {
       const valueStr: string = decodeValue(response.value);
@@ -66,7 +66,7 @@ export async function saveDocumentToDB(docId: string, doc: StoredDocument): Prom
  * Load the document index (list of document IDs) from LocalDB.
  */
 export async function loadIndexFromDB(): Promise<string[]> {
-  const response = await websocketService.sendLocalDBGet(0n, DOCUMENTS_INDEX_KEY);
+  const response: { value: number[]; } | null = await websocketService.sendLocalDBGet(0n, DOCUMENTS_INDEX_KEY);
   if (response?.value) {
     const indexData: string = decodeValue(response.value);
     return JSON.parse(indexData) as string[];

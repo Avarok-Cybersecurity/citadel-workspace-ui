@@ -31,7 +31,7 @@ function capture() {
   return { stored, state, io };
 }
 
-const base = {
+const base: { username: string; password: string; serverAddress: string; serverPassword: string; fullName: string; cid: bigint; securitySettings: undefined; } = {
   username: 'alice',
   password: 'hunter2',
   serverAddress: '127.0.0.1:12349',

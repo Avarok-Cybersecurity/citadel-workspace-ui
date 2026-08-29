@@ -66,7 +66,7 @@ export function sendP2PMessage(ctx: SendingContext, message: YjsP2PMessage): voi
     // across CBOR encode/decode without forcing a per-variant mapping.
     payload: message as unknown as P2PYjsSyncPayload,
   };
-  const bytes = serializeP2PCommand(command);
+  const bytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand(command);
 
   websocketService.sendP2PMessageBytes(
     BigInt(ctx.ownCid),

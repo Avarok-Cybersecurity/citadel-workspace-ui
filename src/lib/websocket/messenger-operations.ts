@@ -48,7 +48,7 @@ export class MessengerOperations {
     } else {
       debugLog('MessengerOperations', '[Follower] Proxying openMessengerFor through leader');
 
-      const proxyRequest = {
+      const proxyRequest: { __openMessengerProxy: boolean; cid: string; } = {
         __openMessengerProxy: true,
         cid: cid.toString()
       };
@@ -87,7 +87,7 @@ export class MessengerOperations {
     } else {
       debugLog('MessengerOperations', '[Follower] Proxying ensureMessengerOpen through leader');
 
-      const proxyRequest = {
+      const proxyRequest: { __ensureMessengerProxy: boolean; cid: string; } = {
         __ensureMessengerProxy: true,
         cid: cid.toString()
       };

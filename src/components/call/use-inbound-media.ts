@@ -14,7 +14,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 export function useInboundMedia(sessionRef: RefObject<CallSession | null>): void {
   useEffect(() => {
     const onMessage = (message: Record<string, unknown>): void => {
-      const frame = message.MediaFrameNotification as
+      const frame: { cid: bigint; peer_cid: bigint; track: number; kind: number; timestamp: number; flags: number; payload: number[]; } | undefined = message.MediaFrameNotification as
         | { cid: bigint; peer_cid: bigint; track: number; kind: number; timestamp: number; flags: number; payload: number[] }
         | undefined;
       if (frame) {
@@ -28,7 +28,7 @@ export function useInboundMedia(sessionRef: RefObject<CallSession | null>): void
         return;
       }
 
-      const gap = message.MediaGapNotification as
+      const gap: { peer_cid: bigint; track: number; } | undefined = message.MediaGapNotification as
         | { peer_cid: bigint; track: number }
         | undefined;
       if (gap) {

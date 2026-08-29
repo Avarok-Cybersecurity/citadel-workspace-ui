@@ -15,7 +15,7 @@
  * flight. This module exists so fixing that one does not introduce this one.
  */
 
-const timers = new Map<string, ReturnType<typeof setTimeout>>();
+const timers: Map<string, NodeJS.Timeout> = new Map<string, ReturnType<typeof setTimeout>>();
 
 /** How long to wait before deciding a response is not coming. */
 export const LOADING_DEADLINE_MS: number = 15_000;
@@ -34,7 +34,7 @@ export function armLoadingDeadline(key: string, onExpired: () => void): void {
 
 /** The response arrived (or the component went away). */
 export function cancelLoadingDeadline(key: string): void {
-  const existing = timers.get(key);
+  const existing: NodeJS.Timeout | undefined = timers.get(key);
   if (existing !== undefined) {
     clearTimeout(existing);
     timers.delete(key);

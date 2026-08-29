@@ -30,7 +30,7 @@ describe('cancelRetry', () => {
 
   it('clears the timer and removes the entry when a retry was pending', () => {
     const clearSpy = vi.spyOn(globalThis, 'clearTimeout');
-    const timer = setTimeout((): void => {}, 10_000) as unknown as ReturnType<typeof setTimeout>;
+    const timer: NodeJS.Timeout = setTimeout((): void => {}, 10_000) as unknown as ReturnType<typeof setTimeout>;
     const attempts: Map<string, ConnectionAttempt> = new Map<string, ConnectionAttempt>([
       [key, { sessionKey: key, attempts: 3, timeout: timer }],
     ]);

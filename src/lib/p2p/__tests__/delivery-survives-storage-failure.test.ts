@@ -29,7 +29,7 @@ import type { FileTransferMessageHandler } from '@/lib/p2p/file-transfer-message
 const PEER = 42n;
 const ME = 7n;
 
-function harness(addBehaviour: () => Promise<boolean>) {
+function harness(addBehaviour: () => Promise<boolean>): { rendered: string[]; acked: string[]; notified: string[]; run: () => Promise<void>; } {
   const rendered: string[] = [];
   const acked: string[] = [];
   const notified: string[] = [];
@@ -76,7 +76,7 @@ function harness(addBehaviour: () => Promise<boolean>) {
 
 describe('an arrived message whose write fails', () => {
   it('is still rendered and still notified', async () => {
-    const h = harness(async (): Promise<never> => {
+    const h: { rendered: string[]; acked: string[]; notified: string[]; run: () => Promise<void>; } = harness(async (): Promise<never> => {
       throw new Error('LocalDB set timed out');
     });
 
@@ -87,7 +87,7 @@ describe('an arrived message whose write fails', () => {
   });
 
   it('is NOT acked as delivered, because it will not survive a reload', async () => {
-    const h = harness(async (): Promise<never> => {
+    const h: { rendered: string[]; acked: string[]; notified: string[]; run: () => Promise<void>; } = harness(async (): Promise<never> => {
       throw new Error('LocalDB set timed out');
     });
 
@@ -100,7 +100,7 @@ describe('an arrived message whose write fails', () => {
   });
 
   it('acks normally when the write succeeds', async () => {
-    const h = harness(async (): Promise<true> => true);
+    const h: { rendered: string[]; acked: string[]; notified: string[]; run: () => Promise<void>; } = harness(async (): Promise<true> => true);
 
     await h.run();
 

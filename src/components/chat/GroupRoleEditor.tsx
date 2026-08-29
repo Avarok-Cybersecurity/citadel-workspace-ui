@@ -54,7 +54,7 @@ export function GroupRoleEditor({
   const canSave = isNameValid && isPositionValid;
 
   // Handlers
-  const handlePermissionChange = useCallback(
+  const handlePermissionChange: (key: keyof GroupPermissions, checked: boolean) => void = useCallback(
     (key: keyof GroupPermissions, checked: boolean) => {
       setPermissions(prev => ({ ...prev, [key]: checked }));
     },

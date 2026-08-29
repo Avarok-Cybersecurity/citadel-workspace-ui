@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
 
 /** Yjs fires per keystroke and each save re-encodes the whole document. */
-const DOCUMENT_PERSIST_DEBOUNCE_MS: 800 = 800;
+const DOCUMENT_PERSIST_DEBOUNCE_MS: number = 800;
 
 /**
  * Loads a live document from storage and keeps it saved.

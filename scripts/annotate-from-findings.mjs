@@ -56,8 +56,30 @@ const prefix = args.find((a) => !a.startsWith('--') && a !== String(LIMIT)) ?? '
  * the value is USED. So they are written, compiled, and reverted where they do
  * not hold, by scripts/annotate-and-keep-what-compiles.mjs.
  */
+const WHY = args.includes('--why');
+/** reason -> count, for deciding what to build next rather than guessing. */
+const refusals = new Map();
+const refuse = (reason, printed) => {
+  if (WHY) {
+    const key = reason === 'name' ? `name: ${printed}` : reason;
+    refusals.set(key, (refusals.get(key) ?? 0) + 1);
+  }
+  return null;
+};
 const ALLOW_BOOLEAN = args.includes('--allow-boolean');
 const ALLOW_LITERAL = args.includes('--allow-literal');
+/**
+ * Widen a string literal to `string`.
+ *
+ * Refused by default because `const CODEC = 'av01.0.05M.08'` is usually a
+ * member of a union its call sites expect, and widening it broke thirty of them
+ * on the first full run. But most string constants are not that -- a storage
+ * key, a path, a prefix -- and `: string` is exactly what a person would write.
+ *
+ * Which is which cannot be read off the declaration, so this is written under
+ * the compile judge: annotate, compile, keep what holds.
+ */
+const WIDEN_STRINGS = args.includes('--widen-strings');
 
 /** Type-position words that are never imported. */
 const TYPE_WORDS = new Set([
@@ -74,6 +96,14 @@ const TYPE_WORDS = new Set([
       'BroadcastChannel', 'IDBDatabase', 'CustomEvent', 'PointerEvent', 'KeyboardEvent',
       'MouseEvent', 'DOMRect', 'JSX', 'React', 'NodeJS', 'Uint16Array', 'Int32Array',
   'Float32Array', 'DataView', 'SharedArrayBuffer', 'MediaRecorder',
+  // Globals the checker prints unqualified and no file needs to import.
+  'Timeout', 'Timer', 'Immediate', 'ArrayBufferLike', 'ArrayBufferView',
+  'URLSearchParams', 'URLSearchParams', 'Storage', 'Location', 'History',
+  'Navigator', 'Window', 'Document', 'DocumentFragment', 'ShadowRoot',
+  'IntersectionObserver', 'ResizeObserver', 'MutationObserver', 'PerformanceEntry',
+  'ReadableStream', 'WritableStream', 'TransformStream', 'TextEncoder', 'TextDecoder',
+  'Int8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint32Array', 'Float64Array',
+  'BigInt64Array', 'BigUint64Array', 'Crypto', 'SubtleCrypto', 'CryptoKey',
 ]);
 
 const RULES = {
@@ -96,7 +126,12 @@ const eslint = new ESLint({
   errorOnUnmatchedPattern: false,
 });
 
-const results = await eslint.lintFiles([prefix]);
+// Explicit globs, exactly as the gate uses. Handing ESLint a bare directory
+// applies its own default extensions and quietly linted a fraction of the
+// files: `src/lib/revfs` reported zero findings while the gate counted 279 in
+// it. A tool that measures less than the gate it serves will report itself
+// finished.
+const results = await eslint.lintFiles([`${prefix}/**/*.ts`, `${prefix}/**/*.tsx`, `${prefix}/*.ts`, `${prefix}/*.tsx`]);
 
 /** file -> [{ line, column }] */
 const wanted = new Map();
@@ -152,7 +187,7 @@ for (const source of program.getSourceFiles()) {
     if (missing === null) return false;
     for (const name of missing) {
       const specifier = specifierFor(name, node);
-      if (!specifier) return false;
+      if (!specifier) { refuse('name', name); return false; }
       if (imports.has(name) && imports.get(name) !== specifier) return false;
       imports.set(name, specifier);
     }
@@ -263,7 +298,10 @@ for (const source of program.getSourceFiles()) {
 function unresolvedNames(printed, source) {
   // 200, not 60. A long type is ugly and true; the reason to refuse one is that
   // it cannot be written without an import, which the name test below decides.
-  if (printed.length > 200) return null;
+  // 400. The cap is a readability judgement, not a safety one, and the compile
+  // judge is what decides safety. Two hundred was refusing types that are long
+  // because the thing genuinely has that shape.
+  if (printed.length > 400) return refuse('too long', printed);
   // `import(...)` in a printed type is the compiler saying it cannot name this
   // without a path, and `any` is not something to write down in a codebase that
   // bans it. Object and function type literals are allowed: they are printable
@@ -272,10 +310,17 @@ function unresolvedNames(printed, source) {
   // writing that is not something a person would do. `any` is banned outright
   // in this codebase, so an inferred `any` is a finding for a human, not a
   // string to write down.
-  if (/\bimport\(|typeof import|\bany\b|\berror\b/.test(printed)) return null;
-  if (!ALLOW_LITERAL && (/^["'`]/.test(printed) || /^-?\d/.test(printed) || /^(true|false)$/.test(printed))) return null;
-  if (!ALLOW_BOOLEAN && printed === 'boolean') return null;
-  const names = printed.match(/[A-Za-z_$][A-Za-z0-9_$]*/g) ?? [];
+  if (/\bimport\(|typeof import/.test(printed)) return refuse('import(...)', printed);
+  if (/\bany\b/.test(printed)) return refuse('any', printed);
+  if (/\berror\b/.test(printed)) return refuse('error', printed);
+  if (!ALLOW_LITERAL && (/^["'`]/.test(printed) || /^-?\d/.test(printed) || /^(true|false)$/.test(printed))) return refuse('literal', printed);
+  if (!ALLOW_BOOLEAN && printed === 'boolean') return refuse('boolean', printed);
+  // Property names are not type names. `{ cid: bigint; op_id: string }` was
+  // being asked to resolve `cid` and `op_id` as if they were types, and every
+  // object literal with a field this file happened not to declare was refused
+  // for it -- `cid` alone accounted for thirty.
+  const withoutProperties = printed.replace(/([A-Za-z_$][\w$]*)\s*\??\s*:/g, ':');
+  const names = withoutProperties.match(/[A-Za-z_$][A-Za-z0-9_$]*/g) ?? [];
   const BUILTIN = new Set([
     'string', 'number', 'boolean', 'void', 'bigint', 'symbol', 'object', 'true', 'false',
     'Array', 'Promise', 'Map', 'Set', 'Record', 'Date', 'RegExp', 'Error', 'Uint8Array',
@@ -293,3 +338,9 @@ function unresolvedNames(printed, source) {
 
 
 console.log(`${DRY ? 'Would annotate' : 'Annotated'} ${annotated} finding(s) across ${touched} file(s) under ${prefix}.`);
+if (WHY) {
+  const sorted = [...refusals.entries()].sort((a, b) => b[1] - a[1]);
+  const total = sorted.reduce((sum, [, n]) => sum + n, 0);
+  console.log(`\n  ${total} refusal(s):`);
+  for (const [reason, count] of sorted.slice(0, 18)) console.log(`    ${String(count).padStart(5)}  ${reason}`);
+}

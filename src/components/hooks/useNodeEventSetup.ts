@@ -41,7 +41,7 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
       await workspaceEvents.onNodeEvent('nodes:loaded', (payload: { nodes: DomainNode[]; connection: ConnectionInfo }) => {
         cancelLoadingDeadline('nodes');
         setState(prev => {
-          const updatedNodes = { ...prev.nodes };
+          const updatedNodes: { [x: string]: DomainNode; } = { ...prev.nodes };
           for (const node of payload.nodes) {
             updatedNodes[node.id] = node;
           }

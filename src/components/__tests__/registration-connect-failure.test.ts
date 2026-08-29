@@ -16,7 +16,7 @@ function harness() {
   const resolve = vi.fn();
   const reject = vi.fn();
   const cleanup = vi.fn();
-  const handler = createRegistrationResponseHandler(REQ, resolve, reject, cleanup, {
+  const handler: (raw: unknown) => void = createRegistrationResponseHandler(REQ, resolve, reject, cleanup, {
     handleConnectSuccess: async (_p, res) => res({ cid: '42' }),
     setShowNotInitializedModal: vi.fn(),
   });

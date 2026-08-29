@@ -38,7 +38,7 @@ function group(id: string): GroupConversation {
   } as unknown as GroupConversation;
 }
 
-const key = (mgid: string) => ({ cid: BigInt(1), mgid: BigInt(mgid) });
+const key: (mgid: string) => { cid: bigint; mgid: bigint; } = (mgid: string): { cid: bigint; mgid: bigint; } => ({ cid: BigInt(1), mgid: BigInt(mgid) });
 
 describe('reconcileGroups', () => {
   it('drops a group the server no longer lists', () => {

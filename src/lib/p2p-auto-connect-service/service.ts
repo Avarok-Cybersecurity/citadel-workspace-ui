@@ -37,7 +37,7 @@ export class P2PAutoConnectService {
   private readonly state: AutoConnectState = new AutoConnectState();
 
   private constructor() {
-    const broadcastPeerConnected = this.setPeerConnected.bind(this);
+    const broadcastPeerConnected: (localCid: bigint, peerCid: bigint, peerUsername?: string, localUsername?: string) => void = this.setPeerConnected.bind(this);
     const connectAll: () => Promise<void> = this.connectToAllRegisteredPeers.bind(this);
     setupEventListeners(this.state, broadcastPeerConnected, connectAll);
   }
@@ -213,7 +213,7 @@ export class P2PAutoConnectService {
     return new Promise((resolve) => {
       const startTime: number = Date.now();
 
-      const checkInterval = setInterval((): void => {
+      const checkInterval: NodeJS.Timeout = setInterval((): void => {
         if (this.isPeerConnectedForSession(currentCid, peerCid)) {
           clearInterval(checkInterval);
           resolve(true);

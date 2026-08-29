@@ -14,7 +14,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { OfflineBanner } from '../OfflineBanner';
 
 vi.mock('@/hooks/use-online-status', () => ({
-  useOnlineStatus: () => ({ isOnline: true, justReconnected: false }),
+  useOnlineStatus: (): { isOnline: boolean; justReconnected: boolean; } => ({ isOnline: true, justReconnected: false }),
 }));
 
 const announceHealth = (isHealthy: boolean): void =>

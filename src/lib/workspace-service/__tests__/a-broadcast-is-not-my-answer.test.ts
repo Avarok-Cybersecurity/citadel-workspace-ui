@@ -85,7 +85,7 @@ describe('a write waiting for its answer', () => {
   it('matches a creation on what the client actually knows', async () => {
     // The client has no id for a node it has not created yet, so it matches on
     // parent and name. Narrower than any `Node` at all, which is the point.
-    const match = newChildOf('office-1', 'Standup');
+    const match: (payload: unknown) => boolean = newChildOf('office-1', 'Standup');
 
     expect(match({ id: 'x', parent_id: 'office-1', name: 'Standup' })).toBe(true);
     expect(match({ id: 'y', parent_id: 'office-2', name: 'Standup' })).toBe(false);

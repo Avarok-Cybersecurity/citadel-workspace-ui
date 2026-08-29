@@ -24,7 +24,7 @@ import { backendSendFile } from '../revfs-io-network';
 const sent: Array<Record<string, unknown>> = [];
 
 /** The one I/O seam this module has — injected, so nothing needs mocking. */
-const deps = {
+const deps: { sendInternalServiceRequest: (request: unknown) => Promise<void>; } = {
   sendInternalServiceRequest: async (request: unknown): Promise<void> => {
     sent.push(request as Record<string, unknown>);
   },
@@ -48,7 +48,7 @@ describe('a RE-VFS upload request', () => {
     void backendSendFile(deps, CID, null, 'notes.txt', CONTENT, '/docs/notes.txt');
     await Promise.resolve();
 
-    const source = lastSendFile().source as { ByteContents?: { file_name: string; data: number[] } };
+    const source: { ByteContents?: { file_name: string; data: number[]; }; } = lastSendFile().source as { ByteContents?: { file_name: string; data: number[] } };
 
     // A bare string here is what the WASM deserializer rejected outright.
     expect(typeof source).toBe('object');
@@ -60,7 +60,7 @@ describe('a RE-VFS upload request', () => {
     void backendSendFile(deps, CID, null, 'notes.txt', CONTENT, '/docs/notes.txt');
     await Promise.resolve();
 
-    const transferType = lastSendFile().transfer_type as {
+    const transferType: { RemoteEncryptedVirtualFilesystem?: { virtual_path: string; }; } = lastSendFile().transfer_type as {
       RemoteEncryptedVirtualFilesystem?: { virtual_path: string };
     };
 

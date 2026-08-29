@@ -26,7 +26,7 @@ export function HierarchySidebar() {
   const { state } = useWorkspace();
   const { toast } = useToast();
 
-  const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const params: URLSearchParams = useMemo((): URLSearchParams => new URLSearchParams(location.search), [location.search]);
   const selectedNodeId: string | null = params.get('nodeId');
 
   // Modal state
@@ -41,10 +41,10 @@ export function HierarchySidebar() {
   // Build flat node list from state
   const nodes: DomainNode[] = useMemo(() => Object.values(state.nodes), [state.nodes]);
 
-  const handleNodeSelect = useCallback(async (nodeId: string): Promise<void> => {
+  const handleNodeSelect: (nodeId: string) => Promise<void> = useCallback(async (nodeId: string): Promise<void> => {
     if (!(await mayLeaveEditor(confirm))) return;
 
-    const newParams = new URLSearchParams(location.search);
+    const newParams: URLSearchParams = new URLSearchParams(location.search);
     newParams.set('nodeId', nodeId);
     newParams.delete('section');
     // Clear P2P chat overlay when navigating to a different node
@@ -85,7 +85,7 @@ export function HierarchySidebar() {
     }
   }, [selectedNodeId, navigate, toast]);
 
-  const handleNodeCreate = useCallback((parentId: string | null): void => {
+  const handleNodeCreate: (parentId: string | null) => void = useCallback((parentId: string | null): void => {
     if (parentId === null) {
       // Creating a root-level child under the synthetic workspace root.
       // Allowed types come from the tree schema.
@@ -163,7 +163,7 @@ export function HierarchySidebar() {
     }
   }, [toast]);
 
-  const handleMove = useCallback(async (nodeId: string, newParentId: string | null): Promise<void> => {
+  const handleMove: (nodeId: string, newParentId: string | null) => Promise<void> = useCallback(async (nodeId: string, newParentId: string | null): Promise<void> => {
     try {
       await WorkspaceService.moveNode(nodeId, newParentId);
       toastSuccess(toast, 'Moved', 'The change has been saved.');

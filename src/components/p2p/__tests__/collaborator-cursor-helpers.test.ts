@@ -18,8 +18,8 @@ import {
  * `CollaborativeEditor.tsx#handleFlashCommentFromContextMenu`.
  */
 describe('buildContextMenuFlashComment', () => {
-  const coords = { top: 100, left: 200 };
-  const user = { userId: 'cid-123', userName: 'Alice', userColor: '#ff0000' };
+  const coords: { top: number; left: number; } = { top: 100, left: 200 };
+  const user: { userId: string; userName: string; userColor: string; } = { userId: 'cid-123', userName: 'Alice', userColor: '#ff0000' };
 
   it('returns null when text is null', () => {
     expect(buildContextMenuFlashComment(null, coords, user)).toBeNull();

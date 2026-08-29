@@ -28,7 +28,7 @@ describe('a workspace path', () => {
   });
 
   it('strips a stale id from a link shared before this was removed', () => {
-    const shared = new URLSearchParams('id=root&nodeId=n1');
+    const shared: URLSearchParams = new URLSearchParams('id=root&nodeId=n1');
 
     const path: string = buildWorkspacePath(shared);
 

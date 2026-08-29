@@ -81,7 +81,7 @@ export function VFSPropertiesDialog({
   const isDir: boolean = node.type === 'directory';
   const Icon = isDir ? Folder : getFileIcon(node.name);
   const meta = node.fileMetadata;
-  const state = node.fileState ? stateLabels[node.fileState] : null;
+  const state: { label: string; icon: typeof Monitor; } | null = node.fileState ? stateLabels[node.fileState] : null;
   const StateIcon = state?.icon;
   const itemCounts: { files: number; folders: number; } | null = isDir ? countItems(node) : null;
 

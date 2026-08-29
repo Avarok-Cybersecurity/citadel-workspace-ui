@@ -12,7 +12,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const h = vi.hoisted(() => ({ stored: [] as unknown[], resolveLoad: (): void => {} }));
+const h: { stored: unknown[]; resolveLoad: () => void; } = vi.hoisted((): { stored: unknown[]; resolveLoad: () => void; } => ({ stored: [] as unknown[], resolveLoad: (): void => {} }));
 
 vi.mock('../group-persistence', () => ({
   loadPersistedGroups: (): Promise<unknown> =>

@@ -42,7 +42,7 @@ export const MAX_BYTE_CONTENTS_BYTES: number = 16 * 1024 * 1024; // 16 MiB
  */
 export function awaitSendFileAck(requestId: string): Promise<void> {
   return failOnSocketLoss('ServerUpload', new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout((): void => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       eventEmitter.off('websocket-message', handleMessage);
       reject(new Error('SendFile request timed out'));
     }, TIMEOUT.FILE_SEND_MS);
@@ -56,7 +56,7 @@ export function awaitSendFileAck(requestId: string): Promise<void> {
     const handleMessage = (message: unknown): void => {
       const msg: Record<string, unknown> = message as Record<string, unknown>;
 
-      const success = msg.SendFileRequestSuccess as { request_id?: string } | undefined;
+      const success: { request_id?: string; } | undefined = msg.SendFileRequestSuccess as { request_id?: string } | undefined;
       if (success?.request_id === requestId) {
         settle(() => {
           debugLog('FileTransferIO', 'SendFile accepted by protocol', { requestId });
@@ -65,7 +65,7 @@ export function awaitSendFileAck(requestId: string): Promise<void> {
         return;
       }
 
-      const failure = msg.SendFileRequestFailure as
+      const failure: { request_id?: string; message?: string; } | undefined = msg.SendFileRequestFailure as
         | { request_id?: string; message?: string }
         | undefined;
       if (failure?.request_id === requestId) {

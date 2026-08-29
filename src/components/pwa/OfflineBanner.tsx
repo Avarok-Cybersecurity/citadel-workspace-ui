@@ -39,7 +39,7 @@ export function OfflineBanner() {
     }
     const publish = (): void => root.style.setProperty('--offline-banner-height', `${el.offsetHeight}px`);
     publish();
-    const observer = new ResizeObserver(publish);
+    const observer: ResizeObserver = new ResizeObserver(publish);
     observer.observe(el);
     return (): void => {
       observer.disconnect();

@@ -105,7 +105,7 @@ export function useJoinRegistration(
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const { name, value } = e.target;
     setFormData(prev => {
-      const next = { ...prev, [name]: value };
+      const next: { fullName: string; username: string; password: string; confirmPassword: string; } = { ...prev, [name]: value };
       // Reported up as it is typed, so a step back does not take it with it.
       draft?.onChange(next);
       return next;
@@ -168,10 +168,10 @@ export function useJoinRegistration(
       debugLog('Join', "Registering user:", formData.username, "to", serverAddress);
       const requestId = crypto.randomUUID();
 
-      const responsePromise = new Promise<{ cid: string }>((resolve, reject): void => {
+      const responsePromise: Promise<{ cid: string; }> = new Promise<{ cid: string }>((resolve, reject): void => {
         let handler: ((raw: unknown) => void) | null = null;
 
-        const timeout = setTimeout((): void => {
+        const timeout: NodeJS.Timeout = setTimeout((): void => {
           if (handler) eventEmitter.off('websocket-message', handler);
           reject(new Error('Registration timed out after 30 seconds'));
         }, 30000);
@@ -198,7 +198,7 @@ export function useJoinRegistration(
       debugLog('Join', 'Registration request sent with ID:', requestId);
       setConnectStatus("authenticating");
 
-      const response = await responsePromise;
+      const response: { cid: string; } = await responsePromise;
       // No "loading" step: it was set here and replaced two statements later,
       // so the "Fetching your workspace data..." bar described work that had
       // already finished and was visible for a single frame.

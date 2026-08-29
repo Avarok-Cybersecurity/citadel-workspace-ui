@@ -142,7 +142,7 @@ class InstanceInboundRouter {
     messageType: string,
     requestId: string,
   ): boolean {
-    const pending = this.pendingRequestMap.get(requestId);
+    const pending: { instanceId: string; timestamp: number; } | undefined = this.pendingRequestMap.get(requestId);
     if (!pending) return false;
 
     debugLog('InstanceInboundRouter',

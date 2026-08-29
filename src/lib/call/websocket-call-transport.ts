@@ -69,11 +69,11 @@ export class WebSocketCallTransport implements CallTransport {
       operationName: 'MediaOpen',
       matcher: {
         matchSuccess: (message) => {
-          const opened = message.MediaSessionOpened as { request_id?: string } | undefined;
+          const opened: { request_id?: string; } | undefined = message.MediaSessionOpened as { request_id?: string } | undefined;
           return opened?.request_id === requestId ? true : undefined;
         },
         matchFailure: (message) => {
-          const failed = message.MediaSessionFailed as
+          const failed: { request_id?: string; message?: string; } | undefined = message.MediaSessionFailed as
             | { request_id?: string; message?: string }
             | undefined;
           if (failed?.request_id !== requestId) return undefined;

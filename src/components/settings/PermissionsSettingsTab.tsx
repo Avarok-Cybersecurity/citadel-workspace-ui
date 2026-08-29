@@ -49,7 +49,7 @@ export function PermissionsSettingsTab() {
   }, [workspaceId, fetchPermissionsForDomain]);
 
   // Group nodes by parent/child hierarchy using parent_id relationships
-  const nodesWithChildren = useMemo(() => {
+  const nodesWithChildren: { id: string; name: string; entityType: NodeEntityType; children: { id: string; name: string; entityType: NodeEntityType; }[]; }[] = useMemo((): { id: string; name: string; entityType: NodeEntityType; children: { id: string; name: string; entityType: NodeEntityType; }[]; }[] => {
     const allNodes = Object.values(state.nodes);
     const childParentIds: Set<string | null> = new Set(allNodes.filter(n => n.parent_id).map(n => n.parent_id));
     const parentNodes = allNodes.filter(n => childParentIds.has(n.id));

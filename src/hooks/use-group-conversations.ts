@@ -49,7 +49,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   const sortedGroups = useSortedGroups(groups);
 
   // Create a new group
-  const createGroup = useCallback(
+  const createGroup: (name: string, initialMembers: Array<{ cid: string; username: string; roleId?: string; }>) => Promise<string> = useCallback(
     async (
       name: string,
       initialMembers: Array<{ cid: string; username: string; roleId?: string }>
@@ -66,7 +66,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   );
 
   // Invite a peer to a group
-  const invitePeer = useCallback(
+  const invitePeer: (groupId: string, peerCid: string) => Promise<void> = useCallback(
     async (groupId: string, peerCid: string): Promise<void> => {
       try {
         await sendGroupInvite(groupId, peerCid);
@@ -80,7 +80,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   );
 
   // Leave a group
-  const leaveGroup = useCallback(async (groupId: string): Promise<void> => {
+  const leaveGroup: (groupId: string) => Promise<void> = useCallback(async (groupId: string): Promise<void> => {
     try {
       await sendGroupLeave(groupId);
       setGroups(prev => prev.filter(g => g.id !== groupId));
@@ -92,7 +92,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   }, [setError, setGroups]);
 
   // Kick a member from a group
-  const kickMember = useCallback(
+  const kickMember: (groupId: string, memberCid: string) => Promise<void> = useCallback(
     async (groupId: string, memberCid: string): Promise<void> => {
       try {
         await sendGroupKick(groupId, memberCid);
@@ -106,7 +106,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   );
 
   // Update a member's role (local only for now - role data is stored locally)
-  const updateMemberRole = useCallback(
+  const updateMemberRole: (groupId: string, memberCid: string, roleId: string) => Promise<void> = useCallback(
     async (groupId: string, memberCid: string, roleId: string): Promise<void> => {
       const memberCidBigint: bigint = BigInt(memberCid);
       setGroups(prev =>
@@ -140,7 +140,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   // is derived from `groups`: new array, new getGroup, effect re-runs, call
   // again. Opening any group chat was a perpetual render-and-write loop that
   // ended either in a hot tab or in React's "Maximum update depth exceeded".
-  const markAsRead = useCallback((groupId: string): void => {
+  const markAsRead: (groupId: string) => void = useCallback((groupId: string): void => {
     setGroups(prev => markGroupRead(prev, groupId));
   }, [setGroups]);
 

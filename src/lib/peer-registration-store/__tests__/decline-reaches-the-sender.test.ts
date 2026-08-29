@@ -15,7 +15,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const h = vi.hoisted(() => ({ sent: [] as Array<Record<string, unknown>>, fail: false }));
+const h: { sent: Array<Record<string, unknown>>; fail: boolean; } = vi.hoisted((): { sent: Array<Record<string, unknown>>; fail: boolean; } => ({ sent: [] as Array<Record<string, unknown>>, fail: false }));
 
 vi.mock('@/lib/websocket-service', () => ({
   websocketService: {

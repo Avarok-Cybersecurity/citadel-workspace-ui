@@ -102,7 +102,7 @@ async function fetchActiveSessions(
 
     const requestId = crypto.randomUUID();
 
-    const responsePromise = new Promise<{ sessions?: ActiveSession[] }>((resolve, reject): void => {
+    const responsePromise: Promise<{ sessions?: ActiveSession[]; }> = new Promise<{ sessions?: ActiveSession[] }>((resolve, reject): void => {
       state.setPendingRequest(requestId, { resolve: resolve as (value: unknown) => void, reject });
 
       setTimeout(() => {
@@ -115,7 +115,7 @@ async function fetchActiveSessions(
 
     await io.sendWebSocketMessage({ GetSessions: { request_id: requestId } });
 
-    const response = await failOnSocketLoss('GetSessions', responsePromise);
+    const response: { sessions?: ActiveSession[]; } = await failOnSocketLoss('GetSessions', responsePromise);
     return { ok: true, sessions: response.sessions || [] };
   } catch (error) {
     debugLog('ConnectionService', 'Failed to get active sessions', error);

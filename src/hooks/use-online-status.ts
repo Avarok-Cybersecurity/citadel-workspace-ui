@@ -53,7 +53,7 @@ export function useOnlineStatus(): OnlineStatus {
 
   useEffect(() => {
     if (!justReconnected) return;
-    const timer = setTimeout((): void => setJustReconnected(false), RECONNECTED_NOTICE_MS);
+    const timer: NodeJS.Timeout = setTimeout((): void => setJustReconnected(false), RECONNECTED_NOTICE_MS);
     // Cleared on unmount and on a further change, so a flapping connection
     // cannot leave a stale "Back online" on screen.
     return (): void => clearTimeout(timer);

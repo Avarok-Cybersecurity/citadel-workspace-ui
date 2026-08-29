@@ -39,7 +39,7 @@ interface ConnectionHandlerState {
   orphanSessionCid: string | null;
 }
 
-export function useConnectionHandler() {
+export function useConnectionHandler(): { showConnectionRetry: boolean; connectionError: string | null; orphanSessionCid: string | null; setShowConnectionRetry: (v: boolean) => void; } {
   const [state, setState] = useState<ConnectionHandlerState>({
     retry: NOT_FAILING,
     connectionError: null,
@@ -183,7 +183,7 @@ export function useConnectionHandler() {
       setState(prev => (prev.retry === NOT_FAILING ? prev : { ...prev, retry: onSuccess() }));
     };
 
-    const handleSessionAlreadyConnected = makeSessionAlreadyConnectedHandler({ toast, setState });
+    const handleSessionAlreadyConnected: (event: { cid: string; message: string; }) => Promise<void> = makeSessionAlreadyConnectedHandler({ toast, setState });
 
     eventEmitter.on('connection-failure', handleConnectionFailure);
     eventEmitter.on('on-ws-connection-success', handleConnectionSuccess);

@@ -48,13 +48,13 @@ export class FilePicker {
 
     return failOnSocketLoss('PickFile', new Promise((resolve, reject) => {
       // Longer timeout for file picker - user interaction can take time
-      const timeout = setTimeout((): void => {
+      const timeout: NodeJS.Timeout = setTimeout((): void => {
         eventEmitter.off('websocket-message', handleMessage);
         reject(new Error('File picker timed out'));
       }, TIMEOUT.FILE_PICKER_MS); // 2 minute timeout
 
       const handleMessage = (message: Record<string, unknown>): void => {
-        const msg = message as {
+        const msg: { PickFileSuccess?: { request_id: string; file_path: string; file_name: string; file_size: bigint; }; PickFileFailure?: { request_id: string; message?: string; }; } = message as {
           PickFileSuccess?: { request_id: string; file_path: string; file_name: string; file_size: bigint };
           PickFileFailure?: { request_id: string; message?: string };
         };

@@ -20,7 +20,7 @@ import { render, cleanup, act, waitFor } from '@testing-library/react';
 import { toast } from 'sonner';
 import { Toaster } from '../sonner';
 
-vi.mock('next-themes', () => ({ useTheme: () => ({ theme: 'light' }) }));
+vi.mock('next-themes', (): { useTheme: () => { theme: string; }; } => ({ useTheme: (): { theme: string; } => ({ theme: 'light' }) }));
 
 const isMobile = vi.fn();
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => isMobile() }));

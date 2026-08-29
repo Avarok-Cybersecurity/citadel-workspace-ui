@@ -99,7 +99,7 @@ export function useP2PMessages({
       messenger.markMessagesAsRead(peerCid).catch(err => debugLog('UseP2PMessages', 'Error:', err));
     }
 
-    const refreshTimeout = setTimeout((): void => {
+    const refreshTimeout: NodeJS.Timeout = setTimeout((): void => {
       const conversation = messenger.getConversation(peerCid);
       if (conversation && conversation.messages.length > 0) {
         setMessages(prev => mergeMessages(prev, conversation.messages));
@@ -174,7 +174,7 @@ export function useP2PMessages({
     }
   }, [peerCid, messenger]);
 
-  const handleEditMessage = useCallback(async (messageId: string, content: string): Promise<void> => {
+  const handleEditMessage: (messageId: string, content: string) => Promise<void> = useCallback(async (messageId: string, content: string): Promise<void> => {
     try {
       await messenger.editMessage(peerCid, messageId, content);
     } catch (error) {
@@ -185,7 +185,7 @@ export function useP2PMessages({
     }
   }, [peerCid, messenger]);
 
-  const handleDeleteMessage = useCallback(async (messageId: string): Promise<void> => {
+  const handleDeleteMessage: (messageId: string) => Promise<void> = useCallback(async (messageId: string): Promise<void> => {
     // Asked first; same reasoning as the group chat's delete.
     if (!(await confirm(DELETE_MESSAGE_PROMPT))) return;
 

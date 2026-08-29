@@ -12,15 +12,15 @@ import { describe, it, expect, vi } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';
 import { awaitWriteResponse } from '../await-write-response';
 
-const ownAnswer = {
+const ownAnswer: { GroupMessageNotification: { group_id: string; message: { content: string; }; }; } = {
   GroupMessageNotification: { group_id: 'g1', message: { content: 'my text' } },
 };
-const someoneElse = {
+const someoneElse: { GroupMessageNotification: { group_id: string; message: { content: string; }; }; } = {
   GroupMessageNotification: { group_id: 'g1', message: { content: 'their text' } },
 };
 
 const matcher = (payload: unknown): boolean => {
-  const p = payload as { group_id?: string; message?: { content?: string } };
+  const p: { group_id?: string; message?: { content?: string; }; } = payload as { group_id?: string; message?: { content?: string } };
   return p?.group_id === 'g1' && p?.message?.content === 'my text';
 };
 

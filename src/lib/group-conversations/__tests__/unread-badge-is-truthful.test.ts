@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const h = vi.hoisted(() => ({ cid: null as bigint | null }));
+const h: { cid: bigint | null; } = vi.hoisted((): { cid: bigint | null; } => ({ cid: null as bigint | null }));
 vi.mock('@/lib/multi-instance/instance-manager', () => ({
   instanceManager: { get cid() { return h.cid; } },
 }));

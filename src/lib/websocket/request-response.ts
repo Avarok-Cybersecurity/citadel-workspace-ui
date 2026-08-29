@@ -58,7 +58,7 @@ export function requestResponse<T>(options: RequestResponseOptions<T>): Promise<
       eventEmitter.off('websocket-disconnected', onDisconnected);
     };
 
-    const timeout = setTimeout((): void => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       cleanup();
       reject(new Error(`${operationName} request timed out`));
     }, timeoutMs);
@@ -118,7 +118,7 @@ export function requestResponseSoft(options: {
       eventEmitter.off('websocket-disconnected', onDisconnected);
     };
 
-    const timeout = setTimeout((): void => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       cleanup();
       if (onTimeout) onTimeout();
       resolve();

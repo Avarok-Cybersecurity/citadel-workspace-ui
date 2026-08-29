@@ -37,7 +37,7 @@ function harness(storeFails: boolean) {
   return { state, io };
 }
 
-const params = {
+const params: { username: string; password: string; serverAddress: string; fullName: string; cid: bigint; storeCredentials: boolean; securitySettings: undefined; serverPassword: undefined; } = {
   username: 'alice',
   password: 'pw',
   serverAddress: '127.0.0.1:12349',

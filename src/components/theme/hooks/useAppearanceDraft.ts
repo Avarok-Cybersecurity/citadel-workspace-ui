@@ -90,7 +90,7 @@ export function useAppearanceDraft({ open, onOpenChange, onSave }: UseAppearance
     ? PREVIEW_REGIONS.find((r) => r.token === selectedToken) ?? null
     : null;
 
-  const editDraft = useCallback(
+  const editDraft: (change: (t: WorkspaceTheme) => WorkspaceTheme) => void = useCallback(
     (change: (t: WorkspaceTheme) => WorkspaceTheme) => {
       setDraft((current) => {
         // Editing a preset copies it first, so presets stay pristine and
@@ -102,7 +102,7 @@ export function useAppearanceDraft({ open, onOpenChange, onSave }: UseAppearance
     [allThemes],
   );
 
-  const handleColorChange = useCallback(
+  const handleColorChange: (color: HslColor) => void = useCallback(
     (color: HslColor) => {
       if (!selection) return;
       if (selection.kind === 'icon') {

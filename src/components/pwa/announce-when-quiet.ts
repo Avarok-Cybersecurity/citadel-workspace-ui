@@ -59,10 +59,10 @@ export function announceWhenQuiet(
     announce();
   };
 
-  const poll = setInterval((): void => {
+  const poll: NodeJS.Timeout = setInterval((): void => {
     if (!isBusy()) finish();
   }, pollMs);
-  const giveUp = setTimeout(finish, waitMs);
+  const giveUp: NodeJS.Timeout = setTimeout(finish, waitMs);
 
   return () => {
     done = true;

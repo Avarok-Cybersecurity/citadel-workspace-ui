@@ -74,7 +74,7 @@ import { ensureFillContrast, ensureTextContrast } from './palette-contrast';
 export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
   const { background, primary, primaryAccent } = seed;
   const step: { card: number; surface: number; accent: number; border: number; input: number; } = ELEVATION[mode];
-  const status = DEFAULT_STATUS[mode];
+  const status: { destructive: HslColor; success: HslColor; warning: HslColor; } = DEFAULT_STATUS[mode];
 
   const rawCard: HslColor = lighten(background, step.card);
   const rawSurface: HslColor = lighten(background, step.surface);
@@ -178,7 +178,7 @@ function mutedAgainst(surface: HslColor, foreground: HslColor): HslColor {
   const towardSurface: 1 | -1 = foreground.l > surface.l ? -1 : 1;
 
   for (let offset: number = 30; offset >= 0; offset -= 2) {
-    const candidate = { ...foreground, l: foreground.l + towardSurface * offset };
+    const candidate: { l: number; h: number; s: number; } = { ...foreground, l: foreground.l + towardSurface * offset };
     if (contrastRatio(surface, candidate) >= 4.5) return candidate;
   }
   return foreground;

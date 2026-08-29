@@ -49,7 +49,7 @@ export function createServiceModules(
   errorHandler: ((error: Error) => void) | undefined,
   callbacks: ServiceCallbacks
 ): ServiceModules {
-  const moduleConfig = {
+  const moduleConfig: { init: () => Promise<void>; sendRequest: (req: unknown, reqId?: string) => Promise<void>; getClient: () => WorkspaceClient | null; } = {
     init: callbacks.init,
     sendRequest: (req: unknown, reqId?: string): Promise<void> => callbacks.sendRequest(req as Record<string, unknown>, reqId),
     getClient: callbacks.getClient,

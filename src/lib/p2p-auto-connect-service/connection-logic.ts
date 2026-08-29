@@ -196,7 +196,7 @@ async function getRegisteredPeersViaGetSessions(currentCid: bigint): Promise<Arr
     const mySession = sessions.find(s => s.cid === currentCid);
 
     // Object.keys on a Map is always [], so this branch was always taken.
-    const wirePeers = wireMapEntries<{ peer_username?: string }>(mySession?.peer_connections, 'peer_connections');
+    const wirePeers: [string, { peer_username?: string; }][] = wireMapEntries<{ peer_username?: string }>(mySession?.peer_connections, 'peer_connections');
     if (wirePeers.length === 0) {
       debugLog('P2PAutoConnectService', 'P2PAutoConnect: No peer_connections in session, using local peer registry...');
       const { registeredPeers } = p2pRegistrationService.getPeers();

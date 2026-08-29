@@ -22,7 +22,7 @@ export const Connect = () => {
   const fetchServers: () => Promise<void> = useCallback(async (): Promise<void> => {
     try {
       // Using "1" as a valid u64 string representation for the connect page
-      const response = await listKnownServers({ cid: "1" });
+      const response: { servers: StoredServer[]; } = await listKnownServers({ cid: "1" });
       setServers(response.servers);
       if (response.servers.length > 0) {
         setSelectedServer(response.servers[0].serverAddress);

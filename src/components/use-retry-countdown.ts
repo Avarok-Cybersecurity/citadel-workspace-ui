@@ -60,7 +60,7 @@ export function useRetryCountdown({
       }
     };
 
-    const interval = setInterval(updateProgress, 100);
+    const interval: NodeJS.Timeout = setInterval(updateProgress, 100);
 
     return (): void => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps

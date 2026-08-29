@@ -17,9 +17,9 @@ import type { CallMediaKinds } from '@/types/p2p-commands';
 const AUDIO: CallMediaKinds = { audio: true, video: false, screen: false };
 const VIDEO: CallMediaKinds = { audio: true, video: true, screen: false };
 
-const ALICE = { cid: 1n, username: 'alice' };
-const BOB = { cid: 2n, username: 'bob' };
-const CAROL = { cid: 3n, username: 'carol' };
+const ALICE: { cid: bigint; username: string; } = { cid: 1n, username: 'alice' };
+const BOB: { cid: bigint; username: string; } = { cid: 2n, username: 'bob' };
+const CAROL: { cid: bigint; username: string; } = { cid: 3n, username: 'carol' };
 
 function outgoing(invitees = [BOB], roomId: string | null = null): CallState {
   return reduce(null, {
@@ -199,7 +199,7 @@ describe('group calls', () => {
   });
 
   it('caps participants so the mesh stays survivable', () => {
-    const many = Array.from({ length: MAX_VIDEO_PARTICIPANTS }, (_, i) => ({
+    const many: { cid: bigint; username: string; }[] = Array.from({ length: MAX_VIDEO_PARTICIPANTS }, (_, i): { cid: bigint; username: string; } => ({
       cid: BigInt(i + 10),
       username: `user${i}`,
     }));
@@ -211,7 +211,7 @@ describe('group calls', () => {
   });
 
   it('frees a slot when someone leaves', () => {
-    const many = Array.from({ length: MAX_VIDEO_PARTICIPANTS }, (_, i) => ({
+    const many: { cid: bigint; username: string; }[] = Array.from({ length: MAX_VIDEO_PARTICIPANTS }, (_, i): { cid: bigint; username: string; } => ({
       cid: BigInt(i + 10),
       username: `user${i}`,
     }));

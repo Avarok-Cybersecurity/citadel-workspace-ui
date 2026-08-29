@@ -46,7 +46,7 @@ export function createTestService(
     sendInternalServiceRequest: vi.fn(),
   });
 
-  const io = (service as unknown as { io: { execute: (i: RevfsIntent) => Promise<RevfsIntentResult> } }).io;
+  const io: { execute: (i: RevfsIntent) => Promise<RevfsIntentResult>; } = (service as unknown as { io: { execute: (i: RevfsIntent) => Promise<RevfsIntentResult> } }).io;
   const state: RevfsState = getState(service);
 
   io.execute = vi.fn(async (intent: RevfsIntent) => {

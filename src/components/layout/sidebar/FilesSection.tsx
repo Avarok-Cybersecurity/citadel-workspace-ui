@@ -146,14 +146,14 @@ export const FilesSection = () => {
     setSelectedFile(null);
   };
 
-  const params = new URLSearchParams(location.search);
+  const params: URLSearchParams = new URLSearchParams(location.search);
   const isFileManagerActive: boolean = params.get('section') === 'files';
 
   const handleFileManagerClick = async (): Promise<void> => {
     // Deletes nodeId from the URL, which unmounts the editor.
     if (!(await mayLeaveEditor(confirm))) return;
 
-    const newParams = new URLSearchParams(location.search);
+    const newParams: URLSearchParams = new URLSearchParams(location.search);
     newParams.set('section', 'files');
     newParams.delete('nodeId');
     newParams.delete('showP2P');

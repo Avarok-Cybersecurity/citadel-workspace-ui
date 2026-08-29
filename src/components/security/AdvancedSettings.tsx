@@ -62,7 +62,7 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps) =>
   };
 
   const handleSavePSK = (): void => {
-    const newSettings = { ...values.headerObfuscatorSettings, mode: 'psk', psk: psk };
+    const newSettings: { mode: string; psk: string; } = { ...values.headerObfuscatorSettings, mode: 'psk', psk: psk };
     handleValueChange('headerObfuscatorSettings', newSettings);
     setShowPSKDialog(false);
   };

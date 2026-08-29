@@ -20,7 +20,7 @@ import type { DisconnectStatus } from '@/components/LoadingModal';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 
-export function useSessionExit() {
+export function useSessionExit(): { showDisconnectModal: boolean; disconnectStatus: DisconnectStatus; disconnectError: string | undefined; handleExit: () => void; handleSignOut: () => Promise<void>; handleDisconnectComplete: () => void; } {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);

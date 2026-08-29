@@ -11,9 +11,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-const state = { canInstall: false, needsManualInstall: false };
+const state: { canInstall: boolean; needsManualInstall: boolean; } = { canInstall: false, needsManualInstall: false };
 vi.mock('../use-install-action', () => ({
-  useInstallAction: () => ({ ...state, installNow: (): void => {} }),
+  useInstallAction: (): { installNow: () => void; canInstall: boolean; needsManualInstall: boolean; } => ({ ...state, installNow: (): void => {} }),
 }));
 
 import { InstallAppButton } from '../InstallAppButton';

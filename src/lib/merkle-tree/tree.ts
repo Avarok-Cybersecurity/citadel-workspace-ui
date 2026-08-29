@@ -178,7 +178,7 @@ export class MerkleTree<T, C = Uint8Array> {
     return this.strategy.reconstruct(this.chunks.map(c => c.data));
   }
 
-  getMetadata() {
+  getMetadata(): { createdAt: number; sourceDataHash: string; strategyType: string; } {
     return { ...this.metadata };
   }
 

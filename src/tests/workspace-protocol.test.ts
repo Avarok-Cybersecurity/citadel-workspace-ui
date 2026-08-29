@@ -21,7 +21,7 @@ describe('Workspace Protocol', () => {
     expect(payload.Request?.Message).toHaveProperty('contents');
 
     // Verify the contents are preserved
-    const contents = payload.Request?.Message?.contents;
+    const contents: Uint8Array<ArrayBufferLike> | undefined = payload.Request?.Message?.contents;
     expect(contents instanceof Uint8Array).toBe(true);
     expect(Array.from(contents as Uint8Array)).toEqual([1, 2, 3, 4, 5]);
   });
@@ -36,7 +36,7 @@ describe('Workspace Protocol', () => {
     debugLog('WorkspaceProtocolTest', 'Original contents type:', payload.Request?.Message?.contents?.constructor.name);
 
     // Serialize
-    const serialized = serializeWorkspacePayload(payload);
+    const serialized: Uint8Array<ArrayBufferLike> = serializeWorkspacePayload(payload);
     debugLog('WorkspaceProtocolTest', 'Serialized type:', serialized?.constructor.name);
 
     // Deserialize
@@ -50,7 +50,7 @@ describe('Workspace Protocol', () => {
     expect(deserialized.Request?.Message).toHaveProperty('contents');
 
     // Verify the binary data is correctly preserved through serialization/deserialization
-    const deserializedContents = deserialized.Request?.Message?.contents;
+    const deserializedContents: Uint8Array<ArrayBufferLike> | undefined = deserialized.Request?.Message?.contents;
     expect(deserializedContents instanceof Uint8Array).toBe(true);
     expect(Array.from(deserializedContents as Uint8Array)).toEqual([1, 2, 3, 4, 5]);
   });
@@ -64,7 +64,7 @@ describe('Workspace Protocol', () => {
     debugLog('WorkspaceProtocolTest', 'Empty contents type:', payload.Request?.Message?.contents?.constructor.name);
 
     // Serialize and then deserialize
-    const serialized = serializeWorkspacePayload(payload);
+    const serialized: Uint8Array<ArrayBufferLike> = serializeWorkspacePayload(payload);
     const deserialized = deserializeWorkspacePayload(serialized);
 
     debugLog('WorkspaceProtocolTest', 'Deserialized empty payload:', deserialized);
@@ -75,7 +75,7 @@ describe('Workspace Protocol', () => {
 
     // Verify structure and content (uses Pascal case to match Rust serialization)
     expect(deserialized.Request?.Message?.contents).toBeDefined();
-    const contents = deserialized.Request?.Message?.contents;
+    const contents: Uint8Array<ArrayBufferLike> | undefined = deserialized.Request?.Message?.contents;
 
     // Instead of checking instanceof, check if it's array-like and has expected properties
     if (contents) {
@@ -95,11 +95,11 @@ describe('Workspace Protocol', () => {
     const payload = createMessagePayload(largeData);
 
     // Serialize and then deserialize
-    const serialized = serializeWorkspacePayload(payload);
+    const serialized: Uint8Array<ArrayBufferLike> = serializeWorkspacePayload(payload);
     const deserialized = deserializeWorkspacePayload(serialized);
 
     // Verify the contents length (uses Pascal case to match Rust serialization)
-    const deserializedContents = deserialized.Request?.Message?.contents as Uint8Array;
+    const deserializedContents: Uint8Array<ArrayBufferLike> = deserialized.Request?.Message?.contents as Uint8Array;
     expect(deserializedContents instanceof Uint8Array).toBe(true);
     expect(deserializedContents.length).toEqual(1024);
 

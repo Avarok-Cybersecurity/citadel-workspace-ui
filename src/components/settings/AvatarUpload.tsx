@@ -88,7 +88,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     e.target.value = '';
   }, [handleFile]);
 
-  const handleRemove = useCallback((e: React.MouseEvent): void => {
+  const handleRemove: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
     e.stopPropagation();
     setPreview(null);
     setError(null);

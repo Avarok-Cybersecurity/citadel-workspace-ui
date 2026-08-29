@@ -21,10 +21,10 @@
 import { formatClock, formatDay } from '@/lib/format-time';
 
 /** The clock beside a message. Canonical implementation: `lib/format-time`. */
-export const formatTime = formatClock;
+export const formatTime: (timestamp: number | bigint) => string = formatClock;
 
 /** Today / Yesterday / a date, for separators. Canonical: `lib/format-time`. */
-export const formatDate = formatDay;
+export const formatDate: (timestamp: number | bigint) => string = formatDay;
 
 /**
  * Extract initials from a name (max 2 characters)

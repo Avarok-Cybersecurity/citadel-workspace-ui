@@ -12,7 +12,7 @@ import { describe, it, expect } from 'vitest';
 import { toGroupEvents } from '../group-events';
 
 const SELF = 100n;
-const KEY = { cid: 7n, mgid: 42n };
+const KEY: { cid: bigint; mgid: bigint; } = { cid: 7n, mgid: 42n };
 
 /** Roster stand-in: names 9n, leaves everyone else to the cid-string fallback. */
 const peerName = (cid: bigint): string => (cid === 9n ? 'bob' : cid.toString());

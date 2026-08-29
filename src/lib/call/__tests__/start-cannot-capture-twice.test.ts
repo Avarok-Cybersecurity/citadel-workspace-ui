@@ -52,7 +52,7 @@ beforeEach(() => {
   // The pump reads frames off this; a reader that never yields keeps the pump
   // idle without it throwing, which is all these tests need from it.
   g.MediaStreamTrackProcessor = function (this: Record<string, unknown>): void {
-    this.readable = { getReader: () => ({ read: (): Promise<unknown> => new Promise((): void => {}), cancel: (): Promise<void> => Promise.resolve() }) };
+    this.readable = { getReader: (): { read: () => Promise<unknown>; cancel: () => Promise<void>; } => ({ read: (): Promise<unknown> => new Promise((): void => {}), cancel: (): Promise<void> => Promise.resolve() }) };
   };
   g.MediaStreamTrackGenerator = function (this: Record<string, unknown>): void {
     this.writable = { getWriter: () => ({ write: vi.fn(), close: vi.fn() }) };

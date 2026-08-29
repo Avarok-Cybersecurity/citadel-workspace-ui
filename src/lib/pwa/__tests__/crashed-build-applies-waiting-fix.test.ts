@@ -11,9 +11,9 @@ import { applyWaitingUpdate, reloadApplyingAnyWaitingUpdate } from '../apply-wai
 
 const original = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
 
-function installContainer(registration: unknown) {
+function installContainer(registration: unknown): { fire: (type: string) => void; } {
   const listeners: Record<string, (() => void)[]> = {};
-  const container = {
+  const container: { getRegistration: () => Promise<unknown>; addEventListener: (type: string, fn: () => void) => void; removeEventListener: (type: string, fn: () => void) => void; } = {
     getRegistration: (): Promise<unknown> => Promise.resolve(registration),
     addEventListener: (type: string, fn: () => void): void => {
       (listeners[type] ??= []).push(fn);

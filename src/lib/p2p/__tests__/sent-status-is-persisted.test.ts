@@ -41,7 +41,7 @@ import type { P2PMessage } from '@/lib/p2p/p2p-types';
 const PEER = 42n;
 
 /** Captures exactly what would be written to storage. */
-function makeConfig() {
+function makeConfig(): { config: MessageSenderConfig; persisted: { id: string; updates: Partial<P2PMessage>; }[]; } {
   const persisted: Array<{ id: string; updates: Partial<P2PMessage> }> = [];
   const config: MessageSenderConfig = {
     getCurrentCid: async () => 7n,

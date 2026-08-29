@@ -226,7 +226,7 @@ export function useOrphanSessions() {
   useEventListener('on-ws-connection-success', handleWsConnectionSuccess);
 
   // Notification count handler
-  const handleUnreadCountChanged = useCallback((change: UnreadCountChange): void => {
+  const handleUnreadCountChanged: (change: UnreadCountChange) => void = useCallback((change: UnreadCountChange): void => {
     setNotificationCounts(new Map(change.byCid));
   }, []);
 

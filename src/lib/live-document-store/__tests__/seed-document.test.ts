@@ -40,7 +40,7 @@ describe('seedDocument', () => {
   it('survives the encode/decode that persistence puts it through', () => {
     // The editor mints its OWN Y.Doc on mount and loads persisted state into
     // it, so a seed that does not survive this round trip is not a seed.
-    const encoded = Y.encodeStateAsUpdate(seedDocument('carried across'));
+    const encoded: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(seedDocument('carried across'));
 
     const loaded = new Y.Doc();
     Y.applyUpdate(loaded, encoded);

@@ -117,7 +117,7 @@ describe('applyRemoteOp for new operations', () => {
   it('applies remote Rename', () => {
     let tree = createDefaultTree();
     [tree] = mkdir(tree, '/docs');
-    const op = { op_id: '1', op_type: RevfsOpType.Rename, path: '/docs', newName: 'documents', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; newName: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.Rename, path: '/docs', newName: 'documents', timestamp: Date.now() };
     const result = applyRemoteOp(tree, op, CID_B);
     expect(findNode(result, '/docs')).toBeNull();
     expect(findNode(result, '/documents')).not.toBeNull();
@@ -127,14 +127,14 @@ describe('applyRemoteOp for new operations', () => {
     let tree = createDefaultTree();
     [tree] = mkdir(tree, '/docs');
     [tree] = mkdir(tree, '/docs/reports');
-    const op = { op_id: '1', op_type: RevfsOpType.Rename, path: '/docs', newName: 'documents', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; newName: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.Rename, path: '/docs', newName: 'documents', timestamp: Date.now() };
     const result = applyRemoteOp(tree, op, CID_B);
     expect(findNode(result, '/documents/reports')).not.toBeNull();
   });
 
   it('ignores remote Rename for protected dirs', () => {
     const tree = createDefaultTree();
-    const op = { op_id: '1', op_type: RevfsOpType.Rename, path: SENT_FILES_DIR, newName: 'Outbox', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; newName: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.Rename, path: SENT_FILES_DIR, newName: 'Outbox', timestamp: Date.now() };
     const result = applyRemoteOp(tree, op, CID_B);
     expect(findNode(result, SENT_FILES_DIR)).not.toBeNull();
   });
@@ -143,7 +143,7 @@ describe('applyRemoteOp for new operations', () => {
     let tree = createDefaultTree();
     [tree] = mkdir(tree, '/docs');
     [tree] = mkdir(tree, '/files');
-    const op = { op_id: '1', op_type: RevfsOpType.Rename, path: '/docs', newName: 'files', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; newName: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.Rename, path: '/docs', newName: 'files', timestamp: Date.now() };
     const result = applyRemoteOp(tree, op, CID_B);
     expect(findNode(result, '/docs')).not.toBeNull();
     expect(findNode(result, '/files')).not.toBeNull();
@@ -153,7 +153,7 @@ describe('applyRemoteOp for new operations', () => {
     let tree = createDefaultTree();
     [tree] = mkdir(tree, '/docs');
     [tree] = mkdir(tree, '/archive');
-    const op = { op_id: '1', op_type: RevfsOpType.Move, path: '/docs', destPath: '/archive/docs', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; destPath: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.Move, path: '/docs', destPath: '/archive/docs', timestamp: Date.now() };
     const result = applyRemoteOp(tree, op, CID_B);
     expect(findNode(result, '/docs')).toBeNull();
     expect(findNode(result, '/archive/docs')).not.toBeNull();
@@ -164,7 +164,7 @@ describe('applyRemoteOp for new operations', () => {
     [tree] = mkdir(tree, '/docs');
     [tree] = mkdir(tree, '/docs/reports');
     [tree] = mkdir(tree, '/archive');
-    const op = { op_id: '1', op_type: RevfsOpType.Move, path: '/docs', destPath: '/archive/docs', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; destPath: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.Move, path: '/docs', destPath: '/archive/docs', timestamp: Date.now() };
     const result = applyRemoteOp(tree, op, CID_B);
     expect(findNode(result, '/archive/docs/reports')).not.toBeNull();
   });
@@ -172,7 +172,7 @@ describe('applyRemoteOp for new operations', () => {
   it('ignores remote Move for protected dirs', () => {
     let tree = createDefaultTree();
     [tree] = mkdir(tree, '/archive');
-    const op = { op_id: '1', op_type: RevfsOpType.Move, path: SENT_FILES_DIR, destPath: '/archive/sent', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; destPath: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.Move, path: SENT_FILES_DIR, destPath: '/archive/sent', timestamp: Date.now() };
     const result = applyRemoteOp(tree, op, CID_B);
     expect(findNode(result, SENT_FILES_DIR)).not.toBeNull();
   });
@@ -181,7 +181,7 @@ describe('applyRemoteOp for new operations', () => {
     let tree = createDefaultTree();
     [tree] = mkdir(tree, '/docs');
     [tree] = mkdir(tree, '/archive');
-    const op = { op_id: '1', op_type: RevfsOpType.Copy, path: '/docs', destPath: '/archive/docs', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; destPath: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.Copy, path: '/docs', destPath: '/archive/docs', timestamp: Date.now() };
     const result = applyRemoteOp(tree, op, CID_B);
     expect(findNode(result, '/docs')).not.toBeNull();
     expect(findNode(result, '/archive/docs')).not.toBeNull();
@@ -205,7 +205,7 @@ describe('applyRemoteOp for new operations', () => {
     [tree] = mkdir(tree, '/docs');
     [tree] = mkdir(tree, '/archive');
     [tree] = mkdir(tree, '/archive/docs');
-    const op = { op_id: '1', op_type: RevfsOpType.Copy, path: '/docs', destPath: '/archive/docs', timestamp: Date.now() };
+    const op: { op_id: string; op_type: RevfsOpType; path: string; destPath: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.Copy, path: '/docs', destPath: '/archive/docs', timestamp: Date.now() };
     const result = applyRemoteOp(tree, op, CID_B);
     const archiveDocs = findNode(result, '/archive/docs');
     expect(archiveDocs?.children?.length ?? 0).toBe(0);

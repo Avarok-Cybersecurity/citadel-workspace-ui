@@ -73,7 +73,7 @@ export function handleDivergenceMessage(
   if (message.action === 'full_resync') {
     // If we're the creator, send full state
     if (ctx.ownCid === ctx.creatorCid) {
-      const fullState = Y.encodeStateAsUpdate(ctx.doc);
+      const fullState: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(ctx.doc);
       sendSyncMessage(ctx, 'full_state', fullState, true);
     } else {
       // Request full state from creator

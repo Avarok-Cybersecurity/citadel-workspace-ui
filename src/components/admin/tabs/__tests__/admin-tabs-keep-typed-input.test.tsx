@@ -17,7 +17,7 @@ vi.mock('@/lib/workspace-service', () => ({
   default: { updateWorkspace: vi.fn(), updateNode: vi.fn() },
 }));
 
-const node = { id: 'n1', name: 'Design', description: 'The design office' };
+const node: { id: string; name: string; description: string; } = { id: 'n1', name: 'Design', description: 'The design office' };
 
 // Only the pieces GeneralTab reads; the real context type is far larger.
 const ctx = (nodes: Record<string, unknown>) =>
@@ -75,7 +75,7 @@ describe('GeneralTab', () => {
 
   it('re-seeds when the admin switches to a different entity', async () => {
     const user = userEvent.setup();
-    const nodes = { n1: node, n2: { id: 'n2', name: 'Legal', description: '' } };
+    const nodes: { n1: { id: string; name: string; description: string; }; n2: { id: string; name: string; description: string; }; } = { n1: node, n2: { id: 'n2', name: 'Legal', description: '' } };
     const { rerender } = render(
       <WorkspaceContext.Provider value={ctx(nodes)}>
         <GeneralTab entityType="office" entityId="n1" onClose={() => {}} />

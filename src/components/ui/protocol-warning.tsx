@@ -14,7 +14,7 @@ export const ProtocolWarning: React.FC = () => {
       setVisible(true);
       
       // Auto-dismiss after 10 seconds
-      const timer = setTimeout((): void => {
+      const timer: NodeJS.Timeout = setTimeout((): void => {
         setVisible(false);
       }, 10000);
       

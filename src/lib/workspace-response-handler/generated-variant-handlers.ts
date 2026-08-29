@@ -60,7 +60,7 @@ export function handleGeneratedVariants(
     //
     // Tolerates the old shape (a bare array) so a client running against a
     // server that predates the field still works, with the domain unknown.
-    const payload = response.Members as
+    const payload: { domain_id?: string | null; members: Record<string, unknown>[]; } | Record<string, unknown>[] = response.Members as
       | { domain_id?: string | null; members: Record<string, unknown>[] }
       | Record<string, unknown>[];
     const rawMembers: Record<string, unknown>[] = Array.isArray(payload) ? payload : payload.members;
@@ -154,7 +154,7 @@ export function handleGeneratedVariants(
   }
 
   if (isVariant(response, 'ServerCapabilities')) {
-    const caps = response.ServerCapabilities;
+    const caps: { allow_server_file_transfer: boolean; allow_server_revfs_storage: boolean; max_file_transfer_size_mb: bigint; revfs_storage_quota_mb: bigint; } = response.ServerCapabilities;
     debugLog('WorkspaceResponseHandler', 'ServerCapabilities received', caps);
     eventEmitter.emit('server:capabilities:loaded', {
       allowServerFileTransfer: caps.allow_server_file_transfer,

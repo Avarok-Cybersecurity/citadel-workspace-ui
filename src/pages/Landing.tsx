@@ -77,7 +77,7 @@ export const Landing = () => {
   useEffect(() => {
     if (searchParams.get('join') === '1') {
       setCurrentStep('server');
-      const next = new URLSearchParams(searchParams);
+      const next: URLSearchParams = new URLSearchParams(searchParams);
       next.delete('join');
       setSearchParams(next, { replace: true });
     }

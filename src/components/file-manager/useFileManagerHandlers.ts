@@ -57,7 +57,7 @@ export function useFileManagerHandlers({
   const confirm = useConfirm();
   const prompt = usePrompt();
 
-  const handleNewFolder = useCallback(async (parentPath: string): Promise<void> => {
+  const handleNewFolder: (parentPath: string) => Promise<void> = useCallback(async (parentPath: string): Promise<void> => {
     const name: string | null = await prompt({
       title: 'New folder',
       label: 'Folder name',
@@ -71,7 +71,7 @@ export function useFileManagerHandlers({
     mkdir(path).catch(err => toast.error(`Failed to create folder: ${err}`));
   }, [mkdir, prompt]);
 
-  const handleDelete = useCallback(async (node: RevfsNode): Promise<void> => {
+  const handleDelete: (node: RevfsNode) => Promise<void> = useCallback(async (node: RevfsNode): Promise<void> => {
     const isDirectory: boolean = node.type === 'directory';
     const ok: boolean = await confirm({
       title: isDirectory ? `Delete folder "${node.name}"?` : `Delete file "${node.name}"?`,
@@ -85,7 +85,7 @@ export function useFileManagerHandlers({
     removal.catch(err => toast.error(`Failed to delete: ${err}`));
   }, [rmdir, removeFile, confirm]);
 
-  const handleDownload = useCallback((node: RevfsNode): void => {
+  const handleDownload: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => {
     if (isDownloadableState(node.fileState)) {
       // No "initiated" branch: downloadFile now throws rather than resolving
       // undefined on failure, so there is no longer a state where we know the
@@ -100,16 +100,16 @@ export function useFileManagerHandlers({
     }
   }, [downloadFile]);
 
-  const handleUploadFile = useCallback((dirPath: string): void => {
+  const handleUploadFile: (dirPath: string) => void = useCallback((dirPath: string): void => {
     setUploadTargetDir(dirPath);
     fileInputRef.current?.click();
   }, [setUploadTargetDir, fileInputRef]);
 
-  const handleInfo = useCallback((node: RevfsNode): void => {
+  const handleInfo: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => {
     setPropertiesNode(node);
   }, [setPropertiesNode]);
 
-  const handleRename = useCallback(async (path: string, newName: string): Promise<void> => {
+  const handleRename: (path: string, newName: string) => Promise<void> = useCallback(async (path: string, newName: string): Promise<void> => {
     try {
       await rename(path, newName);
       toast.success(`Renamed to "${newName}"`);
@@ -118,19 +118,19 @@ export function useFileManagerHandlers({
     }
   }, [rename]);
 
-  const handleCut = useCallback((node: RevfsNode): void => {
+  const handleCut: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => {
     if (!currentTreeKey) return;
     cut([node], currentTreeKey);
     toast.info(`Cut: ${node.name}`);
   }, [cut, currentTreeKey]);
 
-  const handleCopy = useCallback((node: RevfsNode): void => {
+  const handleCopy: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => {
     if (!currentTreeKey) return;
     copyToClipboard([node], currentTreeKey);
     toast.info(`Copied: ${node.name}`);
   }, [copyToClipboard, currentTreeKey]);
 
-  const handlePaste = useCallback(async (destPath: string): Promise<void> => {
+  const handlePaste: (destPath: string) => Promise<void> = useCallback(async (destPath: string): Promise<void> => {
     if (!hasPasteItems || !currentTreeKey) return;
     if (clipboard.sourceTreeKey !== currentTreeKey) {
       toast.error('Cannot paste between different storage trees');
@@ -148,7 +148,7 @@ export function useFileManagerHandlers({
     }
   }, [hasPasteItems, currentTreeKey, clipboard, isCut, move, copy, clearClipboard]);
 
-  const handleDeleteMultiple = useCallback(async (nodes: RevfsNode[]): Promise<void> => {
+  const handleDeleteMultiple: (nodes: RevfsNode[]) => Promise<void> = useCallback(async (nodes: RevfsNode[]): Promise<void> => {
     const count: number = nodes.length;
     const ok: boolean = await confirm({
       title: `Delete ${count} item${count !== 1 ? 's' : ''}?`,

@@ -16,7 +16,7 @@ import { wireMapValues, wireMapEntries } from '@/lib/wire-map';
 
 describe('wireMapEntries', () => {
   it('reads a Map, which is what the WASM boundary actually delivers', () => {
-    const wire = new Map<bigint, { cid: bigint }>([[7n, { cid: 7n }]]);
+    const wire: Map<bigint, { cid: bigint; }> = new Map<bigint, { cid: bigint }>([[7n, { cid: 7n }]]);
     expect(wireMapValues(wire, 'test')).toEqual([{ cid: 7n }]);
     expect(wireMapEntries(wire, 'test')).toEqual([['7', { cid: 7n }]]);
   });

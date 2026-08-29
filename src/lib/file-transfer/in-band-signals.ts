@@ -28,7 +28,7 @@ import { debugLog } from '@/lib/debug-config';
 
 /** Serialize a layer payload and send it over the reliable P2P channel. */
 export async function sendLayerPayload(payload: P2PMessagingLayerPayload): Promise<void> {
-  const bytes = serializeP2PCommand({
+  const bytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand({
     type: P2PCommandType.MessagingLayerCommand,
     payload,
   });

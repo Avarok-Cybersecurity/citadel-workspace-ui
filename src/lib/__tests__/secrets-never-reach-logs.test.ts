@@ -39,7 +39,7 @@ describe('debug formatting', () => {
   });
 
   it('redacts secrets nested inside a session list', () => {
-    const sessions = { sessions: [{ username: 'alice', password: SECRET }], activeIndex: 0 };
+    const sessions: { sessions: { username: string; password: string; }[]; activeIndex: number; } = { sessions: [{ username: 'alice', password: SECRET }], activeIndex: 0 };
     expect(rendered(sessions)).not.toContain(SECRET);
   });
 
