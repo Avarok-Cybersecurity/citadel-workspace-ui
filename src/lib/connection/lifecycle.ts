@@ -150,6 +150,14 @@ export async function switchAccount(
     selectedUsername: username,
     selectedServerAddress: serverAddress,
     selectedCid: session.cid,
+  }, (selected): void => {
+    // Merged, not assigned: `currentConnectionInfo` is shared with the CID that
+    // ConnectSuccess writes, and assigning over it is what round 300 fixed.
+    state.updateCurrentConnectionInfo({
+      username: selected.username,
+      serverAddress: selected.serverAddress,
+      ...(selected.cid === undefined ? {} : { cid: selected.cid }),
+    });
   });
 
   if (state.isLeader) {

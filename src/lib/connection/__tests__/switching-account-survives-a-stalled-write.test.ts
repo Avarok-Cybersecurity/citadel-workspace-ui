@@ -20,16 +20,24 @@ function harness(selectStalls: boolean) {
   const session: { username: string; serverAddress: string; password: string; cid: bigint; } = {
     username: 'alice', serverAddress: '127.0.0.1:12349', password: 'pw', cid: 42n,
   };
-  const state: { findSession: ReturnType<typeof vi.fn>; isLeader: boolean } = {
+  const remembered: Partial<{ username: string; serverAddress: string; cid: bigint }> = {};
+  const state: {
+    findSession: ReturnType<typeof vi.fn>;
+    isLeader: boolean;
+    updateCurrentConnectionInfo: ReturnType<typeof vi.fn>;
+  } = {
     findSession: vi.fn(() => session),
     isLeader: true,
+    updateCurrentConnectionInfo: vi.fn((partial: Record<string, unknown>): void => {
+      Object.assign(remembered, partial);
+    }),
   };
   const io: { setSelectedUser: ReturnType<typeof vi.fn>; connect: ReturnType<typeof vi.fn> } = {
     // Never settles, which is what a blocked IndexedDB upgrade looks like.
     setSelectedUser: vi.fn(() => (selectStalls ? new Promise<void>(() => {}) : Promise.resolve())),
     connect: vi.fn(async () => {}),
   };
-  return { state, io, session };
+  return { state, io, session, remembered };
 }
 
 describe('switching account while tab context is stalled', () => {
@@ -53,7 +61,7 @@ describe('selectUserWithoutBlocking', () => {
     const io: { setSelectedUser: ReturnType<typeof vi.fn> } = { setSelectedUser: vi.fn((): Promise<void> => new Promise<void>((): void => {})) };
     const result: Promise<boolean> = selectUserWithoutBlocking(io as never, {
       selectedUsername: 'alice', selectedServerAddress: 'x',
-    });
+    }, (): void => {});
     await vi.advanceTimersByTimeAsync(60_000);
     expect(await result).toBe(false);
     vi.useRealTimers();
@@ -65,7 +73,7 @@ describe('selectUserWithoutBlocking', () => {
     expect(
       await selectUserWithoutBlocking(io as never, {
         selectedUsername: 'alice', selectedServerAddress: 'x',
-      }),
+      }, (): void => {}),
     ).toBe(true);
   });
 
@@ -76,7 +84,46 @@ describe('selectUserWithoutBlocking', () => {
     await expect(
       selectUserWithoutBlocking(io as never, {
         selectedUsername: 'alice', selectedServerAddress: 'x',
-      }),
+      }, (): void => {}),
     ).rejects.toThrow('quota exceeded');
+  });
+});
+
+describe('who this tab is signed in as, when the write never lands', () => {
+  it('is still readable in memory', async () => {
+    // The whole point of tolerating a stalled write. Without the in-memory
+    // mirror, `resolveCurrentUserId()` has two sources and both are empty:
+    // `currentConnectionInfo.username`, which switchAccount never set, and the
+    // tab-selected session, which is the write that just stalled. Every
+    // permission fetch then bails with "nobody is signed in on this tab" and
+    // every gated control on the page is refused for its lifetime.
+    vi.useFakeTimers();
+    const { state, io, session, remembered } = harness(true);
+    const done: Promise<void> = switchAccount(
+      'alice', '127.0.0.1:12349', state as never, io as never,
+      vi.fn(async () => {}), vi.fn(async () => { void session; }),
+    );
+    await vi.advanceTimersByTimeAsync(60_000);
+    await done;
+
+    expect(remembered.username).toBe('alice');
+    expect(remembered.cid).toBe(42n);
+    vi.useRealTimers();
+  });
+
+  it('is remembered by merging, not by replacing the record', async () => {
+    // `currentConnectionInfo` is shared with the CID that ConnectSuccess
+    // writes. Assigning over it is what round 300 fixed, in this same field.
+    vi.useFakeTimers();
+    const { state, io, session } = harness(true);
+    const done: Promise<void> = switchAccount(
+      'alice', '127.0.0.1:12349', state as never, io as never,
+      vi.fn(async () => {}), vi.fn(async () => { void session; }),
+    );
+    await vi.advanceTimersByTimeAsync(60_000);
+    await done;
+
+    expect(state.updateCurrentConnectionInfo).toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });

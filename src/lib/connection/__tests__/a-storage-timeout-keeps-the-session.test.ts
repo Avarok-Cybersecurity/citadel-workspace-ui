@@ -22,6 +22,7 @@ function harness(storeFails: boolean) {
     storedSessions: { sessions: [] as StoredSession[] },
     addOrUpdateSession: vi.fn(),
     setCurrentConnectionInfo: vi.fn(),
+    updateCurrentConnectionInfo: vi.fn(),
     setStoredSessions: vi.fn(),
     removeSession: vi.fn(),
   };

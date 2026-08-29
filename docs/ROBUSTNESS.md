@@ -16199,3 +16199,53 @@ parameter type (`Parameters<typeof saveOfficeContent>[0]`), which is what
 caught the `duration` field in round 326. Neither had drifted.
 
 Debt 60 → 52.
+
+## Round 328 — the admin's Edit button, and a comment that was true of one caller
+
+Five rounds of instrumentation on this button paid off. CI shard 2 now reports
+not a timeout but a sentence, in the button's own `title`:
+
+```
+64 × locator resolved to <button disabled
+     title="Your permissions here could not be checked: nobody is signed in
+            on this tab. Reload to try again." data-testid="office-edit-content">
+```
+
+That is the first of `fetchPermissions`'s three failure modes: it bailed before
+sending anything, because `resolveCurrentUserId()` returned null.
+
+It has two sources, and this is what makes both empty at once.
+`selectUserWithoutBlocking` races an IndexedDB write against a timeout and
+continues on expiry, which is right — IndexedDB stalls for ordinary reasons.
+Its docstring justified that with:
+
+> The selection is also held in memory by the caller, so a lost write costs the
+> selection on the NEXT page load, not this one.
+
+True of one caller. `handleAuthSuccess` writes `currentConnectionInfo` with the
+username immediately afterwards, so a stalled write there costs nothing.
+`switchAccount` — the file that helper was extracted *for* — has no in-memory
+copy at all. After a switch with a stalled write:
+
+| source | value |
+|---|---|
+| `currentConnectionInfo.username` | never set on this path |
+| tab-selected session (IndexedDB) | the write that just stalled |
+
+So every permission fetch bails, `usePermission`'s four attempts over 4.6s all
+bail the same way, and none of the three retry-reset events corresponds to "a
+session became selected". Every gated control on the page is refused for its
+lifetime, and the reason shown is accurate and unactionable.
+
+The mirror now happens inside `selectUserWithoutBlocking`, before the race and
+regardless of its outcome, through a **required** `remember` callback — one
+implementation means one place to remember, rather than a rule each caller is
+trusted to follow. Merged into `currentConnectionInfo`, not assigned over it;
+assigning over that exact field is what round 300 fixed.
+
+Negative control: deleting the mirror fails the two new tests and leaves the
+other four green, so they discriminate the fix rather than the file.
+
+This is the same class as the `duration` fixture two rounds ago and the
+workspace-metadata bug before it: **a comment that describes an invariant the
+callers are trusted to maintain, and one of them doesn't.**

@@ -133,6 +133,14 @@ export async function handleAuthSuccess(
       selectedUsername: params.username,
       selectedServerAddress: params.serverAddress,
       selectedCid: params.cid,
+    }, (selected): void => {
+      // Merged, not assigned: `currentConnectionInfo` is shared with the CID that
+      // ConnectSuccess writes, and assigning over it is what round 300 fixed.
+      state.updateCurrentConnectionInfo({
+        username: selected.username,
+        serverAddress: selected.serverAddress,
+        ...(selected.cid === undefined ? {} : { cid: selected.cid }),
+      });
     });
 
     if (params.cid !== undefined) {

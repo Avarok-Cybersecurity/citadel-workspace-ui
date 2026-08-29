@@ -34,6 +34,7 @@ function setup(): { io: ConnectionIO; state: ConnectionState; written: StoredSes
     storedSessions: stored,
     setStoredSessions: vi.fn(),
     setCurrentConnectionInfo: vi.fn(),
+    updateCurrentConnectionInfo: vi.fn(),
     addOrUpdateSession: vi.fn((session: StoredSessions['sessions'][number]) => {
       const i: number = stored.sessions.findIndex(s => s.username === session.username);
       if (i === -1) stored.sessions.push(session);

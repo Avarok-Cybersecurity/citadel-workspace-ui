@@ -19,6 +19,7 @@ function capture() {
     addOrUpdateSession: (session: StoredSession): void => { stored.push(session); },
     get storedSessions(): { sessions: StoredSession[]; activeSessionIndex: number; } { return { sessions: stored, activeSessionIndex: 0 }; },
     setCurrentConnectionInfo: vi.fn(),
+    updateCurrentConnectionInfo: vi.fn(),
     invalidateCache: vi.fn(),
   };
   const io: { storeSessionsToLocalDB: ReturnType<typeof vi.fn>; setSelectedUser: ReturnType<typeof vi.fn>; setWorkspaceConnectionId: ReturnType<typeof vi.fn>; updateConnectionService: ReturnType<typeof vi.fn>; saveRecentServer: ReturnType<typeof vi.fn> } = {
