@@ -23,7 +23,7 @@ export const ExitConfirmModal = ({
   onConfirm,
   userName,
   workspaceName = "your workspace",
-}: ExitConfirmModalProps) => {
+}: ExitConfirmModalProps): JSX.Element => {
   const handleConfirm = (): void => {
     onConfirm();
     onOpenChange(false);

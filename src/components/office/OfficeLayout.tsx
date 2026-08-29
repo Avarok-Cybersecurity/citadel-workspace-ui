@@ -25,7 +25,7 @@ export const OfficeLayout = ({
   children,
   canEdit = true,
   editDeniedReason,
-}: OfficeLayoutProps) => {
+}: OfficeLayoutProps): JSX.Element => {
   const location = useLocation();
   const navigate: NavigateFunction = useNavigate();
   const [showSettingsModal, setShowSettingsModal] = useState(false);

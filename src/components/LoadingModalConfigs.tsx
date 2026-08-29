@@ -74,7 +74,7 @@ export const DisconnectLoadingModal = ({
   workspaceName,
   errorMessage,
   onComplete,
-}: DisconnectLoadingModalProps) => (
+}: DisconnectLoadingModalProps): JSX.Element => (
   <LoadingModal
     open={open}
     status={status}
@@ -102,7 +102,7 @@ export const ConnectLoadingModal = ({
   username,
   errorMessage,
   onComplete,
-}: ConnectLoadingModalProps) => (
+}: ConnectLoadingModalProps): JSX.Element => (
   <LoadingModal
     open={open}
     status={status}

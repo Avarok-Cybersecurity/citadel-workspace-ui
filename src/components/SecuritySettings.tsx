@@ -43,7 +43,7 @@ export const SecuritySettings = ({
   onComplete,
   initialValues,
   isFromLogin = false
-}: SecuritySettingsProps) => {
+}: SecuritySettingsProps): JSX.Element => {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [settings, setSettings] = useState<SecuritySettingsValues>(DEFAULT_SECURITY_SETTINGS);
 

@@ -19,7 +19,7 @@ export const OrphanSessionIcon = ({
   onDisconnect,
   shouldGlow = false,
   unreadCount = 0,
-}: OrphanSessionIconProps) => {
+}: OrphanSessionIconProps): JSX.Element => {
   const initials: string = getWorkspaceInitials(workspaceName || session.username);
   const displayName: string = session.full_name || session.username;
 

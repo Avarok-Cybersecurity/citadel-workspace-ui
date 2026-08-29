@@ -50,7 +50,7 @@ export const LoadingModal = ({
   onCancel,
   timeoutMs = 60000,
   config,
-}: LoadingModalProps) => {
+}: LoadingModalProps): JSX.Element | null => {
   const [isVisible, setIsVisible] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
