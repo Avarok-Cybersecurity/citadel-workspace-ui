@@ -16989,3 +16989,54 @@ query answers none", returning `null` unconditionally would satisfy the defect
 test.
 
 2370 tests green; preflight 53/53.
+
+## Round 347 — the third site, and the one whose symptom lands furthest away
+
+Finishing the sweep. The last lenient consumer of `getActiveSessions` was in
+`use-auto-claim-session`, and it was asking the wrong question entirely:
+
+```ts
+const activeSessions = await connectionManager.getActiveSessions();
+const session = activeSessions.find(s => s.cid === currentConnection.cid);
+```
+
+It asked the internal service for the list of sessions, to search it for the CID
+**it was already connected with**, to recover a username and a server address —
+both of which `currentConnection` usually holds. A network round trip to learn
+something already in hand, on the path that decides whether this tab counts as
+signed in.
+
+And `getActiveSessions` returns an empty array when it cannot ask or is not
+answered. `find` then matched nothing, the selection was never written, and
+nothing said so.
+
+The cost lands nowhere near the cause. `resolveCurrentUserId` reads the tab
+selection, so every permission fetch bails with *"nobody is signed in on this
+tab"* and every gated control on the page refuses — the sentence round 328
+spent five rounds of instrumentation tracing back out of CI. This is a second
+way to produce it.
+
+`tabSelectionFromConnection` now takes it from the record we have; the query is
+made only for a CID-only record, which is what a bare `ConnectSuccess` leaves,
+and an unanswered query there is reported at `errorLog` rather than producing no
+selection in silence.
+
+Extracted as a pure function so the decision has tests, which it did not: the
+control is the half-a-pair case, because a guard checking `username` and not
+`serverAddress` writes a selection with `undefined` in it, which reads as a
+recorded answer and is not one.
+
+### The sweep, end to end
+
+| site | asked | did with a failure |
+|---|---|---|
+| `useOrphanSessions` (r345) | strict | kept the stale list — right in general, wrong for the row just removed |
+| `AccountManagementDialog` (r346) | lenient | showed every account as disconnected |
+| `use-auto-claim-session` (r347) | lenient | never recorded who the tab was using |
+| `useLoginHandler` | lenient | fails the login with its original error — a degradation, not a false claim |
+
+Three of the four were wrong, in three different ways, from one accessor whose
+docstring already said what would happen. Grepping the mechanism found two of
+them before a test did.
+
+2374 tests green; preflight 53/53.

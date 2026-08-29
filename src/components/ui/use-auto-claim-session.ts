@@ -16,7 +16,8 @@ import { ConnectionManager } from '@/lib/connection';
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser, getSelectedUser, clearSelectedUser , type TabUserContext } from '@/lib/tab-context';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, errorLog } from '@/lib/debug-config';
+import { tabSelectionFromConnection, type TabSelection } from './tab-selection-from-connection';
 import { describeFailure } from '@/lib/failure-message';
 import { TIMEOUT } from '@/lib/timeout-constants';
 import type { useToast } from '@/hooks/use-toast';
@@ -70,14 +71,40 @@ useEffect(() => {
 
       const existingSelection: TabUserContext | null = await getSelectedUser();
       if (!existingSelection?.selectedCid) {
-        const activeSessions: ActiveSession[] = await connectionManager.getActiveSessions();
-        const session: ActiveSession | undefined = activeSessions.find(s => s.cid === currentConnection.cid);
-        if (session) {
-          await setSelectedUser({
-            selectedUsername: session.username,
-            selectedServerAddress: session.server_address,
-            selectedCid: session.cid
-          });
+        // What this needs is a username and a server address for a CID we are
+        // already connected with, and the connection record usually holds both.
+        // Asking the internal service for them again put a network round trip
+        // on the path that decides whether this tab counts as signed in --
+        // through `getActiveSessions`, which returns an EMPTY ARRAY when it
+        // cannot ask or is not answered. `find` then matched nothing, the
+        // selection was never written, and nothing said so.
+        //
+        // The cost of that lands nowhere near here: `resolveCurrentUserId`
+        // reads the tab selection, so every permission fetch bails with
+        // "nobody is signed in on this tab" and every gated control on the page
+        // refuses. Round 328 traced that exact sentence back from CI.
+        const known: TabSelection | null = tabSelectionFromConnection(currentConnection);
+        if (known !== null) {
+          await setSelectedUser(known);
+        } else {
+          // Only when the record is CID-only -- which it is when a bare
+          // ConnectSuccess wrote it and nothing filled in the rest.
+          const { ok, sessions } = await connectionManager.getActiveSessionsResult();
+          const session: ActiveSession | undefined = sessions.find(s => s.cid === currentConnection.cid);
+          if (session) {
+            await setSelectedUser({
+              selectedUsername: session.username,
+              selectedServerAddress: session.server_address,
+              selectedCid: session.cid
+            });
+          } else if (!ok) {
+            // Said here, where it happened. The symptom appears later and
+            // somewhere else, as a permission check that cannot name a user.
+            errorLog(
+              'WorkspaceLoader',
+              'Could not record which account this tab is using: the session query went unanswered. Permission checks will refuse until it is retried.',
+            );
+          }
         }
       }
 
