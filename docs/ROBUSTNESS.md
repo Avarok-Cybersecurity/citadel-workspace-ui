@@ -17529,3 +17529,42 @@ three rounds on the writer to make it obvious that the writer was not the
 problem.
 
 2402 tests green.
+
+## Round 358 — the right order existed in three places and was missing from the two that mattered
+
+Round 357's mechanism, swept. Every caller of `getTabSelectedSession` was
+checked against what it actually needs.
+
+Three were already right, and spell the order out by hand. `TopBar`:
+
+```ts
+const tab = await getSelectedUser();
+if (tab?.selectedUsername) { setSessionFallback({ username: tab.selectedUsername }); return; }
+const session = await connectionManager.getTabSelectedSession();
+```
+
+`usePeerDiscovery` and `WorkspaceView` do the same. Three genuinely need the
+saved account — two write a role back to it, one reads the role off it, and the
+role lives nowhere else.
+
+**`BaseOffice` went straight to the session**, and its fall-through is
+`currentUserId = … || 'unknown'` — the id `OfficeChatTabs` uses to decide which
+messages are the reader's own. Own-message styling, edit and delete all hang off
+it. A user who declined to save credentials has a perfectly good selection, no
+stored record for `findSession` to find, and no edit or delete on their own
+messages.
+
+So the correct pattern existed in three components and was missing from the two
+that mattered most: this one, and `resolveCurrentUserId`, where every permission
+gate in the app bails.
+
+`tabIdentity` and `readerIdentity` now hold the order, so the next caller
+inherits it rather than rediscovering why it matters. Controls both ways:
+ignoring the selection fails the two tests about it, and ignoring the session
+loses the full name, which lives only there.
+
+The extraction was forced rather than chosen — `BaseOffice` went to 264 lines
+against a 250 limit — and the file is at exactly 250 now. Two functions came out
+of it because the first one only got it to 252.
+
+2410 tests green.

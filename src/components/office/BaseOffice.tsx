@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { getSelectedUser, type TabUserContext } from '@/lib/tab-context';
+import { tabIdentity, readerIdentity, type ReaderIdentity } from '@/lib/tab-identity';
 import { useToast } from "@/hooks/use-toast";
 import { MDXProvider } from '@mdx-js/react';
 import { components } from "./mdxComponents";
@@ -45,11 +47,12 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   const [tabSession, setTabSession] = useState<{ username?: string; fullName?: string } | null>(null);
   const { toast } = useToast();
 
-  // Load tab session asynchronously
+  // Selection first, saved account second — see `tabIdentity`.
   useEffect(() => {
     runAsyncSetup(async () => {
+      const selection: TabUserContext | null = await getSelectedUser();
       const session: StoredSession | null = await connectionManager.getTabSelectedSession();
-      setTabSession(session);
+      setTabSession(tabIdentity(selection, session));
     });
   }, []);
 
@@ -162,10 +165,8 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   const chatChannelId: string | null | undefined = entityData?.chat_channel_id;
 
   // Get current user info from workspace state OR connection manager
-  // The workspace state currentUser may not be populated yet during initial render
-  // tabSession is loaded asynchronously via useEffect
-  const currentUserId: string = state.currentUser?.id || state.currentUser?.username || tabSession?.username || 'unknown';
-  const currentUserName: string = state.currentUser?.displayName || state.currentUser?.username || tabSession?.fullName || tabSession?.username || 'Unknown User';
+  // State first, tab identity second — see `readerIdentity`.
+  const reader: ReaderIdentity = readerIdentity(state.currentUser, tabSession);
 
   // Content view (MDX editor or rendered content)
   const contentView: JSX.Element = isEditing ? (
@@ -240,8 +241,8 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
         chatChannelId={chatChannelId}
         nodeId={nodeId}
         roomName={entityData?.name || title}
-        currentUserId={currentUserId}
-        currentUserName={currentUserName}
+        currentUserId={reader.id}
+        currentUserName={reader.displayName}
         rules={entityData?.rules ?? undefined}
       />
     </OfficeLayout>
