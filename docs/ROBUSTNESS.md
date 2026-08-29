@@ -18232,3 +18232,40 @@ React's rules-of-hooks caught the first placement — the hook sat below the
 `isLoading` early return.
 
 2469 tests green, all 60 preflight checks.
+
+## Round 374 — the third fact about an empty folder
+
+Sweeping for the question that produced four of the last nine rounds — *what
+does this render when nobody has answered yet?* — across every
+`x?.y ?? false` / `?? []` in the tree. Most were already right;
+`HierarchySidebar` in particular checks `!state.treeSchema` explicitly and says
+"still loading" rather than "you may not create anything here".
+
+One was not. `VFSContentGrid` derives its list from
+`findNodeByPath(tree, currentPath)` and then `currentNode?.children ?? []`. A
+path that is not in the tree — the folder was renamed or deleted somewhere else
+while it was open — produced an empty list, and an empty list renders as
+
+> This folder is empty. Drag files here or right-click to create a folder
+
+inviting the user to drop files into a folder that no longer exists, with no
+indication of what happened and nothing to do about it.
+
+The file already carried exactly the right instinct one case over:
+
+> "Empty" and "nothing matched your filter" are different facts, and stating
+> the first when the second is true tells the user their files are gone.
+
+There were three facts and it distinguished two. The third now says the folder
+is no longer here, offers what probably happened to it, and gives a way back to
+the top level — because a user staring at a phantom folder otherwise has no
+move.
+
+The initial load is not affected: `FileManagerContent` returns early on
+`fm.loading`, so this is specifically the after-load case.
+
+Three controls: falling through to "empty" fails two of three tests, reporting
+every folder gone fails the positive control, and a way-out that navigates
+nowhere fails one.
+
+2472 tests green, all 60 preflight checks.

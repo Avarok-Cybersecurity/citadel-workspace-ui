@@ -5,6 +5,7 @@ import type { RevfsNode } from "@/types/revfs-types";
 import type { SelectMode } from "@/hooks/useVFSSelection";
 import { VFSContextMenu } from "./VFSContextMenu";
 import { GridItem } from "./VFSGridItem";
+import { Button } from '@/components/ui/button';
 import { cn } from "@/lib/utils";
 import { findNodeByPath, type SortField, type SortDirection } from "./vfs-content-helpers";
 import { useVFSKeyboardShortcuts } from "./useVFSKeyboardShortcuts";
@@ -101,6 +102,29 @@ export function VFSContentGrid({
     onPaste: hasPasteItems ? async (): Promise<void> => { await onPaste(currentPath); } : undefined,
     hasPasteItems,
   };
+
+  // Three answers, not two. The comment below already distinguishes "empty"
+  // from "nothing matched your filter"; this is the third -- the folder is not
+  // in the tree at all, because it was deleted or renamed somewhere else while
+  // it was open. Telling that user "This folder is empty. Drag files here"
+  // invites them to drop into a folder that no longer exists.
+  if (!currentNode) {
+    return (
+      <div
+        className="flex-1 flex flex-col items-center justify-center text-muted-foreground text-sm"
+        data-testid="vfs-folder-gone"
+      >
+        <FolderOpen className="h-12 w-12 mb-3 text-muted-foreground" />
+        <p>This folder is no longer here</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          It may have been renamed or deleted somewhere else.
+        </p>
+        <Button variant="outline" size="sm" className="mt-3" onClick={() => onNavigate('/')}>
+          Go to the top level
+        </Button>
+      </div>
+    );
+  }
 
   if (sorted.length === 0) {
     return (
