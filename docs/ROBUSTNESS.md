@@ -17230,3 +17230,52 @@ Remaining from round 349's list: `UserSearch`, `use-registered-peers`,
 `useGroupChat` and `useP2PMessages` (both pagination), `use-loaded-permissions`.
 
 2387 tests green; preflight 53/53 bar the push reminder.
+
+## Round 352 — the last of the list, and two entries that were never defects
+
+Working through round 349's remaining sites, checking each before changing it.
+
+**`use-loaded-permissions` was already correct.** It carries a proper
+tri-state — `loading` / `loaded` / `failed` with a reason — sets `failed` on
+both the catch and the timeout, and `PermissionMatrixNotice` renders it. My
+detector had flagged it because the catch contains a `debugLog` and my "is
+anything loud here" regex looked for `setError` and `toast`, not
+`setLoad({ status: 'failed' })`. The list was wrong, not the code.
+
+**`use-registered-peers` is deliberate too** — its catch says "using cached
+peers", which is a considered fallback rather than a silent empty.
+
+**`UserSearch` was real.** A search that threw left `results` empty, and
+`UserSearchResults` renders an empty `results` with a search term as:
+
+> **No users found**
+
+So somebody looking for a colleague was told they are not in the workspace, on
+the strength of a question that was never answered — and the natural response to
+"No users found" is to retype the name, which will fail the same way.
+
+`searchFailed` now separates them, and the failure says nobody has been ruled
+out. Control: forcing the old single branch fails exactly the first test; the
+positive control keeps "No users found" for a search that genuinely matched
+nobody, which a user needs or they keep retyping.
+
+The two pagination sites (`useGroupChat`, `useP2PMessages`) are left. A "load
+more" that quietly does nothing is a dead end rather than a false claim, and it
+is a different fix — worth its own round rather than being folded into this one.
+
+### The mechanism, six rounds
+
+| round | site | what a failure used to say |
+|---|---|---|
+| 345 | `useOrphanSessions` | kept a session the user had just deleted |
+| 346 | `AccountManagementDialog` | every account shown as disconnected |
+| 347 | `use-auto-claim-session` | nothing — and every permission gate then refused |
+| 349 | `PeerDiscoveryModal` | "No other users in this workspace yet" |
+| 351 | `MembersSection` | "Nobody else is here yet" |
+| 352 | `UserSearchResults` | "No users found" |
+
+Two of the eight candidates turned out to be already right. Checking each before
+fixing it cost a few minutes and saved changing working code — which the
+detector, left unexamined, would have had me do twice.
+
+2389 tests green; preflight 53/53 bar the push reminder.

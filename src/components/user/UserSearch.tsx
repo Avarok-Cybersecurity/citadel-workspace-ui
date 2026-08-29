@@ -23,6 +23,15 @@ export const UserSearch: React.FC<UserSearchProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState<UserData[]>([]);
+  /**
+   * The search itself failed, as distinct from matching nobody.
+   *
+   * An empty `results` renders "No users found", which is an answer about the
+   * workspace. A search that threw left `results` empty too, so the person was
+   * told their colleague is not here when the truth is that the question was
+   * never answered.
+   */
+  const [searchFailed, setSearchFailed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const inputRef: React.RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
@@ -79,10 +88,12 @@ export const UserSearch: React.FC<UserSearchProps> = ({
     const searchUsers = async (): Promise<void> => {
       if (!searchTerm.trim()) {
         setResults([]);
+        setSearchFailed(false);
         return;
       }
 
       setLoading(true);
+      setSearchFailed(false);
 
       try {
         const members: User[] = Object.values(state.members || {});
@@ -115,6 +126,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
         setResults(filteredMembers);
       } catch (error) {
         debugLog('UserSearch', 'Error searching users:', error);
+        setSearchFailed(true);
       } finally {
         setLoading(false);
       }
@@ -197,6 +209,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
           searchTerm={searchTerm}
           loading={loading}
           results={results}
+          searchFailed={searchFailed}
           recentUsers={searchTerm ? [] : getRecentUsers()}
           enableInvite={enableInvite}
           onSelectUser={handleSelectUser}

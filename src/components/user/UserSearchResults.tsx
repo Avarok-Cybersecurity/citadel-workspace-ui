@@ -34,6 +34,8 @@ interface UserSearchResultsProps {
   searchTerm: string;
   loading: boolean;
   results: UserData[];
+  /** The search failed — which is not the same as matching nobody. */
+  searchFailed: boolean;
   recentUsers: UserData[];
   enableInvite: boolean;
   onSelectUser: (user: UserData) => void;
@@ -44,6 +46,7 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
   searchTerm,
   loading,
   results,
+  searchFailed,
   recentUsers,
   // `enableInvite` is still accepted so the call sites need not change, but
   // there is nothing to enable: the two Invite buttons it gated had no onClick.
@@ -134,7 +137,18 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
               </li>
             ))}
 
-            {results.length === 0 && searchTerm && (
+            {results.length === 0 && searchTerm && searchFailed && (
+              <li className="p-6 text-center text-muted-foreground" data-testid="user-search-failed">
+                <User className="h-10 w-10 mx-auto mb-2 text-muted-foreground" aria-hidden="true" />
+                {/* Not "No users found". The search did not answer, so nobody
+                    has been ruled out, and telling somebody their colleague is
+                    not in the workspace on the strength of a failed query sends
+                    them to look somewhere else. */}
+                <p>The search could not be completed</p>
+                <p className="text-xs mt-1">Nobody has been ruled out — try again in a moment.</p>
+              </li>
+            )}
+            {results.length === 0 && searchTerm && !searchFailed && (
               <li className="p-6 text-center text-muted-foreground">
                 <User className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
                 <p>No users found</p>
