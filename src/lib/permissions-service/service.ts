@@ -63,14 +63,20 @@ export class PermissionsService extends EventListenerManager {
       // check fail for every response and left the cache permanently empty.
       if (payload.userId === this.getCurrentUserId()) {
         updateCacheEntry(this.cache, payload.domainId, payload.role, payload.permissions);
+        // Emitted on BOTH paths. It used to be async-only, on the reasoning
+        // that the synchronous path had already filled the cache "before any
+        // listener could observe it missing" -- true of listeners that run
+        // after this one, and not of anybody waiting on the load event itself,
+        // whose handler may be registered first. Announcing the fill from the
+        // place that does the filling is what stops the answer depending on
+        // listener order.
+        this.emit('permissions:updated', { domainId: payload.domainId });
         return;
       }
 
       void this.isCurrentUser(payload.userId).then((mine) => {
         if (mine) {
           updateCacheEntry(this.cache, payload.domainId, payload.role, payload.permissions);
-          // Only emitted on the async path: the synchronous one has already
-          // updated the cache before any listener could observe it missing.
           this.emit('permissions:updated', { domainId: payload.domainId });
         }
       });

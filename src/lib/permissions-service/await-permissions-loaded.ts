@@ -10,6 +10,24 @@
  * Extracted because the lifetime is the whole substance: the handler has to be
  * declared before the timeout so the timeout can remove it, which reads as a
  * mistake inline and is the point here.
+ *
+ * It waits on `permissions:updated` -- "the cache now holds this domain" --
+ * and NOT on `user:permissions:loaded`, which is only "a response arrived".
+ *
+ * The two are not the same moment. The service fills the cache from that
+ * response synchronously when it can read the current user id without awaiting,
+ * and inside a `.then` when it cannot -- a path whose own comment says it
+ * exists because the synchronous accessor is null for a user who logged IN
+ * rather than registering. So for anybody who logged in, the cache was filled a
+ * tick after the event this used to wait on, and the read here had already
+ * happened and rejected:
+ *
+ *   Error: Permissions not found in cache after load
+ *
+ * printed over and over in `test:prev-sessions`, which logs in. Even on the
+ * synchronous path it worked only because the service's listener happened to be
+ * registered first: waiting on "a response arrived" and then reading something
+ * a different listener fills makes the answer depend on listener order.
  */
 
 import { eventEmitter } from '@/lib/event-emitter';
@@ -26,28 +44,26 @@ export function awaitPermissionsLoaded(
     // binding until the timer fires, and by then the const is initialised. The
     // order matters the other way round -- the timeout must be able to remove
     // the handler, which is the whole fix.
-    const timeout = setTimeout(() => {
-      eventEmitter.off('user:permissions:loaded', handler);
+    const timeout: ReturnType<typeof setTimeout> = setTimeout(() => {
+      eventEmitter.off('permissions:updated', handler);
       reject(new Error('Permission fetch timeout'));
     }, TIMEOUT.PERMISSION_FETCH_MS);
 
-    const handler = (payload: { domainId: string }) => {
+    const handler = (payload: { domainId: string }): void => {
       if (payload.domainId !== domainId) return;
 
-      clearTimeout(timeout);
-      eventEmitter.off('user:permissions:loaded', handler);
+      const cached: DomainPermissions | undefined = readCache();
+      // The event says the cache holds this domain. If it does not, something
+      // else emitted it -- stay listening rather than concluding, because the
+      // real fill may still be coming and the timeout is what decides when to
+      // give up.
+      if (!cached) return;
 
-      const cached = readCache();
-      if (cached) {
-        resolve(cached);
-      } else {
-        // The event fired for this domain and the cache is still empty, which
-        // means the handler that fills it did not. Rejecting says so; resolving
-        // with an empty set would hand the caller "no permissions" as a fact.
-        reject(new Error('Permissions not found in cache after load'));
-      }
+      clearTimeout(timeout);
+      eventEmitter.off('permissions:updated', handler);
+      resolve(cached);
     };
 
-    eventEmitter.on('user:permissions:loaded', handler);
+    eventEmitter.on('permissions:updated', handler);
   });
 }

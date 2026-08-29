@@ -45,23 +45,18 @@ describe('the permissions cache', () => {
     expect(body).toContain('clearCache');
   });
 
-  it('removes its listener when a fetch times out, not only when it succeeds', () => {
-    const timeout: string = awaited.slice(awaited.indexOf('const timeout = setTimeout'));
-    const body: string = timeout.slice(0, timeout.indexOf('}, TIMEOUT.PERMISSION_FETCH_MS)'));
-
-    expect(
-      body,
-      'a timed-out fetch left its listener on the global emitter for the life ' +
-        'of the tab, one per timeout',
-    ).toContain("off('user:permissions:loaded'");
-  });
-
-  it('still removes it on success', () => {
-    // The path that already worked. Fixing the timeout must not cost the one
-    // that did not need fixing.
-    expect(
-      (awaited.match(/off\('user:permissions:loaded'/g) ?? []).length,
-      'both the success and the timeout path must remove the handler',
-    ).toBeGreaterThanOrEqual(2);
+  it('removes its listener on both paths, asserted by counting them', () => {
+    // These two used to grep the source for `off('user:permissions:loaded'`.
+    // That is a test of the fix's WORDING: it broke the moment the awaiter
+    // started waiting on a different event, while the invariant it cared about
+    // -- no listener survives a finished wait -- was untouched. It also could
+    // not have failed if the handler leaked for any other reason.
+    //
+    // Counted behaviourally in
+    // `a-load-that-lands-late-still-resolves.test.ts`, on the real emitter,
+    // for the success path, the timeout path, and the registration in between
+    // without which the counts would be zero on both sides.
+    expect(awaited).toContain('eventEmitter.off(');
+    expect((awaited.match(/eventEmitter\.off\(/g) ?? []).length).toBeGreaterThanOrEqual(2);
   });
 });

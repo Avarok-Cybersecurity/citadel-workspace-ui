@@ -693,7 +693,6 @@
   "src/lib/peer-registration-store/service.ts": 9,
   "src/lib/peer-registration-store/state.ts": 7,
   "src/lib/peer-registration-store/storage-keys.ts": 4,
-  "src/lib/permissions-service/await-permissions-loaded.ts": 3,
   "src/lib/permissions-service/cache.ts": 6,
   "src/lib/permissions-service/service.ts": 9,
   "src/lib/permissions-service/types.ts": 1,

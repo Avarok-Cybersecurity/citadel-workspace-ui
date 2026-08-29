@@ -14084,3 +14084,50 @@ must carry it on a phone and not on a desktop — where a bottom-right toast lan
 in empty margin and moving it would be a change for no reason. Sonner renders its
 positioned list only once something is in it, so the second test fires a real
 toast rather than inspecting an empty toaster. Removing the offset fails it.
+
+## Round 274 — waiting on "a response arrived" and reading what someone else fills
+
+`test:prev-sessions` prints this over and over:
+
+```
+[PermissionsContext] Error fetching permissions:
+Error: Permissions not found in cache after load
+```
+
+A self-contradiction, and it is exact. `awaitPermissionsLoaded` listened for
+`user:permissions:loaded` and read the cache the instant it fired. The service
+fills that cache from the *same* event — **synchronously** when it can read the
+current user id without awaiting, and inside a `.then` when it cannot. The
+comment on that async branch says why it exists:
+
+> the synchronous accessor is null for a user who logged IN rather than
+> registering
+
+So for anybody who logged in, the cache is filled a tick *after* the event, and
+the awaiter had already read it empty and rejected. `prev-sessions` logs in.
+
+Even the synchronous path only worked by luck: waiting on "a response arrived"
+and then reading something a **different listener** fills makes the answer
+depend on which listener was registered first.
+
+It now waits on `permissions:updated` — "the cache holds this domain" — which
+the service emits from the place that does the filling, on both paths. And if
+that event arrives with the cache still empty it keeps listening rather than
+concluding: the timeout is what decides when to give up.
+
+### Two tests that were about the wording
+
+The existing pair grepped the source for `off('user:permissions:loaded'`. They
+broke the moment the awaiter waited on a different event, while the invariant
+they cared about — no listener survives a finished wait — was untouched. And
+they could not have failed if the handler leaked for any other reason.
+
+Replaced with counting on the real emitter, across the success path, the timeout
+path, **and a registration assertion in between** — without which the counts are
+zero on both sides and the test passes for a function that never listened at
+all. Leaking the listener on timeout fails both files.
+
+Also fixed on the way: this round's first draft asserted
+`eventEmitter.listenerCount?.(...) ?? 0`, which would have compared 0 to 0 had
+the method not existed. It does exist; the optional call was removed so the
+assertion cannot go quiet.
