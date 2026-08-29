@@ -10,6 +10,7 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
+import { rowClass } from "./selected-row";
 
 interface PeerListRowProps {
   cid: string;
@@ -53,9 +54,7 @@ export function PeerListRow({
         // exists only as a background is invisible to a screen reader and to
         // anyone who cannot separate these two purples.
         aria-current={isActive ? 'page' : undefined}
-        className={`text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors h-8 py-1 ${
-          isActive ? 'bg-primary-accent/20 text-primary-accent' : ''
-        }`}
+        className={`${rowClass(isActive)} h-8 py-1`}
       >
         <div className="flex items-center gap-2 w-full">
           {/* Avatar with status indicator */}

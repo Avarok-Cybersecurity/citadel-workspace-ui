@@ -9,6 +9,7 @@ import { useMemo, useRef, useEffect, useState    , type RefObject } from 'react'
 import { memberAvatarColor } from '@/lib/avatar-color';
 import { useNavigate } from 'react-router-dom';
 import { SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
+import { rowClass } from './selected-row';
 import { Badge } from '@/components/ui/badge';
 import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
 import type { NavigateFunction } from 'react-router';
@@ -132,9 +133,7 @@ export function GroupConversationRow({
         // Announced, not only coloured -- see PeerListRow.
         aria-current={isActive ? 'page' : undefined}
         // See TreeNodeItem: white belongs on a primary fill, not on the page.
-        className={`text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors h-9 py-1 ${
-          isActive ? 'bg-primary-accent/20 text-primary-accent' : ''
-        }`}
+        className={`${rowClass(isActive)} h-9 py-1`}
       >
         <div ref={containerRef} className="flex items-center gap-2 w-full">
           {/* Overlapping Avatars */}

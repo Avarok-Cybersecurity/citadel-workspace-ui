@@ -15034,3 +15034,52 @@ Ten components, nineteen props, ratcheted.
 
 > A prop with a default, a consumer, and no caller is a feature built from one
 > end. It reads as working code, because the component honours it perfectly.
+
+## Round 297 — the "you are here" nobody could see
+
+Round 296 gave the conversation list the same selected-row treatment the tree
+had. Measuring that treatment in a browser — composited over the sidebar's own
+background, which is the only way a tint's contrast can be known — said the
+treatment was the problem:
+
+| | before | after |
+|---|---|---|
+| selection tint vs the sidebar | **1.37 : 1** | 1.37 : 1 |
+| selection rule vs the sidebar | — | **6.38 : 1** |
+| active text vs idle text | 2.86 : 1 | 2.86 : 1 |
+| text on the selected row | 4.67 : 1 | 4.67 : 1 |
+
+WCAG 1.4.11 asks 3:1 of any state a control uses to convey information. At
+1.37:1 the whole sidebar — tree nodes, peer rows, group rows — was carrying
+"this is the one you are on" in the text colour alone, and a 20% tint that is
+very nearly the background it sits on. A left rule in the full-strength accent
+carries it now: a position and a shape as well as a hue. The tint stays as a
+secondary cue. Idle rows reserve the same two pixels in transparent, so
+selecting one does not nudge every label sideways.
+
+**The first attempt measured 1:1 — exactly as invisible as what it replaced.**
+It put `border-transparent` in a shared base string and `border-primary-accent`
+in the selected one. Both land in the same `class` attribute, and which wins is
+then decided by their order in the stylesheet rather than the order they were
+written in. Two mutually exclusive classes need no override and cannot be
+reordered into each other, and that property — unlike the contrast — is
+testable without a browser, so it is what the unit test pins.
+
+**Two hypotheses this round killed.** The probe first reported identical values
+with and without `data-theme`, and then with and without the `.dark` class,
+which read as "light mode is unreachable". It is not: `applyTheme` writes the
+palette as inline custom properties on `<html>`, so toggling a class cannot
+change them — and the mode those properties are built from follows next-themes'
+`resolvedTheme`, with `enableSystem`, a `ThemeSelector` in Appearance settings,
+and `defaultTheme="dark"`. Everything was already wired; my probe was switching
+a thing the app does not read.
+
+The second was the inert-props baseline. `P2PChat`'s eight entries are optional
+overrides with working internal defaults (`onEditMessage ?? handleStartEdit`);
+`LiveDocumentView.onSave` is guarded by a comment written for exactly this;
+`EmptyState.action` is documented as "when there is one", and at both call sites
+there is nothing to do. The gate is right that they are unpassed and right to
+keep watching; none of them is a defect.
+
+> A tint's contrast cannot be read off its class name. The number only exists
+> once something has been composited over something else.
