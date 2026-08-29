@@ -5,7 +5,7 @@
  * Used in the Conversations section alongside P2P direct messages.
  */
 
-import { useMemo, useRef, useEffect, useState } from 'react';
+import { useMemo, useRef, useEffect, useState    } from 'react';
 import { memberAvatarColor } from '@/lib/avatar-color';
 import { useNavigate } from 'react-router-dom';
 import { SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
@@ -31,13 +31,13 @@ interface GroupConversationRowProps {
 // ============================================================================
 
 /** Width of each avatar circle in pixels */
-const AVATAR_SIZE = 20;
+const AVATAR_SIZE: 20 = 20;
 
 /** Overlap amount in pixels (negative margin) */
-const AVATAR_OVERLAP = 8;
+const AVATAR_OVERLAP: 8 = 8;
 
 /** Minimum number of avatars to show (even if container is small) */
-const MIN_AVATARS = 2;
+const MIN_AVATARS: 2 = 2;
 
 /** Maximum number of avatars to show */
 const MAX_AVATARS = 4;

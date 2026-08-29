@@ -91,6 +91,18 @@ const WIDEN_STRINGS = args.includes('--widen-strings');
  * checked. Written under the compile judge, kept where it holds.
  */
 const ANY_AS_UNKNOWN = args.includes('--any-as-unknown');
+/**
+ * At most one annotation per file per run.
+ *
+ * The compile judge reverts a whole FILE when any edit in it fails, so five
+ * good annotations were being thrown away with one bad one -- and the next run
+ * proposed the same six again, so the count stopped moving entirely while the
+ * work kept repeating.
+ *
+ * One at a time costs a pass per annotation and makes each pass monotonic:
+ * whatever survives is kept, whatever fails costs exactly itself.
+ */
+const ONE_PER_FILE = args.includes('--one-per-file');
 
 /** Type-position words that are never imported. */
 /**
@@ -442,12 +454,13 @@ for (const source of program.getSourceFiles()) {
   visit(source);
 
   if (edits.length === 0) continue;
+  const applied = ONE_PER_FILE ? edits.slice(0, 1) : edits;
   touched += 1;
-  annotated += edits.length;
+  annotated += applied.length;
   if (DRY) continue;
 
   let text = readFileSync(source.fileName, 'utf-8');
-  for (const edit of edits.sort((a, b) => b.position - a.position)) {
+  for (const edit of applied.sort((a, b) => b.position - a.position)) {
     text = text.slice(0, edit.position) + edit.text + text.slice(edit.position);
   }
   if (imports.size > 0) {

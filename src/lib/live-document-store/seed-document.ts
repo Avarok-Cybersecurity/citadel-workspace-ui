@@ -19,7 +19,7 @@ import * as Y from 'yjs';
  */
 export function seedDocument(initialContent: string): Y.Doc {
   const doc = new Y.Doc();
-  const fragment = doc.getXmlFragment('default');
+  const fragment: ReturnType<typeof doc.getXmlFragment> = doc.getXmlFragment('default');
 
   // Blank lines are preserved as empty paragraphs; a document that silently
   // reflows the user's text is a smaller version of the same complaint.
