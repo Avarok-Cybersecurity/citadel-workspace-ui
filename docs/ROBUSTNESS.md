@@ -15146,3 +15146,46 @@ lose the structure it gives for free.
 
 > A log line that cannot print the one value it exists to print is worse than no
 > log line. It gets believed.
+
+## Round 299 — the retry walked into its own window
+
+Round 288 gave the media open a bounded retry and `expectCallLive` a way to name
+what went wrong. The next CI run used both, and the message it produced was not
+the one round 288 was written for:
+
+```
+Error: the call clock never started, so the call never became active
+Received: "call failed: The call could not start a media open or teardown is
+           already in progress with this peer; retry shortly"
+```
+
+That is `open.rs`'s `UdpState::Opening | Lent` arm — and round 288's retry is
+what put the second open inside the first one's window. A failure the fix caused
+itself, surfaced by the assertion the same round added, which is the only reason
+it took one run to find rather than a screen-share element thirty seconds later.
+
+**The gap was a constant where a measurement was needed, and a measurement where
+a constant was needed.** The message covers two windows of quite different
+length, and neither is knowable from the client:
+
+- an open still waiting on its UDP channel takes as long as an attempt takes,
+  and that *is* measurable — as the longest attempt so far;
+- a **teardown** from the previous call refuses in milliseconds and says nothing
+  about how much longer it needs, so there is nothing to measure at all.
+
+A fixed 750ms gap is too short for the first and blind to the second. The gap is
+now the larger of a geometric backoff and the longest attempt: the backoff
+covers the window nothing measures, the measurement covers the window a backoff
+from 750ms would take too many attempts to reach. Both halves have a control,
+including the one that distinguishes the longest attempt from the one that just
+failed — the refusal comes back in milliseconds, and sizing the next wait on
+*that* retries straight back into the same window.
+
+**The harness had to become a real fake clock.** `settle` advanced by a fixed
+step and fired timers due within it, which stops firing anything the moment a
+delay exceeds the step: three tests hung rather than failed. It now advances to
+the next pending timer, bounded below the connect deadline so the outcome under
+test stays the one being tested.
+
+> A retry that does not know how long the thing it is retrying takes will find
+> out by colliding with it.

@@ -9,7 +9,7 @@
  * internal service.
  */
 import { describe, it, expect, vi, beforeEach     } from 'vitest';
-import { MAX_OPEN_ATTEMPTS, OPEN_RETRY_GAP_MS } from '../open-session-retry';
+import { MAX_OPEN_ATTEMPTS } from '../open-session-retry';
 import { CallManager, MEDIA_WIRE_VERSION } from '../call-manager';
 import type { CallTransport } from '../call-transport';
 import type { CallCodecCapabilities, CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
@@ -93,15 +93,25 @@ function harness(): Harness {
     settle: async <T,>(work: Promise<T>): Promise<T> => {
       let finished: boolean = false;
       const watched: Promise<T> = work.finally((): void => { finished = true; });
-      for (let step: number = 0; step < MAX_OPEN_ATTEMPTS + 1 && !finished; step += 1) {
+      // Fire the next PENDING timer each round rather than a fixed step: the
+      // retry gap backs off geometrically, so a step-sized advance stops firing
+      // the moment a delay exceeds it and the awaited work never settles.
+      //
+      // Bounded below the connect deadline, which is 30s and is a different
+      // outcome than the one under test.
+      const RETRY_CEILING_MS: number = 10_000;
+      for (let step: number = 0; step < MAX_OPEN_ATTEMPTS * 2 && !finished; step += 1) {
         await Promise.resolve();
         await Promise.resolve();
         if (finished) break;
-        clock += OPEN_RETRY_GAP_MS;
-        const due: Timer[] = timers.filter(
-          (t): boolean => !t.cancelled && !t.fired && t.delayMs <= OPEN_RETRY_GAP_MS,
-        );
-        for (const t of due) { t.fired = true; t.fn(); }
+        const due: Timer[] = timers
+          .filter((t): boolean => !t.cancelled && !t.fired && t.delayMs < RETRY_CEILING_MS)
+          .sort((a, b): number => a.delayMs - b.delayMs);
+        const next: Timer | undefined = due[0];
+        if (!next) break;
+        clock += next.delayMs;
+        next.fired = true;
+        next.fn();
       }
       return watched;
     },

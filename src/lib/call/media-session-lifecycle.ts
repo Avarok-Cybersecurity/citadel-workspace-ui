@@ -20,6 +20,7 @@ export async function openSessionFor(m: CallManagerInternals, cid: bigint): Prom
   if (m.openSessions.has(cid)) return;
   const startedAt: number = m.now();
   let attemptsMade: number = 0;
+  let longestAttemptMs: number = 0;
 
   for (;;) {
     const attemptStartedAt: number = m.now();
@@ -33,6 +34,8 @@ export async function openSessionFor(m: CallManagerInternals, cid: bigint): Prom
       return;
     } catch (error) {
       attemptsMade += 1;
+      const lastAttemptMs: number = m.now() - attemptStartedAt;
+      longestAttemptMs = Math.max(longestAttemptMs, lastAttemptMs);
       const reason: string = error instanceof Error ? error.message : 'could not open the media session';
 
       const state: CallState | null = m.getState();
@@ -45,7 +48,8 @@ export async function openSessionFor(m: CallManagerInternals, cid: bigint): Prom
       const decision: OpenRetryDecision = nextOpenAttempt({
         attemptsMade,
         elapsedMs: m.now() - startedAt,
-        lastAttemptMs: m.now() - attemptStartedAt,
+        lastAttemptMs,
+        longestAttemptMs,
       });
       if (decision.retry && state.participants.has(cid)) {
         await pause(m, decision.delayMs);

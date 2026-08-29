@@ -21,6 +21,21 @@ import { CONNECT_TIMEOUT_MS } from './call-constants';
  * about as long as the one that just failed -- measured rather than assumed,
  * because the service owns that duration and a copy of it here would be a
  * second authority for it.
+ *
+ * The GAP is the part a CI run corrected. A fixed 750ms made the next attempt
+ * land while something was still in flight on the service, which answers "a
+ * media open or teardown is already in progress with this peer; retry shortly".
+ * That message covers two windows of quite different length, and neither is
+ * knowable from here:
+ *
+ *  - an open still waiting on its UDP channel, which takes as long as an
+ *    attempt takes -- measured, as the longest attempt so far;
+ *  - a TEARDOWN from the previous call, which refuses in milliseconds and says
+ *    nothing about how much longer it needs.
+ *
+ * So the gap is the larger of a geometric backoff and the longest attempt. The
+ * backoff covers the window nothing measures; the measurement covers the window
+ * a backoff from 750ms would take too many attempts to reach.
  */
 export const MAX_OPEN_ATTEMPTS: 4 = 4;
 
@@ -34,13 +49,17 @@ export interface OpenAttemptOutcome {
   elapsedMs: number;
   /** How long the attempt that just failed took. */
   lastAttemptMs: number;
+  /** The longest any attempt has taken, as the estimate of the service's window. */
+  longestAttemptMs: number;
 }
 
 export type OpenRetryDecision = { retry: true; delayMs: number } | { retry: false };
 
 export function nextOpenAttempt(outcome: OpenAttemptOutcome): OpenRetryDecision {
   if (outcome.attemptsMade >= MAX_OPEN_ATTEMPTS) return { retry: false };
-  const wouldFinishAt: number = outcome.elapsedMs + OPEN_RETRY_GAP_MS + outcome.lastAttemptMs;
+  const backoffMs: number = OPEN_RETRY_GAP_MS * 2 ** (outcome.attemptsMade - 1);
+  const delayMs: number = Math.max(backoffMs, outcome.longestAttemptMs);
+  const wouldFinishAt: number = outcome.elapsedMs + delayMs + outcome.lastAttemptMs;
   if (wouldFinishAt > CONNECT_TIMEOUT_MS) return { retry: false };
-  return { retry: true, delayMs: OPEN_RETRY_GAP_MS };
+  return { retry: true, delayMs };
 }
