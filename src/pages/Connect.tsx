@@ -10,9 +10,11 @@ import { connectToServer } from "./connect/use-connect-to-server";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { activateOnKey } from '@/lib/a11y';
+import type { NavigateFunction } from 'react-router';
+import type { ConnectOutcome } from '@/pages/connect/use-connect-to-server';
 
 export const Connect: () => JSX.Element = (): JSX.Element => {
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const { toast } = useToast();
   const [servers, setServers] = useState<StoredServer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +89,7 @@ export const Connect: () => JSX.Element = (): JSX.Element => {
         description: `Connecting to ${selectedServer}...`,
       });
 
-      const outcome = await connectToServer(selectedServer);
+      const outcome: ConnectOutcome = await connectToServer(selectedServer);
 
       if (outcome.kind === 'needs-sign-in') {
         // Do NOT navigate into the workspace. With no session the loader times

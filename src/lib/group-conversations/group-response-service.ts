@@ -17,6 +17,7 @@ import { getSelectedUser } from '../tab-context';
 import { debugLog } from '@/lib/debug-config';
 import { toGroupEvents } from './group-events';
 import { p2pRegistrationService } from '../p2p-registration-service';
+import type { TabUserContext } from '@/lib/tab-context';
 
 let started: boolean = false;
 
@@ -24,7 +25,7 @@ async function resolveSelf(): Promise<{ cid: bigint; username: string } | null> 
   const cid: bigint | undefined = connectionManager.getConnectionInfo()?.cid;
   if (cid === undefined || cid === null) return null;
 
-  const tab = await getSelectedUser();
+  const tab: TabUserContext | null = await getSelectedUser();
   return { cid, username: tab?.selectedUsername ?? '' };
 }
 

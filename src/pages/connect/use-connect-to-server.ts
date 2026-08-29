@@ -20,7 +20,7 @@
  * workspace that will bounce them straight back.
  */
 import { connectionManager } from '@/lib/connection';
-import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
+import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser } from '@/lib/tab-context';
 import { instanceManager, instanceChannel } from '@/lib/multi-instance';
@@ -58,7 +58,7 @@ async function waitForSession(serverAddress: string): Promise<ActiveSession | nu
  * loader to guess at from `activeSessions[0]`.
  */
 async function adoptSession(session: ActiveSession): Promise<void> {
-  const outcome = await claimSessionForThisTab(session.cid);
+  const outcome: ClaimOutcome = await claimSessionForThisTab(session.cid);
   if (outcome.status === 'owned-by-another-tab') {
     // Thrown rather than toasted: this is a module function with no toast in
     // scope, and its callers already surface what it throws. Returning quietly

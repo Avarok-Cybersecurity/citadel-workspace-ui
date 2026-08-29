@@ -30,6 +30,7 @@ import type { FileOpsContext } from './revfs-file-ops';
 import * as fileOps from './revfs-file-ops';
 import * as serverFileOps from './revfs-server-file-ops';
 import { persistTree } from './persist-tree';
+import type { RevfsIntentResult } from '@/types/revfs-intents';
 
 
 
@@ -83,7 +84,7 @@ export class RevfsService {
     if (cached) return cached;
 
     const io: RevfsIO = this.ensureIO();
-    const result = await io.execute({ type: 'load-tree', treeKey: key });
+    const result: RevfsIntentResult = await io.execute({ type: 'load-tree', treeKey: key });
     // Re-checked AFTER the await, before either branch below.
     //
     // Loading is async, and a remote op can be applied to this key while it is
@@ -118,7 +119,7 @@ export class RevfsService {
     if (cached) return cached;
 
     const io: RevfsIO = this.ensureIO();
-    const result = await io.execute({ type: 'load-tree', treeKey: key });
+    const result: RevfsIntentResult = await io.execute({ type: 'load-tree', treeKey: key });
     // Same race as getTree above; server-scoped ops write through setTree too.
     const appliedDuringLoad: RevfsNode | undefined = this.state.getTree(key);
     if (appliedDuringLoad) return appliedDuringLoad;
@@ -231,7 +232,7 @@ export class RevfsService {
 
   private async sendOp(peerCid: bigint, operation: RevfsOperation): Promise<boolean> {
     const io: RevfsIO = this.ensureIO();
-    const result = await io.execute({ type: 'send-revfs-op', peerCid, operation });
+    const result: RevfsIntentResult = await io.execute({ type: 'send-revfs-op', peerCid, operation });
     return result.type === 'send-revfs-op' && result.success;
   }
 

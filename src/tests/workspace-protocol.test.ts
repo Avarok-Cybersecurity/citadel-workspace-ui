@@ -8,12 +8,13 @@ import {
   deserializeWorkspacePayload
 } from '../types/workspace-protocol';
 import { debugLog } from '@/lib/debug-config';
+import type { WorkspaceProtocolPayloadTS } from '@/types/workspace-protocol';
 
 describe('Workspace Protocol', () => {
   it('should create a message payload correctly', () => {
     // Test with a simple binary message
     const testData: Uint8Array<ArrayBuffer> = new Uint8Array([1, 2, 3, 4, 5]);
-    const payload = createMessagePayload(testData);
+    const payload: WorkspaceProtocolPayloadTS = createMessagePayload(testData);
 
     // Verify the structure (uses Pascal case to match Rust serialization)
     expect(payload).toHaveProperty('Request');
@@ -29,7 +30,7 @@ describe('Workspace Protocol', () => {
   it('should serialize and deserialize payloads correctly', () => {
     // Create a test message
     const testData: Uint8Array<ArrayBuffer> = new Uint8Array([1, 2, 3, 4, 5]);
-    const payload = createMessagePayload(testData);
+    const payload: WorkspaceProtocolPayloadTS = createMessagePayload(testData);
 
     // Check payload type before serialization
     debugLog('WorkspaceProtocolTest', 'Original payload:', payload);
@@ -40,7 +41,7 @@ describe('Workspace Protocol', () => {
     debugLog('WorkspaceProtocolTest', 'Serialized type:', serialized?.constructor.name);
 
     // Deserialize
-    const deserialized = deserializeWorkspacePayload(serialized);
+    const deserialized: WorkspaceProtocolPayloadTS = deserializeWorkspacePayload(serialized);
     debugLog('WorkspaceProtocolTest', 'Deserialized payload:', deserialized);
     debugLog('WorkspaceProtocolTest', 'Deserialized contents type:', deserialized.Request?.Message?.contents?.constructor.name);
 
@@ -58,14 +59,14 @@ describe('Workspace Protocol', () => {
   it('should handle empty messages', () => {
     // Create an empty message
     const emptyData: Uint8Array<ArrayBuffer> = new Uint8Array(0);
-    const payload = createMessagePayload(emptyData);
+    const payload: WorkspaceProtocolPayloadTS = createMessagePayload(emptyData);
 
     debugLog('WorkspaceProtocolTest', 'Empty payload:', payload);
     debugLog('WorkspaceProtocolTest', 'Empty contents type:', payload.Request?.Message?.contents?.constructor.name);
 
     // Serialize and then deserialize
     const serialized: Uint8Array<ArrayBufferLike> = serializeWorkspacePayload(payload);
-    const deserialized = deserializeWorkspacePayload(serialized);
+    const deserialized: WorkspaceProtocolPayloadTS = deserializeWorkspacePayload(serialized);
 
     debugLog('WorkspaceProtocolTest', 'Deserialized empty payload:', deserialized);
     debugLog('WorkspaceProtocolTest', 'Deserialized empty contents:', deserialized.Request?.Message?.contents);
@@ -92,11 +93,11 @@ describe('Workspace Protocol', () => {
       largeData[i] = i % 256;
     }
 
-    const payload = createMessagePayload(largeData);
+    const payload: WorkspaceProtocolPayloadTS = createMessagePayload(largeData);
 
     // Serialize and then deserialize
     const serialized: Uint8Array<ArrayBufferLike> = serializeWorkspacePayload(payload);
-    const deserialized = deserializeWorkspacePayload(serialized);
+    const deserialized: WorkspaceProtocolPayloadTS = deserializeWorkspacePayload(serialized);
 
     // Verify the contents length (uses Pascal case to match Rust serialization)
     const deserializedContents: Uint8Array<ArrayBufferLike> = deserialized.Request?.Message?.contents as Uint8Array;

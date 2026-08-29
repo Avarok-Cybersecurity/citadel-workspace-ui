@@ -19,10 +19,11 @@ import { wasmConnectionManager } from '@/lib/wasm-connection-manager';
 import type { DisconnectStatus } from '@/components/LoadingModal';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import type { NavigateFunction } from 'react-router';
 
 export function useSessionExit(): { showDisconnectModal: boolean; disconnectStatus: DisconnectStatus; disconnectError: string | undefined; handleExit: () => void; handleSignOut: () => Promise<void>; handleDisconnectComplete: () => void; } {
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [disconnectStatus, setDisconnectStatus] = useState<DisconnectStatus>("disconnecting");
   const [disconnectError, setDisconnectError] = useState<string | undefined>();

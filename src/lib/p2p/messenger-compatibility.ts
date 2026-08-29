@@ -15,6 +15,7 @@ import type { ConversationManager } from './conversation-manager';
 import type { P2PMessage } from './p2p-types';
 import { debugLog } from '@/lib/debug-config';
 import { getPrivacySettings } from '@/lib/privacy-settings';
+import type { P2PConversation } from '@/lib/p2p/p2p-types';
 
 type EmitFn = (event: string, data: unknown) => void;
 
@@ -65,7 +66,7 @@ export function updateFileTransferState(
   transferId: string,
   updates: { transfer_state?: P2PMessage['transfer_state']; transfer_progress?: number }
 ): void {
-  const conversation = conversationManager.getConversation(peerCid);
+  const conversation: P2PConversation | undefined = conversationManager.getConversation(peerCid);
   if (!conversation) return;
   const message: P2PMessage | undefined = conversation.messages.find(m => m.transfer_id === transferId);
   if (!message) return;
@@ -84,7 +85,7 @@ export async function markMessagesAsRead(
   peerCid: bigint,
   messageIds?: string[]
 ): Promise<void> {
-  const conversation = conversationManager.getConversation(peerCid);
+  const conversation: P2PConversation | undefined = conversationManager.getConversation(peerCid);
   if (!conversation) return;
 
   // `conversation.messages` is EMPTY after a reload — loadFromStorage restores it
@@ -145,7 +146,7 @@ export async function updateUnreadCount(
   peerCid: bigint,
   unreadCount: number
 ): Promise<void> {
-  const conversation = conversationManager.getConversation(peerCid);
+  const conversation: P2PConversation | undefined = conversationManager.getConversation(peerCid);
   if (conversation) conversation.unreadCount = unreadCount;
   await messagePaginationStore.updateUnreadCount(peerCid, unreadCount);
 }

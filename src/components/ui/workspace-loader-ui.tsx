@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { NavigateFunction } from 'react-router';
 
 interface WorkspaceLoaderSpinnerProps {
   loadingMessage: string;
@@ -14,7 +15,7 @@ export const WorkspaceLoaderSpinner: React.FC<WorkspaceLoaderSpinnerProps> = ({
   loadingMessage,
   showConnectButton,
 }) => {
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-background z-50">

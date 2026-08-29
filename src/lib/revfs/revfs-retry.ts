@@ -8,7 +8,7 @@
  * operation that failed to send was recorded and then sat there forever while
  * the caller was told it had succeeded.
  */
-import type { RevfsOperation, TreeKey } from '@/types/revfs-types';
+import type { RevfsOperation, TreeKey, RevfsPendingOp } from '@/types/revfs-types';
 import type { RevfsState } from './revfs-state';
 import type { RevfsIO } from './revfs-io';
 import { debugLog } from '@/lib/debug-config';
@@ -59,7 +59,7 @@ export async function retryPendingOps(
   key: TreeKey,
   peerCid: bigint,
 ): Promise<RetryOutcome> {
-  const pending = deps.state.getPendingOps(key);
+  const pending: RevfsPendingOp[] = deps.state.getPendingOps(key);
   if (pending.length === 0) return { stillPending: 0, discarded: 0 };
 
   debugLog('RevfsService', `Retrying ${pending.length} queued operation(s) for ${peerCid}`);

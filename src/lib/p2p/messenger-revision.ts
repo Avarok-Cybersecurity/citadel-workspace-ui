@@ -9,12 +9,13 @@
  * orchestrator.
  */
 
-import { createMessageEdit, createMessageDelete } from '@/types/messaging-layer';
-import type { MessagingLayer } from '@/types/messaging-layer';
+import { createMessageEdit, createMessageDelete , type MessagingLayer } from '@/types/messaging-layer';
 import { applyEdit, applyDelete } from './message-revision';
 import { messagePaginationStore } from './message-pagination-store';
 import { resolveCurrentCid } from './messenger-cid-resolver';
 import type { ConversationManager } from './conversation-manager';
+import type { P2PConversation } from '@/lib/p2p/p2p-types';
+import type { RevisionOutcome } from '@/lib/p2p/message-revision';
 
 type EmitFn = (event: string, data?: unknown) => void;
 type SendRawFn = (recipientCid: bigint, layer: MessagingLayer) => Promise<void>;
@@ -37,11 +38,11 @@ export async function editMessage(
   const ownCid: bigint | null = await resolveCurrentCid();
   if (!ownCid) throw new Error('Not connected to server');
 
-  const conversation = conversationManager.getConversation(peerCid);
+  const conversation: P2PConversation | undefined = conversationManager.getConversation(peerCid);
   if (!conversation) throw new Error(`Conversation with ${peerCid} not found`);
 
   const editedAt: number = Date.now();
-  const outcome = applyEdit(conversation, messageId, contents, editedAt, ownCid);
+  const outcome: RevisionOutcome = applyEdit(conversation, messageId, contents, editedAt, ownCid);
   if (!outcome.applied) {
     // 'not-sender' here means the UI offered edit on someone else's message.
     throw new Error(`Cannot edit message ${messageId}: ${outcome.reason}`);
@@ -67,11 +68,11 @@ export async function deleteMessage(
   const ownCid: bigint | null = await resolveCurrentCid();
   if (!ownCid) throw new Error('Not connected to server');
 
-  const conversation = conversationManager.getConversation(peerCid);
+  const conversation: P2PConversation | undefined = conversationManager.getConversation(peerCid);
   if (!conversation) throw new Error(`Conversation with ${peerCid} not found`);
 
   const deletedAt: number = Date.now();
-  const outcome = applyDelete(conversation, messageId, ownCid);
+  const outcome: RevisionOutcome = applyDelete(conversation, messageId, ownCid);
   if (!outcome.applied) {
     throw new Error(`Cannot delete message ${messageId}: ${outcome.reason}`);
   }

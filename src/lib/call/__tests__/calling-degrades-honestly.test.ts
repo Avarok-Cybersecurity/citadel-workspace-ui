@@ -3,6 +3,7 @@
  * nothing. Each fix propagates a pattern the sibling code already had.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { MediaCapabilityReport } from '@/lib/call/codec-support';
 
 const g: Record<string, unknown> = globalThis as unknown as Record<string, unknown>;
 const saved: Record<string, unknown> = {};
@@ -38,7 +39,7 @@ describe('probeMediaCapabilities', () => {
     delete g.MediaStreamTrackProcessor;
     const { probeMediaCapabilities } = await import('../codec-support');
 
-    const result = await probeMediaCapabilities();
+    const result: MediaCapabilityReport = await probeMediaCapabilities();
 
     // Previously supported:true — the call rang, connected, ticked its timer
     // and carried no audio in either direction.

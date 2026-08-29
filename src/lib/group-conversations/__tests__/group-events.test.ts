@@ -10,6 +10,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { toGroupEvents } from '../group-events';
+import type { GroupEvent } from '@/lib/group-conversations/group-events';
 
 const SELF = 100n;
 const KEY: { cid: bigint; mgid: bigint; } = { cid: 7n, mgid: 42n };
@@ -19,7 +20,7 @@ const peerName = (cid: bigint): string => (cid === 9n ? 'bob' : cid.toString());
 
 describe('toGroupEvents', () => {
   it('turns GroupCreateSuccess into group:created, which is what adds the group', () => {
-    const events = toGroupEvents({ GroupCreateSuccess: { cid: 7n, group_key: KEY } }, SELF, 'alice', peerName);
+    const events: GroupEvent[] = toGroupEvents({ GroupCreateSuccess: { cid: 7n, group_key: KEY } }, SELF, 'alice', peerName);
 
     expect(events).toHaveLength(1);
     expect(events[0].name).toBe('group:created');
@@ -27,7 +28,7 @@ describe('toGroupEvents', () => {
   });
 
   it('treats GroupChannelCreateSuccess the same way', () => {
-    const events = toGroupEvents({ GroupChannelCreateSuccess: { cid: 7n, group_key: KEY } }, SELF, 'alice', peerName);
+    const events: GroupEvent[] = toGroupEvents({ GroupChannelCreateSuccess: { cid: 7n, group_key: KEY } }, SELF, 'alice', peerName);
 
     expect(events[0]?.name).toBe('group:created');
   });
@@ -36,7 +37,7 @@ describe('toGroupEvents', () => {
     // The wire carries only the inviter's cid. The name matters because the
     // invite handler drops a nameless inviter as malformed — an empty username
     // here silently discarded every invite ever received.
-    const events = toGroupEvents(
+    const events: GroupEvent[] = toGroupEvents(
       { GroupInviteNotification: { cid: SELF, peer_cid: 9n, group_key: KEY } }, SELF, 'alice', peerName,
     );
 
@@ -47,7 +48,7 @@ describe('toGroupEvents', () => {
   it('maps EnteredGroup to one group:member-joined per member, named from the roster', () => {
     // The notification's own `cid` is the RECIPIENT, not the mover — the
     // members live in the variant's cids list.
-    const events = toGroupEvents(
+    const events: GroupEvent[] = toGroupEvents(
       { GroupMemberStateChangeNotification: { cid: SELF, group_key: KEY, state: { EnteredGroup: { cids: [9n, 11n] } } } },
       SELF, 'alice', peerName,
     );
@@ -61,7 +62,7 @@ describe('toGroupEvents', () => {
   });
 
   it('maps LeftGroup to group:member-left per member', () => {
-    const events = toGroupEvents(
+    const events: GroupEvent[] = toGroupEvents(
       { GroupMemberStateChangeNotification: { cid: SELF, group_key: KEY, state: { LeftGroup: { cids: [9n] } } } },
       SELF, 'alice', peerName,
     );
@@ -72,7 +73,7 @@ describe('toGroupEvents', () => {
   });
 
   it('accepts member cids that arrived as strings or numbers', () => {
-    const events = toGroupEvents(
+    const events: GroupEvent[] = toGroupEvents(
       { GroupMemberStateChangeNotification: { cid: SELF, group_key: KEY, state: { EnteredGroup: { cids: ['9', 11] } } } },
       SELF, 'alice', peerName,
     );
@@ -81,13 +82,13 @@ describe('toGroupEvents', () => {
   });
 
   it('maps GroupEndNotification to group:deleted', () => {
-    const events = toGroupEvents({ GroupEndNotification: { cid: 7n, group_key: KEY, success: true } }, SELF, 'alice', peerName);
+    const events: GroupEvent[] = toGroupEvents({ GroupEndNotification: { cid: 7n, group_key: KEY, success: true } }, SELF, 'alice', peerName);
 
     expect(events).toEqual([{ name: 'group:deleted', payload: { groupId: '7:42' } }]);
   });
 
   it('maps GroupLeaveNotification to group:member-left', () => {
-    const events = toGroupEvents(
+    const events: GroupEvent[] = toGroupEvents(
       { GroupLeaveNotification: { cid: 9n, group_key: KEY, success: true, message: '' } }, SELF, 'alice', peerName,
     );
 
@@ -101,7 +102,7 @@ describe('toGroupEvents', () => {
   });
 
   it('emits nothing for a member state it does not recognise, rather than guessing', () => {
-    const events = toGroupEvents(
+    const events: GroupEvent[] = toGroupEvents(
       { GroupMemberStateChangeNotification: { cid: SELF, group_key: KEY, state: { Rekeyed: {} } } }, SELF, 'alice', peerName,
     );
 
@@ -124,7 +125,7 @@ describe('toGroupEvents', () => {
  */
 describe('being removed from a group', () => {
   it('removes the group for a member told through GroupDisconnectNotification', () => {
-    const events = toGroupEvents(
+    const events: GroupEvent[] = toGroupEvents(
       { GroupDisconnectNotification: { cid: SELF, group_key: KEY } },
       SELF, 'alice', peerName,
     );
@@ -133,7 +134,7 @@ describe('being removed from a group', () => {
   });
 
   it('still removes it for the owner on a successful end', () => {
-    const events = toGroupEvents(
+    const events: GroupEvent[] = toGroupEvents(
       { GroupEndNotification: { cid: SELF, group_key: KEY, success: true } },
       SELF, 'alice', peerName,
     );
@@ -144,7 +145,7 @@ describe('being removed from a group', () => {
   it('does NOT remove it when the end failed', () => {
     // Ignoring `success` meant a failed delete still cleared the group from the
     // sidebar of the only person who could delete it, while it lived on.
-    const events = toGroupEvents(
+    const events: GroupEvent[] = toGroupEvents(
       { GroupEndNotification: { cid: SELF, group_key: KEY, success: false } },
       SELF, 'alice', peerName,
     );

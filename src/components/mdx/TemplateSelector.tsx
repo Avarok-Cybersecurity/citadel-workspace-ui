@@ -17,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Check, FileText } from 'lucide-react';
-import { getEntityMetadata } from '@/lib/entity-type-registry';
+import { getEntityMetadata , type EntityTypeMetadata } from '@/lib/entity-type-registry';
 import { activateOnKey } from '@/lib/a11y';
 
 import {
@@ -70,7 +70,7 @@ const TemplateSelector = ({
 
   // Derive icon and label from entity-type-registry (SSOT)
   const entityType: string = categoryToEntityType(category);
-  const metadata = getEntityMetadata(entityType);
+  const metadata: EntityTypeMetadata = getEntityMetadata(entityType);
   const CategoryIcon = metadata.icon;
   const categoryLabel: string = metadata.label;
 

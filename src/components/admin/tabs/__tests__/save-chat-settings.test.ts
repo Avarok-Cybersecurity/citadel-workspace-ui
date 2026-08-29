@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { saveChatSettings, MAX_CHAT_RULES_LENGTH } from '../save-chat-settings';
-import type { ChatSettingsNotice } from '../save-chat-settings';
+import { saveChatSettings, MAX_CHAT_RULES_LENGTH , type ChatSettingsNotice } from '../save-chat-settings';
 
 function deps(overrides: Partial<Parameters<typeof saveChatSettings>[0]> = {}) {
   const notices: ChatSettingsNotice[] = [];

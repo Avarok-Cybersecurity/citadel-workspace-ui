@@ -3,7 +3,7 @@ import { Phone, PhoneOff, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DisabledWithTooltip } from '@/components/ui/DisabledWithTooltip';
 import { useCall } from '@/lib/call/call-context';
-import { groupCallEntryMode } from '@/lib/call/group-call-entry';
+import { groupCallEntryMode , type GroupCallEntryMode } from '@/lib/call/group-call-entry';
 
 export interface GroupCallMember {
   cid: bigint;
@@ -28,7 +28,7 @@ interface GroupCallControlsProps {
  */
 export function GroupCallControls({ roomId, roomName, members }: GroupCallControlsProps): JSX.Element {
   const { call, capability, startCall, accept, leave } = useCall();
-  const mode = groupCallEntryMode(call, roomId, members.length);
+  const mode: GroupCallEntryMode = groupCallEntryMode(call, roomId, members.length);
 
   if (mode.kind === 'in-call') {
     return (

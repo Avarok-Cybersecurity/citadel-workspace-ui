@@ -15,6 +15,7 @@ import { INTERVAL } from '@/lib/timeout-constants';
 
 import { Permission, PERMISSION_LABELS } from './types';
 import type { UserRole, DomainPermissions } from './types';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import {
   updateCacheEntry,
   hasPermission as cacheHasPermission,
@@ -116,7 +117,7 @@ export class PermissionsService extends EventListenerManager {
   }
 
   private getCurrentUserId(): string | null {
-    const connectionInfo = connectionManager.getConnectionInfo();
+    const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
     return connectionInfo?.username || null;
   }
 

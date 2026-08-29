@@ -18,7 +18,7 @@ import {
   RevfsOpType,
   SENT_FILES_DIR,
 } from '@/types/revfs-types';
-import type { RevfsNode } from '@/types/revfs-types';
+import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
 import { CID_A, CID_B, makeMeta } from './tree-test-helpers';
 
 // ============================================================================
@@ -53,8 +53,8 @@ describe('applyRemoteOp', () => {
   it('applies remote placeFile with flipped state', () => {
     let tree: RevfsNode = createDefaultTree();
     [tree] = mkdir(tree, '/docs');
-    const meta = makeMeta({ uploadedByCid: CID_A });
-    const op = {
+    const meta: RevfsFileMetadata = makeMeta({ uploadedByCid: CID_A });
+    const op: { op_id: string; op_type: RevfsOpType; path: string; metadata: RevfsFileMetadata; timestamp: number; } = {
       op_id: '1', op_type: RevfsOpType.PlaceFile, path: '/docs/file.pdf',
       metadata: meta, timestamp: Date.now(),
     };
@@ -70,7 +70,7 @@ describe('applyRemoteOp', () => {
   it('applies remote RemoveFile', () => {
     let tree: RevfsNode = createDefaultTree();
     [tree] = mkdir(tree, '/docs');
-    const meta = makeMeta();
+    const meta: RevfsFileMetadata = makeMeta();
     [tree] = placeFile(tree, '/docs/test.pdf', meta, CID_A);
     const op: { op_id: string; op_type: RevfsOpType; path: string; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.RemoveFile, path: '/docs/test.pdf', timestamp: Date.now() };
     const result: RevfsNode = applyRemoteOp(tree, op, CID_B);
@@ -87,7 +87,7 @@ describe('applyRemoteOp', () => {
   it('applies SyncResponse with flipped file states', () => {
     let remoteTree: RevfsNode = createDefaultTree();
     [remoteTree] = mkdir(remoteTree, '/docs');
-    const meta = makeMeta({ uploadedByCid: CID_A });
+    const meta: RevfsFileMetadata = makeMeta({ uploadedByCid: CID_A });
     [remoteTree] = placeFile(remoteTree, '/docs/test.pdf', meta, CID_A);
     // A uploaded it, so from A's side the blob lives on the peer: Remote.
     expect(findNode(remoteTree, '/docs/test.pdf')!.fileState).toBe(RevfsFileState.Remote);
@@ -121,11 +121,11 @@ describe('applyRemoteOp', () => {
   it('replaces existing file via remote PlaceFile', () => {
     let tree: RevfsNode = createDefaultTree();
     [tree] = mkdir(tree, '/docs');
-    const meta1 = makeMeta({ fileId: 'v1', uploadedByCid: CID_A });
-    const op1 = { op_id: '1', op_type: RevfsOpType.PlaceFile, path: '/docs/f.pdf', metadata: meta1, timestamp: Date.now() };
+    const meta1: RevfsFileMetadata = makeMeta({ fileId: 'v1', uploadedByCid: CID_A });
+    const op1: { op_id: string; op_type: RevfsOpType; path: string; metadata: RevfsFileMetadata; timestamp: number; } = { op_id: '1', op_type: RevfsOpType.PlaceFile, path: '/docs/f.pdf', metadata: meta1, timestamp: Date.now() };
     tree = applyRemoteOp(tree, op1, CID_B);
-    const meta2 = makeMeta({ fileId: 'v2', uploadedByCid: CID_A });
-    const op2 = { op_id: '2', op_type: RevfsOpType.PlaceFile, path: '/docs/f.pdf', metadata: meta2, timestamp: Date.now() };
+    const meta2: RevfsFileMetadata = makeMeta({ fileId: 'v2', uploadedByCid: CID_A });
+    const op2: { op_id: string; op_type: RevfsOpType; path: string; metadata: RevfsFileMetadata; timestamp: number; } = { op_id: '2', op_type: RevfsOpType.PlaceFile, path: '/docs/f.pdf', metadata: meta2, timestamp: Date.now() };
     tree = applyRemoteOp(tree, op2, CID_B);
     const file: RevfsNode | null = findNode(tree, '/docs/f.pdf');
     expect(file!.fileMetadata!.fileId).toBe('v2');

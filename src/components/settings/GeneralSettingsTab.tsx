@@ -12,6 +12,7 @@ import { AvatarUpload } from './AvatarUpload';
 import WorkspaceService from '@/lib/workspace-service';
 import userService from '@/lib/user-service';
 import type { User } from 'citadel-workspace-client-ts';
+import type { UserRegistrationInfo } from '@/lib/user-service';
 
 export function GeneralSettingsTab(): JSX.Element {
   const { toast } = useToast();
@@ -33,7 +34,7 @@ export function GeneralSettingsTab(): JSX.Element {
   // Load current user data on mount
   useEffect(() => {
     const loadUser = async (): Promise<void> => {
-      const currentUser = await userService.getCurrentUser();
+      const currentUser: UserRegistrationInfo | null = await userService.getCurrentUser();
       if (currentUser) {
         setDisplayName(currentUser.fullName || currentUser.username);
         setOriginalDisplayName(currentUser.fullName || currentUser.username);

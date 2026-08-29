@@ -39,11 +39,12 @@ vi.mock('@/contexts/WorkspaceContext', () => ({
 }));
 
 import { BaseOffice } from '../BaseOffice';
+import type { UserEvent } from '@testing-library/user-event';
 
 describe('the MDX editor buffer', () => {
   it('is not replaced when an unrelated store update re-renders the page', async () => {
     nodes = { n1: { id: 'n1', name: 'Engineering', mdx_content: '# Saved body' } };
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
 
     function Harness(): JSX.Element {
       const [, bump] = useState(0);

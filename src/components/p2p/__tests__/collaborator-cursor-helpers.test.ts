@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { FlashComment } from '@/components/p2p/collaborator-cursor-helpers';
 import {
   buildContextMenuFlashComment,
   generateFlashCommentId,
@@ -38,13 +39,13 @@ describe('buildContextMenuFlashComment', () => {
   });
 
   it('trims surrounding whitespace from non-empty text', () => {
-    const c = buildContextMenuFlashComment('  hello world  ', coords, user);
+    const c: FlashComment | null = buildContextMenuFlashComment('  hello world  ', coords, user);
     expect(c).not.toBeNull();
     expect(c?.text).toBe('hello world');
   });
 
   it('embeds user identity and cursor coords in the returned comment', () => {
-    const c = buildContextMenuFlashComment('hi', coords, user);
+    const c: FlashComment | null = buildContextMenuFlashComment('hi', coords, user);
     expect(c).not.toBeNull();
     expect(c?.userId).toBe('cid-123');
     expect(c?.userName).toBe('Alice');
@@ -55,14 +56,14 @@ describe('buildContextMenuFlashComment', () => {
   it('generates a flash-id with the same prefix as generateFlashCommentId', () => {
     // Avoid testing the exact id (random + timestamp) — just the prefix
     // contract, which is what UI rendering keys on.
-    const c = buildContextMenuFlashComment('hi', coords, user);
+    const c: FlashComment | null = buildContextMenuFlashComment('hi', coords, user);
     expect(c?.id).toMatch(/^flash-/);
     expect(generateFlashCommentId()).toMatch(/^flash-/);
   });
 
   it('stamps a timestamp close to now', () => {
     const before: number = Date.now();
-    const c = buildContextMenuFlashComment('hi', coords, user);
+    const c: FlashComment | null = buildContextMenuFlashComment('hi', coords, user);
     const after: number = Date.now();
     expect(c?.timestamp).toBeGreaterThanOrEqual(before);
     expect(c?.timestamp).toBeLessThanOrEqual(after);

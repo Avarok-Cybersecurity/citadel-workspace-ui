@@ -16,6 +16,7 @@ import {
   RECEIVED_FILES_DIR,
 } from '@/types/revfs-types';
 import { CID_A, CID_B } from './tree-test-helpers';
+import type { RevfsNode } from '@/types/revfs-types';
 
 // ============================================================================
 // peerPairKey
@@ -56,7 +57,7 @@ describe('normalizePath', () => {
 
 describe('createDefaultTree', () => {
   it('has root with two protected folders', () => {
-    const tree = createDefaultTree();
+    const tree: RevfsNode = createDefaultTree();
     expect(tree.path).toBe('/');
     expect(tree.children).toHaveLength(2);
     const paths: string[] = tree.children!.map(c => c.path);
@@ -71,19 +72,19 @@ describe('createDefaultTree', () => {
 
 describe('findNode', () => {
   it('finds root', () => {
-    const tree = createDefaultTree();
+    const tree: RevfsNode = createDefaultTree();
     expect(findNode(tree, '/')).toBe(tree);
   });
 
   it('finds child by path', () => {
-    const tree = createDefaultTree();
-    const node = findNode(tree, SENT_FILES_DIR);
+    const tree: RevfsNode = createDefaultTree();
+    const node: RevfsNode | null = findNode(tree, SENT_FILES_DIR);
     expect(node).not.toBeNull();
     expect(node!.name).toBe('Sent Files');
   });
 
   it('returns null for missing path', () => {
-    const tree = createDefaultTree();
+    const tree: RevfsNode = createDefaultTree();
     expect(findNode(tree, '/nonexistent')).toBeNull();
   });
 });

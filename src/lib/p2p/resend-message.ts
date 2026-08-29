@@ -6,15 +6,16 @@
  * memory or in storage, and the work is finding it, proving it is actually
  * retryable, and putting it back through the wire without creating a second one.
  */
-import { createMessage } from '@/types/messaging-layer';
-import { createMessagingLayerCommand } from '@/types/p2p-types';
+import { createMessage , type MessagingLayer } from '@/types/messaging-layer';
+import { createMessagingLayerCommand , type P2PAttachment } from '@/types/p2p-types';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { persistMessageStatus } from './message-status-persistence';
 import { markSendFailed } from './mark-send-failed';
 import { debugLog } from '@/lib/debug-config';
 import type { MessageSenderConfig } from './message-sender-types';
 import type { P2PConversation } from './p2p-types';
-import type { P2PAttachment } from '@/types/p2p-types';
+import type { P2PMessage } from '@/lib/p2p/p2p-types';
+import type { P2PCommand } from '@/types/p2p-commands';
 
 interface CommandSender {
   sendP2PCommand: (peerCid: bigint, command: ReturnType<typeof createMessagingLayerCommand>) => Promise<void>;
@@ -31,7 +32,7 @@ export async function resendMessage(
   // with `messages: []`, and nothing rehydrates it — so after a reload the red
   // "retry" bubble was rendered from the page store while this lookup searched
   // an empty array and threw, every time, for ever.
-  let message = conversation.messages.find(m => m.id === messageId);
+  let message: P2PMessage | undefined = conversation.messages.find(m => m.id === messageId);
   if (!message) {
     message = (await config.findStoredMessage(peerCid, messageId)) ?? undefined;
     if (message) {
@@ -69,8 +70,8 @@ export async function resendMessage(
     throw reason;
   }
 
-  const layer = createMessage(message.content, message.timestamp);
-  const command = createMessagingLayerCommand(
+  const layer: MessagingLayer = createMessage(message.content, message.timestamp);
+  const command: P2PCommand = createMessagingLayerCommand(
     layer,
     currentCid,
     peerCid,

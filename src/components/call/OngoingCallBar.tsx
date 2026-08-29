@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { useCall } from '@/lib/call/call-context';
 import { useCallStageVisible } from './call-stage-presence';
 import { useCallDuration } from './use-call-duration';
+import type { NavigateFunction } from 'react-router';
+import type { CallParticipant } from '@/lib/call/call-state';
 
 /**
  * "You are in a call" — shown when the call's own surface is not on screen.
@@ -16,7 +18,7 @@ import { useCallDuration } from './use-call-duration';
 export function OngoingCallBar(): JSX.Element | null {
   const { call, leave } = useCall();
   const stageVisible: boolean = useCallStageVisible();
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const duration: string = useCallDuration(call?.status === 'active');
 
   if (!call) return null;
@@ -27,7 +29,7 @@ export function OngoingCallBar(): JSX.Element | null {
   // `participants` holds the other side only — self is rendered separately by
   // the stage. Filtered the same way the stage filters, so the count the bar
   // reports and the tiles the user would see on Return agree.
-  const others = [...call.participants.values()].filter(
+  const others: CallParticipant[] = [...call.participants.values()].filter(
     (p) => p.status !== 'declined' && p.status !== 'left',
   );
   const who: string = others.length === 1 ? others[0].username : `${others.length} people`;
@@ -37,7 +39,7 @@ export function OngoingCallBar(): JSX.Element | null {
       navigate(`/groups/${call.roomId}`);
       return;
     }
-    const peer = others[0];
+    const peer: CallParticipant = others[0];
     // `channel`, which is the param the Messages page reads. This said `peer`,
     // which nothing reads anywhere -- so during a 1:1 call, leaving the
     // conversation and pressing Return landed on "No conversation selected",

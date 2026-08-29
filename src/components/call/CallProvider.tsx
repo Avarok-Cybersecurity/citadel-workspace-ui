@@ -19,6 +19,8 @@ import { callBusyReason } from '@/lib/call/call-busy';
 import { CAMERA_UNAVAILABLE, MIC_UNAVAILABLE, SCREEN_SHARE_STOPPED } from './media-unavailable';
 import { useLiveVideoQuality } from './use-live-video-quality';
 import { buildCallContext } from './build-call-context';
+import type { CallManager } from '@/lib/call/call-manager';
+import type { CallSession } from '@/lib/call/call-session';
 
 interface CallProviderProps {
   selfCid: bigint | null;
@@ -72,7 +74,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   useEffect(() => {
     const onSignal = ({ peerCid, payload }: { peerCid: bigint; payload: CallSignalPayload }): void => {
       void (async (): Promise<void> => {
-        const manager = await ensureManager();
+        const manager: CallManager | null = await ensureManager();
         if (!manager) return reportCallSystemUnavailable('inbound');
         // The protocol carries only a CID, and the CID is what everything here
         // keys on — but it is not a name. Resolve against the registration
@@ -94,7 +96,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   // told, or they sit in a call that is over until their ring timeout fires.
   useEffect(
     () => (): void => {
-      const manager = managerRef.current;
+      const manager: CallManager | null = managerRef.current;
       const state: CallState | null | undefined = manager?.getState();
       if (manager && state && state.status !== 'ended' && state.status !== 'failed') {
         void manager.end('hangup');
@@ -122,10 +124,10 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       }
 
       setCaptureFailure(null);
-      const manager = await ensureManager();
+      const manager: CallManager | null = await ensureManager();
       if (!manager) return reportCallSystemUnavailable('start');
 
-      const session = await ensureSession();
+      const session: CallSession = await ensureSession();
       const got: CallMediaKinds | null = await session.start({ audio: true, video, screen: false });
       // Capture failing means there is nothing to send, so nobody is rung — a
       // ringing phone for a call that cannot carry audio wastes their time.
@@ -145,10 +147,10 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   const accept: (media: CallMediaKinds) => Promise<void> = useCallback(
     async (media: CallMediaKinds) => {
       setCaptureFailure(null);
-      const manager = managerRef.current;
+      const manager: CallManager | null = managerRef.current;
       if (!manager) return reportCallSystemUnavailable('accept');
 
-      const session = await ensureSession();
+      const session: CallSession = await ensureSession();
       const got: CallMediaKinds | null = await session.start(media);
       if (!got) {
         await manager.decline('no-devices');
@@ -169,7 +171,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   }, [teardown, managerRef]);
 
   const leave: () => Promise<void> = useCallback(async (): Promise<void> => {
-    const manager = managerRef.current;
+    const manager: CallManager | null = managerRef.current;
     if (manager) {
       await manager.end('hangup');
       teardown();

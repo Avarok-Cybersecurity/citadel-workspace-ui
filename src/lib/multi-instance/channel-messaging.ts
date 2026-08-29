@@ -10,8 +10,7 @@ import { instanceManager } from './instance-manager';
 import { outboundQueue } from './outbound-queue';
 import { debugLog } from '@/lib/debug-config';
 import type { ChannelMessage } from './channel-types';
-import type { LeaderElectionState } from './channel-leader-election';
-import { sendHeartbeat } from './channel-leader-election';
+import { sendHeartbeat , type LeaderElectionState } from './channel-leader-election';
 
 // ── Outbound Request (Follower -> Leader) ─────────────────────────────────
 

@@ -11,6 +11,7 @@ import { P2PMessengerManager } from '@/lib/p2p';
 import { connectionManager } from '@/lib/connection';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import type { RegisteredPeer } from './use-registered-peers';
+import type { P2PConversation } from '@/lib/p2p/p2p-types';
 
 export interface ConversationPeer {
   peerCid: string;
@@ -37,13 +38,13 @@ export function useConversationPeers({
 
   const loadConversations: () => Promise<void> = useCallback(async (): Promise<void> => {
     const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
-    const conversations = messenger.getAllConversations();
+    const conversations: P2PConversation[] = messenger.getAllConversations();
 
     // Get current user's CID to filter out self-conversations
     const currentCid: string | undefined = connectionManager.getConnectionInfo()?.cid?.toString();
 
     // Only include peers with actual messages, excluding self-conversations
-    const filteredConversations = conversations
+    const filteredConversations: P2PConversation[] = conversations
       .filter(c => c.messages.length > 0)
       .filter(c => c.peerCid.toString() !== currentCid);
 

@@ -6,6 +6,7 @@ import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import { TIMEOUT } from '@/lib/timeout-constants';
 import type { Peer } from './usePeerDiscovery';
+import type { WebSocketMessage } from '@/types/ws-message-types';
 
 interface SessionEntry {
   cid: bigint;
@@ -42,7 +43,7 @@ export async function discoverPeersViaGetSessions(currentCid: bigint | null): Pr
     }, TIMEOUT.SERVER_REQUEST_MS);
 
     const handleMessage = (raw: unknown): void => {
-      const message = narrowWebSocketMessage(raw);
+      const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
       if (!message) return;
       if (hasVariant(message, 'GetSessionsResponse')) {
         const resp: Record<string, unknown> = getVariant(message, 'GetSessionsResponse')!;
@@ -90,7 +91,7 @@ export async function fetchRegisteredPeers(currentCid: bigint): Promise<Set<stri
     }, 10000);
 
     const handleMessage = (raw: unknown): void => {
-      const message = narrowWebSocketMessage(raw);
+      const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
       if (!message) return;
       if (hasVariant(message, 'ListRegisteredPeersResponse')) {
         const resp: Record<string, unknown> = getVariant(message, 'ListRegisteredPeersResponse')!;
@@ -140,7 +141,7 @@ export async function fetchAllPeers(currentCid: bigint): Promise<Peer[]> {
     }, 10000);
 
     const handleMessage = (raw: unknown): void => {
-      const message = narrowWebSocketMessage(raw);
+      const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
       if (!message) return;
       if (hasVariant(message, 'ListAllPeersResponse')) {
         const resp: Record<string, unknown> = getVariant(message, 'ListAllPeersResponse')!;

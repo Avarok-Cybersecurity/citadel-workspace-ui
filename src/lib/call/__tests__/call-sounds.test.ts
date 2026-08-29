@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createCallSoundPlayer, type CallSoundDeps } from '../call-sounds';
 import { playTones } from '../call-sound-synth';
+import type { CallSoundPlayer } from '@/lib/call/call-sounds';
 
 interface Harness {
   deps: CallSoundDeps;
@@ -64,7 +65,7 @@ function harness(overrides: Partial<CallSoundDeps> = {}): Harness {
 describe('createCallSoundPlayer', () => {
   it('plays a burst immediately and again each cadence period', async () => {
     const h: Harness = harness();
-    const player = createCallSoundPlayer(h.deps);
+    const player: CallSoundPlayer = createCallSoundPlayer(h.deps);
 
     await player.startRing('incoming', 'call-1');
     expect(h.bursts).toHaveLength(1);
@@ -76,7 +77,7 @@ describe('createCallSoundPlayer', () => {
 
   it('uses a quieter, shorter burst for the caller ringback than the incoming ring', async () => {
     const h: Harness = harness();
-    const player = createCallSoundPlayer(h.deps);
+    const player: CallSoundPlayer = createCallSoundPlayer(h.deps);
 
     await player.startRing('incoming', 'call-1');
     player.stopRing();
@@ -87,7 +88,7 @@ describe('createCallSoundPlayer', () => {
 
   it('stops immediately: no further bursts and the cross-tab lock is released', async () => {
     const h: Harness = harness();
-    const player = createCallSoundPlayer(h.deps);
+    const player: CallSoundPlayer = createCallSoundPlayer(h.deps);
 
     await player.startRing('incoming', 'call-1');
     expect(h.locksHeld()).toBe(1);
@@ -102,7 +103,7 @@ describe('createCallSoundPlayer', () => {
 
   it('never rings twice at once: a new ring replaces the old one', async () => {
     const h: Harness = harness();
-    const player = createCallSoundPlayer(h.deps);
+    const player: CallSoundPlayer = createCallSoundPlayer(h.deps);
 
     await player.startRing('incoming', 'call-1');
     await player.startRing('ringback', 'call-2');
@@ -116,7 +117,7 @@ describe('createCallSoundPlayer', () => {
 
   it('is idempotent for the same call and kind, so re-renders do not restart the cadence', async () => {
     const h: Harness = harness();
-    const player = createCallSoundPlayer(h.deps);
+    const player: CallSoundPlayer = createCallSoundPlayer(h.deps);
 
     await player.startRing('incoming', 'call-1');
     await player.startRing('incoming', 'call-1');
@@ -127,7 +128,7 @@ describe('createCallSoundPlayer', () => {
 
   it('stays silent when the preference is off', async () => {
     const h: Harness = harness({ isEnabled: () => false });
-    const player = createCallSoundPlayer(h.deps);
+    const player: CallSoundPlayer = createCallSoundPlayer(h.deps);
 
     await player.startRing('incoming', 'call-1');
     player.chime('connected');
@@ -138,7 +139,7 @@ describe('createCallSoundPlayer', () => {
 
   it('stays silent when another tab already rings this call', async () => {
     const h: Harness = harness({ acquireRingLock: () => Promise.resolve(null) });
-    const player = createCallSoundPlayer(h.deps);
+    const player: CallSoundPlayer = createCallSoundPlayer(h.deps);
 
     await player.startRing('incoming', 'call-1');
 
@@ -155,7 +156,7 @@ describe('createCallSoundPlayer', () => {
           grant = resolve;
         }),
     });
-    const player = createCallSoundPlayer(h.deps);
+    const player: CallSoundPlayer = createCallSoundPlayer(h.deps);
 
     const started: Promise<void> = player.startRing('incoming', 'call-1');
     player.stopRing();
@@ -171,7 +172,7 @@ describe('createCallSoundPlayer', () => {
 
   it('plays chimes when enabled', async () => {
     const h: Harness = harness();
-    const player = createCallSoundPlayer(h.deps);
+    const player: CallSoundPlayer = createCallSoundPlayer(h.deps);
 
     player.chime('connected');
     player.chime('ended');

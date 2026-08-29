@@ -25,6 +25,7 @@ import { debugLog } from '@/lib/debug-config';
 import { MembersTable } from './CreateGroupMembersTable';
 import { avatarColor } from '@/lib/avatar-color';
 import type { AvailablePeer, SelectedMember, CreateGroupDialogProps } from './create-group-types';
+import type { GroupRole } from '@/types/group-permissions';
 
 // Re-export types for backward compatibility
 export type { AvailablePeer, SelectedMember, CreateGroupDialogProps };
@@ -38,8 +39,8 @@ export function CreateGroupDialog({
   onCreateGroup,
   currentUsername,
 }: CreateGroupDialogProps): JSX.Element {
-  const defaultRoles = useMemo(() => createDefaultRoles(), []);
-  const memberRole = useMemo(
+  const defaultRoles: GroupRole[] = useMemo((): GroupRole[] => createDefaultRoles(), []);
+  const memberRole: GroupRole | undefined = useMemo(
     () => getDefaultRole({ roles: defaultRoles, defaultRoleId: '' }),
     [defaultRoles]
   );
@@ -57,7 +58,7 @@ export function CreateGroupDialog({
     return availablePeers.filter(p => !selectedCids.has(p.cid));
   }, [availablePeers, selectedMembers]);
 
-  const assignableRoles = useMemo(() => {
+  const assignableRoles: GroupRole[] = useMemo((): GroupRole[] => {
     return defaultRoles.filter(r => !r.isBuiltIn);
   }, [defaultRoles]);
 

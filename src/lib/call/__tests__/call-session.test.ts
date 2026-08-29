@@ -6,6 +6,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CallSession } from '../call-session';
+import type { CallMediaKinds } from '@/types/call-signals';
 
 const stopped: Array<{ stop: ReturnType<typeof vi.fn> }> = [];
 const codecInstances: Array<{ close: ReturnType<typeof vi.fn> }> = [];
@@ -104,7 +105,7 @@ describe('starting a call', () => {
     });
     const session: CallSession = new CallSession(callbacks());
 
-    const got = await session.start({ audio: true, video: true, screen: false });
+    const got: CallMediaKinds | null = await session.start({ audio: true, video: true, screen: false });
 
     expect(got).toEqual({ audio: true, video: false, screen: false });
   });
@@ -117,7 +118,7 @@ describe('starting a call', () => {
     const cbs = callbacks();
     const session: CallSession = new CallSession(cbs);
 
-    const got = await session.start({ audio: true, video: false, screen: false });
+    const got: CallMediaKinds | null = await session.start({ audio: true, video: false, screen: false });
 
     expect(got).toBeNull();
     expect(cbs.onCaptureFailed).toHaveBeenCalledWith(expect.objectContaining({ kind: 'no-device' }));
@@ -267,7 +268,7 @@ describe('closing during capture', () => {
     const session: CallSession = new CallSession(callbacks());
     const lateStream: MediaStream = fakeStream(true);
 
-    const pending = session.start({ audio: true, video: true, screen: false });
+    const pending: Promise<CallMediaKinds | null> = session.start({ audio: true, video: true, screen: false });
     session.close();
     release(lateStream);
 

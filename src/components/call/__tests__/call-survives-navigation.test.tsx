@@ -18,8 +18,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { CallAudioHost } from '../CallAudioHost';
 import { OngoingCallBar } from '../OngoingCallBar';
 import { registerCallStage } from '../call-stage-presence';
-import { CallContext } from '@/lib/call/call-context';
-import type { CallContextValue } from '@/lib/call/call-context';
+import { CallContext , type CallContextValue } from '@/lib/call/call-context';
 import type { CallState } from '@/lib/call/call-state';
 
 const PEER = 42n;

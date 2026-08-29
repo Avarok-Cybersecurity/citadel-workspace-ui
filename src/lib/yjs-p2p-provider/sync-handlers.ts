@@ -9,8 +9,7 @@ import * as Y from 'yjs';
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
 import type { YjsSyncMessage, SyncState } from './types';
-import { sendSyncMessage, sendAck } from './sending';
-import type { SendingContext } from './sending';
+import { sendSyncMessage, sendAck , type SendingContext } from './sending';
 
 /** Subset of provider state needed by sync handlers */
 export interface SyncHandlerContext extends SendingContext {

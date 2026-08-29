@@ -13,6 +13,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { useDialogOverlay } from '../use-dialog-overlay';
+import type { UserEvent } from '@testing-library/user-event';
 
 function Overlay({ onDismiss }: { onDismiss?: () => void }): JSX.Element {
   const { ref, dialogProps } = useDialogOverlay<HTMLDivElement>({ label: 'Sign in', onDismiss });
@@ -48,7 +49,7 @@ describe('useDialogOverlay', () => {
   });
 
   it('keeps Tab inside, so focus never reaches controls under the scrim', async () => {
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
     render(<Harness open />);
 
     await user.tab();
@@ -62,7 +63,7 @@ describe('useDialogOverlay', () => {
   });
 
   it('wraps backwards too', async () => {
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
     render(<Harness open />);
 
     await user.tab({ shift: true });
@@ -70,7 +71,7 @@ describe('useDialogOverlay', () => {
   });
 
   it('dismisses on Escape when the caller allows it', async () => {
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
     const onDismiss = vi.fn();
     render(<Harness open onDismiss={onDismiss} />);
 
@@ -80,14 +81,14 @@ describe('useDialogOverlay', () => {
   });
 
   it('ignores Escape when the caller gives no dismiss — a modal that must not close', async () => {
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
     render(<Harness open />);
     await user.keyboard('{Escape}');
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('returns focus to whatever opened it', async () => {
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
     function Toggle(): JSX.Element {
       const [open, setOpen] = useState(false);
       return (

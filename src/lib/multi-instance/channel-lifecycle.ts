@@ -11,6 +11,7 @@ import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
 import { debugLog } from '@/lib/debug-config';
 import type { ChannelMessage } from './channel-types';
+import type { InstanceInfo } from '@/lib/multi-instance/instance-manager-types';
 
 interface UnloadChannel {
   send(message: Omit<ChannelMessage, 'senderInstanceId' | 'timestamp'>): void;
@@ -22,7 +23,7 @@ export function setupBeforeUnloadHandler(channel: UnloadChannel): void {
     const myCid: bigint | null = instanceManager.cid;
 
     if (myCid) {
-      const otherInstancesWithSameCid = instanceManager.getAllInstances()
+      const otherInstancesWithSameCid: InstanceInfo[] = instanceManager.getAllInstances()
         .filter(i => i.instanceId !== instanceManager.instanceId && i.cid === myCid);
 
       if (otherInstancesWithSameCid.length === 0) {

@@ -9,6 +9,7 @@ import { WorkspaceClient } from 'citadel-workspace-client-ts';
 import { debugLog } from '../debug-config';
 import { instanceManager, instanceChannel, instanceInboundRouter } from '../multi-instance';
 import { isEnsureMessengerOpenResponse } from '../multi-instance/outbound-queue';
+import type { AckResult } from '@/lib/multi-instance/outbound-queue-types';
 
 export interface MessengerConfig {
   init: () => Promise<void>;
@@ -56,7 +57,7 @@ export class MessengerOperations {
       const requestId = crypto.randomUUID();
       instanceInboundRouter.registerPendingRequest(requestId, instanceManager.instanceId);
 
-      const result = await instanceChannel.sendToLeader(proxyRequest, requestId);
+      const result: AckResult = await instanceChannel.sendToLeader(proxyRequest, requestId);
       if (result.status === 'error') {
         throw new Error(`Leader failed to open messenger: ${result.error}`);
       }
@@ -95,7 +96,7 @@ export class MessengerOperations {
       const requestId = crypto.randomUUID();
       instanceInboundRouter.registerPendingRequest(requestId, instanceManager.instanceId);
 
-      const result = await instanceChannel.sendToLeader(proxyRequest, requestId);
+      const result: AckResult = await instanceChannel.sendToLeader(proxyRequest, requestId);
       if (result.status === 'error') {
         throw new Error(`Leader failed to ensure messenger: ${result.error}`);
       }
@@ -155,7 +156,7 @@ export class MessengerOperations {
       const requestId = crypto.randomUUID();
       instanceInboundRouter.registerPendingRequest(requestId, instanceManager.instanceId);
 
-      const result = await instanceChannel.sendToLeader(proxyRequest, requestId);
+      const result: AckResult = await instanceChannel.sendToLeader(proxyRequest, requestId);
       if (result.status === 'error') {
         throw new Error(`Leader failed to send P2P message: ${result.error}`);
       }

@@ -14,6 +14,7 @@ import { mapSecuritySettings } from "@/lib/security-utils";
 import type { ConnectStatus } from "./LoadingModal";
 import { debugLog } from '@/lib/debug-config';
 import { createRegistrationResponseHandler } from './registration-response-handler';
+import type { NavigateFunction } from 'react-router';
 
 export interface JoinFormData {
   fullName: string;
@@ -39,7 +40,7 @@ export function useJoinRegistration(
    */
   draft?: { initial: JoinFormData; onChange: (next: JoinFormData) => void },
 ) {
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const { toast } = useToast();
   const [isRegistering, setIsRegistering] = useState(false);
   const [showNotInitializedModal, setShowNotInitializedModal] = useState(false);

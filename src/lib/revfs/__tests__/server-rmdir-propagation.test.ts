@@ -7,8 +7,7 @@
  * operation and assert on the intents it emits.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { serverRmdir, peerRmdir } from '../revfs-dir-ops';
-import type { DirOpsContext } from '../revfs-dir-ops';
+import { serverRmdir, peerRmdir , type DirOpsContext } from '../revfs-dir-ops';
 import { collectFiles } from '../tree-queries';
 import { createDefaultTree, mkdir, placeFile, serverTreeKey } from '../tree-operations';
 import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';

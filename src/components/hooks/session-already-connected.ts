@@ -1,6 +1,6 @@
 import type React from 'react';
 import { debugLog } from '@/lib/debug-config';
-import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
+import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
 import { describeFailure } from '@/lib/failure-message';
 import { onSuccess, type RetryVisibility } from './connection-retry-visibility';
 
@@ -46,7 +46,7 @@ return async (event: { cid: string; message: string }): Promise<void> => {
       onClick: () => {
         void (async (): Promise<void> => {
           try {
-            const outcome = await claimSessionForThisTab(BigInt(event.cid));
+            const outcome: ClaimOutcome = await claimSessionForThisTab(BigInt(event.cid));
             if (outcome.status === 'owned-by-another-tab') {
               toast(SESSION_OWNED_ELSEWHERE);
               return;

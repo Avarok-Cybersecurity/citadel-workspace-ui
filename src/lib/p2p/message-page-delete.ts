@@ -7,6 +7,7 @@ import { websocketService } from '../websocket-service';
 import { conversationPrefix, legacyConversationPrefix, hasLegacyFallback } from './message-page-keys';
 import { loadMetadata } from './message-page-operations';
 import { debugLog } from '@/lib/debug-config';
+import type { ConversationMetadata } from '@/lib/p2p/p2p-types';
 
 /**
  * Delete all pages and metadata for a conversation.
@@ -26,7 +27,7 @@ export interface DeleteScope {
 }
 
 export async function deleteConversationPages(peerCid: bigint, scope: DeleteScope): Promise<void> {
-  const metadata = await loadMetadata(peerCid);
+  const metadata: ConversationMetadata | null = await loadMetadata(peerCid);
   if (!metadata) return;
 
   // Delete only what we can PROVE belongs to the account doing the deleting.

@@ -9,6 +9,7 @@ import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 import { debugLog } from '../debug-config';
 import { instanceManager, instanceChannel, instanceInboundRouter } from '../multi-instance';
 import type { WebSocketServiceCore } from './core';
+import type { AckResult } from '@/lib/multi-instance/outbound-queue-types';
 
 /**
  * SINGLE-WEBSOCKET ARCHITECTURE: Send a request to the internal service.
@@ -63,7 +64,7 @@ export async function sendRequest(
 
     instanceInboundRouter.registerPendingRequest(id, instanceManager.instanceId);
 
-    const result = await instanceChannel.sendToLeader(request, id);
+    const result: AckResult = await instanceChannel.sendToLeader(request, id);
 
     if (result.status === 'error') {
       debugLog('WebSocketService', `Follower proxy failed for ${messageType}: ${result.error}`);

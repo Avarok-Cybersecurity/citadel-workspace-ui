@@ -18,6 +18,7 @@ export interface VideoDecoderHandle {
  */
 import { AUDIO_CODEC, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './codec-support';
 import { canStartDecoding, frameToDecoderChunk, type WireFrame } from './frame-codec';
+import type { DecoderChunkInit } from '@/lib/call/frame-codec';
 
 export function createVideoDecoder(
   codec: string,
@@ -53,7 +54,7 @@ export function createVideoDecoder(
         }
         primed = true;
       }
-      const init = frameToDecoderChunk(frame);
+      const init: DecoderChunkInit = frameToDecoderChunk(frame);
       decoder.decode(new EncodedVideoChunk(init));
     },
     close(): void {

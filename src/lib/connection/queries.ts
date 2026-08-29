@@ -14,6 +14,7 @@ import {
   GET_SESSIONS_TIMEOUT_MS,
 } from './constants';
 import { debugLog } from '@/lib/debug-config';
+import type { TabSelectionContext } from '@/lib/connection/types';
 
 /**
  * The outcome of asking the internal service which sessions exist.
@@ -130,7 +131,7 @@ export async function getTabActiveSessionIndex(
   state: ConnectionState,
   io: ConnectionIO,
 ): Promise<number> {
-  const tabSelection = await io.getSelectedUser();
+  const tabSelection: TabSelectionContext | null = await io.getSelectedUser();
   if (tabSelection?.selectedUsername && tabSelection?.selectedServerAddress) {
     const index: number = state.findSessionIndex(
       tabSelection.selectedUsername,

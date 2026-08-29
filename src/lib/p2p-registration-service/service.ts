@@ -15,10 +15,11 @@ import { instanceManager } from '../multi-instance';
 import { connectionManager } from '../connection';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
-import type { BroadcastStateSyncData } from '@/types/ws-message-types';
+import type { BroadcastStateSyncData, WebSocketMessage } from '@/types/ws-message-types';
 import { debugLog } from '@/lib/debug-config';
 import type { Peer, PeerInfoResponse, PeerRegistrationOptions, PendingRequestEntry } from './types';
 import { POLLING_INTERVAL } from './constants';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import {
   listAllPeers as doListAllPeers,
   listRegisteredPeers as doListRegisteredPeers,
@@ -65,7 +66,7 @@ export class P2PRegistrationService {
 
   private setupEventListeners(): void {
     eventEmitter.on('websocket-message', (raw: unknown) => {
-      const message = narrowWebSocketMessage(raw);
+      const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
       if (!message) return;
       routeMessage(message, {
         pendingRequests: this.pendingRequests,
@@ -139,7 +140,7 @@ export class P2PRegistrationService {
       debugLog('P2PRegistrationService', 'P2P Registration Service already running');
       return;
     }
-    const connectionInfo = connectionManager.getConnectionInfo();
+    const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
     if (!connectionInfo?.cid) {
       throw new Error('No active connection. Please connect first.');
     }

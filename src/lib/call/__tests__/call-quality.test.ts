@@ -4,6 +4,7 @@
  * left wondering whether it is their own connection.
  */
 import { describe, it, expect } from 'vitest';
+import type { ConnectionQuality } from '@/components/call/ParticipantTile';
 import {
   CallQualityTracker,
   QUALITY_WINDOW_MS,
@@ -89,7 +90,7 @@ describe('CallQualityTracker', () => {
     tracker.recordFrame(CAROL, 0);
     for (let i: number = 0; i < POOR_THRESHOLD; i += 1) tracker.recordGap(CAROL, i);
 
-    const snapshot = tracker.snapshot(500);
+    const snapshot: Map<bigint, ConnectionQuality> = tracker.snapshot(500);
     expect(snapshot.get(BOB)).toBe('good');
     expect(snapshot.get(CAROL)).toBe('poor');
   });

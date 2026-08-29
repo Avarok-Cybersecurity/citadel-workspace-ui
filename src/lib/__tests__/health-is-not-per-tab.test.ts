@@ -14,6 +14,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { ServiceHealth } from '@/lib/health-check';
 
 const isConnected = vi.fn();
 const canSendRequests = vi.fn();
@@ -46,7 +47,7 @@ describe('health probe', () => {
     isConnected.mockReturnValue(false);
     canSendRequests.mockReturnValue(true);
 
-    const health = await healthCheckService.checkHealth();
+    const health: ServiceHealth = await healthCheckService.checkHealth();
 
     expect(health.isHealthy).toBe(true);
   });
@@ -56,7 +57,7 @@ describe('health probe', () => {
     isConnected.mockReturnValue(false);
     canSendRequests.mockReturnValue(false);
 
-    const health = await healthCheckService.checkHealth();
+    const health: ServiceHealth = await healthCheckService.checkHealth();
 
     // The banner exists for this case. A fix that made it never fire would be
     // worse than the bug.

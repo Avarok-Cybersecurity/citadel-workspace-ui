@@ -31,6 +31,7 @@ import { resolveCurrentCid, updatePeerPresenceOnConnect, updatePeerPresenceOnDis
 import { syncConnectionsFromBackend, updateFileTransferState, markMessagesAsRead, updateUnreadCount, autoRegisterPeer } from './messenger-compatibility';
 import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
+import type { MessagePage, ConversationMetadata } from '@/lib/p2p/p2p-types';
 
 export class P2PMessengerManager extends EventListenerManager {
   private static instance: P2PMessengerManager;
@@ -195,9 +196,9 @@ export class P2PMessengerManager extends EventListenerManager {
     this.conversationManager.clearMessages(peerCid);
     eventEmitter.emit('p2p:conversation-cleared', { peerCid });
   }
-  public async loadMessagePage(peerCid: bigint, pageNumber: number) { return messagePaginationStore.loadMessagePage(peerCid, pageNumber); }
+  public async loadMessagePage(peerCid: bigint, pageNumber: number): Promise<MessagePage | null> { return messagePaginationStore.loadMessagePage(peerCid, pageNumber); }
   public async loadLatestMessages(peerCid: bigint): Promise<P2PMessage[]> { return messagePaginationStore.loadLatestMessages(peerCid); }
-  public async getConversationMetadata(peerCid: bigint) { return messagePaginationStore.loadMetadata(peerCid); }
+  public async getConversationMetadata(peerCid: bigint): Promise<ConversationMetadata | null> { return messagePaginationStore.loadMetadata(peerCid); }
 
   // ===== Public API: Event Listeners =====
   public onMessage(listener: (message: P2PMessage) => void): () => void { this.messageListeners.push(listener); return () => { this.messageListeners = this.messageListeners.filter(l => l !== listener); }; }

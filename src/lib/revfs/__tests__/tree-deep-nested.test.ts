@@ -20,7 +20,7 @@ import {
   RevfsFileState,
   RevfsOpType,
 } from '@/types/revfs-types';
-import type { RevfsNode } from '@/types/revfs-types';
+import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
 import { CID_A, CID_B, makeMeta } from './tree-test-helpers';
 
 // ============================================================================
@@ -57,7 +57,7 @@ function createDeepTree(depth: number, filesPerLevel: number): {
     for (let f: number = 0; f < filesPerLevel; f++) {
       const fileName: string = `file-${d}-${f}.dat`;
       const filePath: string = `${dirPath}/${fileName}`;
-      const meta = makeMeta({
+      const meta: RevfsFileMetadata = makeMeta({
         fileId: `file-${d}-${f}`,
         fileName,
         fileSize: (d * 1000) + (f * 100),
@@ -173,7 +173,7 @@ describe('deep nested tree stress tests', () => {
     const { tree, allDirPaths } = createDeepTree(MAX_DEPTH, FILES_PER_LEVEL);
     const deepestPath: string = allDirPaths[allDirPaths.length - 1];
     const newFilePath: string = `${deepestPath}/extra-file.txt`;
-    const meta = makeMeta({ fileId: 'extra', fileName: 'extra-file.txt' });
+    const meta: RevfsFileMetadata = makeMeta({ fileId: 'extra', fileName: 'extra-file.txt' });
     const [newTree] = placeFile(tree, newFilePath, meta, CID_A);
     const node: RevfsNode | null = findNode(newTree, newFilePath);
     expect(node).not.toBeNull();
@@ -194,8 +194,8 @@ describe('deep nested tree stress tests', () => {
     [localTree] = mkdir(localTree, '/level-0/level-1/level-2/level-3/level-4/level-5/level-6/level-7/level-8/level-9/branch-a');
     [remoteTree] = mkdir(remoteTree, '/level-0/level-1/level-2/level-3/level-4/level-5/level-6/level-7/level-8/level-9/branch-b');
 
-    const metaA = makeMeta({ fileId: 'local-file', fileName: 'local.txt' });
-    const metaB = makeMeta({ fileId: 'remote-file', fileName: 'remote.txt' });
+    const metaA: RevfsFileMetadata = makeMeta({ fileId: 'local-file', fileName: 'local.txt' });
+    const metaB: RevfsFileMetadata = makeMeta({ fileId: 'remote-file', fileName: 'remote.txt' });
     [localTree] = placeFile(localTree, '/level-0/level-1/level-2/level-3/level-4/level-5/level-6/level-7/level-8/level-9/branch-a/local.txt', metaA, CID_A);
     [remoteTree] = placeFile(remoteTree, '/level-0/level-1/level-2/level-3/level-4/level-5/level-6/level-7/level-8/level-9/branch-b/remote.txt', metaB, CID_A);
 
@@ -214,8 +214,8 @@ describe('deep nested tree stress tests', () => {
     let result: RevfsNode = applyRemoteOp(tree, mkdirOp, CID_B);
     expect(findNode(result, `${deepPath}/remote-dir`)).not.toBeNull();
 
-    const meta = makeMeta({ fileId: 'remote-deep', fileName: 'remote.dat', uploadedByCid: CID_A });
-    const placeOp = { op_id: '2', op_type: RevfsOpType.PlaceFile, path: `${deepPath}/remote-dir/remote.dat`, metadata: meta, timestamp: Date.now() };
+    const meta: RevfsFileMetadata = makeMeta({ fileId: 'remote-deep', fileName: 'remote.dat', uploadedByCid: CID_A });
+    const placeOp: { op_id: string; op_type: RevfsOpType; path: string; metadata: RevfsFileMetadata; timestamp: number; } = { op_id: '2', op_type: RevfsOpType.PlaceFile, path: `${deepPath}/remote-dir/remote.dat`, metadata: meta, timestamp: Date.now() };
     result = applyRemoteOp(result, placeOp, CID_B);
     const file: RevfsNode | null = findNode(result, `${deepPath}/remote-dir/remote.dat`);
     expect(file).not.toBeNull();

@@ -6,6 +6,7 @@ import {
   clearPromptEvent,
 } from './install-prompt-store';
 import { debugLog } from '@/lib/debug-config';
+import type { BeforeInstallPromptEvent } from '@/components/pwa/install-prompt-store';
 
 /**
  * The `beforeinstallprompt` event, which TypeScript's DOM lib does not declare.
@@ -46,7 +47,7 @@ export interface PwaInstallState {
 export function usePwaInstall(): PwaInstallState {
   // Subscribed to the module-scope store rather than owning the listener, so
   // every consumer sees the same captured event no matter when it mounted.
-  const promptEvent = useSyncExternalStore(
+  const promptEvent: BeforeInstallPromptEvent | null = useSyncExternalStore(
     subscribeToInstallState,
     getPromptEvent,
     () => null,
@@ -58,7 +59,7 @@ export function usePwaInstall(): PwaInstallState {
   );
 
   const install: () => Promise<boolean> = useCallback(async (): Promise<boolean> => {
-    const event = getPromptEvent();
+    const event: BeforeInstallPromptEvent | null = getPromptEvent();
     if (!event) return false;
     await event.prompt();
     const { outcome } = await event.userChoice;

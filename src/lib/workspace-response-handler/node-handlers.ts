@@ -7,8 +7,7 @@
 
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
-import { isVariant } from 'citadel-workspace-client-ts';
-import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
+import { isVariant , type WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 import type { ConnectionInfo } from './workspace-handlers';
 
 /**

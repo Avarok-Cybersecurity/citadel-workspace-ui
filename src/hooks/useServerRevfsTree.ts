@@ -7,8 +7,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { RevfsNode } from '@/types/revfs-types';
-import { TreeScope } from '@/types/revfs-types';
+import { TreeScope , type RevfsNode } from '@/types/revfs-types';
 import { revfsService } from '@/lib/revfs';
 import { serverTreeKey, calculateStorageUsage } from '@/lib/revfs/tree-operations';
 import { eventEmitter } from '@/lib/event-emitter';

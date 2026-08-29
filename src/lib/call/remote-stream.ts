@@ -9,6 +9,7 @@
 
 import { trackGenerator } from './track-transforms';
 import { debugLog } from '@/lib/debug-config';
+import type { TrackGeneratorCtor } from '@/lib/call/track-transforms';
 
 
 export interface RemoteVideoSink {
@@ -26,7 +27,7 @@ export interface RemoteVideoSink {
  * "does not work" are not the same thing.
  */
 export function createRemoteVideoSink(): RemoteVideoSink {
-  const Generator = trackGenerator();
+  const Generator: TrackGeneratorCtor | null = trackGenerator();
 
   if (Generator) {
     const track: MediaStreamTrack & { writable: WritableStream<VideoFrame | AudioData>; } = new Generator({ kind: 'video' });
@@ -102,7 +103,7 @@ export interface RemoteAudioSink {
  * report the missing audio, instead of failing wholesale.
  */
 export function createRemoteAudioSink(): RemoteAudioSink {
-  const Generator = trackGenerator();
+  const Generator: TrackGeneratorCtor | null = trackGenerator();
 
   if (!Generator) {
     return {

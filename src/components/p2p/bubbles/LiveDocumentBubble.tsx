@@ -1,7 +1,6 @@
 import { FileText, Users } from 'lucide-react';
-import { getBubbleStyles, BUBBLE_MAX_WIDTH } from './types';
+import { getBubbleStyles, BUBBLE_MAX_WIDTH , type LiveDocumentBubbleProps } from './types';
 import { BubbleFooter } from './BubbleFooter';
-import type { LiveDocumentBubbleProps } from './types';
 
 export function LiveDocumentBubble({ message, isOwn, onRetry, onOpenDocument }: LiveDocumentBubbleProps): JSX.Element {
   const isFailed: boolean = message.status === 'failed';

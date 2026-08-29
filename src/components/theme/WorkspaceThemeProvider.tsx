@@ -7,6 +7,7 @@ import { applyTheme, clearTheme } from '@/lib/theme/apply-theme';
 import { defaultTheme } from '@/lib/theme/presets';
 import type { WorkspaceTheme } from '@/lib/theme/theme-types';
 import { debugLog } from '@/lib/debug-config';
+import type { WorkspaceMetadataBytes } from '@/types/workspace-metadata';
 
 /**
  * Applies the workspace's theme to the document.
@@ -32,7 +33,7 @@ export function WorkspaceThemeProvider({ children }: { children: ReactNode }): J
   const [preview, setPreview] = useState<WorkspaceTheme | null>(null);
 
   const saved: WorkspaceTheme | null = useMemo((): WorkspaceTheme | null => {
-    const metadata = state.workspace?.metadata;
+    const metadata: WorkspaceMetadataBytes | undefined = state.workspace?.metadata;
     if (!metadata) return null;
 
     // deserializeTheme returns null for anything that is not a theme envelope,

@@ -25,6 +25,7 @@ import {
   getExecuteCalls,
 } from './revfs-service-test-helpers';
 import type { RevfsFileMetadata } from '@/types/revfs-types';
+import type { RevfsService } from '@/lib/revfs/revfs-service';
 
 const META: RevfsFileMetadata = {
   fileId: 'f1',
@@ -45,7 +46,7 @@ function deletesIssued(service: ReturnType<typeof createTestService>): string[] 
 
 describe('deleting one of two copies (peer scope)', () => {
   it('keeps the bytes until the LAST reference is removed', async () => {
-    const service = createTestService(defaultIntentHandler());
+    const service: RevfsService = createTestService(defaultIntentHandler());
     await service.mkdir(ALICE, BOB, '/docs');
     await service.uploadFileToPeer(ALICE, BOB, '/docs', 'report.pdf', META, BYTES);
     await service.copy(ALICE, BOB, '/docs/report.pdf', '/');
@@ -65,7 +66,7 @@ describe('deleting one of two copies (peer scope)', () => {
 
 describe('deleting one of two copies (server scope)', () => {
   it('keeps the bytes until the LAST reference is removed', async () => {
-    const service = createTestService(defaultIntentHandler());
+    const service: RevfsService = createTestService(defaultIntentHandler());
     await service.serverMkdir(ALICE, '/docs');
     await service.uploadFileToServer(ALICE, '/docs', 'report.pdf', META, BYTES);
     await service.serverCopy(ALICE, '/docs/report.pdf', '/');
@@ -80,7 +81,7 @@ describe('deleting one of two copies (server scope)', () => {
 
 describe('rmdir over shared bytes', () => {
   it('does not sweep bytes still referenced outside the removed folder', async () => {
-    const service = createTestService(defaultIntentHandler());
+    const service: RevfsService = createTestService(defaultIntentHandler());
     await service.serverMkdir(ALICE, '/docs');
     await service.serverMkdir(ALICE, '/backup');
     await service.uploadFileToServer(ALICE, '/docs', 'report.pdf', META, BYTES);
@@ -98,7 +99,7 @@ describe('rmdir over shared bytes', () => {
   });
 
   it('deletes a blob once when a folder holds both original and copy', async () => {
-    const service = createTestService(defaultIntentHandler());
+    const service: RevfsService = createTestService(defaultIntentHandler());
     await service.serverMkdir(ALICE, '/docs');
     await service.uploadFileToServer(ALICE, '/docs', 'report.pdf', META, BYTES);
     await service.serverCopy(ALICE, '/docs/report.pdf', '/docs');

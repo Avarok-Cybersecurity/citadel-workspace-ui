@@ -4,6 +4,7 @@
  * while the sender keeps pushing a bitrate the link cannot carry.
  */
 import { describe, it, expect } from 'vitest';
+import type { LinkVerdict } from '@/lib/call/congestion';
 import {
   applyReport,
   verdictFromMetrics,
@@ -18,10 +19,10 @@ import {
 
 // Still expressed as measurements, then turned into the verdict the ladder
 // consumes — so these keep testing the thresholds, not just the ladder.
-const CLEAN = verdictFromMetrics({ lossRate: 0, playoutDelayMs: 40 });
-const LOSSY = verdictFromMetrics({ lossRate: 0.12, playoutDelayMs: 60 });
-const DELAYED = verdictFromMetrics({ lossRate: 0, playoutDelayMs: 400 });
-const MIDDLING = verdictFromMetrics({ lossRate: 0.03, playoutDelayMs: 180 });
+const CLEAN: LinkVerdict = verdictFromMetrics({ lossRate: 0, playoutDelayMs: 40 });
+const LOSSY: LinkVerdict = verdictFromMetrics({ lossRate: 0.12, playoutDelayMs: 60 });
+const DELAYED: LinkVerdict = verdictFromMetrics({ lossRate: 0, playoutDelayMs: 400 });
+const MIDDLING: LinkVerdict = verdictFromMetrics({ lossRate: 0.03, playoutDelayMs: 180 });
 
 function afterReports(state: CongestionState, report: typeof CLEAN, times: number): CongestionState {
   let next: CongestionState = state;

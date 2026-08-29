@@ -10,8 +10,7 @@ import { eventEmitter } from '../event-emitter';
 import { failOnSocketLoss } from '../websocket/request-response';
 import { formatBytes } from '../format-bytes';
 import { websocketService } from '../websocket-service';
-import type { FileSource } from './io-router-types';
-import type { SendFileParams, SendFileResult, CancelTransferParams } from './io-router-types';
+import type { FileSource, SendFileParams, SendFileResult, CancelTransferParams } from './io-router-types';
 import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
 

@@ -17,6 +17,7 @@ import type { RevfsIO } from './revfs-io';
 import { persistTree } from './persist-tree';
 import { countByteKeyRefs } from './tree-byte-refs';
 import { debugLog } from '@/lib/debug-config';
+import type { RevfsIntentResult } from '@/types/revfs-intents';
 
 export interface FileOpsContext {
   state: RevfsState;
@@ -52,7 +53,7 @@ export async function uploadFileToPeer(
   //
   // Same ordering rationale as the server path — a node appears if and only if
   // its bytes were accepted.
-  const result = await io.execute({
+  const result: RevfsIntentResult = await io.execute({
     type: 'backend-send-file',
     cid: myCid,
     peerCid,
@@ -98,7 +99,7 @@ export async function removeFileFromPeer(
     fileNode?.fileMetadata !== undefined &&
     countByteKeyRefs(tree, fileNode.fileMetadata.virtualDirectory) > 1;
   if (fileNode?.fileMetadata && !sharedElsewhere) {
-    const deleted = await io.execute({
+    const deleted: RevfsIntentResult = await io.execute({
       type: 'backend-delete-file',
       cid: myCid,
       peerCid,
@@ -135,7 +136,7 @@ export async function downloadFileFromPeer(
     throw new Error(`File not found or has no metadata: ${filePath}`);
   }
 
-  const result = await io.execute({
+  const result: RevfsIntentResult = await io.execute({
     type: 'backend-download-file',
     cid: myCid,
     peerCid,

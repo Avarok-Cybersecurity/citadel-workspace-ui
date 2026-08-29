@@ -5,7 +5,7 @@
  */
 
 import type { P2PMessagingLayerPayload } from '@/types/p2p-types';
-import { isFileTransferRequest } from '@/types/messaging-layer';
+import { isFileTransferRequest , type MessagingLayer } from '@/types/messaging-layer';
 import { eventEmitter } from '../event-emitter';
 import type { P2PMessage, P2PConversation } from './p2p-types';
 import { debugLog } from '@/lib/debug-config';
@@ -30,7 +30,7 @@ export class FileTransferMessageHandler {
    * Handle file transfer message
    */
   public async handleFileTransferMessage(payload: P2PMessagingLayerPayload, peerCid: bigint): Promise<void> {
-    const layer = payload.layer;
+    const layer: MessagingLayer = payload.layer;
 
     if (!isFileTransferRequest(layer)) {
       return;

@@ -15,6 +15,7 @@ import { NodeManagementModal } from '@/components/node/NodeManagementModal';
 import { AdminModal } from '@/components/admin';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import type { NavigateFunction } from 'react-router';
 
 /**
  * Orchestrator component that wires TreeNodesSection to workspace state.
@@ -22,7 +23,7 @@ import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
  */
 export function HierarchySidebar(): JSX.Element {
   const location = useLocation();
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const { state } = useWorkspace();
   const { toast } = useToast();
 

@@ -29,6 +29,7 @@ import { ProfileModal } from "@/components/settings/ProfileModal";
 import { DisconnectLoadingModal } from "@/components/LoadingModal";
 import { cn } from "@/lib/utils";
 import { useSessionExit } from './use-session-exit';
+import type { TabUserContext } from '@/lib/tab-context';
 
 interface TopBarProps {
   // Optional prop for backward compatibility
@@ -62,7 +63,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps): JSX.Element => {
   useEffect(() => {
     let cancelled: boolean = false;
     void (async (): Promise<void> => {
-      const tab = await getSelectedUser();
+      const tab: TabUserContext | null = await getSelectedUser();
       if (cancelled) return;
       if (tab?.selectedUsername) { setSessionFallback({ username: tab.selectedUsername }); return; }
       const session = await connectionManager.getTabSelectedSession();

@@ -16,7 +16,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useRegisteredPeers } from '@/hooks/use-registered-peers';
+import { useRegisteredPeers , type RegisteredPeer } from '@/hooks/use-registered-peers';
 import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
 import { GroupCallControls } from '@/components/call/GroupCallControls';
 import { GroupCallDock } from '@/components/call/GroupCallDock';
@@ -29,6 +29,8 @@ import { sendGroupEnd } from '@/lib/group-conversations/group-requests';
 import { debugLog } from '@/lib/debug-config';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { groupGoneMessage } from '@/lib/group-conversations/group-gone-message';
+import type { NavigateFunction } from 'react-router';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
 // ============================================================================
 // Component
@@ -36,7 +38,7 @@ import { groupGoneMessage } from '@/lib/group-conversations/group-gone-message';
 
 export function GroupChatPage(): JSX.Element {
   const { groupId } = useParams<{ groupId: string }>();
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const { toast } = useToast();
   const {
     getGroup,
@@ -54,7 +56,7 @@ export function GroupChatPage(): JSX.Element {
   const [showSettings, setShowSettings] = useState(false);
 
   // Get current user info
-  const connectionInfo = connectionManager.getConnectionInfo();
+  const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
   const currentUserId: string = connectionInfo?.cid ? String(connectionInfo.cid) : '';
   const currentUserName: string = connectionInfo?.username || 'You';
 
@@ -118,7 +120,7 @@ export function GroupChatPage(): JSX.Element {
 
   // Anyone already in the group would be a no-op invite, so they are filtered
   // out rather than offered and silently rejected by the backend.
-  const invitablePeers = useMemo(() => {
+  const invitablePeers: RegisteredPeer[] = useMemo((): RegisteredPeer[] => {
     if (!group) return [];
     const existing: Set<string> = new Set(group.members.map((m) => m.cid.toString()));
     return registeredPeers.filter((p) => !existing.has(p.cid));

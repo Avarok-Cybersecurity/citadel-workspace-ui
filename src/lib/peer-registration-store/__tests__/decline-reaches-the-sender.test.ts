@@ -29,8 +29,9 @@ vi.mock('@/lib/websocket-service', () => ({
 }));
 
 import { executeDeclineRequest } from '../lifecycle';
+import type { PendingPeerRequest } from '@/lib/peer-registration-store/types';
 
-const request = {
+const request: PendingPeerRequest = {
   id: 'req-1',
   cid: 7n,
   peer_cid: 42n,
@@ -68,7 +69,7 @@ describe('executeDeclineRequest', () => {
     // `cid` is typed non-optional but is genuinely absent for a request that
     // arrived before a session settled, which is exactly when this guard
     // matters — hence the cast rather than a shape the type forbids.
-    const sessionless = { ...request, cid: undefined } as unknown as typeof request;
+    const sessionless: PendingPeerRequest = { ...request, cid: undefined } as unknown as typeof request;
     await executeDeclineRequest(sessionless);
     expect(h.sent).toEqual([]);
   });

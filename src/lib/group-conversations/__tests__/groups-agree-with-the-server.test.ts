@@ -23,6 +23,7 @@ import {
 import { getGroups, updateGroups } from '../group-store';
 import { toGroupEvents } from '../group-events';
 import type { GroupConversation } from '@/types/group';
+import type { GroupEvent } from '@/lib/group-conversations/group-events';
 
 function group(id: string): GroupConversation {
   return {
@@ -63,7 +64,7 @@ describe('reconcileGroups', () => {
 
 describe('the list response', () => {
   it('maps GroupListGroupsSuccess to group ids', () => {
-    const events = toGroupEvents(
+    const events: GroupEvent[] = toGroupEvents(
       { GroupListGroupsSuccess: { cid: BigInt(1), group_list: [key('7'), key('9')] } },
       BigInt(1),
       'me',
@@ -77,7 +78,7 @@ describe('the list response', () => {
   it('emits NOTHING when group_list is null', () => {
     // Option<Vec<..>> on the wire. Null is "no answer", not "you are in no
     // groups" — reconciling against it deletes every group the account has.
-    const events = toGroupEvents(
+    const events: GroupEvent[] = toGroupEvents(
       { GroupListGroupsSuccess: { cid: BigInt(1), group_list: null } },
       BigInt(1),
       'me',
@@ -87,7 +88,7 @@ describe('the list response', () => {
   });
 
   it('accepts an empty list, which DOES mean no groups', () => {
-    const events = toGroupEvents(
+    const events: GroupEvent[] = toGroupEvents(
       { GroupListGroupsSuccess: { cid: BigInt(1), group_list: [] } },
       BigInt(1),
       'me',

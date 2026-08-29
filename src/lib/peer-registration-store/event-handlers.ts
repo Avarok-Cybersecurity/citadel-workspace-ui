@@ -10,6 +10,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import type { KVPendingEntry } from './types';
+import type { WebSocketMessage } from '@/types/ws-message-types';
 import {
   resolveKVResponse,
   resolveKVSetSuccess,
@@ -51,7 +52,7 @@ export function setupEventListeners(callbacks: StoreCallbacks): void {
 }
 
 function handleWebSocketMessage(raw: unknown, callbacks: StoreCallbacks): void {
-  const message = narrowWebSocketMessage(raw);
+  const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
   if (!message) return;
 
   const kv: Map<string, KVPendingEntry> = callbacks.getPendingKVRequests();

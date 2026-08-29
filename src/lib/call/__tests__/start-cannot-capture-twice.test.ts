@@ -13,6 +13,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CallSession } from '../call-session';
+import type { CallMediaKinds } from '@/types/call-signals';
 
 const g: Record<string, unknown> = globalThis as unknown as Record<string, unknown>;
 const savedMedia = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
@@ -96,8 +97,8 @@ describe('CallSession.start re-entrancy', () => {
   it('captures once when pressed twice during the permission prompt', async () => {
     const session: CallSession = makeSession();
 
-    const first = session.start({ audio: true, video: false, screen: false });
-    const second = session.start({ audio: true, video: false, screen: false });
+    const first: Promise<CallMediaKinds | null> = session.start({ audio: true, video: false, screen: false });
+    const second: Promise<CallMediaKinds | null> = session.start({ audio: true, video: false, screen: false });
 
     // Both are in flight; the prompt has not answered yet.
     expect(getUserMedia).toHaveBeenCalledTimes(1);
@@ -120,11 +121,11 @@ describe('CallSession.start re-entrancy', () => {
   it('allows a genuine second attempt after the first finishes', async () => {
     const session: CallSession = makeSession();
 
-    const first = session.start({ audio: true, video: false, screen: false });
+    const first: Promise<CallMediaKinds | null> = session.start({ audio: true, video: false, screen: false });
     release?.();
     await first;
 
-    const second = session.start({ audio: true, video: false, screen: false });
+    const second: Promise<CallMediaKinds | null> = session.start({ audio: true, video: false, screen: false });
     release?.();
     await second;
 

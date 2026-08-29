@@ -24,6 +24,7 @@ import { buildTreeFromNodes } from "./tree-node-utils";
 export type { NodeEntityType, DomainPermissions, DomainNode, TreeNode, TreeSchema, NestingRule, EntityTypeConfig } from "./tree-node-types";
 import type { DomainNode, TreeNode } from "./tree-node-types";
 import { useTreeExpansion } from './use-tree-expansion';
+import type { NavigateFunction } from 'react-router';
 
 export interface TreeNodesSectionProps {
   tree?: TreeNode;
@@ -68,7 +69,7 @@ export function TreeNodesSection({
   maxHeight = "50vh",
 }: TreeNodesSectionProps): JSX.Element {
   const location = useLocation();
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const { setOpenMobile } = useSidebar();
 
   const treeData: TreeNode | null = useMemo((): TreeNode | null => {

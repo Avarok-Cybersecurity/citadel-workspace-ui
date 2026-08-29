@@ -1,5 +1,4 @@
-import { useCallback, useEffect } from 'react';
-import type { MutableRefObject } from 'react';
+import { useCallback, useEffect , type MutableRefObject } from 'react';
 import { useVideoQuality } from './use-video-quality';
 import type { VideoQuality } from '@/lib/call/video-quality';
 

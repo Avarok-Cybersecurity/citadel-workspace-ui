@@ -6,6 +6,7 @@ import { stringToBytes, bytesToString } from './utils/encoding-utils';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, getVariant } from '@/lib/ws-message-boundary';
 import { TIMEOUT } from './timeout-constants';
+import type { WebSocketMessage } from '@/types/ws-message-types';
 
 /**
  * Server info stored in LocalDB
@@ -45,7 +46,7 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
       // Set up event listener
 
       const handler = (raw: unknown): void => {
-        const message = narrowWebSocketMessage(raw);
+        const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
         if (!message) return;
 
         const getAllKVSuccess: Record<string, unknown> | undefined = getVariant(message, 'LocalDBGetAllKVSuccess');
@@ -153,7 +154,7 @@ export async function storeKnownServer(server: StoredServer, cid: string = "0"):
       // Set up event listener
 
       const handler = (raw: unknown): void => {
-        const message = narrowWebSocketMessage(raw);
+        const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
         if (!message) return;
 
         const setKVSuccess: Record<string, unknown> | undefined = getVariant(message, 'LocalDBSetKVSuccess');

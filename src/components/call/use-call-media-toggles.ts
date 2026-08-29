@@ -6,8 +6,7 @@
  * 250-line budget.
  */
 
-import { useCallback, useEffect, useRef } from 'react';
-import type { MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef , type MutableRefObject } from 'react';
 import type { CallMediaKinds } from '@/types/p2p-commands';
 import { canShareScreen } from '@/lib/call/screen-capability';
 import type { captureScreen as CaptureScreen } from '@/lib/call/screen-capture';

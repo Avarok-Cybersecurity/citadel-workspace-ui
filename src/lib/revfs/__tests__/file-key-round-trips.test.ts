@@ -19,6 +19,7 @@
 import { describe, it, expect } from 'vitest';
 import { createTestService, ALICE } from './revfs-service-test-helpers';
 import type { RevfsIntent, RevfsIntentResult } from '@/types/revfs-intents';
+import type { RevfsService } from '@/lib/revfs/revfs-service';
 
 const FILE_PATH: string = '/notes.txt';
 
@@ -27,7 +28,7 @@ async function intentsFrom(
   act: (service: ReturnType<typeof createTestService>) => Promise<unknown>
 ): Promise<RevfsIntent[]> {
   const seen: RevfsIntent[] = [];
-  const service = createTestService((intent): RevfsIntentResult => {
+  const service: RevfsService = createTestService((intent): RevfsIntentResult => {
     seen.push(intent);
     switch (intent.type) {
       case 'backend-send-file':

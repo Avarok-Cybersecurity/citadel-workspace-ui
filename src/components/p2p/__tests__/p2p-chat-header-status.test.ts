@@ -12,6 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import { getStatusDisplay } from '../P2PChatHeader';
 import { MessagingLayerType } from '@/types/messaging-layer';
+import type { PeerPresence } from '@/lib/p2p/p2p-types';
 
 const presence: (status: MessagingLayerType, extra?: {}) => Parameters<typeof getStatusDisplay>[0] = (status: MessagingLayerType, extra = {}) =>
   ({ status, lastUpdate: 0, ...extra }) as Parameters<typeof getStatusDisplay>[0];
@@ -53,7 +54,7 @@ describe('the DM header status', () => {
   });
 
   it('distinguishes a registered peer with no presence from an unregistered one', () => {
-    const unknown = presence('nonsense' as unknown as MessagingLayerType);
+    const unknown: PeerPresence = presence('nonsense' as unknown as MessagingLayerType);
     expect(getStatusDisplay(unknown, false, true).text).toBe('Offline');
     expect(getStatusDisplay(unknown, false, false).text).toBe('Not connected');
   });

@@ -5,8 +5,7 @@
  * used by the message handler.
  */
 
-import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
-import { isResponseType } from 'citadel-workspace-client-ts';
+import { isResponseType , type InternalServiceResponse } from 'citadel-workspace-client-ts';
 import type { P2PMessage, P2PConversation, PeerPresence } from './p2p-types';
 
 // ============================================================================

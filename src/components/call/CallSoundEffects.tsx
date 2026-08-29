@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useCall } from '@/lib/call/call-context';
 import type { CallStatus } from '@/lib/call/call-state';
+import type { CallSoundPlayer } from '@/lib/call/call-sounds';
 
 /** Lazy so the audio code never rides along with the app shell (see below). */
 type SoundModule = typeof import('@/lib/call/call-sounds');
@@ -34,7 +35,7 @@ export function CallSoundEffects(): null {
     loadedRef.current = true;
     void import('@/lib/call/call-sounds')
       .then(({ callSounds }: SoundModule) => {
-        const player = callSounds();
+        const player: CallSoundPlayer = callSounds();
         if (status === 'ringing-in' && callId) {
           void player.startRing('incoming', callId);
         } else if (status === 'ringing-out' && callId) {

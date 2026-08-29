@@ -7,6 +7,7 @@
  * jsdom implementation; everything under test is our own logic around it.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import type { CaptureFailure, CaptureResult } from '@/lib/call/media-capture';
 import {
   classifyCaptureError,
   captureLocalMedia,
@@ -44,7 +45,7 @@ describe('classifyCaptureError', () => {
   });
 
   it('recognises a device held by another application', () => {
-    const failure = classifyCaptureError(domError('NotReadableError'));
+    const failure: CaptureFailure = classifyCaptureError(domError('NotReadableError'));
 
     expect(failure.kind).toBe('device-in-use');
     expect(failure.retryable).toBe(true);
@@ -56,7 +57,7 @@ describe('classifyCaptureError', () => {
   });
 
   it('falls back to a retryable unknown for anything unrecognised', () => {
-    const failure = classifyCaptureError(new Error('something else'));
+    const failure: CaptureFailure = classifyCaptureError(new Error('something else'));
 
     expect(failure.kind).toBe('unknown');
     expect(failure.retryable).toBe(true);
@@ -67,7 +68,7 @@ describe('captureLocalMedia', () => {
   it('reports an insecure context distinctly, since HTTPS is the fix', () => {
     // getUserMedia is simply absent over plain http, which otherwise surfaces as
     // a baffling generic failure.
-    const result = captureLocalMedia({ audio: true, video: false });
+    const result: Promise<CaptureResult> = captureLocalMedia({ audio: true, video: false });
 
     return result.then((r) => {
       expect(r.ok).toBe(false);
@@ -82,7 +83,7 @@ describe('captureLocalMedia', () => {
     const stream: MediaStream = { getTracks: () => [] } as unknown as MediaStream;
     stubMediaDevices(vi.fn().mockResolvedValue(stream));
 
-    const result = await captureLocalMedia({ audio: true, video: true });
+    const result: CaptureResult = await captureLocalMedia({ audio: true, video: true });
 
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.stream).toBe(stream);
@@ -97,7 +98,7 @@ describe('captureLocalMedia', () => {
       .mockResolvedValueOnce(audioStream);
     stubMediaDevices(getUserMedia);
 
-    const result = await captureLocalMedia({ audio: true, video: true });
+    const result: CaptureResult = await captureLocalMedia({ audio: true, video: true });
 
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.stream).toBe(audioStream);
@@ -109,7 +110,7 @@ describe('captureLocalMedia', () => {
     const getUserMedia = vi.fn().mockRejectedValue(domError('NotAllowedError'));
     stubMediaDevices(getUserMedia);
 
-    const result = await captureLocalMedia({ audio: true, video: true });
+    const result: CaptureResult = await captureLocalMedia({ audio: true, video: true });
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.failure.kind).toBe('permission-denied');
@@ -119,7 +120,7 @@ describe('captureLocalMedia', () => {
     const getUserMedia = vi.fn().mockRejectedValue(domError('NotFoundError'));
     stubMediaDevices(getUserMedia);
 
-    const result = await captureLocalMedia({ audio: true, video: false });
+    const result: CaptureResult = await captureLocalMedia({ audio: true, video: false });
 
     expect(result.ok).toBe(false);
     expect(getUserMedia).toHaveBeenCalledTimes(1);
@@ -127,7 +128,7 @@ describe('captureLocalMedia', () => {
 
   it('refuses a call with neither microphone nor camera requested', async () => {
     stubMediaDevices(vi.fn());
-    const result = await captureLocalMedia({ audio: false, video: false });
+    const result: CaptureResult = await captureLocalMedia({ audio: false, video: false });
 
     expect(result.ok).toBe(false);
   });
@@ -140,13 +141,13 @@ describe('canStartCall', () => {
   it('blocks a call with no microphone', () => {
     // Checked BEFORE ringing: discovering it afterwards wastes the callee's
     // time and looks like a fault at their end.
-    const failure = canStartCall({ microphones: [], cameras: [cam], speakers: [] }, false);
+    const failure: CaptureFailure | null = canStartCall({ microphones: [], cameras: [cam], speakers: [] }, false);
 
     expect(failure?.kind).toBe('no-device');
   });
 
   it('blocks a video call with no camera, and says audio is still possible', () => {
-    const failure = canStartCall({ microphones: [mic], cameras: [], speakers: [] }, true);
+    const failure: CaptureFailure | null = canStartCall({ microphones: [mic], cameras: [], speakers: [] }, true);
 
     expect(failure?.kind).toBe('no-device');
     expect(failure?.message).toMatch(/audio call/i);

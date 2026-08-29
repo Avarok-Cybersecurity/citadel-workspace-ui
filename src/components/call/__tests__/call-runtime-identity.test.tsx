@@ -41,6 +41,7 @@ vi.mock('@/lib/call/codec-support', () => ({
 vi.mock('@/lib/call/peer-name', () => ({ callPeerName: (): string => 'Peer' }));
 
 import { useCallRuntime } from '../use-call-runtime';
+import type { CallManager } from '@/lib/call/call-manager';
 
 function setup(selfCid: bigint | null) {
   return renderHook(
@@ -64,14 +65,14 @@ describe('call runtime identity', () => {
   it('builds a fresh manager when the account changes', async () => {
     const { result, rerender } = setup(11n);
 
-    const first = await act(() => result.current.ensureManager());
+    const first: CallManager | null = await act((): Promise<CallManager | null> => result.current.ensureManager());
     expect(first).not.toBeNull();
     expect(built).toHaveLength(1);
     expect(built[0].selfCid).toBe(11n);
 
     act(() => rerender({ cid: 22n }));
 
-    const second = await act(() => result.current.ensureManager());
+    const second: CallManager | null = await act((): Promise<CallManager | null> => result.current.ensureManager());
     // The whole point: not the cached manager wired to 11n.
     expect(second).not.toBe(first);
     expect(built).toHaveLength(2);
@@ -105,9 +106,9 @@ describe('call runtime identity', () => {
 
     // Started under 11n, resolved after the switch: installing it would hand
     // the new account a manager wired to the old CID.
-    const pending = result.current.ensureManager();
+    const pending: Promise<CallManager | null> = result.current.ensureManager();
     act(() => rerender({ cid: 22n }));
-    const resolved = await act(() => pending);
+    const resolved: CallManager | null = await act((): Promise<CallManager | null> => pending);
 
     expect(resolved).toBeNull();
   });
@@ -115,9 +116,9 @@ describe('call runtime identity', () => {
   it('reuses the manager while the identity is unchanged', async () => {
     const { result, rerender } = setup(11n);
 
-    const first = await act(() => result.current.ensureManager());
+    const first: CallManager | null = await act((): Promise<CallManager | null> => result.current.ensureManager());
     act(() => rerender({ cid: 11n }));
-    const second = await act(() => result.current.ensureManager());
+    const second: CallManager | null = await act((): Promise<CallManager | null> => result.current.ensureManager());
 
     expect(second).toBe(first);
     expect(built).toHaveLength(1);

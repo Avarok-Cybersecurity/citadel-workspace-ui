@@ -13,10 +13,8 @@ import { RoleColorPicker } from './RoleColorPicker';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import type { GroupPermissions } from '@/types/group';
-import { DEFAULT_MEMBER_PERMISSIONS } from '@/types/group';
-import { PERMISSION_LABELS } from './GroupRoleEditorConstants';
-import type { GroupRoleEditorProps } from './GroupRoleEditorConstants';
+import { DEFAULT_MEMBER_PERMISSIONS , type GroupPermissions } from '@/types/group';
+import { PERMISSION_LABELS , type GroupRoleEditorProps } from './GroupRoleEditorConstants';
 
 // ============================================================================
 // Component

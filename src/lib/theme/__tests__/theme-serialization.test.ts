@@ -9,6 +9,7 @@ import { serializeTheme, deserializeTheme, validateTheme } from '../theme-serial
 import { defaultTheme, findPreset } from '../presets';
 import { beginEdit, setToken } from '../theme-editing';
 import type { WorkspaceTheme } from '../theme-types';
+import type { ThemePalette } from '@/lib/theme/theme-types';
 
 /**
  * What the server stores: one metadata document shared by several features,
@@ -46,7 +47,7 @@ describe('round trip', () => {
   });
 
   it('preserves an emoji icon and one without', () => {
-    const withEmoji = { ...defaultTheme(), icon: { emoji: '🛡️', color: { h: 10, s: 20, l: 30 } } };
+    const withEmoji: { icon: { emoji: string; color: { h: number; s: number; l: number; }; }; id: string; name: string; isPreset: boolean; radius: number; light: ThemePalette; dark: ThemePalette; darkIsDerived: boolean; } = { ...defaultTheme(), icon: { emoji: '🛡️', color: { h: 10, s: 20, l: 30 } } };
 
     expect(deserializeTheme(metadataCarrying(withEmoji))?.icon.emoji).toBe('🛡️');
     expect(deserializeTheme(metadataCarrying(defaultTheme()))?.icon.emoji).toBeUndefined();

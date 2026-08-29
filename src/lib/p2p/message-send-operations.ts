@@ -15,6 +15,7 @@ import { websocketService } from '../websocket-service';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import type { MessageSenderConfig } from './message-sender-types';
 import { debugLog } from '@/lib/debug-config';
+import type { P2PConversation } from '@/lib/p2p/p2p-types';
 
 /**
  * Send a raw MessagingLayer message to a peer (used by FileTransferService)
@@ -31,7 +32,7 @@ export async function sendRawMessage(
 
   await p2pAutoConnectService.ensurePeerConnectedInBackground(recipientCid);
 
-  const conversation = config.getOrCreateConversation(recipientCid);
+  const conversation: P2PConversation = config.getOrCreateConversation(recipientCid);
   const command: P2PCommand = createMessagingLayerCommand(
     layer,
     currentCid,

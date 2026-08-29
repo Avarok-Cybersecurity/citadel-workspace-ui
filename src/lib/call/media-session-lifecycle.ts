@@ -6,6 +6,7 @@
  */
 
 import type { CallManagerInternals } from './call-manager-internals';
+import type { CallState } from '@/lib/call/call-state';
 
 export async function openSessionFor(m: CallManagerInternals, cid: bigint): Promise<void> {
   if (m.openSessions.has(cid)) return;
@@ -24,7 +25,7 @@ export async function openSessionFor(m: CallManagerInternals, cid: bigint): Prom
     // correctly refused as a late transition over a terminal state — so the
     // user is told "call ended" instead of "this peer connected without UDP",
     // losing the one sentence that explains what to do.
-    const state = m.getState();
+    const state: CallState | null = m.getState();
     if (state && state.participants.size === 1) {
       m.apply({ type: 'failed', reason });
       return;
@@ -49,7 +50,7 @@ export async function closeAllSessions(m: CallManagerInternals): Promise<void> {
 
 /** Release everything once the call has reached a terminal state. */
 export async function closeIfFinished(m: CallManagerInternals): Promise<void> {
-  const state = m.getState();
+  const state: CallState | null = m.getState();
   if (!state) return;
   if (state.status === 'ended' || state.status === 'failed') {
     await closeAllSessions(m);

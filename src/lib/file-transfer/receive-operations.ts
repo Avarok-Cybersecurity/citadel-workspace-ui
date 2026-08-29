@@ -14,6 +14,7 @@ import type {
   FileTransferTickNotification,
 } from './protocol-types';
 import { parseTickNotification, type TickCorrelation } from './tick-events';
+import type { ParsedTick } from '@/lib/file-transfer/tick-events';
 
 /**
  * Send RespondFileTransfer and return the request UUID it was sent under.
@@ -149,7 +150,7 @@ export function createProgressHandler(
       | undefined;
     if (!notification) return;
 
-    const parsed = parseTickNotification(notification, correlation);
+    const parsed: ParsedTick = parseTickNotification(notification, correlation);
     if (parsed?.kind !== 'progress') return;
 
     callback({
@@ -175,7 +176,7 @@ export function createCompleteHandler(
       | undefined;
     if (!notification) return;
 
-    const parsed = parseTickNotification(notification, correlation);
+    const parsed: ParsedTick = parseTickNotification(notification, correlation);
     if (parsed?.kind !== 'complete') return;
 
     callback({

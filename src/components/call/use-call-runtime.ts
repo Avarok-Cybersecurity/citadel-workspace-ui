@@ -19,6 +19,7 @@ import type { CallSession } from '@/lib/call/call-session';
 import type { CallState } from '@/lib/call/call-state';
 import type { CaptureFailure } from '@/lib/call/media-capture';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
+import type { CallCodecCapabilities, CallMediaKinds } from '@/types/call-signals';
 
 interface UseCallRuntimeParams {
   selfCid: bigint | null;
@@ -91,7 +92,7 @@ export function useCallRuntime({
     managerCidRef.current = builtFor;
     const build: Promise<CallManager | null> = (async (): Promise<CallManager | null> => {
       const { localCapabilities } = await import('@/lib/call/codec-support');
-      const capabilities = await localCapabilities();
+      const capabilities: CallCodecCapabilities = await localCapabilities();
       const manager: CallManager = new CallManager({
         transport: new WebSocketCallTransport({ selfCid, senderConfig }),
         selfCid,
@@ -209,7 +210,7 @@ export function useCallRuntime({
         // captured snapshot: a hub unplugged at once ends both tracks, and
         // two updates computed from one stale snapshot would each undo the
         // other.
-        const current = managerRef.current?.getState()?.selfMedia;
+        const current: CallMediaKinds | undefined = managerRef.current?.getState()?.selfMedia;
         if (current) {
           void managerRef.current?.setSelfMedia({ ...current, [kind]: false });
         }

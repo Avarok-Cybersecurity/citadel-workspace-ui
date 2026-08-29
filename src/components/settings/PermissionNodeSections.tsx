@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/accordion';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
-import { getEntityMetadata, type NodeEntityType } from '@/lib/entity-type-registry';
+import { getEntityMetadata, type NodeEntityType , type EntityTypeMetadata } from '@/lib/entity-type-registry';
 import { RoleBadge, GroupedPermissionTable } from './PermissionWidgets';
 
 /**
@@ -29,7 +29,7 @@ export function ChildNodePermissionSection({
 }): JSX.Element {
   const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
   const role = getRole(nodeId);
-  const metadata = getEntityMetadata(entityType);
+  const metadata: EntityTypeMetadata = getEntityMetadata(entityType);
   const Icon = metadata.icon;
 
   useEffect(() => {
@@ -71,7 +71,7 @@ export function ParentNodePermissionSection({
 }): JSX.Element {
   const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
   const role = getRole(nodeId);
-  const metadata = getEntityMetadata(entityType);
+  const metadata: EntityTypeMetadata = getEntityMetadata(entityType);
   const Icon = metadata.icon;
 
   useEffect(() => {

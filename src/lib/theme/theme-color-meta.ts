@@ -1,4 +1,5 @@
 import { fromCssValue, toHex } from './hsl';
+import type { HslColor } from '@/lib/theme/theme-types';
 
 /**
  * Keeping `<meta name="theme-color">` in step with the applied theme.
@@ -28,7 +29,7 @@ export function syncThemeColorMeta(
   if (!meta) return;
 
   const raw: string = getComputedStyle(root).getPropertyValue('--background').trim();
-  const color = fromCssValue(raw);
+  const color: HslColor | null = fromCssValue(raw);
   // Leave the markup's value alone rather than writing something unparseable:
   // a wrong titlebar is worse than a stale one.
   if (!color) return;

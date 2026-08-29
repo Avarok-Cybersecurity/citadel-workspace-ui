@@ -6,10 +6,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { RevfsOpType, RevfsFileState } from '@/types/revfs-types';
+import { RevfsOpType, RevfsFileState , type RevfsNode } from '@/types/revfs-types';
 import type { RevfsOperation, RevfsFileMetadata } from '@/types/revfs-types';
 import { peerPairKey } from '../tree-operations';
 import { ALICE, BOB, createTestService, defaultIntentHandler, getExecuteCalls } from './revfs-service-test-helpers';
+import type { RevfsService } from '@/lib/revfs/revfs-service';
+import type { RevfsIntent } from '@/types/revfs-intents';
 
 const KEY: string = peerPairKey(ALICE, BOB);
 
@@ -18,7 +20,7 @@ const KEY: string = peerPairKey(ALICE, BOB);
 describe('RevfsService (events & sync)', () => {
   describe('handleRevfsOperation', () => {
     it('applies remote mkdir and sends ACK', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       const op: RevfsOperation = {
         op_id: 'test-op-1', op_type: RevfsOpType.Mkdir,
         path: '/shared', timestamp: Date.now(),
@@ -26,7 +28,7 @@ describe('RevfsService (events & sync)', () => {
 
       await service.handleRevfsOperation(BOB, ALICE, op);
 
-      const tree = await service.getTree(ALICE, BOB);
+      const tree: RevfsNode = await service.getTree(ALICE, BOB);
       expect(tree.children!.find(c => c.name === 'shared')).toBeDefined();
 
       const sendCalls = getExecuteCalls(service).filter(i => i.type === 'send-revfs-op');
@@ -41,7 +43,7 @@ describe('RevfsService (events & sync)', () => {
     });
 
     it('resolves pending ACK when ACK received', async () => {
-      const service = createTestService(defaultIntentHandler(), { autoAck: false });
+      const service: RevfsService = createTestService(defaultIntentHandler(), { autoAck: false });
       const mkdirPromise: Promise<void> = service.mkdir(ALICE, BOB, '/docs');
 
       await new Promise(r => setTimeout(r, 10));
@@ -62,7 +64,7 @@ describe('RevfsService (events & sync)', () => {
     });
 
     it('handles SyncRequest by sending SyncResponse', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       await service.mkdir(ALICE, BOB, '/docs');
 
       const syncReq: RevfsOperation = {
@@ -83,7 +85,7 @@ describe('RevfsService (events & sync)', () => {
     });
 
     it('applies remote PlaceFile and sends ACK', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       await service.mkdir(ALICE, BOB, '/docs');
 
       const meta: RevfsFileMetadata = {
@@ -96,15 +98,15 @@ describe('RevfsService (events & sync)', () => {
       };
       await service.handleRevfsOperation(BOB, ALICE, op);
 
-      const tree = await service.getTree(ALICE, BOB);
-      const file = tree.children?.find(c => c.name === 'docs')?.children?.find(c => c.name === 'file.pdf');
+      const tree: RevfsNode = await service.getTree(ALICE, BOB);
+      const file: RevfsNode | undefined = tree.children?.find(c => c.name === 'docs')?.children?.find(c => c.name === 'file.pdf');
       expect(file).toBeDefined();
       // The peer uploaded it to us, so we are the ones hosting the blob.
       expect(file!.fileState).toBe(RevfsFileState.Hosted);
     });
 
     it('applies remote RemoveFile and sends ACK', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       await service.mkdir(ALICE, BOB, '/docs');
       const meta: RevfsFileMetadata = {
         fileId: 'f1', fileName: 'file.pdf', fileSize: 512,
@@ -118,18 +120,18 @@ describe('RevfsService (events & sync)', () => {
       };
       await service.handleRevfsOperation(BOB, ALICE, removeOp);
 
-      const tree = await service.getTree(ALICE, BOB);
-      const docs = tree.children?.find(c => c.name === 'docs');
+      const tree: RevfsNode = await service.getTree(ALICE, BOB);
+      const docs: RevfsNode | undefined = tree.children?.find(c => c.name === 'docs');
       expect(docs?.children?.find(c => c.name === 'file.pdf')).toBeUndefined();
     });
 
     it('handles SyncResponse by merging trees', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       await service.mkdir(ALICE, BOB, '/local-dir');
 
       const { createDefaultTree } = await import('../tree-operations');
       const { mkdir: treeMkdir } = await import('../tree-operations');
-      let peerTree = createDefaultTree();
+      let peerTree: RevfsNode = createDefaultTree();
       [peerTree] = treeMkdir(peerTree, '/remote-dir');
 
       const syncOp: RevfsOperation = {
@@ -138,7 +140,7 @@ describe('RevfsService (events & sync)', () => {
       };
       await service.handleRevfsOperation(BOB, ALICE, syncOp);
 
-      const tree = await service.getTree(ALICE, BOB);
+      const tree: RevfsNode = await service.getTree(ALICE, BOB);
       expect(tree.children?.find(c => c.name === 'local-dir')).toBeDefined();
       expect(tree.children?.find(c => c.name === 'remote-dir')).toBeDefined();
     });
@@ -146,13 +148,13 @@ describe('RevfsService (events & sync)', () => {
 
   describe('addSentFile', () => {
     it('places file in Sent Files with Sent state', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       await service.addSentFile(ALICE, BOB, {
         fileName: 'report.pdf', fileSize: 2048,
         fileType: 'application/pdf', transferId: 't1',
       });
-      const tree = await service.getTree(ALICE, BOB);
-      const file = tree.children?.find(c => c.name === 'Sent Files')?.children?.find(c => c.name === 'report.pdf');
+      const tree: RevfsNode = await service.getTree(ALICE, BOB);
+      const file: RevfsNode | undefined = tree.children?.find(c => c.name === 'Sent Files')?.children?.find(c => c.name === 'report.pdf');
       expect(file).toBeDefined();
       expect(file!.fileState).toBe(RevfsFileState.Sent);
     });
@@ -160,13 +162,13 @@ describe('RevfsService (events & sync)', () => {
 
   describe('addReceivedFile', () => {
     it('places file in Received Files with Received state', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       await service.addReceivedFile(ALICE, BOB, {
         fileName: 'photo.jpg', fileSize: 4096,
         fileType: 'image/jpeg', transferId: 't2',
       });
-      const tree = await service.getTree(ALICE, BOB);
-      const file = tree.children?.find(c => c.name === 'Received Files')?.children?.find(c => c.name === 'photo.jpg');
+      const tree: RevfsNode = await service.getTree(ALICE, BOB);
+      const file: RevfsNode | undefined = tree.children?.find(c => c.name === 'Received Files')?.children?.find(c => c.name === 'photo.jpg');
       expect(file).toBeDefined();
       expect(file!.fileState).toBe(RevfsFileState.Received);
     });
@@ -174,11 +176,11 @@ describe('RevfsService (events & sync)', () => {
 
   describe('requestSync', () => {
     it('sends SyncRequest op to peer', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       await service.requestSync(ALICE, BOB);
 
-      const intents = getExecuteCalls(service);
-      const syncCalls = intents.filter(i => {
+      const intents: RevfsIntent[] = getExecuteCalls(service);
+      const syncCalls: RevfsIntent[] = intents.filter(i => {
         if (i.type !== 'send-revfs-op') return false;
         const op: RevfsOperation = (i as { operation: RevfsOperation }).operation;
         return op.op_type === RevfsOpType.SyncRequest;
@@ -189,7 +191,7 @@ describe('RevfsService (events & sync)', () => {
 
   describe('onTreeChanged', () => {
     it('notifies subscribers when tree changes', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       const changes: string[] = [];
       service.onTreeChanged((key) => { changes.push(key); });
       await service.mkdir(ALICE, BOB, '/docs');
@@ -197,7 +199,7 @@ describe('RevfsService (events & sync)', () => {
     });
 
     it('returns unsubscribe function', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       const changes: string[] = [];
       const unsub: () => void = service.onTreeChanged((key): void => { changes.push(key); });
       await service.getTree(ALICE, BOB);

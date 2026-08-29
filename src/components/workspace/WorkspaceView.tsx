@@ -12,6 +12,7 @@ import { getSelectedUser, TabUserContext } from '@/lib/tab-context';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { tryParseCid } from '@/lib/utils/cid-utils';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
 interface WorkspaceViewProps {
   nodeId?: string | null;
@@ -70,7 +71,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
     // 2) tabSession.cid from connection manager
     // 3) connectionInfo.cid (global connection)
     // tabSelection and tabSession are loaded asynchronously via useEffect
-    const connectionInfo = connectionManager.getConnectionInfo();
+    const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
     const rawCid: bigint | undefined = tabSelection?.selectedCid ?? tabSession?.cid ?? connectionInfo?.cid;
     const currentUserCid: string | undefined = rawCid !== undefined ? String(rawCid) : undefined;
     const currentUserName: string = tabSession?.fullName || connectionInfo?.fullName || 'You';

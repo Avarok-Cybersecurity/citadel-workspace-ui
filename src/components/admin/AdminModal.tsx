@@ -13,7 +13,7 @@ import { MembersTab } from './tabs/MembersTab';
 import { ChatSettingsTab } from './tabs/ChatSettingsTab';
 import { AdminModalProps, EntityData } from './types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { getEntityMetadata } from '@/lib/entity-type-registry';
+import { getEntityMetadata , type EntityTypeMetadata } from '@/lib/entity-type-registry';
 import { debugLog } from '@/lib/debug-config';
 
 export function AdminModal({
@@ -71,7 +71,7 @@ export function AdminModal({
     }
   };
 
-  const meta = getEntityMetadata(entityType);
+  const meta: EntityTypeMetadata = getEntityMetadata(entityType);
   const EntityIcon = meta.icon;
 
   return (

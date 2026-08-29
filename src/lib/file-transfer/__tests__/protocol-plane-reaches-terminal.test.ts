@@ -22,6 +22,7 @@ import { applyTransferOutcome } from '../transfer-outcome';
 import type { FileTransferTickNotification, VirtualObjectMetadata } from '../protocol-types';
 import type { FileTransfer } from '../types';
 import type { P2PTransferDeps } from '../p2p-transfers';
+import type { ParsedTick } from '@/lib/file-transfer/tick-events';
 
 function correlation(): TickCorrelation {
   return {
@@ -54,22 +55,22 @@ const metadata = (over: Partial<VirtualObjectMetadata> = {}): VirtualObjectMetad
 
 describe('parseTickNotification against the canonical wire shapes', () => {
   it('parses a canonical ReceptionTick tuple into a percentage', () => {
-    const parsed = parseTickNotification(tick({ ReceptionTick: [1, 2, 50] }), correlation());
+    const parsed: ParsedTick = parseTickNotification(tick({ ReceptionTick: [1, 2, 50] }), correlation());
     expect(parsed).toMatchObject({ kind: 'progress', direction: 'incoming', percentage: 50 });
   });
 
   it('recognises a canonical bare-string ReceptionComplete', () => {
-    const parsed = parseTickNotification(tick('ReceptionComplete'), correlation());
+    const parsed: ParsedTick = parseTickNotification(tick('ReceptionComplete'), correlation());
     expect(parsed).toMatchObject({ kind: 'complete', direction: 'incoming', success: true });
   });
 
   it('recognises a canonical bare-string TransferComplete', () => {
-    const parsed = parseTickNotification(tick('TransferComplete'), correlation());
+    const parsed: ParsedTick = parseTickNotification(tick('TransferComplete'), correlation());
     expect(parsed).toMatchObject({ kind: 'complete', direction: 'outgoing', success: true });
   });
 
   it('turns Fail("msg") into an unsuccessful completion carrying the message', () => {
-    const parsed = parseTickNotification(tick({ Fail: 'disk full' }), correlation());
+    const parsed: ParsedTick = parseTickNotification(tick({ Fail: 'disk full' }), correlation());
     expect(parsed).toMatchObject({ kind: 'complete', success: false, errorMessage: 'disk full' });
   });
 
@@ -77,7 +78,7 @@ describe('parseTickNotification against the canonical wire shapes', () => {
     const ctx: TickCorrelation = correlation();
     ctx.objectIdToTransferId.set('90210', 'uuid-1');
 
-    const begin = parseTickNotification(
+    const begin: ParsedTick = parseTickNotification(
       tick({ ReceptionBeginning: ['/downloads/report.pdf', metadata()] }),
       ctx
     );
@@ -85,10 +86,10 @@ describe('parseTickNotification against the canonical wire shapes', () => {
 
     // The ticks and the complete carry NO id of any kind — only the
     // request_id join made above lets them name the transfer.
-    const mid = parseTickNotification(tick({ ReceptionTick: [1, 2, 50] }), ctx);
+    const mid: ParsedTick = parseTickNotification(tick({ ReceptionTick: [1, 2, 50] }), ctx);
     expect(mid).toMatchObject({ transferId: 'uuid-1', percentage: 50 });
 
-    const done = parseTickNotification(tick('ReceptionComplete'), ctx);
+    const done: ParsedTick = parseTickNotification(tick('ReceptionComplete'), ctx);
     expect(done).toMatchObject({
       kind: 'complete',
       transferId: 'uuid-1',
@@ -98,7 +99,7 @@ describe('parseTickNotification against the canonical wire shapes', () => {
 
   it('marks a revfs stream foreign at ReceptionBeginning and drops its later events', () => {
     const ctx: TickCorrelation = correlation();
-    const begin = parseTickNotification(
+    const begin: ParsedTick = parseTickNotification(
       tick({
         ReceptionBeginning: [
           '/tmp/x',

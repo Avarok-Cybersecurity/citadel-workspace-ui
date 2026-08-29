@@ -8,8 +8,7 @@ import { websocketService } from '@/lib/websocket-service';
 import { stringToBytes, bytesToString } from '@/lib/utils/encoding-utils';
 import { debugLog } from '@/lib/debug-config';
 
-import { DOCUMENTS_KEY_PREFIX, DOCUMENTS_INDEX_KEY } from './types';
-import type { StoredDocument } from './types';
+import { DOCUMENTS_KEY_PREFIX, DOCUMENTS_INDEX_KEY , type StoredDocument } from './types';
 import { isGenuinelyAbsent } from '@/lib/storage/absence';
 
 /**

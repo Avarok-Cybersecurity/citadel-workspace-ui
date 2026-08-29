@@ -50,6 +50,7 @@ vi.mock('@/lib/multi-instance', () => ({
 }));
 
 import { connectToServer } from '../use-connect-to-server';
+import type { ConnectOutcome } from '@/pages/connect/use-connect-to-server';
 
 const SERVER = '127.0.0.1:12349';
 
@@ -63,7 +64,7 @@ describe('connectToServer', () => {
   it('adopts a session that is still live on the internal service', async () => {
     h.activeSessions = [{ cid: 9n, username: 'alice', server_address: SERVER }];
 
-    const outcome = await connectToServer(SERVER);
+    const outcome: ConnectOutcome = await connectToServer(SERVER);
 
     expect(outcome).toEqual({ kind: 'connected', cid: 9n });
     expect(claimSession).toHaveBeenCalledWith(9n, true);
@@ -76,7 +77,7 @@ describe('connectToServer', () => {
   });
 
   it('does not report a connection when nothing is open and nothing is saved', async () => {
-    const outcome = await connectToServer(SERVER);
+    const outcome: ConnectOutcome = await connectToServer(SERVER);
 
     expect(outcome.kind).toBe('needs-sign-in');
     expect(postAuthSetup).not.toHaveBeenCalled();
@@ -85,7 +86,7 @@ describe('connectToServer', () => {
   it('does not silently spin when the user declined credential storage', async () => {
     h.storedSessions = [{ username: 'alice', serverAddress: SERVER }];
 
-    const outcome = await connectToServer(SERVER);
+    const outcome: ConnectOutcome = await connectToServer(SERVER);
 
     expect(outcome.kind).toBe('needs-sign-in');
     // No point asking auto-connect: it skips password-less sessions.
@@ -98,7 +99,7 @@ describe('connectToServer', () => {
   it('ignores a live session belonging to a different server', async () => {
     h.activeSessions = [{ cid: 9n, username: 'alice', server_address: 'other.host:12349' }];
 
-    const outcome = await connectToServer(SERVER);
+    const outcome: ConnectOutcome = await connectToServer(SERVER);
 
     expect(outcome.kind).toBe('needs-sign-in');
     expect(claimSession).not.toHaveBeenCalled();
@@ -108,7 +109,7 @@ describe('connectToServer', () => {
     h.activeSessions = [{ cid: 9n, username: 'alice', server_address: SERVER }];
     claimSession.mockRejectedValueOnce(new Error('session is not orphaned'));
 
-    const outcome = await connectToServer(SERVER);
+    const outcome: ConnectOutcome = await connectToServer(SERVER);
 
     expect(outcome).toEqual({ kind: 'connected', cid: 9n });
     expect(postAuthSetup).toHaveBeenCalledWith(9n);

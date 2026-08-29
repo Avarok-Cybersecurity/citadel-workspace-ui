@@ -9,11 +9,11 @@
  */
 
 import type { Dispatch, SetStateAction } from 'react';
-import type { P2PMessengerManager } from '@/lib/p2p';
-import type { P2PMessage, PeerPresence } from '@/lib/p2p';
+import type { P2PMessengerManager, P2PMessage, PeerPresence } from '@/lib/p2p';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
+import type { P2PConversation } from '@/lib/p2p/p2p-types';
 
 export interface ConversationSubscriptionParams {
   messenger: P2PMessengerManager;
@@ -122,7 +122,7 @@ export function subscribeToConversationEvents({
       setMessages(prev => {
         if (prev.some(m => m.id === messageId)) return prev;
         const newMessage: P2PMessage | undefined = eventMessage || ((): P2PMessage | undefined => {
-          const conversation = messenger.getConversation(peerCid);
+          const conversation: P2PConversation | undefined = messenger.getConversation(peerCid);
           return conversation?.messages.find(m => m.id === messageId);
         })();
         if (newMessage) return [...prev, newMessage].sort((a, b) => a.timestamp - b.timestamp);

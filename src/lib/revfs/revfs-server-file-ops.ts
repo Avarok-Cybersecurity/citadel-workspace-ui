@@ -17,6 +17,7 @@ import type { RevfsIO } from './revfs-io';
 import { persistTree } from './persist-tree';
 import { countByteKeyRefs } from './tree-byte-refs';
 import { debugLog } from '@/lib/debug-config';
+import type { RevfsIntentResult } from '@/types/revfs-intents';
 
 export interface FileOpsContext {
   state: RevfsState;
@@ -56,7 +57,7 @@ export async function uploadFileToServer(
   // optimistic render, which nothing here depended on: there is no progress UI,
   // and a file that silently is not there is far worse than one that takes a
   // moment to appear.
-  const result = await io.execute({
+  const result: RevfsIntentResult = await io.execute({
     type: 'backend-send-file',
     cid: myCid,
     peerCid: null,
@@ -120,7 +121,7 @@ export async function removeFileFromServer(
     fileNode?.fileMetadata !== undefined &&
     countByteKeyRefs(tree, fileNode.fileMetadata.virtualDirectory) > 1;
   if (fileNode?.fileMetadata && !sharedElsewhere) {
-    const deleted = await io.execute({
+    const deleted: RevfsIntentResult = await io.execute({
       type: 'backend-delete-file',
       cid: myCid,
       peerCid: null,
@@ -157,7 +158,7 @@ export async function downloadFileFromServer(
     throw new Error(`File not found or has no metadata: ${filePath}`);
   }
 
-  const result = await io.execute({
+  const result: RevfsIntentResult = await io.execute({
     type: 'backend-download-file',
     cid: myCid,
     peerCid: null,

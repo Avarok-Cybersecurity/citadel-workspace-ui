@@ -1,6 +1,7 @@
 import { FileQuestion } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import type { NavigateFunction } from 'react-router';
 
 /**
  * A URL naming a node that is not there.
@@ -17,7 +18,7 @@ import { useNavigate } from 'react-router-dom';
  * with retry advice for an unrecoverable state.
  */
 export function NodeNotFound({ nodeId }: { nodeId: string }): JSX.Element {
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 bg-background p-8 text-muted-foreground">

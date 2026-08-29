@@ -17,6 +17,7 @@
  * the neighbouring function used it, and it was never applied here.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { PeerInfoResponse } from '@/lib/p2p-registration-service/types';
 
 const h: { response: Record<string, unknown>; } = vi.hoisted((): { response: Record<string, unknown>; } => ({ response: {} as Record<string, unknown> }));
 
@@ -37,11 +38,11 @@ vi.mock('../connection', () => ({
   },
 }));
 
-async function callListAllPeers() {
+async function callListAllPeers(): Promise<PeerInfoResponse[]> {
   vi.resetModules();
   const { listAllPeers } = await import('../discovery');
   const pending: Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; }> = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
-  const promise = listAllPeers(pending as never);
+  const promise: Promise<PeerInfoResponse[]> = listAllPeers(pending as never);
   // Settle whatever request was registered with the response under test.
   await Promise.resolve();
   for (const [, entry] of pending) entry.resolve(h.response);
@@ -61,7 +62,7 @@ describe('listAllPeers', () => {
       ]),
     };
 
-    const peers = await callListAllPeers();
+    const peers: PeerInfoResponse[] = await callListAllPeers();
 
     // `Object.values` on this returns [] — an empty peer list reported as fact.
     expect(peers.map((p) => (p as { username: string }).username)).toEqual(['alice', 'bob']);
@@ -70,7 +71,7 @@ describe('listAllPeers', () => {
   it('still reads a plain object, which JSON-parsed payloads really are', async () => {
     h.response = { peer_information: { '42': { cid: '42', username: 'alice' } } };
 
-    const peers = await callListAllPeers();
+    const peers: PeerInfoResponse[] = await callListAllPeers();
 
     expect(peers).toHaveLength(1);
   });

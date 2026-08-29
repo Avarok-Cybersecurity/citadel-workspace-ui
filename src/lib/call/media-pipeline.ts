@@ -25,6 +25,7 @@ import {
   type WireFrame,
 } from './frame-codec';
 import { debugLog } from '@/lib/debug-config';
+import type { QualityLevel } from '@/lib/call/congestion';
 
 export type FrameSink = (frame: WireFrame) => void;
 
@@ -118,7 +119,7 @@ export function createVideoEncoder(
       // Reconfigure only when the rung actually changes. Reconfiguring per frame
       // resets the encoder's rate control and produces visible pulsing.
       if (congestion.rung !== appliedRung) {
-        const level = levelFor(congestion);
+        const level: QualityLevel = levelFor(congestion);
         try {
           encoder.configure({
             codec,

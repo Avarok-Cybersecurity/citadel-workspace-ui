@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { MutableRefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState , type MutableRefObject } from 'react';
 import { useRevealCreatedNodes } from './use-reveal-created-nodes';
 import type { TreeNode } from './tree-node-types';
 

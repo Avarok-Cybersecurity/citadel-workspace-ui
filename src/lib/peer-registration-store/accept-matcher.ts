@@ -11,6 +11,7 @@ import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
 import { TIMEOUT } from '../timeout-constants';
 import { toCidKey, type CidLike } from '@/lib/utils/cid-utils';
+import type { WebSocketMessage } from '@/types/ws-message-types';
 
 /**
  * Wait for a PeerRegister/PeerConnect response matching the given request.
@@ -30,7 +31,7 @@ export function waitForAcceptResponse(
     }, TIMEOUT.PEER_REGISTER_MS);
 
     const handleMessage = (raw: unknown): void => {
-      const message = narrowWebSocketMessage(raw);
+      const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
       if (!message) return;
 
       const msg: Record<string, Record<string, unknown> | undefined> = message as Record<string, Record<string, unknown> | undefined>;

@@ -7,8 +7,7 @@ import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
 import { debugLog } from '@/lib/debug-config';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
-import type { User } from '@/types/workspace-entities';
-import type { UserRole } from '@/types/workspace-entities';
+import type { User, UserRole } from '@/types/workspace-entities';
 
 interface UseMemberEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;

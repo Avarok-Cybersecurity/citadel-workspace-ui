@@ -14,6 +14,8 @@ import { debugLog } from '@/lib/debug-config';
 import type { AutoConnectState } from './state';
 import { ONLINE_STATUS_CACHE_TTL_MS, POLL_INTERVAL_MS } from './constants';
 import { getCurrentCid } from './cid-resolver';
+import type { PeerConnectionInfo } from '@/lib/p2p-auto-connect/types';
+import type { PeerInfoResponse } from '@/lib/p2p-registration-service/types';
 
 /**
  * Start periodic GetSessions polling for backend state sync.
@@ -66,7 +68,7 @@ export async function refreshFromBackend(state: AutoConnectState, localCid: bigi
     const sessions = await connectionManager.getActiveSessions();
     const mySession = sessions.find(s => s.cid === localCidBigInt);
 
-    const existingPeerMap = state.getPeerMapForSession(localCidBigInt);
+    const existingPeerMap: Map<bigint, PeerConnectionInfo> = state.getPeerMapForSession(localCidBigInt);
 
     if (!mySession?.peer_connections) {
       return; // Preserve existing event-based connections
@@ -84,7 +86,7 @@ export async function refreshFromBackend(state: AutoConnectState, localCid: bigi
       'peer_connections',
     )) {
       const peerCidBigInt: bigint = BigInt(peerCidStr);
-      const existingInfo = existingPeerMap.get(peerCidBigInt);
+      const existingInfo: PeerConnectionInfo | undefined = existingPeerMap.get(peerCidBigInt);
 
       existingPeerMap.set(peerCidBigInt, {
         peerCid: peerCidBigInt,
@@ -112,7 +114,7 @@ export async function refreshOnlineStatus(state: AutoConnectState, force = false
   }
 
   try {
-    const peers = await p2pRegistrationService.listAllPeers();
+    const peers: PeerInfoResponse[] = await p2pRegistrationService.listAllPeers();
     const onlineCids: bigint[] = [];
 
     for (const peer of peers) {

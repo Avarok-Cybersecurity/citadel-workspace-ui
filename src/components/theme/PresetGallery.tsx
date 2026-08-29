@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
-import type { WorkspaceTheme, ThemeMode } from '@/lib/theme/theme-types';
+import type { WorkspaceTheme, ThemeMode, ThemePalette } from '@/lib/theme/theme-types';
 import { toCssColor } from '@/lib/theme/hsl';
 
 interface PresetGalleryProps {
@@ -25,7 +25,7 @@ export function PresetGallery({ themes, selectedId, mode, onSelect }: PresetGall
   return (
     <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Theme">
       {themes.map((theme) => {
-        const palette = mode === 'dark' ? theme.dark : theme.light;
+        const palette: ThemePalette = mode === 'dark' ? theme.dark : theme.light;
         const selected: boolean = theme.id === selectedId;
 
         return (

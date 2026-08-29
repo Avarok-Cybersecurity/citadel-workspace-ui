@@ -23,8 +23,7 @@ import {
   applyRemoteOp,
 } from '../tree-operations';
 import { isDownloadableState, calculateStorageUsage } from '../tree-queries';
-import { RevfsOpType, TreeScope } from '@/types/revfs-types';
-import type { RevfsFileMetadata } from '@/types/revfs-types';
+import { RevfsOpType, TreeScope , type RevfsFileMetadata , type RevfsNode } from '@/types/revfs-types';
 
 const UPLOADER: bigint = 111n;
 const HOLDER: bigint = 222n;
@@ -45,15 +44,15 @@ describe('peer storage round trip', () => {
     const meta: RevfsFileMetadata = makeMeta(UPLOADER);
 
     // The uploader's own tree, right after sending the bytes away.
-    let mine = createDefaultTree();
+    let mine: RevfsNode = createDefaultTree();
     [mine] = mkdir(mine, '/docs');
     [mine] = placeFile(mine, '/docs/report.pdf', meta, UPLOADER);
-    const mineNode = findNode(mine, '/docs/report.pdf');
+    const mineNode: RevfsNode | null = findNode(mine, '/docs/report.pdf');
     expect(mineNode).not.toBeNull();
     expect(isDownloadableState(mineNode!.fileState)).toBe(true);
 
     // The holder's tree, after the same PlaceFile op arrives over the wire.
-    let theirs = createDefaultTree();
+    let theirs: RevfsNode = createDefaultTree();
     [theirs] = mkdir(theirs, '/docs');
     theirs = applyRemoteOp(
       theirs,
@@ -66,7 +65,7 @@ describe('peer storage round trip', () => {
       },
       HOLDER,
     );
-    const theirNode = findNode(theirs, '/docs/report.pdf');
+    const theirNode: RevfsNode | null = findNode(theirs, '/docs/report.pdf');
     expect(theirNode).not.toBeNull();
     expect(isDownloadableState(theirNode!.fileState)).toBe(false);
 
@@ -77,11 +76,11 @@ describe('peer storage round trip', () => {
   it('bills the upload to the uploader, not to whoever stores it', () => {
     const meta: RevfsFileMetadata = makeMeta(UPLOADER);
 
-    let mine = createDefaultTree();
+    let mine: RevfsNode = createDefaultTree();
     [mine] = mkdir(mine, '/docs');
     [mine] = placeFile(mine, '/docs/report.pdf', meta, UPLOADER);
 
-    let theirs = createDefaultTree();
+    let theirs: RevfsNode = createDefaultTree();
     [theirs] = mkdir(theirs, '/docs');
     [theirs] = placeFile(theirs, '/docs/report.pdf', meta, HOLDER);
 

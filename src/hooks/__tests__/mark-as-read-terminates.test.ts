@@ -24,18 +24,19 @@ vi.mock('@/lib/group-conversations/group-persistence', () => ({
 }));
 
 import { markGroupRead } from '@/lib/group-conversations/mark-group-read';
+import type { GroupConversation } from '@/types/group-entities';
 
 /** The real updater, imported rather than restated: a copy would keep passing
  *  after the hook stopped using it. */
 type Group = Parameters<typeof markGroupRead>[0][number];
-const markAsReadUpdater = (groupId: string) => (prev: Group[]) =>
+const markAsReadUpdater: (groupId: string) => (prev: Group[]) => GroupConversation[] = (groupId: string): (prev: Group[]) => GroupConversation[] => (prev: Group[]): GroupConversation[] =>
   markGroupRead(prev, groupId);
 
 describe('marking a group read', () => {
   beforeEach(() => persistGroups.mockClear());
 
   it('returns the same array when the count is already zero', () => {
-    const groups = [{ id: 'a', unreadCount: 0 } as Group];
+    const groups: GroupConversation[] = [{ id: 'a', unreadCount: 0 } as Group];
 
     // Identity, not deep equality. Identity is the whole mechanism: the store
     // compares with === and a new array with identical contents restarts the
@@ -44,13 +45,13 @@ describe('marking a group read', () => {
   });
 
   it('returns the same array when the group is not there at all', () => {
-    const groups = [{ id: 'a', unreadCount: 3 } as Group];
+    const groups: GroupConversation[] = [{ id: 'a', unreadCount: 3 } as Group];
     expect(markAsReadUpdater('missing')(groups)).toBe(groups);
   });
 
   it('still clears a real unread count', () => {
-    const groups = [{ id: 'a', unreadCount: 3 } as Group, { id: 'b', unreadCount: 1 } as Group];
-    const next = markAsReadUpdater('a')(groups);
+    const groups: GroupConversation[] = [{ id: 'a', unreadCount: 3 } as Group, { id: 'b', unreadCount: 1 } as Group];
+    const next: GroupConversation[] = markAsReadUpdater('a')(groups);
 
     expect(next).not.toBe(groups);
     expect(next[0].unreadCount).toBe(0);

@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import { applyEdit, applyDelete } from '../message-revision';
 import type { P2PConversation, P2PMessage } from '../p2p-types';
+import type { RevisionOutcome } from '@/lib/p2p/message-revision';
 
 const ALICE = 1n;
 const BOB = 2n;
@@ -32,7 +33,7 @@ describe('applyEdit', () => {
   it('replaces the contents and stamps edited_at', () => {
     const c: P2PConversation = conversation();
 
-    const outcome = applyEdit(c, 'm1', 'hello there', 555, ALICE);
+    const outcome: RevisionOutcome = applyEdit(c, 'm1', 'hello there', 555, ALICE);
 
     expect(outcome.applied).toBe(true);
     expect(c.messages[0].content).toBe('hello there');
@@ -42,14 +43,14 @@ describe('applyEdit', () => {
   it('refuses to edit a message the editor did not send', () => {
     const c: P2PConversation = conversation();
 
-    const outcome = applyEdit(c, 'm2', 'tampered', 555, ALICE);
+    const outcome: RevisionOutcome = applyEdit(c, 'm2', 'tampered', 555, ALICE);
 
     expect(outcome).toEqual({ applied: false, reason: 'not-sender' });
     expect(c.messages[1].content).toBe('hi back');
   });
 
   it('reports an unknown message rather than silently doing nothing', () => {
-    const outcome = applyEdit(conversation(), 'nope', 'x', 1, ALICE);
+    const outcome: RevisionOutcome = applyEdit(conversation(), 'nope', 'x', 1, ALICE);
 
     expect(outcome).toEqual({ applied: false, reason: 'unknown-message' });
   });
@@ -68,7 +69,7 @@ describe('applyDelete', () => {
   it('removes the message from the conversation', () => {
     const c: P2PConversation = conversation();
 
-    const outcome = applyDelete(c, 'm1', ALICE);
+    const outcome: RevisionOutcome = applyDelete(c, 'm1', ALICE);
 
     expect(outcome.applied).toBe(true);
     expect(c.messages.map((m) => m.id)).toEqual(['m2']);
@@ -77,20 +78,20 @@ describe('applyDelete', () => {
   it('refuses to delete a message the deleter did not send', () => {
     const c: P2PConversation = conversation();
 
-    const outcome = applyDelete(c, 'm2', ALICE);
+    const outcome: RevisionOutcome = applyDelete(c, 'm2', ALICE);
 
     expect(outcome).toEqual({ applied: false, reason: 'not-sender' });
     expect(c.messages).toHaveLength(2);
   });
 
   it('reports an unknown message', () => {
-    const outcome = applyDelete(conversation(), 'nope', ALICE);
+    const outcome: RevisionOutcome = applyDelete(conversation(), 'nope', ALICE);
 
     expect(outcome).toEqual({ applied: false, reason: 'unknown-message' });
   });
 
   it('returns the removed message so callers can report what went', () => {
-    const outcome = applyDelete(conversation(), 'm1', ALICE);
+    const outcome: RevisionOutcome = applyDelete(conversation(), 'm1', ALICE);
 
     expect(outcome.applied && outcome.message.content).toBe('hello');
   });

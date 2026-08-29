@@ -16,6 +16,7 @@ import type { AutoConnectState } from './state';
 import { BASE_DELAY_MS, MAX_DELAY_MS, POLL_INTERVAL_MS } from './constants';
 import { getCurrentCid } from './cid-resolver';
 import { refreshOnlineStatus } from './polling';
+import type { PeerConnectionInfo } from '@/lib/p2p-auto-connect/types';
 
 /**
  * Connect to a single peer with exponential backoff + online check.
@@ -87,7 +88,7 @@ export async function connectToPeer(
   state.addPendingConnection(peerCid);
 
   if (state.isPeerConnectedForSession(currentCid, peerCid)) {
-    const peerInfo = state.getPeerConnectionInfo(currentCid, peerCid);
+    const peerInfo: PeerConnectionInfo | null = state.getPeerConnectionInfo(currentCid, peerCid);
     const connectionAge: number = peerInfo ? Date.now() - peerInfo.connectedAt : Infinity;
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Already connected to ${peerCid.toString().slice(0, 8)}... (${connectionAge}ms old), skipping`);
     state.removePendingConnection(peerCid);

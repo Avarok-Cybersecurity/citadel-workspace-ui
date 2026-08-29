@@ -1,6 +1,5 @@
 import ReactMarkdown from 'react-markdown';
-import { memo } from 'react';
-import type { ReactNode } from 'react';
+import { memo , type ReactNode } from 'react';
 import { AlertCircle, MoreVertical, Reply, Edit2, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -10,10 +9,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { getBubbleStyles, BUBBLE_MAX_WIDTH } from './types';
+import { getBubbleStyles, BUBBLE_MAX_WIDTH , type BaseBubbleProps } from './types';
 import { BubbleFooter } from './BubbleFooter';
 import { getInitials } from '@/components/chat/shared';
-import type { BaseBubbleProps } from './types';
 
 /**
  * The markdown parse, memoized on the text alone.

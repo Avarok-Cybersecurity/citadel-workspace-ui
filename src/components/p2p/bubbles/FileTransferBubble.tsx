@@ -1,10 +1,10 @@
 import { X, Check, Zap } from 'lucide-react';
-import { getBubbleStyles, BUBBLE_MAX_WIDTH } from './types';
+import { getBubbleStyles, BUBBLE_MAX_WIDTH , type FileTransferBubbleProps } from './types';
 import { BubbleFooter } from './BubbleFooter';
-import type { FileTransferBubbleProps } from './types';
 import { debugLog } from '@/lib/debug-config';
 import { getFileIcon, formatBytes, getStatusContent } from './file-transfer-helpers';
 import { activateOnKey } from '@/lib/a11y';
+import type { StatusContent } from '@/components/p2p/bubbles/file-transfer-helpers';
 
 /**
  * FileTransferBubble - Displays file transfer messages with state-dependent UI
@@ -56,7 +56,7 @@ export function FileTransferBubble({
   const fileType: string = message.file_type || 'application/octet-stream';
   const transferMode = message.transfer_mode || 'async';
 
-  const status = getStatusContent(state, isOwn, message);
+  const status: StatusContent = getStatusContent(state, isOwn, message);
 
   const handleClick = (): void => {
     if (status.clickable && onOpen && message.virtual_path) {

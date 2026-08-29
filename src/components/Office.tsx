@@ -6,10 +6,11 @@ import { WorkspaceView } from "./workspace/WorkspaceView";
 import { FileManagerContent } from "./file-manager/FileManagerContent";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { debugLog } from '@/lib/debug-config';
+import type { NavigateFunction } from 'react-router';
 
 export const Office: () => JSX.Element = (): JSX.Element => {
   const location = useLocation();
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const params: URLSearchParams = new URLSearchParams(location.search);
   const nodeId: string | null = params.get("nodeId");
   const section: string | null = params.get("section");

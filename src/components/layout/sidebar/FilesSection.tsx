@@ -20,6 +20,7 @@ import { buildWorkspacePath } from "@/lib/workspace-navigation";
 import { fileTransferService, FILE_TRANSFER_EVENTS, type FileTransfer } from "@/lib/file-transfer";
 import { useEventListeners } from "@/hooks";
 import { formatDateTime } from '@/lib/format-time';
+import type { NavigateFunction } from 'react-router';
 
 /**
  * File display type for sidebar rendering
@@ -95,7 +96,7 @@ export const FilesSection: () => JSX.Element = (): JSX.Element => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const { registeredPeers } = useRegisteredPeers();
   const confirm = useConfirm();
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const location = useLocation();
 
   /**

@@ -17,7 +17,7 @@ import {
   RevfsFileState,
   RevfsOpType,
 } from '@/types/revfs-types';
-import type { RevfsNode } from '@/types/revfs-types';
+import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
 import { CID_A, CID_B, makeMeta } from './tree-test-helpers';
 
 // ============================================================================
@@ -51,7 +51,7 @@ function createDeepTree(depth: number, filesPerLevel: number): {
     for (let f: number = 0; f < filesPerLevel; f++) {
       const fileName: string = `file-${d}-${f}.dat`;
       const filePath: string = `${dirPath}/${fileName}`;
-      const meta = makeMeta({
+      const meta: RevfsFileMetadata = makeMeta({
         fileId: `file-${d}-${f}`,
         fileName,
         fileSize: (d * 1000) + (f * 100),
@@ -114,7 +114,7 @@ describe('deep nested tree stress tests (extra)', () => {
 
         try {
           [tree] = mkdir(tree, dirPath);
-          const meta = makeMeta({ fileId: `w-${level}-${sibling}`, fileName: `data-${sibling}.bin` });
+          const meta: RevfsFileMetadata = makeMeta({ fileId: `w-${level}-${sibling}`, fileName: `data-${sibling}.bin` });
           [tree] = placeFile(tree, `${dirPath}/data-${sibling}.bin`, meta, CID_A);
         } catch {
           // Parent might not exist for deeper levels with multiple siblings
@@ -135,7 +135,7 @@ describe('deep nested tree stress tests (extra)', () => {
 
     const deepPath: string = allDirPaths[allDirPaths.length - 1];
     mkdir(originalTree, `${deepPath}/new-dir`);
-    const meta = makeMeta({ fileId: 'new' });
+    const meta: RevfsFileMetadata = makeMeta({ fileId: 'new' });
     placeFile(originalTree, `${deepPath}/new.txt`, meta, CID_A);
 
     const afterNodeCount: { dirs: number; files: number; } = countNodes(originalTree);

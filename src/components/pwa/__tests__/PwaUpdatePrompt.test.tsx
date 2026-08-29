@@ -19,6 +19,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { UserEvent } from '@testing-library/user-event';
 
 const updateServiceWorker = vi.fn();
 const applyWaitingUpdate = vi.fn<() => Promise<boolean>>();
@@ -108,7 +109,7 @@ describe('PwaUpdatePrompt', () => {
   it('applies the update when the user takes the offer', async () => {
     state.needRefresh = true;
     applyWaitingUpdate.mockResolvedValue(true);
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
 
     renderPrompt();
     await user.click(await screen.findByRole('button', { name: 'Reload' }));
@@ -127,7 +128,7 @@ describe('PwaUpdatePrompt', () => {
     // page stayed exactly where it was.
     state.needRefresh = true;
     applyWaitingUpdate.mockResolvedValue(false);
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
 
     renderPrompt();
     await user.click(await screen.findByRole('button', { name: 'Reload' }));
@@ -142,7 +143,7 @@ describe('PwaUpdatePrompt', () => {
     // WebSocket and P2P state that prompt-mode exists to protect.
     state.needRefresh = true;
     applyWaitingUpdate.mockResolvedValue(false);
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
 
     renderPrompt();
     await user.click(await screen.findByRole('button', { name: 'Reload' }));

@@ -10,6 +10,7 @@ import { eventEmitter } from '../event-emitter';
 import type { P2PMessage, P2PConversation, MessageCache } from './p2p-types';
 import { messagePaginationStore } from './message-pagination-store';
 import { debugLog } from '@/lib/debug-config';
+import type { ConversationMetadata } from '@/lib/p2p/p2p-types';
 
 export interface ConversationManagerConfig {
   /** Function to get current CID */
@@ -226,7 +227,7 @@ export class ConversationManager {
   public async loadFromStorage(): Promise<void> {
     try {
       await messagePaginationStore.deleteOldFormat();
-      const metadataList = await messagePaginationStore.loadAllMetadata();
+      const metadataList: ConversationMetadata[] = await messagePaginationStore.loadAllMetadata();
 
       for (const metadata of metadataList) {
         this.cache.conversations.set(metadata.peerCid, {

@@ -15,8 +15,7 @@ import { getVariant } from '@/lib/ws-message-boundary';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '@/lib/timeout-constants';
-import type { ConnectionAttempt } from './types';
-import { POLL_INTERVAL_MS } from './types';
+import { POLL_INTERVAL_MS , type ConnectionAttempt } from './types';
 import {
   loadEnabledSetting,
   saveEnabledSetting,

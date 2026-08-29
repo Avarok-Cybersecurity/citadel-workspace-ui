@@ -10,8 +10,7 @@
 import { vi } from 'vitest';
 import { RevfsService } from '../revfs-service';
 import type { RevfsIntent, RevfsIntentResult } from '@/types/revfs-intents';
-import { RevfsOpType } from '@/types/revfs-types';
-import type { RevfsOperation } from '@/types/revfs-types';
+import { RevfsOpType , type RevfsOperation } from '@/types/revfs-types';
 import { RevfsState } from '../revfs-state';
 
 // ── Constants ───────────────────────────────────────────────────────────

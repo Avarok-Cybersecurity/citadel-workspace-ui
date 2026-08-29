@@ -12,6 +12,7 @@ import { CallManager } from '../call-manager';
 import { CALL_HEARTBEAT_TIMEOUT_MS } from '../call-constants';
 import type { CallTransport } from '../call-transport';
 import type { CallCodecCapabilities, CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
+import type { CallState } from '@/lib/call/call-state';
 
 const AUDIO: CallMediaKinds = { audio: true, video: false, screen: false };
 const CAPS: CallCodecCapabilities = { audio: ['opus'], video: [] };
@@ -167,7 +168,7 @@ describe('call liveness', () => {
     h.tick();
     await flush();
 
-    const state = h.manager.getState();
+    const state: CallState | null = h.manager.getState();
     expect(state?.status).toBe('active');
     expect(state?.participants.get(BOB)?.status).toBe('left');
     expect(h.transport.closeSession).toHaveBeenCalledWith(BOB);

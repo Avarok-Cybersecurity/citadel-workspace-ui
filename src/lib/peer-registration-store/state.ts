@@ -10,6 +10,8 @@ import { instanceManager } from '../multi-instance';
 import { getSelectedUser } from '../tab-context';
 import { debugLog } from '@/lib/debug-config';
 import type { PendingPeerRequest, OutgoingPeerRequest } from './types';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import type { TabUserContext } from '@/lib/tab-context';
 
 /**
  * Get current session CID.
@@ -22,7 +24,7 @@ export async function getCurrentSessionCid(): Promise<bigint | null> {
     return instanceCid;
   }
 
-  const connectionInfo = connectionManager.getConnectionInfo();
+  const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
   if (connectionInfo?.cid) {
     return connectionInfo.cid;
   }
@@ -39,7 +41,7 @@ export async function getCurrentSessionCid(): Promise<bigint | null> {
   // Unknown is a legitimate answer: the caller already treats a null CID as
   // "cannot scope by account" and shows what it has.
   try {
-    const tabSelection = await getSelectedUser();
+    const tabSelection: TabUserContext | null = await getSelectedUser();
     const tabSession = await connectionManager.getTabSelectedSession();
     return tabSelection?.selectedCid || tabSession?.cid || null;
   } catch (error) {

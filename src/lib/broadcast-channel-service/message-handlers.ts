@@ -5,7 +5,7 @@
  */
 
 import { eventEmitter } from '@/lib/event-emitter';
-import { getSelectedUser } from '@/lib/tab-context';
+import { getSelectedUser , type TabUserContext } from '@/lib/tab-context';
 import { instanceManager } from '@/lib/multi-instance';
 import { debugLog } from '@/lib/debug-config';
 import type { BroadcastMessage, PendingRequest } from './types';
@@ -20,7 +20,7 @@ export async function handleWorkspaceResponse(
   isResponseForThisCid: (requestId: string, tabCid: bigint) => boolean
 ): Promise<void> {
   if (!isLeader && message.data) {
-    const tabSelection = await getSelectedUser();
+    const tabSelection: TabUserContext | null = await getSelectedUser();
     const tabCid: bigint | undefined = tabSelection?.selectedCid;
 
     if (message.targetCid && tabCid && message.targetCid !== tabCid) {
@@ -106,7 +106,7 @@ export async function handleP2PNotification(
       return;
     }
 
-    const tabSelection = await getSelectedUser();
+    const tabSelection: TabUserContext | null = await getSelectedUser();
     const tabCid: bigint | null = tabSelection?.selectedCid ?? instanceManager.cid;
     const notificationCid: string | undefined = notification.cid?.toString();
     const peerCid: string | undefined = notification.peer_cid?.toString();

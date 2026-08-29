@@ -6,8 +6,7 @@
  * whole dependency surface is passed in by the caller.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { handleWebSocketMessage } from '../p2p-registration-service/registration';
-import type { RegistrationContext } from '../p2p-registration-service/registration';
+import { handleWebSocketMessage , type RegistrationContext } from '../p2p-registration-service/registration';
 import type { Peer, PendingRequestEntry } from '../p2p-registration-service/types';
 
 function makeContext(): RegistrationContext & { pendingRequests: Map<string, PendingRequestEntry> } {

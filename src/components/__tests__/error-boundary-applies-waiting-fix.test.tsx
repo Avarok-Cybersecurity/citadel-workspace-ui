@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AppErrorBoundary } from '../AppErrorBoundary';
+import type { UserEvent } from '@testing-library/user-event';
 
 const originalSW = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
 
@@ -38,7 +39,7 @@ describe('AppErrorBoundary recovery', () => {
   });
 
   it('hands control to a waiting fixed build before reloading', async () => {
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
     render(
       <AppErrorBoundary>
         <Boom />

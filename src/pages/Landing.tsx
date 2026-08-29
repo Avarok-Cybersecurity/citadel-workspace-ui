@@ -19,9 +19,10 @@ import { debugLog } from '@/lib/debug-config';
 import { useToast } from '@/hooks/use-toast';
 import { toastError } from '@/lib/toast-helpers';
 import { InstallAppButton } from "@/components/pwa/InstallAppButton";
+import type { NavigateFunction } from 'react-router';
 
 export const Landing: () => JSX.Element = (): JSX.Element => {
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');

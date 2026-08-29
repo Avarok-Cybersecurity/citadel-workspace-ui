@@ -6,13 +6,14 @@ import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { peerRegistrationStore, OutgoingPeerRequest, PendingPeerRequest } from '@/lib/peer-registration-store';
-import { getSelectedUser } from '@/lib/tab-context';
+import { getSelectedUser , type TabUserContext } from '@/lib/tab-context';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 import { sendPeerRegistration } from '@/lib/p2p/send-peer-registration';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import { discoverPeersViaGetSessions, fetchRegisteredPeers, fetchAllPeers } from './peer-discovery-requests';
+import type { WebSocketMessage } from '@/types/ws-message-types';
 
 export interface Peer {
   cid: string;
@@ -40,7 +41,7 @@ export function usePeerDiscovery(isOpen: boolean) {
   // Load current connection info asynchronously
   useEffect(() => {
     const loadConnectionInfo = async (): Promise<void> => {
-      const tabSelection = await getSelectedUser();
+      const tabSelection: TabUserContext | null = await getSelectedUser();
       const tabSession = await connectionManager.getTabSelectedSession();
       const cid: bigint | null = tabSelection?.selectedCid || tabSession?.cid || connectionManager.getConnectionInfo()?.cid || null;
       const username: string = tabSelection?.selectedUsername || tabSession?.username || state.currentUser?.username || 'Unknown';
@@ -77,7 +78,7 @@ export function usePeerDiscovery(isOpen: boolean) {
   // Listen for PeerRegisterSuccess/PeerConnectSuccess
   useEffect(() => {
     const handleRegistrationSuccess = (raw: unknown): void => {
-      const message = narrowWebSocketMessage(raw);
+      const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
       if (!message) return;
       // A refusal used to reach only `debugLog`, compiled out in production, so
       // the user was told "Request Sent" and then nothing. Correlated by
@@ -116,7 +117,7 @@ export function usePeerDiscovery(isOpen: boolean) {
   // Listen for incoming registration notifications
   useEffect(() => {
     const handleIncomingRegistration = async (raw: unknown): Promise<void> => {
-      const message = narrowWebSocketMessage(raw);
+      const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
       if (!message) return;
       if (hasVariant(message, 'PeerRegisterNotification')) {
         await peerRegistrationStore.handleIncomingRequest(getVariant(message, 'PeerRegisterNotification') as { cid: bigint; peer_cid: bigint; peer_username?: string });

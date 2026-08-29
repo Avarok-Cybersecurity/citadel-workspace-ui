@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { mayLeaveEditor } from '@/lib/leave-editor';
 import { useConfirm } from '@/components/shared/confirm-dialog';
-import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
-import { toStoredWorkspaces, pickCurrentWorkspace } from './stored-workspace-list';
+import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
+import { toStoredWorkspaces, pickCurrentWorkspace , type StoredWorkspace } from './stored-workspace-list';
 import { describeFailure } from '@/lib/failure-message';
 import { useLocation, useNavigate } from "react-router-dom";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -19,7 +19,10 @@ import { yieldToEventLoop } from '@/lib/utils/scheduling';
 import { useWorkspaceTheme } from '@/lib/theme/workspace-theme-context';
 
 export type { StoredWorkspace } from './stored-workspace-list';
-import type { StoredWorkspace } from './stored-workspace-list';
+import type { NavigateFunction } from 'react-router';
+import type { TabUserContext } from '@/lib/tab-context';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import type { WorkspaceLogo } from '@/lib/workspace-metadata-service';
 
 export type WorkflowStep = "connect" | "security" | "join";
 
@@ -46,7 +49,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
   const [serverPassword, setServerPassword] = useState<string>("");
   const location = useLocation();
   const confirm = useConfirm();
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const { state } = useWorkspace();
   const { theme } = useWorkspaceTheme();
   const { toast } = useToast();
@@ -54,8 +57,8 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
   useEffect(() => {
     const loadStoredWorkspaces = async (): Promise<void> => {
       const storedSessions = connectionManager.getStoredSessions();
-      const tabSelectedUser = await getSelectedUser();
-      const connInfo = connectionManager.getConnectionInfo();
+      const tabSelectedUser: TabUserContext | null = await getSelectedUser();
+      const connInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
       const currentCid: bigint | null = connInfo?.cid ?? null;
       if (!storedSessions?.sessions?.length) { setAvailableWorkspaces([]); return; }
 
@@ -82,7 +85,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
     const name: string | undefined = state.workspace?.name ?? workspaceName;
     if (!name) return;
 
-    const logo = getWorkspaceLogo(name, theme.icon);
+    const logo: WorkspaceLogo = getWorkspaceLogo(name, theme.icon);
     setWorkspaceLogo(logo.data);
     setIsInitials(logo.type === 'initials');
   }, [state.workspace, workspaceName, theme.icon]);
@@ -124,7 +127,7 @@ export function useWorkspaceSwitcher(workspaceName?: string) {
       if (!targetSession) throw new Error('Session not found');
       if (!targetSession.cid) throw new Error('Session CID not available');
 
-      const outcome = await claimSessionForThisTab(targetSession.cid);
+      const outcome: ClaimOutcome = await claimSessionForThisTab(targetSession.cid);
       if (outcome.status === 'owned-by-another-tab') {
         toast({ ...SESSION_OWNED_ELSEWHERE, variant: 'default' });
         setIsSwitching(false);

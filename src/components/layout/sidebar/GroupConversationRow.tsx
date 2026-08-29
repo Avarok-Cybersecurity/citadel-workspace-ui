@@ -11,6 +11,8 @@ import { useNavigate } from 'react-router-dom';
 import { SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
 import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
+import type { NavigateFunction } from 'react-router';
+import type { GroupRole } from '@/types/group-permissions';
 
 // ============================================================================
 // Types
@@ -52,7 +54,7 @@ export function GroupConversationRow({
   isActive = false,
   onClick,
 }: GroupConversationRowProps): JSX.Element {
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const [maxAvatars, setMaxAvatars] = useState(MAX_AVATARS);
 
@@ -60,7 +62,7 @@ export function GroupConversationRow({
   const sortedMembers: GroupMemberWithRole[] = useMemo(() => {
     return [...group.members]
       .flatMap(member => {
-        const role = group.settings.roles.find(r => r.id === member.roleId);
+        const role: GroupRole | undefined = group.settings.roles.find(r => r.id === member.roleId);
         if (!role) return []; // Filter out members with missing roles
         return [{ ...member, role } as GroupMemberWithRole];
       })

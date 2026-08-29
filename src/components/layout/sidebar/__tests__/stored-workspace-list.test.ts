@@ -11,18 +11,19 @@
 import { describe, it, expect } from 'vitest';
 import { toStoredWorkspaces, pickCurrentWorkspace } from '../stored-workspace-list';
 import type { StoredSession } from '@/types/session-types';
+import type { StoredWorkspace } from '@/components/layout/sidebar/stored-workspace-list';
 
 const session = (username: string, cid: bigint, serverAddress = 'ws://a'): StoredSession =>
   ({ username, serverAddress, cid }) as StoredSession;
 
 describe('the workspace switcher list', () => {
   it('marks only the connected CID active', () => {
-    const rows = toStoredWorkspaces([session('alice', 1n), session('bob', 2n)], 'Acme', 2n);
+    const rows: StoredWorkspace[] = toStoredWorkspaces([session('alice', 1n), session('bob', 2n)], 'Acme', 2n);
     expect(rows.map((r) => r.isActive)).toEqual([false, true]);
   });
 
   it('gives every row a distinct id even when a username repeats across servers', () => {
-    const rows = toStoredWorkspaces(
+    const rows: StoredWorkspace[] = toStoredWorkspaces(
       [session('alice', 1n, 'ws://a'), session('alice', 2n, 'ws://b')],
       'Acme',
       1n,
@@ -36,10 +37,10 @@ describe('the workspace switcher list', () => {
   });
 
   it("prefers this tab's selection over whichever session the shared client last connected", () => {
-    const rows = toStoredWorkspaces([session('alice', 1n), session('bob', 2n)], 'Acme', 2n);
+    const rows: StoredWorkspace[] = toStoredWorkspaces([session('alice', 1n), session('bob', 2n)], 'Acme', 2n);
 
     // bob is the active connection; this tab is looking at alice.
-    const current = pickCurrentWorkspace(rows, {
+    const current: StoredWorkspace | undefined = pickCurrentWorkspace(rows, {
       selectedUsername: 'alice',
       selectedServerAddress: 'ws://a',
     });
@@ -48,13 +49,13 @@ describe('the workspace switcher list', () => {
   });
 
   it('matches a tab selection on server address too, not username alone', () => {
-    const rows = toStoredWorkspaces(
+    const rows: StoredWorkspace[] = toStoredWorkspaces(
       [session('alice', 1n, 'ws://a'), session('alice', 2n, 'ws://b')],
       'Acme',
       1n,
     );
 
-    const current = pickCurrentWorkspace(rows, {
+    const current: StoredWorkspace | undefined = pickCurrentWorkspace(rows, {
       selectedUsername: 'alice',
       selectedServerAddress: 'ws://b',
     });
@@ -63,12 +64,12 @@ describe('the workspace switcher list', () => {
   });
 
   it('falls back to the connected session when this tab has selected nothing', () => {
-    const rows = toStoredWorkspaces([session('alice', 1n), session('bob', 2n)], 'Acme', 2n);
+    const rows: StoredWorkspace[] = toStoredWorkspaces([session('alice', 1n), session('bob', 2n)], 'Acme', 2n);
     expect(pickCurrentWorkspace(rows, null)?.username).toBe('bob');
   });
 
   it('picks nothing rather than a wrong row when the selection names an absent session', () => {
-    const rows = toStoredWorkspaces([session('alice', 1n)], 'Acme', null);
+    const rows: StoredWorkspace[] = toStoredWorkspaces([session('alice', 1n)], 'Acme', null);
     expect(
       pickCurrentWorkspace(rows, { selectedUsername: 'carol', selectedServerAddress: 'ws://a' }),
     ).toBeUndefined();

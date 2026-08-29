@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 import { DisabledWithTooltip } from "@/components/ui/DisabledWithTooltip";
 import { SettingsModal } from "@/components/SettingsModal";
+import type { NavigateFunction } from 'react-router';
 
 interface OfficeLayoutProps {
   title: string;
@@ -26,7 +27,7 @@ export const OfficeLayout = ({
   editDeniedReason,
 }: OfficeLayoutProps) => {
   const location = useLocation();
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   const handleNavigateUp = (): void => {

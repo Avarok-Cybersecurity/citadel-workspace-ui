@@ -20,8 +20,7 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { UserData } from './user-search-types';
-import { getRoleBadgeClass } from './user-search-types';
+import { getRoleBadgeClass , type UserData } from './user-search-types';
 
 /**
  * Ties the input to the list it controls via aria-controls/aria-expanded.

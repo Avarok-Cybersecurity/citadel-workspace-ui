@@ -11,8 +11,7 @@ import { instanceManager } from '@/lib/multi-instance';
 import type { StoredSession, ActiveSession } from '@/types/session-types';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
-import type { ConnectionAttempt } from './types';
-import { BASE_DELAY, MAX_DELAY } from './types';
+import { BASE_DELAY, MAX_DELAY , type ConnectionAttempt } from './types';
 
 /**
  * Generate a unique key for a session.

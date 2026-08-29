@@ -8,8 +8,7 @@
 import * as Y from 'yjs';
 import { debugLog } from '@/lib/debug-config';
 import type { SyncState } from './types';
-import { sendSyncMessage } from './sending';
-import type { SendingContext } from './sending';
+import { sendSyncMessage , type SendingContext } from './sending';
 import { YJS_ACK_TIMEOUT_MS, YJS_MAX_RETRIES } from './constants';
 
 /** Subset of provider state needed by ACK checker */

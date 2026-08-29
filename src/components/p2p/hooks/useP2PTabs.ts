@@ -12,6 +12,7 @@ import { liveDocumentStore } from '@/lib/live-document-store';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { debugLog } from '@/lib/debug-config';
 import { ChatTab, MESSAGES_TAB, createLiveDocumentTab } from '../ChatTabBar';
+import type { DocumentMetadata } from '@/lib/live-document-store/types';
 
 interface UseP2PTabsOptions {
   peerCid: bigint;
@@ -95,7 +96,7 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions) {
     if (!currentUserCid) throw new Error('Cannot create a document before the session has a CID');
 
     // The typed message, which this parameter used to ignore entirely.
-    const metadata = await liveDocumentStore.createDocument(
+    const metadata: DocumentMetadata = await liveDocumentStore.createDocument(
       title,
       peerCid.toString(),
       currentUserCid.toString(),

@@ -24,6 +24,7 @@ vi.mock('@/lib/multi-instance/instance-manager', () => ({
 }));
 
 import { loadPersistedGroups, persistGroups } from '../group-persistence';
+import type { GroupConversation } from '@/types/group-entities';
 
 const groupWithBigintMember: never = [{
   id: 'g1',
@@ -38,7 +39,7 @@ describe('group persistence', () => {
     cidRef.current = 111n;
     await persistGroups(groupWithBigintMember);
 
-    const back = await loadPersistedGroups();
+    const back: GroupConversation[] = await loadPersistedGroups();
     expect(back).toHaveLength(1);
     expect((back[0] as never as { members: { cid: bigint }[] }).members[0].cid)
       .toBe(12345678901234567890n);

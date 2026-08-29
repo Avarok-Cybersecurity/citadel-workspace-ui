@@ -146,6 +146,32 @@ const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, APP);
 const program = ts.createProgram(parsed.fileNames, parsed.options);
 const checker = program.getTypeChecker();
 
+/**
+ * Every exported type name in the program, and the file that declares it.
+ *
+ * `getSymbolsInScope` only sees what a file can already reach, so a name it
+ * cannot reach -- which is exactly the case that needs an import -- resolved to
+ * nothing. `RevfsNode`, `ForwardRefExoticComponent` and `Mock` alone were 300
+ * refusals for a name the program declares in one obvious place.
+ *
+ * A name declared in more than one file is left out: guessing which one is
+ * meant is how a codemod imports the wrong type.
+ */
+const declaredIn = new Map();
+const ambiguous = new Set();
+for (const file of program.getSourceFiles()) {
+  const symbol = checker.getSymbolAtLocation(file);
+  for (const exported of symbol ? checker.getExportsOfModule(symbol) : []) {
+    const name = exported.getName();
+    const flags = exported.getFlags();
+    const isType = flags & (ts.SymbolFlags.Type | ts.SymbolFlags.Interface |
+      ts.SymbolFlags.TypeAlias | ts.SymbolFlags.Class | ts.SymbolFlags.Enum);
+    if (!isType) continue;
+    if (declaredIn.has(name) && declaredIn.get(name) !== file.fileName) ambiguous.add(name);
+    else declaredIn.set(name, file.fileName);
+  }
+}
+
 let annotated = 0;
 let touched = 0;
 
@@ -247,7 +273,10 @@ for (const source of program.getSourceFiles()) {
     const symbols = checker.getSymbolsInScope(node, ts.SymbolFlags.Type | ts.SymbolFlags.Value);
     const symbol = symbols.find((s) => s.getName() === name);
     const declaration = symbol?.declarations?.[0];
-    const file = declaration?.getSourceFile()?.fileName;
+    // Scope first, then the program-wide index. Scope cannot see the case that
+    // needs an import, which is the only case this function is asked about.
+    const file = declaration?.getSourceFile()?.fileName
+      ?? (ambiguous.has(name) ? undefined : declaredIn.get(name));
     if (!file) return null;
     // Declared right here. The in-file name test missed it -- a local `const fn
     // = ...` is not matched by a regex looking for `const fn` with a type

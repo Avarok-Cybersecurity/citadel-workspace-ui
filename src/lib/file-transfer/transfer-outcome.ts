@@ -7,6 +7,7 @@ import { eventEmitter } from '../event-emitter';
 import { FILE_TRANSFER_EVENTS } from './events';
 import type { FileTransferState as TransferLifecycleState } from '@/types/messaging-layer';
 import type { P2PTransferDeps } from './p2p-transfers';
+import type { FileTransfer } from '@/lib/file-transfer/types';
 
 /**
  * States a transfer can never leave. 'declined' and 'expired' belong here as
@@ -34,7 +35,7 @@ export async function applyTransferOutcome(
   transferId: string,
   outcome: { success: boolean; downloadPath?: string; errorMessage?: string }
 ): Promise<void> {
-  const transfer = deps.state.getTransfer(transferId);
+  const transfer: FileTransfer | undefined = deps.state.getTransfer(transferId);
   if (!transfer) return;
   if (isTerminalTransferState(transfer.state)) return;
 

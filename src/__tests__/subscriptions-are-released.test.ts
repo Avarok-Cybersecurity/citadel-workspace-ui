@@ -12,10 +12,10 @@
  * fix was never carried across.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook , type RenderHookResult } from '@testing-library/react';
 import { ConnectionService } from '@/lib/connection-service/service';
 import { workspaceEvents } from '@/lib/workspace-events';
-import { useDomainMembers } from '@/hooks/use-domain-members';
+import { useDomainMembers , type DomainMembers } from '@/hooks/use-domain-members';
 
 describe('ConnectionService.onConnectionChange', () => {
   beforeEach(() => {
@@ -66,11 +66,11 @@ describe('useDomainMembers', () => {
   it('releases its members:loaded listener on unmount', () => {
     const before: number = workspaceEvents.listenerCount('members:loaded');
 
-    const first = renderHook(() => useDomainMembers('domain-1'));
+    const first: RenderHookResult<DomainMembers, unknown> = renderHook((): DomainMembers => useDomainMembers('domain-1'));
     expect(workspaceEvents.listenerCount('members:loaded')).toBe(before + 1);
     first.unmount();
 
-    const second = renderHook(() => useDomainMembers('domain-1'));
+    const second: RenderHookResult<DomainMembers, unknown> = renderHook((): DomainMembers => useDomainMembers('domain-1'));
     second.unmount();
 
     // Growing by one per mount is the leak: MembersSection lives in AppLayout,

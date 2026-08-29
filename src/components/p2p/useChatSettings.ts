@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { p2pMessengerManager } from '@/lib/p2p';
 import { fileTransferService, type FileTransferSettings, type TransferModePreference } from '@/lib/file-transfer';
+import type { ConversationMetadata } from '@/lib/p2p/p2p-types';
+import type { FileTransfer } from '@/lib/file-transfer/types';
 import {
   FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES,
   REVFS_DEFAULT_QUOTA_BYTES
@@ -37,8 +39,8 @@ export function useChatSettings(isOpen: boolean, peerCid: string) {
     let cancelled: boolean = false;
     void (async (): Promise<void> => {
       try {
-        const metadata = await p2pMessengerManager.getConversationMetadata(BigInt(peerCid));
-        const transfers = fileTransferService.getTransfersForPeer(peerCid);
+        const metadata: ConversationMetadata | null = await p2pMessengerManager.getConversationMetadata(BigInt(peerCid));
+        const transfers: FileTransfer[] = fileTransferService.getTransfersForPeer(peerCid);
         if (!cancelled) {
           setStats({ messages: metadata?.totalMessageCount ?? 0, files: transfers.length });
         }

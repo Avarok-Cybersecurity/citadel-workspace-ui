@@ -20,6 +20,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { mapSecuritySettings, getDefaultSecuritySettings } from '@/lib/security-utils';
 import { stripComments } from '@/test-utils/strip-comments';
+import type { SecuritySettingsValues } from '@/components/SecuritySettings';
 
 /**
  * Deliberately not the defaults, and cast rather than typed.
@@ -30,7 +31,7 @@ import { stripComments } from '@/test-utils/strip-comments';
  * is generated from Rust and changes; using the defaults would let a mapper
  * that ignored its input pass.
  */
-const chosen = {
+const chosen: SecuritySettingsValues = {
   securityLevel: 'CHOSEN_LEVEL',
   secrecyMode: 'CHOSEN_SECRECY',
   encryptionAlgorithm: 'CHOSEN_ENCRYPTION',

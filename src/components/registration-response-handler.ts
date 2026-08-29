@@ -6,6 +6,7 @@
  */
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import { debugLog } from '@/lib/debug-config';
+import type { WebSocketMessage } from '@/types/ws-message-types';
 
 export interface RegistrationHandlerDeps {
   handleConnectSuccess: (
@@ -29,7 +30,7 @@ export function createRegistrationResponseHandler(
     cleanup(); reject(new Error((v.message as string) || fallback));
   };
   return (raw: unknown): void => {
-    const message = narrowWebSocketMessage(raw);
+    const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
     if (!message) return;
     debugLog('Join', 'Registration response received, expecting:', requestId);
 

@@ -5,6 +5,7 @@
  * minutes in, which nobody reproduces.
  */
 import { describe, it, expect } from 'vitest';
+import type { DecoderChunkInit } from '@/lib/call/frame-codec';
 import {
   wrapTimestamp,
   videoChunkToFrame,
@@ -118,7 +119,7 @@ describe('decoding', () => {
   }
 
   it('round-trips a keyframe back to a key chunk', () => {
-    const init = frameToDecoderChunk(frame(CALL_FLAG_KEYFRAME, CALL_KIND_VIDEO));
+    const init: DecoderChunkInit = frameToDecoderChunk(frame(CALL_FLAG_KEYFRAME, CALL_KIND_VIDEO));
 
     expect(init.type).toBe('key');
     expect(init.timestamp).toBe(42);

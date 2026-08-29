@@ -14,6 +14,7 @@ import {
   MAX_RECONNECT_DELAY_MS,
 } from './constants';
 import { debugLog } from '@/lib/debug-config';
+import type { TabSelectionContext } from '@/lib/connection/types';
 
 /**
  * Attempt leader connection if conditions are met.
@@ -54,7 +55,7 @@ export async function autoReconnect(
     return;
   }
 
-  const tabSelection = await io.getSelectedUser();
+  const tabSelection: TabSelectionContext | null = await io.getSelectedUser();
   let session: StoredSession | undefined;
 
   if (tabSelection?.selectedUsername && tabSelection?.selectedServerAddress) {

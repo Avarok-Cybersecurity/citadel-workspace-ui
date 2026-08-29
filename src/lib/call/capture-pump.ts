@@ -9,6 +9,7 @@
 
 import { trackProcessor } from './track-transforms';
 import { debugLog } from '@/lib/debug-config';
+import type { TrackProcessorCtor } from '@/lib/call/track-transforms';
 
 export interface CapturePumpCallbacks {
   onVideoFrame: (frame: VideoFrame, isKeyframe: boolean) => void;
@@ -86,7 +87,7 @@ export class CapturePump {
   constructor(private readonly callbacks: CapturePumpCallbacks) {}
 
   start(stream: MediaStream): void {
-    const Processor = trackProcessor();
+    const Processor: TrackProcessorCtor | null = trackProcessor();
 
     const videoTrack: MediaStreamTrack = stream.getVideoTracks()[0];
     if (videoTrack) {

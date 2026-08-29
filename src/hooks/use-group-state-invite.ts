@@ -20,6 +20,8 @@ import { createDefaultRoles, getDefaultRole } from '@/types/group';
 // a user-facing toast"; the toast did not exist.
 import { toast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
+import type { GroupRole } from '@/types/group-permissions';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
 export interface GroupInvitePayload {
   groupId: string;
@@ -78,8 +80,8 @@ export async function buildGroupFromInvite(
     return null;
   }
 
-  const defaultRoles = createDefaultRoles();
-  const defaultRole = getDefaultRole({ roles: defaultRoles, defaultRoleId: '' });
+  const defaultRoles: GroupRole[] = createDefaultRoles();
+  const defaultRole: GroupRole | undefined = getDefaultRole({ roles: defaultRoles, defaultRoleId: '' });
 
   const inviterMember: GroupMember = {
     cid: inviterCid,
@@ -91,7 +93,7 @@ export async function buildGroupFromInvite(
   let selfMember: GroupMember | null = null;
   try {
     const { connectionManager } = await import('@/lib/connection');
-    const info = connectionManager.getConnectionInfo();
+    const info: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
     if (info) {
       const session = await connectionManager.getTabSelectedSession();
       const selfUsername: string = info.username || session?.username || 'me';

@@ -9,6 +9,7 @@
  * These assert at the send points, which is where the promise is kept or broken.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { PrivacySettings } from '@/lib/privacy-settings';
 import {
   DEFAULT_PRIVACY_SETTINGS,
   PRIVACY_ENFORCEMENT,
@@ -40,7 +41,7 @@ describe('privacy settings storage', () => {
     vi.resetModules();
     const fresh = await import('../privacy-settings');
 
-    const read = fresh.getPrivacySettings();
+    const read: PrivacySettings = fresh.getPrivacySettings();
     expect(read.showOnlineStatus).toBe(false);
     expect(read.sendReadReceipts).toBe(DEFAULT_PRIVACY_SETTINGS.sendReadReceipts);
     expect(read.allowDirectMessages).toBe(DEFAULT_PRIVACY_SETTINGS.allowDirectMessages);

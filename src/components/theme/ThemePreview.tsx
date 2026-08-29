@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import type { ThemePalette, ThemeTokenKey, WorkspaceIcon } from '@/lib/theme/theme-types';
 import { toCssColor } from '@/lib/theme/hsl';
-import { PREVIEW_REGIONS } from '@/lib/theme/preview-regions';
+import { PREVIEW_REGIONS , type PreviewRegion } from '@/lib/theme/preview-regions';
 
 interface ThemePreviewProps {
   palette: ThemePalette;
@@ -37,11 +37,11 @@ export function ThemePreview({
   selectedToken,
   onSelectToken,
 }: ThemePreviewProps): JSX.Element {
-  const region = (id: string) => PREVIEW_REGIONS.find((r): boolean => r.id === id)!;
+  const region: (id: string) => PreviewRegion = (id: string): PreviewRegion => PREVIEW_REGIONS.find((r): boolean => r.id === id)!;
 
   /** Shared behaviour for every clickable part of the mock. */
   const hotspot = (id: string) => {
-    const r = region(id);
+    const r: PreviewRegion = region(id);
     const selected: boolean = selectedToken === r.token;
     return {
       type: 'button' as const,

@@ -4,8 +4,7 @@
  * Pre-defined MDX content templates for room types.
  */
 
-import type { MdxTemplate } from './types';
-import { TemplateCategory, RoomType } from './types';
+import { TemplateCategory, RoomType , type MdxTemplate } from './types';
 
 export const meetingRoomTemplate: MdxTemplate = {
   id: 'room-meeting',

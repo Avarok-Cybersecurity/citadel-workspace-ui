@@ -13,6 +13,7 @@ import { debugLog } from '@/lib/debug-config';
 import type { PeerInfo } from './P2PPeerListHelpers';
 import { ConversationPeerItem } from './ConversationPeerItem';
 import { peerDisplayName, peerInitials, isUnnamedPeer } from '@/lib/peer-display';
+import type { P2PConversation, P2PMessage } from '@/lib/p2p/p2p-types';
 
 interface P2PPeerListProps {
   onSelectPeer: (peerCid: string) => void;
@@ -27,9 +28,9 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
   const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
 
   const loadPeers: () => void = useCallback((): void => {
-    const conversations = messenger.getAllConversations();
+    const conversations: P2PConversation[] = messenger.getAllConversations();
     const peerList: PeerInfo[] = conversations.map(conv => {
-      const lastMessage = conv.messages[conv.messages.length - 1];
+      const lastMessage: P2PMessage = conv.messages[conv.messages.length - 1];
       const peerCidStr: string = conv.peerCid.toString();
       return {
         cid: peerCidStr,

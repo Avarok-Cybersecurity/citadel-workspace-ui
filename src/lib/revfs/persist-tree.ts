@@ -23,9 +23,10 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
 import type { RevfsIO } from './revfs-io';
 import type { RevfsNode } from '@/types/revfs-types';
+import type { RevfsIntentResult } from '@/types/revfs-intents';
 
 export async function persistTree(io: RevfsIO, treeKey: string, tree: RevfsNode): Promise<void> {
-  const result = await io.execute({ type: 'persist-tree', treeKey, tree });
+  const result: RevfsIntentResult = await io.execute({ type: 'persist-tree', treeKey, tree });
 
   if (result.type !== 'persist-tree' || !result.success) {
     debugLog('RevfsPersist', `Tree ${treeKey} could not be written to disk — changes may not survive a reload`);

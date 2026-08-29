@@ -18,6 +18,7 @@ import { describe, it, expect } from 'vitest';
 import { callBusyReason } from '../call-busy';
 import { groupCallEntryMode } from '../group-call-entry';
 import type { CallState } from '../call-state';
+import type { GroupCallEntryMode } from '@/lib/call/group-call-entry';
 
 function state(status: CallState['status'], roomId: string | null = null): CallState {
   return { status, roomId, participants: new Map() } as unknown as CallState;
@@ -54,7 +55,7 @@ describe('whether a new call can start', () => {
       'ringing-in', 'ringing-out', 'connecting', 'active', 'ended', 'failed',
     ] as const) {
       const call: CallState = state(status, 'other-room');
-      const mode = groupCallEntryMode(call, 'this-room', 3);
+      const mode: GroupCallEntryMode = groupCallEntryMode(call, 'this-room', 3);
       const busy: string | null = callBusyReason(call);
 
       expect(

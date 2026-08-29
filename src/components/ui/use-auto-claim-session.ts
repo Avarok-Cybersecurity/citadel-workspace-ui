@@ -10,16 +10,17 @@
  */
 
 import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
-import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
+import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
 import { pickSessionToClaim } from '@/lib/sessions/pick-session-to-claim';
 import { ConnectionManager } from '@/lib/connection';
 import { postAuthSetup } from '@/lib/post-auth-setup';
-import { setSelectedUser, getSelectedUser, clearSelectedUser } from '@/lib/tab-context';
+import { setSelectedUser, getSelectedUser, clearSelectedUser , type TabUserContext } from '@/lib/tab-context';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { describeFailure } from '@/lib/failure-message';
 import { TIMEOUT } from '@/lib/timeout-constants';
 import type { useToast } from '@/hooks/use-toast';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
 interface AutoClaimOptions {
   isDevMode: boolean;
@@ -56,7 +57,7 @@ useEffect(() => {
 
     const connectionManager: ConnectionManager = ConnectionManager.getInstance();
 
-    const currentConnection = connectionManager.getConnectionInfo();
+    const currentConnection: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
     debugLog('WorkspaceLoader', ' getConnectionInfo() returned:', {
       hasConnection: !!currentConnection,
       cid: currentConnection?.cid?.toString() ?? 'none',
@@ -66,7 +67,7 @@ useEffect(() => {
     if (currentConnection?.cid && currentConnection.cid !== 0n) {
       debugLog('WorkspaceLoader', ' Already connected with CID:', currentConnection.cid);
 
-      const existingSelection = await getSelectedUser();
+      const existingSelection: TabUserContext | null = await getSelectedUser();
       if (!existingSelection?.selectedCid) {
         const activeSessions = await connectionManager.getActiveSessions();
         const session = activeSessions.find(s => s.cid === currentConnection.cid);
@@ -137,7 +138,7 @@ useEffect(() => {
         return;
       }
 
-      const existingSelection = await getSelectedUser();
+      const existingSelection: TabUserContext | null = await getSelectedUser();
       debugLog('WorkspaceLoader', ' Tab context getSelectedUser() returned:', {
         hasSelection: !!existingSelection,
         selectedCid: existingSelection?.selectedCid?.toString() ?? 'none',
@@ -164,7 +165,7 @@ useEffect(() => {
       const session = sessionToUse;
       debugLog('WorkspaceLoader', ' Auto-claiming session:', session.username, session.cid);
 
-      const outcome = await claimSessionForThisTab(session.cid);
+      const outcome: ClaimOutcome = await claimSessionForThisTab(session.cid);
       if (outcome.status === 'owned-by-another-tab') {
         toast(SESSION_OWNED_ELSEWHERE);
         setIsAutoClaimingSession(false);

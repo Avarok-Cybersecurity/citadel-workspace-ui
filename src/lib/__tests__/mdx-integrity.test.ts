@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { webcrypto } from 'node:crypto';
 import { hashDocument, verifyDocument } from '../mdx-integrity';
+import type { IntegrityVerdict } from '@/lib/mdx-integrity';
 
 // jsdom ships no SubtleCrypto. Node's real WebCrypto is the same algorithm the
 // browser runs, so this exercises the actual digest rather than a stub -- which
@@ -51,13 +52,13 @@ describe('verifyDocument', () => {
 
   it('reports a mismatch when the content was altered', async () => {
     const stored: string = await hashDocument('# Hello');
-    const verdict = await verifyDocument('# Hello<script>', stored);
+    const verdict: IntegrityVerdict = await verifyDocument('# Hello<script>', stored);
 
     expect(verdict.status).toBe('mismatch');
   });
 
   it('reports a mismatch when the HASH was altered', async () => {
-    const verdict = await verifyDocument('# Hello', 'deadbeef');
+    const verdict: IntegrityVerdict = await verifyDocument('# Hello', 'deadbeef');
     expect(verdict.status).toBe('mismatch');
   });
 
@@ -70,7 +71,7 @@ describe('verifyDocument', () => {
   });
 
   it('carries both hashes on a mismatch, so the report can say what differed', async () => {
-    const verdict = await verifyDocument('# Hello', 'deadbeef');
+    const verdict: IntegrityVerdict = await verifyDocument('# Hello', 'deadbeef');
     if (verdict.status !== 'mismatch') throw new Error('expected a mismatch');
 
     expect(verdict.expected).toBe('deadbeef');

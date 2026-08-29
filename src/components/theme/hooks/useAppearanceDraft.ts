@@ -13,8 +13,8 @@ import { toast } from 'sonner';
 import { useWorkspaceTheme } from '@/lib/theme/workspace-theme-context';
 import { PRESET_THEMES } from '@/lib/theme/presets';
 import { beginEdit, setToken } from '@/lib/theme/theme-editing';
-import { PREVIEW_REGIONS } from '@/lib/theme/preview-regions';
-import type { WorkspaceTheme, ThemeTokenKey, ThemeMode, HslColor } from '@/lib/theme/theme-types';
+import { PREVIEW_REGIONS , type PreviewRegion } from '@/lib/theme/preview-regions';
+import type { WorkspaceTheme, ThemeTokenKey, ThemeMode, HslColor, ThemePalette } from '@/lib/theme/theme-types';
 import { debugLog } from '@/lib/debug-config';
 
 /**
@@ -42,7 +42,7 @@ export function useAppearanceDraft({ open, onOpenChange, onSave }: UseAppearance
    * than a second piece of state that could disagree with the first.
    */
   const [selection, setSelection] = useState<Selection>(null);
-  const selectedToken = selection?.kind === 'token' ? selection.token : null;
+  const selectedToken: keyof ThemePalette | null = selection?.kind === 'token' ? selection.token : null;
   const [saving, setSaving] = useState(false);
 
   // Reopening starts from whatever is saved, so an abandoned edit does not
@@ -85,8 +85,8 @@ export function useAppearanceDraft({ open, onOpenChange, onSave }: UseAppearance
     return [...PRESET_THEMES, ...customs];
   }, [draft]);
 
-  const palette = mode === 'dark' ? draft.dark : draft.light;
-  const activeRegion = selectedToken
+  const palette: ThemePalette = mode === 'dark' ? draft.dark : draft.light;
+  const activeRegion: PreviewRegion | null = selectedToken
     ? PREVIEW_REGIONS.find((r) => r.token === selectedToken) ?? null
     : null;
 

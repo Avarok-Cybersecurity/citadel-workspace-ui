@@ -10,8 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { websocketService } from "@/lib/websocket-service";
 import { connectionManager } from "@/lib/connection";
 import { eventEmitter } from "@/lib/event-emitter";
-import { isResponseType } from 'citadel-workspace-client-ts';
-import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
+import { isResponseType , type InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { startMessagingForSession } from "@/lib/start-messaging";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import { postAuthSetup } from '@/lib/post-auth-setup';
@@ -20,6 +19,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { redirectToExistingSession } from './login-session-redirect';
 import { mapSecuritySettings } from '@/lib/security-utils';
+import type { NavigateFunction } from 'react-router';
 import type {
   SecurityLevel, SecrecyMode, EncryptionAlgorithm, KemAlgorithm, SigAlgorithm,
 } from "@/types";
@@ -52,7 +52,7 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
     useState<SecuritySettingsState>(DEFAULT_SECURITY_SETTINGS);
 
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
 
   const doRedirect = (session: { cid: bigint; username: string; server_address: string }): Promise<void> =>
     redirectToExistingSession(session, { navigate, toast, onNext });

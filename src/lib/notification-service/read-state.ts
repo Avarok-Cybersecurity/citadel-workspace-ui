@@ -1,5 +1,4 @@
-import { NotificationType, notificationBelongsTo } from './types';
-import type { Notification } from './types';
+import { NotificationType, notificationBelongsTo , type Notification } from './types';
 
 /**
  * Which notifications a "mark read" applies to.

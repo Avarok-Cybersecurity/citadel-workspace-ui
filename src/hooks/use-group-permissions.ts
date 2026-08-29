@@ -14,6 +14,7 @@ import type {
   GroupPermissions,
 } from '@/types/group';
 import { canManageUser } from '@/types/group';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
 // ============================================================================
 // Types
@@ -47,7 +48,7 @@ interface UseGroupPermissionsResult {
 export function useGroupPermissions(
   group: GroupConversation
 ): UseGroupPermissionsResult {
-  const connectionInfo = connectionManager.getConnectionInfo();
+  const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
   const currentCid: bigint | undefined = connectionInfo?.cid;
 
   // Find current user's member info

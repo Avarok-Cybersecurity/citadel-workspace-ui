@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import type { RevfsNode } from "@/types/revfs-types";
 import { RevfsFileState } from "@/types/revfs-types";
+import type { RevfsFileMetadata } from '@/types/revfs-types';
 
 interface VFSPropertiesDialogProps {
   node: RevfsNode | null;
@@ -80,7 +81,7 @@ export function VFSPropertiesDialog({
 
   const isDir: boolean = node.type === 'directory';
   const Icon = isDir ? Folder : getFileIcon(node.name);
-  const meta = node.fileMetadata;
+  const meta: RevfsFileMetadata | undefined = node.fileMetadata;
   const state: { label: string; icon: typeof Monitor; } | null = node.fileState ? stateLabels[node.fileState] : null;
   const StateIcon = state?.icon;
   const itemCounts: { files: number; folders: number; } | null = isDir ? countItems(node) : null;

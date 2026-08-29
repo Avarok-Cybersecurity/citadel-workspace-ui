@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { saveRecentServer, getRecentServers } from '../server-utils';
+import type { StoredServer } from '@/lib/server-utils';
 
 /**
  * The recent-server list is what the connect screen falls back to when the
@@ -51,7 +52,7 @@ describe('recent servers', () => {
       saveRecentServer({ serverAddress: `server-${i}.example` });
     }
 
-    const stored = getRecentServers();
+    const stored: StoredServer[] = getRecentServers();
     // It grew for the lifetime of the install before; nothing ever removed an
     // entry.
     expect(stored.length).toBeLessThanOrEqual(10);

@@ -7,6 +7,7 @@ import { useCall } from '@/lib/call/call-context';
 import { useIsLeaderTab } from './use-leader-tab';
 import { connectionManager } from '@/lib/connection';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
+import type { CallParticipant } from '@/lib/call/call-state';
 
 /**
  * Mounts calling for the whole app: the provider that owns a call, and the
@@ -73,7 +74,7 @@ function RingingCall(): JSX.Element | null {
   if (!isLeaderTab) return null;
   if (!call || call.status !== 'ringing-in') return null;
 
-  const caller = [...call.participants.values()][0];
+  const caller: CallParticipant = [...call.participants.values()][0];
   if (!caller) return null;
 
   return (

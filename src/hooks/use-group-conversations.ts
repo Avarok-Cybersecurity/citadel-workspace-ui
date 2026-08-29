@@ -32,6 +32,7 @@ import { useCallback } from 'react';
 import { markGroupRead } from '@/lib/group-conversations/mark-group-read';
 import type { UseGroupConversationsResult } from './use-group-conversations.types';
 import { useGroupState, useSortedGroups } from './use-group-state';
+import type { GroupConversation } from '@/types/group-entities';
 import {
   sendGroupCreate,
   sendGroupInvite,
@@ -46,7 +47,7 @@ import {
 
 export function useGroupConversations(): UseGroupConversationsResult {
   const { groups, setGroups, hydrated, loading, setLoading, error, setError } = useGroupState();
-  const sortedGroups = useSortedGroups(groups);
+  const sortedGroups: GroupConversation[] = useSortedGroups(groups);
 
   // Create a new group
   const createGroup: (name: string, initialMembers: Array<{ cid: string; username: string; roleId?: string; }>) => Promise<string> = useCallback(
@@ -125,7 +126,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   );
 
   // Get a specific group by ID
-  const getGroup = useCallback(
+  const getGroup: (groupId: string) => GroupConversation | undefined = useCallback(
     (groupId: string) => groups.find(g => g.id === groupId),
     [groups]
   );

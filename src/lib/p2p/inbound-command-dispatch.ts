@@ -10,8 +10,7 @@
  */
 
 import { debugLog } from '@/lib/debug-config';
-import { deserializeP2PCommand } from '@/types/p2p-commands';
-import type { P2PCommand } from '@/types/p2p-commands';
+import { deserializeP2PCommand , type P2PCommand } from '@/types/p2p-commands';
 
 /**
  * Decode `bytes` and pass the command to `handle`.

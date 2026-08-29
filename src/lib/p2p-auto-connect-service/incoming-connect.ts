@@ -11,6 +11,7 @@ import { debugLog } from '@/lib/debug-config';
 import type { AutoConnectState } from './state';
 import { FRESH_CONNECTION_THRESHOLD_MS } from './types';
 import { getCurrentCid } from './cid-resolver';
+import type { PeerConnectionInfo } from '@/lib/p2p-auto-connect/types';
 
 /**
  * Handle incoming PeerConnect request (when other peer initiates).
@@ -50,7 +51,7 @@ export async function handleIncomingPeerConnect(
 
   // Check existing connection - distinguish fresh vs stale
   if (state.isPeerConnectedForSession(currentCid, initiatorCid)) {
-    const peerInfo = state.getPeerConnectionInfo(currentCid, initiatorCid);
+    const peerInfo: PeerConnectionInfo | null = state.getPeerConnectionInfo(currentCid, initiatorCid);
     const connectionAge: number = peerInfo ? Date.now() - peerInfo.connectedAt : Infinity;
     if (connectionAge < FRESH_CONNECTION_THRESHOLD_MS) {
       debugLog('P2PAutoConnectService', `P2PAutoConnect: Connection to ${initiatorCid.toString().slice(0, 8)}... is fresh (${connectionAge}ms old), skipping`);

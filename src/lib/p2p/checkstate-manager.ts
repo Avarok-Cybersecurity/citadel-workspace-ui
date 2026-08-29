@@ -16,6 +16,8 @@ import {
   createCheckStateResponse,
 } from '@/types/messaging-layer';
 import { debugLog } from '@/lib/debug-config';
+import type { MessagingLayer } from '@/types/messaging-layer';
+import type { P2PCommand } from '@/types/p2p-commands';
 
 export interface CheckStateConfig {
   /** Timeout for CheckState response (ms) */
@@ -117,8 +119,8 @@ export class CheckStateManager {
     const currentCid: bigint | null = await this.config.getCurrentCid();
     if (!currentCid) return;
 
-    const response = createCheckStateResponse();
-    const command = createMessagingLayerCommand(
+    const response: MessagingLayer = createCheckStateResponse();
+    const command: P2PCommand = createMessagingLayerCommand(
       response,
       currentCid,
       peerCid,
@@ -174,8 +176,8 @@ export class CheckStateManager {
     }
 
     // Create CheckState command
-    const checkState = createCheckState();
-    const command = createMessagingLayerCommand(
+    const checkState: MessagingLayer = createCheckState();
+    const command: P2PCommand = createMessagingLayerCommand(
       checkState,
       currentCid,
       peerCid,

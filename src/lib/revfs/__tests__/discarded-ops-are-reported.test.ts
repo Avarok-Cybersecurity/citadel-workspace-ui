@@ -8,6 +8,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { retryPendingOps } from '../revfs-retry';
+import type { RetryOutcome } from '@/lib/revfs/revfs-retry';
 
 const EXHAUSTED: number = 5; // MAX_OP_RETRIES
 
@@ -40,7 +41,7 @@ describe('retryPendingOps', () => {
   it('reports an abandoned operation instead of counting it as synced', async () => {
     const { deps, removed } = depsWith([op('a', EXHAUSTED)]);
 
-    const outcome = await retryPendingOps(deps, 'key', 1n);
+    const outcome: RetryOutcome = await retryPendingOps(deps, 'key', 1n);
 
     // Previously { stillPending: 0 } with no other signal, which the caller
     // rendered as a green "Tree synced with peer".
@@ -52,7 +53,7 @@ describe('retryPendingOps', () => {
   it('keeps discarded and still-pending separate — they need different words', async () => {
     const { deps } = depsWith([op('gone', EXHAUSTED), op('retryable', 1)]);
 
-    const outcome = await retryPendingOps(deps, 'key', 1n);
+    const outcome: RetryOutcome = await retryPendingOps(deps, 'key', 1n);
 
     expect(outcome.discarded).toBe(1);
     // One will be tried again; the other never will. Merging them would tell

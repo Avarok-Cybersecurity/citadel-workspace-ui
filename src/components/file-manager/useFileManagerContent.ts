@@ -9,6 +9,8 @@ import type { RevfsNode, TreeKey } from "@/types/revfs-types";
 import { TreeScope } from "@/types/revfs-types";
 import { INTERVAL } from "@/lib/timeout-constants";
 import { useFileManagerHandlers } from "./useFileManagerHandlers";
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import type { UseRevfsTreeResult, UseServerRevfsTreeResult } from '@/hooks/useRevfsTree-types';
 
 export { findNodeByPath } from '@/lib/revfs/tree-operations';
 
@@ -20,7 +22,7 @@ export function useFileManagerContent() {
 
   useEffect(() => {
     const update = (): void => {
-      const info = connectionManager.getConnectionInfo();
+      const info: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
       setMyCid(info?.cid ?? null);
       const { registeredPeers: peers } = p2pRegistrationService.getPeers();
       setRegisteredPeers(peers);
@@ -37,12 +39,12 @@ export function useFileManagerContent() {
     }
   }, [storageMode, selectedPeerCid, registeredPeers]);
 
-  const peerTree = useRevfsTree(
+  const peerTree: UseRevfsTreeResult = useRevfsTree(
     storageMode === TreeScope.Peer ? myCid : null,
     storageMode === TreeScope.Peer ? selectedPeerCid : null
   );
-  const serverTree = useServerRevfsTree(storageMode === TreeScope.Server ? myCid : null);
-  const activeTree = storageMode === TreeScope.Server ? serverTree : peerTree;
+  const serverTree: UseServerRevfsTreeResult = useServerRevfsTree(storageMode === TreeScope.Server ? myCid : null);
+  const activeTree: UseServerRevfsTreeResult = storageMode === TreeScope.Server ? serverTree : peerTree;
   const { tree, loading, error, mkdir, rmdir, uploadFile, downloadFile, removeFile, rename, move, copy, refresh, storageUsed, storageQuota, revfsEnabled } = activeTree;
 
   const { clipboard, cut, copy: copyToClipboard, clear: clearClipboard, hasItems: hasPasteItems, isCut } = useVFSClipboard();

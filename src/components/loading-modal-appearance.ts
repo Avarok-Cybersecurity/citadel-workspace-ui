@@ -1,5 +1,4 @@
-import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { CheckCircle2, Loader2, XCircle , type LucideIcon } from 'lucide-react';
 
 /**
  * How a status looks: which icon, and how it is coloured.

@@ -1,4 +1,5 @@
 import type { CallState } from './call-state';
+import type { CallParticipant } from '@/lib/call/call-state';
 
 /**
  * What to tell the caller about a call that never connected.
@@ -44,6 +45,6 @@ export function callOutcomeMessage(reason: string | null, peerName: string): str
  * recorded CIDs leaking into the UI as identity.
  */
 export function callOutcomePeerName(call: CallState): string {
-  const named = [...call.participants.values()].find((p): string => p.username);
+  const named: CallParticipant | undefined = [...call.participants.values()].find((p): string => p.username);
   return named?.username ?? 'They';
 }

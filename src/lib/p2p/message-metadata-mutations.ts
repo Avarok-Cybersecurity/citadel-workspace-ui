@@ -14,6 +14,7 @@ import {
   saveMetadata,
 } from './message-page-operations';
 import type { P2PMessage } from './p2p-types';
+import type { ConversationMetadata, MessagePage } from '@/lib/p2p/p2p-types';
 
 /**
  * Patch one message wherever it is stored.
@@ -35,11 +36,11 @@ export async function findMessageInPages(
   peerCid: bigint,
   messageId: string
 ): Promise<P2PMessage | null> {
-  const metadata = await tryLoadMetadata(peerCid);
+  const metadata: ConversationMetadata | null = await tryLoadMetadata(peerCid);
   if (!metadata) return null;
 
   for (let pageNum: number = metadata.latestPage; pageNum >= 0; pageNum--) {
-    const page = await tryLoadMessagePage(peerCid, pageNum);
+    const page: MessagePage | null = await tryLoadMessagePage(peerCid, pageNum);
     const found: P2PMessage | undefined = page?.messages.find((m) => m.id === messageId);
     if (found) return found;
   }
@@ -56,12 +57,12 @@ export async function findMessageInPages(
  * the normal case.
  */
 export async function findUnreadFromPeer(peerCid: bigint): Promise<P2PMessage[]> {
-  const metadata = await tryLoadMetadata(peerCid);
+  const metadata: ConversationMetadata | null = await tryLoadMetadata(peerCid);
   if (!metadata || metadata.unreadCount <= 0) return [];
 
   const found: P2PMessage[] = [];
   for (let pageNum: number = metadata.latestPage; pageNum >= 0 && found.length < metadata.unreadCount; pageNum--) {
-    const page = await tryLoadMessagePage(peerCid, pageNum);
+    const page: MessagePage | null = await tryLoadMessagePage(peerCid, pageNum);
     if (!page) continue;
     for (let i: number = page.messages.length - 1; i >= 0 && found.length < metadata.unreadCount; i--) {
       const m: P2PMessage = page.messages[i];
@@ -76,11 +77,11 @@ export async function updateMessageInPages(
   messageId: string,
   updates: Partial<P2PMessage>
 ): Promise<boolean> {
-  const metadata = await tryLoadMetadata(peerCid);
+  const metadata: ConversationMetadata | null = await tryLoadMetadata(peerCid);
   if (!metadata) return false;
 
   for (let pageNum: number = metadata.latestPage; pageNum >= 0; pageNum--) {
-    const page = await tryLoadMessagePage(peerCid, pageNum);
+    const page: MessagePage | null = await tryLoadMessagePage(peerCid, pageNum);
     if (!page) continue;
 
     const msgIndex: number = page.messages.findIndex((m) => m.id === messageId);
@@ -98,7 +99,7 @@ export async function updatePeerUsernameInMetadata(
   peerCid: bigint,
   username: string
 ): Promise<void> {
-  const metadata = await tryLoadMetadata(peerCid);
+  const metadata: ConversationMetadata | null = await tryLoadMetadata(peerCid);
   if (!metadata) return;
   metadata.peerUsername = username;
   metadata.lastUpdated = Date.now();
@@ -106,7 +107,7 @@ export async function updatePeerUsernameInMetadata(
 }
 
 export async function updateUnreadCount(peerCid: bigint, unreadCount: number): Promise<void> {
-  const metadata = await tryLoadMetadata(peerCid);
+  const metadata: ConversationMetadata | null = await tryLoadMetadata(peerCid);
   if (!metadata) return;
   metadata.unreadCount = unreadCount;
   metadata.lastUpdated = Date.now();

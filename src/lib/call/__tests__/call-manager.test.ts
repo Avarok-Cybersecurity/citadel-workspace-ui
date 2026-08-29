@@ -13,6 +13,7 @@ import { CallManager, MEDIA_WIRE_VERSION } from '../call-manager';
 import type { CallTransport } from '../call-transport';
 import type { CallCodecCapabilities, CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
 import type { CallState } from '../call-state';
+import type { CallParticipant } from '@/lib/call/call-state';
 
 const AUDIO: CallMediaKinds = { audio: true, video: false, screen: false };
 const VIDEO: CallMediaKinds = { audio: true, video: true, screen: false };
@@ -213,7 +214,7 @@ describe('receiving a group call', () => {
   it("adopts the caller's roster: the co-invitee is a participant, we are not", async () => {
     await h.manager.handleSignal(BOB, 'bob', groupInvite());
 
-    const participants = h.manager.getState()?.participants;
+    const participants: Map<bigint, CallParticipant> | undefined = h.manager.getState()?.participants;
     expect([...(participants?.keys() ?? [])]).toEqual([BOB, CAROL]);
   });
 
@@ -223,7 +224,7 @@ describe('receiving a group call', () => {
     // lands here, and for a long time that was a twenty-digit number.
     await h.manager.handleSignal(BOB, 'bob', groupInvite());
 
-    const carol = h.manager.getState()?.participants.get(CAROL);
+    const carol: CallParticipant | undefined = h.manager.getState()?.participants.get(CAROL);
     expect(carol?.username).toBe(`peer-${CAROL}`);
     expect(carol?.username).not.toBe(CAROL.toString());
   });

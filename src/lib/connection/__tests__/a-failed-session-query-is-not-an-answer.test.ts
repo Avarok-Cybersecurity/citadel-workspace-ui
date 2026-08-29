@@ -16,7 +16,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getActiveSessionsResult } from '../queries';
-import { pickSessionToClaim } from '@/lib/sessions/pick-session-to-claim';
+import { pickSessionToClaim , type SessionChoice } from '@/lib/sessions/pick-session-to-claim';
+import type { ActiveSessionsResult } from '@/lib/connection/queries';
 
 function stateDouble() {
   let cached: unknown = null;
@@ -46,7 +47,7 @@ describe('asking which sessions exist', () => {
       sendWebSocketMessage: vi.fn(),
     };
 
-    const result = await getActiveSessionsResult(state as never, io as never);
+    const result: ActiveSessionsResult = await getActiveSessionsResult(state as never, io as never);
 
     expect(result.ok).toBe(false);
     expect(result.sessions).toEqual([]);
@@ -79,7 +80,7 @@ describe('asking which sessions exist', () => {
       }),
     };
 
-    const result = await getActiveSessionsResult(state as never, io as never);
+    const result: ActiveSessionsResult = await getActiveSessionsResult(state as never, io as never);
 
     expect(result.ok).toBe(true);
     expect(state.cachedForTest()).toEqual([]);
@@ -96,7 +97,7 @@ describe('choosing a session to claim', () => {
   it('reports a stale selection instead of clearing it itself', () => {
     // Returned rather than performed: clearing is a destructive write, and only
     // the caller knows whether the list it is comparing against is real.
-    const choice = pickSessionToClaim(live, 99n);
+    const choice: SessionChoice = pickSessionToClaim(live, 99n);
 
     expect(choice.staleSelection).toBe(true);
     expect(choice.session).toEqual({ cid: 1n });

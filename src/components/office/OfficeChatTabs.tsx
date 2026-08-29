@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { FileText, MessageSquare } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import GroupChatView from '@/components/chat/GroupChatView';
-import { GroupCallControls } from '@/components/call/GroupCallControls';
+import { GroupCallControls , type GroupCallMember } from '@/components/call/GroupCallControls';
 import { GroupCallDock } from '@/components/call/GroupCallDock';
 import { useDomainCallMembers } from '@/hooks/use-domain-call-members';
 
@@ -33,7 +33,7 @@ export function OfficeChatTabs({
   currentUserName,
   rules,
 }: OfficeChatTabsProps): JSX.Element {
-  const callMembers = useDomainCallMembers(nodeId);
+  const callMembers: GroupCallMember[] = useDomainCallMembers(nodeId);
 
   return (
     <div className="w-full h-full flex flex-col">

@@ -6,8 +6,7 @@
  */
 
 import * as Y from 'yjs';
-import type { ChunkingStrategy } from '../merkle-tree';
-import { BinaryChunkingStrategy } from '../merkle-tree';
+import { BinaryChunkingStrategy , type ChunkingStrategy } from '../merkle-tree';
 
 /**
  * Chunking strategy for YJS documents

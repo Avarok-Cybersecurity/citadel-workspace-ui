@@ -11,6 +11,7 @@ import { EditorToolbar } from './EditorToolbar';
 import { eventEmitter } from '@/lib/event-emitter';
 import { activateOnKey } from '@/lib/a11y';
 import { usePrompt } from '@/components/shared/prompt-dialog';
+import type { FlashComment } from '@/components/p2p/collaborator-cursor-helpers';
 
 interface CollaborativeEditorProps {
   documentId: string;
@@ -119,7 +120,7 @@ export function CollaborativeEditor({
         placeholder: 'Looks good to me',
         confirmLabel: 'Send',
       });
-      const comment = buildContextMenuFlashComment(raw, coords, {
+      const comment: FlashComment | null = buildContextMenuFlashComment(raw, coords, {
         userId: currentUserCid,
         userName: currentUserName,
         userColor: userColor,

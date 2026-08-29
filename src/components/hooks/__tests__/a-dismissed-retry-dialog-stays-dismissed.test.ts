@@ -15,6 +15,7 @@
  * so across the top of the app.
  */
 import { describe, it, expect } from 'vitest';
+import type { RetryVisibility } from '@/components/hooks/connection-retry-visibility';
 import {
   NOT_FAILING, onFailure, onDismiss, onSuccess, isRetryDialogOpen,
 } from '../connection-retry-visibility';
@@ -27,7 +28,7 @@ describe('the connection retry dialog', () => {
   it('stays shut through the failures that follow a dismissal', () => {
     // The defect, stated directly: with the agent down this loop ran every
     // couple of seconds and each turn put the dialog back.
-    let state = onDismiss(onFailure(NOT_FAILING));
+    let state: RetryVisibility = onDismiss(onFailure(NOT_FAILING));
     for (let i: number = 0; i < 20; i += 1) state = onFailure(state);
     expect(isRetryDialogOpen(state)).toBe(false);
   });
@@ -36,8 +37,8 @@ describe('the connection retry dialog', () => {
     // The positive control. A dismissal that survived a recovery would silence
     // the dialog for the rest of the session, which is the opposite bug and
     // just as bad: the user would never be told about a NEW outage.
-    const dismissed = onDismiss(onFailure(NOT_FAILING));
-    const recovered = onSuccess();
+    const dismissed: RetryVisibility = onDismiss(onFailure(NOT_FAILING));
+    const recovered: RetryVisibility = onSuccess();
     expect(isRetryDialogOpen(onFailure(recovered))).toBe(true);
     expect(isRetryDialogOpen(dismissed)).toBe(false);
   });

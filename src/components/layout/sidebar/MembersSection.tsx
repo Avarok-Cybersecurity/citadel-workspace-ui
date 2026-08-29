@@ -31,12 +31,14 @@ import { debugLog } from '@/lib/debug-config';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 import { MembersSectionModals } from './MembersSectionModals';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import type { NavigateFunction } from 'react-router';
+import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 
 export const MembersSection: () => JSX.Element = (): JSX.Element => {
   const location = useLocation();
   const confirm = useConfirm();
   const [showInvite, setShowInvite] = useState(false);
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const { state } = useWorkspace();
   const params: URLSearchParams = new URLSearchParams(location.search);
   const currentNodeId: string | null = params.get("nodeId");
@@ -60,7 +62,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
   const { peersWithConversations } = useConversationPeers({ registeredPeers });
 
   const conversationPeerCids: Set<string> = new Set(peersWithConversations.map(c => c.peerCid));
-  const filteredRegisteredPeers = registeredPeers.filter(p => !conversationPeerCids.has(p.cid));
+  const filteredRegisteredPeers: RegisteredPeer[] = registeredPeers.filter(p => !conversationPeerCids.has(p.cid));
 
   const updatePendingCount: () => Promise<void> = useCallback(async (): Promise<void> => {
     const count: number = await peerRegistrationStore.getPendingCount();

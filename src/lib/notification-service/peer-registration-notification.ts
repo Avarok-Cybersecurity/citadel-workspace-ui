@@ -1,5 +1,4 @@
-import { NotificationType, NotificationPriority } from './types';
-import type { Notification } from './types';
+import { NotificationType, NotificationPriority , type Notification } from './types';
 
 /**
  * The shape of a "someone wants to connect" notification.

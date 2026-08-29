@@ -25,6 +25,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { scanExports } from './unreferenced-exports';
+import type { Scan, Unreferenced } from '@/__tests__/unreferenced-exports';
 
 const SRC: string = resolve(__dirname, '..');
 const BASELINE: string[] = JSON.parse(
@@ -32,8 +33,8 @@ const BASELINE: string[] = JSON.parse(
 );
 
 describe('unreferenced exports', () => {
-  const scan = scanExports(SRC);
-  const found = scan.unreferenced;
+  const scan: Scan = scanExports(SRC);
+  const found: Unreferenced[] = scan.unreferenced;
   const names: string[] = found.map((f): string => f.name);
 
   it('scans a real corpus, so the rule is not passing over nothing', () => {
@@ -49,7 +50,7 @@ describe('unreferenced exports', () => {
   });
 
   it('gains none', () => {
-    const added = found.filter((f) => !BASELINE.includes(f.name));
+    const added: Unreferenced[] = found.filter((f) => !BASELINE.includes(f.name));
     // Named with their file, because the fix is nearly always "call it from
     // where it was meant to be called", not "delete it".
     expect(added.map((f) => `${f.name} (${f.file})`)).toEqual([]);

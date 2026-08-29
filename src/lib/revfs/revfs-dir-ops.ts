@@ -22,6 +22,7 @@ import { countByteKeyRefs } from './tree-byte-refs';
 import type { RevfsState } from './revfs-state';
 import type { RevfsIO } from './revfs-io';
 import { persistTree } from './persist-tree';
+import type { RevfsIntentResult } from '@/types/revfs-intents';
 
 export interface DirOpsContext {
   state: RevfsState;
@@ -168,7 +169,7 @@ async function sweepOrphanedBytes(
       sweptKeys.add(byteKey);
       if (countByteKeyRefs(remainingTree, byteKey) > 0) continue;
     }
-    const deleted = await io.execute({
+    const deleted: RevfsIntentResult = await io.execute({
       type: 'backend-delete-file',
       cid: myCid,
       peerCid,

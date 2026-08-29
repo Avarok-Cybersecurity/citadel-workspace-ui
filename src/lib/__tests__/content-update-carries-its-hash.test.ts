@@ -19,6 +19,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { webcrypto } from 'node:crypto';
 import { hashDocument, verifyDocument } from '../mdx-integrity';
+import type { IntegrityVerdict } from '@/lib/mdx-integrity';
 
 beforeAll(() => {
   // jsdom has no SubtleCrypto; the hash is real, not stubbed, so the test
@@ -41,7 +42,7 @@ describe('a content update', () => {
     const edited = '# Edited by a colleague';
     const staleHash: string = await hashDocument(original);
 
-    const verdict = await verifyDocument(edited, staleHash);
+    const verdict: IntegrityVerdict = await verifyDocument(edited, staleHash);
     expect(verdict.status).toBe('mismatch');
   });
 

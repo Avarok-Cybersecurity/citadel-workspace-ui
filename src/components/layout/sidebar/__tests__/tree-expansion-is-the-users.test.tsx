@@ -20,6 +20,7 @@ import { useState } from 'react';
 import { TreeNodesSection } from '../TreeNodesSection';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import type { TreeNode } from '../tree-node-types';
+import type { UserEvent } from '@testing-library/user-event';
 
 function node(id: string, name: string, children: TreeNode[] = []): TreeNode {
   return {
@@ -56,7 +57,7 @@ function Harness(): JSX.Element {
 
 describe('tree expansion', () => {
   it('keeps a collapse through a filter round-trip and an unrelated update', async () => {
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
     render(<Harness />);
 
     // Engineering opens by default (first level), so its rooms are visible.
@@ -79,7 +80,7 @@ describe('tree expansion', () => {
   });
 
   it('opens ancestors of a match while filtering, without persisting that', async () => {
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
     render(<Harness />);
 
     const toggles: HTMLElement[] = screen.getAllByRole('button', { name: /collapse|expand/i });

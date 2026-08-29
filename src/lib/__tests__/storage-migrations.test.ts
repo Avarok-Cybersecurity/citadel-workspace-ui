@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import type { Migration } from '@/lib/storage-migrations';
 import {
   DB_VERSION,
   MIGRATIONS,
@@ -85,7 +86,7 @@ describe('runMigrations', () => {
       description: `step ${version}`,
       run: (): void => { ran.push(version); },
     }));
-    const original = MIGRATIONS.slice();
+    const original: Migration<unknown>[] = MIGRATIONS.slice();
     MIGRATIONS.push(...steps);
     try {
       runMigrations(fakeDb([...STORE_NAMES]) as never, 1, 4, {} as never);
@@ -98,7 +99,7 @@ describe('runMigrations', () => {
 
   it('applies steps in order even if declared out of order', () => {
     const ran: number[] = [];
-    const original = MIGRATIONS.slice();
+    const original: Migration<unknown>[] = MIGRATIONS.slice();
     MIGRATIONS.push(
       { version: 3, description: 'c', run: () => { ran.push(3); } },
       { version: 2, description: 'b', run: () => { ran.push(2); } },
@@ -115,7 +116,7 @@ describe('runMigrations', () => {
   it('rethrows a failing step so IndexedDB rolls the whole upgrade back', () => {
     // The alternative — swallowing it — leaves new code running against a
     // half-migrated database, which is worse than not upgrading at all.
-    const original = MIGRATIONS.slice();
+    const original: Migration<unknown>[] = MIGRATIONS.slice();
     MIGRATIONS.push({
       version: 2,
       description: 'explodes',
@@ -132,7 +133,7 @@ describe('runMigrations', () => {
 
   it('does not run steps beyond the requested target version', () => {
     const ran: number[] = [];
-    const original = MIGRATIONS.slice();
+    const original: Migration<unknown>[] = MIGRATIONS.slice();
     MIGRATIONS.push(
       { version: 2, description: 'b', run: () => { ran.push(2); } },
       { version: 3, description: 'c', run: () => { ran.push(3); } },

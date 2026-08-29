@@ -16,6 +16,7 @@ import { buildPalette, deriveDarkPalette } from '../palette-builder';
 import { contrastRatio, fromHex, toHex, fromCssValue, toCssValue } from '../hsl';
 import { beginEdit, setToken, renameTheme, canRename, uniqueName, resetDarkToDerived } from '../theme-editing';
 import type { ThemePalette, HslColor } from '../theme-types';
+import type { WorkspaceTheme, WorkspaceIcon } from '@/lib/theme/theme-types';
 
 describe('Avarok Purple, the default', () => {
   it('is the default theme', () => {
@@ -317,9 +318,9 @@ describe('light to dark derivation', () => {
 
 describe('editing rules', () => {
   it('copies a preset rather than editing it', () => {
-    const preset = findPreset('nord')!;
+    const preset: WorkspaceTheme = findPreset('nord')!;
 
-    const editable = beginEdit(preset);
+    const editable: WorkspaceTheme = beginEdit(preset);
 
     expect(editable.isPreset).toBe(false);
     expect(editable.name).toBe('Nord Copy');
@@ -328,32 +329,32 @@ describe('editing rules', () => {
   });
 
   it('numbers repeated copies instead of colliding', () => {
-    const preset = findPreset('nord')!;
+    const preset: WorkspaceTheme = findPreset('nord')!;
 
     expect(beginEdit(preset, ['Nord Copy']).name).toBe('Nord Copy 2');
     expect(beginEdit(preset, ['Nord Copy', 'Nord Copy 2']).name).toBe('Nord Copy 3');
   });
 
   it('edits a user theme in place', () => {
-    const mine = beginEdit(findPreset('nord')!);
+    const mine: WorkspaceTheme = beginEdit(findPreset('nord')!);
 
     expect(beginEdit(mine).id).toBe(mine.id);
   });
 
   it('re-derives dark when light changes and dark is still derived', () => {
-    const theme = { ...beginEdit(findPreset('nord')!), darkIsDerived: true };
+    const theme: { darkIsDerived: boolean; id: string; name: string; isPreset: boolean; icon: WorkspaceIcon; radius: number; light: ThemePalette; dark: ThemePalette; } = { ...beginEdit(findPreset('nord')!), darkIsDerived: true };
 
-    const edited = setToken(theme, 'light', 'background', { h: 10, s: 50, l: 90 });
+    const edited: WorkspaceTheme = setToken(theme, 'light', 'background', { h: 10, s: 50, l: 90 });
 
     expect(edited.dark).not.toEqual(theme.dark);
     expect(edited.darkIsDerived).toBe(true);
   });
 
   it('stops re-deriving once dark has been edited by hand', () => {
-    const theme = { ...beginEdit(findPreset('nord')!), darkIsDerived: true };
+    const theme: { darkIsDerived: boolean; id: string; name: string; isPreset: boolean; icon: WorkspaceIcon; radius: number; light: ThemePalette; dark: ThemePalette; } = { ...beginEdit(findPreset('nord')!), darkIsDerived: true };
 
-    const handEdited = setToken(theme, 'dark', 'background', { h: 0, s: 0, l: 5 });
-    const thenLight = setToken(handEdited, 'light', 'background', { h: 10, s: 50, l: 90 });
+    const handEdited: WorkspaceTheme = setToken(theme, 'dark', 'background', { h: 0, s: 0, l: 5 });
+    const thenLight: WorkspaceTheme = setToken(handEdited, 'light', 'background', { h: 10, s: 50, l: 90 });
 
     expect(handEdited.darkIsDerived).toBe(false);
     // The hand-authored dark survives a later light edit.
@@ -361,17 +362,17 @@ describe('editing rules', () => {
   });
 
   it('can hand dark back to derivation', () => {
-    const theme = { ...beginEdit(findPreset('nord')!), darkIsDerived: false };
+    const theme: { darkIsDerived: boolean; id: string; name: string; isPreset: boolean; icon: WorkspaceIcon; radius: number; light: ThemePalette; dark: ThemePalette; } = { ...beginEdit(findPreset('nord')!), darkIsDerived: false };
 
-    const reset = resetDarkToDerived(theme);
+    const reset: WorkspaceTheme = resetDarkToDerived(theme);
 
     expect(reset.darkIsDerived).toBe(true);
     expect(reset.dark).toEqual(deriveDarkPalette(theme.light));
   });
 
   it('renames a user theme but never a preset', () => {
-    const preset = findPreset('nord')!;
-    const mine = beginEdit(preset);
+    const preset: WorkspaceTheme = findPreset('nord')!;
+    const mine: WorkspaceTheme = beginEdit(preset);
 
     expect(canRename(preset)).toBe(false);
     expect(renameTheme(preset, 'Hacked').name).toBe('Nord');
@@ -379,13 +380,13 @@ describe('editing rules', () => {
   });
 
   it('refuses an empty rename rather than leaving a nameless theme', () => {
-    const mine = beginEdit(findPreset('nord')!);
+    const mine: WorkspaceTheme = beginEdit(findPreset('nord')!);
 
     expect(renameTheme(mine, '   ').name).toBe(mine.name);
   });
 
   it('keeps names unique on rename', () => {
-    const mine = beginEdit(findPreset('nord')!);
+    const mine: WorkspaceTheme = beginEdit(findPreset('nord')!);
 
     expect(renameTheme(mine, 'Taken', ['Taken']).name).toBe('Taken 2');
   });

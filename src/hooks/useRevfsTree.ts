@@ -11,8 +11,8 @@ import { TreeScope } from '@/types/revfs-types';
 import { revfsService } from '@/lib/revfs';
 import { fileTransferService } from '@/lib/file-transfer';
 import { peerPairKey, calculateStorageUsage } from '@/lib/revfs/tree-operations';
-import type { UseRevfsTreeResult } from './useRevfsTree-types';
-import { DEFAULT_QUOTA_BYTES } from './useRevfsTree-types';
+import { DEFAULT_QUOTA_BYTES , type UseRevfsTreeResult } from './useRevfsTree-types';
+import type { FileTransferSettings } from '@/lib/file-transfer/types';
 
 // Re-export the server hook for backward compatibility
 export { useServerRevfsTree } from './useServerRevfsTree';
@@ -31,7 +31,7 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
 
   const { revfsEnabled, actualQuota } = useMemo(() => {
     if (!peerCid) return { revfsEnabled: false, actualQuota: DEFAULT_QUOTA_BYTES };
-    const settings = fileTransferService.getSettings(peerCid.toString());
+    const settings: FileTransferSettings = fileTransferService.getSettings(peerCid.toString());
     return {
       revfsEnabled: settings.allowRevfsStorage,
       actualQuota: settings.revfsQuota,

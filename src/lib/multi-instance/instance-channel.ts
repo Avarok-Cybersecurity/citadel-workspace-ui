@@ -1,6 +1,6 @@
 // Instance Channel (Singleton): coordinates leader election + message handling.
 import { eventEmitter } from '../event-emitter';
-import { reissueTabId } from '@/lib/tab-context';
+import { reissueTabId , type TabUserContext } from '@/lib/tab-context';
 import { handleOutboundAck } from './channel-messaging';
 import { sendToLeader } from './send-to-leader';
 import { instanceManager } from './instance-manager';
@@ -133,7 +133,7 @@ class InstanceChannel {
     // as an unhandled rejection. The heal is best effort - log and move on.
     void (async (): Promise<void> => {
       const { getSelectedUser } = await import('../tab-context');
-      const tab = await getSelectedUser();
+      const tab: TabUserContext | null = await getSelectedUser();
       if (tab?.selectedCid) { instanceManager.setCid(tab.selectedCid); this.sendCidUpdate(tab.selectedCid); }
     })().catch((error) => {
       debugLog('InstanceChannel', 'broadcastCid: could not read the selected tab CID', error);

@@ -16,6 +16,7 @@ import {
   createProgressHandler, createCompleteHandler, createStatusChangeHandler,
 } from './receive-operations';
 import type { TickCorrelation } from './tick-events';
+import type { TabUserContext } from '@/lib/tab-context';
 
 export class RealProtocolIORouter implements IFileTransferIORouter {
   private subscriptions: Map<string, () => void> = new Map<string, () => void>();
@@ -144,7 +145,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   // ============================================================================
 
   async getCurrentCid(): Promise<bigint | null> {
-    const tabSelection = await getSelectedUser();
+    const tabSelection: TabUserContext | null = await getSelectedUser();
     if (tabSelection?.selectedCid) {
       return tabSelection.selectedCid;
     }

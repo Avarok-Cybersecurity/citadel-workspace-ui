@@ -8,6 +8,7 @@
 import { useMemo } from 'react';
 import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
 import { memberAvatarColor } from '@/lib/avatar-color';
+import type { GroupRole } from '@/types/group-permissions';
 
 const MAX_VISIBLE_AVATARS = 5;
 
@@ -17,7 +18,7 @@ export function GroupMemberAvatars({ group }: { group: GroupConversation }): JSX
   const sortedMembers: GroupMemberWithRole[] = useMemo(() => {
     return [...group.members]
       .flatMap(member => {
-        const role = group.settings.roles.find(r => r.id === member.roleId);
+        const role: GroupRole | undefined = group.settings.roles.find(r => r.id === member.roleId);
         if (!role) return [];
         return [{ ...member, role } as GroupMemberWithRole];
       })

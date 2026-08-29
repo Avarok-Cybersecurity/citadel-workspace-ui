@@ -7,8 +7,7 @@
 
 import { openDB, IDBPDatabase, DBSchema } from 'idb';
 import { errorLog, warnLog } from './debug-config';
-import { DB_NAME, DB_VERSION, runMigrations, missingStores } from './storage-migrations';
-import type { StoreName } from './storage-migrations';
+import { DB_NAME, DB_VERSION, runMigrations, missingStores , type StoreName } from './storage-migrations';
 
 // ============================================================================
 // Database Schema

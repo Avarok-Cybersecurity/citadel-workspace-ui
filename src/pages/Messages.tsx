@@ -8,10 +8,13 @@ import { connectionManager } from "@/lib/connection";
 import { useRegisteredPeers } from "@/hooks";
 import { peerDisplayName } from "@/lib/peer-display";
 import { tryParseCid } from '@/lib/utils/cid-utils';
+import type { NavigateFunction } from 'react-router';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 
 const Messages: () => JSX.Element = (): JSX.Element => {
   const location = useLocation();
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   // Parsed, not trusted. `?channel=` comes straight from the URL and was handed
   // to `BigInt(...)` during render — so `/messages?channel=abc` threw a
   // SyntaxError mid-render and took the whole app to the error boundary, not a
@@ -25,14 +28,14 @@ const Messages: () => JSX.Element = (): JSX.Element => {
   const { registeredPeers } = useRegisteredPeers();
 
   // Get current user info
-  const connectionInfo = connectionManager.getConnectionInfo();
+  const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
   const currentUserCid: bigint | undefined = connectionInfo?.cid;
   const currentUserName: string = connectionInfo?.username || 'You';
 
   // Resolve peer CID to username
   const selectedPeerName: string = useMemo(() => {
     if (!selectedPeerCid) return '';
-    const peer = registeredPeers.find(p => p.cid === selectedPeerCid);
+    const peer: RegisteredPeer | undefined = registeredPeers.find(p => p.cid === selectedPeerCid);
     const username: string | undefined = peer && peer.username !== 'Unknown' ? peer.username : undefined;
     // peerDisplayName, not a truncated CID: the decimal prefix is unreadable and
     // identical for peers whose CIDs share leading digits. See lib/peer-display.

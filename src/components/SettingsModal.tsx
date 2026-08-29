@@ -14,6 +14,7 @@ import {
 } from './settings';
 import { Settings, Wifi, Palette, Shield, Lock } from 'lucide-react';
 import { connectionManager } from '@/lib/connection';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
 interface SettingsModalProps {
   open: boolean;
@@ -21,7 +22,7 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps): JSX.Element {
-  const connectionInfo = connectionManager.getConnectionInfo();
+  const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
   const isConnected: boolean = !!connectionInfo?.cid;
 
   const tabTriggerClass = "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5 text-xs rounded-lg transition-all data-[state=active]:shadow-md data-[state=active]:shadow-primary-accent/20";

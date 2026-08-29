@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import type { NavigateFunction } from 'react-router';
 
 interface WorkspaceNotInitializedModalProps {
     isOpen: boolean;
@@ -14,7 +15,7 @@ export const WorkspaceNotInitializedModal: React.FC<WorkspaceNotInitializedModal
     isOpen,
     onReturnToLogin
 }) => {
-    const navigate = useNavigate();
+    const navigate: NavigateFunction = useNavigate();
 
     const handleReturnToLogin = (): void => {
         onReturnToLogin();

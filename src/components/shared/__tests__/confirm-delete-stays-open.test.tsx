@@ -13,6 +13,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog';
+import type { UserEvent } from '@testing-library/user-event';
 
 /** Mirrors TreeNodesSection: the dialog closes from caller state, on success only. */
 function Harness({ onConfirm }: { onConfirm: () => Promise<void> }): JSX.Element {
@@ -39,7 +40,7 @@ function Harness({ onConfirm }: { onConfirm: () => Promise<void> }): JSX.Element
 
 describe('ConfirmDeleteDialog', () => {
   it('stays open so a failed delete can show its reason inside the dialog', async () => {
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
     render(<Harness onConfirm={() => Promise.reject(new Error('denied'))} />);
 
     await user.click(screen.getByRole('button', { name: 'Delete' }));
@@ -52,7 +53,7 @@ describe('ConfirmDeleteDialog', () => {
   });
 
   it('closes when the delete succeeds', async () => {
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
     render(<Harness onConfirm={() => Promise.resolve()} />);
 
     await user.click(screen.getByRole('button', { name: 'Delete' }));
@@ -61,7 +62,7 @@ describe('ConfirmDeleteDialog', () => {
   });
 
   it('ignores a second click while the first delete is still in flight', async () => {
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
     let release!: () => void;
     const onConfirm = vi.fn((): Promise<void> => new Promise<void>((r): void => { release = (): void => r(); }));
     render(<Harness onConfirm={onConfirm} />);

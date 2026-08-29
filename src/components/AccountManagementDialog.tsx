@@ -17,6 +17,8 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { DeleteConfirmDialog, ClearAllConfirmDialog } from './AccountConfirmDialogs';
 import { shortPeerHandle } from '@/lib/peer-display';
+import type { NavigateFunction } from 'react-router';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
 interface AccountManagementDialogProps {
   isOpen: boolean;
@@ -27,14 +29,14 @@ interface AccountManagementDialogProps {
 
 export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: AccountManagementDialogProps): JSX.Element {
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
   const [storedSessions, setStoredSessions] = useState(connectionManager.getStoredSessionsArray());
   const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<{ username: string; serverAddress: string } | null>(null);
   const [clearAllConfirmOpen, setClearAllConfirmOpen] = useState(false);
 
-  const currentConnection = connectionManager.getConnectionInfo();
+  const currentConnection: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
 
   useEffect(() => {
     if (isOpen) {

@@ -17,6 +17,7 @@ import { createTestService, defaultIntentHandler, getState, ALICE, BOB } from '.
 import { peerPairKey, serverTreeKey } from '../tree-queries';
 import type { RevfsNode } from '@/types/revfs-types';
 import type { RevfsState } from '../revfs-state';
+import type { RevfsService } from '@/lib/revfs/revfs-service';
 
 const withFolder = (): RevfsNode =>
   ({ name: '', type: 'directory', children: [{ name: 'test-folder', type: 'directory', children: [] }] }) as unknown as RevfsNode;
@@ -31,7 +32,7 @@ describe('getTree racing an applied op', () => {
     // called — well after construction — so a ref filled in afterwards is
     // enough and avoids a forward reference.
     const ref: { state?: RevfsState } = {};
-    const service = createTestService(
+    const service: RevfsService = createTestService(
       defaultIntentHandler({
         // Nothing persisted yet — the destructive default branch. The remote op
         // lands while this load is in flight, exactly as it does in the browser.
@@ -52,7 +53,7 @@ describe('getTree racing an applied op', () => {
   it('applies the same protection to server-scoped trees', async () => {
     const key: string = serverTreeKey(ALICE);
     const ref: { state?: RevfsState } = {};
-    const service = createTestService(
+    const service: RevfsService = createTestService(
       defaultIntentHandler({
         'load-tree': () => {
           ref.state?.setTree(key, withFolder());
@@ -71,7 +72,7 @@ describe('getTree racing an applied op', () => {
     // The counterweight: the fix must not turn getTree into "always ignore what
     // was loaded", which would pass the tests above while breaking every cold
     // start.
-    const service = createTestService(
+    const service: RevfsService = createTestService(
       defaultIntentHandler({
         'load-tree': () => ({ type: 'load-tree', tree: withFolder() }) as never,
       }),

@@ -13,6 +13,7 @@ import { glareWinner } from './call-state';
 import { MEDIA_WIRE_VERSION } from './call-constants';
 import type { CallManagerInternals } from './call-manager-internals';
 import { closeIfFinished, closeSessionFor, openSessionFor } from './media-session-lifecycle';
+import type { CallState } from '@/lib/call/call-state';
 
 export async function handleInboundSignal(
   m: CallManagerInternals,
@@ -29,7 +30,7 @@ export async function handleInboundSignal(
   // ABANDONED call otherwise lands on the surviving call and ends it — and
   // the reliable messaging layer can deliver a signal twice, so a stale
   // call_id is an ordinary event, not a corrupt peer.
-  const state = m.getState();
+  const state: CallState | null = m.getState();
   if (!state || signal.call_id !== state.callId) return;
 
   // Presence is recorded before the per-kind handling because ANY signal for
@@ -48,7 +49,7 @@ export async function handleInboundSignal(
       // only once WE have answered too — in a group call a co-invitee's accept
       // can land while we are still ringing, when we have no media to offer;
       // accept() opens the session for every already-accepted peer instead.
-      const after = m.getState();
+      const after: CallState | null = m.getState();
       if (after && (after.status === 'connecting' || after.status === 'active')) {
         await openSessionFor(m, from);
       }
@@ -117,7 +118,7 @@ export async function announceSendCodec(
   m: CallManagerInternals,
   codec: string | null,
 ): Promise<void> {
-  const state = m.getState();
+  const state: CallState | null = m.getState();
   if (!state || state.status === 'ended' || state.status === 'failed') return;
 
   await Promise.all(
@@ -145,7 +146,7 @@ async function handleInvite(
   // A second copy of the invite for the call we already have is a retransmit
   // — the reliable layer delivers duplicates. Falling through would hit the
   // busy branch below and decline OUR OWN call, killing it on both sides.
-  const current = m.getState();
+  const current: CallState | null = m.getState();
   if (current && current.callId === signal.call_id) return;
 
   if (signal.media_wire_version !== MEDIA_WIRE_VERSION) {

@@ -24,12 +24,13 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';
 import { backendSendFile } from '../revfs-io-network';
+import type { RevfsIntentResult } from '@/types/revfs-intents';
 
 const CID: bigint = 7n;
 const CONTENT: Uint8Array<ArrayBuffer> = new Uint8Array([1, 2, 3]);
 
 /** Capture the request_id the upload used, so events can be addressed to it. */
-function startUpload(peerCid: bigint | null = 42n) {
+function startUpload(peerCid: bigint | null = 42n): { pending: Promise<RevfsIntentResult>; requestId: () => string; } {
   let requestId: string = '';
   const deps: { sendInternalServiceRequest: (request: unknown) => Promise<void>; } = {
     sendInternalServiceRequest: async (request: unknown): Promise<void> => {
@@ -37,7 +38,7 @@ function startUpload(peerCid: bigint | null = 42n) {
       requestId = payload.request_id;
     },
   };
-  const pending = backendSendFile(deps, CID, peerCid, 'notes.txt', CONTENT, '/docs/notes.txt');
+  const pending: Promise<RevfsIntentResult> = backendSendFile(deps, CID, peerCid, 'notes.txt', CONTENT, '/docs/notes.txt');
   return { pending, requestId: (): string => requestId };
 }
 

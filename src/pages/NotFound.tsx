@@ -3,10 +3,11 @@ import { useEffect } from "react";
 import { debugLog } from '@/lib/debug-config';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import type { NavigateFunction } from 'react-router';
 
 const NotFound: () => JSX.Element = (): JSX.Element => {
   const location = useLocation();
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
 
   useEffect(() => {
     debugLog('NotFound', '404 Error: User attempted to access non-existent route:', location.pathname);

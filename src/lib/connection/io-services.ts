@@ -16,6 +16,7 @@ import { serverAutoConnectService } from '../server-auto-connect-service';
 import { instanceManager, instanceChannel } from '../multi-instance';
 import { setSelectedUser, getSelectedUser, clearSelectedUser } from '../tab-context';
 import type { TabSelectionContext } from './types';
+import type { TabUserContext } from '@/lib/tab-context';
 
 /**
  * Service-layer I/O operations.
@@ -96,7 +97,7 @@ export class ConnectionIOServices {
   }
 
   async getSelectedUser(): Promise<TabSelectionContext | null> {
-    const result = await getSelectedUser();
+    const result: TabUserContext | null = await getSelectedUser();
     if (!result) return null;
     return {
       selectedUsername: result.selectedUsername ?? null,

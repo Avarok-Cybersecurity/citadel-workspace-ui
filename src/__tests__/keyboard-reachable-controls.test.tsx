@@ -10,6 +10,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Badge } from '@/components/ui/badge';
+import type { UserEvent } from '@testing-library/user-event';
 
 describe('pending connection requests badge', () => {
   /**
@@ -39,7 +40,7 @@ describe('pending connection requests badge', () => {
   });
 
   it('opens the modal from the keyboard alone', async () => {
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
     const onOpen = vi.fn();
     render(<PendingBadge count={1} onOpen={onOpen} />);
 
@@ -56,7 +57,7 @@ describe('pending connection requests badge', () => {
     // The negative control, kept in the suite: this is what the code used to
     // render. If Badge ever starts rendering a <button>, this fails and the
     // tests above stop proving anything.
-    const user = userEvent.setup();
+    const user: UserEvent = userEvent.setup();
     const onOpen = vi.fn();
     render(<Badge onClick={onOpen} title="3 pending connection requests">3</Badge>);
 

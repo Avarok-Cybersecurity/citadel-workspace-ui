@@ -7,8 +7,7 @@
 
 import * as Y from 'yjs';
 import { sha256Sync } from '../merkle-tree';
-import type { YjsMerkleProof } from './tree';
-import type { YjsMerkleTree } from './tree';
+import type { YjsMerkleProof, YjsMerkleTree } from './tree';
 
 /**
  * Decision result for sync operations

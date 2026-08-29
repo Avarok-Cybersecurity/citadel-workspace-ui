@@ -7,8 +7,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Circle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { formatTime } from './P2PPeerListHelpers';
-import type { PeerInfo } from './P2PPeerListHelpers';
+import { formatTime , type PeerInfo } from './P2PPeerListHelpers';
 
 interface ConversationPeerItemProps {
   peer: PeerInfo;

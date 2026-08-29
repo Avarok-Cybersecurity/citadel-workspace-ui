@@ -1,4 +1,4 @@
-import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
+import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
 import { markLastAccessed } from '@/lib/sessions/last-accessed';
 import { connectionManager } from "@/lib/connection";
 import { eventEmitter } from "@/lib/event-emitter";
@@ -42,7 +42,7 @@ export async function redirectToExistingSession(
 
     markLastAccessed(session.cid);
 
-    const outcome = await claimSessionForThisTab(session.cid);
+    const outcome: ClaimOutcome = await claimSessionForThisTab(session.cid);
     if (outcome.status === 'owned-by-another-tab') {
       toast(SESSION_OWNED_ELSEWHERE);
       return;

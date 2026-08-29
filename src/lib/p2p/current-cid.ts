@@ -15,6 +15,8 @@ import { connectionManager } from '../connection';
 import { instanceManager } from '../multi-instance';
 import { getSelectedUser } from '../tab-context';
 import { CID_LOOKUP_TIMEOUT_MS } from '../p2p-auto-connect-service/constants';
+import type { TabUserContext } from '@/lib/tab-context';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
 /**
  * Get current CID with proper priority for multi-tab support:
@@ -37,9 +39,9 @@ export async function getCurrentCid(): Promise<bigint | null> {
 
   // 2) Tab context from IndexedDB (with timeout to prevent hangs)
   try {
-    const tabSelectionPromise = getSelectedUser();
+    const tabSelectionPromise: Promise<TabUserContext | null> = getSelectedUser();
     const timeout: Promise<null> = new Promise<null>((resolve) => setTimeout((): void => resolve(null), CID_LOOKUP_TIMEOUT_MS));
-    const tabSelection = await Promise.race([tabSelectionPromise, timeout]);
+    const tabSelection: TabUserContext | null = await Promise.race([tabSelectionPromise, timeout]);
     if (tabSelection?.selectedCid) {
       return tabSelection.selectedCid;
     }
@@ -60,6 +62,6 @@ export async function getCurrentCid(): Promise<bigint | null> {
   }
 
   // 4) Legacy global connection CID
-  const connectionInfo = connectionManager.getConnectionInfo();
+  const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
   return connectionInfo?.cid || null;
 }

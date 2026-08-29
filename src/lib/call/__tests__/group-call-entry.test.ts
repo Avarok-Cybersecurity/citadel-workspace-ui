@@ -6,6 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { groupCallEntryMode } from '../group-call-entry';
+import type { GroupCallEntryMode } from '@/lib/call/group-call-entry';
 import {
   MAX_AUDIO_PARTICIPANTS,
   MAX_VIDEO_PARTICIPANTS,
@@ -51,7 +52,7 @@ describe('groupCallEntryMode — start', () => {
   });
 
   it('refuses both media in an empty room', () => {
-    const mode = groupCallEntryMode(null, ROOM, 0);
+    const mode: GroupCallEntryMode = groupCallEntryMode(null, ROOM, 0);
     expect(mode.kind).toBe('start');
     if (mode.kind !== 'start') return;
     expect(mode.audioReason).toMatch(/No one else/);
@@ -59,7 +60,7 @@ describe('groupCallEntryMode — start', () => {
   });
 
   it('refuses video but still offers audio when the room outgrows the video mesh', () => {
-    const mode = groupCallEntryMode(null, ROOM, MAX_VIDEO_PARTICIPANTS + 1);
+    const mode: GroupCallEntryMode = groupCallEntryMode(null, ROOM, MAX_VIDEO_PARTICIPANTS + 1);
     expect(mode.kind).toBe('start');
     if (mode.kind !== 'start') return;
     expect(mode.audioReason).toBeNull();
@@ -67,7 +68,7 @@ describe('groupCallEntryMode — start', () => {
   });
 
   it('refuses even audio when the room outgrows the audio mesh', () => {
-    const mode = groupCallEntryMode(null, ROOM, MAX_AUDIO_PARTICIPANTS + 1);
+    const mode: GroupCallEntryMode = groupCallEntryMode(null, ROOM, MAX_AUDIO_PARTICIPANTS + 1);
     expect(mode.kind).toBe('start');
     if (mode.kind !== 'start') return;
     expect(mode.audioReason).toMatch(/too large/);
@@ -75,7 +76,7 @@ describe('groupCallEntryMode — start', () => {
   });
 
   it('allows exactly the cap, since the engine admits the last joiner at cap - 1 actives', () => {
-    const mode = groupCallEntryMode(null, ROOM, MAX_VIDEO_PARTICIPANTS);
+    const mode: GroupCallEntryMode = groupCallEntryMode(null, ROOM, MAX_VIDEO_PARTICIPANTS);
     expect(mode.kind).toBe('start');
     if (mode.kind !== 'start') return;
     expect(mode.videoReason).toBeNull();
@@ -88,7 +89,7 @@ describe('groupCallEntryMode — start', () => {
 
 describe('groupCallEntryMode — join in progress', () => {
   it('offers join, not start, when this room is ringing us', () => {
-    const mode = groupCallEntryMode(call({ status: 'ringing-in' }), ROOM, 4);
+    const mode: GroupCallEntryMode = groupCallEntryMode(call({ status: 'ringing-in' }), ROOM, 4);
     expect(mode).toEqual({
       kind: 'join',
       participantCount: 1,
@@ -104,7 +105,7 @@ describe('groupCallEntryMode — join in progress', () => {
       [4n, participant(4n, { status: 'declined' })],
       [5n, participant(5n, { status: 'connecting' })],
     ]);
-    const mode = groupCallEntryMode(call({ status: 'ringing-in', participants }), ROOM, 4);
+    const mode: GroupCallEntryMode = groupCallEntryMode(call({ status: 'ringing-in', participants }), ROOM, 4);
     expect(mode.kind).toBe('join');
     if (mode.kind !== 'join') return;
     expect(mode.participantCount).toBe(2);
@@ -116,7 +117,7 @@ describe('groupCallEntryMode — join in progress', () => {
       const cid: bigint = BigInt(i + 2);
       participants.set(cid, participant(cid));
     }
-    const mode = groupCallEntryMode(call({ status: 'ringing-in', participants }), ROOM, 4);
+    const mode: GroupCallEntryMode = groupCallEntryMode(call({ status: 'ringing-in', participants }), ROOM, 4);
     expect(mode.kind).toBe('join');
     if (mode.kind !== 'join') return;
     expect(mode.videoAllowed).toBe(false);
@@ -132,7 +133,7 @@ describe('groupCallEntryMode — in call / busy', () => {
   });
 
   it('reports busy when a DM call owns the tab', () => {
-    const mode = groupCallEntryMode(call({ roomId: null }), ROOM, 2);
+    const mode: GroupCallEntryMode = groupCallEntryMode(call({ roomId: null }), ROOM, 2);
     expect(mode).toEqual({ kind: 'busy', reason: 'You are already in another call.' });
   });
 
@@ -141,7 +142,7 @@ describe('groupCallEntryMode — in call / busy', () => {
   });
 
   it('names an incoming call elsewhere as the reason', () => {
-    const mode = groupCallEntryMode(call({ roomId: null, status: 'ringing-in' }), ROOM, 2);
+    const mode: GroupCallEntryMode = groupCallEntryMode(call({ roomId: null, status: 'ringing-in' }), ROOM, 2);
     expect(mode).toEqual({ kind: 'busy', reason: 'You have an incoming call.' });
   });
 

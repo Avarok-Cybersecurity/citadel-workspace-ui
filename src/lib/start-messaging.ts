@@ -1,4 +1,5 @@
-/**
+
+import type { NotificationService } from '@/lib/notification-service/service';/**
  * Start the ILM messenger for a session, and refuse to do it silently.
  *
  * `wasmConnectionManager.start` opens the ILM messenger handle. The comment
@@ -65,7 +66,7 @@ export async function startMessagingForSession(cid: string): Promise<boolean> {
     import('./wasm-connection-manager'),
     import('./notification-service'),
   ]);
-  const service = notifications.default.getInstance();
+  const service: NotificationService = notifications.default.getInstance();
   return startMessagingOrReport(cid, {
     start: (id) => wasmConnectionManager.start(id),
     report: (title, detail) =>

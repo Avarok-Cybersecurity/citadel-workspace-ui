@@ -8,6 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';
+import type { GroupConversation, GroupMember } from '@/types/group-entities';
 import {
   getGroups,
   subscribeToGroups,
@@ -40,7 +41,7 @@ describe('group store', () => {
     emitCreated(id);
 
     // The same getGroups every consumer uses — no per-instance copy to miss.
-    const group = getGroups().find(g => g.id === id);
+    const group: GroupConversation | undefined = getGroups().find(g => g.id === id);
     expect(group).toBeDefined();
     expect(group?.members.map(m => m.username)).toEqual(['alice']);
     expect(notified).toBeGreaterThan(0);
@@ -84,7 +85,7 @@ describe('group store', () => {
     eventEmitter.emit('group:member-joined', joined);
     eventEmitter.emit('group:member-joined', joined);
 
-    const members = getGroups().find(g => g.id === id)?.members ?? [];
+    const members: GroupMember[] = getGroups().find(g => g.id === id)?.members ?? [];
     expect(members.filter(m => m.cid === 9n)).toHaveLength(1);
     expect(members.find(m => m.cid === 9n)?.username).toBe('bob');
   });
@@ -97,7 +98,7 @@ describe('group store', () => {
 
     eventEmitter.emit('group:member-left', { groupId: id, memberCid: '9' });
 
-    const members = getGroups().find(g => g.id === id)?.members ?? [];
+    const members: GroupMember[] = getGroups().find(g => g.id === id)?.members ?? [];
     expect(members.some(m => m.cid === 9n)).toBe(false);
   });
 });

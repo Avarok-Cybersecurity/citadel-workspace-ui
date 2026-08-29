@@ -15,8 +15,7 @@ import type {
 } from '@/types/workspace-protocol';
 import { failOnSocketLoss } from '../websocket/request-response';
 import { websocketService } from '@/lib/websocket-service';
-import type { WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
-import { isVariant } from 'citadel-workspace-client-ts';
+import { isVariant , type WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
 

@@ -12,9 +12,10 @@
  * one looking for silent failures, one for call-state divergence.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act , type RenderHookResult } from '@testing-library/react';
 import { useCallMediaToggles } from '../use-call-media-toggles';
 import type { MutableRefObject } from 'react';
+import type { CallMediaToggles } from '@/components/call/use-call-media-toggles';
 
 type Manager = Parameters<typeof useCallMediaToggles>[0] extends MutableRefObject<infer M>
   ? M
@@ -39,7 +40,7 @@ function setup(videoTracks: number, selfVideo = false) {
     current: { getLocalStream: () => ({ getVideoTracks: () => tracks, getAudioTracks: (): never[] => [] }) },
   } as unknown as Parameters<typeof useCallMediaToggles>[1];
   const onCameraUnavailable = vi.fn();
-  const hook = renderHook(() =>
+  const hook: RenderHookResult<CallMediaToggles, unknown> = renderHook((): CallMediaToggles =>
     useCallMediaToggles(managerRef, sessionRef, onCameraUnavailable),
   );
   return { hook, setSelfMedia, onCameraUnavailable, tracks };

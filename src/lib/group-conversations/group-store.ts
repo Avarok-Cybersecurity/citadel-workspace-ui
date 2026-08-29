@@ -29,6 +29,7 @@ import { toast } from '@/hooks/use-toast';
 import { loadPersistedGroups, persistGroups } from './group-persistence';
 import { applyGroupMessage } from './apply-group-message';
 import { debugLog } from '@/lib/debug-config';
+import type { GroupRole } from '@/types/group-permissions';
 
 let groups: GroupConversation[] = [];
 const listeners: Set<() => void> = new Set<() => void>();
@@ -144,8 +145,8 @@ export function startGroupEventBindings(): void {
     ownerUsername: string;
   }) => {
     debugLog('GroupStore', 'Group created:', data);
-    const defaultRoles = createDefaultRoles();
-    const defaultRole = getDefaultRole({ roles: defaultRoles, defaultRoleId: '' });
+    const defaultRoles: GroupRole[] = createDefaultRoles();
+    const defaultRole: GroupRole | undefined = getDefaultRole({ roles: defaultRoles, defaultRoleId: '' });
 
     const newGroup: GroupConversation = {
       id: data.groupId,
@@ -203,7 +204,7 @@ export function startGroupEventBindings(): void {
       prev.map(group => {
         if (group.id !== data.groupId) return group;
         if (group.members.some(m => m.cid === memberCid)) return group;
-        const defaultRole = getDefaultRole(group.settings);
+        const defaultRole: GroupRole | undefined = getDefaultRole(group.settings);
         const newMember: GroupMember = {
           cid: memberCid,
           username: data.memberUsername,

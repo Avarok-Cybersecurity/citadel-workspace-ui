@@ -9,6 +9,7 @@ import type { ConnectionState } from './state';
 import type { ConnectionIO } from './io';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 import { debugLog } from '@/lib/debug-config';
+import type { TabSelectionContext } from '@/lib/connection/types';
 
 /**
  * Route an incoming WebSocket message to the appropriate handler.
@@ -100,7 +101,7 @@ async function handleAuthResponse(
   debugLog('ConnectionService', `ConnectionManager: Received registration/connection success, CID=${cidBigInt?.toString()}, request_id=${reqId}`);
 
   const hasPendingRequest: boolean | "" | undefined = reqId && state.hasPendingRequest(reqId);
-  const tabSelection = await io.getSelectedUser();
+  const tabSelection: TabSelectionContext | null = await io.getSelectedUser();
   const isOurSession = cidBigInt && tabSelection?.selectedCid === cidBigInt;
   const isFreshTab: boolean = !tabSelection?.selectedCid && !state.currentConnectionInfo;
 
@@ -127,7 +128,7 @@ async function handleConnectionManagementResponse(
   debugLog('ConnectionService', 'ConnectionManager: Received ConnectionManagementSuccess, request_id:', cmReqId, 'cid:', cmCid?.toString());
 
   const hasPendingRequest: boolean | "" | undefined = cmReqId && state.hasPendingRequest(cmReqId);
-  const tabSelection = await io.getSelectedUser();
+  const tabSelection: TabSelectionContext | null = await io.getSelectedUser();
   const isOurSession = cmCid && tabSelection?.selectedCid === cmCid;
   const isFreshTab: boolean = !tabSelection?.selectedCid && !state.currentConnectionInfo;
 

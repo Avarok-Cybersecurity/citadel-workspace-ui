@@ -8,8 +8,7 @@
  * control read as protective.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { acceptTransfer } from '../transfer-lifecycle';
-import type { LifecycleDeps } from '../transfer-lifecycle';
+import { acceptTransfer , type LifecycleDeps } from '../transfer-lifecycle';
 import type { FileTransfer } from '../types';
 
 const PEER: "42" = '42';

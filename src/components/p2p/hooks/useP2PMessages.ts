@@ -19,6 +19,7 @@ import type { P2PMessage, PeerPresence } from '@/lib/p2p';
 import type { UseP2PMessagesProps, UseP2PMessagesReturn } from './useP2PMessages-types';
 import { mergeMessages, prependMessages } from './useP2PMessages-types';
 import { subscribeToConversationEvents } from './useP2PMessages-subscriptions';
+import type { ConversationMetadata, P2PConversation, MessagePage } from '@/lib/p2p/p2p-types';
 
 export function useP2PMessages({
   peerCid,
@@ -52,7 +53,7 @@ export function useP2PMessages({
       await messenger.waitForReady();
       await messenger.syncConnectionsFromBackend();
 
-      const metadata = await messenger.getConversationMetadata(peerCid);
+      const metadata: ConversationMetadata | null = await messenger.getConversationMetadata(peerCid);
       if (metadata) {
         const latestMessages: P2PMessage[] = await messenger.loadLatestMessages(peerCid);
         if (latestMessages.length > 0) {
@@ -61,7 +62,7 @@ export function useP2PMessages({
         setCurrentPage(metadata.latestPage);
         setHasMorePages(metadata.latestPage > 0);
       } else {
-        const conversation = messenger.getConversation(peerCid);
+        const conversation: P2PConversation | undefined = messenger.getConversation(peerCid);
         if (conversation) {
           setMessages(prev => mergeMessages(prev, conversation.messages));
           setPeerPresence(conversation.presence);
@@ -100,7 +101,7 @@ export function useP2PMessages({
     }
 
     const refreshTimeout: NodeJS.Timeout = setTimeout((): void => {
-      const conversation = messenger.getConversation(peerCid);
+      const conversation: P2PConversation | undefined = messenger.getConversation(peerCid);
       if (conversation && conversation.messages.length > 0) {
         setMessages(prev => mergeMessages(prev, conversation.messages));
       }
@@ -126,7 +127,7 @@ export function useP2PMessages({
 
     setIsLoadingMore(true);
     try {
-      const olderPage = await messenger.loadMessagePage(peerCid, currentPage - 1);
+      const olderPage: MessagePage | null = await messenger.loadMessagePage(peerCid, currentPage - 1);
       if (olderPage && olderPage.messages.length > 0) {
         const scrollElement: HTMLDivElement | null = scrollRef.current;
         const previousScrollHeight: number = scrollElement?.scrollHeight || 0;

@@ -8,6 +8,7 @@
 import { WorkspaceClient, type WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 import { debugLog } from '../debug-config';
 import { instanceManager, instanceChannel, instanceInboundRouter } from '../multi-instance';
+import type { AckResult } from '@/lib/multi-instance/outbound-queue-types';
 
 export interface WorkspaceOpsConfig {
   init: () => Promise<void>;
@@ -47,7 +48,7 @@ export class WorkspaceOperations {
       const requestId = crypto.randomUUID();
       instanceInboundRouter.registerPendingRequest(requestId, instanceManager.instanceId);
 
-      const result = await instanceChannel.sendToLeader(proxyRequest, requestId);
+      const result: AckResult = await instanceChannel.sendToLeader(proxyRequest, requestId);
 
       if (result.status === 'error') {
         throw new Error(`Leader failed to send workspace request: ${result.error}`);

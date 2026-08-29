@@ -12,9 +12,10 @@
 import { websocketService } from '@/lib/websocket-service';
 import { toInternalServiceRequest } from '@/hooks/use-group-conversations.types';
 import { groupIdToKey } from './group-key';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
 async function requireCid(): Promise<bigint> {
-  const connectionInfo = (await import('../connection')).connectionManager.getConnectionInfo();
+  const connectionInfo: CurrentConnectionInfo | null = (await import('../connection')).connectionManager.getConnectionInfo();
   const cid: bigint | null = connectionInfo?.cid || null;
   if (!cid) {
     throw new Error('Not connected to server');

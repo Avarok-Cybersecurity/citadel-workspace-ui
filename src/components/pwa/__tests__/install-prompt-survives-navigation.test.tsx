@@ -14,8 +14,9 @@
  * on the landing page — could never appear for anyone who had signed in.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act , type RenderHookResult } from '@testing-library/react';
 import { usePwaInstall } from '../usePwaInstall';
+import type { PwaInstallState } from '@/components/pwa/usePwaInstall';
 import {
   startInstallPromptCapture,
   resetInstallPromptCaptureForTests,
@@ -55,7 +56,7 @@ afterEach(() => {
 
 describe('usePwaInstall', () => {
   it('offers installation to a consumer that mounted BEFORE the event', () => {
-    const landing = renderHook(() => usePwaInstall());
+    const landing: RenderHookResult<PwaInstallState, unknown> = renderHook((): PwaInstallState => usePwaInstall());
     expect(landing.result.current.canInstall).toBe(false);
 
     fireInstallPrompt();
@@ -65,7 +66,7 @@ describe('usePwaInstall', () => {
 
   it('offers installation to a consumer that mounts AFTER the event', () => {
     // The real sequence: the event fires on the landing page...
-    const landing = renderHook(() => usePwaInstall());
+    const landing: RenderHookResult<PwaInstallState, unknown> = renderHook((): PwaInstallState => usePwaInstall());
     fireInstallPrompt();
     expect(landing.result.current.canInstall).toBe(true);
 
@@ -74,13 +75,13 @@ describe('usePwaInstall', () => {
 
     // ...and the signed-in shell mounts its own consumer. This is the case that
     // was broken: a fresh instance had missed the single event.
-    const topBar = renderHook(() => usePwaInstall());
+    const topBar: RenderHookResult<PwaInstallState, unknown> = renderHook((): PwaInstallState => usePwaInstall());
     expect(topBar.result.current.canInstall).toBe(true);
   });
 
   it('shows every mounted consumer the same answer', () => {
-    const a = renderHook(() => usePwaInstall());
-    const b = renderHook(() => usePwaInstall());
+    const a: RenderHookResult<PwaInstallState, unknown> = renderHook((): PwaInstallState => usePwaInstall());
+    const b: RenderHookResult<PwaInstallState, unknown> = renderHook((): PwaInstallState => usePwaInstall());
     fireInstallPrompt();
 
     expect(a.result.current.canInstall).toBe(true);
@@ -88,7 +89,7 @@ describe('usePwaInstall', () => {
   });
 
   it('stops offering once the prompt has been consumed', async () => {
-    const hook = renderHook(() => usePwaInstall());
+    const hook: RenderHookResult<PwaInstallState, unknown> = renderHook((): PwaInstallState => usePwaInstall());
     fireInstallPrompt();
     expect(hook.result.current.canInstall).toBe(true);
 
@@ -102,7 +103,7 @@ describe('usePwaInstall', () => {
   });
 
   it('stops offering once the app reports itself installed', () => {
-    const hook = renderHook(() => usePwaInstall());
+    const hook: RenderHookResult<PwaInstallState, unknown> = renderHook((): PwaInstallState => usePwaInstall());
     fireInstallPrompt();
 
     act(() => {

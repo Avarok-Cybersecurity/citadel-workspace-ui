@@ -31,12 +31,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';
 import { backendDownloadFile } from '../revfs-io-download';
+import type { RevfsIntentResult } from '@/types/revfs-intents';
 
 const CID: bigint = 7n;
 const PATH: string = '/docs/notes.txt';
 
 /** Capture the request_id the download used, so ticks can be addressed to it. */
-function startDownload() {
+function startDownload(): { pending: Promise<RevfsIntentResult>; requestId: () => string; } {
   let requestId: string = '';
   const deps: { sendInternalServiceRequest: (request: unknown) => Promise<void>; } = {
     sendInternalServiceRequest: async (request: unknown): Promise<void> => {
@@ -44,7 +45,7 @@ function startDownload() {
       requestId = payload.request_id;
     },
   };
-  const pending = backendDownloadFile(deps, CID, null, PATH);
+  const pending: Promise<RevfsIntentResult> = backendDownloadFile(deps, CID, null, PATH);
   return { pending, requestId: (): string => requestId };
 }
 
@@ -61,7 +62,7 @@ describe('a RE-VFS download', () => {
     tick(requestId(), { ReceptionBeginning: ['/tmp/notes.txt', {}] });
     tick(requestId(), 'ReceptionComplete');
 
-    const result = await pending;
+    const result: RevfsIntentResult = await pending;
     expect(result).toEqual({
       type: 'backend-download-file',
       success: true,

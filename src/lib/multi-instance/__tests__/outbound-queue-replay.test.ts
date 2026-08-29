@@ -20,6 +20,7 @@ vi.mock('@/lib/event-emitter', () => ({
 }));
 
 import { outboundQueue } from '@/lib/multi-instance/outbound-queue';
+import type { AckResult } from '@/lib/multi-instance/outbound-queue-types';
 
 describe('the outbound queue', () => {
   beforeEach(() => {
@@ -63,7 +64,7 @@ describe('the outbound queue', () => {
       const { instanceChannel } = await import('@/lib/multi-instance/instance-channel');
       const { TIMEOUT } = await import('@/lib/timeout-constants');
 
-      const settled = instanceChannel.sendToLeader({ kind: 'Connect' }, 'timed-out');
+      const settled: Promise<AckResult> = instanceChannel.sendToLeader({ kind: 'Connect' }, 'timed-out');
 
       // Nothing acks. The user is told it failed.
       await vi.advanceTimersByTimeAsync(TIMEOUT.OUTBOUND_ACK_MS + 100);

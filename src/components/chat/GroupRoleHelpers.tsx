@@ -9,10 +9,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import type { GroupRole } from '@/types/group';
+import type { GroupPermissions } from '@/types/group-permissions';
 
 /** Summarizes a role's enabled permissions into a short display string. */
 export function formatPermissions(role: GroupRole): string {
-  const perms = role.permissions;
+  const perms: GroupPermissions = role.permissions;
   const enabled: string[] = [];
 
   if (perms.sendMessages) enabled.push('send');

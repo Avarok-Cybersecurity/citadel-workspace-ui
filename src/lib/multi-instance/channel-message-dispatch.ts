@@ -7,7 +7,6 @@
 
 import { debugLog } from '@/lib/debug-config';
 import type { ChannelMessage } from './channel-types';
-import type { LeaderElectionState } from './channel-leader-election';
 import {
   handleOutboundRequest,
   handleOutboundAck,
@@ -18,7 +17,7 @@ import {
   handleSessionRelease,
   handleCidUpdate,
 } from './channel-messaging';
-import { handleLeaderElection, handleLeaderHeartbeat } from './channel-leader-election';
+import { handleLeaderElection, handleLeaderHeartbeat , type LeaderElectionState } from './channel-leader-election';
 
 export function dispatchChannelMessage(
   message: ChannelMessage,

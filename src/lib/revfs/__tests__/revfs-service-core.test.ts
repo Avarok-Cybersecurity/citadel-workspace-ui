@@ -6,18 +6,20 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { RevfsOpType, RevfsFileState } from '@/types/revfs-types';
+import { RevfsOpType, RevfsFileState , type RevfsNode } from '@/types/revfs-types';
 import type { RevfsOperation, RevfsFileMetadata } from '@/types/revfs-types';
 import { createDefaultTree } from '../tree-operations';
 import { ALICE, BOB, createTestService, defaultIntentHandler, getExecuteCalls } from './revfs-service-test-helpers';
+import type { RevfsService } from '@/lib/revfs/revfs-service';
+import type { RevfsIntent } from '@/types/revfs-intents';
 
 // ── Tests ───────────────────────────────────────────────────────────────
 
 describe('RevfsService', () => {
   describe('getTree', () => {
     it('creates default tree when OPFS has none', async () => {
-      const service = createTestService(defaultIntentHandler());
-      const tree = await service.getTree(ALICE, BOB);
+      const service: RevfsService = createTestService(defaultIntentHandler());
+      const tree: RevfsNode = await service.getTree(ALICE, BOB);
 
       expect(tree.path).toBe('/');
       expect(tree.children).toHaveLength(2);
@@ -26,7 +28,7 @@ describe('RevfsService', () => {
     });
 
     it('loads persisted tree from OPFS', async () => {
-      const persisted = createDefaultTree();
+      const persisted: RevfsNode = createDefaultTree();
       persisted.children!.push({
         name: 'docs',
         type: 'directory',
@@ -36,16 +38,16 @@ describe('RevfsService', () => {
         updatedAt: Date.now(),
       });
 
-      const service = createTestService(defaultIntentHandler({
+      const service: RevfsService = createTestService(defaultIntentHandler({
         'load-tree': () => ({ type: 'load-tree', tree: persisted }),
       }));
 
-      const tree = await service.getTree(ALICE, BOB);
+      const tree: RevfsNode = await service.getTree(ALICE, BOB);
       expect(tree.children).toHaveLength(3);
     });
 
     it('caches tree on second call', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       await service.getTree(ALICE, BOB);
       await service.getTree(ALICE, BOB);
 
@@ -56,10 +58,10 @@ describe('RevfsService', () => {
 
   describe('mkdir', () => {
     it('creates directory and sends operation to peer', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       await service.mkdir(ALICE, BOB, '/docs');
 
-      const intents = getExecuteCalls(service);
+      const intents: RevfsIntent[] = getExecuteCalls(service);
       const sendCalls = intents.filter(i => i.type === 'send-revfs-op');
 
       expect(sendCalls).toHaveLength(1);
@@ -69,17 +71,17 @@ describe('RevfsService', () => {
     });
 
     it('updates tree in state after mkdir', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       await service.mkdir(ALICE, BOB, '/docs');
 
-      const tree = await service.getTree(ALICE, BOB);
-      const docs = tree.children!.find(c => c.name === 'docs');
+      const tree: RevfsNode = await service.getTree(ALICE, BOB);
+      const docs: RevfsNode | undefined = tree.children!.find(c => c.name === 'docs');
       expect(docs).toBeDefined();
       expect(docs!.type).toBe('directory');
     });
 
     it('persists tree after mkdir', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       await service.mkdir(ALICE, BOB, '/docs');
 
       const persistCalls = getExecuteCalls(service).filter(i => i.type === 'persist-tree');
@@ -89,19 +91,19 @@ describe('RevfsService', () => {
 
   describe('rmdir', () => {
     it('removes directory and sends operation', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       await service.mkdir(ALICE, BOB, '/docs');
       await service.rmdir(ALICE, BOB, '/docs');
 
-      const tree = await service.getTree(ALICE, BOB);
-      const docs = tree.children!.find(c => c.name === 'docs');
+      const tree: RevfsNode = await service.getTree(ALICE, BOB);
+      const docs: RevfsNode | undefined = tree.children!.find(c => c.name === 'docs');
       expect(docs).toBeUndefined();
     });
   });
 
   describe('sendAndAwaitAck timeout', () => {
     it('queues to pendingOps when send fails', async () => {
-      const service = createTestService(defaultIntentHandler({
+      const service: RevfsService = createTestService(defaultIntentHandler({
         'send-revfs-op': () => ({ type: 'send-revfs-op', success: false }),
       }));
 
@@ -115,21 +117,21 @@ describe('RevfsService', () => {
 
   describe('uploadFileToPeer', () => {
     it('places file, persists, and sends op with ACK', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       const meta: RevfsFileMetadata = {
         fileId: 'f1', fileName: 'doc.pdf', fileSize: 1024, fileType: 'application/pdf',
         virtualDirectory: '/vfs/doc', uploadedByCid: ALICE,
       };
       await service.uploadFileToPeer(ALICE, BOB, '/Sent Files', 'doc.pdf', meta, new Uint8Array([1, 2, 3]));
 
-      const tree = await service.getTree(ALICE, BOB);
-      const file = tree.children?.find(c => c.name === 'Sent Files')?.children?.find(c => c.name === 'doc.pdf');
+      const tree: RevfsNode = await service.getTree(ALICE, BOB);
+      const file: RevfsNode | undefined = tree.children?.find(c => c.name === 'Sent Files')?.children?.find(c => c.name === 'doc.pdf');
       expect(file).toBeDefined();
       // Alice uploaded, so Bob holds the bytes and Alice's copy is Remote —
       // the state that lets her download her own file back.
       expect(file!.fileState).toBe(RevfsFileState.Remote);
 
-      const intents = getExecuteCalls(service);
+      const intents: RevfsIntent[] = getExecuteCalls(service);
       expect(intents.filter(i => i.type === 'persist-tree').length).toBeGreaterThanOrEqual(2);
       expect(intents.filter(i => i.type === 'send-revfs-op').length).toBeGreaterThanOrEqual(1);
     });
@@ -137,7 +139,7 @@ describe('RevfsService', () => {
 
   describe('removeFileFromPeer', () => {
     it('removes file, sends backend-delete-file, and sends ACK', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       const meta: RevfsFileMetadata = {
         fileId: 'f1', fileName: 'doc.pdf', fileSize: 1024, fileType: 'application/pdf',
         virtualDirectory: '/vfs/doc', uploadedByCid: ALICE,
@@ -145,11 +147,11 @@ describe('RevfsService', () => {
       await service.uploadFileToPeer(ALICE, BOB, '/Sent Files', 'doc.pdf', meta, new Uint8Array([1, 2, 3]));
       await service.removeFileFromPeer(ALICE, BOB, '/Sent Files/doc.pdf');
 
-      const tree = await service.getTree(ALICE, BOB);
-      const sentFiles = tree.children?.find(c => c.name === 'Sent Files');
+      const tree: RevfsNode = await service.getTree(ALICE, BOB);
+      const sentFiles: RevfsNode | undefined = tree.children?.find(c => c.name === 'Sent Files');
       expect(sentFiles?.children?.find(c => c.name === 'doc.pdf')).toBeUndefined();
 
-      const intents = getExecuteCalls(service);
+      const intents: RevfsIntent[] = getExecuteCalls(service);
       const deleteCalls = intents.filter(i => i.type === 'backend-delete-file');
       expect(deleteCalls).toHaveLength(1);
     });
@@ -157,7 +159,7 @@ describe('RevfsService', () => {
 
   describe('downloadFileFromPeer', () => {
     it('finds file recursively and returns download path', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       const meta: RevfsFileMetadata = {
         fileId: 'f1', fileName: 'doc.pdf', fileSize: 1024, fileType: 'application/pdf',
         virtualDirectory: '/vfs/doc', uploadedByCid: ALICE,
@@ -168,7 +170,7 @@ describe('RevfsService', () => {
     });
 
     it('throws when file not found', async () => {
-      const service = createTestService(defaultIntentHandler());
+      const service: RevfsService = createTestService(defaultIntentHandler());
       await expect(service.downloadFileFromPeer(ALICE, BOB, '/nope.txt')).rejects.toThrow('File not found');
     });
   });

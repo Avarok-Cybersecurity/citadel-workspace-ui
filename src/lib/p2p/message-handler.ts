@@ -22,14 +22,14 @@ import { dispatchInboundCommand } from './inbound-command-dispatch';
 import { isCallSignalPayload } from '@/types/p2p-commands';
 import { eventEmitter } from '../event-emitter';
 
-import type { MessageHandlerConfig } from './message-handler-types';
-import { isPeerMessage, isMessageNotification, type MessageNotificationPayload } from './message-handler-types';
+import { isPeerMessage, isMessageNotification, type MessageNotificationPayload , type MessageHandlerConfig } from './message-handler-types';
 import { handleMessagingLayerCommand } from './message-handler-routing';
 import { MessageAckHandler } from './message-ack-handler';
 import { FileTransferMessageHandler } from './file-transfer-message-handler';
 
 export type { MessageHandlerConfig } from './message-handler-types';
 import { fnv1a64 } from './message-fingerprint';
+import type { CallSignalPayload } from '@/types/call-signals';
 
 export class MessageHandler {
   private readonly config: MessageHandlerConfig;
@@ -228,7 +228,7 @@ export class MessageHandler {
         // the call provider is mounted once per tab and owns the call, and the
         // message handler has no business knowing about media sessions.
         if (isCallSignalPayload(command.payload)) {
-          const signal = command.payload;
+          const signal: CallSignalPayload = command.payload;
           debugLog('P2PMessageHandler', 'handleP2PCommand: dispatching CallSignal', {
             kind: signal.kind,
             peerCid: peerCid.toString(),
