@@ -21098,3 +21098,34 @@ Also verified this wave and left alone: no other place in the app claims success
 immediately after a send — the class round 451 fixed has exactly one instance —
 and the live-document header only claims "Last saved" once a save has actually
 happened, so the fix recorded in its own comment still holds.
+
+## Round 454 — `finally` re-throws
+
+`no-floating-promises` is enabled, and `void` is its escape hatch: 34 bare
+`void somePromise(...)` calls in the app. Most are genuinely fire-and-forget,
+and two that looked suspicious turned out to be fine — both clipboard writes
+use the two-handler `then(onOk, onFail)` form, so a refused clipboard is
+handled rather than dropped.
+
+One was not fine. `ConfirmDeleteDialog` cleared its pending flag with:
+
+```ts
+void result.finally(() => setPending(false));
+```
+
+`finally` re-throws. So that cleared the flag and then discarded a REJECTED
+promise — an unhandled rejection from the one dialog every destructive action
+in this app shares.
+
+Reachable, and checked rather than assumed. `GroupSettingsPanel.handleDeleteConfirm`
+is `try { await onDeleteGroup(); } finally { ... }` with no catch, and
+`use-group-conversations` re-throws what the delete failed with. Deleting a
+group that fails is the path.
+
+It uses `then` with both handlers now. Reporting belongs to the caller, which
+knows what failed; the dialog owns its pending state and clears it either way.
+
+The control is the test itself: vitest fails a test that leaves an unhandled
+rejection, so restoring `finally` produces exactly the "Unhandled Rejection"
+the fix removes. The positive control beside it — a SUCCEEDING action — catches
+a handler that only ever cleared on the failing path.

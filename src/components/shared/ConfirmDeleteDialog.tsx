@@ -44,7 +44,18 @@ export function ConfirmDeleteDialog({
       const result: void | Promise<void> = onConfirm();
       if (!(result instanceof Promise)) return;
       setPending(true);
-      void result.finally(() => setPending(false));
+      // `then` with both handlers, not `finally`. `finally` re-throws, so
+      // `void result.finally(...)` cleared the pending flag and then discarded
+      // a REJECTED promise -- an unhandled rejection from the dialog every
+      // confirm action in the app shares, for any action that fails.
+      //
+      // Reporting belongs to the caller, which has the context to say what
+      // failed; the dialog owns only its own pending state, and it clears that
+      // either way.
+      void result.then(
+        () => setPending(false),
+        () => setPending(false),
+      );
     },
     [onConfirm, pending],
   );
