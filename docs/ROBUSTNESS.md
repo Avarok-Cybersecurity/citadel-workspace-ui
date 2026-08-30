@@ -18527,3 +18527,35 @@ actually apply the defect is a control that proves nothing, which is the same
 mistake as a test that cannot fail.
 
 2492 tests green, all 60 preflight checks.
+
+## Round 381 — the chain, not the links
+
+"WARNING: Message input not found" appeared in four integration jobs and turned
+out to have four separate causes, each fixed and guarded on its own:
+
+| round | cause |
+|---|---|
+| 369 | the Chat tab selection did not survive the remount `BaseOffice` is keyed to cause |
+| 373 | a node absent from `state.nodes` read as "this room has no chat" |
+| 378 | `usePermission(undefined, ...)` reads as a definite denial |
+| 379 | a permission cache MISS reads the same way |
+
+Any one of them loses the composer, and a test per link cannot see that. Four
+green tests and a red job is exactly the shape that keeps a campaign busy
+without closing anything.
+
+This walks the whole path in the state each defect was true in — the user has
+switched to Chat, the component has remounted, the node is mid-reload, and
+nothing has answered about permissions — and asks the question the user asks:
+*can I type?*
+
+Each link's defect fails it independently: reverting `permits`, the remembered
+tab, or the chat surface each turn it red. Its positive control is that a real
+refusal still hides the composer, since a chain of links that all say yes
+unconditionally is not a gate at all.
+
+The first version used an IIFE around a probe component to observe a hook, which
+the explicit-types gate rejected twice for good reason — it was hard to read.
+`renderHook` says the same thing in four lines.
+
+2496 tests green, all 60 preflight checks.
