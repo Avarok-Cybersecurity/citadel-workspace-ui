@@ -126,18 +126,34 @@ export function useGroupRoles(
         return { ...role, ...updates };
       });
 
-      if (updates.isDefault === true) {
-        updatedRoles.forEach(r => {
-          if (r.id !== roleId) {
-            r.isDefault = false;
-          }
-        });
-      }
+      // Only one role may be default. Two things matter here beyond that.
+      //
+      // First, the map above returns the ORIGINAL object for every role it is
+      // not editing, so assigning `r.isDefault = false` used to write straight
+      // through to the caller's own array -- the settings the store holds, the
+      // props a memoized child compared by reference, the copy already read
+      // out of persistence. Those saw the flag flip with no state update to
+      // announce it, and if `onSettingsChange` were rejected the write had
+      // already happened. Build a new object for each role instead.
+      //
+      // Second, clear the others only when the target actually BECAME default.
+      // A built-in role keeps everything but its name and colour, so asking to
+      // make one default changes nothing about it -- clearing the rest on the
+      // strength of the request alone would leave the group with no default
+      // role at all, and `resolveRoleId` would start handing out whichever
+      // role happens to sit last. The editor disables that checkbox for
+      // built-in roles, so this is a guard on the hook's own contract rather
+      // than a live path today.
+      const target: GroupRole | undefined = updatedRoles.find(r => r.id === roleId);
+      const becameDefault: boolean = updates.isDefault === true && target?.isDefault === true;
+      const finalRoles: GroupRole[] = becameDefault
+        ? updatedRoles.map(r => (r.id === roleId || !r.isDefault ? r : { ...r, isDefault: false }))
+        : updatedRoles;
 
       const updatedSettings: GroupSettings = {
         ...settings,
-        roles: updatedRoles,
-        defaultRoleId: updates.isDefault ? roleId : settings.defaultRoleId,
+        roles: finalRoles,
+        defaultRoleId: becameDefault ? roleId : settings.defaultRoleId,
       };
 
       onSettingsChange(updatedSettings);

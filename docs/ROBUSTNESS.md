@@ -19477,3 +19477,51 @@ two-role group, which is the undefined the old code handed back.
 group's `members` array moved to `group-membership-events.ts`. Control:
 commenting out the one `bindMembershipEvents()` call fails all three
 membership tests, so the extraction is bound and not merely present.
+
+## Round 407 — an edit that reached back into the caller's state
+
+Still in group roles, one layer up. `useGroupRoles.updateRole` enforces "only
+one role may be default" like this:
+
+```ts
+const updatedRoles = roles.map(role => {
+  if (role.id !== roleId) return role;          // <- the ORIGINAL object
+  ...
+});
+if (updates.isDefault === true) {
+  updatedRoles.forEach(r => { if (r.id !== roleId) r.isDefault = false; });
+}
+```
+
+The map returns the original object for every role it is not editing, so that
+assignment writes straight through to the caller's own array: the settings the
+group store holds, the props a memoized child compares by reference, the copy
+already read out of persistence. All of them saw `isDefault` flip with no state
+update to announce it, and had `onSettingsChange` been rejected, the write had
+already happened anyway. Now each cleared role is a new object.
+
+Reachability, checked rather than assumed: `GroupRoleEditor` has a "Set as
+Default Role" checkbox and submits `isDefault` in its payload, and
+`GroupRoleManagement` routes that payload to `updateRole` — so the mutation is
+live for any custom role, not latent.
+
+The second fault in the same block is not live, and is fixed as a contract
+guard rather than a bug fix. A built-in role keeps everything but its name and
+colour, so asking to make one default changes nothing about it — yet the
+clearing ran on the strength of the request, which would leave the group with
+no default role at all and `resolveRoleId` (round 406) handing out whichever
+role sits last. The clearing is now conditional on the target having actually
+become the default. The editor disables that checkbox for built-in roles, so
+today nothing reaches it.
+
+Also observed, not changed: `settings.defaultRoleId` is written in five places
+and read in none — `getDefaultRole` finds `r.isDefault` and ignores it. Two
+records of one fact with nothing forcing agreement. Every writer happens to
+keep them in step today, and the ways they could drift are all behind the
+built-in guard above, so this is recorded rather than acted on.
+
+Controls: restoring the mutation and the unconditional clearing fails both new
+tests and leaves the positive control -- moving the default between two custom
+roles -- passing. The first attempt at that control did not compile, so it
+reported "no tests"; a control that does not run proves nothing, and it was
+redone.
