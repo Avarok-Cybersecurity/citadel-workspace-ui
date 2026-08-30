@@ -156,7 +156,7 @@ export function P2PChat({
 
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="h-full flex flex-col bg-background" data-testid="p2p-chat">
       <P2PChatHeader
         peerName={peerName}
         peerPresence={peerPresence}

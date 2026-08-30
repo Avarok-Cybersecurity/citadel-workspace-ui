@@ -213,7 +213,10 @@ export async function switchToChatTab(
     }
 
     // Check if chat tab content is already visible (might already be on chat tab)
-    const chatView = page.locator('[data-testid="group-chat-view"], .group-chat-view').first();
+    // The log region by name. `.group-chat-view` was the half that matched:
+    // the testid never existed, so this union was one dead selector beside one
+    // class nobody guaranteed.
+    const chatView = page.locator('[data-testid="group-chat-view"]').first();
     if (await isVisibleWithin(chatView, 2000)) {
       console.log(`  Chat view already visible`);
       return true;
@@ -404,7 +407,10 @@ export async function getMessageCount(page: Page, username: string): Promise<num
 
   try {
     // Look for message bubbles/items
-    const messages = page.locator('[data-testid="message-item"], .message-item, [class*="message"]');
+    // `[class*="message"]` matched any element whose class merely CONTAINS
+    // "message" -- wrappers, the composer, anything -- so this returned a
+    // number that was not the message count. The app now names each message.
+    const messages = page.locator('[data-testid="message-item"]');
     const count = await messages.count();
     console.log(`  Found ${count} messages`);
     return count;

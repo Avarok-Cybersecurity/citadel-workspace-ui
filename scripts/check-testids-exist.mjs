@@ -41,9 +41,6 @@ const SPECS = join(ROOT, 'integration-tests', 'src');
 const KNOWN_MISSING = new Set([
   'workspace-name',
   'hierarchy-section',
-  'group-chat-view',
-  'message-item',
-  'p2p-chat',
   'workspace-button',
   'sidebar-workspace',
   'confirm-dialog',

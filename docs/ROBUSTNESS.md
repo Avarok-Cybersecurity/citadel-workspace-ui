@@ -20110,3 +20110,34 @@ wrote one, its control passed, and I deleted it rather than keep a test that
 cannot tell the fix from its absence. The comment on the constant says the same
 thing, so the next reader is not misled into trusting coverage that is not
 there.
+
+## Round 423 — the other half of every fallback
+
+Round 416 baselined eight testids that specs address and the app does not
+render, each sitting inside a union like
+`[data-testid="group-chat-view"], .group-chat-view`. The spec works through the
+other half, so nothing fails — and round 420 showed what that costs: a folder
+whose deletion had been removed from the tree, persisted AND acknowledged by
+the peer still read as "still visible in tree", because the surviving half of
+the union was `.truncate:has-text(name)` and matched a path label.
+
+Three of the eight are now real, and they are the three that matter.
+
+  - `group-chat-view` names the log region, which already carried
+    `role="log"` and an aria-label. The class it fell back to is not
+    guaranteed by anything.
+  - `p2p-chat` names the direct-message surface. Same shape.
+  - `message-item` names each message, and its fallback was the worst of the
+    set: `[class*="message"]` matches any element whose class merely CONTAINS
+    the word — wrappers, the composer, a "no messages yet" placeholder — so
+    `getMessageCount` returned a number that was not the message count. That
+    helper is exported and called by no spec, which is the only reason it never
+    reported one.
+
+The unions are gone with them: a selector that names the thing does not need a
+class beside it, and keeping one means the day the testid is removed the spec
+quietly carries on measuring something else.
+
+The gate's baseline shrinks from eight to five, which is the direction it is
+allowed to move. Controls: removing any one of the three new testids fails the
+gate.

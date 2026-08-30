@@ -63,7 +63,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
             or dropped, depending on the browser and the reader. The direct
             message list gets this right (P2PMessageList) and the group view was
             written the other way. */}
-        <div className="py-4" role="log" aria-label="Group conversation">
+        <div className="py-4" role="log" aria-label="Group conversation" data-testid="group-chat-view">
           {chat.loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-8 w-8 animate-spin text-primary-accent" />

@@ -42,7 +42,7 @@ export async function sendMessage(
     console.log(`  [DEBUG] Current URL: ${currentUrl}`);
 
     // Check for common issues
-    const p2pChatVisible = await page.locator('[data-testid="p2p-chat"], .p2p-chat').first().isVisible().catch(() => false);
+    const p2pChatVisible = await page.locator('[data-testid="p2p-chat"]').first().isVisible().catch(() => false);
     console.log(`  [DEBUG] P2PChat visible: ${p2pChatVisible}`);
 
     const anyInput = await page.locator('input').count();

@@ -60,7 +60,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
   const initials: string = getInitials(message.sender_name);
 
   return (
-    <div className={cn(
+    <div data-testid="message-item" className={cn(
       'group flex gap-3 px-4 py-2 hover:bg-accent/50 transition-colors',
       isOwnMessage && 'flex-row-reverse'
     )}>
