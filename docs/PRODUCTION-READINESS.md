@@ -71,6 +71,25 @@ account switch fired on every reconnect. Those are recorded as rounds 489 and
 | 48 | low | open | ts-perf | Load-older in a peer group arms a 15s deadline and disables the button before the peer-transport early return, for a page that can never exist | `citadel-workspaces/src/components/chat/useGroupChat.ts:139` |
 | 49 | low | open | ts-revfs | Quota double-counts copies: calculateStorageUsage sums fileSize per node while copies share one backend blob | `citadel-workspaces/src/lib/revfs/tree-queries.ts:198` |
 
+## Found outside the inspection
+
+| # | Sev | Status | Source | Finding | Location |
+| --- | --- | --- | --- | --- | --- |
+| 50 | medium | fixed | round 502 | A cumulative ACK cleared only the id it named, leaving the rows beneath it to trigger a 50-cycle BLOCKED-RECOVERY each | `intersession-layer-messaging/src/lib.rs` |
+| 51 | medium | open | ILM workflow | A wedged peer grows ILM's pending-outbound queue for that peer forever — stop-and-wait never gives up and nothing caps or ages the queue | `intersession-layer-messaging/src/lib.rs` process_outbound |
+| 52 | medium | open | ILM workflow | Internal-service `Message` tasks pile up awaiting one peer's `Arc<Mutex<AsyncSink>>` with no cap and no timeout, so a wedged peer accumulates unbounded spawned tasks | `citadel-internal-service/src/kernel/requests/message.rs:60` |
+| 53 | low | open | ILM workflow | Every browser→internal-service buffer is an `UnboundedSender` (SINK_CHANNEL, bypass_ism_tx_to_outbound, final_tx, per-ILM pairs): a slow localhost WebSocket grows memory silently instead of applying backpressure | connector `messenger/mod.rs` |
+| 54 | low | open | ILM workflow | A single urgent message waits 0–200ms (mean ~100ms) for the next poll: `send_raw_message` deliberately does not nudge `poll_outbound_tx` because an earlier nudge caused an infinite feedback loop | `intersession-layer-messaging/src/lib.rs:1372` |
+
+**Multiplexing: the premise does not hold.** Per-account ILMs already exist (one per
+CID, each with its own transport pair), C2S traffic bypasses ILM entirely via
+`BypasserTx`/`SINK_CHANNEL`, the internal service gives C2S and each peer physically
+distinct Citadel channels, and every request runs in its own spawned task. A wedged
+peer cannot block server-to-client delivery in the current tree. The exposure is
+unbounded buffering (51–53), not head-of-line blocking.
+
+
+
 ## Detail
 
 ### 1. ILM network loop busy-spins without yielding once the transport's inbound channel closes — on wasm this permanently freezes the tab
