@@ -21191,6 +21191,35 @@ the script uses process substitution and its shebang is bash.)
 The rule these two rounds share is worth stating once: **a retry bounds
 failures, a timeout bounds hangs, and neither substitutes for the other.**
 
+## Round 464 — a component nobody mounts, kept alive by its own test
+
+Round 463 ended by recording a hole rather than fixing it: removing
+`PeerRefusalNotice` from `App.tsx` entirely left `check-modules-are-imported`
+reporting "1266 file(s), all imported ok". The component's own TEST file imports
+it, so it reads as reachable, and its tests render it directly so they pass
+either way.
+
+That matters because both notice components render nothing. They exist purely to
+be mounted: each subscribes to an event and raises a notice. An unmounted one is
+a control that operates on nothing, and it looks exactly like working, tested
+code — the same shape as `revfs:persist-failed` sitting emitted-but-unheard for
+months, one layer up.
+
+`check-components-are-mounted.mjs` requires every exported component to be
+RENDERED somewhere in production: as `<Name`, `component={Name}` or
+`element={<Name`. Rendering inside its own module counts, because a helper used
+by the exported parent beside it is mounted through that parent — the first
+version of this scan excluded the defining file and produced two false positives
+for exactly that reason.
+
+No baseline: the tree passes outright, and a gate that starts at zero should stay
+at zero.
+
+Controlled against the real regression rather than a synthetic one: with
+`<PeerRefusalNotice />` deleted from `App.tsx` and its import left in place — as
+an actual regression would leave it — the reachability gate still says "ok" and
+this one fails by name.
+
 ## Round 463 — a refused registration request that never resolved
 
 The store clears an outgoing peer-registration request when it hears
