@@ -20364,3 +20364,36 @@ imports `reissueTabId` from it, which is fine until the suite shares a module
 graph — so the file passed on its own and failed the moment the whole suite
 ran. Both mocks spread the real module now. A file that passes alone has not
 been shown to pass.
+
+## Round 431 — the race round 425 covered without testing
+
+`createGroup` awaits `sendGroupCreate`, then records the chosen name and nudges
+the store. But `group:created` is emitted from `GroupCreateSuccess` — the same
+response that resolves that promise — so whether the store has already built
+the record is a race. Round 425 covered both sides and tested neither:
+
+  - store first: `rememberGroupName` is too late for the record, and the
+    `updateGroups` pass is what renames it;
+  - store second: `updateGroups` finds nothing, and `chosenGroupName` in the
+    handler is what supplies the name.
+
+One of those is dead in any given run, so the test written for round 425 proved
+half the fix and could not have told me which half.
+
+Both orderings are tested now, and the controls came out orthogonal, which is
+the useful part: removing the `updateGroups` pass fails ONLY the store-first
+case, and removing `chosenGroupName` fails ONLY the creator-first case. Each
+half is load-bearing for exactly one ordering, and neither is redundant.
+
+### A control that leaked into the next control
+
+Control A edited the test's helper to remove the `updateGroups` pass, then
+reverted with `git checkout --` on a file git has never seen: the test is new
+and untracked, so the checkout did nothing and control B ran against a test
+still missing its helper. B duly failed both cases and looked like evidence that
+`chosenGroupName` covered both — the opposite of the truth.
+
+Two probes earlier this session were wrong the same way: an injection whose
+anchor string was not in the file, and one written in the single import form a
+scanner could not see. The rule that catches all three is the same. **Check that
+the control applied, and check that it reverted.**
