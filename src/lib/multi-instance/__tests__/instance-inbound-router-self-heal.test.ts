@@ -227,3 +227,106 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
     }
   });
 });
+
+/**
+ * And the router has to consult the set.
+ *
+ * `a-media-frame-is-not-retained.test.ts` pins what the set contains, which it
+ * would do whether or not `routeMessage` ever asked. This drives the router.
+ */
+describe('forwarding a media frame to another tab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    eventEmitter.emit('instance:leader-changed', {
+      isLeader: true,
+      leaderId: 'leader-instance',
+    });
+  });
+
+  function mediaFrame(): { MediaFrameNotification: { cid: string; peer_cid: string; request_id: null } } {
+    return { MediaFrameNotification: { cid: '12345', peer_cid: '99', request_id: null } };
+  }
+
+  it('forwards it without a requestId, so nothing is retained or acked', () => {
+    instanceManagerMock.findInstanceByCid.mockReturnValue('follower-instance');
+
+    instanceInboundRouter.routeMessage(mediaFrame());
+
+    expect(instanceChannelMock.forwardToInstance).toHaveBeenCalledTimes(1);
+    const [target, , requestId]: unknown[] = instanceChannelMock.forwardToInstance.mock.calls[0];
+    expect(target).toBe('follower-instance');
+    expect(
+      requestId,
+      'a media frame was retained: a uuid, a timer and the payload, per frame — and \
+a missed ack decodes another tab’s video on this one',
+    ).toBeUndefined();
+  });
+
+  it('still retains a chat message', () => {
+    // The opposite failure: making every forward fire-and-forget would pass the
+    // assertion above while silently dropping the messages that matter.
+    instanceManagerMock.findInstanceByCid.mockReturnValue('follower-instance');
+
+    instanceInboundRouter.routeMessage({
+      MessageNotification: { cid: '12345', peer_cid: '99', message: [1], request_id: null },
+    });
+
+    expect(instanceChannelMock.forwardToInstance).toHaveBeenCalledTimes(1);
+    const [, , requestId]: unknown[] = instanceChannelMock.forwardToInstance.mock.calls[0];
+    expect(requestId, 'a chat message lost its delivery guarantee').toEqual(expect.any(String));
+  });
+
+  it('drops a frame for a CID nobody owns rather than replaying it later', async (): Promise<void> => {
+    // A frame replayed after the orphan timeout is two seconds stale — a worse
+    // artefact than the gap the pipeline already recovers from.
+    //
+    // The discriminating assertion is the REPLAY, not the immediate call:
+    // buffering and dropping both request a cid-report and both forward
+    // nothing, so an assertion on those two passes either way. Verified by
+    // control, which is how this test came to check the wrong thing first.
+    // What separates them is whether the frame reappears when the timer fires.
+    instanceManagerMock.findInstanceByCid.mockReturnValue(null);
+
+    const local: ReturnType<typeof vi.fn> = vi.fn();
+    eventEmitter.on('websocket-message', local);
+    vi.useFakeTimers();
+
+    try {
+      instanceInboundRouter.routeMessage(mediaFrame());
+      vi.advanceTimersByTime(ORPHAN_BUFFER_TIMEOUT_MS + 100);
+
+      expect(
+        local,
+        'a stale media frame was replayed on this tab after the orphan timeout',
+      ).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+      eventEmitter.off('websocket-message', local);
+    }
+  });
+
+  it('still replays a chat message for an unowned CID', async (): Promise<void> => {
+    // The opposite failure: dropping every orphan would pass the assertion
+    // above while losing the messages the buffer exists to save.
+    instanceManagerMock.findInstanceByCid.mockReturnValue(null);
+
+    const local: ReturnType<typeof vi.fn> = vi.fn();
+    eventEmitter.on('websocket-message', local);
+    vi.useFakeTimers();
+
+    try {
+      // FileTransferRequestNotification rather than MessageNotification: the
+      // local emit holds P2P traffic until a handler is attached, and this
+      // harness attaches none, so a chat message would never emit either way.
+      instanceInboundRouter.routeMessage({
+        FileTransferRequestNotification: { cid: '55555', peer_cid: '99', request_id: null },
+      });
+      vi.advanceTimersByTime(ORPHAN_BUFFER_TIMEOUT_MS + 100);
+
+      expect(local, 'the orphan buffer stopped rescuing chat messages').toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+      eventEmitter.off('websocket-message', local);
+    }
+  });
+});

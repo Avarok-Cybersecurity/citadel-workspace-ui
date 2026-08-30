@@ -48,6 +48,33 @@ export const CID_ROUTED_NOTIFICATIONS: Set<ResponseType> = new Set<ResponseType>
 ]);
 
 /**
+ * Forwards that must NOT be retained, acked, or replayed.
+ *
+ * The reliability machinery around a cross-tab forward costs, per message, a
+ * `crypto.randomUUID()`, an armed `setTimeout`, the payload held in a Map until
+ * the target tab acks, and a BroadcastChannel round trip. That is the right
+ * price for a chat message, a file-transfer tick or a peer notification: each is
+ * rare, and each matters.
+ *
+ * A media frame is neither. It arrives at frame rate, per track, per
+ * participant, so the retention is a timer and a retained buffer for every
+ * frame of every call. And the fallback is worse than the cost: when no ack
+ * arrives in time the leader processes the message ITSELF, so one missed ack
+ * decodes another tab's video on this one.
+ *
+ * A dropped frame is a dropped frame — exactly what a lost UDP packet is, which
+ * the pipeline already handles: `MediaGapNotification` reports the hole and the
+ * receiver asks for a keyframe. Replaying a two-second-old frame is not a
+ * recovery, it is a worse artefact than the gap.
+ *
+ * `MediaGapNotification` is deliberately NOT here: it is low-rate, it is what
+ * triggers that recovery, and losing it delays the keyframe.
+ */
+export const UNRELIABLE_FORWARDS: Set<string> = new Set<string>([
+  'MediaFrameNotification',
+]);
+
+/**
  * Message types that the leader must ALSO process locally when forwarding to followers.
  * These messages affect P2P connection state which ILM needs to query.
  * ILM runs on the leader and calls getPeersForSession() for ANY CID, so the leader's

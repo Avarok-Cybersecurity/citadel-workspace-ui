@@ -21221,6 +21221,47 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 509 — reliability machinery on a video frame
+
+Backlog 35, the last medium from the inspection. Every cross-tab forward was
+retained: a `crypto.randomUUID()`, an armed `setTimeout`, the payload held in a
+Map until the target tab acked, and a BroadcastChannel round trip. Right for a
+chat message, a file-transfer tick or a peer notification — each rare, each
+mattering.
+
+A media frame is neither. It arrives at frame rate, per track, per participant,
+so this was a timer and a retained buffer for **every frame of every call**. And
+the fallback is worse than the cost: when no ack arrives in time the leader
+processes the message ITSELF, so one missed ack decodes another tab's video on
+this one — continuously, for as long as the call lasts.
+
+A dropped frame is exactly a lost UDP packet, which the pipeline already handles:
+`MediaGapNotification` reports the hole and the receiver asks for a keyframe.
+Replaying a two-second-old frame is a worse artefact than the gap. So frames are
+forwarded fire-and-forget, and dropped rather than buffered when no tab owns the
+CID.
+
+`MediaGapNotification` is deliberately excluded: it is low-rate and it is what
+*triggers* that recovery, so losing it delays the keyframe.
+
+**A green control, again, and the same lesson in a new place.** My orphan-drop
+test asserted that a cid-report was requested and nothing was forwarded — both
+true whether the frame is dropped or buffered, because the buffering branch does
+neither differently. What separates them is whether the frame is REPLAYED when
+the timer fires, which needed fake timers and an assertion on the local emit.
+
+A second thing that test taught: the guard I added for the opposite failure — "a
+chat message is still replayed" — failed against the fix, because the local emit
+holds P2P traffic until a handler is attached and the harness attaches none. The
+guard was right and the fixture was wrong; `FileTransferRequestNotification` goes
+through the same path without the hold.
+
+The router breached its 251-line exemption and came out at 235, so the exemption
+is gone rather than raised. The seam is the honest one: routing by request-id
+answers "who asked for this?" and routing by cid answers "who is this addressed
+to?", and confusing those two is precisely what `CID_ROUTED_NOTIFICATIONS`
+exists to prevent.
+
 ## Round 508 — the fast view and its twin
 
 Backlog 32. `P2PMessageList` called `groupMessagesByDate(messages)` inline in its
