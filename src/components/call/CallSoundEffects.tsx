@@ -1,3 +1,4 @@
+import { debugLog } from '@/lib/debug-config';
 import { useEffect, useRef , type MutableRefObject } from 'react';
 import { useCall } from '@/lib/call/call-context';
 import type { CallStatus } from '@/lib/call/call-state';
@@ -61,7 +62,9 @@ export function CallSoundEffects(): null {
       if (!loadedRef.current) return;
       void import('@/lib/call/call-sounds')
         .then(({ callSounds }: SoundModule) => callSounds().stopRing())
-        .catch(() => {});
+        // Logged, not swallowed: if this fails the ringtone keeps playing and
+        // nothing anywhere says why.
+        .catch((error: unknown) => debugLog('CallSoundEffects', 'stopRing failed', error));
     },
     [],
   );

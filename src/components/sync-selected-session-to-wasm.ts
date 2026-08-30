@@ -8,6 +8,7 @@
  */
 import { getSelectedUser, type TabUserContext } from '@/lib/tab-context';
 import { wasmConnectionManager } from '@/lib/wasm-connection-manager';
+import { debugLog } from '@/lib/debug-config';
 import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import type { OrphanSessionWithWorkspace } from './useOrphanSessions';
 
@@ -25,7 +26,12 @@ export async function syncSelectedSessionToWasm(
   try {
     await wasmConnectionManager.addSession(selected.cid.toString());
     if (selected.peer_connections) {
-      p2pRegistrationService.syncPeerConnectionsFromSession(selected.peer_connections).catch(() => {});
+      // Logged, not swallowed. A peer-connection sync that fails leaves every
+      // P2P feature working from a stale roster, and the only symptom is a
+      // peer that never appears connected -- which reads as a protocol fault.
+      p2pRegistrationService
+        .syncPeerConnectionsFromSession(selected.peer_connections)
+        .catch((error: unknown) => debugLog('SyncSelectedSession', 'Peer connections did not sync', error));
     }
   } catch {
     // Best-effort: see the note above.

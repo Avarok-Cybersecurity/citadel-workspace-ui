@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { debugLog } from "@/lib/debug-config";
 import { OrphanSessionIcon } from "./OrphanSessionIcon";
 import { DisconnectConfirmModal } from "./DisconnectConfirmModal";
 import { DisconnectLoadingModal } from "./LoadingModal";
@@ -46,7 +47,10 @@ export const OrphanSessionsNavbar: () => JSX.Element | null = (): JSX.Element | 
       if (cancelled) return;
       attempts += 1;
       loadActiveSessions()
-        .catch(() => {})
+        // `loadActiveSessions` logs and keeps the last good list itself, so
+        // this is the outer net rather than the reporting. Named so a reader
+        // does not take the bare catch for an oversight.
+        .catch((error: unknown) => debugLog('OrphanSessionsNavbar', 'Session reload attempt failed', error))
         .finally(() => {
           // foundSessions is in the dep array, so this effect is torn down and
           // not re-armed the moment a session appears.

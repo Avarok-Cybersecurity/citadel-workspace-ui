@@ -21069,3 +21069,32 @@ That is the test doing its job. It now passes a ten-millisecond budget and
 asserts the ANSWER as well as the send — `false`, because nothing came back in
 that harness — so the thing the caller actually depends on is what the test
 pins.
+
+## Round 453 — three catches out of two hundred and ninety-two
+
+CLAUDE.md says never silently swallow errors, and the codebase largely does not:
+of 292 catch sites, thirty ignore an error deliberately and say so in a comment.
+A documented decision to ignore something is not a silent failure.
+
+Three said nothing, and two of them mattered.
+
+`sync-selected-session-to-wasm` did `syncPeerConnectionsFromSession(...).catch(() => {})`.
+When that fails every P2P feature carries on against a stale roster, and the
+only symptom is a peer who never appears connected — which reads as a protocol
+fault. `CallSoundEffects` did the same around `stopRing()`: if it fails the
+ringtone keeps playing and nothing anywhere says why. Both log now.
+
+The third, in `OrphanSessionsNavbar`, is the outer net around a call that
+already logs and keeps its last good list. It keeps its silence and gains a
+sentence saying that is deliberate, which is the whole distinction this check
+draws.
+
+A gate holds the line: a catch may ignore an error, but not without a word —
+either a handler that logs or a comment saying why silence is right. Controls
+in three directions: an undocumented `.catch(() => {})` fails, an empty `catch
+{}` block fails, and the thirty documented ones pass.
+
+Also verified this wave and left alone: no other place in the app claims success
+immediately after a send — the class round 451 fixed has exactly one instance —
+and the live-document header only claims "Last saved" once a save has actually
+happened, so the fix recorded in its own comment still holds.
