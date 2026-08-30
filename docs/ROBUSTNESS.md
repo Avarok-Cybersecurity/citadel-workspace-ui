@@ -19174,3 +19174,34 @@ particular one. A sleep before a negative assertion is load-bearing. A sleep
 before a polling wait is not.
 
 All 61 preflight checks.
+
+## Round 398 — my own fix, unbounded
+
+Round 390 hid a deregistered session until the server stopped reporting it, and
+its own entry claimed the tombstone "clears itself the first time a list comes
+back without the session, so a deregistration that failed server-side does not
+hide a live session for ever."
+
+That sentence is wrong, and it is wrong in the one case it names. If the
+deregistration fails server-side, the session stays in every list, the tombstone
+never clears, and it hides a live session for the life of the tab — with nothing
+the user can do to reach it. I wrote the reassurance and the hole in the same
+paragraph.
+
+The two errors are not symmetric, and that decides the fix. A row that lingers
+after a successful deregistration is a nuisance; a session you cannot get back to
+is lost work. So the tombstone now gives up after three lists that still contain
+it — enough to cover the reload the removal performs itself plus the one a
+reconnection triggers, and few enough that a genuinely failed deregistration
+surfaces in seconds rather than never. Wrong in either direction, and temporary
+in both.
+
+Two controls: unbounded (round 390 as shipped) fails the new test, and giving up
+after one list fails the original one.
+
+Worth noting how it was found: not from CI, which has never run this code, and
+not from a sweep. From re-reading a claim I had made in my own entry two rounds
+earlier and asking whether it was true. The entries are written to be re-read,
+and this is the first time one has caught me.
+
+2520 tests green, all 61 preflight checks.

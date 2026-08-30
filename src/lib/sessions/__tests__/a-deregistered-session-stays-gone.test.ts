@@ -13,6 +13,12 @@
  * server stops reporting the session. A tombstone, not a timeout: the condition
  * is "the server still says this exists", so the thing to wait on is the server
  * no longer saying it.
+ *
+ * Bounded, though. The first version waited for absence and nothing else, which
+ * is right when the deregistration lands and wrong when it does not: a failure
+ * server-side leaves the session listed for ever, and the tombstone would then
+ * hide a live session permanently with no way for the user to reach it. A row
+ * that lingers is a nuisance; a session you cannot get back to is lost work.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
@@ -48,5 +54,19 @@ describe('a session this tab deregistered', () => {
   it('hides nothing by default', () => {
     reconcileForgotten([7n]);
     expect(isForgotten(7n)).toBe(false);
+  });
+
+  it('gives up when the server keeps insisting the session is there', () => {
+    // A deregistration that failed server-side. Hiding a live session for the
+    // life of the tab is the worse of the two errors, so the tombstone yields.
+    forgetSession(7n);
+
+    reconcileForgotten([7n]);
+    expect(isForgotten(7n), 'still hiding after one list').toBe(true);
+    reconcileForgotten([7n]);
+    expect(isForgotten(7n), 'still hiding after two').toBe(true);
+
+    reconcileForgotten([7n]);
+    expect(isForgotten(7n), 'given up after three').toBe(false);
   });
 });

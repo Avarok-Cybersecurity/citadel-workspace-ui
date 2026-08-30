@@ -17,19 +17,37 @@
  *
  * A tombstone rather than a timeout: the condition is "the server still says
  * this exists", so the thing to wait for is the server no longer saying it, not
- * an interval somebody guessed. It clears itself the first time a list comes
- * back without the session, so a deregistration that failed server-side does
- * not hide a live session for ever.
+ * an interval somebody guessed. It clears the first time a list comes back
+ * without the session.
+ *
+ * And it gives up after a few lists that still contain it. The first version
+ * waited for absence and nothing else, which is right when the deregistration
+ * lands and WRONG when it does not: a failure server-side leaves the session
+ * listed for ever, so the tombstone would hide a live session permanently, with
+ * no way for the user to reach it. That is a worse failure than the one this
+ * fixes -- a row that lingers is a nuisance, a session you cannot get back to
+ * is lost work. Bounded, so the wrong answer is temporary in both directions.
  *
  * Session-scoped by design. A reload is a fresh answer from the server, and by
  * then the deletion has landed.
  */
 
-const forgotten: Set<string> = new Set<string>();
+/**
+ * How many lists may still contain a forgotten session before we conclude the
+ * deregistration did not take and show it again.
+ *
+ * Three: enough to cover the reload the removal performs itself plus the one a
+ * reconnection triggers, and few enough that a genuinely failed deregistration
+ * surfaces in seconds rather than never.
+ */
+const LISTS_BEFORE_GIVING_UP: number = 3;
 
-/** Hide this session until the server stops listing it. */
+/** CID -> how many lists have still contained it since it was forgotten. */
+const forgotten: Map<string, number> = new Map<string, number>();
+
+/** Hide this session until the server stops listing it, or until it insists. */
 export function forgetSession(cid: bigint): void {
-  forgotten.add(cid.toString());
+  forgotten.set(cid.toString(), 0);
 }
 
 export function isForgotten(cid: bigint): boolean {
@@ -44,12 +62,20 @@ export function isForgotten(cid: bigint): boolean {
  */
 export function reconcileForgotten(present: readonly bigint[]): void {
   const listed: Set<string> = new Set(present.map((cid) => cid.toString()));
-  for (const cid of [...forgotten]) {
-    if (!listed.has(cid)) forgotten.delete(cid);
+  for (const [cid, seen] of [...forgotten]) {
+    if (!listed.has(cid)) {
+      // Gone, as asked. The tombstone has done its job.
+      forgotten.delete(cid);
+      continue;
+    }
+    // Still there. Either the server has not caught up, or the deregistration
+    // failed -- and after a few lists the second is likelier than the first.
+    if (seen + 1 >= LISTS_BEFORE_GIVING_UP) forgotten.delete(cid);
+    else forgotten.set(cid, seen + 1);
   }
 }
 
-/** Test seam: the set outlives any component. */
+/** Test seam: the map outlives any component. */
 export function rememberEverything(): void {
   forgotten.clear();
 }
