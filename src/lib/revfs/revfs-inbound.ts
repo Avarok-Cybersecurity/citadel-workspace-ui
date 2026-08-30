@@ -43,7 +43,23 @@ export async function applyInboundOperation(
     // idempotent by construction and resolving an already-resolved id is a
     // no-op, while dropping one could strand a sender.
     if (op.op_type !== RevfsOpType.Ack && !isNewOperation(key, op.op_id)) {
-      debugLog('RevfsService', `[revfs] handleRevfsOperation: ignoring redelivered ${op.op_type} ${op.op_id}`);
+      debugLog('RevfsService', `[revfs] handleRevfsOperation: already applied ${op.op_type} ${op.op_id}`);
+      // Acknowledged again, not just dropped.
+      //
+      // `retryPendingOps` resends an operation whose ack never came back, with
+      // the SAME op id. A receiver that has already applied it and stays silent
+      // leaves that sender retrying for ever -- so the first version of this
+      // guard turned a duplicate-work problem into a stuck-queue one.
+      //
+      // Re-applying is wrong and re-acknowledging is right: the sender's
+      // question is "did this land", and it did.
+      if (op.op_type !== RevfsOpType.SyncRequest && op.op_type !== RevfsOpType.SyncResponse) {
+        const ack: RevfsOperation = {
+          op_id: crypto.randomUUID(), op_type: RevfsOpType.Ack,
+          path: op.path, ack_op_id: op.op_id, success: true, timestamp: Date.now(),
+        };
+        await ctx.sendOp(senderCid, ack);
+      }
       return;
     }
 

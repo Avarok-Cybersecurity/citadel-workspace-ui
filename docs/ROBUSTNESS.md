@@ -20995,3 +20995,39 @@ removing the production line and watching the tests stay green.
 `revfs-service` passed the 250-line cap, so the inbound path moved to
 `revfs-inbound.ts` — the right seam regardless: everything else in that file is
 the local API, and this is the one entry point the wire drives.
+
+## Round 450 — the dedupe that would have stalled the retry queue
+
+Round 449's guard drops a redelivered operation. Written that way it returns
+before the acknowledgement, and that is a bug of my own making, found by
+following the code one step further rather than by CI finding it later.
+
+`retryPendingOps` resends an operation whose ack never came back, with the SAME
+op id. A receiver that has already applied it and stays silent leaves that
+sender retrying for ever — so the first version traded duplicate work for a
+stuck queue, which is the worse of the two.
+
+Re-applying is wrong; re-acknowledging is right. The sender's question is "did
+this land", and it did. Sync requests and responses are excluded because they
+are not acknowledged on the first delivery either, and answering one now would
+put back exactly the amplification round 449 removed.
+
+Verified negative alongside it: `requestSync` has one caller, the user's Sync
+button, so the seven requests in that run were seven clicks and not a loop.
+The ~10x multiplication is below the app — the router sees 125 deliveries for
+about eleven sends — and dedupe is the right defence at this layer whatever the
+transport is doing.
+
+### The fourth control that did not run
+
+The control for this fix was a python one-liner with a quoting error. It threw,
+the injection never applied, and the tests passed — which reads exactly like a
+guard that is not load-bearing. The error text was in the output, which is the
+only reason it was caught.
+
+Four now, each different: an anchor string that was not in the file, a form the
+scanner could not parse, a `git checkout --` that reverted past the work, and a
+control that never compiled. The rule has not changed since round 431 — print
+what the injection did and check the count before believing the result — and it
+is worth repeating that every one of these read as evidence FOR the code being
+fine.

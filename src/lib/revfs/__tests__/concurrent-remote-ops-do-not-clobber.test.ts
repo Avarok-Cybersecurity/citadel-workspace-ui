@@ -148,3 +148,39 @@ describe('the same remote operation arriving twice', () => {
     expect(sent.filter((t: string): boolean => t === RevfsOpType.SyncResponse)).toHaveLength(2);
   });
 });
+
+describe('an operation the sender retried', () => {
+  it('is acknowledged again, so the retry queue can drain', async (): Promise<void> => {
+    // `retryPendingOps` resends with the SAME op id when an ack never came
+    // back. A receiver that has already applied it and stays silent leaves the
+    // sender retrying for ever -- which is what the first version of the
+    // dedupe did: it fixed duplicate work and created a stuck queue.
+    const { forgetSeenOperations } = await import('../seen-operations');
+    forgetSeenOperations();
+
+    const sent: string[] = [];
+    const service: RevfsService = createTestService((intent: RevfsIntent): RevfsIntentResult => {
+      if (intent.type === 'send-revfs-op') {
+        sent.push(intent.operation.op_type);
+        return { type: 'send-revfs-op', success: true };
+      }
+      return defaultIntentHandler()(intent);
+    });
+    const state: RevfsState = getState(service);
+    state.setTree(peerPairKey(ALICE, BOB), treeWith([]));
+
+    const handle: (sender: bigint, mine: bigint, o: RevfsOperation) => Promise<void> = (
+      service as unknown as {
+        handleRevfsOperation: (sender: bigint, mine: bigint, o: RevfsOperation) => Promise<void>;
+      }
+    ).handleRevfsOperation.bind(service);
+
+    const made: RevfsOperation = { op_id: 'retry-1', op_type: RevfsOpType.Mkdir, path: '/again', timestamp: 2 };
+    await handle(BOB, ALICE, made);
+    await handle(BOB, ALICE, made);
+
+    // Applied once, acknowledged twice.
+    expect(pathsIn(state.getTree(peerPairKey(ALICE, BOB)))).toEqual(expect.arrayContaining(['/again']));
+    expect(sent.filter((t: string): boolean => t === RevfsOpType.Ack)).toHaveLength(2);
+  });
+});
