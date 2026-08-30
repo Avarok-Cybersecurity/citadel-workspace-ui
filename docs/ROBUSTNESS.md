@@ -18842,3 +18842,49 @@ The sweep also confirms what round 387 assumed rather than checked: those three
 were the last of their kind, not the first three of many.
 
 61 preflight checks now.
+
+## Round 389 — four probes, four negatives, and a gate I should not have written
+
+The Appearance tab looked like the next `ChatSettingsPanel`: four preferences,
+and a grep for their names found readers in the settings tab and nowhere else.
+
+All four are correctly wired, and each step of checking said so:
+
+| preference | how it reaches the app |
+|---|---|
+| `fontSize` | `root.style.fontSize` — the layout engine reads it |
+| `sidebarWidth` | a custom property, read by `sidebar.tsx:147` as `var(--appearance-sidebar-width, 16rem)` |
+| `animationsEnabled` | a `.reduce-motion` class, defined at `index.css:435` |
+| `showAvatars` | `[data-avatars='off'] [data-avatar]`, and `avatar.tsx` carries `data-avatar` |
+
+The grep found nothing because **the consumer is CSS**, which a JavaScript
+identifier search cannot see. The module's docstring said as much in its second
+paragraph.
+
+Then I wrote a gate to hold that pairing — and it already exists, as
+`src/__tests__/appearance-preferences-have-consumers.test.ts`, written better:
+same corpus, the same comment-stripping (through a shared `stripComments`
+helper), and it additionally documents the one preference the browser consumes
+with no reader to point at, which my version had no answer for. Deleted.
+
+**This is the second time this session** (round 368 was the first) that I wrote
+a mechanism that already existed, and both times the existing one was
+better-informed. The pattern is specific enough to name: I search for the
+DEFECT and not for an existing GUARD. Grepping `scripts/` and `__tests__/` for
+the thing you are about to enforce costs one command.
+
+Two of my own controls were also wrong before they were right, which is the
+usual tax and worth recording because it is the same tax every time:
+
+- the first matched with `includes`, so renaming `.reduce-motion` to
+  `.reduce-motion-DISABLED` still satisfied a check for `.reduce-motion`;
+- the second matched prose, because `index.css` explains the original bug in a
+  comment that names both dead classes — a class mentioned only in the story of
+  how it was broken counted as a consumer;
+- the third was simply incomplete: it renamed three of the four `.reduce-motion`
+  selectors and concluded the gate was broken when the gate was right.
+
+No code changed this round. The Appearance tab was already correct, and saying
+so is the result.
+
+2512 tests green, all 61 preflight checks.
