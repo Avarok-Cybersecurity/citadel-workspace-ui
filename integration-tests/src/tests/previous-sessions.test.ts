@@ -383,7 +383,11 @@ async function disconnectViaNavbar(
   await sleep(1000);
 
   // Handle the confirmation modal — scope selector to dialog to avoid matching the overlay button
-  const dialogSelector = 'div[role="alertdialog"], div[role="dialog"], [data-testid="confirm-dialog"]';
+  // `confirm-dialog` was the third member of this union and the app has never
+  // rendered it. The two role selectors are what match, and they are the right
+  // thing to match on: a confirmation IS a dialog, and the role is what a
+  // screen reader is given.
+  const dialogSelector = 'div[role="alertdialog"], div[role="dialog"]';
   const dialog = page.locator(dialogSelector).first();
   const dialogVisible = await isVisibleWithin(dialog, 5000);
 

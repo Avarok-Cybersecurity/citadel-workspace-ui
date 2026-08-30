@@ -20525,3 +20525,33 @@ it matching and the click working, and which control it actually hits needs a
 run to observe. Naming the right button without knowing which one it is would
 trade a selector that works for one that might not. Written down instead, where
 the next person with a live stack can settle it in a minute.
+
+## Round 436 — the testid baseline is empty
+
+`confirm-dialog` was the last of the eight. It sat beside `div[role="alertdialog"]`
+and `div[role="dialog"]`, which are what actually matched — and are the right
+thing to match on: a confirmation IS a dialog, and the role is what a screen
+reader is given. Removed.
+
+The list started at eight and is now empty, closing in both directions:
+
+  - **Made real:** the group conversation log, each message, the direct-message
+    surface, the hierarchy section, the workspace switcher. Each was a fallback
+    union whose live half was a CSS class or a piece of copy — the things
+    `check-controls-are-addressed-by-testid` exists to keep out of lookups.
+  - **Deleted instead:** `workspace-name`, `workspace-button`,
+    `sidebar-workspace`, `confirm-dialog`. The app rendering a name nothing
+    needs is inventing surface to justify a dead reference.
+
+Every testid a spec addresses is now rendered by the app, with no exemptions.
+Control: with the list empty, a new dead reference still fails.
+
+### Verified, not changed
+
+The `reconnect-p2p-only` timeout has been carried as a stack-level item, and one
+app-side path was worth ruling out. `connectToPeer` skips an attempt and defers
+thirty seconds when a FRESH online cache says the peer is offline — which would
+be a startup stall if the cache read as fresh-and-empty before the first poll.
+It does not: `lastOnlineStatusRefresh` starts at 0, so the age is the whole unix
+epoch and the guard is false until a real refresh lands. The tri-state next to
+it (`=== 0` returning null) shows the same question was asked here before.

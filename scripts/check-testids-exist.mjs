@@ -30,16 +30,24 @@ const SRC = join(ROOT, 'src');
 const SPECS = join(ROOT, 'integration-tests', 'src');
 
 /**
- * Testids specs address that the app does not render, held at this set.
+ * Testids specs address that the app does not render.
  *
- * Every one is inside a fallback union -- `[data-testid="x"], .x` -- so the
- * spec still works through its other half while this half matches nothing.
- * They are listed rather than fixed because each needs a decision about which
- * element should carry the name, and that belongs with the component. The list
- * may only SHRINK.
+ * **Empty, and that is the point.** It started at eight, each inside a fallback
+ * union -- `[data-testid="x"], .x` -- where the spec kept working through the
+ * other half while this half matched nothing. Round 420 showed the cost: a
+ * folder whose deletion had been removed from the tree, persisted AND
+ * acknowledged by the peer still read as "still visible in tree", because the
+ * surviving half of the union matched a path label.
+ *
+ * They closed in both directions, which is worth remembering the next time one
+ * appears. Five became real names on real elements -- the group conversation
+ * log, each message, the direct-message surface, the hierarchy section, the
+ * workspace switcher. Three were deleted instead, because the app rendering a
+ * name nothing needs is inventing surface to justify a dead reference.
+ *
+ * An entry here should be rare and temporary. The list may only SHRINK.
  */
 const KNOWN_MISSING = new Set([
-  'confirm-dialog',
 ]);
 
 function* files(dir, re) {
