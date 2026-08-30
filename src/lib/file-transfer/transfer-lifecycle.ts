@@ -10,7 +10,6 @@ import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
 import type { FileTransfer, FileTransferSettings } from './types';
 import { wrapInMemory } from './types';
-import { debugLog } from '@/lib/debug-config';
 
 export interface LifecycleDeps {
   state: FileTransferState;
@@ -30,6 +29,25 @@ export async function sendFile(
   const senderCid: bigint | null = await deps.io.getCurrentCid();
   if (!senderCid) {
     throw new Error('No active session');
+  }
+
+  // Before the transfer record exists, and long before anything is announced.
+  //
+  // The inline send path refuses a zero-byte File -- `send-operations` gates on
+  // `size > 0` and otherwise throws "requires ... a non-empty browser File
+  // object". That throw landed AFTER `announceTransfer`, so the recipient had an
+  // offer for bytes that would never arrive: a bubble they could neither accept
+  // nor decline, while the sender's transfer sat on 'pending' until its TTL.
+  //
+  // Refused here with a reason the user can act on. An empty file is a
+  // reasonable thing to want to send, and supporting it means confirming the
+  // service accepts an empty ByteContents payload -- which is a backend question,
+  // not one this guard should answer by guessing.
+  if (file.size === 0) {
+    throw new Error(
+      `"${file.name}" is empty. Files with no contents cannot be sent; ` +
+        `add some content and try again.`
+    );
   }
 
   const settings: FileTransferSettings = deps.state.getSettings(scopedSettingsKey(recipientCid));
@@ -82,81 +100,6 @@ export async function sendFile(
   eventEmitter.emit(FILE_TRANSFER_EVENTS.REQUEST_SENT, transfer);
 
   return transferId;
-}
-
-export async function sendFileWithNativePicker(
-  deps: LifecycleDeps,
-  recipientCid: string,
-  title?: string,
-  allowedExtensions?: string[]
-): Promise<string> {
-  const senderCid: bigint | null = await deps.io.getCurrentCid();
-  if (!senderCid) {
-    throw new Error('No active session');
-  }
-
-  debugLog('transfer-lifecycle', 'Starting native file picker flow');
-
-  const fileInfo: { file_path: string; file_name: string; file_size: bigint; } = (await deps.io.executeIntent({
-    type: 'pick-file',
-    cid: senderCid,
-    title,
-    allowedExtensions,
-  })) as { file_path: string; file_name: string; file_size: bigint };
-
-  debugLog('transfer-lifecycle', 'File picked', {
-    path: fileInfo.file_path,
-    name: fileInfo.file_name,
-    size: fileInfo.file_size.toString(),
-  });
-
-  const transferId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
-  const transfer: FileTransfer = {
-    id: transferId,
-    fileName: fileInfo.file_name,
-    fileSize: Number(fileInfo.file_size),
-    fileType: getMimeType(fileInfo.file_name),
-    mode: 'p2p',
-    // 'pending' — nothing is moving yet. The recipient has not accepted, and
-    // the protocol tick stream (which is what moves this to 'transferring')
-    // only starts once they do. Starting at 'transferring' showed a busy
-    // progress bar for an offer the peer had not even seen.
-    state: 'pending',
-    progress: 0,
-    senderCid: senderCid.toString(),
-    recipientCid,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    isIncoming: false,
-  };
-
-  deps.state.setTransfer(transfer);
-  await deps.saveTransfer(transfer);
-  deps.emitStateChange(transfer);
-
-  try {
-    await deps.io.executeIntent({
-      type: 'send-file-via-protocol',
-      cid: senderCid.toString(),
-      peerCid: recipientCid,
-      filePath: fileInfo.file_path,
-      transferId,
-      // Carries the record the executor announces to the recipient — the
-      // in-band bubble is built from these fields.
-      transfer,
-    });
-
-    debugLog('transfer-lifecycle', 'SendFile request submitted');
-    eventEmitter.emit(FILE_TRANSFER_EVENTS.REQUEST_SENT, transfer);
-    return transferId;
-  } catch (error) {
-    transfer.state = 'error';
-    transfer.errorMessage = error instanceof Error ? error.message : 'SendFile failed';
-    transfer.updatedAt = Date.now();
-    await deps.saveTransfer(transfer);
-    deps.emitStateChange(transfer);
-    throw error;
-  }
 }
 
 export async function cancelTransfer(deps: LifecycleDeps, transferId: string): Promise<void> {
@@ -246,3 +189,5 @@ export async function declineTransfer(
 
 // Re-exported so existing importers keep working; see transfer-format.
 export { getMimeType, formatBytes };
+
+export { sendFileWithNativePicker } from './send-with-native-picker';

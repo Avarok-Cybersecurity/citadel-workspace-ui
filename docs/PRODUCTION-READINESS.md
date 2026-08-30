@@ -8,8 +8,8 @@ stack or a WASM rebuild), `wontfix` (with a reason).
 
 The goal this backlog serves: no critical, high or medium issue left open.
 
-**Progress: 27 of 49 fixed** — every critical and every HIGH is closed;
-14 of 25 medium. 11 open at medium; 11 low.
+**Progress: 29 of 49 fixed** — every critical and every HIGH is closed;
+16 of 25 medium. 9 open at medium; 11 low.
 
 Two rounds of adversarial re-review have since been run over the fixes
 themselves. They confirmed every one as correct, and found nine further defects
@@ -47,10 +47,10 @@ account switch fired on every reconnect. Those are recorded as rounds 489 and
 | 25 | medium | fixed | ts-calls | startCall's busy check runs before the capture await; no re-check before manager.start | `citadel-workspaces/src/components/call/CallProvider.tsx:120` |
 | 26 | medium | fixed | ts-calls | Glare loser who accepts captures a second stream over the first; old camera and pump orphaned | `citadel-workspaces/src/lib/call/call-session.ts:111` |
 | 27 | medium | fixed | ts-calls | Liveness activation transition returns before seeding invitedSince; straggler's 45s clock never starts | `citadel-workspaces/src/lib/call/call-liveness-binding.ts:121` |
-| 28 | medium | open | ts-file-transfer | Sending a 0-byte file in default p2p mode announces the offer then throws: sender stuck 'pending' forever, recipient's bubble can be neither accepted nor declined | `citadel-workspaces/src/lib/file-transfer/transfer-lifecycle.ts:78` |
+| 28 | medium | fixed | ts-file-transfer | Sending a 0-byte file in default p2p mode announces the offer then throws: sender stuck 'pending' forever, recipient's bubble can be neither accepted nor declined | `citadel-workspaces/src/lib/file-transfer/transfer-lifecycle.ts:78` |
 | 29 | medium | fixed | ts-messaging | A redelivered 'delivered' ack downgrades a message already marked 'read' | `citadel-workspaces/src/lib/p2p/message-ack-handler.ts:52` |
 | 30 | medium | fixed | ts-messaging | P2P conversation cache is never reset on session switch — the group store's fix was not carried to its twin | `citadel-workspaces/src/lib/p2p/p2p-messenger-manager.ts:116` |
-| 31 | medium | open | ts-messaging | Redelivery dedupe in appendUnserialised only inspects the current page, so a duplicate that triggers page rollover is stored twice | `citadel-workspaces/src/lib/p2p/message-pagination-store.ts:191` |
+| 31 | medium | fixed | ts-messaging | Redelivery dedupe in appendUnserialised only inspects the current page, so a duplicate that triggers page rollover is stored twice | `citadel-workspaces/src/lib/p2p/message-pagination-store.ts:191` |
 | 32 | medium | open | ts-perf | P2P thread regroups and re-renders every message on every keystroke — the exact lag bug already fixed in group chat, not applied to its twin | `citadel-workspaces/src/components/p2p/P2PMessageList.tsx:95` |
 | 33 | medium | fixed | ts-perf | applyGroupMessage lacks the identity no-op guard its siblings carry and any messageId dedupe: unknown-group messages cause phantom store updates + IndexedDB writes, and redelivery inflates the unread badge | `citadel-workspaces/src/lib/group-conversations/apply-group-message.ts:24` |
 | 34 | medium | open | ts-perf | Screen-annotation points are sent unthrottled per pointermove, per participant, down the serialised reliable call-signal chain that hang-up shares | `citadel-workspaces/src/lib/call/annotation-signal.ts:32` |

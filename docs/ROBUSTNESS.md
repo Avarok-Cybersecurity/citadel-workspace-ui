@@ -21221,6 +21221,50 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 501 — a duplicate at a page boundary, and an offer for bytes that never come
+
+**A redelivery landing exactly as a page filled was stored twice** (31).
+`appendUnserialised` rolls the page over BEFORE checking for a duplicate: the
+full page is saved, `latestPage` advances, `currentPage` becomes a fresh empty
+page, and the duplicate check then runs against *that*. The copy it should have
+matched is on the page just closed.
+
+Two things changed, and **the controls disagreed with my first account of
+which one mattered**. Moving the check before the rollover, and looking at the
+previous page as well, each catch the boundary case on their own — so neither
+control could fail it, and the boundary test proves only that *something*
+catches it. What is independently proven is the previous-page lookup, by a test
+where no page fills at all: disabling it fails that one. The ordering change
+stays because checking before mutating page state is correct on its own terms —
+the rollover writes a page and advances a pointer for a message then discarded —
+but it is recorded as reasoning, not as something a control demonstrated. That
+note lives in the test file, not only here.
+
+The lookup is two pages, which is a bound and not a proof: ILM's delivered-set
+is memory-only, so after a reload it redelivers whatever is still in its
+persisted inbound map, and that need not fall inside the newest 50 messages. A
+redelivery older than that is still stored twice — no worse than before, and
+said out loud rather than assumed away.
+
+**Sending a 0-byte file announced the offer and then threw** (28).
+`send-operations` gates the inline path on `size > 0`; a zero-byte File falls
+through and throws "requires ... a non-empty browser File object". That throw
+landed *after* `announceTransfer` — the message that puts the transfer in the
+recipient's conversation. So the recipient got an offer for bytes that would
+never arrive, which they could neither accept nor usefully decline, while the
+sender's transfer sat on 'pending' until its TTL. An action that half happened,
+reported as neither success nor failure.
+
+Refused at the entry now, before the transfer record exists. Supporting empty
+files instead would mean confirming the service accepts an empty ByteContents
+payload — a backend question, and guessing at it is how the half-action shipped.
+
+**Two of my own tests passed for the wrong reason before they passed for the
+right one.** The empty-file test threw `Cannot read properties of undefined`
+because I had `sendFile`'s arguments in the wrong order — and the assertion that
+"nothing was announced" held perfectly well against a function that crashed on
+its second line. Only the test expected to *succeed* revealed it.
+
 ## Round 500 — the rule was written down, next to the code that ignored it
 
 Two findings, and both are a rule stated correctly in one place and absent from

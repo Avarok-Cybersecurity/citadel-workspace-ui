@@ -84,6 +84,24 @@ export class MessagePaginationStore {
     return withPeerLock(peerCid, () =>
       this.appendUnserialised(peerCid, message, getCurrentCid, getPeerUsername));
   }
+  /**
+   * Whether this id is already on the newest page or the one before it.
+   *
+   * See the call site for why two pages and not one, and for what that bound
+   * does not cover.
+   */
+  private async alreadyStored(
+    peerCid: bigint,
+    latestPage: number,
+    currentPage: MessagePage,
+    messageId: string,
+  ): Promise<boolean> {
+    if (currentPage.messages.some((m) => m.id === messageId)) return true;
+    if (latestPage === 0) return false;
+    const previous: MessagePage | null = await tryLoadMessagePage(peerCid, latestPage - 1);
+    return previous?.messages.some((m) => m.id === messageId) ?? false;
+  }
+
   private async appendUnserialised(
     peerCid: bigint,
     message: P2PMessage,
@@ -133,6 +151,28 @@ export class MessagePaginationStore {
       };
     }
 
+    // The last gate before a duplicate becomes permanent. ILM can redeliver an
+    // inbound message after a reload (its delivered-set is memory-only), and the
+    // upstream in-memory dedup cannot see it — that window is capped at 100 and
+    // comes back EMPTY after a reload. A blind push wrote two copies into one
+    // page, and the render-side merge dedups ACROSS batches but not within one,
+    // so the pair rendered twice for ever.
+    //
+    // BEFORE the rollover below, not after. Rolling over replaces `currentPage`
+    // with a fresh empty one, so a duplicate arriving exactly as a page filled
+    // was compared against nothing and written into the new page while its twin
+    // sat on the page that had just been closed.
+    //
+    // And against the previous page as well: the redelivery window is whatever
+    // ILM still holds in its persisted inbound map at restart, which does not
+    // have to fall inside the newest 50. Two pages is a bound, not a proof —
+    // a redelivery older than that is still stored twice, which is no worse
+    // than before and is stated here rather than assumed away.
+    if (await this.alreadyStored(peerCid, metadata.latestPage, currentPage, message.id)) {
+      debugLog('MessagePaginationStore', `[P2P] Skipping duplicate message ${message.id}`);
+      return;
+    }
+
     if (currentPage.messages.length >= MESSAGES_PER_PAGE) {
       await saveMessagePage(peerCid, metadata.latestPage, currentPage);
 
@@ -147,17 +187,6 @@ export class MessagePaginationStore {
         }
       };
       debugLog('MessagePaginationStore', `[P2P] Created new page ${metadata.latestPage} for peer ${peerCid.toString().slice(0, 8)}...`);
-    }
-
-    // The last gate before a duplicate becomes permanent. ILM can redeliver an
-    // inbound message after a reload (its delivered-set is memory-only), and the
-    // upstream in-memory dedup cannot see it — that window is capped at 100 and
-    // comes back EMPTY after a reload. A blind push wrote two copies into one
-    // page, and the render-side merge dedups ACROSS batches but not within one,
-    // so the pair rendered twice for ever.
-    if (currentPage.messages.some((m) => m.id === message.id)) {
-      debugLog('MessagePaginationStore', `[P2P] Skipping duplicate message ${message.id}`);
-      return;
     }
 
     placeInPage(currentPage, message);
