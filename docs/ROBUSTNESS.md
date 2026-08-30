@@ -19558,3 +19558,53 @@ a passthrough that passes the first test for the wrong reason.
 This round buys evidence, not a fix. The next run says which permission state
 denies these users, and whether the answer is a real refusal or an absence
 being read as one.
+
+## Round 409 — membership answered one question and was asked five
+
+The composer refusal in office chat, room chat and touch-controls is not a
+group-role problem and never was. It is enforcement.
+
+`check_entity_permission` decides in this order: admin short-circuit, then an
+explicit grant in `user.permissions[entity_id]`, then the same map walked up
+the parent chain — and then this:
+
+```rust
+// Also check if member of domain (membership gives ViewContent permission)
+if permission == Permission::ViewContent {
+    return self.is_member_of_domain(user_id, entity_id).await;
+}
+Ok(false)
+```
+
+Membership conferred exactly one permission, hard-coded, and the user's ROLE
+was consulted for none of them. A plain member of a workspace could read an
+office and never post to it. Every send was refused — which is why the same
+sentence appeared across three unrelated specs and why chasing it through the
+group-role code found nothing wrong there.
+
+The repo holds THREE role-to-permission tables that all say Member may send:
+`Permission::for_role` in the types crate, the match in
+`kernel/transaction/async_transactions.rs`, and
+`kernel/transaction/rbac/role_permissions.rs`. A fourth,
+`PermissionSet::for_member()` in `handlers/permissions.rs`, is
+`[ViewContent, EditContent]` and grants SendMessages to nobody at all — not
+Member, not Owner, not Admin. Enforcement read none of the four.
+
+Membership now confers the permissions of the user's role, taken from
+`Permission::for_role` — the table the types crate owns and the one the other
+tests already trust. Scoped to membership deliberately: `user.role` is global,
+so granting on the role alone would let a member of one workspace act in
+another. It widens nothing beyond the role's own set; a Guest still gets
+ViewContent, and a Banned member now correctly gets nothing where the old
+branch handed them ViewContent.
+
+Evidence, in order. The reproducing assertions were written first and failed:
+"Member should have SendMessages in an office they belong to". The existing
+test had asked only about ViewContent and EditNodeConfig — the shape of a
+question never put. After the fix, all 56 server-kernel test suites pass.
+Over-grant control: replacing the role check with an unconditional true fails
+the pre-existing EditNodeConfig assertion, so the suite discriminates against
+widening as well as against the original defect.
+
+Not fixed, recorded: the four tables remain four. They disagree about Guest
+three different ways, and nothing keeps them in step.
