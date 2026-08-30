@@ -21221,6 +21221,49 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 468 — a second authority for a peer's name that nobody read
+
+Round 467 recorded two phantom reads rather than fixing them:
+`PeerConnectNotification.peer_username` and `PeerConnectSuccess.peer_username`,
+each behind `(x as string) || ''`. Neither message declares the field.
+
+Following it through: `PeerConnectionInfo.peerUsername` had three writers.
+Polling supplied a real name from the peer registry; the two notification
+handlers supplied `''`. Since the record is replaced wholesale on every write,
+a connect event erased the name polling had learned.
+
+And nothing read it. Both consumers of `getPeerConnectionInfo` use only
+`connectedAt`; every `.peerUsername` read in the tree comes from the
+conversation or the registry, through `peerDisplayName`. It was a second
+authority for a peer's name that no reader consulted — so the fix is not to
+source a better name, it is to stop keeping one here. Preserving a value nobody
+reads would only have hidden the SSOT violation behind correct-looking code.
+
+Removing the field let the compiler and linter unwind the whole chain: the
+writers, then the unused parameters, then the `peer_username` reads that fed
+them, then the `BroadcastPeerConnected` type. `p2p-connection-established` now
+emits `{ peerCid }` from all four of its emitters, matching the three that
+already did, and every consumer of that event destructures only `peerCid`.
+
+Worth noting why the gate was needed even here: after the field was gone,
+`tsc` still passed with the phantom reads in place. A two-parameter function is
+assignable to a four-parameter type, so the extra arguments were silently
+ignored. The gate reported 2 when the compiler reported nothing.
+
+The baseline is now empty.
+
+### What the gate cannot see
+
+The first control did not fire. It injected
+`(notification as { peer_username?: string }).peer_username` — a fresh cast
+rather than a `getVariant`-bound variable — and the gate stayed green. That is a
+real blind spot: once source code asserts a type, there is nothing left to
+disagree with. Re-run in the shape the gate does claim, it failed by name.
+
+The limitation is now written into the script's header, next to a note that it
+was tested rather than assumed. A control that does not fire is not a passing
+control, and the honest response is to say what the check does not cover.
+
 ## Round 467 — reading a field the wire does not have, as a check
 
 Round 463 and round 466 are one defect class, and CLAUDE.md names it in as many

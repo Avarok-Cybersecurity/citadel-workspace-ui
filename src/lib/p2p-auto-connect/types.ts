@@ -13,9 +13,21 @@ export interface ConnectionAttempt {
  * Information about a connected peer.
  * Stored in the nested Map structure for the single source of truth.
  */
+/**
+ * `peerUsername` used to live here and nothing ever read it. Three paths wrote
+ * it: polling supplied a real name from the peer registry, while the
+ * PeerConnectNotification and PeerConnectSuccess handlers read `peer_username`
+ * off messages that do not declare it — the generated bindings are
+ * `{ cid, peer_cid, ... }` with no username — and passed `''`. Since this
+ * record is replaced wholesale on every write, a connect event erased the name
+ * polling had learned.
+ *
+ * It was a second authority for a peer's name that no reader consulted. The
+ * name has one home — the conversation and the peer registry, reached through
+ * `peerDisplayName` — so this now holds only what it is actually asked for.
+ */
 export interface PeerConnectionInfo {
   peerCid: bigint;
-  peerUsername: string;
   connectedAt: number;
   lastVerified: number;
 }

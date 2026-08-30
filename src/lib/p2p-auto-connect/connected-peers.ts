@@ -31,12 +31,7 @@ export class ConnectedPeersState {
    * Store peer connection locally (bidirectional).
    * CRITICAL: Ensures CIDs are converted to BigInt for Map operations.
    */
-  setPeerConnectedLocal(
-    localCid: bigint,
-    peerCid: bigint,
-    peerUsername: string = '',
-    localUsername: string = ''
-  ): void {
+  setPeerConnectedLocal(localCid: bigint, peerCid: bigint): void {
     const now: number = Date.now();
     const [localCidBigInt, peerCidBigInt] = ensureBigIntPair(localCid, peerCid);
 
@@ -51,7 +46,6 @@ export class ConnectedPeersState {
     const localPeerMap: Map<bigint, PeerConnectionInfo> = this.connectedPeers.get(localCidBigInt)!;
     localPeerMap.set(peerCidBigInt, {
       peerCid: peerCidBigInt,
-      peerUsername,
       connectedAt: now,
       lastVerified: now,
     });
@@ -63,7 +57,6 @@ export class ConnectedPeersState {
     const peerPeerMap: Map<bigint, PeerConnectionInfo> = this.connectedPeers.get(peerCidBigInt)!;
     peerPeerMap.set(localCidBigInt, {
       peerCid: localCidBigInt,
-      peerUsername: localUsername,
       connectedAt: now,
       lastVerified: now,
     });

@@ -82,7 +82,7 @@ export async function refreshFromBackend(state: AutoConnectState, localCid: bigi
     // returns [] and this loop body never ran. The fix was found and applied in
     // p2p-registration-service/connection.ts and not carried here, so
     // refreshFromBackend silently merged nothing.
-    for (const [peerCidStr, info] of wireMapEntries<{ peer_username?: string }>(
+    for (const [peerCidStr] of wireMapEntries<{ peer_username?: string }>(
       mySession.peer_connections,
       'peer_connections',
     )) {
@@ -91,7 +91,6 @@ export async function refreshFromBackend(state: AutoConnectState, localCid: bigi
 
       existingPeerMap.set(peerCidBigInt, {
         peerCid: peerCidBigInt,
-        peerUsername: info.peer_username || existingInfo?.peerUsername || '',
         connectedAt: existingInfo?.connectedAt || now,
         lastVerified: now,
       });

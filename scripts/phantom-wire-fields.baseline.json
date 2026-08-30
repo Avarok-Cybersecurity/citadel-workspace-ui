@@ -1,4 +1,1 @@
-{
-  "src/lib/p2p-auto-connect-service/event-handlers.ts::PeerConnectNotification.peer_username": 1,
-  "src/lib/p2p-auto-connect-service/event-handlers.ts::PeerConnectSuccess.peer_username": 1
-}
+{}

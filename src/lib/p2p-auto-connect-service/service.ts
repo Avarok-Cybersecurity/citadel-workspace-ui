@@ -51,16 +51,14 @@ export class P2PAutoConnectService {
 
   // === Peer Connection State (SSOT) ===
 
-  public setPeerConnected(localCid: bigint, peerCid: bigint, peerUsername: string = '', localUsername: string = ''): void {
-    this.state.setPeerConnectedLocal(localCid, peerCid, peerUsername, localUsername);
+  public setPeerConnected(localCid: bigint, peerCid: bigint): void {
+    this.state.setPeerConnectedLocal(localCid, peerCid);
     if (instanceManager.isLeader) {
       debugLog('P2PAutoConnectService', 'Leader broadcasting connectedPeers update to followers');
       broadcastChannelService.broadcastStateSync({
         type: 'connected-peers-update',
         localCid: localCid.toString(),
         peerCid: peerCid.toString(),
-        peerUsername,
-        localUsername,
       });
     }
   }

@@ -22,8 +22,17 @@
  * resolve each `getVariant(message, 'X')` binding to its type and check every
  * property read against that type's fields.
  *
- * Ratcheted, because two live entries remain and are recorded rather than
- * quietly tolerated. A NEW one fails.
+ * WHAT IT CANNOT SEE, tested rather than assumed: only reads off a variable
+ * bound directly from `getVariant(message, 'X')` are resolvable. A read through
+ * a fresh cast — `(notification as { peer_username?: string }).peer_username` —
+ * is invisible to it, because at that point the source has asserted a type and
+ * there is nothing left to disagree with. A control in that form was written
+ * and did NOT fail, which is why this paragraph exists rather than a claim of
+ * full coverage.
+ *
+ * The baseline is empty: the tree has no phantom reads left. Kept as a baseline
+ * rather than a bare wall so a future one is reported the same way as any other
+ * ratchet.
  */
 import { createRequire } from 'node:module';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';

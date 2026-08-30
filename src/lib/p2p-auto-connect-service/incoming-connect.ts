@@ -25,12 +25,13 @@ import type { PeerConnectionInfo } from '@/lib/p2p-auto-connect/types';
  */
 export async function handleIncomingPeerConnect(
   state: AutoConnectState,
-  notification: { cid?: bigint; peer_cid?: bigint; peer_username?: string },
-  broadcastPeerConnected: (localCid: bigint, peerCid: bigint, peerUsername: string) => void
+  // No `peer_username`: PeerConnectNotification does not declare one, and the
+  // read that used to be here produced '' every time. See PeerConnectionInfo.
+  notification: { cid?: bigint; peer_cid?: bigint },
+  broadcastPeerConnected: (localCid: bigint, peerCid: bigint) => void
 ): Promise<void> {
   const targetCid: bigint | undefined = notification.cid;
   const initiatorCid: bigint | undefined = notification.peer_cid;
-  const peerUsername: string = notification.peer_username || '';
 
   if (initiatorCid === undefined || targetCid === undefined) {
     debugLog('P2PAutoConnectService', 'Invalid PeerConnectNotification - missing cid or peer_cid');
@@ -69,7 +70,7 @@ export async function handleIncomingPeerConnect(
   }
 
   // Mark initiator as connected - INSTANT update
-  broadcastPeerConnected(currentCid, initiatorCid, peerUsername);
+  broadcastPeerConnected(currentCid, initiatorCid);
   state.cancelRetry(initiatorCid);
   debugLog('P2PAutoConnectService', `P2PAutoConnect: Incoming connection from ${initiatorCid.toString().slice(0, 8)}... (they initiated)`);
 

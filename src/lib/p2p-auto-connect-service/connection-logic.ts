@@ -220,10 +220,9 @@ export function handleConnectionSuccess(
   state: AutoConnectState,
   localCid: bigint,
   peerCid: bigint,
-  peerUsername: string = '',
-  broadcastPeerConnected: (localCid: bigint, peerCid: bigint, peerUsername: string) => void
+  broadcastPeerConnected: (localCid: bigint, peerCid: bigint) => void
 ): void {
-  broadcastPeerConnected(localCid, peerCid, peerUsername);
+  broadcastPeerConnected(localCid, peerCid);
   state.removePendingConnection(peerCid);
   state.cancelRetry(peerCid);
   debugLog('P2PAutoConnectService', `P2PAutoConnect: Connected to ${peerCid.toString().slice(0, 8)}...`);

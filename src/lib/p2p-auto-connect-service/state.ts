@@ -40,13 +40,8 @@ export class AutoConnectState {
 
   // ----- Delegating accessors for common core operations -----
 
-  setPeerConnectedLocal(
-    localCid: bigint,
-    peerCid: bigint,
-    peerUsername: string = '',
-    localUsername: string = ''
-  ): void {
-    this.core.setPeerConnectedLocal(localCid, peerCid, peerUsername, localUsername);
+  setPeerConnectedLocal(localCid: bigint, peerCid: bigint): void {
+    this.core.setPeerConnectedLocal(localCid, peerCid);
   }
 
   setPeerDisconnected(localCid: bigint, peerCid: bigint): void {
