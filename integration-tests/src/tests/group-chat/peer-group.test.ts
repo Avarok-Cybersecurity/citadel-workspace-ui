@@ -264,18 +264,30 @@ async function createPeerGroup(
 async function navigateToGroup(
   user: UserSession,
   groupName: string,
+  groupId: string,
   uxTracker: UxIssueTracker
 ): Promise<boolean> {
-  console.log(`\n  ${user.username}: Navigating to group "${groupName}"...`);
+  console.log(`\n  ${user.username}: Navigating to group ${groupId}...`);
 
   const page = user.page;
 
-  // Look for group in sidebar
-  const groupRow = page.locator(`text="${groupName}"`).first();
+  // By ID, not by the creator's chosen name.
+  //
+  // `GroupCreate` carries `{cid, request_id, initial_users_to_invite}` and no
+  // name field, so the name the creator typed never leaves their machine --
+  // round 425 records that, and keeps it locally for the creator alone. An
+  // invitee builds their copy with `buildGroupFromInvite`, which falls back to
+  // "<inviter>'s Group". Looking for the creator's name on the INVITEE's screen
+  // asks for something the protocol cannot deliver, and reported it as the
+  // product failing.
+  //
+  // The id is shared: it is the group's own `<cid>:<mgid>`, which round 434
+  // made the creator obtain correctly, and it is what `group-row-<id>` renders.
+  const groupRow = page.locator(`[data-testid="group-row-${groupId}"]`).first();
 
   if (!await isVisibleWithin(groupRow, 10000)) {
-    console.log(`    Group "${groupName}" not visible in sidebar for ${user.username}`);
-    uxTracker.log('major', 'functional', `Group "${groupName}" not visible for ${user.username}`);
+    console.log(`    Group ${groupId} not visible in sidebar for ${user.username}`);
+    uxTracker.log('major', 'functional', `Group ${groupId} not visible for ${user.username}`);
     await takeScreenshot(page, `${user.username}_group_not_visible`);
     return false;
   }
@@ -286,7 +298,11 @@ async function navigateToGroup(
   await takeScreenshot(page, `${user.username}_in_group`);
 
   // Verify we're in the group chat
-  const groupHeader = page.locator(`h2:has-text("${groupName}"), [role="heading"]:has-text("${groupName}")`).first();
+  // The header shows whatever THIS user's copy is called, which for an invitee
+  // is the fallback name rather than the creator's. Being on the group's route
+  // is what "in the group" means.
+  await page.waitForURL(new RegExp(`/groups/${groupId.replace(/[.*+?^$()|[\]\\]/g, '\\$&')}`), { timeout: 5_000 }).catch(() => {});
+  const groupHeader = page.locator('[data-testid="group-chat-view"]').first();
   const inGroup = await isVisibleWithin(groupHeader, 5000);
 
   if (!inGroup) {
@@ -559,9 +575,15 @@ async function runPeerGroupTest(userCount: number): Promise<boolean> {
       // Wait for invite notification to be processed
       await sleep(3000);
 
+      // `groupId` is checked above -- `results.groupCreated` is `groupId !==
+      // null` -- but narrow it here too rather than asserting non-null, so a
+      // future reorder cannot turn a missing id into a lookup for "null".
+      if (!groupId) break;
+
       results.groupNavigation[member.username] = await navigateToGroup(
         member,
         groupName,
+        groupId,
         uxTracker
       );
     }

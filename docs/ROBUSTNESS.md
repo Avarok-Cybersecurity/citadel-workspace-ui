@@ -21129,3 +21129,37 @@ The control is the test itself: vitest fails a test that leaves an unhandled
 rejection, so restoring `finally` produces exactly the "Unhandled Rejection"
 the fix removes. The positive control beside it — a SUCCEEDING action — catches
 a handler that only ever cleared on the failing path.
+
+## Round 455 — asking the invitee for a name the wire never carried
+
+Two confirmations first. Round 448's honest ack now reads
+`rmdir: /test-folder NOT acknowledged by peer ...; queued for retry`, exactly
+15.0s after the send, where it used to claim an acknowledgement. And round 434's
+fix holds: `Group created successfully:
+10788034481654788912:255167362528397419379648388846115487642` — a real
+`<cid>:<mgid>`, not the request uuid it used to report.
+
+Which exposed the next layer: `Group "TestGroup_2_..." not visible in sidebar
+for peergrp_2`.
+
+That is the spec asking for something the protocol cannot deliver.
+`GroupCreate` carries `{cid, request_id, initial_users_to_invite}` and no name,
+so the name the creator types never leaves their machine — round 425 established
+that and keeps it locally for the creator alone. An invitee builds their copy
+with `buildGroupFromInvite`, which falls back to "<inviter>'s Group". Looking
+for the CREATOR's chosen name on the INVITEE's screen finds nothing, and
+reported it as the product failing.
+
+The id is the thing both sides share, and round 434 is what made the creator
+able to obtain it. The invitee's row is `group-row-<id>`, so that is what the
+check looks for now; the "in the group" assertion likewise waits for the
+group's route and the conversation log rather than a header whose text is
+per-user.
+
+Not fixed, and stated rather than worked around: the invited members genuinely
+do not see the name the creator chose. Propagating it needs either a field on
+`GroupCreate` — a change in the internal-service submodule that regenerates the
+WASM bindings, which cannot be built or verified from here — or an
+application-level rename carried over the group message channel, which is a
+feature with ordering and duplicate-delivery questions of its own and no way to
+verify it end to end in this session. Recorded for whoever has the stack.
