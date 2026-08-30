@@ -36,6 +36,9 @@ export function handleGroupVariants(
     // set. Emitted here, beside its sibling, in the shape the store reads.
     eventEmitter.emit('group:message-received', {
       groupId: group_id,
+      // So the store can apply it once. The transport redelivers, and without
+      // an id every redelivery added another to the unread badge.
+      messageId: message.id,
       senderId: message.sender_id,
       senderName: message.sender_name,
       content: message.content,

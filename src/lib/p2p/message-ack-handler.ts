@@ -7,6 +7,7 @@
 import type { P2PMessageAckPayload } from '@/types/p2p-types';
 import type { P2PMessage, P2PConversation } from './p2p-types';
 import { debugLog } from '@/lib/debug-config';
+import { statusAdvances } from './message-status';
 
 export interface MessageAckHandlerConfig {
   /** Get conversations map */
@@ -49,6 +50,12 @@ export class MessageAckHandler {
       if (message) {
         debugLog('MessageAckHandler', '[P2P] handleMessageAck FOUND message, updating status:', message.status, '->', payload.ack_type);
         newStatus = payload.ack_type === 'failed' ? 'failed' : payload.ack_type;
+        // The rule `propagateStatusToEarlierMessages` below has always applied,
+        // and this assignment never did. Receipts arrive more than once — the
+        // sender resends on a missed ACK and re-ACKing is deliberate — so a
+        // `delivered` receipt routinely lands after the recipient has read the
+        // message, and this turned the tick backwards.
+        if (!statusAdvances(message.status, newStatus)) return;
         message.status = newStatus;
         if (payload.error) {
           message.error = payload.error;
@@ -119,8 +126,9 @@ export class MessageAckHandler {
         earlierMsg.id !== ackedMessage.id &&
         (earlierMsg.status === 'sent' || earlierMsg.status === 'delivered')
       ) {
-        // Only upgrade status (sent -> delivered -> read), never downgrade
-        if (newStatus === 'read' || earlierMsg.status === 'sent') {
+        // Only upgrade status (sent -> delivered -> read), never downgrade.
+        // Same rule as the direct assignment above; see message-status.ts.
+        if (statusAdvances(earlierMsg.status, newStatus)) {
           earlierMsg.status = newStatus;
           updatedMessages.push({ peerCid, messageId: earlierMsg.id, status: newStatus });
         }

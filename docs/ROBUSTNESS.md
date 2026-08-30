@@ -21221,6 +21221,55 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 500 — the rule was written down, next to the code that ignored it
+
+Two findings, and both are a rule stated correctly in one place and absent from
+the place beside it.
+
+**A receipt moved the tick backwards** (29). `handleMessageAck` assigned
+`message.status = newStatus` outright. The helper immediately beneath it,
+`propagateStatusToEarlierMessages`, carries the rule in a comment: *"Only upgrade
+status (sent -> delivered -> read), never downgrade."* Receipts arrive more than
+once by design — the sender resends on a missed ACK, and re-ACKing a duplicate is
+what makes retransmission work — so a `delivered` receipt routinely lands after
+the recipient has read the message, and the sender watched their tick go
+backwards. One idea, stated in one of the two places that needed it; both now ask
+`statusAdvances`.
+
+`failed` needed deciding rather than assuming. It is not a rung on the ladder —
+it claims the send did not happen — so it applies while we have no positive
+evidence and is refused once we do: a message that was delivered or read
+demonstrably arrived, and a late failure about it is stale, not a correction.
+The other direction is a real correction, so positive evidence overturns a
+recorded failure.
+
+**A group message counted twice, and an unknown one wrote to disk** (33).
+`apply-group-settings`, `rename-group` and `mark-group-read` each refuse a change
+for a group the store does not have, and each returns `prev` when nothing
+changed — because `map` always allocates and the store notifies on every new
+array. `applyGroupMessage` mapped unconditionally, so a message for an unknown
+group produced a notification and an IndexedDB write for a change nobody made,
+and a redelivery added another to the unread badge.
+
+The dedupe mechanism already existed — `revfs/seen-operations.ts`, written after
+CI caught seven `SyncRequest`s arriving a hundred times. It is generic; only its
+evidence is RE-VFS-specific. So the mechanism moved to `lib/seen-ids.ts` and
+RE-VFS keeps its comment and delegates. 221 RE-VFS tests still pass through the
+indirection.
+
+**The optional field made the wiring invisible.** `messageId` has to be optional
+— an emitter without one must still deliver a real message — which means removing
+it from the emit site leaves every unit test green while the badge silently
+double-counts again. Verified by control: six of seven passed with the emitter
+unwired. The seventh reads the emit site, because there is exactly one producer
+and no type can require what is legitimately absent elsewhere.
+
+**"The sibling already does this" has now been the finding in six rounds.** 491
+(the RE-VFS pull), 492 (the locked role writer), 495 (the message store), 496
+(the shared predicate), 499 (the failure path's state re-read), and both halves
+of this one. It is worth searching for directly rather than waiting for it to
+surface.
+
 ## Round 499 — four ways a call outlives itself
 
 Backlog 24–27, all in the call lifecycle, and all the same shape: something

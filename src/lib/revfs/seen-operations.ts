@@ -15,10 +15,12 @@
  *
  * Bounded, because op ids are unbounded. A few hundred is far more than a
  * redelivery window and small enough to be free.
+ *
+ * The mechanism itself is generic and lives in `lib/seen-ids`; group messages
+ * need the same thing for the same reason. What stays here is the evidence and
+ * the key convention.
  */
-const MAX_REMEMBERED: number = 500;
-
-const seen: Map<string, Set<string>> = new Map<string, Set<string>>();
+import { isNewId, forgetSeenIds } from '@/lib/seen-ids';
 
 /**
  * True the FIRST time this key sees this op id, false afterwards.
@@ -27,23 +29,10 @@ const seen: Map<string, Set<string>> = new Map<string, Set<string>>();
  * across pairs would silently drop somebody's operation.
  */
 export function isNewOperation(key: string, opId: string): boolean {
-  let ids: Set<string> | undefined = seen.get(key);
-  if (!ids) {
-    ids = new Set<string>();
-    seen.set(key, ids);
-  }
-  if (ids.has(opId)) return false;
-  ids.add(opId);
-  if (ids.size > MAX_REMEMBERED) {
-    // Insertion order: drop the oldest, which is the least likely to be
-    // redelivered now.
-    const oldest: string | undefined = ids.values().next().value;
-    if (oldest !== undefined) ids.delete(oldest);
-  }
-  return true;
+  return isNewId(`revfs:${key}`, opId);
 }
 
 /** Test seam: the map outlives a module import. */
 export function forgetSeenOperations(): void {
-  seen.clear();
+  forgetSeenIds();
 }

@@ -203,6 +203,7 @@ export function startGroupEventBindings(): void {
 
   eventEmitter.on('group:message-received', (data: {
     groupId: string;
+    messageId?: string;
     senderId: string;
     content: string;
   }) => {
