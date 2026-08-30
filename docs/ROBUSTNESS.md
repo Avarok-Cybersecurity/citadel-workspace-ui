@@ -20265,3 +20265,36 @@ consumes the caller's roster and seeds every co-invitee as a participant,
 `accept` fans a `CallAccept` out to all of them and opens sessions with whoever
 has already answered, and an inbound `CallAccept` calls `openSessionFor` for the
 rest. Two invitees do signal each other. Whatever fails is below this layer.
+
+## Round 428 — every link checks out and the row is still there
+
+Round 420 said the folder deletion worked and the assertion was asking a
+different question. Half of that was right. With the precise selector in place
+— `[data-testid="tree-item-test-folder"]`, matching the tree row and nothing
+else — CI still reports "Folder deleted: false (still visible in tree after
+6s)", beside the same three `RevfsDirOps` lines saying removed, persisted and
+acknowledged by the peer.
+
+So the row really is still rendered, and round 420's diagnosis was incomplete:
+the loose selector was a real problem and not the only one.
+
+Every link between the store and the screen was checked by reading, and every
+one of them holds:
+
+  - `state.setTree` notifies its listeners; it is not a silent write.
+  - `useRevfsTree` subscribes to `onTreeChanged` and calls `setTree` on a match.
+  - `useFileManagerContent` renders `activeTree.tree`, the same object whose
+    `rmdir` performed the deletion — so view and mutation cannot diverge.
+  - `peerPairKey` sorts its two cids, so both sides compute the same key and the
+    `changedKey === key` guard cannot be the filter.
+
+Reading has run out. The subscription now logs what it receives — the key that
+changed, the key it holds, whether they matched, and the top-level names in the
+tree it was handed. `[UseRevfsTree]` matches the filter this spec already uses,
+so the next run says which link does not fire instead of me guessing between
+four that all look correct.
+
+Checked rather than assumed: `Peer Sees File` and `File visible` fail
+identically in the previous run, so they are not regressions from this
+session's work. They are the same mechanism — a tree change that has to reach a
+view — so the same line covers them.

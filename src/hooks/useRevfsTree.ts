@@ -5,6 +5,7 @@
  * Wraps RevfsService with React state management.
  */
 
+import { debugLog } from '@/lib/debug-config';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
 import { TreeScope } from '@/types/revfs-types';
@@ -63,6 +64,18 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
   useEffect(() => {
     if (!key) return;
     const unsub: () => void = revfsService.onTreeChanged((changedKey, newTree): void => {
+      // Logged because CI cannot otherwise tell these apart: `peerRmdir`
+      // reports the folder removed, persisted AND acknowledged by the peer,
+      // and the row stays on screen. Every link between the two checks out by
+      // reading -- setTree notifies, this is subscribed, the view renders
+      // `activeTree.tree`, and `peerPairKey` sorts its cids so both sides
+      // agree -- so the thing to find out is which link does not fire.
+      debugLog('UseRevfsTree', 'tree changed', {
+        changedKey,
+        mine: key,
+        matches: changedKey === key,
+        topLevel: (newTree.children ?? []).map((c) => c.name).join(','),
+      });
       if (changedKey === key) {
         setTree(newTree);
       }
