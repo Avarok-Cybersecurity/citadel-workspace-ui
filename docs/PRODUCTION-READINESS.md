@@ -10,7 +10,10 @@ The goal this backlog serves: no critical, high or medium issue left open.
 
 **Progress: 38 of 49 fixed** — every critical, every high and every MEDIUM from the inspection is closed or refuted — every critical and every HIGH is closed;
 22 of 25 medium plus one found outside the inspection (round 502, ILM
-cumulative-ACK clearing). **Zero critical, high or medium issues remain open anywhere.** 12 low.
+cumulative-ACK clearing). **Zero critical, high or medium issues from the inspection remain open.** One
+medium (#56) is open from CI evidence gathered during the merge: it predates this
+campaign, is reproducible, and is a timing-constant question that should be
+answered from measured negotiation times rather than guessed. 12 low.
 
 Two rounds of adversarial re-review have since been run over the fixes
 themselves. They confirmed every one as correct, and found nine further defects
@@ -79,6 +82,7 @@ account switch fired on every reconnect. Those are recorded as rounds 489 and
 | 51 | medium | fixed | ILM workflow | A wedged peer grows ILM's pending-outbound queue for that peer forever — stop-and-wait never gives up and nothing caps or ages the queue | `intersession-layer-messaging/src/lib.rs` process_outbound |
 | 52 | medium | fixed | ILM workflow | Internal-service `Message` tasks pile up awaiting one peer's `Arc<Mutex<AsyncSink>>` with no cap and no timeout, so a wedged peer accumulates unbounded spawned tasks | `citadel-internal-service/src/kernel/requests/message.rs:60` |
 | 53 | low | open | ILM workflow | Every browser→internal-service buffer is an `UnboundedSender` (SINK_CHANNEL, bypass_ism_tx_to_outbound, final_tx, per-ILM pairs): a slow localhost WebSocket grows memory silently instead of applying backpressure | connector `messenger/mod.rs` |
+| 56 | medium | open | CI run 33340052631 | A call fails when the peer's UDP channel takes longer than the retry ladder allows. `UDP_WAIT` is 5s and the gap between attempts is `max(backoff, longestAttemptMs)` = 5s, so within the 30s `CONNECT_TIMEOUT_MS` only three attempts fit and just 15s of the budget is spent awaiting the channel — the other 10s is idle. Reproduced in CI at the session's starting commit and again after rounds 489–510, failing all three Playwright retries while 48 of 49 tests in the shard pass. NOT caused by this campaign's work. | `citadel-internal-service/.../media/mod.rs:51` (UDP_WAIT), `citadel-workspaces/src/lib/call/open-session-retry.ts` |
 | 55 | low | open | round 507 | `delete_workspace` leaves each member's `user.permissions[workspace_id]` entry behind; unreachable (ids are server-minted UUIDs) but unbounded across deletions | `async_domain_server_ops.rs` delete_workspace |
 | 54 | low | open | ILM workflow | A single urgent message waits 0–200ms (mean ~100ms) for the next poll: `send_raw_message` deliberately does not nudge `poll_outbound_tx` because an earlier nudge caused an infinite feedback loop | `intersession-layer-messaging/src/lib.rs:1372` |
 
