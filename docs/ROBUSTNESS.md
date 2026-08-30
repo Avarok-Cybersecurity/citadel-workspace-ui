@@ -20049,3 +20049,36 @@ and requires the app to render some testid starting with it.
 
 Controls: removing the app's new testid fails on the templated reference, and a
 templated reference to a prefix nothing renders fails too.
+
+## Round 421 — a gate for something already true
+
+Not every round finds a defect. This one looked for `onClick` on elements a
+keyboard cannot reach -- a `<div>` with no `role`, no `tabIndex`, no key
+handler -- and found none. All thirteen such elements in the app pair
+`activateOnKey` from `lib/a11y.ts` with both attributes. The codebase already
+knows this rule; it just had nothing keeping it.
+
+It does now, and the interesting part is what the controls caught in the check
+itself.
+
+The first version read a fixed twelve lines after each tag and reported four
+elements as unreachable. All four were correct -- their `role` and `tabIndex`
+sat past the window. A check that reports working code is worse than no check:
+it teaches the next person to skip it. So it reads to the END of the opening
+tag instead.
+
+The second version counted braces, so `className={...}` could not close the tag
+early. Its control then proved that `className="a > b"` still could: a `>`
+inside a quoted string ended the parse, and an element whose `onClick` came
+after such a string was reported as fine. Quotes are skipped now, and the fix
+also revealed a thirteenth clickable element the parser had been walking past
+entirely.
+
+And one control proved nothing at all before that: it injected a mouse-only
+div by replacing an anchor string that was not in the file. Nothing changed,
+the gate passed, and it read exactly like a hole. Checking that the injection
+landed is what separated the two.
+
+Three controls now: stripping `role`/`tabIndex` from a real element fails, a
+new mouse-only div fails, and a mouse-only div behind a `>`-bearing attribute
+string fails.
