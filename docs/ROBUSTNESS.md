@@ -21221,6 +21221,35 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 506 — a stale uuid told everyone
+
+Backlog 14. When the uuid recorded on a peer event was not in the localhost-client
+map, `peer_event.rs` sent the response to EVERY active localhost connection. The
+comment gave the reasoning: *"The clients will filter based on CID to only process
+messages meant for their sessions."*
+
+Every browser on this internal service — every account signed in on the machine —
+received the peer-register, peer-connect and disconnect notifications of every
+other, and was trusted to discard them. Who is talking to whom is precisely what a
+peer notification discloses, and client-side filtering is not a boundary.
+
+The stale uuid is a real problem: a reload, a tab close or a reconnect mints a new
+localhost connection while the session and its CID persist. But the session
+already records its current one — `associated_localhost_connection`, an
+`AtomicUuid` updated on reconnect. So the uuid is re-resolved through the CID, and
+when even that finds nothing the notification is dropped with a warning. That is
+what `send_response_to_tcp_client` in kernel/mod.rs has always done; this was the
+only remaining exception to it.
+
+**"The client will filter it" is not a security property.** It is a description of
+what a correct client does, offered as a reason to send data to incorrect ones.
+The fix is not a better filter, it is not sending it.
+
+My own test caught my own arithmetic: I asserted four occurrences of the sender —
+definition plus three call sites — and got three, because the definition carries
+generics and does not match a bare `name(`. The code was right and the count was
+wrong, which is the better way round.
+
 ## Round 505 — a role defined as read-only that could write
 
 Backlog 15. `authorize_group_access` checks `Permission::ViewContent`, and all six
