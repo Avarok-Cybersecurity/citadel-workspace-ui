@@ -91,18 +91,6 @@ export class PermissionsService extends EventListenerManager {
       });
     });
 
-    this.listen<{
-      userId: string;
-      domainId: string;
-      permissions: string[];
-      operation: 'add' | 'remove' | 'set';
-    }>('member:permissions-updated', async (payload) => {
-      if (await this.isCurrentUser(payload.userId)) {
-        await this.fetchPermissions(payload.domainId, true);
-        this.emit('permissions:updated', { domainId: payload.domainId });
-      }
-    });
-
     // A permission belongs to a SESSION, and this cache is keyed by domain
     // alone in a singleton that outlives every account. `workspace-root` is the
     // same id for everyone, so after switching accounts the previous account's
@@ -112,6 +100,18 @@ export class PermissionsService extends EventListenerManager {
       this.clearCache();
     });
 
+    // This carries PERMISSION changes too, not only role changes.
+    //
+    // The server says why at its `UpdateMemberPermissions` handler: "`Success`
+    // carries no user id, so the broadcast is the role-shaped notification with
+    // the member's CURRENT role -- what the client needs is 'your permissions
+    // moved, drop your cache', and the role is how it identifies whose."
+    //
+    // There used to be a second listener beside this one for
+    // `member:permissions-updated`, which nothing emits and nothing was going
+    // to: it read as THE permissions-refresh path, so the obvious repair was to
+    // start emitting it, which would have refreshed twice for one change.
+    // Deleted, and the reason recorded here where the surviving path is.
     this.listen<{ userId: string; role: UserRole }>('member:role-updated', (payload) => {
       void this.isCurrentUser(payload.userId).then((mine) => {
         if (mine) {

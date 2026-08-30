@@ -33,7 +33,6 @@ const RECORDED_DEAD = new Map([
   ['message:received', 'the live inbound path is the P2P messenger; this listener predates it'],
   ['protocol:warning', 'no producer; the protocol-warning banner is driven by its own component state'],
   ['notification', 'notification-service listens to its own bus name; every real producer calls addNotification directly'],
-  ['member:permissions-updated', 'no producer — permission changes are read back via GetUserPermissions'],
   ['user:login', 'EventListenerManager base-class example subscriptions; no producer anywhere'],
   ['user:logout', 'as user:login'],
   ['group:member-kicked', 'ROBUSTNESS.md #206 — kicks are never distinguished from leaves; no emitter exists yet'],

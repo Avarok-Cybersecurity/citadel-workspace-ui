@@ -18647,3 +18647,47 @@ IndexedDB — so every assertion passed while `vitest run` exited non-zero. Gree
 tests beside a red command is its own category of misleading.
 
 2505 tests green, no unhandled errors, all 60 preflight checks.
+
+## Round 384 — a debt entry whose reason was wrong
+
+The dead-listener list carried:
+
+```
+['member:permissions-updated', 'no producer — permission changes are read back via GetUserPermissions'],
+```
+
+That reason is not what happens. The server's `UpdateMemberPermissions` handler
+broadcasts, and says why it does it the way it does:
+
+> `Success` carries no user id, so the broadcast is the role-shaped notification
+> with the member's CURRENT role — what the client needs is "your permissions
+> moved, drop your cache", and the role is how it identifies whose.
+
+So permission changes DO reach live clients, through `member:role-updated`,
+which the service listens to and which clears the cache. The dead listener was
+dead because the design chose a different carrier — not because nothing tells
+the client.
+
+An inaccurate reason in a debt list is worse than no entry: it is exactly what
+stops the next reader from checking. And this one was actively dangerous,
+because the handler sat there looking like THE permissions-refresh path, so the
+obvious repair was to start emitting the event — which would have refreshed
+twice for one change.
+
+Deleted, its entry removed, and the reason recorded at the surviving listener
+where the next reader will be. The gate caught the stale debt entry the moment
+the listener went, without being asked.
+
+Two tests hold the surviving path, with the control that matters both ways: a
+notification about somebody else must NOT clear the cache, or one member's role
+change refetches permissions for everyone.
+
+Getting the test to run took three corrections, all mine: the singleton is
+reached through `getInstance()` rather than a named export, there is no
+`initialize()` to call, and the service reads a SYNCHRONOUS current-user
+accessor before its async one — the service's own comment records that the sync
+one is null for a user who logged in rather than registering, "which made this
+equality check fail for every response and left the cache permanently empty". A
+mock covering only the async accessor reproduced precisely that.
+
+2507 tests green, all 60 preflight checks.
