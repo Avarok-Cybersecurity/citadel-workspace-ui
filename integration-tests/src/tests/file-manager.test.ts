@@ -664,9 +664,26 @@ async function verifyPeerSeesFile(
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     await clickSyncButton(page, label);
-    await sleep(3000 + attempt * 1000);
 
-    const visible = await isVisibleWithin(page.getByText(fileName, { exact: true }).first(), 5000);
+    // The two directions need opposite treatment, and a blanket
+    // "replace the sleeps with waits" sweep would flatten them.
+    //
+    // Waiting for a file to APPEAR needs no fixed delay at all:
+    // `isVisibleWithin` polls, so it returns the moment the file lands and no
+    // later than its timeout. Sleeping first and then polling spends the sleep
+    // every time and buys nothing.
+    //
+    // Confirming a file is ABSENT needs exactly that delay: one that has not
+    // arrived yet looks identical to one that is gone, so without a settle
+    // period the negative is not evidence. Same total patience either way --
+    // the difference is that the positive case can finish early.
+    const settle: number = 3000 + attempt * 1000;
+    if (!shouldExist) await sleep(settle);
+
+    const visible = await isVisibleWithin(
+      page.getByText(fileName, { exact: true }).first(),
+      shouldExist ? settle + 5000 : 5000,
+    );
     const result = shouldExist ? visible : !visible;
 
     console.log(`  Attempt ${attempt}: File visible: ${visible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${result ? 'PASS' : 'retry...'}`);

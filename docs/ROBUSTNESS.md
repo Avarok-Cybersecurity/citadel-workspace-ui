@@ -19137,3 +19137,40 @@ unconditionally fails the control that a workspace-level query does not ask
 twice.
 
 2519 tests green, all 61 preflight checks.
+
+## Round 397 — the two directions of a sync check are not the same
+
+Three probes this round found working code — the `member:loaded` and
+`node:types:loaded` debt reasons are both accurate, and declining a file
+transfer already tells the sender at both ends, with a comment naming the exact
+failure I was looking for ("a DECLINE produces no signal on their side at all —
+their bubble would wait for acceptance forever"). Recorded as such; the reachable
+ground is genuinely well worked.
+
+What was worth changing is in `verifyPeerSeesFile`, which did this for both
+directions:
+
+```ts
+await clickSyncButton(page, label);
+await sleep(3000 + attempt * 1000);
+const visible = await isVisibleWithin(locator, 5000);
+```
+
+Waiting for a file to **appear** needs no fixed delay: `isVisibleWithin` polls,
+so it returns the moment the file lands. Sleeping first spends four to six
+seconds every attempt and buys nothing.
+
+Waiting to confirm a file is **absent** needs exactly that delay: one that has
+not arrived yet looks identical to one that is gone, so without a settle period
+the negative is not evidence. That is the same reasoning as round 391's fix one
+function up, which stopped a removal check running at all when the arrival had
+failed.
+
+Total patience is unchanged in both directions; the positive case can now finish
+early. The reason this is written down rather than just done is that the
+codebase carries roughly seven hundred fixed sleeps and "replace the sleeps with
+waits" is a standing, correct-sounding instinct that would have broken this
+particular one. A sleep before a negative assertion is load-bearing. A sleep
+before a polling wait is not.
+
+All 61 preflight checks.
