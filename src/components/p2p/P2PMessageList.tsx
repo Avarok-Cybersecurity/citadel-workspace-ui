@@ -4,7 +4,7 @@
  * Renders the scrollable list of P2P messages with pagination support.
  */
 
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useMemo } from 'react';
 import { groupMessagesByDate } from '@/components/chat/shared';
 import { DateSeparator } from '@/components/chat/shared/DateSeparator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -58,6 +58,17 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
     }: P2PMessageListProps,
     ref: React.ForwardedRef<HTMLDivElement>
   ) {
+    // Memoised, like its twin in useGroupChat.
+    // `inputMessage` is a controlled prop lifted into P2PChat, so EVERY
+    // keystroke re-renders this list -- and this regrouped the entire
+    // conversation, allocating a fresh object and fresh arrays, on each one.
+    // The group-chat view has had the useMemo since it was written; this is
+    // the same call, in its twin, without it.
+    const messagesByDate: Record<string, P2PMessage[]> = useMemo(
+      () => groupMessagesByDate(messages),
+      [messages],
+    );
+
     return (
       <ScrollArea className="flex-1 p-4" ref={ref} onScroll={onScroll}>
         {/*
@@ -92,7 +103,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
               </p>
             </div>
           )}
-          {Object.entries(groupMessagesByDate(messages)).map(([date, dayMessages]) => (
+          {Object.entries(messagesByDate).map(([date, dayMessages]) => (
             <div key={date}>
               <DateSeparator date={date} />
               {dayMessages.map((message) => {

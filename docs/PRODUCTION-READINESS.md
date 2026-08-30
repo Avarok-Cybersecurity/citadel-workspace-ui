@@ -8,9 +8,9 @@ stack or a WASM rebuild), `wontfix` (with a reason).
 
 The goal this backlog serves: no critical, high or medium issue left open.
 
-**Progress: 36 of 49 fixed** — every critical and every HIGH is closed;
+**Progress: 37 of 49 fixed** — every critical and every HIGH is closed;
 22 of 25 medium plus one found outside the inspection (round 502, ILM
-cumulative-ACK clearing). 2 open at medium; 12 low.
+cumulative-ACK clearing). 1 open at medium; 12 low.
 
 Two rounds of adversarial re-review have since been run over the fixes
 themselves. They confirmed every one as correct, and found nine further defects
@@ -52,7 +52,7 @@ account switch fired on every reconnect. Those are recorded as rounds 489 and
 | 29 | medium | fixed | ts-messaging | A redelivered 'delivered' ack downgrades a message already marked 'read' | `citadel-workspaces/src/lib/p2p/message-ack-handler.ts:52` |
 | 30 | medium | fixed | ts-messaging | P2P conversation cache is never reset on session switch — the group store's fix was not carried to its twin | `citadel-workspaces/src/lib/p2p/p2p-messenger-manager.ts:116` |
 | 31 | medium | fixed | ts-messaging | Redelivery dedupe in appendUnserialised only inspects the current page, so a duplicate that triggers page rollover is stored twice | `citadel-workspaces/src/lib/p2p/message-pagination-store.ts:191` |
-| 32 | medium | open | ts-perf | P2P thread regroups and re-renders every message on every keystroke — the exact lag bug already fixed in group chat, not applied to its twin | `citadel-workspaces/src/components/p2p/P2PMessageList.tsx:95` |
+| 32 | medium | fixed | ts-perf | P2P thread regroups and re-renders every message on every keystroke — the exact lag bug already fixed in group chat, not applied to its twin | `citadel-workspaces/src/components/p2p/P2PMessageList.tsx:95` |
 | 33 | medium | fixed | ts-perf | applyGroupMessage lacks the identity no-op guard its siblings carry and any messageId dedupe: unknown-group messages cause phantom store updates + IndexedDB writes, and redelivery inflates the unread badge | `citadel-workspaces/src/lib/group-conversations/apply-group-message.ts:24` |
 | 34 | medium | fixed | ts-perf | Screen-annotation points are sent unthrottled per pointermove, per participant, down the serialised reliable call-signal chain that hang-up shares | `citadel-workspaces/src/lib/call/annotation-signal.ts:32` |
 | 35 | medium | open | ts-perf | Every MediaFrameNotification forwarded to a follower tab pays UUID + 2s timer + retained payload + BroadcastChannel ack, and one un-acked frame unregisters the tab and misroutes the call | `citadel-workspaces/src/lib/multi-instance/instance-inbound-router.ts:195` |

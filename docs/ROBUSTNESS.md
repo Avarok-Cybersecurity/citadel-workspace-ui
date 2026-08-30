@@ -21221,6 +21221,24 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 508 — the fast view and its twin
+
+Backlog 32. `P2PMessageList` called `groupMessagesByDate(messages)` inline in its
+render. `inputMessage` is a controlled prop lifted into `P2PChat`, so **every
+keystroke re-renders the list** — and re-walked the whole conversation, allocating
+a fresh object and a fresh array per day, for a list that had not changed.
+
+Its twin has had the fix since it was written: `useGroupChat.ts:211` wraps the
+identical call in `useMemo([messages])`. The group-chat view was made fast; the
+P2P view — the product's core flow — was not.
+
+The test counts real calls rather than reading the source, and the two controls
+catch two different mistakes. Calling inline again fails "does not regroup on a
+parent re-render". An empty dependency array — which compiles, reads correctly and
+memoises for ever — passes that one and fails "does regroup when a message
+arrives". A `useMemo` with the wrong deps is the likelier future error of the two,
+and only the second control sees it.
+
 ## Round 507 — a finding that was not true, checked rather than built
 
 Backlog 18: "delete_workspace orphans the workspace's entire node subtree and
