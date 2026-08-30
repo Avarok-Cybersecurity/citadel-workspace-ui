@@ -8,8 +8,8 @@ stack or a WASM rebuild), `wontfix` (with a reason).
 
 The goal this backlog serves: no critical, high or medium issue left open.
 
-**Progress: 13 of 49 fixed** — the one critical, 11 of 12 high, 1 of 25 medium.
-25 open at critical/high/medium; 11 low.
+**Progress: 14 of 49 fixed** — every critical and every HIGH is closed;
+1 of 25 medium. 24 open at medium; 11 low.
 
 Two rounds of adversarial re-review have since been run over the fixes
 themselves. They confirmed every one as correct, and found nine further defects
@@ -29,7 +29,7 @@ account switch fired on every reconnect. Those are recorded as rounds 489 and
 | 7 | high | fixed | ts-file-transfer | Async accept settles the staged download from the wrong message: cid-only correlation plus a phantom response.download_path field means every async accept ends misreported | `citadel-workspaces/src/lib/file-transfer/server-download.ts:98` |
 | 8 | high | fixed | ts-file-transfer | The 'staged:' ref — documented as NOT a server path — is shipped to the peer as virtual_path, fetched as a virtual_directory, and shown to the user as the saved location | `citadel-workspaces/src/lib/file-transfer/server-download.ts:49` |
 | 9 | high | fixed | ts-messaging | loadAllMetadata loads every account's conversations, leaking one account's contact rows into another's P2P list | `citadel-workspaces/src/lib/p2p/message-pagination-store.ts:64` |
-| 10 | high | open | ts-messaging | Inbound file-transfer messages are never persisted and never deduped, yet are acked 'delivered' | `citadel-workspaces/src/lib/p2p/file-transfer-message-handler.ts:65` |
+| 10 | high | fixed | ts-messaging | Inbound file-transfer messages are never persisted and never deduped, yet are acked 'delivered' | `citadel-workspaces/src/lib/p2p/file-transfer-message-handler.ts:65` |
 | 11 | high | fixed | ts-multi-tab | Legacy workspace-response broadcast delivers cid-carrying group notifications to every tab; group invites are auto-accepted by the wrong session | `citadel-workspaces/src/lib/websocket/initialization.ts:186` |
 | 12 | high | fixed | ts-revfs | Inbound peer ops bypass the serial lock; a local mutator's stale snapshot erases them (30s window during uploads) | `citadel-workspaces/src/lib/revfs/revfs-file-ops.ts:75` |
 | 13 | high | fixed | ts-revfs | Pending-op queue is persisted but never loaded: the 'load-pending-ops' intent has zero dispatch sites, so queued ops die on page reload | `citadel-workspaces/src/lib/revfs/revfs-io.ts:45` |

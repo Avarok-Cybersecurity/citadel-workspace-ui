@@ -21221,6 +21221,48 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 495 — a file offer acknowledged as delivered and then lost
+
+The last high. `FileTransferMessageHandler` built its `P2PMessage`, pushed it
+onto `conversation.messages`, and sent a `'delivered'` ACK. Its sibling for every
+other inbound message goes through `addMessageToConversation`, which does three
+things this one did not:
+
+- **Dedupes by id.** A sender resends whenever it misses an ACK, and the redelivery
+  appended a second copy — the same file twice in the thread, with two Accept
+  buttons.
+- **Persists.** The push was memory-only, so every received offer vanished on
+  reload while the sender's bubble still read "delivered".
+- **Counts it.** The unread badge is incremented there.
+
+And `shouldAck` exists precisely so a message that could not be stored is not
+claimed as delivered — its own comment: *"a message we could not store is gone on
+the next reload, so claiming delivery would be a lie that outlives the message."*
+This handler acked unconditionally, having never attempted a store at all.
+
+The delivery path was built, documented, and applied to one of the two handlers
+that need it. That is the fourth time this campaign has found the same shape.
+
+**Two of my first tests passed vacuously and the fixture was why.** The layer
+fixture used `type: 'file_transfer_request'`; the guard compares against
+`MessagingLayerType.FileTransferRequest`, which is `'FileTransferRequest'`. So
+the handler returned at its first line and did nothing — and "does not ack" and
+"does not duplicate" both passed on a handler that had not run. A test asserting
+an absence passes for a code path that was never entered.
+
+A third was weak even after that. The dedup assertion checked that nothing
+reached the store, which is empty both when the store rejects a duplicate and
+when the store is never consulted — the defect itself. What discriminates is
+whether the thread is *announced to* a second time.
+
+**And the tests could not see the half that mattered.** The handler's tests pass
+against a stub store whether or not the real construction site supplies one.
+What caught it was the typechecker: adding `addMessageToConversation` to the
+config broke `message-handler.ts`, which had to be given the store explicitly.
+Deleting that one line is a control, and it fails at compile time — which is the
+only place a wiring omission of this shape can be caught, because every unit
+test passes without it.
+
 ## Round 493 — the quality setting the ladder overrode on frame one
 
 Backlog item 5 said the congestion ladder clobbers the chosen video profile on

@@ -47,6 +47,10 @@ export class MessageHandler {
       getOrCreateConversation: config.getOrCreateConversation,
       notifyMessageListeners: config.notifyMessageListeners,
       sendMessageAck: config.sendMessageAck,
+      // The same store the text path uses. Handing it the store is the half of
+      // this fix a unit test cannot see: the handler's own tests pass against a
+      // stub whether or not the real construction site supplies one.
+      addMessageToConversation: config.addMessageToConversation,
     });
   }
 
