@@ -20174,3 +20174,36 @@ The unused Cancel testid stays removed. The gate this session added asks that
 specs address only testids the app renders; the converse — the app carrying
 names nothing addresses — is speculative surface, and it is no better for being
 cheap.
+
+## Round 425 — the group name went nowhere
+
+`peer-group` fails on "group creation produced no group id". Its fallback, when
+the URL does not change, looks for a sidebar row reading the name it typed.
+That row can never match, and the reason is upstream of the test.
+
+`createGroup(name, initialMembers)` calls `sendGroupCreate(initialMembers)`.
+The name is dropped on the floor. And it has to be: the `GroupCreate` wire
+request is `{cid, request_id, initial_users_to_invite}` — there is no name
+field in the protocol. `group:created` sets `name: ''` with a comment saying so,
+and the owner's username stands in.
+
+So `CreateGroupDialog` asks for a group name, validates it, disables Create
+until it has one — and the value is discarded between the dialog and the
+socket. The sidebar then shows the creator's username for a group they had just
+named something else. A control that operates on nothing, and this one is a
+text field the user deliberately filled in.
+
+The protocol cannot be fixed from here, and pretending otherwise would be
+worse: peers cannot be told a name the wire has no field for. What the creator
+can have is the name they chose, on their own screen, persisted with the rest
+of the group record. `group-names.ts` holds it, `createGroup` records it the
+moment the id comes back, and `group:created` prefers it over the username
+fallback.
+
+Three tests: the typed name wins; an invited member with no chosen name still
+gets the owner's username rather than an empty label; and a blank name is
+ignored rather than stored. Negative control: restoring the dropped name fails
+the first alone.
+
+Recorded, not claimed: this does not make the name visible to the other members
+of the group. That needs a field on `GroupCreate`, which is a backend change.

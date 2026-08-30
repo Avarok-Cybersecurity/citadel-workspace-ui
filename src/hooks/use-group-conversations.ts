@@ -40,6 +40,8 @@ import {
   sendGroupKick,
   sendGroupListRequest,
 } from '@/lib/group-conversations/group-requests';
+import { rememberGroupName } from '@/lib/group-conversations/group-names';
+import { updateGroups } from '@/lib/group-conversations/group-store';
 
 // ============================================================================
 // Hook Implementation
@@ -56,7 +58,16 @@ export function useGroupConversations(): UseGroupConversationsResult {
       initialMembers: Array<{ cid: string; username: string; roleId?: string }>
     ): Promise<string> => {
       try {
-        return await sendGroupCreate(initialMembers);
+        const groupId: string = await sendGroupCreate(initialMembers);
+        // The wire has no name field, so this is where the creator's choice
+        // survives. Remembered BEFORE the store is nudged, because
+        // `group:created` may already have arrived and built the record with
+        // the username fallback.
+        rememberGroupName(groupId, name);
+        updateGroups(prev =>
+          prev.map(g => (g.id === groupId && name.trim().length > 0 ? { ...g, name: name.trim() } : g)),
+        );
+        return groupId;
       } catch (e) {
         const errorMsg: string = e instanceof Error ? e.message : 'Failed to create group';
         setError(errorMsg);

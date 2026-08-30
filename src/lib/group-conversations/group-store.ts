@@ -20,6 +20,7 @@
 
 import { eventEmitter } from '@/lib/event-emitter';
 import { bindMembershipEvents } from './group-membership-events';
+import { chosenGroupName } from './group-names';
 import { bindGroupFailureToasts } from './group-failure-toasts';
 import { bindGroupListReconcile } from './reconcile-groups';
 import { bindEndedGroups } from './ended-groups';
@@ -152,7 +153,11 @@ export function startGroupEventBindings(): void {
 
     const newGroup: GroupConversation = {
       id: data.groupId,
-      name: data.name || data.ownerUsername,
+      // What the creator typed, if this tab is where they typed it. The wire
+      // has no name field, so `data.name` is always empty and the owner's
+      // username is the fallback -- which is what the sidebar showed for a
+      // group somebody had just named something else.
+      name: chosenGroupName(data.groupId) ?? (data.name || data.ownerUsername),
       ownerId: BigInt(data.ownerId),
       members: [
         {
