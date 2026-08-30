@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useConfirm } from '@/components/shared/confirm-dialog';
+import { ClearHistoryButton } from './ClearHistoryButton';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ChatSettingsAdvanced } from './ChatSettingsAdvanced';
@@ -26,9 +26,6 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useChatSettings } from './useChatSettings';
-import { p2pMessengerManager } from '@/lib/p2p';
-import { toastSuccess, toastError } from '@/lib/toast-helpers';
-import { useToast } from '@/hooks/use-toast';
 import { ChatSettingsFileTab } from './ChatSettingsFileTab';
 
 interface ChatSettingsPanelProps {
@@ -44,7 +41,6 @@ export function ChatSettingsPanel({
   peerCid,
   peerName,
 }: ChatSettingsPanelProps): JSX.Element {
-  const confirm: ReturnType<typeof useConfirm> = useConfirm();
 
   // The workspace-wide privacy settings, so this panel's switches and the
   // Privacy settings tab cannot disagree about what is being broadcast.
@@ -73,7 +69,6 @@ export function ChatSettingsPanel({
     handleAllowRevfsChange,
     handleRevfsQuotaChange,
   } = useChatSettings(isOpen, peerCid);
-  const { toast } = useToast();
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -205,37 +200,7 @@ export function ChatSettingsPanel({
               <div className="space-y-4">
                 <ChatSettingsAdvanced />
 
-                <button
-                  className="w-full p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive-emphasis text-sm hover:bg-destructive/20 transition-colors"
-                  onClick={() => {
-                    void (async (): Promise<void> => {
-                      const ok: boolean = await confirm({
-                        title: `Clear all chat history with ${peerName}?`,
-                        description: 'Messages stored on this device are removed. This cannot be undone.',
-                        confirmLabel: 'Clear history',
-                      });
-                      if (!ok) return;
-                      // Was `localStorage.removeItem('chat-history:' + peerCid)`
-                      // — a key nothing in this app has ever written, so the
-                      // button removed nothing while the dialog promised the
-                      // messages were gone. History lives behind
-                      // messagePaginationStore; this clears the stored pages AND
-                      // the in-memory copy the open chat is rendering.
-                      try {
-                        await p2pMessengerManager.clearConversationHistory(BigInt(peerCid));
-                        toastSuccess(toast, 'Chat history cleared', `Messages with ${peerName} were removed from this device.`);
-                      } catch (error) {
-                        toastError(
-                          toast,
-                          'Could not clear chat history',
-                          error instanceof Error ? error.message : 'Unknown error',
-                        );
-                      }
-                    })();
-                  }}
-                >
-                  Clear Chat History
-                </button>
+                <ClearHistoryButton peerCid={BigInt(peerCid)} peerName={peerName} />
               </div>
             </TabsContent>
 

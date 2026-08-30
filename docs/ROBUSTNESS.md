@@ -20397,3 +20397,37 @@ Two probes earlier this session were wrong the same way: an injection whose
 anchor string was not in the file, and one written in the single import form a
 scanner could not see. The rule that catches all three is the same. **Check that
 the control applied, and check that it reverted.**
+
+## Round 432 — the last guard nobody tested
+
+Round 418 found three `confirm({...})` guards that no test at any level
+exercised, covered two, and recorded the third as debt: "Clear all chat history"
+lives in a JSX callback rather than a named handler, so covering it means
+rendering the panel. This pays that.
+
+It is worth covering for the reason its own comment gives. The button used to
+call `localStorage.removeItem('chat-history:' + peerCid)` — a key nothing in
+this app has ever written — so it removed nothing while the dialog promised the
+messages were gone. It calls `clearConversationHistory` now, and until this
+round nothing checked that the confirmation in front of it was load-bearing.
+
+Two tests: a refused question clears nothing, and an accepted one clears THIS
+peer's conversation — the positive control, without which "clears nothing ever"
+would pass. Negative control: removing `if (!ok) return;` fails the refusal test
+alone.
+
+The button also had no testid, so nothing could address it. It has one now.
+
+### Three gates fired on the way, and each was right
+
+  - **File length.** The testid took `ChatSettingsPanel` from 272 to 273, and it
+    is one of the exempt files — an exemption is a ceiling, not a licence. The
+    clear-history control extracted cleanly: it is the one thing on that panel
+    owning an irreversible action and its own confirmation.
+  - **The same gate again**, differently: at 243 lines the panel no longer needs
+    its exemption at all, and the check said so and failed until the stale entry
+    was removed. The list is ten now, and it shrank because a file did.
+  - **CID is bigint.** The extracted component inherited `peerCid: string` from
+    the panel's props. A CID is a bigint in a declaration, so the new interface
+    takes one and the conversion happens at the boundary rather than inside the
+    consumer.
