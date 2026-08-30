@@ -27,6 +27,8 @@ import { MessageHandler } from './message-handler';
 import { MessageSender } from './message-sender';
 import type { SendMessageOptions } from './message-sender-types';
 import { ConversationManager } from './conversation-manager';
+import { bindConversationSessionReset } from './reset-conversations';
+import { bindVisibilityFlush } from './visibility-flush';
 import { resolveCurrentCid, updatePeerPresenceOnConnect, updatePeerPresenceOnDisconnect } from './messenger-cid-resolver';
 import { syncConnectionsFromBackend, updateFileTransferState, markMessagesAsRead, updateUnreadCount, autoRegisterPeer } from './messenger-compatibility';
 import { debugLog } from '@/lib/debug-config';
@@ -120,11 +122,14 @@ export class P2PMessengerManager extends EventListenerManager {
       await this.loadCachedMessages();
       if (this.cachedMessagesLoaded) { this.isReady = true; this.emit('p2p:messages-loaded'); }
     });
-    if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') this.checkStateManager.flushPendingCheckStateResponses();
-      });
-    }
+    bindVisibilityFlush(() => this.checkStateManager.flushPendingCheckStateResponses());
+    // See reset-conversations.ts.
+    bindConversationSessionReset(
+      (event, handler) => this.listen(event, handler),
+      this.conversationManager,
+      () => { this.cachedMessagesLoaded = true; this.isReady = true; this.emit('p2p:messages-loaded'); },
+      () => { this.cachedMessagesLoaded = false; this.isReady = false; },
+    );
     this.listen<InternalServiceResponse>('websocket-message', (response) => { void this.messageHandler.handleWebSocketMessage(response); });
     // Marked immediately after the subscription, not before: the inbound router
     // acks a forwarded message only once this is set, and acking before the

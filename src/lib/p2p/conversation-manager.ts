@@ -11,6 +11,7 @@ import { eventEmitter } from '../event-emitter';
 import type { P2PMessage, P2PConversation, MessageCache } from './p2p-types';
 import { messagePaginationStore } from './message-pagination-store';
 import { debugLog } from '@/lib/debug-config';
+import { clearSessionState } from './reset-conversations';
 import type { ConversationMetadata } from '@/lib/p2p/p2p-types';
 
 export interface ConversationManagerConfig {
@@ -35,6 +36,11 @@ export class ConversationManager {
       maxQueueSize: config.maxQueueSize,
       maxMessagesPerConversation: config.maxMessagesPerConversation
     };
+  }
+
+  /** Forget everything held for the outgoing account. See reset-conversations.ts. */
+  public clearForSessionChange(): void {
+    clearSessionState(this.cache, this.connections);
   }
 
   public getConversationsMap(): Map<bigint, P2PConversation> {

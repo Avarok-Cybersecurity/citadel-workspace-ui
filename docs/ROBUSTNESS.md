@@ -21221,6 +21221,42 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 486 — switching accounts left the previous one's messages on screen
+
+`ConversationManager` is a module-lifetime cache keyed by peer alone, holding up
+to 100 messages per conversation. `P2PMessengerManager.setupEventListeners`
+bound `on-ws-connection-success`, `websocket-message` and
+`p2p-connection-established` — and nothing at all for a change of session.
+
+So after an orphan-session claim — the multi-workspace path, an SPA navigate with
+no reload — `instanceManager.cid` changed, the groups rescoped, and the P2P cache
+did not. The peer list rendered the previous account's conversations for the new
+account, opening one showed the previous account's message window, and the new
+account's own history could not load at all, because `cachedMessagesLoaded` was
+already true and short-circuits the reload.
+
+The group store solved exactly this. `reconcile-groups.ts` binds
+`instance:cid-changed` and calls `resetGroupsForSession`, under a comment
+explaining that the list is "a module singleton keyed by nothing". Its P2P twin
+was never written — the defect class this campaign has found more often than any
+other.
+
+Clearing alone is not the fix and the test says so: an account with an empty
+conversation list is a different bug wearing the same change, so the reload under
+the new cid is asserted separately. Connection state is cleared too — a peer
+marked connected for the previous account renders as online for the new one, on a
+channel it has no session for.
+
+Both halves are controlled: with the clear removed two assertions fail, and with
+the reset call removed the linter catches the unused import. The binding is named
+`bind…` so `check-installers-are-called` covers it, since an installer nothing
+calls is exactly the state this module exists to prevent.
+
+Two files went over the 250-line cap. `clearForSessionChange` now delegates to
+`clearSessionState` beside the reset it belongs with, and the DOM visibility
+listener moved to `visibility-flush.ts` — the one listener in that method that is
+not on the app's own bus, and the only one needing a `typeof document` guard.
+
 ## Round 485 — a follower tab accepted another session's group invitation
 
 One browser holds one WebSocket. The leader tab owns it and broadcasts what it
