@@ -19825,3 +19825,38 @@ my control had been written in the one form the gate was blind to. Both fixed:
 the regex covers all three import forms, and the control now fires.
 
 A control that does not fire is not a passing control. This one said so twice.
+
+## Round 415 — a second role table, and a claim I had to withdraw
+
+Round 409 pointed enforcement at `Permission::for_role`. The other tables it
+named are still there, and `kernel/transaction/async_transactions.rs` restates
+one inside `add_user_to_domain`. It disagrees with `for_role` about every role
+it handles:
+
+  Member  here: CreateNode, SendMessages, ReadMessages
+          for_role: ViewContent, SendMessages, ReadMessages, UploadFiles, DownloadFiles
+  Guest   here: ReadMessages    for_role: ViewContent
+  Owner   here: All             for_role: everything EXCEPT All and ConfigureSystem
+
+The Owner row looked serious. `check_entity_permission` treats
+`Permission::All` as satisfying any check, so writing it into a user's grant map
+would hand an Owner the server-level `ConfigureSystem` that the types crate
+withholds from Owner in a comment saying exactly that.
+
+I started a test to reproduce it, and it was wrong to write. **Nothing
+constructs `AsyncWriteTransaction`** — its only mention outside its own file is
+a `println!` in a test. The path is unreachable, so no user was ever granted
+anything through it, and the test would have asserted the behaviour of dead
+code. Deleted before it ran, and the escalation claim withdrawn: it was a
+divergence, not a live privilege escalation.
+
+Same shape as round 410's deleted role table — unreachable, and reading as
+authoritative. The table is now derived from `Permission::for_role`, because the
+divergence is the hazard and one line removes it. No behaviour changes; all 56
+server-kernel suites still pass, clippy and fmt clean.
+
+Worth naming for next time: "this code is wrong" and "this code runs" are
+separate questions, and the second is the cheaper one to ask first. Rounds 410
+and 415 both began by fixing something before checking whether anything reached
+it, and 410 spent two tests that could never run before the check-by-name caught
+it.
