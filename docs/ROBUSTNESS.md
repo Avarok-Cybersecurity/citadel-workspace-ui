@@ -19205,3 +19205,41 @@ earlier and asking whether it was true. The entries are written to be re-read,
 and this is the first time one has caught me.
 
 2520 tests green, all 61 preflight checks.
+
+## Round 399 — CI answered the prediction inside one run
+
+Round 395 said, of round 392 shipped alone:
+
+> on its own it would have made every node permission **unenforceable** … the
+> composer would have shown for a user genuinely refused.
+
+`Playwright - shard 2/3` had passed every run of this session. On the run
+carrying 392 and not 395, it failed three attempts on:
+
+    a plain member should not be able to edit -- Member holds no EditContent or
+    EditMdx by design
+
+`BaseOffice` gates Edit on `permits(edit)`; round 392 made a refusal need the
+whole chain; nothing fetched the workspace root; so the chain never completed
+and the Edit button was enabled for a plain Member. The prediction and the
+failure match line for line, which is the most useful thing a prediction can do.
+
+Round 395 was already written and is now pushed. What this round adds is the
+property that failure demonstrated, held at the unit rather than through four
+layers of app:
+
+- a complete answer that withholds the permission **refuses**;
+- an incomplete chain **grants provisionally**;
+- and the two must differ — because if `answered` were never reachable, only
+  the second line would ever run and the permission would be unenforceable
+  while every test still passed.
+
+That third assertion is the one worth having. It is not about a value; it is
+about both states being reachable, which is exactly what the shipped bug
+violated and what no single-state test could have caught.
+
+Two controls: granting always fails the refusal and the reachability check;
+refusing on half an answer fails the provisional grant and the same reachability
+check.
+
+2523 tests green, all 61 preflight checks.
