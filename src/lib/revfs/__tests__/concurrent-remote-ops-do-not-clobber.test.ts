@@ -81,3 +81,70 @@ describe('a remote operation arriving mid-write', () => {
     ).toEqual(expect.arrayContaining(['/first', '/second']));
   });
 });
+
+describe('the same remote operation arriving twice', () => {
+  it('answers a redelivered SyncRequest once, not twice', async (): Promise<void> => {
+    // The observable harm, and the reason a tree assertion cannot see it:
+    // applying `Mkdir /once` twice leaves the same tree, so duplicate work is
+    // invisible there. The COST is the reply. Run 33304689050: seven
+    // `SyncRequest`s sent, one hundred handled, and a hundred 564-byte
+    // `SyncResponse`s went back down the reliable channel -- with the
+    // `PlaceFile` and `Rmdir` the user asked for queued behind them, never
+    // arriving.
+    const { forgetSeenOperations } = await import('../seen-operations');
+    forgetSeenOperations();
+
+    const sent: string[] = [];
+    const service: RevfsService = createTestService((intent: RevfsIntent): RevfsIntentResult => {
+      if (intent.type === 'send-revfs-op') {
+        sent.push(intent.operation.op_type);
+        return { type: 'send-revfs-op', success: true };
+      }
+      return defaultIntentHandler()(intent);
+    });
+    const state: RevfsState = getState(service);
+    const key: ReturnType<typeof peerPairKey> = peerPairKey(ALICE, BOB);
+    state.setTree(key, treeWith([]));
+
+    const handle: (sender: bigint, mine: bigint, o: RevfsOperation) => Promise<void> = (
+      service as unknown as {
+        handleRevfsOperation: (sender: bigint, mine: bigint, o: RevfsOperation) => Promise<void>;
+      }
+    ).handleRevfsOperation.bind(service);
+
+    const ask: RevfsOperation = { op_id: 'sync-1', op_type: RevfsOpType.SyncRequest, path: '/', timestamp: 2 };
+    await handle(BOB, ALICE, ask);
+    await handle(BOB, ALICE, ask);
+    await handle(BOB, ALICE, ask);
+
+    expect(sent.filter((t: string): boolean => t === RevfsOpType.SyncResponse)).toHaveLength(1);
+  });
+
+  it('still answers a genuinely new SyncRequest', async (): Promise<void> => {
+    // Positive control: a dedupe that answers nothing would pass the test above.
+    const { forgetSeenOperations } = await import('../seen-operations');
+    forgetSeenOperations();
+
+    const sent: string[] = [];
+    const service: RevfsService = createTestService((intent: RevfsIntent): RevfsIntentResult => {
+      if (intent.type === 'send-revfs-op') {
+        sent.push(intent.operation.op_type);
+        return { type: 'send-revfs-op', success: true };
+      }
+      return defaultIntentHandler()(intent);
+    });
+    const state: RevfsState = getState(service);
+    state.setTree(peerPairKey(ALICE, BOB), treeWith([]));
+
+    const handle: (sender: bigint, mine: bigint, o: RevfsOperation) => Promise<void> = (
+      service as unknown as {
+        handleRevfsOperation: (sender: bigint, mine: bigint, o: RevfsOperation) => Promise<void>;
+      }
+    ).handleRevfsOperation.bind(service);
+
+    await handle(BOB, ALICE, { op_id: 'sync-a', op_type: RevfsOpType.SyncRequest, path: '/', timestamp: 2 });
+    await handle(BOB, ALICE, { op_id: 'sync-b', op_type: RevfsOpType.SyncRequest, path: '/', timestamp: 3 });
+
+    expect(sent.filter((t: string): boolean => t === RevfsOpType.SyncResponse)).toHaveLength(2);
+  });
+});

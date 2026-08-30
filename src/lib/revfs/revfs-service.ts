@@ -17,13 +17,11 @@ import {
   peerPairKey,
   serverTreeKey,
   createDefaultTree,
-  applyRemoteOp,
-  mergeTrees,
 } from './tree-operations';
 import { RevfsState, type TreeChangedCallback } from './revfs-state';
 import { RevfsIO, type RevfsIODeps } from './revfs-io';
 import { retryPendingOps, sendAndAwaitAck, type RetryOutcome } from './revfs-retry';
-import { debugLog } from '@/lib/debug-config';
+import { applyInboundOperation, type InboundContext } from './revfs-inbound';
 import type { DirOpsContext } from './revfs-dir-ops';
 import * as dirOps from './revfs-dir-ops';
 import type { FileOpsContext } from './revfs-file-ops';
@@ -164,45 +162,18 @@ export class RevfsService {
 
   // ── Incoming Operation Handler ────────────────────────────────────────
 
+  /** An operation that arrived from a peer. See revfs-inbound.ts. */
   async handleRevfsOperation(senderCid: bigint, myCid: bigint, op: RevfsOperation): Promise<void> {
-    debugLog('RevfsService', `[revfs] handleRevfsOperation: sender=${senderCid} myCid=${myCid} op=${op.op_type} path=${op.path}`);
-    const key: string = peerPairKey(myCid, senderCid);
+    return applyInboundOperation(this.inboundCtx(), senderCid, myCid, op);
+  }
 
-    if (op.op_type === RevfsOpType.Ack && op.ack_op_id) {
-      this.state.resolveAck(op.ack_op_id, op.success ?? true);
-      return;
-    }
-
-    if (op.op_type === RevfsOpType.SyncRequest) {
-      const tree: RevfsNode = await this.getTree(myCid, senderCid);
-      const syncResponse: RevfsOperation = { op_id: crypto.randomUUID(), op_type: RevfsOpType.SyncResponse, path: '/', tree, timestamp: Date.now() };
-      await this.sendOp(senderCid, syncResponse);
-      return;
-    }
-
-    if (op.op_type === RevfsOpType.SyncResponse && op.tree) {
-      const loaded: RevfsNode = await this.getTree(myCid, senderCid);
-      const currentTree: RevfsNode = this.state.getTree(key) ?? loaded;
-      const merged: RevfsNode = mergeTrees(currentTree, applyRemoteOp(currentTree, op, myCid));
-      this.state.setTree(key, merged);
-      const io: RevfsIO = this.ensureIO();
-      await persistTree(io, key, merged);
-      return;
-    }
-
-    // Re-read AFTER the await: `getTree` yields even when cached, so two ops
-    // arriving together both read before either writes. See
-    // concurrent-remote-ops-do-not-clobber.test.ts.
-    const loaded: RevfsNode = await this.getTree(myCid, senderCid);
-    const tree: RevfsNode = this.state.getTree(key) ?? loaded;
-    const newTree: RevfsNode = applyRemoteOp(tree, op, myCid);
-    debugLog('RevfsService', `[revfs] handleRevfsOperation: applied ${op.op_type}, updating tree for key=${key}`);
-    this.state.setTree(key, newTree);
-    const io: RevfsIO = this.ensureIO();
-    await persistTree(io, key, newTree);
-
-    const ackOp: RevfsOperation = { op_id: crypto.randomUUID(), op_type: RevfsOpType.Ack, path: op.path, ack_op_id: op.op_id, success: true, timestamp: Date.now() };
-    await this.sendOp(senderCid, ackOp);
+  private inboundCtx(): InboundContext {
+    return {
+      state: this.state,
+      ensureIO: () => this.ensureIO(),
+      getTree: (mine: bigint, peer: bigint) => this.getTree(mine, peer),
+      sendOp: (peer: bigint, operation: RevfsOperation) => this.sendOp(peer, operation),
+    };
   }
 
   // ── Sync ──────────────────────────────────────────────────────────────

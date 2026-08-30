@@ -20950,3 +20950,48 @@ The underlying defect is still open and is now stated precisely: **operations
 reach the peer for Mkdir and not for PlaceFile or Rmdir.** That is a real
 propagation failure, not a rendering one, and the next run will show whether the
 retry queue eventually delivers them.
+
+## Round 449 — seven requests, one hundred replies
+
+Round 448 established that the peer never received Alice's `PlaceFile` or
+`Rmdir`. The logs say why, and it is not the transport failing to deliver — it
+is the transport delivering too much.
+
+Alice's sends, by operation, in run 33304689050:
+
+```
+  1 op=Mkdir        1 op=PlaceFile      1 op=RemoveFile
+  1 op=Rmdir        1 op=SyncRequest  100 op=SyncResponse
+```
+
+One hundred `SyncResponse`s, 564 bytes each, on the same reliable channel with
+a send window of eight. Bob sent SEVEN `SyncRequest`s; Alice's handler ran for
+ONE HUNDRED of them. And Bob applied the same `Mkdir` twice, 21ms apart, under
+a single `op_id`.
+
+So each operation is being redelivered, nothing on the receiving side notices,
+and the one branch that answers a request with a full tree turns that
+redelivery into an amplifier. The `PlaceFile` and the `Rmdir` queued behind a
+hundred replies to a question that was asked seven times.
+
+An operation now applies once per `op_id`, per peer pair, bounded at five
+hundred remembered ids. `Ack` is exempt: it is idempotent by construction, and
+dropping one could strand a sender waiting on it.
+
+### The control that kept passing
+
+The first test asserted the tree after a redelivered `Mkdir`. It passed with the
+guard removed, and it was right to: `mkdir /once` twice leaves exactly the same
+tree, so duplicate WORK is invisible there. The cost is the reply, not the
+tree — so the test counts `SyncResponse`s instead, and the control now fails
+with three where one is expected. The positive control beside it sends two
+genuinely different requests and expects two replies, so a dedupe that answered
+nothing at all could not pass.
+
+That is the second time this session a helper was tested while its wiring was
+not: round 434's `request_id` propagation was the first. Both were found by
+removing the production line and watching the tests stay green.
+
+`revfs-service` passed the 250-line cap, so the inbound path moved to
+`revfs-inbound.ts` — the right seam regardless: everything else in that file is
+the local API, and this is the one entry point the wire drives.
