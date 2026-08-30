@@ -21221,6 +21221,33 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 474 — your own peer-group message never reached your own screen
+
+The workspace path relies on an echo. The server answers the SENDER with the
+same `GroupMessageNotification` it broadcasts to everyone else, and that echo is
+what puts your message in your own transcript — `await-write-response.ts` says
+so in as many words, and round twenty-six shipped a regression by not knowing it.
+
+The peer wire does not echo. `requests/group/message.rs` answers the sender with
+`GroupMessageSuccess { cid, group_key, request_id }` — no content — and
+broadcasts the body to the group. So after rounds 470-473 a peer-group message
+reached every member except the person who sent it: you typed, pressed send, the
+composer cleared, and nothing appeared.
+
+Found by reading what the service actually answers with, rather than assuming
+the two paths behaved alike. Four rounds into this feature, that assumption had
+already been wrong three times.
+
+`sendPeerGroupMessage` now returns the id it minted, and the sender places its
+own copy under that same id — so if an echo ever does arrive,
+`handleNewMessage` dedupes it instead of printing the message twice.
+
+`useGroupChat` reached 267 lines, so the whole decision moved to
+`sendGroupMessageAnywhere`. It belongs in one place: the three things that
+differ between the two kinds of group — where the message goes, whether it comes
+back, and which id it carries — are one decision, and splitting them across a
+branch in a hook is how the second one went missing in the first place.
+
 ## Round 473 — the rest of the chat surface still assumed one kind of group
 
 Rounds 470 and 471 fixed the send and the receive. Sweeping the rest of

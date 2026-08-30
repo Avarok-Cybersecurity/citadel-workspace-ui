@@ -184,6 +184,11 @@ export async function sendGroupEnd(groupId: string): Promise<void> {
  * `InternalServiceRequest::GroupMessage` has been on the wire the whole time.
  * Only this half was missing.
  *
+ * Returns the message id it minted. The peer wire does NOT echo to the sender
+ * — `requests/group/message.rs` answers with `GroupMessageSuccess`, which
+ * carries no content — so the caller has to put the message on its own screen,
+ * and needs this id to do it under the identity the peers will see.
+ *
  * The body is CBOR, as every other P2P payload in this codebase is — see
  * types/p2p-commands.ts. `groupIdToKey` throws on an id that is not a group
  * key, which is deliberate: a node-backed channel id arriving here is a routing
@@ -194,13 +199,15 @@ export async function sendPeerGroupMessage(
   groupId: string,
   content: string,
   replyTo?: string,
-): Promise<void> {
+): Promise<string> {
   const cid: bigint = await requireCid();
   const groupKey: MessageGroupKey = groupIdToKey(groupId);
+  // Minted here so a redelivery is the same message on the far side, and so the
+  // sender's own copy carries the identity the peers will see.
+  const messageId: string = crypto.randomUUID();
   const body: Uint8Array = encodeGroupMessage({
     group_id: groupId,
-    // Minted here so a redelivery is the same message on the far side.
-    message_id: crypto.randomUUID(),
+    message_id: messageId,
     sender_cid: cid,
     content,
     timestamp: Date.now(),
@@ -216,4 +223,5 @@ export async function sendPeerGroupMessage(
     },
   };
   await sendGroupRequest(request);
+  return messageId;
 }

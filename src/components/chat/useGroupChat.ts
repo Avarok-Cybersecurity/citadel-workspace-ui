@@ -1,13 +1,12 @@
 import { useState, useEffect, useMemo, useRef, useCallback , type RefObject  } from 'react';
 import { groupSendTransport } from '@/lib/group-conversations/group-send-transport';
-import { sendPeerGroupMessage } from '@/lib/group-conversations/group-requests';
+import { sendGroupMessageAnywhere } from '@/lib/group-conversations/send-group-message';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { DELETE_MESSAGE_PROMPT } from '@/lib/chat/delete-message-prompt';
 import { describeFailure } from '@/lib/failure-message';
 import { useToast } from '@/hooks/use-toast';
 import { shouldSendOnKey } from './should-send-on-key';
 import type { GroupMessage } from '@/types/workspace-entities';
-import { GroupMessageTypeTS } from '@/types/workspace-protocol';
 import WorkspaceService from '@/lib/workspace-service';
 import { groupMessagingManager } from '@/lib/group-messaging-manager';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
@@ -155,18 +154,7 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
 
     setSending(true);
     try {
-      // Two kinds of group behind one view. A peer group is owned by no node,
-      // and the workspace server refuses it -- see group-send-transport.
-      if (groupSendTransport(groupId) === 'peer') {
-        await sendPeerGroupMessage(groupId, inputValue.trim(), replyToId || undefined);
-      } else {
-        await WorkspaceService.sendGroupMessage(
-          groupId,
-          inputValue.trim(),
-          GroupMessageTypeTS.Text,
-          replyToId || undefined
-        );
-      }
+      await sendGroupMessageAnywhere(groupId, inputValue.trim(), replyToId || undefined);
       setInputValue('');
       setReplyToId(null);
     } catch (error) {
