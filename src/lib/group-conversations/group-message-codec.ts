@@ -25,6 +25,8 @@ export interface PeerGroupMessage {
   sender_cid: bigint;
   content: string;
   timestamp: number;
+  /** The message this replies to, so threading survives the peer wire. */
+  reply_to?: string;
 }
 
 export function encodeGroupMessage(message: PeerGroupMessage): Uint8Array {
@@ -50,6 +52,7 @@ export function decodeGroupMessage(bytes: Uint8Array): PeerGroupMessage | null {
     return {
       group_id: candidate.group_id,
       message_id: candidate.message_id,
+      reply_to: typeof candidate.reply_to === 'string' ? candidate.reply_to : undefined,
       sender_cid: candidate.sender_cid,
       content: candidate.content,
       timestamp: typeof candidate.timestamp === 'number' ? candidate.timestamp : Date.now(),

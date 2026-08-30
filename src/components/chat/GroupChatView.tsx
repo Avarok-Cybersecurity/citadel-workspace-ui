@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { groupMessageActions, type GroupMessageActions } from '@/lib/group-conversations/group-message-actions';
 import { DateSeparator } from './shared/DateSeparator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -45,6 +46,8 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   sendRestriction,
 }) => {
   const chat: ReturnType<typeof useGroupChat> = useGroupChat(groupId);
+  // A peer group has no edit or delete on the wire; see group-message-actions.
+  const actions: GroupMessageActions = groupMessageActions(groupId);
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -103,6 +106,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
                     }}
                     onDelete={chat.handleDeleteMessage}
                     onReply={(id) => chat.setReplyToId(id)}
+                    canRevise={actions.canRevise}
                   />
                 ))}
               </div>

@@ -45,6 +45,16 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
       // Falling back to the empty state is honest: "no messages yet" is at
       // least a statement the user can act on, where an unresolvable spinner is
       // not.
+      // A peer group has no server history to ask for. It is owned by no node,
+      // so the workspace server refuses the request outright, and nothing else
+      // holds a transcript: group-persistence stores the group LIST, not
+      // messages. Asking anyway raised a destructive toast for a request that
+      // could only fail, then fell through to the empty state on the deadline.
+      if (groupSendTransport(groupId) === 'peer') {
+        setLoading(false);
+        return;
+      }
+
       armLoadingDeadline(`group-messages:${groupId}`, () => setLoading(false));
       try {
         await WorkspaceService.getGroupMessages(groupId);
@@ -126,6 +136,9 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
     // Tell the manager an older page is coming, so it merges rather than
     // replacing the thread. Without this the response looked identical to an
     // initial load and took the "replace" branch.
+    // Same reason as the initial load: there is no older page to fetch.
+    if (groupSendTransport(groupId) === 'peer') return;
+
     groupMessagingManager.markLoadingOlder(groupId);
     try {
       await WorkspaceService.getGroupMessages(groupId, oldestTimestamp);
@@ -145,7 +158,7 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
       // Two kinds of group behind one view. A peer group is owned by no node,
       // and the workspace server refuses it -- see group-send-transport.
       if (groupSendTransport(groupId) === 'peer') {
-        await sendPeerGroupMessage(groupId, inputValue.trim());
+        await sendPeerGroupMessage(groupId, inputValue.trim(), replyToId || undefined);
       } else {
         await WorkspaceService.sendGroupMessage(
           groupId,

@@ -190,7 +190,11 @@ export async function sendGroupEnd(groupId: string): Promise<void> {
  * mistake, and encoding it as a group key would put a malformed request on the
  * wire instead of failing where the mistake is.
  */
-export async function sendPeerGroupMessage(groupId: string, content: string): Promise<void> {
+export async function sendPeerGroupMessage(
+  groupId: string,
+  content: string,
+  replyTo?: string,
+): Promise<void> {
   const cid: bigint = await requireCid();
   const groupKey: MessageGroupKey = groupIdToKey(groupId);
   const body: Uint8Array = encodeGroupMessage({
@@ -200,6 +204,7 @@ export async function sendPeerGroupMessage(groupId: string, content: string): Pr
     sender_cid: cid,
     content,
     timestamp: Date.now(),
+    reply_to: replyTo,
   });
 
   const request: { GroupMessage: { cid: bigint; message: number[]; group_key: MessageGroupKey; request_id: `${string}-${string}-${string}-${string}-${string}`; }; } = {

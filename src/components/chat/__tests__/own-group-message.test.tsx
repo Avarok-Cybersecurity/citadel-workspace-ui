@@ -33,12 +33,15 @@ function message(senderId: string): never {
 }
 
 /** The handlers the item needs; none is exercised by these assertions. */
-const props: { onEdit: () => void; onDelete: () => void; onReply: () => void; onOpenThread: () => void; totalMembers: number; } = {
+const props: { onEdit: () => void; onDelete: () => void; onReply: () => void; onOpenThread: () => void; totalMembers: number; canRevise: boolean; } = {
   onEdit: (): void => {},
   onDelete: (): void => {},
   onReply: (): void => {},
   onOpenThread: (): void => {},
   totalMembers: 3,
+  // A node-backed chat channel, which is what these fixtures model. A peer
+  // group cannot revise -- see a-peer-group-offers-only-what-works.
+  canRevise: true,
 };
 
 describe('a group message', () => {
@@ -76,5 +79,20 @@ describe('a group message', () => {
 
     const items: string[] = await menuItems();
     expect(items.join(' ')).not.toMatch(/Edit|Delete/);
+  });
+});
+
+describe('a group that cannot revise', () => {
+  it('offers neither Edit nor Delete, even on your own message', async () => {
+    // The peer wire has no GroupEdit and no GroupDelete. Offering them showed a
+    // control whose only outcome was "Permission denied".
+    render(<GroupMessageItem {...props} canRevise={false} message={message(ALICE)} currentUserName={ALICE} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /message actions/i }));
+    const items: string[] = screen.getAllByRole('menuitem').map((el) => el.textContent ?? '');
+    expect(items.join(' ')).not.toMatch(/Edit/);
+    expect(items.join(' ')).not.toMatch(/Delete/);
+    // Reply survives: the peer envelope carries reply_to.
+    expect(items.join(' ')).toMatch(/Reply/);
   });
 });

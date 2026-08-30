@@ -34,7 +34,7 @@ function renderItem(replyCount: number): void {
       currentUserName="bob"
       totalMembers={2}
       onEdit={vi.fn()}
-      onDelete={vi.fn()}
+      onDelete={vi.fn()} canRevise
       onReply={vi.fn()}
     />,
   );

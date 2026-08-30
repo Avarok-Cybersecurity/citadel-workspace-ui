@@ -28,6 +28,13 @@ interface GroupMessageItemProps {
   totalMembers: number;
   onEdit: (messageId: string, content: string) => void;
   onDelete: (messageId: string) => void;
+  /**
+   * Whether this group can edit and delete at all. Required, not optional, so
+   * every call site has to answer: a peer group cannot -- the wire has no
+   * GroupEdit or GroupDelete -- and offering the items there produced a
+   * permission error and nothing else.
+   */
+  canRevise: boolean;
   onReply: (messageId: string) => void;
 }
 
@@ -37,6 +44,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
   totalMembers,
   onEdit,
   onDelete,
+  canRevise,
   onReply,
 }) => {
   // Compared against the USERNAME, not the CID.
@@ -142,7 +150,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
               <Reply className="h-4 w-4 mr-2" />
               Reply
             </DropdownMenuItem>
-            {isOwnMessage && (
+            {isOwnMessage && canRevise && (
               <>
                 <DropdownMenuItem onClick={() => onEdit(message.id, message.content)}>
                   <Edit2 className="h-4 w-4 mr-2" />

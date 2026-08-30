@@ -21221,6 +21221,36 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 473 — the rest of the chat surface still assumed one kind of group
+
+Rounds 470 and 471 fixed the send and the receive. Sweeping the rest of
+`useGroupChat` rather than assuming those were all of it found three more:
+
+**History.** `WorkspaceService.getGroupMessages` was called on mount for both
+kinds of group. A peer group is owned by no node, so that server refuses it —
+and there is no history to be had anywhere: `group-persistence` stores the group
+LIST, not messages, and a Citadel message group is a live channel. So opening a
+peer group raised a destructive "Failed to load messages" toast for a request
+that could only fail, then fell through to the empty state when the loading
+deadline fired. It now skips the request and clears the spinner immediately.
+
+**Edit and delete.** The peer wire has `GroupMessage` and nothing else — no
+`GroupEdit`, no `GroupDelete`. Both menu items routed to the workspace server,
+so in a peer group they were controls whose only possible outcome was
+"Permission denied". They are no longer offered there. `canRevise` is a REQUIRED
+prop, not an optional one, so every call site has to answer the question rather
+than inherit a default that happens to be wrong.
+
+**Reply.** `sendPeerGroupMessage` ignored `replyToId` outright, so pressing
+Reply in a peer group composed a reply and sent a plain message. This one was
+worth keeping rather than hiding: the envelope is ours, so `reply_to` now
+travels with the message.
+
+The pattern across all three: an affordance that cannot succeed is worse than no
+affordance, because the user reads the failure as their own mistake. The one
+exception is where the capability is genuinely available and only the plumbing
+was missing — which is reply, and which is why it was fixed rather than removed.
+
 ## Round 472 — an installer nothing calls, as a check
 
 Round 471's third control is the one worth generalising. `bindPeerGroupDelivery`

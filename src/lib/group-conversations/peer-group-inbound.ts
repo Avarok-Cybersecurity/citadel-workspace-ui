@@ -30,6 +30,7 @@ export interface PeerGroupMessageSummary {
   senderName: string;
   content: string;
   timestamp: number;
+  replyTo?: string;
 }
 
 /** The `group:message-received` payload for this notification, or null. */
@@ -56,5 +57,6 @@ export function peerGroupMessageEvent(
     senderName: peerName(decoded.sender_cid),
     content: decoded.content,
     timestamp: decoded.timestamp,
+    replyTo: decoded.reply_to,
   };
 }

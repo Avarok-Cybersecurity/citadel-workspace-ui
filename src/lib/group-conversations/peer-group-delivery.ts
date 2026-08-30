@@ -31,6 +31,7 @@ export interface PeerGroupDelivery {
   senderName: string;
   content: string;
   timestamp: number;
+  replyTo?: string;
 }
 
 export function deliverPeerGroupMessage(delivery: PeerGroupDelivery): void {
@@ -42,7 +43,7 @@ export function deliverPeerGroupMessage(delivery: PeerGroupDelivery): void {
     message_type: GroupMessageTypeTS.Text as unknown as GroupMessage['message_type'],
     content: delivery.content,
     timestamp: BigInt(delivery.timestamp),
-    reply_to: null,
+    reply_to: delivery.replyTo ?? null,
     reply_count: 0,
     mentions: [],
     edited_at: null,
