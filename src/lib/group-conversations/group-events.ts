@@ -114,6 +114,11 @@ export function toGroupEvents(
         name: '',
         ownerId: String(created.cid ?? selfCid),
         ownerUsername: selfUsername,
+        // Carried so the caller that ASKED for this group can recognise the
+        // answer. `sendGroupCreate` returns its own `crypto.randomUUID()`
+        // request id, which is not a group id and does not name one -- see
+        // `awaitGroupCreated`.
+        requestId: typeof created.request_id === 'string' ? created.request_id : undefined,
       },
     }];
   }

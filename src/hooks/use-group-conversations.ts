@@ -41,6 +41,7 @@ import {
   sendGroupListRequest,
 } from '@/lib/group-conversations/group-requests';
 import { rememberGroupName } from '@/lib/group-conversations/group-names';
+import { awaitGroupCreated } from '@/lib/group-conversations/await-group-created';
 import { updateGroups } from '@/lib/group-conversations/group-store';
 
 // ============================================================================
@@ -58,7 +59,11 @@ export function useGroupConversations(): UseGroupConversationsResult {
       initialMembers: Array<{ cid: string; username: string; roleId?: string }>
     ): Promise<string> => {
       try {
-        const groupId: string = await sendGroupCreate(initialMembers);
+        // `sendGroupCreate` resolves with its REQUEST id, not a group id. The
+        // group's own id arrives with `group:created`, correlated on that
+        // request id -- see awaitGroupCreated.
+        const requestId: string = await sendGroupCreate(initialMembers);
+        const groupId: string = await awaitGroupCreated(requestId);
         // The wire has no name field, so this is where the creator's choice
         // survives. Remembered BEFORE the store is nudged, because
         // `group:created` may already have arrived and built the record with

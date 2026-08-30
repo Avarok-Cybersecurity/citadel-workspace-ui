@@ -20457,3 +20457,39 @@ improves", and one of its four selectors had been inert the whole time.
 
 The baseline is five now, from eight. Controls: removing the new hierarchy
 testid fails, and re-adding a `workspace-name` reference fails.
+
+## Round 434 — I built two rounds on a uuid that names nothing
+
+`peer-group` got further this run. "Group creation produced no group id" is
+gone; the log reads `Group created successfully:
+977c506d-125b-4e22-a097-3872eef15e5f`, and the spec moved on to messaging,
+which then failed both directions.
+
+That id is the problem. Groups are keyed `<cid>:<mgid>` — the store logs
+`9962133275568713359:961193...` — and a uuid is not one.
+`sendGroupCreate` resolves with its own `crypto.randomUUID()` REQUEST id, and I
+took it for a group id twice:
+
+  - round 425 remembered the creator's chosen name under it, so
+    `chosenGroupName` never matched and the group kept its fallback label;
+  - round 427 navigated to `/groups/<request id>`, a route for a group that does
+    not exist.
+
+Then the spec read the url back and reported success. A false success built out
+of two halves that each looked correct — the class I have spent this session
+finding, assembled by me, and it took a downstream failure to expose it. The
+sidebar fallback would have caught it: it looks for a row whose id matches, and
+there is no such row. It never ran, because the url check now "passed".
+
+`GroupCreateSuccess` carries the request id, so the answer can be recognised
+rather than guessed at. `awaitGroupCreated` waits for the `group:created`
+carrying that request id and resolves with the group's own id. Waiting for "the
+next `group:created`" would have been wrong for a reason worth stating: an
+invite arriving at the same moment emits one too, and the creator would be
+navigated into somebody else's group.
+
+Controls, and the second one found a real gap. Dropping the correlation makes
+the wait resolve with the wrong group — caught. Dropping the propagation of
+`request_id` in `toGroupEvents` broke NOTHING: my test emitted the event
+directly, so the wire boundary was untested and the correlation could have died
+there silently. Two tests at the mapping level now, and the control fails.

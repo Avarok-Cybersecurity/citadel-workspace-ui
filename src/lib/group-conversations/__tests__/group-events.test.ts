@@ -180,3 +180,29 @@ describe('a leave notification without a cid', () => {
     expect(events[0]?.payload).toMatchObject({ memberCid: 9n });
   });
 });
+
+describe('the request id on a create success', () => {
+  it('is carried through, because the caller correlates on it', () => {
+    // Without this the mapping compiles, every other test passes, and
+    // `awaitGroupCreated` waits thirty seconds for a payload whose requestId is
+    // always undefined. Removing the propagation broke nothing until this
+    // existed.
+    const events: GroupEvent[] = toGroupEvents(
+      { GroupCreateSuccess: { cid: 7n, group_key: KEY, request_id: 'req-1' } },
+      SELF,
+      'alice',
+      peerName,
+    );
+    expect(events[0]?.payload).toMatchObject({ requestId: 'req-1' });
+  });
+
+  it('is undefined rather than invented when the wire omits it', () => {
+    const events: GroupEvent[] = toGroupEvents(
+      { GroupCreateSuccess: { cid: 7n, group_key: KEY } },
+      SELF,
+      'alice',
+      peerName,
+    );
+    expect((events[0]?.payload as { requestId?: string }).requestId).toBeUndefined();
+  });
+});
