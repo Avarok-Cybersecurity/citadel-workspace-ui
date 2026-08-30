@@ -19102,3 +19102,38 @@ for a design is a test that will keep passing after the design is fixed, and it
 is where the knowledge goes to hide.
 
 2517 tests green, all 61 preflight checks.
+
+## Round 395 — the other half of round 392
+
+Round 392 made a refusal require the whole inheritance chain: `hasPermission`
+denies on a domain's own entry and only then falls back to the workspace root,
+so a node granting nothing while the root is unfetched is not yet a "no".
+
+Correct, and on its own it would have made every node permission
+**unenforceable**. `usePermission` fetches its own domain and nothing else, and
+nothing anywhere fetches the workspace root proactively — so `answered` would
+have stayed false for ever, `permits` would have returned true for everyone, and
+the composer would have shown for a user genuinely refused.
+
+Loosening a denial until the answer is complete is honest. Never completing the
+answer is a control that operates on nothing, which is the failure this campaign
+spends most of its time on. I had written the first half and would have shipped
+it as the whole thing.
+
+So the hook now fetches the root alongside the node — **once**, and outside the
+retry loop. That placement is the second half of the lesson: the root is not the
+node's answer, must not spend the node's retry budget, and re-fetching it per
+attempt would double the requests behind a permission already struggling to
+arrive. My first attempt put it inside the loop and broke two retry-budget tests
+by exactly that doubling.
+
+One of those tests then needed correcting rather than reverting: it counted
+every `fetchPermissionsForDomain` call as an attempt on the domain under test,
+so a single extra fetch made the budget look spent a request early. It counts
+its own domain now, which it should have from the start.
+
+Controls: dropping the root fetch fails the new test; fetching it
+unconditionally fails the control that a workspace-level query does not ask
+twice.
+
+2519 tests green, all 61 preflight checks.

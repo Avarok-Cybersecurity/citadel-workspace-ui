@@ -17,6 +17,7 @@
  * An administrator who cannot edit, with no error and nothing to press, is
  * indistinguishable from a permissions bug in the server.
  */
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { usePermission } from '../use-permission';
@@ -39,7 +40,11 @@ vi.mock('@/contexts/PermissionsContext', async (importOriginal) => {
       hasPermission: (domainId: string): boolean => state.permissions.has(domainId),
       getDeniedReason: (): string => 'not allowed',
       fetchPermissionsForDomain: async (domainId: string): Promise<unknown> => {
-        state.fetches += 1;
+        // Only the domain under test. `usePermission` also fetches the
+        // workspace root once, so it can tell a refusal from half an answer --
+        // see `hasAnswerFor`. Counting that as an attempt made the retry budget
+        // look spent a request early.
+        if (domainId !== WORKSPACE_ROOT_ID) state.fetches += 1;
         if (state.fetches >= state.succeedFrom) {
           // A new Map identity, as the real provider produces on success.
           state.permissions = new Map(state.permissions).set(domainId, {

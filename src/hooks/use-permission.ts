@@ -18,6 +18,7 @@
  * how three copies came to exist.
  */
 
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type React from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
@@ -134,6 +135,21 @@ export function usePermission(
 
     let cancelled: boolean = false;
     let timer: number | undefined;
+
+    // The workspace root, once, alongside the node.
+    //
+    // `hasPermission` falls back to the root, so `hasAnswerFor` needs it before
+    // a refusal counts as one. Without it the chain never completes for a node,
+    // `answered` stays false for ever and the permission is unenforceable --
+    // the inert-control failure, reached from the other side.
+    //
+    // OUTSIDE the retry loop deliberately: this is not the node's answer and
+    // must not spend the node's budget, and re-fetching it on every attempt
+    // would double the requests behind a permission that is already struggling
+    // to arrive.
+    if (domainId !== WORKSPACE_ROOT_ID && !permissions.has(WORKSPACE_ROOT_ID)) {
+      runAsyncSetup(async () => { await fetchPermissionsForDomain(WORKSPACE_ROOT_ID); });
+    }
 
     const attempt = (): void => {
       const soFar: number = attemptedFetchRef.current.get(domainId) ?? 0;
