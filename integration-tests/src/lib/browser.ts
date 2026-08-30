@@ -408,7 +408,10 @@ export async function waitForAppReady(page: Page, timeout = 60000): Promise<void
       '[data-testid="create-account-button"]',
       // Workspace page indicators (if already logged in)
       '[data-sidebar="sidebar"]',
-      '[data-testid="workspace-name"]',
+      // `workspace-name` was here and the app never rendered it, so this line
+      // contributed nothing to a probe whose whole point is not to break when
+      // the product changes. The switcher is the workspace shell's own name.
+      '[data-testid="workspace-switcher"]',
     ].join(', '),
     { timeout }
   );

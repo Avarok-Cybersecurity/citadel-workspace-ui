@@ -115,7 +115,9 @@ async function checkWorkspaceSwitcher(page: Page): Promise<{
   const results = { visible: false, dropdownWorks: false };
 
   // WorkspaceSwitcher shows workspace name/logo in TopBar or sidebar header
-  const switcher = page.locator('[data-testid="workspace-name"], [data-testid="workspace-switcher"]').first();
+  // `workspace-name` never existed; the switcher now carries a name of its own,
+  // so the union was one live selector beside one that could not match.
+  const switcher = page.locator('[data-testid="workspace-switcher"]').first();
   results.visible = await isVisibleWithin(switcher, 3000);
   console.log(`  Workspace switcher (data-testid): ${results.visible}`);
 

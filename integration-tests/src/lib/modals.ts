@@ -121,8 +121,10 @@ export async function waitForWorkspaceLoaded(page: Page, timeout = 60000): Promi
       const sidebarIndicators = [
         // Sidebar group labels from the workspace layout (most reliable)
         '[data-sidebar="group-label"]',
-        // Workspace name in sidebar header
-        '[data-testid="workspace-name"]',
+        // The sidebar header's own control. This said `workspace-name`, which
+        // the app has never rendered, so the line was inert among selectors
+        // chosen for reliability.
+        '[data-testid="workspace-switcher"]',
         // Section headers — note that "Connected Peers" shows when there
         // are P2P peers but no workspace members, "Workspace Members"
         // shows otherwise.

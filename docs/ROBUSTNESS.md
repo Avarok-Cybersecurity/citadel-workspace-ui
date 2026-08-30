@@ -20431,3 +20431,29 @@ The button also had no testid, so nothing could address it. It has one now.
     the panel's props. A CID is a bigint in a declaration, so the new interface
     takes one and the conversion happens at the boundary rather than inside the
     consumer.
+
+## Round 433 — closing two of the five
+
+Round 416 baselined eight testids that specs address and the app does not
+render; round 423 made three of them real. These are two more, and they close
+in opposite directions, which is the point: the answer is not always "add the
+attribute".
+
+**`hierarchy-section` is now rendered.** `group-chat.ts` looks for it as
+`getByText('HIERARCHY').or(locator('[data-testid="hierarchy-section"]'))` — the
+`.or()` is doing all the work, and its live half is the word HIERARCHY, which
+is copy. `check-controls-are-addressed-by-testid` exists because five checks in
+one session broke on improved wording. Both render branches of
+`TreeNodesSection` carry the name now.
+
+**`workspace-name` is gone instead.** Nothing has ever rendered it, and three
+places addressed it: a readiness probe, a sidebar-detection list, and the
+switcher lookup round 416 already fixed. Adding an attribute to satisfy three
+dead references would be inventing surface to justify them; the workspace
+switcher got a name in round 416 and means exactly what all three wanted. The
+readiness probe deserves the note it now carries — its own comment says "a
+readiness probe must not be the thing that breaks when the product's copy
+improves", and one of its four selectors had been inert the whole time.
+
+The baseline is five now, from eight. Controls: removing the new hierarchy
+testid fails, and re-adding a `workspace-name` reference fails.
