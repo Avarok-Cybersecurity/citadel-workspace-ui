@@ -20867,3 +20867,46 @@ disappears.
 the real object as the prototype, so the methods resolve and the three stubs
 shadow. Round 430's partial-mock lesson was about missing exports; this is the
 same lesson one level down, about missing prototypes.
+
+## Round 447 — pass, pass, flaky, fail
+
+`Playwright shard 2/3` failed on "promoting a member to Owner gives them editing
+rights", at its first assertion: a plain Member should not be able to edit. The
+Edit button was ENABLED, and stayed enabled for the full sixty seconds — the
+locator resolved sixty-four times.
+
+The history matters more than the failure. Four runs: pass at 36.5s, pass at
+32.6s, failed-then-passed-on-retry, and now failed on all three attempts. The
+passing runs settle in about thirty-five seconds; the failing ones spend a
+minute watching a button that never changes.
+
+`BaseOffice` computes `hasEditPermission` with `permits`, not `allowed`, and
+that is deliberate: reading an unanswered question as a refusal is the bug
+rounds 378-395 spent four rounds removing, and it showed a disabled Edit button
+with a reason explaining why the user may not, for a question nobody had
+answered. So while the answer is outstanding, the button is offered.
+
+Which makes two very different faults identical from outside:
+
+  - the answer never arrived, and the control was offered on a default; or
+  - the answer arrived and said allowed, which would mean the role table grants
+    EditContent to Member. It does not, by design, and that would be far more
+    serious than a slow fetch.
+
+`permitsAndReport` logs which. It REPLACES the `permits(...)` call rather than
+sitting beside it, because a diagnostic that explains a decision belongs at the
+decision, and a call site that has to remember to log is one that will forget.
+The composer's own diagnostic (round 394) is the same shape, and both now share
+`lib/permission-diagnostics.ts`.
+
+This buys evidence, not a fix, and says so.
+
+### Four attempts at fitting it under the cap
+
+`BaseOffice` sat at exactly 250 lines, so every version of this had to earn its
+space. A 21-line inline block, then a helper with the condition at the call
+site, then the condition moved into the helper, and finally the call folded into
+the decision it explains — 271, 258, 253, 252, and 248 once the rationale moved
+to the helper's docstring where it is no longer duplicated. The cap did not
+just refuse the addition; it produced a better shape than the one I started
+with.

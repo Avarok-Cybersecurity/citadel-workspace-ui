@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { readerIdentity, type ReaderIdentity, type TabIdentity } from '@/lib/tab-identity';
 import { useTabIdentity } from '@/hooks/use-tab-identity';
-import { permits } from '@/hooks/use-permission-result';
 import { useChatSurface, type ChatSurface } from './chat-surface';
 import { useToast } from "@/hooks/use-toast";
 import { MDXProvider } from '@mdx-js/react';
@@ -16,6 +15,7 @@ import { saveOfficeContent } from "./save-office-content";
 import { useCompiledMdx } from "./use-compiled-mdx";
 import { useUnsavedMdxGuard, DISCARD_EDIT_PROMPT } from "./use-unsaved-mdx-guard";
 import { useConfirm } from "@/components/shared/confirm-dialog";
+import { permitsAndReport } from "@/lib/permission-diagnostics";
 import WorkspaceService from "@/lib/workspace-service";
 import { OfficeChatTabs } from "./OfficeChatTabs";
 import { usePermission } from '@/hooks/use-permission';
@@ -154,12 +154,11 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     return <OfficeSkeletonLoader />;
   }
 
-  // Use permission check result, defaulting to true if no domain ID (demo mode)
-  // `permits`, not `allowed`. This read `canEditMdx` alone, so a user whose
-  // permissions had not loaded -- a cache MISS, which `hasPermission` reports
-  // as false -- was shown a disabled Edit button and a reason explaining why
-  // they may not, for a question nobody had answered.
-  const hasEditPermission: boolean = !domainId || permits(edit);
+  // True with no domain ID (demo mode). Otherwise `permitsAndReport`, whose
+  // docstring carries both halves of the reasoning: why an unanswered question
+  // must not read as a refusal, and why being offered without an answer is
+  // worth a line in the log.
+  const hasEditPermission: boolean = !domainId || permitsAndReport('BaseOffice', 'edit offered without an answer', domainId, edit);
   const editDeniedReason: string | null = edit.reason;
 
   // Get current user info from workspace state OR connection manager
