@@ -20326,3 +20326,41 @@ is wrong has to quote the thing it forbids. That is the round-412 lesson
 arriving from the other side, so the fix went into the OLD test rather than into
 my prose — it reads line by line and skips comments now. Control: a real forced
 click added to a gate is still caught, at the right line.
+
+## Round 430 — a group with no name at all
+
+Round 419 widened the console filter so a failing `peer-group` run would say
+something about groups. It did, in the first run that carried it:
+
+```
+[GroupStore] Group created: {groupId: ..., name: , ownerId: ..., ownerUsername: }
+[GroupStore] Group created: {groupId: ..., name: , ownerId: ..., ownerUsername: peergrp_2_...}
+```
+
+Two pages, one group. The second is the invited peer, with a perfectly good
+username. The first is the CREATOR, and `ownerUsername` is empty — so with the
+wire carrying no name either, the fallback chain produced an empty string and
+the group sat in its own creator's sidebar with no label.
+
+`resolveSelf` in `group-response-service` returned
+`tab?.selectedUsername ?? ''`. An empty string is not a name, and it reaches
+the screen.
+
+The fallback is the tab's STORED SESSION, not `getConnectionInfo().username`.
+That one belongs to the connection rather than to this tab and is wrong whenever
+a browser holds two sessions, which is the priority rule
+`check-one-answer-to-who-am-i` exists to keep — and this is a suite that runs
+three sessions in one browser. Read only when the selection is missing, because
+this runs on every websocket message.
+
+Three tests: the fallback fires, the selection still outranks it (so the
+fallback cannot quietly become the authority), and empty survives only when
+neither source knows. Negative control: restoring `?? ''` fails the first alone.
+
+### And a mock that only broke in company
+
+The new test replaced `@/lib/tab-context` with a bare object. Another module
+imports `reissueTabId` from it, which is fine until the suite shares a module
+graph — so the file passed on its own and failed the moment the whole suite
+ran. Both mocks spread the real module now. A file that passes alone has not
+been shown to pass.

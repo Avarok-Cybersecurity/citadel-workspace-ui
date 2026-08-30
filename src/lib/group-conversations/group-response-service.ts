@@ -13,6 +13,7 @@
 
 import { eventEmitter } from '../event-emitter';
 import { connectionManager } from '../connection';
+import type { StoredSession } from '@/types/session-types';
 import { getSelectedUser } from '../tab-context';
 import { debugLog } from '@/lib/debug-config';
 import { toGroupEvents } from './group-events';
@@ -21,12 +22,32 @@ import type { TabUserContext } from '@/lib/tab-context';
 
 let started: boolean = false;
 
+/** Exported for its test: the fallback chain is the thing under test. */
+export async function resolveSelfForTest(): Promise<{ cid: bigint; username: string } | null> {
+  return resolveSelf();
+}
+
 async function resolveSelf(): Promise<{ cid: bigint; username: string } | null> {
   const cid: bigint | undefined = connectionManager.getConnectionInfo()?.cid;
   if (cid === undefined || cid === null) return null;
 
   const tab: TabUserContext | null = await getSelectedUser();
-  return { cid, username: tab?.selectedUsername ?? '' };
+  const selected: string | undefined = tab?.selectedUsername;
+  if (selected) return { cid, username: selected };
+
+  // An empty username is not a name, and it reaches the screen. CI shows
+  // `Group created: {name: , ownerId: ..., ownerUsername: }` on the CREATOR's
+  // own page: `group:created` falls back to `ownerUsername` for the label, so
+  // a group the user had just named appeared in their sidebar with no name at
+  // all.
+  //
+  // The tab's stored session, not `getConnectionInfo().username`. That one
+  // belongs to the CONNECTION rather than to this tab and is wrong whenever a
+  // browser holds two sessions -- which is the priority rule
+  // `check-one-answer-to-who-am-i` exists to keep. Read only when the
+  // selection is missing, because this runs on every websocket message.
+  const session: StoredSession | null = await connectionManager.getTabSelectedSession();
+  return { cid, username: session?.username ?? '' };
 }
 
 /**
