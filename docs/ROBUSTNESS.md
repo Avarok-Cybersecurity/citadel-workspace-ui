@@ -18930,3 +18930,45 @@ which is the same unexamined-assumption shape I keep finding in the code and
 writing entries about.
 
 2515 tests green, all 61 preflight checks.
+
+## Round 391 — "Peer Sees File Removed: PASS" meant nothing
+
+Applying round 390's lesson to the next job I had been labelling rather than
+reading. `test:file-manager` has fourteen assertions and thirteen pass:
+
+    Peer Sees Changes:         PASS      (folder ops propagate)
+    Upload File:               PASS
+    File Visible:              PASS
+    Peer Sees File:            FAIL
+    Peer Sees File Removed:    PASS      (?)
+
+The last line is the finding. `verifyPeerSeesFile(page, label, name, false)`
+returns true when the name is **absent**, and a file that never arrived is
+absent too — so once "Peer Sees File" failed, its removal could not fail. A
+check that cannot fail in the state that matters is worse than a missing one,
+because it reads as evidence.
+
+It now runs only if the peer saw the file, and reports
+`NOT CHECKED (the peer never saw the file)` otherwise. Swept the rest of the
+suite for the same shape: the other absence assertions are guarded by a
+presence assertion in the same test, so this was the one.
+
+**And the label I had been carrying was wrong.** "ACK loss below the ILM crate"
+does not fit — folder operations and file deletion both propagate. The log says
+something more precise:
+
+    STEP 7  [Bob]   msg_id=2 blocked, awaiting ACK,   1 queued
+    ...     [Alice] msg_id=6 blocked, awaiting ACK, 100 queued
+
+The head advances (2 → 6), so ACKs **are** arriving. They arrive far slower than
+messages are produced, so the queue grows without bound and everything behind it
+is late. Folder operations passed because they happened while the queue was
+short; the file-add failed because by then roughly a hundred messages were ahead
+of it and the test's wait expired.
+
+That is a throughput problem — the send window against the app's message rate —
+not packet loss, and the useful question it raises is what those hundred
+messages are. Recorded rather than guessed at: it needs the running stack to
+answer, and the instrumentation that makes it answerable is already in the log.
+
+2515 tests green, all 61 preflight checks.

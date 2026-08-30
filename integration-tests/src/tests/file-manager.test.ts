@@ -916,8 +916,22 @@ async function runTest(): Promise<boolean> {
     // Verify file is removed on Alice's side
     results.fileOperations.fileRemoved = !await verifyFileVisible(page1, 'Alice', TEST_FILE_NAME);
 
-    // Sync and verify Bob sees the file is gone
-    results.fileOperations.peerSeesFileRemoved = await verifyPeerSeesFile(page2, 'Bob', TEST_FILE_NAME, false);
+    // Sync and verify Bob sees the file is gone.
+    //
+    // Only meaningful if Bob ever saw it. `verifyPeerSeesFile(..., false)`
+    // returns true when the name is absent, and a file that never arrived is
+    // absent too -- so on the run that found this, "Peer Sees File: FAIL" was
+    // followed by "Peer Sees File Removed: PASS", and the second line carried
+    // no information at all. A check that cannot fail in the state that matters
+    // is worse than a missing one, because it reads as evidence.
+    results.fileOperations.peerSeesFileRemoved = results.fileOperations.peerSeesFile
+      ? await verifyPeerSeesFile(page2, 'Bob', TEST_FILE_NAME, false)
+      : false;
+    if (!results.fileOperations.peerSeesFile) {
+      console.log(
+        '  Skipped the removal check: Bob never saw the file, so its absence proves nothing.',
+      );
+    }
     await takeScreenshot(page2, '10_bob_file_gone');
 
     // ========== STEP 11: Delete Folder ==========
@@ -1027,7 +1041,15 @@ async function runTest(): Promise<boolean> {
     console.log(`  Peer Sees File:            ${results.fileOperations.peerSeesFile ? 'PASS' : 'FAIL'}`);
     console.log(`  Delete File:               ${results.fileOperations.deleteFile ? 'PASS' : 'FAIL'}`);
     console.log(`  File Removed:              ${results.fileOperations.fileRemoved ? 'PASS' : 'FAIL'}`);
-    console.log(`  Peer Sees File Removed:    ${results.fileOperations.peerSeesFileRemoved ? 'PASS' : 'FAIL'}`);
+    console.log(
+      `  Peer Sees File Removed:    ${
+        results.fileOperations.peerSeesFileRemoved
+          ? 'PASS'
+          : results.fileOperations.peerSeesFile
+            ? 'FAIL'
+            : 'NOT CHECKED (the peer never saw the file)'
+      }`,
+    );
 
     // Gated, and never printed: a run could fail on this alone and the report
     // showed nothing but passes above a bare "OVERALL: TEST FAILED".
