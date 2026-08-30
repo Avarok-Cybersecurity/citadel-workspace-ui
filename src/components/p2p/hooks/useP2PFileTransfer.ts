@@ -6,6 +6,7 @@
  */
 
 import { useCallback } from 'react';
+import { failureDescription } from '@/lib/p2p/peer-failure-detail';
 import { fileTransferService } from '@/lib/file-transfer';
 import { useToast } from '@/hooks/use-toast';
 import type { FileTransferMode } from '@/types/messaging-layer';
@@ -42,7 +43,7 @@ export function useP2PFileTransfer({
       toast({
         variant: 'destructive',
         title: 'Failed to send file',
-        description: error instanceof Error ? error.message : 'Check your connection and try again.',
+        description: failureDescription(error, 'Check your connection and try again.'),
       });
       throw error;
     }
@@ -56,7 +57,7 @@ export function useP2PFileTransfer({
       toast({
         variant: 'destructive',
         title: 'Failed to accept file',
-        description: error instanceof Error ? error.message : 'Unknown error',
+        description: failureDescription(error, 'Unknown error'),
       });
     }
   }, [toast]);
@@ -73,7 +74,7 @@ export function useP2PFileTransfer({
       toast({
         variant: 'destructive',
         title: 'Failed to decline file',
-        description: error instanceof Error ? error.message : 'Unknown error',
+        description: failureDescription(error, 'Unknown error'),
       });
     }
   }, [toast]);
@@ -86,7 +87,7 @@ export function useP2PFileTransfer({
       toast({
         variant: 'destructive',
         title: 'Failed to cancel transfer',
-        description: error instanceof Error ? error.message : 'Unknown error',
+        description: failureDescription(error, 'Unknown error'),
       });
     }
   }, [toast]);

@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback , type UIEvent } from 'react';
+import { failureDescription } from '@/lib/p2p/peer-failure-detail';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { DELETE_MESSAGE_PROMPT } from '@/lib/chat/delete-message-prompt';
 import { P2PMessengerManager } from '@/lib/p2p';
@@ -172,7 +173,7 @@ export function useP2PMessages({
       // failed, so this is not invisible — but "it failed again, and here is
       // why" is a different message from a retry that appears to do nothing.
       toast.error('Could not resend message', {
-        description: error instanceof Error ? error.message : 'Please try again.',
+        description: failureDescription(error, 'Please try again.'),
       });
     }
   }, [peerCid, messenger]);
@@ -183,7 +184,7 @@ export function useP2PMessages({
     } catch (error) {
       debugLog('UseP2PMessages', 'Failed to edit message:', error);
       toast.error('Could not edit message', {
-        description: error instanceof Error ? error.message : 'Please try again.',
+        description: failureDescription(error, 'Please try again.'),
       });
     }
   }, [peerCid, messenger]);
@@ -197,7 +198,7 @@ export function useP2PMessages({
     } catch (error) {
       debugLog('UseP2PMessages', 'Failed to delete message:', error);
       toast.error('Could not delete message', {
-        description: error instanceof Error ? error.message : 'Please try again.',
+        description: failureDescription(error, 'Please try again.'),
       });
     }
   }, [peerCid, messenger, confirm]);

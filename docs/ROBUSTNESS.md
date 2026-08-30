@@ -21221,6 +21221,65 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 477 — the transport's own words, shown to the user
+
+`lib/call/call-failure-detail.ts` exists because CI caught a call failing with
+
+    no UDP channel for peer 2181040939592097811 within 5s; it may still be
+    negotiating (retry shortly), or the peer connection was established with
+    UdpMode disabled
+
+read out to a user in a `role="alert"`. That was fixed on the call path and
+nowhere else. The messaging and file-transfer paths still hand the transport its
+own words:
+
+    No messaging handle found for local CID: 13069842581551822719.
+    Call open_p2p_connection first.
+    Not initialized. Call init() first.
+    WebSocket client not available (leader without client)
+
+A nineteen-digit CID, two function names, and "leader" — an internal multi-tab
+role this product never names anywhere in its interface.
+
+`describeFailure` is not the fix and was never meant to be: it prefers the real
+reason over a fixed "Please try again", which is right, but it does not
+translate. `peer-failure-detail.ts` translates, keeping the raw string beside
+the translation exactly as the call module does — a generic "something went
+wrong" would be worse, because at least the raw string can be searched for.
+
+A separate table from the call one on purpose. The vocabularies do not overlap —
+that one is UDP and codecs, this one messenger handles and local storage — and a
+single table matching both would make every future entry a question about which
+paths it applies to.
+
+### Two of my own mistakes, worth recording
+
+**A test that passed for the wrong reason.** The first wiring test asserted the
+toast matched `/connect/i`. It passed — on an unrelated `Not connected to
+server` error that never reached the translator at all, because the mock had not
+taken effect and the word "connected" satisfied the assertion. Comparing against
+the exact translated sentence turned it red immediately. A loose assertion on a
+happy result is not evidence.
+
+**A fallback made unreachable.** The first wiring wrote
+`peerFailureDetail(...).detail || fallback`. The translator never returns an
+empty string, so every site's own fallback became dead code — the exact "control
+that operates on nothing" shape this campaign hunts, introduced while fixing
+something else.
+
+### The mock that was abandoned
+
+Driving `useP2PMessages` to assert on the rendered toast needed a stub for every
+method the hook touches on mount, and the stub kept growing — messenger methods,
+then two services, then a value that had to be callable, awaitable and iterable
+— without the assertion getting any stronger. That is the shape this repo's rule
+about minimising mocks is about.
+
+So the seam moved instead. The seven call sites shared one duplicated ternary;
+they now share `failureDescription(error, fallback)`, which is where the
+translation happens and what the tests exercise. One of the seven had already
+drifted to a different fallback, which is its own argument for the helper.
+
 ## Round 476 — the landing budget caught the peer-group work, with 0.2 KB to spare
 
 CI failed `Production Docker Build` on rounds 464-474:
