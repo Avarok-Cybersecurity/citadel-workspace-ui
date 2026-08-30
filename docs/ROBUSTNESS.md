@@ -21031,3 +21031,41 @@ control that never compiled. The rule has not changed since round 431 — print
 what the injection did and check the count before believing the result — and it
 is worth repeating that every one of these read as evidence FOR the code being
 fine.
+
+## Round 451 — "Tree synced with peer" was a claim about an answer
+
+`handleSync` reports carefully on the things it can see: operations discarded
+after repeated failures, operations still queued. Then, when neither applies, it
+says "Tree synced with peer".
+
+`requestSync` resolved as soon as the REQUEST was on the wire. Nothing waited
+for the peer's tree. So the success message is a statement about an answer
+nobody had waited for — and rounds 448 to 450 establish exactly how often that
+answer does not come: a hundred redelivered sync requests crowding a reliable
+channel with a send window of eight, and the operations behind them never
+arriving at all.
+
+It waits now, for the tree of that pair to change, with a fifteen-second budget,
+and says so when nothing comes: "The peer did not answer — your changes were
+sent, their file list has not arrived yet."
+
+There is no id on the wire linking a `SyncResponse` to its request, so what is
+waited on is a change to this pair's tree. A change from any source still means
+the view is fresher than it was, which is all the message claims.
+
+Four tests, and the third is the one that matters: a change to ANOTHER pair's
+tree must not count, or a sync with the wrong peer would be reported as this one
+answering. The fourth asserts the listener is removed on both paths, because a
+sync button that leaks a subscription per press is a worse bug than the one
+being fixed. Control: resolving on any key fails the third alone.
+
+### A contract change breaks the test that documented the old one
+
+`revfs-service-events` had "sends SyncRequest op to peer", which awaited
+`requestSync` and then inspected the intents. Under the new contract it waits
+fifteen seconds for a tree that the harness never delivers, and it timed out.
+
+That is the test doing its job. It now passes a ten-millisecond budget and
+asserts the ANSWER as well as the send — `false`, because nothing came back in
+that harness — so the thing the caller actually depends on is what the test
+pins.

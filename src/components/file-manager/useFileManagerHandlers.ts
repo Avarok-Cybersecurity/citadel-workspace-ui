@@ -193,7 +193,7 @@ export function useFileManagerHandlers({
           });
           return;
         }
-        await revfsService.requestSync(myCid, selectedPeerCid);
+        const answered: boolean = await revfsService.requestSync(myCid, selectedPeerCid);
 
         // Flush the queue before claiming a sync; see lib/revfs/revfs-retry.ts.
         const { stillPending, discarded } = await revfsService.retryPendingOps(peerPairKey(myCid, selectedPeerCid), selectedPeerCid);
@@ -206,6 +206,13 @@ export function useFileManagerHandlers({
         } else if (stillPending > 0) {
           toast.error('Some changes could not be sent', {
             description: `${stillPending} operation(s) still queued; they will be retried.`,
+          });
+        } else if (!answered) {
+          // The request went out and no tree came back. Saying "synced" here
+          // is a claim about an answer nobody waited for -- and the peer's
+          // answer is exactly what often does not arrive.
+          toast.error('The peer did not answer', {
+            description: 'Your changes were sent. Their file list has not arrived yet; try again in a moment.',
           });
         } else { toast.success('Tree synced with peer'); }
         return;

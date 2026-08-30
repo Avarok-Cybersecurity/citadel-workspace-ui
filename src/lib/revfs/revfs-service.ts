@@ -22,6 +22,10 @@ import { RevfsState, type TreeChangedCallback } from './revfs-state';
 import { RevfsIO, type RevfsIODeps } from './revfs-io';
 import { retryPendingOps, sendAndAwaitAck, type RetryOutcome } from './revfs-retry';
 import { applyInboundOperation, type InboundContext } from './revfs-inbound';
+import { awaitTreeChange } from './await-tree-change';
+
+/** How long a peer has to answer a sync request before we stop claiming it did. */
+const SYNC_ANSWER_TIMEOUT_MS: number = 15_000;
 import type { DirOpsContext } from './revfs-dir-ops';
 import * as dirOps from './revfs-dir-ops';
 import type { FileOpsContext } from './revfs-file-ops';
@@ -178,9 +182,20 @@ export class RevfsService {
 
   // ── Sync ──────────────────────────────────────────────────────────────
 
-  async requestSync(myCid: bigint, peerCid: bigint): Promise<void> {
+  /**
+   * Ask a peer for their tree, and wait for it to arrive.
+   *
+   * Returns true only if the peer's tree actually landed.
+   *
+   * See `awaitTreeChange` for what "arrived" means and why.
+   */
+  async requestSync(myCid: bigint, peerCid: bigint, timeoutMs: number = SYNC_ANSWER_TIMEOUT_MS): Promise<boolean> {
+    const answered: Promise<boolean> = awaitTreeChange(this.state, peerPairKey(myCid, peerCid), timeoutMs);
+
     const syncReq: RevfsOperation = { op_id: crypto.randomUUID(), op_type: RevfsOpType.SyncRequest, path: '/', timestamp: Date.now() };
-    await this.sendOp(peerCid, syncReq);
+    const sent: boolean = await this.sendOp(peerCid, syncReq);
+    if (!sent) return false;
+    return answered;
   }
 
   // ── Event Subscription ────────────────────────────────────────────────

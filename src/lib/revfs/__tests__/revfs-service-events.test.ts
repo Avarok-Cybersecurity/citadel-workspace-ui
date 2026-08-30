@@ -175,9 +175,15 @@ describe('RevfsService (events & sync)', () => {
   });
 
   describe('requestSync', () => {
-    it('sends SyncRequest op to peer', async () => {
+    it('sends SyncRequest op to peer, and reports that nobody answered', async () => {
+      // `requestSync` used to resolve as soon as the request was on the wire.
+      // It now waits for the peer's tree to arrive, so this test passes a short
+      // budget rather than the fifteen-second default -- and asserts the
+      // ANSWER as well as the send, because the caller toasts "Tree synced with
+      // peer" on the strength of it.
       const service: RevfsService = createTestService(defaultIntentHandler());
-      await service.requestSync(ALICE, BOB);
+      const answered: boolean = await service.requestSync(ALICE, BOB, 10);
+      expect(answered, 'no tree came back in this harness').toBe(false);
 
       const intents: RevfsIntent[] = getExecuteCalls(service);
       const syncCalls: RevfsIntent[] = intents.filter(i => {
