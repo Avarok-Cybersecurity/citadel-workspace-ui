@@ -21221,6 +21221,44 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 510 — the last two, and a control harness that was lying
+
+The ILM investigation's own findings, and the last critical/high/medium open
+anywhere.
+
+**A wedged peer grew its queue for ever** (51). Stop-and-wait never gives up:
+the head retransmits and the queue grows for as long as the application keeps
+sending. Nothing capped it, nothing aged it, and in a browser that means growing
+until the tab dies.
+
+Refused at the door, not trimmed. Discarding a queued message would put a hole in
+the id run, and acknowledgement is cumulative — the receiver holds everything
+behind a hole until gap patience fires and then skips the missing id for good.
+Refusing before an id is minted keeps the run contiguous and tells the *caller*,
+which is the difference between a message that failed and one that vanished. Per
+peer, not global: a global cap lets one dead conversation stop every other, and
+the third test is the control for precisely that.
+
+**Tasks piled up on a peer's sink** (52). Every Message request is its own
+spawned task and the sink is behind a mutex shared by all of them, with no
+timeout on the lock or the send. A wedged peer collected tasks that parked for
+ever, answered nobody, and were capped by nothing. Both halves are now inside one
+30s bound — the figure the peer-list and deregister paths already use. The point
+is not promptness; it is that the wait ends.
+
+**My control harness was silently doing nothing, twice.** I wrote
+`T="--test some_name"` and then `cargo test $T`. **zsh does not word-split
+unquoted parameters**, so cargo received one argument named
+`--test some_name`, rejected it, and printed nothing my grep matched. Both times
+the empty output was the only signal, and both times I re-ran it inline rather
+than reading the silence as a pass — but the second occurrence is what made me
+find the cause rather than the symptom.
+
+Nothing was misreported: an empty control is not a green control, and I treated
+it as suspicious both times. But "the control produced no output" and "the
+control passed" are different sentences that a careless reading collapses, and
+the harness that produced them was mine.
+
 ## Round 509 — reliability machinery on a video frame
 
 Backlog 35, the last medium from the inspection. Every cross-tab forward was
