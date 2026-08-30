@@ -19899,3 +19899,56 @@ widening it knows what has already been paid for.
 Controls: addressing a testid nothing renders fails; removing the switcher's
 new testid fails; and a baselined id that becomes rendered fails too, so the
 list can only shrink.
+
+## Round 417 — three checks reporting success for something that never happened
+
+`test:prev-sessions` failed again on `Deregister Removes`, on the run carrying
+round 411. So round 411 did not fix it, and its reasoning needs correcting.
+
+The whole run contains exactly ONE `[SignOutSession]` line, and it says
+"Disconnecting session:". The deregister step logged nothing at all, so
+`signOutSession` was never called for it. Nothing was deregistered.
+
+The reason is in `DisconnectConfirmModal`, and the app is right: deleting an
+account asks a SECOND time, deliberately, with its own comment explaining that
+the two buttons sit side by side and the destructive one used to fire on the
+first click. The spec clicked "Delete account permanently" and never answered
+that dialog, so `handleConfirm` returned.
+
+Then three checks reported success for it:
+
+  - `waitForDisconnectToFinish` shrugged off a modal that never appeared, on
+    the reasoning that it may have come and gone on a fast run. But
+    `waitFor({ state: 'detached' })` is immediately true for a locator matching
+    nothing, so the pair returned true for an operation that never started.
+    -> "Deregistered successfully", "Deregister success: true".
+  - `Deregister Permanent` then tried to log in, failed for some other reason,
+    and read that as proof the account was gone.
+  - The modal's own unit test mocked `useConfirm` to return `true`
+    unconditionally, so no test at any level could see the second question.
+
+Only `Deregister Removes` was honest, and it was the one I treated as the
+symptom to explain.
+
+**Round 411 is corrected here.** Its premise -- "the deregistration worked and
+the row was still on screen" -- rested on two of those false signals. Its change
+(a single absence no longer releases the tombstone; only time does) is kept: it
+is harmless, and a tombstone that survives one stale list is the more defensible
+rule. But it fixed nothing, and this entry says so.
+
+Fixed on three sides:
+
+  - The shared confirm dialog's buttons now carry
+    `confirm-dialog-confirm` / `confirm-dialog-cancel`. Its label is whatever
+    the caller passed, so addressing it by copy breaks the day the copy
+    improves.
+  - The spec answers the second dialog, and reports plainly when it never
+    appears.
+  - A modal that never appears is no longer success. The operation disconnects,
+    deregisters, re-queries and re-renders; if nothing rendered in five seconds,
+    nothing was asked for.
+  - The modal's unit-test mock is answerable rather than always-yes, with a test
+    asserting a refused second confirmation deletes nothing, and a positive
+    control that signing out still goes through on one click.
+
+Negative control: removing the guard from the app fails the refusal test alone.

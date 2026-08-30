@@ -296,9 +296,27 @@ async function waitForDisconnectToFinish(
 ): Promise<boolean> {
   const modal = page.locator('[data-testid="disconnect-loading-modal"]');
 
-  // It may already have come and gone on a fast local run, so a modal that
-  // never appears is not a failure -- only one that never leaves.
-  await modal.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+  // A modal that never appears is NOT a success.
+  //
+  // This used to shrug one off, on the reasoning that it may have come and
+  // gone on a fast local run. But `waitFor({ state: 'detached' })` is
+  // immediately true for a locator matching nothing, so the pair returned true
+  // for an operation that never started -- which is exactly what happened when
+  // the deregister path stopped at a second confirmation this file did not
+  // answer. Three checks reported success for an account that was never
+  // deleted.
+  //
+  // The operation is fast but not instant: it disconnects, deregisters,
+  // re-queries and re-renders. If nothing rendered in five seconds, nothing
+  // was asked for.
+  const appeared = await modal
+    .waitFor({ state: 'visible', timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!appeared) {
+    console.log(`  ${action} never started: the loading modal never appeared`);
+    return false;
+  }
 
   try {
     await modal.waitFor({ state: 'detached', timeout: 60000 });
@@ -387,6 +405,21 @@ async function disconnectViaNavbar(
     .first();
   if (await isVisibleWithin(confirmBtn, 5000)) {
     await confirmBtn.click();
+
+    // Deleting an account is asked TWICE. The modal's own comment says so:
+    // the two buttons sit side by side, and the destructive one used to fire
+    // on the first click. This step never answered the second dialog, so
+    // `handleConfirm` returned and nothing happened -- while the checks below
+    // reported "Deregistered successfully" and "Deregister is permanent".
+    if (action === 'deregister') {
+      const second = page.getByTestId('confirm-dialog-confirm').first();
+      if (!(await isVisibleWithin(second, 5000))) {
+        console.log('  Second confirmation never appeared; deletion was not asked for');
+        return false;
+      }
+      await second.click();
+    }
+
     return await waitForDisconnectToFinish(page, action);
   }
 

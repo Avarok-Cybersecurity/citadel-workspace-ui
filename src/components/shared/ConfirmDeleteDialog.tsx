@@ -64,12 +64,19 @@ export function ConfirmDeleteDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel
+            data-testid="confirm-dialog-cancel"
             disabled={pending}
             className="bg-transparent border-border text-foreground hover:bg-card"
           >
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
+            // Named, because this is the second question and its label is
+            // whatever the caller passed -- 'Delete permanently', 'Delete', a
+            // future rewording. A spec that has to press it by copy breaks the
+            // day the copy improves, which is what
+            // `check-controls-are-addressed-by-testid` exists to prevent.
+            data-testid="confirm-dialog-confirm"
             onClick={handleConfirm}
             disabled={pending}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

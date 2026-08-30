@@ -21,8 +21,17 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DisconnectConfirmModal } from '../DisconnectConfirmModal';
 
+/**
+ * Answerable, not always-yes.
+ *
+ * This mock returned `true` unconditionally, so no test here could see that
+ * deleting an account asks a SECOND time -- and the integration spec did not
+ * answer that dialog either, so clicking "Delete account permanently" returned
+ * without deleting anything while three checks reported success.
+ */
+let secondConfirmationAnswer: boolean = true;
 vi.mock('@/components/shared/confirm-dialog', () => ({
-  useConfirm: (): (() => Promise<boolean>) => async (): Promise<boolean> => true,
+  useConfirm: (): (() => Promise<boolean>) => async (): Promise<boolean> => secondConfirmationAnswer,
 }));
 
 const SESSION: Parameters<typeof DisconnectConfirmModal>[0]['session'] = {
@@ -60,5 +69,32 @@ describe('the disconnect confirmation', () => {
 
     await userEvent.click(screen.getByTestId('confirm-delete-account'));
     expect(onConfirm).toHaveBeenCalledWith('deregister');
+  });
+});
+
+describe('the second confirmation on deleting an account', () => {
+  it('does not delete when it is refused', async () => {
+    secondConfirmationAnswer = false;
+    const onConfirm: ReturnType<typeof vi.fn> = vi.fn();
+    renderModal(onConfirm);
+
+    await userEvent.click(screen.getByTestId('confirm-delete-account'));
+
+    expect(onConfirm).not.toHaveBeenCalled();
+    secondConfirmationAnswer = true;
+  });
+
+  it('signing out is not asked twice', async () => {
+    // Positive control, and the distinction that matters: the reversible
+    // action goes through on one click even when the second question would be
+    // refused.
+    secondConfirmationAnswer = false;
+    const onConfirm: ReturnType<typeof vi.fn> = vi.fn();
+    renderModal(onConfirm);
+
+    await userEvent.click(screen.getByTestId('confirm-sign-out'));
+
+    expect(onConfirm).toHaveBeenCalledWith('disconnect');
+    secondConfirmationAnswer = true;
   });
 });
