@@ -21221,6 +21221,66 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 489 — the meta-review read my own gap fix, and six things were wrong
+
+A Fable review pass was pointed at the three ILM commits from the previous
+rounds. Two (`405f4e7`, `a0c078e`) it confirmed and independently re-proved —
+it rebuilt the negative controls in a scratch copy and measured 503,164 polls
+on a closed transport where I had measured 525,948. The third, `cf940d3`, it
+confirmed as correct and then found six real problems with. All six were mine.
+
+**The bound lied about itself.** `record_skipped_gap` inserted each id and
+*then* checked the cap, so a gap wider than the limit recorded its first 1024
+ids and logged "not recording it". Doc comment, commit message and warn log all
+claimed a refusal; the code performed a truncation. The truncation is the
+better behaviour — refusing would throw away the recoverable head of the gap
+along with the unrecoverable tail — so the words changed, not the code, and the
+warning now names what the truncation costs: those ids *cannot* be delivered
+late and are lost.
+
+**The set had no ceiling.** `skipped` was only ever emptied by a late arrival,
+and in the normal case the late arrival never comes — the cumulative ACK for the
+out-of-order id already retired the missing ones at the sender. So the usual
+outcome of the mechanism was a permanent entry. It is now a timestamped
+`DashMap` pruned by the same `drop_lru_if_full` that bounds `received_messages`,
+and `MAX_RECORDED_GAP` dropped from 1024 to 256 — it had been *larger* than
+`MAX_MAP_SIZE`, so one gap could evict the entire set it shared with every peer.
+
+**An id could be recorded as skipped and then delivered in order.** If the
+out-of-order delivery fails, the frontier does not advance; a missing id
+arriving before the retry succeeds goes down the normal path, which never
+cleared the record. The entry then leaks *and* re-delivers the message if it is
+ever retransmitted. `clear_skipped` now runs on every delivery path, not just
+the late one.
+
+**Two claims about test coverage were false.** The commit said "both limits are
+written into the test"; no test touched `MAX_RECORDED_GAP` at all. There is one
+now, and it asserts the cost rather than the mechanism: with a gap from 2 to
+999, a straggler at 100 is delivered late and a straggler at 900 stays lost.
+The bound's two constants are checked at compile time, so raising the limit
+without updating the test fails the build instead of quietly making it vacuous.
+
+**And the assertion I wrote to close the sixth problem was measuring nothing.**
+The double-delivery check waited for silence after the late delivery. Removing
+`clear_skipped` left it green — because the delivery path calls
+`clear_message_inbound`, so the message is gone from the backend and no later
+poll re-reads it whether the record was cleared or not. Silence was guaranteed
+by a different mechanism than the one under test. What actually re-enters the
+path is a **retransmission**, which is also the realistic event: the sender
+resends whenever it misses an ACK. Storing the message again and asserting it is
+not delivered twice fails the moment `clear_skipped` is removed.
+
+Still unproven: the normal-path `clear_skipped` closes an interleaving —
+gap-patience delivery *fails*, then the missing id arrives — that the in-memory
+harness cannot currently produce, because making `deliver` fail means dropping
+the receiver and losing the ability to observe anything afterwards. The reasoning
+is in the comment at the call site; the test is not there. Recorded as
+hardening, not as verified.
+
+**A negative control that stays green is not a small problem.** It is the check
+telling you it is watching something it cannot see. Twice this session the
+control has caught an assertion that would have shipped as proof.
+
 ## Round 488 — a peer's screen share could stay invisible indefinitely
 
 `ReceiverPool.accept` notifies the UI only when a stream APPEARS, because a
