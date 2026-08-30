@@ -19525,3 +19525,36 @@ tests and leaves the positive control -- moving the default between two custom
 roles -- passing. The first attempt at that control did not compile, so it
 reported "no tests"; a control that does not run proves nothing, and it was
 redone.
+
+## Round 408 — the explanation went to a console nobody read
+
+Three specs now fail with the same sentence — `group-multiuser`,
+`touch-controls` and `room-chat` — and two of those are office/room chat, which
+is governed by the workspace permission system rather than group roles. In
+`room-chat` every direction fails, for every one of three users.
+
+Round 394 anticipated exactly this and added the line that would explain it:
+`OfficeChatTabs` logs the role, the domain and all four permission states when
+it withholds the composer. None of the failing runs contain it.
+
+Not because the branch did not run. `touch-controls.spec.ts` builds its own
+context and attaches no console listener, and `createNUsers` — the single page
+factory behind all three group-chat specs — never attached one either. No
+`tests-pw` spec captures console at all. The instrumentation was real, ran, and
+printed into nothing.
+
+An initial claim here was wrong and the test caught it: the legacy keyword
+lists were said to be unable to match the line. `OfficeChatTabs` lowercases to
+something containing "chat", so `['group','chat','message',...]` matches it
+fine. The gap is only the missing listeners, and the docstring says so now.
+
+Capture is attached where pages are born — `createNUsers`, covering all three
+group-chat specs at once, so a new spec in that family cannot forget — and in
+`touch-controls.spec.ts`, which makes its own. The keyword list is one exported
+constant with a test asserting it matches the line the app actually emits, and
+a second asserting it still filters something out, so it cannot quietly become
+a passthrough that passes the first test for the wrong reason.
+
+This round buys evidence, not a fix. The next run says which permission state
+denies these users, and whether the answer is a real refusal or an absence
+being read as one.

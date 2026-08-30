@@ -16,7 +16,9 @@ import {
   sendGroupMessage,
   verifyGroupMessageReceived,
   wakeUpTab,
+  setupConsoleCapture,
 } from './index.js';
+import { COMPOSER_DIAGNOSTIC_KEYWORDS } from './composer-diagnostics.js';
 import type { UxIssueTracker } from './ux-tracker.js';
 
 // ============================================================================
@@ -73,6 +75,14 @@ export async function createNUsers(
     const page = await context.newPage();
     const username = `${prefix}${i + 1}_${timestamp}`;
     const isFirstUser = i === 0;
+
+    // Every group-chat spec gets its pages from here, and none of them
+    // captured console output. So when the composer was replaced by a
+    // restriction notice, the run reported "Message input not found" while the
+    // app had already logged which permission state produced the refusal --
+    // into a console nobody was reading. Attached at the point pages are born
+    // rather than in each spec, so a new spec cannot forget.
+    setupConsoleCapture(page, username, [...COMPOSER_DIAGNOSTIC_KEYWORDS]);
 
     console.log(`\n  Creating user ${i + 1}/${count}: ${username}`);
 
