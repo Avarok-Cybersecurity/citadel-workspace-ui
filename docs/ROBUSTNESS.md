@@ -21221,6 +21221,46 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 476 — the landing budget caught the peer-group work, with 0.2 KB to spare
+
+CI failed `Production Docker Build` on rounds 464-474:
+
+    312.2 KB  landing critical path (budget 312 KB)
+    Over budget by 0.2 KB.
+
+A real regression from this campaign's own work, and the budget did exactly what
+it exists for. Worth recording precisely, because the way it came right was
+luck rather than engineering.
+
+Locally the same tree plus round 475 measures **311.0 KB**. Round 475 deleted
+`use-async-data.ts` — 219 lines of dead hooks a barrel had kept alive — and that
+recovered about 1.2 KB. So the peer-group feature cost 0.2 KB more than the
+budget allowed, and an unrelated deletion in the next round paid for it. Neither
+round knew about the other.
+
+Two experiments, both measured rather than assumed, and both negative:
+
+* **Lazy-loading the delivery path.** `bind-peer-group-delivery` is installed
+  from `group-store`, which the landing page pulls in, so a static import of
+  `peer-group-delivery` looked like it would drag `groupMessagingManager` onto
+  the critical path. Making it a dynamic import changed the total by **nothing**.
+  Reverted: complexity that buys zero is worse than the static import.
+* **Rechunking.** `app-services` co-locates all of `src/lib/p2p`,
+  `connection-service` and `peer-registration-store` — 78.6 KB, on the landing
+  critical path. Removing `p2p` and `peer-registration-store` from that group
+  also changed the total by **nothing**, because they are reachable from the
+  landing ENTRY. Chunk assignment cannot move what the import graph pulls in.
+
+So the real finding is the one neither experiment fixed: **the landing page —
+the connect and login screen — eagerly reaches the P2P messenger and the peer
+registration store.** Breaking that would be a genuine win of tens of
+kilobytes, and it is an import-graph change, not a config one. Recorded with its
+size rather than attempted here, because it needs the integration suite to
+verify and this session cannot run it.
+
+The margin is now 1 KB. The next module added to the landing path fails this
+check again, and that is the check working, not the check being wrong.
+
 ## Round 475 — a barrel keeps dead code alive, and two checks that already existed
 
 Three probes this round, two of which found nothing, and saying so is the point.
