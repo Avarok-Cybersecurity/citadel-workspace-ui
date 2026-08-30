@@ -29,8 +29,14 @@ export function applyGroupRename(groupId: string, name: string): boolean {
   if (trimmed.length === 0) return false;
 
   rememberGroupName(groupId, trimmed);
-  updateGroups((prev: GroupConversation[]) =>
-    prev.map((group) => (group.id === groupId ? { ...group, name: trimmed } : group)),
-  );
+  updateGroups((prev: GroupConversation[]) => {
+    // Identity is the store's only no-op guard, and `map` always allocates, so
+    // renaming a group to the name it already has would notify every subscriber
+    // and write to IndexedDB for nothing. See mark-group-read.ts for what that
+    // cost when a caller was an effect.
+    const target: GroupConversation | undefined = prev.find((group) => group.id === groupId);
+    if (!target || target.name === trimmed) return prev;
+    return prev.map((group) => (group.id === groupId ? { ...group, name: trimmed } : group));
+  });
   return true;
 }

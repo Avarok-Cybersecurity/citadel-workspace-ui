@@ -32,6 +32,11 @@ export function applyGroupSettings(groupId: string, settings: GroupSettings): vo
       debugLog('GroupStore', `Settings change for a group the store does not have: ${groupId}`);
       return prev;
     }
+    // Identity is the store's only no-op guard and `map` always allocates --
+    // see mark-group-read.ts. Reference equality is the right test here: the
+    // callers in use-group-roles build a new settings object for every real
+    // edit, so an identical reference means nothing was edited.
+    if (prev.some((group) => group.id === groupId && group.settings === settings)) return prev;
     return prev.map((group) => (group.id === groupId ? { ...group, settings } : group));
   });
 }

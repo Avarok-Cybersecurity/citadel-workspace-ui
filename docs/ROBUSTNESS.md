@@ -21221,6 +21221,43 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 481 — the rest of the settings surface was fine, and my own two writers were not
+
+Finishing the thread rather than assuming rounds 479 and 480 had covered it.
+Every other thing the settings panel can change already reaches the right place:
+`onMemberRoleChange` goes through `useGroupState`, whose `groups` come from
+`useSyncExternalStore(subscribeToGroups, getGroups)`; kick, invite and delete go
+to the wire. Nothing further to fix there.
+
+Checking WHY 479 and 480 were possible found the shape underneath them.
+`GroupChatPage` keeps `const [group, setGroup] = useState(...)` — a local copy
+of a record the store owns. That copy does stay in sync, because the effect that
+fills it depends on `getGroup`, whose identity is derived from `groups`; so a
+store write does refresh the page. Verified rather than assumed.
+
+Following that dependency one step further indicted code I had just written.
+The effect re-runs on EVERY store change, and it calls `markAsRead`. That path
+has a comment describing what happens when a writer allocates unconditionally:
+
+> new array, new getGroup, effect re-runs, call again. Opening any group chat
+> was a perpetual render-and-write loop that ended either in a hot tab or in
+> React's "Maximum update depth exceeded".
+
+`markGroupRead` returns `prev` unchanged when there is nothing to change, which
+is why that is fixed. **`applyGroupRename` and `applyGroupSettings`, added in
+the two rounds before this one, both mapped unconditionally.** Renaming a group
+to the name it already had notified every subscriber and wrote to IndexedDB;
+so did re-applying identical settings.
+
+Neither is called from an effect today, so neither loops today. That is the
+whole reason it was worth fixing rather than shrugging at: the rule is this
+codebase's own, it is load-bearing exactly where it is already relied on, and a
+future caller should not have to rediscover it the way `markAsRead` did.
+
+Both now return `prev` unchanged for a no-op, with the same reference-equality
+test the role callers make true — `use-group-roles` builds a new settings object
+for every real edit, so an identical reference means nothing was edited.
+
 ## Round 480 — the same shape, one function up: group roles never persisted
 
 `useGroupSettingsActions.onSettingsChange` sat directly above the rename round
