@@ -87,6 +87,7 @@ export default tseslint.config(
       // Prevent accidentally not awaiting a Promise
       // Use "void someAsyncFunction();" to explicitly run in background
       "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": ["error", { "checksConditionals": true, "checksVoidReturn": false, "checksSpreads": false }],
       // ON. There were nine `any`s in this codebase and they are gone: the
       // event emitter erases its payload type in one named place with one cast
       // at each boundary, and the four `Record<string, any>` metadata bags

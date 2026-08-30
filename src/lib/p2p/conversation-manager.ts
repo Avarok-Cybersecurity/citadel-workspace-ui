@@ -5,6 +5,7 @@
  */
 
 import { MessagingLayerType } from '@/types/messaging-layer';
+import { initialPresence } from './initial-presence';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import { eventEmitter } from '../event-emitter';
 import type { P2PMessage, P2PConversation, MessageCache } from './p2p-types';
@@ -56,9 +57,7 @@ export class ConversationManager {
     let conversation: P2PConversation | undefined = this.cache.conversations.get(peerCid);
     if (!conversation) {
       const isConnectedLocal: boolean = this.connections.get(peerCid) === true;
-      const isConnectedAutoConnect: Promise<boolean | null> = p2pAutoConnectService.isPeerConnected(peerCid);
       const isOnlineRegistration: boolean = p2pAutoConnectService.isPeerOnline(peerCid);
-      const isOnline: true | Promise<boolean | null> = isConnectedLocal || isConnectedAutoConnect || isOnlineRegistration;
 
       conversation = {
         peerCid,
@@ -68,10 +67,7 @@ export class ConversationManager {
         unreadCount: 0,
         typing: false,
         lastTypingUpdate: 0,
-        presence: {
-          status: isOnline ? MessagingLayerType.Online : MessagingLayerType.Offline,
-          lastUpdate: isOnline ? Date.now() : 0
-        }
+        presence: initialPresence(isConnectedLocal, isOnlineRegistration)
       };
       this.cache.conversations.set(peerCid, conversation);
     } else if (peerUsername && !conversation.peerUsername) {

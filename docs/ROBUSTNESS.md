@@ -19692,3 +19692,62 @@ Reproduced first at unit level — omit the session from one list, carry it in
 the next, assert it stays hidden — and that test failed before the change.
 Negative control: restoring the early drop fails exactly those two tests and
 leaves the other nineteen passing.
+
+## Round 412 — a pending promise is truthy
+
+`test:reconnect-p2p-only` fails on `PeerConnect request timed out`, which is the
+SDK handshake and needs the stack. The helper around it is sound — it waits 43
+seconds for the app's own auto-connect retry, and the `peer-row-*` testid and
+its "Connected" text both exist and are unit-tested, so the check can see what
+it is looking for. Recorded as needing the stack, not chased further.
+
+Looking at what feeds that row found something that does not need the stack.
+`ConversationManager.getOrCreateConversation` is synchronous and contained:
+
+```ts
+const isConnectedLocal: boolean = this.connections.get(peerCid) === true;
+const isConnectedAutoConnect: Promise<boolean | null> = p2pAutoConnectService.isPeerConnected(peerCid);
+const isOnlineRegistration: boolean = p2pAutoConnectService.isPeerOnline(peerCid);
+const isOnline: true | Promise<boolean | null> = isConnectedLocal || isConnectedAutoConnect || isOnlineRegistration;
+```
+
+`isPeerConnected` is async. A pending Promise is truthy, so `isOnline` was true
+whenever the local map said false — which is every peer at the moment its
+conversation is created. **Every new conversation opened as Online**, with
+`lastUpdate: Date.now()` to make it look freshly observed. The declared type
+said so out loud: `true | Promise<boolean | null>`.
+
+Nothing is lost by dropping the async source here: `use-conversation-peers`
+asks the same service and awaits it, so the real state arrives through the path
+built to carry it.
+
+### Two guards, because the first could not see it
+
+`check-presence-is-not-invented.mjs` exists for exactly this class and did not
+fire: it reads a fixed list of files — the ones where presence had been wrong
+before — rather than the mechanism. The same shape one directory over was
+invisible to it.
+
+`@typescript-eslint/no-misused-promises` is the right tool and was not enabled,
+though type-aware linting was already configured. It is now, at zero cost:
+zero violations repo-wide. But it does **not** catch this line. Verified rather
+than assumed, both ways: a probe `if (isConnectedAutoConnect)` inserted into
+that very file fired immediately, while the real line never did — the chain
+ends in a boolean operand, so the resulting union has non-Promise members.
+
+So a second, narrow check: no declared type unions a boolean with a Promise.
+That is not a design, it is a missing `await` with the annotation widened to
+accept it. Exactly one line in 1,238 matched, and it was the bug.
+`Promise<T> | null` for a cached in-flight request — a real pattern used a
+dozen times here — is deliberately not matched, and a control confirms it.
+
+The first draft of that check reported its own explanation: the doc comment on
+`initial-presence.ts` quotes the bad declaration. A gate that flags its own
+prose is one people learn to switch off, so comment lines are skipped, with a
+control proving real code is still caught.
+
+The presence decision moved to `initial-presence.ts` when the file passed the
+250-line cap — better placed anyway, since it is now a pure function testable
+without mocking the manager. Negative control: restoring the promise into the
+chain fails the "is Offline, not Online" test alone, leaving the positive
+control — a locally connected peer still reads Online — passing.
