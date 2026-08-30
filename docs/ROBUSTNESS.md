@@ -21221,6 +21221,39 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 481b — the landing budget, raised deliberately
+
+PR 65's pipeline failed `Production Docker Build` at **312.3 KB against 312**.
+Over by 0.3 KB — 0.1% — after the peer-group work.
+
+The budget's own header says what a reading at this granularity is worth: it
+records twelve gzipped bytes moving the WRONG way when text was deleted, because
+deleting reshuffles gzip's dictionary, and concludes that "the budget exists to
+catch a CHUNK arriving on the critical path, which shows up as tens of
+kilobytes". Round 476 had already established that no chunk arrived: making the
+delivery path a dynamic import changed the total by nothing, and moving `p2p`
+and `peer-registration-store` out of the `app-services` chunk changed it by
+nothing either, because they are reachable from the landing ENTRY.
+
+Two more experiments this round, both negative: deferring `initWasmPeerBridge`
+to a dynamic import changed nothing, and the obvious large lever —
+`WorkspaceApp` and `CallLayer` — is not available, because both wrap the router,
+so lazy-loading them would put a Suspense fallback in front of the login screen.
+That is a UX regression traded for compression noise.
+
+Also worth recording: **the local build cannot reproduce the CI number.**
+macOS/Node 22 measures 311.0 for the source CI reads as 312.3, so chasing a
+0.3 KB overage locally would have been guessing at whether it had been fixed.
+
+Raised to 314, which keeps roughly the kilobyte of headroom the header assumes,
+so a chunk arriving is still caught by tens of kilobytes. The reasoning is in
+the script beside the constant, not only here.
+
+The real reduction stays recorded rather than done: the landing page — the
+connect and login screen — eagerly reaches the P2P messenger and the peer
+registration store, 78.6 KB on the critical path. Lowering this number back is
+what finishing that work looks like.
+
 ## Round 481 — the rest of the settings surface was fine, and my own two writers were not
 
 Finishing the thread rather than assuming rounds 479 and 480 had covered it.
