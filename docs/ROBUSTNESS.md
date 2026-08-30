@@ -19790,3 +19790,38 @@ so the gate rewrote its own baseline on disk and exited 1 asking for it to be
 committed. Locally that rewrite was already there, uncommitted, so every local
 run passed while CI compared against the committed file. A green preflight is
 not evidence when a gate's own output is part of the working tree.
+
+## Round 414 — the TypeScript half of the orphan check
+
+Round 410 gave Rust a check that every file is reached by a `mod` declaration.
+TypeScript has no such line, so the same thing hides better: an unimported
+module compiles, type-checks, lints, and reads as maintained.
+
+Four of 1,239 files are reached by nothing. One matters:
+`lib/live-document-store/document-queries.ts` exports `getRootHash`,
+`getCreatorCid`, `isCreator` and `getRevisionChain`, and
+`lib/yjs-merkle-strategy/tree.ts` has all four as methods that real callers
+use. Two answers to the same four questions, one of them answering nobody —
+which is how the pair in round 409 came to disagree in the first place. The
+other three are a barrel and two type modules.
+
+Baselined rather than deleted, as in round 410: deciding whether a planned API
+gets wired up or dropped belongs to whoever planned it. The list may only
+shrink, and three controls hold it to that.
+
+The third control is the one worth recording, because it failed twice.
+
+Wiring a baselined orphan up must ALSO fail, so the entry has to go with it —
+otherwise the baseline quietly grants an exemption to a file that no longer
+needs one. The first draft accepted it silently: both branches removed the
+entry from the "still orphaned" set, so a now-imported file was never
+reported.
+
+The second attempt still passed, and the reason was worse: the control added
+`import './document-queries';`, and the scanner only matched `from '...'` and
+`import('...')`. It could not see SIDE-EFFECT imports at all — so a module
+imported only for its side effects would have been reported as an orphan, and
+my control had been written in the one form the gate was blind to. Both fixed:
+the regex covers all three import forms, and the control now fires.
+
+A control that does not fire is not a passing control. This one said so twice.
