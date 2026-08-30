@@ -238,7 +238,11 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
         onEditMember={handleEditMember}
         onRemoveMember={handleRemoveMember}
         onManagePermissions={handleManagePermissions}
-        onCreateGroup={async (name, membersList) => { await createGroup(name, membersList); }}
+        onCreateGroup={async (name, membersList) => {
+          // Open it: every other way into a group navigates; this one did not.
+          const groupId: string = await createGroup(name, membersList);
+          if (groupId) navigate(`/groups/${groupId}`);
+        }}
       />
 
     </>

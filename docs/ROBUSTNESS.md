@@ -20235,3 +20235,33 @@ in a RESPONSIVE suite that is self-defeating — one of its own tests is called
 "workspace shell has no unhittable controls", and forcing a click is how an
 unhittable control passes. They are left alone because changing five clicks in
 a suite I cannot run here would be guessing, and this one had evidence.
+
+## Round 427 — creating a group did not open it
+
+Round 425 explained why `peer-group`'s FALLBACK could never match: the group
+name was dropped between the dialog and the socket. The primary path is a URL
+wait, and it could never succeed either.
+
+`page.waitForURL(/\/groups\/[^/]+/, { timeout: 30_000 })` waits for the app to
+open the group it has just created. Nothing navigates. `GroupConversationRow`
+navigates when you click it, `MembersSection`'s list navigates when you click a
+row, `OngoingCallBar` navigates when you rejoin a call — and creating a group
+closed the dialog and left you exactly where you were, with a new row somewhere
+in a sidebar you were not looking at.
+
+So the spec spent thirty seconds waiting for something that was never going to
+happen, then fell through to a row it could not match by name. Two independent
+causes, and between them "group creation produced no group id".
+
+Creating a group now opens it, which is what every other route into a group
+does. Negative control: removing the navigation fails the new test alone.
+
+### Also verified, and this one retires a suspicion
+
+The three-peer call failure -- "B decodes frames from TWO distinct peers" -- has
+been carried all session as "needs the stack". That is now checked rather than
+assumed. The mesh is complete on both legs in the app: `call-signal-handling`
+consumes the caller's roster and seeds every co-invitee as a participant,
+`accept` fans a `CallAccept` out to all of them and opens sessions with whoever
+has already answered, and an inbound `CallAccept` calls `openSessionFor` for the
+rest. Two invitees do signal each other. Whatever fails is below this layer.
