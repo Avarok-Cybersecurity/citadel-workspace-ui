@@ -22,6 +22,7 @@ import { GroupMessageTypeTS } from '@/types/workspace-protocol';
 import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import { groupSendTransport } from './group-send-transport';
 import { sendPeerGroupMessage } from './group-requests';
+import { eventEmitter } from '@/lib/event-emitter';
 import { deliverPeerGroupMessage } from './peer-group-delivery';
 
 export async function sendGroupMessageAnywhere(
@@ -35,7 +36,34 @@ export async function sendGroupMessageAnywhere(
   }
 
   const messageId: string = await sendPeerGroupMessage(groupId, content, replyTo);
-  deliverPeerGroupMessage({
+
+  const delivery: Parameters<typeof deliverPeerGroupMessage>[0] = {
+    groupId,
+    messageId,
+    senderId: String(instanceManager.cid ?? ''),
+    senderName: 'You',
+    content,
+    timestamp: Date.now(),
+    replyTo,
+  };
+
+  // BOTH halves, because they are different halves.
+  //
+  // The direct call puts the message in the open thread and does not depend on
+  // anything being installed first — routing the thread through the event
+  // instead made your own message's appearance conditional on the group store
+  // having initialised, which an existing test caught immediately.
+  deliverPeerGroupMessage(delivery);
+
+  // And the event, which is what the SIDEBAR listens to: preview, unread badge,
+  // recency sort. Without it a message you sent appeared in the conversation
+  // while the sidebar went on showing the previous one, and the group never rose
+  // to the top of the list.
+  //
+  // Not a double delivery: `bind-peer-group-delivery` also calls
+  // `deliverPeerGroupMessage`, and `handleNewMessage` refuses an id already in
+  // the conversation — which is exactly why the binding insists on an id.
+  eventEmitter.emit('group:message-received', {
     groupId,
     messageId,
     senderId: String(instanceManager.cid ?? ''),
