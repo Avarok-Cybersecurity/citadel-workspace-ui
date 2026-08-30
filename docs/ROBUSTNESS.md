@@ -21221,6 +21221,50 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 502 — a question about batching found a mismatch between two truths
+
+Asked whether ILM batches outbound packets or acknowledgements. It does neither:
+each message is its own `Payload::Message`, each ACK its own `Payload::Ack`
+carrying one id. What it has is **pipelining** (`SEND_WINDOW = 8`, and 1 until
+the peer has acknowledged anything) and **cumulative ACK semantics** — which is
+where the answer stopped being a lookup.
+
+Cumulative acknowledgement is asserted in three places: `update_ack` keeps only a
+high-water mark and discards any id at or below it; the window counts in flight
+as `id <= last_sent && id > last_acked`; and SEND_WINDOW is justified on it
+outright — "one surviving ACK retires the whole window, and at four-in-five loss
+the chance that at least one of eight survives is 83%".
+
+`clear_message_outbound` was called with the single id the ACK named.
+
+So a system designed to survive losing seven ACKs in eight retires those seven
+for flow control and keeps their rows. And `process_outbound` sorts ascending,
+stops at the first message it cannot send, and `can_send` is false for an id at
+or below `last_acked`. The head branch that handles "cannot send" states its
+assumption in a comment: *"`can_send` is false because `msg_id > last_sent` is
+false -- this message has been sent and not acknowledged, which is precisely the
+case that calls for a retransmission"*. There are two reasons `can_send` can be
+false, and for a cumulatively-acked row the comment names the wrong one.
+
+The consequence: the head is retransmitted every cycle, the receiver dedups and
+re-ACKs the same id, `update_ack` discards that as stale so nothing moves, and
+the peer stays blocked for fifty cycles until BLOCKED-RECOVERY wipes its
+ack/sent state and closes the send window back to one. Per stale row. It does
+self-heal — which is why it has never been reported as a hang — so the cost is
+about ten seconds of stalled queue and a window reset for each ACK the link ate.
+
+**Two mistakes of my own in this round, both caught by process rather than
+insight.** The first control produced no output at all and I nearly read that as
+a pass; re-running it properly showed it had never compiled. And I ran `git
+stash` to compare clippy against the committed tree — with a live service
+writing account files into the same worktree — which conflicted on four runtime
+artifacts on the way back. Nothing was lost, and the files went back to the
+state the service left them in rather than to HEAD, because HEAD is not where a
+running service's state belongs.
+
+**Never stash a worktree a live service is writing to.** The same rule as not
+staging everything while agents run, and I had not generalised it.
+
 ## Round 501 — a duplicate at a page boundary, and an offer for bytes that never come
 
 **A redelivery landing exactly as a page filled was stored twice** (31).

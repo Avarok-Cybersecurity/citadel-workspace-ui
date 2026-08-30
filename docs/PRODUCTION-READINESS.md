@@ -8,8 +8,9 @@ stack or a WASM rebuild), `wontfix` (with a reason).
 
 The goal this backlog serves: no critical, high or medium issue left open.
 
-**Progress: 29 of 49 fixed** — every critical and every HIGH is closed;
-16 of 25 medium. 9 open at medium; 11 low.
+**Progress: 30 of 49 fixed** — every critical and every HIGH is closed;
+16 of 25 medium plus one found outside the inspection (round 502, ILM
+cumulative-ACK clearing). 9 open at medium; 11 low.
 
 Two rounds of adversarial re-review have since been run over the fixes
 themselves. They confirmed every one as correct, and found nine further defects
