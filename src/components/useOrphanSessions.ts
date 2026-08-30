@@ -1,3 +1,5 @@
+import { forgetSession, withoutForgotten } from '@/lib/sessions/forgotten-sessions';
+import { syncSelectedSessionToWasm } from './sync-selected-session-to-wasm';
 import { useState, useCallback } from "react";
 import type { UseOrphanSessionsResult } from './useOrphanSessions-types';
 import { useAttentionGlow } from './use-attention-glow';
@@ -13,11 +15,10 @@ import type { ActiveSession, StoredSessions } from "@/types/session-types";
 import type { DisconnectAction } from "./DisconnectConfirmModal";
 import type { DisconnectStatus } from "./LoadingModal";
 import { useToast, useEventListener } from "@/hooks";
-import { setSelectedUser, getSelectedUser , type TabUserContext } from "@/lib/tab-context";
+import { setSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { startMessagingForSession } from "@/lib/start-messaging";
 import { instanceManager, instanceChannel } from "@/lib/multi-instance";
-import { p2pRegistrationService } from "@/lib/p2p-registration-service";
 import { notificationService, type UnreadCountChange } from "@/lib/notification-service";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { serverAutoConnectService } from "@/lib/server-auto-connect-service";
@@ -65,28 +66,18 @@ export function useOrphanSessions(): UseOrphanSessionsResult {
       // CIDs are permanent, so a stale list is strictly better than an empty
       // one here.
       if (!ok) return;
+      const visibleSessions: typeof activeSessions = withoutForgotten(activeSessions);
+
       const storedSessions: StoredSessions = connectionManager.getStoredSessions();
 
       const sessionsWithWorkspace: OrphanSessionWithWorkspace[] = withWorkspaceNames(
-        activeSessions,
+        visibleSessions,
         storedSessions.sessions,
         readLastAccessed,
       );
       setSessions(sessionsWithWorkspace);
-      debugLog('OrphanSessionsNavbar', 'Loaded active sessions:', sessionsWithWorkspace);
 
-      const tabSelection: TabUserContext | null = await getSelectedUser();
-      if (tabSelection?.selectedCid) {
-        const sel: OrphanSessionWithWorkspace | undefined = sessionsWithWorkspace.find(s => s.cid === tabSelection.selectedCid);
-        if (sel?.cid !== undefined) {
-          try {
-            await wasmConnectionManager.addSession(sel.cid.toString());
-            if (sel.peer_connections) {
-              p2pRegistrationService.syncPeerConnectionsFromSession(sel.peer_connections).catch(() => {});
-            }
-          } catch (_) { /* WASM add session best-effort */ }
-        }
-      }
+      await syncSelectedSessionToWasm(sessionsWithWorkspace);
     } catch (error) {
       // Keep whatever was last known good. Clearing here asserted "you have no
       // sessions" on the strength of a failure.
@@ -188,7 +179,11 @@ export function useOrphanSessions(): UseOrphanSessionsResult {
         invalidateSessionCache: () => connectionManager.invalidateSessionCache(),
         removeSession: (username, serverAddress) =>
           connectionManager.removeSession(username, serverAddress),
-        forget: (cid) => setSessions(prev => prev.filter(s => s.cid !== cid)),
+        forget: (cid) => {
+          // Both: the state now, and every list until the server agrees.
+          forgetSession(cid);
+          setSessions(prev => prev.filter(s => s.cid !== cid));
+        },
         reload: () => loadActiveSessions(),
       },
       target,

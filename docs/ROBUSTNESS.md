@@ -18888,3 +18888,45 @@ No code changed this round. The Appearance tab was already correct, and saying
 so is the result.
 
 2512 tests green, all 61 preflight checks.
+
+## Round 390 — the failure I had been calling "pre-existing"
+
+`test:prev-sessions` has failed in every run this session and I had labelled it
+known and moved on, without once reading it. It has nine assertions and eight
+pass. The one that fails:
+
+    Deregister Removes:        FAIL
+    Deregister Permanent:      PASS
+
+Those two together are the whole diagnosis: the row is gone after a reload and
+still on screen before one.
+
+Round 356 already moved the local removal to AFTER the reload for exactly this
+reason, and its comment explains it — a list fetched a moment after a
+deregistration can still contain the session. That is enough against the one
+reload `sign-out-session` performs and no help against the next one, which
+arrives on its own: deregistering stops the WASM client, and the reconnection
+fires `on-ws-connection-success`, whose handler reloads the list from the same
+not-yet-caught-up server.
+
+So the removal has to outlive the function that performed it. `forgotten-sessions`
+holds a tombstone until the server stops reporting the session — a tombstone
+rather than a timeout, because the condition is "the server still says this
+exists", so the thing to wait on is the server no longer saying it. It clears
+itself on the first list that omits the session, so a deregistration that failed
+server-side cannot hide a live session for ever, and CIDs are permanent, so an
+immortal tombstone would hide that account on every future login.
+
+`withoutForgotten` does the reconcile and the filter together, in that order,
+because doing them in the other order hides a session for one extra list every
+time — and two halves callable separately is how that gets got wrong.
+
+Three controls: no tombstone (the shipped behaviour), a tombstone that never
+expires, and a reconcile that drops everything. Each fails its own assertion.
+
+The lesson is not the fix. It is that I carried "known failure, needs the stack"
+for this job through a dozen rounds on the strength of never having opened it,
+which is the same unexamined-assumption shape I keep finding in the code and
+writing entries about.
+
+2515 tests green, all 61 preflight checks.
