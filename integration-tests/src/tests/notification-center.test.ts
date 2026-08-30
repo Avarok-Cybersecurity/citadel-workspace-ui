@@ -415,7 +415,12 @@ async function runTest(): Promise<boolean> {
 
     // Check badge appears on bell icon (should show unread count)
     // Badge component renders as a div (shadcn), not a span
-    const badge = page.locator('button:has(svg.lucide-bell) .absolute').first();
+    // By name. This was `button:has(svg.lucide-bell) .absolute` -- an icon
+    // library's internal class and a Tailwind positioning utility, either of
+    // which can change without anyone touching the notification centre. The
+    // responsive spec already addresses the bell itself by testid for the same
+    // reason; the badge had no name until now.
+    const badge = page.getByTestId('notification-badge').first();
     const badgeVisible = await isVisibleWithin(badge, 3000);
     results.notificationBadgeChecked = badgeVisible;
     if (badgeVisible) {

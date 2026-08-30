@@ -160,6 +160,12 @@ const NotificationCenter: () => JSX.Element = (): JSX.Element => {
               // aria-hidden: the count is already in the button's label, and
               // announcing it twice is noise.
               aria-hidden="true"
+              // Named, because the spec addressed it as
+              // `button:has(svg.lucide-bell) .absolute` -- an icon library's
+              // internal class and a Tailwind utility. The responsive spec's
+              // own comment says nothing promises to keep `lucide-bell`, and
+              // `.absolute` changes with any positioning tweak.
+              data-testid="notification-badge"
               className="absolute -top-2 -right-2 px-1.5 min-w-5 h-5 flex items-center justify-center"
             >
               {unreadCount}

@@ -20723,3 +20723,27 @@ A gate holds it, because the propagation failure is the recurring part rather
 than the original bug. Controls in both repositories: an unbounded install in
 the parent fails, and an unbounded install in the submodule fails — the second
 being the one that matters, since that is the copy that got missed.
+
+## Round 442 — the badge nobody could name
+
+`test:notifications` has not actually run for two runs — it hung installing a
+browser both times — so its last real result is worth reading rather than
+assuming. Everything passed, and one line was worth a second look:
+`Badge Checked: PASS`. A name like that usually means "we looked", not "we
+found something". This one is real: it comes from an `isVisibleWithin` and it
+gates the overall result. Verified negative.
+
+Its LOCATOR is the problem: `button:has(svg.lucide-bell) .absolute`. That is an
+icon library's internal class name and a Tailwind positioning utility, neither
+of which anyone promised to keep. The responsive spec addresses the bell by
+testid and its comment says exactly that about `lucide-bell` — the fix was made
+there and not here, and the badge itself had no name at all to move to.
+
+It has one now, and the spec asks for it by name. Control: removing the testid
+fails the gate, and the restore was verified rather than assumed.
+
+Also verified this wave, and neither needed changing: the workspace
+initialization modal is wired to a real flag set from real workspace events
+(seeding just makes that path rare, which is not the same as dead), and the
+notification centre's own checks — bell, sheet, four tabs, empty state, clear
+all, item interaction — all pass and all gate.
