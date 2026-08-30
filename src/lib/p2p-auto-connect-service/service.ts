@@ -149,9 +149,13 @@ export class P2PAutoConnectService {
 
   // === Legacy API (uses current CID from context) ===
 
-  public async isPeerConnected(peerCid: bigint): Promise<boolean> {
+  /**
+   * Connected, or `null` when we cannot name our own session: connections are
+   * keyed by session, so `false` there answers a question nobody could ask.
+   */
+  public async isPeerConnected(peerCid: bigint): Promise<boolean | null> {
     const currentCid: bigint | null = await getCurrentCid();
-    if (!currentCid) return false;
+    if (!currentCid) return null;
     return this.isPeerConnectedForSession(currentCid, peerCid);
   }
 

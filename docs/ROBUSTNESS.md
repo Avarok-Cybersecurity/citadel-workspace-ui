@@ -19278,3 +19278,38 @@ it. That is a feature to build, not a bug to hide, and hiding it behind a
 fabricated "offline" is what was happening before.
 
 2527 tests green, all 61 preflight checks.
+
+## Round 401 — the same value, read by a gate and by a caption
+
+Third application of the reachability lens, and the one that turned up a
+distinction worth naming.
+
+`isPeerConnected` answered `false` when the tab could not resolve its own CID.
+Connections are keyed by session, so without a CID there is nothing to look in —
+`false` there answers a question nobody could ask, and the sidebar draws it as a
+red dot beside every peer. It is `null` now, alongside the third state round 367
+gave the same field one layer up.
+
+Its six callers split cleanly, and not by accident:
+
+| caller | wants | why |
+|---|---|---|
+| `useP2PMessages`, `messaging-service` | `?? false` | deciding whether to establish a connection — unknown and not-connected both mean "try", which is the safe move |
+| `use-registered-peers`, `use-conversation-peers` | keep the `null` | captioning a row, which already has words for "not known" |
+
+**A gate and a caption are not the same reader.** The tri-state work in this
+campaign has mostly been about telling absence from denial for a *label*; this
+is the first place where the same absence should collapse for a *decision*, and
+collapsing it is not a compromise — trying to connect when you are unsure is
+correct.
+
+**No test was added, and that is deliberate.** The branch is two lines, and
+reaching it in vitest meant stubbing `presence.ts`, then `messaging-service.ts`,
+then whatever came next: the auto-connect singleton is constructed at import
+time and half the app leads there. A test needing four stubs to reach a
+two-line method is testing the import graph. What verifies this instead: `tsc`
+checked all six call sites against the widened type, and round 367's peer-row
+tests already assert that a null renders as "not known" rather than "Offline".
+Saying so is better than a test that would pass on any implementation.
+
+2527 tests green, all 61 preflight checks.

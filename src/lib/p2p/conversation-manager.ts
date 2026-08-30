@@ -56,9 +56,9 @@ export class ConversationManager {
     let conversation: P2PConversation | undefined = this.cache.conversations.get(peerCid);
     if (!conversation) {
       const isConnectedLocal: boolean = this.connections.get(peerCid) === true;
-      const isConnectedAutoConnect: Promise<boolean> = p2pAutoConnectService.isPeerConnected(peerCid);
+      const isConnectedAutoConnect: Promise<boolean | null> = p2pAutoConnectService.isPeerConnected(peerCid);
       const isOnlineRegistration: boolean = p2pAutoConnectService.isPeerOnline(peerCid);
-      const isOnline: true | Promise<boolean> = isConnectedLocal || isConnectedAutoConnect || isOnlineRegistration;
+      const isOnline: true | Promise<boolean | null> = isConnectedLocal || isConnectedAutoConnect || isOnlineRegistration;
 
       conversation = {
         peerCid,

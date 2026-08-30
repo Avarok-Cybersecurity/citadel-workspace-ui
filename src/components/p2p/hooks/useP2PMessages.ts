@@ -74,7 +74,9 @@ export function useP2PMessages({
       const syncedConnected: boolean = messenger.isConnected(peerCid);
       if (syncedConnected) setIsConnected(true);
 
-      const autoConnectConnected: boolean = await p2pAutoConnectService.isPeerConnected(peerCid);
+      // A decision, so unknown behaves as not-connected: both lead to the
+      // same safe move, which is to try.
+      const autoConnectConnected: boolean = (await p2pAutoConnectService.isPeerConnected(peerCid)) ?? false;
       if (autoConnectConnected) {
         setIsConnected(true);
         setPeerPresence({ status: MessagingLayerType.Online, lastUpdate: Date.now() });
@@ -89,7 +91,7 @@ export function useP2PMessages({
 
     const checkInitialConnection = async (): Promise<void> => {
       const syncConnected: boolean = messenger.isConnected(peerCid);
-      const autoConnected: boolean = await p2pAutoConnectService.isPeerConnected(peerCid);
+      const autoConnected: boolean = (await p2pAutoConnectService.isPeerConnected(peerCid)) ?? false;
       setIsConnected(syncConnected || autoConnected);
     };
     runAsyncSetup(checkInitialConnection);

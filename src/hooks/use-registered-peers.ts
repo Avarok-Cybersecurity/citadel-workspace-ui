@@ -98,7 +98,9 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
           const isOnline: boolean | null = p2pAutoConnectService.peerOnlineStatus(peerCidBigInt);
           let isConnected: boolean | null = null;
           try {
-            const connectedPromise: Promise<boolean> = p2pAutoConnectService.isPeerConnected(peerCidBigInt);
+            // Already `boolean | null`: the service answers null when this tab
+            // cannot name its own session, which is not "not connected".
+            const connectedPromise: Promise<boolean | null> = p2pAutoConnectService.isPeerConnected(peerCidBigInt);
             // Null, not false: the timeout means the check did not finish, which
             // is not the same as it having answered "no".
             const timeoutPromise: Promise<null> = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000));

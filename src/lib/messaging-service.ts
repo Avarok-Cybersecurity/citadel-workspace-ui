@@ -103,7 +103,9 @@ export class MessagingService {
     // has no callers today, which is the only reason that has not surfaced; a
     // guard that cannot pass is a landmine for whoever wires it up next.
     const cid: bigint | null = memberIdToCid(recipientId);
-    if (cid === null || !(await p2pAutoConnectService.isPeerConnected(cid))) {
+    // `?? false` for the same reason as useP2PMessages: this decides whether to
+    // establish a connection, and unknown should try rather than assume.
+    if (cid === null || !((await p2pAutoConnectService.isPeerConnected(cid)) ?? false)) {
       throw new Error(
         `Cannot send message to ${recipientId}: no peer connection is established.`,
       );
