@@ -52,6 +52,13 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
             // chevron 56px into the controls on the right, painting it over
             // them. flex-1 asks for the space that is actually left.
             className="flex items-center gap-3 py-2 hover:bg-primary-accent/10 transition-colors rounded-md flex-1 min-w-0 group bg-transparent pl-3"
+            // Addressable by name. Two specs looked for `workspace-switcher`
+            // and `workspace-name`; neither existed, so their preferred lookup
+            // spent three seconds matching nothing on every run before falling
+            // back to `button:has(svg.lucide-chevron-right)` -- a shape, which
+            // is what `check-controls-are-addressed-by-testid` exists to
+            // discourage.
+            data-testid="workspace-switcher"
             disabled={isSwitching}
           >
             {isInitials ? (

@@ -19860,3 +19860,42 @@ separate questions, and the second is the cheaper one to ask first. Rounds 410
 and 415 both began by fixing something before checking whether anything reached
 it, and 410 spent two tests that could never run before the check-by-name caught
 it.
+
+## Round 416 — selectors that cannot match
+
+`check-controls-are-addressed-by-testid.mjs` argues you should not press a
+control by the words on it. Nothing checked that the testid then exists.
+
+Nine testids are addressed by specs and rendered nowhere. Eight sit inside
+fallback unions — `[data-testid="group-chat-view"], .group-chat-view` — so the
+spec still works through the other half while this half matches nothing. The
+ninth had no fallback of its own kind: `topbar-navigation` looks for
+`workspace-switcher` and `workspace-name`, the app rendered neither, so that
+lookup waited three seconds matching nothing on every run before falling back to
+`button:has(svg.lucide-chevron-right)` — addressing a control by a shape, which
+is the thing the other check exists to discourage.
+
+The switcher now carries `data-testid="workspace-switcher"`. Making the app
+addressable is the right direction; deleting the selector would have been the
+wrong one.
+
+### The probe corrected itself three times
+
+Every version of this check reported MORE than the truth, and each widening
+removed false positives rather than finding new faults:
+
+  - `disconnect-loading-modal` looked absent. It is defined as `testId:` in a
+    config object that `LoadingModal` spreads onto the element. Had I believed
+    the first run, I would have reported `waitForDisconnectToFinish` as waiting
+    on a locator that cannot match — and round 411 leaned on that function.
+  - `call-toggle-mic` and friends looked absent, same reason.
+  - `preview-region-sidebar` looked absent. It is `'data-testid': \`preview-region-${id}\``
+    — a quoted property key, a fourth spelling.
+
+Nine survived all three corrections and were each checked by hand. The check
+now knows all four spellings, and its docstring lists them so the next person
+widening it knows what has already been paid for.
+
+Controls: addressing a testid nothing renders fails; removing the switcher's
+new testid fails; and a baselined id that becomes rendered fails too, so the
+list can only shrink.
