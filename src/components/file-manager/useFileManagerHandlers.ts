@@ -1,12 +1,12 @@
 import { useCallback } from "react";
 import { describeError } from '@/lib/describe-error';
 import { useFileManagerSelectionHandlers } from './useFileManagerSelectionHandlers';
+import { useFileManagerDeleteHandlers } from './useFileManagerDeleteHandlers';
 import { toast } from "sonner";
 import type { RevfsNode, TreeKey, RevfsFileMetadata } from "@/types/revfs-types";
 import { SENT_FILES_DIR, RevfsFileState, TreeScope } from "@/types/revfs-types";
 import { revfsService } from "@/lib/revfs";
 import { peerPairKey, isDownloadableState } from "@/lib/revfs/tree-queries";
-import { useConfirm } from "@/components/shared/confirm-dialog";
 import { usePrompt } from "@/components/shared/prompt-dialog";
 
 interface HandlerDeps {
@@ -55,7 +55,6 @@ export function useFileManagerHandlers({
   setUploadTargetDir, setRevfsDisabledReason, setRevfsDisabledModalOpen,
   setAttemptedFileSize, setStorageLimitModalOpen, setPropertiesNode,
 }: HandlerDeps): { handleNewFolder: (parentPath: string) => Promise<void>; handleDelete: (node: RevfsNode) => Promise<void>; handleDownload: (node: RevfsNode) => void; handleUploadFile: (dirPath: string) => void; handleInfo: (node: RevfsNode) => void; handleRename: (path: string, newName: string) => Promise<void>; handleCut: (node: RevfsNode) => void; handleCopy: (node: RevfsNode) => void; handlePaste: (destPath: string) => Promise<void>; handleDeleteMultiple: (nodes: RevfsNode[]) => Promise<void>; handleCutMultiple: (nodes: RevfsNode[]) => void; handleCopyMultiple: (nodes: RevfsNode[]) => void; handleSelectAll: () => void; handleDrop: (targetPath: string, files: FileList) => Promise<void>; handleSync: () => Promise<void>; } {
-  const confirm: ReturnType<typeof useConfirm> = useConfirm();
   const prompt: ReturnType<typeof usePrompt> = usePrompt();
 
   const handleNewFolder: (parentPath: string) => Promise<void> = useCallback(async (parentPath: string): Promise<void> => {
@@ -71,20 +70,6 @@ export function useFileManagerHandlers({
     const path: string = parentPath === '/' ? `/${name.trim()}` : `${parentPath}/${name.trim()}`;
     mkdir(path).catch(err => toast.error(`Failed to create folder: ${describeError(err)}`));
   }, [mkdir, prompt]);
-
-  const handleDelete: (node: RevfsNode) => Promise<void> = useCallback(async (node: RevfsNode): Promise<void> => {
-    const isDirectory: boolean = node.type === 'directory';
-    const ok: boolean = await confirm({
-      title: isDirectory ? `Delete folder "${node.name}"?` : `Delete file "${node.name}"?`,
-      description: isDirectory
-        ? 'Everything inside it is deleted too. This cannot be undone.'
-        : 'This cannot be undone.',
-    });
-    if (!ok) return;
-
-    const removal: Promise<void> = isDirectory ? rmdir(node.path) : removeFile(node.path);
-    removal.catch(err => toast.error(`Failed to delete: ${describeError(err)}`));
-  }, [rmdir, removeFile, confirm]);
 
   const handleDownload: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => {
     if (isDownloadableState(node.fileState)) {
@@ -149,17 +134,9 @@ export function useFileManagerHandlers({
     }
   }, [hasPasteItems, currentTreeKey, clipboard, isCut, move, copy, clearClipboard]);
 
-  const handleDeleteMultiple: (nodes: RevfsNode[]) => Promise<void> = useCallback(async (nodes: RevfsNode[]): Promise<void> => {
-    const count: number = nodes.length;
-    const ok: boolean = await confirm({
-      title: `Delete ${count} item${count !== 1 ? 's' : ''}?`,
-      description: 'Any folders in the selection are deleted with their contents. This cannot be undone.',
-    });
-    if (!ok) return;
-    Promise.all(nodes.map(node => node.type === 'directory' ? rmdir(node.path) : removeFile(node.path)))
-      .then(() => { toast.success(`Deleted ${count} item${count !== 1 ? 's' : ''}`); clearSelection(); })
-      .catch(err => toast.error(`Failed to delete: ${describeError(err)}`));
-  }, [rmdir, removeFile, clearSelection, confirm]);
+
+  const { handleDelete, handleDeleteMultiple } =
+    useFileManagerDeleteHandlers({ rmdir, removeFile, clearSelection });
 
   const { handleCutMultiple, handleCopyMultiple, handleSelectAll } =
     useFileManagerSelectionHandlers({ tree, currentPath, filterText, currentTreeKey, cut, copyToClipboard, selectAll });

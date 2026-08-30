@@ -20596,3 +20596,41 @@ nothing at all for eight seconds while the operation waits for a lock. The tree
 is only updated once it runs. That is a real gap and it needs a progress
 affordance rather than a bigger timeout, which is a change I cannot verify from
 here.
+
+## Round 438 — the silence round 437 measured
+
+Round 437 found that deleting a folder starts 7.8 seconds after the confirm
+click, queued behind the previous step's peer ack on a per-peer serial lock, and
+recorded the user-facing half as a gap: a closed dialog and then nothing.
+
+Deleting a SELECTION already toasts on success. Deleting ONE item announced only
+its failures, so a success was silence — and eight seconds of it reads as a
+click that missed. It says when it lands now, with the same wording as its
+sibling.
+
+Three verified negatives came first, and they are the reason this was the change
+worth making rather than something larger: failed messages render as failed and
+carry a retry, the retry calls `resendMessage` and reports its own failure, and
+the auto-connect online cache cannot read fresh-and-empty before its first poll.
+
+Controls: removing the success toast fails the new test; making `rmdir` reject
+fails it too, so the toast is on the success path and not unconditional.
+
+### A control ate the test it was checking
+
+Control two reverted with `git checkout --` on `deleting-asks-first.test.ts`.
+That file IS tracked — round 418 committed it — so the checkout restored the
+COMMITTED version and silently discarded this round's new test and its toast
+spy. The source fix survived only because it was restored from a file copy.
+
+That is the third variant this session of one mistake: a control whose anchor
+string was not in the file, a control written in the one import form the scanner
+could not see, and now a control that reverted a tracked file to a version
+predating the work. `git checkout --` is not an undo for uncommitted work; it is
+a discard. Backups go to a file, and the check afterwards is that the work is
+still there.
+
+The extraction into `useFileManagerDeleteHandlers` mirrors
+`useFileManagerSelectionHandlers` beside it, and the two delete paths belong
+together: both ask before destroying anything, both route a directory to `rmdir`
+and a file to `removeFile`, and both now report the outcome either way.

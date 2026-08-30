@@ -20,7 +20,13 @@ let answer: boolean = true;
 vi.mock('@/components/shared/confirm-dialog', () => ({
   useConfirm: (): (() => Promise<boolean>) => async (): Promise<boolean> => answer,
 }));
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const toasts: { success: string[]; error: string[] } = { success: [], error: [] };
+vi.mock('sonner', () => ({
+  toast: {
+    success: (m: string): void => { toasts.success.push(m); },
+    error: (m: string): void => { toasts.error.push(m); },
+  },
+}));
 // The hook also asks for a prompt (rename). Stubbed at the same boundary as
 // `confirm`, so the handler under test is the real one.
 vi.mock('@/components/shared/prompt-dialog', () => ({
@@ -57,7 +63,10 @@ async function handlers(): Promise<ReturnType<typeof import('../useFileManagerHa
 }
 
 describe('deleting one item', () => {
-  beforeEach(() => { rmdir.mockClear(); removeFile.mockClear(); answer = true; });
+  beforeEach(() => {
+    rmdir.mockClear(); removeFile.mockClear(); answer = true;
+    toasts.success.length = 0; toasts.error.length = 0;
+  });
 
   it('deletes nothing when the question is refused', async () => {
     answer = false;
@@ -66,6 +75,18 @@ describe('deleting one item', () => {
     await h.handleDelete(node('/a.txt', 'file'));
     expect(rmdir).not.toHaveBeenCalled();
     expect(removeFile).not.toHaveBeenCalled();
+  });
+
+  it('says so when it lands, because the silence is otherwise eight seconds long', async () => {
+    // Deleting a SELECTION already toasts on success; deleting one item
+    // announced only failures. A run measured 7.8s between the confirm click
+    // and `rmdir` even starting -- it queues behind the previous step's peer
+    // ack -- so a success that says nothing reads as a click that missed.
+    const h: Awaited<ReturnType<typeof handlers>> = await handlers();
+    await h.handleDelete(node('/notes', 'directory'));
+    await new Promise<void>((r) => setTimeout(r, 0));
+    expect(toasts.success).toEqual(['Deleted notes']);
+    expect(toasts.error).toEqual([]);
   });
 
   it('routes a folder to rmdir and a file to removeFile', async () => {
