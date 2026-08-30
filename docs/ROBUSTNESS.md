@@ -21221,6 +21221,43 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 482 — a lead that dissolved twice, and the guard that was worth keeping
+
+`notifyUnreadChange()` is the only emitter of `unread-count-changed`, and
+`useOrphanSessions` turns that event into the session switcher's per-account
+unread badge and the attention glow beside it — under a comment reading "The
+glow the chip was built for, and which nothing used to start".
+
+A grep said it had **zero** production callers. That would have made the badge
+permanently dead.
+
+**It was my grep.** I had excluded the defining file from the search, so every
+internal `this.notifyUnreadChange()` was invisible. The same class of mistake as
+reading `$?` after a pipe earlier in this session: the measurement was wrong,
+not the code.
+
+The test then failed twice more — "expected 1 to be 0" on the read and remove
+paths — which looked like a partial gap: announced when the count rises, not
+when it falls. **That was my test.** `cleanup()` clears handlers and the socket
+listener, not the notifications, so a notification from the previous test was
+still unread and every total was one too high.
+
+Nothing was broken. All four mutation paths announce: add, read, read-all,
+remove.
+
+The tests stay anyway. A count announced when it rises and not when it falls is
+a badge that only ever climbs, and that is a defect this codebase has shipped
+before — the GROUP store's `markAsRead` had zero callers for exactly that
+reason, so "there was no path back to zero short of a reload". The announce is
+load-bearing for something visible and nothing pinned it; now four paths and the
+`byCid` breakdown are covered, and deleting the announce from the read path
+fails them.
+
+Two false leads in one round is worth recording on its own. Both looked like
+findings, both were artefacts of how I measured, and in both cases the thing
+that settled it was reading the production code rather than trusting the tool
+output.
+
 ## Round 481b — the landing budget, raised deliberately
 
 PR 65's pipeline failed `Production Docker Build` at **312.3 KB against 312**.
