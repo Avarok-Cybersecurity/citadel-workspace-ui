@@ -15,10 +15,9 @@
  * these tests stay. All four mutation paths announce: add, read, read-all and
  * remove.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';
 import { NotificationService } from '../service';
-import { NotificationType } from '../types';
 import type { UnreadCountChange } from '../types';
 
 function announcements(run: () => void): UnreadCountChange[] {
@@ -54,7 +53,7 @@ describe('the unread count', () => {
   });
 
   it('is announced when one is read', () => {
-    const added = service.addSystemNotification('Something happened', 'detail');
+    const added: { id: string } = service.addSystemNotification('Something happened', 'detail');
 
     const seen: UnreadCountChange[] = announcements(() => {
       service.markAsRead(added.id);
@@ -65,7 +64,7 @@ describe('the unread count', () => {
   });
 
   it('is announced when one is removed', () => {
-    const added = service.addSystemNotification('Something happened', 'detail');
+    const added: { id: string } = service.addSystemNotification('Something happened', 'detail');
 
     const seen: UnreadCountChange[] = announcements(() => {
       service.removeNotification(added.id);

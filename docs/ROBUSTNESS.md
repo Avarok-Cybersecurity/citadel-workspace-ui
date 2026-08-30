@@ -21221,6 +21221,40 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 483 — one account's contacts appeared in another's list
+
+Found by a ten-lens adversarial inspection (49 findings confirmed, 9 refuted). This is the
+first of them fixed, and it is the worst category for this product: a leak between accounts
+on a shared device.
+
+LocalDB bucket `0n` is shared by every account in the browser — a device holding several
+accounts is the product's explicit design. `ConversationMetadata.ownerCid` exists for exactly
+that reason, and its own doc-comment records what happened without it:
+`cleanupStaleConversations` treated every OTHER account's history as stale and deleted it,
+permanently.
+
+That stamp was wired into the DELETE path and never into the READ path. `loadAllMetadata`
+lists every `msgs_with_peer_*_metadata` key in the shared bucket and returned all of them, so
+`loadFromStorage` seeded the conversation cache with other accounts' rows and the P2P peer
+list rendered them: who Alice talks to, and her unread counts, shown to Bob.
+
+The same defect class this campaign has hit repeatedly — a fix applied in one place and not
+to its twin — this time with the type's own comment explaining the danger sitting three lines
+above the field that was being ignored.
+
+Unattributed legacy records are still returned. An unknown owner is precisely the case where
+withholding is as wrong as leaking: those predate the stamp, cannot be assigned to anyone, and
+belong to whoever is reading. Same rule `loadMetadata` already applies, and the same reason
+deleting them was unsafe.
+
+Controlled by removing the filter: the leak reappears in both directions — the reader sees the
+other account's rows, and the other account's own rows are still returned to them, so a filter
+that simply dropped everything would not have passed.
+
+`message-pagination-store.ts` went over the 250-line cap, so the read moved to
+`load-all-metadata.ts`: listing the shared bucket and deciding whose records they are is one
+job.
+
 ## Round 482 — a lead that dissolved twice, and the guard that was worth keeping
 
 `notifyUnreadChange()` is the only emitter of `unread-count-changed`, and

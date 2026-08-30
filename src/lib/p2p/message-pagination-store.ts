@@ -13,12 +13,13 @@
  */
 
 import { websocketService } from '../websocket-service';
+import { loadAllMetadata } from './load-all-metadata';
 import type {
   ConversationMetadata,
   MessagePage,
   P2PMessage,
 } from './p2p-types';
-import { MESSAGES_PER_PAGE, PAGINATED_PREFIX } from './p2p-types';
+import { MESSAGES_PER_PAGE } from './p2p-types';
 import {
   findMessageInPages,
   findUnreadFromPeer,
@@ -28,7 +29,6 @@ import {
   updateUnreadCount,
 } from './message-metadata-mutations';
 import {
-  loadMetadataByKey,
   loadMetadata,
   tryLoadMetadata,
   saveMetadata,
@@ -58,40 +58,7 @@ export class MessagePaginationStore {
   }
 
   public async loadAllMetadata(): Promise<ConversationMetadata[]> {
-    const results: ConversationMetadata[] = [];
-
-    try {
-      const allKeys: string[] = await websocketService.sendLocalDBListKeys(0n, `${PAGINATED_PREFIX}`);
-
-      if (!allKeys || allKeys.length === 0) {
-        debugLog('MessagePaginationStore', '[P2P] No paginated conversations found (fresh install)');
-        return results;
-      }
-
-      const metadataKeys: string[] = allKeys.filter((key: string) => key.endsWith('_metadata'));
-      debugLog('MessagePaginationStore', `[P2P] Found ${metadataKeys.length} conversation metadata keys`);
-
-      for (const key of metadataKeys) {
-        try {
-          const metadata: ConversationMetadata | null = await loadMetadataByKey(key);
-          if (metadata) {
-            results.push(metadata);
-          }
-        } catch (e) {
-          debugLog('MessagePaginationStore', `Failed to load metadata for key ${key}:`, e);
-        }
-      }
-
-      debugLog('MessagePaginationStore', `[P2P] Loaded ${results.length} conversation(s) from paginated storage`);
-    } catch (error) {
-      if (isGenuinelyAbsent(error)) {
-        debugLog('MessagePaginationStore', '[P2P] No paginated conversations found');
-      } else {
-        debugLog('MessagePaginationStore', 'Failed to load metadata:', error);
-      }
-    }
-
-    return results;
+    return loadAllMetadata();
   }
 
   public async loadMetadata(peerCid: bigint): Promise<ConversationMetadata | null> {
