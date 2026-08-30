@@ -374,7 +374,7 @@ async function deleteFolderViaContextMenu(page: Page, label: string, folderName:
       await deleteOption.click();
 
       // Confirm in the app's own dialog.
-      const confirmButton = page.locator('[role="alertdialog"] button:has-text("Delete")').last();
+      const confirmButton = page.getByTestId('confirm-dialog-confirm');
       if (await isVisibleWithin(confirmButton, 5000)) {
         console.log('  Confirming deletion in the in-app dialog');
         await confirmButton.click();
@@ -638,7 +638,7 @@ async function deleteFileViaContextMenu(page: Page, label: string, fileName: str
       await deleteOption.click();
 
       // Confirm in the app's own dialog.
-      const confirmFileDelete = page.locator('[role="alertdialog"] button:has-text("Delete")').last();
+      const confirmFileDelete = page.getByTestId('confirm-dialog-confirm');
       if (await isVisibleWithin(confirmFileDelete, 5000)) {
         console.log('  Confirming deletion in the in-app dialog');
         await confirmFileDelete.click();

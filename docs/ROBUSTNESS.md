@@ -20802,3 +20802,35 @@ here, deliberately, rather than discovered again in a red run.
 Control: pressing that button by copy again fails the gate. The restore was
 verified — including reverting the baseline the control's own run had rewritten,
 which is the second-order version of the same trap.
+
+## Round 445 — one dialog, seven specs, four of them traced
+
+Round 417 named the shared confirm dialog's action and updated the ONE spec it
+was working on. Seven others press the same button as
+`[role="alertdialog"] button:has-text("Delete")`.
+
+Four are changed here, and only four, because those are the ones traced end to
+end: file-manager twice, revfs-server and revfs-peer, all deleting a file or a
+folder through `useFileManagerHandlers` → `confirm()` → the shared dialog.
+Certain, not likely.
+
+The other three — `tree-helpers`, `office-room-crud`, `tree-structure-editor` —
+delete NODES, and `HierarchySidebar` and `BaseOffice` do both call `useConfirm`,
+so they almost certainly reach the same dialog. Almost certainly is not the same
+as traced, and these are specs I cannot run. Left alone and written down, where
+somebody with a live stack can convert them in a minute.
+
+Baseline 136 → 132.
+
+### Two decisions checked rather than assumed
+
+`closeAnyModals` presses `button:has-text("Cancel")` and stays that way. It is a
+GENERIC dismisser — it does not know which dialog is open, so a specific testid
+cannot replace its fallback. That also upholds round 424's removal of
+`confirm-dialog-cancel` as speculative surface: nothing addresses that button by
+name, and the one helper that presses it could not use the name if it had one.
+
+And a second confirm surface exists that nothing has named:
+`AccountConfirmDialogs` renders its own `AlertDialogAction` with no testid.
+Recorded rather than named, because no spec addresses it yet and inventing
+surface for an absent caller is the thing round 424 deleted four testids for.

@@ -246,7 +246,7 @@ async function deleteFolder(page: Page, label: string, folderName: string): Prom
       console.log('  Clicked Delete menu item');
 
       // Confirm in the app's own dialog.
-      const confirmDelete = page.locator('[role="alertdialog"] button:has-text("Delete")').last();
+      const confirmDelete = page.getByTestId('confirm-dialog-confirm');
       if (await isVisibleWithin(confirmDelete, 5000)) {
         await confirmDelete.click();
         console.log('  Confirmed deletion in the in-app dialog');
