@@ -75,13 +75,21 @@ export function isForgotten(cid: bigint): boolean {
 export function reconcileForgotten(present: readonly bigint[]): void {
   const listed: Set<string> = new Set(present.map((cid) => cid.toString()));
   for (const [cid, since] of [...forgotten]) {
-    // Gone, as asked. The tombstone has done its job.
-    if (!listed.has(cid)) {
-      forgotten.delete(cid);
-      continue;
-    }
-    // Still listed. Either the server has not caught up, or the deregistration
-    // failed -- and after long enough the second is likelier than the first.
+    // Absence used to end the tombstone here: gone from the list, job done.
+    // It does not, because one absence is not the server having settled. The
+    // lists that arrive in the second after a deregistration come from
+    // different queries and different views, and one of them omitting the
+    // session is routinely followed by another that still carries it -- by
+    // which point nothing was hiding it any more. That is precisely the
+    // failure this tombstone exists to prevent, reintroduced by the check
+    // meant to retire it early.
+    //
+    // TIME is the only bound that settles anything. `listed` is kept because
+    // the log below is worth having, and because a caller passing the list is
+    // what proves a reload happened at all.
+    void listed;
+    // Either the server has not caught up, or the deregistration failed --
+    // and after long enough the second is likelier than the first.
     if (now() - since >= HIDE_FOR_MS) forgotten.delete(cid);
   }
 }

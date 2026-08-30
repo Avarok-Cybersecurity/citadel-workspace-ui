@@ -19656,3 +19656,39 @@ sent `String(left.cid ?? '')`, and the handler turned that into `BigInt('')`,
 which is `0n` — a real cid. A leave notification arriving without one removed
 whoever was member zero. It now emits nothing when the cid does not parse,
 with a positive control asserting a real departure still goes through.
+
+## Round 411 — the check that retired the tombstone early
+
+`test:prev-sessions` still failed after round 403's time bound, on
+`Deregister Removes: FAIL` beside `Deregister Permanent: PASS`. The log settles
+what happened: `Deregister success: true`, `Deregister is permanent: true`. The
+deregistration worked and the server had forgotten the account; the row was
+still on screen.
+
+Everything built for this was in place and correctly wired —
+`sign-out-session` calls `forget` last, `useOrphanSessions` runs every list
+through `withoutForgotten`, and the hold is bounded by time rather than by a
+count of lists. The defect was in `reconcileForgotten` itself:
+
+```ts
+// Gone, as asked. The tombstone has done its job.
+if (!listed.has(cid)) { forgotten.delete(cid); continue; }
+```
+
+One absence ended the hold. The lists arriving in the second after a
+deregistration come from different queries against different views, and one of
+them omitting the session is routinely followed by another that still carries
+it — by which point nothing was hiding it. The check written to retire the
+tombstone politely was reintroducing the exact failure the tombstone exists to
+prevent.
+
+Absence no longer releases it; time does, and only time. That is a contract
+change, so the test asserting the old behaviour ("stops being hidden once the
+server drops it") was rewritten rather than deleted: it now asserts that one
+absence does NOT release it and that the hold still expires, which is the
+property that kept a failed deregistration from hiding a live session for ever.
+
+Reproduced first at unit level — omit the session from one list, carry it in
+the next, assert it stays hidden — and that test failed before the change.
+Negative control: restoring the early drop fails exactly those two tests and
+leaves the other nineteen passing.
