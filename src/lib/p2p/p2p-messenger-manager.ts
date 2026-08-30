@@ -27,9 +27,10 @@ import { MessageHandler } from './message-handler';
 import { MessageSender } from './message-sender';
 import type { SendMessageOptions } from './message-sender-types';
 import { ConversationManager } from './conversation-manager';
-import { bindConversationSessionReset } from './reset-conversations';
+import { bindConversationSessionReset, bindCachedMessageLoad } from './reset-conversations';
 import { bindVisibilityFlush } from './visibility-flush';
-import { resolveCurrentCid, updatePeerPresenceOnConnect, updatePeerPresenceOnDisconnect } from './messenger-cid-resolver';
+import { resolveCurrentCid, updatePeerPresenceOnConnect } from './messenger-cid-resolver';
+import { bindPeerConnectionState } from './bind-peer-connection-state';
 import { syncConnectionsFromBackend, updateFileTransferState, markMessagesAsRead, updateUnreadCount, autoRegisterPeer } from './messenger-compatibility';
 import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
@@ -116,18 +117,22 @@ export class P2PMessengerManager extends EventListenerManager {
   public async waitForReady(): Promise<void> { if (this.isReady) return; if (this.initPromise) await this.initPromise; }
 
   protected setupEventListeners(): void {
-    this.listen('on-ws-connection-success', async () => {
-      if (this.cachedMessagesLoaded) return;
-      debugLog('P2PMessengerManager', '[P2P] WebSocket connected, loading cached messages...');
-      await this.loadCachedMessages();
-      if (this.cachedMessagesLoaded) { this.isReady = true; this.emit('p2p:messages-loaded'); }
-    });
+    bindCachedMessageLoad(
+      (event, handler) => this.listen(event, handler),
+      () => this.cachedMessagesLoaded,
+      () => this.loadCachedMessages(),
+      () => { this.isReady = true; this.emit('p2p:messages-loaded'); },
+    );
     bindVisibilityFlush(() => this.checkStateManager.flushPendingCheckStateResponses());
     // See reset-conversations.ts.
     bindConversationSessionReset(
       (event, handler) => this.listen(event, handler),
       this.conversationManager,
-      () => { this.cachedMessagesLoaded = true; this.isReady = true; this.emit('p2p:messages-loaded'); },
+      // `isReady` regardless — the reload finished and the cache is in a correct
+      // state either way, so the UI must not sit on a spinner. But
+      // `cachedMessagesLoaded` only when it really loaded, or the retry in
+      // `on-ws-connection-success` above is short-circuited permanently.
+      (loaded: boolean) => { this.cachedMessagesLoaded = loaded; this.isReady = true; this.emit('p2p:messages-loaded'); },
       () => { this.cachedMessagesLoaded = false; this.isReady = false; },
     );
     this.listen<InternalServiceResponse>('websocket-message', (response) => { void this.messageHandler.handleWebSocketMessage(response); });
@@ -135,17 +140,13 @@ export class P2PMessengerManager extends EventListenerManager {
     // acks a forwarded message only once this is set, and acking before the
     // handler is attached would confirm a delivery that never happened.
     markP2PMessageHandlerAttached();
-    this.listen<{ peerCid: bigint }>('p2p-connection-established', ({ peerCid }) => {
-      this.conversationManager.setConnection(peerCid, true);
-      this.connectionListeners.forEach(l => l(peerCid, true));
-      this.checkStateManager.markPeerReady(peerCid);
-      updatePeerPresenceOnConnect(this.conversationManager, this.presenceManager, (e, d) => this.emit(e, d), peerCid);
-    });
-    this.listen<{ peerCid: bigint }>('p2p-connection-lost', ({ peerCid }) => {
-      this.conversationManager.setConnection(peerCid, false);
-      this.connectionListeners.forEach(l => l(peerCid, false));
-      this.checkStateManager.clearPeerReadyState(peerCid);
-      updatePeerPresenceOnDisconnect(this.conversationManager, this.presenceManager, (e, d) => this.emit(e, d), peerCid);
+    bindPeerConnectionState((event, handler) => this.listen(event, handler), {
+      conversationManager: this.conversationManager,
+      presenceManager: this.presenceManager,
+      emit: (e, d) => this.emit(e, d),
+      notifyListeners: (peerCid, connected) => this.connectionListeners.forEach(l => l(peerCid, connected)),
+      markReady: (peerCid) => this.checkStateManager.markPeerReady(peerCid),
+      clearReady: (peerCid) => this.checkStateManager.clearPeerReadyState(peerCid),
     });
     this.listen<{ peer: { cid: bigint; username: string } }>('p2p:peer-registered', ({ peer }) => {
       if (peer.cid && peer.username) this.conversationManager.setPeerUsername(peer.cid, peer.username);

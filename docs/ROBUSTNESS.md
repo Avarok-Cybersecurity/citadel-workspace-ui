@@ -21221,6 +21221,52 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 490 — an event named "cid-changed" that fired when the cid had not changed
+
+The same review pass called round 486's account-switch fix the one that was
+**not** proven, at medium risk, and it was right about why.
+
+`setCid` captured `previousCid` and used it only in a debug line. It emitted
+`instance:cid-changed` unconditionally. That was harmless while nothing
+destructive listened; by round 486 four things did — the permissions cache, the
+group reconciler, the channel's cid rebroadcast, and the conversation-cache
+reset the round had just added. And five call sites re-set the cid on paths that
+are not session switches at all: post-auth setup, IO service init, the channel's
+tab-selection sync, orphan-session selection, and connect.
+
+So an ordinary reconnect now wiped the in-memory message cache and the
+connections map, then restored only the conversations. The connection and
+presence flags were not part of the reload, so peers came back rendered as
+disconnected. **My fix for the account switch had made the reconnect worse.**
+
+CID is permanent per account, so being handed the cid already held is never a
+switch. The guard belongs at the emit rather than in four listeners, and the
+test asserts the sequence rather than a single call: three identical sets
+announce once, a genuine alternation announces three times, clearing twice
+announces one clear — and the cid is still recorded on the calls that announce
+nothing, because suppressing an event must not suppress an assignment.
+
+The second half was a fail-open. `resetConversationsForSession` swallows a
+storage error deliberately — leaving the outgoing account's messages on screen
+would be worse — but it reported success either way, and the caller turned that
+into `cachedMessagesLoaded = true`. The `on-ws-connection-success` handler skips
+loading entirely when that flag is set. One failed read therefore left the
+account with a permanently empty conversation list and nothing that would ever
+try again. It now returns whether the history actually loaded; the caller marks
+`isReady` regardless (the reload finished, and the UI must not sit on a spinner)
+but marks it loaded only when it really is.
+
+Both files broke the 250-line cap and both needed real extractions. The registry
+operations came out of `InstanceManager` as pure functions over the map, and the
+two connection-state handlers came out of the messenger as one installer — they
+were symmetric, each touching the same four things, and that symmetry is the
+property that stops one side gaining a step the other never gets.
+
+**A guard added in one round becomes a trigger in the next.** Nothing about
+`cid-changed` changed in round 486; what changed was that something destructive
+started listening to it, and the event's existing looseness turned into a
+regression on a path nobody was looking at.
+
 ## Round 489 — the meta-review read my own gap fix, and six things were wrong
 
 A Fable review pass was pointed at the three ILM commits from the previous

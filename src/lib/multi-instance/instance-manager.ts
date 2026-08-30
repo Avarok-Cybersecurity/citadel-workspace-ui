@@ -19,6 +19,7 @@ import type { InstanceState, InstanceInfo } from './instance-manager-types';
 import { documentNonce, mintInstanceId } from './instance-identity';
 
 export type { InstanceState, InstanceInfo } from './instance-manager-types';
+import * as registry from './instance-registry';
 
 const INSTANCE_ID_KEY: "citadel-instance-id" = 'citadel-instance-id';
 
@@ -163,6 +164,17 @@ class InstanceManager {
 
     eventEmitter.emit('instance:state-changed', this.getState());
 
+    // Only when it actually changed. Four listeners treat this event as "the
+    // session switched" and reset destructively — the permissions cache, the
+    // group reconciler, the conversation cache, and the channel's rebroadcast.
+    // Five call sites re-set the cid on paths that are not switches (post-auth
+    // setup, IO service init, tab-selection sync, orphan selection, connect),
+    // and CID is permanent per account, so being handed the cid we already hold
+    // is never a switch.
+    if (previousCid === cid) {
+      return;
+    }
+
     eventEmitter.emit('instance:cid-changed', {
       instanceId: this._instanceId,
       cid: cid,
@@ -179,42 +191,19 @@ class InstanceManager {
   // ============ Instance Registry ============
 
   registerInstance(instanceId: string, cid: bigint | null): void {
-    this.knownInstances.set(instanceId, cid);
-    debugLog('InstanceManager', `[InstanceManager] Registered instance: ${instanceId} -> ${cid?.toString()}`);
-    // Emit so the inbound router can drain its CID-keyed orphan-message
-    // buffer the moment a cid-report arrives — turns the self-heal flow
-    // from "deliver locally, then route correctly next time" into
-    // "buffer briefly, deliver to the right tab when the report lands".
-    //
-    // SUBSCRIBER CONTRACT: `cid` is `bigint | null`. Null fires on
-    // the initial registry seed before the instance has a CID (e.g.
-    // pre-ConnectSuccess). `unregisterInstance` does NOT emit
-    // `instance:registered` — it only deletes from the map.
-    // Subscribers MUST guard `if (cid === null) return;` — the orphan
-    // buffer drain at `instance-inbound-router.ts` is the canonical
-    // pattern.
-    eventEmitter.emit('instance:registered', { instanceId, cid });
+    registry.registerInstance(this.knownInstances, instanceId, cid);
   }
 
   unregisterInstance(instanceId: string): void {
-    this.knownInstances.delete(instanceId);
-    debugLog('InstanceManager', `[InstanceManager] Unregistered instance: ${instanceId}`);
+    registry.unregisterInstance(this.knownInstances, instanceId);
   }
 
   findInstanceByCid(cid: bigint): string | null {
-    for (const [instanceId, instanceCid] of this.knownInstances) {
-      if (instanceCid === cid) {
-        return instanceId;
-      }
-    }
-    return null;
+    return registry.findInstanceByCid(this.knownInstances, cid);
   }
 
   getAllInstances(): InstanceInfo[] {
-    return Array.from(this.knownInstances.entries()).map(([instanceId, cid]) => ({
-      instanceId,
-      cid,
-    }));
+    return registry.getAllInstances(this.knownInstances);
   }
 
   ownsCid(cid: bigint): boolean {

@@ -79,3 +79,46 @@ describe('switching session', () => {
     expect(manager.isConnected(PEER)).toBe(false);
   });
 });
+
+/**
+ * The reload's own failure must stay retryable.
+ *
+ * `resetConversationsForSession` swallows a storage error on purpose — leaving
+ * the previous account's messages in place would be worse — but it reported
+ * success either way, and the caller turned that into `cachedMessagesLoaded =
+ * true`. The `on-ws-connection-success` handler skips the load entirely when
+ * that flag is set, so a single failed read left the account with a permanently
+ * empty conversation list and nothing that would ever try again.
+ *
+ * Fail-open where it should fail closed: the flag means "this account's history
+ * is in the cache", and it was being set by a path that had just failed to put
+ * it there.
+ */
+describe('a reload that fails', () => {
+  beforeEach((): void => { currentCid = 111n; loads.length = 0; });
+
+  it('reports success when the history really loaded', async () => {
+    const manager: InstanceType<typeof ConversationManager> = new ConversationManager(CONFIG);
+    await expect(resetConversationsForSession(manager as never)).resolves.toBe(true);
+  });
+
+  it('reports failure so the connection path retries', async () => {
+    const manager: InstanceType<typeof ConversationManager> = new ConversationManager(CONFIG);
+    vi.spyOn(manager, 'loadFromStorage').mockRejectedValue(new Error('IndexedDB unavailable'));
+
+    await expect(resetConversationsForSession(manager as never)).resolves.toBe(false);
+  });
+
+  it('still drops the previous account’s messages when the reload fails', async () => {
+    // The swallow is deliberate and must stay: a failed read is not a reason to
+    // show the outgoing account's conversations to the incoming one.
+    const manager: InstanceType<typeof ConversationManager> = new ConversationManager(CONFIG);
+    manager.getOrCreateConversation(PEER, 'someone-alice-knows');
+    vi.spyOn(manager, 'loadFromStorage').mockRejectedValue(new Error('IndexedDB unavailable'));
+
+    currentCid = 222n;
+    await resetConversationsForSession(manager as never);
+
+    expect(manager.getAllConversations()).toEqual([]);
+  });
+});
