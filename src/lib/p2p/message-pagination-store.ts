@@ -23,6 +23,7 @@ import {
   findMessageInPages,
   findUnreadFromPeer,
   updateMessageInPages,
+  removeMessageFromPages,
   updatePeerUsernameInMetadata,
   updateUnreadCount,
 } from './message-metadata-mutations';
@@ -219,6 +220,10 @@ export class MessagePaginationStore {
 
   public async updateMessageInPages(peerCid: bigint, messageId: string, updates: Partial<P2PMessage>): Promise<boolean> {
     return withPeerLock(peerCid, () => updateMessageInPages(peerCid, messageId, updates));
+  }
+
+  public async removeMessageFromPages(peerCid: bigint, messageId: string): Promise<boolean> {
+    return withPeerLock(peerCid, () => removeMessageFromPages(peerCid, messageId));
   }
 
   public async updatePeerUsernameInMetadata(peerCid: bigint, username: string): Promise<void> {

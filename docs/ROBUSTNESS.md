@@ -21191,6 +21191,45 @@ the script uses process substitution and its shebang is bash.)
 The rule these two rounds share is worth stating once: **a retry bounds
 failures, a timeout bounds hangs, and neither substitutes for the other.**
 
+## Round 459 — a retracted message came back
+
+`editMessage` and the inbound `MessageEdit` branch both persist through
+`updateMessageInPages`. `deleteMessage` and the inbound `MessageDelete` branch
+beside them mutated only the in-memory conversation and emitted an event. The
+paginated store had no per-message removal at all — only
+`deleteConversationPages`, which drops a whole conversation.
+
+`useP2PMessages` rebuilds the transcript from `loadLatestMessages`, i.e. from
+those pages. A retraction therefore survived exactly as long as the component
+stayed mounted: reopening the chat brought the message back, on both ends, with
+no error anywhere. The user was told the message was withdrawn and it was not.
+
+`removeMessageFromPages` added beside `updateMessageInPages`, decrementing
+`totalMessageCount` (shown to the user) and deliberately not touching
+`lastMessageIndex` (a monotonic append cursor — moving it back makes the next
+sent message reuse an index the peer has already seen). Wired into both delete
+paths. Found by asking which callers discard a returned success flag.
+
+Both wiring lines negative-controlled by deletion: each fails exactly its own
+test and no other.
+
+## Round 458 — a gate that rewrites its baseline must not leave it uncommitted
+
+Three checks ratchet against a baseline file, rewrite it in the working tree
+when the count improves, and exit 1 asking for the new count to be committed.
+That works exactly once. The first local run fails loudly; every run after
+compares against the rewrite and passes, while CI keeps comparing against the
+committed file and keeps failing.
+
+Round 455 swapped a copy-addressed press for a testid, 132 became 131, and the
+rewritten baseline was never staged. Local preflight reported all checks passed
+for three rounds while CI failed on it — the third occurrence of this trap in
+this tree.
+
+`check-baselines-are-committed.mjs` reports the leftover as its own failure.
+Baselines are discovered from `scripts/*.baseline.json` rather than listed, so
+the next self-writing gate is covered without being enrolled.
+
 ## Round 457 — the same bound, everywhere it was missing
 
 Round 456 bounded `docker pull`. The sweep it implies found two more: both

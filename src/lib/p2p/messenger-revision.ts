@@ -77,6 +77,9 @@ export async function deleteMessage(
     throw new Error(`Cannot delete message ${messageId}: ${outcome.reason}`);
   }
 
+  // Persisted, not just emitted. The page a reload reads is the transcript;
+  // without this the retraction lasted only while the component stayed mounted.
+  await messagePaginationStore.removeMessageFromPages(peerCid, messageId);
   emit('p2p:message-deleted', { peerCid, messageId });
 
   await sendRawMessage(peerCid, createMessageDelete(messageId, deletedAt));

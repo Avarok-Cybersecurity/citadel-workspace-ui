@@ -80,6 +80,7 @@ export class P2PMessengerManager extends EventListenerManager {
       getOrCreateConversation: (peerCid): P2PConversation => this.conversationManager.getOrCreateConversation(peerCid),
       addMessageToConversation: (peerCid, message): Promise<boolean> => this.conversationManager.addMessageToConversation(peerCid, message),
       updateMessageInPages: (peerCid, messageId, updates): Promise<boolean> => messagePaginationStore.updateMessageInPages(peerCid, messageId, updates),
+      removeMessageFromPages: (peerCid, messageId): Promise<boolean> => messagePaginationStore.removeMessageFromPages(peerCid, messageId),
       getConversations: (): Map<bigint, P2PConversation> => this.conversationManager.getConversationsMap(),
       notifyMessageListeners: (message): void => this.messageListeners.forEach(l => l(message)),
       notifyMessageStatusListeners: (messageId, status): void => this.messageStatusListeners.forEach(l => l(messageId, status)),

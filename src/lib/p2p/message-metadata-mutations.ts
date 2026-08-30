@@ -95,6 +95,44 @@ export async function updateMessageInPages(
   return false;
 }
 
+/**
+ * Remove a message from the page that holds it.
+ *
+ * The counterpart to `updateMessageInPages`, which had no counterpart: a
+ * retraction removed the message from the in-memory conversation and from the
+ * screen, while the page a reload reads kept it. `deleteConversationPages` is
+ * not this -- it drops the whole conversation.
+ *
+ * `totalMessageCount` is decremented because it is shown to the user as the
+ * conversation's message count. `lastMessageIndex` is deliberately NOT touched:
+ * it is a monotonic append cursor, and moving it backwards makes the next sent
+ * message reuse an index that a peer has already seen.
+ */
+export async function removeMessageFromPages(
+  peerCid: bigint,
+  messageId: string
+): Promise<boolean> {
+  const metadata: ConversationMetadata | null = await tryLoadMetadata(peerCid);
+  if (!metadata) return false;
+
+  for (let pageNum: number = metadata.latestPage; pageNum >= 0; pageNum--) {
+    const page: MessagePage | null = await tryLoadMessagePage(peerCid, pageNum);
+    if (!page) continue;
+
+    const remaining: P2PMessage[] = page.messages.filter((m) => m.id !== messageId);
+    if (remaining.length === page.messages.length) continue;
+
+    page.messages = remaining;
+    await saveMessagePage(peerCid, pageNum, page);
+    metadata.totalMessageCount = Math.max(0, metadata.totalMessageCount - 1);
+    metadata.lastUpdated = Date.now();
+    await saveMetadata(peerCid, metadata);
+    return true;
+  }
+
+  return false;
+}
+
 export async function updatePeerUsernameInMetadata(
   peerCid: bigint,
   username: string

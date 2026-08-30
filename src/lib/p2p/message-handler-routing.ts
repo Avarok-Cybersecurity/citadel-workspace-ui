@@ -71,6 +71,8 @@ export async function handleMessagingLayerCommand(
         debugLog('P2PMessageHandler', `Ignored delete of ${layer.message_id}: ${outcome.reason}`);
         break;
       }
+      // Same as the edit branch above: the page a reload reads must agree.
+      await config.removeMessageFromPages(peerCid, layer.message_id);
       eventEmitter.emit('p2p:message-deleted', { peerCid, messageId: layer.message_id });
       break;
     }
