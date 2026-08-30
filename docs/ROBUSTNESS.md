@@ -21221,6 +21221,31 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 505 — a role defined as read-only that could write
+
+Backlog 15. `authorize_group_access` checks `Permission::ViewContent`, and all six
+group-messaging handlers called it — including the three that WRITE.
+
+`Permission::for_role` grants a Guest `ViewContent` and nothing else, under the
+comment "Guest permissions - read-only access". A Member additionally holds
+`SendMessages`. So the permission that distinguishes reading from writing existed,
+was assigned correctly, and was never consulted: a Guest could post into, edit and
+delete chat in every room it was allowed to see.
+
+Split into `authorize_group_read` (ViewContent) and `authorize_group_write`
+(SendMessages), both in the module whose own header says it exists so "the request
+handlers and the broadcast filter cannot drift apart". Reads and the broadcast
+filter ask the first; send, edit and delete ask the second.
+
+Authorship was already gated separately — edit and delete refuse a message the
+caller did not write unless they are an admin — so the hole was purely the
+permission to write at all.
+
+The test seeds a Guest INSIDE the room, so the denials are about the role rather
+than about membership, and it asserts the Guest can still READ. Without that
+third case the two denials would prove nothing: a Guest refused everything would
+satisfy them equally.
+
 ## Round 504 — a deletion undone by a sync, and a doodle that could block a hang-up
 
 **A file we had deleted came back through a sync, naming bytes already

@@ -8,9 +8,9 @@ stack or a WASM rebuild), `wontfix` (with a reason).
 
 The goal this backlog serves: no critical, high or medium issue left open.
 
-**Progress: 34 of 49 fixed** — every critical and every HIGH is closed;
-20 of 25 medium plus one found outside the inspection (round 502, ILM
-cumulative-ACK clearing). 5 open at medium; 11 low.
+**Progress: 35 of 49 fixed** — every critical and every HIGH is closed;
+21 of 25 medium plus one found outside the inspection (round 502, ILM
+cumulative-ACK clearing). 4 open at medium; 11 low.
 
 Two rounds of adversarial re-review have since been run over the fixes
 themselves. They confirmed every one as correct, and found nine further defects
@@ -35,7 +35,7 @@ account switch fired on every reconnect. Those are recorded as rounds 489 and
 | 12 | high | fixed | ts-revfs | Inbound peer ops bypass the serial lock; a local mutator's stale snapshot erases them (30s window during uploads) | `citadel-workspaces/src/lib/revfs/revfs-file-ops.ts:75` |
 | 13 | high | fixed | ts-revfs | Pending-op queue is persisted but never loaded: the 'load-pending-ops' intent has zero dispatch sites, so queued ops die on page reload | `citadel-workspaces/src/lib/revfs/revfs-io.ts:45` |
 | 14 | medium | open | rust-internal-service | PeerRegister/PeerConnect/Disconnect notifications broadcast to every connection on stale uuid - the cross-user leak the twin paths were fixed to stop | `citadel-internal-service/citadel-internal-service/src/kernel/responses/peer_event.rs:53` |
-| 15 | medium | open | rust-server-authz | Group-chat send is gated on ViewContent, so read-only (Guest/muted) accounts can post | `citadel-workspace-server-kernel/src/kernel/command_processor/async_process_command.rs:621` |
+| 15 | medium | fixed | rust-server-authz | Group-chat send is gated on ViewContent, so read-only (Guest/muted) accounts can post | `citadel-workspace-server-kernel/src/kernel/command_processor/async_process_command.rs:621` |
 | 16 | medium | fixed | rust-server-authz | User records are read-modify-written with no lock; concurrent updates are silently lost while reporting success | `citadel-workspace-server-kernel/src/handlers/domain/server_ops/async_domain_server_ops.rs:517` |
 | 17 | medium | fixed | rust-server-authz | UpdateNode's structural broadcast omits is_default, so a changed default room reaches no other client | `citadel-workspace-server-kernel/src/kernel/command_processor/async_process_command.rs:1044` |
 | 18 | medium | open | rust-server-authz | delete_workspace orphans the workspace's entire node subtree and keeps its chat channels live | `citadel-workspace-server-kernel/src/handlers/domain/server_ops/async_domain_server_ops.rs:869` |
