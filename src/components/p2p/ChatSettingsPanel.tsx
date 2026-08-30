@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { ChatSettingsAdvanced } from './ChatSettingsAdvanced';
 import {
   Settings,
   FileText,
@@ -202,65 +203,7 @@ export function ChatSettingsPanel({
             {/* Advanced Tab */}
             <TabsContent value="advanced" className="space-y-4 m-0" data-testid="content-advanced">
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
-                  <div className="flex items-center gap-3">
-                    <Sliders className="h-5 w-5 text-warning-emphasis" />
-                    <div>
-                      <Label htmlFor="encryption-level" className="text-sm font-medium">Encryption Level</Label>
-                      <p className="text-xs text-muted-foreground">Security level for this conversation</p>
-                    </div>
-                  </div>
-                  <select id="encryption-level"
-                    className="bg-surface border border-surface rounded px-2 py-1 text-sm text-foreground/80"
-                    defaultValue="standard"
-                  >
-                    <option value="standard">Standard</option>
-                    <option value="high">High</option>
-                    <option value="maximum">Maximum</option>
-                  </select>
-                </div>
-
-                <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
-                  <div className="flex items-center gap-3">
-                    <Settings className="h-5 w-5 text-primary-accent" />
-                    <div>
-                      <Label htmlFor="connection-priority" className="text-sm font-medium">Connection Priority</Label>
-                      <p className="text-xs text-muted-foreground">Prefer direct P2P or server relay</p>
-                    </div>
-                  </div>
-                  <select id="connection-priority"
-                    className="bg-surface border border-surface rounded px-2 py-1 text-sm text-foreground/80"
-                    defaultValue="p2p"
-                  >
-                    <option value="p2p">P2P First</option>
-                    <option value="server">Server First</option>
-                    <option value="auto">Auto</option>
-                  </select>
-                </div>
-
-                <div className="p-4 rounded-lg bg-surface/50">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <MessageSquare className="h-5 w-5 text-success-emphasis" />
-                      <div>
-                        <Label htmlFor="message-retention" className="text-sm font-medium">Message Retention</Label>
-                        <p className="text-xs text-muted-foreground">Days to keep message history locally</p>
-                      </div>
-                    </div>
-                    <span className="text-sm text-muted-foreground">90 days</span>
-                  </div>
-                  <input id="message-retention"
-                    type="range"
-                    min={7}
-                    max={365}
-                    defaultValue={90}
-                    className="w-full accent-primary-accent"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>7 days</span>
-                    <span>1 year</span>
-                  </div>
-                </div>
+                <ChatSettingsAdvanced />
 
                 <button
                   className="w-full p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive-emphasis text-sm hover:bg-destructive/20 transition-colors"

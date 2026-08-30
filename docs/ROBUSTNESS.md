@@ -18765,3 +18765,55 @@ The remaining call failures in that shard are "the call clock never started",
 which is media negotiation and needs the stack.
 
 All 60 preflight checks.
+
+## Round 387 — "Encryption Level" did nothing
+
+The privacy audit turned up three accurate debt reasons in a row — `notification`
+really does have no producer and producers really do call `addNotification`
+directly; typing indicators really do work through `messenger.onTyping`, and the
+privacy switch that gates them really is enforced in the send path. Worth
+recording that the list is not uniformly wrong.
+
+Then the same sweep found this, one file over.
+
+`ChatSettingsPanel`'s Advanced tab carried three controls with `defaultValue`,
+no `value`, no `onChange`, no store and no consumer:
+
+| control | what it claimed |
+|---|---|
+| **Encryption Level** | "Security level for this conversation" — Standard / High / Maximum |
+| **Connection Priority** | "Prefer direct P2P or server relay" |
+| **Message Retention** | a slider whose "90 days" label is static text, so dragging it did not move the number it was setting |
+
+Choosing "Maximum" changed nothing. Nothing read any of them.
+
+The file's own comment, on the switches immediately above, says why this
+is not tolerable in this product:
+
+> they were uncontrolled `Switch defaultChecked` here, with no handler and no
+> store … On a product whose subject is privacy, a switch that lies about what
+> you are broadcasting is the worst kind to fake.
+
+Those switches were fixed. Their three siblings in the same panel were left —
+and one of them is a security control. A correct fix applied in one place,
+again, with the reason for it written directly above the place it was not
+applied.
+
+`PrivacySettingsTab` already had the honest pattern: `PRIVACY_ENFORCEMENT`
+marks what this build can act on, and an unenforceable control is disabled with
+a note saying so. That note was local to that file; it is now shared, and the
+three controls use it.
+
+Three controls, each failing its own test: enabling the encryption select,
+removing the notes, and disabling the two settings that DO work — the last being
+the positive control, since disabling everything would satisfy the first two
+while breaking read receipts and typing indicators.
+
+The extraction took three attempts. The first swept in a `p2pMessengerManager`
+call site; the second anchored on `Sliders`, which also names the tab's own
+trigger icon. Both failed loudly at the compiler rather than quietly, which is
+the argument for extracting into a file that must typecheck rather than moving
+code around inside one that already does.
+
+2512 tests green, all 60 preflight checks. `ChatSettingsPanel` is down from 344
+to 272 lines and its exemption is ratcheted to match.

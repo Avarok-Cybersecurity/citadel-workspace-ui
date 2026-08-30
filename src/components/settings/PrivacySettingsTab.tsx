@@ -1,3 +1,4 @@
+import { NotEnforcedNote } from './not-enforced-note';
 import { useState, useEffect } from 'react';
 import { Eye, MessageSquare, Users } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
@@ -16,15 +17,6 @@ import {
  * dispatching an event nothing listened to — so every switch here was inert.
  */
 
-/** Shown beside a control this build cannot actually act on. */
-function NotEnforcedNote(): JSX.Element {
-  return (
-    <p className="text-xs text-warning-emphasis mt-1">
-      Not enforced yet — this needs server-side support, so leaving it on or off
-      changes nothing today.
-    </p>
-  );
-}
 
 export function PrivacySettingsTab(): JSX.Element {
   const [settings, setSettings] = useState<PrivacySettings>(getPrivacySettings);
