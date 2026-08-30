@@ -20555,3 +20555,44 @@ be a startup stall if the cache read as fresh-and-empty before the first poll.
 It does not: `lastOnlineStatusRefresh` starts at 0, so the age is the whole unix
 epoch and the guard is false until a real refresh lands. The tri-state next to
 it (`=== 0` returning null) shows the same question was asked here before.
+
+## Round 437 — the deletion had not started yet
+
+Round 428 said reading had run out and instrumented the tree subscription so the
+next run would say which link did not fire. It answered in one run, and the
+answer was none of the four:
+
+```
+[Alice] [UseRevfsTree] tree changed {matches: true, topLevel: Received Files,Sent Files,test-folder}
+  Folder deleted: false (still visible in tree after 6s)
+[Alice] [RevfsDirOps] rmdir: removing /test-folder from 1501976935778997338_...
+[Alice] [UseRevfsTree] tree changed {matches: true, topLevel: Received Files,Sent Files}
+```
+
+The verdict is printed BEFORE the deletion begins. Timestamps: confirm clicked
+at 09:01:16.359, the check gave up at 09:01:22.602, and `rmdir` started at
+09:01:24.202 — 7.8 seconds after the click and 1.6 seconds after the test had
+already decided. When it did run, the subscription fired, the key matched, and
+the tree arrived without the folder. Nothing was slow to render.
+
+The 7.8 seconds is spent before `peerRmdir`'s first line, which means inside
+`withSerialLock` and `getTree`. `revfsService.rmdir` takes a per-peer serial
+lock, so it queues behind whatever the previous step left in flight — here the
+file deletion's peer ack and its orphaned-byte sweep. Sixteen seconds earlier,
+an identical attempt produced no rmdir at all before the helper retried.
+
+So the budget is now fifteen seconds, matching the peer-side check below it that
+waits that long for the same reason. The number is measured, not guessed, and
+the measurement is in the comment.
+
+**Rounds 420 and 428 are both corrected by this.** 420 blamed a loose selector,
+which was a real problem and not this one. 428 said every link between the store
+and the screen holds — true, and it was the wrong question. The right one was
+"had the operation started", and nothing on either side was logging enough to
+ask it until 413 and 428 between them were.
+
+Recorded, not fixed: a user who deletes a folder gets a closed dialog and then
+nothing at all for eight seconds while the operation waits for a lock. The tree
+is only updated once it runs. That is a real gap and it needs a progress
+affordance rather than a bigger timeout, which is a change I cannot verify from
+here.

@@ -396,7 +396,18 @@ async function deleteFolderViaContextMenu(page: Page, label: string, folderName:
       // that word anywhere on the page" while its own message said "still
       // visible in tree". The app now renders `tree-item-<name>`.
       const treeItem = page.locator(`[data-testid="tree-item-${folderName}"]`).first();
-      if (await isHiddenWithin(treeItem, 6000)) {
+      // Fifteen seconds, and the number is measured rather than guessed.
+      //
+      // The instrumentation added for this failure shows the deletion starting
+      // 7.8s AFTER the confirm click -- and 1.6s after this check had already
+      // given up at six. `revfsService.rmdir` takes a per-peer serial lock, so
+      // it queues behind whatever the previous step left in flight; here that
+      // is the file deletion's peer ack and its orphaned-byte sweep. Nothing
+      // was slow to render. The operation had not begun.
+      //
+      // Fifteen matches the peer-side check further down, which waits that long
+      // for the same reason.
+      if (await isHiddenWithin(treeItem, 15_000)) {
         console.log(`  Folder deleted from tree: true`);
         return true;
       }
