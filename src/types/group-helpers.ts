@@ -43,6 +43,35 @@ export function getDefaultRole(settings: GroupSettings): GroupRole | undefined {
 }
 
 /**
+ * The role id a joining member should carry, given an id that may have come
+ * from somewhere else.
+ *
+ * Role ids are minted per peer with `crypto.randomUUID()` (`createDefaultRoles`),
+ * so an id that travelled from another peer's copy of a group names nothing
+ * here. Stored anyway, it leaves a member whose role cannot be found, and
+ * `useGroupPermissions` answers "no permissions" to that — a refusal
+ * attributed to a role that does not exist. Prefer this group's own default
+ * over keeping a reference that resolves to nothing.
+ *
+ * The last-resort role is the lowest-privilege one by array position rather
+ * than a hard-coded index: `roles[2]` was correct only while there were
+ * exactly three defaults, and would have started returning `undefined` — typed
+ * `string` — the day one was added or removed.
+ *
+ * Returns null only when the group has no roles at all. There is no id to give
+ * then, and inventing one is how a `roleId: string` comes to hold undefined.
+ */
+export function resolveRoleId(
+  settings: GroupSettings,
+  offered: string | undefined,
+): string | null {
+  if (offered !== undefined && settings.roles.some(r => r.id === offered)) return offered;
+  const fallback: GroupRole | undefined =
+    getDefaultRole(settings) ?? settings.roles[settings.roles.length - 1];
+  return fallback ? fallback.id : null;
+}
+
+/**
  * Sort members: owner first, then by role position (desc), then alphabetical
  */
 export function sortMembers(

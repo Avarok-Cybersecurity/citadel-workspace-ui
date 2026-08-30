@@ -19439,3 +19439,41 @@ job-level `uses:` the key is forbidden, and since the called workflow is itself
 in the gate's list, its jobs' budgets are still checked directly, so nothing
 becomes unbounded. Controls both ways: putting the key back reports the new
 reason, and stripping an ordinary job's budget still reports the old one.
+
+## Round 406 — the cause behind round 404
+
+Round 404 gave the UI a way to say "your role id names no role we have"
+instead of "you do not have permission". This is where such an id gets stored.
+
+`group-store.ts`'s `group:member-joined` handler wrote
+`roleId: data.roleId || defaultRole?.id || group.settings.roles[2]?.id`. Three
+faults in one expression:
+
+  - `data.roleId` was trusted without checking it resolves. Role ids are minted
+    per peer with `crypto.randomUUID()`, so an id from another peer's copy of
+    the group names nothing locally. Today's wire emitter never sets the field,
+    so this was latent — but it is the only way the round-404 state arises, and
+    the next emitter to populate it would have produced it silently.
+  - `roles[2]` was the lowest-privilege role only while there were exactly
+    three defaults. The sibling file's own comment warns about precisely this
+    and uses `length - 1`; this copy never got the fix.
+  - `roles[2]?.id` is `string | undefined` at runtime but typed `string`
+    (`noUncheckedIndexedAccess` is off), so the `?.` was decorative: a group
+    with fewer than three roles produced a member whose `roleId` was undefined
+    while the type said otherwise.
+
+One helper, `resolveRoleId(settings, offered)`, replaces all three: an offered
+id is kept only if it names a role we hold, the fallback is the default role
+and then the last by position, and it returns `null` — not an undefined wearing
+`string` — when there are no roles at all, which the caller reports rather than
+records.
+
+Controls: reinstating the unchecked assignment fails the new store test alone
+and leaves the positive control (an offered id that *does* resolve) passing;
+reinstating `roles[2]` fails only the fallback test, returning null for a
+two-role group, which is the undefined the old code handed back.
+
+`group-store.ts` passed the 250-line cap, so the three handlers that edit a
+group's `members` array moved to `group-membership-events.ts`. Control:
+commenting out the one `bindMembershipEvents()` call fails all three
+membership tests, so the extraction is bound and not merely present.

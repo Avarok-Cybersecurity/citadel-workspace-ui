@@ -30,5 +30,6 @@ export {
   canManageUser,
   getOwnerRole,
   getDefaultRole,
+  resolveRoleId,
   sortMembers,
 } from './group-helpers';

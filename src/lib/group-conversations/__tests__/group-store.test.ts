@@ -90,6 +90,44 @@ describe('group store', () => {
     expect(members.find(m => m.cid === 9n)?.username).toBe('bob');
   });
 
+  it('gives a joining member a role that exists here, not one from elsewhere', () => {
+    startGroupEventBindings();
+    const id: string = freshId();
+    emitCreated(id);
+
+    // Role ids are minted per peer, so an id from another peer's copy of this
+    // group names nothing here. Stored as-is it produces a member whose role
+    // cannot be found, which the UI can only read as "no permissions".
+    eventEmitter.emit('group:member-joined', {
+      groupId: id,
+      memberCid: '9',
+      memberUsername: 'bob',
+      roleId: 'a-role-id-minted-on-another-peer',
+    });
+
+    const group: GroupConversation | undefined = getGroups().find(g => g.id === id);
+    const bob: GroupMember | undefined = group?.members.find(m => m.cid === 9n);
+    expect(bob).toBeDefined();
+    expect(bob?.roleId).not.toBe('a-role-id-minted-on-another-peer');
+    // The point of the fallback: whatever id they carry must resolve.
+    expect(group?.settings.roles.some(r => r.id === bob?.roleId)).toBe(true);
+  });
+
+  it('keeps an offered role id that does name a role here', () => {
+    // Positive control: the guard must not discard every offered id, only the
+    // ones that resolve to nothing.
+    startGroupEventBindings();
+    const id: string = freshId();
+    emitCreated(id);
+    const real: string = getGroups().find(g => g.id === id)!.settings.roles[0].id;
+
+    eventEmitter.emit('group:member-joined', {
+      groupId: id, memberCid: '11', memberUsername: 'carol', roleId: real,
+    });
+
+    expect(getGroups().find(g => g.id === id)?.members.find(m => m.cid === 11n)?.roleId).toBe(real);
+  });
+
   it('removes a member on member-left', () => {
     startGroupEventBindings();
     const id: string = freshId();

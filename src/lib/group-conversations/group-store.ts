@@ -19,10 +19,11 @@
  */
 
 import { eventEmitter } from '@/lib/event-emitter';
+import { bindMembershipEvents } from './group-membership-events';
 import { bindGroupFailureToasts } from './group-failure-toasts';
 import { bindGroupListReconcile } from './reconcile-groups';
 import { bindEndedGroups } from './ended-groups';
-import type { GroupConversation, GroupMember } from '@/types/group';
+import type { GroupConversation } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { applyGroupInvite } from '@/hooks/use-group-state-invite';
 import { toast } from '@/hooks/use-toast';
@@ -137,6 +138,7 @@ export function startGroupEventBindings(): void {
   bindingsStarted = true;
 
   bindGroupFailureToasts();
+  bindMembershipEvents();
 
   eventEmitter.on('group:created', (data: {
     groupId: string;
@@ -192,43 +194,6 @@ export function startGroupEventBindings(): void {
     });
   });
 
-  eventEmitter.on('group:member-joined', (data: {
-    groupId: string;
-    memberCid: string;
-    memberUsername: string;
-    roleId?: string;
-  }) => {
-    debugLog('GroupStore', 'Member joined:', data);
-    const memberCid: bigint = BigInt(data.memberCid);
-    updateGroups(prev =>
-      prev.map(group => {
-        if (group.id !== data.groupId) return group;
-        if (group.members.some(m => m.cid === memberCid)) return group;
-        const defaultRole: GroupRole | undefined = getDefaultRole(group.settings);
-        const newMember: GroupMember = {
-          cid: memberCid,
-          username: data.memberUsername,
-          roleId: data.roleId || defaultRole?.id || group.settings.roles[2]?.id,
-          joinedAt: Date.now(),
-        };
-        return { ...group, members: [...group.members, newMember] };
-      }),
-    );
-  });
-
-  const handleMemberLeft = (data: { groupId: string; memberCid: string }): void => {
-    debugLog('GroupStore', 'Member left:', data);
-    const memberCid: bigint = BigInt(data.memberCid);
-    updateGroups(prev =>
-      prev.map(group =>
-        group.id === data.groupId
-          ? { ...group, members: group.members.filter(m => m.cid !== memberCid) }
-          : group,
-      ),
-    );
-  };
-  eventEmitter.on('group:member-left', handleMemberLeft);
-  eventEmitter.on('group:member-kicked', handleMemberLeft);
 
   eventEmitter.on('group:message-received', (data: {
     groupId: string;
