@@ -90,7 +90,7 @@ async function waitForRemoteVideo(page: Page, timeoutMs = 60_000): Promise<numbe
       // a proof of nothing. Only a remote tile can demonstrate transport.
       const tiles = Array.from(
         document.querySelectorAll('[data-testid^="participant-tile-"]'),
-      ).filter((t) => t.getAttribute('data-testid') !== 'participant-tile--1');
+      ).filter((t) => t.getAttribute('data-testid') !== 'participant-tile-self');
       for (const tile of tiles) {
         const video = tile.querySelector('video') as HTMLVideoElement | null;
         if (video && video.videoWidth > 0) return video.videoWidth;

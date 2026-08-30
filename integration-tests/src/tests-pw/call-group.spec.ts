@@ -114,7 +114,7 @@ async function waitForRemoteVideos(page: Page, want: number, timeoutMs = 90_000)
     (needed) => {
       const tiles = Array.from(
         document.querySelectorAll('[data-testid^="participant-tile-"]'),
-      ).filter((t) => t.getAttribute('data-testid') !== 'participant-tile--1');
+      ).filter((t) => t.getAttribute('data-testid') !== 'participant-tile-self');
       let decoding = 0;
       for (const tile of tiles) {
         const video = tile.querySelector('video') as HTMLVideoElement | null;

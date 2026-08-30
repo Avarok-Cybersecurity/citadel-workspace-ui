@@ -201,6 +201,17 @@ describe('CallStage', () => {
     expect(screen.getByText('You')).toBeInTheDocument();
   });
 
+  it('names your own tile for what it is, not for a sentinel CID', () => {
+    // The stage synthesises self with `cid: -1n`, so the testid was
+    // `participant-tile--1` and two Playwright specs filtered on that string to
+    // count REMOTE videos. A magic number in the DOM that tests must know about
+    // is a workaround wearing an identifier's clothes.
+    render(<CallStage call={callState()} {...props} />);
+
+    expect(screen.getByTestId('participant-tile-self')).toBeInTheDocument();
+    expect(screen.queryByTestId('participant-tile--1')).not.toBeInTheDocument();
+  });
+
   it('shows a ringing state rather than an empty grid before anyone answers', () => {
     render(<CallStage call={callState({ status: 'ringing-out' })} {...props} />);
 

@@ -49,7 +49,12 @@ export function ParticipantTile({ participant, stream, isSelf, quality = 'good' 
 
   return (
     <div
-      data-testid={`participant-tile-${participant.cid.toString()}`}
+      // `participant-tile-self` rather than the CID for your own tile. The
+      // stage synthesises self with `cid: -1n`, so the testid used to be
+      // `participant-tile--1` -- a magic number in the DOM that two specs had
+      // to filter out by name to count REMOTE videos, which is a workaround
+      // for a sentinel rather than a name for a thing.
+      data-testid={isSelf ? 'participant-tile-self' : `participant-tile-${participant.cid.toString()}`}
       className={cn(
         'relative aspect-video overflow-hidden rounded-md border border-border bg-surface',
         'transition-shadow duration-150',

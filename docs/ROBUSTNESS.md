@@ -19066,3 +19066,39 @@ asserting it from a static read is exactly the kind of confident change this
 campaign keeps catching.
 
 No code changed. The handover is the deliverable.
+
+## Round 394 — a sentinel two specs had to know about
+
+Reading shard 1's failure closely rather than labelling it. The assertion itself
+is sound and does need the running stack — it waits for two participant tiles
+whose `videoWidth > 0`, which is decoded frames from two distinct peers and
+therefore proof of the mesh. My label was right for once.
+
+What the reading turned up is beside it:
+
+```ts
+document.querySelectorAll('[data-testid^="participant-tile-"]')
+  .filter((t) => t.getAttribute('data-testid') !== 'participant-tile--1');
+```
+
+`CallStage` synthesises the local user as a participant with `cid: -1n`, so your
+own tile was `participant-tile--1`, and two Playwright specs filtered on that
+string to count REMOTE videos. A magic number in the DOM that tests have to know
+about is a workaround wearing an identifier's clothes: it is only correct while
+everyone remembers what -1 means, and it says nothing about what the tile is.
+
+The tile already receives `isSelf`, so it can simply say so:
+`participant-tile-self`. Both specs now filter on a name.
+
+Two controls: restoring the sentinel fails the new test, and naming every tile
+"self" fails three — including "renders a tile for each participant plus
+ourselves", which is the positive control that remote tiles still carry their
+CID.
+
+Small, and worth doing for a specific reason: this is the second workaround this
+campaign has found living in a test rather than in the code it works around
+(round 371's ambiguous text assertion was the first). A test that compensates
+for a design is a test that will keep passing after the design is fixed, and it
+is where the knowledge goes to hide.
+
+2517 tests green, all 61 preflight checks.
