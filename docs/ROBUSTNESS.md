@@ -21221,6 +21221,45 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 478 — four sweeps that found nothing, and one gap that was real
+
+Recorded because a sweep that finds nothing is a result, and dropping it
+silently would leave the same ground to be re-walked later.
+
+**Disabled controls with no stated reason.** 103 `disabled={...}` sites. Narrowed
+to the ones a user cannot reason about on their own — disabled by permission or
+connectivity rather than by an empty field — and every one already explains
+itself: `SettingsModal` carries `title="Connect to a workspace first"`,
+`GroupRoleEditor` says "Built-in roles can only have their name and color
+changed" and again "Built-in role permissions cannot be modified", and
+`OfficeLayout`, `CallEntryButtons` and `GroupCallControls` use the purpose-built
+`DisabledWithTooltip`. Nothing to fix.
+
+**Fail-open authorization.** Every `check_entity_permission` call site in the
+server kernel handles its `Result` with `.unwrap_or(false)` — fail-closed. The
+only `unwrap_or(true)` in the tree is a depth limit where `None` means
+unlimited, which is a config default and not an authorization decision.
+
+**Write-only component state** and **unbounded spinners** were the other two, in
+round 475.
+
+### The gap that was real
+
+The peer-group envelope has two ends that must agree, and nothing asserted they
+do. `InternalServiceRequest::GroupMessage` carries an opaque `Vec<u8>`, so this
+codec is the only thing keeping the sender and the receiver speaking the same
+language — and the existing tests exercise the halves separately: the send
+asserts what goes on the wire, the inbound translator asserts what comes off it.
+Neither would notice a field added to one side and not the other.
+
+`reply_to` is exactly that risk, added in round 473 after both halves already
+existed. A round-trip test now covers it, along with a u64 CID that would have
+lost precision through JSON, content with emoji and quotes, and an envelope from
+an older peer missing a field the receiver relies on.
+
+Controlled by deleting `reply_to` from the decoder, which is precisely the drift
+the test exists to catch: it fails.
+
 ## Round 477 — the transport's own words, shown to the user
 
 `lib/call/call-failure-detail.ts` exists because CI caught a call failing with
