@@ -19243,3 +19243,38 @@ refusing on half an answer fails the provisional grant and the same reachability
 check.
 
 2523 tests green, all 61 preflight checks.
+
+## Round 400 — a write that dated a set it had not filled
+
+Round 399's lens, pointed the other way. There a settled state was unreachable;
+here it was reachable without ever being earned.
+
+`peerOnlineStatus` returns `null` until a poll has landed, so the sidebar says
+"not known" instead of writing "Offline" beside someone sitting right there.
+That guard is only as good as its definition of a landed poll — and
+`state.addOnlinePeer` rebuilt the whole list and called `setOnlinePeers`, which
+stamps `lastOnlineStatusRefresh`. Its comment said so plainly:
+
+> This leverages setOnlinePeers internally by building the full list
+
+So a single registration event dated an incrementally-built set as though the
+backend had answered. And `startBackendPolling` returns early when the tab is
+not the leader, so **follower tabs never poll at all** — after one registration
+they answered a confident `false` for every peer they had not personally added.
+"Offline", for people who were online, in exactly the surface round 365 fixed,
+restored by the write that looked harmless.
+
+`addOnlinePeer` now adds without dating. Knowing one peer is online says nothing
+about anybody else, and pretending otherwise turns "we have not asked" into
+"they are offline".
+
+Two controls: stamping on the increment fails the one-peer test; removing the
+stamp from the real poll fails the two that need presence to resolve at all.
+
+**What this does not fix**, and is worth saying: follower tabs still never poll,
+so they now correctly report "not known" for peers nobody has registered during
+that session. Honest, and a gap — the leader has the answer and does not share
+it. That is a feature to build, not a bug to hide, and hiding it behind a
+fabricated "offline" is what was happening before.
+
+2527 tests green, all 61 preflight checks.

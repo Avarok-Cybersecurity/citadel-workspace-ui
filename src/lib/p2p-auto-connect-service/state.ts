@@ -75,13 +75,11 @@ export class AutoConnectState {
   }
 
   addOnlinePeer(peerCid: bigint): void {
-    // Directly add a single peer to the online set (used by event handlers)
-    // This leverages setOnlinePeers internally by building the full list
-    const current: bigint[] = this.core.getOnlinePeers();
-    if (!current.includes(peerCid)) {
-      current.push(peerCid);
-      this.core.setOnlinePeers(current);
-    }
+    // Straight to the core's incremental add. This used to rebuild the whole
+    // list and call `setOnlinePeers`, which dates the set as if the backend had
+    // just answered -- so one registration event made a tab that has never
+    // polled report a confident "offline" for everyone else.
+    this.core.addOnlinePeer(peerCid);
   }
 
   getOnlinePeers(): bigint[] {

@@ -97,24 +97,45 @@ export class P2PConnectionState extends ConnectedPeersState {
   }
 
   /**
-   * Online status as a third answer: `null` until the first poll has landed.
+   * Online status as a third answer: `null` until a POLL has landed.
    *
    * `isPeerOnline` answers "is this peer in the online set", and before the
    * first refresh that set is empty -- so every peer read as offline, and the
    * sidebar wrote the word "Offline" beside people who were sitting right
    * there. Absent from an empty set is not evidence of anything.
+   *
+   * A poll, specifically, and not any write to the set. `addOnlinePeer` used to
+   * route through `setOnlinePeers`, which stamps this timestamp -- so a single
+   * registration event made an incrementally-built set look like a completed
+   * poll. Follower tabs never poll at all (`startBackendPolling` returns early
+   * when the tab is not leader), so after one registration they answered a
+   * confident `false` for every peer they had not personally added: "Offline"
+   * for people who were online, which is the exact sentence this method exists
+   * to prevent.
    */
   peerOnlineStatus(peerCid: bigint): boolean | null {
     if (this.lastOnlineStatusRefresh === 0) return null;
     return this.onlinePeers.has(peerCid);
   }
 
+  /** A complete answer from the backend: replaces the set and dates it. */
   setOnlinePeers(peerCids: bigint[]): void {
     this.onlinePeers.clear();
     for (const cid of peerCids) {
       this.onlinePeers.add(cid);
     }
     this.lastOnlineStatusRefresh = Date.now();
+  }
+
+  /**
+   * One peer we have just learned about, without claiming to know the rest.
+   *
+   * Deliberately does NOT stamp `lastOnlineStatusRefresh`: knowing that one
+   * peer is online says nothing about anybody else, and pretending otherwise
+   * turns "we have not asked" into "they are offline".
+   */
+  addOnlinePeer(peerCid: bigint): void {
+    this.onlinePeers.add(peerCid);
   }
 
   getOnlinePeers(): bigint[] {
