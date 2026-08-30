@@ -21191,6 +21191,66 @@ the script uses process substitution and its shebang is bash.)
 The rule these two rounds share is worth stating once: **a retry bounds
 failures, a timeout bounds hangs, and neither substitutes for the other.**
 
+## Round 466 — a reconnect that succeeded went on retrying
+
+`ServerAutoConnectService.handleConnectionSuccess` read `username` and
+`server_addr` off the `ConnectSuccess` message and did all of its work inside
+`if (username)`. `ConnectSuccess` has neither field: Rust declares
+`{ cid, request_id }` and the generated binding agrees. The cast at the call
+site invented them —
+
+```ts
+connectSuccess as { cid?: bigint; username?: string; server_addr?: string }
+```
+
+— so `username` was always `undefined` and the body had never run. Not once.
+
+What never happened: the retry for that session was never cancelled, the session
+was never added to `activeSessionKeys`, and a user-initiated disconnect was never
+cleared. A session that had just reconnected successfully kept its retry timer,
+and `ServerAutoConnect` retrying a settled connection is a known cause of P2P
+flakiness in this tree.
+
+The `cid` the message DOES carry identifies the session — `StoredSession.cid` is
+recorded at login for exactly this kind of lookup — and the key is built by
+`getSessionKey`, the same helper the scheduling side uses, so the two cannot
+drift: a retry cancelled under a differently-spelled key is a retry that keeps
+running.
+
+Controlled by making the lookup match nothing, exactly as the phantom field did:
+three of the four assertions fail, and the fourth — the unknown-cid case —
+correctly still passes.
+
+## Round 467 — reading a field the wire does not have, as a check
+
+Round 463 and round 466 are one defect class, and CLAUDE.md names it in as many
+words, using `peer_username` vs `username` as its example. `getVariant` returns
+`Record<string, unknown>`, so every property read off it is a cast the compiler
+cannot check; read a name the message does not carry and the answer is
+`undefined`, silently, forever.
+
+The generated ts-rs bindings are the authority, so the question is decidable.
+`check-wire-fields-exist.mjs` resolves each `getVariant(message, 'X')` binding
+to its type and checks every property read against that type's declared fields.
+
+Scoping mattered more than the idea. A file-wide name map credited every `v.x`
+in a file to whichever binding was seen last — `const v = getVariant(...)`
+appears in several sibling blocks of one function — and produced six false
+positives out of eight hits. Resolving per block leaves exactly the two genuine
+ones.
+
+Both survivors read `peer_username` off messages that do not carry it
+(`PeerConnectNotification`, `PeerConnectSuccess`), each behind
+`(x.peer_username as string) || ''`. They do not crash; they broadcast every
+connected peer with an empty username. Recorded in the baseline rather than
+quietly tolerated.
+
+Controlled by reintroducing round 466's exact defect: the gate names
+`ConnectSuccess.username` and fails.
+
+Missing bindings are a loud failure, not a skip — a check that cannot fail is
+worse than no check.
+
 ## Round 465 — "Peer Sees File: FAIL", diagnosed to the layer below
 
 Not a fix. This records the mechanism behind the one remaining failure in

@@ -22,6 +22,7 @@ import {
   loadUserDisconnectedSessions,
   persistUserDisconnectedSessions,
 } from './persistence';
+import { applyConnectionSuccess, connectionSuccessDeps } from './connection-success';
 import {
   reconnectToDisconnectedSessions,
   scheduleReconnect as doScheduleReconnect,
@@ -94,7 +95,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     this.listen<WebSocketMessage>('websocket-message', async (message) => {
       const connectSuccess: Record<string, unknown> | undefined = getVariant(message, 'ConnectSuccess');
       if (connectSuccess) {
-        await this.handleConnectionSuccess(connectSuccess as { cid?: bigint; username?: string; server_addr?: string });
+        await this.handleConnectionSuccess(connectSuccess.cid as bigint | undefined);
       }
       const connectFailure: Record<string, unknown> | undefined = getVariant(message, 'ConnectFailure');
       if (connectFailure) {
@@ -179,20 +180,14 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     doScheduleReconnect(this.reconnectAttempts, sessionKey, session);
   }
 
-  private async handleConnectionSuccess(connectSuccess: { cid?: bigint; username?: string; server_addr?: string }): Promise<void> {
-    const username: string | undefined = connectSuccess.username;
-    const serverAddress: string | undefined = connectSuccess.server_addr;
-
-    if (username) {
-      const sessionKey: string = `${username}@${serverAddress}`;
-      this.cancelRetry(sessionKey);
-      this.activeSessionKeys.add(sessionKey);
-      if (this.userDisconnectedSessions.has(sessionKey)) {
-        this.userDisconnectedSessions.delete(sessionKey);
-        await persistUserDisconnectedSessions(this.userDisconnectedSessions);
-      }
-      debugLog('ServerAutoConnectService', `Connection successful for ${username}`);
-    }
+  /** See connection-success.ts for what this used to read, and why nothing ran. */
+  private async handleConnectionSuccess(cid: bigint | undefined): Promise<void> {
+    if (cid === undefined) return;
+    await applyConnectionSuccess(connectionSuccessDeps({
+      cancelRetry: (key: string): void => { this.cancelRetry(key); },
+      markActive: (key: string): void => { this.activeSessionKeys.add(key); },
+      userDisconnected: this.userDisconnectedSessions,
+    }), cid);
   }
 
   private handleConnectionFailure(connectFailure: { message?: string }): void {
