@@ -21221,6 +21221,44 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 479 — renaming a group changed one component's state and nothing else
+
+`useGroupSettingsActions.onNameChange` was the entire rename:
+
+```ts
+setGroup((prev) => (prev ? { ...prev, name } : null));
+```
+
+That is the open page's local state. It reached neither `rememberGroupName`,
+which is the local authority a group's label is rebuilt from — `group-store`
+builds every name as `chosenGroupName(id) ?? (data.name || data.ownerUsername)`
+— nor `updateGroups`, which is what the sidebar renders and what
+`persistGroups` writes.
+
+So renaming a group was visible on the open page and nowhere else. The sidebar
+went on showing the old name immediately, not merely after a reload, and the new
+name was gone entirely on the next load.
+
+A local rename is the correct behaviour here, and that is worth being clear
+about: the protocol has no group name at all. `GroupCreate` carries
+`{cid, request_id, initial_users_to_invite}` and nothing more, which is why
+`group-names.ts` exists in the first place. A peer cannot be told a name the wire
+has no field for. The bug was not that the rename stayed local — it was that
+"local" was one React component instead of the two stores that mean local.
+
+Both stores are now updated together in `applyGroupRename`, because updating one
+without the other is exactly the state that produced this. A blank name is
+refused rather than applied: a group with an empty label renders as a blank row
+that cannot be identified, and there is no way back to it from the sidebar.
+
+### Controls
+
+Removing the `rememberGroupName` half fails the name-store test. Removing the
+call from the settings action is caught by the linter as an unused import rather
+than by a test — worth stating plainly, because it is weaker: the linter would
+not notice if the call were replaced by something that compiles and does the
+wrong thing.
+
 ## Round 478 — four sweeps that found nothing, and one gap that was real
 
 Recorded because a sweep that finds nothing is a result, and dropping it

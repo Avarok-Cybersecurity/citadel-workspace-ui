@@ -24,6 +24,11 @@ export function rememberGroupName(groupId: string, name: string): void {
   chosen.set(groupId, trimmed);
 }
 
+/** Drop every remembered name. For tests; production never un-names a group. */
+export function forgetGroupNames(): void {
+  chosen.clear();
+}
+
 /** The chosen name, or null if this group was not named here. */
 export function chosenGroupName(groupId: string): string | null {
   return chosen.get(groupId) ?? null;

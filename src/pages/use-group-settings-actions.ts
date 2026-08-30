@@ -7,6 +7,7 @@ import { useCallback } from 'react';
 import type { NavigateFunction } from 'react-router-dom';
 import type { GroupConversation, GroupSettings } from '@/types/group';
 import { sendGroupEnd } from '@/lib/group-conversations/group-requests';
+import { applyGroupRename } from '@/lib/group-conversations/rename-group';
 import { debugLog } from '@/lib/debug-config';
 
 export interface GroupSettingsActions {
@@ -33,9 +34,16 @@ export function useGroupSettingsActions(deps: {
 
   const onNameChange: (name: string) => Promise<void> = useCallback(
     async (name: string): Promise<void> => {
-      setGroup((prev) => (prev ? { ...prev, name } : null));
+      if (!groupId) return;
+      // This used to be the setGroup line alone, which is the open page's own
+      // state. The sidebar renders the group STORE and the label is rebuilt
+      // from the NAME store, so a rename that touched neither left the sidebar
+      // showing the old name and lost the new one on the next reload. See
+      // rename-group.ts for why a rename is local in the first place.
+      if (!applyGroupRename(groupId, name)) return;
+      setGroup((prev) => (prev ? { ...prev, name: name.trim() } : null));
     },
-    [setGroup],
+    [groupId, setGroup],
   );
 
   const onDeleteGroup: () => Promise<void> = useCallback(async (): Promise<void> => {
