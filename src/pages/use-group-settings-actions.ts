@@ -8,6 +8,7 @@ import type { NavigateFunction } from 'react-router-dom';
 import type { GroupConversation, GroupSettings } from '@/types/group';
 import { sendGroupEnd } from '@/lib/group-conversations/group-requests';
 import { applyGroupRename } from '@/lib/group-conversations/rename-group';
+import { applyGroupSettings } from '@/lib/group-conversations/apply-group-settings';
 import { debugLog } from '@/lib/debug-config';
 
 export interface GroupSettingsActions {
@@ -27,9 +28,14 @@ export function useGroupSettingsActions(deps: {
 
   const onSettingsChange: (settings: GroupSettings) => void = useCallback(
     (settings: GroupSettings): void => {
+      // The store as well as this page. `settings` carries the group's roles,
+      // and therefore its permissions; updating only local state meant every
+      // role edit was gone on the next load, while `use-group-roles` reasoned
+      // in its own comments about "the settings the store holds".
+      if (groupId) applyGroupSettings(groupId, settings);
       setGroup((prev) => (prev ? { ...prev, settings } : null));
     },
-    [setGroup],
+    [groupId, setGroup],
   );
 
   const onNameChange: (name: string) => Promise<void> = useCallback(

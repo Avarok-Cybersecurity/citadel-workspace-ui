@@ -21221,6 +21221,48 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 480 — the same shape, one function up: group roles never persisted
+
+`useGroupSettingsActions.onSettingsChange` sat directly above the rename round
+479 fixed, and had the identical body:
+
+```ts
+setGroup((prev) => (prev ? { ...prev, settings } : null));
+```
+
+`use-group-roles` routes creating, editing, deleting and reordering a role
+through that callback, so `settings` — which carries the group's roles, and
+therefore its permissions — reached the open page and never the store the
+sidebar renders and `persistGroups` writes. Every role edit was gone on the next
+load.
+
+The role hook already believed otherwise. Its own comment reasons about "the
+settings the store holds" while explaining why it must build new role objects
+rather than mutate the caller's array in place. That precaution was being taken
+against a store nothing was updating — a correct piece of care, protecting
+something that was not happening.
+
+Fixed the same way as the rename, and deliberately as a sibling module rather
+than a shared one: a rename touches two stores and a settings change touches
+one, and folding them together would hide that difference behind a parameter.
+
+A settings change for a group the store no longer has is refused rather than
+applied, so an ended group cannot be resurrected as a partial record with no
+members and no name.
+
+### Caught by our own gate, mid-round
+
+The first version returned `boolean` for "was the group found", and the call
+site discarded it. `check-success-flags-are-checked` — round 461 — failed the
+preflight and named it.
+
+The fix was not to consume the flag but to remove it. The caller genuinely has
+nothing to do about a missing group: the panel is already open on it. So the
+anomaly is reported where it is discovered, with `debugLog`, and there is no
+flag left to discard. A boolean nobody reads is the shape that gate exists to
+refuse, and the honest response to it is usually to delete the boolean rather
+than to invent a use for it.
+
 ## Round 479 — renaming a group changed one component's state and nothing else
 
 `useGroupSettingsActions.onNameChange` was the entire rename:
