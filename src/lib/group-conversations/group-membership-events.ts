@@ -14,14 +14,19 @@ import { updateGroups } from './group-store';
 
 /** Bind the membership events. Called once, from `startGroupEventBindings`. */
 export function bindMembershipEvents(): void {
+  // `memberCid` is a bigint on the wire into this event, not a string that has
+  // to be parsed back. The emitter already holds one and used to call
+  // `.toString()` on it purely so this handler could call `BigInt()` on it
+  // again -- a round trip that only ever loses. CLAUDE.md: a CID is a bigint,
+  // and never a string in a declaration.
   eventEmitter.on('group:member-joined', (data: {
     groupId: string;
-    memberCid: string;
+    memberCid: bigint;
     memberUsername: string;
     roleId?: string;
   }) => {
     debugLog('GroupStore', 'Member joined:', data);
-    const memberCid: bigint = BigInt(data.memberCid);
+    const memberCid: bigint = data.memberCid;
     updateGroups(prev =>
       prev.map(group => {
         if (group.id !== data.groupId) return group;
@@ -57,9 +62,9 @@ export function bindMembershipEvents(): void {
     );
   });
 
-  const handleMemberLeft = (data: { groupId: string; memberCid: string }): void => {
+  const handleMemberLeft = (data: { groupId: string; memberCid: bigint }): void => {
     debugLog('GroupStore', 'Member left:', data);
-    const memberCid: bigint = BigInt(data.memberCid);
+    const memberCid: bigint = data.memberCid;
     updateGroups(prev =>
       prev.map(group =>
         group.id === data.groupId

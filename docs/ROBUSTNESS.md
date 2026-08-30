@@ -19582,10 +19582,12 @@ office and never post to it. Every send was refused — which is why the same
 sentence appeared across three unrelated specs and why chasing it through the
 group-role code found nothing wrong there.
 
-The repo holds THREE role-to-permission tables that all say Member may send:
+The repo holds three role-to-permission tables that all say Member may send:
 `Permission::for_role` in the types crate, the match in
 `kernel/transaction/async_transactions.rs`, and
-`kernel/transaction/rbac/role_permissions.rs`. A fourth,
+`kernel/transaction/rbac/role_permissions.rs` -- though round 410 found that
+the last of those is not compiled at all, so only two of them are live. A
+fourth,
 `PermissionSet::for_member()` in `handlers/permissions.rs`, is
 `[ViewContent, EditContent]` and grants SendMessages to nobody at all — not
 Member, not Owner, not Admin. Enforcement read none of the four.
@@ -19608,3 +19610,49 @@ widening as well as against the original defect.
 
 Not fixed, recorded: the four tables remain four. They disagree about Guest
 three different ways, and nothing keeps them in step.
+
+## Round 410 — code that is not in the build
+
+Following round 409's fourth role table to fix it, `PermissionSet::for_member()`
+turned out to be `[ViewContent, EditContent]` in a file nothing referenced. The
+reason nothing referenced it is on line 4 of `handlers/mod.rs`:
+`// pub mod permissions;`. The file is not compiled. Edits to it changed
+nothing, and the two tests written for it could never run — caught by checking
+collection **by name** rather than trusting the total, which had not moved.
+
+Uncompiled code is worse than deleted code: no test can fail on it, no lint can
+see it, and it reads as maintained. That file described a permission model
+contradicting the one enforcement should use, which is how round 409's refusal
+would have come back the day somebody uncommented the line. Deleted.
+
+A gate now walks each crate's `src/` and fails on any file — or DIRECTORY — no
+`mod` declaration reaches. Directories matter: the first draft checked files
+only, and its own control caught the hole, because commenting out
+`pub mod domain;` orphans everything beneath `domain/` while each file still
+looks declared by `domain/mod.rs`. A whole subtree could leave the build and
+the check would have said "all compiled".
+
+With directories included it immediately found `kernel/transaction/rbac`, which
+holds `role_permissions.rs` — one of the tables round 409 cited as agreeing
+with the SSOT while not being compiled. That entry is corrected above.
+
+Six more orphans (the sync kernel `async_kernel` replaced) are baselined rather
+than deleted: removing several hundred lines of somebody else's superseded
+design is a decision for whoever owns it, not a side effect of adding a check.
+The baseline may only shrink — a stale entry fails too, so it cannot rot.
+
+Controls: a new undeclared file fails; a baseline entry naming a file that no
+longer exists fails; commenting out a live `pub mod` fails.
+
+### And a zero that meant nobody
+
+The CID gate then flagged the round-406 extraction, whose relocated event
+payloads declared `memberCid: string`. The emitter already held a bigint and
+called `.toString()` so the handler could call `BigInt()` again — a round trip
+that only loses. Now bigint end to end, as CLAUDE.md requires.
+
+Fixing it surfaced a real bug in the same expression. `GroupLeaveNotification`
+sent `String(left.cid ?? '')`, and the handler turned that into `BigInt('')`,
+which is `0n` — a real cid. A leave notification arriving without one removed
+whoever was member zero. It now emits nothing when the cid does not parse,
+with a positive control asserting a real departure still goes through.

@@ -65,6 +65,15 @@ function variant(message: Record<string, unknown>, name: string): Record<string,
  * through a field that means someone else, so no membership change was ever
  * applied and a creator's roster stayed just themselves forever.
  */
+function toCid(raw: unknown): bigint | null {
+  if (raw === null || raw === undefined || raw === '') return null;
+  try {
+    return BigInt(raw as string | number | bigint);
+  } catch {
+    return null;
+  }
+}
+
 function memberCids(state: Record<string, unknown>, key: 'EnteredGroup' | 'LeftGroup'): bigint[] {
   const inner: Record<string, unknown> | undefined = variant(state, key);
   if (!inner || !Array.isArray(inner.cids)) return [];
@@ -156,22 +165,28 @@ export function toGroupEvents(
     return [
       ...memberCids(state, 'EnteredGroup').map((cid) => ({
         name: 'group:member-joined' as const,
-        payload: { groupId, memberCid: cid.toString(), memberUsername: peerName(cid) },
+        payload: { groupId, memberCid: cid, memberUsername: peerName(cid) },
       })),
       ...memberCids(state, 'LeftGroup').map((cid) => ({
         name: 'group:member-left' as const,
-        payload: { groupId, memberCid: cid.toString() },
+        payload: { groupId, memberCid: cid },
       })),
     ];
   }
 
   const left: Record<string, unknown> | undefined = variant(message, 'GroupLeaveNotification');
   if (left) {
+    // A cid that does not parse identifies nobody, so emit nothing. This used
+    // to send `String(left.cid ?? '')`, and the handler turned that into
+    // `BigInt('')` -- which is 0n, a real cid. A notification arriving without
+    // one therefore removed whoever happened to be member zero.
+    const cid: bigint | null = toCid(left.cid);
+    if (cid === null) return [];
     return [{
       name: 'group:member-left',
       payload: {
         groupId: groupKeyToId(parseGroupKey(left.group_key)),
-        memberCid: String(left.cid ?? ''),
+        memberCid: cid,
       },
     }];
   }

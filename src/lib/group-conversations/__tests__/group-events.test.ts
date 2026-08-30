@@ -56,9 +56,9 @@ describe('toGroupEvents', () => {
     expect(events).toHaveLength(2);
     expect(events[0]).toEqual({
       name: 'group:member-joined',
-      payload: { groupId: '7:42', memberCid: '9', memberUsername: 'bob' },
+      payload: { groupId: '7:42', memberCid: 9n, memberUsername: 'bob' },
     });
-    expect(events[1].payload).toMatchObject({ memberCid: '11', memberUsername: '11' });
+    expect(events[1].payload).toMatchObject({ memberCid: 11n, memberUsername: '11' });
   });
 
   it('maps LeftGroup to group:member-left per member', () => {
@@ -68,7 +68,7 @@ describe('toGroupEvents', () => {
     );
 
     expect(events).toEqual([
-      { name: 'group:member-left', payload: { groupId: '7:42', memberCid: '9' } },
+      { name: 'group:member-left', payload: { groupId: '7:42', memberCid: 9n } },
     ]);
   });
 
@@ -78,7 +78,7 @@ describe('toGroupEvents', () => {
       SELF, 'alice', peerName,
     );
 
-    expect(events.map((e) => e.payload.memberCid)).toEqual(['9', '11']);
+    expect(events.map((e) => e.payload.memberCid)).toEqual([9n, 11n]);
   });
 
   it('maps GroupEndNotification to group:deleted', () => {
@@ -93,7 +93,7 @@ describe('toGroupEvents', () => {
     );
 
     expect(events[0]?.name).toBe('group:member-left');
-    expect(events[0]?.payload).toMatchObject({ memberCid: '9' });
+    expect(events[0]?.payload).toMatchObject({ memberCid: 9n });
   });
 
   it('ignores messages that are not group responses', () => {
@@ -151,5 +151,32 @@ describe('being removed from a group', () => {
     );
 
     expect(events).toEqual([]);
+  });
+});
+
+describe('a leave notification without a cid', () => {
+  it('emits nothing rather than removing member zero', () => {
+    // `String(left.cid ?? '')` became `BigInt('')` in the handler, which is
+    // 0n -- a real cid. So a notification that named nobody removed whoever
+    // was member zero.
+    const events: GroupEvent[] = toGroupEvents(
+      { GroupLeaveNotification: { group_key: KEY } },
+      SELF,
+      'alice',
+      peerName,
+    );
+    expect(events).toEqual([]);
+  });
+
+  it('still emits when the cid is present', () => {
+    // Positive control: the guard must not swallow real departures.
+    const events: GroupEvent[] = toGroupEvents(
+      { GroupLeaveNotification: { group_key: KEY, cid: 9n } },
+      SELF,
+      'alice',
+      peerName,
+    );
+    expect(events).toHaveLength(1);
+    expect(events[0]?.payload).toMatchObject({ memberCid: 9n });
   });
 });

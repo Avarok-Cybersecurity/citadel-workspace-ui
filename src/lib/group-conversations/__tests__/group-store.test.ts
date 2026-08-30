@@ -81,7 +81,7 @@ describe('group store', () => {
     const id: string = freshId();
     emitCreated(id);
 
-    const joined: { groupId: string; memberCid: string; memberUsername: string; } = { groupId: id, memberCid: '9', memberUsername: 'bob' };
+    const joined: { groupId: string; memberCid: bigint; memberUsername: string; } = { groupId: id, memberCid: 9n, memberUsername: 'bob' };
     eventEmitter.emit('group:member-joined', joined);
     eventEmitter.emit('group:member-joined', joined);
 
@@ -100,7 +100,7 @@ describe('group store', () => {
     // cannot be found, which the UI can only read as "no permissions".
     eventEmitter.emit('group:member-joined', {
       groupId: id,
-      memberCid: '9',
+      memberCid: 9n,
       memberUsername: 'bob',
       roleId: 'a-role-id-minted-on-another-peer',
     });
@@ -122,7 +122,7 @@ describe('group store', () => {
     const real: string = getGroups().find(g => g.id === id)!.settings.roles[0].id;
 
     eventEmitter.emit('group:member-joined', {
-      groupId: id, memberCid: '11', memberUsername: 'carol', roleId: real,
+      groupId: id, memberCid: 11n, memberUsername: 'carol', roleId: real,
     });
 
     expect(getGroups().find(g => g.id === id)?.members.find(m => m.cid === 11n)?.roleId).toBe(real);
@@ -132,9 +132,9 @@ describe('group store', () => {
     startGroupEventBindings();
     const id: string = freshId();
     emitCreated(id);
-    eventEmitter.emit('group:member-joined', { groupId: id, memberCid: '9', memberUsername: 'bob' });
+    eventEmitter.emit('group:member-joined', { groupId: id, memberCid: 9n, memberUsername: 'bob' });
 
-    eventEmitter.emit('group:member-left', { groupId: id, memberCid: '9' });
+    eventEmitter.emit('group:member-left', { groupId: id, memberCid: 9n });
 
     const members: GroupMember[] = getGroups().find(g => g.id === id)?.members ?? [];
     expect(members.some(m => m.cid === 9n)).toBe(false);
