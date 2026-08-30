@@ -9,6 +9,7 @@
  * the caller was told it had succeeded.
  */
 import type { RevfsOperation, TreeKey, RevfsPendingOp } from '@/types/revfs-types';
+import type { RevfsIntentResult } from '@/types/revfs-intents';
 import type { RevfsState } from './revfs-state';
 import type { RevfsIO } from './revfs-io';
 import { debugLog } from '@/lib/debug-config';
@@ -54,11 +55,60 @@ export interface RetryOutcome {
   discarded: number;
 }
 
+/**
+ * Bring back anything queued before this page existed.
+ *
+ * Every failure path here persists the queue, and `RevfsIO` implements the
+ * matching `load-pending-ops` intent -- but nothing ever dispatched it, and
+ * `setPendingOps` had no production caller at all. So an op queued for an
+ * unreachable peer was written to `pending_ops.json` and then died on reload:
+ * the in-memory queue started empty, the drain below found nothing, and the file
+ * manager reported "Tree synced with peer" over a rename that was never sent.
+ * For a deletion it was worse -- the peer's next SyncResponse union-merged the
+ * file straight back.
+ *
+ * Merged by op_id rather than assigned, because this runs on every drain and not
+ * only the first: an op still in memory must not be queued, and sent, twice.
+ */
+async function restorePersistedOps(deps: RetryDeps, key: TreeKey): Promise<void> {
+  let result: RevfsIntentResult;
+  try {
+    result = await deps.io.execute({ type: 'load-pending-ops', treeKey: key });
+  } catch (error) {
+    // Nothing to merge and nothing lost: the queue is whatever is in memory,
+    // which is what it was before. Throwing here would abort a drain that can
+    // still deliver everything this session queued.
+    debugLog('RevfsService', 'Could not read the persisted operation queue', error);
+    return;
+  }
+
+  // An IO implementation that answers nothing must not abort the drain. This
+  // crashed three existing tests whose mock returns undefined, and that was the
+  // right complaint: losing the whole retry pass is worse than not restoring.
+  if (!result || result.type !== 'load-pending-ops' || !Array.isArray(result.ops)) return;
+  if (result.ops.length === 0) return;
+
+  const known: Set<string> = new Set(
+    deps.state.getPendingOps(key).map((entry) => entry.operation.op_id),
+  );
+  const restored: RevfsPendingOp[] = result.ops.filter(
+    (entry: RevfsPendingOp) => !known.has(entry.operation.op_id),
+  );
+  if (restored.length === 0) return;
+
+  debugLog('RevfsService', `Restored ${restored.length} operation(s) queued before this page load`);
+  for (const entry of restored) {
+    deps.state.addPendingOp(key, entry);
+  }
+}
+
 export async function retryPendingOps(
   deps: RetryDeps,
   key: TreeKey,
   peerCid: bigint,
 ): Promise<RetryOutcome> {
+  await restorePersistedOps(deps, key);
+
   const pending: RevfsPendingOp[] = deps.state.getPendingOps(key);
   if (pending.length === 0) return { stillPending: 0, discarded: 0 };
 

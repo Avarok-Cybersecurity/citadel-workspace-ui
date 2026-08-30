@@ -21221,6 +21221,40 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 487 — operations queued for an unreachable peer died on reload
+
+Every failure path in `revfs-retry.ts` persists the queue with a
+`persist-pending-ops` intent, and `RevfsIO` implements the matching
+`load-pending-ops`. Nothing ever dispatched it. `setPendingOps`, the only API
+that could repopulate the in-memory map, had zero production callers.
+
+So Alice renames or deletes a file while Bob is unreachable, the op is queued and
+written to `pending_ops.json`, and she reloads. The in-memory queue starts empty,
+`retryPendingOps` finds nothing, and the file manager reports **"Tree synced with
+peer"** over a rename that was never sent. For a deletion it is worse: Bob's next
+SyncResponse union-merges the file straight back into her tree.
+
+A feature built from one end, with both halves present and nothing joining them.
+`check-installers-are-called` cannot see it, because `RevfsIO.loadPendingOps` IS
+called — by the intent switch. It is the INTENT that is never dispatched. Worth
+recording as a limit of that gate: it checks that installers have callers, not
+that every branch of a dispatcher is reachable.
+
+Merged by `op_id` rather than assigned, because the restore runs on every drain
+and not only the first: an op still in memory must not be queued, and sent,
+twice.
+
+### The existing tests were right to complain
+
+The fix broke three tests in `discarded-ops-are-reported.test.ts` with
+`Cannot read properties of undefined (reading 'type')`. Their IO mock answers
+`undefined` for an intent it does not know, and my restore assumed a result.
+
+That is a real weakness in the fix, not a stale mock: an IO implementation that
+answers nothing would have aborted the entire retry pass, which is a worse
+failure than the one being fixed. Guarded, and the three tests pass unchanged —
+they were the ones that noticed.
+
 ## Round 486 — switching accounts left the previous one's messages on screen
 
 `ConversationManager` is a module-lifetime cache keyed by peer alone, holding up
