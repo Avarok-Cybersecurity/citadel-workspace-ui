@@ -10,6 +10,7 @@ import {
   createOnline,
   isPresenceUpdate,
   TYPING_POLL_INTERVAL_MS,
+  TYPING_DISPLAY_DURATION_MS,
 } from '@/types/messaging-layer';
 import type { MessagingLayer } from '@/types/messaging-layer';
 import type { PeerPresence } from './p2p-types';
@@ -25,6 +26,22 @@ export interface PresenceManagerConfig {
   /** Function to get all connected peer CIDs */
   getConnectedPeers: () => bigint[];
 }
+
+/**
+ * The fastest a typing indicator is worth resending.
+ *
+ * Half the duration the peer displays it for: the indicator never lapses, and
+ * the rate cannot follow the poll interval into something faster.
+ *
+ * At today's constants this guard never binds -- the poll is 1000ms and this
+ * is 2000/2 -- so it changes nothing now and has no test, because a test
+ * against these values cannot tell it from its own absence. It is here because
+ * the rate WAS incidental: `lastSentTyping` was written and read nowhere, so a
+ * poll made snappier for the local user would have multiplied traffic to the
+ * peer, and every one of these shares the reliable ILM path and send window
+ * with real messages.
+ */
+const MIN_TYPING_SEND_INTERVAL_MS: number = TYPING_DISPLAY_DURATION_MS / 2;
 
 export class PresenceManager {
   private presenceListeners: PresenceListener[] = [];
@@ -153,8 +170,20 @@ export class PresenceManager {
       const textChanged: boolean = currentText !== state.lastText;
       state.lastText = currentText;
 
-      // Only send typing indicator if text actually changed and is non-empty
-      if (textChanged && currentText.length > 0) {
+      // Changed, non-empty, and not more often than the peer needs.
+      //
+      // `lastSentTyping` was written here and read nowhere, so the send rate
+      // was whatever `TYPING_POLL_INTERVAL_MS` happened to be -- one per
+      // second, which is fine against a 2s display duration, and would become
+      // five per second the day somebody polled at 200ms for a snappier
+      // indicator. Every one of these goes down the same reliable ILM path as
+      // real messages, behind the same send window.
+      //
+      // The rate now derives from the duration it exists to sustain: half of
+      // it, so the indicator never lapses, and no faster whatever the poll
+      // becomes.
+      const sinceLastSend: number = Date.now() - state.lastSentTyping;
+      if (textChanged && currentText.length > 0 && sinceLastSend >= MIN_TYPING_SEND_INTERVAL_MS) {
         void this.sendTypingIndicator(recipientCid);
         state.lastSentTyping = Date.now();
       }

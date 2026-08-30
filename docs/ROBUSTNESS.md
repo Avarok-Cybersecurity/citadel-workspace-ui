@@ -20082,3 +20082,31 @@ landed is what separated the two.
 Three controls now: stripping `role`/`tabIndex` from a real element fails, a
 new mouse-only div fails, and a mouse-only div behind a `>`-bearing attribute
 string fails.
+
+## Round 422 — a rate that was true by coincidence
+
+The ILM saturation of rounds 391/393 was written down as needing the stack: all
+P2P commands share the reliable path behind `SEND_WINDOW = 8`, and no
+unreliable API is exposed. The transport is not app-side. The VOLUME is.
+
+Typing indicators are the obvious suspect, and they turn out to be innocent:
+`TYPING_POLL_INTERVAL_MS` is 1000 and the peer displays each for 2000, so one
+per second is the minimum that keeps the indicator lit, not an excess. Verified
+negative on that theory.
+
+What is wrong is that the rate is true by coincidence. `lastSentTyping` was
+written on every send and read nowhere, so the send rate was simply whatever
+the poll interval happened to be. Someone polling at 200ms for a snappier local
+indicator would have quintupled the traffic to the peer, through the same
+window as real messages, without touching anything that looks like a send.
+
+The rate now derives from the duration it exists to sustain — half of
+`TYPING_DISPLAY_DURATION_MS` — so it cannot follow the poll.
+
+**This guard has no test, and that is deliberate.** At today's constants the
+poll interval (1000) equals the minimum (2000/2), so the guard never binds: a
+test written against these values passes identically with the guard removed. I
+wrote one, its control passed, and I deleted it rather than keep a test that
+cannot tell the fix from its absence. The comment on the constant says the same
+thing, so the next reader is not misled into trusting coverage that is not
+there.
