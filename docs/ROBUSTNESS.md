@@ -19384,3 +19384,37 @@ caught 398 before it shipped, had I asked how many lists arrive rather than how
 many I expected.
 
 2531 tests green, all 61 preflight checks.
+
+## Round 404 — a refusal attributed to a role that does not exist
+
+`group-multiuser` had Alice→Bob passing and Bob→Alice failing, with Bob's
+composer replaced by "You do not have permission to send messages here." Bob is
+the invitee, not the owner, so `isOwner`'s all-permissions override did not
+cover him.
+
+`useGroupPermissions` resolves a member's permissions through
+`roles.find(r => r.id === myMember.roleId)` and answers "no permissions" when
+that comes back empty. `groupRestriction` then reported `denied-by-role` — the
+same conflation the file was written to break, one question further down:
+
+  - you hold a role, and it does not permit this;
+  - you are not in this group's member list at all; and
+  - you are listed, holding a role id that names no role we have.
+
+The third is not a decision anyone made about this user. Role ids are minted
+per peer with `crypto.randomUUID()` (`createDefaultRoles`), so an id that
+travelled from another peer's copy of the group resolves against nothing
+locally. `group-store.ts`'s `group:member-joined` handler will store exactly
+such an id whenever `data.roleId` is present — today's wire emitter never sets
+it, so that path is latent rather than live, but the state it produces is the
+one the UI could not name.
+
+`groupRestriction` now takes `hasRole` as a required third argument (no
+default: the two refusals are indistinguishable at the call site otherwise,
+which is the bug) and returns a fourth state, `role-missing`, with wording that
+does not blame the reader and says what to do. Negative control: collapsing the
+branch back to `denied-by-role` fails the new test alone and leaves the
+positive control — a role that exists and refuses — passing.
+
+This also makes the next CI run discriminating: whichever sentence Bob's
+composer shows now says which of the two actually happened.

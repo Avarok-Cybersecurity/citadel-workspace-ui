@@ -45,7 +45,7 @@ export function GroupMemberManagement({
   invitablePeers = [],
   onInviteMember,
 }: GroupMemberManagementProps): JSX.Element {
-  const { can, canManageMember, canAssignRole, listedAsMember } = useGroupPermissions(group);
+  const { can, canManageMember, canAssignRole, listedAsMember, myRole } = useGroupPermissions(group);
   const [memberToKick, setMemberToKick] = useState<GroupMemberWithRole | null>(null);
   const [isKicking, setIsKicking] = useState(false);
 
@@ -84,7 +84,7 @@ export function GroupMemberManagement({
   const canKick: boolean = can('kickMembers');
   const canAssign: boolean = can('assignRoles');
 
-  const viewRestriction: GroupRestriction = groupRestriction(listedAsMember, can('viewMemberList'));
+  const viewRestriction: GroupRestriction = groupRestriction(listedAsMember, myRole !== undefined, can('viewMemberList'));
   if (viewRestriction !== 'allowed') {
     return (
       <div className="space-y-4">

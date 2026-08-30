@@ -168,8 +168,8 @@ describe('the sendMessages switch', () => {
     expect(allowed).toBe(true);
     expect(muted).toBe(false);
 
-    const allowedRestriction: GroupRestriction = groupRestriction(true, allowed);
-    const mutedRestriction: GroupRestriction = groupRestriction(true, muted);
+    const allowedRestriction: GroupRestriction = groupRestriction(true, true, allowed);
+    const mutedRestriction: GroupRestriction = groupRestriction(true, true, muted);
     expect(mutedRestriction).toBe('denied-by-role');
 
     const permitted: ReturnType<typeof render> = render(
@@ -205,6 +205,7 @@ describe('a user who is not in the member list', () => {
     expect(result.can('sendMessages')).toBe(false);
     const restriction: GroupRestriction = groupRestriction(
       result.listedAsMember,
+      result.myRole !== undefined,
       result.can('sendMessages'),
     );
     expect(restriction).toBe('not-listed');
@@ -229,5 +230,60 @@ describe('a user who is not in the member list', () => {
     expect(screen.getByTestId('group-members-restricted').textContent ?? '').toContain(
       'not listed as a member',
     );
+  });
+});
+
+describe('a member whose roleId names no role we have', () => {
+  /**
+   * Role ids are minted per peer with `crypto.randomUUID()`, so an id carried
+   * over from another peer's copy of the group resolves against nothing here.
+   * The member is listed; the role is simply not findable.
+   */
+  function groupWithDanglingRole(): GroupConversation {
+    const full: GroupConversation = groupWhereSelfHas(DEFAULT_MEMBER_PERMISSIONS);
+    return {
+      ...full,
+      members: full.members.map((m) =>
+        m.cid === SELF ? { ...m, roleId: 'a-role-id-from-another-peer' } : m,
+      ),
+    };
+  }
+
+  it('is told the role is missing, not that they lack permission', async () => {
+    const { useGroupPermissions } = await import('@/hooks/use-group-permissions');
+    const { GroupChatView } = await import('../GroupChatView');
+
+    const result: ReturnType<typeof useGroupPermissions> = renderHook(() =>
+      useGroupPermissions(groupWithDanglingRole()),
+    ).result.current;
+
+    // Listed, but with nothing to resolve -- the pair the old two-argument
+    // call could not tell apart from a role that says no.
+    expect(result.listedAsMember).toBe(true);
+    expect(result.myRole).toBeUndefined();
+    expect(result.can('sendMessages')).toBe(false);
+
+    const restriction: GroupRestriction = groupRestriction(
+      result.listedAsMember,
+      result.myRole !== undefined,
+      result.can('sendMessages'),
+    );
+    expect(restriction).toBe('role-missing');
+
+    render(<GroupChatView groupId="g1" currentUserName="self" sendRestriction={restriction} />);
+    const said: string = screen.getByTestId('group-send-restricted').textContent ?? '';
+    expect(said).toContain('role in this group could not be found');
+    // The specific wrong thing it used to say: a refusal attributed to a role
+    // that does not exist.
+    expect(said).not.toContain('do not have permission');
+  });
+
+  it('still says denied-by-role when the role exists and refuses', () => {
+    // Positive control: the new branch must not swallow real refusals.
+    expect(groupRestriction(true, true, false)).toBe('denied-by-role');
+    // ...and must not fire when the action is permitted.
+    expect(groupRestriction(true, false, true)).toBe('allowed');
+    // Not listed outranks a missing role: there is no role to miss.
+    expect(groupRestriction(false, false, false)).toBe('not-listed');
   });
 });

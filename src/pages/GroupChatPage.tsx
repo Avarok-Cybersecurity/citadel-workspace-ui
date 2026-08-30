@@ -59,7 +59,7 @@ export function GroupChatPage(): JSX.Element {
   const [group, setGroup] = useState<GroupConversation | null>(null);
   // `group` is null until it loads, which is why the hook takes null. Both of
   // these permissions were computed and read by nobody until this call site.
-  const { can, listedAsMember } = useGroupPermissions(group);
+  const { can, listedAsMember, myRole } = useGroupPermissions(group);
   const [showSettings, setShowSettings] = useState(false);
 
   // Get current user info.
@@ -211,7 +211,7 @@ export function GroupChatPage(): JSX.Element {
             currentUserId={currentUserId}
             currentUserName={reader.displayName}
             totalMembers={group.members.length}
-            sendRestriction={groupRestriction(listedAsMember, can('sendMessages'))}
+            sendRestriction={groupRestriction(listedAsMember, myRole !== undefined, can('sendMessages'))}
           />
         </div>
       )}
