@@ -287,9 +287,28 @@ export async function sendGroupMessage(
     const messageInput = page.getByTestId('group-message-input').first();
 
     if (!(await isVisibleWithin(messageInput, 5000))) {
-      console.log(`  WARNING: Message input not found`);
+      // "Not found" was the whole report for four separate causes, and it named
+      // none of them. These three are distinguishable from the page, and which
+      // one it is decides where to look next:
+      //
+      //   attached but not visible  -> a layout problem; the composer is there
+      //   a restriction notice      -> a permission decision, with its wording
+      //   neither                   -> the chat view did not render at all
+      const attached: number = await messageInput.count().catch((): number => 0);
+      const restricted = page.getByTestId('group-send-restricted').first();
+      const restrictedText: string | null = await restricted
+        .textContent({ timeout: 1000 })
+        .catch((): null => null);
+
+      const why: string = restrictedText
+        ? `the composer was replaced by a restriction notice: "${restrictedText.trim()}"`
+        : attached > 0
+          ? 'the composer is in the DOM but not visible -- a layout problem, not a permission one'
+          : 'no composer and no restriction notice: the chat view did not render';
+
+      console.log(`  WARNING: Message input not found -- ${why}`);
       if (options.uxTracker) {
-        options.uxTracker.log('major', 'functional', 'Group chat message input not visible');
+        options.uxTracker.log('major', 'functional', `Group chat message input not visible: ${why}`);
       }
       return false;
     }

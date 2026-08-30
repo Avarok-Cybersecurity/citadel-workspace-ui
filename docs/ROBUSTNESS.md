@@ -18730,3 +18730,38 @@ listeners were dead; the explanations were fiction, and each pointed the next
 reader at the wrong repair — emitting the event in 384, doing nothing in 385.
 
 2509 tests green, all 60 preflight checks.
+
+## Round 386 — "not found" named none of its four causes
+
+CI, on the run carrying rounds 366-381, still fails
+`message actions are reachable on a touch device` at 375x667 with
+
+    Switched to Chat tab ([role="tab"]:has-text("Chat"))
+    WARNING: Message input not found
+
+That line is now worth more than it was: since round 377 "Switched to Chat tab"
+means the panel was OBSERVED to open, not merely clicked. So the panel is there
+and the composer is not — and rounds 369, 373, 378, 379 and 380 are all in this
+run.
+
+Which leaves three possibilities, and the log distinguishes none of them:
+
+| what is true | where to look |
+|---|---|
+| the composer is attached but not visible | a layout problem |
+| a restriction notice is showing instead | a permission decision — and its wording says which |
+| neither is present | the chat view did not render at all |
+
+`sendGroupMessage` reported the same sentence for all four causes this campaign
+has already found, which is why four rounds each looked plausible and none
+closed the job. It now says which of the three it is, and quotes the restriction
+notice when there is one.
+
+This does not fix the app. It is the same move as round 377 and for the same
+reason: the next run stops misdirecting. A failure that cannot distinguish its
+causes costs a round each time somebody guesses.
+
+The remaining call failures in that shard are "the call clock never started",
+which is media negotiation and needs the stack.
+
+All 60 preflight checks.
