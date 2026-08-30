@@ -21221,6 +21221,41 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 485 — a follower tab accepted another session's group invitation
+
+One browser holds one WebSocket. The leader tab owns it and broadcasts what it
+receives; followers filter. The filter was:
+
+```ts
+if (message.targetCid && tabCid && message.targetCid !== tabCid) return;
+```
+
+`targetCid` is stamped by the leader for exactly three types —
+`PeerConnectNotification`, `PeerRegisterNotification`, `MessageNotification`. For
+everything else it is `undefined`, and `undefined &&` never skips. The second
+gate is `!requestId`, and every group notification is built Rust-side with
+`request_id: None`, so that passes too. Two gates, both fail-open, for anything
+nobody had remembered to stamp.
+
+With session A on the leader tab and session B on a follower: a peer invites A to
+a group, and B's tab emits the invite onto its own bus. B's group-response-service
+maps it with B's identity and the store AUTO-ACCEPTS — B sees "X invited you to a
+group", B's sidebar gains a group it was never invited to, and a
+`GroupRespondRequest` goes to the backend carrying B's cid for an invitation that
+never named B.
+
+The fix reads the notification's OWN cid instead of trusting the leader to have
+stamped one, which closes it for every notification type rather than the three
+somebody remembered. That is the rule CLAUDE.md already states: never process
+messages where the CID does not match.
+
+Three positive controls guard the obvious over-correction, because a filter that
+simply dropped more would pass the headline assertion: an invite addressed to
+THIS session is still forwarded; a message naming no session at all is still
+forwarded (the request/response traffic a follower proxies would otherwise go
+silent); and `BROADCAST_MESSAGE_TYPES` — disconnect, deregister — still fan out
+to every tab even though they carry a cid, because that fan-out is deliberate.
+
 ## Round 483 — one account's contacts appeared in another's list
 
 Found by a ten-lens adversarial inspection (49 findings confirmed, 9 refuted). This is the
