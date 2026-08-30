@@ -82,7 +82,19 @@ account switch fired on every reconnect. Those are recorded as rounds 489 and
 | 51 | medium | fixed | ILM workflow | A wedged peer grows ILM's pending-outbound queue for that peer forever — stop-and-wait never gives up and nothing caps or ages the queue | `intersession-layer-messaging/src/lib.rs` process_outbound |
 | 52 | medium | fixed | ILM workflow | Internal-service `Message` tasks pile up awaiting one peer's `Arc<Mutex<AsyncSink>>` with no cap and no timeout, so a wedged peer accumulates unbounded spawned tasks | `citadel-internal-service/src/kernel/requests/message.rs:60` |
 | 53 | low | open | ILM workflow | Every browser→internal-service buffer is an `UnboundedSender` (SINK_CHANNEL, bypass_ism_tx_to_outbound, final_tx, per-ILM pairs): a slow localhost WebSocket grows memory silently instead of applying backpressure | connector `messenger/mod.rs` |
-| 56 | medium | open | CI run 33340052631 | A call fails when the peer's UDP channel takes longer than the retry ladder allows. `UDP_WAIT` is 5s and the gap between attempts is `max(backoff, longestAttemptMs)` = 5s, so within the 30s `CONNECT_TIMEOUT_MS` only three attempts fit and just 15s of the budget is spent awaiting the channel — the other 10s is idle. Reproduced in CI at the session's starting commit and again after rounds 489–510, failing all three Playwright retries while 48 of 49 tests in the shard pass. NOT caused by this campaign's work. | `citadel-internal-service/.../media/mod.rs:51` (UDP_WAIT), `citadel-workspaces/src/lib/call/open-session-retry.ts` |
+| 56 | medium | open | CI run 33340052631 | A call fails when the peer's UDP channel takes longer than the retry ladder allows. `UDP_WAIT` is 5s and the gap between attempts is `max(backoff, longestAttemptMs)` = 5s, so within the 30s `CONNECT_TIMEOUT_MS` only three attempts fit and just 15s of the budget is spent awaiting the channel — the other 10s is idle. Reproduced in CI at the session's starting commit and again after rounds 489–510, failing all three Playwright retries while 48 of 49 tests in the shard pass. NOT caused by this campaign's work.
+
+**Refined from the CI logs, twice.** (1) Both sides send `udp_mode: 'Enabled'`
+(`p2p-operations.ts`), so the message's other branch — "established with UdpMode
+disabled" — is not the cause. (2) No SUCCESSFUL UDP negotiation appears anywhere
+in the run: the only two tests that use UDP are the two that failed, so there is
+no measured negotiation time to size the constant from, and the evidence is
+equally consistent with "slow" and with "never comes up in this network at all".
+Tuning `UDP_WAIT` or the retry gap from here would be a guess dressed as a fix,
+and both obvious directions break something a previous CI run taught: a shorter
+gap re-enters the service's "a media open or teardown is already in progress"
+window, and a longer wait collapses the ladder to a single attempt. What this
+needs is one run that measures negotiation on a link where it succeeds. | `citadel-internal-service/.../media/mod.rs:51` (UDP_WAIT), `citadel-workspaces/src/lib/call/open-session-retry.ts` |
 | 55 | low | open | round 507 | `delete_workspace` leaves each member's `user.permissions[workspace_id]` entry behind; unreachable (ids are server-minted UUIDs) but unbounded across deletions | `async_domain_server_ops.rs` delete_workspace |
 | 54 | low | open | ILM workflow | A single urgent message waits 0–200ms (mean ~100ms) for the next poll: `send_raw_message` deliberately does not nudge `poll_outbound_tx` because an earlier nudge caused an infinite feedback loop | `intersession-layer-messaging/src/lib.rs:1372` |
 
