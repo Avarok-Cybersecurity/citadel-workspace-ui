@@ -19952,3 +19952,33 @@ Fixed on three sides:
     control that signing out still goes through on one click.
 
 Negative control: removing the guard from the app fails the refusal test alone.
+
+## Round 418 — the guards nothing was testing
+
+Round 417's deregistration sat behind a `confirm({...})` that no test at any
+level answered, so it silently did nothing while three checks reported success.
+The obvious next question is which other guards are in that state.
+
+There are five `confirm({...})` call sites. Two of them —
+`handleDelete` and `handleDeleteMultiple` in the file manager, and
+"Clear all chat history" in `ChatSettingsPanel` — are reached by **no
+integration spec at all**. `handleDeleteMultiple` in particular deletes an
+entire selection, folders with their contents included, and nothing anywhere
+exercised it.
+
+That is not a defect on its own. It is the condition round 417 was found in:
+a guard nobody tests is a guard whose state nobody knows.
+
+Both file-manager paths now have unit tests, and they are unit tests because
+the hook takes its dependencies as parameters — `rmdir`, `removeFile` and
+`confirm` are all injectable, so the real handler runs and only the boundary is
+stubbed. Four cases: a refused question deletes nothing, for one item and for a
+selection; and an accepted one routes each item by its own kind, which is the
+positive control that keeps "refuses everything" from passing.
+
+Controls both ways: removing the `if (!ok) return;` fails the refusal test
+alone, and swapping the folder/file routing fails the routing test alone.
+
+Left uncovered and recorded rather than claimed: "Clear all chat history" lives
+inside a JSX callback rather than a named handler, so covering it means
+rendering the panel. Worth doing; not done here.
