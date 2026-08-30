@@ -14,8 +14,8 @@ import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
 import { eventEmitter } from '@/lib/event-emitter';
 import { callPeerName } from '@/lib/call/peer-name';
 import { toast } from 'sonner';
+import { startCall as runStartCall } from './start-call';
 import { useCallCapability } from './use-call-capability';
-import { callBusyReason } from '@/lib/call/call-busy';
 import { CAMERA_UNAVAILABLE, MIC_UNAVAILABLE, SCREEN_SHARE_STOPPED } from './media-unavailable';
 import { useLiveVideoQuality } from './use-live-video-quality';
 import { buildCallContext } from './build-call-context';
@@ -107,40 +107,14 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   );
 
   const startCall: (peers: Array<{ cid: bigint; username: string; }>, video: boolean, roomId?: string) => Promise<void> = useCallback(
-    async (peers: Array<{ cid: bigint; username: string }>, video: boolean, roomId?: string) => {
-      // Before capturing anything. The group entry path has refused a second
-      // call since it was written; this one never did, so from any other
-      // conversation during an active call both call buttons were live -- and
-      // pressing one overwrote the live stream and pump without stopping
-      // either, leaving the camera light on until a reload while the original
-      // peer waited out their 20s silence timeout.
-      // The manager's own state, not the React copy: a call that started
-      // milliseconds ago has not necessarily reached this closure yet, and the
-      // whole failure is a second start racing the first.
-      const busy: string | null = callBusyReason(managerRef.current?.getState() ?? null);
-      if (busy) {
-        toast.error(busy);
-        return;
-      }
-
-      setCaptureFailure(null);
-      const manager: CallManager | null = await ensureManager();
-      if (!manager) return reportCallSystemUnavailable('start');
-
-      const session: CallSession = await ensureSession();
-      const got: CallMediaKinds | null = await session.start({ audio: true, video, screen: false });
-      // Capture failing means there is nothing to send, so nobody is rung — a
-      // ringing phone for a call that cannot carry audio wastes their time.
-      if (!got) {
-        teardown();
-        return;
-      }
-
-      const callId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
-      // The invite announces our provisional codec; the accept's decode list
-      // may change it, in which case the signal path announces the new one.
-      await manager.start(callId, peers, got, roomId ?? null, session.getCodec());
-    },
+    (peers: Array<{ cid: bigint; username: string }>, video: boolean, roomId?: string) =>
+      // See start-call.ts: three busy checks, and which state each asks.
+      runStartCall(
+        { managerRef, ensureManager, ensureSession, teardown, setCaptureFailure, reportCallSystemUnavailable },
+        peers,
+        video,
+        roomId,
+      ),
     [ensureManager, ensureSession, teardown, managerRef],
   );
 

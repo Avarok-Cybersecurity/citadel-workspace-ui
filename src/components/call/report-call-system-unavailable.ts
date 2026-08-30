@@ -16,7 +16,7 @@
 
 import { toast } from 'sonner';
 
-type CallMoment = 'start' | 'accept' | 'inbound';
+export type CallMoment = 'start' | 'accept' | 'inbound';
 
 const MESSAGES: Record<CallMoment, { title: string; description: string }> = {
   start: {

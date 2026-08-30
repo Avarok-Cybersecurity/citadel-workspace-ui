@@ -118,11 +118,19 @@ export class CallLivenessBinding {
       // Armed only once the call is genuinely up. Earlier states have their own
       // guardians — an unanswered dial is the ring timeout's job, and starting
       // during ringing would evict invitees who simply have not picked up yet.
-      if (state.status === 'active') {
-        this.liveness.start(presentPeers(state));
-        this.running = true;
-      }
-      return;
+      if (state.status !== 'active') return;
+      this.liveness.start(presentPeers(state));
+      this.running = true;
+      // Falls THROUGH to the seeding loop below rather than returning.
+      //
+      // In a group call this transition is exactly the moment some peers are
+      // still `invited` — the call goes active when the FIRST peer connects.
+      // Returning here skipped seeding their `invitedSince`, so their clock
+      // started only if some later transition happened to arrive. An invitee
+      // whose tab is closed produces no transitions at all: nothing to accept,
+      // nothing to decline, no media, no signal. They stayed on "invited" in
+      // everyone's roster for the rest of the call, which is the exact case
+      // this clock exists for.
     }
     // A peer who left or declined for a known reason must not later be
     // reported lost as well.

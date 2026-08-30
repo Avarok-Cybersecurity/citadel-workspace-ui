@@ -8,8 +8,8 @@ stack or a WASM rebuild), `wontfix` (with a reason).
 
 The goal this backlog serves: no critical, high or medium issue left open.
 
-**Progress: 21 of 49 fixed** — every critical and every HIGH is closed;
-8 of 25 medium. 17 open at medium; 11 low.
+**Progress: 25 of 49 fixed** — every critical and every HIGH is closed;
+12 of 25 medium. 13 open at medium; 11 low.
 
 Two rounds of adversarial re-review have since been run over the fixes
 themselves. They confirmed every one as correct, and found nine further defects
@@ -43,10 +43,10 @@ account switch fired on every reconnect. Those are recorded as rounds 489 and
 | 21 | medium | fixed | rust-server-protocol | Changing the default office is never broadcast: is_default is missing from the UpdateNode broadcast condition, and the cleared old default is never sent at all | `citadel-workspace-server-kernel/src/kernel/command_processor/async_process_command.rs:1044` |
 | 22 | medium | fixed | rust-wasm-client | One failed restart() permanently bricks the WASM-layer automatic reconnection: state is destroyed before connecting, and the gate then rejects every retry | `citadel-internal-service/citadel-internal-service-wasm-client/src/lib.rs:270` |
 | 23 | medium | fixed | rust-wasm-client | A deliberate restart()/close_connection() fires the 'connection died' callback, so deliberate teardowns re-trigger the retry modal and stop background services | `citadel-internal-service/citadel-internal-service-wasm-client/src/lib.rs:391` |
-| 24 | medium | open | ts-calls | Media session confirmed after the call ended is registered and never closed | `citadel-workspaces/src/lib/call/media-session-lifecycle.ts:54` |
-| 25 | medium | open | ts-calls | startCall's busy check runs before the capture await; no re-check before manager.start | `citadel-workspaces/src/components/call/CallProvider.tsx:120` |
-| 26 | medium | open | ts-calls | Glare loser who accepts captures a second stream over the first; old camera and pump orphaned | `citadel-workspaces/src/lib/call/call-session.ts:111` |
-| 27 | medium | open | ts-calls | Liveness activation transition returns before seeding invitedSince; straggler's 45s clock never starts | `citadel-workspaces/src/lib/call/call-liveness-binding.ts:121` |
+| 24 | medium | fixed | ts-calls | Media session confirmed after the call ended is registered and never closed | `citadel-workspaces/src/lib/call/media-session-lifecycle.ts:54` |
+| 25 | medium | fixed | ts-calls | startCall's busy check runs before the capture await; no re-check before manager.start | `citadel-workspaces/src/components/call/CallProvider.tsx:120` |
+| 26 | medium | fixed | ts-calls | Glare loser who accepts captures a second stream over the first; old camera and pump orphaned | `citadel-workspaces/src/lib/call/call-session.ts:111` |
+| 27 | medium | fixed | ts-calls | Liveness activation transition returns before seeding invitedSince; straggler's 45s clock never starts | `citadel-workspaces/src/lib/call/call-liveness-binding.ts:121` |
 | 28 | medium | open | ts-file-transfer | Sending a 0-byte file in default p2p mode announces the offer then throws: sender stuck 'pending' forever, recipient's bubble can be neither accepted nor declined | `citadel-workspaces/src/lib/file-transfer/transfer-lifecycle.ts:78` |
 | 29 | medium | open | ts-messaging | A redelivered 'delivered' ack downgrades a message already marked 'read' | `citadel-workspaces/src/lib/p2p/message-ack-handler.ts:52` |
 | 30 | medium | fixed | ts-messaging | P2P conversation cache is never reset on session switch — the group store's fix was not carried to its twin | `citadel-workspaces/src/lib/p2p/p2p-messenger-manager.ts:116` |

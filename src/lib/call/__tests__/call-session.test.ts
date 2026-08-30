@@ -297,3 +297,62 @@ describe('closing during capture', () => {
     expect(session.getLocalStream()).toBeNull();
   });
 });
+
+/**
+ * A SECOND start on a session whose first start already finished.
+ *
+ * `start()` memoises an in-flight attempt, so two captures racing each other
+ * share one. That covers the double-click. It does not cover the SEQUENTIAL
+ * case: the first capture resolves, `starting` is cleared, and a second start
+ * then runs `adoptStream` and `startPump` again — replacing `this.localStream`
+ * and `this.pump` with nothing left holding the originals. Never stopped:
+ * camera light on until the page reloads, and an orphaned pump still reading
+ * frames off a track nobody is sending.
+ *
+ * The reachable path is glare. Both sides ring at once; the loser's outbound
+ * capture has already completed by the time they accept the inbound call, and
+ * `accept()` starts the session again on the same object.
+ */
+describe('starting a second time on the same session', () => {
+  it('stops the first capture rather than orphaning it', async () => {
+    const session: CallSession = new CallSession(callbacks());
+
+    await session.start({ audio: true, video: true, screen: false });
+    const first: Array<{ stop: ReturnType<typeof vi.fn> }> = [...stopped];
+    expect(first.length, 'the first capture produced no tracks to orphan').toBeGreaterThan(0);
+    expect(first.every((t) => t.stop.mock.calls.length === 0)).toBe(true);
+
+    // A fresh device answer, as the browser gives on a second getUserMedia.
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: { getUserMedia: vi.fn().mockResolvedValue(fakeStream(true)) },
+      configurable: true,
+    });
+    await session.start({ audio: true, video: true, screen: false });
+
+    for (const track of first) {
+      expect(
+        track.stop,
+        'the first capture’s track was replaced without being stopped — camera on until reload',
+      ).toHaveBeenCalled();
+    }
+  });
+
+  it('leaves the second capture running', async () => {
+    // The opposite failure: stopping indiscriminately would kill the stream the
+    // session just adopted, and the assertion above would still pass.
+    const session: CallSession = new CallSession(callbacks());
+    await session.start({ audio: true, video: true, screen: false });
+
+    const second: MediaStream = fakeStream(true);
+    const secondTracks: FakeTrack[] = second.getTracks() as unknown as FakeTrack[];
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: { getUserMedia: vi.fn().mockResolvedValue(second) },
+      configurable: true,
+    });
+    await session.start({ audio: true, video: true, screen: false });
+
+    for (const track of secondTracks) {
+      expect(track.stop, 'the newly adopted capture was stopped').not.toHaveBeenCalled();
+    }
+  });
+});

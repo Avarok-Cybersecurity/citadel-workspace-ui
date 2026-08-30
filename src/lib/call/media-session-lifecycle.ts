@@ -52,6 +52,24 @@ async function openSessionOnce(m: CallManagerInternals, cid: bigint): Promise<vo
     const attemptStartedAt: number = m.now();
     try {
       await m.transport.openSession(cid);
+
+      // The call can end anywhere inside that await -- it is a round trip to
+      // the service with a connect budget in tens of seconds, not a narrow
+      // window. The failure path below has always re-read the state here; the
+      // success path did not, so a late confirmation added the peer to
+      // `openSessions` AFTER `closeAllSessions` had run, leaving a media
+      // session and its camera open on the service with nothing left that would
+      // ever close it, and applied `peer-connected` to a call that was over --
+      // the event that moves a call to 'active' and starts the duration clock.
+      //
+      // Closed here rather than just dropped: the service opened it, so
+      // somebody has to tell it not to keep it.
+      const current: CallState | null = m.getState();
+      if (!current || current.status === 'ended' || current.status === 'failed') {
+        await m.transport.closeSession(cid).catch(() => undefined);
+        return;
+      }
+
       m.openSessions.add(cid);
       // The transport resolves only once the service confirmed the session, so
       // this is the moment the peer is genuinely reachable — which is what

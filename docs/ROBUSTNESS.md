@@ -21221,6 +21221,61 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 499 — four ways a call outlives itself
+
+Backlog 24–27, all in the call lifecycle, and all the same shape: something
+decided once and acted on later.
+
+**A media session confirmed after the call ended** (24). `openSessionOnce`
+awaits `transport.openSession`, then registers the peer and applies
+`peer-connected`. The FAILURE path already re-reads the state after that await —
+"a call that ended while we were waiting has nothing left to open a session
+for". The success path never did. So a late confirmation added the peer to
+`openSessions` after `closeAllSessions` had run, leaving a media session and its
+camera live on the service with nothing left that would ever close it, and
+applied the event that moves a call to `active` and starts the duration clock —
+to a call that was over. The window is the whole open, tens of seconds. It is
+now closed on that branch, not merely dropped: the service opened it, so
+somebody has to tell it not to keep it.
+
+**A second call started during the permission prompt** (25). `startCall` asked
+"am I busy?" once, ahead of three awaits, the last of which raises the browser's
+camera prompt — which a person can leave open for minutes. The check exists
+because pressing Call during a live call "overwrote the live stream and pump
+without stopping either". It was answering for a moment that had passed. It is
+asked three times now: before anything, before the capture, and before
+`manager.start` — and never with `teardown()` on the busy branch, because the
+session is shared and the live call is the one using it.
+
+**The glare loser's first capture, orphaned** (26). `start()` memoises an
+in-flight attempt, which covers two captures racing. It does not cover a second
+start after the first has RESOLVED — exactly what glare produces: the loser's
+outbound capture is complete by the time they accept the inbound call, and
+`accept()` starts the same session again. `adoptStream` and `startPump` both
+overwrote with nothing left holding the originals. Camera light on until reload,
+and a pump still reading frames off a track nobody sends.
+
+**The straggler nobody ever timed out** (27). `observeState` arms liveness when
+the call reaches `active` and then `return`s — past the loop that seeds
+`invitedSince`, the timestamp the eviction clock measures against. In a group
+call that transition is *precisely* when some peers are still `invited`: the
+call goes active when the FIRST peer connects. Their clock started only if some
+later transition happened to arrive, and an invitee whose tab is closed produces
+no transitions at all. They sat on "invited" in everyone's roster for the rest of
+the call — the exact case the clock exists for.
+
+**My test for the straggler failed for the wrong reason first.** Both assertions
+went red on `internals(...).observedLink is not a function` — an incomplete
+harness, not the defect. The one that was supposed to *pass* failing is what
+gave it away; had I only written the failing assertion, I would have read a
+harness error as proof.
+
+Two files went over the line cap and both extractions were real. `startCall`
+became its own module, which suits it — the rule it enforces is three questions
+and which state each is asked of, not one line. And the capture host moved to
+`session-capture-host.ts`, putting both release-before-replace decisions next to
+each other instead of buried among a dozen session methods.
+
 ## Round 498 — the retry button that one failed retry switched off
 
 Backlog 22 and 23, both in the WASM client's connection lifecycle, and both on

@@ -6,6 +6,7 @@
  */
 
 import { stopStream, type CaptureFailure } from './media-capture';
+import { makeCaptureHost } from './session-capture-host';
 import { ReceiverPool } from './receiver-pool';
 import type { CongestionState, LinkVerdict } from './congestion';
 import { SendEncoder } from './send-encoder';
@@ -105,26 +106,21 @@ export class CallSession {
   }
 
   private async startOnce(requested: CallMediaKinds): Promise<CallMediaKinds | null> {
-    return startLocalCapture(requested, {
+    // See session-capture-host.ts — in particular why adopting a stream and
+    // starting a pump both release what came before.
+    return startLocalCapture(requested, makeCaptureHost({
       isClosed: () => this.closed,
       onCaptureFailed: (failure) => this.callbacks.onCaptureFailed(failure),
-      adoptStream: (stream) => {
-        this.localStream = stream;
-        for (const track of stream.getTracks()) {
-          track.addEventListener('ended', () => this.handleTrackEnded(track));
-        }
-      },
-      dropStream: () => { this.localStream = null; },
+      getStream: () => this.localStream,
+      setStream: (stream) => { this.localStream = stream; },
+      onTrackEnded: (track) => this.handleTrackEnded(track),
       configureSender: (encoders) => this.sender.configure(encoders, negotiateGroupVideoCodec(encoders, [])),
       hasCodec: () => this.sender.getCodec() !== null,
-      startPump: (stream) => {
-        this.pump = new CapturePump({
-          onVideoFrame: (frame, isKeyframe): void => this.encodeVideo(frame, isKeyframe),
-          onAudioData: (data): void => this.encodeAudio(data),
-        });
-        this.pump.start(stream);
-      },
-    });
+      getPump: () => this.pump,
+      setPump: (pump) => { this.pump = pump; },
+      onVideoFrame: (frame, isKeyframe) => this.encodeVideo(frame, isKeyframe),
+      onAudioData: (data) => this.encodeAudio(data),
+    }));
   }
 
   /** The codec chosen for this call, once video is running. */
