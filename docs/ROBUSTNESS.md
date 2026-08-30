@@ -18606,3 +18606,44 @@ class is closed for all of them, and the one genuine mismatch is named in the
 type rather than hidden under a cast.
 
 2501 tests green, all 60 preflight checks.
+
+## Round 383 — the field now holds what its type says
+
+Round 382 deferred this deliberately: removing `state as WorkspaceState`
+exposed that `workspace.metadata` is declared `WorkspaceMetadataBytes` — with
+the note *"Raw `Vec<u8>` from the wire. Decode it; do not read properties off
+it"* — while `useWorkspaceEventSetup` stored the JSON it had parsed.
+
+The type is right about the wire: `generated-variant-handlers` emits
+`response.Workspace.metadata || []`, and the type file argues the point at
+length because the opposite once broke something — `getWorkspaceLogo` tested
+`metadata.logo` on a byte array, so every workspace fell back to initials.
+
+The writer is what was wrong. It still parses, because that is how
+`initialized` is read; it simply stores the bytes it was given rather than the
+parse. `deserializeTheme` accepts both shapes, so this was a **lie rather than a
+breakage** — and a field whose declared type is false is one dotted property
+away from being a breakage again, which is exactly the bug the type file
+records.
+
+With the writer honest, `WorkspaceEventState extends WorkspaceState` outright
+and the cast is gone, so a field added to one can no longer be invisible to the
+other.
+
+**I nearly reported theming as broken end to end.** A round-trip test —
+`deserializeTheme(serializeTheme(t))` — returns null, which looks exactly like a
+dead feature. It is not: `serializeTheme` deliberately produces the envelope the
+SERVER merges into the metadata document under a `theme` key, and
+`deserializeTheme` reads that whole document. Its docstring says so in the line
+above the function. The two are not inverses on purpose, and a test written
+without reading it fails and looks like a regression. The test now builds the
+document the server would.
+
+Two further self-inflicted things worth recording. My first envelope was
+hand-written from memory and failed validation, which is why the real one is
+constructed with `serializeTheme` now. And the finished test left two unhandled
+errors — the handler continues asynchronously into a service that reads
+IndexedDB — so every assertion passed while `vitest run` exited non-zero. Green
+tests beside a red command is its own category of misleading.
+
+2505 tests green, no unhandled errors, all 60 preflight checks.

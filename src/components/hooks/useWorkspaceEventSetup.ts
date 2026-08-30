@@ -1,3 +1,4 @@
+import type { WorkspaceMetadataBytes } from '@/types/workspace-metadata';
 import { useEffect } from 'react';
 import { workspaceEvents } from '@/lib/workspace-events';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
@@ -49,7 +50,12 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
 
       // Workspace loaded event
       keep(workspaceEvents.onWorkspaceEvent('workspace:loaded', async (payload) => {
-        const rawMetadata: Record<string, unknown> | undefined = payload.workspace.metadata;
+        // The event carries what the wire carries: `Workspace.metadata` is
+        // `Vec<u8>`, emitted as `response.Workspace.metadata || []`. The
+        // payload's declared type says otherwise, which is why the object
+        // branch below exists.
+        const rawMetadata: WorkspaceMetadataBytes | Record<string, unknown> | undefined =
+          payload.workspace.metadata as WorkspaceMetadataBytes | Record<string, unknown> | undefined;
 
         // Parse metadata as JSON to check initialization status
         let isInitialized: boolean = false;
@@ -75,7 +81,17 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
           workspace: {
             id: payload.workspace.id,
             name: payload.workspace.name,
-            metadata: parsedMetadata
+            // The BYTES, not the parse. `WorkspaceState.workspace.metadata` is
+            // declared `WorkspaceMetadataBytes` and says "Raw Vec<u8> from the
+            // wire. Decode it; do not read properties off it" -- and storing
+            // the decoded object here made that declaration false for every
+            // consumer. `parsedMetadata` is still what decides `isInitialized`
+            // just above; it simply is not what the field holds.
+            //
+            // The type file argues this at length because the opposite once
+            // broke something: `getWorkspaceLogo` tested `metadata.logo` on a
+            // byte array, so every workspace fell back to initials.
+            metadata: rawMetadata as WorkspaceMetadataBytes | undefined
           },
           loading: { ...prev.loading, workspace: false },
           needsWorkspaceInitialization: !isInitialized,

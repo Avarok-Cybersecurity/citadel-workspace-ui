@@ -17,34 +17,19 @@ import { debugLog } from '@/lib/debug-config';
 import { WorkspaceThemeProvider } from './theme/WorkspaceThemeProvider';
 
 /**
- * The event handler's state.
+ * The event handler's state: the context's `WorkspaceState`, plus the one field
+ * only this component sets.
  *
- * Structurally `WorkspaceState` plus `needsWorkspaceInitialization`, and passed
- * to the provider through `state as WorkspaceState`. It should simply EXTEND
- * it, and a field added here is otherwise invisible to consumers reading the
- * other -- which is how `nodesUnavailable` compiled here and failed at the
- * sidebar that needed it.
+ * `extends`, not a parallel copy passed through `state as WorkspaceState`. The
+ * two had drifted into near-identical lists bridged by a cast, so a field added
+ * to this one was invisible to consumers reading the other -- which is how
+ * `nodesUnavailable` compiled here and failed at the sidebar that needed it.
  *
- * Making it extend surfaces a genuine mismatch the cast has been hiding:
- * `WorkspaceState.workspace.metadata` is declared `WorkspaceMetadataBytes`
- * with the note "Raw `Vec<u8>` from the wire. Decode it; do not read properties
- * off it", while `useWorkspaceEventSetup` stores the JSON it parsed out of a
- * payload whose own type is already `Record<string, unknown>`. So the declared
- * type is wrong for what flows, and `WorkspaceThemeProvider` reads it as bytes.
- *
- * That is one representation question for a field ROBUSTNESS.md records as
- * having silently blocked the whole app once when it was assigned over rather
- * than merged into. It is a round of its own, done carefully, not a side effect
- * of adding a loading flag -- so the cast stays for now and the mismatch is
- * written down rather than papered over silently.
+ * Making it extend required the writer to stop storing decoded JSON in
+ * `workspace.metadata`, which is declared as the raw bytes it arrives as. That
+ * mismatch had been true for as long as the cast had.
  */
-export interface WorkspaceEventState extends Omit<WorkspaceState, 'workspace'> {
-  workspace?: {
-    id: string;
-    name: string;
-    description?: string;
-    metadata?: Record<string, unknown>;
-  };
+export interface WorkspaceEventState extends WorkspaceState {
   needsWorkspaceInitialization?: boolean;
 }
 
@@ -155,7 +140,7 @@ export const WorkspaceEventHandler: React.FC<{
 
   return (
     <>
-      <WorkspaceProvider state={state as unknown as WorkspaceState}>
+      <WorkspaceProvider state={state}>
         {/* Inside WorkspaceProvider: the theme lives in the workspace's metadata,
             so it can only be read once the workspace is in context. */}
         <WorkspaceThemeProvider>{children}</WorkspaceThemeProvider>
