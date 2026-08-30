@@ -20834,3 +20834,36 @@ And a second confirm surface exists that nothing has named:
 `AccountConfirmDialogs` renders its own `AlertDialogAction` with no testid.
 Recorded rather than named, because no spec addresses it yet and inventing
 surface for an absent caller is the thing round 424 deleted four testids for.
+
+## Round 446 — the last two guards nobody tested
+
+Round 418 found three `confirm({...})` guards no test exercised and covered two;
+round 432 covered the third. `AccountConfirmDialogs`, spotted while tracing
+round 445, is a separate surface with its own `AlertDialog` and its own pair:
+removing ONE saved account, and clearing EVERY saved account on the device.
+Neither had a test at any level.
+
+Both are guarded correctly — the delete button sets the target and opens the
+dialog, and only the dialog's action calls `removeSession`. Now checked rather
+than believed. Three tests: the first click removes nothing, an accepted
+confirmation removes THE ACCOUNT THAT WAS ASKED ABOUT, and clearing all removes
+nothing on the first click either.
+
+Negative control: making the delete button call `removeSession` directly fails
+both of the single-account tests — the first because the account is gone before
+any confirmation, the second because the dialog it was going to accept never
+opens.
+
+### A mock that could not work, and the reason is worth keeping
+
+The first version replaced `connectionManager` with a bare object and the tree
+died on `getConnectionInfo`. The second spread the real one —
+`{ ...actual.connectionManager }` — and died identically, which is the
+interesting part: `connectionManager` is a class INSTANCE, and a spread copies
+own enumerable properties only. Every method lives on the prototype and
+disappears.
+
+`Object.assign(Object.create(actual.connectionManager), { ...overrides })` keeps
+the real object as the prototype, so the methods resolve and the three stubs
+shadow. Round 430's partial-mock lesson was about missing exports; this is the
+same lesson one level down, about missing prototypes.
