@@ -19021,3 +19021,48 @@ sentence for them; the role and the domain are for whoever is reading a failing
 run.
 
 2516 tests green, all 61 preflight checks.
+
+## Round 393 — what the hundred queued messages are
+
+Round 391 left a question: the ILM queue reaches 100 while the head advances,
+so what is producing them? The answer is in the send path, and it is not chat.
+
+Every P2P command goes the same way:
+
+```
+sendTypingIndicator → sendRawMessage → sendP2PCommand
+                                     → websocketService.sendP2PMessageReliable
+```
+
+`sendP2PCommand` is the only route, so typing indicators, presence updates, read
+receipts and **message ACKs** all travel on the ILM's ordered, ACK-gated,
+retransmitting path — the same eight-slot window as a file operation. Ephemeral
+signals queue ahead of the thing the user is waiting for.
+
+Message ACKs on that path are close to circular: an ACK occupies a slot that the
+peer's ACK must retire, symmetrically on both sides, which matches the symmetric
+blocking in every run.
+
+The transport picture is worse than round 391 said and better than round 348's.
+The log shows heads at `msg_id=2`, `4`, `6` — advancing, retiring in pairs
+because ACKs are cumulative — alongside **17** `[ILM-BLOCKED-RECOVERY] … after 50
+consecutive blocks` lines. So each head does eventually get through, and each one
+costs a recovery retransmission and roughly ten seconds. Round 348 recorded the
+loss; what turns it from slow into "the file never arrives" is the hundred
+messages behind it.
+
+**The fix is not available from here.** There is no unreliable send exposed:
+`citadel_internal_service_wasm_client.d.ts` exports `send_p2p_message_reliable`
+and `send_media_frame`, and mentions `send_p2p_message` only inside a docstring
+describing what the reliable one is unlike. Routing ephemeral signals off the
+ACK-gated path needs a Rust and WASM change, a rebuild and the running stack.
+
+One lever is worth raising as a question rather than taken: `sendMessageAck`
+with `'delivered'` may duplicate a guarantee ILM already provides — the
+CheckState manager's own docstring says the layer "handles message reliability".
+Read receipts are a user-visible feature and must stay; a delivery ACK on top of
+a reliable transport may be paying twice. That is a protocol judgement, and
+asserting it from a static read is exactly the kind of confident change this
+campaign keeps catching.
+
+No code changed. The handover is the deliverable.
