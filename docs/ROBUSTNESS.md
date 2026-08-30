@@ -21221,6 +21221,43 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 497 — a deletion that deleted nothing, and the test that agreed with it
+
+Backlog 19: deleting a room purges its chat history by node id, but history is
+keyed by `chat_channel_id`. Confirmed — and `group_access.rs` states the rule in
+its own header: *"a `group_id` is a node's `chat_channel_id`"*. The purge passed
+the node id, so it deleted a key that had never existed. **Every deleted room's
+history survived, unreachable and therefore unpurgeable**, which for a product
+whose premise is private conversation is the wrong behaviour twice over.
+
+**A test for this already existed, and it passed.** `deleted_rooms_take_their_history.rs`
+seeded its nodes with `chat_channel_id: None` and stored its messages under the
+NODE ID — matching the broken purge exactly. Both its assertions held against a
+purge that deleted nothing production writes. The fixture agreed with the defect
+rather than with the system.
+
+Applying the fix turned both tests red, which is the correct outcome and the only
+reason it was visible at all. The fixture now mints a channel id distinct from
+the node id (identical values would let a purge keyed on either one pass), and a
+new test states the discrimination directly: a decoy record under the node id
+must SURVIVE. If someone re-keys the purge back, the other assertions fail and
+that one turns green, which names the mistake precisely.
+
+Backlog 16, the same wave: `User` is read, modified and written back across
+awaits in seven places, and three held no lock — `update_member_permissions`,
+`update_user_profile`, `create_workspace`. Two updates landing together both read
+the same record and the second `insert_user` discards the first, while both
+callers are told they succeeded. A permission grant and a profile edit, and one
+of them simply did not happen. Enumerating the write sites is what found all
+three, and the test now enumerates them rather than naming functions.
+
+Backlog 20 turned out to be backlog 2 restated, closed in round 492.
+
+**A fixture can encode the bug.** This is the second time in three waves: round
+495's layer fixture made the handler return at its first line, and this one keyed
+its storage the way the broken code read it. Neither test was weak in structure;
+both asserted the right shape against the wrong world.
+
 ## Round 496 — the same list, kept in two places, drifted
 
 Backlog items 17 and 21 are one defect described twice. `UpdateNode` decides two
