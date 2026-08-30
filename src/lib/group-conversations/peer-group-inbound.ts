@@ -24,6 +24,8 @@ import { debugLog } from '@/lib/debug-config';
 
 export interface PeerGroupMessageSummary {
   groupId: string;
+  /** The sender's id for this message; survives redelivery. */
+  messageId: string;
   senderId: string;
   senderName: string;
   content: string;
@@ -49,6 +51,7 @@ export function peerGroupMessageEvent(
   // String(own). The wire and this module keep the bigint.
   return {
     groupId: groupKeyToId(notification.group_key as MessageGroupKey),
+    messageId: decoded.message_id,
     senderId: decoded.sender_cid.toString(),
     senderName: peerName(decoded.sender_cid),
     content: decoded.content,

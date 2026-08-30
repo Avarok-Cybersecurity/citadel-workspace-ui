@@ -27,13 +27,13 @@ function notification(body: Uint8Array): Record<string, unknown> {
 describe('a peer-group message arriving', () => {
   it('reaches the group it was sent to, named by the roster', () => {
     const body: Uint8Array = encodeGroupMessage({
-      group_id: GROUP, sender_cid: 7n, content: 'hello', timestamp: 1_000,
+      group_id: GROUP, message_id: 'm-1', sender_cid: 7n, content: 'hello', timestamp: 1_000,
     });
 
     const event: PeerGroupMessageSummary | null = peerGroupMessageEvent(notification(body), peerName);
 
     expect(event).toEqual({
-      groupId: GROUP, senderId: '7', senderName: 'ada', content: 'hello', timestamp: 1_000,
+      groupId: GROUP, messageId: 'm-1', senderId: '7', senderName: 'ada', content: 'hello', timestamp: 1_000,
     });
   });
 
@@ -51,7 +51,7 @@ describe('a peer-group message arriving', () => {
     // body claiming another group would otherwise file the message there --
     // which is how a message lands in a conversation it was never sent to.
     const body: Uint8Array = encodeGroupMessage({
-      group_id: '9:99', sender_cid: 7n, content: 'hello', timestamp: 1_000,
+      group_id: '9:99', message_id: 'm-1', sender_cid: 7n, content: 'hello', timestamp: 1_000,
     });
 
     expect(peerGroupMessageEvent(notification(body), peerName)?.groupId).toBe(GROUP);
@@ -68,7 +68,7 @@ describe('a peer-group message arriving', () => {
 describe('the notification reaching the group events translator', () => {
   it('becomes the same group:message-received the store already reads', () => {
     const body: Uint8Array = encodeGroupMessage({
-      group_id: GROUP, sender_cid: 7n, content: 'hello', timestamp: 1_000,
+      group_id: GROUP, message_id: 'm-1', sender_cid: 7n, content: 'hello', timestamp: 1_000,
     });
 
     const events: ReturnType<typeof toGroupEvents> = toGroupEvents(

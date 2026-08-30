@@ -24,6 +24,7 @@ import { chosenGroupName } from './group-names';
 import { bindGroupFailureToasts } from './group-failure-toasts';
 import { bindGroupListReconcile } from './reconcile-groups';
 import { bindEndedGroups } from './ended-groups';
+import { bindPeerGroupDelivery } from './bind-peer-group-delivery';
 import type { GroupConversation } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { applyGroupInvite } from '@/hooks/use-group-state-invite';
@@ -215,6 +216,10 @@ export function startGroupEventBindings(): void {
 
   bindGroupListReconcile();
   bindEndedGroups();
+  // A peer-group message reaches the sidebar through the event above; this is
+  // what puts it in the conversation you are looking at. See the module header
+  // for why it is bound here rather than for every group.
+  bindPeerGroupDelivery();
 
   debugLog('GroupStore', 'Group event bindings started');
 }

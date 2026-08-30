@@ -195,6 +195,8 @@ export async function sendPeerGroupMessage(groupId: string, content: string): Pr
   const groupKey: MessageGroupKey = groupIdToKey(groupId);
   const body: Uint8Array = encodeGroupMessage({
     group_id: groupId,
+    // Minted here so a redelivery is the same message on the far side.
+    message_id: crypto.randomUUID(),
     sender_cid: cid,
     content,
     timestamp: Date.now(),

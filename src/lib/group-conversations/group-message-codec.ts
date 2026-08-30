@@ -14,6 +14,13 @@ import { encode as cborEncode, decode as cborDecode } from 'cbor-x';
 
 export interface PeerGroupMessage {
   group_id: string;
+  /**
+   * Minted by the sender, so a redelivery is recognisably the same message.
+   * ILM redelivers -- round 465 measured one operation retransmitted 91 times
+   * -- and `handleNewMessage` dedupes by id, so an id minted on arrival would
+   * print the same text once per redelivery.
+   */
+  message_id: string;
   /** A CID is a bigint, and CBOR carries one natively — no string hop. */
   sender_cid: bigint;
   content: string;
@@ -37,10 +44,12 @@ export function decodeGroupMessage(bytes: Uint8Array): PeerGroupMessage | null {
     if (!decoded || typeof decoded !== 'object') return null;
     const candidate: Partial<PeerGroupMessage> = decoded as Partial<PeerGroupMessage>;
     if (typeof candidate.group_id !== 'string') return null;
+    if (typeof candidate.message_id !== 'string') return null;
     if (typeof candidate.sender_cid !== 'bigint') return null;
     if (typeof candidate.content !== 'string') return null;
     return {
       group_id: candidate.group_id,
+      message_id: candidate.message_id,
       sender_cid: candidate.sender_cid,
       content: candidate.content,
       timestamp: typeof candidate.timestamp === 'number' ? candidate.timestamp : Date.now(),

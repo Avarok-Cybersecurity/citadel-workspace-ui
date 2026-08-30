@@ -21221,6 +21221,46 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 471 — the half of round 470 that would have shipped broken
+
+Round 470 wired a peer-group message into `group:message-received`, which drives
+the sidebar: unread badge, preview, recency sort. The open conversation reads
+none of that. `useGroupChat` subscribes to
+`groupMessagingManager.subscribeToGroup`, and the workspace path feeds that by
+calling `handleNewMessage` directly.
+
+So the message would have moved the badge and never appeared in the chat you
+were looking at — the exact defect class round 470 had just fixed one layer up,
+about to ship inside the fix. Found by asking where the thread view actually
+gets its messages, rather than assuming the event was enough.
+
+The id is the other half of it. ILM redelivers: round 465 measured one operation
+retransmitted 91 times. `handleNewMessage` dedupes by message id, so the id has
+to be minted by the SENDER and carried in the envelope — an id minted on arrival
+would turn every redelivery into another copy in the transcript.
+
+Only peer groups are bound: the workspace path hands its own messages to the
+thread already, and binding this for every group would print every workspace
+message twice. The binding asks which kind of group it is with
+`groupSendTransport`, the same discriminator the send side uses, so one question
+has one answer in both directions.
+
+### Three controls, three layers
+
+Each layer passed while the one below it was missing, which is precisely how a
+feature ends up built from one end:
+
+| Control | Result |
+| --- | --- |
+| Delete the helper's logic | Helper tests fail — covered |
+| Delete the binding's wiring | Everything green — the tests called the helper directly. Fixed, then it fails |
+| Comment out `bindPeerGroupDelivery()` in `startGroupEventBindings` | Everything green again — the tests called the binding themselves. Fixed, then it fails |
+
+The third one is the interesting one. Rounds 464 and 458 each found a hole in the
+gate written the round before; this found a hole in the TEST written minutes
+before, twice in a row. A test that constructs the thing it is testing cannot
+tell you whether anything constructs it in production.
+
 ## Round 470 — a peer group you could not talk in
 
 `test:peer-group` failed for real this time, not on infrastructure: registration,
