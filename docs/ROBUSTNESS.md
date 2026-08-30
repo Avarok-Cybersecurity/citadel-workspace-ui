@@ -21191,6 +21191,33 @@ the script uses process substitution and its shebang is bash.)
 The rule these two rounds share is worth stating once: **a retry bounds
 failures, a timeout bounds hangs, and neither substitutes for the other.**
 
+## Round 461 — a success flag nobody reads, as a check
+
+Rounds 459 and 460 were both found the same way: ask the type checker which
+call expressions resolve to a boolean and are used as statements. That question
+is now a gate.
+
+Only functions declared in this project count. Matching by NAME first gave 185
+hits drowned in `Map.set`; resolving each callee's real signature cut it to 132,
+of which about ninety were `Map.delete`. Excluding declarations that come from
+outside `src/` leaves 35 — small enough to read, which is the difference between
+a baseline and noise.
+
+Not every one of the 35 is a bug, and the check says so. Working through them:
+`requestResponse<true>` rejects on failure; the WASM send throws when no
+messenger handle exists, so the discarded `ensureMessengerOpen` is covered;
+`startMessagingForSession` raises a HIGH system notification internally;
+`addMessageToConversation` returns false only for a duplicate id, which a
+freshly minted uuid cannot be. Each was checked rather than assumed. What
+remains is a list of places where the only report of a failure is being dropped,
+and a new one now has to be justified at the call site.
+
+The round also found a hole in round 458's gate, on the day it was written.
+`git diff HEAD` cannot see a file git has never tracked, so a brand-new
+ratcheting baseline — exactly what a new gate produces — read as clean. It
+reported "all 4 baselines match HEAD" over an untracked file. Now it asks
+`git ls-files --others` as well.
+
 ## Round 460 — every peer file operation was reported as delivered
 
 `sendAndAwaitAck` was given a boolean return in round 448 precisely so that

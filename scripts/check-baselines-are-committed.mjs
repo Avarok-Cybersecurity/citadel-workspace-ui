@@ -41,26 +41,41 @@ if (baselines.length === 0) {
 const git = (args) =>
   execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim();
 
-// Both halves matter: an unstaged rewrite, and one staged but not committed.
-const dirty = git(['diff', 'HEAD', '--name-only', '--', ...baselines])
+// Three halves, as it turns out. An unstaged rewrite and a staged-but-
+// uncommitted one both show in `git diff HEAD`. A baseline that has never been
+// committed at all does NOT -- git cannot diff a path it has never tracked --
+// and that is precisely the state a brand-new ratcheting gate leaves behind.
+// This check reported "all 4 match HEAD" over an untracked file on the day it
+// was written, which is the failure mode it exists to catch.
+const modified = git(['diff', 'HEAD', '--name-only', '--', ...baselines])
   .split('\n')
   .filter(Boolean);
+
+const untracked = git(['ls-files', '--others', '--exclude-standard', '--', ...baselines])
+  .split('\n')
+  .filter(Boolean);
+
+const dirty = [...new Set([...modified, ...untracked])].sort();
 
 if (dirty.length > 0) {
   console.error(
     `  Baselines committed: ${dirty.length} ratcheting baseline(s) differ from HEAD  FAIL`,
   );
   for (const file of dirty) {
-    const before = git(['show', `HEAD:${file}`]);
-    const after = existsSync(resolve(repoRoot, file))
+    if (untracked.includes(file)) {
+      console.error(`    ${file}  (never committed -- git has no record of it at all)`);
+      continue;
+    }
+    const inHead = git(['show', `HEAD:${file}`]);
+    const changed = existsSync(resolve(repoRoot, file))
       ? git(['diff', 'HEAD', '--numstat', '--', file])
       : '(deleted)';
-    console.error(`    ${file}  (${after.split('\t').slice(0, 2).join(' +/- ')} lines, HEAD has ${before.length} bytes)`);
+    console.error(`    ${file}  (${changed.split('\t').slice(0, 2).join(' +/- ')} lines, HEAD has ${inHead.length} bytes)`);
   }
   console.error('');
-  console.error('  A gate rewrote its baseline in the working tree. Local runs now compare');
-  console.error('  against the rewrite and pass; CI compares against the commit and fails.');
-  console.error('  Commit the baseline as part of the change that improved it.');
+  console.error('  A gate wrote its baseline in the working tree and it is not in the commit.');
+  console.error('  Local runs now compare against that file and pass; CI compares against the');
+  console.error('  commit and fails. Commit the baseline as part of the change that made it.');
   process.exit(1);
 }
 
