@@ -20141,3 +20141,36 @@ quietly carries on measuring something else.
 The gate's baseline shrinks from eight to five, which is the direction it is
 allowed to move. Controls: removing any one of the three new testids fails the
 gate.
+
+## Round 424 — twelve bytes, and what they were worth arguing about
+
+The push carrying rounds 415-422 turned `Production Docker Build` red for the
+first time. `check-bundle-budget` reported the landing critical path at 311.0 KB
+against a budget of 311, "over budget by 0.0 KB".
+
+Measured properly: **twelve gzipped bytes** on 318,464. The cause is cumulative
+— six `data-testid` attributes added across rounds 416, 417, 420 and 423 to
+shell components that specs address.
+
+Two things were ruled out before touching anything. Round 422's typing guard,
+the only logic change in the stretch, was reverted and rebuilt: still over, so
+not it. And `P2PChat` is already its own chunk, so that testid never touched the
+critical path at all.
+
+Then the useful experiment. I removed the one attribute that should not have
+been added — `confirm-dialog-cancel`, addressed by no spec, put there for
+symmetry with the confirm button — expecting to recover the bytes. **The total
+got worse: 12 bytes over became 40.** Deleting text reshuffles gzip's
+dictionary, so at this granularity the reading is compression noise and
+trimming attributes is guessing, not optimisation.
+
+So the budget goes to 312, with that number written down as the argument. The
+budget exists to catch a CHUNK arriving on the critical path — an eager import
+in a shared provider, which shows up as tens of kilobytes — and a kilobyte of
+headroom still catches that. Control: the check still fails when the budget is
+set below the real figure, so it has not been turned into a formality.
+
+The unused Cancel testid stays removed. The gate this session added asks that
+specs address only testids the app renders; the converse — the app carrying
+names nothing addresses — is speculative surface, and it is no better for being
+cheap.

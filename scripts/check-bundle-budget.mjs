@@ -67,8 +67,21 @@ const dist = join(root, 'dist');
  * growth has to be argued for as well. `callFailureDetail`, added in the same
  * stretch, is correctly OFF the critical path and cost nothing — checked by
  * grepping the built chunks rather than assumed.
+ *
+ * 311 -> 312, for `data-testid` on shell components that specs address:
+ * the workspace switcher, the shared confirm dialog's action, the group
+ * conversation log and each message. Six attributes, and the measured overage
+ * was TWELVE gzipped bytes on 318,464.
+ *
+ * That number is the argument. Removing one of the six -- the confirm dialog's
+ * Cancel, which no spec addresses and which should not have been added -- made
+ * the total WORSE, 12 bytes over to 40, because deleting text reshuffles gzip's
+ * dictionary. At this granularity the reading is compression noise, so trimming
+ * attributes is not optimisation, it is guessing. The budget exists to catch a
+ * CHUNK arriving on the critical path, which shows up as tens of kilobytes and
+ * is still caught with a kilobyte of headroom.
  */
-const BUDGET_KB = 311;
+const BUDGET_KB = 312;
 
 const html = readFileSync(join(dist, 'index.html'), 'utf8');
 

@@ -64,7 +64,6 @@ export function ConfirmDeleteDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel
-            data-testid="confirm-dialog-cancel"
             disabled={pending}
             className="bg-transparent border-border text-foreground hover:bg-card"
           >
