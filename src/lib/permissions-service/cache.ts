@@ -81,6 +81,25 @@ export function hasPermission(
 }
 
 /**
+ * Whether an answer for this domain exists at all.
+ *
+ * `hasPermission` returns `false` for a cache MISS, which is indistinguishable
+ * from "we asked and you may not". Every caller that renders a denial needs to
+ * know the difference: an office chat gated on `SendMessages` replaced its
+ * composer with "You do not have permission to send messages here" for every
+ * user in a three-user run, because the answer had never been stored.
+ *
+ * The workspace root counts, because `hasPermission` falls back to it: a root
+ * entry IS an answer for every domain beneath it.
+ */
+export function hasAnswerFor(
+  cache: Map<string, DomainPermissions>,
+  domainId: string,
+): boolean {
+  return cache.has(domainId) || cache.has(WORKSPACE_ROOT_ID);
+}
+
+/**
  * Get user's role for a domain, with hierarchy fallback to workspace-root.
  */
 export function getRole(

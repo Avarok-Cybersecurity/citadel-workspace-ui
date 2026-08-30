@@ -22,8 +22,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { forgetAllTabs, rememberTab } from '../office-tab-memory';
 
-const permission: { allowed: boolean; loading: boolean; unanswered: boolean } = {
-  allowed: false, loading: false, unanswered: false,
+const permission: { allowed: boolean; loading: boolean; unanswered: boolean; answered: boolean } = {
+  allowed: false, loading: false, unanswered: false, answered: true,
 };
 
 vi.mock('@/components/chat/GroupChatView', () => ({
@@ -38,7 +38,7 @@ vi.mock('@/hooks/use-permission', () => ({
   usePermission: (nodeId: string | undefined): unknown =>
     // Faithful to the real hook: no domain gives a definite-looking denial.
     nodeId === undefined
-      ? { allowed: false, loading: false, unanswered: false }
+      ? { allowed: false, loading: false, unanswered: false, answered: false }
       : permission,
 }));
 
@@ -76,6 +76,18 @@ describe('the office composer', () => {
     permission.allowed = true;
     permission.loading = false;
     permission.unanswered = false;
+    permission.answered = true;
+    expect(restrictionWith('n1')).toBe('allowed');
+  });
+
+  it('is offered when this domain has no stored answer at all', () => {
+    // The case that took the composer away for every user in a three-user
+    // office run: `hasPermission` returns false for a cache MISS, and nothing
+    // at the call site could tell that from a real denial.
+    permission.allowed = false;
+    permission.loading = false;
+    permission.unanswered = false;
+    permission.answered = false;
     expect(restrictionWith('n1')).toBe('allowed');
   });
 
@@ -84,6 +96,7 @@ describe('the office composer', () => {
     permission.allowed = false;
     permission.loading = false;
     permission.unanswered = false;
+    permission.answered = true;
     expect(restrictionWith('n1')).toBe('denied-by-role');
   });
 
@@ -91,6 +104,7 @@ describe('the office composer', () => {
     permission.allowed = false;
     permission.loading = true;
     permission.unanswered = false;
+    permission.answered = true;
     expect(restrictionWith('n1')).toBe('allowed');
   });
 
@@ -98,6 +112,7 @@ describe('the office composer', () => {
     permission.allowed = false;
     permission.loading = false;
     permission.unanswered = true;
+    permission.answered = true;
     expect(restrictionWith('n1')).toBe('allowed');
   });
 });

@@ -25,28 +25,8 @@ import { permissionsService } from '@/lib/permissions-service';
 import { usePermissions, Permission } from '@/contexts/PermissionsContext';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { nextRetryDelayMs } from './permission-retry';
+import type { UsePermissionResult } from './use-permission-result';
 
-interface UsePermissionResult {
-  /** Whether the user has the permission */
-  allowed: boolean;
-  /** Whether permissions are being loaded */
-  loading: boolean;
-  /** Reason for denial (for tooltip) */
-  reason: string | null;
-  /**
-   * `true` when the retry budget ran out without an answer, so `allowed` is
-   * false for want of a reply rather than because the answer was no.
-   *
-   * Exposed as a value because the first consumer reconstructed it by testing
-   * `reason.startsWith('Your permissions here could not be checked')` — a
-   * component matching on a sentence it does not own. Reword the sentence and
-   * that check goes quietly false forever, and the surface it guards goes back
-   * to telling a workspace owner that an admin set their theme.
-   */
-  unanswered: boolean;
-  /** Force refresh the permission check */
-  refresh: () => Promise<void>;
-}
 
 /**
  * Check if user has a specific permission for a domain
@@ -219,8 +199,10 @@ export function usePermission(
       allowed: false,
       loading: false,
       reason: 'No domain context available',
-      // There is no domain to ask about, so nothing went unanswered.
+      // There is no domain to ask about, so nothing went unanswered -- and
+      // nothing was answered either.
       unanswered: false,
+      answered: false,
       refresh,
     };
   }
@@ -235,6 +217,7 @@ export function usePermission(
 
   return {
     allowed,
+    answered: permissionsService.hasAnswerFor(domainId),
     loading,
     reason,
     unanswered: gaveUp,

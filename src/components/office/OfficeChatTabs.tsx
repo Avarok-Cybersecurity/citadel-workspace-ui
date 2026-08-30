@@ -48,16 +48,17 @@ export function OfficeChatTabs({
   //
   //   - `loading`: nobody has answered yet;
   //   - `unanswered`: the retry budget ran out, which is a failed request;
-  //   - no `nodeId` at all: `usePermission` returns `allowed: false,
-  //     unanswered: false` for "there is no domain to ask about", which is a
-  //     definite-looking denial for a question that was never asked. BaseOffice
-  //     spells the same convention two files away as `!domainId || canEditMdx`,
-  //     and this line was written without it -- so an office rendered before
-  //     its node resolved replaced the composer with "You do not have
-  //     permission to send messages here."
-  const nothingToAsk: boolean = nodeId === undefined;
+  //   - `!answered`: no answer for this domain has been stored. `hasPermission`
+  //     returns false for a cache MISS, which is indistinguishable here from a
+  //     real denial, and covers both "there is no domain to ask about" and "we
+  //     have never been told about this one". BaseOffice spells the same
+  //     convention two files away as `!domainId || canEditMdx`, and this line
+  //     was written without it -- so every user in a three-user office run was
+  //     told "You do not have permission to send messages here."
   const sendRestriction: GroupRestriction =
-    send.allowed || send.loading || send.unanswered || nothingToAsk ? 'allowed' : 'denied-by-role';
+    send.allowed || send.loading || send.unanswered || !send.answered
+      ? 'allowed'
+      : 'denied-by-role';
 
   return (
     <div className="w-full h-full flex flex-col">

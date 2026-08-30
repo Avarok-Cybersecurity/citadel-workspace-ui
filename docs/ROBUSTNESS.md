@@ -18442,3 +18442,49 @@ Whether this is the whole of the 375px failure is for CI to say. Unlike round
 377's hypothesis, it is a defect either way.
 
 2486 tests green, all 60 preflight checks.
+
+## Round 379 — a cache miss is not a denial
+
+CI, on the run carrying rounds 366-373, still shows `test:office-chat` failing
+every direction with "WARNING: Message input not found" — for **all three
+users**, from the first attempt. Round 378 patched one shape of this
+(`nodeId === undefined`); this is the general one, and it is the same defect
+one layer down.
+
+`hasPermission` returns `false` for a cache **miss**:
+
+```ts
+const cached = cache.get(domainId);
+if (cached) { ...checks... }
+// hierarchy fallback to the workspace root
+return false;
+```
+
+A domain nobody has fetched, and a domain that answered "you may not", are the
+same value at every call site. `usePermission` exposed `loading` and
+`unanswered` — a fetch in flight, and a retry budget that ran out — and neither
+covers "the fetch was never started for this domain" or "it completed for a
+different one". So the office composer, gated on `SendMessages` since round
+362, was withheld from every user in a three-user run and each was told *"You do
+not have permission to send messages here."*
+
+`hasAnswerFor` is the missing distinction, and `usePermission` now returns
+`answered`. The workspace root counts as an answer, because `hasPermission`
+falls back to it — a root entry is an answer for every domain beneath it, which
+is precisely why a miss on the child cannot be read as "no".
+
+Round 378's `nodeId === undefined` special case is subsumed: no domain and no
+stored answer are the same condition, and expressing them once is better than
+two adjacent tests that could drift.
+
+**A control found the second half unverified.** Making `hasAnswerFor` return
+`true` unconditionally left the whole suite green — the office tests mock the
+hook, so nothing exercised the cache function itself. It now has three tests of
+its own, and three controls: always-true, always-false, and ignoring the root
+fallback each fail exactly the case that names them.
+
+`use-permission.ts` went over the length cap, so the result type moved to
+`use-permission-result.ts` — the file is mostly the comments explaining why
+`unanswered` and `answered` exist, which belong together.
+
+2490 tests green, all 60 preflight checks.

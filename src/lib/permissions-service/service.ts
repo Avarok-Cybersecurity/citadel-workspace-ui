@@ -18,6 +18,7 @@ import type { UserRole, DomainPermissions } from './types';
 import {
   updateCacheEntry,
   hasPermission as cacheHasPermission,
+  hasAnswerFor as cacheHasAnswerFor,
   getRole as cacheGetRole,
   getDeniedReason as cacheGetDeniedReason,
 } from './cache';
@@ -183,6 +184,11 @@ export class PermissionsService extends EventListenerManager {
 
   public hasPermission(domainId: string, permission: Permission): boolean {
     return cacheHasPermission(this.cache, domainId, permission);
+  }
+
+  /** Whether any answer for this domain has been stored -- see `hasAnswerFor`. */
+  public hasAnswerFor(domainId: string): boolean {
+    return cacheHasAnswerFor(this.cache, domainId);
   }
 
   public hasAnyPermission(domainId: string, permissions: Permission[]): boolean {
