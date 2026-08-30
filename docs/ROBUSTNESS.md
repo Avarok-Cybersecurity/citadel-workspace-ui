@@ -19313,3 +19313,38 @@ tests already assert that a null renders as "not known" rather than "Offline".
 Saying so is better than a test that would pass on any implementation.
 
 2527 tests green, all 61 preflight checks.
+
+## Round 402 — a state the type promised and nothing could reach
+
+Swept every `boolean | null` in the tree with round 399's lens: are all three
+states reachable, and is each one earned?
+
+Most are fine, and checking said so quickly — `hasConnection` is set true and
+false at one line; `membersUnavailable` is cleared in three places and set in
+two; `isLeafNode`'s null is "no node". The one worth reporting:
+
+`nativePickerAvailable` is declared `boolean | null` and **nothing ever sets it
+true**. It becomes `false` when the picker reports "native-dialogs feature is
+disabled" or "File picker not available", and stays `null` otherwise. There is
+no moment at which the app learns the picker WORKS — only moments at which it
+learns it does not.
+
+That is not a bug: the readers ask `!== false`, which offers an unknown picker,
+because the only way to find out is to offer it. It is the correct optimistic
+idiom and it was already in place.
+
+It is a hazard, though, and a specific one. A future reader seeing
+`boolean | null` may write `=== true`, which would hide the control for
+everybody permanently while looking obviously correct — and this campaign has
+shipped both halves of that mistake already. The type is now `false | null`, so
+that line does not compile, with the reason on the field.
+
+Also verified rather than assumed while here: the refusal message says "Use drag
+& drop or browse instead", and the browse it means is the drop zone itself,
+which stays visible. The advice points at something that is still there.
+
+Three tests, two controls: `=== true` fails the unknown case, and offering the
+picker unconditionally fails the refusal case. The third holds the drop zone
+across both, because hiding it would make the refusal message false.
+
+2530 tests green, all 61 preflight checks.

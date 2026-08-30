@@ -15,7 +15,22 @@ interface FileDropZoneProps {
   isDragging: boolean;
   isSending: boolean;
   isPickingFile: boolean;
-  nativePickerAvailable: boolean | null;
+  /**
+   * Whether the native file picker can be used: `false` once it has refused,
+   * `null` while nothing is known.
+   *
+   * Never `true`, and the type says so. Availability is only ever learned by
+   * TRYING -- the picker reports "native-dialogs feature is disabled" or "File
+   * picker not available" when it cannot run -- so there is no moment at which
+   * the app learns it works, only moments at which it learns it does not.
+   *
+   * Readers must therefore ask `!== false`, which is what they do: an unknown
+   * picker is offered, because the only way to find out is to offer it. Written
+   * as `=== true` the control would never render at all, and that is a live
+   * hazard rather than a hypothetical -- this codebase has shipped both halves of
+   * that mistake before.
+   */
+  nativePickerAvailable: false | null;
   maxFileSizeBytes: number;
   formatBytes: (bytes: number) => string;
   onDrop: (e: React.DragEvent) => void;

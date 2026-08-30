@@ -21,7 +21,7 @@ export interface UseFileTransferResult {
   isSending: boolean;
   isPickingFile: boolean;
   error: string | null;
-  nativePickerAvailable: boolean | null;
+  nativePickerAvailable: false | null;
   fileInputRef: RefObject<HTMLInputElement>;
   maxFileSizeBytes: number;
   formatBytes: (bytes: number) => string;
@@ -49,7 +49,7 @@ export function useFileTransfer({
   const [isSending, setIsSending] = useState(false);
   const [isPickingFile, setIsPickingFile] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [nativePickerAvailable, setNativePickerAvailable] = useState<boolean | null>(null);
+  const [nativePickerAvailable, setNativePickerAvailable] = useState<false | null>(null);
   const fileInputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
 
   // The drag/browse path sends the selected File inline as `ByteContents`,
