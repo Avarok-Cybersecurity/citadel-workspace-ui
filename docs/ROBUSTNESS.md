@@ -21191,6 +21191,55 @@ the script uses process substitution and its shebang is bash.)
 The rule these two rounds share is worth stating once: **a retry bounds
 failures, a timeout bounds hangs, and neither substitutes for the other.**
 
+## Round 463 — a refused registration request that never resolved
+
+The store clears an outgoing peer-registration request when it hears
+`PeerRegisterFailure`, and it keyed that cleanup on `peer_cid`:
+
+```ts
+const peer_cid = v.peer_cid as bigint | undefined;
+if (peer_cid !== undefined) { removeOutgoingRequestByPeer(peer_cid) }
+```
+
+`PeerRegisterFailure` has no `peer_cid`. The generated binding is
+`{ cid, message, request_id }` — the field is read, is always `undefined`, and
+the branch had never run once. The comment beside the only other handler, in
+`usePeerDiscovery`, says so in as many words: "the failure carries no peer_cid",
+which is exactly why THAT one correlates by `request_id`. One place knew; the
+other read a field that does not exist.
+
+So a refused request stayed in the outgoing list forever. The list kept showing
+it, and `hasOutgoingRequestTo` kept answering true — which is what the UI reads
+to decide a request is still in flight, so the user could not ask again either.
+
+Correlating by `request_id` needed no new data: `OutgoingPeerRequest.id` is
+documented as "matches request_id sent to server", and `sendPeerRegistration`
+sets it from the very id it sends.
+
+The second half is being told. `usePeerDiscovery` does raise a toast, but only
+while the discovery modal is open and only for requests sent from it — it
+correlates through an in-memory ref that dies with the component, and a refusal
+arrives when the other person gets round to answering. The silent path was the
+normal one. `removeOutgoingRequest` now returns the record it removed, because
+that record is the only place the peer's username still exists once the request
+is gone, and `PeerRefusalNotice` turns it into a notice.
+
+Emit and listener were written in the same change, and each is controlled on its
+own: restoring the `peer_cid` correlation fails the cleanup test, and the
+component test fails without the listener.
+
+`service.ts` went six lines over the cap, so the three outgoing-list mutators
+moved to `outgoing-mutations.ts`. They are one shape — change the list, persist
+it, broadcast it — and getting any of the three steps wrong shows up the same
+way, as a request the UI still thinks is in flight.
+
+### Found and not fixed
+
+`check-modules-are-imported` does not catch a component that nobody mounts: the
+component's own TEST file counts as an importer. Unmounting `PeerRefusalNotice`
+from `App.tsx` entirely leaves the gate reporting "all imported ok". Both notice
+components are exposed to this. Recorded here as the next round's target.
+
 ## Round 462 — a session the device could not remember, and never said so
 
 `storeSession` returns false when the LocalDB write fails, and the module header

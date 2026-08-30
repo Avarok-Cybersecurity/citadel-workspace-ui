@@ -23,6 +23,7 @@ export interface StoreCallbacks {
   startPollLoop: () => void;
   stopPollLoop: () => void;
   removeOutgoingRequestByPeer: (peerCid: bigint) => Promise<void>;
+  removeOutgoingRequest: (requestId: string) => Promise<{ peerUsername: string } | null>;
   removeRequestByPeerCid: (peerCid: bigint) => Promise<void>;
   isInitialized: () => boolean;
   getPendingKVRequests: () => Map<string, KVPendingEntry>;
@@ -97,16 +98,39 @@ function handlePeerRegistrationEvents(
 
   if (hasVariant(message, 'PeerRegisterFailure')) {
     const v: Record<string, unknown> = getVariant(message, 'PeerRegisterFailure')!;
-    const peer_cid: bigint | undefined = v.peer_cid as bigint | undefined;
+    // Correlated by request_id, NOT by peer_cid. This branch used to read
+    // `v.peer_cid` and act only when it was defined -- and PeerRegisterFailure
+    // has no peer_cid: the generated binding is `{ cid, message, request_id }`.
+    // So the cleanup never ran once, and a refused request stayed in the
+    // outgoing list forever, with `hasOutgoingRequestTo` still answering true,
+    // which is what the UI reads to decide a request is still in flight. The
+    // user could neither see it resolve nor ask again.
+    //
+    // `OutgoingPeerRequest.id` is the id that was sent, so this correlation was
+    // available all along -- `usePeerDiscovery` beside it already used it.
+    const requestId: string | undefined =
+      typeof v.request_id === 'string' ? v.request_id : undefined;
+    const reason: string | undefined = typeof v.message === 'string' ? v.message : undefined;
     debugLog('PeerRegistrationStore', 'PeerRegisterFailure received', {
       request_id: v.request_id,
       cid: (v.cid as bigint | undefined)?.toString(),
-      peer_cid: peer_cid?.toString(),
-      errorMsg: v.message
+      errorMsg: v.message,
     });
-    if (peer_cid !== undefined) {
-      callbacks.removeOutgoingRequestByPeer(peer_cid).catch(
-        (err: unknown) => debugLog('PeerRegistrationStore', 'removeOutgoingRequestByPeer failed:', err)
+    // No id names no request. Clearing "the" outgoing request without knowing
+    // which would drop somebody else's, which is worse than leaving this stuck.
+    if (requestId !== undefined) {
+      // Emitted rather than toasted: this is library code. The only other
+      // handler lives in usePeerDiscovery, which can say nothing once the
+      // discovery modal has closed -- and a refusal usually arrives long after.
+      // The removed record carries the peer's name, which is the whole point of
+      // saying anything at all.
+      callbacks.removeOutgoingRequest(requestId).then(
+        (removed: { peerUsername: string } | null) => {
+          eventEmitter.emit('peer-registration:refused', {
+            requestId, reason, peerUsername: removed?.peerUsername,
+          });
+        },
+        (err: unknown) => debugLog('PeerRegistrationStore', 'removeOutgoingRequest failed:', err),
       );
     }
   }

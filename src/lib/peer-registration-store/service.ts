@@ -9,6 +9,7 @@ import { eventEmitter } from '../event-emitter';
 import { recordWithoutLosingIt } from './record-incoming';
 import { instanceManager } from '../multi-instance';
 import { debugLog } from '@/lib/debug-config';
+import { addOutgoing, removeOutgoing, removeOutgoingForPeer, type OutgoingContext } from './outgoing-mutations';
 import { OUTGOING_POLL_INTERVAL_MS } from './constants';
 import type {
   PendingPeerRequest,
@@ -26,8 +27,6 @@ import {
   getOutgoingRequestCidSet,
   removePendingById,
   removePendingByPeerCid,
-  removeOutgoingById,
-  removeOutgoingByPeerCid,
 } from './state';
 import {
   persistPendingToLocalDB,
@@ -59,6 +58,7 @@ class PeerRegistrationStore {
       startPollLoop: () => this.startPollLoop(),
       stopPollLoop: () => this.stopPollLoop(),
       removeOutgoingRequestByPeer: (cid) => this.removeOutgoingRequestByPeer(cid),
+      removeOutgoingRequest: (id) => this.removeOutgoingRequest(id),
       removeRequestByPeerCid: (cid) => this.removeRequestByPeerCid(cid),
       isInitialized: () => this.isInitializedFlag,
       getPendingKVRequests: () => this.pendingKVRequests,
@@ -104,35 +104,25 @@ class PeerRegistrationStore {
   public async getOutgoingRequests(): Promise<OutgoingPeerRequest[]> { return getFilteredOutgoingRequests(this.outgoingRequests); }
   public async getOutgoingRequestCids(): Promise<Set<bigint>> { return getOutgoingRequestCidSet(this.outgoingRequests); }
 
-  public async addOutgoingRequest(request: OutgoingPeerRequest): Promise<void> {
-    if (!request.toCid) { debugLog('PeerRegistrationStore', 'Cannot add outgoing request without toCid'); return; }
-    if (!request.fromCid) { debugLog('PeerRegistrationStore', 'Cannot add outgoing request without fromCid'); return; }
-    if (this.hasOutgoingRequestTo(request.toCid, request.fromCid)) { debugLog('PeerRegistrationStore', 'Duplicate outgoing request to', request.toCid); return; }
-    if (!request.timeLastSent) request.timeLastSent = request.timestamp || Date.now();
-    this.outgoingRequests.push(request);
-    debugLog('PeerRegistrationStore', 'Added outgoing request', request);
-    await persistOutgoingToLocalDB(this.outgoingRequests, this.pendingKVRequests);
-    await this.emitOutgoingUpdate();
+  private outgoingCtx(): OutgoingContext {
+    return {
+      requests: this.outgoingRequests,
+      kv: this.pendingKVRequests,
+      setRequests: (next: OutgoingPeerRequest[]): void => { this.outgoingRequests = next; },
+      broadcast: (): Promise<void> => this.emitOutgoingUpdate(),
+    };
   }
 
-  public async removeOutgoingRequest(requestId: string): Promise<void> {
-    const before: number = this.outgoingRequests.length;
-    this.outgoingRequests = removeOutgoingById(this.outgoingRequests, requestId);
-    if (this.outgoingRequests.length !== before) {
-      debugLog('PeerRegistrationStore', 'Removed outgoing request', requestId);
-      await persistOutgoingToLocalDB(this.outgoingRequests, this.pendingKVRequests);
-      await this.emitOutgoingUpdate();
-    }
+  public async addOutgoingRequest(request: OutgoingPeerRequest): Promise<void> {
+    return addOutgoing(this.outgoingCtx(), request);
+  }
+
+  public async removeOutgoingRequest(requestId: string): Promise<OutgoingPeerRequest | null> {
+    return removeOutgoing(this.outgoingCtx(), requestId);
   }
 
   public async removeOutgoingRequestByPeer(peerCid: bigint, fromCid?: bigint): Promise<void> {
-    const before: number = this.outgoingRequests.length;
-    this.outgoingRequests = removeOutgoingByPeerCid(this.outgoingRequests, peerCid, fromCid);
-    if (this.outgoingRequests.length !== before) {
-      debugLog('PeerRegistrationStore', 'Removed outgoing request to peer', peerCid.toString());
-      await persistOutgoingToLocalDB(this.outgoingRequests, this.pendingKVRequests);
-      await this.emitOutgoingUpdate();
-    }
+    return removeOutgoingForPeer(this.outgoingCtx(), peerCid, fromCid);
   }
 
   public async handleIncomingRequest(notification: PeerRegisterNotification): Promise<void> {
