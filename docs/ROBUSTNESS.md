@@ -19982,3 +19982,30 @@ alone, and swapping the folder/file routing fails the routing test alone.
 Left uncovered and recorded rather than claimed: "Clear all chat history" lives
 inside a JSX callback rather than a named handler, so covering it means
 rendering the panel. Worth doing; not done here.
+
+## Round 419 — capture that said nothing about the thing that failed
+
+`test:peer-group` fails on "group creation produced no group id". The helper
+around it is not the problem: it clicks a testid'd button, fills a testid'd
+name, selects members by testid, submits by testid, then waits THIRTY seconds
+for `/groups/:id` and ten more for a `group-row-<id>` in the sidebar. Neither
+arrived. The app did not produce the group.
+
+Round 408 attached console capture to exactly this spec family, and it worked —
+2,271 app console lines in the run. Not one of them was about a group.
+
+The filter is why. Round 408 exported one keyword list, written for the
+composer diagnostic: `withheld, restricted, permission, error, ILM`. The app
+logs `[GroupStore] Group created:` and `[UseGroupConversations]`, and neither
+matches a word on it. Capture that keeps 2,271 lines and none about the failure
+is capture that was not really turned on — the same defect the round shipped to
+fix, one layer in.
+
+The list now includes `group`, and is named `RUN_DIAGNOSTIC_KEYWORDS` rather
+than `COMPOSER_...`, because the name is what tells the next person what it is
+for. Its test gains a case asserting a `Group created` line survives the filter,
+beside the existing one asserting the filter still filters.
+
+Control: dropping `group` fails that new case alone.
+
+This buys the next run's evidence rather than fixing peer-group, and says so.

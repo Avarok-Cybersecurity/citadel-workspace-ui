@@ -30,7 +30,7 @@ import {
     sendGroupMessage,
     setupConsoleCapture,
 } from '../lib/index.js';
-import { COMPOSER_DIAGNOSTIC_KEYWORDS } from '../lib/composer-diagnostics.js';
+import { RUN_DIAGNOSTIC_KEYWORDS } from '../lib/composer-diagnostics.js';
 
 test('node actions are reachable on a touch device', async ({ browser }) => {
     test.setTimeout(300_000);
@@ -45,7 +45,7 @@ test('node actions are reachable on a touch device', async ({ browser }) => {
     // test's send failed in CI, `OfficeChatTabs` had logged exactly which
     // permission state removed the composer, and the run showed only
     // "Message input not found".
-    setupConsoleCapture(page, 'touch', [...COMPOSER_DIAGNOSTIC_KEYWORDS]);
+    setupConsoleCapture(page, 'touch', [...RUN_DIAGNOSTIC_KEYWORDS]);
 
     try {
         await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });

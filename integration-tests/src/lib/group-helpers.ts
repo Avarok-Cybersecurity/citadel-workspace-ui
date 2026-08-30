@@ -18,7 +18,7 @@ import {
   wakeUpTab,
   setupConsoleCapture,
 } from './index.js';
-import { COMPOSER_DIAGNOSTIC_KEYWORDS } from './composer-diagnostics.js';
+import { RUN_DIAGNOSTIC_KEYWORDS } from './composer-diagnostics.js';
 import type { UxIssueTracker } from './ux-tracker.js';
 
 // ============================================================================
@@ -82,7 +82,7 @@ export async function createNUsers(
     // app had already logged which permission state produced the refusal --
     // into a console nobody was reading. Attached at the point pages are born
     // rather than in each spec, so a new spec cannot forget.
-    setupConsoleCapture(page, username, [...COMPOSER_DIAGNOSTIC_KEYWORDS]);
+    setupConsoleCapture(page, username, [...RUN_DIAGNOSTIC_KEYWORDS]);
 
     console.log(`\n  Creating user ${i + 1}/${count}: ${username}`);
 

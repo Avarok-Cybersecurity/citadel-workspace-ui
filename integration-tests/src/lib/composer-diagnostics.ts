@@ -14,12 +14,18 @@
  * and a test asserting it really does match the line the app emits, because a
  * filter that silently matches nothing is the same defect wearing a filter.
  */
-export const COMPOSER_DIAGNOSTIC_KEYWORDS: readonly string[] = [
+export const RUN_DIAGNOSTIC_KEYWORDS: readonly string[] = [
   'withheld',
   'restricted',
   'permission',
   'error',
   'ILM',
+  // `peer-group` failed on "group creation produced no group id" with 2,271
+  // captured console lines and not one of them about a group: the app logs
+  // `[GroupStore] Group created:` and `[UseGroupConversations]`, and neither
+  // matched a word on this list. Capture that says nothing about the thing
+  // that failed is capture that was not turned on.
+  'group',
 ];
 
 /** A representative line, kept beside the list so a test can check the two agree. */
