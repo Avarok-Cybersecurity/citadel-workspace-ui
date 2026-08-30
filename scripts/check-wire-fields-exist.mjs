@@ -22,13 +22,16 @@
  * resolve each `getVariant(message, 'X')` binding to its type and check every
  * property read against that type's fields.
  *
- * WHAT IT CANNOT SEE, tested rather than assumed: only reads off a variable
- * bound directly from `getVariant(message, 'X')` are resolvable. A read through
- * a fresh cast — `(notification as { peer_username?: string }).peer_username` —
- * is invisible to it, because at that point the source has asserted a type and
- * there is nothing left to disagree with. A control in that form was written
- * and did NOT fail, which is why this paragraph exists rather than a claim of
- * full coverage.
+ * WHAT IT SEES, tested rather than assumed. Reads off a variable bound from
+ * `getVariant(message, 'X')`, including through a cast: the first version of
+ * this check missed `(notification as { peer_username?: string })
+ * .peer_username`, a control in that form did NOT fail, and the assertion is
+ * precisely what makes such a read unsafe — it silences the compiler without
+ * consulting the wire. Casts, parentheses and `!` are now unwrapped first.
+ *
+ * What it still cannot see: a message whose variant is chosen dynamically, and
+ * a field reached after the object has been passed to another function that
+ * re-types it. Both would need the type checker rather than the syntax tree.
  *
  * The baseline is empty: the tree has no phantom reads left. Kept as a baseline
  * rather than a bare wall so a future one is reported the same way as any other
@@ -95,8 +98,17 @@ for (const file of sources) {
           local.delete(node.name.getText());
         }
       }
-      if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
-        const typeName = local.get(node.expression.getText());
+      if (ts.isPropertyAccessExpression(node)) {
+        // Through a cast too. `(notification as { peer_username?: string })
+        // .peer_username` is the same read wearing an assertion, and the
+        // assertion is exactly the thing that makes it unsafe -- it silences
+        // the compiler without consulting the wire. A control in this form was
+        // written, did NOT fail, and is what prompted this.
+        let target = node.expression;
+        while (ts.isAsExpression(target) || ts.isParenthesizedExpression(target) || ts.isNonNullExpression(target)) {
+          target = target.expression;
+        }
+        const typeName = ts.isIdentifier(target) ? local.get(target.getText()) : undefined;
         const known = typeName ? fields.get(typeName) : undefined;
         if (known && !known.has(node.name.getText())) {
           found.push(`${file}::${typeName}.${node.name.getText()}`);

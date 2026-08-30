@@ -21260,9 +21260,17 @@ rather than a `getVariant`-bound variable — and the gate stayed green. That is
 real blind spot: once source code asserts a type, there is nothing left to
 disagree with. Re-run in the shape the gate does claim, it failed by name.
 
-The limitation is now written into the script's header, next to a note that it
-was tested rather than assumed. A control that does not fire is not a passing
+The limitation was written into the script's header, next to a note that it was
+tested rather than assumed. A control that does not fire is not a passing
 control, and the honest response is to say what the check does not cover.
+
+**Closed in round 469.** Casts, parentheses and `!` are unwrapped before the
+lookup, and the control that slipped through now fails by name. Widening the
+scan surfaced no further reads, which is worth stating: the blind spot was real
+but nothing had been hiding in it. What remains outside reach is a dynamically
+chosen variant, and a field reached after the object is handed to a function
+that re-types it — both need the type checker rather than the syntax tree, and
+both are now named in the header rather than left to be discovered.
 
 ## Round 467 — reading a field the wire does not have, as a check
 
