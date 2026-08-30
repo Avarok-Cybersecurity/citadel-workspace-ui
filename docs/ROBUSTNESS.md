@@ -21163,3 +21163,30 @@ WASM bindings, which cannot be built or verified from here — or an
 application-level rename carried over the group message channel, which is a
 feature with ordering and duplicate-delivery questions of its own and no way to
 verify it end to end in this session. Recorded for whoever has the stack.
+
+## Round 456 — a retry loop is no defence against a hang
+
+`test:settings-controls` was cancelled by its job budget in run 33308312708.
+Its last step was `./scripts/pull-base-images.sh` and its orphan process was
+`docker`.
+
+That script already retries: five attempts per image, with backoff, and a
+comment explaining that registry 502s cluster. Retries answer a pull that
+FAILS. They do nothing for a pull that STALLS — the loop sits on attempt one
+until something outside kills it, which is precisely what happened.
+
+Exactly the shape round 440 fixed for `playwright install`, in the script that
+already had the half of the answer that does not help here. Each pull is now
+bounded at five minutes, overridable, and a stalled one costs a retry instead
+of the job.
+
+Proved rather than assumed, offline: three stalled attempts under the bound
+take three seconds where unbounded they take fifteen and climbing.
+
+And a mistake caught by reading the output: the first version declared the
+budget with a `/** ... */` comment, which is a syntax error in bash. `bash -n`
+said so immediately. (`sh -n` also fails on line 37, which is pre-existing —
+the script uses process substitution and its shebang is bash.)
+
+The rule these two rounds share is worth stating once: **a retry bounds
+failures, a timeout bounds hangs, and neither substitutes for the other.**
