@@ -21221,6 +21221,49 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 492 — the test that knew about the bug and did not assert it
+
+Backlog item 2: `add_user_to_domain` runs its last-admin check after releasing
+the lock. True, and the interesting part is what was already written down.
+
+`last_admin_race_test.rs` contains `every_role_writer_holds_the_workspace_lock`,
+which listed two writers and checked each body for the string
+`lock_workspaces()`. Its own docstring named the third and said why it was
+excluded: *"`add_user_to_domain`'s guard is scoped to its root branch and has
+dropped by the time the demote check runs."* The defect was documented, in the
+test file, in the test that exists to prevent it.
+
+And it could not simply be added to the list — `add_user_to_domain` **does**
+contain `lock_workspaces()`, in the branch above. Adding it would have passed
+without fixing anything.
+
+So the invariant moved into the code. `write_user_role` now takes the lock, runs
+the check and performs the write, and both role-changing callers go through it.
+`update_workspace_member_role` had already been given its own lock in an earlier
+round; sharing the writer is what stops the third occurrence.
+
+**Enumerating the sites found two role writers nobody had listed.** The first
+attempt asserted `user.role` was assigned in exactly one place. It failed at 4.
+Two were real writers outside both functions the old test named:
+`remove_user_from_domain` demotes a removed admin to Member (it holds the lock —
+fine), and `create_workspace` and `update_workspace` promote to Admin. So the
+invariant is not "one writer" but **every write of a NON-Admin role is under the
+lock** — a promotion cannot empty the admin set, and saying so precisely is what
+lets `create_workspace` through honestly rather than by omission.
+
+Both controls red, and the second control taught the more useful thing.
+Reintroducing an unlocked writer inside `add_user_to_domain` leaves the
+site-enumerating test **green**, because that function locks in a different
+branch — the exact blindness that let the original test pass. It is
+`every_role_writer_calls_the_guarded_writer` that catches it. Neither test is
+sufficient alone, and that limit is now written into the test rather than
+discovered again later.
+
+**A test can document a defect and still not test it.** The knowledge was
+present and precise; what was missing was the assertion. Reading a test's
+docstring for what it declines to cover is worth as much as reading what it
+asserts.
+
 ## Round 491 — the async file transfer could never have worked, in four ways at once
 
 Backlog items 7 and 8 were both "the async download misreports itself". Reading
