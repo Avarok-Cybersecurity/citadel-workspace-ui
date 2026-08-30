@@ -20,34 +20,46 @@
  * an interval somebody guessed. It clears the first time a list comes back
  * without the session.
  *
- * And it gives up after a few lists that still contain it. The first version
- * waited for absence and nothing else, which is right when the deregistration
- * lands and WRONG when it does not: a failure server-side leaves the session
- * listed for ever, so the tombstone would hide a live session permanently, with
- * no way for the user to reach it. That is a worse failure than the one this
- * fixes -- a row that lingers is a nuisance, a session you cannot get back to
- * is lost work. Bounded, so the wrong answer is temporary in both directions.
+ * And it gives up after a while, because a deregistration that FAILED
+ * server-side leaves the session listed for ever, and a tombstone with no
+ * bound would hide a live session permanently with no way for the user to
+ * reach it. A row that lingers is a nuisance; a session you cannot get back to
+ * is lost work.
+ *
+ * Bounded by TIME, not by a count of lists. The first bound allowed three
+ * lists, and CI showed the row returning anyway: lists arrive in bursts -- the
+ * removal performs one, the reconnection it causes performs another, and the
+ * navbar refreshes on its own -- so three of them can pass in a second, while
+ * the thing being waited for is the server propagating a deletion. Counting
+ * the wrong unit made the bound expire before the condition it was bounding
+ * could resolve.
  *
  * Session-scoped by design. A reload is a fresh answer from the server, and by
  * then the deletion has landed.
  */
 
 /**
- * How many lists may still contain a forgotten session before we conclude the
- * deregistration did not take and show it again.
+ * How long a session may stay hidden while the server still lists it.
  *
- * Three: enough to cover the reload the removal performs itself plus the one a
- * reconnection triggers, and few enough that a genuinely failed deregistration
- * surfaces in seconds rather than never.
+ * Long enough for a deregistration to propagate through the connection map --
+ * seconds, not milliseconds -- and short enough that a deregistration which
+ * never took surfaces while the user is still looking at the screen.
  */
-const LISTS_BEFORE_GIVING_UP: number = 3;
+const HIDE_FOR_MS: number = 30_000;
 
-/** CID -> how many lists have still contained it since it was forgotten. */
+/** CID -> when it was forgotten. */
 const forgotten: Map<string, number> = new Map<string, number>();
 
-/** Hide this session until the server stops listing it, or until it insists. */
+/** Test seam: the clock, so a bound measured in time can be tested in one tick. */
+let now: () => number = () => Date.now();
+
+export function useClock(clock: () => number): void {
+  now = clock;
+}
+
+/** Hide this session until the server stops listing it, or the bound expires. */
 export function forgetSession(cid: bigint): void {
-  forgotten.set(cid.toString(), 0);
+  forgotten.set(cid.toString(), now());
 }
 
 export function isForgotten(cid: bigint): boolean {
@@ -62,22 +74,22 @@ export function isForgotten(cid: bigint): boolean {
  */
 export function reconcileForgotten(present: readonly bigint[]): void {
   const listed: Set<string> = new Set(present.map((cid) => cid.toString()));
-  for (const [cid, seen] of [...forgotten]) {
+  for (const [cid, since] of [...forgotten]) {
+    // Gone, as asked. The tombstone has done its job.
     if (!listed.has(cid)) {
-      // Gone, as asked. The tombstone has done its job.
       forgotten.delete(cid);
       continue;
     }
-    // Still there. Either the server has not caught up, or the deregistration
-    // failed -- and after a few lists the second is likelier than the first.
-    if (seen + 1 >= LISTS_BEFORE_GIVING_UP) forgotten.delete(cid);
-    else forgotten.set(cid, seen + 1);
+    // Still listed. Either the server has not caught up, or the deregistration
+    // failed -- and after long enough the second is likelier than the first.
+    if (now() - since >= HIDE_FOR_MS) forgotten.delete(cid);
   }
 }
 
 /** Test seam: the map outlives any component. */
 export function rememberEverything(): void {
   forgotten.clear();
+  now = (): number => Date.now();
 }
 
 /**

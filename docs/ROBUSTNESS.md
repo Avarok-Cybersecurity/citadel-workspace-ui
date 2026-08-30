@@ -19348,3 +19348,39 @@ picker unconditionally fails the refusal case. The third holds the drop zone
 across both, because hiding it would make the refusal message false.
 
 2530 tests green, all 61 preflight checks.
+
+## Round 403 — CI disproved my fix, twice over
+
+Two results from the run carrying the complete permission work.
+
+**The composer is fixed.** `group-multiuser` no longer reports
+"Message input not found" anywhere. User2's Chat tab opens and User1 → User2
+sends. What remains is one-directional — User2 → User1 fails — which is the ILM
+asymmetry round 393 characterised, not the permission chain.
+
+**The deregister fix is not.** `prev-sessions` still reports
+`Deregister Removes: FAIL` beside `still in navbar: true`, with round 390's
+tombstone AND round 398's bound both in the run.
+
+Round 398 bounded the tombstone at three lists, to stop a failed deregistration
+hiding a live session for ever. Lists arrive in **bursts**: the removal performs
+one, the reconnection it causes performs another, and the navbar refreshes on
+its own — three can pass in about a second, while the thing being waited for is
+a server propagating a deletion. The bound expired before the condition it was
+bounding could resolve, because it counted the wrong unit.
+
+The bound is time now — thirty seconds — because the condition is a duration.
+Same intent as 398, right unit.
+
+Worth being plain about the sequence: 390 fixed a real bug and left a hole, 398
+closed the hole with the wrong unit and I could not see it because the reasoning
+was sound and the tests I wrote agreed with it. What found it was CI running the
+actual flow. A bound expressed in "how many times something happened" is only
+safe when that something happens on a schedule, and reloads do not.
+
+Three controls: the count-based bound fails three tests including the burst;
+unbounded fails the give-up test; and the burst test is the one that would have
+caught 398 before it shipped, had I asked how many lists arrive rather than how
+many I expected.
+
+2531 tests green, all 61 preflight checks.
