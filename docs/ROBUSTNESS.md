@@ -18691,3 +18691,42 @@ equality check fail for every response and left the cache permanently empty". A
 mock covering only the async accessor reproduced precisely that.
 
 2507 tests green, all 60 preflight checks.
+
+## Round 385 — a feature built at three of its four links
+
+Continuing the audit round 384 started: the dead-listener list's reasons are
+load-bearing, and two of them now turn out to have been wrong.
+
+```
+['protocol:warning', 'no producer; the protocol-warning banner is driven by its own component state'],
+```
+
+The banner is not driven by its own state. It reads `state.protocolWarning`,
+which is written by exactly one thing — the `protocol:warning` listener in
+`useMessageEventSetup` — which nothing emits. So the chain exists at three of
+its four links: payload type, listener, state field, banner. **It has never
+rendered.**
+
+The stated reason would stop a reader looking, which is the whole harm: it reads
+as "that's fine, the banner works another way".
+
+**No producer is being invented.** The obvious one is wrong.
+`WorkspaceResponseHandler` has an "unhandled response type" branch, and wiring
+the banner to it would fire for every response an awaiting caller matches
+through `workspace:raw-response` — which is the normal path for most writes, not
+an anomaly. A banner that appears on ordinary success teaches people to ignore
+banners.
+
+So: the reason is corrected in the debt list, the same explanation is written on
+the component where a reader would actually be standing, and the display end now
+has two tests — so whoever finds the right producer inherits a banner that is
+known to work rather than one nobody has ever seen. Its controls are dropping
+the request type (the actionable half) and rendering unconditionally.
+
+The pattern across 384 and 385 is worth naming: **a debt list is only as useful
+as its reasons are true**, and both of the ones audited so far described a
+different codebase than the one they sit in. The entries were right that the
+listeners were dead; the explanations were fiction, and each pointed the next
+reader at the wrong repair — emitting the event in 384, doing nothing in 385.
+
+2509 tests green, all 60 preflight checks.

@@ -31,7 +31,14 @@ const RECORDED_DEAD = new Map([
   ['typing:started', 'a redundant second path; typing DOES work via messenger.onTyping() in useP2PMessages-subscriptions'],
   ['typing:stopped', 'as typing:started — the working path is the onTyping callback, not this event'],
   ['message:received', 'the live inbound path is the P2P messenger; this listener predates it'],
-  ['protocol:warning', 'no producer; the protocol-warning banner is driven by its own component state'],
+  // Not "the banner has its own state" -- it has not: the banner reads
+  // `state.protocolWarning`, which ONLY this listener writes, so the whole
+  // feature has never rendered. It stays because the obvious producer is wrong:
+  // the response handler's "unhandled variant" branch is the normal path for
+  // every write an awaiting caller matches through `workspace:raw-response`,
+  // and a banner on ordinary success teaches people to ignore banners. See the
+  // note on the component.
+  ['protocol:warning', 'listener and banner exist; no producer can yet tell an anomaly from a response somebody else handles'],
   ['notification', 'notification-service listens to its own bus name; every real producer calls addNotification directly'],
   ['user:login', 'EventListenerManager base-class example subscriptions; no producer anywhere'],
   ['user:logout', 'as user:login'],
