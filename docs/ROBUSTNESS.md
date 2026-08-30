@@ -21221,6 +21221,49 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 498 — the retry button that one failed retry switched off
+
+Backlog 22 and 23, both in the WASM client's connection lifecycle, and both on
+the unhappy path.
+
+`restart()` tears the old connection down and *then* connects. Teardown takes the
+workspace state, so `is_initialized()` becomes false — and `restart()`'s first
+act is to refuse unless `is_initialized()`. So a restart whose connect failed left
+exactly the state that makes the next restart impossible. The UI's "Retry Now"
+button calls only `restart()`. **One failed retry disabled retrying for the life
+of the page**, with the message "Not initialized. Call init() first." — advice
+the UI has no way to follow.
+
+The second is the mirror image. `close_connection` drops the state, which ends
+the communication task, which called `on_websocket_disconnected(...)`. So every
+deliberate teardown looked exactly like a failure: the retry modal reappeared
+during a restart the user had just asked for, and background services were
+stopped on a clean sign-out. A deliberate close and a dead socket produced the
+same signal.
+
+A "we meant to do this" flag would race — the task ends asynchronously, after
+`close_connection` has returned and possibly after a new connection has begun. So
+each task is stamped with the connection generation it was spawned under, and
+reports only while that generation is still live. `close_connection` bumps the
+counter *first*, before dropping anything, so a task it ends can never observe
+the old value.
+
+The decisions live in `connection_lifecycle.rs` as pure functions, which is what
+makes them testable at all: the crate is `cdylib` and targets a browser, but the
+rules are arithmetic and run on the host.
+
+**A pure function passes its own tests whether or not anything calls it, and both
+defects here were the call site rather than the rule.** So the tests also read
+`lib.rs`: the old error string must be gone, both gate functions must be asked,
+`should_report_death` must appear *before* the callback it guards, and
+`close_connection` must still bump the counter. Three controls, one per element,
+each red on its own.
+
+One of my own helpers was dead on arrival. `restart_may_proceed_uninitialised()`
+returned `true` and nothing called it — a restatement of `refuse_init(true,
+false)` dressed as a decision. Clippy caught it; it is gone, and its reasoning
+moved into the doc of the function that actually decides.
+
 ## Round 497 — a deletion that deleted nothing, and the test that agreed with it
 
 Backlog 19: deleting a room purges its chat history by node id, but history is
