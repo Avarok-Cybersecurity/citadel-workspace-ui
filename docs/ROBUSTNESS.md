@@ -21221,6 +21221,37 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 488 — a peer's screen share could stay invisible indefinitely
+
+`ReceiverPool.accept` notifies the UI only when a stream APPEARS, because a
+notify per frame would re-render the whole call surface sixty times a second. It
+tracked video and audio appearing. It did not track screen.
+
+`acceptScreen` builds a SEPARATE `screenSink`, reachable only through
+`getScreenStream()`, so neither existing check can see a share arrive. The call
+context is a `useMemo` keyed on the version that notify bumps, and
+`useStageShare` memoises on the Map that memo produces — so with no notify,
+nothing recomputes and the share never renders.
+
+Order-dependent, which is why it would present as intermittent rather than
+broken. If the first screen FRAME beats the peer's `CallMediaState(screen: true)`,
+the context is rebuilt for the state change and the share appears. If the state
+arrives first — the common order, since state is sent on toggle and frames follow
+encoding — `getRemoteScreenStreams()` is still empty at that moment, and the
+frame that fills it notifies nobody. The viewer then waits for an unrelated
+transition: a mic toggle, a participant change, a quality re-classification. In a
+quiet call, potentially never.
+
+### The positive control caught my harness, not the code
+
+The first run failed BOTH assertions, including the one asserting video still
+notifies — which is existing behaviour and must pass. That said the harness was
+wrong, not the product: the test bumped the stream before calling `accept`, so
+`hadVideo` was already true and nothing could ever "appear". The real frame is
+what creates the sink, so the stub now flips the stream DURING accept.
+
+A one-line fix, found by a control on the half that was already working.
+
 ## Round 487 — operations queued for an unreachable peer died on reload
 
 Every failure path in `revfs-retry.ts` persists the queue with a

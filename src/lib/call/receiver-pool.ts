@@ -78,6 +78,7 @@ export class ReceiverPool {
     const receiver: PeerReceiver = this.receiverFor(peerCid);
     const hadVideo: boolean = receiver.getVideoStream() !== null;
     const hadAudio: boolean = receiver.getAudioStream() !== null;
+    const hadScreen: boolean = receiver.getScreenStream() !== null;
     receiver.accept(frame);
     this.quality.recordFrame(peerCid, Date.now());
     // Only re-render when a stream actually appears; a notify per frame would
@@ -85,7 +86,14 @@ export class ReceiverPool {
     // an audio-only call's first frame is what tells the UI to attach a sink.
     const videoAppeared: boolean = !hadVideo && receiver.getVideoStream() !== null;
     const audioAppeared: boolean = !hadAudio && receiver.getAudioStream() !== null;
-    if (videoAppeared || audioAppeared) {
+    // Screen too. `acceptScreen` builds a SEPARATE sink reachable only through
+    // getScreenStream(), so the two checks above cannot see a share appear --
+    // and the call context is a memo keyed on the version this notify bumps.
+    // Without it a peer's share stayed invisible until some unrelated
+    // transition happened to rebuild the context: a mic toggle, a participant
+    // change, a quality re-classification. In a quiet call, potentially never.
+    const screenAppeared: boolean = !hadScreen && receiver.getScreenStream() !== null;
+    if (videoAppeared || audioAppeared || screenAppeared) {
       this.callbacks.onStreamsChanged();
     }
   }
