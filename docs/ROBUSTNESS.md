@@ -21221,6 +21221,41 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 475 — a barrel keeps dead code alive, and two checks that already existed
+
+Three probes this round, two of which found nothing, and saying so is the point.
+
+**Write-only component state.** Probed for `useState` values that are set and
+never read — the state-level version of the inert-prop gate. The probe reported
+85, and the first one checked was read in JSX two hundred lines down, so the
+probe was wrong rather than the code. Before fixing it: ESLint already catches
+this. Injecting a genuinely unread state value produced
+`'neverRead' is assigned a value but never used`. No gate needed; the class is
+covered.
+
+**Unbounded spinners.** Of eighteen `setLoading(true)` sites, exactly one file
+had neither a `finally` nor a loading deadline — and reading it showed both its
+hooks clear loading on the success AND the error path, with the mount/staleness
+guards correct. Another honest negative.
+
+**A barrel keeps dead code alive.** `check-modules-are-imported` asks whether a
+module has an importer. `hooks/index.ts` re-exports `use-async-data`, so it has
+one — and nothing else in the tree references `useAsyncData` or `useAsyncAction`
+at all. No callers, no tests, 219 lines. A barrel file satisfies reachability on
+behalf of everything it re-exports, which is a blind spot the gate cannot see
+past. Removed.
+
+The same probe flagged `declineRegistrationRequest`, and checking rather than
+deleting was the difference: it has a test,
+`both-declines-tell-the-sender.test.ts`, pinning that BOTH decline paths tell
+the sender. It is a guarded duplicate, not a trap, and removing it would have
+deleted the guard. It stays.
+
+The probe's remaining 100-odd hits conflate three different things — helpers
+exported but used only inside their own file, exports used only by tests, and
+genuinely dead code — so it is not a gate yet. Recorded as the shape of the
+blind spot rather than shipped as a noisy check.
+
 ## Round 474 — your own peer-group message never reached your own screen
 
 The workspace path relies on an echo. The server answers the SENDER with the
