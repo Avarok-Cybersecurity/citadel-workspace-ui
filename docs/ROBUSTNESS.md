@@ -20670,3 +20670,37 @@ I added `forgetFallbackUsernames` as a test seam and no test called it: the
 tests reset the module instead. `unreferenced exports > gains none` failed, and
 it was right. An export nothing calls is surface invented for a caller that does
 not exist — the same thing round 436 deleted four testids for.
+
+## Round 440 — it never reached the tests, and round 439's causal claim is withdrawn
+
+`test:notifications` ran for 55 minutes and was killed by its job budget. Round
+439 noted that the only change this session on a per-message path was mine, said
+so, and explicitly declined to call it a diagnosis. That caution was right, and
+the answer is now in the log's last lines:
+
+```
+Terminate orphan process: pid (2766) (npm exec playwright install chromium --with-deps)
+```
+
+The job hung installing Chromium. It never ran a test. **Round 439's suspicion
+is withdrawn** — the memoisation it added is still correct on its own terms, two
+storage reads per websocket message is a real regression whatever else was
+happening, but it had nothing to do with this job.
+
+Two things worth keeping from it. The job budget added by
+`check-ci-job-timeouts` is what ended this: without it GitHub's 360-minute
+default would have held a runner for six hours on a stalled download. And the
+step itself had neither a retry nor a timeout of its own, in a repo that already
+wraps every network fetch in its image builds for exactly this reason — the
+`for attempt in 1 2 3` loops in the Dockerfiles, and `pull-base-images.sh`. The
+same class, one layer out, in three CI steps nobody had looked at.
+
+All three now retry three times with each attempt bounded at ten minutes, and
+fail the step when the third gives up rather than dribbling on. The loop's logic
+was exercised offline against a stubbed installer -- succeeds first try,
+succeeds on the third, gives up after three with a non-zero exit -- because a
+retry loop that cannot fail is the thing this whole session keeps finding.
+
+A first draft of that loop ended with a `--dry-run` check followed by an
+UNBOUNDED reinstall, which would have reintroduced the hang it was written to
+stop. Deleted before it shipped.
