@@ -18817,3 +18817,28 @@ code around inside one that already does.
 
 2512 tests green, all 60 preflight checks. `ChatSettingsPanel` is down from 344
 to 272 lines and its exemption is ratcheted to match.
+
+## Round 388 — the class, closed
+
+Round 387 fixed three uncontrolled controls in one panel. The obvious next
+question is how many others there are, and the answer is **none**: a sweep of
+every `<input>`, `<select>`, `<textarea>`, `Switch`, `Slider`, `Checkbox` and
+`RadioGroup` in the tree finds 42 controls and no remaining one that carries a
+default value with neither a change handler nor `disabled`.
+
+That is worth a gate rather than a paragraph. `check-controls-are-wired.mjs`
+holds it at zero: a control with a default value must either be wired to a
+store or disabled — the honest state for something this build cannot act on,
+which `PrivacySettingsTab` pairs with a note saying so.
+
+Three controls: re-enabling the encryption select (the exact defect, named at
+its line), a brand-new uncontrolled `<input>` anywhere in the tree, and a
+correctly wired control that must NOT trip it. Plus the two self-checks this
+campaign now writes by habit — the gate fails if it walks a tree with no
+components, and fails if it matches no controls at all, because either would
+make it pass forever without looking at anything.
+
+The sweep also confirms what round 387 assumed rather than checked: those three
+were the last of their kind, not the first three of many.
+
+61 preflight checks now.
