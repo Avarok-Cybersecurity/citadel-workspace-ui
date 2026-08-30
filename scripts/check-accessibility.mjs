@@ -421,7 +421,7 @@ async function main() {
       // arrow keys move between them, which is the correct pattern and reads
       // as "unreachable" to a naive count. Expecting each tab to be a separate
       // Tab stop was this rule's first output, and it was wrong.
-      const unreachable = await page.evaluate(async () => {
+      const collectExpected = async () => page.evaluate(async () => {
         const scope = window.__a11yScope();
         const COMPOSITE = new Set(['tab', 'radio', 'menuitem', 'option', 'treeitem']);
         const describe = (el) =>
@@ -449,6 +449,8 @@ async function main() {
         return { expected: expected.map(describe), identity };
       });
 
+      const unreachable = await collectExpected();
+
       const reached = new Set();
       for (let i = 0; i < unreachable.expected.length * 3 + 6; i += 1) {
         await page.keyboard.press('Tab');
@@ -474,7 +476,24 @@ async function main() {
         unreachable.identity,
       );
 
-      const missed = [...new Set(unreachable.expected.filter((e) => !reached.has(e)))];
+      // Re-measured AFTER tabbing, and only controls present in BOTH readings
+      // can fail.
+      //
+      // The expected set is a snapshot; the surface is live. The
+      // connection-failed dialog runs an automatic retry countdown, and when it
+      // fires mid-probe `Retry Now` becomes `disabled` — removed from the tab
+      // order by the platform, exactly as it should be. It was captured while
+      // enabled and judged while disabled, so the gate reported a control that
+      // is reachable whenever it is reachable at all. CI failed on it; a local
+      // run with different timing passed.
+      //
+      // This narrows the claim rather than weakening it: a control that stays
+      // enabled and visible and is still never focused fails exactly as before.
+      // A control that DISAPPEARED or disabled itself during the probe is a
+      // different statement, and not one this rule is entitled to make.
+      const stillExpected = new Set((await collectExpected()).expected);
+      const missed = [...new Set(unreachable.expected.filter((e) => !reached.has(e)))]
+        .filter((e) => stillExpected.has(e));
       record(`${name}: every control is reachable by keyboard`, missed.length === 0, missed.join(' | '));
 
       // A combobox must be named by its LABEL, not by its value.
