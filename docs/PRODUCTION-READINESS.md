@@ -8,8 +8,8 @@ stack or a WASM rebuild), `wontfix` (with a reason).
 
 The goal this backlog serves: no critical, high or medium issue left open.
 
-**Progress: 11 of 49 fixed** — the one critical, 9 of 12 high, 1 of 25 medium.
-27 open at critical/high/medium; 11 low.
+**Progress: 13 of 49 fixed** — the one critical, 11 of 12 high, 1 of 25 medium.
+25 open at critical/high/medium; 11 low.
 
 Two rounds of adversarial re-review have since been run over the fixes
 themselves. They confirmed every one as correct, and found nine further defects
@@ -24,14 +24,14 @@ account switch fired on every reconnect. Those are recorded as rounds 489 and
 | 2 | high | fixed | rust-server-authz | add_user_to_domain runs its last-admin check after releasing the lock the contract requires | `citadel-workspace-server-kernel/src/handlers/domain/server_ops/async_domain_server_ops.rs:352` |
 | 3 | high | fixed | rust-wasm-client | After a gap-patience out-of-order delivery, the late-arriving missing message is classified 'already delivered', re-ACKed and cleared — the application never receives it | `citadel-internal-service/intersession-layer-messaging/src/lib.rs:878` |
 | 4 | high | fixed | rust-wasm-client | Dropping an ILM never stops its four background loops: the Drop guard's condition can never be true while they run, and its signal would not stop them anyway | `citadel-internal-service/intersession-layer-messaging/src/lib.rs:356` |
-| 5 | high | open | ts-calls | Congestion-ladder reconfigure clobbers the chosen video profile on the first frame | `citadel-workspaces/src/lib/call/media-pipeline.ts:121` |
+| 5 | high | fixed | ts-calls | Congestion-ladder reconfigure clobbers the chosen video profile on the first frame | `citadel-workspaces/src/lib/call/media-pipeline.ts:121` |
 | 6 | high | fixed | ts-calls | First screen-share frame never fires onStreamsChanged, so a remote share can stay invisible | `citadel-workspaces/src/lib/call/receiver-pool.ts:86` |
 | 7 | high | fixed | ts-file-transfer | Async accept settles the staged download from the wrong message: cid-only correlation plus a phantom response.download_path field means every async accept ends misreported | `citadel-workspaces/src/lib/file-transfer/server-download.ts:98` |
 | 8 | high | fixed | ts-file-transfer | The 'staged:' ref — documented as NOT a server path — is shipped to the peer as virtual_path, fetched as a virtual_directory, and shown to the user as the saved location | `citadel-workspaces/src/lib/file-transfer/server-download.ts:49` |
 | 9 | high | fixed | ts-messaging | loadAllMetadata loads every account's conversations, leaking one account's contact rows into another's P2P list | `citadel-workspaces/src/lib/p2p/message-pagination-store.ts:64` |
 | 10 | high | open | ts-messaging | Inbound file-transfer messages are never persisted and never deduped, yet are acked 'delivered' | `citadel-workspaces/src/lib/p2p/file-transfer-message-handler.ts:65` |
 | 11 | high | fixed | ts-multi-tab | Legacy workspace-response broadcast delivers cid-carrying group notifications to every tab; group invites are auto-accepted by the wrong session | `citadel-workspaces/src/lib/websocket/initialization.ts:186` |
-| 12 | high | open | ts-revfs | Inbound peer ops bypass the serial lock; a local mutator's stale snapshot erases them (30s window during uploads) | `citadel-workspaces/src/lib/revfs/revfs-file-ops.ts:75` |
+| 12 | high | fixed | ts-revfs | Inbound peer ops bypass the serial lock; a local mutator's stale snapshot erases them (30s window during uploads) | `citadel-workspaces/src/lib/revfs/revfs-file-ops.ts:75` |
 | 13 | high | fixed | ts-revfs | Pending-op queue is persisted but never loaded: the 'load-pending-ops' intent has zero dispatch sites, so queued ops die on page reload | `citadel-workspaces/src/lib/revfs/revfs-io.ts:45` |
 | 14 | medium | open | rust-internal-service | PeerRegister/PeerConnect/Disconnect notifications broadcast to every connection on stale uuid - the cross-user leak the twin paths were fixed to stop | `citadel-internal-service/citadel-internal-service/src/kernel/responses/peer_event.rs:53` |
 | 15 | medium | open | rust-server-authz | Group-chat send is gated on ViewContent, so read-only (Guest/muted) accounts can post | `citadel-workspace-server-kernel/src/kernel/command_processor/async_process_command.rs:621` |

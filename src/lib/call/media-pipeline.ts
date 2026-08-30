@@ -108,7 +108,11 @@ export function createVideoEncoder(
     hardwareAcceleration,
   });
 
-  let appliedRung: number = -1;
+  // 0, not -1: the encoder was just configured at `profile`, and rung 0 IS "the
+  // profile as chosen". Starting at -1 made the first frame of every call
+  // reconfigure before any congestion had been observed, replacing the chosen
+  // profile with the ladder's absolute rung-0 values.
+  let appliedRung: number = 0;
 
   return {
     encode(frame: VideoFrame, congestion: CongestionState): void {
@@ -120,13 +124,24 @@ export function createVideoEncoder(
       // resets the encoder's rate control and produces visible pulsing.
       if (congestion.rung !== appliedRung) {
         const level: QualityLevel = levelFor(congestion);
+        // The ladder's rungs are absolute; the profile is the ceiling. Rung 0 is
+        // 720p at 30fps, so without these caps a "saver" call (640x360 @15) was
+        // encoded at 640x720 @30 -- a distorted picture at twice the frame rate
+        // the user asked for, and the screen saver's deliberate 3fps became 30.
+        // The ladder may only ever REDUCE what was chosen.
+        const height: number = Math.min(profile.height, level.height);
+        // Width follows height, or every degrade also stretches the picture:
+        // `profile.width` with the rung's height is a different aspect ratio.
+        // Even, because encoders reject odd dimensions.
+        const width: number =
+          Math.round((profile.width * height) / profile.height / 2) * 2;
         try {
           encoder.configure({
             codec,
-            width: profile.width,
-            height: level.height,
+            width,
+            height,
             bitrate: Math.round(profile.bitrate * level.bitrateScale),
-            framerate: level.framerate,
+            framerate: Math.min(profile.framerate, level.framerate),
             latencyMode: 'realtime',
             hardwareAcceleration,
           });

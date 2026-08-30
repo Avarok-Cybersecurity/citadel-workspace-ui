@@ -21,7 +21,7 @@ import {
 import { RevfsState, type TreeChangedCallback } from './revfs-state';
 import { RevfsIO, type RevfsIODeps } from './revfs-io';
 import { retryPendingOps, sendAndAwaitAck, type RetryOutcome } from './revfs-retry';
-import { applyInboundOperation, type InboundContext } from './revfs-inbound';
+import { applyInboundOperationSerially, type InboundContext } from './revfs-inbound';
 import { awaitTreeChange } from './await-tree-change';
 
 /** How long a peer has to answer a sync request before we stop claiming it did. */
@@ -174,7 +174,9 @@ export class RevfsService {
 
   /** An operation that arrived from a peer. See revfs-inbound.ts. */
   async handleRevfsOperation(senderCid: bigint, myCid: bigint, op: RevfsOperation): Promise<void> {
-    return applyInboundOperation(this.inboundCtx(), senderCid, myCid, op);
+    // Serialised against this tree's local mutators; see revfs-inbound.ts for
+    // the window that leaves open and why Ack is exempt from it.
+    return applyInboundOperationSerially(this.inboundCtx(), senderCid, myCid, op);
   }
 
   private inboundCtx(): InboundContext {

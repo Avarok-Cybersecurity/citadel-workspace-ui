@@ -21221,6 +21221,71 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 493 — the quality setting the ladder overrode on frame one
+
+Backlog item 5 said the congestion ladder clobbers the chosen video profile on
+the first frame. It does, and the reason is one character: `appliedRung` starts
+at `-1` while `INITIAL_CONGESTION.rung` is `0`, so `rung !== appliedRung` is true
+for the first frame of every call, before anything has been observed.
+
+What it reconfigures to is the worse half. The ladder's rungs are **absolute**,
+not relative to the profile — rung 0 is `{ height: 720, framerate: 30 }`. So:
+
+| Chosen | Encoded from frame one |
+| --- | --- |
+| Saver, 640×360 @15 | 640×**720** @**30** |
+| Balanced, 854×480 @24 | 854×**720** @**30** |
+| Screen saver, 1280×720 @3 | @**30** — ten times the bandwidth |
+
+`width` stayed at `profile.width` while `height` came from the rung, so every
+degrade also distorted the picture.
+
+`allowsAdaptation` does not prevent any of this. It gates `applyQualityReport`,
+so for a non-auto quality the congestion state never *moves* — but rung 0 is
+applied over the profile on frame one regardless, and never revisited. A control
+that looks like it protects the setting and does not.
+
+The profile is now the ceiling: height and framerate are `min`'d against it,
+width follows height so the aspect ratio survives, and `appliedRung` starts at 0
+because the constructor already configured at the profile, which is what rung 0
+means. Four controls, one per element, each red on its own. A fifth test guards
+the opposite failure — clamping everything to the profile would make the ladder
+inert, which reads as "protected" — and it passes both before and after.
+
+## Round 494 — a peer's work erased by an upload that started before it
+
+Backlog item 12. Every local mutator on `RevfsService` runs under
+`withSerialLock`; `handleRevfsOperation` took no lock. `uploadFileToPeer` reads
+the tree, awaits `backend-send-file` — a real transfer with a 30-second ceiling
+— then applies its change to what it read *beforehand* and calls `setTree`.
+Anything a peer did in that window was applied, persisted, repainted, and then
+overwritten. Locally gone, still present on their side.
+
+`concurrent-remote-ops-do-not-clobber.test.ts` already records that an earlier
+attempt at this shape drove a local write during `getTree`'s own await and passed
+with the fix reverted, because `getTree` re-checks after that await. The window
+across the backend send is a different one, and nothing re-checks it.
+
+**Taking the lock deadlocked every peer operation, and the existing tests said so
+immediately.** `sendAndAwaitAck` runs INSIDE the lock and blocks until the peer
+acknowledges. Routing that Ack through the same lock means the mutator holds it
+waiting for an acknowledgement that is waiting for the mutator — so `mkdir`,
+`rmdir`, `rename`, `move`, `copy` and every upload would have failed on their ack
+timeout. Two tests went from passing to a five-second hang, and the second was
+collateral: the first test's chain never released, and `withSerialLock` keys are
+module-scoped.
+
+An Ack is therefore exempt, which is correct on its own terms rather than as a
+workaround: it mutates no tree, it only resolves a pending promise, so there is
+nothing for the lock to protect. Both halves have their own control — no lock at
+all fails the erasure test, locking the Ack fails the deadlock test — and the
+lock policy now lives in `revfs-inbound.ts` beside the handler whose op types
+make the exemption legible.
+
+**The fix that breaks the suite is the fix worth having.** A lock added in the
+obvious place would have shipped a deadlock behind a green new test; what caught
+it was two old tests nobody was thinking about.
+
 ## Round 492 — the test that knew about the bug and did not assert it
 
 Backlog item 2: `add_user_to_domain` runs its last-admin check after releasing

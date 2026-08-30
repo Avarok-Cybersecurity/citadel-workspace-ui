@@ -14,6 +14,7 @@
  * behind that flood and never arrive.
  */
 import { peerPairKey } from './tree-queries';
+import { withSerialLock } from '@/lib/serial-queue';
 import { persistTree } from './persist-tree';
 import { applyRemoteOp, mergeTrees } from './tree-operations';
 import { isNewOperation } from './seen-operations';
@@ -98,4 +99,38 @@ export async function applyInboundOperation(
 
     const ackOp: RevfsOperation = { op_id: crypto.randomUUID(), op_type: RevfsOpType.Ack, path: op.path, ack_op_id: op.op_id, success: true, timestamp: Date.now() };
     await ctx.sendOp(senderCid, ackOp);
+}
+
+/**
+ * Apply an inbound operation, serialised against this tree's local mutators.
+ *
+ * The lock lives here rather than at the call site because it is a property of
+ * the inbound path, not of the service's plumbing — and because the exemption
+ * below is only correct in light of what this module does with each op type.
+ *
+ * Every local mutator runs under `withSerialLock` on the tree's key. This did
+ * not, so a peer's operation applied to the live tree while `uploadFileToPeer`
+ * was blocked on `backend-send-file` — a real transfer with a 30-second ceiling,
+ * across which the upload holds the snapshot it read beforehand. When the send
+ * returned, `setTree` wrote that snapshot back and the peer's mkdir, rename or
+ * delete was gone locally while still present on their side.
+ *
+ * An Ack is exempt, and must be: `sendAndAwaitAck` runs INSIDE the lock and
+ * blocks until the peer acknowledges, so routing the Ack through the same lock
+ * deadlocks every peer operation — the mutator holds the lock waiting for an
+ * acknowledgement that is waiting for the mutator. An Ack mutates no tree; it
+ * resolves a pending promise, so there is nothing here for the lock to protect.
+ */
+export function applyInboundOperationSerially(
+  ctx: InboundContext,
+  senderCid: bigint,
+  myCid: bigint,
+  op: RevfsOperation,
+): Promise<void> {
+  if (op.op_type === RevfsOpType.Ack) {
+    return applyInboundOperation(ctx, senderCid, myCid, op);
+  }
+  return withSerialLock(peerPairKey(myCid, senderCid), () =>
+    applyInboundOperation(ctx, senderCid, myCid, op),
+  );
 }
