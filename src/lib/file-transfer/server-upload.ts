@@ -33,6 +33,13 @@ import { TIMEOUT } from '../timeout-constants';
 export const MAX_BYTE_CONTENTS_BYTES: number = 16 * 1024 * 1024; // 16 MiB
 
 /**
+ * Must match the level the recipient's `DownloadFile` asks for
+ * (`DOWNLOAD_SECURITY_LEVEL` in server-download.ts) and the level the RE-VFS
+ * route uses, or the two halves of one transfer negotiate differently.
+ */
+const UPLOAD_SECURITY_LEVEL: 'Standard' = 'Standard';
+
+/**
  * Resolve once the internal service acknowledges a `SendFile` request, or reject
  * with the service's own failure message.
  *
@@ -82,16 +89,22 @@ export function awaitSendFileAck(requestId: string): Promise<void> {
 }
 
 /**
- * Local correlation id for a staged transfer.
+ * The virtual path a staged transfer is written to, and later read back from.
  *
- * This is NOT a server path. The service does not return one for an inline
- * upload — it stages the bytes under its own browser-transfer root and the
- * recipient learns the real `virtual_path` from the transfer notification. This
- * value only lets the sender's own records line up, so it is deliberately named
- * for what it is.
+ * This IS a server path, and it has to be: the sender chooses it in
+ * `TransferType::RemoteEncryptedVirtualFilesystem`, ships it to the peer in the
+ * transfer announcement, and the peer passes it straight back as
+ * `DownloadFile.virtual_directory`. Nothing else supplies one — the earlier
+ * comment here claimed "the recipient learns the real virtual_path from the
+ * transfer notification", but the announcement carries exactly this value and
+ * there was no other source.
+ *
+ * It previously returned `staged:{id}/{name}`, documented as NOT a path, which
+ * was then shipped and used as one. The prefix is gone because a value used as
+ * a path must be a path.
  */
-export function stagedTransferRef(transferId: string, fileName: string): string {
-  return `staged:${transferId}/${fileName}`;
+export function stagedTransferPath(transferId: string, fileName: string): string {
+  return `/transfers/${transferId}/${fileName}`;
 }
 
 /**
@@ -127,7 +140,8 @@ export async function uploadFileToServer(
   const data: number[] = Array.from(new Uint8Array(await file.arrayBuffer()));
 
   const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
-  const request: { SendFile: { request_id: `${string}-${string}-${string}-${string}-${string}`; source: { ByteContents: { file_name: string; data: number[]; }; }; cid: bigint; peer_cid: bigint; chunk_size: null; transfer_type: string; }; } = {
+  const virtualPath: string = stagedTransferPath(transferId, file.name);
+  const request: { SendFile: { request_id: `${string}-${string}-${string}-${string}-${string}`; source: { ByteContents: { file_name: string; data: number[]; }; }; cid: bigint; peer_cid: bigint; chunk_size: null; transfer_type: { RemoteEncryptedVirtualFilesystem: { virtual_path: string; security_level: string; }; }; }; } = {
     SendFile: {
       request_id: requestId,
       source: { ByteContents: { file_name: file.name, data } },
@@ -139,7 +153,19 @@ export async function uploadFileToServer(
       cid: ownCid,
       peer_cid: BigInt(recipientCid),
       chunk_size: null,
-      transfer_type: 'FileTransfer',
+      // RemoteEncryptedVirtualFilesystem, not FileTransfer. `FileTransfer` is a
+      // LIVE peer-to-peer send that requires the recipient online to accept it,
+      // so "async" mode was not staging anything: it opened a live transfer,
+      // returned a made-up reference, and the recipient later asked the service
+      // to read a virtual directory named `staged:...`. This variant is what
+      // creates the virtual_path key that DownloadFile addresses -- the same
+      // correction already made in revfs-io-network.ts and never carried here.
+      transfer_type: {
+        RemoteEncryptedVirtualFilesystem: {
+          virtual_path: virtualPath,
+          security_level: UPLOAD_SECURITY_LEVEL,
+        },
+      },
     },
   };
 
@@ -147,5 +173,5 @@ export async function uploadFileToServer(
   await websocketService.sendMessage(request as unknown as Record<string, unknown>);
   await ack;
 
-  return stagedTransferRef(transferId, file.name);
+  return virtualPath;
 }

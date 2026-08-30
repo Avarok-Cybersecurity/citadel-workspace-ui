@@ -1,9 +1,19 @@
-import { describe, it, expect } from 'vitest';
-import {
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const sent: Array<Record<string, unknown>> = [];
+vi.mock('../../websocket-service', () => ({
+  websocketService: {
+    sendMessage: async (request: Record<string, unknown>): Promise<void> => {
+      sent.push(request);
+    },
+  },
+}));
+
+const {
   MAX_BYTE_CONTENTS_BYTES,
-  stagedTransferRef,
+  stagedTransferPath,
   uploadFileToServer,
-} from '../server-upload';
+} = await import('../server-upload');
 import { downloadFileFromServer } from '../server-download';
 import type { FileTransfer } from '../types';
 
@@ -70,14 +80,94 @@ describe('uploadFileToServer', () => {
   });
 });
 
-describe('stagedTransferRef', () => {
-  it('is marked as a local reference, not a server path', () => {
-    // The service does not hand back a path for an inline upload, so this value
-    // exists only to correlate the sender's own records. The `staged:` prefix
-    // keeps it from being mistaken for something fetchable — the previous code
-    // returned a bare `/transfers/...` string that read exactly like a real path.
-    expect(stagedTransferRef('abc', 'notes.md')).toBe('staged:abc/notes.md');
-    expect(stagedTransferRef('abc', 'notes.md').startsWith('/')).toBe(false);
+/**
+ * The value the sender returns is used as a server path by two other places, so
+ * it has to be one.
+ *
+ * It used to be `staged:{id}/{name}`, and the comment above it said in as many
+ * words that this was NOT a server path — while `transfer-announcement.ts`
+ * shipped it to the peer as `virtual_path` and `server-download.ts` sent it
+ * straight back as `DownloadFile.virtual_directory`. The recipient was asking
+ * the service to read a virtual directory called `staged:abc/notes.md`.
+ *
+ * The previous test asserted the `staged:` prefix was correct and that the value
+ * did NOT start with `/`. It pinned the defect in place.
+ */
+describe('stagedTransferPath', () => {
+  it('is a real virtual path, because it is used as one', () => {
+    expect(stagedTransferPath('abc', 'notes.md')).toBe('/transfers/abc/notes.md');
+  });
+
+  it('carries no scheme-like prefix that a path consumer would choke on', () => {
+    const path: string = stagedTransferPath('abc', 'notes.md');
+    expect(path.startsWith('/')).toBe(true);
+    expect(path).not.toMatch(/^[a-z]+:/);
+  });
+});
+
+/**
+ * The upload has to create the virtual_path key that the download addresses.
+ *
+ * `transfer_type` was `'FileTransfer'` — the LIVE peer-to-peer variant, which
+ * requires the recipient online to accept it. So "async" mode staged nothing at
+ * all: it opened a live transfer, returned a made-up reference, and the whole
+ * offline-delivery feature could not have worked in any circumstance.
+ *
+ * This is the identical mistake `revfs-io-network.ts` was corrected for, with
+ * the correction never carried across. Asserting on the REQUEST OBJECT is the
+ * only way to see it — every higher-level test mocks the intent out.
+ */
+describe('the staged upload request', () => {
+  beforeEach((): void => { sent.length = 0; });
+
+  function tinyFile(): File {
+    return {
+      name: 'notes.md',
+      size: 4,
+      arrayBuffer: async (): Promise<ArrayBuffer> => new Uint8Array([1, 2, 3, 4]).buffer,
+    } as unknown as File;
+  }
+
+  function lastSendFile(): Record<string, unknown> {
+    const frame: Record<string, unknown> | undefined = sent.find((m) => 'SendFile' in m);
+    if (!frame) throw new Error('no SendFile request was sent');
+    return frame.SendFile as Record<string, unknown>;
+  }
+
+  it('stages under RemoteEncryptedVirtualFilesystem, not a live FileTransfer', async () => {
+    void uploadFileToServer(tinyFile(), 'transfer-1', '123', 7n);
+    await vi.waitFor((): void => { lastSendFile(); });
+
+    const transferType: unknown = lastSendFile().transfer_type;
+    expect(transferType).not.toBe('FileTransfer');
+    expect(transferType).toHaveProperty('RemoteEncryptedVirtualFilesystem');
+  });
+
+  it('stages at the exact path the recipient will ask to download', async () => {
+    void uploadFileToServer(tinyFile(), 'transfer-1', '123', 7n);
+    await vi.waitFor((): void => { lastSendFile(); });
+
+    const transferType: { RemoteEncryptedVirtualFilesystem?: { virtual_path?: string; security_level?: string; }; } =
+      lastSendFile().transfer_type as {
+        RemoteEncryptedVirtualFilesystem?: { virtual_path?: string; security_level?: string };
+      };
+
+    // The two halves of one transfer must name the same key and negotiate the
+    // same level, or the download addresses something that is not there.
+    expect(transferType.RemoteEncryptedVirtualFilesystem?.virtual_path).toBe(
+      stagedTransferPath('transfer-1', 'notes.md')
+    );
+    expect(transferType.RemoteEncryptedVirtualFilesystem?.security_level).toBe('Standard');
+  });
+
+  it('sends the file bytes inline, since the browser has no path to hand over', async () => {
+    void uploadFileToServer(tinyFile(), 'transfer-1', '123', 7n);
+    await vi.waitFor((): void => { lastSendFile(); });
+
+    const source: { ByteContents?: { data?: number[]; file_name?: string; }; } =
+      lastSendFile().source as { ByteContents?: { data?: number[]; file_name?: string } };
+    expect(source.ByteContents?.file_name).toBe('notes.md');
+    expect(source.ByteContents?.data).toEqual([1, 2, 3, 4]);
   });
 });
 

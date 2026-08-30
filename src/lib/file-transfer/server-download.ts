@@ -15,6 +15,7 @@
 
 import { eventEmitter } from '../event-emitter';
 import { failOnSocketLoss } from '../websocket/request-response';
+import { awaitPullCompletion, type PullOutcome } from '../websocket/pull-completion';
 import { websocketService } from '../websocket-service';
 import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
@@ -75,52 +76,32 @@ export function downloadFileFromServer(transfer: FileTransfer): Promise<string |
     requestId,
   });
 
-  return failOnSocketLoss('ServerDownload', new Promise<string | undefined>((resolve, reject) => {
-    const timeout: NodeJS.Timeout = setTimeout((): void => {
-      eventEmitter.off('websocket-message', handleMessage);
-      reject(new Error(`Download of "${transfer.fileName}" timed out.`));
-    }, TIMEOUT.FILE_SEND_MS);
+  // Correlation, the terminal tick variants and the local path all come from
+  // `awaitPullCompletion`, shared with the RE-VFS pull. This route used to have
+  // its own copy, which waited on a notification a pull never emits, correlated
+  // on the session cid so a concurrent transfer could settle it, and resolved a
+  // `download_path` field that does not exist on the wire. The RE-VFS copy was
+  // corrected long ago; this one was not, which is the whole argument for there
+  // being one copy.
+  const pull: Promise<PullOutcome> = awaitPullCompletion(
+    requestId,
+    TIMEOUT.FILE_SEND_MS,
+    'FileTransferIO',
+  );
 
-    const settle = (fn: () => void): void => {
-      clearTimeout(timeout);
-      eventEmitter.off('websocket-message', handleMessage);
-      fn();
-    };
+  return failOnSocketLoss('ServerDownload', (async (): Promise<string | undefined> => {
+    await websocketService.sendMessage(request as unknown as Record<string, unknown>);
 
-    const handleMessage = (message: unknown): void => {
-      const msg: Record<string, unknown> = message as Record<string, unknown>;
-
-      // The transfer itself completing (or failing) arrives as a status notification,
-      // matched on our own CID — the same correlation the RE-VFS path uses.
-      const status: { cid?: bigint; success?: boolean; response?: { download_path?: string; }; } | undefined = msg.FileTransferStatusNotification as
-        | { cid?: bigint; success?: boolean; response?: { download_path?: string } }
-        | undefined;
-      if (status && status.cid === cid) {
-        settle(() => {
-          if (status.success) {
-            resolve(status.response?.download_path);
-          } else {
-            reject(new Error(`Transfer of "${transfer.fileName}" failed on the server.`));
-          }
-        });
-        return;
-      }
-
-      // The request being rejected outright is correlated by request_id.
-      const failure: { request_id?: string; message?: string; } | undefined = msg.DownloadFileFailure as
-        | { request_id?: string; message?: string }
-        | undefined;
-      if (failure?.request_id === requestId) {
-        settle(() => reject(new Error(failure.message || 'DownloadFile was rejected.')));
-      }
-    };
-
-    eventEmitter.on('websocket-message', handleMessage);
-
-    websocketService.sendMessage(request as unknown as Record<string, unknown>).catch(error => {
-      settle(() => reject(error instanceof Error ? error : new Error(String(error))));
-    });
-  }));
+    const outcome: PullOutcome = await pull;
+    if (!outcome.success) {
+      // Rejects rather than resolving, so the caller marks the transfer errored.
+      // Resolving here is what let a failed download be reported as complete.
+      throw new Error(
+        `Download of "${transfer.fileName}" failed: ${outcome.message ?? 'no reason given'}.`
+      );
+    }
+    return outcome.downloadPath;
+  })());
 }
 
 /** Minimal surface `completeStagedDownload` needs from the transfer service. */

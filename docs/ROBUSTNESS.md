@@ -21221,6 +21221,64 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 491 — the async file transfer could never have worked, in four ways at once
+
+Backlog items 7 and 8 were both "the async download misreports itself". Reading
+them together turned out to be the point: they are the same defect as an
+already-fixed one, in a copy nobody carried the fix to.
+
+`revfs-io-download.ts` carries a comment describing, in detail, three mistakes it
+used to make. `server-download.ts` was still making all three:
+
+- It waited on `FileTransferStatusNotification`. The internal service emits that
+  from exactly one place — `respond_file_transfer.rs`, the accept/decline flow
+  for STANDARD transfers. A pull auto-accepts and reports through
+  `FileTransferTickNotification`, so **the success branch was unreachable** and
+  every staged download sat until its timeout.
+- It correlated on `status.cid === cid`. That is the SESSION's cid, present on
+  every transfer notification the session sees, so a concurrent transfer settled
+  an unrelated pending download.
+- It resolved `status.response?.download_path`. `response` is a plain `bool` on
+  the wire. That expression is `undefined` even on a match — the "saved to"
+  location shown to the user was a field that has never existed.
+
+Then the upload, which is worse. `transfer_type` was `'FileTransfer'` — the
+**live peer-to-peer** variant, which requires the recipient online to accept it.
+So async mode staged nothing at all. It opened a live transfer, returned
+`staged:{id}/{name}`, and a comment above that value said in as many words that
+it was NOT a server path — while `transfer-announcement.ts` shipped it to the
+peer as `virtual_path` and the peer sent it straight back as
+`DownloadFile.virtual_directory`. The recipient was asking the service to read a
+virtual directory called `staged:abc/notes.md`. The same comment claimed "the
+recipient learns the real virtual_path from the transfer notification"; the
+announcement carries exactly this value and there is no other source.
+
+`revfs-io-network.ts` had already been corrected to
+`RemoteEncryptedVirtualFilesystem`, with a comment saying why: it "is what
+creates the virtual_path key that DownloadFile addresses". Never carried across.
+
+**The existing unit test asserted the defect was correct** — that the value began
+with `staged:` and did *not* start with `/`. It pinned the bug in place, which is
+why nothing caught any of this.
+
+The fix is one implementation, not two corrected ones: `awaitPullCompletion` in
+`websocket/pull-completion.ts` now holds the correlation, the terminal tick
+variants and the local-path capture, and both routes call it. Duplication is what
+let one copy be fixed while the other went on being wrong; sharing it is what
+makes the next protocol change land once.
+
+Controls, all three red: restoring `'FileTransfer'` fails the staging
+assertions, restoring the `staged:` prefix fails the path assertions, and
+re-adding the cid-matched status branch fails the "not settled by another
+transfer" assertion. The RE-VFS refactor is guarded by its own pre-existing
+test, which stayed green throughout.
+
+**Not verified end to end.** These assert the request shape and the settlement
+logic against a mocked socket. Whether the service accepts this staging request
+and serves it back needs the live stack, which this campaign does not touch.
+What is proved is that the request is now the one the protocol defines, and that
+the pull settles on its own transfer — both of which were false before.
+
 ## Round 490 — an event named "cid-changed" that fired when the cid had not changed
 
 The same review pass called round 486's account-switch fix the one that was
