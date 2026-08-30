@@ -20493,3 +20493,35 @@ the wait resolve with the wrong group — caught. Dropping the propagation of
 `request_id` in `toGroupEvents` broke NOTHING: my test emitted the event
 directly, so the wire boundary was untested and the correlation could have died
 there silently. Two tests at the mapping level now, and the control fails.
+
+## Round 435 — confirmations, and one restraint
+
+Two fixes confirmed by CI this run. `Production Docker Build` passes, so round
+424's budget accounting was right. And shard 3/3's "notification centre fits the
+viewport" no longer appears — round 426 closed it, and the shard now fails on
+something else entirely.
+
+That something else is `screen-share`'s "the stroke fades away on its own",
+which asserts the annotation canvas returns to zero painted pixels and measured
+6,973. It passed in the two previous runs, at 5.2s and 5.8s, and nothing in
+rounds 423-430 touches annotations. The sequence in this run is the tell: the
+test BEFORE it, in the same file and sharing the same two sessions, failed and
+was retried, and a canvas is repainted by `requestAnimationFrame` over state
+that a retry re-seeds. Recorded as cross-test contamination on a shared session,
+not fixed on that hypothesis, because changing a spec I cannot run here on a
+theory is how a passing test becomes a differently-broken one.
+
+### Two dead selectors, and one live one left alone
+
+`workspace-button` and `sidebar-workspace` sat in a three-way union in
+`file-manager`, and the app has never rendered either. Removing them is
+behaviour-identical — the text matcher was doing all the work — and the testid
+baseline drops from five to three.
+
+The text matcher stays. `button:has-text("Workspace")` is a SUBSTRING match, so
+"Configure Workspace" and "Join New Workspace" are both candidates for
+`.first()`, which is exactly the ambiguity a testid would remove. But CI shows
+it matching and the click working, and which control it actually hits needs a
+run to observe. Naming the right button without knowing which one it is would
+trade a selector that works for one that might not. Written down instead, where
+the next person with a live stack can settle it in a minute.

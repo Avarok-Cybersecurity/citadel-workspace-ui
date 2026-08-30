@@ -39,8 +39,6 @@ const SPECS = join(ROOT, 'integration-tests', 'src');
  * may only SHRINK.
  */
 const KNOWN_MISSING = new Set([
-  'workspace-button',
-  'sidebar-workspace',
   'confirm-dialog',
 ]);
 

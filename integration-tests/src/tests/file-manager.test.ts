@@ -790,7 +790,14 @@ async function runTest(): Promise<boolean> {
 
     // Navigate Alice back to workspace for P2P registration
     console.log('\n  Navigating Alice back to workspace...');
-    const workspaceBtn = page1.locator('[data-testid="workspace-button"], [data-testid="sidebar-workspace"], button:has-text("Workspace")');
+    // `workspace-button` and `sidebar-workspace` were in this union and the app
+    // has never rendered either, so the text matcher was doing all of the work.
+    // It is left alone deliberately: CI shows it matching and the click
+    // working, and `has-text` is a SUBSTRING match, so "Configure Workspace"
+    // and "Join New Workspace" are both candidates for `.first()`. Which one it
+    // actually hits needs a run to observe, and guessing at a replacement here
+    // would trade a selector that works for one that might not.
+    const workspaceBtn = page1.locator('button:has-text("Workspace")');
     if (await workspaceBtn.first().isVisible().catch(() => false)) {
       await workspaceBtn.first().click();
       console.log('  Clicked Workspace sidebar button');
