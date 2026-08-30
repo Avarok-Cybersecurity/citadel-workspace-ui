@@ -81,7 +81,10 @@ async function openNotificationCenter(page: Page): Promise<boolean> {
   try {
     // Look for the bell icon button in the TopBar
     // It's a ghost button with a Bell icon
-    const bellButton = page.locator('button:has(svg.lucide-bell)').first();
+    // By testid, not by the icon inside it. `svg.lucide-bell` is lucide's own
+  // class name and nothing promises to keep it -- the responsive spec already
+  // says so and addresses this same control by name.
+  const bellButton = page.getByTestId('notification-bell').first();
 
     if (!(await isVisibleWithin(bellButton, 5000))) {
       console.log('  Bell icon not found');
@@ -251,7 +254,10 @@ async function closeNotificationCenter(page: Page): Promise<boolean> {
 async function checkBellIconVisible(page: Page): Promise<boolean> {
   console.log('\n=== Checking Bell Icon ===');
 
-  const bellButton = page.locator('button:has(svg.lucide-bell)').first();
+  // By testid, not by the icon inside it. `svg.lucide-bell` is lucide's own
+  // class name and nothing promises to keep it -- the responsive spec already
+  // says so and addresses this same control by name.
+  const bellButton = page.getByTestId('notification-bell').first();
   const visible = await isVisibleWithin(bellButton, 5000);
   console.log(`  Bell icon visible: ${visible}`);
   return visible;

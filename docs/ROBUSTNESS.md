@@ -20747,3 +20747,31 @@ initialization modal is wired to a real flag set from real workspace events
 (seeding just makes that path rare, which is not the same as dead), and the
 notification centre's own checks — bell, sheet, four tabs, empty state, clear
 all, item interaction — all pass and all gate.
+
+## Round 443 — the bell, pressed by an icon's class name
+
+Round 442 named the notification badge. The same file presses the BELL twice as
+`button:has(svg.lucide-bell)`, and `check-controls-are-addressed-by-testid`
+counts exactly that: a control found by copy — or by an icon library's internal
+class — in order to press it. Its baseline held one for this file.
+
+The bell has carried `data-testid="notification-bell"` all along; the responsive
+spec addresses it that way and its comment says why. This spec did not. Fixed,
+and the baseline ratchets 140 → 139.
+
+Two things I had wrong on the way, both corrected by looking rather than
+assuming:
+
+  - I thought the gate could not shrink, because it reported "ok" after round
+    442. It shrinks fine — round 442 simply changed nothing it counts. The gate
+    deliberately polices *pressing* by copy, not *asserting* on it, and the
+    badge is asserted. Its docstring says so: "Asserting on copy is often the
+    point."
+  - I thought my own comment quoting `svg.lucide-bell` might have offset the
+    count, the way a docstring tripped a gate in round 412. It does not: the
+    count needs an action on the line or a `const` assignment, and a comment is
+    neither. Checked rather than assumed, because that mistake has already been
+    made once this session.
+
+Control: a new copy-addressed press elsewhere fails the gate, and the restore
+was verified.
