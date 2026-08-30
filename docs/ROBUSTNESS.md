@@ -18559,3 +18559,50 @@ the explicit-types gate rejected twice for good reason — it was hard to read.
 `renderHook` says the same thing in four lines.
 
 2496 tests green, all 60 preflight checks.
+
+## Round 382 — "your workspace is empty" is advice, and it was wrong
+
+`loading-flag-timeout.ts` lowers a loading flag after 15s so a surface cannot
+spin forever, and its docstring calls the empty state "the honest fallback …
+at least a statement the user can act on".
+
+For a list that is true. For the node tree it is not, because what it renders is
+
+> Your workspace is empty. Click the + button to create your first space.
+
+That is **advice**, and following it after a load that never came back creates a
+duplicate space in a workspace whose contents merely did not arrive.
+
+`use-domain-members` had already reached the third answer for members — its own
+comment says *"there is a third answer, which is to say what happened"* — and
+`MembersEmptyState` renders it. The tree, the most-used surface in the app, was
+left on the second. A correct fix in one place.
+
+The deadline now records `nodesUnavailable` rather than only lowering the flag,
+an arriving answer clears it, and the tree says the spaces could not be loaded
+and that nothing has been deleted.
+
+**A control found half of it unverified.** Making the deadline set the flag
+`false` left the whole suite green — the tree tests pass the prop directly, so
+nothing exercised the writer. It now has two tests with fake timers and two
+controls of its own.
+
+**And removing a cast surfaced something bigger, which is being written down
+rather than rushed.** `WorkspaceEventState` and `WorkspaceState` had drifted
+into near-identical lists bridged by `state as WorkspaceState`, which is why a
+field added to one compiled fine and failed at the sidebar reading the other.
+Making it `extends` exposed a real mismatch the cast was hiding:
+`WorkspaceState.workspace.metadata` is declared `WorkspaceMetadataBytes` with
+the note *"Raw `Vec<u8>` from the wire. Decode it; do not read properties off
+it"*, while `useWorkspaceEventSetup` stores the JSON it parsed out of a payload
+whose own type is already `Record<string, unknown>` — and `WorkspaceThemeProvider`
+reads it as bytes.
+
+That is one representation question about a field this document records as
+having silently blocked the whole app once, when it was assigned over rather
+than merged into. It deserves a round of its own. So the interface now extends
+`Omit<WorkspaceState, 'workspace'>` — every other field is inherited, the drift
+class is closed for all of them, and the one genuine mismatch is named in the
+type rather than hidden under a cast.
+
+2501 tests green, all 60 preflight checks.

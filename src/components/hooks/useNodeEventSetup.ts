@@ -40,10 +40,15 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
           loading: { ...prev.loading, nodes: true },
         }));
         // listNodes resolves when the request is SENT. If the response never
-        // arrives the flag would stay raised and the tree would spin forever, so
-        // fall back to the empty state rather than an unresolvable spinner.
+        // arrives the flag would stay raised and the tree would spin forever.
+        // Lowering it is right; falling back to the EMPTY state is not, because
+        // "we never heard back" is not "you have nothing".
         armLoadingDeadline('nodes', () =>
-          setState(prev => ({ ...prev, loading: { ...prev.loading, nodes: false } }))
+          setState(prev => ({
+            ...prev,
+            loading: { ...prev.loading, nodes: false },
+            nodesUnavailable: true,
+          }))
         );
       }));
 
@@ -65,6 +70,8 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
             ...prev,
             nodes: updatedNodes,
             loading: { ...prev.loading, nodes: false },
+            // An answer arrived, so whatever the deadline concluded is stale.
+            nodesUnavailable: false,
           };
         });
       }));

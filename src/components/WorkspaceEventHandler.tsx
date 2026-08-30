@@ -1,8 +1,6 @@
 import { isPlaceholderName } from '@/lib/peer-display';
 import React, { useEffect, useState } from 'react';
 import { sessionGet, sessionRemove, sessionSet } from '@/lib/safe-session-storage';
-import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
-import type { User } from '../types/workspace-entities';
 import { WorkspaceProvider, WorkspaceState } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '../lib/workspace-service';
 import { WorkspaceInitializationModal } from './WorkspaceInitializationModal';
@@ -18,49 +16,38 @@ import {
 import { debugLog } from '@/lib/debug-config';
 import { WorkspaceThemeProvider } from './theme/WorkspaceThemeProvider';
 
-export interface WorkspaceEventState {
+/**
+ * The event handler's state.
+ *
+ * Structurally `WorkspaceState` plus `needsWorkspaceInitialization`, and passed
+ * to the provider through `state as WorkspaceState`. It should simply EXTEND
+ * it, and a field added here is otherwise invisible to consumers reading the
+ * other -- which is how `nodesUnavailable` compiled here and failed at the
+ * sidebar that needed it.
+ *
+ * Making it extend surfaces a genuine mismatch the cast has been hiding:
+ * `WorkspaceState.workspace.metadata` is declared `WorkspaceMetadataBytes`
+ * with the note "Raw `Vec<u8>` from the wire. Decode it; do not read properties
+ * off it", while `useWorkspaceEventSetup` stores the JSON it parsed out of a
+ * payload whose own type is already `Record<string, unknown>`. So the declared
+ * type is wrong for what flows, and `WorkspaceThemeProvider` reads it as bytes.
+ *
+ * That is one representation question for a field ROBUSTNESS.md records as
+ * having silently blocked the whole app once when it was assigned over rather
+ * than merged into. It is a round of its own, done carefully, not a side effect
+ * of adding a loading flag -- so the cast stays for now and the mismatch is
+ * written down rather than papered over silently.
+ */
+export interface WorkspaceEventState extends Omit<WorkspaceState, 'workspace'> {
   workspace?: {
     id: string;
     name: string;
+    description?: string;
     metadata?: Record<string, unknown>;
   };
-  nodes: Record<string, DomainNode>;
-  treeSchema: TreeSchema | null;
-  loading: {
-    workspace: boolean;
-    members: boolean;
-    nodes: boolean;
-  };
-  error?: string;
-  members: Record<string, User>;
   needsWorkspaceInitialization?: boolean;
-  protocolWarning?: {
-    message: string;
-    requestType: string;
-    timestamp: number;
-  };
-  messages: {
-    byPeer: Record<string, Array<{
-      content: string;
-      timestamp: number;
-      id?: string;
-      pending?: boolean;
-    }>>;
-    lastMessageTimestamp?: number;
-  };
-  typing: {
-    peerIds: string[];
-    lastUpdated: number;
-  };
-  currentUser?: {
-    id: string;
-    username: string;
-    name: string;
-    role?: string;
-    displayName?: string;
-    avatarUrl?: string;
-  };
 }
+
 
 /**
  * Component that handles workspace events and provides a central place
@@ -76,6 +63,7 @@ export const WorkspaceEventHandler: React.FC<{
     treeSchema: null,
     members: {},
     loading: { workspace: false, members: false, nodes: false },
+    nodesUnavailable: false,
     needsWorkspaceInitialization: false,
     messages: {
       byPeer: {} as Record<string, Array<{
@@ -167,7 +155,7 @@ export const WorkspaceEventHandler: React.FC<{
 
   return (
     <>
-      <WorkspaceProvider state={state as WorkspaceState}>
+      <WorkspaceProvider state={state as unknown as WorkspaceState}>
         {/* Inside WorkspaceProvider: the theme lives in the workspace's metadata,
             so it can only be read once the workspace is in context. */}
         <WorkspaceThemeProvider>{children}</WorkspaceThemeProvider>

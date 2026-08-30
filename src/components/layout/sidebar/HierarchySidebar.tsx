@@ -201,6 +201,7 @@ export function HierarchySidebar(): JSX.Element {
         onMoveNode={setMoveNode}
         title="HIERARCHY"
         isLoading={state.loading.nodes}
+        unavailable={state.nodesUnavailable}
       />
 
       <MoveNodeDialog

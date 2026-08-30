@@ -40,6 +40,14 @@ export interface TreeNodesSectionProps {
   title?: string;
   isLoading?: boolean;
   /**
+   * The node list's deadline expired without an answer.
+   *
+   * "Your workspace is empty. Click the + button to create your first space"
+   * is advice, and following it after a failed load creates a duplicate space
+   * in a workspace whose contents merely did not arrive.
+   */
+  unavailable?: boolean;
+  /**
    * Whether the tree schema has arrived. Creating a node needs it (the allowed
    * child types come from there), so until it does the create button cannot
    * succeed — it can only raise a "schema is still loading" error. Offering a
@@ -64,6 +72,7 @@ export function TreeNodesSection({
   onMoveNode,
   title = "HIERARCHY",
   isLoading = false,
+  unavailable = false,
   canCreate = true,
   initialExpandedIds = [],
   maxHeight = "50vh",
@@ -189,7 +198,18 @@ export function TreeNodesSection({
         </div>
         <SidebarGroupContent>
           <div className="px-3 py-2 text-sm text-muted-foreground">
-            {isLoading ? "Loading..." : "Your workspace is empty. Click the + button to create your first space."}
+            {isLoading ? (
+              "Loading..."
+            ) : unavailable ? (
+              <span data-testid="tree-unavailable">
+                Your spaces could not be loaded. Nothing has been deleted — reload, or open
+                another workspace and come back, to try again.
+              </span>
+            ) : (
+              <span data-testid="tree-empty">
+                Your workspace is empty. Click the + button to create your first space.
+              </span>
+            )}
           </div>
         </SidebarGroupContent>
       </SidebarGroup>

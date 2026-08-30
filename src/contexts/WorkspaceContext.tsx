@@ -28,6 +28,17 @@ export interface WorkspaceState {
     members: boolean;
     nodes: boolean;
   };
+  /**
+   * The node list's deadline expired without an answer.
+   *
+   * `loading.nodes` going false is not evidence the workspace is empty. The
+   * tree said "Your workspace is empty. Click the + button to create your first
+   * space" after a load that never came back -- and acting on that advice
+   * creates a duplicate space in a workspace whose contents merely failed to
+   * fetch. `use-domain-members` reached the same conclusion for members first.
+   */
+  nodesUnavailable: boolean;
+
   error?: string;
   protocolWarning?: {
     message: string;
@@ -55,6 +66,7 @@ const initialState: WorkspaceState = {
   currentUser: undefined,
   members: {},
   nodes: {},
+  nodesUnavailable: false,
   treeSchema: null,
   loading: {
     workspace: false,
