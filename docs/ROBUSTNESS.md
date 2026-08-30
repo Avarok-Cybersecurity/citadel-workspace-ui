@@ -20298,3 +20298,31 @@ Checked rather than assumed: `Peer Sees File` and `File visible` fail
 identically in the previous run, so they are not regressions from this
 session's work. They are the same mechanism — a tree change that has to reach a
 view — so the same line covers them.
+
+## Round 429 — a gate caught the gate I was writing
+
+Round 426 removed one `force: true` from the responsive suite with evidence
+behind it, and left five alone as unverifiable guesses. This adds the check that
+stops a sixth, baselining those five so the list can only shrink.
+
+Two things happened while writing it, and both are the point.
+
+**It is not a duplicate, and I checked before assuming it was.** A test called
+"the browser gates > never force a click" already exists — but it scans
+`scripts/*.mjs`, the browser-driving gates themselves, for the two defects a
+forced click hides there: a toast covering a submit button, and a disabled tab
+that swallowed the click. Mine scans the responsive spec. Same rule, different
+code.
+
+**And that existing test failed the moment my file landed.** My baseline listed
+each forced call verbatim, so this new script contained five copies of
+`.click({ force: true })` in a directory whose every script is scanned for
+exactly that. A baseline that quotes the pattern it polices trips the guard that
+polices its own directory. The list is keyed on the locator now — `button`,
+`toggle`, the theme tab — which identifies them just as well.
+
+Then it failed again, for the docstring: a gate explaining why forcing a click
+is wrong has to quote the thing it forbids. That is the round-412 lesson
+arriving from the other side, so the fix went into the OLD test rather than into
+my prose — it reads line by line and skips comments now. Control: a real forced
+click added to a gate is still caught, at the right line.

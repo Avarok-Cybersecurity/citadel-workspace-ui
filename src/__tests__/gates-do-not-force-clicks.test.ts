@@ -46,10 +46,19 @@ describe('the browser gates', () => {
       const source: string = readFileSync(file, 'utf-8');
       // `.click({ force: true })` only — `rm(dir, { force: true })` is a
       // filesystem call and has nothing to do with this.
-      for (const match of source.matchAll(/\.click\(\s*\{[^}]*force:\s*true/g)) {
-        const line: number = source.slice(0, match.index).split('\n').length;
-        forced.push(`${file.slice(SCRIPTS.length + 1)}:${line}`);
-      }
+      //
+      // Line by line, skipping comments. A gate that explains why forcing a
+      // click is wrong has to quote the thing it forbids, and this used to
+      // count that prose: `check-forced-clicks-are-justified.mjs` failed here
+      // for its own docstring. A check that flags its own explanation is one
+      // people learn to switch off.
+      source.split('\n').forEach((text: string, index: number): void => {
+        const trimmed: string = text.trim();
+        if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) return;
+        if (/\.click\(\s*\{[^}]*force:\s*true/.test(text)) {
+          forced.push(`${file.slice(SCRIPTS.length + 1)}:${index + 1}`);
+        }
+      });
     }
     expect(forced).toEqual([]);
   });
