@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { readerIdentity, type ReaderIdentity, type TabIdentity } from '@/lib/tab-identity';
 import { useTabIdentity } from '@/hooks/use-tab-identity';
+import { permits } from '@/hooks/use-permission-result';
 import { useChatSurface, type ChatSurface } from './chat-surface';
 import { useToast } from "@/hooks/use-toast";
 import { MDXProvider } from '@mdx-js/react';
@@ -62,7 +63,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   const domainId: string | undefined = nodeId;
 
   // Check if user can edit the MDX content using the permissions system
-  const { allowed: canEditMdx, reason: editDeniedReason } = usePermission(
+  const edit: ReturnType<typeof usePermission> = usePermission(
     domainId,
     Permission.EditMdx
   );
@@ -154,7 +155,12 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   }
 
   // Use permission check result, defaulting to true if no domain ID (demo mode)
-  const hasEditPermission: boolean = !domainId || canEditMdx;
+  // `permits`, not `allowed`. This read `canEditMdx` alone, so a user whose
+  // permissions had not loaded -- a cache MISS, which `hasPermission` reports
+  // as false -- was shown a disabled Edit button and a reason explaining why
+  // they may not, for a question nobody had answered.
+  const hasEditPermission: boolean = !domainId || permits(edit);
+  const editDeniedReason: string | null = edit.reason;
 
   // Get current user info from workspace state OR connection manager
   // State first, tab identity second — see `readerIdentity`.

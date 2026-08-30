@@ -18488,3 +18488,42 @@ fallback each fail exactly the case that names them.
 `unanswered` and `answered` exist, which belong together.
 
 2490 tests green, all 60 preflight checks.
+
+## Round 380 — the rule the gate already stated, enforced
+
+`check-permission-gates.mjs` opens with the sentence that describes round 379's
+bug exactly:
+
+> `hasPermission` from `usePermissions()` … reads the cache, and a domain nobody
+> loaded reads exactly like a denial.
+
+Its remedy was "go through `usePermission` instead". That was necessary and
+**not sufficient**, because `usePermission` returned `allowed: false` on a cache
+miss too. Three consumers had obeyed the rule and still refused users things
+they were entitled to:
+
+| consumer | not-a-denial states handled |
+|---|---|
+| `OfficeChatTabs` | 3 of 4 — missed `answered` (round 379) |
+| `WorkspaceAppearanceSection` | 2 of 4 — `loading`, `unanswered` |
+| `BaseOffice` | **0 of 4** — `!domainId \|\| canEditMdx` |
+
+`BaseOffice` is a new finding: a user whose permissions had not loaded got a
+disabled Edit button *and a reason explaining why they may not*, for a question
+nobody had answered.
+
+Spelling four terms at each call site is how they drifted, so `permits()` is
+that expression in one place, and the gate now requires a file that decides on
+`allowed` to ask it. Controls: each of the three consumers reverted to
+`allowed` fails the gate, and `permits` itself has two — dropping `!answered`
+fails the four-states test, and returning `true` always fails the positive
+control, which exists because `() => true` would otherwise satisfy everything
+and make every permission in the app unenforceable.
+
+One control was mis-constructed first: my shell used `|` as a field separator
+against an expression containing `||`, so the substitution silently truncated
+and the gate "passed". Redone in python, it fails. A control that does not
+actually apply the defect is a control that proves nothing, which is the same
+mistake as a test that cannot fail.
+
+2492 tests green, all 60 preflight checks.

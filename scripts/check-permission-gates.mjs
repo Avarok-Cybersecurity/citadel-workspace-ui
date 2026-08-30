@@ -21,6 +21,17 @@
  * So: reading permission state to DISPLAY it is fine — a permission matrix has
  * to render what the cache holds. Reading it to decide whether a control works
  * is not, and any file that needs to must say why here.
+ *
+ * That was necessary and NOT SUFFICIENT. `usePermission` returned `allowed:
+ * false` on a cache miss too, so three consumers that had obeyed this rule
+ * still refused users things they were entitled to: the office composer had
+ * three of the four not-a-denial states, the theme editor had two, and
+ * `BaseOffice` had none. Four states are not "no" — allowed, loading,
+ * unanswered, and no stored answer — and spelling them at each call site is how
+ * they drifted apart.
+ *
+ * The second rule, therefore: a file that GATES on `usePermission` must ask
+ * `permits(...)`, which is that expression in one place.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -69,11 +80,33 @@ const files = walk(join(APP, 'src'))
   .filter((f) => f !== 'src/contexts/PermissionsContext.tsx');
 
 const offenders = [];
+/** Files that gate on usePermission without going through `permits`. */
+const spelledOut = [];
 for (const file of files) {
   const source = readFileSync(resolve(APP, file), 'utf-8');
+
+  if (/\busePermission\s*\(/.test(source) && !DISPLAYS_RATHER_THAN_GATES.has(file)) {
+    // Reading `.allowed` (or destructuring it) is what a gate does. A file that
+    // only passes the whole result around is not deciding anything here.
+    const readsAllowed = /allowed\s*:/.test(source) || /\.allowed\b/.test(source);
+    if (readsAllowed && !/\bpermits\s*\(/.test(source)) spelledOut.push(file);
+  }
+
   if (!CALLS.test(source)) continue;
   if (DISPLAYS_RATHER_THAN_GATES.has(file)) continue;
   offenders.push(file);
+}
+
+if (spelledOut.length > 0) {
+  console.error('\n  A permission gate must ask permits(), not allowed:\n');
+  for (const file of spelledOut) {
+    console.error(
+      `::error file=citadel-workspaces/${file}::${relative('src', file)} decides on \`allowed\` alone. ` +
+        'Four states are not the answer "no" -- allowed, loading, unanswered, and no stored answer at all -- ' +
+        'and `permits()` in hooks/use-permission-result.ts is that expression in one place.',
+    );
+  }
+  process.exit(1);
 }
 
 if (offenders.length > 0) {

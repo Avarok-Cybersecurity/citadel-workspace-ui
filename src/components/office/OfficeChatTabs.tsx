@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import GroupChatView from '@/components/chat/GroupChatView';
 import { GroupCallControls , type GroupCallMember } from '@/components/call/GroupCallControls';
 import { usePermission } from '@/hooks/use-permission';
+import { permits } from '@/hooks/use-permission-result';
 import type { GroupRestriction } from '@/components/chat/group-restriction';
 import { Permission } from '@/lib/permissions-service/types';
 import { GroupCallDock } from '@/components/call/GroupCallDock';
@@ -43,22 +44,9 @@ export function OfficeChatTabs({
   // roles, so its only two answers are the permission's.
   const send: ReturnType<typeof usePermission> = usePermission(nodeId, Permission.SendMessages);
 
-  // Three things that are NOT the answer "no", and reading any of them as a
-  // denial takes the composer away and blames the reader's permissions:
-  //
-  //   - `loading`: nobody has answered yet;
-  //   - `unanswered`: the retry budget ran out, which is a failed request;
-  //   - `!answered`: no answer for this domain has been stored. `hasPermission`
-  //     returns false for a cache MISS, which is indistinguishable here from a
-  //     real denial, and covers both "there is no domain to ask about" and "we
-  //     have never been told about this one". BaseOffice spells the same
-  //     convention two files away as `!domainId || canEditMdx`, and this line
-  //     was written without it -- so every user in a three-user office run was
-  //     told "You do not have permission to send messages here."
-  const sendRestriction: GroupRestriction =
-    send.allowed || send.loading || send.unanswered || !send.answered
-      ? 'allowed'
-      : 'denied-by-role';
+  // `permits`, not `allowed`: four states are not the answer "no", and this
+  // site had three of them. See hooks/use-permission-result.ts.
+  const sendRestriction: GroupRestriction = permits(send) ? 'allowed' : 'denied-by-role';
 
   return (
     <div className="w-full h-full flex flex-col">

@@ -5,6 +5,7 @@ import { Palette } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { usePermissions, Permission } from '@/contexts/PermissionsContext';
 import { usePermission } from '@/hooks/use-permission';
+import { permits } from '@/hooks/use-permission-result';
 import { useWorkspaceTheme } from '@/lib/theme/workspace-theme-context';
 import { serializeTheme } from '@/lib/theme/theme-serialization';
 import WorkspaceService from '@/lib/workspace-service';
@@ -62,7 +63,10 @@ export function WorkspaceAppearanceSection(): JSX.Element {
   const root: ReturnType<typeof usePermission> = usePermission(WORKSPACE_ROOT_ID, Permission.Themes);
   const own: ReturnType<typeof usePermission> = usePermission(workspaceId, Permission.Themes);
 
-  const canEdit: boolean = root.allowed || own.allowed;
+  // `permits`, not `allowed`: this had two of the four not-a-denial states
+  // and missed `answered`, so a cache miss showed the workspace's own owner a
+  // read-only theme editor. See hooks/use-permission-result.ts.
+  const canEdit: boolean = permits(root) || permits(own);
 
   // "Not an admin" and "we never got an answer" are different sentences, and
   // only the second one is a fault worth reporting. `usePermission` already

@@ -38,3 +38,29 @@ export interface UsePermissionResult {
   /** Force refresh the permission check */
   refresh: () => Promise<void>;
 }
+
+/**
+ * Whether this answer permits the control, treating every not-a-denial as yes.
+ *
+ * There are four states that are not the answer "no", and each one was learned
+ * from a surface that had refused a user something they were entitled to:
+ *
+ *   - `allowed`   — the answer was yes;
+ *   - `loading`   — nobody has answered yet;
+ *   - `unanswered`— the retry budget ran out, so this is a failed request;
+ *   - `!answered` — no answer for this domain is stored at all, which
+ *                   `hasPermission` reports as `false`, indistinguishable from
+ *                   a refusal.
+ *
+ * Spelling that out at each call site is how they drifted: the office composer
+ * had three of the four and withheld itself from every user in a three-user
+ * run; the theme editor had two; `BaseOffice` had none and disabled Edit for
+ * anyone whose permissions had not loaded.
+ *
+ * A gate that hides a control must therefore ask this, not `allowed`. Reading
+ * `allowed` to DISPLAY the permission itself is a different question and stays
+ * fine.
+ */
+export function permits(result: UsePermissionResult): boolean {
+  return result.allowed || result.loading || result.unanswered || !result.answered;
+}
