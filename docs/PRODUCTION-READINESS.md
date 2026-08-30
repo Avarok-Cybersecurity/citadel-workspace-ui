@@ -8,8 +8,8 @@ stack or a WASM rebuild), `wontfix` (with a reason).
 
 The goal this backlog serves: no critical, high or medium issue left open.
 
-**Progress: 14 of 49 fixed** — every critical and every HIGH is closed;
-1 of 25 medium. 24 open at medium; 11 low.
+**Progress: 16 of 49 fixed** — every critical and every HIGH is closed;
+3 of 25 medium. 22 open at medium; 11 low.
 
 Two rounds of adversarial re-review have since been run over the fixes
 themselves. They confirmed every one as correct, and found nine further defects
@@ -36,11 +36,11 @@ account switch fired on every reconnect. Those are recorded as rounds 489 and
 | 14 | medium | open | rust-internal-service | PeerRegister/PeerConnect/Disconnect notifications broadcast to every connection on stale uuid - the cross-user leak the twin paths were fixed to stop | `citadel-internal-service/citadel-internal-service/src/kernel/responses/peer_event.rs:53` |
 | 15 | medium | open | rust-server-authz | Group-chat send is gated on ViewContent, so read-only (Guest/muted) accounts can post | `citadel-workspace-server-kernel/src/kernel/command_processor/async_process_command.rs:621` |
 | 16 | medium | open | rust-server-authz | User records are read-modify-written with no lock; concurrent updates are silently lost while reporting success | `citadel-workspace-server-kernel/src/handlers/domain/server_ops/async_domain_server_ops.rs:517` |
-| 17 | medium | open | rust-server-authz | UpdateNode's structural broadcast omits is_default, so a changed default room reaches no other client | `citadel-workspace-server-kernel/src/kernel/command_processor/async_process_command.rs:1044` |
+| 17 | medium | fixed | rust-server-authz | UpdateNode's structural broadcast omits is_default, so a changed default room reaches no other client | `citadel-workspace-server-kernel/src/kernel/command_processor/async_process_command.rs:1044` |
 | 18 | medium | open | rust-server-authz | delete_workspace orphans the workspace's entire node subtree and keeps its chat channels live | `citadel-workspace-server-kernel/src/handlers/domain/server_ops/async_domain_server_ops.rs:869` |
 | 19 | medium | open | rust-server-protocol | Deleting a room purges chat history by node id, but messages are keyed by chat_channel_id — history is never deleted | `citadel-workspace-server-kernel/src/handlers/domain/async_ops/async_node_ops.rs:475` |
 | 20 | medium | open | rust-server-protocol | add_user_to_domain runs the last-admin check and the role write outside lock_workspaces, breaking the documented race guard | `citadel-workspace-server-kernel/src/handlers/domain/server_ops/async_domain_server_ops.rs:352` |
-| 21 | medium | open | rust-server-protocol | Changing the default office is never broadcast: is_default is missing from the UpdateNode broadcast condition, and the cleared old default is never sent at all | `citadel-workspace-server-kernel/src/kernel/command_processor/async_process_command.rs:1044` |
+| 21 | medium | fixed | rust-server-protocol | Changing the default office is never broadcast: is_default is missing from the UpdateNode broadcast condition, and the cleared old default is never sent at all | `citadel-workspace-server-kernel/src/kernel/command_processor/async_process_command.rs:1044` |
 | 22 | medium | open | rust-wasm-client | One failed restart() permanently bricks the WASM-layer automatic reconnection: state is destroyed before connecting, and the gate then rejects every retry | `citadel-internal-service/citadel-internal-service-wasm-client/src/lib.rs:270` |
 | 23 | medium | open | rust-wasm-client | A deliberate restart()/close_connection() fires the 'connection died' callback, so deliberate teardowns re-trigger the retry modal and stop background services | `citadel-internal-service/citadel-internal-service-wasm-client/src/lib.rs:391` |
 | 24 | medium | open | ts-calls | Media session confirmed after the call ended is registered and never closed | `citadel-workspaces/src/lib/call/media-session-lifecycle.ts:54` |

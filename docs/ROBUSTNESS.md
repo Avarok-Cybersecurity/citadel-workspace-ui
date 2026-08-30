@@ -21221,6 +21221,46 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 496 — the same list, kept in two places, drifted
+
+Backlog items 17 and 21 are one defect described twice. `UpdateNode` decides two
+things from the same question — "does this change structure?" — and each decision
+had its own hand-written copy of the field list:
+
+- the permission gate in `async_node_ops::update_node`, choosing between
+  `EditTreeStructure` and `EditMdx`;
+- the command processor, choosing whether to broadcast the changed node.
+
+`is_default` was added to the request, honoured by the writer, and added to the
+permission gate. It was never added to the broadcast condition. So "Set as
+default" was written on the server, acknowledged to the caller, and announced to
+nobody: every other client kept its old default until it reloaded. **The setting
+worked for exactly one person at a time.**
+
+The list lives once now, in `update_changes_structure`, and the test asserts both
+call sites ask it *and* that neither still carries a hand-rolled chain beside it
+— the second half matters, because a copy that merely also exists is how this
+happened.
+
+**Fixing the broadcast alone would have produced a different wrong state.** The
+server's invariant is "exactly one node is the default", and setting one clears
+the flag on every other under the same save. The broadcast carries only the node
+that was set, so a client applying it learns the new default and never learns the
+old one was cleared — two flagged nodes, with `Office.tsx` resolving the landing
+room by `Object.values(...).find(n => n.is_default)`, whichever comes first.
+Different clients would open on different rooms.
+
+So the invariant is stated on both sides: the server writes it, and `upsertNode`
+— the single place a node enters client state — maintains it. Only on `true`:
+clearing on every upsert would wipe the default whenever an unrelated node was
+renamed, and `is_default: false` on the current default is a legitimate request
+that must not promote something else. That is the same rule the server states at
+its own write, and the test pins all four cases.
+
+**A field can be added correctly to three of four places and be inert.** The
+request type, the writer and the permission gate all knew about `is_default`.
+The fourth place is what made it a feature nobody else could see.
+
 ## Round 495 — a file offer acknowledged as delivered and then lost
 
 The last high. `FileTransferMessageHandler` built its `P2PMessage`, pushed it

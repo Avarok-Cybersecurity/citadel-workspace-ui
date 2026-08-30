@@ -35,10 +35,28 @@ export function upsertNode(
   setState: SetState,
   node: DomainNode,
 ): void {
-  setState(prev => ({
-    ...prev,
-    nodes: { ...prev.nodes, [node.id]: node },
-  }));
+  setState(prev => {
+    // "Exactly one node is the default" is the server's invariant: setting
+    // `is_default` on one node clears it on every other, under the same lock and
+    // the same save. But the broadcast carries only the node that was SET, so a
+    // client applying it learns the new default and never learns the old one was
+    // cleared -- leaving two flagged nodes, with `Office.tsx` resolving the
+    // landing room by `find(n => n.is_default)`, whichever comes first.
+    //
+    // Only on `true`. Clearing here for every upsert would wipe the default
+    // whenever any unrelated node was renamed, and `is_default: false` on the
+    // current default is a legitimate request that must not promote something
+    // else -- the same rule the server states at its own write.
+    const nodes: Record<string, DomainNode> = { ...prev.nodes, [node.id]: node };
+    if (node.is_default) {
+      for (const [id, existing] of Object.entries(nodes)) {
+        if (id !== node.id && existing.is_default) {
+          nodes[id] = { ...existing, is_default: false };
+        }
+      }
+    }
+    return { ...prev, nodes };
+  });
 }
 
 /** Remove a node and its cascaded children from the nodes map. */
