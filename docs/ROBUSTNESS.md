@@ -18972,3 +18972,52 @@ messages are. Recorded rather than guessed at: it needs the running stack to
 answer, and the instrumentation that makes it answerable is already in the log.
 
 2515 tests green, all 61 preflight checks.
+
+## Round 392 — the instrumentation answered, and the answer was a chain
+
+Round 386 replaced one ambiguous sentence with three distinguishable ones. The
+next run said:
+
+    WARNING: Message input not found -- the composer was replaced by a
+    restriction notice: "You do not have permission to send messages here."
+
+Four rounds of plausible guesses, closed by one line. It is the permission path:
+`permits` false, which requires an answer that ARRIVED and withheld the
+permission — not an absence.
+
+The reason it arrived and withheld it is one level below round 379.
+`hasPermission` denies on the domain's own entry and only *then* falls back to
+the workspace root:
+
+```ts
+const cached = cache.get(domainId);
+if (cached) { ...checks... }
+if (domainId !== WORKSPACE_ROOT_ID) { const root = cache.get(WORKSPACE_ROOT_ID); ... }
+return false;
+```
+
+`hasAnswerFor` counted the domain's own entry as a complete answer. So an office
+node that grants nothing, while the workspace root has never been fetched,
+produced a definite-looking refusal for a permission the root confers — and the
+composer went away with it.
+
+An answer is complete only when the **inheritance chain** has answered. A root
+entry alone still counts, because a domain with no entry of its own is answered
+entirely by the fallback; what does not count is a domain entry with nothing
+behind it.
+
+This only ever loosens denials: if the domain GRANTS the permission, `allowed`
+is true and nothing changes. The rule is precisely "do not refuse on half an
+answer".
+
+Three tests had encoded the old rule and were rewritten to the new one, with the
+distinction as the point rather than incidental. Controls: the node alone
+counting as a full answer, and nothing ever answering.
+
+Also added, because CI should not have to be asked twice: when the composer is
+withheld, the app now logs the role, the domain and all four permission states.
+The reader still sees "you do not have permission", which is the truthful
+sentence for them; the role and the domain are for whoever is reading a failing
+run.
+
+2516 tests green, all 61 preflight checks.

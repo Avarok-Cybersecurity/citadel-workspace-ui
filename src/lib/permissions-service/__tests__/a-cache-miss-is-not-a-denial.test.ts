@@ -7,9 +7,12 @@
  * `SendMessages`, and the answer for that domain had never been stored. Nothing
  * at the call site could tell that from a real refusal.
  *
- * `hasAnswerFor` is that difference. The workspace root counts, because
- * `hasPermission` falls back to it — a root entry is an answer for every domain
- * beneath it, which is exactly why a miss on the child is not "no".
+ * `hasAnswerFor` is that difference, and it is about the whole INHERITANCE
+ * CHAIN. `hasPermission` denies on a domain's own entry and only then falls back
+ * to the workspace root, so a node that grants nothing while the root has never
+ * been fetched produces a definite-looking refusal for a permission the root may
+ * confer. CI showed that too: an office composer replaced by "You do not have
+ * permission to send messages here" for a user whose role grants it.
  */
 import { describe, it, expect } from 'vitest';
 import { hasAnswerFor, hasPermission } from '../cache';
@@ -30,13 +33,26 @@ describe('whether an answer exists', () => {
     expect(hasPermission(cache, 'node-1', Permission.SendMessages)).toBe(false);
   });
 
-  it('is true once that domain has answered', () => {
-    // The positive control: a version returning false always would satisfy the
-    // test above and make every permission unenforceable.
+  it('is not satisfied by the domain alone, because the root can still grant it', () => {
+    // The node answered and granted nothing; the root has never been fetched.
+    // `hasPermission` says false, and that false is not yet a fact.
     const cache: Map<string, DomainPermissions> = new Map([['node-1', entry([])]]);
+
+    expect(hasPermission(cache, 'node-1', Permission.SendMessages)).toBe(false);
+    expect(hasAnswerFor(cache, 'node-1')).toBe(false);
+  });
+
+  it('is true once the chain has answered', () => {
+    // The positive control: a version returning false always would satisfy
+    // every test above and make every permission unenforceable.
+    const cache: Map<string, DomainPermissions> = new Map([
+      ['node-1', entry([])],
+      [WORKSPACE_ROOT_ID, entry([])],
+    ]);
     expect(hasAnswerFor(cache, 'node-1')).toBe(true);
 
-    // And an answer that grants nothing is still an answer -- a real denial.
+    // And an answer that grants nothing, with nothing above it to inherit from,
+    // is a real denial.
     expect(hasPermission(cache, 'node-1', Permission.SendMessages)).toBe(false);
   });
 

@@ -20,6 +20,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';
 import { Permission } from '../types';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
 const currentUser: { id: string } = { id: 'alice' };
 
@@ -36,14 +37,22 @@ const { PermissionsService } = await import('../service');
 const permissionsService: ReturnType<typeof PermissionsService.getInstance> =
   PermissionsService.getInstance();
 
-/** Fill the cache the way a real load does. */
+/**
+ * Fill the cache the way a real load does.
+ *
+ * The workspace root too, because `hasAnswerFor` is about the inheritance
+ * chain: a node entry with no root behind it is not a complete answer, since
+ * the root is where an inherited grant would come from.
+ */
 function loadPermissionsFor(userId: string): void {
-  eventEmitter.emit('user:permissions:loaded', {
-    userId,
-    domainId: 'node-1',
-    role: 'Member',
-    permissions: [Permission.SendMessages],
-  });
+  for (const domainId of ['node-1', WORKSPACE_ROOT_ID]) {
+    eventEmitter.emit('user:permissions:loaded', {
+      userId,
+      domainId,
+      role: 'Member',
+      permissions: [Permission.SendMessages],
+    });
+  }
 }
 
 describe('a permissions change', () => {

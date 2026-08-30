@@ -5,6 +5,9 @@ import GroupChatView from '@/components/chat/GroupChatView';
 import { GroupCallControls , type GroupCallMember } from '@/components/call/GroupCallControls';
 import { usePermission } from '@/hooks/use-permission';
 import { permits } from '@/hooks/use-permission-result';
+import { permissionsService } from '@/lib/permissions-service';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import { debugLog } from '@/lib/debug-config';
 import type { GroupRestriction } from '@/components/chat/group-restriction';
 import { Permission } from '@/lib/permissions-service/types';
 import { GroupCallDock } from '@/components/call/GroupCallDock';
@@ -47,6 +50,30 @@ export function OfficeChatTabs({
   // `permits`, not `allowed`: four states are not the answer "no", and this
   // site had three of them. See hooks/use-permission-result.ts.
   const sendRestriction: GroupRestriction = permits(send) ? 'allowed' : 'denied-by-role';
+
+  // A refusal here removes the composer, and CI has now shown one happening to
+  // a user who should have been able to send. `permits` is false only when an
+  // answer arrived AND withheld the permission, so the useful thing to know is
+  // what that answer said -- the role it came with, and which domain it was
+  // about, since `hasPermission` falls back to the workspace root.
+  //
+  // Logged rather than shown: the reader is told "you do not have permission",
+  // which is the truthful sentence for them; the role and the domain are for
+  // whoever is reading a failing run.
+  if (sendRestriction === 'denied-by-role') {
+    debugLog(
+      'OfficeChatTabs',
+      'composer withheld',
+      {
+        nodeId,
+        role: permissionsService.getRole(nodeId ?? WORKSPACE_ROOT_ID),
+        allowed: send.allowed,
+        answered: send.answered,
+        loading: send.loading,
+        unanswered: send.unanswered,
+      },
+    );
+  }
 
   return (
     <div className="w-full h-full flex flex-col">

@@ -89,14 +89,28 @@ export function hasPermission(
  * composer with "You do not have permission to send messages here" for every
  * user in a three-user run, because the answer had never been stored.
  *
- * The workspace root counts, because `hasPermission` falls back to it: a root
- * entry IS an answer for every domain beneath it.
+ * The whole INHERITANCE CHAIN has to have answered, not just the domain asked
+ * about. `hasPermission` denies on the domain's own entry and only then falls
+ * back to the workspace root — so a node that grants nothing while the root has
+ * never been fetched produces a definite-looking refusal for a permission the
+ * root may well confer.
+ *
+ * CI showed exactly that: an office chat composer replaced by "You do not have
+ * permission to send messages here" for a user whose role grants it.
+ *
+ * A root entry alone still counts, because a domain with no entry of its own is
+ * answered entirely by the fallback. What does not count is a domain entry
+ * without the root behind it.
  */
 export function hasAnswerFor(
   cache: Map<string, DomainPermissions>,
   domainId: string,
 ): boolean {
-  return cache.has(domainId) || cache.has(WORKSPACE_ROOT_ID);
+  if (domainId === WORKSPACE_ROOT_ID) return cache.has(WORKSPACE_ROOT_ID);
+  if (cache.has(WORKSPACE_ROOT_ID)) return true;
+  // The domain answered and the root did not, so a denial here is not yet a
+  // fact: the permission it withheld may be inherited.
+  return false;
 }
 
 /**
