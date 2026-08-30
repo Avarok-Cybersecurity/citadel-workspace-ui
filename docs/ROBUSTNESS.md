@@ -21221,6 +21221,36 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 472 — an installer nothing calls, as a check
+
+Round 471's third control is the one worth generalising. `bindPeerGroupDelivery`
+was written, tested three ways, and inert: the single line calling it from
+`startGroupEventBindings` was what made any of it run, and commenting that line
+out left the whole suite green. The tests called the binding themselves, and a
+test that constructs the thing it tests cannot say whether production does.
+
+The two gates beside this one both miss it. `check-modules-are-imported` sees
+the module imported — by its own test. `check-components-are-mounted` only knows
+about components, and an installer renders nothing.
+
+`check-installers-are-called.mjs` requires every exported
+`bind…`/`start…`/`setup…`/`register…`/`install…`/`mount…` function to have a
+caller in production code. No baseline: the tree passes outright.
+
+### The scan was satisfied by a comment
+
+The first version reported "0 uncalled" against a tree where the call had been
+commented out — `// bindPeerGroupDelivery();` matched the text scan perfectly.
+It only came to light because the control was run against the real regression
+rather than trusting a green result on a clean tree. Comments are stripped
+first now, and both removal forms — commented out, and deleted outright — are
+controlled.
+
+That is twice in three rounds that a check written to catch a defect could be
+satisfied by the defect. The habit that catches it is the same each time: run
+the control against the actual regression, and treat a check that passes when
+it should fail as broken, not as good news.
+
 ## Round 471 — the half of round 470 that would have shipped broken
 
 Round 470 wired a peer-group message into `group:message-received`, which drives
