@@ -21221,6 +21221,32 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 507 — a finding that was not true, checked rather than built
+
+Backlog 18: "delete_workspace orphans the workspace's entire node subtree and
+keeps its chat channels live."
+
+It does not, and the reason is structural. `DomainNode` carries no workspace
+reference at all — `parent_id: None` *means* "this is the workspace root", and
+there is exactly one tree, hanging off the root workspace. `create_workspace`
+mints only a `Workspace` record and a `Domain::Workspace`; it creates no nodes.
+And `delete_workspace` refuses the root outright ("Cannot delete the root
+workspace"). So a deletable workspace owns no nodes: there is no subtree to
+orphan, and no chat channel to keep live, because channels live on nodes.
+
+Recorded as refuted with the evidence, not fixed.
+
+The residual is real but small: each member's `user.permissions[workspace_id]`
+entry survives the deletion. Those entries are unreachable — non-root workspace
+ids are server-minted UUIDs, so no later workspace can inherit them — leaving
+unbounded growth across deletions and nothing else. Filed as a low.
+
+**Two of the last three investigations refuted their finding.** The multiplexing
+premise did not hold (per-account ILMs and a C2S bypass already exist), and this
+one does not either. Both took less time to disprove than to implement, and
+building either would have produced code that defends against nothing while
+reading as though it defends against something.
+
 ## Round 506 — a stale uuid told everyone
 
 Backlog 14. When the uuid recorded on a peer event was not in the localhost-client

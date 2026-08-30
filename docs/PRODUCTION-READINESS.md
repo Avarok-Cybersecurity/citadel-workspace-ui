@@ -10,7 +10,7 @@ The goal this backlog serves: no critical, high or medium issue left open.
 
 **Progress: 36 of 49 fixed** — every critical and every HIGH is closed;
 22 of 25 medium plus one found outside the inspection (round 502, ILM
-cumulative-ACK clearing). 3 open at medium; 11 low.
+cumulative-ACK clearing). 2 open at medium; 12 low.
 
 Two rounds of adversarial re-review have since been run over the fixes
 themselves. They confirmed every one as correct, and found nine further defects
@@ -38,7 +38,7 @@ account switch fired on every reconnect. Those are recorded as rounds 489 and
 | 15 | medium | fixed | rust-server-authz | Group-chat send is gated on ViewContent, so read-only (Guest/muted) accounts can post | `citadel-workspace-server-kernel/src/kernel/command_processor/async_process_command.rs:621` |
 | 16 | medium | fixed | rust-server-authz | User records are read-modify-written with no lock; concurrent updates are silently lost while reporting success | `citadel-workspace-server-kernel/src/handlers/domain/server_ops/async_domain_server_ops.rs:517` |
 | 17 | medium | fixed | rust-server-authz | UpdateNode's structural broadcast omits is_default, so a changed default room reaches no other client | `citadel-workspace-server-kernel/src/kernel/command_processor/async_process_command.rs:1044` |
-| 18 | medium | open | rust-server-authz | delete_workspace orphans the workspace's entire node subtree and keeps its chat channels live | `citadel-workspace-server-kernel/src/handlers/domain/server_ops/async_domain_server_ops.rs:869` |
+| 18 | medium | wontfix | rust-server-authz | delete_workspace orphans the workspace's entire node subtree and keeps its chat channels live | `citadel-workspace-server-kernel/src/handlers/domain/server_ops/async_domain_server_ops.rs:869` | — **refuted**: a non-root workspace owns no nodes (`create_workspace` mints only a Workspace record and a `Domain::Workspace`; `DomainNode` has no workspace field and `parent_id: None` *means* the workspace root), and `delete_workspace` refuses the root outright. There is no subtree to orphan and no chat channel to keep live. Residual: stale `user.permissions[deleted_id]` entries accumulate, unreachable because ids are server-minted UUIDs — recorded as #55. |
 | 19 | medium | fixed | rust-server-protocol | Deleting a room purges chat history by node id, but messages are keyed by chat_channel_id — history is never deleted | `citadel-workspace-server-kernel/src/handlers/domain/async_ops/async_node_ops.rs:475` |
 | 20 | medium | fixed | rust-server-protocol | add_user_to_domain runs the last-admin check and the role write outside lock_workspaces, breaking the documented race guard | `citadel-workspace-server-kernel/src/handlers/domain/server_ops/async_domain_server_ops.rs:352` |
 | 21 | medium | fixed | rust-server-protocol | Changing the default office is never broadcast: is_default is missing from the UpdateNode broadcast condition, and the cleared old default is never sent at all | `citadel-workspace-server-kernel/src/kernel/command_processor/async_process_command.rs:1044` |
@@ -79,6 +79,7 @@ account switch fired on every reconnect. Those are recorded as rounds 489 and
 | 51 | medium | open | ILM workflow | A wedged peer grows ILM's pending-outbound queue for that peer forever — stop-and-wait never gives up and nothing caps or ages the queue | `intersession-layer-messaging/src/lib.rs` process_outbound |
 | 52 | medium | open | ILM workflow | Internal-service `Message` tasks pile up awaiting one peer's `Arc<Mutex<AsyncSink>>` with no cap and no timeout, so a wedged peer accumulates unbounded spawned tasks | `citadel-internal-service/src/kernel/requests/message.rs:60` |
 | 53 | low | open | ILM workflow | Every browser→internal-service buffer is an `UnboundedSender` (SINK_CHANNEL, bypass_ism_tx_to_outbound, final_tx, per-ILM pairs): a slow localhost WebSocket grows memory silently instead of applying backpressure | connector `messenger/mod.rs` |
+| 55 | low | open | round 507 | `delete_workspace` leaves each member's `user.permissions[workspace_id]` entry behind; unreachable (ids are server-minted UUIDs) but unbounded across deletions | `async_domain_server_ops.rs` delete_workspace |
 | 54 | low | open | ILM workflow | A single urgent message waits 0–200ms (mean ~100ms) for the next poll: `send_raw_message` deliberately does not nudge `poll_outbound_tx` because an earlier nudge caused an infinite feedback loop | `intersession-layer-messaging/src/lib.rs:1372` |
 
 **Multiplexing: the premise does not hold.** Per-account ILMs already exist (one per
