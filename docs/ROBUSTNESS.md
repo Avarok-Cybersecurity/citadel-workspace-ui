@@ -20009,3 +20009,43 @@ beside the existing one asserting the filter still filters.
 Control: dropping `group` fails that new case alone.
 
 This buys the next run's evidence rather than fixing peer-group, and says so.
+
+## Round 420 — the deletion worked; the assertion was asking a different question
+
+Round 413 added a log line per stage of `peerRmdir`, saying it bought evidence
+rather than a fix. The evidence arrived in one run:
+
+```
+[RevfsDirOps] rmdir: removing /test-folder from 7988...._8653....
+[RevfsDirOps] rmdir: /test-folder removed locally and persisted; awaiting peer ack
+[RevfsDirOps] rmdir: /test-folder acknowledged by peer 8653806567999061913
+```
+
+Removed, persisted, and acknowledged by the peer. The deletion worked. What
+failed was the check:
+
+```ts
+const treeItem = page.locator(`.truncate:has-text("${folderName}")`).first();
+if (await isHiddenWithin(treeItem, 6000)) ...
+```
+
+`.truncate` is shared by grid tiles, the properties dialog and the storage
+line, and `has-text` matches SUBSTRINGS. So a check whose own message says
+"still visible in tree" was asking whether that word appears anywhere on the
+page — and after deleting a folder you were inside, it does.
+
+The spec had the right idea already: both its finders start with
+`[data-testid="tree-item-${folderName}"]`. **The app never rendered it.** Every
+lookup fell through to the shared class. Feature built from one end — the tree
+rows now carry `tree-item-<name>`, and they are a proper target: `role="button"`,
+keyboard-activated, wrapped in the same context menu the spec drives.
+
+### The gate that should have caught it
+
+Round 416's check skipped any testid reference containing `${`, so
+`tree-item-${folderName}` was invisible to it — a check that could not see the
+very shape it was written for. It now takes the prefix of a templated reference
+and requires the app to render some testid starting with it.
+
+Controls: removing the app's new testid fails on the templated reference, and a
+templated reference to a prefix nothing renders fails too.

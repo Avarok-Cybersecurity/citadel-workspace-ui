@@ -390,7 +390,12 @@ async function deleteFolderViaContextMenu(page: Page, label: string, folderName:
       // not re-rendered finds nothing and reports the folder deleted whether or
       // not it was. isHiddenWithin asks the right question and returns the moment
       // it holds, so the common case costs a fraction of the old 5 seconds.
-      const treeItem = page.locator(`.truncate:has-text("${folderName}")`).first();
+      // The tree row by name, not any element whose text contains it.
+      // `.truncate` is shared by grid tiles, the properties dialog and the
+      // storage line, and `has-text` matches substrings -- so this asked "is
+      // that word anywhere on the page" while its own message said "still
+      // visible in tree". The app now renders `tree-item-<name>`.
+      const treeItem = page.locator(`[data-testid="tree-item-${folderName}"]`).first();
       if (await isHiddenWithin(treeItem, 6000)) {
         console.log(`  Folder deleted from tree: true`);
         return true;

@@ -73,11 +73,22 @@ for (const file of files(SRC, /\.tsx?$/)) {
 }
 
 const referenced = new Map();
+/** `tree-item-${name}` in a spec: the PREFIX must be something the app renders. */
+const referencedPrefixes = new Map();
 for (const file of files(SPECS, /\.ts$/)) {
   const s = readFileSync(file, 'utf8');
-  for (const m of s.matchAll(/getByTestId\(\s*["']([^"']+)["']|data-testid="([^"]+)"/g)) {
+  for (const m of s.matchAll(/getByTestId\(\s*["'`]([^"'`]+)["'`]|data-testid="([^"]+)"/g)) {
     const id = m[1] ?? m[2];
-    if (!id || id.includes('${')) continue;
+    if (!id) continue;
+    // A templated reference. The first draft skipped these, and that is how
+    // `tree-item-${folderName}` went unnoticed: the file manager's spec had
+    // addressed it all along and the app rendered no such testid anywhere, so
+    // every lookup fell through to a shared CSS class.
+    if (id.includes('${')) {
+      const prefix = id.split('${')[0];
+      if (prefix && !referencedPrefixes.has(prefix)) referencedPrefixes.set(prefix, relative(ROOT, file));
+      continue;
+    }
     if (!referenced.has(id)) referenced.set(id, relative(ROOT, file));
   }
 }
@@ -98,6 +109,16 @@ for (const [id, where] of referenced) {
   if (!KNOWN_MISSING.has(id)) {
     problems.push([id, `addressed by ${where}, rendered nowhere; that lookup cannot match`]);
   }
+}
+
+for (const [prefix, where] of referencedPrefixes) {
+  const exists =
+    prefixes.some((p) => p && (p.startsWith(prefix) || prefix.startsWith(p))) ||
+    [...defined].some((d) => d.startsWith(prefix));
+  if (!exists && !KNOWN_MISSING.has(prefix)) {
+    problems.push([`${prefix}\${...}`, `addressed by ${where}, and the app renders no testid starting with "${prefix}"`]);
+  }
+  stillMissing.delete(prefix);
 }
 
 for (const gone of stillMissing) {

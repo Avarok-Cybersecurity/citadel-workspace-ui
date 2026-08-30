@@ -89,6 +89,14 @@ function SidebarNode({
           dragOver && "bg-success/15 ring-1 ring-success",
         )}
         style={{ paddingLeft: `${depth * 16 + 4}px` }}
+        // Addressable by name. The file-manager spec has looked for
+        // `tree-item-<name>` all along and the app never rendered it, so every
+        // lookup fell through to `.truncate:has-text(name)` -- a class shared
+        // by grid tiles, the properties dialog and the storage line, matching
+        // by substring. That is why a folder whose deletion had been removed
+        // from the tree, persisted AND acknowledged by the peer still read as
+        // "still visible in tree after 6s".
+        data-testid={`tree-item-${node.name}`}
         onClick={handleClick}
         role="button"
         tabIndex={0}
