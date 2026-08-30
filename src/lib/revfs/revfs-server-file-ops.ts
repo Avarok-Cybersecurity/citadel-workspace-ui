@@ -24,7 +24,7 @@ export interface FileOpsContext {
   ensureIO: () => RevfsIO;
   getTree: (myCid: bigint, peerCid: bigint) => Promise<RevfsNode>;
   getServerTree: (myCid: bigint) => Promise<RevfsNode>;
-  sendAndAwaitAck: (peerCid: bigint, op: import('@/types/revfs-types').RevfsOperation, key: import('@/types/revfs-types').TreeKey) => Promise<void>;
+  sendAndAwaitAck: (peerCid: bigint, op: import('@/types/revfs-types').RevfsOperation, key: import('@/types/revfs-types').TreeKey) => Promise<boolean>;
   sendOp: (peerCid: bigint, operation: import('@/types/revfs-types').RevfsOperation) => Promise<boolean>;
   findFileInTree: (tree: RevfsNode, path: string) => RevfsNode | null;
 }

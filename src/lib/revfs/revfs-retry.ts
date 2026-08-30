@@ -104,18 +104,28 @@ export async function sendAndAwaitAck(
   peerCid: bigint,
   op: RevfsOperation,
   key: TreeKey,
-): Promise<void> {
+): Promise<boolean> {
   const ackPromise: Promise<boolean> = deps.state.registerAck(op.op_id, ACK_TIMEOUT_MS);
   const sendResult: boolean = await deps.sendOp(peerCid, op);
   if (!sendResult) {
     deps.state.addPendingOp(key, { operation: op, retryCount: 0, createdAt: Date.now() });
         await deps.io.execute({ type: 'persist-pending-ops', treeKey: key, ops: deps.state.getPendingOps(key) });
-    return;
+    return false;
   }
   try {
     await ackPromise;
+    return true;
   } catch {
+    // Returned, not swallowed. This resolved `void` either way, so a caller
+    // could not tell an acknowledgement from a fifteen-second timeout -- and
+    // round 413's diagnostic, sitting after this await, reported
+    // "acknowledged by peer" for both. CI then showed exactly that: an ack
+    // logged 15.000s after the send, for an op the peer never applied.
+    //
+    // The op is queued for retry here, which is the right behaviour. Saying it
+    // succeeded is not.
     deps.state.addPendingOp(key, { operation: op, retryCount: 0, createdAt: Date.now() });
         await deps.io.execute({ type: 'persist-pending-ops', treeKey: key, ops: deps.state.getPendingOps(key) });
+    return false;
   }
 }

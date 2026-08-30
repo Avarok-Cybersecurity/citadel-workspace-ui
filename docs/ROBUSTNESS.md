@@ -20910,3 +20910,43 @@ the decision it explains — 271, 258, 253, 252, and 248 once the rationale move
 to the helper's docstring where it is no longer duplicated. The cap did not
 just refuse the addition; it produced a better shape than the one I started
 with.
+
+## Round 448 — fifteen seconds, and my own diagnostic called it an ack
+
+`test:notifications` passed. It had hung installing a browser in the two runs
+before, so rounds 440 and 441 are confirmed. `Delete Folder` passed too: round
+437's measured fifteen-second budget was right.
+
+What remains in `file-manager` is the peer side — Bob never sees Alice's file,
+and never sees her folder removal. The instrumentation says why, and the answer
+implicates a line I wrote.
+
+Bob's own log records applying `Mkdir` twice, at 10:49:46, and nothing after
+that. No `PlaceFile`. No `Rmdir`. Alice's side, meanwhile:
+
+```
+10:50:59.288  rmdir: removing /test-folder from 1634843070389780767_15267297971101200945
+10:50:59.301  rmdir: /test-folder removed locally and persisted; awaiting peer ack
+10:51:14.307  rmdir: /test-folder acknowledged by peer 1634843070389780767
+```
+
+Fifteen point zero zero six seconds. `ACK_TIMEOUT_MS` is 15_000.
+
+`sendAndAwaitAck` registered the ack, awaited it, caught the timeout, queued the
+op for retry — all correct — and resolved `void`, exactly as it resolves `void`
+on success. Round 413's log line sits after that await and cannot tell the two
+apart, so it announced an acknowledgement from a peer that never sent one.
+
+That is the class this session keeps finding, written by me, in a diagnostic
+added to investigate a different bug. It survived four rounds of me reading
+these logs.
+
+`sendAndAwaitAck` now returns whether the ack arrived, and the three outcomes
+are distinct: acknowledged, timed out and queued, or never sent at all. The
+third was silent too. `peerRmdir` says which. Negative control: making the
+timeout path return true fails the timeout test alone.
+
+The underlying defect is still open and is now stated precisely: **operations
+reach the peer for Mkdir and not for PlaceFile or Rmdir.** That is a real
+propagation failure, not a rendering one, and the next run will show whether the
+retry queue eventually delivers them.

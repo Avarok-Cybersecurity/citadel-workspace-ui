@@ -220,7 +220,7 @@ export class RevfsService {
 
   // ── Private Helpers ───────────────────────────────────────────────────
 
-  private async sendAndAwaitAck(peerCid: bigint, op: RevfsOperation, key: TreeKey): Promise<void> {
+  private async sendAndAwaitAck(peerCid: bigint, op: RevfsOperation, key: TreeKey): Promise<boolean> {
     return sendAndAwaitAck({ state: this.state, io: this.ensureIO(), sendOp: (p: bigint, o: RevfsOperation) => this.sendOp(p, o) }, peerCid, op, key);
   }
 

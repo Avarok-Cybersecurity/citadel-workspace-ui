@@ -28,7 +28,7 @@ export interface DirOpsContext {
   ensureIO: () => RevfsIO;
   getTree: (myCid: bigint, peerCid: bigint) => Promise<RevfsNode>;
   getServerTree: (myCid: bigint) => Promise<RevfsNode>;
-  sendAndAwaitAck: (peerCid: bigint, op: import('@/types/revfs-types').RevfsOperation, key: TreeKey) => Promise<void>;
+  sendAndAwaitAck: (peerCid: bigint, op: import('@/types/revfs-types').RevfsOperation, key: TreeKey) => Promise<boolean>;
 }
 
 // ── Peer-Scoped Directory Operations ──────────────────────────────────────
@@ -68,8 +68,13 @@ export async function peerRmdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigi
   const io: RevfsIO = ctx.ensureIO();
   await persistTree(io, key, newTree);
   debugLog('RevfsDirOps', `rmdir: ${path} removed locally and persisted; awaiting peer ack`);
-  await ctx.sendAndAwaitAck(peerCid, op, key);
-  debugLog('RevfsDirOps', `rmdir: ${path} acknowledged by peer ${peerCid.toString()}`);
+  const acked: boolean = await ctx.sendAndAwaitAck(peerCid, op, key);
+  debugLog(
+    'RevfsDirOps',
+    acked
+      ? `rmdir: ${path} acknowledged by peer ${peerCid.toString()}`
+      : `rmdir: ${path} NOT acknowledged by peer ${peerCid.toString()}; queued for retry`,
+  );
 
   await sweepOrphanedBytes(io, myCid, peerCid, orphaned, newTree, 'peer storage');
 }
