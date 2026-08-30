@@ -20704,3 +20704,22 @@ retry loop that cannot fail is the thing this whole session keeps finding.
 A first draft of that loop ended with a `--dry-run` check followed by an
 UNBOUNDED reinstall, which would have reintroduced the hang it was written to
 stop. Deleted before it shipped.
+
+## Round 441 — the same fix, in the place it always fails to reach
+
+Round 440 wrapped three `playwright install` steps in the parent workflow. The
+submodule's own `validate.yml` had three more, unwrapped, and they would have
+shipped that way — the shape this repo's notes call "a correct fix applied in
+ONE place". Six call sites now, all retried three times with each attempt
+bounded at ten minutes.
+
+The sweep for other unbounded fetches came back with nine `npm ci` / `npm
+install` steps and stopped there, deliberately. npm retries its own fetches;
+the browser download does not, which is why it is the one that hung for 55
+minutes. Wrapping nine steps for symmetry would add noise and imply a
+protection that npm already provides.
+
+A gate holds it, because the propagation failure is the recurring part rather
+than the original bug. Controls in both repositories: an unbounded install in
+the parent fails, and an unbounded install in the submodule fails — the second
+being the one that matters, since that is the copy that got missed.

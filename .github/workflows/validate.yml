@@ -146,7 +146,22 @@ jobs:
 
       - name: Install Chromium for the offline check
         if: matrix.project == 'citadel-workspaces'
-        run: npx playwright install --with-deps chromium
+        # Retried, and each attempt bounded. The parent repo's copy of this step
+        # stalled for 55 minutes in run 33300992291 and was killed by the job
+        # budget without running a test -- a CDN fetch with no retry and no
+        # timeout of its own. npm retries its own fetches; this download does
+        # not, which is why it is the one that hangs.
+        run: |
+          attempt=1
+          until timeout 600 npx playwright install --with-deps chromium; do
+            if [ "$attempt" -ge 3 ]; then
+              echo "playwright install still failing after 3 attempts"
+              exit 1
+            fi
+            echo "playwright install failed or stalled (attempt $attempt/3); retrying"
+            attempt=$((attempt + 1))
+            sleep $((attempt * 15))
+          done
         working-directory: parent/citadel-workspaces
 
       - name: PWA offline behaviour
@@ -328,7 +343,22 @@ jobs:
         # on the integration-tests job for why both orderings matter.
         run: npm ci
       - name: Install Playwright Browsers
-        run: npx playwright install chromium --with-deps
+        # Retried, and each attempt bounded. The parent repo's copy of this step
+        # stalled for 55 minutes in run 33300992291 and was killed by the job
+        # budget without running a test -- a CDN fetch with no retry and no
+        # timeout of its own. npm retries its own fetches; this download does
+        # not, which is why it is the one that hangs.
+        run: |
+          attempt=1
+          until timeout 600 npx playwright install chromium --with-deps; do
+            if [ "$attempt" -ge 3 ]; then
+              echo "playwright install still failing after 3 attempts"
+              exit 1
+            fi
+            echo "playwright install failed or stalled (attempt $attempt/3); retrying"
+            attempt=$((attempt + 1))
+            sleep $((attempt * 15))
+          done
       - name: Symlink workspace deps for integration-tests
         run: |
           mkdir -p citadel-workspaces/integration-tests/node_modules
@@ -531,7 +561,22 @@ jobs:
         # Now that deps are installed, this resolves to the locked
         # version's `playwright install` and downloads the matching
         # chromium build.
-        run: npx playwright install chromium --with-deps
+        # Retried, and each attempt bounded. The parent repo's copy of this step
+        # stalled for 55 minutes in run 33300992291 and was killed by the job
+        # budget without running a test -- a CDN fetch with no retry and no
+        # timeout of its own. npm retries its own fetches; this download does
+        # not, which is why it is the one that hangs.
+        run: |
+          attempt=1
+          until timeout 600 npx playwright install chromium --with-deps; do
+            if [ "$attempt" -ge 3 ]; then
+              echo "playwright install still failing after 3 attempts"
+              exit 1
+            fi
+            echo "playwright install failed or stalled (attempt $attempt/3); retrying"
+            attempt=$((attempt + 1))
+            sleep $((attempt * 15))
+          done
       - name: Symlink workspace deps for integration-tests build
         # `tsc` in integration-tests walks node_modules up the tree
         # (NodeNext). Symlinking playwright from the workspace-root
