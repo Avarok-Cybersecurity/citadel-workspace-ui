@@ -86,7 +86,17 @@ export function PromptDialogProvider({ children }: { children: ReactNode }): JSX
               <Button type="button" variant="ghost" onClick={() => settle(null)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={!value.trim()}>
+              <Button
+                type="submit"
+                // Named, for the reason round 417 named the confirm dialog's
+                // action beside it: the label is whatever the caller passed --
+                // 'Create folder', 'Create', a future rewording -- so a spec
+                // that presses it by copy breaks the day the copy improves.
+                // The input above has carried `#prompt-dialog-input` all along;
+                // the button it submits had nothing.
+                data-testid="prompt-dialog-confirm"
+                disabled={!value.trim()}
+              >
                 {request?.confirmLabel ?? 'Create'}
               </Button>
             </DialogFooter>

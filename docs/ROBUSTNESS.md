@@ -20775,3 +20775,30 @@ assuming:
 
 Control: a new copy-addressed press elsewhere fails the gate, and the restore
 was verified.
+
+## Round 444 — the prompt dialog's twin
+
+Round 417 gave the shared CONFIRM dialog's action a name, because its label is
+whatever the caller passed and a spec pressing it by copy breaks when the copy
+improves. The shared PROMPT dialog sits beside it, takes a `confirmLabel` the
+same way, and was never named. Its input has carried `#prompt-dialog-input` all
+along; the button that submits it had nothing.
+
+Three specs pressed it as `button:has-text("Create folder")` — file-manager,
+revfs-server and revfs-peer. One fix, three call sites, which is the number that
+matters: the first was the bug and the other two were the propagation.
+
+The copy-addressed-press baseline ratchets 139 → 136.
+
+### The gate writes its own baseline, and that is a trap I have already hit
+
+`check-controls-are-addressed-by-testid` rewrites
+`copy-addressed-controls.baseline.json` when a file improves and exits 1 asking
+for it to be committed. Same design as `check-cid-is-bigint`, which failed CI in
+round 413 for exactly this reason: the rewrite happens in the working tree, so
+every local run passes while CI compares against the committed file. Committed
+here, deliberately, rather than discovered again in a red run.
+
+Control: pressing that button by copy again fails the gate. The restore was
+verified — including reverting the baseline the control's own run had rewritten,
+which is the second-order version of the same trap.

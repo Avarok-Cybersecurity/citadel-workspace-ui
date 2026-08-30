@@ -193,7 +193,7 @@ async function createFolderViaToolbar(page: Page, label: string, folderName: str
       return false;
     }
     await nameInput.fill(folderName);
-    await page.locator('[role="dialog"] button:has-text("Create folder")').click();
+    await page.getByTestId('prompt-dialog-confirm').click();
     await sleep(2000);
 
     const visible = await isVisibleWithin(page.getByText(folderName, { exact: true }).first(), 5000);

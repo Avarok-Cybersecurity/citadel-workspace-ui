@@ -182,7 +182,7 @@ async function createFolder(page: Page, folderName: string): Promise<boolean> {
         return false;
       }
       await nameInput.fill(folderName);
-      await page.locator('[role="dialog"] button:has-text("Create folder")').click();
+      await page.getByTestId('prompt-dialog-confirm').click();
       await sleep(2000);
 
       // Verify folder appeared
