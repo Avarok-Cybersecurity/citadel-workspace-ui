@@ -20207,3 +20207,31 @@ the first alone.
 
 Recorded, not claimed: this does not make the name visible to the other members
 of the group. That needs a field on `GroupCreate`, which is a backend change.
+
+## Round 426 — thirty seconds of learning nothing
+
+`Playwright shard 3/3` failed on "notification centre fits the viewport". Not a
+regression from this session's rounds — the previous run shows the same test
+failing its first attempt at 30.0s and passing its retry in 923ms, recorded as
+flaky. It has now failed all three attempts.
+
+That shape is the diagnosis. The test clicks the bell and waits thirty seconds
+for `[role="dialog"]`; the retry opens it in under a second. Something is on top
+of the bell on the first attempt and gone by the second.
+
+These tests share one page, and by the time this one runs the drawer, the
+settings modal and the user directory have each opened and closed something.
+`closeAnyModals` runs once, in `beforeAll`. And the click was
+`click({ force: true })` — which skips exactly the check that would have said
+so. The click "succeeds" against an overlay, the sheet never opens, and the
+assertion below spends its full timeout to report "element(s) not found".
+
+Now it closes what is open first, and clicks honestly. If the close is not
+enough, Playwright names the element that intercepted the pointer instead of
+timing out with nothing to say.
+
+Recorded, not swept: five other `force: true` clicks remain in this file, and
+in a RESPONSIVE suite that is self-defeating — one of its own tests is called
+"workspace shell has no unhittable controls", and forcing a click is how an
+unhittable control passes. They are left alone because changing five clicks in
+a suite I cannot run here would be guessing, and this one had evidence.

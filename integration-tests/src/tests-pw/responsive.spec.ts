@@ -589,7 +589,20 @@ test.describe.serial('Responsive workspace at 375px', () => {
     // By testid. `svg.lucide-bell` is an icon library's internal class name --
     // nothing promises to keep it, and when it goes this click lands nowhere,
     // the sheet never opens, and the 375px checks below never run.
-    await page.getByTestId('notification-bell').click({ force: true });
+    //
+    // And NOT forced. These tests share one page, so by the time this one runs
+    // the drawer, the settings modal and the user directory have each opened
+    // and closed something. `force: true` skips exactly the check that would
+    // say one of them is still on top: the click "succeeds" against an
+    // overlay, the sheet never opens, and the assertion below waits its full
+    // thirty seconds before saying only "element(s) not found". That is what
+    // this test did -- failing on the first attempt and passing on the retry
+    // in under a second, for two runs.
+    //
+    // Closing first is the fix; clicking honestly is what reports it if the
+    // close was not enough, naming the element that intercepted the pointer.
+    await closeAnyModals(page);
+    await page.getByTestId('notification-bell').click();
     await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 30_000 });
 
     await expectNoHorizontalOverflow(page, 'notifications');
