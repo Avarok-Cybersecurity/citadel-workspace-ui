@@ -21221,6 +21221,43 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 504 — a deletion undone by a sync, and a doodle that could block a hang-up
+
+**A file we had deleted came back through a sync, naming bytes already
+destroyed** (37). `mergeTrees` is a union merge on purpose — this file's own note
+says deletions are carried by explicit RemoveFile/RemoveDir operations and never
+inferred, because "never had it" and "deleted it" are indistinguishable in a
+tree. But a local deletion is not instantaneous on the peer's side:
+`removeFile` destroys the bytes, removes the node, and QUEUES the op. Until the
+peer applies and acks it, their tree still lists the file, and a SyncResponse in
+that window merged their copy back in. The restored node names a
+`virtualDirectory` whose bytes are gone: a file that reappears in the manager,
+opens to nothing, and counts against the quota.
+
+The union rule is right; what it lacked was knowledge of what is deliberately on
+its way out. It now takes the set of paths with a removal queued, and the set
+says "do not RESURRECT these", not "delete these" — a path we still hold stays
+until its own operation runs.
+
+**A drawn point went on the wire once per pointer event, per participant** (34).
+`onPointerMove` fires 120 or more times a second and `sendAnnotation` emits one
+signal PER PARTICIPANT for each, so a five-person call put six hundred signals a
+second onto the reliable call-signal chain — the same chain `CallEnd` travels on.
+Hanging up queued behind somebody's doodle. Capped at about twenty points a
+second, with a stroke's first point never delayed, because that is the one
+someone can see arriving late.
+
+**The wiring control failed again, and again in the same way.** Both fixes were
+first tested by calling the pure function directly, and in both cases unwiring
+the caller left every test green. That is five rounds running. The pure test is
+necessary and never sufficient; the second test has to drive the thing that is
+supposed to ask.
+
+`call-manager.ts` was over its exemption and two extractions brought it to 244 —
+below the 251 ceiling it had been granted, so the exemption is gone rather than
+raised. `setSelfMedia` moved beside `announceSendCodec`, which is the same kind
+of thing: a local change peers must be told about or their view of us goes stale.
+
 ## Round 503 — three halves of one mechanism, each correct alone
 
 Backlog 36 and 38, which turn out to need a third fix neither mentions.

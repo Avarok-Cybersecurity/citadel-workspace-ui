@@ -12,7 +12,8 @@
  */
 
 import { stillInCall } from './participant-presence';
-import { sendAnnotation } from './annotation-signal';
+import { sendAnnotationThrottled } from './annotation-signal';
+import { newStrokeClock, type StrokeClock } from './annotation-rate';
 import type {
   CallDeclineReason,
   CallEndReason,
@@ -31,7 +32,7 @@ import type { CallManagerInternals, CallManagerOptions } from './call-manager-in
 // caller must supply, and what the extracted collaborators are allowed to see.
 export type { CallManagerOptions } from './call-manager-internals';
 import { CallLivenessBinding } from './call-liveness-binding';
-import { announceSendCodec, handleInboundSignal } from './call-signal-handling';
+import { announceSelfMedia, announceSendCodec, handleInboundSignal } from './call-signal-handling';
 import { closeAllSessions, openSessionFor } from './media-session-lifecycle';
 import type { CallStatus, CallParticipant } from '@/lib/call/call-state';
 
@@ -41,6 +42,8 @@ export class CallManager {
   private state: CallState | null = null;
   /** Peers we have an open media session with, so close is exact. */
   private readonly openSessions: Set<bigint> = new Set<bigint>();
+  /** Last point admitted per stroke; see annotation-rate.ts. */
+  private readonly annotationClock: StrokeClock = newStrokeClock();
   private readonly openingSessions: Map<bigint, Promise<void>> = new Map();
   /** Codec facts peers told us; consumed by the provider's codec sync. */
   readonly codecs: PeerCodecBook = new PeerCodecBook();
@@ -203,23 +206,13 @@ export class CallManager {
     );
   }
 
-  /** Tell peers the microphone or camera changed, so their tiles stay honest. */
-  async setSelfMedia(media: CallMediaKinds): Promise<void> {
-    const state: CallState | null = this.state;
-    if (!state) return;
+  /** Tell peers the microphone or camera changed; see call-signal-handling. */
+  async setSelfMedia(media: CallMediaKinds): Promise<void> { return announceSelfMedia(this.internals(), media); }
 
-    this.apply({ type: 'self-media-changed', media });
-    const update: CallSignalPayload = { kind: 'CallMediaState', call_id: state.callId, media };
-    await Promise.all(
-      [...state.participants.keys()].map((cid) =>
-        this.options.transport.sendSignal(cid, update).catch(() => undefined),
-      ),
-    );
-  }
-
-  /** One drawn point to everyone; see lib/call/annotation-signal. */
+  /** One drawn point to everyone, rate-limited; see lib/call/annotation-signal. */
   annotate(author: string, id: string, point: { x: number; y: number }): void {
-    if (this.state) sendAnnotation(this.options.transport, this.state, author, id, point);
+    if (!this.state) return;
+    sendAnnotationThrottled(this.options.transport, this.state, this.annotationClock, this.options.now(), author, id, point);
   }
 
   /** Tell peers our send codec changed; the why lives with the implementation

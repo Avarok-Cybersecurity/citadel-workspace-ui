@@ -9,6 +9,7 @@
 
 import { stillInCall } from './participant-presence';
 import type { CallSignalPayload } from '@/types/p2p-commands';
+import type { CallMediaKinds } from '@/types/call-signals';
 import { eventEmitter } from '@/lib/event-emitter';
 import { glareWinner } from './call-state';
 import { MEDIA_WIRE_VERSION } from './call-constants';
@@ -215,4 +216,27 @@ async function handleInvite(
     media: signal.media,
     others,
   });
+}
+
+/**
+ * Tell peers the microphone or camera changed, so their tiles stay honest.
+ *
+ * Beside `announceSendCodec` because it is the same kind of thing: a local
+ * change that peers must be told about or their view of us goes stale. Lifted
+ * out of `CallManager`, which is at its length ceiling.
+ */
+export async function announceSelfMedia(
+  m: CallManagerInternals,
+  media: CallMediaKinds,
+): Promise<void> {
+  const state: CallState | null = m.getState();
+  if (!state) return;
+
+  m.apply({ type: 'self-media-changed', media });
+  const update: CallSignalPayload = { kind: 'CallMediaState', call_id: state.callId, media };
+  await Promise.all(
+    [...state.participants.keys()].map((cid) =>
+      m.transport.sendSignal(cid, update).catch(() => undefined),
+    ),
+  );
 }

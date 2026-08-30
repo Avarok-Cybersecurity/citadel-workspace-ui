@@ -1,5 +1,6 @@
 import type { CallSignalPayload } from '@/types/p2p-commands';
 import type { CallState } from './call-state';
+import { admitPoint, type StrokeClock } from './annotation-rate';
 
 /** Just enough of the transport to send one signal. */
 interface SignalSink {
@@ -32,4 +33,26 @@ export function sendAnnotation(
   for (const cid of state.participants.keys()) {
     void transport.sendSignal(cid, signal).catch(() => undefined);
   }
+}
+
+/**
+ * The rate-limited entry point, which is the one callers should use.
+ *
+ * `sendAnnotation` above emits one signal PER PARTICIPANT, and `onPointerMove`
+ * fires 120 or more times a second — six hundred signals a second in a
+ * five-person call, on the same reliable chain `CallEnd` travels on. See
+ * annotation-rate.ts for why the cap is where it is and why a stroke's first
+ * point is never delayed.
+ */
+export function sendAnnotationThrottled(
+  transport: SignalSink,
+  state: CallState,
+  clock: StrokeClock,
+  now: number,
+  author: string,
+  strokeId: string,
+  point: { x: number; y: number },
+): void {
+  if (!admitPoint(clock, strokeId, now)) return;
+  sendAnnotation(transport, state, author, strokeId, point);
 }

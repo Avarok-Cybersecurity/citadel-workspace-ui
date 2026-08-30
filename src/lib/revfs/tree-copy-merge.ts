@@ -137,7 +137,28 @@ export function copyNode(
  * - If local has a path remote doesn't AND remote.updatedAt > local child's updatedAt,
  *   remove it (deletion propagates)
  */
-export function mergeTrees(local: RevfsNode, remote: RevfsNode): RevfsNode {
+export function mergeTrees(
+  local: RevfsNode,
+  remote: RevfsNode,
+  /**
+   * Paths whose removal is queued locally and not yet applied by the peer.
+   *
+   * The union rule below is deliberate — deletions are carried by explicit
+   * RemoveFile/RemoveDir operations and never inferred, because "never had it"
+   * and "deleted it" look identical in a tree. What it lacked was knowledge of
+   * what is deliberately on its way out.
+   *
+   * `removeFile` destroys the bytes, removes the node and QUEUES the op; until
+   * the peer applies and acks it, their tree still lists the file. A
+   * SyncResponse in that window merged their copy back in, and the restored
+   * node names a `virtualDirectory` whose bytes are already gone: a file that
+   * reappears in the manager, opens to nothing, and counts against the quota.
+   *
+   * This says "do not RESURRECT these", not "delete these" — a path we still
+   * hold locally stays until its own operation runs.
+   */
+  pendingRemovals: ReadonlySet<string> = new Set<string>(),
+): RevfsNode {
   if (local.type === 'file' && remote.type === 'file') {
     return local.updatedAt >= remote.updatedAt ? cloneTree(local) : cloneTree(remote);
   }
@@ -167,8 +188,8 @@ export function mergeTrees(local: RevfsNode, remote: RevfsNode): RevfsNode {
   for (const remoteChild of remoteChildren) {
     const localIdx: number = localChildren.findIndex(c => c.path === remoteChild.path);
     if (localIdx >= 0) {
-      localChildren[localIdx] = mergeTrees(localChildren[localIdx], remoteChild);
-    } else {
+      localChildren[localIdx] = mergeTrees(localChildren[localIdx], remoteChild, pendingRemovals);
+    } else if (!pendingRemovals.has(remoteChild.path)) {
       localChildren.push(cloneTree(remoteChild));
     }
   }

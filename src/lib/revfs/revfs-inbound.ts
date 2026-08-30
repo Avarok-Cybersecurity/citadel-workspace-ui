@@ -81,7 +81,21 @@ export async function applyInboundOperation(
     if (op.op_type === RevfsOpType.SyncResponse && op.tree) {
       const loaded: RevfsNode = await ctx.getTree(myCid, senderCid);
       const currentTree: RevfsNode = ctx.state.getTree(key) ?? loaded;
-      const merged: RevfsNode = mergeTrees(currentTree, applyRemoteOp(currentTree, op, myCid));
+      // What we have already deleted and the peer has not yet been told about.
+      // Without it their SyncResponse restores those files, naming bytes this
+      // side destroyed when it queued the removal.
+      const pendingRemovals: Set<string> = new Set(
+        ctx.state
+          .getPendingOps(key)
+          .filter((entry) => entry.operation.op_type === RevfsOpType.RemoveFile
+            || entry.operation.op_type === RevfsOpType.Rmdir)
+          .map((entry) => entry.operation.path),
+      );
+      const merged: RevfsNode = mergeTrees(
+        currentTree,
+        applyRemoteOp(currentTree, op, myCid),
+        pendingRemovals,
+      );
       ctx.state.setTree(key, merged);
       const io: RevfsIO = ctx.ensureIO();
       await persistTree(io, key, merged);
