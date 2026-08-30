@@ -21191,6 +21191,45 @@ the script uses process substitution and its shebang is bash.)
 The rule these two rounds share is worth stating once: **a retry bounds
 failures, a timeout bounds hangs, and neither substitutes for the other.**
 
+## Round 465 — "Peer Sees File: FAIL", diagnosed to the layer below
+
+Not a fix. This records the mechanism behind the one remaining failure in
+`test:file-manager`, from run 33311729699, because the evidence is unambiguous
+and the fix is below the app.
+
+Every other assertion in that suite now passes, including `Delete Folder`
+(round 437) and `Peer Sees Changes`. The single failure is `Peer Sees File`:
+Alice uploads, Bob never sees it.
+
+What the log shows, in order:
+
+* Alice sends the `PlaceFile` op once, 487 bytes: `sendRevfsOp: sent
+  successfully`, and ILM reports `SENDING msg_id=6` then `SUCCESS`.
+* Immediately after: `[ILM-BLOCKED] msg_id=6 blocked, awaiting ACK`.
+* `msg_id=6` is then **retransmitted 91 times** and never acknowledged.
+* Bob's `handleRevfsOperation` never sees a `PlaceFile` — not applied, not even
+  deduped as already-applied. His last inbound op of any kind is a `Mkdir` at
+  log line 6644; the `PlaceFile` is sent at 6729, and **nothing reaches him
+  after that point**. It is a head-of-line stall, not a dropped op.
+* `[ILM-BLOCKED-RECOVERY] clearing stale state after 50 consecutive blocks`
+  fires — repeatedly, on both peers — and the same msg_id blocks again straight
+  after. The recovery path does not recover.
+* Three separate messages hit this in one run: msg_id 0 retransmitted 49 times,
+  msg_id 3 98 times, msg_id 6 91 times. Alice received 115 Acks against the
+  four ops that needed acknowledging.
+
+The app-side flooding this used to sit behind is gone: round 449's dedupe took
+SyncResponses from ~100 to 3 in this run, so the channel is no longer being
+drowned by the layer above. What remains is one unacknowledged message stalling
+a reliable ordered stream, in `intersession-layer-messaging`, below the WASM
+boundary — which cannot be changed or tested without rebuilding the client and
+running the live stack.
+
+The app-side answer to an unreliable layer beneath it already shipped: since
+round 460 the upload reports "Not confirmed by the peer yet" rather than
+"Uploaded: …". The user is no longer told a file reached a peer that never got
+it, which is the part this campaign can own.
+
 ## Round 464 — a component nobody mounts, kept alive by its own test
 
 Round 463 ended by recording a hole rather than fixing it: removing
