@@ -8,16 +8,17 @@ import { SENT_FILES_DIR, RevfsFileState, TreeScope } from "@/types/revfs-types";
 import { revfsService } from "@/lib/revfs";
 import { peerPairKey, isDownloadableState } from "@/lib/revfs/tree-queries";
 import { usePrompt } from "@/components/shared/prompt-dialog";
+import { reportDelivery } from './report-delivery';
 
 interface HandlerDeps {
-  mkdir: (path: string) => Promise<void>;
-  rmdir: (path: string) => Promise<void>;
-  removeFile: (path: string) => Promise<void>;
+  mkdir: (path: string) => Promise<boolean>;
+  rmdir: (path: string) => Promise<boolean>;
+  removeFile: (path: string) => Promise<boolean>;
   downloadFile: (path: string) => Promise<string | undefined>;
-  uploadFile: (dir: string, name: string, metadata: RevfsFileMetadata, content: Uint8Array) => Promise<void>;
-  rename: (path: string, newName: string) => Promise<void>;
-  move: (src: string, dest: string) => Promise<void>;
-  copy: (src: string, dest: string) => Promise<void>;
+  uploadFile: (dir: string, name: string, metadata: RevfsFileMetadata, content: Uint8Array) => Promise<boolean>;
+  rename: (path: string, newName: string) => Promise<boolean>;
+  move: (src: string, dest: string) => Promise<boolean>;
+  copy: (src: string, dest: string) => Promise<boolean>;
   refresh: () => Promise<void>;
   cut: (items: RevfsNode[], treeKey: TreeKey) => void;
   copyToClipboard: (items: RevfsNode[], treeKey: TreeKey) => void;
@@ -68,7 +69,9 @@ export function useFileManagerHandlers({
     // prompt did, so this guard is unchanged.
     if (!name?.trim()) return;
     const path: string = parentPath === '/' ? `/${name.trim()}` : `${parentPath}/${name.trim()}`;
-    mkdir(path).catch(err => toast.error(`Failed to create folder: ${describeError(err)}`));
+    mkdir(path)
+      .then(acknowledged => reportDelivery(acknowledged, `Created "${name.trim()}"`))
+      .catch(err => toast.error(`Failed to create folder: ${describeError(err)}`));
   }, [mkdir, prompt]);
 
   const handleDownload: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => {
@@ -97,8 +100,8 @@ export function useFileManagerHandlers({
 
   const handleRename: (path: string, newName: string) => Promise<void> = useCallback(async (path: string, newName: string): Promise<void> => {
     try {
-      await rename(path, newName);
-      toast.success(`Renamed to "${newName}"`);
+      const acknowledged: boolean = await rename(path, newName);
+      reportDelivery(acknowledged, `Renamed to "${newName}"`);
     } catch (err) {
       toast.error(`Failed to rename: ${describeError(err)}`);
     }
@@ -123,11 +126,14 @@ export function useFileManagerHandlers({
       return;
     }
     try {
+      // Every item must land for this to be a delivered paste. One that did
+      // not is the whole message -- the peer's view is incomplete either way.
+      let allAcknowledged: boolean = true;
       for (const item of clipboard.items) {
-        if (isCut) await move(item.path, destPath);
-        else await copy(item.path, destPath);
+        const acknowledged: boolean = isCut ? await move(item.path, destPath) : await copy(item.path, destPath);
+        allAcknowledged = allAcknowledged && acknowledged;
       }
-      toast.success(`Pasted ${clipboard.items.length} item(s)`);
+      reportDelivery(allAcknowledged, `Pasted ${clipboard.items.length} item(s)`);
       clearClipboard();
     } catch (err) {
       toast.error(`Failed to paste: ${describeError(err)}`);
@@ -163,7 +169,7 @@ export function useFileManagerHandlers({
         // were passed on, so the upload described a file whose bytes never left
         // the page — and the toast below still said "Uploaded".
         const content: Uint8Array<ArrayBuffer> = new Uint8Array(await file.arrayBuffer());
-        await uploadFile(
+        const acknowledged: boolean = await uploadFile(
           targetPath,
           file.name,
           {
@@ -173,7 +179,7 @@ export function useFileManagerHandlers({
           },
           content,
         );
-        toast.success(`Uploaded: ${file.name}`);
+        reportDelivery(acknowledged, `Uploaded: ${file.name}`);
       } catch (err) {
         toast.error(`Failed to upload ${file.name}: ${describeError(err)}`);
       }

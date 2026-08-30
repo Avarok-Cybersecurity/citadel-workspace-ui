@@ -39,7 +39,7 @@ export async function uploadFileToPeer(
   fileName: string,
   metadata: RevfsFileMetadata,
   content: Uint8Array,
-): Promise<void> {
+): Promise<boolean> {
   const key: string = peerPairKey(myCid, peerCid);
   const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
   const filePath: string = dirPath.endsWith('/') ? `${dirPath}${fileName}` : `${dirPath}/${fileName}`;
@@ -74,7 +74,7 @@ export async function uploadFileToPeer(
 
   ctx.state.setTree(key, newTree);
   await persistTree(io, key, newTree);
-  await ctx.sendAndAwaitAck(peerCid, op, key);
+  return ctx.sendAndAwaitAck(peerCid, op, key);
 }
 
 export async function removeFileFromPeer(
@@ -82,7 +82,7 @@ export async function removeFileFromPeer(
   myCid: bigint,
   peerCid: bigint,
   filePath: string,
-): Promise<void> {
+): Promise<boolean> {
   const key: string = peerPairKey(myCid, peerCid);
   const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
   const io: RevfsIO = ctx.ensureIO();
@@ -119,7 +119,7 @@ export async function removeFileFromPeer(
   ctx.state.setTree(key, newTree);
   await persistTree(io, key, newTree);
 
-  await ctx.sendAndAwaitAck(peerCid, op, key);
+  return ctx.sendAndAwaitAck(peerCid, op, key);
 }
 
 export async function downloadFileFromPeer(

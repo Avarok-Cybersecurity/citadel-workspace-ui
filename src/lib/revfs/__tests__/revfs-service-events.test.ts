@@ -44,7 +44,7 @@ describe('RevfsService (events & sync)', () => {
 
     it('resolves pending ACK when ACK received', async () => {
       const service: RevfsService = createTestService(defaultIntentHandler(), { autoAck: false });
-      const mkdirPromise: Promise<void> = service.mkdir(ALICE, BOB, '/docs');
+      const mkdirPromise: Promise<boolean> = service.mkdir(ALICE, BOB, '/docs');
 
       await new Promise(r => setTimeout(r, 10));
       const sendCalls: { type: "send-revfs-op"; peerCid: bigint; operation: RevfsOperation; }[] = getExecuteCalls(service).filter(i => i.type === 'send-revfs-op');

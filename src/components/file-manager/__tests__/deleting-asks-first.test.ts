@@ -33,8 +33,12 @@ vi.mock('@/components/shared/prompt-dialog', () => ({
   usePrompt: (): (() => Promise<string | null>) => async (): Promise<string | null> => null,
 }));
 
-const rmdir: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<void> => {});
-const removeFile: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<void> => {});
+// The peer's answer, which these operations now report. An `async () => {}`
+// here resolves undefined, which reads as "the peer did not acknowledge" -- so
+// the stub has to state which peer it is modelling.
+let peerAcknowledges: boolean = true;
+const rmdir: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<boolean> => peerAcknowledges);
+const removeFile: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<boolean> => peerAcknowledges);
 
 function node(path: string, type: 'directory' | 'file'): RevfsNode {
   return { path, name: path.split('/').pop() ?? path, type, children: [] } as unknown as RevfsNode;
@@ -44,11 +48,12 @@ async function handlers(): Promise<ReturnType<typeof import('../useFileManagerHa
   const { useFileManagerHandlers } = await import('../useFileManagerHandlers');
   const noop: () => void = (): void => {};
   const anoop: () => Promise<void> = async (): Promise<void> => {};
+  const adone: () => Promise<boolean> = async (): Promise<boolean> => true;
   return renderHook(() =>
     useFileManagerHandlers({
-      mkdir: anoop, rmdir, removeFile,
+      mkdir: adone, rmdir, removeFile,
       downloadFile: async (): Promise<string | undefined> => undefined,
-      uploadFile: anoop, rename: anoop, move: anoop, copy: anoop, refresh: anoop,
+      uploadFile: adone, rename: adone, move: adone, copy: adone, refresh: anoop,
       cut: noop, copyToClipboard: noop, clearClipboard: noop, clearSelection: noop, selectAll: noop,
       currentTreeKey: null, hasPasteItems: false, clipboard: null, isCut: false,
       myCid: 1n, storageUsed: 0, storageQuota: 1000, revfsEnabled: true,
@@ -64,7 +69,7 @@ async function handlers(): Promise<ReturnType<typeof import('../useFileManagerHa
 
 describe('deleting one item', () => {
   beforeEach(() => {
-    rmdir.mockClear(); removeFile.mockClear(); answer = true;
+    rmdir.mockClear(); removeFile.mockClear(); answer = true; peerAcknowledges = true;
     toasts.success.length = 0; toasts.error.length = 0;
   });
 
@@ -87,6 +92,19 @@ describe('deleting one item', () => {
     await new Promise<void>((r) => setTimeout(r, 0));
     expect(toasts.success).toEqual(['Deleted notes']);
     expect(toasts.error).toEqual([]);
+  });
+
+  it('does not claim a deletion the peer never acknowledged', async () => {
+    // The local tree HAS changed and is persisted, and the operation is queued
+    // for retry -- so this is not "Failed to delete". It is also not "Deleted",
+    // which is what every peer operation used to say regardless, because the
+    // ack flag stopped at `sendAndAwaitAck` and no layer above returned it.
+    peerAcknowledges = false;
+    const h: Awaited<ReturnType<typeof handlers>> = await handlers();
+    await h.handleDelete(node('/notes', 'directory'));
+    await new Promise<void>((r) => setTimeout(r, 0));
+    expect(toasts.success).toEqual([]);
+    expect(toasts.error).toEqual(['Not confirmed by the peer yet']);
   });
 
   it('routes a folder to rmdir and a file to removeFile', async () => {

@@ -103,19 +103,28 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     return unsub;
   }, [key]);
 
-  const mkdir: (path: string) => Promise<void> = useCallback(async (path: string): Promise<void> => {
-    if (!myCid) return;
+  const mkdir: (path: string) => Promise<boolean> = useCallback(async (path: string): Promise<boolean> => {
+    // No session: nothing was written, so nothing was accepted.
+    if (!myCid) return false;
     await revfsService.serverMkdir(myCid, path);
+    // The server throws on failure, so reaching here IS the acknowledgement.
+    return true;
   }, [myCid]);
 
-  const rmdir: (path: string) => Promise<void> = useCallback(async (path: string): Promise<void> => {
-    if (!myCid) return;
+  const rmdir: (path: string) => Promise<boolean> = useCallback(async (path: string): Promise<boolean> => {
+    // No session: nothing was written, so nothing was accepted.
+    if (!myCid) return false;
     await revfsService.serverRmdir(myCid, path);
+    // The server throws on failure, so reaching here IS the acknowledgement.
+    return true;
   }, [myCid]);
 
-  const uploadFile: (dirPath: string, fileName: string, metadata: Parameters<typeof revfsService.uploadFileToServer>[3], content: Uint8Array) => Promise<void> = useCallback(async (dirPath: string, fileName: string, metadata: Parameters<typeof revfsService.uploadFileToServer>[3], content: Uint8Array): Promise<void> => {
-    if (!myCid) return;
+  const uploadFile: (dirPath: string, fileName: string, metadata: Parameters<typeof revfsService.uploadFileToServer>[3], content: Uint8Array) => Promise<boolean> = useCallback(async (dirPath: string, fileName: string, metadata: Parameters<typeof revfsService.uploadFileToServer>[3], content: Uint8Array): Promise<boolean> => {
+    // No session: nothing was written, so nothing was accepted.
+    if (!myCid) return false;
     await revfsService.uploadFileToServer(myCid, dirPath, fileName, metadata, content);
+    // The server throws on failure, so reaching here IS the acknowledgement.
+    return true;
   }, [myCid]);
 
   const downloadFile: (filePath: string) => Promise<string | undefined> = useCallback(async (filePath: string): Promise<string | undefined> => {
@@ -123,24 +132,36 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     return revfsService.downloadFileFromServer(myCid, filePath);
   }, [myCid]);
 
-  const removeFile: (filePath: string) => Promise<void> = useCallback(async (filePath: string): Promise<void> => {
-    if (!myCid) return;
+  const removeFile: (filePath: string) => Promise<boolean> = useCallback(async (filePath: string): Promise<boolean> => {
+    // No session: nothing was written, so nothing was accepted.
+    if (!myCid) return false;
     await revfsService.removeFileFromServer(myCid, filePath);
+    // The server throws on failure, so reaching here IS the acknowledgement.
+    return true;
   }, [myCid]);
 
-  const rename: (path: string, newName: string) => Promise<void> = useCallback(async (path: string, newName: string): Promise<void> => {
-    if (!myCid) return;
+  const rename: (path: string, newName: string) => Promise<boolean> = useCallback(async (path: string, newName: string): Promise<boolean> => {
+    // No session: nothing was written, so nothing was accepted.
+    if (!myCid) return false;
     await revfsService.serverRename(myCid, path, newName);
+    // The server throws on failure, so reaching here IS the acknowledgement.
+    return true;
   }, [myCid]);
 
-  const move: (sourcePath: string, destParentPath: string) => Promise<void> = useCallback(async (sourcePath: string, destParentPath: string): Promise<void> => {
-    if (!myCid) return;
+  const move: (sourcePath: string, destParentPath: string) => Promise<boolean> = useCallback(async (sourcePath: string, destParentPath: string): Promise<boolean> => {
+    // No session: nothing was written, so nothing was accepted.
+    if (!myCid) return false;
     await revfsService.serverMove(myCid, sourcePath, destParentPath);
+    // The server throws on failure, so reaching here IS the acknowledgement.
+    return true;
   }, [myCid]);
 
-  const copy: (sourcePath: string, destParentPath: string) => Promise<void> = useCallback(async (sourcePath: string, destParentPath: string): Promise<void> => {
-    if (!myCid) return;
+  const copy: (sourcePath: string, destParentPath: string) => Promise<boolean> = useCallback(async (sourcePath: string, destParentPath: string): Promise<boolean> => {
+    // No session: nothing was written, so nothing was accepted.
+    if (!myCid) return false;
     await revfsService.serverCopy(myCid, sourcePath, destParentPath);
+    // The server throws on failure, so reaching here IS the acknowledgement.
+    return true;
   }, [myCid]);
 
   // Convert MB quota to bytes

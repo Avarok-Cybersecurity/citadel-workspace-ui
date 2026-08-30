@@ -16,11 +16,12 @@ import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { describeError } from '@/lib/describe-error';
+import { reportDelivery } from './report-delivery';
 import type { RevfsNode } from '@/types/revfs-types';
 
 interface DeleteDeps {
-  rmdir: (path: string) => Promise<void>;
-  removeFile: (path: string) => Promise<void>;
+  rmdir: (path: string) => Promise<boolean>;
+  removeFile: (path: string) => Promise<boolean>;
   clearSelection: () => void;
 }
 
@@ -43,9 +44,9 @@ export function useFileManagerDeleteHandlers({ rmdir, removeFile, clearSelection
     // Says when it lands, as deleting a SELECTION already does. A measured run
     // put 7.8s between the confirm click and `rmdir` even starting, queued
     // behind a peer ack, and silence that long reads as a click that missed.
-    const removal: Promise<void> = isDirectory ? rmdir(node.path) : removeFile(node.path);
+    const removal: Promise<boolean> = isDirectory ? rmdir(node.path) : removeFile(node.path);
     removal
-      .then(() => toast.success(`Deleted ${node.name}`))
+      .then(acknowledged => reportDelivery(acknowledged, `Deleted ${node.name}`))
       .catch(err => toast.error(`Failed to delete: ${describeError(err)}`));
   }, [rmdir, removeFile, confirm]);
 
@@ -57,7 +58,10 @@ export function useFileManagerDeleteHandlers({ rmdir, removeFile, clearSelection
     });
     if (!ok) return;
     Promise.all(nodes.map(node => node.type === 'directory' ? rmdir(node.path) : removeFile(node.path)))
-      .then(() => { toast.success(`Deleted ${count} item${count !== 1 ? 's' : ''}`); clearSelection(); })
+      .then(acknowledgements => {
+        reportDelivery(acknowledgements.every(Boolean), `Deleted ${count} item${count !== 1 ? 's' : ''}`);
+        clearSelection();
+      })
       .catch(err => toast.error(`Failed to delete: ${describeError(err)}`));
   }, [rmdir, removeFile, clearSelection, confirm]);
 

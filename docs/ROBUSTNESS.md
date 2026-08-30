@@ -21191,6 +21191,31 @@ the script uses process substitution and its shebang is bash.)
 The rule these two rounds share is worth stating once: **a retry bounds
 failures, a timeout bounds hangs, and neither substitutes for the other.**
 
+## Round 460 — every peer file operation was reported as delivered
+
+`sendAndAwaitAck` was given a boolean return in round 448 precisely so that
+"the peer never acknowledged this" would stop being invisible — before that it
+resolved `void` on both success and a 15s timeout, and the log printed
+"acknowledged by peer" for operations the peer had never applied.
+
+The flag then went nowhere. All six peer operations — mkdir, rmdir, rename,
+move, copy, remove-file, plus upload — awaited it, discarded it, and returned
+`Promise<void>`. The service, both hooks and the file-manager handlers were
+`Promise<void>` in turn, so no layer above could have known. `peerRmdir` was the
+sharpest case: it already captured the flag and wrote `NOT acknowledged by peer`
+to a debug log, then returned void. The local tree changed, the toast said
+"Deleted", and the peer's file list never moved.
+
+The flag now runs the whole chain to `reportDelivery`, which distinguishes three
+states the UI previously collapsed into two: acknowledged, not-yet-acknowledged
+(queued and retried — not a failure, and not a success either), and thrown.
+Server mode answers the same question with the server's acceptance, so one
+contract covers both storage modes.
+
+Found by a type-checker sweep for discarded boolean results — the same sweep
+that produced round 459. Negative-controlled by making `reportDelivery` ignore
+its argument: the new assertion fails, the rest stay green.
+
 ## Round 459 — a retracted message came back
 
 `editMessage` and the inbound `MessageEdit` branch both persist through

@@ -83,19 +83,22 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     return unsub;
   }, [key]);
 
-  const mkdir: (path: string) => Promise<void> = useCallback(async (path: string): Promise<void> => {
-    if (!myCid || !peerCid) return;
-    await revfsService.mkdir(myCid, peerCid, path);
+  const mkdir: (path: string) => Promise<boolean> = useCallback(async (path: string): Promise<boolean> => {
+    // No session: the peer certainly has not acknowledged anything.
+    if (!myCid || !peerCid) return false;
+    return revfsService.mkdir(myCid, peerCid, path);
   }, [myCid, peerCid]);
 
-  const rmdir: (path: string) => Promise<void> = useCallback(async (path: string): Promise<void> => {
-    if (!myCid || !peerCid) return;
-    await revfsService.rmdir(myCid, peerCid, path);
+  const rmdir: (path: string) => Promise<boolean> = useCallback(async (path: string): Promise<boolean> => {
+    // No session: the peer certainly has not acknowledged anything.
+    if (!myCid || !peerCid) return false;
+    return revfsService.rmdir(myCid, peerCid, path);
   }, [myCid, peerCid]);
 
-  const uploadFile: (dirPath: string, fileName: string, metadata: RevfsFileMetadata, content: Uint8Array) => Promise<void> = useCallback(async (dirPath: string, fileName: string, metadata: RevfsFileMetadata, content: Uint8Array): Promise<void> => {
-    if (!myCid || !peerCid) return;
-    await revfsService.uploadFileToPeer(myCid, peerCid, dirPath, fileName, metadata, content);
+  const uploadFile: (dirPath: string, fileName: string, metadata: RevfsFileMetadata, content: Uint8Array) => Promise<boolean> = useCallback(async (dirPath: string, fileName: string, metadata: RevfsFileMetadata, content: Uint8Array): Promise<boolean> => {
+    // No session: the peer certainly has not acknowledged anything.
+    if (!myCid || !peerCid) return false;
+    return revfsService.uploadFileToPeer(myCid, peerCid, dirPath, fileName, metadata, content);
   }, [myCid, peerCid]);
 
   const downloadFile: (filePath: string) => Promise<string | undefined> = useCallback(async (filePath: string): Promise<string | undefined> => {
@@ -103,24 +106,28 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     return revfsService.downloadFileFromPeer(myCid, peerCid, filePath);
   }, [myCid, peerCid]);
 
-  const removeFile: (filePath: string) => Promise<void> = useCallback(async (filePath: string): Promise<void> => {
-    if (!myCid || !peerCid) return;
-    await revfsService.removeFileFromPeer(myCid, peerCid, filePath);
+  const removeFile: (filePath: string) => Promise<boolean> = useCallback(async (filePath: string): Promise<boolean> => {
+    // No session: the peer certainly has not acknowledged anything.
+    if (!myCid || !peerCid) return false;
+    return revfsService.removeFileFromPeer(myCid, peerCid, filePath);
   }, [myCid, peerCid]);
 
-  const rename: (path: string, newName: string) => Promise<void> = useCallback(async (path: string, newName: string): Promise<void> => {
-    if (!myCid || !peerCid) return;
-    await revfsService.rename(myCid, peerCid, path, newName);
+  const rename: (path: string, newName: string) => Promise<boolean> = useCallback(async (path: string, newName: string): Promise<boolean> => {
+    // No session: the peer certainly has not acknowledged anything.
+    if (!myCid || !peerCid) return false;
+    return revfsService.rename(myCid, peerCid, path, newName);
   }, [myCid, peerCid]);
 
-  const move: (sourcePath: string, destParentPath: string) => Promise<void> = useCallback(async (sourcePath: string, destParentPath: string): Promise<void> => {
-    if (!myCid || !peerCid) return;
-    await revfsService.move(myCid, peerCid, sourcePath, destParentPath);
+  const move: (sourcePath: string, destParentPath: string) => Promise<boolean> = useCallback(async (sourcePath: string, destParentPath: string): Promise<boolean> => {
+    // No session: the peer certainly has not acknowledged anything.
+    if (!myCid || !peerCid) return false;
+    return revfsService.move(myCid, peerCid, sourcePath, destParentPath);
   }, [myCid, peerCid]);
 
-  const copy: (sourcePath: string, destParentPath: string) => Promise<void> = useCallback(async (sourcePath: string, destParentPath: string): Promise<void> => {
-    if (!myCid || !peerCid) return;
-    await revfsService.copy(myCid, peerCid, sourcePath, destParentPath);
+  const copy: (sourcePath: string, destParentPath: string) => Promise<boolean> = useCallback(async (sourcePath: string, destParentPath: string): Promise<boolean> => {
+    // No session: the peer certainly has not acknowledged anything.
+    if (!myCid || !peerCid) return false;
+    return revfsService.copy(myCid, peerCid, sourcePath, destParentPath);
   }, [myCid, peerCid]);
 
   return {
