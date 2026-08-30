@@ -26,7 +26,6 @@
   "src/lib/file-transfer/service.ts": 1,
   "src/lib/file-transfer/types.ts": 8,
   "src/lib/group-conversations/group-requests.ts": 1,
-  "src/lib/group-conversations/group-store.ts": 2,
   "src/lib/live-document-store/types.ts": 2,
   "src/lib/messaging-service.ts": 7,
   "src/lib/notification-service/peer-registration-notification.ts": 2,

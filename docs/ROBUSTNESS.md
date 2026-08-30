@@ -19751,3 +19751,42 @@ The presence decision moved to `initial-presence.ts` when the file passed the
 without mocking the manager. Negative control: restoring the promise into the
 chain fails the "is Offline, not Online" test alone, leaving the positive
 control — a locally connected peer still reads Online — passing.
+
+## Round 413 — deleting a folder said nothing at all
+
+CI run 33291368590 finished: 66 pass, 8 fail. Four of the eight are round 409's
+enforcement bug (office chat, room chat, group-multiuser, touch-controls), one
+is round 411, two need the stack. The eighth was new: `test:file-manager`, on
+`Delete Folder: FAIL` beside `Delete File: PASS`, with the folder still in the
+tree after six seconds.
+
+The controls were all found and clicked — the log says so — and
+`useFileManagerHandlers` routes both cases symmetrically. The difference is
+underneath. Deleting a file reaches the backend and reports itself: the run log
+carries `backendDeleteFile: virtualDir=/test-folder/test-document.txt` followed
+by `backendDeleteFile success`. Deleting a folder makes no backend call at all —
+a directory is a tree-only concept — and instead mutates the tree, persists it,
+and waits for a peer ACK. `revfs-dir-ops.ts` logged nothing for any of that.
+
+So three stages that fail for entirely different reasons — the directory not
+being in THIS tree, persistence, or a peer that never acknowledged — produced
+one toast, and that toast is invisible to the suite anyway. Nothing in the run
+could say which one happened.
+
+Each stage now logs. `RevfsDirOps` matches the spec's existing `revfs` keyword
+filter, so the next run explains itself instead of me guessing between three
+plausible causes. This buys evidence, like round 408 did; it is not a fix, and
+the entry says so.
+
+`sweepOrphanedBytes` moved to its own module at the 250-line cap — the one
+piece both `peerRmdir` and `serverRmdir` call and neither owns.
+
+### And a ratchet that only fires in CI
+
+The ESLint jobs for all three projects failed on the run that carried rounds
+404-412, while `npm run preflight` passed all 63 checks locally. `check-cid-is-bigint`
+is a ratcheting gate: round 410 removed two string CIDs from `group-store.ts`,
+so the gate rewrote its own baseline on disk and exited 1 asking for it to be
+committed. Locally that rewrite was already there, uncommitted, so every local
+run passed while CI compared against the committed file. A green preflight is
+not evidence when a gate's own output is part of the working tree.

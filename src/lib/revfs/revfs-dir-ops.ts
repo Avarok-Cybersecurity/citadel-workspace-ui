@@ -18,11 +18,10 @@ import {
   copyNode as treeCopy,
 } from './tree-operations';
 import { debugLog } from '@/lib/debug-config';
-import { countByteKeyRefs } from './tree-byte-refs';
+import { sweepOrphanedBytes } from './sweep-orphaned-bytes';
 import type { RevfsState } from './revfs-state';
 import type { RevfsIO } from './revfs-io';
 import { persistTree } from './persist-tree';
-import type { RevfsIntentResult } from '@/types/revfs-intents';
 
 export interface DirOpsContext {
   state: RevfsState;
@@ -58,12 +57,19 @@ export async function peerRmdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigi
   const target: RevfsNode | null = findNode(tree, path);
   const orphaned: RevfsNode[] = target ? collectFiles(target) : [];
 
+  // Logged per stage: CI reports `Delete Folder: FAIL` beside
+  // `Delete File: PASS` with the folder still on screen, and this path said
+  // nothing either way while the file route logs `backendDeleteFile success`.
+  // Its three stages fail for quite different reasons and share one toast.
+  debugLog('RevfsDirOps', `rmdir: removing ${path} from ${key}`);
   const [newTree, op] = treeRmdir(tree, path);
 
   ctx.state.setTree(key, newTree);
   const io: RevfsIO = ctx.ensureIO();
   await persistTree(io, key, newTree);
+  debugLog('RevfsDirOps', `rmdir: ${path} removed locally and persisted; awaiting peer ack`);
   await ctx.sendAndAwaitAck(peerCid, op, key);
+  debugLog('RevfsDirOps', `rmdir: ${path} acknowledged by peer ${peerCid.toString()}`);
 
   await sweepOrphanedBytes(io, myCid, peerCid, orphaned, newTree, 'peer storage');
 }
@@ -133,66 +139,6 @@ export async function serverMkdir(ctx: DirOpsContext, myCid: bigint, path: strin
   await persistTree(io, key, newTree);
 }
 
-/**
- * Delete the bytes of files that a directory removal just orphaned.
- *
- * A directory is a tree-only concept: the backend stores files keyed by virtual
- * path and knows nothing about the folder above them. So removing a folder from
- * the tree without this leaves every blob under it on disk forever —
- * unreferenced, unreclaimable, and still consuming the real quota even though
- * the storage bar stops counting it.
- */
-async function sweepOrphanedBytes(
-  io: RevfsIO,
-  myCid: bigint,
-  peerCid: bigint | null,
-  orphaned: RevfsNode[],
-  remainingTree: RevfsNode,
-  storageLabel: string,
-): Promise<void> {
-  const undeleted: string[] = [];
-  // Copies share their original's byte key (tree-byte-refs.ts): a blob still
-  // referenced OUTSIDE the removed folder must survive the sweep — rmdir of a
-  // folder holding only a copy used to destroy the original's bytes — and two
-  // copies INSIDE it are one blob, one delete.
-  const sweptKeys: Set<string> = new Set<string>();
-  for (const file of orphaned) {
-    if (!file.fileMetadata) {
-      // Nothing identifies this file to the backend, so it cannot be deleted
-      // there. Say so rather than dropping it silently and reporting success.
-      debugLog('RevfsDirOps', `rmdir: no metadata for ${file.path}, cannot delete remotely`);
-      continue;
-    }
-    const byteKey: string = file.fileMetadata.virtualDirectory;
-    if (byteKey !== '') {
-      if (sweptKeys.has(byteKey)) continue;
-      sweptKeys.add(byteKey);
-      if (countByteKeyRefs(remainingTree, byteKey) > 0) continue;
-    }
-    const deleted: RevfsIntentResult = await io.execute({
-      type: 'backend-delete-file',
-      cid: myCid,
-      peerCid,
-      // The upload-time key. See uploadFileToServer — a renamed file's bytes
-      // stay where they were written, so node.path is the wrong thing here.
-      virtualDir: file.fileMetadata.virtualDirectory,
-    });
-
-    // Collected rather than thrown per file: the directory is already gone from
-    // the tree, so aborting halfway would leave the remaining files both
-    // undeleted AND unreported. The user is told which ones survived.
-    if (deleted.type !== 'backend-delete-file' || !deleted.success) {
-      undeleted.push(file.path);
-    }
-  }
-
-  if (undeleted.length > 0) {
-    throw new Error(
-      `The folder was removed, but ${undeleted.length} file(s) could not be deleted from ` +
-        `${storageLabel} and are still using space: ${undeleted.join(', ')}`
-    );
-  }
-}
 
 export async function serverRmdir(ctx: DirOpsContext, myCid: bigint, path: string): Promise<void> {
   const key: string = serverTreeKey(myCid);
