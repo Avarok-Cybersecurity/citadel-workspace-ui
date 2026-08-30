@@ -105,6 +105,12 @@ export async function handleAuthSuccess(
         'ConnectionService',
         'Session could not be persisted; continuing with the live session',
       );
+      // What the user loses is the NEXT launch: they will have to sign in
+      // again, and "Remember me" will have done nothing. A debug line is not a
+      // way to tell them that. Emitted rather than toasted for the same reason
+      // `revfs:persist-failed` is -- this is library code, and the notice is a
+      // mounted component's job.
+      io.emitEvent('session:not-remembered', { username: params.username });
     }
 
     // Persist to localStorage so Connect page can show recent servers

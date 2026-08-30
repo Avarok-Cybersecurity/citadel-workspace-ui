@@ -66,6 +66,32 @@ describe('the notice', () => {
     });
   });
 
+  it('raises a toast when the session could not be remembered', () => {
+    // The other half of round 462. `handleAuthSuccess` emits this when the
+    // session write fails; without a listener the emit is a half-built feature,
+    // which is exactly what `revfs:persist-failed` was for months.
+    render(<PersistFailureNotice />);
+
+    act((): void => { eventEmitter.emit('session:not-remembered', { username: 'alice' }); });
+
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast.mock.calls[0][0]).toMatchObject({
+      variant: 'destructive',
+      title: 'This device could not remember your session',
+    });
+  });
+
+  it('does not let a failing disk silence the session notice', () => {
+    // Both notices share one cooldown map. Keyed together, a tree failing every
+    // few seconds would swallow the one notice that is about signing in.
+    render(<PersistFailureNotice />);
+
+    act((): void => { eventEmitter.emit('revfs:persist-failed', { treeKey: 'tree-a' }); });
+    act((): void => { eventEmitter.emit('session:not-remembered', { username: 'alice' }); });
+
+    expect(toast).toHaveBeenCalledTimes(2);
+  });
+
   it('does not repeat itself for a burst of failures', () => {
     render(<PersistFailureNotice />);
 

@@ -21191,6 +21191,37 @@ the script uses process substitution and its shebang is bash.)
 The rule these two rounds share is worth stating once: **a retry bounds
 failures, a timeout bounds hangs, and neither substitutes for the other.**
 
+## Round 462 — a session the device could not remember, and never said so
+
+`storeSession` returns false when the LocalDB write fails, and the module header
+explains why that must not throw: the account exists, the credentials were
+accepted, the live session is fine. What the user loses is the NEXT launch —
+they sign in again, and "Remember me" did nothing.
+
+Nobody was told. Of five callers, one read the flag and wrote a debug line; the
+other four discarded it. So the whole feature could fail and the only difference
+the user saw was a login screen days later, with nothing connecting the two.
+
+`handleAuthSuccess` now emits `session:not-remembered` through the injected IO
+router — library code does not reach for the toaster — and the already-mounted
+`PersistFailureNotice` turns it into a notice. That component's own header
+records that `revfs:persist-failed` sat emitted-but-unheard for months, so the
+listener was written in the same change as the emit, and each end is
+negative-controlled on its own: removing the emit fails the library test,
+removing the listener fails the component test, and neither failure masks the
+other.
+
+Both notices share one cooldown map, keyed separately, so a disk failing every
+few seconds cannot swallow the one notice that is about signing in — asserted,
+not assumed.
+
+The four refresh-only call sites still discard the flag deliberately: they
+update `lastConnected` on a session that is already remembered, and reporting on
+every reconnect would be noise. They remain in the round-461 baseline.
+
+This entry was the honest remainder of round 461 — a real gap found, sized, and
+recorded rather than fixed at the time. It is now fixed.
+
 ## Round 461 — a success flag nobody reads, as a check
 
 Rounds 459 and 460 were both found the same way: ask the type checker which
