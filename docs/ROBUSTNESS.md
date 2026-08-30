@@ -21190,3 +21190,28 @@ the script uses process substitution and its shebang is bash.)
 
 The rule these two rounds share is worth stating once: **a retry bounds
 failures, a timeout bounds hangs, and neither substitutes for the other.**
+
+## Round 457 — the same bound, everywhere it was missing
+
+Round 456 bounded `docker pull`. The sweep it implies found two more: both
+`curl` invocations in `docker/sync/Dockerfile`, inside retry loops written for
+exactly this problem and unable to help with it. Curl waits for ever by
+default, so a stalled nodesource or wasm-pack download holds attempt one until
+the job budget kills the build — with no failure anywhere in the log.
+
+Both now carry `--connect-timeout 30 --max-time 300`. The npm loops beside them
+are deliberately left alone: npm has its own fetch timeout, which is the same
+reason round 441 declined to wrap nine `npm ci` steps.
+
+Measured rather than assumed: a bounded curl against a black-holed address
+returns in two seconds where an unbounded one does not return, and the retry
+loop around it still makes all three attempts.
+
+A gate holds the rule now, because this is the third round to find an instance
+of it: every `curl` fetching a URL needs `--max-time`, every `docker pull`
+needs a `timeout`. Controls both ways — removing either bound fails the check
+at the right line.
+
+**A retry bounds failures. A timeout bounds hangs. Neither substitutes for the
+other**, and the failure mode when the second is missing is the worst kind:
+a job that dies with nothing in its log to say why.
