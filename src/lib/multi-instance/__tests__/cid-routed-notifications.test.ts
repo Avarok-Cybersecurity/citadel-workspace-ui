@@ -48,6 +48,8 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     // session in the same browser would receive another session's call.
     MediaFrameNotification: { cid: targetCid, peer_cid: senderCid, track: 1, kind: 1, sequence: 7, timestamp: 0, flags: 1, payload: [1, 2], request_id: null },
     MediaGapNotification: { cid: targetCid, peer_cid: senderCid, track: 1, missing_from: 4, missing_to: 6, request_id: null },
+    // The generated binding: { cid, peer_cid, message, group_key, request_id }.
+    GroupMessageNotification: { cid: targetCid, peer_cid: senderCid, message: [1, 2, 3], group_key: { cid: senderCid, mgid: '42' }, request_id: 'r7' },
   };
 
   it('has a test fixture for every CID-routed notification type', () => {
@@ -73,6 +75,7 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
         'FileTransferRequestNotification',
         'FileTransferStatusNotification',
         'FileTransferTickNotification',
+        'GroupMessageNotification',
         'MediaFrameNotification',
         'MediaGapNotification',
         'MessageNotification',

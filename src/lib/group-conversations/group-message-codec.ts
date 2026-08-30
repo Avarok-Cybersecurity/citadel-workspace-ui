@@ -1,0 +1,51 @@
+/**
+ * The bytes a peer-group message travels as.
+ *
+ * `InternalServiceRequest::GroupMessage` carries an opaque `Vec<u8>`; the
+ * protocol does not care what is in it, so the two ends have to agree here.
+ * CBOR, like every other P2P payload in this codebase — see
+ * types/p2p-commands.ts — because it carries BigInt natively and JSON does not.
+ *
+ * Kept in one module so the encode and the decode cannot drift: a sender and a
+ * receiver each with their own idea of the envelope is the failure this whole
+ * campaign keeps finding, and here they would be two files apart.
+ */
+import { encode as cborEncode, decode as cborDecode } from 'cbor-x';
+
+export interface PeerGroupMessage {
+  group_id: string;
+  /** A CID is a bigint, and CBOR carries one natively — no string hop. */
+  sender_cid: bigint;
+  content: string;
+  timestamp: number;
+}
+
+export function encodeGroupMessage(message: PeerGroupMessage): Uint8Array {
+  return cborEncode(message);
+}
+
+/**
+ * Returns null for anything that does not decode to the agreed envelope.
+ *
+ * A peer running a different build, or a stray payload, must not throw inside
+ * the inbound router — that would take down the handling of every message
+ * behind it. Unreadable is not the same as absent, so the caller logs it.
+ */
+export function decodeGroupMessage(bytes: Uint8Array): PeerGroupMessage | null {
+  try {
+    const decoded: unknown = cborDecode(bytes);
+    if (!decoded || typeof decoded !== 'object') return null;
+    const candidate: Partial<PeerGroupMessage> = decoded as Partial<PeerGroupMessage>;
+    if (typeof candidate.group_id !== 'string') return null;
+    if (typeof candidate.sender_cid !== 'bigint') return null;
+    if (typeof candidate.content !== 'string') return null;
+    return {
+      group_id: candidate.group_id,
+      sender_cid: candidate.sender_cid,
+      content: candidate.content,
+      timestamp: typeof candidate.timestamp === 'number' ? candidate.timestamp : Date.now(),
+    };
+  } catch {
+    return null;
+  }
+}

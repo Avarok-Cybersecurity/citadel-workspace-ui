@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback , type RefObject  } from 'react';
+import { groupSendTransport } from '@/lib/group-conversations/group-send-transport';
+import { sendPeerGroupMessage } from '@/lib/group-conversations/group-requests';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { DELETE_MESSAGE_PROMPT } from '@/lib/chat/delete-message-prompt';
 import { describeFailure } from '@/lib/failure-message';
@@ -140,12 +142,18 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
 
     setSending(true);
     try {
-      await WorkspaceService.sendGroupMessage(
-        groupId,
-        inputValue.trim(),
-        GroupMessageTypeTS.Text,
-        replyToId || undefined
-      );
+      // Two kinds of group behind one view. A peer group is owned by no node,
+      // and the workspace server refuses it -- see group-send-transport.
+      if (groupSendTransport(groupId) === 'peer') {
+        await sendPeerGroupMessage(groupId, inputValue.trim());
+      } else {
+        await WorkspaceService.sendGroupMessage(
+          groupId,
+          inputValue.trim(),
+          GroupMessageTypeTS.Text,
+          replyToId || undefined
+        );
+      }
       setInputValue('');
       setReplyToId(null);
     } catch (error) {

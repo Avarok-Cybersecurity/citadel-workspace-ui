@@ -39,6 +39,12 @@ export const CID_ROUTED_NOTIFICATIONS: Set<ResponseType> = new Set<ResponseType>
   // session's call — audio and video both.
   'MediaFrameNotification',           // cid = recipient
   'MediaGapNotification',             // cid = recipient
+  // A peer-group message, same shape as MessageNotification: `cid` is the
+  // recipient and `request_id` belongs to whoever sent it. Routed by
+  // request_id, a group message would be delivered to whichever tab issued
+  // the sender's request -- so with two sessions in one browser, one session
+  // would receive the other's group chat.
+  'GroupMessageNotification',         // cid = recipient, request_id = sender's
 ]);
 
 /**

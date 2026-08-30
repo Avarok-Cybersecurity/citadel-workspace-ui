@@ -21221,6 +21221,73 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 470 — a peer group you could not talk in
+
+`test:peer-group` failed for real this time, not on infrastructure: registration,
+navigation and the chat tab all passed, and messaging failed in both directions
+with the server answering
+
+    Permission denied: not a member of this chat channel
+
+The server was right. `authorize_group_access` resolves a group id to the node
+that owns the chat channel and checks the caller against it. A peer group is a
+Citadel message group keyed `<cid>:<mgid>`, owned by no node, so it can never
+satisfy that rule — the channel is not the workspace's.
+
+`group-requests.ts` had a wire call for creating a peer group, inviting to it,
+answering an invitation, leaving, kicking, listing and ending — and none for
+sending a message. So `useGroupChat` sent both kinds of group through
+`WorkspaceService.sendGroupMessage`. A feature built from one end, at feature
+scale: everything about a peer group worked except talking in it.
+
+`InternalServiceRequest::GroupMessage { cid, message, group_key, request_id }`
+has been on the wire the whole time, with `GroupMessageSuccess`,
+`GroupMessageFailure` and `GroupMessageNotification` all generated. Only the
+client half was missing, so no Rust or WASM change was needed.
+
+Both halves were written in the same change:
+
+* `sendPeerGroupMessage`, CBOR-bodied like every other P2P payload here.
+* `peerGroupMessageEvent`, translating the internal service's
+  `GroupMessageNotification` — `{ cid, peer_cid, message: number[], group_key,
+  request_id }`, a different shape from the workspace protocol's notification of
+  the same name — into the `group:message-received` the store already reads, so
+  the sidebar's badge, preview and recency sort work for both kinds of group.
+* `groupSendTransport`, which picks the wire. The two id spaces were already
+  distinguishable by `groupIdToKey`, the one parser for `<cid>:<mgid>`; a flag
+  on the conversation would have been a second answer to a settled question.
+
+`GroupMessageNotification` joined `CID_ROUTED_NOTIFICATIONS`: `cid` is the
+recipient and `request_id` belongs to the sender, so routed by request_id a
+group message would land in whichever tab issued the sender's request — with two
+sessions in one browser, one session would receive the other's group chat. That
+set's own test required the addition in two places and caught the second.
+
+Two rules in the inbound translator are tested because both are ways a message
+ends up somewhere it was never sent: an unreadable body is dropped rather than
+thrown, and the GROUP KEY decides the conversation, never the body — the
+envelope is written by the sender, the key is the protocol's.
+
+### The control that did not fire
+
+Deleting the branch that wires the translator into `toGroupEvents` left every
+test green: they drove `peerGroupMessageEvent` directly. The helper was covered
+and the wiring was not — the same gap as rounds 434 and 449. A wiring test now
+drives the real translator, and re-running the control fails it.
+
+### Caught by our own gates
+
+The first cut declared `sender_cid: string` in the codec. `check-cid-is-bigint`
+refused it: a CID is a bigint, and CBOR carries one natively, so there was never
+a reason for the string hop. It is a bigint on the wire and in the translator
+now, and becomes a string only at the `group:message-received` boundary, whose
+contract has always been a string and which `group-store` compares against
+`String(own)`.
+
+`group-events.ts` went over the 250-line cap, so `variant`, `toCid` and
+`memberCids` — the shared vocabulary every branch of that translator speaks —
+moved to `group-wire-variants.ts`.
+
 ## Round 468 — a second authority for a peer's name that nobody read
 
 Round 467 recorded two phantom reads rather than fixing them:

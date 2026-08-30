@@ -12,6 +12,7 @@
 import { websocketService } from '@/lib/websocket-service';
 import { toInternalServiceRequest } from '@/hooks/use-group-conversations.types';
 import { groupIdToKey } from './group-key';
+import { encodeGroupMessage } from './group-message-codec';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { MessageGroupKey } from '@/lib/group-conversations/group-key';
 
@@ -163,6 +164,47 @@ export async function sendGroupEnd(groupId: string): Promise<void> {
     GroupEnd: {
       cid,
       group_key: groupIdToKey(groupId),
+      request_id: crypto.randomUUID(),
+    },
+  };
+  await sendGroupRequest(request);
+}
+
+/**
+ * Send a message into a PEER group.
+ *
+ * Every other group operation had a wire call here and this one did not, so
+ * `useGroupChat` sent through `WorkspaceService.sendGroupMessage` — the
+ * workspace protocol — for both kinds of group. The workspace server authorises
+ * that by resolving the group id to the node owning the chat channel, and a
+ * peer group is keyed `<cid>:<mgid>` and owned by no node, so every send came
+ * back "Permission denied: not a member of this chat channel". The server is
+ * right to refuse: the channel is not its.
+ *
+ * `InternalServiceRequest::GroupMessage` has been on the wire the whole time.
+ * Only this half was missing.
+ *
+ * The body is CBOR, as every other P2P payload in this codebase is — see
+ * types/p2p-commands.ts. `groupIdToKey` throws on an id that is not a group
+ * key, which is deliberate: a node-backed channel id arriving here is a routing
+ * mistake, and encoding it as a group key would put a malformed request on the
+ * wire instead of failing where the mistake is.
+ */
+export async function sendPeerGroupMessage(groupId: string, content: string): Promise<void> {
+  const cid: bigint = await requireCid();
+  const groupKey: MessageGroupKey = groupIdToKey(groupId);
+  const body: Uint8Array = encodeGroupMessage({
+    group_id: groupId,
+    sender_cid: cid,
+    content,
+    timestamp: Date.now(),
+  });
+
+  const request: { GroupMessage: { cid: bigint; message: number[]; group_key: MessageGroupKey; request_id: `${string}-${string}-${string}-${string}-${string}`; }; } = {
+    GroupMessage: {
+      cid,
+      message: Array.from(body),
+      group_key: groupKey,
       request_id: crypto.randomUUID(),
     },
   };
