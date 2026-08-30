@@ -20634,3 +20634,39 @@ The extraction into `useFileManagerDeleteHandlers` mirrors
 `useFileManagerSelectionHandlers` beside it, and the two delete paths belong
 together: both ask before destroying anything, both route a directory to `rmdir`
 and a file to `removeFile`, and both now report the outcome either way.
+
+## Round 439 — a fix of mine on the hot path
+
+`test:notifications` has been running for 54 minutes in the current run. It took
+23 minutes in the run before and 18 in the one before that. Nothing else in this
+session touches notifications — but round 430 does touch the path that handles
+EVERY websocket message, and it is the only change that does.
+
+`resolveSelf` in `group-response-service` runs per message. Round 430 gave it a
+fallback for a missing username:
+
+```ts
+const session = await connectionManager.getTabSelectedSession();
+```
+
+`getTabSelectedSession` calls `getSelectedUser` — the same call five lines
+above — and then, because the username is still missing, reads the active
+session index as well. So the fallback costs TWO storage reads per message, on
+the path every message takes, and it fires precisely when the selection has no
+username, which is the case it was written for.
+
+Memoised per cid now, which is not an optimisation: a username does not change
+while the tab lives, so asking once is the correct number of times. The test
+counts the reads across twenty-five calls and expects one; removing the memo
+makes it twenty-five.
+
+I cannot prove this is what the hung job is doing — the job has not finished and
+its logs are not final. The regression is real whether or not it is that
+regression, and it is stated that way here rather than claimed as a diagnosis.
+
+### The gate that caught the seam
+
+I added `forgetFallbackUsernames` as a test seam and no test called it: the
+tests reset the module instead. `unreferenced exports > gains none` failed, and
+it was right. An export nothing calls is surface invented for a caller that does
+not exist — the same thing round 436 deleted four testids for.

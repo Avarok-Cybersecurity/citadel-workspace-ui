@@ -27,6 +27,15 @@ export async function resolveSelfForTest(): Promise<{ cid: bigint; username: str
   return resolveSelf();
 }
 
+/**
+ * The stored-session username, once per cid.
+ *
+ * No clear() seam: a username does not change while the tab lives, and the
+ * tests reset the module instead. An export nothing calls is the thing
+ * `unreferenced exports` is there to stop, and it caught this one.
+ */
+const fallbackUsernames: Map<bigint, string> = new Map<bigint, string>();
+
 async function resolveSelf(): Promise<{ cid: bigint; username: string } | null> {
   const cid: bigint | undefined = connectionManager.getConnectionInfo()?.cid;
   if (cid === undefined || cid === null) return null;
@@ -44,10 +53,21 @@ async function resolveSelf(): Promise<{ cid: bigint; username: string } | null> 
   // The tab's stored session, not `getConnectionInfo().username`. That one
   // belongs to the CONNECTION rather than to this tab and is wrong whenever a
   // browser holds two sessions -- which is the priority rule
-  // `check-one-answer-to-who-am-i` exists to keep. Read only when the
-  // selection is missing, because this runs on every websocket message.
+  // `check-one-answer-to-who-am-i` exists to keep.
+  //
+  // Memoised per cid, and that is not an optimisation. `getTabSelectedSession`
+  // calls `getSelectedUser` AGAIN -- the call five lines above -- and, since
+  // the username is still missing, goes on to read the active session index
+  // too. Unmemoised, that is two storage reads for EVERY websocket message on
+  // the path that handles every websocket message. A username does not change
+  // within a session, so it is asked once.
+  const cached: string | undefined = fallbackUsernames.get(cid);
+  if (cached !== undefined) return { cid, username: cached };
+
   const session: StoredSession | null = await connectionManager.getTabSelectedSession();
-  return { cid, username: session?.username ?? '' };
+  const username: string = session?.username ?? '';
+  fallbackUsernames.set(cid, username);
+  return { cid, username };
 }
 
 /**

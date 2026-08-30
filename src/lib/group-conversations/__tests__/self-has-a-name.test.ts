@@ -15,6 +15,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const selection: { current: { selectedUsername?: string } | null } = { current: null };
 const storedSession: { current: { username: string } | null } = { current: null };
+let sessionReads: number = 0;
 
 // Partial mocks, spreading the real module. A bare object replaced the whole
 // thing, and another module imports `reissueTabId` from tab-context -- which
@@ -30,7 +31,7 @@ vi.mock('@/lib/connection', async (importOriginal) => {
     ...actual,
     connectionManager: {
       getConnectionInfo: (): { cid: bigint } => ({ cid: 7n }),
-      getTabSelectedSession: async (): Promise<unknown> => storedSession.current,
+      getTabSelectedSession: async (): Promise<unknown> => { sessionReads += 1; return storedSession.current; },
     },
   };
 });
@@ -39,6 +40,7 @@ describe('who the creator is', () => {
   beforeEach(() => {
     selection.current = null;
     storedSession.current = null;
+    sessionReads = 0;
     vi.resetModules();
   });
 
@@ -59,5 +61,18 @@ describe('who the creator is', () => {
   it('is empty only when neither knows', async () => {
     const { resolveSelfForTest } = await import('../group-response-service');
     expect((await resolveSelfForTest())?.username).toBe('');
+  });
+
+  it('reads the stored session once, not on every message', async () => {
+    // `getTabSelectedSession` calls `getSelectedUser` again and then reads the
+    // active session index, and this runs for EVERY websocket message. Round
+    // 430 added it unmemoised, and `test:notifications` went from 18 minutes to
+    // over 54 on the next run.
+    storedSession.current = { username: 'ada' };
+    const { resolveSelfForTest } = await import('../group-response-service');
+
+    for (let i: number = 0; i < 25; i += 1) await resolveSelfForTest();
+
+    expect(sessionReads).toBe(1);
   });
 });
