@@ -19418,3 +19418,24 @@ positive control — a role that exists and refuses — passing.
 
 This also makes the next CI run discriminating: whichever sentence Bob's
 composer shows now says which of the two actually happened.
+
+## Round 405 — a red X that was not a build failure
+
+`publish-images.yml` had failed on every run since 2026-08-29 21:46, six in a
+row, each completing in seconds with **zero jobs**. Nothing had gone wrong with
+the build: round 6ef4da9 ("every job declares how long it may run") added
+`timeout-minutes: 15` to the `validate` job, and that job is a reusable-workflow
+caller (`uses: ./.github/workflows/validate.yml`). `timeout-minutes` is not a
+permitted key there, so GitHub rejected the file at run-creation time and
+failed the run before any job existed.
+
+The failure mode is worth naming: a malformed workflow and a broken build show
+up identically in the runs list, and the malformed one has no logs to read, so
+it is the easier of the two to leave alone. Four days of commits could not have
+published an image.
+
+The gate that demanded the key now knows the inversion — for a job with a
+job-level `uses:` the key is forbidden, and since the called workflow is itself
+in the gate's list, its jobs' budgets are still checked directly, so nothing
+becomes unbounded. Controls both ways: putting the key back reports the new
+reason, and stripping an ordinary job's budget still reports the old one.
