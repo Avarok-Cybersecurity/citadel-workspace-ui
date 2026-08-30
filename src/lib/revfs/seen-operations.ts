@@ -20,7 +20,7 @@
  * need the same thing for the same reason. What stays here is the evidence and
  * the key convention.
  */
-import { isNewId, forgetSeenIds } from '@/lib/seen-ids';
+import { isNewId, forgetId, forgetSeenIds } from '@/lib/seen-ids';
 
 /**
  * True the FIRST time this key sees this op id, false afterwards.
@@ -35,4 +35,15 @@ export function isNewOperation(key: string, opId: string): boolean {
 /** Test seam: the map outlives a module import. */
 export function forgetSeenOperations(): void {
   forgetSeenIds();
+}
+
+/**
+ * Forget an operation whose application failed, so a retry is a real attempt.
+ *
+ * The seen-mark is taken before the work, so a failure between the two leaves an
+ * op recorded as handled that never landed -- and the sender's retry then gets a
+ * success Ack for it.
+ */
+export function forgetOperation(key: string, opId: string): void {
+  forgetId(`revfs:${key}`, opId);
 }

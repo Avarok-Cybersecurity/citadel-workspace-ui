@@ -138,8 +138,16 @@ export async function retryPendingOps(
       continue;
     }
     try {
-      await ackPromise;
-      deps.state.removePendingOp(key, entry.operation.op_id);
+      // The ACK's own answer, not merely its arrival. `registerAck` resolves
+      // with the peer's `success` flag, and discarding it retired an operation
+      // the receiver had explicitly refused -- which is the same failure the
+      // timeout branch below was written to stop, arriving by a different route.
+      const acked: boolean = await ackPromise;
+      if (acked) {
+        deps.state.removePendingOp(key, entry.operation.op_id);
+      } else {
+        entry.retryCount += 1;
+      }
     } catch {
       entry.retryCount += 1;
     }
@@ -163,7 +171,15 @@ export async function sendAndAwaitAck(
     return false;
   }
   try {
-    await ackPromise;
+    // Resolved WITH the peer's answer. Returning `true` for any resolution meant
+    // a refusal read exactly like an acceptance: the op left the pending queue
+    // and the caller was told the peer had it.
+    const acked: boolean = await ackPromise;
+    if (!acked) {
+      deps.state.addPendingOp(key, { operation: op, retryCount: 0, createdAt: Date.now() });
+      await deps.io.execute({ type: 'persist-pending-ops', treeKey: key, ops: deps.state.getPendingOps(key) });
+      return false;
+    }
     return true;
   } catch {
     // Returned, not swallowed. This resolved `void` either way, so a caller

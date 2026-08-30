@@ -8,9 +8,9 @@ stack or a WASM rebuild), `wontfix` (with a reason).
 
 The goal this backlog serves: no critical, high or medium issue left open.
 
-**Progress: 30 of 49 fixed** — every critical and every HIGH is closed;
-16 of 25 medium plus one found outside the inspection (round 502, ILM
-cumulative-ACK clearing). 9 open at medium; 11 low.
+**Progress: 32 of 49 fixed** — every critical and every HIGH is closed;
+18 of 25 medium plus one found outside the inspection (round 502, ILM
+cumulative-ACK clearing). 7 open at medium; 11 low.
 
 Two rounds of adversarial re-review have since been run over the fixes
 themselves. They confirmed every one as correct, and found nine further defects
@@ -56,9 +56,9 @@ account switch fired on every reconnect. Those are recorded as rounds 489 and
 | 33 | medium | fixed | ts-perf | applyGroupMessage lacks the identity no-op guard its siblings carry and any messageId dedupe: unknown-group messages cause phantom store updates + IndexedDB writes, and redelivery inflates the unread badge | `citadel-workspaces/src/lib/group-conversations/apply-group-message.ts:24` |
 | 34 | medium | open | ts-perf | Screen-annotation points are sent unthrottled per pointermove, per participant, down the serialised reliable call-signal chain that hang-up shares | `citadel-workspaces/src/lib/call/annotation-signal.ts:32` |
 | 35 | medium | open | ts-perf | Every MediaFrameNotification forwarded to a follower tab pays UUID + 2s timer + retained payload + BroadcastChannel ack, and one un-acked frame unregisters the tab and misroutes the call | `citadel-workspaces/src/lib/multi-instance/instance-inbound-router.ts:195` |
-| 36 | medium | open | ts-revfs | Receiver acks success:true for ops applyRemoteOp silently refused to apply — acknowledged but never applied, sender's queue cleared | `citadel-workspaces/src/lib/revfs/revfs-inbound.ts:99` |
+| 36 | medium | fixed | ts-revfs | Receiver acks success:true for ops applyRemoteOp silently refused to apply — acknowledged but never applied, sender's queue cleared | `citadel-workspaces/src/lib/revfs/revfs-inbound.ts:99` |
 | 37 | medium | open | ts-revfs | A deleted file resurrects through SyncResponse union merge while its RemoveFile op is still pending — pointing at bytes already destroyed | `citadel-workspaces/src/lib/revfs/tree-copy-merge.ts:172` |
-| 38 | medium | open | ts-revfs | Op is marked 'seen' before it is applied; a failure in between makes every redelivery answered with a success Ack for an op that never landed | `citadel-workspaces/src/lib/revfs/revfs-inbound.ts:45` |
+| 38 | medium | fixed | ts-revfs | Op is marked 'seen' before it is applied; a failure in between makes every redelivery answered with a success Ack for an op that never landed | `citadel-workspaces/src/lib/revfs/revfs-inbound.ts:45` |
 | 39 | low | open | rust-server-authz | CreateNodeType read-modify-writes the tree schema with no lock; a concurrent create drops the other type's nesting rules | `citadel-workspace-server-kernel/src/kernel/command_processor/async_process_command.rs:1236` |
 | 40 | low | open | rust-server-authz | Admin-only gates contradict the permission set GetUserPermissions reports, so the permission editor displays grants enforcement refuses | `citadel-workspace-server-kernel/src/handlers/domain/server_ops/async_domain_server_ops.rs:271` |
 | 41 | low | open | rust-server-protocol | UpdateWorkspace and UpdateWorkspaceTheme mutate shared state but broadcast nothing — other connected sessions keep the old name/metadata/theme | `citadel-workspace-server-kernel/src/kernel/command_processor/async_process_command.rs:130` |

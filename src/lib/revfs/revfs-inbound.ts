@@ -17,7 +17,9 @@ import { peerPairKey } from './tree-queries';
 import { withSerialLock } from '@/lib/serial-queue';
 import { persistTree } from './persist-tree';
 import { applyRemoteOp, mergeTrees } from './tree-operations';
-import { isNewOperation } from './seen-operations';
+import { applyRemoteOpWithOutcome } from './tree-sync';
+import type { RemoteOpOutcome } from './remote-op-outcome';
+import { isNewOperation, forgetOperation } from './seen-operations';
 import { debugLog } from '@/lib/debug-config';
 import { RevfsOpType } from '@/types/revfs-types';
 import type { RevfsNode, RevfsOperation } from '@/types/revfs-types';
@@ -91,13 +93,46 @@ export async function applyInboundOperation(
     // concurrent-remote-ops-do-not-clobber.test.ts.
     const loaded: RevfsNode = await ctx.getTree(myCid, senderCid);
     const tree: RevfsNode = ctx.state.getTree(key) ?? loaded;
-    const newTree: RevfsNode = applyRemoteOp(tree, op, myCid);
-    debugLog('RevfsService', `[revfs] handleRevfsOperation: applied ${op.op_type}, updating tree for key=${key}`);
-    ctx.state.setTree(key, newTree);
-    const io: RevfsIO = ctx.ensureIO();
-    await persistTree(io, key, newTree);
 
-    const ackOp: RevfsOperation = { op_id: crypto.randomUUID(), op_type: RevfsOpType.Ack, path: op.path, ack_op_id: op.op_id, success: true, timestamp: Date.now() };
+    // The outcome, not just the tree. `applyRemoteOp` returns the tree unchanged
+    // for every refusal -- a missing parent, a protected path, an occupied
+    // destination -- and this used to acknowledge `success: true` regardless, so
+    // the sender cleared its retry queue for an operation that never happened.
+    let outcome: RemoteOpOutcome;
+    try {
+      outcome = applyRemoteOpWithOutcome(tree, op, myCid);
+      if (outcome.applied) {
+        ctx.state.setTree(key, outcome.tree);
+        const io: RevfsIO = ctx.ensureIO();
+        await persistTree(io, key, outcome.tree);
+      }
+    } catch (error) {
+      // The seen-mark was taken by the guard at the top, BEFORE any of this ran.
+      // Left in place, a redelivery takes the "already applied" path and is
+      // answered with a success Ack for an operation that threw.
+      forgetOperation(key, op.op_id);
+      debugLog('RevfsService', `[revfs] handleRevfsOperation: ${op.op_type} threw, forgetting so a retry is real`, error);
+      const failed: RevfsOperation = { op_id: crypto.randomUUID(), op_type: RevfsOpType.Ack, path: op.path, ack_op_id: op.op_id, success: false, timestamp: Date.now() };
+      const told: boolean = await ctx.sendOp(senderCid, failed);
+      if (!told) {
+        // Not fatal, and worth saying. The sender's ack timeout covers a
+        // failure notice that never arrives -- it retries either way -- but a
+        // silent drop here is why the op appears to vanish rather than fail.
+        debugLog('RevfsService', `[revfs] could not tell ${senderCid} that ${op.op_id} failed`);
+      }
+      return;
+    }
+
+    if (!outcome.applied) {
+      // Same reasoning as the catch: the mark must not outlive a refusal, or the
+      // sender's retry is answered with a success it never earned.
+      forgetOperation(key, op.op_id);
+      debugLog('RevfsService', `[revfs] handleRevfsOperation: refused ${op.op_type} at ${op.path}`);
+    } else {
+      debugLog('RevfsService', `[revfs] handleRevfsOperation: applied ${op.op_type}, updating tree for key=${key}`);
+    }
+
+    const ackOp: RevfsOperation = { op_id: crypto.randomUUID(), op_type: RevfsOpType.Ack, path: op.path, ack_op_id: op.op_id, success: outcome.applied, timestamp: Date.now() };
     await ctx.sendOp(senderCid, ackOp);
 }
 

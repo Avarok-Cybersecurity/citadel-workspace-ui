@@ -40,3 +40,15 @@ export function isNewId(key: string, id: string): boolean {
 export function forgetSeenIds(): void {
   seen.clear();
 }
+
+/**
+ * Forget one id, so a later arrival is treated as new again.
+ *
+ * `isNewId` marks on the way in, which is right for a guard that runs before the
+ * work. When the work then FAILS, the mark is a lie: the next delivery takes the
+ * "already handled" path and is answered with a success it never earned. Undoing
+ * the mark is what makes the redelivery a real second attempt.
+ */
+export function forgetId(key: string, id: string): void {
+  seen.get(key)?.delete(id);
+}

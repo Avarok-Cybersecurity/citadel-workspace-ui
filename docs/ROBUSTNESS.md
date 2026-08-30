@@ -21221,6 +21221,54 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 503 — three halves of one mechanism, each correct alone
+
+Backlog 36 and 38, which turn out to need a third fix neither mentions.
+
+**The receiver acknowledged operations it had refused** (36). `applyRemoteOp`
+returns the tree unchanged for every refusal — missing parent, protected path,
+occupied destination, twenty-three such points — with no signal that it
+declined. The handler acknowledged `success: true` regardless, so the sender
+retired the operation from its retry queue for something that never happened.
+Two trees, permanently divergent, both believing they were correct.
+
+**The seen-mark outlived the failure** (38). `isNewOperation` records the id at
+the top of the handler, before any of the work. A refusal or a throw after that
+leaves it recorded as handled, so the sender's redelivery takes the "already
+applied" path — which answers `success: true` unconditionally. A retryable
+refusal became a permanent, silent loss.
+
+**And the sender discarded the answer anyway.** `registerAck` resolves with the
+peer's `success` flag, and both `sendAndAwaitAck` and `retryPendingOps` did
+`await ackPromise` and then reported success for any resolution. So even a
+correct `success: false` would have been thrown away. `sendAndAwaitAck`'s own
+comment describes catching exactly this failure by a different route — "a caller
+could not tell an acknowledgement from a fifteen-second timeout" — and the same
+blindness sat one line below it, for the resolved value rather than the
+rejection.
+
+Three halves of one mechanism: report, transmit, act. Each correct in isolation
+and none connected to the next.
+
+**Two green controls in this round, both mine.** The first: my "forgets a
+refused operation" test asserted on the ack's success flag — but the
+"already applied" short-circuit also answers `true`, and I checked for a node I
+had created in the test setup rather than the one the retry should produce. Both
+assertions held with the fix removed. It now asserts the tree contains what the
+retry was supposed to create, which is the only thing that separates a real
+second attempt from a replayed answer.
+
+The second: after splitting Move and Copy into `tree-relocation.ts`, making every
+relocation refusal report `applied: true` left all 227 RE-VFS tests green.
+Nothing covered the ops with the most ways to refuse — and a relocation that
+silently did not happen is exactly the case where two trees end up pointing at
+different places. Three cases added; the control now fails.
+
+`tree-sync.ts` breached the line cap and the split was real: Move and Copy ask
+the same four questions in the same order, and keeping them adjacent is what
+stops one gaining a check the other never gets — the defect class this campaign
+has found most often.
+
 ## Round 502 — a question about batching found a mismatch between two truths
 
 Asked whether ILM batches outbound packets or acknowledgements. It does neither:
