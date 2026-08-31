@@ -21221,6 +21221,127 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Rounds 570-584 — the audit's backlog, and the three fixes that were wrong
+
+Fourteen of sixteen HIGHs and all eleven MEDIUMs closed. The durable part of
+this stretch is not the list; it is that **three of the fixes were wrong and
+the tests said so**, in three different ways.
+
+### The fix that compiled, read correctly, and did nothing
+
+M5 left group membership alive after a `GroupLeave`. An agent closed the
+departures this session *initiates*; I wrote the follow-up for the ones it
+*learns about* — mark the entry departed when the server says the group ended.
+It compiled. It read correctly. Then the end-to-end test failed against it:
+
+```
+GroupMessage after the group ended must fail,
+but the service answered GroupMessageSuccess(...)
+```
+
+A `Disconnected`/`EndResponse` broadcast reaches the client through **two**
+paths — `responses/group_event.rs`, which holds the connection map, and the
+spawned group-channel receiver, which does not. I had marked in one. The user
+was told the group ended and the membership entry stayed live. The same *fix
+never propagated* pattern, this time mine, and caught only because the test
+drove a real server instead of the predicate.
+
+### The fix that broke CI on a platform I had not run
+
+H8 — guarding the safe-shutdown teardown so a superseded session does not
+remove the **replacement's** vConns — turned `citadel_sdk (macos-latest)` red
+at `reconnection_both_c2s.rs:439`:
+
+```
+AEAD decrypt_in_place failed
+AES-GCM stage failed … Supplied Ratchet Version: 0 | Expected Ratchet Version: 1
+```
+
+"Flaky" was not available: master was green across eight runs and the sibling
+PR on the same base passed that job. It does not reproduce locally, 6/6. So it
+was withdrawn.
+
+**The failure is better evidence than the audit had.** The teardown is
+load-bearing for clearing *genuinely stale* vconns, not only for the harmful
+case. Skipping it wholesale trades "tears down the replacement's vconn" for
+"leaves a dead one the peer then tries to use" — which is exactly what
+version-0-against-1 looks like. A correct fix must distinguish incarnations
+**at the vconn**, and `active_virtual_connections` is keyed by CID with no
+incarnation marker. H8 is open, with a design requirement it did not have
+before.
+
+The same PR also failed `WASM Build Check`, because the predicate named
+`citadel_io::tokio::time::Instant` — which aliases the plain one on native and
+does not on wasm. Same platform-matrix class as the Windows IPv6 break on
+`#282`. The predicate is now generic over `PartialEq`, verified by actually
+running `cargo check --target wasm32-unknown-unknown` rather than reasoning
+about it.
+
+### The fix that was aimed at the wrong half
+
+M6 was "the listener does ~5 blob round-trips per message". I read that, found
+two writes on the arrival path, batched them, asserted "one operation" — and
+got **two**. The available move was to relax the assertion to `<= 2`. Instead I
+instrumented the backend, and the trace showed five singles landing before my
+batch: `sync_backend`, writing all five of its maps one at a time, on the ACK
+path *and* the delivery path. The audit had pointed straight at it and I had
+read past it. My 2→1 was real and was the smaller half.
+
+Each of those five was a separate five-second `wait_for_response` window inline
+in the single sequential listener. One lost response froze all inbound
+processing — ACKs included — so the senders retransmitted into a receiver that
+had stopped reading. That is the retransmit storm, and it needed one dropped
+LocalDB response to start.
+
+### What the controls measured, in numbers
+
+Three controls this stretch produced a magnitude rather than a pass/fail, and
+each was worse than the description:
+
+| control | reading |
+|---|---|
+| unsynchronised outbound queue (H14) | 8 concurrent sends leave **1** message; the other 7 were reported `Ok` |
+| idle poll gate removed (M9) | **12** store reads in 1.2s, forever, per idle session |
+| `sync_backend` one-at-a-time (M6) | **5** round trips per ACK and per delivery |
+
+### Four refusals of a defaulted trait method
+
+`clear_messages_outbound`, `store_values_batched`, and
+`initial_message_id` are all REQUIRED, with no default. The house style
+nearby (`load_values_batched`) supplies a looping default "for backwards
+compatibility", and that is precisely how a fix ships unwired: every backend
+compiles, nobody overrides, the slow or dangerous path survives, and the build
+is green. `initial_message_id` is the strongest case — the safe answer depends
+on the deployment, so a default would pick the dangerous one for everybody.
+
+### The test that would have passed against nothing
+
+H15's fix seeds a fresh message-id space so a lost store cannot re-mint ids the
+receiver has retired. Three of the four tests I wrote pin arithmetic and would
+pass against a fix that was never connected. So the fourth uses a message type
+whose seed is deliberately **not zero** — with the ordinary `TestMessage`
+(seed 0), `initial_message_id()` and `Default::default()` are
+indistinguishable. Restoring `or_default()` reddens exactly that one.
+
+### Still open
+
+- **H5** — the Double-Loser tiebreak may commit divergent ratchets at the same
+  version, and the completion check compares integers only. Both halves of the
+  mechanism are confirmed by reading; that divergence is *reachable* is not.
+  This is the double-ratchet core of a security product and needs a
+  fault-injection harness, not a guess.
+- **H8** — above.
+- **H15's residual**: after a store loss the receiver holds the first message
+  for `GAP_PATIENCE_SECS` (20s) before re-anchoring. One stall on a new device,
+  in place of permanent silent loss. Closing it means treating a gap wider than
+  `MAX_RECORDED_GAP` as a new incarnation rather than a gap.
+- **Coverage**: two of the audit's 64 agents died on a StructuredOutput retry
+  cap, so two dimensions never reported. The audit also never read
+  `citadel-workspace-server-kernel` at all — the crate that owns workspace,
+  office and room authorization, which is where the same class of defect as
+  C1/H1/H2/H3 would live.
+
+
 ## Rounds 568-569 — the ownership gate had a door it never covered
 
 **The audit's one CRITICAL and two of its HIGHs were the same defect.** 64
