@@ -65,6 +65,12 @@ export function restoreTransfer(raw: Partial<FileTransfer>): FileTransfer | null
     isIncoming: raw.isIncoming ?? false,
     createdAt: raw.createdAt ?? Date.now(),
     updatedAt: raw.updatedAt ?? Date.now(),
+    // Where the internal service wrote the file on its own filesystem. Dropped
+    // here before, so after a reload the "Click to open file" control rendered
+    // and operated on nothing -- a button that reads as working and does not.
+    // FilesSection surfaces it as `savedTo`. Only meaningful for a transfer
+    // that actually finished, which is what `interrupted` decides.
+    ...(interrupted ? {} : { downloadPath: raw.downloadPath, virtualPath: raw.virtualPath }),
     ...(interrupted
       ? { errorMessage: 'Interrupted when the page reloaded. Ask them to send it again.' }
       : {}),

@@ -21,3 +21,21 @@ export function scopedSettingsKey(peerCid: string): string {
   const own: bigint | null = instanceManager.cid;
   return own ? `${own.toString()}:${peerCid}` : peerCid;
 }
+
+/**
+ * The localStorage key the transfer HISTORY is stored under, for this account.
+ *
+ * Settings were given account scoping (above) and the transfer store was not,
+ * so one browser's accounts shared a single `citadel:file-transfers` map:
+ * every tab loaded every account's history, and each write serialised all of
+ * it. Two accounts in one browser is the ordinary case here, not an edge one.
+ *
+ * Falls back to the bare key when no account is known, for the same reason
+ * `scopedSettingsKey` does: records written before a session exists belong to
+ * no account, and filing them under one silently would be worse than leaving
+ * them where they are.
+ */
+export function scopedTransfersKey(): string {
+  const own: bigint | null = instanceManager.cid;
+  return own ? `citadel:file-transfers:${own.toString()}` : 'citadel:file-transfers';
+}

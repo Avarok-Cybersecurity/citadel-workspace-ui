@@ -15,12 +15,15 @@
  * bubbles render before their transfers exist.
  */
 
+import { scopedTransfersKey } from './settings-key';
 import { debugLog } from '@/lib/debug-config';
 import { restoreTransfer } from './restore-transfer';
 import { pruneTransfers } from './prune-transfers';
 import type { FileTransfer, FileTransferSettings } from './types';
 
-const TRANSFERS_KEY: "citadel:file-transfers" = 'citadel:file-transfers';
+// Account-scoped: see `scopedTransfersKey`. It is a function rather than a
+// constant because the account is not known at module load, and because a
+// ClaimSession can change it while the tab is open.
 const SETTINGS_KEY: "citadel:file-transfer-settings" = 'citadel:file-transfer-settings';
 
 interface TransferStore {
@@ -38,7 +41,7 @@ export async function loadPersistedTransfers(state: TransferStore): Promise<void
       }
     }
 
-    const transfersRaw: string | null = localStorage.getItem(TRANSFERS_KEY);
+    const transfersRaw: string | null = localStorage.getItem(scopedTransfersKey());
     if (transfersRaw) {
       const parsed: Record<string, Partial<FileTransfer>> = JSON.parse(transfersRaw) as Record<string, Partial<FileTransfer>>;
       for (const raw of Object.values(parsed)) {
@@ -58,7 +61,7 @@ export async function loadPersistedTransfers(state: TransferStore): Promise<void
 
 export function persistTransfer(transfer: FileTransfer): void {
   try {
-    const raw: string | null = localStorage.getItem(TRANSFERS_KEY);
+    const raw: string | null = localStorage.getItem(scopedTransfersKey());
     const transfers: Record<string, Partial<FileTransfer>> = raw ? JSON.parse(raw) : {};
 
     // Serializable metadata only — no Blob or File.
@@ -75,12 +78,19 @@ export function persistTransfer(transfer: FileTransfer): void {
       expiresAt: transfer.expiresAt,
       createdAt: transfer.createdAt,
       updatedAt: transfer.updatedAt,
+      // Where the internal service wrote the file on its own filesystem.
+      // Omitted before, so after a reload "Click to open file" had nothing to
+      // open -- the button rendered and did nothing, which is worse than not
+      // rendering. FilesSection reads it as `savedTo`.
+      downloadPath: transfer.downloadPath,
+      virtualPath: transfer.virtualPath,
+      errorMessage: transfer.errorMessage,
     };
 
     // Pruned on write, because this is the only moment the whole map is in
     // hand. Without it the map grew for the life of the profile and every
     // progress tick re-serialised all of it.
-    localStorage.setItem(TRANSFERS_KEY, JSON.stringify(pruneTransfers(transfers, Date.now())));
+    localStorage.setItem(scopedTransfersKey(), JSON.stringify(pruneTransfers(transfers, Date.now())));
   } catch {
     // localStorage may be full. Losing the record costs history, not a
     // transfer — as long as the map is bounded, which is what the prune above
