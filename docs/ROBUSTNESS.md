@@ -21221,6 +21221,49 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Rounds 553-554 — the pre-committed reading catches my own fix
+
+**Round 552 wrote down how to read this run before seeing it**, precisely so a
+result could not be interpreted to taste. It was needed, and it caught my own
+work rather than someone else's.
+
+**Two of three deciding jobs went green, with the signal agreeing.**
+`test:hard-disconnect` (a pure messaging test) and `test:reconnect-p2p-only`
+both pass, with **zero** `invalid remote address` and **zero**
+`[Hole-punch/Timeout]` — where both previously carried them. Those two are the
+jobs whose failure raised #56 to high, so the severity claim and its remedy are
+both borne out. Three failures became one.
+
+**The third told me my fix was half a fix.** Shard 3/3 still fails, and the
+error is still there:
+
+    [Hole-punch/Err] ... invalid remote address: [::]:47790
+
+Per round 552's table that means the fix did not reach that path. On pass/fail
+alone I would have filed this as intermittency — #56 has been intermittent all
+session, and the temptation to say "two of three, close enough" was real.
+
+**It is a second, distinct defect.** The runner reports
+
+    external_ipv6: Some(172.208.127.86)   <- an IPv4 address
+    internal_ip:   10.1.1.120
+
+`async_ip` stores whatever the "v6" endpoint returns as `external_ipv6` without
+checking the family, and those endpoints answer over whatever transport reaches
+them. `get_optimal_bind_socket` then reads `external_ipv6.is_some()` on both
+peers as "both have IPv6" and binds `[::]:0`. My #280 fix declines to substitute
+there — correctly, since crossing families would advertise an address the socket
+cannot send from — so the wildcard goes out regardless.
+
+Fixed at the source in #281: `only_ipv6` filters a non-IPv6 answer, so an
+IPv4-only host reports `None`, takes the IPv4 branch, and #280 substitutes the
+real address. The two fixes compose rather than overlapping.
+
+**What made the difference.** Deciding the reading in advance. Every other
+temptation this session — "it passed once", "the nearby error must be the
+cause" — was resolved by evidence after the fact, at the cost of a correction.
+This one was resolved before the fact, and cost nothing.
+
 ## Rounds 522, 528, 536, 548, 549, 552 — recorded in the backlog only
 
 Found by counting round numbers in this file against the backlog: these six had
