@@ -21221,6 +21221,50 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 535 — the wildcard is advertised on purpose, by construction
+
+**Round 534 guessed that a peer was advertising its bind wildcard. It is, and
+the code says so plainly.**
+
+`citadel_wire/src/udp_traversal/udp_hole_puncher.rs`:
+
+```rust
+// get_optimal_bind_socket, line 298
+crate::socket_helpers::get_udp_socket("[::]:0")     // IPv6 branch
+crate::socket_helpers::get_udp_socket("0.0.0.0:0")  // otherwise
+
+// line 192
+let internal_bind_addr_optimal = local_initial_socket.local_addr()?;
+let mut internal_addresses = vec![internal_bind_addr_optimal];
+
+// line 196, only on the IPv6 branch
+let additional_socket = get_udp_socket("0.0.0.0:0")?;
+internal_addresses.push(additional_socket.local_addr()?);
+```
+
+A socket bound to a wildcard reports that wildcard from `local_addr()`, with a
+real ephemeral port. Those values go into `internal_addresses` — the candidate
+list handed to the peer. So the peer is told to try `0.0.0.0:<port>` or
+`[::]:<port>`, and cannot.
+
+**One mechanism, both observations.** The IPv6 branch advertises `[::]:p1` AND
+the extra `0.0.0.0:p2`; the other branch advertises `0.0.0.0:p1`. Shard 3 saw
+`[::]:34464`, shard 1 saw `0.0.0.0:54960` — each in the family of whichever
+branch ran. Round 534 had two data points and a guess; this is the construction
+that produces them.
+
+**What is still not proven.** Whether a wasted candidate fully accounts for a
+30s traversal timeout. The reflexive candidates gathered by the STUN probe at
+"Step 3b" are real addresses and should still work, so the punch is not left
+with nothing. The defect is certain; its sufficiency as the cause is not, and
+this entry says so.
+
+**The arc worth noting.** 532 measured, and inferred a cause from a nearby line.
+533 counted, and threw that cause away. 534 replicated the measurement and
+produced a better lead from a second sample. 535 read the source and found the
+lead was structural. Only the measurement survived every step unchanged — the
+three causal claims each replaced the one before it.
+
 ## Round 534 — the same lead, replicated, and half of it wrong
 
 **Shard 1/3 failed on the same run and reproduces round 532's measurement
