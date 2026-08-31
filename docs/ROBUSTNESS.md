@@ -21221,6 +21221,49 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 521 — a green run is not a fix, and the measurement #56 asked for
+
+**Two corrections to my own reporting, both from one CI failure.**
+
+Run 33353745525 failed `Playwright - shard 3/3` on `screen-share › a shared
+screen reaches the other side`, all three attempts. Shard 3/3 had passed in the
+previous run, so it looked exactly like a regression from round 516, which is
+the round that touched call code.
+
+**It is not a regression.** The assertion's received value is #56 verbatim:
+
+    call failed: no UDP channel for peer <cid> within 5s; it may still be
+    negotiating (retry shortly), or the peer connection was established with
+    UdpMode disabled
+
+That is the media-open path, and the failure text is documented in this record
+as far back as round 299. Round 516's audio-level measurement runs inside
+`encodeAudio`, on a capture that has already started; a call that never became
+active never reached it.
+
+I checked one real hazard in my own change first rather than assuming: the
+`self-speaking-changed` arm does `{ ...state, ... }` on a `CallState | null`,
+and spreading null yields `{}` — a call state with no `callId` or `status`. It
+turns out the reducer's `if (!state) return null` guard sits above that switch,
+so the arm only ever sees a non-null state. Worth verifying before blaming the
+environment; worth writing down that it was verified.
+
+**The second correction is mine to own.** Last round I wrote that #56 was
+"likely resolved by dfb50a2" on the strength of one all-green run. One green run
+is not evidence of a fix for an INTERMITTENT failure, and I should not have
+said it. #56 is open.
+
+**What genuinely changed is the evidence.** #56's own entry refused to tune
+`UDP_WAIT` because no run had ever measured a SUCCESSFUL negotiation — the only
+tests using UDP were the ones that failed, leaving "slow" and "never comes up on
+this link" equally consistent. The green run settles that: negotiation does
+succeed, so this is a timing race.
+
+So this round instruments rather than tunes. `[UDP-NEGOTIATION]` logs the
+elapsed wait on BOTH outcomes, with the budget and how many offers were raced,
+and the CI failure dump greps for it. The next run produces the measurement the
+constant can be set from — which is what #56 asked for and what nobody had.
+
 ## Round 520 — a five-attempt retry that always took one
 
 **Found.** Run 33352898046, `Integration Test - test:p2p-types` — green in the
