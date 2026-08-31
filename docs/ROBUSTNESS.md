@@ -21221,6 +21221,53 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 514 — the sync engine on the landing page's critical path
+
+**Found.** CI run 33347976897, `Production Docker Build` → `Landing bundle
+budget`: 322.1 KB against a 322 KB budget. Reproduced locally to the same
+tenth of a kilobyte.
+
+**Not a budget problem.** `BUDGET_KB` has been raised twice, and the record of
+the second raise says a third should not happen. The overage was 0.1 KB; the
+cause underneath it was 8.6 KB of REVFS.
+
+`lib/p2p/message-handler-routing` held `import { revfsService } from
+'@/lib/revfs'` for a single switch arm that cannot fire until a peer sends a
+sync operation. `lib/p2p` is bundled into the eagerly-loaded `app-services`
+chunk, so the entire sync engine was fetched before the landing page could
+render.
+
+**Deferring one import made it worse.** Making that one dynamic moved the engine
+out of `app-services` (87.2 → 78.5 KB) and straight into the entry chunk
+(91.0 → 99.8 KB) — a net 0.1 KB *worse*, because `useConnectionHandler` also
+imported it statically, and that file is equally eager. Both pins had to go
+together, which is the only reason the second measurement was worth taking.
+
+**Fix.** A `revfs-loader` module both call sites share. The connection handler
+calls `startRevfs(deps)`, which imports the engine and initializes it, once.
+The router calls `revfsWhenReady()`, which returns that same promise or null.
+
+Null, rather than starting its own import, is the load-bearing decision: two
+independent dynamic imports would each resolve the engine, but only one of them
+configures it, so the router could hand an operation to a service whose
+`initialize` had never run and whose every call throws. Returning null lets the
+router leave the operation unacked instead — the sender retries, and by then the
+handler has started the engine.
+
+**Result.** 313.5 KB, 8.5 KB under budget, with no raise.
+
+**Controls.** Making `revfsWhenReady` start its own import reddens the
+before-start test; making `startRevfs` non-idempotent reddens the
+initialize-once test. Each control hits exactly one assertion.
+
+**Cost paid.** The comment explaining this pushed `message-handler-routing` to
+259 lines, over the 250 cap, so the REVFS arm moved into its own
+`revfs-layer-routing` module — which is where the deferred-load concern belonged
+anyway.
+
+**Gate.** 74 of 75 preflight checks pass; the one failure is the submodule
+pointer, unpushed on purpose while a diagnostic CI run is in flight.
+
 ## Round 513 — the permissions a deleted workspace left behind
 
 **Found.** Backlog #55. `create_workspace` grants the creator

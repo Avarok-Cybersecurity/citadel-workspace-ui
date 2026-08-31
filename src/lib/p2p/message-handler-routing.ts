@@ -13,10 +13,10 @@ import {
   isRevfsOperation,
   TYPING_DISPLAY_DURATION_MS,
 } from '@/types/messaging-layer';
+import { routeRevfsOperation } from './revfs-layer-routing';
 import { eventEmitter } from '../event-emitter';
 import { applyEdit, applyDelete } from './message-revision';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
-import { revfsService } from '@/lib/revfs';
 import { debugLog } from '@/lib/debug-config';
 import { deliverToConversation, shouldAck } from './inbound-message-delivery';
 import type { P2PMessage, PeerPresence } from './p2p-types';
@@ -111,7 +111,7 @@ export async function handleMessagingLayerCommand(
       if (isRevfsOperation(layer)) {
         const myCid: bigint | null = await config.getCurrentCid();
         if (myCid) {
-          void revfsService.handleRevfsOperation(peerCid, myCid, layer.operation);
+          await routeRevfsOperation(peerCid, myCid, layer.operation);
         }
       }
       break;

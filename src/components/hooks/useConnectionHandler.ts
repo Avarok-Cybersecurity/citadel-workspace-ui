@@ -21,7 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { healthCheckService } from '@/lib/health-check';
 import { getSelectedUser } from '@/lib/tab-context';
 import { TIMEOUT } from '@/lib/timeout-constants';
-import { revfsService } from '@/lib/revfs';
+import { startRevfs } from '@/lib/revfs/revfs-loader';
 import '@/lib/session-startup-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { postAuthSetup } from '@/lib/post-auth-setup';
@@ -77,7 +77,9 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
     const connectionService: ConnectionService = ConnectionService.getInstance();
     const userService: typeof UserService = UserService;
 
-    revfsService.initialize({
+    // Starts the engine loading and initializes it. Deferred so the sync
+    // engine stays off the landing page's critical path; see revfs-loader.
+    void startRevfs({
       sendP2PMessageReliable: (localCid, peerCid, message) =>
         websocketService.sendP2PMessageReliable(localCid, peerCid, message),
       getCurrentCid: async () => {
