@@ -128,6 +128,14 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
     const oldestTimestamp: bigint | undefined = groupMessagingManager.getOldestTimestamp(groupId);
     if (!oldestTimestamp) return;
 
+    // BEFORE anything is disabled. A peer group has no older page to fetch --
+    // same reason as the initial load -- and this return used to come after
+    // `setLoadingMore(true)` and the deadline, so clicking "Load older
+    // messages" greyed the button out for the full fifteen seconds and did
+    // nothing at all. A guard that runs after the state it is guarding is not
+    // a guard.
+    if (groupSendTransport(groupId) === 'peer') return;
+
     setLoadingMore(true);
     // Same shape, worse symptom: the "Load older messages" button is
     // `disabled={loadingMore}`, so a lost response disabled it permanently.
@@ -135,9 +143,6 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
     // Tell the manager an older page is coming, so it merges rather than
     // replacing the thread. Without this the response looked identical to an
     // initial load and took the "replace" branch.
-    // Same reason as the initial load: there is no older page to fetch.
-    if (groupSendTransport(groupId) === 'peer') return;
-
     groupMessagingManager.markLoadingOlder(groupId);
     try {
       await WorkspaceService.getGroupMessages(groupId, oldestTimestamp);
