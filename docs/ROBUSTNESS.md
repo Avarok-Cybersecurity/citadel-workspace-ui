@@ -21221,6 +21221,50 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Rounds 563-567 — the platform matrix, learned one regression at a time
+
+**#282's first commit hung `citadel_sdk (windows-latest)` for 70 minutes.** The
+same job is green on #280 and #281, so it was mine. The cause was two functions
+from the code I changed:
+
+```rust
+// On non-Windows platforms, enable dual-stack mode for IPv6 sockets.
+// Windows is excluded because enabling dual-stack mode causes WSAEINVAL
+// (error 10022) when Quinn creates QUIC endpoints.
+if !cfg!(windows) && addr.is_ipv6() { socket.set_only_v6(false)?; }
+```
+
+On Windows a `[::]` socket is IPv6-ONLY. The entire premise of that commit — the
+bind is dual-stack, so the socket is reachable at the host's IPv4 address — is
+true on Linux and macOS and false on Windows.
+
+**Two attempts, two platforms, opposite failures.**
+
+| | Linux / macOS | Windows |
+|---|---|---|
+| #281 — stop the bogus `external_ipv6` | ❌ lost dual-stack reach | would be correct |
+| #282 first commit — advertise the mapped address | ✅ green | ❌ hung |
+
+**I could have gone green by gating on `!cfg!(windows)` and shipping.** That
+would leave Windows advertising `[::]` — the original defect, unfixed, behind a
+passing build. Declined, and said so on the PR.
+
+**Then I reversed my own "handing over".** I had written that the next move
+should be the maintainer's rather than a fourth guess. The reversal is
+defensible for one specific reason and I put it on the PR so it can be
+discounted: the first three attempts reasoned about behaviour I had not
+observed, whereas the fourth only combines two MEASURED results, on the
+platforms that produced them, along a split the source states outright.
+
+The commit matches each half to the platform its own evidence supports. It
+cannot reintroduce #281's regression, because that came from changing the bind
+on Linux where dual-stack works, and this gate only excludes the branch where
+the socket cannot carry IPv4 at all.
+
+**A stopping rule, announced before the result.** If either
+`citadel_sdk (ubuntu)` or `citadel_sdk (windows)` goes red, I stop rather than
+produce a fifth version. A stopping rule declared afterwards is not one.
+
 ## Rounds 559-562 — I broke a test, and what the break taught
 
 **#281 regressed `test_p2p_after_one_c2s_disconnect`.** Deterministic on the
