@@ -21221,6 +21221,44 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 533 — correcting round 532's cause, one round later
+
+**I overstated the cause and the counts do not support it.** Round 532 concluded
+that traversal packets "arrive and fail to decrypt, so the punch never completes
+and no channel is ever offered". That is wrong in two ways:
+
+- `method3.rs:316-320` logs the bad packet and `continue`s. A failed decryption
+  is skipped, not fatal. The loop keeps listening.
+- There are **2** decryption failures against **12** negotiation failures. On a
+  shared-host runner with concurrent tests, a packet from someone else's punch
+  fails to decrypt exactly like that. It is most likely noise.
+
+The measurement in round 532 stands — bimodal, microseconds or never, so
+`UDP_WAIT` is still not the variable. What was wrong was the causal claim
+attached to it, made from a log line that happened to be nearby.
+
+**What the arithmetic does support.** The 12 failures group as four peer entries
+with three failures each: two P2P connections (two directions apiece), each
+retried three times by the client ladder. That matches the two
+`[Hole-punch/Timeout] P2P connection establishment timed out after 30s` lines
+exactly. One failed punch produces one dead connection, and every media open on
+it then burns the full budget. The chain is consistent end to end.
+
+**A sharper lead, offered as a hypothesis.** One punch reports
+
+    [Hole-punch/Err] invalid remote address: [::]:34464
+
+`[::]` is the IPv6 unspecified address — a wildcard, not a destination. And the
+runner's own NAT report reads `external_ipv6: Some(20.169.99.129)`, which is an
+IPv4 address sitting in the IPv6 field. An address-family mix-up yielding an
+unusable destination would explain a punch that times out instead of failing
+fast. That is one log line; it needs confirmation before anyone builds on it,
+and it is written down as a hypothesis rather than a finding.
+
+**The lesson is the one this record keeps relearning.** A number and a nearby
+error line are not the same evidence. The timing distribution was measured and
+holds; the cause was inferred from proximity and did not survive counting.
+
 ## Round 532 — the number that ends the UDP_WAIT argument
 
 **The measurement #56 has wanted since it was written.** Round 527 changed the
