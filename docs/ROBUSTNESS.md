@@ -21221,6 +21221,45 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 520 — a five-attempt retry that always took one
+
+**Found.** Run 33352898046, `Integration Test - test:p2p-types` — green in the
+previous run, red in this one. A regression by every appearance.
+
+**It was not.** The job never reached a test: the `sync-wasm-client` image
+failed to build, on `curl: (35) Recv failure: Connection reset by peer` while
+fetching wasm-pack. "Environmental" is a claim that needs evidence like any
+other, and the evidence was in the timestamps.
+
+**The retry loop could not retry.** Two runtime lines, one millisecond apart:
+
+    #27 0.108 curl: (35) Recv failure: Connection reset by peer
+    #27 0.109 /bin/sh: 1: wasm-pack: not found
+
+No retry message between them, out of a loop that offers five attempts with
+escalating sleeps. The cause is the pipeline: `curl … | sh && break`. A
+pipeline's exit status is its LAST command's, and `sh` reads empty input from a
+failed curl and exits 0 — so `break` fires on attempt one, every time, and the
+loop is decoration. One reset connection then takes every integration job with
+it, carrying no test signal at all.
+
+**Fix.** Download to a file, then run it, so the `&&` chain tests curl's own
+status. Both sites: wasm-pack, and the nodesource setup script on line 9 with
+the identical defect.
+
+**The guard that should have caught it asked a narrower question than its name.**
+`check-image-fetches-retry.mjs` verifies a fetch sits inside a `for attempt`
+loop. This fetch did. It now also rejects a fetch piped into a shell, since such
+a loop cannot observe the failure it exists for.
+
+**And my own guard could not fail.** The first version printed the offender and
+exited 0 — it reported instead of gating, which is the exact defect class this
+record keeps naming, committed while fixing an instance of it. The control
+caught it: restoring the piped fetch gave `exit=0`. With the missing
+`process.exit(1)`, the control now returns 1 with the defect and 0 without.
+
+**Gate.** All 75 preflight checks pass.
+
 ## Round 519 — head-of-line blocked on a message id that never comes
 
 **Root cause of #57, found by tracing the reproduction from round 518.**
