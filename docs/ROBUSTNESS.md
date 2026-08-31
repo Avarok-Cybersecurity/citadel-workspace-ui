@@ -21249,6 +21249,27 @@ feel routine — those are the ones nobody inspects.
 Fixed by pushing the submodule; preflight is back to 75/75 and the run has been
 re-triggered rather than pushing an empty commit to force one.
 
+**And then the sharper finding: the guard already existed and had never run.**
+`.githooks/pre-push` runs this exact check, and its own comment names this exact
+cost — "aborts EVERY CI job that checks out submodules recursively ... at
+checkout, before a test compiles". It ends with:
+
+    # Enable with:  git config core.hooksPath .githooks
+
+`core.hooksPath` was unset. Git had never executed it, in this clone or any
+other. A hook that documents the disaster it prevents, sitting in a directory
+git does not look at, is the purest form of the defect this record keeps
+finding — a control that operates on nothing.
+
+Now installed via the root `prepare` script, which npm runs on install, so it
+does not depend on anyone remembering a manual command. Verified by control: a
+deliberately unpushed submodule commit makes `git push` fail with the exact
+diagnostic, and the push is refused rather than reported.
+
+**Both halves are the same lesson.** I skipped the check that runs when asked;
+the check that should have run without asking was never wired. Neither is worth
+much alone.
+
 ## Rounds 544-547 — the severity raise, confirmed then demonstrated
 
 These four were recorded in PRODUCTION-READINESS.md as they happened and are
