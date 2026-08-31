@@ -21221,6 +21221,44 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 519 — head-of-line blocked on a message id that never comes
+
+**Root cause of #57, found by tracing the reproduction from round 518.**
+
+On the A->B peer channel: ids 0 and 1 delivered in order, then
+
+    [ORDERED CHANNEL] Received packet with id 3 | Next expected message id: 2
+
+Id 2 is consumed by the file transfer and never reaches the receiver's ordered
+channel. `OrderedChannel::on_packet_received` takes its final `else` branch and
+files id 3 into the reorder map to await id 2 — which will never arrive. Every
+subsequent message joins it there.
+
+**This explains every symptom that looked contradictory.** The sender's
+`sink.send()` succeeds because the packet really is sent. The receiver's read
+loop stays alive and never exits because it is not the layer that dropped
+anything. And nothing is ever delivered because the bytes arrive and are parked
+one layer above that loop, in a reorder buffer waiting on a gap that cannot
+close. It also explains the direction: only A->B has the gap, so B->A keeps
+working throughout.
+
+**The recovery was anticipated and never wired.** `OrderedChannelState` carries
+`last_message_received_instant`, assigned at ordered_channel.rs:87 and :147 and
+read nowhere in the crate. It is a gap timer with no consumer — the same defect
+class this record has named repeatedly as "a control that operates on nothing",
+sitting in the one place that would have turned a permanent stall into a delay.
+
+**Two fixes, both upstream in `Citadel-Protocol`:** stop the object transfer
+consuming an ordered-channel id the peer never sees, which is the cause; and
+implement the gap timeout the struct already reserves the field for, which is
+the defence in depth that would have made this a hiccup instead of a permanent
+outage.
+
+**Still out of scope here.** Confirmed against `citadel_sdk` a28a3c7, which is
+`master` HEAD. Nothing in these four repos can close it, and working around it
+in the internal service would paper over a protocol-level stall that affects
+every consumer of the SDK, not just this app.
+
 ## Round 518 — #57 reproduced in a minute, and pinned to the SDK
 
 **The coverage gap that hid it.** The internal-service suite had file-transfer
