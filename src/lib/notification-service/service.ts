@@ -128,16 +128,22 @@ export class NotificationService {
     // it would re-render every subscriber on every read receipt.
     { notifyHandlers = true }: { notifyHandlers?: boolean } = {},
   ): void {
-    let anyChanged: boolean = false;
+    // Re-deliver only what this sweep actually changed. The store is
+    // insert-only in normal operation (`cleanup()` has no callers), so
+    // notifying every stored notification per sweep re-delivered the entire
+    // ever-growing history to every handler each time a bell was opened.
+    const changed: Notification[] = [];
     for (const [id, notification] of this.notifications.entries()) {
       if (!notification.read && shouldMark(notification)) {
         notification.read = true;
         this.notifications.set(id, notification);
-        anyChanged = true;
+        changed.push(notification);
       }
     }
-    if (notifyHandlers) this.notifyAllHandlers();
-    if (anyChanged) { this.notifyUnreadChange(); }
+    if (notifyHandlers) {
+      for (const notification of changed) { this.notifyHandlers(notification); }
+    }
+    if (changed.length > 0) { this.notifyUnreadChange(); }
   }
 
   public markMessageNotificationsAsReadBySender(senderId: string): void {
@@ -212,10 +218,6 @@ export class NotificationService {
 
   private notifyHandlers(notification: Notification): void {
     for (const handler of this.notificationHandlers) { handler(notification); }
-  }
-
-  private notifyAllHandlers(): void {
-    for (const notification of this.getNotifications()) { this.notifyHandlers(notification); }
   }
 
   private notifyRemovedHandler(notification: Notification): void {
