@@ -21221,6 +21221,37 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 541 — reversing a decision because its reason expired
+
+**Round 536 refused to send a patch for #56.** The stated reason: traversal
+depends on invariants that only real NAT scenarios exercise, and a plausible
+patch could regress cases unavailable here. That was the right call on the
+evidence then, and round 540 proved it — the "drop the entry" alternative I had
+floated would have tripped an assertion on the peer.
+
+**Round 540 also removed the reason.** Reading `hole_punch_config.rs` surfaced
+both invariants: candidates are positionally paired with local sockets
+(`assert_eq!(peer_internal_addrs.len(), local_sockets.len())`), and each internal
+address carries every reflexive address in its band-set. Once both are known,
+the safe shape is not a guess — substitute the IP in place, keep the port and
+the position, stay within the address family, and fall back to today's behaviour
+when nothing better is known.
+
+So the fix went up as Citadel-Protocol#280. Five tests, `citadel_wire` 29 green,
+and a control that reddens exactly the two substitution assertions.
+
+**What the PR does NOT claim.** That this accounts for the 30s timeouts. The
+reflexive candidates stay valid, so the punch is not left with nothing, and the
+failing condition could not be reproduced here — every available environment
+punches over loopback in microseconds. The defect is certain; its sufficiency is
+not, and the PR says so rather than letting a reviewer infer otherwise.
+
+**A near-miss worth recording.** The branch was accidentally cut from the
+pre-squash commit rather than the merged master, because `git pull` had refused
+on divergent branches and I did not read its output. Caught with
+`git merge-base --is-ancestor` before pushing. A PR based on a commit that no
+longer exists upstream would have looked fine locally and been unmergeable.
+
 ## Round 540 — reading the code I proposed changing
 
 **I offered a fix upstream and half of it was wrong.** Issue #279 suggested
