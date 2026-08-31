@@ -20,6 +20,7 @@ import { applyRemoteOp, mergeTrees } from './tree-operations';
 import { applyRemoteOpWithOutcome } from './tree-sync';
 import type { RemoteOpOutcome } from './remote-op-outcome';
 import { isNewOperation, forgetOperation } from './seen-operations';
+import { mayAnswerSyncAgain, noteSyncAnswered } from './sync-answer-rate';
 import { debugLog } from '@/lib/debug-config';
 import { RevfsOpType } from '@/types/revfs-types';
 import type { RevfsNode, RevfsOperation } from '@/types/revfs-types';
@@ -42,6 +43,30 @@ export async function applyInboundOperation(
     debugLog('RevfsService', `[revfs] handleRevfsOperation: sender=${senderCid} myCid=${myCid} op=${op.op_type} path=${op.path}`);
     const key: string = peerPairKey(myCid, senderCid);
 
+    // The one place a SyncResponse is produced, so the rate limit cannot be
+    // bypassed by whichever branch happens to reach it first.
+    const answerSyncRequest: (isRepeat: boolean) => Promise<void> = async (
+      isRepeat: boolean,
+    ): Promise<void> => {
+      const now: number = Date.now();
+      if (isRepeat) {
+        if (!mayAnswerSyncAgain(key, now)) {
+          return;
+        }
+      } else {
+        noteSyncAnswered(key, now);
+      }
+      const tree: RevfsNode = await ctx.getTree(myCid, senderCid);
+      const syncResponse: RevfsOperation = {
+        op_id: crypto.randomUUID(),
+        op_type: RevfsOpType.SyncResponse,
+        path: '/',
+        tree,
+        timestamp: Date.now(),
+      };
+      await ctx.sendOp(senderCid, syncResponse);
+    };
+
     // Applied once, however many times it arrives. An Ack is exempt: it is
     // idempotent by construction and resolving an already-resolved id is a
     // no-op, while dropping one could strand a sender.
@@ -56,7 +81,27 @@ export async function applyInboundOperation(
       //
       // Re-applying is wrong and re-acknowledging is right: the sender's
       // question is "did this land", and it did.
-      if (op.op_type !== RevfsOpType.SyncRequest && op.op_type !== RevfsOpType.SyncResponse) {
+      // A repeated SyncRequest is answered again rather than acknowledged.
+      //
+      // It is a query, not a mutation, so an Ack is the wrong shape for it and
+      // it was excluded from the re-acknowledgement above -- which left it with
+      // the exact failure that comment describes. CI showed the same op id
+      // arriving once a second for a whole test, every one answered with
+      // silence, while the file it was syncing never appeared.
+      //
+      // Both paths route through `answerSyncRequest`, which gates repeats and
+      // records fresh answers. A fresh request is never suppressed -- a new
+      // question asked moments after an earlier one deserves its answer -- but
+      // its answer starts the interval, so the redeliveries behind it are
+      // measured from it rather than each opening a new window.
+      if (op.op_type === RevfsOpType.SyncRequest) {
+        await answerSyncRequest(true);
+        return;
+      }
+
+      // A SyncResponse is a delivery, not a question: re-answering it says
+      // nothing, and the tree it carried has already been merged.
+      if (op.op_type !== RevfsOpType.SyncResponse) {
         const ack: RevfsOperation = {
           op_id: crypto.randomUUID(), op_type: RevfsOpType.Ack,
           path: op.path, ack_op_id: op.op_id, success: true, timestamp: Date.now(),
@@ -72,9 +117,7 @@ export async function applyInboundOperation(
     }
 
     if (op.op_type === RevfsOpType.SyncRequest) {
-      const tree: RevfsNode = await ctx.getTree(myCid, senderCid);
-      const syncResponse: RevfsOperation = { op_id: crypto.randomUUID(), op_type: RevfsOpType.SyncResponse, path: '/', tree, timestamp: Date.now() };
-      await ctx.sendOp(senderCid, syncResponse);
+      await answerSyncRequest(false);
       return;
     }
 
