@@ -21221,6 +21221,85 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Rounds 568-569 — the ownership gate had a door it never covered
+
+**The audit's one CRITICAL and two of its HIGHs were the same defect.** 64
+read-only agents swept Citadel-Protocol, the internal service and ILM; 44
+findings survived refutation. The headline three all live in
+`kernel/requests/connection_management.rs`, and they are one mistake:
+
+```rust
+// requests/mod.rs — the gate
+if let Some(cid) = command.session_cid().filter(|_| !exempt) { … }
+```
+
+`session_cid()` returns `None` for `ConnectionManagement`, because that variant
+carries its target inside `management_command` rather than in a `cid` field. So
+the gate never ran on it, and every command inside acted on whatever CID the
+caller named:
+
+| | what it did |
+|---|---|
+| `ClaimSession { only_if_orphaned: false }` | re-pointed a **live** session's `associated_localhost_connection` to the caller — every subsequent message, transfer tick and call frame for that session went to the thief, and the owner got no signal |
+| `DisconnectOrphan { session_cid: Some(cid) }` | removed any session named, without ever checking it was orphaned — the log even said "Disconnected orphan session" while removing a live one |
+| `ReleaseSession` | stamped the nil UUID over any session's owner, marking somebody else's live session reclaimable |
+
+A CID is a `u64` that travels in peer lists and notifications. `GetSessions`
+hands over every one of them, unauthenticated. So "names a CID" was the whole of
+the authorization.
+
+**`only_if_orphaned` is supplied by the caller.** It reads like a safety flag
+and is none: `false` meant "take it from whoever has it". Every product call
+site passes `true`, so the dangerous value was reachable only by something that
+wasn't our client — except at two sites in
+`peer-registration-store/lifecycle.ts`, which claim *their own* live session
+before sending PeerRegister. That is why the fix is not "orphaned only": the
+rule is **orphaned, or already yours**, decided server-side from the connection
+map instead of from a boolean the caller supplies.
+
+This is the propagation failure again, in the security layer. `Connect` already
+had this exact defense — `credential_fingerprint`, built when the same takeover
+was found on the `SessionAlreadyActive` branch. It was never applied to the
+sibling door. The authenticated hand-off between two live connections still
+exists and still goes through `Connect`; what is gone is the unauthenticated
+shortcut around it.
+
+**Proved by consequence, not by the refusal message.** A test that asserts only
+"a failure came back" passes against a handler that refuses and re-points
+anyway. So `tests/session_takeover.rs` sends a `PeerRegister` addressed to the
+victim's CID afterwards and asserts it arrives **on the victim's stream** —
+`send_response_for_session` routes by the very field a claim overwrites.
+
+**Two controls, because one was not enough.** Neutralising `owner_or_orphan` to
+always `Allow` turned all four tests red — but all three failures fired on the
+*refusal* assertion, before the consequence assertion ran. So a second control
+tolerated the un-refused claim while leaving the gate neutralised, to see
+whether the consequence assertion could discriminate at all. It can:
+
+```
+Error: "the victim never received its own session's notification"
+```
+
+Both controls verified reverted by content, not by assumption — 0 matches for
+each marker afterwards.
+
+**Propagated to the mechanism, not the symptom.** `session_cid()` ended in
+`_ => None`, which made the gate fail **open by omission**: any variant added
+later would be silently exempt with nothing to notice. It is now exhaustive, so
+the next variant is a compile error. The six that legitimately return `None` are
+named with the reason each one does.
+
+Still open from the audit: 13 HIGH and 11 MEDIUM across the protocol
+(ratchet Double-Loser divergence, rekey semaphore wedge, superseded-session
+teardown hitting the replacement) and ILM (unsynchronized outbound-queue
+read-modify-write, re-minted-id swallowing, send window opening on a stale ACK),
+plus H3 — `GetSessions`/`GetAccountInformation` are still unauthenticated, which
+is what makes any CID guessable in the first place. **Two of the 64 agents died
+on a StructuredOutput retry cap, so two dimensions never reported: coverage is
+incomplete by an unknown amount, and no finding was reproduced at runtime before
+this one.**
+
+
 ## Rounds 563-567 — the platform matrix, learned one regression at a time
 
 **#282's first commit hung `citadel_sdk (windows-latest)` for 70 minutes.** The
