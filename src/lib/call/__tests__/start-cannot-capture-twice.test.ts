@@ -102,6 +102,7 @@ function makeSession(): CallSession {
   return new CallSession({
     onFrame: vi.fn(),
     onStreamsChanged: vi.fn(),
+    onSpeakingChanged: vi.fn(),
     onCaptureFailed: vi.fn(),
     onNeedKeyframe: vi.fn(), onTrackEnded: vi.fn(),
   });

@@ -70,8 +70,10 @@ function callbacks(): {
   onCaptureFailed: Mock;
   onNeedKeyframe: Mock;
   onTrackEnded: Mock;
+  onSpeakingChanged: Mock;
 } {
-  return { onFrame: vi.fn(), onStreamsChanged: vi.fn(), onCaptureFailed: vi.fn(), onNeedKeyframe: vi.fn(), onTrackEnded: vi.fn() };
+  return { onFrame: vi.fn(), onStreamsChanged: vi.fn(),
+    onSpeakingChanged: vi.fn(), onCaptureFailed: vi.fn(), onNeedKeyframe: vi.fn(), onTrackEnded: vi.fn() };
 }
 
 beforeEach(() => {

@@ -29,6 +29,7 @@ function callState(status: CallState['status'], peerStatus: string = 'active'): 
     status,
     roomId: null,
     selfMedia: { audio: true, video: false, screen: false },
+    selfSpeaking: false,
     participants: new Map([
       // 'active', not 'joined'. `ParticipantStatus` has no 'joined' and
       // nothing in the app produces one -- the `as unknown as CallState` below

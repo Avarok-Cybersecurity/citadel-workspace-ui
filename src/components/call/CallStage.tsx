@@ -160,7 +160,7 @@ export function CallStage({
               username: selfUsername,
               status: 'active',
               media: call.selfMedia,
-              speaking: false,
+              speaking: call.selfSpeaking,
             }}
             stream={localStream}
             isSelf

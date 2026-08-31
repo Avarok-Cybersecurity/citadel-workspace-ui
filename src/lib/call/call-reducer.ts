@@ -69,6 +69,7 @@ export function reduce(state: CallState | null, event: CallEvent): CallState | n
         outgoing: true,
         caller: null,
         selfMedia: event.media,
+        selfSpeaking: false,
         participants,
         reason: null,
       };
@@ -97,6 +98,7 @@ export function reduce(state: CallState | null, event: CallEvent): CallState | n
         outgoing: false,
         caller: event.from.cid,
         selfMedia: NO_MEDIA,
+        selfSpeaking: false,
         participants,
         reason: null,
       };
@@ -157,6 +159,9 @@ export function reduce(state: CallState | null, event: CallEvent): CallState | n
 
     case 'peer-media-changed':
       return withParticipant(state, event.cid, (p) => ({ ...p, media: event.media }));
+
+    case 'self-speaking-changed':
+      return { ...state, selfSpeaking: event.speaking };
 
     case 'speaking-changed':
       return withParticipant(state, event.cid, (p) => ({ ...p, speaking: event.speaking }));

@@ -194,6 +194,12 @@ export function useCallRuntime({
     const session: CallSession = new CallSession({
       onFrame: (frame) => managerRef.current?.sendFrame(frame),
       onStreamsChanged: () => setStreamsVersion((v) => v + 1),
+      // The other half of the speaking indicator. The reducer, the `speaking`
+      // field and the ring in ParticipantTile all existed already; nothing
+      // dispatched, so the ring could never appear for anyone.
+      onSpeakingChanged: (speaking: boolean): void => {
+        managerRef.current?.markSelfSpeaking(speaking);
+      },
       onCaptureFailed: setCaptureFailure,
       // Our decoder for this peer is stuck; ask their encoder for a keyframe.
       onNeedKeyframe: (peerCid, track) => void managerRef.current?.requestKeyframe(peerCid, track),

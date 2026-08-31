@@ -42,10 +42,11 @@ function makeTrack(kind: 'audio' | 'video'): FakeTrack {
 
 let tracks: FakeTrack[] = [];
 
-function callbacks(): { onFrame: ReturnType<typeof vi.fn>; onStreamsChanged: ReturnType<typeof vi.fn>; onCaptureFailed: ReturnType<typeof vi.fn>; onNeedKeyframe: ReturnType<typeof vi.fn>; onTrackEnded: ReturnType<typeof vi.fn>; } {
+function callbacks(): { onFrame: ReturnType<typeof vi.fn>; onStreamsChanged: ReturnType<typeof vi.fn>; onSpeakingChanged: ReturnType<typeof vi.fn>; onCaptureFailed: ReturnType<typeof vi.fn>; onNeedKeyframe: ReturnType<typeof vi.fn>; onTrackEnded: ReturnType<typeof vi.fn>; } {
   return {
     onFrame: vi.fn(),
     onStreamsChanged: vi.fn(),
+    onSpeakingChanged: vi.fn(),
     onCaptureFailed: vi.fn(),
     onNeedKeyframe: vi.fn(),
     onTrackEnded: vi.fn(),

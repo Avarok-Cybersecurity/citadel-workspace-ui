@@ -240,5 +240,8 @@ export class CallManager {
   }
 
   markConnected(cid: bigint): void { this.apply({ type: 'peer-connected', cid }); }
+
+  /** Self is not a participant: CallStage synthesises that tile. */
+  markSelfSpeaking(s: boolean): void { this.apply({ type: 'self-speaking-changed', speaking: s }); }
   canAdd(withVideo: boolean): boolean { return this.state ? canAddParticipant(this.state, withVideo) : true; }
 }

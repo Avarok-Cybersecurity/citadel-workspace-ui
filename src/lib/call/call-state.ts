@@ -43,6 +43,15 @@ export interface CallState {
   /** Who dialled — null when we did. Their hangup ends a still-ringing call. */
   caller: bigint | null;
   selfMedia: CallMediaKinds;
+  /**
+   * Whether THIS person is speaking.
+   *
+   * Separate from a participant's `speaking` because the self tile is not a
+   * participant: CallStage builds it synthetically with `cid: -1n`, so a
+   * `speaking-changed` event carrying the real self cid would update a
+   * participant record the self tile never reads.
+   */
+  selfSpeaking: boolean;
   participants: Map<bigint, CallParticipant>;
   /** Set when status is 'failed' or 'ended', for the UI to explain itself. */
   reason: string | null;
@@ -80,6 +89,7 @@ export type CallEvent =
   | { type: 'peer-left'; cid: bigint }
   | { type: 'self-media-changed'; media: CallMediaKinds }
   | { type: 'speaking-changed'; cid: bigint; speaking: boolean }
+  | { type: 'self-speaking-changed'; speaking: boolean }
   | { type: 'ended'; reason: CallEndReason }
   | { type: 'failed'; reason: string };
 
@@ -97,6 +107,7 @@ export function initialState(callId: string): CallState {
     outgoing: true,
     caller: null,
     selfMedia: NO_MEDIA,
+    selfSpeaking: false,
     participants: new Map(),
     reason: null,
   };

@@ -5,7 +5,9 @@
  * closed) in one place.
  */
 
-import { stopStream, type CaptureFailure } from './media-capture';
+import { stopStream } from './media-capture';
+import type { CallSessionCallbacks } from './call-session-callbacks';
+export type { CallSessionCallbacks };
 import { makeCaptureHost } from './session-capture-host';
 import { ReceiverPool } from './receiver-pool';
 import type { CongestionState, LinkVerdict } from './congestion';
@@ -20,32 +22,16 @@ import type { VideoQuality } from './video-quality';
 import { startLocalCapture } from './session-start';
 import type { ConnectionQuality } from '@/components/call/ParticipantTile';
 
-export interface CallSessionCallbacks {
-  /** Called for every encoded frame, to be fanned out to participants. */
-  onFrame: (frame: WireFrame) => void;
-  /** Called when a peer's streams change, so the UI can re-render tiles. */
-  onStreamsChanged: () => void;
-  /** Called when capture fails, with a reason the user can act on. */
-  onCaptureFailed: (failure: CaptureFailure) => void;
-  /** Called when a peer's stream can only recover via a keyframe from them. */
-  onNeedKeyframe: (peerCid: bigint, track: number) => void;
-  /**
-   * A live capture device stopped mid-call — unplugged, or revoked by the OS.
-   *
-   * Nothing used to listen for this. The track ended, the pump's reader loop
-   * returned silently, and every part of the UI went on insisting the call was
-   * healthy: the mic button still read unmuted, peers still saw an unmuted
-   * tile, and heartbeats kept flowing so the liveness watchdog never noticed. A
-   * silently dead call that looked fine, with no recovery but Leave and re-dial
-   * and nothing saying so.
-   */
-  onTrackEnded: (kind: 'audio' | 'video') => void;
-}
 
 /** Decode fallback when a peer never announced its send codec (older client). */
 const LEGACY_DECODE_CODEC: "vp09.00.31.08" = 'vp09.00.31.08';
 
+import { createAudioLevelReporter, type AudioLevelReporter } from './session-audio-levels';
+
 export class CallSession {
+  private readonly levels: AudioLevelReporter =
+    createAudioLevelReporter((s: boolean): void => this.callbacks.onSpeakingChanged(s));
+
   private localStream: MediaStream | null = null;
   private readonly receivers: ReceiverPool;
   private readonly sender: SendEncoder;
@@ -171,6 +157,7 @@ export class CallSession {
       data.close();
       return;
     }
+    this.levels.observe(data);
     this.sender.encodeAudio(data);
   }
 

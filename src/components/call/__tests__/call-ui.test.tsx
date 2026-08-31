@@ -38,6 +38,7 @@ function callState(overrides: Partial<CallState> = {}): CallState {
     outgoing: true,
     caller: null,
     selfMedia: VIDEO,
+    selfSpeaking: false,
     participants: new Map([[2n, participant()]]),
     reason: null,
     ...overrides,
@@ -199,6 +200,28 @@ describe('CallStage', () => {
 
     expect(screen.getByTestId('participant-tile-2')).toBeInTheDocument();
     expect(screen.getByText('You')).toBeInTheDocument();
+  });
+
+  it('shows the speaking ring on your own tile', () => {
+    // The last hop of the indicator, and the one that stayed broken longest.
+    // The stage synthesises the self tile rather than reading it from
+    // `participants`, and it passed a literal `speaking: false` -- so detection,
+    // dispatch and reducer could all be correct and the ring still never
+    // appear. Reverting that literal must fail HERE; nothing else can see it.
+    render(<CallStage call={callState({ selfSpeaking: true, selfMedia: AUDIO_ONLY })} {...props} />);
+
+    const selfTile: HTMLElement = screen.getByTestId('participant-tile-self');
+    expect(
+      selfTile.textContent,
+      'the self tile ignored state.selfSpeaking',
+    ).toContain('speaking');
+  });
+
+  it('does not show it when you are silent', () => {
+    render(<CallStage call={callState({ selfSpeaking: false, selfMedia: AUDIO_ONLY })} {...props} />);
+
+    const selfTile: HTMLElement = screen.getByTestId('participant-tile-self');
+    expect(selfTile.textContent, 'a silent tile claimed to be speaking').not.toContain('speaking');
   });
 
   it('names your own tile for what it is, not for a sentinel CID', () => {

@@ -21221,6 +21221,50 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 516 — an indicator with every part but the moving one
+
+**Found.** Backlog #43. `call-state` declared `speaking`, `call-reducer`
+handled `speaking-changed`, and `ParticipantTile` drew a ring plus an `sr-only`
+"speaking" label from it. Nothing ever dispatched the event. Every piece existed
+except the one that made it move.
+
+**Fix, in three parts.** A pure `speaking-detector` (hysteresis: one level to
+start, a lower one to stop; plus a 400ms hold, because ordinary speech has gaps
+between words that fall below any sensible floor). A `session-audio-levels`
+adapter that measures captured `AudioData` — the only part needing WebCodecs,
+split out so the thresholds are testable without a browser. And the dispatch,
+from CallSession's `encodeAudio`.
+
+**I nearly shipped it inert, and the control caught it.** My first wiring
+dispatched `speaking-changed` keyed by the local cid. But CallStage does not
+render the self tile from `participants` — it synthesises one with `cid: -1n`
+and passed a literal `speaking: false`. The event would have updated a record
+nothing reads. Detection, dispatch and reducer would all have been correct and
+the ring would still never have appeared: the exact defect being fixed,
+reintroduced one layer further along. Hence `selfSpeaking` on the state, which
+the self tile actually reads.
+
+**Five controls, and the fifth is why this entry exists.** Nothing calling the
+detector reddens the wiring test; a single threshold reddens the flicker test;
+no hold reddens the word-gap test; a reducer that ignores the event reddens the
+state test. The fifth — putting `speaking: false` back in CallStage — was
+**green** on the first attempt. The last hop, state to rendered ring, was
+unguarded, and it is the hop that was broken to begin with. A CallStage render
+test now covers it, and the control is red.
+
+**Scope, stated in the code.** Local only. Remote levels would need the audio in
+`getRemoteAudioStreams` analysed per peer, or a wire signal — and a per-frame
+signal is the traffic pattern the annotation rate limiter exists to prevent.
+
+**Cost paid.** `call-session` and `call-manager` were 11 and 6 lines under the
+250-line cap; the additions blew both. The callbacks interface moved to
+`call-session-callbacks` (the session's contract with React, not part of how it
+works), and the unused `markSpeaking` I had just added came back out rather than
+shipping an API nothing calls.
+
+**Gate.** 74 of 75 preflight checks; the failure is the submodule pointer, held
+on purpose while a diagnostic CI run is in flight.
+
 ## Round 515 — the backlog was lying, and one gate really was wrong
 
 **Found.** With one medium (#56) blocking the merge and its evidence pending in

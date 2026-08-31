@@ -32,6 +32,7 @@ function callState(status: CallStatus, selfMedia: CallMediaKinds = AUDIO_ONLY): 
   return {
     callId: 'c1',
     status,
+    selfSpeaking: false,
     roomId: null,
     outgoing: true,
     caller: null,

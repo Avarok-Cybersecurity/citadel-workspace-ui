@@ -128,6 +128,7 @@ describe('the stage naming who holds the screen', () => {
           outgoing: true,
           caller: null,
           selfMedia: { audio: true, video: false, screen: false },
+          selfSpeaking: false,
           participants: new Map([[
             2n,
             {

@@ -53,6 +53,7 @@ function callState(status: CallState['status']): CallState {
     outgoing: status === 'ringing-out',
     caller: null,
     selfMedia: { audio: true, video: false, screen: false },
+  selfSpeaking: false,
     participants: new Map(),
     reason: null,
   };

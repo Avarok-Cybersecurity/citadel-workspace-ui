@@ -33,6 +33,7 @@ function callState(overrides: Partial<CallState> = {}): CallState {
     outgoing: true,
     caller: null,
     selfMedia: AUDIO_ONLY,
+    selfSpeaking: false,
     participants: new Map([[2n, participant()]]),
     reason: null,
     ...overrides,
