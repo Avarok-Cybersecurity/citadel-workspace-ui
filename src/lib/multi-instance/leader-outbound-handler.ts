@@ -26,38 +26,14 @@ import {
   handleSendP2PMessageProxy,
 } from './leader-proxy-handlers';
 import { debugLog } from '@/lib/debug-config';
+import { requiresILM } from './ilm-policy';
+import { wasExecutedByAnotherLeader } from './executed-requests';
 
 interface OutboundRequest {
   requestId: string;
   senderInstanceId: string;
   payload: Record<string, unknown>;
 }
-
-// Types of messages that should use ILM (reliability layer)
-const ILM_REQUIRED_TYPES: string[] = [
-  'Message', // P2P messages need ILM
-];
-
-// Types that can bypass ILM
-const BYPASS_ILM_TYPES: string[] = [
-  'GetSessions',
-  'LocalDBSetKV',
-  'LocalDBGetKV',
-  'LocalDBGetAllKV',
-  'GetWorkspace',
-  'ListWorkspaces',
-  'ListMembers',
-  'GetMemberInfo',
-  'Connect',
-  'Register',
-  'Disconnect',
-  'ConnectionManagement',
-  'PeerRegister',
-  'PeerConnect',
-  'PeerDisconnect',
-  'ListAllPeers',
-  'ListRegisteredPeers',
-];
 
 class LeaderOutboundHandler {
   private static instance: LeaderOutboundHandler;
@@ -117,6 +93,22 @@ class LeaderOutboundHandler {
       return;
     }
 
+    // The cross-leader half of the same dedup. A leadership flap leaves two
+    // tabs both holding `isLeader` for a moment — the sticky leader keeps it
+    // (handleLeaderElection rule 1) while the challenger has already claimed
+    // it (tryBecomeLeader) — and the outbound queue's leader-change replay
+    // fires at exactly that moment, re-delivering entries the sticky leader is
+    // still executing. `inFlight` is per-tab and cannot see those, so a
+    // workspace write or a Connect ran twice. Dropped silently for the same
+    // reason as above: the leader that claimed the execution acks it.
+    if (wasExecutedByAnotherLeader(request.requestId)) {
+      debugLog(
+        'LeaderOutboundHandler',
+        `Ignoring ${request.requestId}; another leader already began executing it`,
+      );
+      return;
+    }
+
     if (!this.isActive) {
       debugLog('LeaderOutboundHandler', 'Received request but not active (not leader)');
       this.sendAck(request.senderInstanceId, request.requestId, 'error', 'Not leader');
@@ -136,6 +128,16 @@ class LeaderOutboundHandler {
     }
 
     this.inFlight.add(request.requestId);
+    // Claim the execution to every other tab BEFORE the work starts, not at
+    // ack time: the duplicate window is precisely the seconds the work is in
+    // flight, and an ack-time claim would leave that window open. A transient
+    // leader records this claim (channel-message-dispatch) and refuses the
+    // replayed id above.
+    instanceChannel.send({
+      type: 'request-executed',
+      targetInstanceId: '*',
+      requestId: request.requestId,
+    });
     try {
       if (!this.isValidSender(request.senderInstanceId)) {
         debugLog('LeaderOutboundHandler', `Invalid sender: ${request.senderInstanceId}`);
@@ -161,7 +163,7 @@ class LeaderOutboundHandler {
         return;
       }
 
-      const requiresIlm: boolean = this.requiresILM(request.payload);
+      const requiresIlm: boolean = requiresILM(request.payload);
       debugLog('LeaderOutboundHandler',
         `[LeaderOutboundHandler] Processing ${request.requestId} from ${request.senderInstanceId} (ILM: ${requiresIlm})`
       );
@@ -198,25 +200,6 @@ class LeaderOutboundHandler {
     if (!senderInstanceId || senderInstanceId.trim() === '') {
       return false;
     }
-    return true;
-  }
-
-  private requiresILM(payload: Record<string, unknown>): boolean {
-    const messageType: string = Object.keys(payload)[0];
-
-    if (!messageType) {
-      return false;
-    }
-
-    if (ILM_REQUIRED_TYPES.includes(messageType)) {
-      return true;
-    }
-
-    if (BYPASS_ILM_TYPES.includes(messageType)) {
-      return false;
-    }
-
-    debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Unknown message type "${messageType}", using ILM`);
     return true;
   }
 

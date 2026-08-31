@@ -19,7 +19,11 @@ export type ChannelMessageType =
   | 'instance-goodbye'
   | 'session-release'
   | 'cid-update'
-  | 'cid-report-request';
+  | 'cid-report-request'
+  // A leader claiming execution of one outbound request id, broadcast the
+  // moment the work starts so a transient leader promoted mid-flap does not
+  // execute the same id again. See executed-requests.ts.
+  | 'request-executed';
 
 export interface ChannelMessage {
   type: ChannelMessageType;

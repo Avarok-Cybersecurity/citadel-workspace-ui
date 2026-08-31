@@ -18,6 +18,7 @@ import {
   handleCidUpdate,
 } from './channel-messaging';
 import { handleLeaderElection, handleLeaderHeartbeat , type LeaderElectionState } from './channel-leader-election';
+import { recordRemoteExecution } from './executed-requests';
 
 export function dispatchChannelMessage(
   message: ChannelMessage,
@@ -43,5 +44,12 @@ export function dispatchChannelMessage(
     // broadcastCid()'s tab-context fallback runs — post claim/reload owners
     // (CID not yet in instanceManager) still answer; the old guard stranded them.
     case 'cid-report-request': broadcastCid(); break;
+    // Another tab's leader began executing this request id. Recorded in every
+    // tab, leader or not: whoever wins the next flap needs the history, and
+    // BroadcastChannel never echoes to the sender, so a tab's own completed
+    // ids are never recorded here.
+    case 'request-executed':
+      if (message.requestId) recordRemoteExecution(message.requestId);
+      break;
   }
 }
