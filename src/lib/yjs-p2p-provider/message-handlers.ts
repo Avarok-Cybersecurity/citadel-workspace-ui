@@ -1,25 +1,20 @@
 /**
  * YJS P2P Provider - Non-Sync Message Handlers
  *
- * Handles ACK, awareness, and divergence messages.
+ * Handles ACK and awareness messages.
  */
 
-import * as Y from 'yjs';
 import { applyAwarenessUpdate , type Awareness } from 'y-protocols/awareness';
 import { debugLog } from '@/lib/debug-config';
 import type {
   YjsAwarenessMessage,
   YjsAckMessage,
-  YjsDivergenceMessage,
-  SyncState,
 } from './types';
-import { sendSyncMessage , type SendingContext } from './sending';
+import type { SendingContext } from './sending';
 
 /** Subset of provider state needed by message handlers */
 export interface MessageHandlerContext extends SendingContext {
-  readonly doc: Y.Doc;
   readonly awareness: Awareness;
-  syncState: SyncState;
   handleHashMismatch: (remoteHash: string) => void;
 }
 
@@ -57,25 +52,7 @@ export function handleAckMessage(
   }
 }
 
-/**
- * Handle divergence notification
- */
-export function handleDivergenceMessage(
-  ctx: MessageHandlerContext,
-  message: YjsDivergenceMessage
-): void {
-  debugLog('YjsP2PProvider', `[Yjs] Received divergence notification: ${message.action}`);
-
-  ctx.syncState = 'diverged';
-
-  if (message.action === 'full_resync') {
-    // If we're the creator, send full state
-    if (ctx.ownCid === ctx.creatorCid) {
-      const fullState: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(ctx.doc);
-      sendSyncMessage(ctx, 'full_state', fullState, true);
-    } else {
-      // Request full state from creator
-      sendSyncMessage(ctx, 'request_full', new Uint8Array(0), false);
-    }
-  }
-}
+// handleDivergenceMessage was removed: nothing in the tree ever constructed
+// or sent a 'yjs_divergence' message, so this was the dead half of a
+// one-ended protocol. Divergence recovery is driven by hash mismatches on
+// updates and ACKs via handleHashMismatch (ack-checker.ts).

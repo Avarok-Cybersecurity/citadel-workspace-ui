@@ -94,7 +94,11 @@ describe('a staged ("Recommended") transfer', () => {
    * sender is genuinely waiting for that acceptance.
    */
   it('does not stop a direct p2p transfer from responding', async () => {
-    const t: FileTransfer = staged({ mode: 'sync', virtualPath: undefined });
+    // 'p2p' is the direct mode; the union is 'async' | 'p2p'. An earlier draft
+    // of this test wrote 'sync', which tsc rejected -- worth keeping in mind
+    // that the sibling suites use `as unknown as FileTransfer` casts that would
+    // have swallowed it.
+    const t: FileTransfer = staged({ mode: 'p2p', virtualPath: undefined });
     const executeIntent: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
     const d: LifecycleDeps = {
       state: {

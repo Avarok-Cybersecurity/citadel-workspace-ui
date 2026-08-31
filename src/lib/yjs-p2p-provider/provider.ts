@@ -15,8 +15,8 @@ import type { YjsOrigin, YjsP2PMessage, YjsSyncMessage, SyncState, PendingAck } 
 import { YJS_SYNC_COOLDOWN_MS, YJS_SYNC_RESET_DELAY_MS, YJS_HEALTH_CHECK_INTERVAL_MS } from './constants';
 import { UpdateCoalescer } from './update-coalescer';
 import { sendSyncMessage, sendUpdate, broadcastAwareness , type SendingContext } from './sending';
-import { handleSyncStep1, handleSyncStep2, handleUpdate, handleFullState, handleRequestFullState, handleHashCheck } from './sync-handlers';
-import { handleAwarenessMessage, handleAckMessage, handleDivergenceMessage } from './message-handlers';
+import { handleSyncStep1, handleSyncStep2, handleUpdate, handleFullState, handleRequestFullState } from './sync-handlers';
+import { handleAwarenessMessage, handleAckMessage } from './message-handlers';
 import { checkPendingAcks, handleHashMismatch } from './ack-checker';
 
 export class YjsP2PProvider {
@@ -55,8 +55,13 @@ export class YjsP2PProvider {
     this.merkleTree = YjsMerkleTree.fromDocument(doc, documentId, this.creatorCid);
     this.coalescer = new UpdateCoalescer((merged) => {
       if (this.destroyed) return;
-      sendUpdate(this.ctx, merged);
+      // Fold this batch into the tree BEFORE sending: the receiver compares
+      // its hash AFTER applying, so the doc_hash on the wire must be the
+      // POST-update hash. The reversed order made every non-empty update
+      // read as "diverged" — a full resync per 300ms batch, which also
+      // masked lost updates. COUPLED with the retransmit in ack-checker.ts.
       this.updateMerkleTree();
+      sendUpdate(this.ctx, merged);
     });
     this.setupUpdateHandler();
     this.setupAwarenessHandler();
@@ -161,7 +166,7 @@ export class YjsP2PProvider {
       case 'yjs_sync': this.handleSyncMessage(message); break;
       case 'yjs_awareness': handleAwarenessMessage(this.ctx, message); break;
       case 'yjs_ack': handleAckMessage(this.ctx, message); break;
-      case 'yjs_divergence': handleDivergenceMessage(this.ctx, message); break;
+      // 'yjs_divergence' (handler with no sender) removed; a legacy peer's lands in default.
       default:
         // `setupMessageListener` casts the CBOR payload with `as unknown as
         // YjsP2PMessage`; a future `yjs_*` variant added on the sender side
@@ -183,7 +188,12 @@ export class YjsP2PProvider {
       case 'update': handleUpdate(this.ctx, data, message); break;
       case 'full_state': handleFullState(this.ctx, data, message); break;
       case 'request_full': handleRequestFullState(this.ctx, message); break;
-      case 'hash_check': handleHashCheck(this.ctx, message); break;
+      default:
+        // 'hash_check' was removed (never-initiated protocol whose responder
+        // answered a MATCH with another hash_check — see types.ts). A legacy
+        // peer's hash_check, or any future sub_type, is surfaced here rather
+        // than silently dropped.
+        debugLog('YjsP2PProvider', 'handleSyncMessage: ignoring unknown sub_type', (message as { sub_type?: unknown }).sub_type);
     }
   }
 

@@ -110,6 +110,9 @@ export function sendSyncMessage(
       sentAt: Date.now(),
       expectedHash: hash,
       retryCount: 0,
+      // The full message is stored so an ACK timeout can retransmit the
+      // SAME payload under the SAME message_id (see ack-checker.ts).
+      message,
     });
   }
 

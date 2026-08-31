@@ -168,21 +168,9 @@ export function handleRequestFullState(
   sendSyncMessage(ctx, 'full_state', fullState, true);
 }
 
-/**
- * Handle hash check request
- */
-export function handleHashCheck(
-  ctx: SyncHandlerContext,
-  message: YjsSyncMessage
-): void {
-  if (!ctx.merkleTree) return;
-
-  const localHash: string = ctx.merkleTree.getRootHash();
-
-  if (message.doc_hash && localHash !== message.doc_hash) {
-    ctx.handleHashMismatch(message.doc_hash);
-  } else {
-    // Send our hash back for verification
-    sendSyncMessage(ctx, 'hash_check', new Uint8Array(0), false, localHash);
-  }
-}
+// handleHashCheck was removed: 'hash_check' had no initiator anywhere in the
+// tree, and this responder answered a MATCHING hash with another hash_check —
+// wiring the missing initiator would have shipped an infinite ping-pong.
+// Hash verification is carried by the data-bearing paths above instead
+// (doc_hash on update/full_state, local_hash on every ACK), both feeding
+// handleHashMismatch for creator-authority recovery.
