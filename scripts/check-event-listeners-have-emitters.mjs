@@ -80,7 +80,14 @@ const RECORDED_UNCONSUMED = new Map([
   ['group:messages:loaded', 'useGroupChat reads the pagination result directly'],
   ['instance:state-changed', 'diagnostic; the UI reads instanceManager directly'],
   ['member:loaded', 'the members list is driven by members:loaded (plural)'],
-  ['node:types:loaded', 'node types are read synchronously from the store'],
+  // The note this replaces said "node types are read synchronously from the
+  // store". There is no such store: nothing in src/ consumes a NodeTypes
+  // response, and nothing ever SENDS ListNodeTypes either -- the only mention
+  // of it is the response-shape table in workspace-service/service.ts. The
+  // custom node-type feature exists end to end on the server and has a
+  // Permission::ManageNodeTypes, and the UI implements neither half. Recorded
+  // as the feature gap it is, rather than as a mechanism that does not exist.
+  ['node:types:loaded', 'the UI never requests ListNodeTypes and has no node-type store; the feature is server-only for now'],
   ['operation:deleted', 'no consumer; deletions are reflected by the node:* events'],
   ['p2p:conversations-cleaned', 'diagnostic after a stale-conversation sweep'],
   ['p2p:peer-registered-with-us', 'the peer list refreshes on its own poll'],
