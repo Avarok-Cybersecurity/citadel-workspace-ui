@@ -21221,6 +21221,32 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 539 — #57 closed, end to end
+
+**Citadel-Protocol#278 merged** (squashed as `e599283`), and both workspaces'
+SDK pins moved `a28a3c7` -> `e5992838`. Upstream master had not moved otherwise,
+so the update pulled exactly this fix and nothing else — checked before merging,
+because a pin bump that quietly brings in unrelated changes is its own hazard.
+
+**The `#[ignore]`s came off, and the tests pass unchanged.** That distinction
+matters: they were written to pass against a fixed SDK, not adjusted afterwards
+to suit one. `file_transfer` now reports **9 passed, 0 ignored** — both the
+single-group and multi-group reproductions running for real.
+
+Green against the new SDK: server-kernel (60 suites), internal-service (all
+suites), ILM.
+
+**The arc.** A browser test said `Peer Sees File: FAIL` and nothing else. That
+became a one-minute Rust reproduction, then a root cause read off the source —
+object transfers and messages sharing a group-id counter the receiver's
+`OrderedChannel` sequences on — then a fix, a control proving the fix, a second
+fixture proving it held across group boundaries, an upstream PR, and finally a
+pin bump that makes the whole thing moot. Round 511 claimed this test was fixed
+and was wrong; it took to 539 to actually close it.
+
+**One high remains closed and one medium open (#56),** now the only blocker in
+front of the merge bar, and itself upstream as #279.
+
 ## Round 538 — the timestamps answer the question they were added for
 
 **Round 529 added `-t` to the log dumps because 27 `Peer connection not found`
