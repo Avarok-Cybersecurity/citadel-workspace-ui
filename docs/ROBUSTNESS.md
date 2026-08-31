@@ -21221,6 +21221,55 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 518 — #57 reproduced in a minute, and pinned to the SDK
+
+**The coverage gap that hid it.** The internal-service suite had file-transfer
+tests and message tests and nothing that did both in sequence. That is exactly
+the seam the defect lives in, and it is why a bug that breaks every P2P message
+after any file transfer never showed up in Rust.
+
+**The test.** `test_a_peer_message_after_a_file_transfer_still_arrives`: message,
+peer file transfer, message. Fails in about a minute, against a twelve-minute
+browser suite that only said `Peer Sees File: FAIL`.
+
+The first message is not ceremony. Without it, a failure cannot distinguish "the
+transfer broke messaging" from "messaging never worked in this fixture". It
+arrives; the second does not.
+
+**Three suspects ruled out with evidence, not argument.**
+
+- *Our REVFS path.* Swapped the REVFS push for a plain
+  `TransferType::FileTransfer` with an explicit accept: identical failure. Any
+  peer object transfer does it, so the auto-accept path is exonerated.
+- *A stale sink.* The sender logs the whole chain for every lost message: peer
+  present in `conn.peers`, sink cloned, `sink.send() SUCCEEDED`.
+- *A dead reader.* The receiver's loop is `while let Some(m) = stream.next()`,
+  and it has NOT exited — `[P2P-RECV] P2P read stream ended` never fires. It is
+  alive and awaiting bytes that never come.
+
+**Where it actually is.** Only ONE `recv AliceToBob` appears in the entire run.
+Each message send triggers a rekey; the first completes on both sides and the
+message lands. After the transfer the second rekey packet is lost too — so the
+A→B direction is dead before the message is even encrypted, and both the rekey
+and the message vanish between a successful `sink.send()` and a live reader.
+
+**It is upstream.** Confirmed against `citadel_sdk` at `a28a3c7`, which is
+`master` HEAD — there is no newer SDK to move to. The fix belongs in
+`Citadel-Protocol`, outside these four repos, and that repo's own
+`RATCHET_RACE_FIX_LOG.md` shows this rekey machinery under active repair.
+
+**Why the test is `#[ignore]`d.** Not to hide it: #57 stands as high in the
+backlog and blocks the merge either way. It is ignored rather than deleted
+because it is the only fast reproduction, and rather than left failing because a
+red that cannot go green until a third-party dependency changes teaches the
+suite to be ignored. The attribute names the SDK commit and says to remove it
+when the fix lands.
+
+**Correction carried forward.** Round 511 was reported as the fix for
+`test:file-manager`. It was not. It fixed the SyncResponse flood — 103 requests
+now cost 35 responses rather than 103, and `Peer Sees Changes` passes — and this
+is the defect that actually fails the test.
+
 ## Round 517 — the failure whose evidence the log dump was throwing away
 
 **Found.** `test:file-manager` failed again, on the run that carries round 511's
