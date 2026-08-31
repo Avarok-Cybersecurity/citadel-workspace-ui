@@ -70,7 +70,7 @@ export class FileTransferService {
     if (this.initialized) return;
     this.setupMessageHandlers();
     await this.loadFromStorage();
-    startExpirySweep(this.state, this.emitStateChange.bind(this));
+    startExpirySweep(this.state, this.emitStateChange.bind(this), this.saveTransfer.bind(this));
     this.initialized = true;
     debugLog('FileTransferService', 'Initialized');
   }
