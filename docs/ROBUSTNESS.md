@@ -21221,6 +21221,40 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 513 — the permissions a deleted workspace left behind
+
+**Found.** Backlog #55. `create_workspace` grants the creator
+`permissions[workspace_id]` and members hold one each; `delete_workspace`
+removed the workspace, its domain and its password, and left every one of those
+entries in place.
+
+**It is the propagation failure again.** `remove_member` already does this
+cleanup — its own "Remove permissions from user" block clears
+`user.permissions.remove(domain_id)`. The correct fix existed, in one of the two
+places it belonged. Deleting a whole workspace took the other path.
+
+**Fix.** Clear every holder's entry for that workspace id. Three decisions worth
+recording:
+
+- *After* the deletion, not before. If the cleanup fails, the leftover is the
+  same unreachable garbage being cleaned up; doing it first would mean a failed
+  `remove_workspace` had already stripped every member's access to a workspace
+  that still exists.
+- Per user via `get_user`/`insert_user`, matching `remove_member`, rather than
+  one `save_users` — a read-modify-write of the whole map clobbers concurrent
+  user edits, which is the bug the `lock_nodes` comment in this same file
+  records.
+- Under `lock_workspaces`, for the reason `create_workspace` states around its
+  own get/insert pair. Safe from reentrancy: the lock is only ever taken in this
+  handler layer, never inside `remove_workspace` or `insert_user`.
+
+**Controls, in both directions.** Removing the cleanup reddens both tests.
+Making it `permissions.clear()` instead of removing one key reddens the
+over-deletion assertion specifically — so "a surviving workspace's permissions
+were cleared too" is a real check, not a passenger.
+
+**Gate.** Kernel suite passes, `cargo fmt --check` and clippy clean.
+
 ## Round 512 — a send that waited for a timer, and a control that agreed with itself
 
 **Found.** Backlog #54: `send_raw_message` stores a message and returns without
