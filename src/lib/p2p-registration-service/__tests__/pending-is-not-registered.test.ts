@@ -16,6 +16,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { handleWebSocketMessage } from '../registration';
 import type { Peer } from '../types';
 
+// Which session THIS tab is running as. The handler now refuses to act on a
+// notification addressed to a different one -- see
+// lib/sessions/notification-ownership.ts -- so the tests have to say who they
+// are. Before the guard they did not, and the flow ran for anybody.
+const tabCid: { value: bigint | null } = { value: 7n };
+vi.mock('../discovery', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../discovery')>()),
+  getCurrentCid: (): Promise<bigint | null> => Promise.resolve(tabCid.value),
+}));
+
+/** The guard runs in a microtask, so assertions on it must let one pass. */
+const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
 function context(): {
   pendingRequests: Map<bigint, unknown>;
   allPeers: Map<bigint, Peer>;
@@ -50,6 +63,7 @@ let ctx: ReturnType<typeof context>;
 
 beforeEach(() => {
   ctx = context();
+  tabCid.value = 7n;
 });
 
 describe('an incoming registration request', () => {
@@ -66,10 +80,41 @@ describe('an incoming registration request', () => {
     expect(ctx.allPeers.get(42n)?.username).toBe('alice');
   });
 
-  it('still runs the pending-request flow', () => {
+  it('still runs the pending-request flow', async () => {
     deliverRequest(ctx);
+    await settle();
 
     expect(ctx.handleIncomingRegistration).toHaveBeenCalledWith(7n, 42n, 'alice');
+  });
+
+  /**
+   * The cross-account defect. One browser holds one WebSocket for every logged
+   * in account, and the router has three paths that hand a notification to a
+   * tab which does not own its cid. With auto-accept on, this flow registers
+   * back using THIS tab's cid -- so a request addressed to account 7, landing
+   * in a tab running as account 99, made 99 register with the stranger who
+   * asked for 7, while 7 never saw the request.
+   */
+  it('does not run the flow for a notification addressed to another session', async () => {
+    tabCid.value = 99n;
+
+    deliverRequest(ctx);
+    await settle();
+
+    expect(ctx.handleIncomingRegistration).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The leader tab is very often the landing page, which has no session at
+   * all. "I am nobody" must not mean "everything is mine".
+   */
+  it('does not run the flow when this tab has no session', async () => {
+    tabCid.value = null;
+
+    deliverRequest(ctx);
+    await settle();
+
+    expect(ctx.handleIncomingRegistration).not.toHaveBeenCalled();
   });
 
   it('does not downgrade a peer who IS already mutually registered', () => {

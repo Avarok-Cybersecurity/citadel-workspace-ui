@@ -8,7 +8,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { getSelectedUser , type TabUserContext } from '@/lib/tab-context';
 import { instanceManager } from '@/lib/multi-instance';
 import { debugLog } from '@/lib/debug-config';
-import { BROADCAST_MESSAGE_TYPES } from '@/lib/multi-instance/routing-rules';
+import { messageVariant, notificationCid } from '@/lib/sessions/notification-ownership';
 import type { BroadcastMessage, PendingRequest } from './types';
 
 /**
@@ -66,40 +66,6 @@ export async function handleWorkspaceResponse(
 }
 
 /** The variant name of a wire message, i.e. its single top-level key. */
-function messageVariant(data: unknown): string | null {
-  if (!data || typeof data !== 'object') return null;
-  const keys: string[] = Object.keys(data as Record<string, unknown>);
-  return keys.length === 1 ? keys[0] : null;
-}
-
-/**
- * Which session a broadcast message is addressed to, or null if it is not
- * addressed to one.
- *
- * Null means "forward it": plenty of traffic legitimately names no session --
- * the request/response messages a follower proxies through the leader, for one
- * -- and dropping those would silence the follower entirely.
- *
- * `BROADCAST_MESSAGE_TYPES` are also treated as unaddressed even when they
- * carry a cid. Those are deliberate fan-out: every tab needs to know about a
- * disconnect or a deregistration, and filtering them by cid would undo that on
- * purpose-built behaviour.
- */
-function notificationCid(data: unknown): bigint | null {
-  const variant: string | null = messageVariant(data);
-  if (variant === null || BROADCAST_MESSAGE_TYPES.includes(variant)) return null;
-
-  const payload: unknown = (data as Record<string, unknown>)[variant];
-  if (!payload || typeof payload !== 'object') return null;
-
-  const cid: unknown = (payload as Record<string, unknown>).cid;
-  if (typeof cid === 'bigint') return cid;
-  // The wire carries u64 as a string in some paths; a cid that does not parse
-  // names nobody, and guessing is how a message reaches the wrong session.
-  if (typeof cid === 'string' && /^\d+$/.test(cid)) return BigInt(cid);
-  return null;
-}
-
 /**
  * Handle register-request messages to track CID ownership of requests.
  */

@@ -15,6 +15,7 @@ import { eventEmitter } from '../event-emitter';
 import { connectionManager } from '../connection';
 import type { StoredSession } from '@/types/session-types';
 import { getSelectedUser } from '../tab-context';
+import { isForThisSession, notificationCid } from '@/lib/sessions/notification-ownership';
 import { debugLog } from '@/lib/debug-config';
 import { toGroupEvents } from './group-events';
 import { p2pRegistrationService } from '../p2p-registration-service';
@@ -85,6 +86,26 @@ export function startGroupResponseService(): void {
     void (async (): Promise<void> => {
       const self: { cid: bigint; username: string; } | null = await resolveSelf();
       if (!self) return;
+
+      // Addressed to THIS tab's session, or not ours to act on.
+      //
+      // The router has three documented paths that hand a notification to a tab
+      // that does not own its cid (the 2s orphan buffer, the un-acked forward
+      // fallback, and a stale instance registry). `group:invite-received` is
+      // AUTO-ACCEPTED downstream, and the accept is sent under this tab's own
+      // cid -- so an invitation addressed to account B, landing here, made
+      // account A join a group it was never invited to, while B never saw the
+      // invitation at all.
+      //
+      // A cid of null means the message names no session (a proxied
+      // request/response, or a deliberate fan-out) and is not filtered here --
+      // the same rule `notificationCid` documents for the legacy broadcast
+      // path, which already had this guard and was never propagated to this one.
+      const addressedTo: bigint | null = notificationCid(message);
+      if (addressedTo !== null && !isForThisSession(addressedTo, self.cid)) {
+        debugLog('GroupResponseService', `Ignoring a group response addressed to session ${String(addressedTo)}; this tab is ${String(self.cid)}`);
+        return;
+      }
 
       // The wire names peers only by CID; the registration roster is the one
       // authority for their usernames. The cid string is the explicit fallback

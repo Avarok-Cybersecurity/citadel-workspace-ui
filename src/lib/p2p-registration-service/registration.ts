@@ -11,6 +11,7 @@ import { failOnSocketLoss } from '../websocket/request-response';
 import { broadcastChannelService } from '../broadcast-channel-service';
 import { instanceManager } from '../multi-instance';
 import { debugLog } from '@/lib/debug-config';
+import { isForThisSession } from '@/lib/sessions/notification-ownership';
 import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 import { eventEmitter } from '../event-emitter';
@@ -131,6 +132,7 @@ function handlePeerRegisterNotification(data: Record<string, unknown>, ctx: Regi
   });
 
   if (peerCid !== undefined && notificationCid !== undefined) {
+
     const fallbackName: string = peerUsername || 'Unknown';
     const peer: Peer = ctx.allPeers.get(peerCid) || {
       cid: peerCid, username: fallbackName, fullName: peerUsername || 'Unknown User',
@@ -155,7 +157,26 @@ function handlePeerRegisterNotification(data: Record<string, unknown>, ctx: Regi
     ctx.allPeers.set(peerCid, peer);
     eventEmitter.emit('p2p:peer-registered', { peer, isIncoming: true });
     broadcastPeerUpdate(peerCid, peer.username, { isIncoming: true });
-    ctx.handleIncomingRegistration(notificationCid, peerCid, peerUsername).catch(error => {
+    // Addressed to THIS tab's session, or not ours to act on.
+    //
+    // The router has three documented paths that deliver a notification to a
+    // tab that does not own its cid (the 2s orphan buffer, the un-acked
+    // forward fallback, and a stale instance registry). Without this, a
+    // registration request for account B landing here made account A accept
+    // it -- registering A with the stranger who asked for B, under A's own
+    // cid, while B never saw the request at all.
+    //
+    // `p2p-auto-connect-service/incoming-connect.ts` already made exactly this
+    // check and it was never propagated here. See
+    // lib/sessions/notification-ownership.ts.
+    void (async (): Promise<void> => {
+      const ourCid: bigint | null = await getCurrentCid();
+      if (!isForThisSession(notificationCid, ourCid)) {
+        debugLog('P2PRegistrationService', `Ignoring PeerRegisterNotification for session ${String(notificationCid)}; this tab is ${String(ourCid)}`);
+        return;
+      }
+      await ctx.handleIncomingRegistration(notificationCid, peerCid, peerUsername);
+    })().catch(error => {
       debugLog('P2PRegistrationService', 'Failed to handle incoming registration:', error);
     });
   }
