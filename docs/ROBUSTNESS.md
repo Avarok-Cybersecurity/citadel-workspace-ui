@@ -21221,6 +21221,49 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Rounds 559-562 — I broke a test, and what the break taught
+
+**#281 regressed `test_p2p_after_one_c2s_disconnect`.** Deterministic on the
+branch, green on master across three runs. The SDK's own CI caught it before I
+merged, which is the whole argument for having sent it as a PR.
+
+**The cause was a comment I had read.**
+
+```rust
+// bind to IN_ADDR6_ANY. Allows both conns from loopback and public internet
+crate::socket_helpers::get_udp_socket("[::]:0")
+```
+
+`[::]` is bound dual-stack ON PURPOSE. Filtering the bogus IPv4 answer out of
+`external_ipv6` makes `local_has_an_external_ipv6_addr` false on an IPv4-only
+host, pushing it onto the `0.0.0.0` branch and losing that reach. I corrected a
+wrong field and broke a working bind in the same change, because that field
+doubles as the switch for dual-stack binding.
+
+**I stood the PR down and said I would hand the analysis over.** Then I
+reconsidered — and the distinction matters, because reversing a stated position
+is only defensible with a reason.
+
+The reason: #281 failed by changing WHICH SOCKET IS BOUND. A change that
+corrects only what is ADVERTISED cannot reproduce that failure, because the bind
+is untouched. That is not a third guess at the same thing; it is a different
+class of change, ruled in by the specific way the last one failed.
+
+**#282** substitutes `::ffff:a.b.c.d` for an IPv6 wildcard when the host's only
+internal address is IPv4. The dual-stack socket genuinely is reachable there.
+Position, port and count are unchanged, so `HolePunchConfig`'s positional
+assert is unaffected, and the reverse case is left alone because a v4 socket
+cannot be reached at a v6 address.
+
+**What this cost and what it bought.** One regressed test in someone else's
+repository, caught by their CI rather than by me — and a much better
+understanding of why the previous two attempts were wrong. The PR says so
+explicitly rather than quietly replacing #281; a reviewer should see the failure
+and what it eliminated.
+
+`external_ipv6` holding an IPv4 address is still wrong, and is still recorded as
+such. It just cannot be fixed as a side effect of something else.
+
 ## Rounds 555-558 — the split, quantified; and a hole in my own fix
 
 **Run 33376866622 completed with two failures**, `Playwright shard 3/3` and
