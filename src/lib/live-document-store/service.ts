@@ -11,6 +11,7 @@ import { debugLog } from '@/lib/debug-config';
 import type { RevisionEntry } from '@/types/p2p-types';
 
 import type { DocumentMetadata, StoredDocument } from './types';
+import { newStoredDocument } from './document-factory';
 import {
   loadDocumentFromDB,
   saveDocumentToDB,
@@ -22,7 +23,8 @@ import {
 export class LiveDocumentStore {
   private static instance: LiveDocumentStore;
   private documentsCache: Map<string, StoredDocument> = new Map();
-  private initialized: boolean = false;
+  /** Single-flight guard: null until the first initialize() call. */
+  private initPromise: Promise<void> | null = null;
 
   private constructor() {}
 
@@ -33,10 +35,20 @@ export class LiveDocumentStore {
     return LiveDocumentStore.instance;
   }
 
-  /** Initialize the store by loading the document index from LocalDB */
-  async initialize(): Promise<void> {
-    if (this.initialized) return;
+  /**
+   * Initialize the store by loading the document index from LocalDB.
+   *
+   * Single-flight: every caller shares one load. A boolean flag set at the
+   * END of the load let concurrent callers each start a load, and gave
+   * `updateIndex` no way to wait for one in flight — it read the cache
+   * mid-population and wrote the partial result over the persisted index.
+   */
+  initialize(): Promise<void> {
+    this.initPromise ??= this.loadIndexIntoCache();
+    return this.initPromise;
+  }
 
+  private async loadIndexIntoCache(): Promise<void> {
     try {
       const index: string[] = await loadIndexFromDB();
       for (const docId of index) {
@@ -45,10 +57,9 @@ export class LiveDocumentStore {
           this.documentsCache.set(docId, doc);
         }
       }
-      this.initialized = true;
     } catch (error) {
       debugLog('LiveDocumentStore', 'Failed to initialize:', error);
-      this.initialized = true; // Continue anyway
+      // Continue anyway — an unreadable index must not brick the store.
     }
   }
 
@@ -59,41 +70,16 @@ export class LiveDocumentStore {
     creatorCid: string,
     initialDoc?: Y.Doc,
   ): Promise<DocumentMetadata> {
-    const id: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
-    const now: number = Date.now();
-
-    const doc: Y.Doc = initialDoc || new Y.Doc();
-    const state: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(doc);
-    const rootHash: string = sha256Sync(state);
-
-    const metadata: DocumentMetadata = {
-      id,
-      title,
-      peerCid,
-      creatorCid,
-      createdAt: now,
-      updatedAt: now,
-      rootHash,
-      revision: 0,
-    };
-
-    const initialRevision: RevisionEntry = {
-      revision: 0,
-      rootHash,
-      timestamp: now,
-    };
-
-    const storedDoc: StoredDocument = {
-      metadata,
-      state: Array.from(state),
-      revisionChain: [initialRevision],
-    };
+    const storedDoc: StoredDocument = newStoredDocument(
+      crypto.randomUUID(), title, peerCid, creatorCid, initialDoc,
+    );
+    const id: string = storedDoc.metadata.id;
 
     this.documentsCache.set(id, storedDoc);
     await this.saveDocument(id, storedDoc);
     await this.updateIndex();
 
-    return metadata;
+    return storedDoc.metadata;
   }
 
   /** Save a document's current state */
@@ -116,16 +102,7 @@ export class LiveDocumentStore {
     if (this.documentsCache.has(docId)) return;
     if (await this.loadDocument(docId)) return;
 
-    const now: number = Date.now();
-    const doc: Y.Doc = new Y.Doc();
-    const state: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(doc);
-    const rootHash: string = sha256Sync(state);
-
-    const storedDoc: StoredDocument = {
-      metadata: { id: docId, title, peerCid, creatorCid, createdAt: now, updatedAt: now, rootHash, revision: 0 },
-      state: Array.from(state),
-      revisionChain: [{ revision: 0, rootHash, timestamp: now }],
-    };
+    const storedDoc: StoredDocument = newStoredDocument(docId, title, peerCid, creatorCid);
 
     this.documentsCache.set(docId, storedDoc);
     await this.saveDocument(docId, storedDoc);
@@ -235,13 +212,29 @@ export class LiveDocumentStore {
 
   /** Delete a document */
   async deleteDocument(docId: string): Promise<void> {
+    // Initialize BEFORE mutating: with a cold cache, the delete was a no-op on
+    // an empty map and updateIndex's own initialize could re-load this very
+    // document while the on-disk record still existed.
+    await this.initialize();
     this.documentsCache.delete(docId);
     await deleteDocumentFromDB(docId);
     await this.updateIndex();
   }
 
-  /** Update the document index in LocalDB */
+  /**
+   * Update the document index in LocalDB.
+   *
+   * The index is the ONLY enumeration of documents, and it is overwritten
+   * whole from the cache. Writing it before `initialize()` has absorbed the
+   * persisted index — which happened whenever adopt/create/delete was the
+   * first store action after a page load, since only the list functions
+   * initialize — replaced it with the one or zero entries in the cold cache,
+   * making every other document permanently unlistable. Awaiting the
+   * (single-flight) initialize also closes the read-modify-write race
+   * against a load already in flight.
+   */
   private async updateIndex(): Promise<void> {
+    await this.initialize();
     const docIds: string[] = Array.from(this.documentsCache.keys());
     await saveIndexToDB(docIds);
   }

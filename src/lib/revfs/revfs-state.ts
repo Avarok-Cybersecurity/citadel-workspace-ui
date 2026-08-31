@@ -61,13 +61,44 @@ export class RevfsState {
 
   registerAck(opId: string, timeoutMs: number): Promise<boolean> {
     return new Promise<boolean>((resolve, reject) => {
-      const timeout: NodeJS.Timeout = setTimeout((): void => {
-        this.pendingAcks.delete(opId);
-        reject(new Error(`ACK timeout for op ${opId}`));
-      }, timeoutMs);
-
-      this.pendingAcks.set(opId, { resolve, reject, timeout });
+      // The timer deletes by REGISTRATION IDENTITY, not by op id alone.
+      // Retries re-register the SAME op id, so a stale timer — left behind by
+      // an earlier attempt — used to delete the retry's fresh registration:
+      // the real Ack then found nothing to resolve, the retry timed out in
+      // turn, and a delivered operation was falsely counted toward the
+      // retry give-up limit. The stale timer still rejects its OWN promise
+      // (that attempt did time out); it just may not evict its successor.
+      const entry: PendingAck = {
+        resolve,
+        reject,
+        timeout: setTimeout((): void => {
+          if (this.pendingAcks.get(opId) === entry) {
+            this.pendingAcks.delete(opId);
+          }
+          reject(new Error(`ACK timeout for op ${opId}`));
+        }, timeoutMs),
+      };
+      this.pendingAcks.set(opId, entry);
     });
+  }
+
+  /**
+   * Withdraw a registration whose operation never left this machine.
+   *
+   * The ack promise is created BEFORE the send; when the send fails, the
+   * caller walks away from it. Left registered, the abandoned promise
+   * REJECTED at its timeout with nobody listening — one unhandledrejection
+   * per failed send — and the dead registration lingered for the timer's
+   * full window. Resolving `false` settles it silently: an unawaited
+   * resolved promise is inert.
+   */
+  cancelAck(opId: string): void {
+    const ack: PendingAck | undefined = this.pendingAcks.get(opId);
+    if (ack) {
+      clearTimeout(ack.timeout);
+      this.pendingAcks.delete(opId);
+      ack.resolve(false);
+    }
   }
 
   resolveAck(opId: string, success: boolean): void {

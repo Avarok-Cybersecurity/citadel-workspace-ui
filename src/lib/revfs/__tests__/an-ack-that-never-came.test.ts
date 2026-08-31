@@ -22,6 +22,9 @@ function deps(ackResult: Promise<boolean>, sent: boolean): Parameters<typeof sen
   return {
     state: {
       registerAck: (): Promise<boolean> => ackResult,
+      // A failed send withdraws its registration so the abandoned promise
+      // cannot reject unheard at its timeout; this fake needs the method.
+      cancelAck: (): void => {},
       addPendingOp: (): void => {},
       getPendingOps: (): unknown[] => [],
     },

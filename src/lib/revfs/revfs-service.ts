@@ -21,6 +21,7 @@ import {
 import { RevfsState, type TreeChangedCallback } from './revfs-state';
 import { RevfsIO, type RevfsIODeps } from './revfs-io';
 import { retryPendingOps, sendAndAwaitAck, type RetryOutcome } from './revfs-retry';
+import { wireDrainOnChannelReady } from './drain-on-channel-ready';
 import { applyInboundOperationSerially, type InboundContext } from './revfs-inbound';
 import { awaitTreeChange } from './await-tree-change';
 
@@ -34,8 +35,6 @@ import * as serverFileOps from './revfs-server-file-ops';
 import { persistTree } from './persist-tree';
 import type { RevfsIntentResult } from '@/types/revfs-intents';
 
-
-
 export class RevfsService {
   private readonly state: RevfsState = new RevfsState();
   private io: RevfsIO | null = null;
@@ -47,6 +46,12 @@ export class RevfsService {
     if (this.initialized) return;
     this.io = new RevfsIO(deps);
     this.initialized = true;
+    // Queued ops drain when a channel comes up, not only on manual Sync —
+    // see drain-on-channel-ready.ts for what sat in the queue without this.
+    wireDrainOnChannelReady({
+      getCurrentCid: deps.getCurrentCid,
+      retryPendingOps: (key: TreeKey, peerCid: bigint) => this.retryPendingOps(key, peerCid),
+    });
   }
 
   private ensureIO(): RevfsIO {
@@ -217,8 +222,6 @@ export class RevfsService {
   private async sendAndAwaitAck(peerCid: bigint, op: RevfsOperation, key: TreeKey): Promise<boolean> {
     return sendAndAwaitAck({ state: this.state, io: this.ensureIO(), sendOp: (p: bigint, o: RevfsOperation) => this.sendOp(p, o) }, peerCid, op, key);
   }
-
-
 
   async retryPendingOps(key: TreeKey, peerCid: bigint): Promise<RetryOutcome> {
     return retryPendingOps({ state: this.state, io: this.ensureIO(), sendOp: (p: bigint, op: RevfsOperation) => this.sendOp(p, op) }, key, peerCid);

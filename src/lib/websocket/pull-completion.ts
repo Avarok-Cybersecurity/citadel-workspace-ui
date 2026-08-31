@@ -50,11 +50,21 @@ export function awaitPullCompletion(
   return new Promise<PullOutcome>((resolve) => {
     let receivedPath: string | undefined;
 
-    const timeout: ReturnType<typeof setTimeout> = setTimeout((): void => {
-      eventEmitter.off('websocket-message', handleMessage);
-      debugLog(label, 'pull timed out', { requestId });
-      resolve({ success: false, message: 'timed out' });
-    }, timeoutMs);
+    // Idle timeout, re-armed on every event for THIS pull — the same behaviour
+    // the upload twin (revfs/revfs-io-network.ts) has, for the same reason: a
+    // fixed timer declared any pull longer than `timeoutMs` dead while it was
+    // still ticking and still consuming bandwidth, so the caller reported
+    // "could not be downloaded" for a transfer that then completed unobserved.
+    // A pull that goes QUIET for `timeoutMs` still fails honestly.
+    let timeout: ReturnType<typeof setTimeout>;
+    const armTimeout = (): void => {
+      clearTimeout(timeout);
+      timeout = setTimeout((): void => {
+        eventEmitter.off('websocket-message', handleMessage);
+        debugLog(label, 'pull timed out', { requestId });
+        resolve({ success: false, message: 'timed out' });
+      }, timeoutMs);
+    };
 
     const settle = (outcome: PullOutcome): void => {
       clearTimeout(timeout);
@@ -71,6 +81,9 @@ export function awaitPullCompletion(
           | undefined;
 
       if (tick && tick.request_id === requestId) {
+        // Any tick for this pull is proof of life. Terminal variants settle
+        // below (which clears the timer); everything else buys another window.
+        armTimeout();
         const status: string | Record<string, unknown> | undefined = tick.status;
 
         // ReceptionBeginning carries the local path the bytes are written to.
@@ -108,6 +121,7 @@ export function awaitPullCompletion(
       }
     };
 
+    armTimeout();
     eventEmitter.on('websocket-message', handleMessage);
   });
 }

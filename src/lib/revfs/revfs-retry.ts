@@ -37,7 +37,10 @@ export interface RetryDeps {
 const MAX_OP_RETRIES: number = 5;
 
 /**
- * Re-send everything queued for a peer. Call when a channel becomes usable.
+ * Re-send everything queued for a peer. Called when a channel becomes usable
+ * (drain-on-channel-ready.ts) and from the file manager's manual Sync. That
+ * first caller existed only as this sentence for a while: nothing subscribed
+ * to the channel event, so queued ops waited on a button press.
  *
  * Returns the number of operations still outstanding, so a caller can tell
  * "nothing to do" from "tried and still failing" — the distinction the
@@ -102,7 +105,37 @@ async function restorePersistedOps(deps: RetryDeps, key: TreeKey): Promise<void>
   }
 }
 
-export async function retryPendingOps(
+/**
+ * One retry pass at a time per tree.
+ *
+ * Two overlapping calls — a double-clicked Sync, or the channel-ready drain
+ * firing while a manual Sync is mid-pass — each read the same queue and each
+ * re-sent every operation in it: the pass only removes an op AFTER its ack, so
+ * a second reader sees the full queue and double-sends it. Chaining per key
+ * makes the second call run after the first, against whatever the first left
+ * queued.
+ */
+const retryPassChain: Map<TreeKey, Promise<unknown>> = new Map();
+
+export function retryPendingOps(
+  deps: RetryDeps,
+  key: TreeKey,
+  peerCid: bigint,
+): Promise<RetryOutcome> {
+  const prev: Promise<unknown> = retryPassChain.get(key) ?? Promise.resolve();
+  const runNext = (): Promise<RetryOutcome> => runRetryPass(deps, key, peerCid);
+  const pass: Promise<RetryOutcome> = prev.then(runNext, runNext);
+  const tail: Promise<unknown> = pass.catch((): undefined => undefined);
+  retryPassChain.set(key, tail);
+  void tail.then((): void => {
+    // Drop the chain entry once the LAST pass settles, so the map does not
+    // grow one settled promise per tree for the life of the page.
+    if (retryPassChain.get(key) === tail) retryPassChain.delete(key);
+  });
+  return pass;
+}
+
+async function runRetryPass(
   deps: RetryDeps,
   key: TreeKey,
   peerCid: bigint,
@@ -134,6 +167,11 @@ export async function retryPendingOps(
     const ackPromise: Promise<boolean> = deps.state.registerAck(entry.operation.op_id, ACK_TIMEOUT_MS);
     const sent: boolean = await deps.sendOp(peerCid, entry.operation);
     if (!sent) {
+      // The registration was made before the send; nothing can ever answer
+      // it now. Withdraw it, or the abandoned promise rejects unheard at its
+      // timeout (one unhandledrejection per failed send) — and its stale
+      // timer used to evict the NEXT attempt's registration for this op id.
+      deps.state.cancelAck(entry.operation.op_id);
       entry.retryCount += 1;
       continue;
     }
@@ -166,6 +204,9 @@ export async function sendAndAwaitAck(
   const ackPromise: Promise<boolean> = deps.state.registerAck(op.op_id, ACK_TIMEOUT_MS);
   const sendResult: boolean = await deps.sendOp(peerCid, op);
   if (!sendResult) {
+    // Same as the retry loop above: an unanswerable registration must be
+    // withdrawn, not abandoned to reject unheard at its timeout.
+    deps.state.cancelAck(op.op_id);
     deps.state.addPendingOp(key, { operation: op, retryCount: 0, createdAt: Date.now() });
         await deps.io.execute({ type: 'persist-pending-ops', treeKey: key, ops: deps.state.getPendingOps(key) });
     return false;

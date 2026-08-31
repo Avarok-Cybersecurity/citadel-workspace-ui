@@ -124,14 +124,28 @@ export async function applyInboundOperation(
     if (op.op_type === RevfsOpType.SyncResponse && op.tree) {
       const loaded: RevfsNode = await ctx.getTree(myCid, senderCid);
       const currentTree: RevfsNode = ctx.state.getTree(key) ?? loaded;
-      // What we have already deleted and the peer has not yet been told about.
-      // Without it their SyncResponse restores those files, naming bytes this
-      // side destroyed when it queued the removal.
+      // Paths we have already VACATED and the peer has not yet been told
+      // about. Without it their SyncResponse restores those paths, naming
+      // bytes this side destroyed — or duplicating a node it moved.
+      //
+      // RemoveFile/Rmdir destroy a path; Rename and Move vacate one, and
+      // `operation.path` is the OLD path for all four. The first version of
+      // this guard covered only the deletions, so a queued Rename or Move was
+      // resurrected by the union merge: old and new path both existed locally
+      // while the peer held only the new one — permanent silent divergence —
+      // and a moved DIRECTORY brought its entire old subtree back (the merge
+      // skips a suppressed remote child wholesale, so listing the top of the
+      // vacated subtree is sufficient).
+      const vacatingOps: ReadonlySet<RevfsOpType> = new Set([
+        RevfsOpType.RemoveFile,
+        RevfsOpType.Rmdir,
+        RevfsOpType.Rename,
+        RevfsOpType.Move,
+      ]);
       const pendingRemovals: Set<string> = new Set(
         ctx.state
           .getPendingOps(key)
-          .filter((entry) => entry.operation.op_type === RevfsOpType.RemoveFile
-            || entry.operation.op_type === RevfsOpType.Rmdir)
+          .filter((entry) => vacatingOps.has(entry.operation.op_type))
           .map((entry) => entry.operation.path),
       );
       const merged: RevfsNode = mergeTrees(
