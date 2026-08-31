@@ -21221,6 +21221,47 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 537 — auditing every response the service can send
+
+**Round 530 found one error response nobody reads. This asks the question of all
+92.** Enumerating `InternalServiceResponse`'s variants and grepping each against
+`citadel-workspaces/src`: **24 are never referenced anywhere.**
+
+**Most of that is not a defect, and checking mattered.** The
+`GroupRequestJoin*` cluster — pending notification, accept, decline, success,
+failure — looked exactly like a feature built from one end, the pattern this
+campaign has found repeatedly. It is not: the UI never sends `GroupRequestJoin`
+either, so the whole request-to-join flow is backend capability that was never
+exposed. Unused API, not a broken feature. I would have filed it as the latter
+without the second grep.
+
+**Three are reachable failures the UI can provoke and never reads.**
+
+| variant | its request is sent from |
+|---|---|
+| `MessageSendFailure` | the message path (#58) |
+| `GroupRespondRequestFailure` | 2 files |
+| `GroupListGroupsFailure` | 4 files |
+
+The respond case has teeth. `group-requests.ts:38` says it outright:
+`applyGroupInvite` "adds the group locally first and then calls
+`sendGroupRespond`". So when the respond fails, the group stays in the sidebar
+and the user is not a member of it — local state diverging from the server,
+silently, in a file whose own comment begins "The invite case corrupted state
+silently."
+
+`GroupListGroupsFailure` renders as "you have no groups", which is this record's
+"request send is not response" defect wearing a different hat.
+
+**Severity, argued rather than assumed.** Kept at low: each needs a backend error
+to occur, and a reload recovers. It would be medium if respond failures turned
+out to be common — that is a measurement nobody has, and the entry says so
+rather than picking the flattering assumption.
+
+**Not fixed, for the same reason as #58.** What the UI should DO with a failed
+respond — roll back the optimistic add, surface it, retry — is a product
+decision, and inventing one to close a low item is how unwanted behaviour ships.
+
 ## Round 535 — the wildcard is advertised on purpose, by construction
 
 **Round 534 guessed that a peer was advertising its bind wildcard. It is, and
