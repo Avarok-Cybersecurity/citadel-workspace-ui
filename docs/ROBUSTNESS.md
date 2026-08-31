@@ -21221,6 +21221,52 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Rounds 522, 528, 536, 548, 549, 552 — recorded in the backlog only
+
+Found by counting round numbers in this file against the backlog: these six had
+their findings written into PRODUCTION-READINESS.md as they happened and never
+got an entry here. Collected rather than left as holes, and listed by their real
+numbers so the sequence reads honestly.
+
+**522 — `udp_mode: _` exonerated.** `requests/peer/accept.rs:37` discards the
+`udp_mode` the request carries, and `UdpMode`'s `#[default]` is `Disabled` —
+which is literally the second clause of #56's failure message. It is still
+correct: `citadel_sdk::responses::peer_connect` reads `udp_mode` out of the
+inbound `PeerSignal::PostConnect` and forwards it, so the acceptor inherits the
+initiator's mode. Recorded so nobody spends the same hour on it.
+
+**528 — the retry ladder does keep its offers.** If a timed-out media open
+discarded its UDP receivers, attempts 2 and 3 would have nothing to wait on and
+"failed all three retries" would follow directly. `finish_first_open`'s `Err(_)`
+arm restores `UdpState::Pending(rxs)`, and the raced-with-close arm restores it
+too, both with comments saying the receivers survive because they are awaited via
+`&mut`. Another plausible cause eliminated.
+
+**536 — #56 filed as an issue, deliberately without a patch.** Traversal depends
+on invariants only real NAT scenarios exercise; round 540 then proved the
+caution justified when the alternative fix turned out to trip an assertion on
+the peer.
+
+**548 — the objection answered by the project's own CI.** #280 went green across
+all twenty docker NAT checks: every `docker_nat_p2p` cone pairing,
+`docker_nat_client_server` per cone, and `nat` on three platforms. The one thing
+that could not be verified locally is verified upstream.
+
+**549 — #280 merged and pinned.** Merged as `0d769ec`; both workspace pins
+moved. The fix was confirmed present in the pulled source (ten references to
+`routable_candidate`) rather than trusting the lockfile hash.
+
+**552 — the reading of the next run, written before seeing it.** `invalid remote
+address` is ERROR-level and survives `RUST_LOG=citadel=warn`; `Local internal
+bind addr` is `info!` and does not. So the error's absence proves the fix took
+effect independently of pass/fail, and its presence would mean the fix never
+reached the running code. Written down in advance so the result cannot be
+interpreted to taste.
+
+**Why this entry exists at all.** The gap was found by counting, not by noticing
+— which is the same reason every other finding in this record needed a check
+rather than an impression.
+
 ## Round 550 — I skipped the check I built for exactly this
 
 **Every job in run 33376013146 failed** — 74 of them, fmt and clippy included.
