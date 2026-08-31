@@ -21221,6 +21221,39 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 534 — the same lead, replicated, and half of it wrong
+
+**Shard 1/3 failed on the same run and reproduces round 532's measurement
+independently:** successes at 4.457µs, 4.486µs and 4.577µs; thirty failures at
+5.000-5.002s. Bimodal in both shards, nothing in between. The conclusion that
+`UDP_WAIT` is not the variable now rests on two independent samples.
+
+**And it corrects round 533's hypothesis.** I had guessed at an IPv4/IPv6
+mix-up, from shard 3's `invalid remote address: [::]:34464` sitting next to a
+NAT report with an IPv4 address in the `external_ipv6` field. Shard 1 reports
+
+    invalid remote address: 0.0.0.0:54960
+
+Both are the UNSPECIFIED address of their own family. That is not families being
+confused — it is a peer advertising its wildcard BIND address instead of a
+routable one, and a punch aimed at `0.0.0.0` or `[::]` has nowhere to go. The
+`external_ipv6` oddity appears on both shards with different IPv4 addresses, so
+it is how that field is populated rather than a defect.
+
+Two shards, two occurrences, one per failing run — a much better-supported lead
+than the single line round 533 had, and a different lead than the one I
+proposed.
+
+**Where it stops.** The message appears nowhere in the Citadel-Protocol source,
+so it surfaces from a dependency's socket layer refusing to `connect()` to the
+unspecified address. That is as far as this evidence reaches; it remains a
+hypothesis for the 30s timeouts, not a proven cause, and it is recorded that way.
+
+**Two rounds, two corrections to my own claims.** 533 corrected 532's cause;
+534 corrects 533's hypothesis. The measurement has survived both untouched,
+which is the difference between what was measured and what was inferred from
+whatever error line happened to be nearby.
+
 ## Round 533 — correcting round 532's cause, one round later
 
 **I overstated the cause and the counts do not support it.** Round 532 concluded
