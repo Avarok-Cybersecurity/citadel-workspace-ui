@@ -21221,6 +21221,47 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 515 — the backlog was lying, and one gate really was wrong
+
+**Found.** With one medium (#56) blocking the merge and its evidence pending in
+CI, I audited the remaining "open" lows against the tree instead of trusting
+their labels.
+
+**Nine of them were already fixed.** #39 (schema-write lock, with a passing
+test), #41 (UpdateWorkspace broadcast), #42 (`has_delivered` bounded to
+`MAX_MAP_SIZE`), #44 (expiry sweep persists), #45 (in-flight bytes threaded into
+the quota check), #46 (the sender's own peer-group message emits
+`group:message-received`), #47 (keyframe requests rate-limited), #48 (the peer
+early-return moved before `setLoadingMore`), #49 (storage usage dedupes by byte
+key). Rounds 462–510 fixed them and never updated the table. Each is now marked
+with the evidence that closed it. The open count went from 15 to 6.
+
+That matters beyond tidiness: this table is what decides whether the merge bar
+— no critical, high or medium — has been met. A backlog that overstates what is
+broken is as misleading as one that understates it.
+
+**#40 was real.** `Permission::for_role` grants an Owner everything except `All`
+and `ConfigureSystem`, `AddUsers` and `RemoveUsers` included, and the permission
+editor renders that set. Both member gates asked `is_admin`. So an Owner was
+shown grants enforcement refused, and any client gating its controls on the
+reported set — which that endpoint's own doc comment invites — would ship dead
+buttons.
+
+**Fix.** Both gates now ask `check_entity_permission(actor, domain_id,
+AddUsers | RemoveUsers)`. It returns true for admins first, so this widens only
+to holders of those permissions: Owner, and Custom roles above the editor rank.
+Member, Guest and Banned hold them in no role table, and the check is scoped by
+`is_member_of_domain`, so an Owner of one workspace gains nothing in another.
+
+**Controls, because this widens authorization.** Reverting either gate to
+`is_admin` reddens that gate's grant test. Removing a gate entirely reddens the
+*refusal* tests — Member-cannot-add and outside-Owner-cannot-add — which is the
+control that matters: without it I would have had four tests that could not tell
+a correct widening from a privilege escalation. Both gates are pinned, because a
+fix applied in two places and tested in one is how the twin regresses alone.
+
+**Gate.** Kernel suite passes, `cargo fmt --check` and clippy clean.
+
 ## Round 514 — the sync engine on the landing page's critical path
 
 **Found.** CI run 33347976897, `Production Docker Build` → `Landing bundle
