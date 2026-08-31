@@ -21221,6 +21221,36 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 529 — 27 lines that could have meant anything
+
+**The new dump worked, and immediately produced something unreadable.**
+Round 517's P2P chain filter did its job on the `test:file-manager` failure in
+run 33356652733, and among the output were 27 occurrences of
+
+    [P2P-MSG] Peer connection not found for peer_cid=...
+
+alongside 32 `sink.send() SUCCEEDED`. Twenty-seven refused sends is either a
+second defect or ordinary teardown noise, and those are opposite conclusions.
+
+**There was no way to tell.** `docker compose logs` without `-t` prints no
+origin timestamps, so every line in the dump carries the timestamp of the DUMP.
+All 27 appeared within a 10ms window at 05:10:20 — which says only that the
+dump ran then. The test's own result line was printed at 05:10:19.
+
+**Fix.** `-t` on all sixteen `docker compose logs` invocations in the workflow,
+so events can be ordered against each other and against the test's own output.
+
+**Same lesson, third variation.** Round 517: a tail that buried the line that
+mattered. Round 527: a dump that ran only when the number did not exist. Now: a
+dump whose lines cannot be placed in time. Each time the diagnostic existed and
+could not answer the question it was there for — which is the same defect as a
+check that cannot fail, and it keeps reappearing in the parts of the system
+nobody tests because they are "just logging".
+
+**Unchanged.** `Peer Sees File: FAIL` with `Peer Sees Changes: PASS` is the same
+#57 signature as before; the fix for it is committed in the SDK clone and not
+yet pushed.
+
 ## Round 527 — my own instrument threw away the measurement it was built for
 
 **Run 33356652733 went green on all three Playwright shards.** #56 did not
