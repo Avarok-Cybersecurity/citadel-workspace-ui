@@ -82,7 +82,6 @@ const RECORDED_UNCONSUMED = new Map([
   ['member:loaded', 'the members list is driven by members:loaded (plural)'],
   ['node:types:loaded', 'node types are read synchronously from the store'],
   ['operation:deleted', 'no consumer; deletions are reflected by the node:* events'],
-  ['p2p:channel-ready', 'readiness is polled by the auto-connect service, not awaited'],
   ['p2p:conversations-cleaned', 'diagnostic after a stale-conversation sweep'],
   ['p2p:peer-registered-with-us', 'the peer list refreshes on its own poll'],
   ['p2p:presence-updated', 'presence renders from the messenger callback registry'],
