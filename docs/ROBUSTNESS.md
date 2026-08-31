@@ -21221,6 +21221,35 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 527 — my own instrument threw away the measurement it was built for
+
+**Run 33356652733 went green on all three Playwright shards.** #56 did not
+reproduce, which confirms it is intermittent rather than constant — and it also
+exposed a flaw in the instrumentation I added in round 521.
+
+The `[UDP-NEGOTIATION]` line logs the elapsed wait on both outcomes. The CI step
+that surfaces it is `if: failure()`. So a green run — the only place a
+SUCCESSFUL negotiation's timing exists — discards it silently.
+
+That is exactly backwards for the question #56 asks. Its entry says nobody can
+tell "the 5s budget is marginal" from "the channel never arrives", and the way
+to tell them apart is to know what a successful negotiation costs on CI
+hardware. If it is ~1ms as it is locally, the budget is enormous and a failure
+means the channel never came; if it is 4s, the budget is marginal and raising
+it is justified rather than a guess.
+
+A green run is where that number lives, and I had built a step that ran only
+when there was no number to find.
+
+**Fix.** A separate `if: always()` step dumps the `[UDP-NEGOTIATION]` lines, in
+both the integration and Playwright jobs. The failure dump keeps its own copy
+for the failing case.
+
+**The pattern, again.** A diagnostic that cannot answer the question it exists
+for is the same defect as a check that cannot fail — round 517 said so about
+`tail -120` burying the line that mattered, and I then wrote a narrower version
+of it myself, two rounds later.
+
 ## Round 526 — the image BuildKit pulls before anything else, unretried
 
 **Found.** `Integration Test - test:chat-settings` went from green to red across
