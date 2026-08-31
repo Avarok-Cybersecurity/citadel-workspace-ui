@@ -21221,6 +21221,42 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 540 — reading the code I proposed changing
+
+**I offered a fix upstream and half of it was wrong.** Issue #279 suggested
+substituting the real address for the advertised wildcard, and mentioned
+"dropping the entry" as an alternative, flagged only as risking an empty list.
+Reading `hole_punch_config.rs` shows dropping is worse than that in two ways:
+
+```rust
+// line 150 — advertised addresses are POSITIONALLY paired with local sockets
+assert_eq!(peer_internal_addrs.len(), local_sockets.len());
+```
+
+Filtering any entry on the sending side desynchronises the count on the
+receiving side and trips that assertion.
+
+```rust
+for peer_internal_addr in peer_internal_addrs {
+    let mut bands = /* predicted from peer_internal_addr */;
+    bands.extend(peer_reflexive_addrs.iter().map(...));   // INSIDE the loop
+```
+
+Each internal address contributes a band-set that also carries every reflexive
+address. So removing the wildcard entry would discard a whole set of good
+STUN-derived candidates along with it — the opposite of the intent. The wildcard
+entry is not inert.
+
+Substitution preserving position is the only safe shape, and the correction is
+posted on the issue so nobody acts on the version I got wrong.
+
+**This is the concrete vindication of filing an issue rather than a PR.** Round
+536 declined to send a patch on the grounds that traversal has invariants only
+real NAT scenarios exercise. That was a judgement call at the time; it is now a
+demonstrated one — neither the positional assert nor the reflexive coupling was
+visible from the failure logs, and a plausible-looking patch would have turned a
+failed call into a panic.
+
 ## Round 539 — #57 closed, end to end
 
 **Citadel-Protocol#278 merged** (squashed as `e599283`), and both workspaces'
