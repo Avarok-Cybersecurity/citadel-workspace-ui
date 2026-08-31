@@ -21221,6 +21221,40 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 531 — the fixture that could have passed a half-fix, and a marker audit
+
+**A gap in my own verification of #57.** The reproduction used a 32-byte file —
+ONE group id. But `session.rs` reserves a RANGE of ids per file ("reserve group
+ids", `groups_needed`), so a fix that stepped over the first consumed id and not
+the rest would pass that test and still strand every message after a real
+upload. The fixture would have certified a half-fix.
+
+`a_peer_message_after_a_multi_group_file_transfer_still_arrives` sends a
+megabyte, comfortably several groups. Against Citadel-Protocol#278 it passes;
+removing just the `skip` call makes it fail with the same message as its
+sibling. The fix does hold across group boundaries — but that was checked, not
+assumed.
+
+**Marker audit, since "production ready" is the goal.** Two `@human-review`
+markers and six TODO/FIXME comments remain in production paths. None hides a
+blocking issue:
+
+- `session-startup-sequence.ts:50` is the only substantive one — a fixed
+  `SDK_TEARDOWN_SETTLE_MS` delay standing in for a teardown-complete signal the
+  internal service does not emit. It is a deliberate, documented tradeoff: the
+  comment states the real fix (have the service emit the signal, then use
+  `waitForEvent`), names the risk of doing otherwise ("blind-changing P2P
+  connection sequencing, historically the flakiest area of this codebase, with
+  nothing to verify against"), and is tracked in KNOWN_ISSUES.md. Left alone on
+  its own advice.
+- `network.rs:115` — "add user to workspace domain if they aren't already" — reads
+  like a functional gap and is not one: membership is established through the
+  normal add-member path, and `test:member-mgmt` and `test:tree-permissions`
+  both pass. Checked rather than assumed, because round 515 made
+  `check_entity_permission` depend on `is_member_of_domain`, so a real gap here
+  would have silently removed every role-based grant.
+- The remaining four are refactor notes with no behavioural consequence.
+
 ## Round 530 — a failure the service reports and nobody reads
 
 **Found while reading the new P2P dump.** Run 33356652733's `test:file-manager`
