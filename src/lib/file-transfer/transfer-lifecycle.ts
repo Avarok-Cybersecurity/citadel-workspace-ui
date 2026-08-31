@@ -142,19 +142,44 @@ export async function acceptTransfer(deps: LifecycleDeps, transferId: string): P
     );
   }
 
-  await deps.io.executeIntent({
-    type: 'send-response',
-    transferId,
-    targetCid: transfer.senderCid,
-    accepted: true,
-  });
+  // An async transfer has nothing to respond TO.
+  //
+  // `send-response` needs the protocol `object_id`, which the correlator only
+  // learns from a `FileTransferRequestNotification` whose
+  // `metadata.transfer_type === 'FileTransfer'`. Async mode stages through
+  // RE-VFS, which the internal service auto-accepts and never announces that
+  // way -- so `resolveObjectId` returned undefined and this threw "has not been
+  // announced over the protocol yet" for EVERY async transfer.
+  //
+  // It threw here, above the staged-download branch below, which is why
+  // `completeStagedDownload` was unreachable. Async is the mode the UI labels
+  // "Recommended", so the default way to send a file could not be accepted at
+  // all: both buttons threw, the decline signal was never sent, and the
+  // recipient's bubble sat waiting for ever.
+  const isStaged: boolean = transfer.mode === 'async';
+  if (isStaged && !transfer.virtualPath) {
+    // Fail loudly rather than silently doing neither half.
+    throw new Error(
+      'This staged transfer carries no server path, so it cannot be downloaded. ' +
+        'Ask the sender to resend it.'
+    );
+  }
+
+  if (!isStaged) {
+    await deps.io.executeIntent({
+      type: 'send-response',
+      transferId,
+      targetCid: transfer.senderCid,
+      accepted: true,
+    });
+  }
 
   transfer.state = 'transferring';
   transfer.updatedAt = Date.now();
   await deps.saveTransfer(transfer);
   deps.emitStateChange(transfer);
 
-  if (transfer.mode === 'async' && transfer.virtualPath) {
+  if (isStaged) {
     await completeStagedDownload(deps, transfer);
   }
 }
@@ -173,13 +198,19 @@ export async function declineTransfer(
     throw new Error('Cannot decline outgoing transfer');
   }
 
-  await deps.io.executeIntent({
-    type: 'send-response',
-    transferId,
-    targetCid: transfer.senderCid,
-    accepted: false,
-    reason,
-  });
+  // Same reason as accept: a staged transfer has no protocol object_id to
+  // name, so issuing the response threw and the decline was never recorded
+  // either. Declining a staged file is local -- the bytes sit on the server
+  // until they expire, and the sender's own transfer completed at staging.
+  if (transfer.mode !== 'async') {
+    await deps.io.executeIntent({
+      type: 'send-response',
+      transferId,
+      targetCid: transfer.senderCid,
+      accepted: false,
+      reason,
+    });
+  }
 
   transfer.state = 'declined';
   transfer.updatedAt = Date.now();
