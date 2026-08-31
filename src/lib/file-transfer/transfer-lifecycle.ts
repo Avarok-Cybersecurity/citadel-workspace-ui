@@ -5,6 +5,7 @@ import { scopedSettingsKey } from './settings-key';
 import { getMimeType, formatBytes } from './transfer-format';
 import { type FileTransferMode, FILE_TRANSFER_REQUEST_TTL_MS } from '@/types/messaging-layer';
 import { FILE_TRANSFER_EVENTS } from './events';
+import { isTerminalTransferState } from './transfer-outcome';
 import { completeStagedDownload } from './server-download';
 import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
@@ -93,7 +94,22 @@ export async function sendFile(
     // The bytes leave inside this call (SendFile ByteContents); there is no
     // stashed copy to stream later — the chunk-streaming plane that once
     // consumed one is gone.
-    await deps.io.executeIntent({ type: 'send-transfer-request', transfer, file: wrapInMemory(file) });
+    //
+    // Marked failed on a throw, like its two siblings. The async branch
+    // (`handleAsyncSend`) and the native-picker path both catch and record the
+    // error; this one did not, so a refused send left the record at 'pending'
+    // for ever with nothing shown to the user. The record was already saved
+    // above, so there is always something to mark.
+    try {
+      await deps.io.executeIntent({ type: 'send-transfer-request', transfer, file: wrapInMemory(file) });
+    } catch (error) {
+      transfer.state = 'error';
+      transfer.errorMessage = error instanceof Error ? error.message : 'SendFile failed';
+      transfer.updatedAt = Date.now();
+      await deps.saveTransfer(transfer);
+      deps.emitStateChange(transfer);
+      throw error;
+    }
   }
 
   deps.emitStateChange(transfer);
@@ -108,7 +124,11 @@ export async function cancelTransfer(deps: LifecycleDeps, transferId: string): P
     throw new Error('Transfer not found');
   }
 
-  if (transfer.state === 'complete' || transfer.state === 'cancelled') return;
+  // The exported set, not a third hand-rolled copy of it. This one omitted
+  // 'error', 'declined' and 'expired', so a cancel could rewrite a transfer
+  // that had already failed, been refused, or timed out -- turning a real
+  // outcome into "cancelled" in the history.
+  if (isTerminalTransferState(transfer.state)) return;
 
   await deps.io.executeIntent({
     type: 'send-cancel',

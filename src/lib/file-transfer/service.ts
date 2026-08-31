@@ -66,6 +66,11 @@ export class FileTransferService {
     return this.io;
   }
 
+  /** See `IFileTransferIORouter.markForeignOutgoingStream`. */
+  markForeignOutgoingStream(requestId: string): void {
+    this.io.markForeignOutgoingStream(requestId);
+  }
+
   async initialize(): Promise<void> {
     if (this.initialized) return;
     this.setupMessageHandlers();

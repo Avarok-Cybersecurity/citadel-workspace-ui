@@ -21221,6 +21221,115 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Rounds 585-592 — a second audit, and the pattern that explains the first
+
+The ultracode audit's 44 findings were closed down to two HIGHs. Then a
+full-stack scan — aimed deliberately at what that audit never read — returned
+**38 more, including a CRITICAL**. The useful output is not the count; it is
+that the scan named the mechanism producing most of them.
+
+### The guarded/unguarded twin
+
+Fourteen instances, in one codebase, of the same shape: a guard written
+correctly in one place and never propagated to its sibling. In several cases
+the fixed half carries a comment explaining *why* the guard matters, and the
+comment did not migrate either.
+
+| the guarded half | the twin that was left |
+|---|---|
+| upload re-arms its timeout per progress tick | download uses a fixed 30s |
+| deletions get `pendingRemovals` | rename and move do not |
+| local tree mutators validate | remote appliers do not |
+| empty files are refused before announcing | size is checked after announcing |
+| 2 of 3 send branches catch and mark the error | the p2p branch does not |
+| one send path sets `expiresAt` | the native-picker path does not |
+| incoming ticks filter foreign streams | outgoing ticks do not |
+| 2 sites wire send-failure into the ack promise | 3 orphan it |
+| the Android notification fix, at line 24 | its twin at line 52 |
+| one store issues a real delete | its twin writes a tombstone |
+| `write_user_role` holds `lock_workspaces` | the permissions-remove tail does not |
+| `remove_workspace` rolls back step 3 | it does not roll back step 2 |
+| `sendP2PMessage` guards | `sendP2PMessageDirect` does not |
+| `MessageNotification` has a JSON guard | `MessageDelivered` has none |
+
+Four more were found by hand earlier in the session — `credential_fingerprint`
+on `Connect` but not `ClaimSession`; `clear_session`'s `init_time` check but
+not the teardown forty lines later; the KEM-state guard but not the vconn
+removal eight lines below it; two hand-rolled session-route re-resolutions but
+not the two tasks that needed one.
+
+**Eighteen instances. This is the defect generator in this codebase**, and the
+lesson is procedural: when a guard is added, the next action is to grep for its
+mechanism and fix every sibling in the same change — not to fix the reported
+site and move on.
+
+### The CRITICAL, and why no test caught it
+
+`acceptTransfer` issued a protocol `send-response` unconditionally. That intent
+needs the protocol `object_id`, which the correlator learns only from a
+`FileTransferRequestNotification` whose `metadata.transfer_type ==
+'FileTransfer'`. Async mode stages through RE-VFS, which the internal service
+auto-accepts and never announces that way — so `resolveObjectId` returned
+undefined and the intent threw, at the TOP of the function, above the
+staged-download branch. `completeStagedDownload` was unreachable code.
+
+Async is the mode the UI labels **"Recommended"**. The default way to send a
+file could not be accepted or declined at all.
+
+Every existing file-transfer test stubs `executeIntent` with a **resolving**
+mock, so the throw that only the real router raises never happened in a test.
+The new test's fake router rejects, which is what the product does. That is the
+generalisable point: a mock that always succeeds cannot fail the way the
+system fails.
+
+### Three cross-account leaks, all the same missing check
+
+One browser holds one WebSocket for every logged-in account, and the router has
+three paths that deliberately hand a notification to a tab that does not own
+its cid. Four handlers trusted it absolutely:
+
+- a peer registration for B, auto-accepted by A, registered **A** with the
+  stranger who asked for B;
+- a group invitation for B, auto-accepted by A, made **A join a group it was
+  never invited to**;
+- a media frame for B decoded and **rendered as a participant** in A's call;
+- a tab logged into **nobody** processed any account's messages, because
+  `currentCid ?? notificationCid` compared the cid to itself.
+
+The guard existed and was correct in two other places, one of whose comments
+records this exact incident being observed before. It is now one shared
+`isForThisSession`, and the cid extractor moved with it so the legacy path and
+the router path cannot disagree about who a message is for.
+
+### What the controls measured
+
+Controls that printed a magnitude rather than a pass/fail, all worse than the
+prose description:
+
+| control | reading |
+|---|---|
+| unsynchronised outbound queue | 8 concurrent sends leave **1** message; 7 reported `Ok` |
+| idle poll gate removed | **12** store reads in 1.2s, per idle session, forever |
+| `sync_backend` one-at-a-time | **5** round trips per ACK and per delivery |
+| async accept restored | 3 of 4 red; the p2p test correctly stays green |
+
+### Still open
+
+- **H5** — the Double-Loser tiebreak may commit divergent ratchets at the same
+  version, and the completion check compares integers only. Both halves of the
+  mechanism are confirmed by reading; that divergence is *reachable* is not.
+  Needs a fault-injection harness, not a guess, because it is the
+  double-ratchet core of a security product.
+- **H8** — in review as #287, after the coarse first attempt reddened macOS CI
+  with a stale-ratchet AEAD failure. That failure was better evidence than the
+  audit had: the teardown is load-bearing for genuinely dead vConns, so the fix
+  had to distinguish incarnations at the vConn rather than skip wholesale.
+- The scan's ten HIGHs and nineteen MEDIUMs, dispatched across six agents.
+- **Coverage**: two of the original audit's 64 agents died on a retry cap, and
+  the scan lists its own unread files. Neither pass is complete, and saying so
+  is part of the record.
+
+
 ## Rounds 570-584 — the audit's backlog, and the three fixes that were wrong
 
 Fourteen of sixteen HIGHs and all eleven MEDIUMs closed. The durable part of

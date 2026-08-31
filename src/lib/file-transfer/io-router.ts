@@ -28,6 +28,22 @@ import type { FileTransfer } from './types';
  * allowing the FileTransferService to work with the I/O layer without changing business logic.
  */
 export interface IFileTransferIORouter {
+  /**
+   * Declare that an outgoing SendFile stream is NOT a chat transfer.
+   *
+   * The internal service stamps a revfs push's ticks with the browser's own
+   * SendFile request_id, and the tick correlator falls back to the oldest live
+   * transfer to the same peer when it cannot match one -- so an unregistered
+   * push can complete or fail an unrelated pending chat transfer. Every caller
+   * that issues a SendFile for something other than a chat transfer must say
+   * so here.
+   *
+   * On the interface rather than only on the protocol router so a caller
+   * outside this module can reach it without narrowing the type, and so a
+   * future router cannot quietly omit it.
+   */
+  markForeignOutgoingStream(requestId: string): void;
+
   // ============================================================================
   // Send Operations
   // ============================================================================

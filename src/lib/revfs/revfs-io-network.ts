@@ -5,6 +5,7 @@
  * Handles SendFile, DownloadFile, DeleteVirtualFile via event emitter.
  */
 
+import { fileTransferService } from '@/lib/file-transfer/service';
 import type { RevfsIntentResult } from '@/types/revfs-intents';
 import { eventEmitter } from '../event-emitter';
 import { debugLog } from '@/lib/debug-config';
@@ -33,6 +34,20 @@ export async function backendSendFile(
   const requestId: string = crypto.randomUUID();
   const isServerStorage: boolean = peerCid === null;
   debugLog('RevfsIO', `backendSendFile: name=${fileName} bytes=${content.byteLength} virtualDir=${virtualDir} requestId=${requestId} scope=${isServerStorage ? 'server' : 'peer'}`);
+
+  // Tell the chat-transfer plane this stream is not one of its own.
+  //
+  // The internal service stamps a revfs push's ticks with the browser's own
+  // SendFile request_id, and the chat plane's tick correlator falls back to the
+  // oldest live transfer to the same peer when it cannot match one. So an
+  // unregistered revfs push could complete or fail an unrelated pending chat
+  // transfer -- marking it "Sent successfully" while nothing of the sort had
+  // happened. The staging upload was registered when that filter was added;
+  // this caller, the general revfs push, was the twin that was missed.
+  //
+  // Registered BEFORE the send: the WebSocket is ordered, so no tick for this
+  // stream can precede it.
+  fileTransferService.markForeignOutgoingStream(requestId);
 
   // ByteContents.data is a Rust Vec<u8>, which serialises as a number array —
   // the same shape the working file-transfer upload sends.
