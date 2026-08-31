@@ -13,7 +13,6 @@
 
 import * as Y from 'yjs';
 import { sha256Sync } from '../merkle-tree';
-import type { YjsMerkleProof, YjsMerkleTree } from './tree';
 
 
 /**

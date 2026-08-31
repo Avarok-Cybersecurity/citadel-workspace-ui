@@ -15,6 +15,7 @@ import {
 import type { MessagingLayer } from '@/types/messaging-layer';
 import type { PeerPresence } from './p2p-types';
 import { debugLog } from '@/lib/debug-config';
+import { notifyEach } from '@/lib/notify-listeners';
 import { getPrivacySettings } from '@/lib/privacy-settings';
 
 export type PresenceListener = (peerCid: bigint, presence: PeerPresence) => void;
@@ -140,14 +141,14 @@ export class PresenceManager {
    * Notify presence listeners of a change
    */
   public notifyPresenceChange(peerCid: bigint, presence: PeerPresence): void {
-    this.presenceListeners.forEach(listener => listener(peerCid, presence));
+    notifyEach(this.presenceListeners, 'presence', peerCid, presence);
   }
 
   /**
    * Notify typing listeners of a change
    */
   public notifyTypingChange(peerCid: bigint, isTyping: boolean): void {
-    this.typingListeners.forEach(listener => listener(peerCid, isTyping));
+    notifyEach(this.typingListeners, 'typing', peerCid, isTyping);
   }
 
   /**

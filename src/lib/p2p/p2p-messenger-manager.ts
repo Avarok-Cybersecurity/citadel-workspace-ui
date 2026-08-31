@@ -11,6 +11,7 @@
  */
 
 import type { MessagingLayer } from '@/types/messaging-layer';
+import { notifyEach } from '@/lib/notify-listeners';
 import { markP2PMessageHandlerAttached } from './p2p-handler-ready';
 import { editMessage, deleteMessage } from './messenger-revision';
 import { websocketService } from '../websocket-service';
@@ -72,8 +73,8 @@ export class P2PMessengerManager extends EventListenerManager {
 
       updateMessageInPages: (peerCid, messageId, updates): Promise<boolean> => messagePaginationStore.updateMessageInPages(peerCid, messageId, updates),
       emitEvent: (event, data): void => this.emit(event, data),
-      notifyMessageListeners: (message): void => this.messageListeners.forEach(l => l(message)),
-      notifyMessageStatusListeners: (messageId, status): void => this.messageStatusListeners.forEach(l => l(messageId, status)),
+      notifyMessageListeners: (message): void => notifyEach(this.messageListeners, 'p2p message', message),
+      notifyMessageStatusListeners: (messageId, status): void => notifyEach(this.messageStatusListeners, 'p2p message status', messageId, status),
       isConnected: (peerCid): boolean => this.conversationManager.isConnected(peerCid),
       tryEnsurePeerReady: (peerCid): Promise<boolean> => this.checkStateManager.tryEnsurePeerReady(peerCid)
     });
@@ -85,8 +86,8 @@ export class P2PMessengerManager extends EventListenerManager {
       updateMessageInPages: (peerCid, messageId, updates): Promise<boolean> => messagePaginationStore.updateMessageInPages(peerCid, messageId, updates),
       removeMessageFromPages: (peerCid, messageId): Promise<boolean> => messagePaginationStore.removeMessageFromPages(peerCid, messageId),
       getConversations: (): Map<bigint, P2PConversation> => this.conversationManager.getConversationsMap(),
-      notifyMessageListeners: (message): void => this.messageListeners.forEach(l => l(message)),
-      notifyMessageStatusListeners: (messageId, status): void => this.messageStatusListeners.forEach(l => l(messageId, status)),
+      notifyMessageListeners: (message): void => notifyEach(this.messageListeners, 'p2p message', message),
+      notifyMessageStatusListeners: (messageId, status): void => notifyEach(this.messageStatusListeners, 'p2p message status', messageId, status),
       notifyTypingListeners: (peerCid, isTyping): void => this.presenceManager.notifyTypingChange(peerCid, isTyping),
       notifyPresenceListeners: (peerCid, presence): void => this.presenceManager.notifyPresenceChange(peerCid, presence),
       sendMessageAck: (messageId, ackType, peerCid, recipientCid): Promise<void> => this.messageSender.sendMessageAck(messageId, ackType, peerCid, recipientCid),
@@ -144,7 +145,7 @@ export class P2PMessengerManager extends EventListenerManager {
       conversationManager: this.conversationManager,
       presenceManager: this.presenceManager,
       emit: (e, d) => this.emit(e, d),
-      notifyListeners: (peerCid, connected) => this.connectionListeners.forEach(l => l(peerCid, connected)),
+      notifyListeners: (peerCid, connected): void => notifyEach(this.connectionListeners, 'p2p connection', peerCid, connected),
       markReady: (peerCid) => this.checkStateManager.markPeerReady(peerCid),
       clearReady: (peerCid) => this.checkStateManager.clearPeerReadyState(peerCid),
     });
