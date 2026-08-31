@@ -9,6 +9,7 @@
  */
 import { eventEmitter } from '../event-emitter';
 import { getMimeType } from './transfer-format';
+import { FILE_TRANSFER_REQUEST_TTL_MS } from '@/types/messaging-layer';
 import { FILE_TRANSFER_EVENTS } from './events';
 import type { FileTransfer } from './types';
 import { debugLog } from '@/lib/debug-config';
@@ -57,6 +58,13 @@ export async function sendFileWithNativePicker(
     recipientCid,
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    // Without a deadline, an offer whose sender goes offline leaves the
+    // recipient a live-looking Accept button forever — the exact hole the
+    // expiry feature closed for the browser-file path (see
+    // expire-transfers.ts, whose sweep deliberately never expires a record
+    // with no expiresAt). The announcement ships this value to the peer as
+    // expiry_timestamp, so omitting it here reopened the hole on this path.
+    expiresAt: Date.now() + FILE_TRANSFER_REQUEST_TTL_MS,
     isIncoming: false,
   };
 

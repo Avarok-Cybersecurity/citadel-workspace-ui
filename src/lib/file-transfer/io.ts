@@ -152,7 +152,12 @@ export class FileTransferIO extends RealProtocolIORouter {
     if (ownCid === null) {
       throw new Error('No active session to send this file from.');
     }
-    return uploadFileToServer(file, transferId, recipientCid, ownCid);
+    // The staging upload's sender-side ticks come back stamped with the
+    // upload's own request_id; register it as foreign so they cannot complete
+    // or fail the pending chat transfer for the same peer (tick-events.ts).
+    return uploadFileToServer(file, transferId, recipientCid, ownCid, (requestId: string): void =>
+      this.markForeignOutgoingStream(requestId)
+    );
   }
 
   private async downloadFromServer(
@@ -210,8 +215,9 @@ export class FileTransferIO extends RealProtocolIORouter {
       transferId: intent.transferId,
     });
 
-    const ack: Promise<void> = awaitSendFileAck(requestId);
-    await websocketService.sendMessage(request);
-    return ack;
+    // The send runs inside the ack promise so a send failure settles the same
+    // promise: created side by side, a failed send left the ack orphaned to
+    // reject unheard at its timeout, leaking the listener for 30s.
+    return awaitSendFileAck(requestId, () => websocketService.sendMessage(request));
   }
 }

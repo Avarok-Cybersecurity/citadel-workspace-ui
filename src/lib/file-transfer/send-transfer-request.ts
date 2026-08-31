@@ -14,6 +14,7 @@ import type { FileTransfer, SendTransferRequestIntent } from './types';
 import { debugLog } from '@/lib/debug-config';
 import { buildTransferAnnouncement } from './transfer-announcement';
 import { sendLayerPayload } from './in-band-signals';
+import { assertInlineSendable } from './send-operations';
 
 export async function executeSendTransferRequest(
   router: RealProtocolIORouter,
@@ -70,6 +71,15 @@ export async function executeSendTransferRequest(
       `executeSendTransferRequest requires a File for non-async transfers (transferId=${transfer.id}, mode=${transfer.mode})`,
     );
   }
+
+  // The inline cap, BEFORE the announcement. The router enforces the same cap
+  // (pre-allocation, in executeSendFile), but that throw lands after
+  // `announceTransfer` below has already told the recipient the file is
+  // coming: they were left a live-looking 7-day offer for bytes that would
+  // never arrive, and the sender a 'pending' record nothing ever errored.
+  // The empty-file case had the identical shape and was moved ahead of the
+  // announcement; this is the size guard's turn.
+  assertInlineSendable(file);
 
   // Announce before sending the bytes, so the conversation shows the transfer
   // by the time the protocol notification and progress ticks arrive.

@@ -135,12 +135,12 @@ describe('executeSendFile — source discrimination', () => {
 });
 
 describe('executeSendFile — ByteContents size guard', () => {
-  it('rejects browser File payloads above the 2 MiB inline cap before any allocation', async () => {
+  it('rejects browser File payloads above the inline cap before any allocation', async () => {
     // Build a File whose `.size` reports above the cap. The fake
     // `arrayBuffer()` is wrapped in a spy that fails the test loudly if
     // the production code reaches it — that would mean the size check
     // ran *after* the allocation, defeating the OOM protection.
-    const sizeBytes: number = 3 * 1024 * 1024;
+    const sizeBytes: number = 17 * 1024 * 1024;
     const allocSpy: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<ArrayBuffer> => new ArrayBuffer(sizeBytes));
     const oversized: File = new File([new Uint8Array(0)], 'too-big.bin');
     Object.defineProperty(oversized, 'size', { value: sizeBytes, configurable: true });
@@ -155,6 +155,24 @@ describe('executeSendFile — ByteContents size guard', () => {
 
     expect(allocSpy).not.toHaveBeenCalled();
     expect(sendRequestSpy).not.toHaveBeenCalled();
+  });
+
+  it('lets a 3 MiB file through the guard — the cap is the service\'s 16 MiB, not a second private 2 MiB', async () => {
+    // Two constants both governed inline ByteContents payloads: 2 MiB here,
+    // 16 MiB in server-upload.ts mirroring the internal service. A 3 MiB p2p
+    // send was refused AFTER its offer was announced while the same bytes
+    // staged fine in async mode. One cap now; this pins that the p2p guard
+    // uses it.
+    const { eventEmitter } = await import('../../event-emitter');
+    const sizeBytes: number = 3 * 1024 * 1024;
+    const smallEnough: File = makeFakeFile('mid.bin', new Uint8Array([9, 9]), sizeBytes);
+
+    const pending: Promise<unknown> = executeSendFile(buildParams({ source: smallEnough, transferId: 'tid-mid' }));
+
+    await vi.waitFor(() => expect(sendRequestSpy).toHaveBeenCalledTimes(1));
+    const requestId: string = extractSendFile().request_id;
+    eventEmitter.emit('websocket-message', { SendFileRequestSuccess: { request_id: requestId } });
+    await expect(pending).resolves.toBeTruthy();
   });
 
   it('rejects a non-File, non-string, no-pickFileRequestId combination with a clear error', async () => {

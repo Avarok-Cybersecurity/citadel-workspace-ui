@@ -27,6 +27,17 @@
  * at ReceptionBeginning by `metadata.transfer_type !== 'FileTransfer'` and its
  * request_id is remembered as foreign so the stream's later incoming ticks and
  * completes are dropped instead of being pinned on an unrelated chat transfer.
+ *
+ * OUTGOING streams need the same filter but cannot self-identify: every
+ * sender-side variant (TransferBeginning, TransferTick, TransferComplete) is a
+ * bare string or tuple with no metadata, so there is no in-stream moment to
+ * discover "this is not a chat transfer". A revfs push's ticks DO carry the
+ * originating SendFile request_id (the internal service reclaims it via
+ * `revfs_correlations.take_push`), so the INITIATOR marks that request_id
+ * foreign before sending — see RealProtocolIORouter.markForeignOutgoingStream,
+ * called by the async staging upload. Without it, the staging upload's own
+ * TransferComplete fell through to the peer-pair fallback and completed the
+ * chat transfer it was staging for, while the file was only staged.
  */
 
 import { isVariant } from 'citadel-workspace-client-ts';
@@ -100,6 +111,9 @@ export function parseTickNotification(
   const isForeign: boolean = requestId !== undefined && ctx.foreignRequestIds.has(requestId);
 
   if (status === 'TransferBeginning') {
+    // Foreign OUTGOING stream (revfs push / async staging upload): its
+    // progress must not pull an unrelated chat transfer into 'transferring'.
+    if (isForeign) return null;
     return {
       kind: 'progress', direction: 'outgoing', transferId: resolved,
       cid, peerCid, bytesTransferred: 0, totalBytes: 0, percentage: 0,
@@ -131,6 +145,7 @@ export function parseTickNotification(
   }
 
   if (isVariant(status, 'TransferTick')) {
+    if (isForeign) return null;
     const [group, total] = status.TransferTick;
     return {
       kind: 'progress', direction: 'outgoing', transferId: resolved,
@@ -150,6 +165,11 @@ export function parseTickNotification(
   }
 
   if (status === 'TransferComplete') {
+    // The twin of the ReceptionComplete guard below. Without it, a staging
+    // upload's completion resolved to no transferId and the service's
+    // peer-pair fallback marked the pending CHAT transfer 'complete' — a
+    // terminal state that then swallowed the recipient's real decline.
+    if (isForeign) return null;
     return {
       kind: 'complete', direction: 'outgoing', transferId: resolved,
       cid, peerCid, success: true,

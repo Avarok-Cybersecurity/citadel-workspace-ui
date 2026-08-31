@@ -31,6 +31,16 @@ import type { FileTransfer } from '../types';
  * runs against a real internal service rather than a mocked socket.
  */
 
+/**
+ * `uploadFileToServer` must register its request_id as a foreign OUTGOING tick
+ * stream before sending (defect: the staging stream's TransferComplete used to
+ * complete the pending CHAT transfer). These tests record the registration;
+ * the routing consequence is covered in
+ * a-staging-upload-cannot-complete-the-chat-transfer.test.ts.
+ */
+const markedForeign: string[] = [];
+const markForeign = (requestId: string): void => { markedForeign.push(requestId); };
+
 function transfer(overrides: Partial<FileTransfer> = {}): FileTransfer {
   return {
     id: 'transfer-1',
@@ -59,14 +69,14 @@ describe('uploadFileToServer', () => {
       size: MAX_BYTE_CONTENTS_BYTES + 1,
     } as unknown as File;
 
-    await expect(uploadFileToServer(oversized, 'transfer-1', '123', 7n)).rejects.toThrow(
+    await expect(uploadFileToServer(oversized, 'transfer-1', '123', 7n, markForeign)).rejects.toThrow(
       /above the .* limit for browser uploads/s
     );
   });
 
   it('names the offending file and the limit so the message is actionable', async () => {
     const oversized: File = { name: 'huge.bin', size: 32 * 1024 * 1024 } as unknown as File;
-    await expect(uploadFileToServer(oversized, 'transfer-1', '123', 7n)).rejects.toThrow(
+    await expect(uploadFileToServer(oversized, 'transfer-1', '123', 7n, markForeign)).rejects.toThrow(
       /"huge\.bin" is 32\.0 MiB, above the 16\.0 MiB limit/
     );
   });
@@ -118,7 +128,7 @@ describe('stagedTransferPath', () => {
  * only way to see it — every higher-level test mocks the intent out.
  */
 describe('the staged upload request', () => {
-  beforeEach((): void => { sent.length = 0; });
+  beforeEach((): void => { sent.length = 0; markedForeign.length = 0; });
 
   function tinyFile(): File {
     return {
@@ -135,7 +145,7 @@ describe('the staged upload request', () => {
   }
 
   it('stages under RemoteEncryptedVirtualFilesystem, not a live FileTransfer', async () => {
-    void uploadFileToServer(tinyFile(), 'transfer-1', '123', 7n);
+    void uploadFileToServer(tinyFile(), 'transfer-1', '123', 7n, markForeign);
     await vi.waitFor((): void => { lastSendFile(); });
 
     const transferType: unknown = lastSendFile().transfer_type;
@@ -144,7 +154,7 @@ describe('the staged upload request', () => {
   });
 
   it('stages at the exact path the recipient will ask to download', async () => {
-    void uploadFileToServer(tinyFile(), 'transfer-1', '123', 7n);
+    void uploadFileToServer(tinyFile(), 'transfer-1', '123', 7n, markForeign);
     await vi.waitFor((): void => { lastSendFile(); });
 
     const transferType: { RemoteEncryptedVirtualFilesystem?: { virtual_path?: string; security_level?: string; }; } =
@@ -160,8 +170,18 @@ describe('the staged upload request', () => {
     expect(transferType.RemoteEncryptedVirtualFilesystem?.security_level).toBe('Standard');
   });
 
+  it('marks its own request_id as a foreign outgoing stream', async () => {
+    // The service stamps the staging stream's sender-side ticks with exactly
+    // this id; unmarked, the stream's TransferComplete completed the pending
+    // chat transfer for the same peer while the file was only staged.
+    void uploadFileToServer(tinyFile(), 'transfer-1', '123', 7n, markForeign);
+    await vi.waitFor((): void => { lastSendFile(); });
+
+    expect(markedForeign).toEqual([lastSendFile().request_id]);
+  });
+
   it('sends the file bytes inline, since the browser has no path to hand over', async () => {
-    void uploadFileToServer(tinyFile(), 'transfer-1', '123', 7n);
+    void uploadFileToServer(tinyFile(), 'transfer-1', '123', 7n, markForeign);
     await vi.waitFor((): void => { lastSendFile(); });
 
     const source: { ByteContents?: { data?: number[]; file_name?: string; }; } =

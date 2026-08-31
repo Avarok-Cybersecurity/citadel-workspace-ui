@@ -15,19 +15,41 @@ import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
 
 /**
- * Hard ceiling on `FileSource.ByteContents` payloads.
+ * ONE cap governs every inline `FileSource.ByteContents` payload:
+ * `MAX_BYTE_CONTENTS_BYTES` in server-upload.ts, which mirrors the internal
+ * service's own limit (requests/file/upload.rs, 16 MiB — the authority).
  *
- * `Array.from(new Uint8Array(buffer))` materialises the entire file as a
- * boxed-number JavaScript array, which uses roughly 4-8 bytes per byte of
- * file data on V8. The subsequent CBOR / WebSocket-frame serialisation
- * allocates roughly the same volume again. A 100 MB file therefore lands
- * north of half a gigabyte of transient heap and reliably crashes the tab.
+ * This module used to carry its own second cap of 2 MiB for the same
+ * mechanism. Two limits for one wire format meant the p2p path refused files
+ * the "async" path shipped every day, and a 2–16 MiB p2p send died here AFTER
+ * its offer was already announced to the recipient. The memory cost of an
+ * inline payload (`Array.from` boxes every byte, ~4-8x on V8, and the frame
+ * serialisation doubles it again) is the same on both paths and is bounded by
+ * the same 16 MiB the staging upload already demonstrates in production;
+ * files above it must use the native PickFile flow, which streams from disk.
  *
- * Larger uploads must go through the native PickFile flow which streams
- * from disk. This constant is intentionally conservative; raise it only
- * alongside memory-usage measurements.
+ * Re-exported under the old name for the existing importer outside this
+ * module (components/p2p/useFileTransfer.ts).
  */
-export const MAX_BYTE_CONTENTS_SIZE_BYTES: number = 2 * 1024 * 1024; // 2 MiB
+export { MAX_BYTE_CONTENTS_BYTES as MAX_BYTE_CONTENTS_SIZE_BYTES } from './server-upload';
+import { MAX_BYTE_CONTENTS_BYTES } from './server-upload';
+
+/**
+ * Refuse a browser File that exceeds the inline ByteContents cap.
+ *
+ * Exported so the send-request executor can apply it BEFORE the offer is
+ * announced to the recipient (see send-transfer-request.ts) — throwing only
+ * here, after the announcement, is what left recipients with phantom offers.
+ */
+export function assertInlineSendable(file: Pick<File, 'name' | 'size'>): void {
+  if (file.size > MAX_BYTE_CONTENTS_BYTES) {
+    throw new Error(
+      `File "${file.name}" is ${formatBytes(file.size)}; ` +
+        `inline browser uploads are capped at ${formatBytes(MAX_BYTE_CONTENTS_BYTES)}. ` +
+        `Use the native file picker for larger files.`
+    );
+  }
+}
 
 
 interface SendFileSuccessResponse {
@@ -57,13 +79,7 @@ export async function executeSendFile(
     // Size guard: refuse payloads that would OOM the tab when converted
     // to a boxed-number JS array. Check BEFORE calling arrayBuffer() so
     // we fail fast without allocating the buffer at all.
-    if (params.source.size > MAX_BYTE_CONTENTS_SIZE_BYTES) {
-      throw new Error(
-        `File "${params.source.name}" is ${formatBytes(params.source.size)}; ` +
-          `inline browser uploads are capped at ${formatBytes(MAX_BYTE_CONTENTS_SIZE_BYTES)}. ` +
-          `Use the native file picker for larger files.`
-      );
-    }
+    assertInlineSendable(params.source);
 
     // Read browser File as bytes and send as ByteContents
     const buffer: ArrayBuffer = await params.source.arrayBuffer();

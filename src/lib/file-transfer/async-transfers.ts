@@ -19,6 +19,7 @@ import { FILE_TRANSFER_EVENTS } from './events';
 import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
 import type { FileTransfer } from './types';
+import { isTerminalTransferState } from './transfer-outcome';
 
 /** Dependencies injected from the FileTransferService */
 export interface AsyncTransferDeps {
@@ -130,11 +131,11 @@ export async function handleTransferResponse(
   const transfer: FileTransfer | undefined = deps.state.getTransfer(data.transfer_id);
   if (!transfer || transfer.isIncoming) return;
   // Never regress a terminal transfer: a late or duplicated response must not
-  // resurrect a bubble that already completed, failed or was cancelled.
-  if (
-    transfer.state === 'complete' || transfer.state === 'error' ||
-    transfer.state === 'cancelled' || transfer.state === 'declined'
-  ) {
+  // resurrect a bubble that already completed, failed or was cancelled. The
+  // set is the exported one, not a local list — a hand-rolled copy here
+  // omitted 'expired', so an accept arriving after the offer's TTL revived an
+  // expired offer to 'transferring' for bytes nobody would ever send.
+  if (isTerminalTransferState(transfer.state)) {
     return;
   }
 

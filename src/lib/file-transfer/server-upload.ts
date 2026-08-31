@@ -40,14 +40,23 @@ export const MAX_BYTE_CONTENTS_BYTES: number = 16 * 1024 * 1024; // 16 MiB
 const UPLOAD_SECURITY_LEVEL: 'Standard' = 'Standard';
 
 /**
- * Resolve once the internal service acknowledges a `SendFile` request, or reject
- * with the service's own failure message.
+ * Send a `SendFile` request via `send` and resolve once the internal service
+ * acknowledges it, or reject with the service's own failure message.
  *
  * Shared by both SendFile paths (inline byte upload and native-picker send) so
  * the correlation-by-request_id, the listener teardown and the timeout are
  * defined once rather than reimplemented per call site.
+ *
+ * `send` runs INSIDE this promise, after the listener is registered, so a send
+ * failure settles the same promise the caller awaits. The call sites used to
+ * create this promise first and `await sendMessage(...)` beside it; when the
+ * send threw, the orphaned promise kept its listener for the full timeout and
+ * then rejected with nobody listening — an unhandled rejection 30s after the
+ * caller had already reported the real error. The other request/response sites
+ * (send-operations.ts, receive-operations.ts) already wire the send's .catch
+ * into their promise; this adopts the same shape.
  */
-export function awaitSendFileAck(requestId: string): Promise<void> {
+export function awaitSendFileAck(requestId: string, send: () => Promise<void>): Promise<void> {
   return failOnSocketLoss('ServerUpload', new Promise<void>((resolve, reject) => {
     const timeout: NodeJS.Timeout = setTimeout((): void => {
       eventEmitter.off('websocket-message', handleMessage);
@@ -85,6 +94,10 @@ export function awaitSendFileAck(requestId: string): Promise<void> {
     };
 
     eventEmitter.on('websocket-message', handleMessage);
+
+    send().catch((error: unknown): void => {
+      settle(() => reject(error instanceof Error ? error : new Error(String(error))));
+    });
   }));
 }
 
@@ -120,7 +133,18 @@ export async function uploadFileToServer(
   file: File,
   transferId: string,
   recipientCid: string,
-  ownCid: bigint
+  ownCid: bigint,
+  /**
+   * Registers the minted SendFile request_id as a foreign OUTGOING tick
+   * stream (RealProtocolIORouter.markForeignOutgoingStream). The internal
+   * service stamps a revfs push's sender-side ticks with exactly this id, and
+   * those ticks describe the STAGING of the bytes, not the chat transfer —
+   * unregistered, the stream's TransferComplete fell back to the oldest live
+   * transfer for the peer pair and marked the chat transfer 'complete' while
+   * the file was only staged. Called before the request is sent so no tick
+   * can precede the registration.
+   */
+  markForeignStream: (requestId: string) => void
 ): Promise<string> {
   if (file.size > MAX_BYTE_CONTENTS_BYTES) {
     const mib = (n: number): string => `${(n / (1024 * 1024)).toFixed(1)} MiB`;
@@ -169,9 +193,10 @@ export async function uploadFileToServer(
     },
   };
 
-  const ack: Promise<void> = awaitSendFileAck(requestId);
-  await websocketService.sendMessage(request as unknown as Record<string, unknown>);
-  await ack;
+  markForeignStream(requestId);
+  await awaitSendFileAck(requestId, () =>
+    websocketService.sendMessage(request as unknown as Record<string, unknown>)
+  );
 
   return virtualPath;
 }

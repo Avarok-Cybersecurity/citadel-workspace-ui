@@ -23,6 +23,7 @@ import { FILE_TRANSFER_EVENTS } from './events';
 import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
 import type { FileTransfer } from './types';
+import { isTerminalTransferState } from './transfer-outcome';
 
 export interface P2PTransferDeps {
   state: FileTransferState;
@@ -40,11 +41,10 @@ export async function handleTransferCancel(
   if (!transfer) return;
   // A cancel that races the completion loses: once the bytes have fully
   // arrived (or the transfer already failed), rewriting the outcome would
-  // make the two sides disagree about what happened.
-  if (
-    transfer.state === 'complete' || transfer.state === 'error' ||
-    transfer.state === 'cancelled' || transfer.state === 'declined'
-  ) {
+  // make the two sides disagree about what happened. The exported terminal
+  // set, not a local list — the hand-rolled copy here omitted 'expired', so a
+  // late cancel rewrote an expired offer's history to 'cancelled'.
+  if (isTerminalTransferState(transfer.state)) {
     return;
   }
 

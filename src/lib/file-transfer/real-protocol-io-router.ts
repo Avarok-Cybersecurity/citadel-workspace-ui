@@ -63,6 +63,24 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
     return executeDownloadFile(params);
   }
 
+  /**
+   * Mark an OUTGOING tick stream as NOT a chat transfer, so its ticks and
+   * completes are dropped instead of falling back to the oldest live transfer
+   * for the same peer pair (see protocol-transfer-events.ts).
+   *
+   * The incoming path recognises a foreign stream by itself at
+   * ReceptionBeginning, whose metadata names the transfer_type. Sender-side
+   * variants carry no metadata at all, so the only party who knows the stream
+   * is foreign is the code that initiates it — a revfs push's ticks come back
+   * stamped with the originating SendFile request_id (the internal service
+   * reclaims it in object_transfer_handle.rs via `take_push`). Must be called
+   * BEFORE the SendFile request is sent; the WebSocket is ordered, so no tick
+   * for the stream can precede the registration.
+   */
+  markForeignOutgoingStream(requestId: string): void {
+    this.tickCorrelation.foreignRequestIds.add(requestId);
+  }
+
   onTransferRequest(callback: (event: TransferRequestEvent) => void): () => void {
     const handler: (message: Record<string, unknown>) => void = createTransferRequestHandler(callback);
     eventEmitter.on('websocket-message', handler);
