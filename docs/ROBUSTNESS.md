@@ -21221,6 +21221,58 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Rounds 544-547 — the severity raise, confirmed then demonstrated
+
+These four were recorded in PRODUCTION-READINESS.md as they happened and are
+collected here; the ROBUSTNESS entries were missed at the time, which is worth
+saying rather than backdating silently.
+
+**544 — confirmed in source.** Round 543 raised #56 to high on co-occurrence and
+flagged it as unproven. `p2p_conn_handler.rs:520` settles it:
+
+```rust
+let hole_punched_socket = app.begin_udp_hole_punch(...).await.map_err(generic_error)?;
+...
+let p2p_stream = p2p_connect_from_socket(socket, remote_connect_addr, ...).await?;
+```
+
+The P2P/QUIC stream is built ON TOP of the hole-punched socket, and the `?`
+returns early — so a failed punch leaves no P2P connection at all, messaging
+included. Posted on #280 so a reviewer knows the blast radius.
+
+**545 — the backlog was understating what is open.** Two documented issues in
+KNOWN_ISSUES.md carried no severity and appeared in no ranked list: the 2s
+post-login messaging gap (#60) and the intermittent `call-group` pair hang
+(#61). #61 was deliberately NOT folded into #56 despite living in the same spec
+and being intermittent: #56 fails at hole-punch before any connection exists,
+while #61 hangs after acceptance at conversation-open. Merging them would let
+#280's fix "close" #61 without evidence.
+
+**546 — a control caught my own test passing by luck.** An interleaved test (a
+message sent DURING a transfer, not after) passed, then its control failed with
+the WRONG error: the helper's first `recv` was picking up the transfer's own
+`SendFileRequestSuccess`, so the result turned on which response arrived first.
+Corrected to take the ack off the stream explicitly; the control now fails with
+"a message sent while a transfer was in flight never arrived".
+
+**547 — demonstrated across three kinds of test.**
+
+| job | how it fails |
+|---|---|
+| `Playwright - shard 1/3` | a call never becomes active |
+| `test:reconnect-p2p-only` | `P2P connect timed out, but the peer never appeared as connected` |
+| `test:hard-disconnect` | `Message delivery failed after 3 attempts` |
+
+The last is a pure messaging test, and its job carries `[Hole-punch/Timeout]`
+and `invalid remote address: [::]:40349` — the fifth sighting of the wildcard
+candidate, in the fifth distinct job. All three passed in the two prior runs, so
+the intermittency is unchanged; what is new is that the damage to messaging is
+observed rather than deduced.
+
+Three new red jobs on the run that bumped the SDK pin is exactly the shape of a
+regression from the #57 fix. Each was checked individually against its signature
+rather than waved through as "the known issue".
+
 ## Round 543 — #56 is not a call bug, and the severity was wrong
 
 **A job that had passed twice failed on the run that bumped the SDK pin**, which
