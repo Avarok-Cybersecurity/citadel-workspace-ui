@@ -21221,6 +21221,33 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 524 — the obvious hypothesis, tested and refuted
+
+**The hypothesis.** Round 523's media test used two internal services. The
+browser does not: one browser is one WebSocket is one internal service, hosting
+every session in that browser, so Alice and Bob in the CI call tests are two
+sessions on ONE service. That is a real structural difference between the test
+that passes in a millisecond and the CI runs that fail after five seconds, and
+it was the obvious place to look.
+
+**Refuted.** `a_media_session_opens_between_two_sessions_on_one_service` builds
+exactly that topology — one service, two registered sessions, a UDP-enabled peer
+connection between them — and opens in **1.09ms**, against 1.05ms for the
+two-service case. Indistinguishable. The topology is not the cause.
+
+Recorded because a refuted hypothesis with a number is worth as much here as a
+confirmed one: it is the second lead on #56 this session to look compelling and
+be wrong (the first was `udp_mode: _` in the accept path, round 522), and
+without writing them down the next person spends the same hours.
+
+**What is left.** The difference that remains between passing and failing is the
+network: loopback locally, a Docker bridge between containers in CI. That
+reframes #56 rather than excusing it. If UDP negotiation succeeds only on
+loopback, the people affected are not just CI jobs — every user on a real
+network is, and "flaky test" is the wrong label for it.
+
+**Gate.** Both media tests pass in 2.3s; fmt and clippy clean.
+
 ## Round 523 — the media path had no test at all, and the number changes the question
 
 **Found while looking for a way to measure #56 locally.** Every helper in the
