@@ -21221,6 +21221,39 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 542 — the test that started it passes
+
+`test:file-manager`, run 33367701801:
+
+```
+Peer Sees Changes:         PASS
+Peer Sees File:            PASS
+Peer Sees File Removed:    PASS
+OVERALL: TEST PASSED
+```
+
+That job has failed every run of this session. `Peer Sees File Removed` had
+never even been evaluated — it reported "NOT CHECKED (the peer never saw the
+file)", because the failure upstream of it stopped the test reaching that
+assertion.
+
+**The full chain, end to end.** A browser test said `Peer Sees File: FAIL` and
+nothing more. That became: a CI log showing a SyncRequest storm; a fix for the
+storm that was real but not the cause; a one-minute Rust reproduction; a root
+cause read off the source — object transfers and messages sharing a group-id
+counter the receiver's `OrderedChannel` sequences on; a fix; a control proving
+the fix; a second fixture proving it held across group boundaries; an upstream
+PR; a merge; a pin bump; and now the original test green.
+
+**What it cost to be wrong along the way.** Round 511 reported this test fixed
+and it was not — the SyncRequest fix was genuine (103 requests now cost 35
+responses instead of 103) but addressed a different defect. Rounds 532-534
+proposed three causes for #56 and withdrew two. The measurements survived; the
+explanations kept being replaced. The difference between them is the whole
+lesson of this stretch.
+
+**Remaining:** #56 alone, with its fix in Citadel-Protocol#280.
+
 ## Round 541 — reversing a decision because its reason expired
 
 **Round 536 refused to send a patch for #56.** The stated reason: traversal
