@@ -21221,6 +21221,61 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 517 — the failure whose evidence the log dump was throwing away
+
+**Found.** `test:file-manager` failed again, on the run that carries round 511's
+SyncRequest fix. I had reported that fix as the answer to this test. It was not,
+and this entry records the correction.
+
+**What 511 did fix.** The flood is gone: 103 SyncRequests handled produced 35
+SyncResponses, not 103, and `Peer Sees Changes` now passes. That defect was real.
+
+**What actually breaks the test (#57, high).** A file transfer silently kills
+P2P messaging to that peer, in that direction, permanently.
+
+- Alice→Bob ILM delivery is healthy for msg_id 0–4, last at 02:34:24.03.
+- 02:34:29.95: Alice runs `backendSendFile` to Bob. Success, ticks, complete.
+- 02:34:29.97: she sends the `PlaceFile` as msg_id=5.
+- Bob never receives it. 98 retransmits over ~110s, no `[ILM-DELIVER]`, no
+  `[ILM-INBOUND]`. Alice's ACKs stop arriving too — Bob retransmits its own
+  msg_id=5 78 times.
+- Bob→Alice keeps working throughout: Alice delivers Bob's msg 5, 6, 7.
+
+Everything Alice sends after the transfer — `PlaceFile`, `Rmdir`, `RemoveFile` —
+is lost, which is exactly the result block: `Peer Sees Changes: PASS` (the Mkdir,
+before the transfer), everything after it FAIL.
+
+**Two wrong explanations, ruled out with evidence rather than argument.** It is
+not ILM's send window: Alice blocking on msg 5 is correct, since msg 5 is
+unacked; the defect is that msg 5 never lands. It is not an unaccepted transfer
+wedging the channel: Bob received `FileTransferTickNotification`, which is the
+branch `object_transfer_handle.rs` takes only for a REVFS push it has
+auto-accepted — a `FileTransferRequestNotification` would have meant the
+opposite.
+
+**Localised.** The service dump shows Alice's internal service, still
+retransmitting at test end, completing the whole chain for every message:
+peer present in `conn.peers`, sink cloned, `sink.send() SUCCEEDED`. The sink is
+not stale and the send does not fail. The loss is below the internal service,
+inside the protocol channel.
+
+**Why it took this long: the dump was discarding its own evidence.** The one line
+that separates "the bytes never arrived" from "they arrived and were not
+delivered" is `[PeerChannelCreated] Received P2P message!`. `tail -120` never
+showed it, because `ratchet_manager` INFO fills all 120 lines on its own — the
+server tail was 120 consecutive ratchet lines and nothing else. A diagnostic that
+cannot answer the question it exists for is the same failure as a check that
+cannot fail.
+
+**Fix this round.** The failure dump now greps the P2P causal chain
+(`[P2P-MSG]`, `[PeerChannelCreated]`, `[P2P-RECV-CHANNEL]`, the REVFS
+auto-accept), then warnings and errors, then a tail with the ratchet noise
+filtered out. Applied to both the `integration-tests` and `playwright-tests`
+jobs, which shared the block.
+
+**Still open.** #57 itself. The next failing run should say which side loses the
+bytes.
+
 ## Round 516 — an indicator with every part but the moving one
 
 **Found.** Backlog #43. `call-state` declared `speaking`, `call-reducer`
