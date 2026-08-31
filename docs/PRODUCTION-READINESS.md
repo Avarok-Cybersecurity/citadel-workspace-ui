@@ -94,9 +94,20 @@ Tuning `UDP_WAIT` or the retry gap from here would be a guess dressed as a fix,
 and both obvious directions break something a previous CI run taught: a shorter
 gap re-enters the service's "a media open or teardown is already in progress"
 window, and a longer wait collapses the ladder to a single attempt. What this
-needs is one run that measures negotiation on a link where it succeeds. | `citadel-internal-service/.../media/mod.rs:51` (UDP_WAIT), `citadel-workspaces/src/lib/call/open-session-retry.ts` |
+needs is one run that measures negotiation on a link where it succeeds.
+
+**Its evidence predates the fix that may already be the answer.** Run
+33340052631 ran before `dfb50a2` ("a simultaneous connect kept one UDP offer and
+dropped the other"), where `UdpState::Pending` held a single receiver and a
+second offer silently replaced — and dropped — the first. A dropped receiver
+produces exactly the observation recorded above: no successful UDP negotiation
+anywhere in the run, on a link that is not actually slow. No timeout constant can
+fix a receiver that was thrown away, which is why tuning `UDP_WAIT` read as a
+guess. Shards 2/3 and 3/3 went green immediately after that commit; shard 1/3,
+the only shard carrying this test, has not been observed to completion since.
+Re-test in flight — do not tune constants before it reports. | `citadel-internal-service/.../media/mod.rs:51` (UDP_WAIT), `citadel-workspaces/src/lib/call/open-session-retry.ts` |
 | 55 | low | open | round 507 | `delete_workspace` leaves each member's `user.permissions[workspace_id]` entry behind; unreachable (ids are server-minted UUIDs) but unbounded across deletions | `async_domain_server_ops.rs` delete_workspace |
-| 54 | low | open | ILM workflow | A single urgent message waits 0–200ms (mean ~100ms) for the next poll: `send_raw_message` deliberately does not nudge `poll_outbound_tx` because an earlier nudge caused an infinite feedback loop | `intersession-layer-messaging/src/lib.rs:1372` |
+| 54 | low | FIXED round 512 | ILM workflow | A send made while the outbound loop was idle waited out the 200ms poll. `send_raw_message` did not nudge `poll_outbound_tx`, citing a `process_outbound → send_message_internal → poll_outbound_tx` feedback loop — but that loop cannot reach this site: `store_outbound` has exactly one caller (`send_raw_message`), and `process_outbound` calls `send_message_internal`, which reaches neither. Nudge restored, and the loop now coalesces queued nudges so a burst costs one drain. **The severity was mis-stated as "every message":** the inbound Ack and Poll handlers also nudge, so once traffic flows each send is rescued by the previous message's ack — a 30-round chain cost the same ~115ms as a 10-round one. What it actually costs is the FIRST message after a quiet period. Measured over 8 idle rounds: ~13ms with the nudge, ~1130ms without | `intersession-layer-messaging/src/lib.rs` |
 
 **Multiplexing: the premise does not hold.** Per-account ILMs already exist (one per
 CID, each with its own transport pair), C2S traffic bypasses ILM entirely via

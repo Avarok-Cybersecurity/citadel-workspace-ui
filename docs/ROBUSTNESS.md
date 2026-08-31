@@ -21221,6 +21221,82 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 512 — a send that waited for a timer, and a control that agreed with itself
+
+**Found.** Backlog #54: `send_raw_message` stores a message and returns without
+waking the outbound loop, so it waits for the next 200ms `OUTBOUND_POLL`.
+
+**The removal's stated reason does not apply here.** The nudge was taken out to
+break a `process_outbound → send_message_internal → poll_outbound_tx →
+process_outbound` loop. That loop cannot run through this site: `store_outbound`
+has exactly one caller in the tree — `send_raw_message` — whose only callers are
+the public `send_to` and the tests; `process_outbound` calls
+`send_message_internal`, which reaches neither. The comment described a real
+hazard on a path the nudge was not on.
+
+**Fix.** Nudge restored in `send_raw_message`. The outbound loop now drains
+queued nudges before draining the backend, so a burst of sends costs one pass
+rather than one per message. That required scoping the `select!` so the pinned
+futures release their borrow of the receiver first.
+
+**The control was green, and the fix was still real.** My first test sent ten
+sequential round-trips and asserted the total stayed under 400ms. It passed with
+the nudge removed. Measuring instead of assuming: 3.35ms with, 111.8ms without —
+the effect was genuine but an order of magnitude smaller than the bound. Raising
+the round count to 30 did not help either: still ~115ms, the same as at ten.
+
+That flatness is the finding. The inbound Ack and Poll handlers *also* nudge the
+outbound loop, so once traffic is flowing every send is rescued by the previous
+message's ack. The cost is not per-message at all — it is a one-time cost paid
+whenever the loop is idle, which is to say the first message after a quiet
+period. The backlog's "0–200ms on every message" was wrong, and the corrected
+entry says so.
+
+**Test.** Eight rounds, each sleeping 250ms so the loop is genuinely parked on
+its timer, then timing one send in isolation; only the send legs accumulate.
+~13ms with the nudge, ~1130ms without, bounded at 200ms — 15x above the former,
+5x below the latter. Control red.
+
+**Gate.** ILM: 37 tests pass, `cargo fmt --check` and `clippy -D warnings` clean.
+
+## Round 511 — a lost SyncResponse stranded the peer for ever
+
+**Found.** `Integration Test - test:file-manager`, `Peer Sees File: FAIL`. The CI log
+showed the same SyncRequest op id arriving roughly once a second for the whole
+test, every one logged `already applied`, every one answered with silence, while
+the file it was syncing never appeared.
+
+**Cause.** `revfs-inbound`'s duplicate guard re-acknowledges duplicates for the
+reason its own comment gives — "a receiver that has already applied it and stays
+silent leaves that sender retrying for ever" — but excluded `SyncRequest`,
+because an Ack is the wrong shape for a query. So a peer whose SyncResponse was
+lost re-asked for ever and was told nothing. The fix that comment describes was
+never propagated to the one op type that needed a different answer, not no answer.
+
+**Fix.** Both the fresh and the repeated request now route through one
+`answerSyncRequest` helper. A fresh request is always answered and records the
+time; a repeat is re-answered at most once per peer per 2s
+(`sync-answer-rate.ts`). Answering every repeat is not the fix — that is the
+flood the dedupe was added for (seven requests, one hundred handled, a hundred
+564-byte trees starving the PlaceFile behind them).
+
+**What the design cost me.** My first version gated only the repeat path. Two
+pre-existing tests caught it: a same-instant burst got two full trees, because
+the fresh answer bypassed the limiter and so the first redelivery looked like a
+new window. My second version gated both paths uniformly — and that broke the
+other pre-existing test, `still answers a genuinely new SyncRequest`, which is
+the positive control proving the dedupe has not degenerated into total silence.
+Both tests were right. The contract that satisfies both is the split one above:
+fresh always answers but stamps, only repeats are gated. I came close to
+loosening a correct assertion to fit a design that was wrong.
+
+**Controls.** Three, each red on the specific test that should catch it:
+answering repeats with silence reddens `answers a repeat that arrives after the
+interval`; answering every repeat reddens the burst test and the pre-existing
+`once, not twice`; dropping the fresh-path stamp reddens both of those too.
+
+**Gate.** `npm run preflight` — all 75 checks pass.
+
 ## Round 510 — the last two, and a control harness that was lying
 
 The ILM investigation's own findings, and the last critical/high/medium open
