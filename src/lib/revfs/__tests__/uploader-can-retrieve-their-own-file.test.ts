@@ -22,7 +22,8 @@ import {
   placeFile,
   applyRemoteOp,
 } from '../tree-operations';
-import { isDownloadableState, calculateStorageUsage } from '../tree-queries';
+import { isDownloadableState } from '../tree-queries';
+import { calculateStorageUsage } from '../quota-check';
 import { RevfsOpType, TreeScope , type RevfsFileMetadata , type RevfsNode } from '@/types/revfs-types';
 
 const UPLOADER: bigint = 111n;

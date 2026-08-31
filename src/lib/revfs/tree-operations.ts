@@ -24,7 +24,6 @@ export {
   createDefaultTree,
   findNode,
   pathExists,
-  calculateStorageUsage,
   collectFiles,
   flipFileState,
   flipNodeStates,
@@ -53,3 +52,7 @@ export {
 
 // Sync
 export { applyRemoteOp } from './tree-sync';
+
+// Quota accounting moved to quota-check.ts, where the number and the limit it
+// feeds live together. Re-exported so existing importers are unaffected.
+export { calculateStorageUsage } from './quota-check';

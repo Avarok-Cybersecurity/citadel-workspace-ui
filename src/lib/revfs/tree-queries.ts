@@ -185,31 +185,6 @@ export function collectFiles(node: RevfsNode): RevfsNode[] {
   return files;
 }
 
-export function calculateStorageUsage(tree: RevfsNode, scope: TreeScope): number {
-  let total: number = 0;
-
-  const traverse = (node: RevfsNode): void => {
-    if (node.type === 'file' && node.fileMetadata) {
-      if (scope === TreeScope.Server && node.fileState === RevfsFileState.ServerStored) {
-        total += node.fileMetadata.fileSize;
-      // Quota gates uploads (`storageQuota - storageUsed`), so "used" means what
-      // I have PUT somewhere — which, with the Hosted/Remote inversion fixed, is
-      // Remote. Counting Hosted here would meter what peers store on my disk.
-      } else if (scope === TreeScope.Peer && node.fileState === RevfsFileState.Remote) {
-        total += node.fileMetadata.fileSize;
-      }
-    }
-    if (node.children) {
-      for (const child of node.children) {
-        traverse(child);
-      }
-    }
-  };
-
-  traverse(tree);
-  return total;
-}
-
 // ============================================================================
 // Flip File States (for incoming remote operations)
 // ============================================================================

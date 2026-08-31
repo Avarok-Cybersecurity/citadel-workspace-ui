@@ -1,4 +1,60 @@
 /**
+ * The quota: how much is used, and whether an upload fits.
+ *
+ * The two halves live together because each is meaningless without the other —
+ * a check against a total that counts the wrong things is not a check, and both
+ * of this module's defects were exactly that. `calculateStorageUsage` moved here
+ * from `tree-queries`, where it sat among path helpers and tree walks and was
+ * read as one more traversal rather than as the number a limit is enforced
+ * against.
+ */
+import { RevfsFileState, TreeScope } from '@/types/revfs-types';
+import type { RevfsNode } from '@/types/revfs-types';
+
+export function calculateStorageUsage(tree: RevfsNode, scope: TreeScope): number {
+  let total: number = 0;
+  /**
+   * Byte keys already counted.
+   *
+   * A copy shares its original's blob — `tree-byte-refs` exists precisely
+   * because several nodes can point at one `virtualDirectory`, and
+   * `removeFileFromPeer` refuses to delete the bytes until the last reference
+   * goes. Summing per NODE therefore charged a 10 MB file twice for a copy that
+   * consumed nothing, and the quota it gates is real storage, not references.
+   */
+  const counted: Set<string> = new Set<string>();
+
+  const traverse = (node: RevfsNode): void => {
+    if (node.type === 'file' && node.fileMetadata) {
+      const key: string = node.fileMetadata.virtualDirectory;
+      const alreadyCounted: boolean = counted.has(key);
+      if (scope === TreeScope.Server && node.fileState === RevfsFileState.ServerStored) {
+        if (!alreadyCounted) {
+          counted.add(key);
+          total += node.fileMetadata.fileSize;
+        }
+      // Quota gates uploads (`storageQuota - storageUsed`), so "used" means what
+      // I have PUT somewhere — which, with the Hosted/Remote inversion fixed, is
+      // Remote. Counting Hosted here would meter what peers store on my disk.
+      } else if (scope === TreeScope.Peer && node.fileState === RevfsFileState.Remote) {
+        if (!alreadyCounted) {
+          counted.add(key);
+          total += node.fileMetadata.fileSize;
+        }
+      }
+    }
+    if (node.children) {
+      for (const child of node.children) {
+        traverse(child);
+      }
+    }
+  };
+
+  traverse(tree);
+  return total;
+}
+
+/**
  * Whether an upload fits, counting the uploads already in the air.
  *
  * `storageUsed` is derived from the tree, and the tree only grows once an upload
