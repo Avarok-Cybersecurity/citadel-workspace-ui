@@ -21221,6 +21221,39 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 530 — a failure the service reports and nobody reads
+
+**Found while reading the new P2P dump.** Run 33356652733's `test:file-manager`
+failure carried 27 occurrences of
+
+    [P2P-MSG] Peer connection not found for peer_cid=...
+
+`requests/message.rs:57` refuses a send it cannot route and answers with
+`MessageSendFailure`. Grepping the UI for that variant returns **nothing** — not
+a handler, not a log, not a type reference. The router delivers it (the browser
+log shows `Routing MessageSendFailure` reaching sixteen listeners) and not one
+of them acts on it.
+
+**Why it is low and not higher, stated rather than assumed.** REVFS operations
+and chat both ride ILM, whose own acknowledgements and retransmissions recover a
+message that never left the service. So the reliable paths do heal. What is lost
+is the signal: a refused send is invisible to the application, a peer that is
+genuinely gone looks exactly like one that is merely slow, and any future send
+path that does NOT go through ILM would have no recovery at all.
+
+It is also absent from `routing-rules.ts`'s CID-routed set — so the day someone
+does handle it, it will reach the wrong tab in a two-session browser, which is
+the defect class that set exists to prevent.
+
+**Not fixed this round, and why.** Choosing what the UI should DO with a refused
+send — surface it, retry outside ILM, or mark the conversation degraded — is a
+product decision, and inventing one to close a low item is how unwanted
+behaviour gets shipped. Recorded with the evidence and the constraint instead.
+
+**Still unresolved from the same dump:** whether those 27 refusals happen
+mid-test or at teardown. Round 529 added `-t` to the log dumps precisely because
+that question could not be answered; the next failing run will settle it.
+
 ## Round 529 — 27 lines that could have meant anything
 
 **The new dump worked, and immediately produced something unreadable.**
