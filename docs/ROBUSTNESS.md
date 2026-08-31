@@ -21221,6 +21221,43 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 525 — the accept path, never tested, and also not the cause
+
+**Found.** No Rust test had ever sent `PeerConnectAccept`. Not one. The harness
+has BOTH sides send `PeerConnect` — a mutual connect that passes `udp_mode`
+explicitly on each side — while the browser connects from one side and ACCEPTS
+on the other, through `requests/peer/accept.rs`, which destructures
+`udp_mode: _` and relies on the SDK reading the mode back out of the signal.
+
+So the path CI exercises and the path the Rust suite exercises diverged at
+exactly the field #56's failure message names. That is as good a lead as this
+investigation has produced.
+
+**Refuted.** `a_media_session_opens_over_an_accepted_peer_connection` takes the
+accept path and opens in **1.04ms**. It also asserts that
+`PeerConnectNotification.udp_mode` still reads `Enabled` when it reaches the
+acceptor — it does, which confirms round 522's exoneration of `udp_mode: _` from
+the other side.
+
+**A fourth theory died quietly too.** Round 524 ended by blaming the Docker
+bridge. `docker-compose.yml` uses `network_mode: host`: the CI containers share
+the host's network stack, so inter-container traffic is loopback there as it is
+here. That difference does not exist.
+
+**Where #56 stands.** Three structural hypotheses refuted with numbers, and all
+three local topologies — two services, one service, accepted connection — open
+media in about a millisecond against a five-second budget. Nothing about the
+shape of the connection explains a >5s CI failure. What is left is the CI
+machine itself, and the `[UDP-NEGOTIATION]` line from round 521 is what will
+say whether the channel arrives late or never arrives at all.
+
+**Coverage gained regardless.** The media path went from zero Rust tests to
+three, across every topology the product uses, running in 2.2s — and the accept
+path, which the browser depends on entirely, now has any coverage at all.
+
+**Gate.** fmt and clippy clean; `file_transfer`, `service` and `intra_kernel`
+suites all pass alongside.
+
 ## Round 524 — the obvious hypothesis, tested and refuted
 
 **The hypothesis.** Round 523's media test used two internal services. The
