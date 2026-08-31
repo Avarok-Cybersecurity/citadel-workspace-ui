@@ -21221,6 +21221,51 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 532 — the number that ends the UDP_WAIT argument
+
+**The measurement #56 has wanted since it was written.** Round 527 changed the
+CI capture to `if: always()`; run 33361075092's shard 3/3 produced 18
+negotiations, and the distribution is bimodal with nothing between the modes:
+
+| outcome | elapsed |
+|---|---|
+| success (x2) | **3.585µs**, **4.026µs** |
+| failure (x16) | **5.000-5.002s** — exactly the budget, every time |
+
+A success takes microseconds, because the offer had already arrived before the
+open was requested. A failure never arrives at all. Not once did a channel show
+up at three seconds, or four.
+
+**So the argument #56 has been having is settled: raising `UDP_WAIT` cannot
+help.** A larger budget would buy nothing but a slower failure. Rounds of this
+investigation went into refusing to tune that constant on the grounds that it
+would be "a guess dressed as a fix"; it is now measured rather than suspected,
+and the local 1ms figure from round 523 was pointing at exactly this.
+
+Every line also reports `1 offer(s) raced` — the receiver is present and simply
+never fires, which rules out the dropped-offer class dfb50a2 fixed.
+
+**The cause is one layer down.** The same dump carries
+
+    citadel_wire/src/udp_traversal/linear/method3.rs:318:
+      BAD Hole-punch packet: decryption failed!
+    [Hole-punch/Timeout] P2P connection establishment timed out after 30s
+
+UDP traversal packets arrive and fail to decrypt, so the punch never completes
+and no channel is ever offered to race. That is an SDK defect of the same kind
+as #57, not a constant in this repository.
+
+**It is not a CI-only condition.** Users behind real NATs depend on that same
+traversal path. A hole-punch that intermittently fails to decrypt is a product
+problem that CI happens to surface, and the temptation to file it as
+infrastructure flake should be resisted.
+
+**Three rounds of instrumentation earned this.** Round 521 logged the elapsed
+time on both outcomes; round 527 made it survive a green run; round 529 added
+`-t` so the punch failures could be placed against the negotiations. Each was a
+fix to a diagnostic that could not answer its own question — and without all
+three, this dump would have shown nothing.
+
 ## Round 531 — the fixture that could have passed a half-fix, and a marker audit
 
 **A gap in my own verification of #57.** The reproduction used a 32-byte file —
