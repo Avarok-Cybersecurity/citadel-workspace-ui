@@ -21221,6 +21221,35 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 538 — the timestamps answer the question they were added for
+
+**Round 529 added `-t` to the log dumps because 27 `Peer connection not found`
+lines could not be placed in time — mid-test failure or teardown noise, opposite
+conclusions with no way to choose.** Run 33361075092's `file-manager` failure is
+the first dump carrying origin timestamps, and it answers cleanly:
+
+- the refusal happens once, at `07:03:10.495`
+- the retransmit storm of the message that never arrives runs `07:05:23`–`07:05:27`
+- the test declares `Peer Sees File: FAIL` at `07:05:29`
+
+So the refusal is an isolated event more than two minutes before the failing
+phase, not part of it. It is almost certainly a send racing ahead of the peer
+connection being established — benign, because ILM retransmits — and it is **not**
+implicated in #57.
+
+**Two things worth separating.** This run had ONE such line; the earlier dump had
+27. Without timestamps I could not tell whether 27 refusals were a second defect;
+with them, the single occurrence here sits nowhere near the failure and the
+suspicion retires. The 27-line case belonged to a different run and a different
+shape, and is not evidence of anything on its own.
+
+**The payoff is the point.** Three rounds went into diagnostics that could not
+answer their own questions — a tail that buried the line (517), a dump that ran
+only when the number did not exist (527), lines that could not be ordered (529).
+Each felt like overhead at the time. This is the round where they returned a
+finding — and the finding is that a suspicion was wrong, which is exactly what
+good instrumentation is for.
+
 ## Round 537 — auditing every response the service can send
 
 **Round 530 found one error response nobody reads. This asks the question of all
