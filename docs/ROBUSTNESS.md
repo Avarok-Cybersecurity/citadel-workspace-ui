@@ -21262,6 +21262,13 @@ rather than picking the flattering assumption.
 respond — roll back the optimistic add, surface it, retry — is a product
 decision, and inventing one to close a low item is how unwanted behaviour ships.
 
+**The mirror audit came back clean, which bounds the problem.** Running the same
+enumeration over the 38 `InternalServiceRequest` variants — sent by the UI, never
+referenced in the service — returns **zero**. Every request the UI makes is
+handled. So the dead ends are one-directional: the service answers with things
+nobody reads, but it is not being asked for things it cannot do. A negative
+result worth recording, because it says where NOT to look next.
+
 ## Round 535 — the wildcard is advertised on purpose, by construction
 
 **Round 534 guessed that a peer was advertising its bind wildcard. It is, and
