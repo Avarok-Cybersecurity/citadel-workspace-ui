@@ -21221,6 +21221,126 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Rounds 593-607 — the twin pattern, counted; and two things I measured wrong
+
+### Twenty instances of one mistake
+
+The full-stack scan named the mechanism behind most of its own 38 findings and
+counted fourteen. Adding the four found by hand earlier, plus two more since,
+the tally in this codebase is **twenty**:
+
+| the guarded half | the twin that was left |
+|---|---|
+| upload re-arms its timeout per tick | download used a fixed 30s |
+| deletions get `pendingRemovals` | rename and move did not |
+| local tree mutators validate | remote appliers did not |
+| empty files refused BEFORE announcing | size checked after announcing |
+| 2 of 3 send branches catch and mark | the p2p branch did not |
+| one send path sets `expiresAt` | the native-picker path did not |
+| incoming ticks filter foreign streams | outgoing ticks did not |
+| 2 sites wire send-failure into the ack promise | 3 orphaned it |
+| the Android notification fix at line 24 | its twin at line 52 |
+| one store issues a real delete | its twin wrote a tombstone |
+| `write_user_role` holds `lock_workspaces` | the permissions-remove tail did not |
+| `remove_workspace` rolls back step 3 | it did not roll back step 2 |
+| `sendP2PMessage` guards | `sendP2PMessageDirect` did not |
+| `MessageNotification` has a JSON guard | `MessageDelivered` had none |
+| `credential_fingerprint` on `Connect` | not on `ClaimSession` |
+| `clear_session` compares `init_time` | the teardown forty lines later did not |
+| the KEM-state guard | the vconn removal eight lines below it |
+| two hand-rolled session-route re-resolutions | the two tasks that needed one |
+| settings are account-scoped | the transfer store was not |
+| the staging upload registers as a foreign stream | the general revfs push did not |
+
+In several the fixed half carries a comment explaining WHY the guard matters,
+and the comment did not migrate either. The procedural lesson: **when a guard
+is added, the next action is to grep for its mechanism and fix every sibling in
+the same change.** Three of the fixes above were themselves incomplete on the
+first attempt for exactly this reason.
+
+Two of them were fixed structurally rather than by adding a copy:
+`markForeignOutgoingStream` moved onto the router INTERFACE so a caller outside
+the module cannot miss it, and the two notification permission branches were
+collapsed onto one shared `deliver()`.
+
+### The CRITICAL, and the mock that could not fail
+
+`acceptTransfer` issued a protocol `send-response` unconditionally. That intent
+needs an `object_id` the correlator only learns from a notification whose
+`transfer_type == 'FileTransfer'` — and async mode stages through RE-VFS, which
+the service auto-accepts and never announces that way. So it threw at the TOP
+of the function, above the staged-download branch, making
+`completeStagedDownload` unreachable. Async is the mode the UI labels
+**"Recommended"**: the default way to send a file could not be accepted or
+declined at all.
+
+460 test files agreed everything was fine, because **every file-transfer test
+stubs `executeIntent` with a resolving mock**. A mock that always succeeds
+cannot fail the way the system fails. The new test's fake router rejects.
+
+### Two things I measured wrong, both caught
+
+**PR 285's "6/6 locally".** I ran `--features localhost-testing` and reported it
+as evidence. Reading the workflow showed the job runs the suite TWICE, and only
+the second — `multi-threaded,localhost-testing` — ever fails. I had tested the
+configuration that already passes. Re-run correctly: 4/4 on the branch, 3/3 on
+master, still not reproducible.
+
+**The H5 detector's first control.** I corrupted a ciphertext under
+`test_ratchet_manager_one_at_a_time` and it stayed green — because that test
+never reaches the assertion. Had I stopped there I would have reported "detector
+added, all green" while measuring nothing. Against
+`test_ratchet_manager_racy_contentious` it panics with the exact divergence
+message. **A green control on the wrong test is indistinguishable from a
+working one unless you check which test executes the line.**
+
+### H5: instrumented, not reproducible
+
+`rekey_round` ended with `assert_eq!(latest_0, latest_1)` — two integers, which
+is precisely the check the audit called insufficient. `assert_ratchets_agree`
+now encrypts with one container and decrypts with the other, both directions.
+All seven contention tests pass, including the zero-delay racy case. That is a
+negative result about the audit's concern, not a proof of impossibility — and
+the detector is permanent, so if a future change makes divergence reachable, CI
+says so instead of reporting a successful rekey.
+
+### The reconnection flake, and a prediction
+
+Three observations, two different tests, one of them on a PR whose entire diff
+is inside `#[cfg(test)]` in a different crate — verified mechanically, not
+argued. The failure is `Test timed out: Elapsed(())`: the outer 240s budget, on
+a test that normally takes 1.6s. A 150x overrun where coverage costs 2-5x is a
+**wedge**, not slowness.
+
+Master did not yet carry the H6 bound — "trigger_rekey loops forever holding
+the single rekey permit" — and a scheduler with more interleaving is exactly
+where the stale-skip that triggers it becomes likely. **Prediction recorded
+before the evidence: merging #285 should make this flake go away. If it
+persists, the hypothesis is wrong and the wedge is elsewhere.**
+
+### Guards that expired, and were made to fail
+
+Two recorded exceptions stopped applying and the checks caught it themselves:
+`p2p:channel-ready` was listed as having no listener until the revfs drain fix
+added one, and `KNOWN_ORPHANS` listed seven files that had been deleted. Both
+lists are designed to only shrink; the orphan list has now reached **zero**.
+
+A third was simply false: `node:types:loaded` was recorded as "node types are
+read synchronously from the store". There is no such store, and nothing sends
+`ListNodeTypes` either — the feature is server-only, and the excuse named a
+mechanism that was never built.
+
+### Coverage, honestly
+
+Seven background agents were terminated mid-work by a Fable rate limit. Three
+left fixes that arrived tested but **unverified**; I ran their controls myself
+before committing, and one — the ghost-cursor ordering change — has no control
+and is recorded as such. Two read-only scans of the previously-unread stack died
+early, so that gap is still open: `async_kernel.rs` in bulk, the command
+processor, group-message pagination, the merkle strategy internals, the
+messenger/WASM layer, presence, workspace-events and the PWA config.
+
+
 ## Rounds 585-592 — a second audit, and the pattern that explains the first
 
 The ultracode audit's 44 findings were closed down to two HIGHs. Then a
