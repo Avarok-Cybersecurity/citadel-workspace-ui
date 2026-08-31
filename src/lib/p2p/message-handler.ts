@@ -22,6 +22,7 @@ import { dispatchInboundCommand } from './inbound-command-dispatch';
 import { isCallSignalPayload } from '@/types/p2p-commands';
 import { eventEmitter } from '../event-emitter';
 
+import { isForThisSession } from '../sessions/notification-ownership';
 import { isPeerMessage, isMessageNotification, type MessageNotificationPayload , type MessageHandlerConfig } from './message-handler-types';
 import { handleMessagingLayerCommand } from './message-handler-routing';
 import { MessageAckHandler } from './message-ack-handler';
@@ -98,17 +99,11 @@ export class MessageHandler {
     const currentCid: bigint | null = await this.config.getCurrentCid();
     const peerCidBigint: bigint | undefined = ensureBigIntOrNull(peer_cid) ?? undefined;
     const notificationCidBigint: bigint | undefined = ensureBigIntOrNull(cid) ?? undefined;
-    const effectiveCid: bigint | undefined = currentCid ?? notificationCidBigint;
-
-    if (!currentCid && notificationCidBigint) {
-      debugLog('MessageHandler', '[P2P] WARNING: currentCid is null, using notification CID as fallback:', notificationCidBigint?.toString());
-    }
 
     debugLog('MessageHandler', '[P2P] handleWebSocketMessage checking MessageNotification:', {
       peer_cid: peerCidBigint?.toString(),
       notification_cid: notificationCidBigint?.toString(),
       currentCid: currentCid?.toString(),
-      effectiveCid: effectiveCid?.toString(),
       isP2P: peerCidBigint !== undefined && peerCidBigint !== 0n,
     });
 
@@ -140,16 +135,20 @@ export class MessageHandler {
       eventEmitter.emit('p2p:raw-message', { peerCid: peerCidBigint.toString(), message: contentBytes });
       BroadcastChannelService.getInstance().broadcastP2PRawMessage(rawMessageData);
 
-      const isOwnOutgoingEcho: boolean = peerCidBigint === effectiveCid;
-      if (isOwnOutgoingEcho && notificationCidBigint !== effectiveCid) {
-        debugLog('MessageHandler', '[P2P] Outgoing echo for different session, broadcasting to follower tabs');
-        BroadcastChannelService.getInstance().broadcastP2PNotification({ notification, messageBytes: contentBytes });
-        return;
-      }
-
-      const isForDifferentSession: boolean = notificationCidBigint !== undefined && notificationCidBigint !== effectiveCid;
-      if (isForDifferentSession) {
-        debugLog('MessageHandler', '[P2P] Message for different session, broadcasting to follower tabs');
+      // The notification's `cid` names the session it is addressed to, and this
+      // tab is very often not that session: the leader holds the WebSocket even
+      // when it is the landing/connect page, logged in as nobody. There used to
+      // be a fallback here (`currentCid ?? notificationCid`) so that a tab with
+      // no cid of its own would adopt the notification's — which made the guard
+      // below vacuous and had a session-less tab store and emit another
+      // account's messages as its own. `isForThisSession` refuses unless both
+      // sides are known and equal; everything it refuses is broadcast to the
+      // follower tabs, where the owner picks it up by matching its cid
+      // (handleP2PNotification does that filtering). This also covers the old
+      // own-outgoing-echo branch: an echo either matches this session's cid
+      // (skipped above as a self-message) or belongs to another session's tab.
+      if (!isForThisSession(notificationCidBigint, currentCid)) {
+        debugLog('MessageHandler', '[P2P] Message not for this tab\'s session, broadcasting to follower tabs');
         BroadcastChannelService.getInstance().broadcastP2PNotification({ notification, messageBytes: contentBytes });
         return;
       }

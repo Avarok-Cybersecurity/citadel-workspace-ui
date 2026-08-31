@@ -8,12 +8,18 @@
 import { INTERVAL } from '../timeout-constants';
 import type { ResponseType } from 'citadel-workspace-client-ts';
 
-// Message types that should be broadcast to all instances
+// Message types that should be broadcast to all instances.
+//
+// Everything on this list is EXEMPT from cid filtering, so membership must be
+// deliberate fan-out and nothing else. 'ServerResponse' sat here for a long
+// time matching no variant of `InternalServiceResponse` — dead, but lying in
+// wait for a future variant of that name to bypass the filter by accident.
+// The `satisfies` keeps the list honest: an entry that is not a real generated
+// variant no longer compiles.
 export const BROADCAST_MESSAGE_TYPES: string[] = [
-  'ServerResponse', // Generic server responses
   'DisconnectNotification', // Session disconnected
   'DeregisterSuccess', // Account deleted
-];
+] satisfies ResponseType[];
 
 // Fields that commonly contain the target CID
 export const CID_FIELDS: string[] = ['cid', 'peer_cid', 'session_cid'];
