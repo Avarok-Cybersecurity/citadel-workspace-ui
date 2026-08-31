@@ -15,26 +15,42 @@
  * effect of fixing this.
  */
 
+import { instanceManager } from '@/lib/multi-instance';
+
 const drafts: Map<string, string> = new Map<string, string>();
+
+/**
+ * Drafts are per-account AND per-conversation. One browser holds several
+ * accounts at once, and a ClaimSession switches which account a tab runs as;
+ * keyed by conversation alone, the account you switched TO saw the other
+ * account's half-written message sitting in its composer. Same convention as
+ * `scopedSettingsKey` (file-transfer/settings-key.ts), including the bare
+ * fallback: a draft typed before any session exists belongs to no account,
+ * and silently filing it under one would be worse.
+ */
+function scopedDraftKey(conversationKey: string): string {
+  const own: bigint | null = instanceManager.cid;
+  return own ? `${own.toString()}:${conversationKey}` : conversationKey;
+}
 
 /** Remember what is typed but unsent for a conversation. */
 export function saveDraft(conversationKey: string, text: string): void {
   // An empty draft is not a draft; keeping it would resurrect a cleared box.
   if (text === '') {
-    drafts.delete(conversationKey);
+    drafts.delete(scopedDraftKey(conversationKey));
     return;
   }
-  drafts.set(conversationKey, text);
+  drafts.set(scopedDraftKey(conversationKey), text);
 }
 
 /** What was typed but unsent, or empty. */
 export function loadDraft(conversationKey: string): string {
-  return drafts.get(conversationKey) ?? '';
+  return drafts.get(scopedDraftKey(conversationKey)) ?? '';
 }
 
 /** Forget a conversation's draft — after a send, or when it is deleted. */
 export function clearDraft(conversationKey: string): void {
-  drafts.delete(conversationKey);
+  drafts.delete(scopedDraftKey(conversationKey));
 }
 
 /** Test-only. */

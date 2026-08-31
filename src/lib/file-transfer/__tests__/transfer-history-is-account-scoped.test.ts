@@ -43,9 +43,9 @@ function transfer(id: string, name: string): FileTransfer {
 
 function loadedIds(): string[] {
   const seen: FileTransfer[] = [];
-  const store = {
-    setTransfer: (t: FileTransfer) => seen.push(t),
-    setSettings: () => {},
+  const store: { setTransfer: (t: FileTransfer) => void; setSettings: () => void; } = {
+    setTransfer: (t: FileTransfer): void => { seen.push(t); },
+    setSettings: (): void => {},
   };
   // loadPersistedTransfers is async but does no real I/O here.
   void loadPersistedTransfers(store);
@@ -62,7 +62,7 @@ describe('the transfer history', () => {
     persistTransfer(transfer('a1', 'alice.pdf'));
 
     currentCid.value = 2n;
-    const store = { setTransfer: vi.fn(), setSettings: vi.fn() };
+    const store: { setTransfer: ReturnType<typeof vi.fn>; setSettings: ReturnType<typeof vi.fn>; } = { setTransfer: vi.fn(), setSettings: vi.fn() };
     await loadPersistedTransfers(store);
 
     expect(store.setTransfer).not.toHaveBeenCalled();
@@ -75,7 +75,7 @@ describe('the transfer history', () => {
   it('is still visible to the account that created it', async () => {
     persistTransfer(transfer('a1', 'alice.pdf'));
 
-    const store = { setTransfer: vi.fn(), setSettings: vi.fn() };
+    const store: { setTransfer: ReturnType<typeof vi.fn>; setSettings: ReturnType<typeof vi.fn>; } = { setTransfer: vi.fn(), setSettings: vi.fn() };
     await loadPersistedTransfers(store);
 
     expect(store.setTransfer).toHaveBeenCalledTimes(1);
@@ -91,8 +91,8 @@ describe('the transfer history', () => {
 
     const seen: FileTransfer[] = [];
     await loadPersistedTransfers({
-      setTransfer: (t: FileTransfer) => seen.push(t),
-      setSettings: () => {},
+      setTransfer: (t: FileTransfer): void => { seen.push(t); },
+      setSettings: (): void => {},
     });
 
     expect(seen).toHaveLength(1);
@@ -104,7 +104,7 @@ describe('the transfer history', () => {
     currentCid.value = null;
     persistTransfer(transfer('a1', 'alice.pdf'));
 
-    const store = { setTransfer: vi.fn(), setSettings: vi.fn() };
+    const store: { setTransfer: ReturnType<typeof vi.fn>; setSettings: ReturnType<typeof vi.fn>; } = { setTransfer: vi.fn(), setSettings: vi.fn() };
     await loadPersistedTransfers(store);
 
     expect(store.setTransfer).toHaveBeenCalledTimes(1);

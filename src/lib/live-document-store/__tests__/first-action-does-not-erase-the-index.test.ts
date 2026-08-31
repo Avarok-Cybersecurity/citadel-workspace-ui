@@ -12,7 +12,7 @@
  * in-flight initialize read a half-populated cache and persisted it.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { StoredDocument } from '../types';
+import type { DocumentMetadata, StoredDocument } from '../types';
 
 interface FakeDB {
   index: string[];
@@ -67,7 +67,7 @@ describe('the first store action after a page load', () => {
     db.docs.set('doc-a', docRecord('doc-a'));
 
     const store: Store = freshStore();
-    const meta = await store.createDocument('New doc', '1', '2');
+    const meta: DocumentMetadata = await store.createDocument('New doc', '1', '2');
 
     expect(db.index, 'the pre-existing document fell out of the index').toContain('doc-a');
     expect(db.index).toContain(meta.id);
@@ -112,9 +112,9 @@ describe('the first store action after a page load', () => {
 
     const store: Store = freshStore();
     // A list kicks off initialize, which is now parked on the gate…
-    const listing = store.listAllDocuments();
+    const listing: Promise<DocumentMetadata[]> = store.listAllDocuments();
     // …and a create lands while it is in flight.
-    const creating = store.createDocument('New doc', '1', '2');
+    const creating: Promise<DocumentMetadata> = store.createDocument('New doc', '1', '2');
     release();
     const [, meta] = await Promise.all([listing, creating]);
 

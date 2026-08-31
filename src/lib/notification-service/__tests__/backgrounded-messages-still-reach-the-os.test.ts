@@ -42,7 +42,7 @@ const constructed: ReturnType<typeof vi.fn> = vi.fn();
 /** A platform where the constructor works (desktop). */
 class WorkingNotification {
   static permission: NotificationPermission = 'granted';
-  static requestPermission = vi.fn(async (): Promise<NotificationPermission> => 'granted');
+  static requestPermission: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<NotificationPermission> => 'granted');
   constructor(title: string, options?: NotificationOptions) {
     constructed(title, options);
   }
@@ -51,7 +51,7 @@ class WorkingNotification {
 /** Chromium for Android: the constructor throws instead of no-opping. */
 class AndroidNotification {
   static permission: NotificationPermission = 'default';
-  static requestPermission = vi.fn(async (): Promise<NotificationPermission> => {
+  static requestPermission: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<NotificationPermission> => {
     AndroidNotification.permission = 'granted';
     return 'granted';
   });

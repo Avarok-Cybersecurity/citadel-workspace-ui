@@ -83,9 +83,21 @@ export async function saveIndexToDB(docIds: string[]): Promise<void> {
 }
 
 /**
- * Delete a document from LocalDB (sets value to empty array).
+ * Delete a document from LocalDB.
+ *
+ * A real delete, as MessagePaginationStore issues. This used to WRITE an
+ * empty array over the key instead -- a tombstone the backend cannot tell
+ * from data. Deleted keys therefore accumulated forever, and a later read of
+ * one decoded `[]` to '' and failed JSON.parse, logging the "COULD NOT READ"
+ * false alarm above for a document that was deliberately removed.
  */
 export async function deleteDocumentFromDB(docId: string): Promise<void> {
   const key: string = `${DOCUMENTS_KEY_PREFIX}_${docId}`;
-  await websocketService.sendLocalDBSet(0n, key, []);
+  try {
+    await websocketService.sendLocalDBDelete(0n, key);
+  } catch (error) {
+    // A key already absent is a deletion already done; the tombstone this
+    // replaces never surfaced that case either. Real failures must surface.
+    if (!isGenuinelyAbsent(error)) throw error;
+  }
 }

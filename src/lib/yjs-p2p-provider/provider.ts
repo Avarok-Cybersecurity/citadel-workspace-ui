@@ -6,17 +6,16 @@
  */
 
 import * as Y from 'yjs';
-import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness';
+import { Awareness, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness';
 import { eventEmitter } from '@/lib/event-emitter';
 import { YjsMerkleTree, computeDocumentHash } from '@/lib/yjs-merkle-strategy';
 import { debugLog } from '@/lib/debug-config';
 
-import type { YjsOrigin, YjsP2PMessage, YjsSyncMessage, SyncState, PendingAck } from './types';
+import type { YjsOrigin, YjsP2PMessage, SyncState, PendingAck } from './types';
 import { YJS_SYNC_COOLDOWN_MS, YJS_SYNC_RESET_DELAY_MS, YJS_HEALTH_CHECK_INTERVAL_MS } from './constants';
 import { UpdateCoalescer } from './update-coalescer';
 import { sendSyncMessage, sendUpdate, broadcastAwareness , type SendingContext } from './sending';
-import { handleSyncStep1, handleSyncStep2, handleUpdate, handleFullState, handleRequestFullState } from './sync-handlers';
-import { handleAwarenessMessage, handleAckMessage } from './message-handlers';
+import { dispatchYjsMessage } from './message-dispatch';
 import { checkPendingAcks, handleHashMismatch } from './ack-checker';
 
 export class YjsP2PProvider {
@@ -142,7 +141,7 @@ export class YjsP2PProvider {
       // a future generic Yjs command might not).
       const docId: string | undefined = typeof payload.document_id === 'string' ? payload.document_id : undefined;
       if (docId !== undefined && docId !== this.documentId) return;
-      this.handleMessage(payload as unknown as YjsP2PMessage);
+      dispatchYjsMessage(this.ctx, payload as unknown as YjsP2PMessage);
     });
   }
 
@@ -159,42 +158,6 @@ export class YjsP2PProvider {
     sendSyncMessage(this.ctx, 'sync_step1', stateVector, false);
     this.syncState = 'awaiting_step1_response';
     setTimeout(() => { this.syncInProgress = false; }, YJS_SYNC_RESET_DELAY_MS);
-  }
-
-  private handleMessage(message: YjsP2PMessage): void {
-    switch (message.type) {
-      case 'yjs_sync': this.handleSyncMessage(message); break;
-      case 'yjs_awareness': handleAwarenessMessage(this.ctx, message); break;
-      case 'yjs_ack': handleAckMessage(this.ctx, message); break;
-      // 'yjs_divergence' (handler with no sender) removed; a legacy peer's lands in default.
-      default:
-        // `setupMessageListener` casts the CBOR payload with `as unknown as
-        // YjsP2PMessage`; a future `yjs_*` variant added on the sender side
-        // before this switch is updated would otherwise be silently dropped.
-        // Surface the unknown type in dev tools so the gap is visible.
-        debugLog(
-          'YjsP2PProvider',
-          'handleMessage: unknown Yjs message type',
-          (message as { type?: unknown }).type,
-        );
-    }
-  }
-
-  private handleSyncMessage(message: YjsSyncMessage): void {
-    const data: Uint8Array<ArrayBuffer> = new Uint8Array(message.data);
-    switch (message.sub_type) {
-      case 'sync_step1': handleSyncStep1(this.ctx, data, message); break;
-      case 'sync_step2': handleSyncStep2(this.ctx, data, message); break;
-      case 'update': handleUpdate(this.ctx, data, message); break;
-      case 'full_state': handleFullState(this.ctx, data, message); break;
-      case 'request_full': handleRequestFullState(this.ctx, message); break;
-      default:
-        // 'hash_check' was removed (never-initiated protocol whose responder
-        // answered a MATCH with another hash_check — see types.ts). A legacy
-        // peer's hash_check, or any future sub_type, is surfaced here rather
-        // than silently dropped.
-        debugLog('YjsP2PProvider', 'handleSyncMessage: ignoring unknown sub_type', (message as { sub_type?: unknown }).sub_type);
-    }
   }
 
   private startAckChecker(): void {
@@ -238,6 +201,18 @@ export class YjsP2PProvider {
     // silently dropped -- closing a document right after typing is the normal
     // way to use one.
     this.coalescer.flush();
+    // Departure goes out HERE, while the awareness 'update' handler is still
+    // attached and the destroyed flag is still down. `awareness.destroy()`
+    // below fires its own removal only after both, so no peer ever heard it:
+    // whoever closed a document stayed a ghost cursor for everyone else until
+    // the ~30s awareness timeout expired. Guarded so a failure to encode or
+    // send can never abort the teardown that follows -- which is all the old
+    // suppression actually protected.
+    try {
+      removeAwarenessStates(this.awareness, [this.doc.clientID], 'destroy');
+    } catch (error) {
+      debugLog('YjsP2PProvider', 'destroy: departure broadcast failed:', error);
+    }
     this.destroyed = true;
     this.connected = false;
     if (this.ackCheckInterval) { clearInterval(this.ackCheckInterval); this.ackCheckInterval = null; }
