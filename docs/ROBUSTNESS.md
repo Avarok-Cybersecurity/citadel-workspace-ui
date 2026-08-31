@@ -21221,6 +21221,34 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 550 — I skipped the check I built for exactly this
+
+**Every job in run 33376013146 failed** — 74 of them, fmt and clippy included.
+That is not a test failure, it is `actions/checkout` unable to fetch a submodule:
+
+    citadel-workspaces @ 6f942ba53 — recorded here, absent from that submodule's remote
+
+I committed docs in `citadel-workspaces`, bumped the parent's pointer, pushed the
+parent — and never pushed the submodule.
+
+**Preflight catches this.** `check-submodule-pointers-pushed` exists precisely
+for it, it is one of the 75, and its failure message is the text above. I pushed
+the SDK pin bump without running preflight, because the change felt mechanical
+and I was eager to see whether #56's fix worked.
+
+**Cost.** A full 74-job run burned, and every one of those reds looked alarming
+for the few minutes before the cause was clear — including the three jobs whose
+verdict on #56 I was actually waiting for.
+
+**The pattern, and it is not a new one in this record.** Rounds 517, 527 and 529
+each fixed a diagnostic that could not answer its own question. This is the
+inverse: a check that answers its question perfectly, skipped because the change
+seemed too small to need it. A gate only works when it runs on the commits that
+feel routine — those are the ones nobody inspects.
+
+Fixed by pushing the submodule; preflight is back to 75/75 and the run has been
+re-triggered rather than pushing an empty commit to force one.
+
 ## Rounds 544-547 — the severity raise, confirmed then demonstrated
 
 These four were recorded in PRODUCTION-READINESS.md as they happened and are
