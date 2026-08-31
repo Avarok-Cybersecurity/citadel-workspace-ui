@@ -21221,6 +21221,42 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 543 — #56 is not a call bug, and the severity was wrong
+
+**A job that had passed twice failed on the run that bumped the SDK pin**, which
+is exactly what a regression from the #57 fix would look like. It is not one.
+
+`test:reconnect-p2p-only` — a test with no call in it — failed with
+
+    FAIL: P2P connect to <peer> timed out, but the peer never appeared as connected
+
+and the same job carries
+
+    [Hole-punch/Timeout] P2P connection establishment timed out after 30s
+    [Hole-punch/Err] invalid remote address: 0.0.0.0:50144
+
+That is #56's signature, including the wildcard address #280 fixes. There are no
+`[UDP-NEGOTIATION]` lines at all, because the media open was never reached — the
+connection never came up.
+
+**Which changes what #56 is.** It has been recorded as "calls fail when UDP
+negotiation exceeds the retry ladder". That framing is wrong twice over: the
+ladder is irrelevant (round 532 measured the distribution as bimodal), and the
+damage is not confined to calls. A failed hole-punch fails the ENTIRE P2P
+connection, so the peer never connects for messaging either. Raised to **high**.
+
+**Why it is not the #57 fix.** That change touches `OrderedChannel::skip` and
+the `GroupHeader::Standard` arm — the receive path for message ordering. It is
+nowhere near connection establishment, and this job's failure happens before any
+message is exchanged. The job also passed in the two runs before the pin moved,
+which is consistent with the same intermittency #56 has shown all along.
+
+**Stated as supported, not proven.** The causal link comes from co-occurrence
+within one job — a hole-punch timeout alongside a connect failure — not from an
+isolating experiment. That is the same distinction rounds 532-534 kept getting
+wrong, and it is worth applying to a conclusion I like as much as to ones I do
+not.
+
 ## Round 542 — the test that started it passes
 
 `test:file-manager`, run 33367701801:
