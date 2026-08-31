@@ -1,10 +1,11 @@
 import { useCallback } from "react";
+import { useDropUpload } from './useDropUpload';
 import { describeError } from '@/lib/describe-error';
 import { useFileManagerSelectionHandlers } from './useFileManagerSelectionHandlers';
 import { useFileManagerDeleteHandlers } from './useFileManagerDeleteHandlers';
 import { toast } from "sonner";
 import type { RevfsNode, TreeKey, RevfsFileMetadata } from "@/types/revfs-types";
-import { SENT_FILES_DIR, RevfsFileState, TreeScope } from "@/types/revfs-types";
+import { RevfsFileState, TreeScope } from "@/types/revfs-types";
 import { revfsService } from "@/lib/revfs";
 import { peerPairKey, isDownloadableState } from "@/lib/revfs/tree-queries";
 import { usePrompt } from "@/components/shared/prompt-dialog";
@@ -147,45 +148,12 @@ export function useFileManagerHandlers({
   const { handleCutMultiple, handleCopyMultiple, handleSelectAll } =
     useFileManagerSelectionHandlers({ tree, currentPath, filterText, currentTreeKey, cut, copyToClipboard, selectAll });
 
-  const handleDrop: (targetPath: string, files: FileList) => Promise<void> = useCallback(async (targetPath: string, files: FileList): Promise<void> => {
-    if (!myCid) { toast.error('Not connected'); return; }
-    const isStandardTransfer: boolean = targetPath === SENT_FILES_DIR || targetPath.startsWith(SENT_FILES_DIR + '/');
-    if (isStandardTransfer) { toast.info('Standard file transfer: Use P2P Chat to send files directly'); return; }
-    if (!revfsEnabled) {
-      setRevfsDisabledReason(storageMode === TreeScope.Server ? 'server_disabled' : 'peer_disabled');
-      setRevfsDisabledModalOpen(true);
-      return;
-    }
-    const fileArray: File[] = Array.from(files);
-    const totalSize: number = fileArray.reduce((sum, file) => sum + file.size, 0);
-    if (totalSize > storageQuota - storageUsed) {
-      setAttemptedFileSize(totalSize);
-      setStorageLimitModalOpen(true);
-      return;
-    }
-    for (const file of fileArray) {
-      try {
-        // The file's CONTENTS, which this never read. Only name, size and type
-        // were passed on, so the upload described a file whose bytes never left
-        // the page — and the toast below still said "Uploaded".
-        const content: Uint8Array<ArrayBuffer> = new Uint8Array(await file.arrayBuffer());
-        const acknowledged: boolean = await uploadFile(
-          targetPath,
-          file.name,
-          {
-            fileId: crypto.randomUUID(), fileName: file.name, fileSize: file.size,
-            fileType: file.type || 'application/octet-stream',
-            virtualDirectory: targetPath, uploadedByCid: myCid,
-          },
-          content,
-        );
-        reportDelivery(acknowledged, `Uploaded: ${file.name}`);
-      } catch (err) {
-        toast.error(`Failed to upload ${file.name}: ${describeError(err)}`);
-      }
-    }
-  }, [myCid, uploadFile, storageUsed, storageQuota, revfsEnabled, storageMode,
-      setRevfsDisabledReason, setRevfsDisabledModalOpen, setAttemptedFileSize, setStorageLimitModalOpen]);
+  // See useDropUpload: the quota a drop must fit is not a number the tree can
+  // answer alone, because uploads already in the air are not in it yet.
+  const handleDrop: (targetPath: string, files: FileList) => Promise<void> = useDropUpload({
+    myCid, revfsEnabled, storageMode, storageUsed, storageQuota, uploadFile, reportDelivery,
+    setRevfsDisabledReason, setRevfsDisabledModalOpen, setAttemptedFileSize, setStorageLimitModalOpen,
+  });
 
   const handleSync: () => Promise<void> = useCallback(async (): Promise<void> => {
     try {
