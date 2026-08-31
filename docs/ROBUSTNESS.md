@@ -21221,6 +21221,42 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 526 — the image BuildKit pulls before anything else, unretried
+
+**Found.** `Integration Test - test:chat-settings` went from green to red across
+my rounds, which is what a regression looks like. It is not one:
+
+    target server: failed to solve: failed to resolve source metadata for
+    docker.io/docker/dockerfile:1.7-labs: failed to copy: httpReadSeeker:
+    failed open: unexpected status code https://registry-1.docker.io/...
+
+Docker Hub failed to serve the BuildKit **frontend** image — before a single
+`RUN`, so the whole image build dies and every job behind it is red with no test
+output at all.
+
+**Why nothing caught it.** `pull-base-images.sh` pre-pulls with retries and a
+timeout, and it collects `FROM` lines. The frontend is named by the `# syntax=`
+directive, not by a `FROM`, and BuildKit pulls it itself — so it was never in the
+pull set and got none of the retries. This is the same shape as round 520's
+`curl … | sh`: the protection existed and did not cover the fetch that failed.
+
+**Fix.** The collector now also reads `# syntax=` refs, so the frontend is
+pre-pulled with the same attempts and timeout as every base image. Removing the
+directive was considered and rejected: `docker/workspace-server/Dockerfile` uses
+`COPY --exclude=tests`, which is a labs-only feature, so the labs frontend is
+genuinely required.
+
+**Control.** With the collector the pull set is 7 images and includes
+`docker.io/docker/dockerfile:1.7-labs`; without it, 6 and absent. Verified in
+both directions — the second half accidentally, when a killed background job
+left the file reverted and the collector printed the six.
+
+**The pattern worth naming.** Three times now this session a CI job has gone red
+with no test signal because of an unretried network fetch — wasm-pack, the
+nodesource script, and now the BuildKit frontend — and each time the retry
+machinery existed and simply did not reach that fetch. Each is a check that
+covered what someone remembered to list.
+
 ## Round 525 — the accept path, never tested, and also not the cause
 
 **Found.** No Rust test had ever sent `PeerConnectAccept`. Not one. The harness
