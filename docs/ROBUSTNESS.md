@@ -21221,6 +21221,44 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Rounds 555-558 — the split, quantified; and a hole in my own fix
+
+**Run 33376866622 completed with two failures**, `Playwright shard 3/3` and
+`test:reconnect-p2p-one-c2s`. Both are #56's IPv6 half, and the counting is
+unambiguous:
+
+| address family | occurrences |
+|---|---|
+| `0.0.0.0` | **0** |
+| `[::]` | **3** |
+
+Before #280 both families appeared. The two jobs that previously failed on the
+IPv4 form — `test:hard-disconnect` and `test:reconnect-p2p-only` — now pass with
+zero occurrences of either. #280 eliminated one half completely; the residue is
+exactly what #281 addresses.
+
+**And a hole in #281, found before a reviewer had to.** The filter was
+`ip.is_ipv6()`. That is true for an IPv4-mapped address, `::ffff:a.b.c.d`, which
+carries no IPv6 connectivity at all — so had the endpoint answered in mapped
+form rather than plain IPv4, the address would have passed the filter and `[::]`
+would have gone out exactly as before. The same failure in a different costume,
+behind a fix that looked correct.
+
+Now `IpAddr::V6(v6) if v6.to_ipv4_mapped().is_none()`, with a test, and a control
+confirming the bare check reddens that assertion and only that one.
+
+**Third fix of mine this session to need a second pass.** The timeout-based
+ordered-channel attempt passed its own tests without fixing anything; the
+single-group fixture would have certified a half-fix; this would have missed the
+mapped form. None was caught by tests going green — each came from asking what
+would still get through.
+
+**Also this stretch:** the unspecified-address class propagated to our own repo
+(#62, `address-resolver` accepts `0.0.0.0` and `::` as server addresses,
+recorded not fixed because a human has to type it), and PR #74's description
+rewritten to match reality after the earlier `gh pr edit` silently changed
+nothing.
+
 ## Rounds 553-554 — the pre-committed reading catches my own fix
 
 **Round 552 wrote down how to read this run before seeing it**, precisely so a
