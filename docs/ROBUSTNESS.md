@@ -21221,6 +21221,43 @@ Controlled by making the lookup match nothing, exactly as the phantom field did:
 three of the four assertions fail, and the fourth — the unknown-cid case —
 correctly still passes.
 
+## Round 523 — the media path had no test at all, and the number changes the question
+
+**Found while looking for a way to measure #56 locally.** Every helper in the
+internal-service test harness passed `udp_mode: Default::default()`, and
+`UdpMode`'s `#[default]` is `Disabled`. So no Rust test had ever brought a peer
+connection up with UDP, and the entire media path — open, negotiate, frame
+transport — was exercised only by the twelve-minute browser suite.
+
+That is why `UdpState::Pending` holding one offer and dropping the other
+(dfb50a2) could only be found in CI, and why #56 spent rounds asking for a
+measurement nobody could take.
+
+**Fix.** `connect_p2p_with_udp` and
+`register_and_connect_to_server_then_peers_with_udp` state the mode explicitly;
+the existing helpers delegate to them with the same default they always had, so
+no existing test changes behaviour. `tests/media_open.rs` then opens a real
+media session between two services.
+
+**The measurement, and what it means.**
+
+    MEASURED media open: 1.04ms (unreliable=true, max_frame=524288)
+
+One millisecond against a five-second budget. #56 has been arguing about whether
+`UDP_WAIT` is too small; a ~5000x margin on loopback against a >5s failure in CI
+is not the tail of one distribution, it is a different failure. Raising the
+constant would not close a gap of that size. The entry now says so, with the
+number.
+
+**Control.** Before the harness could enable UDP, this same test failed with
+"this peer connection has no usable UDP path, either because it was established
+with UdpMode disabled or because the UDP channel ended" — so the test does
+detect a connection that cannot carry media, rather than passing on anything.
+Worth noting the service distinguishes that case from CI's "no UDP channel for
+peer within 5s": two different failure modes, and only the second is #56.
+
+**Gate.** `cargo fmt --check` and clippy clean; the new test passes in 2.3s.
+
 ## Round 521 — a green run is not a fix, and the measurement #56 asked for
 
 **Two corrections to my own reporting, both from one CI failure.**
