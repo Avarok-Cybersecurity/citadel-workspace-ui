@@ -227,7 +227,19 @@ test.describe.serial('Keyboard operability (workspace)', () => {
     // That is nested interactive content: the row claimed to be one control
     // while containing another, and which one Tab reached was up to the browser.
     const toggle = page.locator('[data-testid^="tree-node-toggle-"]').first();
-    if (!(await toggle.isVisible().catch(() => false))) {
+
+    // isVisible() answers immediately -- it does not wait. Asked before the tree
+    // has painted it returns false, the test skips itself, and the run reports a
+    // benign "no expandable tree node" while the assertions below never execute.
+    // A test that can silently disable itself reports safety it did not check.
+    //
+    // Waiting first makes the skip mean what it says: this workspace genuinely
+    // has no expandable node, rather than the tree merely not being ready yet.
+    const hasExpandableNode: boolean = await toggle
+      .waitFor({ state: 'visible', timeout: 15_000 })
+      .then((): boolean => true)
+      .catch((): boolean => false);
+    if (!hasExpandableNode) {
       test.skip(true, 'no expandable tree node in this workspace');
     }
 
