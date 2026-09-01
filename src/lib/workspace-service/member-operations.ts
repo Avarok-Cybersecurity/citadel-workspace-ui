@@ -80,6 +80,18 @@ export async function updateMemberRole(
   sender: ProtocolSender,
   userId: string,
   role: string,
+  /**
+   * Accepted, transmitted, and DISCARDED by the server.
+   *
+   * `update_workspace_member_role` in async_domain_server_ops.rs ends with
+   * `if let Some(_metadata_bytes) = metadata { // TODO: Handle metadata updates
+   * when needed }` — the bytes arrive and nothing reads them. No caller passes
+   * this today, which is the only reason it has cost nothing.
+   *
+   * Left in place rather than removed because the protocol type carries it, but
+   * said here so that passing it is a decision rather than an assumption: a
+   * caller who supplies metadata gets a success response and no stored data.
+   */
   metadata?: Uint8Array
 ): Promise<unknown> {
   const requestPart: WorkspaceProtocolRequestTS = {
