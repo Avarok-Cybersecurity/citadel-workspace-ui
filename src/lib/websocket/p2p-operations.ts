@@ -131,8 +131,19 @@ export class P2POperations {
       sendRequest: this.config.sendMessage,
       operationName: 'PeerConnectAccept',
       matchSuccess: (msg) => {
-        const r: { PeerConnectAcceptSuccess?: { request_id: string; }; } = msg as { PeerConnectAcceptSuccess?: { request_id: string } };
-        if (r.PeerConnectAcceptSuccess?.request_id === requestId) {
+        // `accept` is read, not just `request_id`. The response answers a
+        // decline with the same type — it means "your answer was delivered",
+        // not "they accepted" — so matching on the id alone would report a
+        // refusal as a established connection. That exact confusion, on
+        // PeerRegisterSuccess, is what registered peers people had declined.
+        const r: { PeerConnectAcceptSuccess?: { request_id: string; accept?: boolean; }; } =
+          msg as { PeerConnectAcceptSuccess?: { request_id: string; accept?: boolean } };
+        const answer: { request_id: string; accept?: boolean } | undefined = r.PeerConnectAcceptSuccess;
+        if (answer?.request_id === requestId) {
+          if (answer.accept === false) {
+            debugLog('P2POperations', 'P2P connection was DECLINED, not accepted', { peerCid });
+            return false;
+          }
           debugLog('P2POperations', 'P2P connection accept sent', { peerCid });
           return true;
         }
