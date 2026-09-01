@@ -6,6 +6,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { clearNotificationsFor } from './notification-cleanup';
 import { recordWithoutLosingIt } from './record-incoming';
 import { instanceManager } from '../multi-instance';
 import { debugLog } from '@/lib/debug-config';
@@ -156,10 +157,11 @@ class PeerRegistrationStore {
   }
 
   public async removeRequestByPeerCid(peerCid: bigint): Promise<void> {
-    const before: number = this.pendingRequests.length;
+    const before: PendingPeerRequest[] = this.pendingRequests;
     this.pendingRequests = removePendingByPeerCid(this.pendingRequests, peerCid);
-    if (this.pendingRequests.length !== before) {
+    if (this.pendingRequests.length !== before.length) {
       debugLog('PeerRegistrationStore', 'Removed requests from peer', peerCid.toString());
+      clearNotificationsFor(before, this.pendingRequests);
       await persistPendingToLocalDB(this.pendingRequests, this.pendingKVRequests);
       await this.emitUpdate();
     }
@@ -180,7 +182,9 @@ class PeerRegistrationStore {
   }
 
   private async removeRequest(requestId: string): Promise<void> {
+    const before: PendingPeerRequest[] = this.pendingRequests;
     this.pendingRequests = removePendingById(this.pendingRequests, requestId);
+    clearNotificationsFor(before, this.pendingRequests);
     await persistPendingToLocalDB(this.pendingRequests, this.pendingKVRequests);
     await this.emitUpdate();
   }
