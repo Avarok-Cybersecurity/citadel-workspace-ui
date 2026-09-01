@@ -73,14 +73,26 @@ export function useCompiledMdx(
         // so a document that cannot render was indistinguishable from an empty
         // one: title chrome, blank body, no error anywhere.
         //
-        // That silence is why nobody noticed that MDX rendering fails for EVERY
-        // document in the production build. `evaluate()` runs the compiled
-        // document through `new AsyncFunction`, and the production CSP is
-        // `script-src 'self' 'wasm-unsafe-eval'` with no `'unsafe-eval'` — dev
-        // adds it for HMR, which is why every dev, tilt and Playwright run
-        // renders fine. See docs/ROBUSTNESS.md: the fix is NOT to add
-        // 'unsafe-eval', which would turn member-authored documents into stored
-        // XSS executed in every viewer's browser.
+        // That silence is why nobody noticed, for a while, that MDX rendering
+        // failed for EVERY document in the production build: `evaluate()` runs
+        // the compiled document through `new AsyncFunction`, and the production
+        // CSP had no `'unsafe-eval'` while dev added it for HMR — so every dev,
+        // tilt and Playwright run rendered fine and no shipped build did.
+        //
+        // That is no longer the state, and this comment used to say it was.
+        // PRODUCTION_CSP in vite.config.ts now reads
+        // `script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'`: rendering
+        // documents client-side was taken as an explicit product decision, with
+        // the weaker origin-wide policy accepted and compensated by the
+        // integrity check at the top of this function — the server hashes
+        // mdx_content on write and the client re-hashes before executing.
+        //
+        // So do not "fix" the CSP by removing 'unsafe-eval'. It is load-bearing
+        // for this feature, the trade-off is recorded in docs/ROBUSTNESS.md
+        // round 124, and the compensating control is the `verifyDocument` call
+        // above rather than the policy. The branch below stays because the
+        // failure is still possible — a stricter policy at a reverse proxy, or
+        // a browser extension — and it must say so rather than blank the page.
         debugLog('BaseOffice', 'Error compiling MDX:', error);
         setRenderError(
           error instanceof Error && /unsafe-eval|Content Security Policy|CSP/i.test(error.message)
