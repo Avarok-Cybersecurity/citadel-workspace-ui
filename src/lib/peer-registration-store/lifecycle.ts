@@ -22,6 +22,7 @@ import type {
 } from './types';
 import { toInternalServiceRequest } from './types';
 import type { SessionSecuritySettings } from '@/lib/security-utils';
+import { markAsDecline } from '../p2p-registration-service/decline-correlation';
 
 /**
  * Create a notification card with accept/decline callbacks
@@ -111,10 +112,15 @@ export async function executeDeclineRequest(request: PendingPeerRequest): Promis
     return;
   }
 
+  // The service answers a decline with PeerRegisterSuccess, which the
+  // registration handler cannot otherwise tell from an acceptance.
+  const requestId: string = crypto.randomUUID();
+  markAsDecline(requestId);
+
   try {
     await websocketService.sendMessage({
       PeerRegisterRespond: {
-        request_id: crypto.randomUUID(),
+        request_id: requestId,
         cid: currentCid,
         peer_cid: request.peer_cid,
         accept: false,

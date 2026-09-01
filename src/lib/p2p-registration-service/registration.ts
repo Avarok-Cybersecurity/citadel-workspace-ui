@@ -21,6 +21,7 @@ import {
   CONCURRENT_REGISTRATIONS, PEER_REGISTER_TIMEOUT_MS,
 } from './constants';
 import { getCurrentCid } from './discovery';
+import { consumeWasDecline } from './decline-correlation';
 
 /** Context passed from the service so the message handler can read/write shared state. */
 export interface RegistrationContext {
@@ -93,6 +94,16 @@ function broadcastPeerUpdate(peerCid: bigint, username: string, flags: { isOutgo
 
 function handlePeerRegisterSuccess(data: Record<string, unknown>, ctx: RegistrationContext): void {
   resolveRequest(ctx.pendingRequests, data.request_id as string, data);
+
+  // A declined request is answered with this same response: the decline was
+  // delivered, which is a success from the service's side. Running the
+  // registration path here marked the declined peer as registered, put them in
+  // registeredPeers and broadcast that to the other tabs.
+  if (consumeWasDecline(data.request_id as string)) {
+    debugLog('P2PRegistrationService', '[P2P] Decline delivered; not registering the peer');
+    return;
+  }
+
   const peerCid: bigint | undefined = data.peer_cid as bigint | undefined;
   const peerUsername: string | undefined = data.peer_username as string | undefined;
   if (peerCid !== undefined) {
