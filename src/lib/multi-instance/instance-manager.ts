@@ -111,10 +111,10 @@ class InstanceManager {
       eventEmitter.emit('instance:state-changed', this.getState());
     });
 
-    eventEmitter.on('instance:registry-update', (data: { instanceId: string; cid: bigint | null }) => {
-      this.knownInstances.set(data.instanceId, data.cid);
-      debugLog('InstanceManager', `[InstanceManager] Registry updated: ${data.instanceId} -> ${data.cid?.toString()}`);
-    });
+    // There was an 'instance:registry-update' listener here that set the same
+    // entry. Nothing ever emitted it; the registry is really maintained through
+    // registerInstance(), called from channel-messaging and route-by-request-id.
+    // Two ways to write one map, one of them dead.
 
     eventEmitter.on('instance:disconnected', (data: { instanceId: string }) => {
       this.knownInstances.delete(data.instanceId);

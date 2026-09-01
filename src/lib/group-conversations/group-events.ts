@@ -2,7 +2,7 @@
  * Turning internal-service group responses into the events the UI listens for.
  *
  * `use-group-state` subscribes to group:created, group:invite-received,
- * group:member-joined, group:member-left, group:member-kicked and group:deleted.
+ * group:member-joined, group:member-left and group:deleted.
  * NOTHING emitted any of them, and GroupCreateSuccess was handled nowhere, so
  * the group list could never populate: createGroup fired its request, the
  * response was dropped, and the sidebar stayed empty forever.

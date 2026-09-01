@@ -1,9 +1,13 @@
 /**
- * Who is in a group: the `group:member-joined`, `group:member-left` and
- * `group:member-kicked` handlers.
+ * Who is in a group: the `group:member-joined` and `group:member-left`
+ * handlers.
+ *
+ * There was a third, for `group:member-kicked`. MemberState carries only
+ * EnteredGroup and LeftGroup, so a kick reaches us as LeftGroup like any other
+ * departure and that handler could never run.
  *
  * Split out of `group-store.ts` when that file passed the 250-line cap. These
- * three are the only handlers that edit a group's `members` array, and they
+ * two are the only handlers that edit a group's `members` array, and they
  * are the only ones that need `resolveRoleId`, so they cut cleanly.
  */
 import { eventEmitter } from '@/lib/event-emitter';
@@ -74,5 +78,4 @@ export function bindMembershipEvents(): void {
     );
   };
   eventEmitter.on('group:member-left', handleMemberLeft);
-  eventEmitter.on('group:member-kicked', handleMemberLeft);
 }

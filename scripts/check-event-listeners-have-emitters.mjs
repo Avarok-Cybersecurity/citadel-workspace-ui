@@ -42,8 +42,6 @@ const RECORDED_DEAD = new Map([
   ['notification', 'notification-service listens to its own bus name; every real producer calls addNotification directly'],
   ['user:login', 'EventListenerManager base-class example subscriptions; no producer anywhere'],
   ['user:logout', 'as user:login'],
-  ['group:member-kicked', 'ROBUSTNESS.md #206 — kicks are never distinguished from leaves; no emitter exists yet'],
-  ['instance:registry-update', 'ROBUSTNESS.md #230 — knownInstances feeds one debugLog and is always empty'],
 ]);
 
 
