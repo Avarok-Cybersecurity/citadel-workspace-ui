@@ -101,7 +101,16 @@ export class FileTransferIO extends RealProtocolIORouter {
       cid: ownCid,
       peerCid: BigInt(intent.targetCid),
       accept: intent.accepted,
-      downloadLocation: intent.reason, // Using reason as download location in old API
+      // No download location. `intent.reason` used to be passed here, with the
+      // note "using reason as download location in old API" — but `reason` is a
+      // decline/cancel message ("Sender cancelled transfer"), not a path.
+      //
+      // It has cost nothing because the internal service discards the field:
+      // respond_file_transfer.rs destructures `download_location: _` under a
+      // TODO. That is exactly what makes it worth removing now rather than
+      // later — the day someone implements that TODO, this would start writing
+      // files to paths named after decline reasons, and the bug would look like
+      // it came from the server change.
     });
 
     // The protocol respond above reaches only OUR internal service. The
