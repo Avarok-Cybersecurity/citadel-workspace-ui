@@ -12,18 +12,19 @@ import { YjsMerkleTree, computeDocumentHash } from '@/lib/yjs-merkle-strategy';
 import { debugLog } from '@/lib/debug-config';
 
 import type { YjsOrigin, YjsP2PMessage, SyncState, PendingAck } from './types';
-import { PERSISTED_LOAD_ORIGIN } from './types';
 
 /**
  * Did this update come from the person at the keyboard?
  *
- * Only a local edit is worth sending. Everything else on this list arrived from
- * somewhere that already has it, and re-broadcasting it is at best redundant:
- * 'remote' and 'creator-resync' came FROM the peer, 'merkle-reconstruct' is a
- * local rebuild of state we already agreed on, and 'persisted-load' is a restore
- * from storage — which used to be untagged, so opening an editor pushed the
- * whole document at the peer over a transport one message per keystroke already
- * overruns.
+ * Only a local edit is worth sending. 'remote' and 'creator-resync' came FROM
+ * the peer and 'merkle-reconstruct' is a local rebuild of state already agreed
+ * on, so re-broadcasting any of them is redundant.
+ *
+ * A restore from storage is deliberately NOT suppressed. Suppressing it removes
+ * a full-document push at every mount and was tried; it is also the only thing
+ * that carries a restored document to the peer, because nothing re-syncs after
+ * the initial exchange. See
+ * `__tests__/a-restore-from-storage-still-reaches-the-peer.test.ts`.
  *
  * Exported so the tests assert against THIS rule rather than a copy of it. A
  * test carrying its own list would keep passing while this one changed.
@@ -32,8 +33,7 @@ export function isLocalEdit(origin: YjsOrigin): boolean {
   return (
     origin !== 'remote' &&
     origin !== 'merkle-reconstruct' &&
-    origin !== 'creator-resync' &&
-    origin !== PERSISTED_LOAD_ORIGIN
+    origin !== 'creator-resync'
   );
 }
 import { YJS_SYNC_COOLDOWN_MS, YJS_SYNC_RESET_DELAY_MS, YJS_HEALTH_CHECK_INTERVAL_MS } from './constants';
