@@ -12,6 +12,30 @@ import { YjsMerkleTree, computeDocumentHash } from '@/lib/yjs-merkle-strategy';
 import { debugLog } from '@/lib/debug-config';
 
 import type { YjsOrigin, YjsP2PMessage, SyncState, PendingAck } from './types';
+import { PERSISTED_LOAD_ORIGIN } from './types';
+
+/**
+ * Did this update come from the person at the keyboard?
+ *
+ * Only a local edit is worth sending. Everything else on this list arrived from
+ * somewhere that already has it, and re-broadcasting it is at best redundant:
+ * 'remote' and 'creator-resync' came FROM the peer, 'merkle-reconstruct' is a
+ * local rebuild of state we already agreed on, and 'persisted-load' is a restore
+ * from storage — which used to be untagged, so opening an editor pushed the
+ * whole document at the peer over a transport one message per keystroke already
+ * overruns.
+ *
+ * Exported so the tests assert against THIS rule rather than a copy of it. A
+ * test carrying its own list would keep passing while this one changed.
+ */
+export function isLocalEdit(origin: YjsOrigin): boolean {
+  return (
+    origin !== 'remote' &&
+    origin !== 'merkle-reconstruct' &&
+    origin !== 'creator-resync' &&
+    origin !== PERSISTED_LOAD_ORIGIN
+  );
+}
 import { YJS_SYNC_COOLDOWN_MS, YJS_SYNC_RESET_DELAY_MS, YJS_HEALTH_CHECK_INTERVAL_MS } from './constants';
 import { UpdateCoalescer } from './update-coalescer';
 import { sendSyncMessage, sendUpdate, broadcastAwareness , type SendingContext } from './sending';
@@ -103,7 +127,7 @@ export class YjsP2PProvider {
   private setupUpdateHandler(): void {
     this.updateHandler = (update: Uint8Array, origin: YjsOrigin): void => {
       if (this.destroyed) return;
-      if (origin === 'remote' || origin === 'merkle-reconstruct' || origin === 'creator-resync') return;
+      if (!isLocalEdit(origin)) return;
       // Buffered, not sent: one message per keystroke overruns a stop-and-wait
       // transport and the later edits time out waiting for a turn.
       this.coalescer.add(update);

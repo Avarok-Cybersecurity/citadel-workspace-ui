@@ -6,6 +6,8 @@
  */
 
 import * as Y from 'yjs';
+
+import { PERSISTED_LOAD_ORIGIN } from '@/lib/yjs-p2p-provider/types';
 import { sha256Sync } from '@/lib/merkle-tree';
 import { debugLog } from '@/lib/debug-config';
 import type { RevisionEntry } from '@/types/p2p-types';
@@ -171,7 +173,11 @@ export class LiveDocumentStore {
 
     const doc: Y.Doc = targetDoc || new Y.Doc();
     const state: Uint8Array<ArrayBuffer> = new Uint8Array(stored.state);
-    Y.applyUpdate(doc, state);
+    // Tagged: `targetDoc` is usually the editor's doc, which has the P2P
+    // provider attached, and an untagged apply reaches that provider as a LOCAL
+    // edit — so restoring from storage broadcast the whole document on every
+    // mount. See `isLocalEdit` for why nothing is lost by not sending it.
+    Y.applyUpdate(doc, state, PERSISTED_LOAD_ORIGIN);
 
     return doc;
   }

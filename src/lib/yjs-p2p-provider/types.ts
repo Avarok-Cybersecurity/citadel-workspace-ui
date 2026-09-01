@@ -13,6 +13,15 @@
 export type YjsOrigin = string | null | undefined;
 
 /**
+ * Origin for a restore-from-storage apply.
+ *
+ * Lives here, beside `YjsOrigin`, because two modules need the same string: the
+ * store tags its apply with it and the provider tests for it. A literal in each
+ * would be one rename away from a document broadcast returning unnoticed.
+ */
+export const PERSISTED_LOAD_ORIGIN: string = 'persisted-load';
+
+/**
  * Sync message sub-types for proper protocol handling
  */
 export type SyncSubType =
