@@ -21,7 +21,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { PermissionMatrixTable } from '../PermissionMatrixTable';
 import { Permission } from '@/lib/permissions-service/types';
-import { PERMISSION_CATEGORIES, type PermissionDefinition } from '../permission-constants';
+import { ROLE_HIERARCHY, PERMISSION_CATEGORIES, type PermissionDefinition } from '../permission-constants';
 
 describe('the permission matrix', () => {
   it('gives every row a handle that survives a rewording', () => {
@@ -33,6 +33,7 @@ describe('the permission matrix', () => {
         allPermissions={allPermissions}
         rolePermissions={{}}
         togglePermission={vi.fn()}
+        roleColumns={ROLE_HIERARCHY}
       />,
     );
 

@@ -91,6 +91,29 @@ export const ROLE_HIERARCHY: { value: string; label: string; color: string; }[] 
  * These are the server's own role defaults, so what the matrix pre-ticks is what
  * the role actually means rather than a second opinion about it.
  */
+/**
+ * The role columns to render for a member whose role is `role`.
+ *
+ * ROLE_HIERARCHY lists four roles; `UserRole` has six. A member who is Banned,
+ * or holds a Custom role, therefore had NO column in the matrix — and Save
+ * applies exactly one row, the one matching the member's own role. So an admin
+ * could open the editor for such a member, tick boxes, press Save, and get
+ * "Permissions saved successfully" while nothing was sent: the row Save reads
+ * was the untouched one, and every edit had gone to some other role's column.
+ *
+ * Appending the member's own role when it is missing gives those edits
+ * somewhere to land. A control that silently does nothing is worse than an
+ * absent one, because it reports success.
+ */
+export function roleColumnsFor(
+  role: string | undefined,
+): { value: string; label: string; color: string; }[] {
+  if (!role || ROLE_HIERARCHY.some((entry) => entry.value === role)) {
+    return ROLE_HIERARCHY;
+  }
+  return [...ROLE_HIERARCHY, { value: role, label: role, color: 'bg-muted' }];
+}
+
 export function getRoleDefaultPermissions(role: string): string[] {
   return ROLE_DEFAULT_PERMISSIONS[role] ?? [];
 }

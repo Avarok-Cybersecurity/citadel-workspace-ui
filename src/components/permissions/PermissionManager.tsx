@@ -16,8 +16,7 @@ import type { PermissionDefinition } from '@/components/permissions/permission-c
 import {
   PERMISSION_CATEGORIES,
   ROLE_HIERARCHY,
-  getRoleDefaultPermissions,
-} from './permission-constants';
+  getRoleDefaultPermissions, roleColumnsFor } from './permission-constants';
 
 interface PermissionManagerProps {
   userId: string;
@@ -117,6 +116,12 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
     }
   };
 
+  // The member's own role always gets a column, even when it is not one of the
+  // four in ROLE_HIERARCHY — Save applies that row and no other, so without it
+  // every edit lands somewhere Save never reads. See `roleColumnsFor`.
+  const roleColumns: { value: string; label: string; color: string; }[] =
+    roleColumnsFor(load.status === 'loaded' ? load.role : undefined);
+
   const DomainIcon: React.ComponentType<{ className?: string; }> = getEntityMetadata(domainType).icon;
   const allPermissions: [string, PermissionDefinition[]][] = Object.entries(PERMISSION_CATEGORIES);
 
@@ -144,6 +149,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
         allPermissions={allPermissions}
         rolePermissions={rolePermissions}
         togglePermission={togglePermission}
+        roleColumns={roleColumns}
       />
 
       {/* Footer */}

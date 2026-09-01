@@ -15,18 +15,21 @@
 
 import React from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ROLE_HIERARCHY } from './permission-constants';
+
 
 interface PermissionMatrixTableProps {
   allPermissions: [string, { id: string; label: string }[]][];
   rolePermissions: Record<string, Set<string>>;
   togglePermission: (role: string, permissionId: string) => void;
+  /** Which role columns to render — see `roleColumnsFor`. */
+  roleColumns: { value: string; label: string; color: string; }[];
 }
 
 export function PermissionMatrixTable({
   allPermissions,
   rolePermissions,
   togglePermission,
+  roleColumns,
 }: PermissionMatrixTableProps): JSX.Element {
   return (
     <>
@@ -39,7 +42,7 @@ export function PermissionMatrixTable({
           <th scope="col" className="sticky left-0 z-20 bg-background text-left text-xs font-semibold tracking-wider uppercase text-muted-foreground px-3 sm:px-6 py-3 w-[132px] sm:w-[200px] border-b border-border">
             Permission
           </th>
-          {ROLE_HIERARCHY.map(role => (
+          {roleColumns.map(role => (
             <th
               key={role.value}
               scope="col"
@@ -60,7 +63,7 @@ export function PermissionMatrixTable({
             {/* Category header row */}
             <tr>
               <td
-                colSpan={ROLE_HIERARCHY.length + 1}
+                colSpan={roleColumns.length + 1}
                 className="sticky left-0 bg-background px-3 sm:px-6 pt-4 pb-1.5"
               >
                 <span className="text-xs font-semibold tracking-wider uppercase text-primary-accent">
@@ -94,7 +97,7 @@ export function PermissionMatrixTable({
                 >
                   <span className="text-sm text-foreground/80">{permission.label}</span>
                 </th>
-                {ROLE_HIERARCHY.map(role => {
+                {roleColumns.map(role => {
                   const isChecked: boolean = rolePermissions[role.value]?.has(permission.id) ?? false;
                   return (
                     <td key={role.value} className="text-center px-3 py-2">
