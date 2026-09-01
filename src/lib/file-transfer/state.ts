@@ -14,6 +14,7 @@ import {
   FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES,
   REVFS_DEFAULT_QUOTA_BYTES,
 } from '@/types/messaging-layer';
+import { notifyEach } from '@/lib/notify-listeners';
 
 export class FileTransferState {
   // Active transfers by ID
@@ -126,7 +127,11 @@ export class FileTransferState {
   notifyProgressCallbacks(transferId: string, event: TransferProgressEvent): void {
     const callbacks: ((progress: TransferProgressEvent) => void)[] | undefined = this.progressCallbacks.get(transferId);
     if (callbacks) {
-      callbacks.forEach(cb => cb(event));
+      // One subscriber's bug must not stop the others hearing about a transfer.
+      // A bare forEach propagates: the first callback to throw ends the loop, so
+      // every later subscriber stops receiving progress for the rest of the
+      // transfer, and the throw unwinds into whoever reported the progress.
+      notifyEach(callbacks, 'file-transfer progress', event);
     }
   }
 
