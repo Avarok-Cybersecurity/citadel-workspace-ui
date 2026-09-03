@@ -146,6 +146,23 @@ jobs:
           INTERNAL_SERVICE_PORT: '12345'
         run: docker compose up --build sync-wasm-client
 
+      # sync-wasm-client runs as root and bind-mounts this tree read-write. It
+      # runs a Vite build of its own, so it leaves `citadel-workspaces/dist/`
+      # owned by root -- and the next step's `vite build` runs as `runner` and
+      # cannot write into it:
+      #
+      #   Unable to write the service worker file.
+      #   'EACCES: permission denied, open .../citadel-workspaces/dist/sw.js.map'
+      #
+      # Removing rather than chowning: `dist/` is build output with no inputs in
+      # it, the next step regenerates it entirely, and a chown would leave a
+      # half-root tree if the container's layout ever changes. The container
+      # writing into a host tree is the same hazard that has poisoned
+      # `node_modules` here before; this bounds it to one directory.
+      - name: Reclaim the tree the WASM container wrote into
+        if: matrix.project == 'citadel-workspaces'
+        run: sudo rm -rf parent/citadel-workspaces/dist
+
       - name: Landing bundle budget
         if: matrix.project == 'citadel-workspaces'
         run: npm run build && npm run check:bundle
