@@ -6,9 +6,8 @@
  * No P2P sync - operations are local tree + server backend only.
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { RevfsNode } from '@/types/revfs-types';
-import { TreeScope } from '@/types/revfs-types';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { TreeScope , type RevfsNode } from '@/types/revfs-types';
 import { revfsService } from '@/lib/revfs';
 import { serverTreeKey, calculateStorageUsage } from '@/lib/revfs/tree-operations';
 import { eventEmitter } from '@/lib/event-emitter';
@@ -22,21 +21,33 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [serverCapabilities, setServerCapabilities] = useState<ServerCapabilities>(DEFAULT_SERVER_CAPABILITIES);
-  const capabilitiesQueried = useRef(false);
+  const [capabilitiesReceived, setCapabilitiesReceived] = useState(false);
 
-  const key = myCid ? serverTreeKey(myCid) : null;
+  const key: string | null = myCid ? serverTreeKey(myCid) : null;
 
   // Calculate storage usage from tree (server-stored files)
-  const storageUsed = useMemo(() => {
+  const storageUsed: number = useMemo(() => {
     if (!tree) return 0;
     return calculateStorageUsage(tree, TreeScope.Server);
   }, [tree]);
 
   // Query server capabilities on mount
+  //
+  // The guard used to be a ref set on first run — which survived the cleanup
+  // that REMOVED the listener. The file manager flips myCid to null and back on
+  // every Peer/Server toggle, so after one toggle-away the subscription was
+  // gone and the ref short-circuited the re-subscribe: if the server's answer
+  // landed in that window, the UI kept DEFAULT_SERVER_CAPABILITIES — permissive
+  // quota, RE-VFS enabled — for the rest of the session, advertising storage
+  // the server may refuse.
+  //
+  // The guard is now on whether real capabilities have been RECEIVED, which is
+  // the thing it was meant to mean, and it does not outlive the listener.
   useEffect(() => {
-    if (!myCid || capabilitiesQueried.current) return;
+    if (!myCid || capabilitiesReceived) return;
 
-    const handleCapabilities = (data: ServerCapabilities) => {
+    const handleCapabilities = (data: ServerCapabilities): void => {
+      setCapabilitiesReceived(true);
       setServerCapabilities({
         allowServerFileTransfer: data.allowServerFileTransfer,
         allowServerRevfsStorage: data.allowServerRevfsStorage,
@@ -48,19 +59,17 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     // Listen for capabilities response
     eventEmitter.on('server:capabilities:loaded', handleCapabilities);
 
-    // Query server capabilities
-    capabilitiesQueried.current = true;
     workspaceService.getServerCapabilities().catch((err) => {
       debugLog('UseServerRevfsTree', 'Failed to query server capabilities:', err);
       // Keep default capabilities on error
     });
 
-    return () => {
+    return (): void => {
       eventEmitter.off('server:capabilities:loaded', handleCapabilities);
     };
-  }, [myCid]);
+  }, [myCid, capabilitiesReceived]);
 
-  const loadTree = useCallback(async () => {
+  const loadTree: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (!myCid) {
       setTree(null);
       setLoading(false);
@@ -69,7 +78,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     setLoading(true);
     setError(null);
     try {
-      const t = await revfsService.getServerTree(myCid);
+      const t: RevfsNode = await revfsService.getServerTree(myCid);
       setTree(t);
     } catch (err) {
       setError(String(err));
@@ -86,7 +95,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
   // Subscribe to tree changes
   useEffect(() => {
     if (!key) return;
-    const unsub = revfsService.onTreeChanged((changedKey, newTree) => {
+    const unsub: () => void = revfsService.onTreeChanged((changedKey, newTree): void => {
       if (changedKey === key) {
         setTree(newTree);
       }
@@ -94,48 +103,69 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     return unsub;
   }, [key]);
 
-  const mkdir = useCallback(async (path: string) => {
-    if (!myCid) return;
+  const mkdir: (path: string) => Promise<boolean> = useCallback(async (path: string): Promise<boolean> => {
+    // No session: nothing was written, so nothing was accepted.
+    if (!myCid) return false;
     await revfsService.serverMkdir(myCid, path);
+    // The server throws on failure, so reaching here IS the acknowledgement.
+    return true;
   }, [myCid]);
 
-  const rmdir = useCallback(async (path: string) => {
-    if (!myCid) return;
+  const rmdir: (path: string) => Promise<boolean> = useCallback(async (path: string): Promise<boolean> => {
+    // No session: nothing was written, so nothing was accepted.
+    if (!myCid) return false;
     await revfsService.serverRmdir(myCid, path);
+    // The server throws on failure, so reaching here IS the acknowledgement.
+    return true;
   }, [myCid]);
 
-  const uploadFile = useCallback(async (dirPath: string, fileName: string, metadata: Parameters<typeof revfsService.uploadFileToServer>[3]) => {
-    if (!myCid) return;
-    await revfsService.uploadFileToServer(myCid, dirPath, fileName, metadata);
+  const uploadFile: (dirPath: string, fileName: string, metadata: Parameters<typeof revfsService.uploadFileToServer>[3], content: Uint8Array) => Promise<boolean> = useCallback(async (dirPath: string, fileName: string, metadata: Parameters<typeof revfsService.uploadFileToServer>[3], content: Uint8Array): Promise<boolean> => {
+    // No session: nothing was written, so nothing was accepted.
+    if (!myCid) return false;
+    await revfsService.uploadFileToServer(myCid, dirPath, fileName, metadata, content);
+    // The server throws on failure, so reaching here IS the acknowledgement.
+    return true;
   }, [myCid]);
 
-  const downloadFile = useCallback(async (filePath: string) => {
+  const downloadFile: (filePath: string) => Promise<string | undefined> = useCallback(async (filePath: string): Promise<string | undefined> => {
     if (!myCid) return undefined;
     return revfsService.downloadFileFromServer(myCid, filePath);
   }, [myCid]);
 
-  const removeFile = useCallback(async (filePath: string) => {
-    if (!myCid) return;
+  const removeFile: (filePath: string) => Promise<boolean> = useCallback(async (filePath: string): Promise<boolean> => {
+    // No session: nothing was written, so nothing was accepted.
+    if (!myCid) return false;
     await revfsService.removeFileFromServer(myCid, filePath);
+    // The server throws on failure, so reaching here IS the acknowledgement.
+    return true;
   }, [myCid]);
 
-  const rename = useCallback(async (path: string, newName: string) => {
-    if (!myCid) return;
+  const rename: (path: string, newName: string) => Promise<boolean> = useCallback(async (path: string, newName: string): Promise<boolean> => {
+    // No session: nothing was written, so nothing was accepted.
+    if (!myCid) return false;
     await revfsService.serverRename(myCid, path, newName);
+    // The server throws on failure, so reaching here IS the acknowledgement.
+    return true;
   }, [myCid]);
 
-  const move = useCallback(async (sourcePath: string, destParentPath: string) => {
-    if (!myCid) return;
+  const move: (sourcePath: string, destParentPath: string) => Promise<boolean> = useCallback(async (sourcePath: string, destParentPath: string): Promise<boolean> => {
+    // No session: nothing was written, so nothing was accepted.
+    if (!myCid) return false;
     await revfsService.serverMove(myCid, sourcePath, destParentPath);
+    // The server throws on failure, so reaching here IS the acknowledgement.
+    return true;
   }, [myCid]);
 
-  const copy = useCallback(async (sourcePath: string, destParentPath: string) => {
-    if (!myCid) return;
+  const copy: (sourcePath: string, destParentPath: string) => Promise<boolean> = useCallback(async (sourcePath: string, destParentPath: string): Promise<boolean> => {
+    // No session: nothing was written, so nothing was accepted.
+    if (!myCid) return false;
     await revfsService.serverCopy(myCid, sourcePath, destParentPath);
+    // The server throws on failure, so reaching here IS the acknowledgement.
+    return true;
   }, [myCid]);
 
   // Convert MB quota to bytes
-  const storageQuota = serverCapabilities.revfsStorageQuotaMb * 1024 * 1024;
+  const storageQuota: number = serverCapabilities.revfsStorageQuotaMb * 1024 * 1024;
 
   return {
     tree,

@@ -9,13 +9,12 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { RoleColorPicker } from './RoleColorPicker';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import type { GroupPermissions } from '@/types/group';
-import { DEFAULT_MEMBER_PERMISSIONS } from '@/types/group';
-import { PRESET_COLORS, PERMISSION_LABELS } from './GroupRoleEditorConstants';
-import type { GroupRoleEditorProps } from './GroupRoleEditorConstants';
+import { DEFAULT_MEMBER_PERMISSIONS , type GroupPermissions } from '@/types/group';
+import { PERMISSION_LABELS , type GroupRoleEditorProps } from './GroupRoleEditorConstants';
 
 // ============================================================================
 // Component
@@ -28,9 +27,14 @@ export function GroupRoleEditor({
   existingRoles,
   suggestedPosition,
   onSave,
-}: GroupRoleEditorProps) {
-  const isEditing = !!role;
-  const isBuiltIn = role?.isBuiltIn ?? false;
+}: GroupRoleEditorProps): JSX.Element {
+  // NOT annotated, and it is the one on this screen that cannot be.
+  //
+  // Since TS 4.4 a `const` holding a condition narrows what it tested, so
+  // Tested against `role` directly where the role's own fields are read; the
+  // boolean is for labels only, which is why it can now carry a type.
+  const isEditing: boolean = role !== null;
+  const isBuiltIn: boolean = role?.isBuiltIn ?? false;
 
   // Initialize state
   const [name, setName] = useState(role?.name || '');
@@ -42,25 +46,27 @@ export function GroupRoleEditor({
   const [isDefault, setIsDefault] = useState(role?.isDefault ?? false);
 
   // Validation
-  const isPositionValid = useMemo(() => {
+  // `ReturnType<typeof useMemo>` said nothing: useMemo is generic, so that
+  // resolves to nothing useful. This is a validity flag.
+  const isPositionValid: boolean = useMemo((): boolean => {
     if (position < 1 || position > 99) return false;
     return !existingRoles.some(
       r => r.position === position && r.id !== role?.id
     );
   }, [position, existingRoles, role]);
 
-  const isNameValid = name.trim().length > 0;
-  const canSave = isNameValid && isPositionValid;
+  const isNameValid: boolean = name.trim().length > 0;
+  const canSave: boolean = isNameValid && isPositionValid;
 
   // Handlers
-  const handlePermissionChange = useCallback(
+  const handlePermissionChange: (key: keyof GroupPermissions, checked: boolean) => void = useCallback(
     (key: keyof GroupPermissions, checked: boolean) => {
       setPermissions(prev => ({ ...prev, [key]: checked }));
     },
     []
   );
 
-  const handleSave = useCallback(() => {
+  const handleSave: () => void = useCallback((): void => {
     if (!canSave) return;
 
     onSave({
@@ -72,18 +78,18 @@ export function GroupRoleEditor({
     });
   }, [canSave, name, position, color, permissions, isDefault, onSave]);
 
-  const handleClose = useCallback(() => {
+  const handleClose: () => void = useCallback((): void => {
     onOpenChange(false);
   }, [onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[450px] bg-[#1C1D28] border-[#2D3548] text-white max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[450px] bg-background border-border text-foreground max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-white">
-            {isEditing ? `Edit Role: ${role.name}` : 'Create New Role'}
+          <DialogTitle className="text-foreground">
+            {role ? `Edit Role: ${role.name}` : 'Create New Role'}
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-muted-foreground">
             {isBuiltIn
               ? 'Built-in roles can only have their name and color changed.'
               : 'Configure the role name, position, and permissions.'}
@@ -93,7 +99,7 @@ export function GroupRoleEditor({
         <div className="space-y-5 py-4">
           {/* Name */}
           <div className="space-y-2">
-            <Label htmlFor="roleName" className="text-sm text-gray-300">
+            <Label htmlFor="roleName" className="text-sm text-foreground/80">
               Role Name
             </Label>
             <Input
@@ -101,13 +107,13 @@ export function GroupRoleEditor({
               placeholder="e.g., Moderator"
               value={name}
               onChange={e => setName(e.target.value)}
-              className="bg-[#262C4A] border-[#3D4663] text-white placeholder:text-gray-500"
+              className="bg-surface border-border text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
           {/* Position (disabled for built-in roles) */}
           <div className="space-y-2">
-            <Label htmlFor="rolePosition" className="text-sm text-gray-300">
+            <Label htmlFor="rolePosition" className="text-sm text-foreground/80">
               Position (1-99, higher = more authority)
             </Label>
             <Input
@@ -118,52 +124,27 @@ export function GroupRoleEditor({
               value={position}
               onChange={e => setPosition(parseInt(e.target.value) || 0)}
               disabled={isBuiltIn}
-              className={`bg-[#262C4A] border-[#3D4663] text-white ${
-                !isPositionValid ? 'border-red-500' : ''
+              className={`bg-surface border-border text-foreground ${
+                !isPositionValid ? 'border-destructive' : ''
               } ${isBuiltIn ? 'opacity-50' : ''}`}
             />
             {!isPositionValid && (
-              <p className="text-xs text-red-400">
+              <p className="text-xs text-destructive-emphasis">
                 Position must be unique and between 1-99
               </p>
             )}
           </div>
 
           {/* Color */}
-          <div className="space-y-2">
-            <Label className="text-sm text-gray-300">Role Color (optional)</Label>
-            <div className="flex flex-wrap gap-2">
-              {PRESET_COLORS.map(presetColor => (
-                <button
-                  key={presetColor}
-                  onClick={() => setColor(presetColor)}
-                  className={`w-7 h-7 rounded-full transition-all ${
-                    color === presetColor
-                      ? 'ring-2 ring-offset-2 ring-offset-[#1C1D28] ring-white'
-                      : 'hover:scale-110'
-                  }`}
-                  style={{ backgroundColor: presetColor }}
-                />
-              ))}
-              <button
-                onClick={() => setColor('')}
-                className={`w-7 h-7 rounded-full border-2 border-dashed border-gray-500 text-xs text-gray-500 ${
-                  !color ? 'ring-2 ring-offset-2 ring-offset-[#1C1D28] ring-white' : ''
-                }`}
-                title="No color"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
+          <RoleColorPicker color={color} onChange={setColor} />
 
-          <Separator className="bg-[#3D4663]" />
+          <Separator className="bg-border" />
 
           {/* Permissions (disabled for built-in roles) */}
           <div className="space-y-3">
-            <Label className="text-sm text-gray-300">Permissions</Label>
+            <Label className="text-sm text-foreground/80">Permissions</Label>
             {isBuiltIn && (
-              <p className="text-xs text-amber-500">
+              <p className="text-xs text-warning-emphasis">
                 Built-in role permissions cannot be modified.
               </p>
             )}
@@ -173,7 +154,7 @@ export function GroupRoleEditor({
                   <div
                     key={key}
                     className={`flex items-start gap-3 p-2 rounded ${
-                      isBuiltIn ? 'opacity-50' : 'hover:bg-[#262C4A]'
+                      isBuiltIn ? 'opacity-50' : 'hover:bg-surface'
                     }`}
                   >
                     <Checkbox
@@ -183,16 +164,16 @@ export function GroupRoleEditor({
                         handlePermissionChange(key, !!checked)
                       }
                       disabled={isBuiltIn}
-                      className="mt-0.5 border-[#3D4663] data-[state=checked]:bg-[#6E59A5] data-[state=checked]:border-[#6E59A5]"
+                      className="mt-0.5 border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                     />
                     <div className="flex-1">
                       <label
                         htmlFor={`perm-${key}`}
-                        className="text-sm font-medium text-white cursor-pointer"
+                        className="text-sm font-medium text-foreground cursor-pointer"
                       >
                         {PERMISSION_LABELS[key].label}
                       </label>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-muted-foreground">
                         {PERMISSION_LABELS[key].description}
                       </p>
                     </div>
@@ -202,21 +183,22 @@ export function GroupRoleEditor({
             </div>
           </div>
 
-          <Separator className="bg-[#3D4663]" />
+          <Separator className="bg-border" />
 
           {/* Default Role Toggle */}
-          <div className="flex items-center justify-between p-2 rounded hover:bg-[#262C4A]">
+          <div className="flex items-center justify-between p-2 rounded hover:bg-surface">
             <div>
-              <Label className="text-sm text-white">Set as Default Role</Label>
-              <p className="text-xs text-gray-400">
+              <Label htmlFor="default-role" className="text-sm text-foreground">Set as Default Role</Label>
+              <p className="text-xs text-muted-foreground">
                 New members will be assigned this role when they join
               </p>
             </div>
             <Checkbox
+              id="default-role"
               checked={isDefault}
               onCheckedChange={checked => setIsDefault(!!checked)}
               disabled={isBuiltIn}
-              className="border-[#3D4663] data-[state=checked]:bg-[#6E59A5] data-[state=checked]:border-[#6E59A5]"
+              className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
             />
           </div>
         </div>
@@ -225,14 +207,14 @@ export function GroupRoleEditor({
           <Button
             variant="outline"
             onClick={handleClose}
-            className="bg-transparent border-[#3D4663] text-white hover:bg-[#262C4A]"
+            className="bg-transparent border-border text-foreground hover:bg-surface"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSave}
             disabled={!canSave}
-            className="bg-[#6E59A5] hover:bg-[#5D4A94] text-white"
+            className="bg-primary text-primary-foreground"
           >
             {isEditing ? 'Save Changes' : 'Create Role'}
           </Button>

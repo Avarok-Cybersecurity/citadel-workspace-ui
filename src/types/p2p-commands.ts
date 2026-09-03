@@ -9,11 +9,9 @@
 import { encode as cborEncode, decode as cborDecode } from 'cbor-x';
 import type { MessageType } from './message-protocol';
 import type { MessagingLayer } from './messaging-layer';
-import {
-  MessagingLayerType,
-  serializeMessagingLayer,
-  deserializeMessagingLayer
-} from './messaging-layer';
+import type { CallSignalPayload } from './call-signals';
+
+
 
 // Re-export MessagingLayer types for convenience
 export type { MessagingLayer } from './messaging-layer';
@@ -35,7 +33,14 @@ export enum P2PCommandType {
    * integration test never reached a stable sync state. Routing Yjs
    * through `P2PCommand` makes one decode path the single source of
    * truth and drops the wire-format ambiguity entirely. */
-  YjsP2PSync = "YjsP2PSync"
+  YjsP2PSync = "YjsP2PSync",
+  /** Call control: invite, accept, decline, end, and in-call state changes.
+   *
+   * Signalling rides the RELIABLE path deliberately, while the media it sets up
+   * rides the lossy UDP one. The two have opposite requirements: losing a video
+   * frame costs a sixtieth of a second, losing a "call ended" leaves both sides
+   * staring at a call that is over. */
+  CallSignal = "CallSignal"
 }
 
 export interface P2PMessagingLayerPayload {
@@ -114,11 +119,32 @@ export interface P2PAttachment {
   thumbnail?: string;
 }
 
+// Call-signalling types live in call-signals.ts; re-exported so existing
+// import sites keep working.
+export type {
+  CallMediaKinds,
+  CallCodecCapabilities,
+  CallDeclineReason,
+  CallEndReason,
+  CallSignalPayload,
+} from './call-signals';
+export {
+  CALL_TRACK_AUDIO,
+  CALL_TRACK_VIDEO,
+  CALL_TRACK_VIDEO_THUMBNAIL,
+  CALL_TRACK_SCREEN,
+  CALL_KIND_AUDIO,
+  CALL_KIND_VIDEO,
+  CALL_FLAG_KEYFRAME,
+  CALL_FLAG_DISCARDABLE,
+  isCallSignalPayload,
+} from './call-signals';
+
 export interface P2PCommand {
   type: P2PCommandType;
   payload: P2PMessagingLayerPayload | P2PMessageAckPayload |
            P2PFileTransferRequestPayload | P2PFileTransferChunkPayload | P2PFileTransferCompletePayload |
-           P2PYjsSyncPayload;
+           P2PYjsSyncPayload | CallSignalPayload;
 }
 
 // Type guards for payload discrimination

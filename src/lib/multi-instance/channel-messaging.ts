@@ -10,8 +10,7 @@ import { instanceManager } from './instance-manager';
 import { outboundQueue } from './outbound-queue';
 import { debugLog } from '@/lib/debug-config';
 import type { ChannelMessage } from './channel-types';
-import type { LeaderElectionState } from './channel-leader-election';
-import { sendHeartbeat } from './channel-leader-election';
+import { sendHeartbeat , type LeaderElectionState } from './channel-leader-election';
 
 // ── Outbound Request (Follower -> Leader) ─────────────────────────────────
 
@@ -57,14 +56,30 @@ export function handleInboundForward(message: ChannelMessage): void {
   eventEmitter.emit('channel:inbound-message', {
     payload: message.payload,
     senderInstanceId: message.senderInstanceId,
+    requestId: message.requestId,
+  });
+}
+
+/**
+ * A forwarded message reached an attached handler in the target tab.
+ *
+ * Deliberately NOT routed through `outboundQueue.acknowledge`: that queue's
+ * retry semantics are follower-to-leader, and its unknown-id path would log
+ * noise for every inbound ack.
+ */
+export function handleInboundAck(message: ChannelMessage): void {
+  if (!message.requestId) return;
+  eventEmitter.emit('channel:inbound-ack', {
+    requestId: message.requestId,
+    senderInstanceId: message.senderInstanceId,
   });
 }
 
 // ── Instance Announce ─────────────────────────────────────────────────────
 
 export function handleInstanceAnnounce(state: LeaderElectionState, message: ChannelMessage): void {
-  const announcePayload = message.payload as Record<string, unknown> | undefined;
-  const cid = (announcePayload?.cid as bigint | null) || null;
+  const announcePayload: Record<string, unknown> | undefined = message.payload as Record<string, unknown> | undefined;
+  const cid: bigint | null = (announcePayload?.cid as bigint | null) || null;
   debugLog('InstanceChannel', `handleInstanceAnnounce: from=${message.senderInstanceId}, cid=${cid?.toString()}`);
 
   instanceManager.registerInstance(message.senderInstanceId, cid);
@@ -102,8 +117,8 @@ export function handleSessionRelease(message: ChannelMessage): void {
     return;
   }
 
-  const releasePayload = message.payload as Record<string, unknown> | undefined;
-  const releaseCid = releasePayload?.cid;
+  const releasePayload: Record<string, unknown> | undefined = message.payload as Record<string, unknown> | undefined;
+  const releaseCid: unknown = releasePayload?.cid;
   if (!releaseCid) {
     debugLog('InstanceChannel', 'Received session-release without CID');
     return;
@@ -116,13 +131,43 @@ export function handleSessionRelease(message: ChannelMessage): void {
 // ── CID Update ────────────────────────────────────────────────────────────
 
 export function handleCidUpdate(message: ChannelMessage): void {
-  const cidPayload = message.payload as Record<string, unknown> | undefined;
-  const cidValue = cidPayload?.cid;
-  const cidBigInt = cidValue ? BigInt(cidValue as string) : null;
+  const cidPayload: Record<string, unknown> | undefined = message.payload as Record<string, unknown> | undefined;
+  const cidValue: unknown = cidPayload?.cid;
+  const cidBigInt: bigint | null = cidValue ? BigInt(cidValue as string) : null;
 
   instanceManager.registerInstance(message.senderInstanceId, cidBigInt);
 
   debugLog('InstanceChannel',
     `[InstanceChannel] CID update from ${message.senderInstanceId}: ${cidBigInt?.toString() || 'null'}`
   );
+}
+
+/**
+ * Re-send a queued outbound request after a leader change.
+ *
+ * `BroadcastChannel.postMessage` never delivers to the posting context, and the
+ * inbound path filters self-traffic anyway — so when the tab that owns the queue
+ * IS the new leader, posting to 'leader' addressed nobody and the replay was a
+ * black hole. The comment on the retry subscription describes a recovery that
+ * only worked when some OTHER tab won the election.
+ */
+export function replayOutboundRequest(
+  requestId: string,
+  payload: unknown,
+  send: (message: ChannelMessage) => void
+): void {
+  const message: ChannelMessage = {
+    type: 'outbound-request',
+    targetInstanceId: 'leader',
+    senderInstanceId: instanceManager.instanceId,
+    timestamp: Date.now(),
+    requestId,
+    payload,
+  };
+
+  if (instanceManager.isLeader) {
+    handleOutboundRequest(message);
+    return;
+  }
+  send(message);
 }

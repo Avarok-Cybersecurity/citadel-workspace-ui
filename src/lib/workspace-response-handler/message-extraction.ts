@@ -17,7 +17,7 @@ import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
  * Returns `null` when the message is not workspace-relevant (e.g. P2P-only).
  */
 export function extractWorkspaceResponse(raw: unknown): WorkspaceProtocolResponse | null {
-  const message = narrowWebSocketMessage(raw);
+  const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
   if (!message) return null;
   return extractFromMessage(message);
 }
@@ -27,7 +27,7 @@ export function extractWorkspaceResponse(raw: unknown): WorkspaceProtocolRespons
  */
 function extractFromMessage(message: WebSocketMessage): WorkspaceProtocolResponse | null {
   // Cast to record for multi-variant optional chaining
-  const msg = message as Record<string, Record<string, unknown> | undefined>;
+  const msg: Record<string, Record<string, unknown> | undefined> = message as Record<string, Record<string, unknown> | undefined>;
 
   // --- MessageNotification ---
   if (msg.MessageNotification) {
@@ -59,8 +59,8 @@ function extractFromNotification(
 
   // P2P guard: peer_cid !== 0 && peer_cid !== cid => let p2p-messenger-manager handle it
   if (notification.peer_cid && notification.cid) {
-    const peerCidStr = String(notification.peer_cid);
-    const cidStr = String(notification.cid);
+    const peerCidStr: string = String(notification.peer_cid);
+    const cidStr: string = String(notification.cid);
 
     if (peerCidStr !== '0' && peerCidStr !== cidStr) {
       debugLog('WorkspaceResponseHandler', 'P2P message from peer, skipping workspace parsing', {
@@ -100,9 +100,9 @@ function decodeByteArrayPayload(
   }
 
   try {
-    const contentBytes = new Uint8Array(field as number[]);
-    const contentStr = bytesToString(contentBytes);
-    const workspacePayload = JSON.parse(contentStr);
+    const contentBytes: Uint8Array<ArrayBuffer> = new Uint8Array(field as number[]);
+    const contentStr: string = bytesToString(contentBytes);
+    const workspacePayload: ReturnType<typeof JSON.parse> = JSON.parse(contentStr);
 
     if (workspacePayload.Response) {
       return workspacePayload.Response as WorkspaceProtocolResponse;

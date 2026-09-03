@@ -14,13 +14,13 @@ interface PskDialogProps {
   onSave: () => void;
 }
 
-export const PskDialog = ({ open, onOpenChange, psk, onPskChange, onSave }: PskDialogProps) => {
+export const PskDialog = ({ open, onOpenChange, psk, onPskChange, onSave }: PskDialogProps): JSX.Element => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#282A42] text-white border-[#3D3F5A]">
+      <DialogContent className="bg-card text-foreground border-surface">
         <DialogHeader>
           <DialogTitle>Enter Pre-Shared Key (PSK)</DialogTitle>
-          <DialogDescription className="text-gray-300">
+          <DialogDescription className="text-foreground/80">
             Please enter your PSK for header obfuscation.
           </DialogDescription>
         </DialogHeader>
@@ -29,21 +29,21 @@ export const PskDialog = ({ open, onOpenChange, psk, onPskChange, onSave }: PskD
           placeholder="Enter your PSK"
           value={psk}
           onChange={(e) => onPskChange(e.target.value)}
-          className="bg-[#3B3D57] border-[#4D4F6C] text-white"
+          className="bg-surface border-border text-foreground"
         />
         <DialogFooter>
           <Button
             type="button"
             variant="ghost"
             onClick={() => onOpenChange(false)}
-            className="text-white hover:bg-purple-500/20"
+            className="text-foreground hover:bg-primary-accent/20"
           >
             Cancel
           </Button>
           <Button
             type="submit"
             onClick={onSave}
-            className="bg-purple-600 hover:bg-purple-700 text-white"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             Save
           </Button>

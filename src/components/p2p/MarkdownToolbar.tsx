@@ -17,7 +17,7 @@ import {
   Eye,
   Edit,
 } from 'lucide-react';
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 
 interface MarkdownToolbarProps {
   visible: boolean;
@@ -34,15 +34,20 @@ interface ToolbarButtonProps {
   active?: boolean;
 }
 
-function ToolbarButton({ icon, onClick, title, active = false }: ToolbarButtonProps) {
+function ToolbarButton({ icon, onClick, title, active = false }: ToolbarButtonProps): JSX.Element {
   return (
     <button
       type="button"
       onClick={onClick}
+      /* Bold, Italic, Quote, Code and Preview are toggles whose on-state was a
+         background colour and nothing else. A screen reader could not tell
+         whether Bold was on, and heard nothing change when it was pressed. */
+      aria-pressed={active}
+      aria-label={title}
       className={`p-1.5 rounded transition-colors ${
         active
-          ? 'bg-[#6E59A5] text-white'
-          : 'hover:bg-white/10 text-gray-400 hover:text-white'
+          ? 'bg-primary text-primary-foreground'
+          : 'hover:bg-foreground/10 text-muted-foreground hover:text-foreground'
       }`}
       title={title}
     >
@@ -51,26 +56,26 @@ function ToolbarButton({ icon, onClick, title, active = false }: ToolbarButtonPr
   );
 }
 
-function Separator() {
-  return <div className="w-px h-5 bg-gray-600/50 mx-1" />;
+function Separator(): JSX.Element {
+  return <div className="w-px h-5 bg-border mx-1" />;
 }
 
-export function MarkdownToolbar({ visible, onFormat, showPreview, onTogglePreview }: MarkdownToolbarProps) {
-  const formatHandlers = {
-    bold: () => onFormat('bold', '**', '**'),
-    italic: () => onFormat('italic', '*', '*'),
-    strike: () => onFormat('strike', '~~', '~~'),
-    superscript: () => onFormat('superscript', '<sup>', '</sup>'),
-    subscript: () => onFormat('subscript', '<sub>', '</sub>'),
-    h1: () => onFormat('h1', '# ', ''),
-    h2: () => onFormat('h2', '## ', ''),
-    h3: () => onFormat('h3', '### ', ''),
-    bullet: () => onFormat('bullet', '- ', ''),
-    numbered: () => onFormat('numbered', '1. ', ''),
-    link: () => onFormat('link', '[', '](url)'),
-    table: () => onFormat('table', '\n| Header | Header |\n|--------|--------|\n| Cell | Cell |\n', ''),
-    code: () => onFormat('code', '```\n', '\n```'),
-    quote: () => onFormat('quote', '> ', ''),
+export function MarkdownToolbar({ visible, onFormat, showPreview, onTogglePreview }: MarkdownToolbarProps): JSX.Element {
+  const formatHandlers: { bold: () => void; italic: () => void; strike: () => void; superscript: () => void; subscript: () => void; h1: () => void; h2: () => void; h3: () => void; bullet: () => void; numbered: () => void; link: () => void; table: () => void; code: () => void; quote: () => void; } = {
+    bold: (): void => onFormat('bold', '**', '**'),
+    italic: (): void => onFormat('italic', '*', '*'),
+    strike: (): void => onFormat('strike', '~~', '~~'),
+    superscript: (): void => onFormat('superscript', '<sup>', '</sup>'),
+    subscript: (): void => onFormat('subscript', '<sub>', '</sub>'),
+    h1: (): void => onFormat('h1', '# ', ''),
+    h2: (): void => onFormat('h2', '## ', ''),
+    h3: (): void => onFormat('h3', '### ', ''),
+    bullet: (): void => onFormat('bullet', '- ', ''),
+    numbered: (): void => onFormat('numbered', '1. ', ''),
+    link: (): void => onFormat('link', '[', '](url)'),
+    table: (): void => onFormat('table', '\n| Header | Header |\n|--------|--------|\n| Cell | Cell |\n', ''),
+    code: (): void => onFormat('code', '```\n', '\n```'),
+    quote: (): void => onFormat('quote', '> ', ''),
   };
 
   return (
@@ -81,7 +86,7 @@ export function MarkdownToolbar({ visible, onFormat, showPreview, onTogglePrevie
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
-          className="overflow-hidden border-t border-[#262C4A]/50 bg-[#1a1b26]"
+          className="overflow-hidden border-t border-surface/50 bg-background"
         >
           <div className="flex flex-wrap items-center gap-0.5 p-2">
             {/* Text formatting */}
@@ -194,24 +199,24 @@ export function useMarkdownFormat(
   inputRef: React.RefObject<HTMLTextAreaElement | HTMLInputElement>,
   setValue: (value: string) => void,
   getValue: () => string
-) {
-  const handleFormat = useCallback((format: string, prefix: string, suffix: string) => {
-    const input = inputRef.current;
+): (format: string, prefix: string, suffix: string) => void {
+  const handleFormat: (format: string, prefix: string, suffix: string) => void = useCallback((format: string, prefix: string, suffix: string): void => {
+    const input: HTMLInputElement | HTMLTextAreaElement | null = inputRef.current;
     if (!input) return;
 
-    const start = input.selectionStart || 0;
-    const end = input.selectionEnd || 0;
-    const text = getValue();
-    const selectedText = text.substring(start, end);
+    const start: number = input.selectionStart || 0;
+    const end: number = input.selectionEnd || 0;
+    const text: string = getValue();
+    const selectedText: string = text.substring(start, end);
 
     // Insert format around selection or at cursor
-    const newText = text.substring(0, start) + prefix + selectedText + suffix + text.substring(end);
+    const newText: string = text.substring(0, start) + prefix + selectedText + suffix + text.substring(end);
     setValue(newText);
 
     // Restore cursor position after the inserted text
     setTimeout(() => {
       input.focus();
-      const newCursorPos = selectedText
+      const newCursorPos: number = selectedText
         ? start + prefix.length + selectedText.length + suffix.length
         : start + prefix.length;
       input.setSelectionRange(newCursorPos, newCursorPos);

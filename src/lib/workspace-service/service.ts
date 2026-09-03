@@ -13,9 +13,9 @@ import type {
   UpdateOperationTS,
   UserRoleTS,
 } from '@/types/workspace-protocol';
+import { failOnSocketLoss } from '../websocket/request-response';
 import { websocketService } from '@/lib/websocket-service';
-import type { WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
-import { isVariant } from 'citadel-workspace-client-ts';
+import { isVariant , type WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
 
@@ -61,9 +61,9 @@ export class WorkspaceService implements ProtocolSender {
       debugLog('WorkspaceService', '[WorkspaceService] Sending payload:', payload);
       let request: WorkspaceProtocolRequest;
       if (isVariant(payload as Record<string, unknown>, 'Request') && payload.Request) {
-        const tsRequest = payload.Request;
+        const tsRequest: WorkspaceProtocolRequestTS = payload.Request;
         if (isVariant(tsRequest as Record<string, unknown>, 'GetWorkspace')) {
-          const wsReq = tsRequest.GetWorkspace;
+          const wsReq: { workspace_id?: string | null; } | null | undefined = tsRequest.GetWorkspace;
           request = {
             GetWorkspace: {
               workspace_id: (wsReq && typeof wsReq === 'object' && 'workspace_id' in wsReq) ? wsReq.workspace_id ?? null : null
@@ -72,7 +72,7 @@ export class WorkspaceService implements ProtocolSender {
         } else if (typeof tsRequest === 'string' && tsRequest === 'ListWorkspaces') {
           request = 'ListWorkspaces';
         } else if (isVariant(tsRequest as Record<string, unknown>, 'CreateWorkspace')) {
-          const req = tsRequest.CreateWorkspace!;
+          const req: { name: string; description: string; workspace_master_password: string; metadata?: number[]; } = tsRequest.CreateWorkspace!;
           request = {
             CreateWorkspace: {
               name: req.name,
@@ -82,7 +82,7 @@ export class WorkspaceService implements ProtocolSender {
             }
           };
         } else if (isVariant(tsRequest as Record<string, unknown>, 'UpdateWorkspace')) {
-          const req = tsRequest.UpdateWorkspace!;
+          const req: { workspace_id?: string | null; name?: string; description?: string; workspace_master_password: string; metadata?: number[]; } = tsRequest.UpdateWorkspace!;
           request = {
             UpdateWorkspace: {
               workspace_id: req.workspace_id ?? null,
@@ -112,38 +112,40 @@ export class WorkspaceService implements ProtocolSender {
   }
 
   // Workspace operations
-  public loadWorkspace() { return ws.loadWorkspace(this); }
-  public getWorkspace(id?: string) { return ws.getWorkspace(this, id); }
-  public listWorkspaces() { return ws.listWorkspaces(this); }
-  public createWorkspace(n: string, d: string, p: string, m?: Uint8Array) { return ws.createWorkspace(this, n, d, p, m); }
-  public updateWorkspace(n?: string, d?: string, p?: string, m?: Uint8Array) { return ws.updateWorkspace(this, n, d, p, m); }
+  public loadWorkspace(): Promise<void> { return ws.loadWorkspace(this); }
+  public getWorkspace(id?: string): Promise<void> { return ws.getWorkspace(this, id); }
+  public listWorkspaces(): Promise<void> { return ws.listWorkspaces(this); }
+  public createWorkspace(n: string, d: string, p: string, m?: Uint8Array): Promise<void> { return ws.createWorkspace(this, n, d, p, m); }
+  public updateWorkspace(n?: string, d?: string, p?: string, m?: Uint8Array): Promise<void> { return ws.updateWorkspace(this, n, d, p, m); }
+  public updateWorkspaceTheme(theme: Uint8Array, workspaceId?: string): Promise<void> { return ws.updateWorkspaceTheme(this, theme, workspaceId); }
 
   // Member operations
-  public addMember(userId: string, role: UserRoleTS, domainId?: string, metadata?: Uint8Array) { return members.addMember(this, userId, role, domainId, metadata); }
-  public getMember(userId: string) { return members.getMember(this, userId); }
-  public updateMemberRole(userId: string, role: string, metadata?: Uint8Array) { return members.updateMemberRole(this, userId, role, metadata); }
-  public updateMemberPermissions(userId: string, domainId: string, perms: PermissionTS[], op: UpdateOperationTS) { return members.updateMemberPermissions(this, userId, domainId, perms, op); }
-  public removeMember(userId: string, domainId?: string) { return members.removeMember(this, userId, domainId); }
-  public listMembers(domainId?: string) { return members.listMembers(this, domainId); }
-  public getUserPermissions(userId: string, domainId: string) { return members.getUserPermissions(this, userId, domainId); }
+  public addMember(userId: string, role: UserRoleTS, domainId?: string, metadata?: Uint8Array): Promise<void> { return members.addMember(this, userId, role, domainId, metadata); }
+  public getMember(userId: string): Promise<void> { return members.getMember(this, userId); }
+  public updateMemberRole(userId: string, role: string, metadata?: Uint8Array): Promise<unknown> { return members.updateMemberRole(this, userId, role, metadata); }
+  public updateMemberPermissions(userId: string, domainId: string, perms: PermissionTS[], op: UpdateOperationTS): Promise<void> { return members.updateMemberPermissions(this, userId, domainId, perms, op); }
+  public removeMember(userId: string, domainId?: string): Promise<void> { return members.removeMember(this, userId, domainId); }
+  public listMembers(domainId?: string): Promise<void> { return members.listMembers(this, domainId); }
+  public getUserPermissions(userId: string, domainId: string): Promise<void> { return members.getUserPermissions(this, userId, domainId); }
 
   // Messaging operations
-  public sendMessage(contents: Uint8Array) { return messaging.sendMessage(this, contents); }
-  public sendGroupMessage(gId: string, content: string, type?: GroupMessageTypeTS, replyTo?: string, mentions?: string[]) { return messaging.sendGroupMessage(this, gId, content, type, replyTo, mentions); }
-  public editGroupMessage(gId: string, mId: string, content: string) { return messaging.editGroupMessage(this, gId, mId, content); }
-  public deleteGroupMessage(gId: string, mId: string) { return messaging.deleteGroupMessage(this, gId, mId); }
-  public getGroupMessages(gId: string, before?: number | bigint, limit?: number) { return messaging.getGroupMessages(this, gId, before, limit); }
-  public getThreadMessages(gId: string, parentId: string) { return messaging.getThreadMessages(this, gId, parentId); }
-  public updateUserProfile(name?: string, avatarData?: string) { return messaging.updateUserProfile(this, name, avatarData); }
+  public sendMessage(contents: Uint8Array): Promise<void> { return messaging.sendMessage(this, contents); }
+  public sendGroupMessage(gId: string, content: string, type?: GroupMessageTypeTS, replyTo?: string, mentions?: string[]): Promise<void> { return messaging.sendGroupMessage(this, gId, content, type, replyTo, mentions); }
+  public editGroupMessage(gId: string, mId: string, content: string): Promise<void> { return messaging.editGroupMessage(this, gId, mId, content); }
+  public deleteGroupMessage(gId: string, mId: string): Promise<void> { return messaging.deleteGroupMessage(this, gId, mId); }
+  public getGroupMessages(gId: string, before?: number | bigint, limit?: number): Promise<void> { return messaging.getGroupMessages(this, gId, before, limit); }
+  public getThreadMessages(gId: string, parentId: string): Promise<void> { return messaging.getThreadMessages(this, gId, parentId); }
+  public updateUserProfile(name?: string, avatarData?: string): Promise<void> { return messaging.updateUserProfile(this, name, avatarData); }
 
   // Node operations
-  public createNode(parentId: string | null, entityType: { Child: string } | 'Workspace', name: string, desc: string, opts?: { mdxContent?: string; metadata?: Uint8Array; isDefault?: boolean }) { return nodes.createNode(this, parentId, entityType, name, desc, opts); }
-  public updateNode(nodeId: string, updates: { name?: string; description?: string; mdxContent?: string; rules?: string; chatEnabled?: boolean; isDefault?: boolean }) { return nodes.updateNode(this, nodeId, updates); }
-  public deleteNode(nodeId: string, cascade?: boolean) { return nodes.deleteNode(this, nodeId, cascade); }
-  public listNodes(parentId?: string | null, entityTypes?: Array<{ Child: string } | 'Workspace'>) { return nodes.listNodes(this, parentId, entityTypes); }
-  public getTreeStructure(rootId?: string, maxDepth?: number) { return nodes.getTreeStructure(this, rootId, maxDepth); }
-  public getTreeSchema() { return nodes.getTreeSchema(this); }
-  public getServerCapabilities() { return nodes.getServerCapabilities(this); }
+  public createNode(parentId: string | null, entityType: { Child: string } | 'Workspace', name: string, desc: string, opts?: { mdxContent?: string; metadata?: Uint8Array; isDefault?: boolean }): Promise<void> { return nodes.createNode(this, parentId, entityType, name, desc, opts); }
+  public updateNode(nodeId: string, updates: { name?: string; description?: string; mdxContent?: string; rules?: string; chatEnabled?: boolean; isDefault?: boolean }): Promise<void> { return nodes.updateNode(this, nodeId, updates); }
+  public deleteNode(nodeId: string, cascade?: boolean): Promise<void> { return nodes.deleteNode(this, nodeId, cascade); }
+  public moveNode(nodeId: string, newParentId: string | null): Promise<void> { return nodes.moveNode(this, nodeId, newParentId); }
+  public listNodes(parentId?: string | null, entityTypes?: Array<{ Child: string } | 'Workspace'>): Promise<void> { return nodes.listNodes(this, parentId, entityTypes); }
+  public getTreeStructure(rootId?: string, maxDepth?: number): Promise<void> { return nodes.getTreeStructure(this, rootId, maxDepth); }
+  public getTreeSchema(): Promise<void> { return nodes.getTreeSchema(this); }
+  public getServerCapabilities(): Promise<void> { return nodes.getServerCapabilities(this); }
 
   public cleanup(): void { /* Any cleanup needed */ }
 
@@ -154,18 +156,18 @@ export class WorkspaceService implements ProtocolSender {
       throw new Error('No active connection available. Please connect first.');
     }
     debugLog('WorkspaceService', '[WorkspaceService] sendRequest (raw):', JSON.stringify(request).substring(0, 200));
-    const requestType = typeof request === 'string' ? request : Object.keys(request)[0];
-    const expectedResponseTypes = this.getExpectedResponseTypes(requestType);
+    const requestType: string = typeof request === 'string' ? request : Object.keys(request)[0];
+    const expectedResponseTypes: string[] = this.getExpectedResponseTypes(requestType);
 
-    const responsePromise = new Promise<unknown>((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
+    const responsePromise: Promise<unknown> = new Promise<unknown>((resolve, reject): void => {
+      const timeoutId: NodeJS.Timeout = setTimeout((): void => {
         eventEmitter.off('workspace:raw-response', handler);
         reject(new Error(`Request timed out after ${timeoutMs}ms waiting for response to ${requestType}`));
       }, timeoutMs);
 
-      const handler = (response: unknown) => {
+      const handler = (response: unknown): void => {
         if (response && typeof response === 'object') {
-          const responseType = Object.keys(response)[0];
+          const responseType: string = Object.keys(response)[0];
           if (expectedResponseTypes.includes(responseType) || responseType === 'Error') {
             clearTimeout(timeoutId);
             eventEmitter.off('workspace:raw-response', handler);
@@ -177,7 +179,7 @@ export class WorkspaceService implements ProtocolSender {
     });
 
     await websocketService.sendWorkspaceRequest(this._currentCid, request);
-    return responsePromise;
+    return failOnSocketLoss(requestType, responsePromise);
   }
 
   private getExpectedResponseTypes(requestType: string): string[] {

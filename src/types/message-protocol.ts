@@ -33,7 +33,7 @@ export interface TextMessageData {
   timestamp: number;             // Unix timestamp
   replyTo?: string;             // ID of message being replied to
   mentions?: string[];          // User IDs mentioned in the message
-  metadata?: Record<string, any>; // Additional metadata
+  metadata?: Record<string, unknown>; // Additional metadata
   // Live document specific fields (only when message_type === 'live_document')
   document_id?: string;          // Unique ID for the collaborative document
   document_title?: string;       // User-provided title for the document
@@ -47,7 +47,7 @@ export interface FileMessageData {
   thumbnailUrl?: string;
   downloadUrl: string;
   timestamp: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface MessageDeliveredData {
@@ -117,7 +117,7 @@ export class MessageProtocol {
    * Serialize a message event to bytes for transmission
    */
   static serialize(event: MessageEventType): Uint8Array {
-    const json = JSON.stringify(event);
+    const json: string = JSON.stringify(event);
     return new TextEncoder().encode(json);
   }
 
@@ -125,7 +125,7 @@ export class MessageProtocol {
    * Deserialize bytes back to a message event
    */
   static deserialize(bytes: Uint8Array): MessageEventType {
-    const json = new TextDecoder().decode(bytes);
+    const json: string = new TextDecoder().decode(bytes);
     return JSON.parse(json);
   }
 
@@ -136,7 +136,7 @@ export class MessageProtocol {
     messageType?: MessageType;
     replyTo?: string;
     mentions?: string[];
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     documentId?: string;
     documentTitle?: string;
   }): MessageEventType {

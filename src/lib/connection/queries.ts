@@ -6,37 +6,68 @@
  */
 
 import type { ConnectionState } from './state';
+import { failOnSocketLoss } from '../websocket/request-response';
 import type { ConnectionIO } from './io';
-import type { ActiveSession } from '@/types/session-types';
+import type { ActiveSession, StoredSession } from '@/types/session-types';
 import {
   WEBSOCKET_INIT_TIMEOUT_MS,
   GET_SESSIONS_TIMEOUT_MS,
 } from './constants';
 import { debugLog } from '@/lib/debug-config';
+import type { TabSelectionContext } from '@/lib/connection/types';
+
+/**
+ * The outcome of asking the internal service which sessions exist.
+ *
+ * `ok: false` means the question could not be asked or was not answered — the
+ * socket was not up, the tab could not send, or the response timed out. It does
+ * NOT mean there are no sessions, and the two must never be conflated: this
+ * query is how the app decides whether the user is logged in.
+ */
+export interface ActiveSessionsResult {
+  ok: boolean;
+  sessions: ActiveSession[];
+}
 
 /**
  * Get active sessions with caching and deduplication.
+ *
+ * Keeps the lenient contract its eight callers were written against — an empty
+ * array on failure — because most of them genuinely want best effort. Callers
+ * that must not read a failure as "you have no sessions" use
+ * `getActiveSessionsResult` instead.
  */
 export async function getActiveSessions(
   state: ConnectionState,
   io: ConnectionIO,
 ): Promise<ActiveSession[]> {
-  const cached = state.cachedSessions;
+  return (await getActiveSessionsResult(state, io)).sessions;
+}
+
+export async function getActiveSessionsResult(
+  state: ConnectionState,
+  io: ConnectionIO,
+): Promise<ActiveSessionsResult> {
+  const cached: ActiveSession[] | null = state.cachedSessions;
   if (cached && state.isCacheValid()) {
-    return cached;
+    return { ok: true, sessions: cached };
   }
 
-  const pending = state.pendingGetSessions;
+  const pending: Promise<ActiveSessionsResult> | null = state.pendingGetSessions;
   if (pending) {
     return pending;
   }
 
-  const fetchPromise = fetchActiveSessions(state, io);
+  const fetchPromise: Promise<ActiveSessionsResult> = fetchActiveSessions(state, io);
   state.setPendingGetSessions(fetchPromise);
 
   try {
-    const result = await fetchPromise;
-    state.setCachedSessions(result);
+    const result: ActiveSessionsResult = await fetchPromise;
+    // A failure is not an answer, so it is not cached. It used to be: one
+    // timeout produced an empty list that every later call returned instantly
+    // for the whole cache window, without re-asking. That is what turned a
+    // transient hiccup into a logged-out-looking app that would not recover.
+    if (result.ok) state.setCachedSessions(result.sessions);
     return result;
   } finally {
     state.setPendingGetSessions(null);
@@ -46,9 +77,14 @@ export async function getActiveSessions(
 async function fetchActiveSessions(
   state: ConnectionState,
   io: ConnectionIO,
-): Promise<ActiveSession[]> {
+): Promise<ActiveSessionsResult> {
   try {
-    if (!io.isWebSocketConnected()) {
+    // canSendRequests, not isConnected. A FOLLOWER tab never owns a WASM client
+    // — that is by design — so `isConnected` is false forever there, and this
+    // returned [] WITHOUT ever sending GetSessions, then cached the empty
+    // answer. A second tab in the same browser therefore showed the logged-out
+    // landing page with no Active Sessions strip, permanently.
+    if (!io.canSendRequests()) {
       try {
         await Promise.race([
           io.waitForWebSocketInit(),
@@ -57,17 +93,17 @@ async function fetchActiveSessions(
           ),
         ]);
       } catch {
-        return [];
+        return { ok: false, sessions: [] };
       }
 
-      if (!io.isWebSocketConnected()) {
-        return [];
+      if (!io.canSendRequests()) {
+        return { ok: false, sessions: [] };
       }
     }
 
-    const requestId = crypto.randomUUID();
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
 
-    const responsePromise = new Promise<{ sessions?: ActiveSession[] }>((resolve, reject) => {
+    const responsePromise: Promise<{ sessions?: ActiveSession[]; }> = new Promise<{ sessions?: ActiveSession[] }>((resolve, reject): void => {
       state.setPendingRequest(requestId, { resolve: resolve as (value: unknown) => void, reject });
 
       setTimeout(() => {
@@ -80,11 +116,11 @@ async function fetchActiveSessions(
 
     await io.sendWebSocketMessage({ GetSessions: { request_id: requestId } });
 
-    const response = await responsePromise;
-    return response.sessions || [];
+    const response: { sessions?: ActiveSession[]; } = await failOnSocketLoss('GetSessions', responsePromise);
+    return { ok: true, sessions: response.sessions || [] };
   } catch (error) {
     debugLog('ConnectionService', 'Failed to get active sessions', error);
-    return [];
+    return { ok: false, sessions: [] };
   }
 }
 
@@ -95,9 +131,9 @@ export async function getTabActiveSessionIndex(
   state: ConnectionState,
   io: ConnectionIO,
 ): Promise<number> {
-  const tabSelection = await io.getSelectedUser();
+  const tabSelection: TabSelectionContext | null = await io.getSelectedUser();
   if (tabSelection?.selectedUsername && tabSelection?.selectedServerAddress) {
-    const index = state.findSessionIndex(
+    const index: number = state.findSessionIndex(
       tabSelection.selectedUsername,
       tabSelection.selectedServerAddress
     );
@@ -118,14 +154,14 @@ export async function handleConnectFailure(
   getActiveSessionsFn: () => Promise<ActiveSession[]>,
 ): Promise<void> {
   debugLog('ConnectionService', 'ConnectionManager: Received ConnectFailure:', failure);
-  const errorMessage = failure.message || '';
+  const errorMessage: string = failure.message || '';
 
   if (!errorMessage.toLowerCase().includes('session already connected')) {
     return;
   }
 
   debugLog('ConnectionService', 'ConnectionManager: Session already connected error detected');
-  const extractedCid = state.extractCidFromErrorMessage(errorMessage);
+  const extractedCid: string | null = state.extractCidFromErrorMessage(errorMessage);
 
   if (extractedCid) {
     debugLog('ConnectionService', 'ConnectionManager: Existing session CID from message:', extractedCid);
@@ -135,13 +171,13 @@ export async function handleConnectFailure(
 
   debugLog('ConnectionService', 'ConnectionManager: No CID in error message, fetching active sessions...');
   try {
-    const activeSessions = await getActiveSessionsFn();
+    const activeSessions: ActiveSession[] = await getActiveSessionsFn();
     debugLog('ConnectionService', 'ConnectionManager: Active sessions after error:', activeSessions);
 
-    const activeIndex = state.getActiveSessionIndex();
-    const currentSession = state.storedSessions.sessions[activeIndex];
+    const activeIndex: number = state.getActiveSessionIndex();
+    const currentSession: StoredSession = state.storedSessions.sessions[activeIndex];
 
-    const matchingSession = activeSessions.find(
+    const matchingSession: ActiveSession | undefined = activeSessions.find(
       (s) =>
         currentSession &&
         s.username === currentSession.username &&

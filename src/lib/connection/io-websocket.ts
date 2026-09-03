@@ -11,7 +11,8 @@
 // live bindings — reading `wsModule.websocketService` is deferred until call time,
 // by which point the cycle has fully resolved and the singleton is initialized.
 import * as wsModule from '../websocket-service';
-import { safeJSONStringify } from '../storage-utils';
+import { failOnSocketLoss } from '../websocket/request-response';
+import { persistJSON, parsePersistedJSON } from '../storage-utils';
 import { formatForDebug } from '../debug-formatter';
 import { stringToBytes, bytesToString } from '../utils/encoding-utils';
 import type { SessionSecuritySettings } from '../p2p-registration-service';
@@ -64,8 +65,15 @@ export class ConnectionIOWebSocket {
     await wsModule.websocketService.sendMessage(message as Record<string, unknown>);
   }
 
-  isWebSocketConnected(): boolean {
-    return wsModule.websocketService.isConnected();
+  // `isWebSocketConnected` used to live here, forwarding `isConnected()` --
+  // which asks whether THIS tab owns a WASM client and is false in every
+  // follower for ever. It had no callers at all, so it was a trap rather than a
+  // bug: the next caller would have gated a send on it, exactly as four other
+  // call sites already had. `canSendRequests` below is the question to ask.
+
+  /** Whether a request can reach the internal service — see core.canSendRequests. */
+  canSendRequests(): boolean {
+    return wsModule.websocketService.canSendRequests();
   }
 
   async waitForWebSocketInit(): Promise<void> {
@@ -107,18 +115,20 @@ export class ConnectionIOWebSocket {
   }
 
   async storeSessionsToLocalDB(sessions: StoredSessions): Promise<void> {
-    const valueStr = safeJSONStringify(sessions);
+    const valueStr: string = persistJSON(sessions);
     debugLog('ConnectionIO', 'Storing sessions, serialized:', formatForDebug(valueStr));
-    const valueBytes = stringToBytes(valueStr);
+    const valueBytes: number[] = stringToBytes(valueStr);
     await this.localDBSet(0n, SESSION_STORAGE_KEY, valueBytes);
   }
 
   async loadSessionsFromLocalDB(): Promise<StoredSessions | null> {
-    const result = await this.localDBGet(0n, SESSION_STORAGE_KEY);
+    const result: { value: number[]; } | null = await this.localDBGet(0n, SESSION_STORAGE_KEY);
     if (result && result.value) {
       try {
-        const jsonStr = bytesToString(result.value);
-        return JSON.parse(jsonStr) as StoredSessions;
+        const jsonStr: string = bytesToString(result.value);
+        // StoredSession.cid is a bigint and exists specifically so an orphaned
+        // session can be reclaimed; a bare JSON.parse gave it back as a string.
+        return parsePersistedJSON<StoredSessions>(jsonStr, ['cid']);
       } catch (decodeError) {
         debugLog('ConnectionIO', 'Failed to decode stored sessions:', decodeError);
         return null;
@@ -138,7 +148,7 @@ export class ConnectionIOWebSocket {
   ): Promise<GetSessionsResponse> {
     const request: GetSessionsRequest = { request_id: requestId };
 
-    const responsePromise = new Promise<GetSessionsResponse>((resolve, reject) => {
+    const responsePromise: Promise<GetSessionsResponse> = new Promise<GetSessionsResponse>((resolve, reject) => {
       pendingRequests.set(requestId, { resolve: resolve as (value: unknown) => void, reject });
 
       setTimeout(() => {
@@ -150,6 +160,6 @@ export class ConnectionIOWebSocket {
     });
 
     await this.sendWebSocketMessage({ GetSessions: request });
-    return responsePromise;
+    return failOnSocketLoss('GetSessions', responsePromise);
   }
 }

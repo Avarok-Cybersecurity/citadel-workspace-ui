@@ -22,6 +22,23 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-screenshots/*
+# Anchored to the root. A bare `screenshots/` matches the directory at ANY
+# depth, which silently swallowed public/screenshots — shipped assets the PWA
+# manifest points at, so the install card would have 404'd in production.
+/screenshots/*
 integration-tests/screenshots/*
 public/wasm/*
+# Test artifacts (never commit — regenerated on every run)
+test-screenshots/
+/screenshots/
+reports/
+test-results/
+integration-tests/test-results/
+integration-tests/reports/
+integration-tests/screenshots/
+playwright-report/
+integration-tests/playwright-report/
+*.tsbuildinfo
+
+# Local test config (use test.config.example.json as the template)
+integration-tests/test.config.json

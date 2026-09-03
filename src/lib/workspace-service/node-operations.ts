@@ -6,6 +6,9 @@
  */
 
 import type { WorkspaceProtocolRequestTS } from '@/types/workspace-protocol';
+import { workspaceResponseHandler } from '@/lib/workspace-response-handler';
+import { awaitWriteResponse } from './await-write-response';
+import { aboutNode, newChildOf, nodeWithId } from './response-matchers';
 import type { ProtocolSender } from './workspace-operations';
 
 /**
@@ -30,7 +33,16 @@ export async function createNode(
       is_default: options?.isDefault,
     },
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER has accepted it, not when the frame leaves.
+  // A refusal arrives as a response, which cannot reject a send-only promise —
+  // so this used to report success for writes the server was about to refuse.
+  // The matcher is not optional now that the server broadcasts `Node` to every
+  // other member: without it, any other member's tree write resolves this one.
+  return awaitWriteResponse(
+    'CreateNode',
+    () => sender.sendProtocolRequest(requestPart),
+    newChildOf(parentId, name),
+  );
 }
 
 /**
@@ -59,7 +71,14 @@ export async function updateNode(
       is_default: updates.isDefault,
     },
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER has accepted it, not when the frame leaves.
+  // A refusal arrives as a response, which cannot reject a send-only promise —
+  // so this used to report success for writes the server was about to refuse.
+  return awaitWriteResponse(
+    'UpdateNode',
+    () => sender.sendProtocolRequest(requestPart),
+    nodeWithId(nodeId),
+  );
 }
 
 /**
@@ -73,7 +92,14 @@ export async function deleteNode(
   const requestPart: WorkspaceProtocolRequestTS = {
     DeleteNode: { node_id: nodeId, cascade },
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER has accepted it, not when the frame leaves.
+  // A refusal arrives as a response, which cannot reject a send-only promise —
+  // so this used to report success for writes the server was about to refuse.
+  return awaitWriteResponse(
+    'DeleteNode',
+    () => sender.sendProtocolRequest(requestPart),
+    aboutNode(nodeId),
+  );
 }
 
 /**
@@ -84,6 +110,13 @@ export async function listNodes(
   parentId?: string | null,
   entityTypes?: Array<{ Child: string } | 'Workspace'>,
 ): Promise<void> {
+  // `state.loading.nodes` had no writer at all, so it was permanently false and
+  // TreeNodesSection's guard — `if (!isLoading && !treeData)` — fired on every
+  // workspace open, telling the user "Your workspace is empty. Click the + button
+  // to create your first space." while the tree was still in flight. The
+  // "Loading..." arm inside that branch is unreachable by construction, which is
+  // why it read as correct.
+  workspaceResponseHandler.emitLoadingEvent('nodes:loading');
   const requestPart: WorkspaceProtocolRequestTS = {
     ListNodes: {
       parent_id: parentId,
@@ -128,4 +161,34 @@ export async function getServerCapabilities(sender: ProtocolSender): Promise<voi
     GetServerCapabilities: null
   };
   return sender.sendProtocolRequest(requestPart);
+}
+
+/**
+ * Move a node to a different parent.
+ *
+ * `MoveNode` has been fully plumbed on both sides for a long time: typed in the
+ * protocol, permission-gated in the kernel, broadcast to other members,
+ * gate-mapped in `SUCCESS_RESPONSES`, and handled by the client's node event
+ * setup. It had no client method and no UI, so reorganising a workspace was
+ * simply impossible — a whole capability built from both ends and never joined
+ * in the middle.
+ *
+ * `null` moves the node to the workspace root.
+ */
+export async function moveNode(
+  sender: ProtocolSender,
+  nodeId: string,
+  newParentId: string | null,
+): Promise<void> {
+  const requestPart: WorkspaceProtocolRequestTS = {
+    MoveNode: {
+      node_id: nodeId,
+      new_parent_id: newParentId,
+    },
+  };
+  return awaitWriteResponse(
+    'MoveNode',
+    () => sender.sendProtocolRequest(requestPart),
+    aboutNode(nodeId),
+  );
 }

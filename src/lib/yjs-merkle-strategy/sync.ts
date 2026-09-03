@@ -1,100 +1,25 @@
 /**
- * YJS Sync Decision Helper
+ * The document hash the Yjs provider puts on the wire.
  *
- * Determines sync actions based on Merkle comparison, plus
- * document hash utility functions.
+ * This file used to also export `determineSyncAction` — a complete,
+ * plausible-looking chunk-level sync strategy (targeted sync, creator
+ * authority, full resync) — and `computeStateVectorHash`. Neither had a single
+ * caller anywhere, tests included. The provider does its own hash comparison
+ * and creator-authority recovery, so the strategy described a mechanism that
+ * was never wired: a reader could take it for how sync decisions are made and
+ * be entirely wrong. Removed for the same reason the dead sync kernel and the
+ * one-ended hash_check protocol were.
  */
 
 import * as Y from 'yjs';
 import { sha256Sync } from '../merkle-tree';
-import type { YjsMerkleProof } from './tree';
-import type { YjsMerkleTree } from './tree';
 
-/**
- * Decision result for sync operations
- */
-export interface SyncDecision {
-  action: 'none' | 'send_update' | 'request_update' | 'send_chunks' | 'request_chunks' | 'full_resync';
-  divergedChunks: number[];
-  isCreatorAuthority: boolean;
-  reason: string;
-}
-
-/**
- * Helper to determine sync action based on Merkle comparison
- */
-export function determineSyncAction(
-  localTree: YjsMerkleTree,
-  remoteProof: YjsMerkleProof,
-  myCid: string
-): SyncDecision {
-  const localHash = localTree.getRootHash();
-  const remoteHash = remoteProof.rootHash;
-
-  // In sync - nothing to do
-  if (localHash === remoteHash) {
-    return {
-      action: 'none',
-      divergedChunks: [],
-      isCreatorAuthority: false,
-      reason: 'Already in sync',
-    };
-  }
-
-  // Find diverged chunks
-  const diverged = localTree.findDivergedChunks(remoteProof);
-  const isCreator = localTree.isCreator(myCid);
-
-  // Few chunks diverged - targeted sync
-  if (diverged.length > 0 && diverged.length <= localTree.getProof().leafCount / 2) {
-    if (isCreator) {
-      return {
-        action: 'send_chunks',
-        divergedChunks: diverged,
-        isCreatorAuthority: true,
-        reason: `Creator sending ${diverged.length} diverged chunks`,
-      };
-    } else {
-      return {
-        action: 'request_chunks',
-        divergedChunks: diverged,
-        isCreatorAuthority: false,
-        reason: `Collaborator requesting ${diverged.length} chunks from creator`,
-      };
-    }
-  }
-
-  // Major divergence - full resync with creator authority
-  if (isCreator) {
-    return {
-      action: 'full_resync',
-      divergedChunks: [],
-      isCreatorAuthority: true,
-      reason: 'Creator authority: full state broadcast',
-    };
-  } else {
-    return {
-      action: 'full_resync',
-      divergedChunks: [],
-      isCreatorAuthority: false,
-      reason: 'Collaborator: requesting full state from creator',
-    };
-  }
-}
 
 /**
  * Compute hash of a YJS document's current state
  * Useful for quick comparison without full Merkle tree
  */
 export function computeDocumentHash(doc: Y.Doc): string {
-  const state = Y.encodeStateAsUpdate(doc);
+  const state: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(doc);
   return sha256Sync(state);
-}
-
-/**
- * Compute state vector hash (for sync step comparison)
- */
-export function computeStateVectorHash(doc: Y.Doc): string {
-  const sv = Y.encodeStateVector(doc);
-  return sha256Sync(sv);
 }

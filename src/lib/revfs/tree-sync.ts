@@ -12,32 +12,41 @@ import {
   PROTECTED_DIRS,
 } from '@/types/revfs-types';
 import {
-  normalizePath,
   parentPath,
   baseName,
   cloneTree,
   findNode,
   flipNodeStates,
+  rebasePath,
 } from './tree-queries';
+import { applied, refused, type RemoteOpOutcome } from './remote-op-outcome';
+import { applyRelocation } from './tree-relocation';
 
 // ============================================================================
 // Apply Remote Operation
 // ============================================================================
 
-export function applyRemoteOp(
+export function applyRemoteOpWithOutcome(
   tree: RevfsNode,
   op: RevfsOperation,
   _viewerCid: bigint,
-): RevfsNode {
-  const newTree = cloneTree(tree);
+): RemoteOpOutcome {
+  const newTree: RevfsNode = cloneTree(tree);
+
+  // Move and Copy live in tree-relocation.ts; see its header for why the pair
+  // is kept together.
+  const relocated: RemoteOpOutcome | null = applyRelocation(newTree, op);
+  if (relocated) return relocated;
 
   switch (op.op_type) {
     case RevfsOpType.Mkdir: {
-      const parent = parentPath(op.path);
-      const name = baseName(op.path);
-      const parentNode = findNode(newTree, parent);
-      if (!parentNode || parentNode.type !== 'directory') return newTree;
-      if (findNode(newTree, op.path)) return newTree; // idempotent
+      const parent: string = parentPath(op.path);
+      const name: string = baseName(op.path);
+      const parentNode: RevfsNode | null = findNode(newTree, parent);
+      if (!parentNode || parentNode.type !== 'directory') return refused(newTree);
+      // Idempotent: the directory it asked for is already there, so the
+      // intended end state holds and the sender may retire the op.
+      if (findNode(newTree, op.path)) return applied(newTree);
       if (!parentNode.children) parentNode.children = [];
       parentNode.children.push({
         name,
@@ -52,11 +61,11 @@ export function applyRemoteOp(
     }
 
     case RevfsOpType.Rmdir: {
-      if (PROTECTED_DIRS.has(op.path)) return newTree;
-      const parent = parentPath(op.path);
-      const parentNode = findNode(newTree, parent);
-      if (!parentNode?.children) return newTree;
-      const idx = parentNode.children.findIndex(c => c.path === op.path);
+      if (PROTECTED_DIRS.has(op.path)) return refused(newTree);
+      const parent: string = parentPath(op.path);
+      const parentNode: RevfsNode | null = findNode(newTree, parent);
+      if (!parentNode?.children) return refused(newTree);
+      const idx: number = parentNode.children.findIndex(c => c.path === op.path);
       if (idx >= 0) {
         parentNode.children.splice(idx, 1);
         parentNode.updatedAt = op.timestamp;
@@ -65,16 +74,19 @@ export function applyRemoteOp(
     }
 
     case RevfsOpType.PlaceFile: {
-      if (!op.metadata) return newTree;
-      const parent = parentPath(op.path);
-      const name = baseName(op.path);
-      const parentNode = findNode(newTree, parent);
-      if (!parentNode || parentNode.type !== 'directory') return newTree;
+      if (!op.metadata) return refused(newTree);
+      const parent: string = parentPath(op.path);
+      const name: string = baseName(op.path);
+      const parentNode: RevfsNode | null = findNode(newTree, parent);
+      if (!parentNode || parentNode.type !== 'directory') return refused(newTree);
       if (!parentNode.children) parentNode.children = [];
 
-      const fileState = op.metadata.uploadedByCid === _viewerCid
-        ? RevfsFileState.Hosted
-        : RevfsFileState.Remote;
+      // Same inversion as tree-mutations.ts `placeFile` — see the note there.
+      // Whoever uploaded holds the decryptable copy's address (Remote); whoever
+      // received the bytes is the one hosting them.
+      const fileState: RevfsFileState = op.metadata.uploadedByCid === _viewerCid
+        ? RevfsFileState.Remote
+        : RevfsFileState.Hosted;
 
       const fileNode: RevfsNode = {
         name,
@@ -86,7 +98,7 @@ export function applyRemoteOp(
         updatedAt: op.timestamp,
       };
 
-      const existingIdx = parentNode.children.findIndex(c => c.path === op.path);
+      const existingIdx: number = parentNode.children.findIndex(c => c.path === op.path);
       if (existingIdx >= 0) {
         parentNode.children[existingIdx] = fileNode;
       } else {
@@ -97,10 +109,10 @@ export function applyRemoteOp(
     }
 
     case RevfsOpType.RemoveFile: {
-      const parent = parentPath(op.path);
-      const parentNode = findNode(newTree, parent);
-      if (!parentNode?.children) return newTree;
-      const idx = parentNode.children.findIndex(c => c.path === op.path);
+      const parent: string = parentPath(op.path);
+      const parentNode: RevfsNode | null = findNode(newTree, parent);
+      if (!parentNode?.children) return refused(newTree);
+      const idx: number = parentNode.children.findIndex(c => c.path === op.path);
       if (idx >= 0) {
         parentNode.children.splice(idx, 1);
         parentNode.updatedAt = op.timestamp;
@@ -110,29 +122,29 @@ export function applyRemoteOp(
 
     case RevfsOpType.SyncResponse: {
       if (op.tree) {
-        return flipNodeStates(cloneTree(op.tree));
+        return applied(flipNodeStates(cloneTree(op.tree)));
       }
       break;
     }
 
     case RevfsOpType.Rename: {
-      if (!op.newName) return newTree;
-      if (PROTECTED_DIRS.has(op.path)) return newTree;
+      if (!op.newName) return refused(newTree);
+      if (PROTECTED_DIRS.has(op.path)) return refused(newTree);
 
-      const parent = parentPath(op.path);
-      const parentNode = findNode(newTree, parent);
-      if (!parentNode?.children) return newTree;
+      const parent: string = parentPath(op.path);
+      const parentNode: RevfsNode | null = findNode(newTree, parent);
+      if (!parentNode?.children) return refused(newTree);
 
-      const idx = parentNode.children.findIndex(c => c.path === op.path);
-      if (idx < 0) return newTree;
+      const idx: number = parentNode.children.findIndex(c => c.path === op.path);
+      if (idx < 0) return refused(newTree);
 
-      const node = parentNode.children[idx];
-      const newPath = parent === '/' ? `/${op.newName}` : `${parent}/${op.newName}`;
+      const node: RevfsNode = parentNode.children[idx];
+      const newPath: string = parent === '/' ? `/${op.newName}` : `${parent}/${op.newName}`;
 
-      if (parentNode.children.some(c => c.path === newPath)) return newTree;
+      if (parentNode.children.some(c => c.path === newPath)) return refused(newTree);
 
       const updatePaths = (n: RevfsNode, oldBasePath: string, newBasePath: string): void => {
-        n.path = n.path.replace(oldBasePath, newBasePath);
+        n.path = rebasePath(n.path, oldBasePath, newBasePath);
         n.updatedAt = op.timestamp;
         if (n.children) {
           for (const child of n.children) {
@@ -147,93 +159,24 @@ export function applyRemoteOp(
       break;
     }
 
-    case RevfsOpType.Move: {
-      if (!op.destPath) return newTree;
-      if (PROTECTED_DIRS.has(op.path)) return newTree;
-
-      const sourceParent = parentPath(op.path);
-      const sourceParentNode = findNode(newTree, sourceParent);
-      if (!sourceParentNode?.children) return newTree;
-
-      const sourceIdx = sourceParentNode.children.findIndex(c => c.path === op.path);
-      if (sourceIdx < 0) return newTree;
-
-      const destParentPathVal = parentPath(op.destPath);
-      const destParentNode = findNode(newTree, destParentPathVal);
-      if (!destParentNode || destParentNode.type !== 'directory') return newTree;
-
-      if (!destParentNode.children) destParentNode.children = [];
-
-      const destName = baseName(op.destPath);
-      if (destParentNode.children.some(c => c.name === destName)) return newTree;
-
-      const [movedNode] = sourceParentNode.children.splice(sourceIdx, 1);
-      sourceParentNode.updatedAt = op.timestamp;
-
-      const updatePaths = (n: RevfsNode, oldBasePath: string, newBasePath: string): void => {
-        n.path = n.path.replace(oldBasePath, newBasePath);
-        n.updatedAt = op.timestamp;
-        if (n.children) {
-          for (const child of n.children) {
-            updatePaths(child, oldBasePath, newBasePath);
-          }
-        }
-      };
-
-      updatePaths(movedNode, op.path, op.destPath);
-
-      destParentNode.children.push(movedNode);
-      destParentNode.updatedAt = op.timestamp;
-      break;
-    }
-
-    case RevfsOpType.Copy: {
-      if (!op.destPath) return newTree;
-      if (PROTECTED_DIRS.has(op.path)) return newTree;
-
-      const sourceNode = findNode(newTree, op.path);
-      if (!sourceNode) return newTree;
-
-      const destParentPathVal = parentPath(op.destPath);
-      const destParentNode = findNode(newTree, destParentPathVal);
-      if (!destParentNode || destParentNode.type !== 'directory') return newTree;
-
-      if (!destParentNode.children) destParentNode.children = [];
-
-      const destName = baseName(op.destPath);
-      if (destParentNode.children.some(c => c.name === destName)) return newTree;
-
-      const copyWithNewPaths = (node: RevfsNode, oldBasePath: string, newBasePath: string): RevfsNode => {
-        const copy: RevfsNode = {
-          ...node,
-          name: node.path === oldBasePath ? destName : node.name,
-          path: node.path.replace(oldBasePath, newBasePath),
-          createdAt: op.timestamp,
-          updatedAt: op.timestamp,
-        };
-
-        if (node.path === oldBasePath && op.metadata) {
-          copy.fileMetadata = op.metadata;
-        }
-
-        if (node.children) {
-          copy.children = node.children.map(child =>
-            copyWithNewPaths(child, oldBasePath, newBasePath)
-          );
-        }
-
-        return copy;
-      };
-
-      const copiedNode = copyWithNewPaths(sourceNode, op.path, op.destPath);
-      destParentNode.children.push(copiedNode);
-      destParentNode.updatedAt = op.timestamp;
-      break;
-    }
-
     default:
       break;
   }
 
-  return newTree;
+  return applied(newTree);
+}
+
+/**
+ * The tree alone, for callers that do not act on whether it applied.
+ *
+ * The merge path is one: a SyncResponse folds the peer's whole tree in, and a
+ * single refused operation inside that is not something to acknowledge either
+ * way.
+ */
+export function applyRemoteOp(
+  tree: RevfsNode,
+  op: RevfsOperation,
+  viewerCid: bigint,
+): RevfsNode {
+  return applyRemoteOpWithOutcome(tree, op, viewerCid).tree;
 }

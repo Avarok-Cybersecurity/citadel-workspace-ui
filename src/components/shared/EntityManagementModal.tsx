@@ -1,4 +1,5 @@
 import { useState, useEffect, type ReactNode } from "react";
+import { EntityField } from './EntityField';
 import {
   Dialog,
   DialogContent,
@@ -8,16 +9,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { debugLog } from '@/lib/debug-config';
 
@@ -74,7 +65,7 @@ export function EntityManagementModal<TMode extends string>({
   onSubmit,
   customContent,
   entityName,
-}: EntityManagementModalProps<TMode>) {
+}: EntityManagementModalProps<TMode>): JSX.Element {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<Record<string, string>>(() =>
@@ -89,17 +80,18 @@ export function EntityManagementModal<TMode extends string>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const modeConfig = modes[mode];
+  const modeConfig: ModeConfig = modes[mode];
 
-  const handleClose = () => {
-    if (!isSubmitting) {
-      onClose();
-    }
+  // Unguarded on purpose: onOpenChange is Radix's only dismissal channel, so
+  // gating it on isSubmitting removed the X, Escape and outside-click at once.
+  // Shared component, so that dead end reproduced at every call site.
+  const handleClose = (): void => {
+    onClose();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    const visibleFields = fields.filter(
+    const visibleFields: FieldConfig[] = fields.filter(
       f => !f.showInModes || f.showInModes.includes(mode)
     );
     for (const field of visibleFields) {
@@ -118,10 +110,24 @@ export function EntityManagementModal<TMode extends string>({
       await onSubmit(formData);
       onClose();
     } catch (error) {
+      // The server's own words, not "please try again".
+      //
+      // `awaitWriteResponse` produces precise rejections -- "Permission denied:
+      // EditTreeStructure required", "Cannot demote the only administrator" --
+      // and this discarded every one of them into a debugLog, which is a no-op
+      // outside dev. A member whose first attempt to create an office is
+      // refused was told to retry, and retrying can never work: they cannot
+      // distinguish "you do not have permission" from a flaky network, so they
+      // try again, and again. The delete path was given this fix; create and
+      // edit never were.
       debugLog('EntityManagementModal', `Error managing ${entityName}:`, error);
+      const reason: string =
+        error instanceof Error && error.message
+          ? error.message
+          : `The server did not accept the change.`;
       toast({
-        title: "Error",
-        description: `Failed to ${mode} ${entityName}. Please try again.`,
+        title: `Could not ${mode} that ${entityName}`,
+        description: reason,
         variant: "destructive",
       });
     } finally {
@@ -129,17 +135,17 @@ export function EntityManagementModal<TMode extends string>({
     }
   };
 
-  const visibleFields = fields.filter(
+  const visibleFields: FieldConfig[] = fields.filter(
     f => !f.showInModes || f.showInModes.includes(mode)
   );
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px] bg-[#232536] border-purple-800">
+      <DialogContent className="sm:max-w-[425px] bg-card border-border">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-white">{modeConfig.title}</DialogTitle>
-            <DialogDescription className="text-gray-300">
+            <DialogTitle className="text-foreground">{modeConfig.title}</DialogTitle>
+            <DialogDescription className="text-foreground/80">
               {modeConfig.description}
             </DialogDescription>
           </DialogHeader>
@@ -149,29 +155,36 @@ export function EntityManagementModal<TMode extends string>({
                 key={field.id}
                 field={field}
                 value={formData[field.id] ?? ''}
-                onChange={value => setFormData(prev => ({ ...prev, [field.id]: value }))}
+                onChange={(value: string) => setFormData(prev => ({ ...prev, [field.id]: value }))}
                 disabled={isSubmitting}
               />
             ))}
             {customContent}
           </div>
           <DialogFooter>
+            {/* Not disabled while submitting: backing out of an in-flight
+                request is always a legitimate thing to want, and greying this
+                is what made the sealed dialog total. */}
             <Button
               type="button"
               variant="outline"
               onClick={handleClose}
-              disabled={isSubmitting}
-              className="bg-transparent border-gray-600 text-white hover:bg-[#232536]"
+              className="bg-transparent border-border text-foreground hover:bg-card"
             >
               Cancel
             </Button>
             <Button
               type="submit"
+              // Every entity modal submits through here -- create a node, add a
+              // member, update a role -- and each spells its own label. One
+              // testid means a spec presses "the submit", not "the word Create",
+              // which is one rename away from finding nothing.
+              data-testid="entity-modal-submit"
               disabled={isSubmitting}
               className={
                 modeConfig.submitVariant === 'destructive'
-                  ? "bg-red-600 text-white hover:bg-red-700"
-                  : "bg-purple-500/20 text-purple-200 hover:bg-purple-500/25 hover:text-white"
+                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  : "bg-primary-accent/20 text-primary-accent hover:bg-primary-accent/25 hover:text-primary-foreground"
               }
             >
               {isSubmitting ? modeConfig.submittingLabel : modeConfig.submitLabel}
@@ -181,67 +194,4 @@ export function EntityManagementModal<TMode extends string>({
       </DialogContent>
     </Dialog>
   );
-}
-
-interface EntityFieldProps {
-  field: FieldConfig;
-  value: string;
-  onChange: (value: string) => void;
-  disabled: boolean;
-}
-
-function EntityField({ field, value, onChange, disabled }: EntityFieldProps) {
-  switch (field.type) {
-    case 'input':
-      return (
-        <div className="grid gap-2">
-          <Label htmlFor={field.id} className="text-white">{field.label}</Label>
-          <Input
-            id={field.id}
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            placeholder={field.placeholder}
-            className="bg-[#232536] border-gray-600 text-white placeholder:text-gray-400"
-            required={field.required}
-            disabled={disabled}
-          />
-        </div>
-      );
-    case 'textarea':
-      return (
-        <div className="grid gap-2">
-          <Label htmlFor={field.id} className="text-white">{field.label}</Label>
-          <Textarea
-            id={field.id}
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            placeholder={field.placeholder}
-            className="bg-[#232536] border-gray-600 text-white placeholder:text-gray-400 min-h-[100px]"
-            disabled={disabled}
-          />
-        </div>
-      );
-    case 'select':
-      return (
-        <div className="grid gap-2">
-          <Label htmlFor={field.id} className="text-white">{field.label}</Label>
-          <Select value={value} onValueChange={onChange} disabled={disabled}>
-            <SelectTrigger className="bg-[#232536] border-gray-600 text-white">
-              <SelectValue placeholder={field.placeholder ?? `Select ${field.label.toLowerCase()}`} />
-            </SelectTrigger>
-            <SelectContent className="bg-[#232536] border-purple-800">
-              {field.options?.map(option => (
-                <SelectItem
-                  key={option.value}
-                  value={option.value}
-                  className="text-white hover:bg-[#232536]"
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      );
-  }
 }

@@ -7,7 +7,7 @@
  * 3. Send and receive messages in office chat
  * 4. Navigate to a room with chat enabled
  * 5. Send and receive messages in room chat
- * 6. Test pagination and message persistence
+ * 6. Verify ordering and message metadata
  * 7. Document any UX issues
  */
 
@@ -23,9 +23,9 @@ import {
   isChatEnabled,
   sendGroupMessage,
   verifyGroupMessageReceived,
-  checkMessageTimestamps,
-  checkRulesBanner,
+  verifyMessageOrder,
   waitForWorkspaceLoaded,
+  isVisibleWithin,
   hasOffices,
   createOffice,
   createRoom,
@@ -42,6 +42,16 @@ import {
 interface TestResults {
   accountCreation: boolean;
   workspaceLoaded: boolean;
+
+  /**
+   * True when the offices came from docker/workspace-server/workspaces.json
+   * rather than being created by this spec. Only seeded nodes get a
+   * chat_channel_id (async_kernel.rs assigns one when chat_enabled is set in the
+   * config); a node created through the UI is stored with chat_channel_id: None
+   * and BaseOffice then renders no Chat tab at all. So this flag decides whether
+   * "chat is enabled" is an assertion or a legitimate SKIP.
+   */
+  officesWereSeeded: boolean;
 
   // Office Chat Tests
   officeNavigation: boolean;
@@ -62,13 +72,8 @@ interface TestResults {
   multipleMessagesSent: boolean;
   messagesOrdered: boolean;
 
-  // UX Checks
-  uxChecks: {
-    timestamps: boolean;
-    rulesBanner: boolean;
-    chatTabVisible: boolean;
-    contentTabVisible: boolean;
-  };
+  // Message chrome
+  timestampsRendered: boolean;
 }
 
 // ============================================================================
@@ -78,7 +83,8 @@ interface TestResults {
 const timestamp = Date.now();
 const USER1 = `groupchat_user_${timestamp}`;
 
-// Default offices/rooms from workspaces.json config
+// Default offices/rooms from docker/workspace-server/workspaces.json.
+// Both are declared chat_enabled: true there.
 const TEST_OFFICE = 'General';
 const TEST_ROOM = 'Random';
 
@@ -106,6 +112,7 @@ async function runTest(): Promise<boolean> {
   const results: TestResults = {
     accountCreation: false,
     workspaceLoaded: false,
+    officesWereSeeded: false,
     officeNavigation: false,
     officeChatEnabled: false,
     officeChatTabSwitch: false,
@@ -119,12 +126,7 @@ async function runTest(): Promise<boolean> {
     roomMessageReceived: false,
     multipleMessagesSent: false,
     messagesOrdered: false,
-    uxChecks: {
-      timestamps: false,
-      rulesBanner: false,
-      chatTabVisible: false,
-      contentTabVisible: false,
-    },
+    timestampsRendered: false,
   };
 
   // Diagnostics handle (declared outside try block for finally access)
@@ -159,32 +161,25 @@ async function runTest(): Promise<boolean> {
     results.workspaceLoaded = await waitForWorkspaceLoaded(page, 30000);
     await sleep(3000);
 
-    // ========== STEP 1.5: Verify Admin Status ==========
+    // ========== STEP 1.5: Admin Status Observation ==========
     console.log('\n' + '─'.repeat(50));
-    console.log('STEP 1.5: Verify Admin Status After Initialization');
+    console.log('STEP 1.5: Observe Admin Status After Initialization');
     console.log('─'.repeat(50));
 
-    // Look for admin indicators in the UI
-    // Check admin status as UX observation only (no reliable UI indicator exists)
-    let adminVisible = false;
-    const adminIndicators = [
-      page.locator('[data-testid="admin-badge"]'),
-      page.locator('.admin-indicator'),
-      page.locator('text="Admin"').first(),
-      page.locator('[class*="admin"]').first(),
-      page.locator('text="ADMIN SETTINGS"').first(),
-    ];
-
-    for (const indicator of adminIndicators) {
-      if (await indicator.isVisible({ timeout: 2000 }).catch(() => false)) {
-        adminVisible = true;
-        console.log('  Admin status confirmed via UI indicator');
-        break;
-      }
-    }
-
-    if (!adminVisible) {
-      uxTracker.log('suggestion', 'functional', 'Admin status indicator not visible in UI after workspace initialization');
+    // AdminSettingsSection (src/components/layout/sidebar/AdminSettingsSection.tsx)
+    // returns null unless state.currentUser.role is Admin, and its group label is
+    // the literal "ADMIN SETTINGS". That makes it the one selector here that is
+    // actually specific to being an admin. The list this replaced also probed
+    // `[class*="admin"]` and `text="Admin"`, which match utility classes and any
+    // stray occurrence of the word — a hit told you nothing.
+    // Left as an observation rather than a gated assertion: this spec is about
+    // messaging, and admin-role propagation is asserted by office-room-crud.
+    const adminSection = page.getByText('ADMIN SETTINGS').first();
+    const adminVisible = await isVisibleWithin(adminSection, 5000);
+    if (adminVisible) {
+      console.log('  Admin status confirmed via the ADMIN SETTINGS sidebar section');
+    } else {
+      uxTracker.log('suggestion', 'functional', 'ADMIN SETTINGS sidebar section not visible after workspace initialization');
       console.log('  Admin status not visually confirmed (UX observation, not a test failure)');
     }
 
@@ -195,10 +190,9 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 2: Check and Create Offices');
     console.log('─'.repeat(50));
 
-    // Check if offices exist
-    const officesExist = await hasOffices(page, USER1);
+    results.officesWereSeeded = await hasOffices(page, USER1);
 
-    if (!officesExist) {
+    if (!results.officesWereSeeded) {
       console.log(`  No offices found. Attempting to create "${TEST_OFFICE}"...`);
       const officeCreated = await createOffice(page, USER1, TEST_OFFICE, 'General discussion and community', { uxTracker });
 
@@ -215,6 +209,8 @@ async function runTest(): Promise<boolean> {
           uxTracker.log('major', 'functional', `Cannot create room "${TEST_ROOM}" under "${TEST_OFFICE}"`);
         }
       }
+      uxTracker.log('major', 'functional',
+        'Workspace initialization did not seed offices from workspaces.json; chat assertions were skipped because UI-created nodes have no chat channel');
     }
 
     // ========== STEP 3: Navigate to Office ==========
@@ -233,16 +229,10 @@ async function runTest(): Promise<boolean> {
     results.officeChatEnabled = await isChatEnabled(page, USER1);
 
     if (results.officeChatEnabled) {
-      results.uxChecks.chatTabVisible = true;
-
       // Switch to Chat tab
       results.officeChatTabSwitch = await switchToChatTab(page, USER1, { uxTracker });
 
       if (results.officeChatTabSwitch) {
-        // Check for rules banner
-        const rules = await checkRulesBanner(page, USER1);
-        results.uxChecks.rulesBanner = rules !== null;
-
         // Send a message
         const officeMsg1 = `Hello from ${USER1} in ${TEST_OFFICE}! Time: ${new Date().toISOString()}`;
         results.officeMessageSent = await sendGroupMessage(page, USER1, officeMsg1, { uxTracker });
@@ -252,16 +242,21 @@ async function runTest(): Promise<boolean> {
           await sleep(2000);
           results.officeMessageReceived = await verifyGroupMessageReceived(page, USER1, officeMsg1, 10000, { uxTracker });
 
-          // Check timestamps
-          results.uxChecks.timestamps = await checkMessageTimestamps(page, USER1);
+          // GroupMessageFooter tags every rendered message with
+          // data-testid="message-timestamp". The shared checkMessageTimestamps()
+          // helper looks for `time`, `[class*="timestamp"]` or `.text-xs.text-gray`,
+          // none of which this markup has, so it can only ever return false — see
+          // the report note. Asserting the real testid is what makes this gateable.
+          results.timestampsRendered = await isVisibleWithin(
+            page.locator('[data-testid="message-timestamp"]').first(),
+            10000
+          );
+          console.log(`  Message timestamps rendered: ${results.timestampsRendered}`);
         }
       }
 
       // Switch back to Content tab
       results.officeContentTabSwitch = await switchToContentTab(page, USER1, { uxTracker });
-      if (results.officeContentTabSwitch) {
-        results.uxChecks.contentTabVisible = true;
-      }
     } else {
       console.log(`  Office "${TEST_OFFICE}" does not have chat enabled`);
       uxTracker.log('suggestion', 'functional', `Office "${TEST_OFFICE}" chat is not enabled in config`);
@@ -308,10 +303,13 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     if (results.roomChatEnabled && results.roomChatTabSwitch) {
+      // Distinct suffixes: three Date.now() calls in one tick can return the same
+      // millisecond, which used to make the three "unique" messages ambiguous.
+      const batch = Date.now();
       const messages = [
-        `Message 1: Testing multiple messages ${Date.now()}`,
-        `Message 2: Second message in sequence ${Date.now()}`,
-        `Message 3: Third message to verify ordering ${Date.now()}`,
+        `Message 1 of 3: testing multiple messages ${batch}`,
+        `Message 2 of 3: second message in sequence ${batch}`,
+        `Message 3 of 3: third message to verify ordering ${batch}`,
       ];
 
       let allSent = true;
@@ -323,15 +321,14 @@ async function runTest(): Promise<boolean> {
 
       results.multipleMessagesSent = allSent;
 
-      // Verify messages are in order by checking they all appear
+      // The old version set `messagesOrdered` from three independent "did this
+      // message appear" checks, which says nothing about order — it was true for
+      // any arrangement, including reversed. verifyMessageOrder walks the rendered
+      // message elements and requires each expected message to appear after the
+      // previous one.
       await sleep(2000);
-      let allReceived = true;
-      for (const msg of messages) {
-        const received = await verifyGroupMessageReceived(page, USER1, msg, 5000, { uxTracker });
-        if (!received) allReceived = false;
-      }
-
-      results.messagesOrdered = allReceived;
+      const order = await verifyMessageOrder(page, USER1, messages, 30000, uxTracker);
+      results.messagesOrdered = order.success;
     }
 
     // Final screenshot
@@ -346,49 +343,76 @@ async function runTest(): Promise<boolean> {
       results.accountCreation &&
       results.workspaceLoaded;
 
-    const officeChatWorks =
-      !results.officeChatEnabled || // Skip if not enabled
-      (results.officeChatTabSwitch && results.officeMessageSent && results.officeMessageReceived);
+    // When the workspace was seeded from workspaces.json, "General" and "Random"
+    // are declared chat_enabled, so chat MUST work — the old `!results.chatEnabled
+    // || ...` shape turned a missing Chat tab into a silent pass, which is exactly
+    // the failure this spec exists to catch.
+    const chatExpected = results.officesWereSeeded;
 
-    const roomChatWorks =
-      !results.roomChatEnabled || // Skip if not enabled
-      (results.roomChatTabSwitch && results.roomMessageSent && results.roomMessageReceived);
+    const officeChatWorks = chatExpected
+      ? (results.officeChatEnabled &&
+         results.officeChatTabSwitch &&
+         results.officeMessageSent &&
+         results.officeMessageReceived &&
+         results.officeContentTabSwitch &&
+         results.timestampsRendered)
+      : true;
 
-    const allPassed = coreFunctionality && officeChatWorks && roomChatWorks;
+    const roomChatWorks = chatExpected
+      ? (results.roomChatEnabled &&
+         results.roomChatTabSwitch &&
+         results.roomMessageSent &&
+         results.roomMessageReceived &&
+         results.multipleMessagesSent &&
+         results.messagesOrdered)
+      : true;
+
+    const navigationWorks = results.officeNavigation && results.roomNavigation;
+
+    const allPassed = coreFunctionality && navigationWorks && officeChatWorks && roomChatWorks;
+
+    const chatVerdict = (value: boolean) => (chatExpected ? (value ? 'PASS' : 'FAIL') : 'SKIP');
 
     console.log('\nCore Functionality:');
     console.log(`  Account Creation:           ${results.accountCreation ? 'PASS' : 'FAIL'}`);
     console.log(`  Workspace Loaded:           ${results.workspaceLoaded ? 'PASS' : 'FAIL'}`);
+    console.log(`  Offices Seeded From Config: ${results.officesWereSeeded ? 'YES' : 'NO'}`);
 
     console.log('\nOffice Chat:');
     console.log(`  Navigate to Office:         ${results.officeNavigation ? 'PASS' : 'FAIL'}`);
-    console.log(`  Chat Enabled:               ${results.officeChatEnabled ? 'YES' : 'NO'}`);
-    console.log(`  Switch to Chat Tab:         ${results.officeChatTabSwitch ? 'PASS' : results.officeChatEnabled ? 'FAIL' : 'SKIP'}`);
-    console.log(`  Send Message:               ${results.officeMessageSent ? 'PASS' : results.officeChatEnabled ? 'FAIL' : 'SKIP'}`);
-    console.log(`  Message Received:           ${results.officeMessageReceived ? 'PASS' : results.officeChatEnabled ? 'FAIL' : 'SKIP'}`);
-    console.log(`  Switch to Content Tab:      ${results.officeContentTabSwitch ? 'PASS' : results.officeChatEnabled ? 'FAIL' : 'SKIP'}`);
+    console.log(`  Chat Enabled:               ${chatVerdict(results.officeChatEnabled)}`);
+    console.log(`  Switch to Chat Tab:         ${chatVerdict(results.officeChatTabSwitch)}`);
+    console.log(`  Send Message:               ${chatVerdict(results.officeMessageSent)}`);
+    console.log(`  Message Received:           ${chatVerdict(results.officeMessageReceived)}`);
+    console.log(`  Switch to Content Tab:      ${chatVerdict(results.officeContentTabSwitch)}`);
+    console.log(`  Message Timestamps:         ${chatVerdict(results.timestampsRendered)}`);
 
     console.log('\nRoom Chat:');
     console.log(`  Navigate to Room:           ${results.roomNavigation ? 'PASS' : 'FAIL'}`);
-    console.log(`  Chat Enabled:               ${results.roomChatEnabled ? 'YES' : 'NO'}`);
-    console.log(`  Switch to Chat Tab:         ${results.roomChatTabSwitch ? 'PASS' : results.roomChatEnabled ? 'FAIL' : 'SKIP'}`);
-    console.log(`  Send Message:               ${results.roomMessageSent ? 'PASS' : results.roomChatEnabled ? 'FAIL' : 'SKIP'}`);
-    console.log(`  Message Received:           ${results.roomMessageReceived ? 'PASS' : results.roomChatEnabled ? 'FAIL' : 'SKIP'}`);
+    console.log(`  Chat Enabled:               ${chatVerdict(results.roomChatEnabled)}`);
+    console.log(`  Switch to Chat Tab:         ${chatVerdict(results.roomChatTabSwitch)}`);
+    console.log(`  Send Message:               ${chatVerdict(results.roomMessageSent)}`);
+    console.log(`  Message Received:           ${chatVerdict(results.roomMessageReceived)}`);
 
     console.log('\nMultiple Messages:');
-    console.log(`  Multiple Messages Sent:     ${results.multipleMessagesSent ? 'PASS' : results.roomChatEnabled ? 'FAIL' : 'SKIP'}`);
-    console.log(`  Messages Ordered:           ${results.messagesOrdered ? 'PASS' : results.roomChatEnabled ? 'FAIL' : 'SKIP'}`);
+    console.log(`  Multiple Messages Sent:     ${chatVerdict(results.multipleMessagesSent)}`);
+    console.log(`  Messages In Order:          ${chatVerdict(results.messagesOrdered)}`);
 
-    console.log('\nUX Quality:');
-    console.log(`  Chat Tab Visible:           ${results.uxChecks.chatTabVisible ? 'PASS' : 'CHECK'}`);
-    console.log(`  Content Tab Visible:        ${results.uxChecks.contentTabVisible ? 'PASS' : 'CHECK'}`);
-    console.log(`  Message Timestamps:         ${results.uxChecks.timestamps ? 'PASS' : 'CHECK'}`);
-    console.log(`  Rules Banner:               ${results.uxChecks.rulesBanner ? 'PASS' : 'N/A'}`);
+    if (!chatExpected) {
+      console.log('\n  SKIP reason: this run had to create its own office/room through the UI.');
+      console.log('  UI-created nodes are stored with chat_channel_id: None, so no Chat tab exists');
+      console.log('  and none of the chat assertions above have their precondition.');
+    }
+
+    console.log('\nNot exercised by this spec:');
+    // GroupChatView only renders the rules banner when the node carries a `rules`
+    // string. Neither "General" nor "Random" declares one in workspaces.json
+    // (only "Landing Page" and "Engineering" do), so there is nothing to assert
+    // here. The banner also has no data-testid, so it cannot be selected
+    // reliably even where it does render — see the report.
+    console.log('  Rules Banner:               SKIP (neither "General" nor "Random" declares rules in workspaces.json)');
 
     harness.finalize(allPassed, results);
-
-    console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
-    await sleep(15000);
 
     return allPassed;
 

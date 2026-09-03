@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
+import { memberIdToCid } from './presence';
+import { p2pAutoConnectService } from './p2p-auto-connect-service';
 import { ConnectionService } from './connection-service';
-import NotificationService, { NotificationType, NotificationPriority } from './notification-service';
+import NotificationService, { NotificationPriority } from './notification-service';
 import { websocketService } from './websocket-service';
 import { connectionManager } from './connection';
 import { p2pMessengerManager } from './p2p';
@@ -80,26 +82,38 @@ export class MessagingService {
     return this.connectionService;
   }
 
-  private setupEventListeners() {
+  private setupEventListeners(): void {
   }
 
-  public setMessageReceivedHandler(handler: (message: Message) => void) {
+  public setMessageReceivedHandler(handler: (message: Message) => void): void {
     this.onMessageReceived = handler;
   }
 
-  public setTypingStatusHandler(handler: (peerId: string, isTyping: boolean) => void) {
+  public setTypingStatusHandler(handler: (peerId: string, isTyping: boolean) => void): void {
     this.onTypingStatusChange = handler;
   }
 
-  public async sendMessage(recipientId: string, content: string, securityLevel: number = 0): Promise<Message> {
-    // Check if the current user is connected with the recipient
-    if (!this.getConnectionService().canMessageUser(recipientId)) {
-      throw new Error('Cannot send message to this user. Connection not established.');
+  public async sendMessage(recipientId: string, content: string, _securityLevel: number = 0): Promise<Message> {
+    // Real connectivity, not the demo map.
+    //
+    // This asked `connectionService.canMessageUser`, whose store is keyed on
+    // the literal 'current-user' and is written only by acceptConnectionRequest
+    // -- which has no caller outside the demo simulation. So the gate answered
+    // false for every recipient, and this method could never send anything. It
+    // has no callers today, which is the only reason that has not surfaced; a
+    // guard that cannot pass is a landmine for whoever wires it up next.
+    const cid: bigint | null = memberIdToCid(recipientId);
+    // `?? false` for the same reason as useP2PMessages: this decides whether to
+    // establish a connection, and unknown should try rather than assume.
+    if (cid === null || !((await p2pAutoConnectService.isPeerConnected(cid)) ?? false)) {
+      throw new Error(
+        `Cannot send message to ${recipientId}: no peer connection is established.`,
+      );
     }
 
     // Create a pending message
-    const messageId = uuidv4();
-    const timestamp = Date.now();
+    const messageId: string = uuidv4();
+    const timestamp: number = Date.now();
 
     const pendingMessage: Message = {
       id: messageId,
@@ -111,7 +125,7 @@ export class MessagingService {
     };
 
     try {
-      const cid = connectionManager.getConnectionInfo()?.cid;
+      const cid: bigint | undefined = connectionManager.getConnectionInfo()?.cid;
 
       if (!cid) {
         throw new Error('Not connected to workspace');
@@ -156,13 +170,6 @@ export class MessagingService {
     }
 
     try {
-      // Reset message status to pending
-      const pendingMessage: Message = {
-        ...message,
-        status: 'pending',
-        timestamp: Date.now() // Update timestamp for resent message
-      };
-
       // Attempt to send the message again
       return await this.sendMessage(message.recipientId, message.content);
     } catch (error) {
@@ -175,7 +182,7 @@ export class MessagingService {
   }
 
   public async sendTypingIndicator(recipientId: string, isTyping: boolean): Promise<void> {
-    // Callers of this API (see RetryableMessageSender) already maintain their
+    // Callers of this API already maintain their
     // own "is currently typing" state and only call us to emit a discrete
     // event. Previously this method wired into the *polling* API with a
     // `() => ''` text-getter, which caused the polling loop to never observe

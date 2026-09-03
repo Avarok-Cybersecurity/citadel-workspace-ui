@@ -3,6 +3,7 @@
  */
 
 import type { Page } from 'playwright';
+import { reportTimeout } from './screen-state.js';
 import { takeScreenshot } from './screenshots.js';
 import { UxIssueTracker } from './ux-tracker.js';
 
@@ -23,13 +24,17 @@ export async function sendMessage(
   console.log(`  [DEBUG] Waiting for message input to be visible (5s timeout)...`);
 
   // Use waitFor with timeout instead of isVisible which doesn't timeout properly
-  const messageInput = page.locator('input[placeholder*="message"]').first();
+  // By testid, not by element type. This said `input[...]` and the composer
+  // has been a <textarea> since pasted newlines stopped being flattened -- so
+  // it matched nothing, and every warmup message the call and reconnection
+  // suites send first went nowhere, reported as "not delivered".
+  const messageInput = page.getByTestId('p2p-message-input').first();
 
   try {
     await messageInput.waitFor({ state: 'visible', timeout: 5000 });
     console.log(`  [DEBUG] Message input is now visible`);
   } catch (e) {
-    console.log(`  [DEBUG] Message input not found or timed out: ${e}`);
+    await reportTimeout(page, `[DEBUG] Message input not found or timed out: ${e}`);
 
     // Debug: Take screenshot and check what's visible
     await takeScreenshot(page, `${username}_message_input_NOT_FOUND`);
@@ -37,7 +42,7 @@ export async function sendMessage(
     console.log(`  [DEBUG] Current URL: ${currentUrl}`);
 
     // Check for common issues
-    const p2pChatVisible = await page.locator('[data-testid="p2p-chat"], .p2p-chat').first().isVisible().catch(() => false);
+    const p2pChatVisible = await page.locator('[data-testid="p2p-chat"]').first().isVisible().catch(() => false);
     console.log(`  [DEBUG] P2PChat visible: ${p2pChatVisible}`);
 
     const anyInput = await page.locator('input').count();
@@ -150,7 +155,7 @@ export async function verifyMessageReceived(
     return true;
   } catch {
     // waitForFunction timed out, try alternative methods
-    console.log(`  waitForFunction timed out, trying alternative selectors...`);
+    await reportTimeout(page, `waitForFunction timed out, trying alternative selectors...`);
   }
 
   // Alternative: Try multiple specific selectors with waitForSelector
@@ -238,7 +243,7 @@ export async function verifyMessageOrder(
         { timeout, polling: 500 }
       );
     } catch {
-      console.log(`  ✗ Message not found within timeout: "${msg.substring(0, 40)}..."`);
+      await reportTimeout(page, `✗ Message not found within timeout: "${msg.substring(0, 40)}..."`);
       if (uxTracker) {
         uxTracker.log('critical', 'functional', `Message not found: "${msg}"`);
       }
@@ -387,7 +392,7 @@ export async function waitForAllMessages(
   if (allReceived) {
     console.log(`  ✓ All ${expectedMessages.length} messages received in ${Date.now() - startTime}ms`);
   } else {
-    console.log(`  ✗ Timeout after ${timeout}ms. Found ${found}/${expectedMessages.length} messages`);
+    await reportTimeout(page, `✗ Timeout after ${timeout}ms. Found ${found}/${expectedMessages.length} messages`);
     for (const msg of expectedMessages) {
       if (!results[msg]) {
         console.log(`    Missing: "${msg.substring(0, 50)}..."`);
@@ -445,7 +450,7 @@ export async function verifyMessagesSeen(
   }
 
   // Timeout - didn't get expected seen count
-  console.log(`  ✗ Timeout waiting for messages to be seen`);
+  await reportTimeout(page, `✗ Timeout waiting for messages to be seen`);
   console.log(`  Final counts: read=${seenCount}, delivered=${deliveredCount}, sent=${sentCount}`);
 
   if (uxTracker) {
@@ -608,7 +613,7 @@ export async function waitForP2PReady(
     await new Promise(resolve => setTimeout(resolve, pollInterval));
   }
 
-  console.log(`  ${username}: P2P ready timeout after ${timeoutMs}ms`);
+  await reportTimeout(page, `${username}: P2P ready timeout after ${timeoutMs}ms`);
   return false;
 }
 

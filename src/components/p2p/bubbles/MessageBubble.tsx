@@ -41,11 +41,11 @@ export function MessageBubble({
   onEdit,
   onDelete,
   onReply,
-}: MessageBubbleProps) {
-  const containerStyles = getBubbleContainerStyles(isOwn);
+}: MessageBubbleProps): JSX.Element {
+  const containerStyles: string = getBubbleContainerStyles(isOwn);
 
   // Common props for all bubble types
-  const commonProps = {
+  const commonProps: { message: P2PMessage; isOwn: boolean; onRetry: (() => void) | undefined; showSenderName: boolean | undefined; showSenderAvatar: boolean | undefined; senderName: string | undefined; onEdit: (() => void) | undefined; onDelete: (() => void) | undefined; onReply: (() => void) | undefined; } = {
     message,
     isOwn,
     onRetry,
@@ -57,7 +57,7 @@ export function MessageBubble({
     onReply,
   };
 
-  const renderBubble = () => {
+  const renderBubble: () => JSX.Element = (): JSX.Element => {
     switch (message.message_type) {
       case 'markdown':
         return <MarkdownBubble {...commonProps} />;

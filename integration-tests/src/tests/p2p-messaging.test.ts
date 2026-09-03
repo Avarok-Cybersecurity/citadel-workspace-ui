@@ -12,6 +12,7 @@
 
 import { Page } from 'playwright';
 import {
+  isVisibleWithin,
   sleep,
   createSeparateBrowsers,
   createAccount,
@@ -107,7 +108,7 @@ async function checkOnlineStatus(page: Page, username: string, _peerUsername: st
   console.log(`\n=== ${username}: Checking peer online status ===`);
   const statusIndicator = page.locator('.bg-green-500, [class*="online"]').first();
 
-  if (await statusIndicator.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(statusIndicator, 2000)) {
     console.log(`  Online status indicator visible`);
     return true;
   }
@@ -426,9 +427,6 @@ async function runTest(): Promise<boolean> {
     console.log(`  Online Status Indicator:      ${results.uxChecks.onlineStatus ? 'PASS' : 'CHECK'}`);
 
     harness.finalize(allPassed, results);
-
-    console.log('\nBrowser will remain open for 20 seconds for manual inspection...');
-    await sleep(20000);
 
     return allPassed;
 

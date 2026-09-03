@@ -1,11 +1,13 @@
-import { websocketService } from "@/lib/websocket-service";
+import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
+import { markLastAccessed } from '@/lib/sessions/last-accessed';
 import { connectionManager } from "@/lib/connection";
 import { eventEmitter } from "@/lib/event-emitter";
-import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser } from "@/lib/tab-context";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { debugLog } from '@/lib/debug-config';
+import type { ToastOptions } from '@/hooks/use-toast';
+import type { StoredSessions } from '@/types/session-types';
 
 interface SessionRedirectTarget {
   cid: bigint;
@@ -15,7 +17,8 @@ interface SessionRedirectTarget {
 
 interface SessionRedirectCallbacks {
   navigate: (path: string) => void;
-  toast: (opts: { title: string; description: string; className?: string; variant?: 'default' | 'destructive' }) => void;
+  /** The `toast` from useToast(); typed from its own options so the two cannot drift. */
+  toast: (opts: ToastOptions) => unknown;
   onNext: (connectionId: string) => void;
 }
 
@@ -35,25 +38,19 @@ export async function redirectToExistingSession(
     toast({
       title: "Reconnecting...",
       description: `Loading ${session.username}'s workspace`,
-      className: "bg-[#232536] border-purple-800 text-purple-200",
+      variant: 'success',
     });
 
-    const lastAccessedKey = `session_last_accessed_${session.cid.toString()}`;
-    localStorage.setItem(lastAccessedKey, Date.now().toString());
+    markLastAccessed(session.cid);
 
-    try {
-      await websocketService.claimSession(session.cid, true);
-      debugLog('Login', 'Session claimed successfully (was orphaned)');
-    } catch (claimError: unknown) {
-      if (claimError instanceof Error && claimError.message?.includes('not orphaned')) {
-        debugLog('Login', 'Session is still active (not orphaned), no claim needed');
-      } else {
-        throw claimError;
-      }
+    const outcome: ClaimOutcome = await claimSessionForThisTab(session.cid);
+    if (outcome.status === 'owned-by-another-tab') {
+      toast(SESSION_OWNED_ELSEWHERE);
+      return;
     }
 
-    const storedSessions = connectionManager.getStoredSessions();
-    const storedIndex = storedSessions.sessions.findIndex(
+    const storedSessions: StoredSessions = connectionManager.getStoredSessions();
+    const storedIndex: number = storedSessions.sessions.findIndex(
       (stored) =>
         stored.username === session.username &&
         stored.serverAddress === session.server_address
@@ -84,7 +81,7 @@ export async function redirectToExistingSession(
     toast({
       title: "Connected!",
       description: `Now viewing ${session.username}'s workspace`,
-      className: "bg-[#232536] border-purple-800 text-purple-200",
+      variant: 'success',
     });
 
     onNext(session.cid.toString());

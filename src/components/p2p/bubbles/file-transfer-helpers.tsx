@@ -19,14 +19,10 @@ export function getFileIcon(fileType: string): React.ReactNode {
   return <File className="h-5 w-5" />;
 }
 
-/** Formats a byte count into a human-readable string (e.g., "1.5 MB"). */
-export function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
+// Re-exported, not reimplemented. This copy used toFixed(1) while the transfer
+// lifecycle's used toFixed(2), so a bubble and the progress line beside it
+// showed the same file at two different sizes.
+export { formatBytes } from '@/lib/format-bytes';
 
 /** Returns the status icon, text, and action flags for a given transfer state. */
 export function getStatusContent(state: string, isOwn: boolean, message: P2PMessage): StatusContent {
@@ -34,20 +30,20 @@ export function getStatusContent(state: string, isOwn: boolean, message: P2PMess
     case 'pending':
       if (isOwn) {
         return {
-          icon: <Clock className="h-4 w-4 text-yellow-400" />,
+          icon: <Clock className="h-4 w-4 text-warning-emphasis" />,
           text: 'Waiting for acceptance...',
           showCancel: true
         };
       }
       return {
-        icon: <Download className="h-4 w-4 text-sky-400" />,
+        icon: <Download className="h-4 w-4 text-primary-accent" />,
         text: 'wants to send you a file',
         showAcceptDecline: true
       };
 
     case 'uploading':
       return {
-        icon: <Clock className="h-4 w-4 text-sky-400 animate-spin" />,
+        icon: <Clock className="h-4 w-4 text-primary-accent animate-spin" />,
         text: 'Uploading to server...',
         showProgress: true
       };
@@ -55,20 +51,20 @@ export function getStatusContent(state: string, isOwn: boolean, message: P2PMess
     case 'staged':
       if (isOwn) {
         return {
-          icon: <Check className="h-4 w-4 text-green-400" />,
+          icon: <Check className="h-4 w-4 text-success-emphasis" />,
           text: 'File ready, waiting for acceptance...',
           showCancel: true
         };
       }
       return {
-        icon: <Download className="h-4 w-4 text-sky-400" />,
+        icon: <Download className="h-4 w-4 text-primary-accent" />,
         text: 'File ready to download',
         showAcceptDecline: true
       };
 
     case 'transferring':
       return {
-        icon: <Download className="h-4 w-4 text-sky-400 animate-pulse" />,
+        icon: <Download className="h-4 w-4 text-primary-accent animate-pulse" />,
         text: isOwn ? 'Sending...' : 'Downloading...',
         showProgress: true
       };
@@ -76,12 +72,12 @@ export function getStatusContent(state: string, isOwn: boolean, message: P2PMess
     case 'complete':
       if (isOwn) {
         return {
-          icon: <Check className="h-4 w-4 text-green-400" />,
+          icon: <Check className="h-4 w-4 text-success-emphasis" />,
           text: 'Sent successfully'
         };
       }
       return {
-        icon: <Check className="h-4 w-4 text-green-400" />,
+        icon: <Check className="h-4 w-4 text-success-emphasis" />,
         text: 'Downloaded',
         clickable: true
       };
@@ -89,36 +85,36 @@ export function getStatusContent(state: string, isOwn: boolean, message: P2PMess
     case 'declined':
       if (isOwn) {
         return {
-          icon: <X className="h-4 w-4 text-red-400" />,
+          icon: <X className="h-4 w-4 text-destructive" />,
           text: 'Transfer declined'
         };
       }
       return {
-        icon: <X className="h-4 w-4 text-gray-400" />,
+        icon: <X className="h-4 w-4 text-muted-foreground" />,
         text: 'You declined this file'
       };
 
     case 'cancelled':
       if (isOwn) {
         return {
-          icon: <Ban className="h-4 w-4 text-gray-400" />,
+          icon: <Ban className="h-4 w-4 text-muted-foreground" />,
           text: 'Transfer cancelled'
         };
       }
       return {
-        icon: <AlertCircle className="h-4 w-4 text-yellow-400" />,
+        icon: <AlertCircle className="h-4 w-4 text-warning-emphasis" />,
         text: 'Sender cancelled transfer'
       };
 
     case 'expired':
       return {
-        icon: <Clock className="h-4 w-4 text-orange-400" />,
+        icon: <Clock className="h-4 w-4 text-warning-emphasis" />,
         text: 'Request expired'
       };
 
     case 'error':
       return {
-        icon: <AlertCircle className="h-4 w-4 text-red-400" />,
+        icon: <AlertCircle className="h-4 w-4 text-destructive" />,
         text: message.error || 'Transfer failed'
       };
 

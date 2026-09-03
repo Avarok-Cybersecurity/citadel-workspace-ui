@@ -10,7 +10,8 @@
  * - CreateGroupDialog
  */
 
-import { Users, MoreVertical, Shield, User as UserIcon } from "lucide-react";
+import { MoreVertical, Shield, User as UserIcon } from "lucide-react";
+import { InviteToWorkspaceDialog } from '@/components/workspace/InviteToWorkspaceDialog';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,18 +34,27 @@ import { PendingRequestsModal } from "@/components/p2p/PendingRequestsModal";
 import { CreateGroupDialog } from "@/components/chat/CreateGroupDialog";
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
+import { roleBadgeClass } from '@/lib/role-badge';
+import { isPrivilegedRole } from '@/lib/role-predicate';
 
-export function getRoleIcon(role: string) {
-  return (role === "owner" || role === "admin")
+export function getRoleIcon(role: string): JSX.Element {
+  // This compared against lowercase only, so the shield NEVER rendered for a
+  // member loaded from the server -- the wire sends PascalCase. It was the one
+  // place a fix the neighbours already had was not applied; the predicate now
+  // lives in lib/role-predicate so there is no "one place" left to miss.
+  return isPrivilegedRole(role)
     ? <Shield className="h-4 w-4" />
     : <UserIcon className="h-4 w-4" />;
 }
 
-export function getRoleColor(role: string) {
-  return ({ owner: "bg-purple-600", admin: "bg-blue-600", member: "bg-green-600", guest: "bg-gray-600" }[role] || "bg-gray-500");
+/** Role badge classes. Defined once in lib/role-badge so the sidebar and user
+ *  search cannot drift apart again — they already had, and only one was fixed. */
+export function getRoleColor(role: string): string {
+  return roleBadgeClass(role);
 }
 
-export function capitalizeRole(role: string) {
+
+export function capitalizeRole(role: string): string {
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
 
@@ -61,6 +71,10 @@ interface MembersSectionModalsProps {
   showAllMembersDialog: boolean;
   showPermissionModal: boolean;
   showPeerDiscovery: boolean;
+  showInvite: boolean;
+  onSetShowInvite: (open: boolean) => void;
+  workspaceName: string;
+  serverAddress: string | undefined;
   showPendingRequests: boolean;
   showCreateGroupDialog: boolean;
   // Modal data
@@ -91,6 +105,7 @@ export function MembersSectionModals({
   locationText,
   showAddModal, showEditModal, showRemoveModal,
   showAllMembersDialog, showPermissionModal, showPeerDiscovery,
+  showInvite, onSetShowInvite, workspaceName, serverAddress,
   showPendingRequests, showCreateGroupDialog,
   selectedMember, permissionModalData,
   onSetShowAddModal, onSetShowEditModal, onSetShowRemoveModal,
@@ -99,7 +114,7 @@ export function MembersSectionModals({
   onClearSelectedMember, onClearPermissionModalData,
   onEditMember, onRemoveMember, onManagePermissions,
   onCreateGroup,
-}: MembersSectionModalsProps) {
+}: MembersSectionModalsProps): JSX.Element {
   return (
     <>
       <MemberManagementModal isOpen={showAddModal} onClose={() => onSetShowAddModal(false)} mode="add" domainId={currentNodeId ?? undefined} />
@@ -108,27 +123,27 @@ export function MembersSectionModals({
 
       {/* All Members Dialog */}
       <Dialog open={showAllMembersDialog} onOpenChange={onSetShowAllMembersDialog}>
-        <DialogContent className="max-w-2xl bg-[#2E3356] border-purple-800">
-          <DialogHeader><DialogTitle className="text-white">{locationText}</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-2xl bg-surface border-border">
+          <DialogHeader><DialogTitle className="text-foreground">{locationText}</DialogTitle></DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             <div className="space-y-2">
               {members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-[#232536] transition-colors">
+                <div key={member.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-card transition-colors">
                   <div className="flex items-center gap-3 flex-1">
                     {getRoleIcon(member.role || 'member')}
                     <div className="flex-1">
-                      <p className="text-white font-medium">{member.displayName || member.username}</p>
+                      <p className="text-foreground font-medium">{member.displayName || member.username}</p>
                       {member.username && <p className="text-sm text-muted-foreground">@{member.username}</p>}
                     </div>
-                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-white text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
+                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
                   </div>
                   {currentUsername !== member.username && (
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Actions for ${member.username}`}><MoreVertical className="h-4 w-4" aria-hidden="true" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => { onManagePermissions(member); onSetShowAllMembersDialog(false); }}><Shield className="h-4 w-4 mr-2" />Manage Permissions</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => { onEditMember(member); onSetShowAllMembersDialog(false); }}>Change Role</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { onRemoveMember(member); onSetShowAllMembersDialog(false); }} className="text-red-600">Remove Member</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { onRemoveMember(member); onSetShowAllMembersDialog(false); }} className="text-destructive-emphasis">Remove Member</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
@@ -143,6 +158,12 @@ export function MembersSectionModals({
       <PeerDiscoveryModal isOpen={showPeerDiscovery} onClose={() => onSetShowPeerDiscovery(false)} />
       <PendingRequestsModal isOpen={showPendingRequests} onClose={() => onSetShowPendingRequests(false)} />
       <CreateGroupDialog open={showCreateGroupDialog} onOpenChange={onSetShowCreateGroupDialog} availablePeers={registeredPeers.map(p => ({ cid: p.cid, username: p.username, isOnline: p.isOnline }))} currentUsername={currentUsername || 'User'} onCreateGroup={onCreateGroup} />
+      <InviteToWorkspaceDialog
+        open={showInvite}
+        onOpenChange={onSetShowInvite}
+        workspaceName={workspaceName}
+        serverAddress={serverAddress}
+      />
     </>
   );
 }

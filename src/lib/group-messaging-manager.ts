@@ -8,6 +8,7 @@
 import type { GroupMessage } from '@/types/workspace-entities';
 import { TypedEventEmitter } from './event-emitter';
 import { debugLog } from '@/lib/debug-config';
+import { sortByTime, mergeOlder, applyEdit, removeMessage } from './group-message-list';
 
 export interface GroupMessageEvent {
   type: 'new_message' | 'message_edited' | 'message_deleted' | 'messages_loaded';
@@ -61,7 +62,7 @@ class GroupMessagingManagerClass {
    * Set loading state for a group
    */
   public setLoading(groupId: string, loading: boolean): void {
-    const current = this.getMessages(groupId);
+    const current: GroupMessagesState = this.getMessages(groupId);
     this.groupMessages.set(groupId, { ...current, loading });
   }
 
@@ -69,7 +70,7 @@ class GroupMessagingManagerClass {
    * Set error state for a group
    */
   public setError(groupId: string, error: string): void {
-    const current = this.getMessages(groupId);
+    const current: GroupMessagesState = this.getMessages(groupId);
     this.groupMessages.set(groupId, { ...current, error, loading: false });
   }
 
@@ -77,7 +78,7 @@ class GroupMessagingManagerClass {
    * Handle new message notification from server
    */
   public handleNewMessage(groupId: string, message: GroupMessage): void {
-    const current = this.getMessages(groupId);
+    const current: GroupMessagesState = this.getMessages(groupId);
 
     // Check for duplicate message by ID
     if (current.messages.some(m => m.id === message.id)) {
@@ -86,7 +87,7 @@ class GroupMessagingManagerClass {
     }
 
     // Add new message to the end (newest at bottom)
-    const messages = [...current.messages, message];
+    const messages: GroupMessage[] = [...current.messages, message];
 
     this.groupMessages.set(groupId, {
       ...current,
@@ -103,26 +104,41 @@ class GroupMessagingManagerClass {
   /**
    * Handle messages loaded from server (pagination)
    */
+  /**
+   * Groups with a "load older" request in flight, so the response that comes
+   * back is merged into the thread instead of replacing it.
+   */
+  private readonly pendingOlder: Set<string> = new Set<string>();
+
+  /** Called before requesting an older page. Consumed by the next response. */
+  public markLoadingOlder(groupId: string): void {
+    this.pendingOlder.add(groupId);
+  }
+
+  /** Called when a pagination request fails, so a later full load is not merged. */
+  public clearLoadingOlder(groupId: string): void {
+    this.pendingOlder.delete(groupId);
+  }
+
   public handleMessagesLoaded(
     groupId: string,
     messages: GroupMessage[],
     hasMore: boolean,
     prepend: boolean = false
   ): void {
-    const current = this.getMessages(groupId);
+    const current: GroupMessagesState = this.getMessages(groupId);
+    const sortedMessages: GroupMessage[] = sortByTime(messages);
 
-    // Sort messages by timestamp (oldest first)
-    // Convert bigint comparison to number for Array.sort (which requires number return)
-    const sortedMessages = [...messages].sort((a, b) => Number(a.timestamp - b.timestamp));
+    // `prepend` defaulted to false and its ONE caller never passed it, so the
+    // half that pages was dead: scrolling up in a group chat replaced the whole
+    // transcript with the older page, and everything newer vanished from screen
+    // until a new message arrived or the user reloaded. The response carries no
+    // pagination cursor to correlate on, so the manager records the request.
+    const paginating: boolean = prepend || this.pendingOlder.delete(groupId);
 
-    let newMessages: GroupMessage[];
-    if (prepend) {
-      // Prepending older messages (pagination)
-      newMessages = [...sortedMessages, ...current.messages];
-    } else {
-      // Initial load or replace
-      newMessages = sortedMessages;
-    }
+    const newMessages: GroupMessage[] = paginating
+      ? mergeOlder(current.messages, sortedMessages)
+      : sortedMessages;
 
     this.groupMessages.set(groupId, {
       messages: newMessages,
@@ -147,25 +163,16 @@ class GroupMessagingManagerClass {
     newContent: string,
     editedAt: bigint
   ): void {
-    const current = this.getMessages(groupId);
+    const current: GroupMessagesState = this.getMessages(groupId);
 
-    const messages = current.messages.map(msg => {
-      if (msg.id === messageId) {
-        return {
-          ...msg,
-          content: newContent,
-          edited_at: editedAt
-        };
-      }
-      return msg;
-    });
+    const messages: GroupMessage[] = applyEdit(current.messages, messageId, newContent, editedAt);
 
     this.groupMessages.set(groupId, {
       ...current,
       messages
     });
 
-    const editedMessage = messages.find(m => m.id === messageId);
+    const editedMessage: GroupMessage | undefined = messages.find(m => m.id === messageId);
     this.eventEmitter.emit({
       type: 'message_edited',
       groupId,
@@ -178,9 +185,9 @@ class GroupMessagingManagerClass {
    * Handle message deleted notification
    */
   public handleMessageDeleted(groupId: string, messageId: string): void {
-    const current = this.getMessages(groupId);
+    const current: GroupMessagesState = this.getMessages(groupId);
 
-    const messages = current.messages.filter(msg => msg.id !== messageId);
+    const messages: GroupMessage[] = removeMessage(current.messages, messageId);
 
     this.groupMessages.set(groupId, {
       ...current,
@@ -233,11 +240,11 @@ class GroupMessagingManagerClass {
    * Get oldest timestamp for pagination
    */
   public getOldestTimestamp(groupId: string): bigint | undefined {
-    const state = this.getMessages(groupId);
+    const state: GroupMessagesState = this.getMessages(groupId);
     if (state.messages.length === 0) return undefined;
     return state.messages[0].timestamp;
   }
 }
 
-export const groupMessagingManager = GroupMessagingManagerClass.getInstance();
+export const groupMessagingManager: GroupMessagingManagerClass = GroupMessagingManagerClass.getInstance();
 export default groupMessagingManager;

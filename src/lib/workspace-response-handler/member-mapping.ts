@@ -26,21 +26,21 @@ export interface MappedMember {
  * (singular) WorkspaceProtocolResponse handlers.
  */
 export function mapWasmMember(raw: Record<string, unknown>): MappedMember {
-  const name = typeof raw.name === 'string' ? raw.name : undefined;
+  const name: string | undefined = typeof raw.name === 'string' ? raw.name : undefined;
   // Accept both string and number ids: the WASM layer historically
   // emits string CIDs, but a numeric id (e.g. a user_id integer) is a
   // valid identity. Coerce to string instead of dropping it — the
   // downstream `if (!id)` guard in useMemberEventSetup would otherwise
   // silently discard the member.
-  const id =
+  const id: string | undefined =
     typeof raw.id === 'string'
       ? raw.id
       : typeof raw.id === 'number' || typeof raw.id === 'bigint'
         ? String(raw.id)
         : undefined;
-  const username = typeof raw.username === 'string' ? raw.username : undefined;
-  const displayName = typeof raw.displayName === 'string' ? raw.displayName : undefined;
-  const role = typeof raw.role === 'string' ? raw.role : undefined;
+  const username: string | undefined = typeof raw.username === 'string' ? raw.username : undefined;
+  const displayName: string | undefined = typeof raw.displayName === 'string' ? raw.displayName : undefined;
+  const role: string | undefined = typeof raw.role === 'string' ? raw.role : undefined;
 
   return {
     ...raw,

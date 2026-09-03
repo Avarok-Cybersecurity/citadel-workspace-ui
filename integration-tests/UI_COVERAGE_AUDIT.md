@@ -96,7 +96,7 @@ App.tsx
         │           ├── Rendered MDX content (if viewing)
         │           └── GroupChatView (chat tab)
         │
-        ├── /messages ─── AppLayout → ChatArea
+        ├── /messages ─── AppLayout → Messages → P2PChat
         ├── /directory ─── UserDirectory
         │   ├── UserSearch + filter tabs (All/Online/Favorites)
         │   ├── Member cards
@@ -372,7 +372,7 @@ App.tsx
 
 | UI Element | Component | Tested? | Test File(s) |
 |---|---|---|---|
-| /messages route (ChatArea) | Messages | ✅ | misc-routes |
+| /messages route (P2PChat) | Messages | ✅ | misc-routes |
 | 404 NotFound page | NotFound | ✅ | misc-routes |
 | ProfileModal (edit profile) | ProfileModal | ✅ | misc-routes, topbar-navigation |
 | PreferencesDialog | PreferencesDialog | ✅ | topbar-navigation |

@@ -9,6 +9,7 @@ import type { ConnectionState } from './state';
 import type { ConnectionIO } from './io';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 import { debugLog } from '@/lib/debug-config';
+import type { TabSelectionContext, PendingRequest } from '@/lib/connection/types';
 
 /**
  * Route an incoming WebSocket message to the appropriate handler.
@@ -21,7 +22,7 @@ export async function handleWebSocketMessage(
   onSuccessfulConnection: (cid: bigint, shouldUpdate: boolean) => Promise<void>,
   onConnectFailure: (failure: { message?: string }) => Promise<void>,
 ): Promise<void> {
-  const msg = message as Record<string, Record<string, unknown> | undefined>;
+  const msg: Record<string, Record<string, unknown> | undefined> = message as Record<string, Record<string, unknown> | undefined>;
 
   // Handle LocalDB responses
   if (msg.LocalDBSetKVSuccess) {
@@ -43,22 +44,40 @@ export async function handleWebSocketMessage(
   }
 
   // Handle successful registration/connection
-  const response = (msg.Response || msg) as Record<string, Record<string, unknown> | undefined>;
+  const response: Record<string, Record<string, unknown> | undefined> = (msg.Response || msg) as Record<string, Record<string, unknown> | undefined>;
   if (response.RegisterSuccess || response.ConnectSuccess) {
     await handleAuthResponse(response, state, io, onSuccessfulConnection);
   }
 
   // Handle successful connection management
-  const cmSuccess = (response.ConnectionManagementSuccess as Record<string, unknown> | undefined);
+  const cmSuccess: Record<string, unknown> | undefined = (response.ConnectionManagementSuccess as Record<string, unknown> | undefined);
   if (cmSuccess) {
     await handleConnectionManagementResponse(cmSuccess, state, io, onSuccessfulConnection);
   }
 
   // Handle disconnect notifications
-  const disconnectNotification = (response.DisconnectNotification as Record<string, unknown> | undefined);
+  //
+  // This used to log and invalidate a cache, and change no connection state at
+  // all — so a server-side session loss left a fully rendered workspace whose
+  // every action then hung or timed out, with no banner, no toast and no
+  // redirect. The user could not tell. The teardown below is the same pair
+  // already used by the user-initiated path in lifecycle.ts; only the
+  // server-initiated path never got it.
+  const disconnectNotification: Record<string, unknown> | undefined = (response.DisconnectNotification as Record<string, unknown> | undefined);
   if (disconnectNotification) {
-    debugLog('ConnectionService', 'ConnectionManager: Received DisconnectNotification for CID:', disconnectNotification.cid);
+    const notifiedCid: bigint | undefined = disconnectNotification.cid as bigint | undefined;
+    const currentCid: bigint | undefined = state.currentConnectionInfo?.cid;
+    debugLog('ConnectionService', 'ConnectionManager: Received DisconnectNotification for CID:', notifiedCid);
     state.invalidateCache();
+
+    // Only for the session actually showing. The internal service multiplexes
+    // several accounts over one socket, so tearing down on any CID would take
+    // another account's UI with it.
+    if (notifiedCid !== undefined && currentCid !== undefined && notifiedCid === currentCid) {
+      state.setCurrentConnectionInfo(null);
+      io.updateConnectionService({ cid: null, isConnected: false });
+      io.broadcastConnectionStatus({ isConnected: false });
+    }
   }
 
   // Handle connection failures
@@ -73,18 +92,18 @@ async function handleAuthResponse(
   io: ConnectionIO,
   onSuccessfulConnection: (cid: bigint, shouldUpdate: boolean) => Promise<void>,
 ): Promise<void> {
-  const cid = (response.RegisterSuccess as Record<string, unknown> | undefined)?.cid
+  const cid: unknown = (response.RegisterSuccess as Record<string, unknown> | undefined)?.cid
     || (response.ConnectSuccess as Record<string, unknown> | undefined)?.cid;
-  const requestId = (response.RegisterSuccess as Record<string, unknown> | undefined)?.request_id
+  const requestId: unknown = (response.RegisterSuccess as Record<string, unknown> | undefined)?.request_id
     || (response.ConnectSuccess as Record<string, unknown> | undefined)?.request_id;
-  const cidBigInt = cid as bigint | undefined;
-  const reqId = requestId as string | undefined;
+  const cidBigInt: bigint | undefined = cid as bigint | undefined;
+  const reqId: string | undefined = requestId as string | undefined;
   debugLog('ConnectionService', `ConnectionManager: Received registration/connection success, CID=${cidBigInt?.toString()}, request_id=${reqId}`);
 
-  const hasPendingRequest = reqId && state.hasPendingRequest(reqId);
-  const tabSelection = await io.getSelectedUser();
-  const isOurSession = cidBigInt && tabSelection?.selectedCid === cidBigInt;
-  const isFreshTab = !tabSelection?.selectedCid && !state.currentConnectionInfo;
+  const hasPendingRequest: boolean | "" | undefined = reqId && state.hasPendingRequest(reqId);
+  const tabSelection: TabSelectionContext | null = await io.getSelectedUser();
+  const isOurSession: boolean = Boolean(cidBigInt && tabSelection?.selectedCid === cidBigInt);
+  const isFreshTab: boolean = !tabSelection?.selectedCid && !state.currentConnectionInfo;
 
   if (hasPendingRequest || isOurSession || isFreshTab) {
     debugLog('ConnectionService', `ConnectionManager: Processing connection success (hasPending=${hasPendingRequest}, isOurSession=${isOurSession}, isFreshTab=${isFreshTab})`);
@@ -104,14 +123,14 @@ async function handleConnectionManagementResponse(
   io: ConnectionIO,
   onSuccessfulConnection: (cid: bigint, shouldUpdate: boolean) => Promise<void>,
 ): Promise<void> {
-  const cmReqId = cmSuccess.request_id as string | undefined;
-  const cmCid = cmSuccess.cid as bigint | undefined;
+  const cmReqId: string | undefined = cmSuccess.request_id as string | undefined;
+  const cmCid: bigint | undefined = cmSuccess.cid as bigint | undefined;
   debugLog('ConnectionService', 'ConnectionManager: Received ConnectionManagementSuccess, request_id:', cmReqId, 'cid:', cmCid?.toString());
 
-  const hasPendingRequest = cmReqId && state.hasPendingRequest(cmReqId);
-  const tabSelection = await io.getSelectedUser();
-  const isOurSession = cmCid && tabSelection?.selectedCid === cmCid;
-  const isFreshTab = !tabSelection?.selectedCid && !state.currentConnectionInfo;
+  const hasPendingRequest: boolean = cmReqId !== undefined && state.hasPendingRequest(cmReqId);
+  const tabSelection: TabSelectionContext | null = await io.getSelectedUser();
+  const isOurSession: boolean = cmCid !== undefined && tabSelection?.selectedCid === cmCid;
+  const isFreshTab: boolean = !tabSelection?.selectedCid && !state.currentConnectionInfo;
 
   if (hasPendingRequest || isOurSession || isFreshTab) {
     debugLog('ConnectionService', 'ConnectionManager: Processing ConnectionManagementSuccess (hasPending:', hasPendingRequest, ', isOurSession:', isOurSession, ', isFreshTab:', isFreshTab, ')');
@@ -126,7 +145,7 @@ async function handleConnectionManagementResponse(
 }
 
 export function resolveRequest(requestId: string, data: unknown, state: ConnectionState): void {
-  const pending = state.getPendingRequest(requestId);
+  const pending: PendingRequest | undefined = state.getPendingRequest(requestId);
   if (pending) {
     pending.resolve(data);
     state.deletePendingRequest(requestId);
@@ -134,7 +153,7 @@ export function resolveRequest(requestId: string, data: unknown, state: Connecti
 }
 
 export function rejectRequest(requestId: string, message: string, state: ConnectionState): void {
-  const pending = state.getPendingRequest(requestId);
+  const pending: PendingRequest | undefined = state.getPendingRequest(requestId);
   if (pending) {
     pending.reject(new Error(message));
     state.deletePendingRequest(requestId);

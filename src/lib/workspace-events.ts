@@ -32,6 +32,12 @@ export interface MemberPayload {
 export interface MembersPayload {
   members: User[];
   connection: ConnectionInfo;
+  /**
+   * Which domain this list is for, when the server said. Undefined against a
+   * server that predates the field -- a subscriber that cannot tell should keep
+   * its old behaviour rather than discard the list.
+   */
+  domainId?: string;
 }
 
 export interface WorkspacesPayload {
@@ -94,6 +100,21 @@ export interface WorkspaceEventMap {
   'node:loaded': { node: DomainNode; connection: ConnectionInfo };
   'node:deleted': { nodeId: string; childrenDeleted: string[]; connection: ConnectionInfo };
   'node:moved': { nodeId: string; oldParentId: string | null; newParentId: string | null; connection: ConnectionInfo };
+  'node:content-updated': {
+    nodeId: string;
+    mdxContent: string;
+    /**
+     * The new content's hash, so a watcher verifies what it just received.
+     *
+     * Absent when the server predates the field, which reads as "unhashed"
+     * rather than "mismatch" — refusing content because the server is older
+     * would be the same defect the hash exists to prevent.
+     */
+    mdxContentHash?: string;
+    updatedBy: string;
+    timestamp: number;
+    connection: ConnectionInfo;
+  };
   'nodes:loading': ConnectionInfo;
   'nodes:loaded': { nodes: DomainNode[]; connection: ConnectionInfo };
   'tree:structure:loaded': { root: TreeNode; connection: ConnectionInfo };
@@ -112,7 +133,7 @@ export type WorkspaceEventType = keyof WorkspaceEventMap;
 
 // Subset types for each method category
 type WorkspaceEventKeys = 'workspace:loading' | 'workspace:loaded' | 'workspace:created' | 'workspace:not-initialized' | 'workspaces:listed' | 'members:reload';
-type NodeEventKeys = 'node:loaded' | 'node:deleted' | 'node:moved' | 'nodes:loading' | 'nodes:loaded' | 'tree:structure:loaded' | 'tree:schema:loaded' | 'node:types:loaded';
+type NodeEventKeys = 'node:loaded' | 'node:deleted' | 'node:moved' | 'node:content-updated' | 'nodes:loading' | 'nodes:loaded' | 'tree:structure:loaded' | 'tree:schema:loaded' | 'node:types:loaded';
 type MemberEventKeys = 'member:adding' | 'member:added' | 'member:loading' | 'member:updating_role' | 'member:updating_permissions' | 'member:removing' | 'member:removed' | 'member:loaded' | 'members:loading' | 'members:loaded' | 'members:reload' | 'member:role-updated' | 'user:permissions:loaded';
 type MessageEventKeys = 'message:received' | 'typing:started' | 'typing:stopped';
 type OperationEventKeys = 'operation:success' | 'operation:error' | 'operation:deleted';
@@ -126,15 +147,15 @@ export class WorkspaceEvents {
 
   // Single internal cast to bridge the type-safe public API to the untyped eventEmitter.on()
   private registerListener<K extends WorkspaceEventType>(event: K, callback: (payload: WorkspaceEventMap[K]) => void): () => void {
-    const unlistenFn = eventEmitter.on(event, callback as (payload: unknown) => void);
+    const unlistenFn: () => void = eventEmitter.on(event, callback as (payload: unknown) => void);
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
     }
     this.listeners.get(event)?.push(unlistenFn);
     return () => {
       unlistenFn();
-      const listeners = this.listeners.get(event) || [];
-      const index = listeners.indexOf(unlistenFn);
+      const listeners: UnlistenFn[] = this.listeners.get(event) || [];
+      const index: number = listeners.indexOf(unlistenFn);
       if (index !== -1) {
         listeners.splice(index, 1);
       }
@@ -172,6 +193,17 @@ export class WorkspaceEvents {
   }
 
   /**
+   * How many listeners this facade currently holds for `event`.
+   *
+   * Exists so a leaked subscription is observable in a test. A discarded
+   * unsubscribe has no runtime symptom — setState on an unmounted component is a
+   * no-op — so without a count there is nothing to assert on.
+   */
+  public listenerCount(event: WorkspaceEventType): number {
+    return this.listeners.get(event)?.length ?? 0;
+  }
+
+  /**
    * Clean up all event listeners
    */
   public cleanupAllListeners(): void {
@@ -185,4 +217,4 @@ export class WorkspaceEvents {
 }
 
 // Export a singleton instance
-export const workspaceEvents = new WorkspaceEvents();
+export const workspaceEvents: WorkspaceEvents = new WorkspaceEvents();

@@ -6,12 +6,14 @@ import {
   ChevronDown,
   Settings,
   Star,
+  FolderInput,
 } from 'lucide-react';
 import { getEntityMetadata, getEntityTypeString } from '@/lib/entity-type-registry';
 import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
+import { rowClass } from './selected-row';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -42,6 +44,7 @@ export interface TreeNodeItemProps {
   onNodeCreate?: (parentId: string) => void;
   onAdminSettings?: (node: DomainNode) => void;
   onSetDefault?: (node: DomainNode) => void;
+  onMoveNode?: (node: DomainNode) => void;
 }
 
 export function TreeNodeItem({
@@ -56,23 +59,24 @@ export function TreeNodeItem({
   onNodeCreate,
   onAdminSettings,
   onSetDefault,
-}: TreeNodeItemProps) {
+  onMoveNode,
+}: TreeNodeItemProps): JSX.Element {
   const { node, children } = treeNode;
-  const isSelected = selectedNodeId === node.id;
-  const isExpanded = expandedNodes.has(node.id);
-  const hasChildren = children.length > 0;
-  const Icon = getEntityIcon(node.entity_type);
-  const typeName = getEntityTypeName(node.entity_type);
+  const isSelected: boolean = selectedNodeId === node.id;
+  const isExpanded: boolean = expandedNodes.has(node.id);
+  const hasChildren: boolean = children.length > 0;
+  const Icon: React.ComponentType<{ className?: string; }> = getEntityIcon(node.entity_type);
+  const typeName: string = getEntityTypeName(node.entity_type);
 
   // Cap at 5 levels of indentation to keep deep hierarchies navigable
-  const indentPx = Math.min(Math.max(0, depth - 1), 5) * 12;
+  const indentPx: number = Math.min(Math.max(0, depth - 1), 5) * 12;
 
-  const handleToggle = (e: React.MouseEvent) => {
+  const handleToggle = (e: React.MouseEvent): void => {
     e.stopPropagation();
     onToggleExpand(node.id);
   };
 
-  const handleToggleKeyDown = (e: React.KeyboardEvent) => {
+  const handleToggleKeyDown = (e: React.KeyboardEvent): void => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       e.stopPropagation();
@@ -83,51 +87,63 @@ export function TreeNodeItem({
   return (
     <>
       <SidebarMenuItem className="relative group">
+        {/*
+          The expand toggle is a SIBLING of the row button, not a child.
+
+          It used to sit inside it as a <span role="button" tabIndex={0}>. That
+          silenced React's validateDOMNesting warning about a button inside a
+          button, but it did not fix the thing that warning was pointing at: a
+          focusable, role="button" descendant of a button is still nested
+          interactive content, which is what axe flags as `nested-interactive`
+          and what leaves keyboard and screen-reader behaviour up to the
+          individual client. Positioning it absolutely, the way the row's ⋯ menu
+          already is, keeps the layout identical and makes the structure valid —
+          so it is now a real <button> that carries its own expanded state.
+        */}
+        {hasChildren && (
+          <button
+            type="button"
+            onClick={handleToggle}
+            onKeyDown={handleToggleKeyDown}
+            aria-label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
+            aria-expanded={isExpanded}
+            className="absolute top-1/2 -translate-y-1/2 z-10 p-0.5 hover:bg-black/10 rounded flex-shrink-0 cursor-pointer focus-visible:outline focus-visible:outline-1 focus-visible:outline-ring"
+            style={{ left: `${8 + indentPx}px` }}
+            data-testid={`tree-node-toggle-${node.id}`}
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-3 w-3" />
+            ) : (
+              <ChevronRight className="h-3 w-3" />
+            )}
+          </button>
+        )}
+
         <SidebarMenuButton
-          className={`text-white hover:bg-purple-500/15 hover:text-white transition-colors w-full pr-8 ${
-            isSelected ? "bg-purple-500/20 text-purple-200" : ""
-          }`}
-          style={{ paddingLeft: `${8 + indentPx}px` }}
+          // text-foreground, not text-primary-foreground: the latter is WHITE, the text colour that belongs on a primary FILL.
+          // These rows sit on the page background, so in light mode it was white-on-white — the whole tree was invisible.
+          // Dark mode hid it, because white happened to be right there.
+          className={`${rowClass(isSelected)} w-full pr-8`}
+          // The toggle now sits over this padding rather than inside the flow,
+          // so the gap is reserved whether or not the node has children — which
+          // is what the old `<span className="w-5" />` spacer was doing anyway.
+          style={{ paddingLeft: `${8 + indentPx + 20}px` }}
           isActive={isSelected}
           onClick={() => onNodeSelect(node.id)}
           data-testid={`tree-node-${node.id}`}
         >
-          {hasChildren && (
-            // Rendered as a span (not a <button>) because the wrapping
-            // SidebarMenuButton is itself a <button>, and nested buttons
-            // violate HTML semantics (React validateDOMNesting warning) and
-            // accessibility-tree expectations. role="button" + tabIndex + a
-            // keydown handler preserves the equivalent behavior for keyboard
-            // and assistive-tech users.
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={handleToggle}
-              onKeyDown={handleToggleKeyDown}
-              className="p-0.5 hover:bg-black/10 rounded mr-1 flex-shrink-0 cursor-pointer focus-visible:outline focus-visible:outline-1 focus-visible:outline-purple-400"
-              aria-label={isExpanded ? "Collapse" : "Expand"}
-              data-testid={`tree-node-toggle-${node.id}`}
-            >
-              {isExpanded ? (
-                <ChevronDown className="h-3 w-3" />
-              ) : (
-                <ChevronRight className="h-3 w-3" />
-              )}
-            </span>
-          )}
-          {!hasChildren && <span className="w-5" />}
           <Icon className="h-4 w-4 flex-shrink-0" />
           <span className="truncate flex items-center gap-1.5" title={node.name}>
             {node.name}
             {node.is_default && (
               <Star
-                className="h-3 w-3 text-yellow-500 fill-yellow-500 flex-shrink-0"
+                className="h-3 w-3 text-warning-emphasis fill-warning flex-shrink-0"
                 aria-label={`Default ${typeName.toLowerCase()}`}
               />
             )}
           </span>
           {hasChildren && (
-            <span className="ml-auto text-xs text-gray-400 pr-6">
+            <span className="ml-auto text-xs text-muted-foreground pr-6">
               {children.length}
             </span>
           )}
@@ -138,11 +154,12 @@ export function TreeNodeItem({
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white hover:bg-[#232536]"
+              className="absolute right-1 top-1/2 -translate-y-1/2 tap-target h-6 w-6 reveal-on-hover text-muted-foreground hover:text-foreground hover:bg-card"
               onClick={(e) => e.stopPropagation()}
+              aria-label={`Actions for ${node.name}`}
               data-testid={`tree-node-menu-${node.id}`}
             >
-              <MoreVertical className="h-4 w-4" />
+              <MoreVertical className="h-4 w-4" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" sideOffset={8}>
@@ -172,10 +189,19 @@ export function TreeNodeItem({
                 Add Child
               </DropdownMenuItem>
             )}
+            {onMoveNode && (
+              <DropdownMenuItem
+                onClick={() => onMoveNode(node)}
+                data-testid={`move-node-${node.id}`}
+              >
+                <FolderInput className="h-4 w-4 mr-2" />
+                Move…
+              </DropdownMenuItem>
+            )}
             {onSetDefault && !node.is_default && (
               <DropdownMenuItem
                 onClick={() => onSetDefault(node)}
-                className="text-yellow-400 hover:text-yellow-300"
+                className="text-warning-emphasis hover:text-warning-emphasis"
                 data-testid={`set-default-node-${node.id}`}
               >
                 <Star className="h-4 w-4 mr-2" />
@@ -187,7 +213,7 @@ export function TreeNodeItem({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => onNodeDelete(node)}
-                  className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
+                  className="text-destructive-emphasis hover:text-destructive-emphasis hover:bg-destructive/15"
                   data-testid={`delete-node-${node.id}`}
                 >
                   Delete {typeName}
@@ -214,6 +240,7 @@ export function TreeNodeItem({
             onNodeCreate={onNodeCreate}
             onAdminSettings={onAdminSettings}
             onSetDefault={onSetDefault}
+            onMoveNode={onMoveNode}
           />
         ))}
     </>

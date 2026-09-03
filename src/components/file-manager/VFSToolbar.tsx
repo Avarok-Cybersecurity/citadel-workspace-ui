@@ -44,10 +44,10 @@ export function VFSToolbar({
   sortDirection = 'asc',
   onSortChange,
   selectionCount = 0,
-}: VFSToolbarProps) {
-  const segments = currentPath.split('/').filter(Boolean);
+}: VFSToolbarProps): JSX.Element {
+  const segments: string[] = currentPath.split('/').filter(Boolean);
 
-  const handleSortClick = (field: SortField) => {
+  const handleSortClick = (field: SortField): void => {
     if (!onSortChange) return;
     if (field === sortField) {
       onSortChange(field, sortDirection === 'asc' ? 'desc' : 'asc');
@@ -57,24 +57,24 @@ export function VFSToolbar({
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-2 border-b border-purple-800 bg-[#232536]">
+    <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card">
       {/* Left side: Breadcrumb navigation */}
-      <div className="flex items-center gap-1 text-sm text-gray-300 overflow-x-auto min-w-0 flex-1">
+      <div className="flex items-center gap-1 text-sm text-foreground/80 overflow-x-auto min-w-0 flex-1">
         <button
           onClick={() => onNavigate('/')}
-          className="hover:text-white flex items-center gap-1 shrink-0"
+          className="hover:text-foreground flex items-center gap-1 shrink-0"
         >
           <Home className="h-4 w-4" />
           <span>Root</span>
         </button>
         {segments.map((seg, i) => {
-          const path = '/' + segments.slice(0, i + 1).join('/');
+          const path: string = '/' + segments.slice(0, i + 1).join('/');
           return (
             <span key={path} className="flex items-center gap-1 shrink-0">
-              <ChevronRight className="h-3 w-3 text-gray-500" />
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
               <button
                 onClick={() => onNavigate(path)}
-                className="hover:text-white"
+                className="hover:text-foreground"
               >
                 {seg}
               </button>
@@ -85,7 +85,7 @@ export function VFSToolbar({
 
       {/* Center: Selection count */}
       {selectionCount > 0 && (
-        <div className="mx-4 text-xs text-purple-300 shrink-0">
+        <div className="mx-4 text-xs text-primary-accent shrink-0">
           {selectionCount} selected
         </div>
       )}
@@ -95,18 +95,24 @@ export function VFSToolbar({
         {/* Search/Filter */}
         {onFilterChange && (
           <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Filter..."
               value={filterText}
               onChange={(e) => onFilterChange(e.target.value)}
-              className="h-7 w-32 pl-7 pr-6 text-xs bg-[#2a2f4a] border-purple-800 text-white placeholder:text-gray-500"
+              // Shrinkable: a rigid w-32 inside a `shrink-0` right-hand group
+              // squeezed the breadcrumbs to a few pixels at 375px, so the path
+              // could not be read or navigated.
+              className="h-7 w-full min-w-0 max-w-32 pl-7 pr-6 text-xs bg-surface border-border text-foreground placeholder:text-muted-foreground"
             />
             {filterText && (
               <button
+                aria-label="Clear filter"
                 onClick={() => onFilterChange('')}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                // A 12px box before: padded to the 24px floor this project
+                // enforces elsewhere, without moving the icon.
+                className="absolute right-0.5 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center text-muted-foreground hover:text-foreground"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -118,18 +124,18 @@ export function VFSToolbar({
         {onSortChange && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white hover:bg-[#232536] h-7 px-2">
+              <Button variant="ghost" size="sm" className="text-foreground/80 hover:text-foreground hover:bg-card h-7 px-2">
                 <ArrowUpDown className="h-3.5 w-3.5 mr-1" />
                 <span className="text-xs">{sortLabels[sortField]}</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-[#232536] border-purple-800">
+            <DropdownMenuContent className="bg-card border-border">
               {(Object.keys(sortLabels) as SortField[]).map((field) => (
                 <DropdownMenuItem
                   key={field}
                   onClick={() => handleSortClick(field)}
-                  className={`text-gray-300 hover:text-white hover:bg-[#232536] ${
-                    field === sortField ? 'text-purple-300' : ''
+                  className={`text-foreground/80 hover:text-foreground hover:bg-card ${
+                    field === sortField ? 'text-primary-accent' : ''
                   }`}
                 >
                   {sortLabels[field]}
@@ -144,16 +150,16 @@ export function VFSToolbar({
           </DropdownMenu>
         )}
 
-        <div className="w-px h-4 bg-purple-800" />
+        <div className="w-px h-4 bg-primary" />
 
         {/* Action buttons */}
-        <Button variant="ghost" size="sm" onClick={onNewFolder} className="text-gray-300 hover:text-white hover:bg-[#232536] h-7 w-7 p-0">
+        <Button variant="ghost" size="sm" aria-label="New folder" onClick={onNewFolder} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
           <FolderPlus className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" onClick={onUploadFile} className="text-gray-300 hover:text-white hover:bg-[#232536] h-7 w-7 p-0">
+        <Button variant="ghost" size="sm" aria-label="Upload file" onClick={onUploadFile} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
           <Upload className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" onClick={onSync} className="text-gray-300 hover:text-white hover:bg-[#232536] h-7 w-7 p-0">
+        <Button variant="ghost" size="sm" aria-label="Sync with peer" onClick={onSync} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
           <RefreshCw className="h-4 w-4" />
         </Button>
       </div>

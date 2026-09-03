@@ -33,6 +33,7 @@ import {
   config,
   TestHarness,
   runTestMain,
+  isVisibleWithin,
 } from '../../lib/index.js';
 
 // Test configuration
@@ -49,6 +50,7 @@ interface TestResult {
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'Both C2S Reconnection Test',
     reportFileName: 'both-c2s-reconnect-test.json',
     metadata: { user1: USER1_NAME, user2: USER2_NAME },
@@ -70,7 +72,11 @@ async function runTest(): Promise<boolean> {
     page1 = browserSetup.pages[0];
     page2 = browserSetup.pages[1];
 
-    const errorPatterns = ['Session Already Connected', 'Ratchet does not exist', 'ratchet v'];
+    // 'ILM' included deliberately. These specs assert message delivery, and the
+    // delivery layer is ILM -- but its diagnostics were filtered out of the
+    // captured console, so a delivery failure here produced a log with literally
+    // zero ILM lines in it and nothing to diagnose from.
+    const errorPatterns = ['Session Already Connected', 'Ratchet does not exist', 'ratchet v', 'ILM'];
 
     setupConsoleCapture(page1, USER1_NAME, errorPatterns);
     setupConsoleCapture(page2, USER2_NAME, errorPatterns);
@@ -151,15 +157,22 @@ async function runTest(): Promise<boolean> {
 
     const msg1 = `Initial from ${USER1_NAME} - ${Date.now()}`;
     const msg1Sent = await sendMessage(page1, USER1_NAME, msg1, uxTracker);
-    if (msg1Sent) {
-      await sleep(3000);
-      await verifyMessageReceived(page2, USER2_NAME, msg1, 30000, uxTracker);
-    }
+    // The verification result used to be DISCARDED, so this row reported
+    // PASS when the send button worked — not when the message arrived. This
+    // is the baseline every later reconnection phase is measured against, so
+    // an undelivered baseline makes the whole spec meaningless while green.
+    const msg1Received = msg1Sent
+      ? await verifyMessageReceived(page2, USER2_NAME, msg1, 30000, uxTracker)
+      : false;
 
     results.push({
       step: 'Phase 2c: Initial Messaging',
-      status: msg1Sent ? 'PASS' : 'FAIL',
-      notes: msg1Sent ? 'Works' : 'Failed',
+      status: msg1Sent && msg1Received ? 'PASS' : 'FAIL',
+      notes: msg1Sent
+        ? msg1Received
+          ? 'Sent and received'
+          : 'Sent but never arrived'
+        : 'Send failed',
     });
 
     await takeScreenshot(page1, `${USER1_NAME}_phase2_p2p_established`);
@@ -250,10 +263,8 @@ async function runTest(): Promise<boolean> {
     await sleep(5000);
 
     // Verify peer appears in sidebar for both users
-    const user1SeesUser2 = await page1.locator(`text="${USER2_NAME}"`).first()
-      .isVisible({ timeout: 10000 }).catch(() => false);
-    const user2SeesUser1 = await page2.locator(`text="${USER1_NAME}"`).first()
-      .isVisible({ timeout: 10000 }).catch(() => false);
+    const user1SeesUser2 = await isVisibleWithin(page1.locator(`text="${USER2_NAME}"`).first(), 10000);
+    const user2SeesUser1 = await isVisibleWithin(page2.locator(`text="${USER1_NAME}"`).first(), 10000);
 
     results.push({
       step: 'Phase 6: P2P Auto-Connected',
@@ -282,7 +293,6 @@ async function runTest(): Promise<boolean> {
     });
 
     if (msg2Sent) {
-      await sleep(3000);
       const msg2Received = await verifyMessageReceived(page2, USER2_NAME, msg2, 30000, uxTracker);
       results.push({
         step: 'Phase 7b: Verify Received',

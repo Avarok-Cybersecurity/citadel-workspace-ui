@@ -49,40 +49,40 @@ export function createServiceModules(
   errorHandler: ((error: Error) => void) | undefined,
   callbacks: ServiceCallbacks
 ): ServiceModules {
-  const moduleConfig = {
+  const moduleConfig: { init: () => Promise<void>; sendRequest: (req: unknown, reqId?: string) => Promise<void>; getClient: () => WorkspaceClient | null; } = {
     init: callbacks.init,
-    sendRequest: (req: unknown, reqId?: string) => callbacks.sendRequest(req as Record<string, unknown>, reqId),
+    sendRequest: (req: unknown, reqId?: string): Promise<void> => callbacks.sendRequest(req as Record<string, unknown>, reqId),
     getClient: callbacks.getClient,
   };
 
-  const localDB = new LocalDBOperations(moduleConfig);
-  const sessionMgmt = new SessionManagement(moduleConfig);
-  const filePicker = new FilePicker(moduleConfig);
+  const localDB: LocalDBOperations = new LocalDBOperations(moduleConfig);
+  const sessionMgmt: SessionManagement = new SessionManagement(moduleConfig);
+  const filePicker: FilePicker = new FilePicker(moduleConfig);
 
-  const p2pOps = new P2POperations({
+  const p2pOps: P2POperations = new P2POperations({
     init: callbacks.init,
     sendMessage: (msg: unknown) => callbacks.sendMessage(msg as Record<string, unknown>),
     isLeader: () => instanceManager.isLeader,
   });
 
-  const messengerOps = new MessengerOperations({
+  const messengerOps: MessengerOperations = new MessengerOperations({
     init: callbacks.init,
     getClient: callbacks.getClient,
   });
 
-  const disconnectOps = new DisconnectOperations({
+  const disconnectOps: DisconnectOperations = new DisconnectOperations({
     init: callbacks.init,
     sendRequest: (req: unknown, reqId?: string) => callbacks.sendRequest(req as Record<string, unknown>, reqId),
   });
 
-  const authOps = new AuthOperations({
+  const authOps: AuthOperations = new AuthOperations({
     init: callbacks.init,
     sendRequest: (req: unknown, reqId?: string) => callbacks.sendRequest(req as Record<string, unknown>, reqId),
     claimSession: callbacks.claimSession,
     disconnect: callbacks.disconnect,
   });
 
-  const initOps = new WebSocketInitialization({
+  const initOps: WebSocketInitialization = new WebSocketInitialization({
     websocketUrl,
     messageHandler,
     errorHandler,
@@ -91,7 +91,7 @@ export function createServiceModules(
     releaseSession: callbacks.releaseSession,
   });
 
-  const workspaceOps = new WorkspaceOperations({
+  const workspaceOps: WorkspaceOperations = new WorkspaceOperations({
     init: callbacks.init,
     getClient: callbacks.getClient,
   });

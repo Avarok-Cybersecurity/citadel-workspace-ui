@@ -24,6 +24,6 @@ export function createYjsP2PProvider(
   doc?: Y.Doc,
   creatorCid?: string | null
 ): YjsP2PProvider {
-  const ydoc = doc || new Y.Doc();
+  const ydoc: Y.Doc = doc || new Y.Doc();
   return new YjsP2PProvider(documentId, peerCid, ydoc, ownCid, creatorCid ?? null);
 }

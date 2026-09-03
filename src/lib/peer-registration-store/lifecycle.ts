@@ -21,6 +21,8 @@ import type {
   PeerRegisterNotification,
 } from './types';
 import { toInternalServiceRequest } from './types';
+import type { SessionSecuritySettings } from '@/lib/security-utils';
+import { markAsDecline } from '../p2p-registration-service/decline-correlation';
 
 /**
  * Create a notification card with accept/decline callbacks
@@ -55,9 +57,9 @@ export function processIncomingNotification(
     peer_username: notification.peer_username
   });
 
-  const peerCid = notification.peer_cid;
-  const peerUsername = notification.peer_username || 'Unknown';
-  const notificationTargetCid = notification.cid;
+  const peerCid: bigint = notification.peer_cid;
+  const peerUsername: string = notification.peer_username || 'Unknown';
+  const notificationTargetCid: bigint = notification.cid;
 
   if (peerCid === undefined) { debugLog('PeerRegistrationStore', 'Invalid notification - missing peer_cid'); return null; }
   if (notificationTargetCid === undefined) { debugLog('PeerRegistrationStore', 'Invalid notification - missing target cid'); return null; }
@@ -67,7 +69,7 @@ export function processIncomingNotification(
     return null;
   }
 
-  const ts = Date.now();
+  const ts: number = Date.now();
   debugLog('PeerRegistrationStore', `Creating request with timestamp ${ts} (${new Date(ts).toISOString()})`);
 
   return {
@@ -83,12 +85,59 @@ export function processIncomingNotification(
  * Execute the accept flow for a pending request.
  * Sends PeerRegister back to the peer and waits for response.
  */
+/**
+ * Tell the sender their request was refused.
+ *
+ * Declining used to remove the local entry and nothing else — the backend's
+ * `PeerRegisterRespond { accept: false }` had ZERO callers anywhere in the UI.
+ * Two consequences, both permanent:
+ *
+ * - The sender's outgoing store resends every five minutes forever, and the
+ *   recipient's dedup only checks LIVE pending requests, so a declined request
+ *   reappeared on their screen every five minutes indefinitely.
+ * - The sender sat on a disabled "Awaiting Response…" with no cancel, never
+ *   learning they had been declined.
+ *
+ * Neither side had a way forward except the recipient giving in.
+ *
+ * Best-effort by design: the local removal must happen whether or not the
+ * message goes out, because a decline the user performed and then saw
+ * reappear — for a second reason — would be worse than a decline the sender
+ * has not yet heard about. The sender's own resend is the backstop.
+ */
+export async function executeDeclineRequest(request: PendingPeerRequest): Promise<void> {
+  const currentCid: bigint = request.cid;
+  if (!currentCid) {
+    debugLog('PeerRegistrationStore', 'No active session; declining locally only');
+    return;
+  }
+
+  // The service answers a decline with PeerRegisterSuccess, which the
+  // registration handler cannot otherwise tell from an acceptance.
+  const requestId: string = crypto.randomUUID();
+  markAsDecline(requestId);
+
+  try {
+    await websocketService.sendMessage({
+      PeerRegisterRespond: {
+        request_id: requestId,
+        cid: currentCid,
+        peer_cid: request.peer_cid,
+        accept: false,
+      },
+    });
+    debugLog('PeerRegistrationStore', 'Declined registration from', request.peer_cid);
+  } catch (error) {
+    debugLog('PeerRegistrationStore', 'Could not send the decline; removing locally anyway', error);
+  }
+}
+
 export async function executeAcceptRequest(request: PendingPeerRequest): Promise<void> {
-  const currentCid = request.cid;
+  const currentCid: bigint = request.cid;
   if (!currentCid) throw new Error('No active session - cannot accept registration');
 
-  const registerRequestId = crypto.randomUUID();
-  const registerRequest = {
+  const registerRequestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+  const registerRequest: { PeerRegister: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: bigint; session_security_settings: SessionSecuritySettings; connect_after_register: boolean; peer_session_password: null; }; } = {
     PeerRegister: {
       request_id: registerRequestId,
       cid: currentCid,
@@ -101,7 +150,7 @@ export async function executeAcceptRequest(request: PendingPeerRequest): Promise
 
   debugLog('PeerRegistrationStore', 'acceptRequest waiting for response', { registerRequestId, targetPeerCid: request.peer_cid });
 
-  const responsePromise = waitForAcceptResponse(registerRequestId, request.peer_cid, currentCid);
+  const responsePromise: Promise<void> = waitForAcceptResponse(registerRequestId, request.peer_cid, currentCid);
 
   debugLog('PeerRegistrationStore', 'Claiming session', currentCid, 'before sending PeerRegister');
   await websocketService.claimSession(currentCid);
@@ -117,11 +166,11 @@ export async function executeAcceptRequest(request: PendingPeerRequest): Promise
  * Resend a PeerRegister request for an outgoing request
  */
 export async function resendPeerRegister(request: OutgoingPeerRequest): Promise<void> {
-  const client = websocketService.getClient();
+  const client: ReturnType<typeof websocketService.getClient> = websocketService.getClient();
   if (!client) throw new Error('No WebSocket client available');
 
   await websocketService.claimSession(request.fromCid);
-  const registerRequest = {
+  const registerRequest: { PeerRegister: { request_id: string; cid: bigint; peer_cid: bigint; session_security_settings: SessionSecuritySettings; connect_after_register: boolean; peer_session_password: null; }; } = {
     PeerRegister: {
       request_id: request.id,
       cid: request.fromCid,
@@ -150,7 +199,7 @@ export async function processPollRequest(
   }
   if (!request.toCid) { debugLog('PeerRegistrationStore', 'Removing invalid request without toCid'); return 'remove'; }
 
-  const elapsed = now - request.timeLastSent;
+  const elapsed: number = now - request.timeLastSent;
   if (elapsed < OUTGOING_RESEND_THRESHOLD_MS) return 'skip';
 
   debugLog('PeerRegistrationStore', 'Resending request to', request.peerUsername, '(elapsed:', elapsed, 'ms)');
@@ -160,7 +209,7 @@ export async function processPollRequest(
     request.timeLastSent = Date.now();
     return 'updated';
   } catch (error: unknown) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorMsg: string = error instanceof Error ? error.message : String(error);
     if (errorMsg.includes('already') || errorMsg.includes('duplicate') || errorMsg.includes('exists')) {
       debugLog('PeerRegistrationStore', 'Request already exists in protocol queue, continuing');
       request.timeLastSent = Date.now();

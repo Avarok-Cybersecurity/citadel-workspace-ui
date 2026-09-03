@@ -12,12 +12,16 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
 // ============================================================================
 
 interface TestResults {
+  /** The seeded workspace always has rooms; their absence is a regression. */
+  roomsRendered: boolean;
+
   // Step 0: Account setup
   accountCreated: boolean;
   workspaceLoaded: boolean;
@@ -51,6 +55,12 @@ interface TestResults {
   // Step 6: Chat settings tab navigation
   chatTabActive: boolean;
   chatTabContentCorrect: boolean;
+  /**
+   * Left undefined — and so excluded from the verdict, like the optional room
+   * fields — when the entity is workspace-level, where chat settings have no
+   * backend to persist to.
+   */
+  chatSettingsPersist?: boolean;
 
   // Step 7: Room admin modal (only tested when rooms exist in sidebar)
   roomCreated?: boolean;
@@ -80,7 +90,7 @@ async function openNodeContextMenu(page: Page, _nodeName: string): Promise<boole
     await nodeItem.click({ force: true, timeout: 5000 });
     await sleep(300);
     const menu = page.locator('[role="menu"]');
-    return await menu.isVisible({ timeout: 3000 });
+    return await isVisibleWithin(menu, 3000);
   } catch {
     return false;
   }
@@ -92,7 +102,7 @@ const openOfficeContextMenu = openNodeContextMenu;
 async function clickAdminSettingsMenuItem(page: Page): Promise<boolean> {
   try {
     const menuItem = page.locator('[data-testid^="admin-settings-node-"]').first();
-    if (await menuItem.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(menuItem, 3000)) {
       await menuItem.click();
       await sleep(500);
       return true;
@@ -107,11 +117,11 @@ async function navigateToTab(page: Page, tabName: 'general' | 'members' | 'chat'
   const dialog = getAdminDialog(page);
   try {
     const tab = dialog.locator(`[data-testid="admin-tab-${tabName}"]`);
-    if (await tab.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(tab, 3000)) {
       await tab.click();
       await sleep(300);
       const content = dialog.locator(`[data-testid="admin-content-${tabName}"]`);
-      return await content.isVisible({ timeout: 2000 });
+      return await isVisibleWithin(content, 2000);
     }
     return false;
   } catch {
@@ -138,7 +148,7 @@ async function openRoomContextMenu(page: Page): Promise<boolean> {
     await allMenuBtns.nth(1).click({ force: true, timeout: 5000 });
     await sleep(300);
     const menu = page.locator('[role="menu"]');
-    return await menu.isVisible({ timeout: 3000 });
+    return await isVisibleWithin(menu, 3000);
   } catch {
     return false;
   }
@@ -147,7 +157,7 @@ async function openRoomContextMenu(page: Page): Promise<boolean> {
 async function clickRoomAdminSettings(page: Page): Promise<boolean> {
   try {
     const menuItem = page.locator('[data-testid^="admin-settings-node-"]').first();
-    if (await menuItem.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(menuItem, 3000)) {
       await menuItem.click();
       await sleep(500);
       return true;
@@ -174,6 +184,7 @@ async function runTest(): Promise<boolean> {
   const { browser, context } = await createBrowser();
 
   const results: TestResults = {
+    roomsRendered: false,
     accountCreated: false,
     workspaceLoaded: false,
     officeCreated: false,
@@ -194,11 +205,12 @@ async function runTest(): Promise<boolean> {
     advancedToggleVisible: false,
     chatTabActive: false,
     chatTabContentCorrect: false,
+    chatSettingsPersist: undefined,
   };
 
   try {
     const page = await context.newPage();
-    setupConsoleCapture(page, 'AdminModalTest', ['error', 'Error']);
+    setupConsoleCapture(page, 'AdminModalTest', ['error', 'Error', 'ILM']);
 
     // ========================================================================
     // Step 0: Create Account and Login
@@ -244,19 +256,19 @@ async function runTest(): Promise<boolean> {
 
     // Click the "+" button in the HIERARCHY section to create a new node
     const addNodeBtn = page.locator('[data-testid="add-node-button"], [data-testid="add-root-node-button"]').first();
-    if (await addNodeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(addNodeBtn, 5000)) {
       await addNodeBtn.click();
       await sleep(500);
 
       // Fill the NodeManagementModal
       const nameInput = page.locator('input#name, input[id="name"]').first();
-      if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+      if (await isVisibleWithin(nameInput, 3000)) {
         await nameInput.fill(TEST_OFFICE_NAME);
         await sleep(200);
 
         // Click the submit/create button
         const submitBtn = page.locator('button[type="submit"], button:has-text("Create")').first();
-        if (await submitBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        if (await isVisibleWithin(submitBtn, 2000)) {
           await submitBtn.click();
           await sleep(2000);
         }
@@ -269,7 +281,7 @@ async function runTest(): Promise<boolean> {
 
     // Verify office appears in sidebar
     const nodeMenuButton = page.locator('[data-testid^="tree-node-menu-"]').first();
-    results.officeCreated = await nodeMenuButton.isVisible({ timeout: 10000 }).catch(() => false);
+    results.officeCreated = await isVisibleWithin(nodeMenuButton, 10000);
     console.log(`  Office created: ${results.officeCreated ? 'PASS' : 'FAIL'}`);
     await takeScreenshot(page, 'admin_02_office_created');
 
@@ -291,7 +303,7 @@ async function runTest(): Promise<boolean> {
 
     if (results.contextMenuOpens) {
       const adminMenuItem = page.locator('[data-testid^="admin-settings-node-"]').first();
-      results.adminSettingsVisible = await adminMenuItem.isVisible({ timeout: 3000 }).catch(() => false);
+      results.adminSettingsVisible = await isVisibleWithin(adminMenuItem, 3000);
       console.log(`  Admin Settings visible: ${results.adminSettingsVisible ? 'PASS' : 'FAIL'}`);
     }
 
@@ -307,7 +319,7 @@ async function runTest(): Promise<boolean> {
       await sleep(500);
 
       const dialog = getAdminDialog(page);
-      results.adminModalOpens = await dialog.isVisible({ timeout: 5000 }).catch(() => false);
+      results.adminModalOpens = await isVisibleWithin(dialog, 5000);
       console.log(`  Admin modal opens: ${results.adminModalOpens ? 'PASS' : 'FAIL'}`);
       await takeScreenshot(page, 'admin_04_modal_opened');
 
@@ -404,6 +416,44 @@ async function runTest(): Promise<boolean> {
 
       console.log(`  Chat tab content correct: ${results.chatTabContentCorrect ? 'PASS' : 'FAIL'}`);
 
+      // Save-and-reopen round trip. This is the assertion that distinguishes a
+      // real save from a success toast: ChatSettingsTab used to persist nothing
+      // and report success anyway, and every check above still passed.
+      if (!isWorkspaceMsg && results.chatTabContentCorrect) {
+        const toggle = dialog.locator('[data-testid="chat-enabled-toggle"]');
+        const before = await toggle.getAttribute('data-state');
+        await toggle.click();
+        const after = await toggle.getAttribute('data-state');
+
+        if (before === after) {
+          console.log('  Chat toggle did not change state - cannot test persistence');
+          results.chatSettingsPersist = false;
+        } else {
+          await dialog.locator('[data-testid="chat-save-button"]').click();
+          await sleep(1500);
+          await page.keyboard.press('Escape');
+          await sleep(500);
+
+          await clickAdminSettingsMenuItem(page);
+          await sleep(500);
+          const reopened = await navigateToTab(page, 'chat');
+          if (!reopened) {
+            console.log('  Could not reopen chat tab to verify persistence');
+            results.chatSettingsPersist = false;
+          } else {
+            const persisted = await getAdminDialog(page)
+              .locator('[data-testid="chat-enabled-toggle"]')
+              .getAttribute('data-state');
+            results.chatSettingsPersist = persisted === after;
+            console.log(`  Chat setting persisted: ${after} -> reopened as ${persisted}`);
+          }
+          await takeScreenshot(page, 'admin_08_chat_persistence');
+        }
+        console.log(`  Chat settings persist: ${results.chatSettingsPersist ? 'PASS' : 'FAIL'}`);
+      } else if (isWorkspaceMsg) {
+        console.log('  Chat settings persist: SKIP (workspace level has no chat backend)');
+      }
+
       // Close the modal
       await page.keyboard.press('Escape');
       await sleep(500);
@@ -422,6 +472,12 @@ async function runTest(): Promise<boolean> {
     const allMenuBtns = page.locator('[data-testid^="tree-node-menu-"]');
     const menuBtnCount = await allMenuBtns.count();
     const roomExists = menuBtnCount >= 2;
+    // Recorded as a RESULT, not just a branch. When room checks stayed
+    // `undefined` they were filtered out of both the numerator and the
+    // denominator below — so a regression that stopped rendering child nodes
+    // did not fail the room checks, it deleted them from the verdict. The
+    // seeded workspace always has rooms, so their absence IS the failure.
+    results.roomsRendered = roomExists;
 
     if (roomExists) {
       console.log('  Room found in sidebar');
@@ -436,7 +492,7 @@ async function runTest(): Promise<boolean> {
         await sleep(500);
 
         const dialog = getAdminDialog(page);
-        results.roomAdminModalOpens = await dialog.isVisible({ timeout: 3000 }).catch(() => false);
+        results.roomAdminModalOpens = await isVisibleWithin(dialog, 3000);
         console.log(`  Room admin modal opens: ${results.roomAdminModalOpens ? 'PASS' : 'FAIL'}`);
         await takeScreenshot(page, 'admin_08_room_admin_modal');
 

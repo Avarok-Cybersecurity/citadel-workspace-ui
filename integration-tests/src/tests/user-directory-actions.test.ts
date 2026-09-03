@@ -11,6 +11,7 @@
 
 import { Page } from 'playwright';
 import {
+  navigateToDirectory,
   sleep,
   createBrowser,
   createIsolatedContexts,
@@ -18,12 +19,12 @@ import {
   takeScreenshot,
   setupConsoleCapture,
   waitForWorkspaceLoaded,
-  waitForAppReady,
   closeAnyModals,
   TestHarness,
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -61,25 +62,6 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 // Helper Functions
 // ============================================================================
 
-async function navigateToDirectory(page: Page): Promise<boolean> {
-  console.log('\n=== Navigating to User Directory ===');
-
-  // Look for directory link in sidebar or navigate directly
-  const directoryLink = page.locator('a[href*="directory"], button:has-text("Directory"), [data-testid*="directory"]').first();
-  if (await directoryLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await directoryLink.click();
-    await sleep(2000);
-    return true;
-  }
-
-  // Try direct URL navigation
-  await page.goto(`${config.BASE_URL}/?section=directory`, { waitUntil: 'commit', timeout: 30000 });
-  await waitForAppReady(page, 30000);
-
-  // Verify directory loaded
-  const directoryContent = page.locator('text="Directory", text="Members", text="Users"').first();
-  return await directoryContent.isVisible({ timeout: 5000 }).catch(() => false);
-}
 
 async function testSearchInput(page: Page, searchTerm: string): Promise<{
   visible: boolean;
@@ -90,28 +72,28 @@ async function testSearchInput(page: Page, searchTerm: string): Promise<{
   const results = { visible: false, filterWorks: false };
 
   const searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="search"], input[type="search"]').first();
-  results.visible = await searchInput.isVisible({ timeout: 5000 }).catch(() => false);
+  results.visible = await isVisibleWithin(searchInput, 5000);
   console.log(`  Search input visible: ${results.visible}`);
 
   if (results.visible) {
-    // Get member count before search
-    const memberCards = page.locator('[class*="member"], [class*="user-card"], [class*="hover:bg"]');
-    const countBefore = await memberCards.count();
-    console.log(`  Members before filter: ${countBefore}`);
-
-    // Type search term
+    // What "search works" actually means: type a user's name, and that user comes
+    // back in the results list. The previous check counted elements matching
+    // `[class*="hover:bg"]` before and after typing and passed if the count did
+    // not go UP — but typing opens a results panel, which adds elements, so it
+    // was testing an unrelated number and getting it backwards.
     await searchInput.fill(searchTerm);
-    await sleep(500);
 
-    const countAfter = await memberCards.count();
-    console.log(`  Members after filter: ${countAfter}`);
+    const resultsList = page.getByRole('listbox', { name: 'User search results' });
+    const match = resultsList.getByText(searchTerm, { exact: false });
 
-    // Filter works if count changed or results contain search term
-    results.filterWorks = countAfter <= countBefore;
+    // The input debounces 300ms before searching; waiting on the matching entry
+    // covers that without guessing at a duration.
+    results.filterWorks = await isVisibleWithin(match, 10_000);
+    console.log(`  Search returned ${searchTerm}: ${results.filterWorks}`);
 
-    // Clear search
+    // Escape leaves the panel closed for whatever runs next.
     await searchInput.fill('');
-    await sleep(300);
+    await page.keyboard.press('Escape');
   }
 
   return results;
@@ -127,7 +109,7 @@ async function testConnectionRequestButton(page: Page): Promise<{
 
   // Look for "Send Connection Request" or UserPlus icon button
   const requestBtn = page.locator('button:has-text("Send Connection Request"), button:has(svg.lucide-user-plus)').first();
-  results.buttonVisible = await requestBtn.isVisible({ timeout: 5000 }).catch(() => false);
+  results.buttonVisible = await isVisibleWithin(requestBtn, 5000);
   console.log(`  Request button visible: ${results.buttonVisible}`);
 
   if (results.buttonVisible) {
@@ -138,8 +120,8 @@ async function testConnectionRequestButton(page: Page): Promise<{
     const dialog = page.locator('[role="dialog"], [role="alertdialog"]').first();
     const textarea = page.locator('#request-message, textarea').first();
 
-    results.dialogOpens = (await dialog.isVisible({ timeout: 3000 }).catch(() => false)) ||
-                          (await textarea.isVisible({ timeout: 2000 }).catch(() => false));
+    results.dialogOpens = (await isVisibleWithin(dialog, 3000)) ||
+                          (await isVisibleWithin(textarea, 2000));
     console.log(`  Dialog opens: ${results.dialogOpens}`);
 
     // Close dialog
@@ -154,14 +136,14 @@ async function checkRoleBadges(page: Page): Promise<boolean> {
   console.log('\n=== Checking Role Badges ===');
 
   // Look for role text (Admin, Member, Owner, Guest)
-  const roleBadge = page.locator('text="Admin", text="Member", text="Owner", text="Guest"').first();
-  const visible = await roleBadge.isVisible({ timeout: 5000 }).catch(() => false);
+  const roleBadge = page.getByText(/Admin|Member|Owner|Guest/).first();
+  const visible = await isVisibleWithin(roleBadge, 5000);
   console.log(`  Role badge visible: ${visible}`);
 
   if (!visible) {
     // Alternative: badge-like elements
     const badge = page.locator('[class*="badge"], [class*="Badge"], span.text-xs').first();
-    return await badge.isVisible({ timeout: 3000 }).catch(() => false);
+    return await isVisibleWithin(badge, 3000);
   }
 
   return visible;
@@ -197,8 +179,8 @@ async function runTest(): Promise<boolean> {
   try {
     const page1 = await context1.newPage();
     const page2 = await context2.newPage();
-    setupConsoleCapture(page1, 'Alice', ['error', 'Error']);
-    setupConsoleCapture(page2, 'Bob', ['error', 'Error']);
+    setupConsoleCapture(page1, 'Alice', ['error', 'Error', 'ILM']);
+    setupConsoleCapture(page2, 'Bob', ['error', 'Error', 'ILM']);
 
     // ========== STEP 1: Create Accounts ==========
     console.log('\n' + '\u2500'.repeat(50));
@@ -270,7 +252,7 @@ async function runTest(): Promise<boolean> {
     console.log('\u2500'.repeat(50));
 
     const messageBtn = page1.locator('button:has-text("Message"), button:has(svg.lucide-message-circle)').first();
-    results.messageButtonVisible = await messageBtn.isVisible({ timeout: 3000 }).catch(() => false);
+    results.messageButtonVisible = await isVisibleWithin(messageBtn, 3000);
     console.log(`  Message button visible: ${results.messageButtonVisible}`);
     await takeScreenshot(page1, '06_message_btn');
 
@@ -279,7 +261,20 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.accountCreation.user1;
+    // All nine, not just the first account. Everything downstream of
+    // directoryNavigated was failing silently because that one step used the
+    // route `?section=directory`, which does not exist.
+    const corePassed = [
+      results.accountCreation.user1,
+      results.accountCreation.user2,
+      results.directoryNavigated,
+      results.searchInputVisible,
+      results.searchFilterWorks,
+      results.sendRequestButtonVisible,
+      results.requestDialogOpens,
+      results.roleBadgeVisible,
+      results.messageButtonVisible,
+    ].every(Boolean);
 
     console.log(`\n  User1 Created:             ${results.accountCreation.user1 ? 'PASS' : 'FAIL'}`);
     console.log(`  User2 Created:             ${results.accountCreation.user2 ? 'PASS' : 'CHECK'}`);

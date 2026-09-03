@@ -10,18 +10,13 @@
  * @deprecated Use IFileTransferIORouter and RealProtocolIORouter directly.
  */
 
-import { eventEmitter } from '../event-emitter';
 import { websocketService } from '../websocket-service';
 import { RealProtocolIORouter } from './real-protocol-io-router';
 import type { FileSource } from './io-router-types';
 import type {
-  FileTransfer,
   FileTransferIntent,
-  SendTransferRequestIntent,
-  SendChunkIntent,
   SendResponseIntent,
   SendCancelIntent,
-  SendCompleteIntent,
   UploadToServerIntent,
   DownloadFromServerIntent,
   PickFileIntent,
@@ -29,7 +24,10 @@ import type {
   FilePickerResult,
 } from './types';
 import { debugLog } from '@/lib/debug-config';
-import { TIMEOUT } from '../timeout-constants';
+import { announceTransfer, executeSendTransferRequest } from './send-transfer-request';
+import { sendTransferCancelSignal, sendTransferResponseSignal } from './in-band-signals';
+import { awaitSendFileAck, uploadFileToServer } from './server-upload';
+import { downloadFileFromServer } from './server-download';
 
 /**
  * @deprecated Use RealProtocolIORouter with IFileTransferIORouter interface instead.
@@ -43,15 +41,11 @@ export class FileTransferIO extends RealProtocolIORouter {
   async executeIntent(intent: FileTransferIntent): Promise<unknown> {
     switch (intent.type) {
       case 'send-transfer-request':
-        return this.executeSendTransferRequest(intent);
-      case 'send-chunk':
-        return this.executeSendChunk(intent);
+        return executeSendTransferRequest(this, intent);
       case 'send-response':
         return this.executeSendResponse(intent);
       case 'send-cancel':
         return this.executeSendCancel(intent);
-      case 'send-complete':
-        return this.executeSendComplete(intent);
       case 'upload-to-server':
         return this.uploadToServer(intent);
       case 'download-from-server':
@@ -71,107 +65,90 @@ export class FileTransferIO extends RealProtocolIORouter {
   // Intent Adapters (convert old intent pattern to new interface)
   // ============================================================================
 
-  private async executeSendTransferRequest(intent: SendTransferRequestIntent): Promise<void> {
-    const { transfer, file } = intent;
-
-    // Async transfers upload the file to the workspace server first
-    // (see `async-transfers.ts#executeUploadAndSend`), then emit this
-    // intent to notify the recipient that a staged transfer exists.
-    // The recipient discovers the transfer via the message-protocol
-    // path and fetches the bytes from the server using
-    // `transfer.virtualPath` — there's no actual file body to send
-    // through the real protocol router here. Falling through to
-    // `sendFile` with a synthesised empty File previously resulted in
-    // either a silent empty-payload send or a "RealProtocolIORouter
-    // requires … a non-empty browser File object" throw, depending on
-    // which code path the router took. Skip the protocol send
-    // explicitly so async mode degrades to a clean no-op.
-    if (!file && transfer.mode === 'async') {
-      // Async mode: the file body was uploaded to the workspace server
-      // before this intent was dispatched, and the recipient discovers
-      // the staged bytes via `transfer.virtualPath`. If `virtualPath`
-      // is missing here, something stripped both the File AND the
-      // upload metadata — most likely an accidental JSON-roundtrip of
-      // the intent (see `SendTransferRequestIntent` contract).
-      // Fail loudly so the recipient never silently hangs on a
-      // never-uploaded transfer.
-      if (!transfer.virtualPath) {
-        throw new Error(
-          `executeSendTransferRequest: async transfer ${transfer.id} has no file AND no virtualPath — ` +
-          `the intent likely crossed a serialization boundary that stripped both fields. ` +
-          `Intents must be dispatched in-memory; see SendTransferRequestIntent docs.`,
-        );
-      }
-      debugLog(
-        'FileTransferIO',
-        'send-transfer-request without file in async mode — skipping protocol send (recipient discovers via virtualPath)',
-        { transferId: transfer.id, virtualPath: transfer.virtualPath },
-      );
-      return;
-    }
-
-    // Sync / P2P mode: a real File must be present. transfer-lifecycle
-    // always passes one. Falling back to an empty placeholder would
-    // make the protocol router throw "non-empty browser File object"
-    // — fail fast with a clearer message instead of letting the
-    // synthesised empty File flow through to the router.
-    if (!file) {
+  private async executeSendResponse(intent: SendResponseIntent): Promise<void> {
+    // The protocol names a transfer by its numeric object_id; the in-band
+    // announcement names it by a UUID. Accept/decline go back over the PROTOCOL,
+    // so the UUID has to be translated. Passing it through reached
+    // `BigInt(<uuid>)`, which throws SyntaxError synchronously while the request
+    // literal is built — before anything is sent — so RespondFileTransfer was
+    // never issued for any incoming transfer and the bytes never landed.
+    const objectId: string | undefined = this.resolveObjectId(intent.transferId);
+    if (objectId === undefined) {
       throw new Error(
-        `executeSendTransferRequest requires a File for non-async transfers (transferId=${transfer.id}, mode=${transfer.mode})`,
+        'This transfer has not been announced over the protocol yet. ' +
+          'Wait a moment and try again.'
       );
     }
-
-    await this.sendFile({
-      source: file,
-      cid: BigInt(transfer.senderCid),
-      peerCid: BigInt(transfer.recipientCid),
-      mode: transfer.mode,
-      transferId: transfer.id,
-      metadata: {
-        fileName: transfer.fileName,
-        fileSize: transfer.fileSize,
-        fileType: transfer.fileType,
-        thumbnail: transfer.thumbnail,
-        expiresAt: transfer.expiresAt,
-      },
+    // The LOCAL session's CID. This was `BigInt(0)` with the comment "Not used
+    // for message-based" -- but the internal service looks the connection up by
+    // exactly this field (`server_connection_map.get_mut(&cid)` in
+    // respond_file_transfer.rs), and nothing is filed under 0. Every accept and
+    // every decline came back "Connection not found", with `cid: 0` on the
+    // failure notification so CID routing could not even deliver it to a tab.
+    // The send was fire-and-forget, so nothing noticed: the recipient's bubble
+    // sat at "Downloading... 0%" and the sender's at "Waiting for acceptance"
+    // for ever, and no chat transfer ever moved a byte.
+    const ownCid: bigint | null = await this.getCurrentCid();
+    if (ownCid === null) {
+      throw new Error('No active session to accept this transfer with.');
+    }
+    await this.respondToTransfer({
+      protocolId: objectId,
+      // Lets the router pre-register the reception tick stream: an accept
+      // spawns that stream under the RespondFileTransfer request UUID, and
+      // its ticks carry no other usable id (see tick-events.ts).
+      transferId: intent.transferId,
+      cid: ownCid,
+      peerCid: BigInt(intent.targetCid),
+      accept: intent.accepted,
+      // No download location. `intent.reason` used to be passed here, with the
+      // note "using reason as download location in old API" — but `reason` is a
+      // decline/cancel message ("Sender cancelled transfer"), not a path.
+      //
+      // It has cost nothing because the internal service discards the field:
+      // respond_file_transfer.rs destructures `download_location: _` under a
+      // TODO. That is exactly what makes it worth removing now rather than
+      // later — the day someone implements that TODO, this would start writing
+      // files to paths named after decline reasons, and the bug would look like
+      // it came from the server change.
     });
-  }
 
-  private async executeSendChunk(intent: SendChunkIntent): Promise<void> {
-    await this.sendChunk(
+    // The protocol respond above reaches only OUR internal service. The
+    // sender's UI learns of an accept when its tick stream starts, but a
+    // DECLINE produces no signal on their side at all — their bubble would
+    // wait for acceptance forever. The in-band response is what moves the
+    // sender's bubble to 'declined' (and gives an accepted send an early
+    // 'transferring'), so it is sent for both outcomes.
+    await sendTransferResponseSignal(
+      ownCid,
+      BigInt(intent.targetCid),
       intent.transferId,
-      BigInt(intent.recipientCid),
-      intent.chunkIndex,
-      intent.totalChunks,
-      intent.data
+      intent.accepted,
+      intent.accepted ? undefined : intent.reason
     );
   }
 
-  private async executeSendResponse(intent: SendResponseIntent): Promise<void> {
-    await this.respondToTransfer({
-      protocolId: intent.transferId,
-      cid: BigInt(0), // Not used for message-based
-      peerCid: BigInt(intent.targetCid),
-      accept: intent.accepted,
-      downloadLocation: intent.reason, // Using reason as download location in old API
-    });
-  }
-
   private async executeSendCancel(intent: SendCancelIntent): Promise<void> {
+    // The protocol has no cancel command — cancellation is implicit in
+    // disconnect — so `cancelTransfer` below only clears local correlation
+    // state. Without the in-band signal the peer was never told, and their
+    // bubble stayed pending/transferring for a transfer that no longer
+    // existed. Signal first: local cleanup cannot fail, the send can.
+    const ownCid: bigint | null = await this.getCurrentCid();
+    if (ownCid === null) {
+      throw new Error('No active session to cancel this transfer from.');
+    }
+    await sendTransferCancelSignal(
+      ownCid,
+      BigInt(intent.targetCid),
+      intent.transferId,
+      intent.reason
+    );
     await this.cancelTransfer({
       transferId: intent.transferId,
       targetCid: BigInt(intent.targetCid),
       reason: intent.reason,
     });
-  }
-
-  private async executeSendComplete(intent: SendCompleteIntent): Promise<void> {
-    await this.sendComplete(
-      intent.transferId,
-      BigInt(intent.targetCid),
-      intent.success,
-      intent.errorMessage
-    );
   }
 
   // ============================================================================
@@ -180,51 +157,22 @@ export class FileTransferIO extends RealProtocolIORouter {
 
   private async uploadToServer(intent: UploadToServerIntent): Promise<string> {
     const { file, transferId, recipientCid } = intent;
-    debugLog('FileTransferIO', 'Uploading file to server', {
-      transferId,
-      fileName: file.name,
-      size: file.size,
-    });
-
-    try {
-      const requestId = crypto.randomUUID();
-      const request = {
-        SendFile: {
-          request_id: requestId,
-          source: { Path: `/transfers/${transferId}/${file.name}` },
-          cid: null,
-          peer_cid: BigInt(recipientCid),
-          chunk_size: null,
-          transfer_type: 'FileTransfer',
-        },
-      };
-      await websocketService.sendMessage(request as Record<string, unknown>);
-      return `/transfers/${transferId}/${file.name}`;
-    } catch (error) {
-      debugLog('FileTransferIO', 'Server upload failed, using virtual path fallback:', error);
-      return `/transfers/${transferId}/${file.name}`;
+    const ownCid: bigint | null = await this.getCurrentCid();
+    if (ownCid === null) {
+      throw new Error('No active session to send this file from.');
     }
+    // The staging upload's sender-side ticks come back stamped with the
+    // upload's own request_id; register it as foreign so they cannot complete
+    // or fail the pending chat transfer for the same peer (tick-events.ts).
+    return uploadFileToServer(file, transferId, recipientCid, ownCid, (requestId: string): void =>
+      this.markForeignOutgoingStream(requestId)
+    );
   }
 
-  private async downloadFromServer(intent: DownloadFromServerIntent): Promise<void> {
-    const { transfer } = intent;
-    debugLog('FileTransferIO', 'Downloading file from server', {
-      transferId: transfer.id,
-      virtualPath: transfer.virtualPath,
-    });
-
-    try {
-      const request = {
-        DownloadFile: {
-          virtual_path: transfer.virtualPath,
-          transfer_id: transfer.id,
-        },
-      };
-      await websocketService.sendMessage(request as Record<string, unknown>);
-    } catch (error) {
-      debugLog('FileTransferIO', 'Server download request failed:', error);
-      // Fall through — caller handles state update via events
-    }
+  private async downloadFromServer(
+    intent: DownloadFromServerIntent
+  ): Promise<string | undefined> {
+    return downloadFileFromServer(intent.transfer);
   }
 
   // ============================================================================
@@ -240,7 +188,14 @@ export class FileTransferIO extends RealProtocolIORouter {
   // ============================================================================
 
   private async sendFileViaProtocol(intent: SendFileViaProtocolIntent): Promise<void> {
-    const requestId = crypto.randomUUID();
+    // Announce BEFORE the bytes, exactly as executeSendTransferRequest does:
+    // the announcement is the only thing that gives the recipient a bubble to
+    // accept from. This path used to issue only the protocol SendFile, so the
+    // recipient's internal service held an offer no UI ever surfaced and the
+    // sender waited forever on an accept nobody could click.
+    await announceTransfer(intent.transfer);
+
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
 
     // Build FileSource - support both direct path and PickFileRef
     let source: FileSource;
@@ -250,7 +205,7 @@ export class FileTransferIO extends RealProtocolIORouter {
       source = { Path: intent.filePath };
     }
 
-    const request = {
+    const request: { SendFile: { request_id: `${string}-${string}-${string}-${string}-${string}`; source: { Path: string; } | { PickFileRef: { pick_file_request_id: string; }; }; cid: string; peer_cid: string | null; chunk_size: null; transfer_type: string; }; } = {
       SendFile: {
         request_id: requestId,
         source,
@@ -269,42 +224,9 @@ export class FileTransferIO extends RealProtocolIORouter {
       transferId: intent.transferId,
     });
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(new Error('SendFile request timed out'));
-      }, TIMEOUT.FILE_SEND_MS);
-
-      const handleMessage = (message: unknown) => {
-        const msg = message as Record<string, unknown>;
-        // Check for SendFileRequestSuccess
-        const success = msg.SendFileRequestSuccess as { request_id?: string } | undefined;
-        if (success?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          debugLog('FileTransferIO', 'FileTransferIO: SendFile accepted by protocol');
-          resolve();
-        }
-        // Check for SendFileRequestFailure
-        const failure = msg.SendFileRequestFailure as
-          | { request_id?: string; message?: string }
-          | undefined;
-        if (failure?.request_id === requestId) {
-          clearTimeout(timeout);
-          eventEmitter.off('websocket-message', handleMessage);
-          const errorMsg = failure.message || 'SendFile failed';
-          debugLog('FileTransferIO', 'SendFile failed', errorMsg);
-          reject(new Error(errorMsg));
-        }
-      };
-
-      eventEmitter.on('websocket-message', handleMessage);
-
-      websocketService.sendMessage(request).catch(error => {
-        clearTimeout(timeout);
-        eventEmitter.off('websocket-message', handleMessage);
-        reject(error);
-      });
-    });
+    // The send runs inside the ack promise so a send failure settles the same
+    // promise: created side by side, a failed send left the ack orphaned to
+    // reject unheard at its timeout, leaking the listener for 30s.
+    return awaitSendFileAck(requestId, () => websocketService.sendMessage(request));
   }
 }

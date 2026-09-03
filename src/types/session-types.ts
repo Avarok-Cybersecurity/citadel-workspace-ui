@@ -9,9 +9,24 @@ import { SessionSecuritySettings } from "@/lib/p2p-registration-service";
  */
 export interface StoredSession {
   username: string;
-  password: string; // Note: This should be encrypted in production
+  /**
+   * Absent when the user declined "Remember Credentials".
+   *
+   * This was required, and every login wrote it regardless of the toggle — the
+   * switch was read into component state and never reached the storage path, so
+   * a user on a security product who declined credential storage had their
+   * password written to LocalDB anyway and silently reused to re-authenticate.
+   * Auto-reconnect already skips sessions with no password; the two direct
+   * reconnect paths now refuse rather than sending undefined.
+   */
+  password?: string;
   serverAddress: string;
-  serverPassword: string;
+  /**
+   * The workspace's pre-shared key. Optional because it is only kept when the
+   * user asked for their credentials to be remembered -- it used to be stored
+   * unconditionally, beside an account password that was correctly gated.
+   */
+  serverPassword?: string;
   fullName: string;
   lastConnected: number;
   cid?: bigint; // Store the CID for claiming orphaned sessions
@@ -97,8 +112,8 @@ export interface LocalDBGetAllKVSuccess {
 /**
  * Key names for LocalDB storage
  */
-export const SESSION_STORAGE_KEY = 'citadel_sessions';
-export const ACTIVE_SESSION_KEY = 'citadel_active_session';
+export const SESSION_STORAGE_KEY: "citadel_sessions" = 'citadel_sessions';
+export const ACTIVE_SESSION_KEY: "citadel_active_session" = 'citadel_active_session';
 
 /**
  * Peer connection information within a session

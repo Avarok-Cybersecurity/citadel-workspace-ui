@@ -1,15 +1,20 @@
 /**
  * Office & Room CRUD Integration Test
  *
- * Tests the complete CRUD operations for offices and rooms:
- * 1. Admin creates office
- * 2. Admin creates room within office
- * 3. Update office (name, description, MDX content)
- * 4. Update room (name, description, MDX content)
- * 5. Non-admin cannot create/delete (auth check)
- * 6. Delete room
- * 7. Delete office (cascades to delete rooms)
- * 8. Member management (add/remove members)
+ * What this spec actually drives, in order:
+ * 1. Admin (first user) creates an office
+ * 2. Admin creates a room within that office
+ * 3. Rename the office
+ * 4. Delete the room
+ * 5. Cascade delete: office with a child room is removed together with the room
+ * 6. A non-admin cannot create an office
+ * 7. Cleanup: delete the test office
+ *
+ * The header used to also claim description/MDX updates, room rename, non-admin
+ * delete paths and member management. No step ever performed any of those; the
+ * corresponding result fields were declared, never assigned and never printed.
+ * They are now reported as explicit SKIPs at the end of the run so the coverage
+ * gap is visible instead of implied.
  */
 
 import {
@@ -28,11 +33,22 @@ import {
 } from '../lib/index.js';
 
 import type { Page, Browser } from 'playwright';
+import { isVisibleWithin, isHiddenWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
 // ============================================================================
 
+/**
+ * Only fields this spec actually drives live here. The interface used to also
+ * carry officeDescriptionUpdated, officeMdxUpdated, roomNameUpdated,
+ * roomDescriptionUpdated, roomMdxUpdated, nonAdminCannotDeleteOffice,
+ * nonAdminCannotCreateRoom, nonAdminCannotDeleteRoom, memberAddedToOffice,
+ * memberRemovedFromOffice, memberAddedToRoom and memberRemovedFromRoom — none of
+ * which any step ever assigned, and none of which were printed. They were
+ * permanently false and read as "nothing tested" only if you went looking. The
+ * gaps are now listed explicitly in the SKIP block at the end of the run.
+ */
 interface TestResults {
   accountCreation: boolean;
   workspaceLoaded: boolean;
@@ -41,31 +57,18 @@ interface TestResults {
   // Office CRUD
   officeCreated: boolean;
   officeNameUpdated: boolean;
-  officeDescriptionUpdated: boolean;
-  officeMdxUpdated: boolean;
   officeDeleted: boolean;
 
   // Room CRUD
   roomCreated: boolean;
-  roomNameUpdated: boolean;
-  roomDescriptionUpdated: boolean;
-  roomMdxUpdated: boolean;
   roomDeleted: boolean;
 
   // Cascade Delete
   cascadeDeleteWorks: boolean;
 
   // Authorization
+  nonAdminAccountCreated: boolean;
   nonAdminCannotCreateOffice: boolean;
-  nonAdminCannotDeleteOffice: boolean;
-  nonAdminCannotCreateRoom: boolean;
-  nonAdminCannotDeleteRoom: boolean;
-
-  // Member Management
-  memberAddedToOffice: boolean;
-  memberRemovedFromOffice: boolean;
-  memberAddedToRoom: boolean;
-  memberRemovedFromRoom: boolean;
 
   // Toast Conflicts (should all be false)
   toastConflictDetected: boolean;
@@ -98,7 +101,15 @@ async function clickAddOfficeButton(page: Page): Promise<boolean> {
 
   for (const selector of selectors) {
     const btn = page.locator(selector).first();
-    if (await btn.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(btn, 1000)) {
+      // TreeNodesSection renders this button for everyone and disables it while
+      // the workspace schema is still loading. A plain .click() on a disabled
+      // button blocks for the full 30s action timeout and then throws, which used
+      // to abort the whole spec from inside a step that only wanted a yes/no.
+      if (!(await btn.isEnabled())) {
+        console.log(`  Add Node button present but disabled (${selector})`);
+        return false;
+      }
       await btn.click();
       await sleep(500);
       console.log(`  Clicked Add Node button (${selector})`);
@@ -111,45 +122,56 @@ async function clickAddOfficeButton(page: Page): Promise<boolean> {
 }
 
 /**
- * Fill in the Create Office modal and submit
+ * Fill the node create/edit dialog (EntityManagementModal) and submit it.
+ *
+ * Everything is scoped to `[role="dialog"]`. Unscoped, `input#name` and
+ * `button:has-text("Create")` match page-wide, and because Radix portals the
+ * dialog to the end of <body>, `.first()` prefers whatever is behind the overlay
+ * — the office view's own header controls — over the dialog we just opened.
+ *
+ * `button[type="submit"]` rather than a text match: EntityManagementModal labels
+ * the submit button from the entity type and mode ("Create Office", "Update
+ * Room", "Creating..." while in flight), so any literal is wrong for some call.
+ *
+ * This replaces fillCreateOfficeModal/fillCreateRoomModal, which were the same
+ * function twice — and would have needed the same fix twice.
  */
-async function fillCreateOfficeModal(
+async function fillNodeModal(
   page: Page,
   name: string,
   description: string
 ): Promise<boolean> {
-  console.log(`  Filling Create Office modal: ${name}`);
+  console.log(`  Filling node modal: ${name}`);
 
-  // Wait for modal to open
-  await sleep(500);
-
-  // Fill name - use id selector since the input has id="name"
-  const nameInput = page.locator('input#name, input[id="name"]').first();
-  if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await nameInput.fill(name);
-  } else {
-    console.log('  WARNING: Name input not found');
+  const dialog = page.locator('[role="dialog"]');
+  if (!(await isVisibleWithin(dialog.first(), 5000))) {
+    console.log('  WARNING: Node modal did not open');
     return false;
   }
 
-  // Fill description - use id selector since textarea has id="description"
-  const descInput = page.locator('textarea#description, textarea[id="description"]').first();
-  if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+  const nameInput = dialog.locator('input#name').first();
+  if (!(await isVisibleWithin(nameInput, 2000))) {
+    console.log('  WARNING: Name input not found');
+    return false;
+  }
+  await nameInput.fill(name);
+
+  const descInput = dialog.locator('textarea#description').first();
+  if (await isVisibleWithin(descInput, 1000)) {
     await descInput.fill(description);
   }
 
   await sleep(300);
 
-  // Submit - NodeManagementModal uses "Create {EntityType}" as button text
-  const createBtn = page.locator('button:has-text("Create")').first();
-  if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await createBtn.click();
-    await sleep(2000);
-    return true;
+  const submitBtn = dialog.locator('button[type="submit"]').first();
+  if (!(await isVisibleWithin(submitBtn, 2000))) {
+    console.log('  WARNING: Submit button not found');
+    return false;
   }
 
-  console.log('  WARNING: Create button not found');
-  return false;
+  await submitBtn.click();
+  await sleep(2000);
+  return true;
 }
 
 /**
@@ -196,7 +218,7 @@ async function clickAddRoomButton(page: Page, parentName?: string): Promise<bool
   // Now look for the create-child item in the open dropdown
   const createChildTestId = `create-child-${nodeId}`;
   const createItem = page.locator(`[data-testid="${createChildTestId}"]`);
-  if (await createItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(createItem, 2000)) {
     await createItem.click();
     await sleep(500);
     console.log(`  Clicked Create Child button (${createChildTestId})`);
@@ -210,47 +232,6 @@ async function clickAddRoomButton(page: Page, parentName?: string): Promise<bool
   // Debug: log what menu items ARE visible
   const menuItems = await page.locator('[role="menuitem"]').allTextContents();
   console.log(`  WARNING: Create Child option not found. Visible menu items: ${JSON.stringify(menuItems)}`);
-  return false;
-}
-
-/**
- * Fill in the Create Room modal and submit
- */
-async function fillCreateRoomModal(
-  page: Page,
-  name: string,
-  description: string
-): Promise<boolean> {
-  console.log(`  Filling Create Room modal: ${name}`);
-
-  await sleep(500);
-
-  // Fill name - use id selector since the input has id="name"
-  const nameInput = page.locator('input#name, input[id="name"]').first();
-  if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await nameInput.fill(name);
-  } else {
-    console.log('  WARNING: Name input not found');
-    return false;
-  }
-
-  // Fill description - use id selector since textarea has id="description"
-  const descInput = page.locator('textarea#description, textarea[id="description"]').first();
-  if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await descInput.fill(description);
-  }
-
-  await sleep(300);
-
-  // Submit - NodeManagementModal uses "Create {EntityType}" as button text
-  const createBtn = page.locator('button:has-text("Create")').first();
-  if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await createBtn.click();
-    await sleep(2000);
-    return true;
-  }
-
-  console.log('  WARNING: Create button not found');
   return false;
 }
 
@@ -287,7 +268,7 @@ async function openEditModal(page: Page, itemName: string, _type: 'office' | 'ro
 
     // Click the edit option using new testid pattern
     const editOption = page.locator(`[data-testid="edit-node-${nodeId}"]`).first();
-    if (await editOption.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(editOption, 1000)) {
       await editOption.click();
       await sleep(500);
       return true;
@@ -338,13 +319,13 @@ async function deleteNode(page: Page, nodeName: string): Promise<boolean> {
 
       // Look for Delete option using new testid pattern
       const deleteOption = page.locator(`[data-testid="delete-node-${nodeId}"]`).first();
-      if (await deleteOption.isVisible({ timeout: 3000 }).catch(() => false)) {
+      if (await isVisibleWithin(deleteOption, 3000)) {
         await deleteOption.click();
         await sleep(500);
 
         // Confirm deletion
         const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
-        if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        if (await isVisibleWithin(confirmBtn, 2000)) {
           await confirmBtn.click();
           console.log('  Node delete confirmed');
 
@@ -384,11 +365,39 @@ const deleteOffice = deleteNode;
 const deleteRoom = deleteNode;
 
 /**
- * Check if an item exists in the sidebar
+ * The hierarchy sidebar row for a node, if it has one.
+ *
+ * Scoped to `[data-sidebar="menu-button"]`, which is what the tree actually
+ * renders and what the rest of this file already keys off. The old locator was
+ * `button:has-text(name), [data-testid*=name]`: the second half could never match
+ * (tree testids are `tree-node-<uuid>`, they do not contain the node's name), and
+ * the first half matched any button on the page — including the submit button of
+ * the very modal that had just been used to type that name in.
+ */
+function sidebarItem(page: Page, itemName: string) {
+  return page.locator(`[data-sidebar="menu-button"]:has-text("${itemName}")`).first();
+}
+
+/**
+ * Whether `itemName` shows up in the sidebar, waiting for it to appear.
+ *
+ * `isVisible({ timeout })` ignores its timeout argument, so the previous version
+ * asked the question the instant a create/update request was fired and recorded a
+ * miss before the tree had re-rendered.
  */
 async function itemExistsInSidebar(page: Page, itemName: string): Promise<boolean> {
-  const item = page.locator(`button:has-text("${itemName}"), [data-testid*="${itemName}"]`).first();
-  return await item.isVisible({ timeout: 3000 }).catch(() => false);
+  return isVisibleWithin(sidebarItem(page, itemName), 5000);
+}
+
+/**
+ * Whether `itemName` is gone from the sidebar.
+ *
+ * Deliberately not `!(await itemExistsInSidebar(...))`: that spends the whole
+ * timeout waiting for something that is supposed to be absent. This waits for the
+ * hidden state and returns as soon as it holds.
+ */
+async function itemGoneFromSidebar(page: Page, itemName: string): Promise<boolean> {
+  return isHiddenWithin(sidebarItem(page, itemName), 5000);
 }
 
 /**
@@ -404,11 +413,23 @@ async function closeAllOverlays(page: Page): Promise<void> {
 }
 
 /**
- * Check for permission denied message
+ * Whether the app told the user the operation was refused.
+ *
+ * When WorkspaceService.createNode rejects, EntityManagementModal keeps the
+ * dialog open and raises a destructive toast titled "Error" whose body is
+ * "Failed to create office. Please try again." — that string, plus the two
+ * explicit denial wordings, is what we look for.
+ *
+ * The bare `Admin` alternative that used to be in this pattern matched the
+ * "ADMIN SETTINGS" sidebar label, the "Admin" role badge and any tooltip
+ * mentioning admins, so it could report "permission denied" on a screen that had
+ * denied nothing.
  */
 async function hasPermissionDenied(page: Page): Promise<boolean> {
-  const denied = page.locator('text="Permission denied", text="Unauthorized", text="Admin"').first();
-  return await denied.isVisible({ timeout: 2000 }).catch(() => false);
+  const denied = page
+    .getByText(/Permission denied|Unauthorized|Failed to (create|update|delete)/i)
+    .first();
+  return isVisibleWithin(denied, 5000);
 }
 
 // ============================================================================
@@ -436,23 +457,12 @@ async function runTest(): Promise<boolean> {
     isAdmin: false,
     officeCreated: false,
     officeNameUpdated: false,
-    officeDescriptionUpdated: false,
-    officeMdxUpdated: false,
     officeDeleted: false,
     roomCreated: false,
-    roomNameUpdated: false,
-    roomDescriptionUpdated: false,
-    roomMdxUpdated: false,
     roomDeleted: false,
     cascadeDeleteWorks: false,
+    nonAdminAccountCreated: false,
     nonAdminCannotCreateOffice: false,
-    nonAdminCannotDeleteOffice: false,
-    nonAdminCannotCreateRoom: false,
-    nonAdminCannotDeleteRoom: false,
-    memberAddedToOffice: false,
-    memberRemovedFromOffice: false,
-    memberAddedToRoom: false,
-    memberRemovedFromRoom: false,
     toastConflictDetected: false,
   };
 
@@ -491,14 +501,17 @@ async function runTest(): Promise<boolean> {
       throw new Error('Failed to create admin account');
     }
 
-    await waitForWorkspaceLoaded(adminPage);
-    results.workspaceLoaded = true;
+    // The return value used to be thrown away and `workspaceLoaded` hard-coded to
+    // true, which made it one of the four "critical" gate inputs while being
+    // incapable of ever reporting a failure.
+    results.workspaceLoaded = await waitForWorkspaceLoaded(adminPage);
     await takeScreenshot(adminPage, `${ADMIN_USER}_admin_ready`);
 
-    // Check if user is admin (look for admin indicators)
-    // Look for the "Admin" badge in the sidebar or "ADMIN SETTINGS" text
-    const adminIndicator = adminPage.locator('text="ADMIN SETTINGS"').first();
-    results.isAdmin = await adminIndicator.isVisible({ timeout: 3000 }).catch(() => false);
+    // AdminSettingsSection renders nothing at all unless state.currentUser.role is
+    // Admin, and "ADMIN SETTINGS" is its group label — so its presence is a real
+    // signal, unlike a bare "Admin" text match which also hits the role badge.
+    const adminIndicator = adminPage.getByText('ADMIN SETTINGS').first();
+    results.isAdmin = await isVisibleWithin(adminIndicator, 10000);
     console.log(`  Admin status: ${results.isAdmin}`);
 
     // ========================================================================
@@ -511,7 +524,7 @@ async function runTest(): Promise<boolean> {
     if (await clickAddOfficeButton(adminPage)) {
       await takeScreenshot(adminPage, `${ADMIN_USER}_create_office_modal`);
 
-      if (await fillCreateOfficeModal(adminPage, TEST_OFFICE_NAME, 'Test office description')) {
+      if (await fillNodeModal(adminPage, TEST_OFFICE_NAME, 'Test office description')) {
         // Assert no toast conflict (both success AND error visible = bug)
         const toastOk = await assertNoToastConflict(adminPage, 'Create Office', uxTracker);
         if (!toastOk) {
@@ -547,7 +560,7 @@ async function runTest(): Promise<boolean> {
       if (await clickAddRoomButton(adminPage, TEST_OFFICE_NAME)) {
         await takeScreenshot(adminPage, `${ADMIN_USER}_create_room_modal`);
 
-        if (await fillCreateRoomModal(adminPage, TEST_ROOM_NAME, 'Test room description')) {
+        if (await fillNodeModal(adminPage, TEST_ROOM_NAME, 'Test room description')) {
           // Assert no toast conflict
           const toastOk = await assertNoToastConflict(adminPage, 'Create Room', uxTracker);
           if (!toastOk) {
@@ -575,31 +588,24 @@ async function runTest(): Promise<boolean> {
       const updatedOfficeName = `${TEST_OFFICE_NAME}_Updated`;
 
       if (await openEditModal(adminPage, TEST_OFFICE_NAME)) {
-        // Use input#name to match the actual DOM element (id="name")
-        const nameInput = adminPage.locator('input#name').first();
-        if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await nameInput.clear();
-          await nameInput.fill(updatedOfficeName);
-          await sleep(300);
-
-          const saveBtn = adminPage.locator('button:has-text("Save"), button:has-text("Update")').first();
-          if (await saveBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-            await saveBtn.click();
-            await sleep(2000);
-
-            // Assert no toast conflict
-            const toastOk = await assertNoToastConflict(adminPage, 'Update Office', uxTracker);
-            if (!toastOk) {
-              results.toastConflictDetected = true;
-              await takeScreenshot(adminPage, `${ADMIN_USER}_office_update_TOAST_CONFLICT`);
-              throw new Error('Toast conflict detected after Update Office - both success and error toasts visible');
-            }
-
-            results.officeNameUpdated = await itemExistsInSidebar(adminPage, updatedOfficeName);
-            await dismissAllToasts(adminPage);
+        // Same dialog component as create, so the same dialog-scoped helper
+        // applies. The hand-rolled version here reached for
+        // `button:has-text("Save"), button:has-text("Update")` unscoped — and the
+        // office view behind the overlay has its own "Save Changes" button, which
+        // `.first()` would have picked in DOM order.
+        if (await fillNodeModal(adminPage, updatedOfficeName, 'Test office description')) {
+          // Assert no toast conflict
+          const toastOk = await assertNoToastConflict(adminPage, 'Update Office', uxTracker);
+          if (!toastOk) {
+            results.toastConflictDetected = true;
+            await takeScreenshot(adminPage, `${ADMIN_USER}_office_update_TOAST_CONFLICT`);
+            throw new Error('Toast conflict detected after Update Office - both success and error toasts visible');
           }
+
+          results.officeNameUpdated = await itemExistsInSidebar(adminPage, updatedOfficeName);
+          await dismissAllToasts(adminPage);
         } else {
-          console.log('  WARNING: Name input not found in edit modal, closing modal');
+          console.log('  WARNING: Could not fill the edit modal, closing it');
         }
         // Ensure edit modal is closed before continuing
         await adminPage.keyboard.press('Escape');
@@ -629,8 +635,7 @@ async function runTest(): Promise<boolean> {
         }
 
         // Verify room no longer exists
-        const roomStillExists = await itemExistsInSidebar(adminPage, TEST_ROOM_NAME);
-        results.roomDeleted = !roomStillExists;
+        results.roomDeleted = await itemGoneFromSidebar(adminPage, TEST_ROOM_NAME);
         await closeAllOverlays(adminPage);
       }
       console.log(`  Room deleted: ${results.roomDeleted}`);
@@ -649,7 +654,7 @@ async function runTest(): Promise<boolean> {
 
     // Create office for cascade test
     if (await clickAddOfficeButton(adminPage)) {
-      if (await fillCreateOfficeModal(adminPage, cascadeOfficeName, 'Cascade test')) {
+      if (await fillNodeModal(adminPage, cascadeOfficeName, 'Cascade test')) {
         // Assert no toast conflict after cascade office creation
         const toastOk1 = await assertNoToastConflict(adminPage, 'Create Cascade Office', uxTracker);
         if (!toastOk1) {
@@ -664,7 +669,7 @@ async function runTest(): Promise<boolean> {
 
         // Create room inside
         if (await clickAddRoomButton(adminPage, cascadeOfficeName)) {
-          await fillCreateRoomModal(adminPage, cascadeRoomName, 'Will be cascade deleted');
+          await fillNodeModal(adminPage, cascadeRoomName, 'Will be cascade deleted');
 
           // Assert no toast conflict after cascade room creation
           const toastOk2 = await assertNoToastConflict(adminPage, 'Create Cascade Room', uxTracker);
@@ -689,8 +694,8 @@ async function runTest(): Promise<boolean> {
           await closeAllOverlays(adminPage);
 
           // Verify both office and room are gone
-          const officeGone = !(await itemExistsInSidebar(adminPage, cascadeOfficeName));
-          const roomGone = !(await itemExistsInSidebar(adminPage, cascadeRoomName));
+          const officeGone = await itemGoneFromSidebar(adminPage, cascadeOfficeName);
+          const roomGone = await itemGoneFromSidebar(adminPage, cascadeRoomName);
           results.cascadeDeleteWorks = officeGone && roomGone;
           console.log(`  Cascade delete works: ${results.cascadeDeleteWorks}`);
         }
@@ -707,28 +712,48 @@ async function runTest(): Promise<boolean> {
 
     // Use the pre-created nonAdminPage (context created at start to avoid browser state issues)
     // createAccount handles navigation and storage clearing internally
-    const nonAdminCreated = await createAccount(nonAdminPage!, NON_ADMIN_USER, {
+    // Tracked as a result: if the second account never got created, the
+    // authorization check below silently stayed false, and a false there is
+    // indistinguishable from "the server let a non-admin create an office".
+    results.nonAdminAccountCreated = await createAccount(nonAdminPage!, NON_ADMIN_USER, {
       isFirstUser: false,
     });
 
-    if (nonAdminCreated) {
+    if (results.nonAdminAccountCreated) {
       await waitForWorkspaceLoaded(nonAdminPage);
       await takeScreenshot(nonAdminPage, `${NON_ADMIN_USER}_logged_in`);
 
       // Try to create an office as non-admin
       console.log('  Testing non-admin office creation...');
       if (await clickAddOfficeButton(nonAdminPage)) {
-        await fillCreateOfficeModal(nonAdminPage, 'UnauthorizedOffice', 'Should fail');
+        await fillNodeModal(nonAdminPage, 'UnauthorizedOffice', 'Should fail');
 
-        // Check if permission was denied
+        // Either outcome is an acceptable refusal: an explicit error toast, or
+        // the node simply never appearing in the tree.
         results.nonAdminCannotCreateOffice = await hasPermissionDenied(nonAdminPage);
         if (!results.nonAdminCannotCreateOffice) {
-          // Check if office was NOT created
-          results.nonAdminCannotCreateOffice = !(await itemExistsInSidebar(nonAdminPage, 'UnauthorizedOffice'));
+          results.nonAdminCannotCreateOffice = await itemGoneFromSidebar(nonAdminPage, 'UnauthorizedOffice');
         }
       } else {
-        // No add button visible = good, non-admins shouldn't see it
-        results.nonAdminCannotCreateOffice = true;
+        // An absent button is only evidence if the page actually LOADED.
+        //
+        // TreeNodesSection renders the add button for everyone, so this branch
+        // fires exactly when the non-admin's workspace failed to render — and
+        // it used to record that as a pass. Deleting the server-side
+        // EditTreeStructure check would have gone unnoticed, because the thing
+        // this spec measures was "the page is broken".
+        const loaded = await nonAdminPage
+          .locator('#main-content')
+          .isVisible()
+          .catch(() => false);
+
+        results.nonAdminCannotCreateOffice = loaded;
+        if (!loaded) {
+          console.error(
+            '  FAIL: the non-admin workspace never rendered, so the absence of an add ' +
+              'button proves nothing about authorization.',
+          );
+        }
       }
       console.log(`  Non-admin cannot create office: ${results.nonAdminCannotCreateOffice}`);
       await takeScreenshot(nonAdminPage, `${NON_ADMIN_USER}_auth_test`);
@@ -794,37 +819,57 @@ async function runTest(): Promise<boolean> {
 
     console.log('\nOffice CRUD:');
     console.log(`  Office Created:             ${results.officeCreated ? 'PASS' : 'FAIL'}`);
-    console.log(`  Office Name Updated:        ${results.officeNameUpdated ? 'PASS' : 'SKIP'}`);
-    console.log(`  Office Deleted:             ${results.officeDeleted ? 'PASS' : 'SKIP'}`);
+    console.log(`  Office Name Updated:        ${results.officeNameUpdated ? 'PASS' : 'FAIL'}`);
+    console.log(`  Office Deleted:             ${results.officeDeleted ? 'PASS' : 'FAIL'}`);
 
     console.log('\nRoom CRUD:');
     console.log(`  Room Created:               ${results.roomCreated ? 'PASS' : 'FAIL'}`);
-    console.log(`  Room Deleted:               ${results.roomDeleted ? 'PASS' : 'SKIP'}`);
+    console.log(`  Room Deleted:               ${results.roomDeleted ? 'PASS' : 'FAIL'}`);
 
     console.log('\nCascade Delete:');
     console.log(`  Cascade Delete Works:       ${results.cascadeDeleteWorks ? 'PASS' : 'FAIL'}`);
 
     console.log('\nAuthorization:');
+    console.log(`  Non-Admin Account Created:  ${results.nonAdminAccountCreated ? 'PASS' : 'FAIL'}`);
     console.log(`  Non-Admin Cannot Create:    ${results.nonAdminCannotCreateOffice ? 'PASS' : 'FAIL'}`);
 
     console.log('\nToast Validation:');
     console.log(`  No Toast Conflicts:         ${!results.toastConflictDetected ? 'PASS' : 'FAIL'}`);
 
-    // Determine overall pass/fail
+    // Gaps this spec's header promises but its steps never perform. Listed rather
+    // than left as permanently-false result fields, which is what they used to be:
+    // an unset boolean printed as FAIL is a bug report nobody can act on, and one
+    // that is never printed at all is worse.
+    console.log('\nNot exercised by this spec:');
+    console.log('  Office/Room description + MDX update: SKIP (no step opens the MDX editor here — covered by office-mdx-content)');
+    console.log('  Room rename:                          SKIP (no step opens the room edit modal)');
+    console.log('  Non-admin delete office/room:         SKIP (needs an office the non-admin can see AND a delete affordance; no step sets that up)');
+    console.log('  Non-admin create room:                SKIP (needs a parent office visible to the non-admin; no step sets that up)');
+    console.log('  Member add/remove on office + room:   SKIP (needs a second user added to a domain; no step performs the invite)');
+
+    // Every line printed above with a PASS/FAIL verdict is now part of the gate.
+    // It used to be four entries — accountCreation, workspaceLoaded (hard-coded
+    // true), officeCreated and the toast check — so a run where the rename, both
+    // deletes, the cascade and the authorization check all failed still reported
+    // PASS overall.
     const criticalTests = [
       results.accountCreation,
       results.workspaceLoaded,
+      results.isAdmin,
       results.officeCreated,
+      results.officeNameUpdated,
+      results.officeDeleted,
+      results.roomCreated,
+      results.roomDeleted,
+      results.cascadeDeleteWorks,
+      results.nonAdminAccountCreated,
+      results.nonAdminCannotCreateOffice,
       !results.toastConflictDetected, // No toast conflicts is critical
     ];
 
     overallPass = criticalTests.every(Boolean);
 
     harness.finalize(overallPass, results);
-
-    // Keep browser open for inspection
-    console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
-    await sleep(15000);
 
     if (browser) {
       await browser.close();

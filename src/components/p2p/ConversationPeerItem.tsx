@@ -7,8 +7,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Circle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { formatTime } from './P2PPeerListHelpers';
-import type { PeerInfo } from './P2PPeerListHelpers';
+import { formatTime , type PeerInfo } from './P2PPeerListHelpers';
 
 interface ConversationPeerItemProps {
   peer: PeerInfo;
@@ -16,12 +15,12 @@ interface ConversationPeerItemProps {
   onSelect: (cid: string) => void;
 }
 
-export function ConversationPeerItem({ peer, isSelected, onSelect }: ConversationPeerItemProps) {
+export function ConversationPeerItem({ peer, isSelected, onSelect }: ConversationPeerItemProps): JSX.Element {
   return (
     <Button
       variant="ghost"
-      className={`w-full justify-start h-auto py-2 px-3 text-left hover:bg-[#262C4A]/50 ${
-        isSelected ? 'bg-[#262C4A] text-white' : 'text-gray-300'
+      className={`w-full justify-start h-auto py-2 px-3 text-left hover:bg-surface/50 ${
+        isSelected ? 'bg-surface text-foreground' : 'text-foreground/80'
       }`}
       onClick={() => onSelect(peer.cid)}
     >
@@ -31,10 +30,14 @@ export function ConversationPeerItem({ peer, isSelected, onSelect }: Conversatio
             <AvatarFallback>{peer.name[0]}</AvatarFallback>
           </Avatar>
           <Circle
+            aria-hidden="true"
             className={`absolute bottom-0 right-0 h-3 w-3 ${
-              peer.isConnected ? 'fill-green-500 text-green-500' : 'fill-gray-400 text-gray-400'
+              peer.isConnected ? 'fill-success text-success-emphasis' : 'fill-muted-foreground text-muted-foreground'
             }`}
           />
+          {/* Colour alone would carry the meaning, which fails WCAG 1.4.1.
+              Same pairing as PeerListRow, where this was already fixed. */}
+          <span className="sr-only">{peer.isConnected ? 'Online' : 'Offline'}</span>
         </div>
 
         <div className="flex-1 text-left min-w-0">

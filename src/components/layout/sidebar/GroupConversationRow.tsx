@@ -5,11 +5,16 @@
  * Used in the Conversations section alongside P2P direct messages.
  */
 
-import { useMemo, useRef, useEffect, useState } from 'react';
+import { useMemo, useRef, useEffect, useState    , type RefObject } from 'react';
+import { memberAvatarColor } from '@/lib/avatar-color';
+import { useGroupPermissions } from '@/hooks/use-group-permissions';
 import { useNavigate } from 'react-router-dom';
 import { SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
+import { rowClass } from './selected-row';
 import { Badge } from '@/components/ui/badge';
+import { membersByRank } from '@/components/chat/members-by-rank';
 import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
+import type { NavigateFunction } from 'react-router';
 
 // ============================================================================
 // Types
@@ -28,28 +33,19 @@ interface GroupConversationRowProps {
 // ============================================================================
 
 /** Width of each avatar circle in pixels */
-const AVATAR_SIZE = 20;
+const AVATAR_SIZE: 20 = 20;
 
 /** Overlap amount in pixels (negative margin) */
-const AVATAR_OVERLAP = 8;
+const AVATAR_OVERLAP: 8 = 8;
 
 /** Minimum number of avatars to show (even if container is small) */
-const MIN_AVATARS = 2;
+const MIN_AVATARS: 2 = 2;
 
 /** Maximum number of avatars to show */
-const MAX_AVATARS = 4;
+const MAX_AVATARS: number = 4;
 
-/** Colors for avatar backgrounds based on member index */
-const AVATAR_COLORS = [
-  '#FFD700', // Gold - Owner
-  '#6E59A5', // Purple
-  '#4F46E5', // Indigo
-  '#10B981', // Emerald
-  '#F59E0B', // Amber
-  '#EF4444', // Red
-  '#8B5CF6', // Violet
-  '#EC4899', // Pink
-];
+// The avatar palette lives in lib/avatar-color. A private copy here was the
+// only reason this file could disagree with every other avatar in the app.
 
 // ============================================================================
 // Component
@@ -59,41 +55,29 @@ export function GroupConversationRow({
   group,
   isActive = false,
   onClick,
-}: GroupConversationRowProps) {
-  const navigate = useNavigate();
-  const containerRef = useRef<HTMLDivElement>(null);
+}: GroupConversationRowProps): JSX.Element {
+  const navigate: NavigateFunction = useNavigate();
+  const containerRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const [maxAvatars, setMaxAvatars] = useState(MAX_AVATARS);
+  const { can } = useGroupPermissions(group);
 
-  // Get members with their roles, sorted by position
-  const sortedMembers = useMemo(() => {
-    return [...group.members]
-      .flatMap(member => {
-        const role = group.settings.roles.find(r => r.id === member.roleId);
-        if (!role) return []; // Filter out members with missing roles
-        return [{ ...member, role } as GroupMemberWithRole];
-      })
-      .sort((a, b) => {
-        // Owner first (highest position)
-        if (a.role.position !== b.role.position) {
-          return b.role.position - a.role.position;
-        }
-        // Then alphabetical
-        return a.username.localeCompare(b.username);
-      });
-  }, [group.members, group.settings.roles]);
+  const sortedMembers: GroupMemberWithRole[] = useMemo(
+    (): GroupMemberWithRole[] => membersByRank(group),
+    [group],
+  );
 
   // Calculate how many avatars can fit
   useEffect(() => {
-    const updateMaxAvatars = () => {
+    const updateMaxAvatars = (): void => {
       if (!containerRef.current) return;
 
       // Approximate available width for avatars (container width - padding - name space)
-      const containerWidth = containerRef.current.offsetWidth;
-      const availableForAvatars = Math.min(80, containerWidth * 0.35);
+      const containerWidth: number = containerRef.current.offsetWidth;
+      const availableForAvatars: number = Math.min(80, containerWidth * 0.35);
 
       // Each avatar takes AVATAR_SIZE - AVATAR_OVERLAP pixels (except the last one)
-      const effectiveAvatarWidth = AVATAR_SIZE - AVATAR_OVERLAP;
-      const count = Math.floor(
+      const effectiveAvatarWidth: number = AVATAR_SIZE - AVATAR_OVERLAP;
+      const count: number = Math.floor(
         (availableForAvatars - AVATAR_SIZE) / effectiveAvatarWidth + 1
       );
 
@@ -102,16 +86,22 @@ export function GroupConversationRow({
 
     updateMaxAvatars();
 
-    const resizeObserver = new ResizeObserver(updateMaxAvatars);
+    const resizeObserver: ResizeObserver = new ResizeObserver(updateMaxAvatars);
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
     }
 
-    return () => resizeObserver.disconnect();
+    return (): void => resizeObserver.disconnect();
   }, []);
+
+  // The sidebar row discloses the membership just as the chat header does, so
+  // it answers to the same permission. Without this, a role with
+  // `viewMemberList` off still saw every group's roster in the sidebar.
+  const canSeeMembers: boolean = can('viewMemberList');
 
   // Get display avatars and overflow count
   const { displayMembers, overflowCount } = useMemo(() => {
+    if (!canSeeMembers) return { displayMembers: [], overflowCount: 0 };
     if (sortedMembers.length <= maxAvatars) {
       return { displayMembers: sortedMembers, overflowCount: 0 };
     }
@@ -119,16 +109,10 @@ export function GroupConversationRow({
       displayMembers: sortedMembers.slice(0, maxAvatars),
       overflowCount: sortedMembers.length - maxAvatars,
     };
-  }, [sortedMembers, maxAvatars]);
-
-  // Get avatar color based on member's role or index
-  const getAvatarColor = (member: GroupMemberWithRole, index: number): string => {
-    if (member.role.color) return member.role.color;
-    return AVATAR_COLORS[index % AVATAR_COLORS.length];
-  };
+  }, [sortedMembers, maxAvatars, canSeeMembers]);
 
   // Handle click
-  const handleClick = () => {
+  const handleClick = (): void => {
     if (onClick) {
       onClick(group);
     } else {
@@ -139,10 +123,12 @@ export function GroupConversationRow({
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
+        data-testid={`group-row-${group.id}`}
         onClick={handleClick}
-        className={`text-white hover:bg-purple-500/15 hover:text-white transition-colors h-9 py-1 ${
-          isActive ? 'bg-purple-500/20 text-purple-200' : ''
-        }`}
+        // Announced, not only coloured -- see PeerListRow.
+        aria-current={isActive ? 'page' : undefined}
+        // See TreeNodeItem: white belongs on a primary fill, not on the page.
+        className={`${rowClass(isActive)} h-9 py-1`}
       >
         <div ref={containerRef} className="flex items-center gap-2 w-full">
           {/* Overlapping Avatars */}
@@ -150,11 +136,11 @@ export function GroupConversationRow({
             {displayMembers.map((member, index) => (
               <div
                 key={member.cid}
-                className="relative rounded-full flex items-center justify-center text-[10px] font-medium text-white border border-[#262C4A]"
+                className="relative rounded-full flex items-center justify-center text-xs font-medium text-foreground border border-surface"
                 style={{
                   width: AVATAR_SIZE,
                   height: AVATAR_SIZE,
-                  backgroundColor: getAvatarColor(member, index),
+                  backgroundColor: memberAvatarColor(member, index),
                   marginLeft: index === 0 ? 0 : -AVATAR_OVERLAP,
                   zIndex: displayMembers.length - index, // First avatar on top
                 }}
@@ -167,7 +153,7 @@ export function GroupConversationRow({
             {/* Overflow indicator */}
             {overflowCount > 0 && (
               <div
-                className="relative rounded-full flex items-center justify-center text-[9px] font-medium text-white bg-[#4A4A6A] border border-[#262C4A]"
+                className="relative rounded-full flex items-center justify-center text-xs font-medium text-foreground bg-surface border border-surface"
                 style={{
                   width: AVATAR_SIZE,
                   height: AVATAR_SIZE,
@@ -188,7 +174,7 @@ export function GroupConversationRow({
 
           {/* Unread Count Badge */}
           {group.unreadCount > 0 && (
-            <Badge className="h-5 min-w-[20px] px-1.5 bg-[#6E59A5] text-white text-xs">
+            <Badge className="h-5 min-w-[20px] px-1.5 bg-primary text-primary-foreground text-xs">
               {group.unreadCount > 99 ? '99+' : group.unreadCount}
             </Badge>
           )}

@@ -9,34 +9,38 @@ import { getDefaultSecuritySettings, type SessionSecuritySettings } from '../sec
 import { TIMEOUT, POLLING } from '../timeout-constants';
 
 /** LocalDB key for auto-accept setting */
-export const AUTO_ACCEPT_KEY = 'p2p_auto_accept_registrations';
+export const AUTO_ACCEPT_KEY: "p2p_auto_accept_registrations" = 'p2p_auto_accept_registrations';
 
 /** Default polling interval (30 seconds) */
-export const POLLING_INTERVAL = POLLING.P2P_REGISTRATION_INTERVAL_MS;
+export const POLLING_INTERVAL: number = POLLING.P2P_REGISTRATION_INTERVAL_MS;
 
 /**
- * Timeout for peer listing operations - must be longer than backend SDK timeout (5s)
- * to avoid frontend timing out while backend is still processing
+ * Timeout for peer listing operations.
+ *
+ * Must be longer than the AGENT's PEER_LIST_TIMEOUT, which is 30s. This comment
+ * used to say 5s — a statement about a Rust constant that had since changed,
+ * which is why the value beneath it (6s) had been below the real bound for as
+ * long as it had been wrong. See check-peer-list-timeout-parity.
  */
-export const PEER_LIST_TIMEOUT = TIMEOUT.PEER_LIST_MS;
+export const PEER_LIST_TIMEOUT: number = TIMEOUT.PEER_LIST_MS;
 
 /** Max concurrent peer registrations in a batch */
-export const CONCURRENT_REGISTRATIONS = 5;
+export const CONCURRENT_REGISTRATIONS: number = 5;
 
 /** Fixed backoff between retries (ms) */
-export const RETRY_BACKOFF_MS = 500;
+export const RETRY_BACKOFF_MS: number = 500;
 
 /** Default retry count for listRegisteredPeers */
-export const DEFAULT_LIST_RETRIES = 2;
+export const DEFAULT_LIST_RETRIES: number = 2;
 
 /** Timeout for PeerRegister request (ms) */
-export const PEER_REGISTER_TIMEOUT_MS = 10000;
+export const PEER_REGISTER_TIMEOUT_MS: number = 10000;
 
 /** Timeout for CID resolution via IndexedDB (ms) */
-export const CID_RESOLUTION_TIMEOUT_MS = 500;
+export const CID_RESOLUTION_TIMEOUT_MS: number = 500;
 
 /** Default session security settings for P2P (from shared utils) */
-export const DEFAULT_SESSION_SECURITY = getDefaultSecuritySettings();
+export const DEFAULT_SESSION_SECURITY: SessionSecuritySettings = getDefaultSecuritySettings();
 
 /**
  * Adapts a locally-defined SessionSecuritySettings to the WASM-generated type.

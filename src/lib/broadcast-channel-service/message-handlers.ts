@@ -5,11 +5,11 @@
  */
 
 import { eventEmitter } from '@/lib/event-emitter';
-import { getSelectedUser } from '@/lib/tab-context';
+import { getSelectedUser , type TabUserContext } from '@/lib/tab-context';
 import { instanceManager } from '@/lib/multi-instance';
 import { debugLog } from '@/lib/debug-config';
+import { messageVariant, notificationCid } from '@/lib/sessions/notification-ownership';
 import type { BroadcastMessage, PendingRequest } from './types';
-import { isLeaderElectionMessage } from './types';
 
 /**
  * Handle workspace-response messages from leader tab.
@@ -21,16 +21,36 @@ export async function handleWorkspaceResponse(
   isResponseForThisCid: (requestId: string, tabCid: bigint) => boolean
 ): Promise<void> {
   if (!isLeader && message.data) {
-    const tabSelection = await getSelectedUser();
-    const tabCid = tabSelection?.selectedCid;
+    const tabSelection: TabUserContext | null = await getSelectedUser();
+    const tabCid: bigint | undefined = tabSelection?.selectedCid;
 
     if (message.targetCid && tabCid && message.targetCid !== tabCid) {
       debugLog('BroadcastChannelService', `Skipping notification for CID ${message.targetCid.toString().slice(0, 8)}... (we are ${tabCid.toString().slice(0, 8)}...)`);
       return;
     }
 
-    const d = message.data as Record<string, Record<string, unknown> | unknown>;
-    const requestId = d.request_id ||
+    // The notification's OWN cid, not the one the leader stamped.
+    //
+    // `targetCid` is set for exactly three types, so for everything else the
+    // check above compares `undefined` and never skips. Group notifications are
+    // built with `request_id: None` as well, so the request-id gate below passes
+    // too -- and a follower tab held session B while a peer invited session A to
+    // a group, mapped the invite with B's identity, and AUTO-ACCEPTED it. B's
+    // sidebar gained a group it was never invited to and the backend received a
+    // GroupRespondRequest carrying B's cid.
+    //
+    // Reading the payload's own cid closes that generically, for every
+    // notification type rather than the three somebody remembered to stamp.
+    // This is the rule CLAUDE.md states as "never process messages where CID
+    // doesn't match".
+    const addressedTo: bigint | null = notificationCid(message.data);
+    if (addressedTo !== null && tabCid && addressedTo !== tabCid) {
+      debugLog('BroadcastChannelService', `Skipping ${messageVariant(message.data) ?? 'message'} addressed to ${addressedTo.toString().slice(0, 8)}... (we are ${tabCid.toString().slice(0, 8)}...)`);
+      return;
+    }
+
+    const d: Record<string, unknown> = message.data as Record<string, Record<string, unknown> | unknown>;
+    const requestId: unknown = d.request_id ||
       (d.ListAllPeersResponse as Record<string, unknown> | undefined)?.request_id ||
       (d.ListRegisteredPeersResponse as Record<string, unknown> | undefined)?.request_id ||
       (d.GetSessionsResponse as Record<string, unknown> | undefined)?.request_id ||
@@ -45,6 +65,7 @@ export async function handleWorkspaceResponse(
   }
 }
 
+/** The variant name of a wire message, i.e. its single top-level key. */
 /**
  * Handle register-request messages to track CID ownership of requests.
  */
@@ -52,7 +73,7 @@ export function handleRegisterRequest(
   message: BroadcastMessage,
   pendingRequests: Map<string, PendingRequest>
 ): void {
-  const data = message.data as Record<string, unknown> | null;
+  const data: Record<string, unknown> | null = message.data as Record<string, unknown> | null;
   if (data && data.requestId && data.cid) {
     pendingRequests.set(data.requestId as string, {
       cid: data.cid as bigint,
@@ -61,35 +82,6 @@ export function handleRegisterRequest(
   }
 }
 
-/**
- * Handle leader-election messages from other tabs.
- */
-export function handleLeaderElection(
-  message: BroadcastMessage,
-  isLeader: boolean,
-  tabId: string,
-  setLeaderState: (isLeader: boolean, heartbeat: number) => void
-): void {
-  if (!isLeaderElectionMessage(message.data)) {
-    debugLog('BroadcastChannelService', 'Invalid leader election message data, ignoring');
-    return;
-  }
-  const electionData = message.data;
-
-  if (message.isLeader) {
-    setLeaderState(isLeader, Date.now());
-
-    if (isLeader && electionData.tabId !== tabId) {
-      debugLog('BroadcastChannelService', `Tab ${electionData.tabId} is now the leader`);
-      setLeaderState(false, Date.now());
-      eventEmitter.emit('leader-changed', { isLeader: false, leaderId: electionData.tabId });
-    }
-  }
-}
-
-/**
- * Handle state-sync messages by forwarding to event system.
- */
 export function handleStateSync(message: BroadcastMessage): void {
   eventEmitter.emit('broadcast-state-sync', message.data);
 }
@@ -128,19 +120,19 @@ export async function handleP2PNotification(
   });
 
   if (!isLeader && message.data) {
-    const p2pData = message.data as Record<string, unknown>;
-    const notification = p2pData.notification as Record<string, unknown> | undefined;
-    const messageBytes = p2pData.messageBytes;
+    const p2pData: Record<string, unknown> = message.data as Record<string, unknown>;
+    const notification: Record<string, unknown> | undefined = p2pData.notification as Record<string, unknown> | undefined;
+    const messageBytes: unknown = p2pData.messageBytes;
     if (!notification) {
       debugLog('BroadcastChannelService', '[BroadcastChannel] handleP2PNotification: No notification in data');
       return;
     }
 
-    const tabSelection = await getSelectedUser();
-    const tabCid = tabSelection?.selectedCid ?? instanceManager.cid;
-    const notificationCid = notification.cid?.toString();
-    const peerCid = notification.peer_cid?.toString();
-    const tabCidStr = tabCid?.toString();
+    const tabSelection: TabUserContext | null = await getSelectedUser();
+    const tabCid: bigint | null = tabSelection?.selectedCid ?? instanceManager.cid;
+    const notificationCid: string | undefined = notification.cid?.toString();
+    const peerCid: string | undefined = notification.peer_cid?.toString();
+    const tabCidStr: string | undefined = tabCid?.toString();
 
     debugLog('BroadcastChannelService', '[BroadcastChannel] handleP2PNotification checking session match:', {
       notificationCid,

@@ -10,6 +10,7 @@
  */
 
 import { P2PConnectionState } from '../p2p-auto-connect/tracking';
+import type { ConnectionAttempt } from '@/lib/p2p-auto-connect/types';
 import type { PeerConnectionInfo } from './types';
 
 /**
@@ -18,7 +19,7 @@ import type { PeerConnectionInfo } from './types';
  */
 export class AutoConnectState {
   /** Core connection state (SSOT for connectedPeers, pending, attempts, online) */
-  readonly core = new P2PConnectionState();
+  readonly core: P2PConnectionState = new P2PConnectionState();
 
   /**
    * Channels that have proven bidirectional message flow.
@@ -26,7 +27,7 @@ export class AutoConnectState {
    * proving the channel is established and messages can flow in both directions.
    * Reset on session reconnection (ClaimSession/Login).
    */
-  readonly readyChannels = new Set<bigint>();
+  readonly readyChannels: Set<bigint> = new Set<bigint>();
 
   /** Periodic polling interval handle for connection attempts */
   pollingInterval: NodeJS.Timeout | null = null;
@@ -35,17 +36,12 @@ export class AutoConnectState {
   backendPollInterval: NodeJS.Timeout | null = null;
 
   /** Guard to prevent concurrent refresh operations */
-  isRefreshing = false;
+  isRefreshing: boolean = false;
 
   // ----- Delegating accessors for common core operations -----
 
-  setPeerConnectedLocal(
-    localCid: bigint,
-    peerCid: bigint,
-    peerUsername: string = '',
-    localUsername: string = ''
-  ): void {
-    this.core.setPeerConnectedLocal(localCid, peerCid, peerUsername, localUsername);
+  setPeerConnectedLocal(localCid: bigint, peerCid: bigint): void {
+    this.core.setPeerConnectedLocal(localCid, peerCid);
   }
 
   setPeerDisconnected(localCid: bigint, peerCid: bigint): void {
@@ -68,14 +64,17 @@ export class AutoConnectState {
     return this.core.isPeerOnline(peerCid);
   }
 
+  /** Online status, or null when no poll has landed yet. */
+  peerOnlineStatus(peerCid: bigint): boolean | null {
+    return this.core.peerOnlineStatus(peerCid);
+  }
+
   addOnlinePeer(peerCid: bigint): void {
-    // Directly add a single peer to the online set (used by event handlers)
-    // This leverages setOnlinePeers internally by building the full list
-    const current = this.core.getOnlinePeers();
-    if (!current.includes(peerCid)) {
-      current.push(peerCid);
-      this.core.setOnlinePeers(current);
-    }
+    // Straight to the core's incremental add. This used to rebuild the whole
+    // list and call `setOnlinePeers`, which dates the set as if the backend had
+    // just answered -- so one registration event made a tab that has never
+    // polled report a confident "offline" for everyone else.
+    this.core.addOnlinePeer(peerCid);
   }
 
   getOnlinePeers(): bigint[] {
@@ -122,7 +121,7 @@ export class AutoConnectState {
     this.core.clearAllConnectionAttempts();
   }
 
-  getConnectionAttempt(peerCid: bigint) {
+  getConnectionAttempt(peerCid: bigint): ConnectionAttempt | undefined {
     return this.core.getConnectionAttempt(peerCid);
   }
 
@@ -146,7 +145,7 @@ export class AutoConnectState {
     this.core.setOnlinePeers([]);
   }
 
-  getPeerMapForSession(localCid: bigint) {
+  getPeerMapForSession(localCid: bigint): Map<bigint, PeerConnectionInfo> {
     return this.core.getPeerMapForSession(localCid);
   }
 }

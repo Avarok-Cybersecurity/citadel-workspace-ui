@@ -18,15 +18,19 @@ import { p2pRegistrationService } from '../p2p-registration-service';
 import { ensureBigIntOrNull } from '../utils';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { debugLog } from '@/lib/debug-config';
+import { dispatchInboundCommand } from './inbound-command-dispatch';
+import { isCallSignalPayload } from '@/types/p2p-commands';
 import { eventEmitter } from '../event-emitter';
 
-import type { MessageHandlerConfig } from './message-handler-types';
-import { isPeerMessage, isMessageNotification, type MessageNotificationPayload } from './message-handler-types';
+import { isForThisSession } from '../sessions/notification-ownership';
+import { isPeerMessage, isMessageNotification, type MessageNotificationPayload , type MessageHandlerConfig } from './message-handler-types';
 import { handleMessagingLayerCommand } from './message-handler-routing';
 import { MessageAckHandler } from './message-ack-handler';
 import { FileTransferMessageHandler } from './file-transfer-message-handler';
 
 export type { MessageHandlerConfig } from './message-handler-types';
+import { fnv1a64 } from './message-fingerprint';
+import type { CallSignalPayload } from '@/types/call-signals';
 
 export class MessageHandler {
   private readonly config: MessageHandlerConfig;
@@ -44,6 +48,10 @@ export class MessageHandler {
       getOrCreateConversation: config.getOrCreateConversation,
       notifyMessageListeners: config.notifyMessageListeners,
       sendMessageAck: config.sendMessageAck,
+      // The same store the text path uses. Handing it the store is the half of
+      // this fix a unit test cannot see: the handler's own tests pass against a
+      // stub whether or not the real construction site supplies one.
+      addMessageToConversation: config.addMessageToConversation,
     });
   }
 
@@ -68,8 +76,8 @@ export class MessageHandler {
           debugLog('P2PMessageHandler', 'Unexpected PeerMessage format (expected array or Uint8Array):', typeof message);
           return;
         }
-        const command = deserializeP2PCommand(messageBytes);
-        const peerCidBigint = ensureBigIntOrNull(peer_cid);
+        const command: P2PCommand = deserializeP2PCommand(messageBytes);
+        const peerCidBigint: bigint | null = ensureBigIntOrNull(peer_cid);
         if (peerCidBigint !== null) {
           await this.handleP2PCommand(command, peerCidBigint);
         }
@@ -85,23 +93,17 @@ export class MessageHandler {
   private async handleMessageNotification(
     response: InternalServiceResponse & { MessageNotification: MessageNotificationPayload }
   ): Promise<void> {
-    const notification = response.MessageNotification;
+    const notification: MessageNotificationPayload = response.MessageNotification;
     const { message: rawMessage, peer_cid, cid } = notification;
 
-    const currentCid = await this.config.getCurrentCid();
-    const peerCidBigint = ensureBigIntOrNull(peer_cid) ?? undefined;
-    const notificationCidBigint = ensureBigIntOrNull(cid) ?? undefined;
-    const effectiveCid = currentCid ?? notificationCidBigint;
-
-    if (!currentCid && notificationCidBigint) {
-      debugLog('MessageHandler', '[P2P] WARNING: currentCid is null, using notification CID as fallback:', notificationCidBigint?.toString());
-    }
+    const currentCid: bigint | null = await this.config.getCurrentCid();
+    const peerCidBigint: bigint | undefined = ensureBigIntOrNull(peer_cid) ?? undefined;
+    const notificationCidBigint: bigint | undefined = ensureBigIntOrNull(cid) ?? undefined;
 
     debugLog('MessageHandler', '[P2P] handleWebSocketMessage checking MessageNotification:', {
       peer_cid: peerCidBigint?.toString(),
       notification_cid: notificationCidBigint?.toString(),
       currentCid: currentCid?.toString(),
-      effectiveCid: effectiveCid?.toString(),
       isP2P: peerCidBigint !== undefined && peerCidBigint !== 0n,
     });
 
@@ -126,39 +128,45 @@ export class MessageHandler {
         return;
       }
 
-      debugLog('MessageHandler', 'P2P message received:', contentBytes.length, 'bytes');
+      // fp joins this to ILM's `[ILM-DELIVER] ... fp=`.
+      debugLog('MessageHandler', 'P2P message received:', contentBytes.length, 'bytes fp=' + fnv1a64(contentBytes));
 
-      const rawMessageData = { peerCid: peerCidBigint, message: contentBytes };
+      const rawMessageData: { peerCid: bigint; message: Uint8Array<ArrayBufferLike>; } = { peerCid: peerCidBigint, message: contentBytes };
       eventEmitter.emit('p2p:raw-message', { peerCid: peerCidBigint.toString(), message: contentBytes });
       BroadcastChannelService.getInstance().broadcastP2PRawMessage(rawMessageData);
 
-      const isOwnOutgoingEcho = peerCidBigint === effectiveCid;
-      if (isOwnOutgoingEcho && notificationCidBigint !== effectiveCid) {
-        debugLog('MessageHandler', '[P2P] Outgoing echo for different session, broadcasting to follower tabs');
-        BroadcastChannelService.getInstance().broadcastP2PNotification({ notification, messageBytes: contentBytes });
-        return;
-      }
-
-      const isForDifferentSession = notificationCidBigint !== undefined && notificationCidBigint !== effectiveCid;
-      if (isForDifferentSession) {
-        debugLog('MessageHandler', '[P2P] Message for different session, broadcasting to follower tabs');
+      // The notification's `cid` names the session it is addressed to, and this
+      // tab is very often not that session: the leader holds the WebSocket even
+      // when it is the landing/connect page, logged in as nobody. There used to
+      // be a fallback here (`currentCid ?? notificationCid`) so that a tab with
+      // no cid of its own would adopt the notification's — which made the guard
+      // below vacuous and had a session-less tab store and emit another
+      // account's messages as its own. `isForThisSession` refuses unless both
+      // sides are known and equal; everything it refuses is broadcast to the
+      // follower tabs, where the owner picks it up by matching its cid
+      // (handleP2PNotification does that filtering). This also covers the old
+      // own-outgoing-echo branch: an echo either matches this session's cid
+      // (skipped above as a self-message) or belongs to another session's tab.
+      if (!isForThisSession(notificationCidBigint, currentCid)) {
+        debugLog('MessageHandler', '[P2P] Message not for this tab\'s session, broadcasting to follower tabs');
         BroadcastChannelService.getInstance().broadcastP2PNotification({ notification, messageBytes: contentBytes });
         return;
       }
 
       debugLog('MessageHandler', 'P2P MessageNotification received from peer:', peerCidBigint.toString());
 
-      const isAlreadyConnected = this.config.isConnected(peerCidBigint);
-      const isAlreadyRegistered = p2pRegistrationService.isPeerRegistered(peerCidBigint);
+      const isAlreadyConnected: boolean = this.config.isConnected(peerCidBigint);
+      const isAlreadyRegistered: boolean = p2pRegistrationService.isPeerRegistered(peerCidBigint);
 
       if (!isAlreadyRegistered && !isAlreadyConnected) {
         debugLog('P2PMessageHandler', `Received message from unregistered peer ${peerCidBigint.toString()} - protocol violation`);
       }
 
-      const command = deserializeP2PCommand(contentBytes);
-      await this.handleP2PCommand(command, peerCidBigint, notificationCidBigint);
+      await dispatchInboundCommand(contentBytes, (command) =>
+        this.handleP2PCommand(command, peerCidBigint, notificationCidBigint)
+      );
     } catch (error) {
-      debugLog('P2PMessageHandler', 'Failed to deserialize P2P command:', error);
+      debugLog('P2PMessageHandler', 'Could not process inbound P2P message:', error);
     }
   }
 
@@ -191,7 +199,7 @@ export class MessageHandler {
       case P2PCommandType.MessageAck:
         debugLog('P2PMessageHandler', 'handleP2PCommand: MessageAck branch reached');
         if (isMessageAckPayload(command.payload)) {
-          await this.ackHandler.handleMessageAck(command.payload);
+          await this.ackHandler.handleMessageAck(command.payload, peerCid);
         } else {
           debugLog('P2PMessageHandler', 'handleP2PCommand: MessageAck payload failed type check', command.payload);
         }
@@ -215,6 +223,22 @@ export class MessageHandler {
           eventEmitter.emit('yjs:p2p-command', { peerCid, payload: command.payload });
         } else {
           debugLog('P2PMessageHandler', 'handleP2PCommand: YjsP2PSync payload failed type check', command.payload);
+        }
+        break;
+
+      case P2PCommandType.CallSignal:
+        // Emitted rather than handled inline, for the same reason as Yjs above:
+        // the call provider is mounted once per tab and owns the call, and the
+        // message handler has no business knowing about media sessions.
+        if (isCallSignalPayload(command.payload)) {
+          const signal: CallSignalPayload = command.payload;
+          debugLog('P2PMessageHandler', 'handleP2PCommand: dispatching CallSignal', {
+            kind: signal.kind,
+            peerCid: peerCid.toString(),
+          });
+          eventEmitter.emit('call:signal', { peerCid, payload: signal });
+        } else {
+          debugLog('P2PMessageHandler', 'handleP2PCommand: CallSignal payload failed type check', command.payload);
         }
         break;
 

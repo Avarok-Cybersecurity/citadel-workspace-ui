@@ -48,6 +48,12 @@ export async function initService(service: WebSocketServiceCore): Promise<void> 
     }
   } catch (error) {
     window[GLOBAL_INIT_KEY] = undefined;
+    // The in-flight guard above returns this promise to every later caller. Left
+    // set, a first failure is replayed for ever: the user starts the agent the
+    // error told them to start, presses Retry, and the same stale rejection
+    // comes back instantly without anything re-attempting. Only a page reload
+    // recovered. Clearing it is what makes a retry an actual second attempt.
+    service.initializationPromise = null;
     throw error;
   }
 }
@@ -61,7 +67,12 @@ async function doInit(service: WebSocketServiceCore): Promise<void> {
   debugLog('WebSocketService', 'Waiting for leader election to settle...');
   await service.initOps.waitForLeaderElection();
 
-  const isLeader = instanceManager.isLeader;
+  // Before the branch, so a tab that boots as LEADER is also wired for
+  // demotion. Registering it only on the follower path left a demoted
+  // boot-leader holding a live socket that dropped every frame it received.
+  service.initOps.registerLeadershipListener();
+
+  const isLeader: boolean = instanceManager.isLeader;
   debugLog('WebSocketService', `Leader election complete. This tab is ${isLeader ? 'LEADER' : 'FOLLOWER'}`);
 
   if (!isLeader) {

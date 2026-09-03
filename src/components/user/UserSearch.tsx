@@ -1,22 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { isMemberOnline } from '@/lib/presence';
+import { matchesSearch } from '@/lib/fold-for-search';
 import { debugLog } from '@/lib/debug-config';
-import { Search, User, UserPlus, X } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { Badge } from '@/components/ui/badge';
 import type { UserData, UserSearchProps } from './user-search-types';
-import { getRoleBadgeClass } from './user-search-types';
+import { UserSearchResults, RESULTS_LIST_ID } from './UserSearchResults';
+import type { User, UserRole } from '@/types/workspace-entities';
 
 // Re-export types for backward compatibility
 export type { UserData } from './user-search-types';
@@ -31,10 +23,19 @@ export const UserSearch: React.FC<UserSearchProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState<UserData[]>([]);
+  /**
+   * The search itself failed, as distinct from matching nobody.
+   *
+   * An empty `results` renders "No users found", which is an answer about the
+   * workspace. A search that threw left `results` empty too, so the person was
+   * told their colleague is not here when the truth is that the question was
+   * never answered.
+   */
+  const [searchFailed, setSearchFailed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const resultsRef = useRef<HTMLDivElement>(null);
+  const inputRef: React.RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
+  const resultsRef: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const { state } = useWorkspace();
 
   // Focus input on mount if initialFocus is true
@@ -44,9 +45,16 @@ export const UserSearch: React.FC<UserSearchProps> = ({
     }
   }, [initialFocus]);
 
-  // Handle click outside to close results
+  // Dismiss the results panel: pointer outside it, or Escape.
+  //
+  // Escape matters because the panel is `position: absolute; z-index: 50` and
+  // covers the controls beneath it — on the directory page, the All/Online tabs.
+  // A mouse user was already fine (mousedown closes the panel before the click
+  // lands), but with no key handler a keyboard user had no way to dismiss it and
+  // no way to reach what it covered. That is the combobox behaviour anyone would
+  // expect, and its absence was a dead end rather than a cosmetic gap.
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const dismissOnPointerOutside = (event: MouseEvent): void => {
       if (
         resultsRef.current &&
         !resultsRef.current.contains(event.target as Node) &&
@@ -57,31 +65,45 @@ export const UserSearch: React.FC<UserSearchProps> = ({
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+    const dismissOnEscape = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      // Only when open, so Escape stays available to whatever is behind us —
+      // a dialog holding this search, for instance.
+      setShowResults((open) => {
+        if (open) event.stopPropagation();
+        return false;
+      });
+    };
+
+    document.addEventListener('mousedown', dismissOnPointerOutside);
+    document.addEventListener('keydown', dismissOnEscape);
+    return (): void => {
+      document.removeEventListener('mousedown', dismissOnPointerOutside);
+      document.removeEventListener('keydown', dismissOnEscape);
     };
   }, []);
 
   // Search users
   useEffect(() => {
-    const searchUsers = async () => {
+    const searchUsers = async (): Promise<void> => {
       if (!searchTerm.trim()) {
         setResults([]);
+        setSearchFailed(false);
         return;
       }
 
       setLoading(true);
+      setSearchFailed(false);
 
       try {
-        const members = Object.values(state.members || {});
+        const members: User[] = Object.values(state.members || {});
 
-        const filteredMembers = members
+        const filteredMembers: { id: string; displayName: string; avatarUrl: string | undefined; email: string | undefined; role: UserRole | undefined; isOnline: boolean | null; lastActive: undefined; }[] = members
           .filter(member =>
             !exclude.includes(member.id) &&
             (
-              member.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              (member.email && member.email.toLowerCase().includes(searchTerm.toLowerCase()))
+              matchesSearch(member.displayName, searchTerm) ||
+              (member.email ? matchesSearch(member.email, searchTerm) : false)
             )
           )
           .map(member => ({
@@ -90,30 +112,38 @@ export const UserSearch: React.FC<UserSearchProps> = ({
             avatarUrl: member.avatarUrl,
             email: member.email,
             role: member.role,
-            isOnline: Math.random() > 0.5,
-            lastActive: Date.now() - Math.floor(Math.random() * 1000000)
+            // Real presence, from the polled peer registry -- the same set the
+            // sidebar's peer list uses. This was `Math.random() > 0.5`, then
+            // `connectionService.canMessageUser`, which reads a map written
+            // only by the demo simulation and so answered false for everyone.
+            isOnline: isMemberOnline(member.id),
+            // Deliberately absent: nothing tracks last-seen time yet, and the
+            // previous value was a random offset from now. Undefined lets the UI
+            // say it does not know instead of stating a time that is made up.
+            lastActive: undefined,
           }));
 
         setResults(filteredMembers);
       } catch (error) {
         debugLog('UserSearch', 'Error searching users:', error);
+        setSearchFailed(true);
       } finally {
         setLoading(false);
       }
     };
 
-    const debounceTimeout = setTimeout(searchUsers, 300);
+    const debounceTimeout: NodeJS.Timeout = setTimeout(searchUsers, 300);
 
-    return () => {
+    return (): void => {
       clearTimeout(debounceTimeout);
     };
   }, [searchTerm, state.members, exclude]);
 
-  const handleFocus = () => {
+  const handleFocus = (): void => {
     setShowResults(true);
   };
 
-  const handleSelectUser = (user: UserData) => {
+  const handleSelectUser = (user: UserData): void => {
     if (onUserSelect) {
       onUserSelect(user);
     }
@@ -121,13 +151,13 @@ export const UserSearch: React.FC<UserSearchProps> = ({
     setSearchTerm('');
   };
 
-  const handleClearSearch = () => {
+  const handleClearSearch = (): void => {
     setSearchTerm('');
     inputRef.current?.focus();
   };
 
   const getRecentUsers = (): UserData[] => {
-    const members = Object.values(state.members || {});
+    const members: User[] = Object.values(state.members || {});
 
     return members
       .filter(member => !exclude.includes(member.id))
@@ -138,111 +168,52 @@ export const UserSearch: React.FC<UserSearchProps> = ({
         avatarUrl: member.avatarUrl,
         email: member.email,
         role: member.role,
-        isOnline: Math.random() > 0.5,
-        lastActive: Date.now() - Math.floor(Math.random() * 1000000)
+        isOnline: isMemberOnline(member.id),
+        lastActive: undefined,
       }));
   };
 
   return (
     <div className={`relative ${className}`}>
-      <div className="flex items-center bg-[#232536] rounded-md border border-gray-700">
-        <Search className="h-4 w-4 text-gray-400 ml-3" />
+      <div className="flex items-center bg-card rounded-md border border-border">
+        <Search className="h-4 w-4 text-muted-foreground ml-3" />
         <Input
           ref={inputRef}
           type="text"
+          role="combobox"
+          aria-expanded={showResults}
+          aria-controls={RESULTS_LIST_ID}
+          aria-autocomplete="list"
           placeholder={placeholder}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onFocus={handleFocus}
-          className="border-0 bg-transparent text-white focus-visible:ring-0 focus-visible:ring-offset-0"
+          className="border-0 bg-transparent text-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
         />
         {searchTerm && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0 mr-1 text-gray-400 hover:text-white hover:bg-gray-700"
+            className="h-8 w-8 p-0 mr-1 text-muted-foreground hover:text-foreground hover:bg-accent"
             onClick={handleClearSearch}
+            aria-label="Clear search"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </Button>
         )}
       </div>
 
       {showResults && (
-        <Card
-          ref={resultsRef}
-          className="absolute z-50 w-full mt-1 bg-[#232536] border-gray-700 text-white shadow-lg overflow-hidden"
-        >
-          <CardHeader className="p-3 border-b border-gray-700">
-            <CardTitle className="text-sm">
-              {searchTerm ? 'Search Results' : 'Recent Users'}
-            </CardTitle>
-            <CardDescription className="text-gray-400">
-              {loading ? 'Searching...' : searchTerm ? `Found ${results.length} users` : "People you've interacted with"}
-            </CardDescription>
-          </CardHeader>
-          <ScrollArea className="max-h-64">
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="py-8 flex justify-center items-center">
-                  <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-purple-500"></div>
-                </div>
-              ) : (
-                <ul className="divide-y divide-gray-700">
-                  {(results.length > 0 ? results : searchTerm ? [] : getRecentUsers()).map((user) => (
-                    <li
-                      key={user.id}
-                      className="hover:bg-[#232536] transition-colors p-3 cursor-pointer"
-                      onClick={() => handleSelectUser(user)}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="h-10 w-10 relative">
-                          <AvatarImage src={user.avatarUrl} />
-                          <AvatarFallback className="bg-purple-900">{user.displayName.charAt(0)}</AvatarFallback>
-                          {user.isOnline && (
-                            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[#232536]" />
-                          )}
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{user.displayName}</p>
-                          {user.email && (
-                            <p className="text-xs text-gray-400 truncate">{user.email}</p>
-                          )}
-                        </div>
-                        {user.role && (
-                          <Badge className={getRoleBadgeClass(user.role)}>
-                            {user.role}
-                          </Badge>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-
-                  {results.length === 0 && searchTerm && (
-                    <li className="p-6 text-center text-gray-400">
-                      <User className="h-10 w-10 mx-auto mb-2 text-gray-500" />
-                      <p>No users found</p>
-                      {enableInvite && (
-                        <Button className="mt-3 bg-purple-600 hover:bg-purple-700" size="sm">
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Invite User
-                        </Button>
-                      )}
-                    </li>
-                  )}
-                </ul>
-              )}
-            </CardContent>
-          </ScrollArea>
-          {enableInvite && (results.length > 0 || !searchTerm) && (
-            <CardFooter className="p-3 border-t border-gray-700">
-              <Button className="w-full bg-purple-600 hover:bg-purple-700" size="sm">
-                <UserPlus className="h-4 w-4 mr-2" />
-                Invite New User
-              </Button>
-            </CardFooter>
-          )}
-        </Card>
+        <UserSearchResults
+          resultsRef={resultsRef}
+          searchTerm={searchTerm}
+          loading={loading}
+          results={results}
+          searchFailed={searchFailed}
+          recentUsers={searchTerm ? [] : getRecentUsers()}
+          enableInvite={enableInvite}
+          onSelectUser={handleSelectUser}
+        />
       )}
     </div>
   );

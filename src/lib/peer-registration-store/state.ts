@@ -5,31 +5,34 @@
  * All functions are pure or operate on the provided arrays.
  */
 
-import { connectionManager } from '../connection';
-import { instanceManager } from '../multi-instance';
-import { getSelectedUser } from '../tab-context';
+import { getCurrentCid } from '@/lib/p2p/current-cid';
 import { debugLog } from '@/lib/debug-config';
 import type { PendingPeerRequest, OutgoingPeerRequest } from './types';
 
 /**
  * Get current session CID.
- * Priority: 1) instanceManager.cid (sync), 2) connectionInfo (sync),
- *           3) tab context (async), 4) tab session (async)
+ *
+ * Delegated, not implemented. This carried its own copy of the priority chain
+ * with the order CHANGED: `connectionInfo` sat at position 2, ahead of the
+ * tab's own selection. That is the connection's identity outranking the tab's,
+ * so in a browser holding two sessions one tab scoped its pending contact
+ * requests by the other tab's CID. The authority puts the global connection
+ * last and says why.
+ *
+ * The reason the old body wrapped its storage reads in a try/catch still
+ * stands, and `getCurrentCid` does it per step with a timeout, which is
+ * strictly safer than the single try this had:
+ *
+ *   The storage fallback cannot be allowed to THROW. A rejection here used to
+ *   propagate through `emitUpdate` and take the whole announcement with it, so
+ *   an incoming contact request was recorded and never mentioned -- the app
+ *   knew somebody had asked to connect and nothing on screen said so.
+ *
+ * Unknown remains a legitimate answer: the caller already treats a null CID as
+ * "cannot scope by account" and shows what it has.
  */
 export async function getCurrentSessionCid(): Promise<bigint | null> {
-  const instanceCid = instanceManager.cid;
-  if (instanceCid) {
-    return instanceCid;
-  }
-
-  const connectionInfo = connectionManager.getConnectionInfo();
-  if (connectionInfo?.cid) {
-    return connectionInfo.cid;
-  }
-
-  const tabSelection = await getSelectedUser();
-  const tabSession = await connectionManager.getTabSelectedSession();
-  return tabSelection?.selectedCid || tabSession?.cid || null;
+  return getCurrentCid();
 }
 
 /**
@@ -38,7 +41,7 @@ export async function getCurrentSessionCid(): Promise<bigint | null> {
 export async function getFilteredPendingRequests(
   pendingRequests: PendingPeerRequest[]
 ): Promise<PendingPeerRequest[]> {
-  const currentCid = await getCurrentSessionCid();
+  const currentCid: bigint | null = await getCurrentSessionCid();
   if (!currentCid) {
     return [...pendingRequests];
   }
@@ -51,13 +54,13 @@ export async function getFilteredPendingRequests(
 export async function getFilteredPendingCount(
   pendingRequests: PendingPeerRequest[]
 ): Promise<number> {
-  const currentCid = await getCurrentSessionCid();
-  const allCount = pendingRequests.length;
+  const currentCid: bigint | null = await getCurrentSessionCid();
+  const allCount: number = pendingRequests.length;
   if (!currentCid) {
     debugLog('PeerRegistrationStore', `[P2P] getPendingCount: no currentCid, returning allCount=${allCount}`);
     return allCount;
   }
-  const filteredCount = pendingRequests.filter(r => r.cid === currentCid).length;
+  const filteredCount: number = pendingRequests.filter(r => r.cid === currentCid).length;
   debugLog('PeerRegistrationStore', `[P2P] getPendingCount: currentCid=${currentCid.toString()}, allCount=${allCount}, filteredCount=${filteredCount}`);
   return filteredCount;
 }
@@ -96,7 +99,7 @@ export function hasOutgoingRequestTo(
 export async function getFilteredOutgoingRequests(
   outgoingRequests: OutgoingPeerRequest[]
 ): Promise<OutgoingPeerRequest[]> {
-  const currentCid = await getCurrentSessionCid();
+  const currentCid: bigint | null = await getCurrentSessionCid();
   if (!currentCid) {
     return [...outgoingRequests];
   }
@@ -109,7 +112,7 @@ export async function getFilteredOutgoingRequests(
 export async function getOutgoingRequestCidSet(
   outgoingRequests: OutgoingPeerRequest[]
 ): Promise<Set<bigint>> {
-  const requests = await getFilteredOutgoingRequests(outgoingRequests);
+  const requests: OutgoingPeerRequest[] = await getFilteredOutgoingRequests(outgoingRequests);
   return new Set(requests.map(r => r.toCid));
 }
 

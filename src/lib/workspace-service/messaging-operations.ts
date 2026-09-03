@@ -11,12 +11,13 @@ import type {
 } from '@/types/workspace-protocol';
 import { GroupMessageTypeTS as GroupMessageTypeEnum } from '@/types/workspace-protocol';
 import type { ProtocolSender } from './workspace-operations';
+import { awaitWriteResponse } from './await-write-response';
 
 /**
  * Send a message via workspace protocol
  */
 export async function sendMessage(sender: ProtocolSender, contents: Uint8Array): Promise<void> {
-  const requestPart = {
+  const requestPart: WorkspaceProtocolRequestTS = {
     Message: { contents: new Uint8Array(contents) }
   } as WorkspaceProtocolRequestTS;
   return sender.sendProtocolRequest(requestPart);
@@ -42,7 +43,18 @@ export async function sendGroupMessage(
       mentions
     }
   };
-  return sender.sendProtocolRequest(requestPart);
+  // The composer clears on resolve, so a send that resolved on DISPATCH threw
+  // the user's text away whenever the server refused — a store failure, or the
+  // rate limiter's "Please slow down" — with the message never appearing and no
+  // error shown, because the refusal arrives as a generic Error nothing handles.
+  return awaitWriteResponse(
+    'SendGroupMessage',
+    () => sender.sendProtocolRequest(requestPart),
+    (payload) => {
+      const p: { group_id?: string; message?: { content?: string; }; } | undefined = payload as { group_id?: string; message?: { content?: string } } | undefined;
+      return p?.group_id === groupId && p?.message?.content === content;
+    }
+  );
 }
 
 /**
@@ -61,7 +73,10 @@ export async function editGroupMessage(
       new_content: newContent
     }
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER accepts it. A refusal arrives as a response,
+  // which cannot reject a send-only promise — so this used to report success
+  // for writes the server was about to refuse.
+  return awaitWriteResponse('EditGroupMessage', () => sender.sendProtocolRequest(requestPart));
 }
 
 /**
@@ -78,7 +93,10 @@ export async function deleteGroupMessage(
       message_id: messageId
     }
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER accepts it. A refusal arrives as a response,
+  // which cannot reject a send-only promise — so this used to report success
+  // for writes the server was about to refuse.
+  return awaitWriteResponse('DeleteGroupMessage', () => sender.sendProtocolRequest(requestPart));
 }
 
 /**
@@ -131,5 +149,9 @@ export async function updateUserProfile(
       avatar_data: avatarData
     }
   };
-  return sender.sendProtocolRequest(requestPart);
+  // The settings form disables every input on `isSaving` and cleared it only on
+  // the success event, so a refusal locked the whole panel in "Saving…" until
+  // it was closed and reopened. Gating makes the refusal a rejection the caller
+  // can actually see.
+  return awaitWriteResponse('UpdateUserProfile', () => sender.sendProtocolRequest(requestPart));
 }

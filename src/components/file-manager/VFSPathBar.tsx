@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect , type RefObject , type ChangeEvent } from 'react';
 import { FolderOpen } from 'lucide-react';
 import type { RevfsNode } from '@/types/revfs-types';
 import { pathExists } from '@/lib/revfs/tree-operations';
 import { cn } from '@/lib/utils';
+import { isEnterCommit } from '@/lib/keyboard-commit';
 
 interface VFSPathBarProps {
   /** Current path being viewed */
@@ -22,11 +23,11 @@ interface VFSPathBarProps {
  * - Escape or blur reverts to current path if not submitted
  * - Error shake animation if invalid path
  */
-export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps) {
+export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps): JSX.Element {
   const [inputValue, setInputValue] = useState(currentPath);
   const [isEditing, setIsEditing] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
 
   // Sync input with current path when it changes externally
   useEffect(() => {
@@ -38,28 +39,28 @@ export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps) {
   // Clear error state after animation
   useEffect(() => {
     if (hasError) {
-      const timeout = setTimeout(() => setHasError(false), 500);
-      return () => clearTimeout(timeout);
+      const timeout: NodeJS.Timeout = setTimeout((): void => setHasError(false), 500);
+      return (): void => clearTimeout(timeout);
     }
   }, [hasError]);
 
-  const handleFocus = useCallback(() => {
+  const handleFocus: () => void = useCallback((): void => {
     setIsEditing(true);
     // Select all text on focus for easy replacement
     setTimeout(() => inputRef.current?.select(), 0);
   }, []);
 
-  const handleBlur = useCallback(() => {
+  const handleBlur: () => void = useCallback((): void => {
     setIsEditing(false);
     // Revert to current path on blur without submission
     setInputValue(currentPath);
     setHasError(false);
   }, [currentPath]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+  const handleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void = useCallback((e: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (isEnterCommit(e)) {
       e.preventDefault();
-      const normalizedPath = inputValue.trim() || '/';
+      const normalizedPath: string = inputValue.trim() || '/';
 
       // Validate path exists in tree
       if (pathExists(tree, normalizedPath)) {
@@ -79,15 +80,15 @@ export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps) {
     }
   }, [inputValue, tree, currentPath, onNavigate]);
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
     setInputValue(e.target.value);
     setHasError(false);
   }, []);
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2 border-b border-purple-800 bg-[#3A4060]">
-      <FolderOpen className="h-4 w-4 text-gray-400 shrink-0" />
-      <span className="text-xs text-gray-400 shrink-0">Path:</span>
+    <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-surface">
+      <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+      <span className="text-xs text-muted-foreground shrink-0">Path:</span>
       <input
         ref={inputRef}
         type="text"
@@ -97,17 +98,17 @@ export function VFSPathBar({ currentPath, onNavigate, tree }: VFSPathBarProps) {
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         className={cn(
-          'flex-1 bg-[#1E2235] text-gray-200 text-sm px-3 py-1.5 rounded border border-transparent',
-          'focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50',
-          'placeholder:text-gray-500',
-          hasError && 'animate-shake border-red-500 focus:border-red-500 focus:ring-red-500/50'
+          'flex-1 bg-card text-foreground text-sm px-3 py-1.5 rounded border border-transparent',
+          'focus:outline-none focus:border-primary-accent focus:ring-1 focus:ring-ring/50',
+          'placeholder:text-muted-foreground',
+          hasError && 'animate-shake border-destructive focus:border-destructive focus:ring-destructive/50'
         )}
         placeholder="/"
         spellCheck={false}
         autoComplete="off"
       />
       {hasError && (
-        <span className="text-xs text-red-400 shrink-0">Path not found</span>
+        <span className="text-xs text-destructive-emphasis shrink-0">Path not found</span>
       )}
     </div>
   );

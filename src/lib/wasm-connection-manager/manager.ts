@@ -30,7 +30,7 @@ import {
 export class WasmConnectionManager {
   private static instance: WasmConnectionManager | null = null;
   private pollIntervalId: ReturnType<typeof setInterval> | null = null;
-  private isRunning = false;
+  private isRunning: boolean = false;
   private sessions: Map<string, SessionState> = new Map();
   private currentCid: string | null = null;
   private boundHandleVisibilityChange: () => void;
@@ -69,9 +69,9 @@ export class WasmConnectionManager {
 
     if (!this.isRunning || this.sessions.size === 0) return;
 
-    const interval = this.getPollingInterval();
-    const hidden = typeof document !== 'undefined' ? document.hidden : false;
-    const cids = Array.from(this.sessions.keys());
+    const interval: number = this.getPollingInterval();
+    const hidden: boolean = typeof document !== 'undefined' ? document.hidden : false;
+    const cids: string[] = Array.from(this.sessions.keys());
     debugLog('WasmConnectionManager', 'Starting polling for all sessions', { interval, hidden, cids });
 
     this.pollIntervalId = setInterval(async () => {
@@ -154,7 +154,7 @@ export class WasmConnectionManager {
 
   resetCircuitBreaker(cid?: string): void {
     if (cid) {
-      const session = this.sessions.get(cid);
+      const session: SessionState | undefined = this.sessions.get(cid);
       if (session) {
         session.consecutiveFailures = 0;
         session.circuitBreakerOpen = false;
@@ -179,7 +179,7 @@ export class WasmConnectionManager {
   }
 
   private async ensureMessengerOpenForSession(cid: string): Promise<void> {
-    const session = this.sessions.get(cid);
+    const session: SessionState | undefined = this.sessions.get(cid);
     if (!session) {
       debugLog('WasmConnectionManager', 'Session not found, skipping', { cid });
       return;
@@ -197,7 +197,7 @@ export class WasmConnectionManager {
     }
 
     try {
-      const wasOpened = await websocketService.ensureMessengerOpen(BigInt(cid));
+      const wasOpened: boolean = await websocketService.ensureMessengerOpen(BigInt(cid));
       if (wasOpened) {
         debugLog('WasmConnectionManager', 'Messenger reopened for session', { cid });
       }
@@ -222,4 +222,4 @@ export class WasmConnectionManager {
   }
 }
 
-export const wasmConnectionManager = WasmConnectionManager.getInstance();
+export const wasmConnectionManager: WasmConnectionManager = WasmConnectionManager.getInstance();

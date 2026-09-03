@@ -1,18 +1,14 @@
 /**
- * Workspace Response Handler - Workspace / Member Handlers
- *
- * Handles workspace CRUD, member management, permission, success/error,
- * and server-capabilities WorkspaceProtocolResponse variants.
- * Tree node variants are delegated to node-handlers.ts.
+ * Workspace / member response handlers: workspace CRUD, members, permissions,
+ * success/error and server capabilities. Tree nodes go to node-handlers.ts.
  */
 
 import { eventEmitter } from '@/lib/event-emitter';
+import { handleGeneratedVariants } from './generated-variant-handlers';
 import { debugLog } from '@/lib/debug-config';
-import { isVariant } from 'citadel-workspace-client-ts';
 import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 
 import { handleNodeVariants } from './node-handlers';
-import { mapWasmMember } from './member-mapping';
 
 // Re-exported for callers that import via this module's public surface.
 export { mapWasmMember, type MappedMember } from './member-mapping';
@@ -22,6 +18,7 @@ export interface ConnectionInfo {
   cid: number;
   request_id: string;
 }
+
 
 export function buildConnectionInfo(): ConnectionInfo {
   return {
@@ -45,9 +42,6 @@ export function handleWorkspaceVariants(
     return handleStringResponse(response, connectionInfo);
   }
 
-  // TYPE-GAP variants (runtime-only, not in generated type) checked via 'in'
-  if (handleTypeGapVariants(response, connectionInfo)) return true;
-
   // Generated-type variants checked via isVariant()
   if (handleGeneratedVariants(response, connectionInfo)) return true;
 
@@ -69,182 +63,23 @@ function handleStringResponse(response: string, connectionInfo: ConnectionInfo):
   return true;
 }
 
-// ─── TYPE-GAP Variants (runtime-only) ───────────────────────────────
-
-function handleTypeGapVariants(
-  response: Exclude<WorkspaceProtocolResponse, string>,
-  connectionInfo: ConnectionInfo,
-): boolean {
-  const rec = response as Record<string, Record<string, unknown>>;
-
-  if ('CreateWorkspace' in response) {
-    const ws = rec.CreateWorkspace;
-    debugLog('WorkspaceResponseHandler', 'CreateWorkspace response', ws);
-    const payload = {
-      workspace: { id: ws.id, name: ws.name, description: ws.description, metadata: ws.metadata || [] },
-      connection: connectionInfo,
-    };
-    eventEmitter.emit('workspace:created', payload);
-    eventEmitter.emit('workspace:loaded', payload);
-    return true;
-  }
-
-  if ('AddMember' in response) {
-    const member = rec.AddMember;
-    debugLog('WorkspaceResponseHandler', 'AddMember response', member);
-    eventEmitter.emit('member:added', { member, connection: connectionInfo });
-    eventEmitter.emit('members:reload', connectionInfo);
-    return true;
-  }
-
-  if ('UpdateMemberRole' in response) {
-    const data = rec.UpdateMemberRole;
-    debugLog('WorkspaceResponseHandler', 'UpdateMemberRole response', data);
-    eventEmitter.emit('member:role-updated', {
-      userId: data.user_id, role: data.role, connection: connectionInfo,
-    });
-    eventEmitter.emit('members:reload', connectionInfo);
-    return true;
-  }
-
-  if ('RemoveMember' in response) {
-    const data = rec.RemoveMember;
-    debugLog('WorkspaceResponseHandler', 'RemoveMember response', data);
-    eventEmitter.emit('member:removed', { userId: data.user_id, connection: connectionInfo });
-    eventEmitter.emit('members:reload', connectionInfo);
-    return true;
-  }
-
-  if ('WorkspaceError' in response) {
-    const wsError = (response as Record<string, unknown>).WorkspaceError;
-    if (wsError === 'WorkspaceNotInitialized') {
-      eventEmitter.emit('workspace:not-initialized', connectionInfo);
-    } else {
-      eventEmitter.emit('workspace:error', { error: wsError, connection: connectionInfo });
-    }
-    return true;
-  }
-
-  return false;
-}
+// ─── Removed: the TYPE-GAP variants ─────────────────────────────────
+//
+// This block handled `CreateWorkspace`, `AddMember`, `UpdateMemberRole`,
+// `RemoveMember` and `WorkspaceError` as "runtime-only response variants".
+// There are no such responses. All five exist in the protocol as REQUESTS
+// only, and the server never constructs them as answers — it replies with
+// `Success`, `MemberRoleUpdated`, `Workspace` and `Error`.
+//
+// So every branch was unreachable, and everything they emitted was dead:
+// `members:reload`, `member:added` and `member:removed` had listeners that
+// could never fire, which is why the members list never refreshed after an
+// admin added a member, removed one, or changed a role. `members:reload` is
+// now emitted from `member-operations`, once `awaitWriteResponse` confirms the
+// server accepted the change.
+//
+// Worth noting how it survived: the listener-emitter CI guard is a text scan,
+// so an emit inside an unreachable branch counts as an emitter. A guard cannot
+// see reachability, and this was a live instance sitting inside its blind spot.
 
 // ─── Generated-type Variants (via isVariant) ────────────────────────
-
-function handleGeneratedVariants(
-  response: WorkspaceProtocolResponse,
-  connectionInfo: ConnectionInfo,
-): boolean {
-  if (isVariant(response, 'Workspaces')) {
-    eventEmitter.emit('workspaces:listed', {
-      workspaces: response.Workspaces, connection: connectionInfo,
-    });
-    return true;
-  }
-
-  if (isVariant(response, 'Workspace')) {
-    eventEmitter.emit('workspace:loaded', {
-      workspace: {
-        id: response.Workspace.id,
-        name: response.Workspace.name,
-        description: response.Workspace.description,
-        metadata: response.Workspace.metadata || [],
-      },
-      connection: connectionInfo,
-    });
-    return true;
-  }
-
-  if (isVariant(response, 'Members')) {
-    const mappedMembers = response.Members.map((m: Record<string, unknown>) => mapWasmMember(m));
-    eventEmitter.emit('members:loaded', {
-      members: mappedMembers, connection: connectionInfo,
-    });
-    return true;
-  }
-
-  if (isVariant(response, 'Member')) {
-    const mappedMember = mapWasmMember(response.Member as Record<string, unknown>);
-    eventEmitter.emit('member:loaded', {
-      member: mappedMember, connection: connectionInfo,
-    });
-    return true;
-  }
-
-  if (isVariant(response, 'Success')) {
-    eventEmitter.emit('operation:success', connectionInfo);
-    if (response.Success.includes('deleted')) {
-      eventEmitter.emit('operation:deleted', connectionInfo);
-    }
-    eventEmitter.emit('workspace:raw-response', response);
-    return true;
-  }
-
-  if (isVariant(response, 'Error')) {
-    eventEmitter.emit('operation:error', {
-      message: response.Error, connection: connectionInfo,
-    });
-    eventEmitter.emit('workspace:raw-response', response);
-    return true;
-  }
-
-  if (isVariant(response, 'ServerShutdown')) {
-    // Distinct from `Error` so the UI can render a reconnect banner /
-    // countdown instead of a red error toast on every planned restart.
-    // The `drain_seconds` upper bound lets the UI time a reconnect
-    // attempt; until a dedicated banner exists, an informational toast
-    // ensures the user isn't left wondering why messages stop flowing.
-    const { message, drain_seconds } = response.ServerShutdown;
-    debugLog('WorkspaceResponseHandler', 'ServerShutdown received', {
-      message,
-      drain_seconds: drain_seconds.toString(),
-    });
-    eventEmitter.emit('server:shutdown', {
-      message,
-      drainSeconds: Number(drain_seconds),
-      connection: connectionInfo,
-    });
-    return true;
-  }
-
-  if (isVariant(response, 'UserPermissions')) {
-    const { user_id, role, permissions, domain_id } = response.UserPermissions;
-    debugLog('WorkspaceResponseHandler', 'UserPermissions received', { user_id, role, domain_id });
-    eventEmitter.emit('user:permissions:loaded', {
-      userId: user_id, role, permissions, domainId: domain_id, connection: connectionInfo,
-    });
-    return true;
-  }
-
-  if (isVariant(response, 'MemberRoleUpdated')) {
-    const { user_id, new_role } = response.MemberRoleUpdated;
-    debugLog('WorkspaceResponseHandler', 'MemberRoleUpdated received', { user_id, new_role });
-    eventEmitter.emit('member:role-updated', {
-      userId: user_id, role: new_role, connection: connectionInfo,
-    });
-    return true;
-  }
-
-  if (isVariant(response, 'UserProfileUpdated')) {
-    const user = response.UserProfileUpdated;
-    debugLog('WorkspaceResponseHandler', 'UserProfileUpdated received', {
-      userId: user.id, name: user.name,
-    });
-    eventEmitter.emit('user:profile-updated', { user, connection: connectionInfo });
-    return true;
-  }
-
-  if (isVariant(response, 'ServerCapabilities')) {
-    const caps = response.ServerCapabilities;
-    debugLog('WorkspaceResponseHandler', 'ServerCapabilities received', caps);
-    eventEmitter.emit('server:capabilities:loaded', {
-      allowServerFileTransfer: caps.allow_server_file_transfer,
-      allowServerRevfsStorage: caps.allow_server_revfs_storage,
-      maxFileTransferSizeMb: Number(caps.max_file_transfer_size_mb),
-      revfsStorageQuotaMb: Number(caps.revfs_storage_quota_mb),
-      connection: connectionInfo,
-    });
-    return true;
-  }
-
-  return false;
-}

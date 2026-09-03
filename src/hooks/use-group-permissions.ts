@@ -14,6 +14,7 @@ import type {
   GroupPermissions,
 } from '@/types/group';
 import { canManageUser } from '@/types/group';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
 // ============================================================================
 // Types
@@ -38,43 +39,57 @@ interface UseGroupPermissionsResult {
   canAssignRole: (roleId: string) => boolean;
   /** Get all permissions as a map for easy checking */
   permissions: GroupPermissions;
+  /**
+   * Whether the current user appears in this group's member list.
+   *
+   * `can(...)` answers false both for a role that denies and for a user who is
+   * not listed at all, and those need different words on screen. See
+   * components/chat/group-restriction.ts.
+   */
+  listedAsMember: boolean;
 }
 
 // ============================================================================
 // Hook Implementation
 // ============================================================================
 
+/**
+ * `group` is nullable because the page that owns it renders a spinner until it
+ * loads, and hooks cannot be called conditionally. A group nobody has loaded
+ * yet grants nothing -- the same answer this hook already gives for a member
+ * with no role.
+ */
 export function useGroupPermissions(
-  group: GroupConversation
+  group: GroupConversation | null
 ): UseGroupPermissionsResult {
-  const connectionInfo = connectionManager.getConnectionInfo();
-  const currentCid = connectionInfo?.cid;
+  const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
+  const currentCid: bigint | undefined = connectionInfo?.cid;
 
   // Find current user's member info
-  const myMember = useMemo(() => {
-    if (!currentCid) return undefined;
+  const myMember: GroupMember | undefined = useMemo((): GroupMember | undefined => {
+    if (!currentCid || !group) return undefined;
     return group.members.find(m => m.cid === currentCid);
-  }, [group.members, currentCid]);
+  }, [group, currentCid]);
 
   // Find current user's role
-  const myRole = useMemo(() => {
-    if (!myMember) return undefined;
+  const myRole: GroupRole | undefined = useMemo((): GroupRole | undefined => {
+    if (!myMember || !group) return undefined;
     return group.settings.roles.find(r => r.id === myMember.roleId);
-  }, [myMember, group.settings.roles]);
+  }, [myMember, group]);
 
   // Check if owner
-  const isOwner = useMemo(() => {
-    return currentCid === group.ownerId;
-  }, [currentCid, group.ownerId]);
+  const isOwner: boolean = useMemo((): boolean => {
+    return group !== null && currentCid === group.ownerId;
+  }, [currentCid, group]);
 
   // Check if admin (has manageRoles permission)
-  const isAdmin = useMemo(() => {
+  const isAdmin: boolean = useMemo((): boolean => {
     if (!myRole) return false;
     return myRole.permissions.manageRoles || isOwner;
   }, [myRole, isOwner]);
 
   // Get permissions object (with owner override)
-  const permissions = useMemo((): GroupPermissions => {
+  const permissions: GroupPermissions = useMemo((): GroupPermissions => {
     if (isOwner) {
       // Owner has all permissions
       return {
@@ -107,7 +122,7 @@ export function useGroupPermissions(
   }, [myRole, isOwner]);
 
   // Check if can perform action
-  const can = useCallback(
+  const can: (action: keyof GroupPermissions) => boolean = useCallback(
     (action: keyof GroupPermissions): boolean => {
       return permissions[action];
     },
@@ -115,31 +130,32 @@ export function useGroupPermissions(
   );
 
   // Check if can manage a member
-  const canManageMember = useCallback(
+  const canManageMember: (memberCid: bigint) => boolean = useCallback(
     (memberCid: bigint): boolean => {
       if (!currentCid || memberCid === currentCid) return false; // Cannot manage self
-      if (!myRole) return false;
+      if (!myRole || !group) return false;
       if (!permissions.kickMembers && !permissions.assignRoles) return false;
 
-      const targetMember = group.members.find(m => m.cid === memberCid);
+      const targetMember: GroupMember | undefined = group.members.find(m => m.cid === memberCid);
       if (!targetMember) return false;
 
-      const targetRole = group.settings.roles.find(r => r.id === targetMember.roleId);
+      const targetRole: GroupRole | undefined = group.settings.roles.find(r => r.id === targetMember.roleId);
       if (!targetRole) return false;
 
       // Check hierarchy
       return canManageUser(myRole, targetRole);
     },
-    [currentCid, myRole, permissions, group.members, group.settings.roles]
+    [currentCid, myRole, permissions, group]
   );
 
   // Check if can manage a role
-  const canManageRole = useCallback(
+  const canManageRole: (roleId: string) => boolean = useCallback(
     (roleId: string): boolean => {
       if (!myRole) return false;
       if (!permissions.manageRoles) return false;
 
-      const targetRole = group.settings.roles.find(r => r.id === roleId);
+      if (!group) return false;
+      const targetRole: GroupRole | undefined = group.settings.roles.find(r => r.id === roleId);
       if (!targetRole) return false;
 
       // Cannot manage built-in roles
@@ -148,22 +164,23 @@ export function useGroupPermissions(
       // Check hierarchy
       return canManageUser(myRole, targetRole);
     },
-    [myRole, permissions.manageRoles, group.settings.roles]
+    [myRole, permissions.manageRoles, group]
   );
 
   // Check if can assign a role
-  const canAssignRole = useCallback(
+  const canAssignRole: (roleId: string) => boolean = useCallback(
     (roleId: string): boolean => {
       if (!myRole) return false;
       if (!permissions.assignRoles) return false;
 
-      const targetRole = group.settings.roles.find(r => r.id === roleId);
+      if (!group) return false;
+      const targetRole: GroupRole | undefined = group.settings.roles.find(r => r.id === roleId);
       if (!targetRole) return false;
 
       // Can only assign roles below own position
       return myRole.position > targetRole.position;
     },
-    [myRole, permissions.assignRoles, group.settings.roles]
+    [myRole, permissions.assignRoles, group]
   );
 
   return {
@@ -176,16 +193,6 @@ export function useGroupPermissions(
     canManageRole,
     canAssignRole,
     permissions,
+    listedAsMember: myMember !== undefined,
   };
-}
-
-/**
- * Hook for checking a single permission quickly
- */
-export function useGroupPermission(
-  group: GroupConversation,
-  action: keyof GroupPermissions
-): boolean {
-  const { can } = useGroupPermissions(group);
-  return can(action);
 }

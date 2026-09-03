@@ -14,11 +14,11 @@ export const ErrorDisplay: React.FC = () => {
       setVisible(true);
       
       // Auto-dismiss after 5 seconds
-      const timer = setTimeout(() => {
+      const timer: NodeJS.Timeout = setTimeout((): void => {
         setVisible(false);
       }, 5000);
       
-      return () => clearTimeout(timer);
+      return (): void => clearTimeout(timer);
     } else {
       setVisible(false);
     }
@@ -38,6 +38,7 @@ export const ErrorDisplay: React.FC = () => {
           variant="ghost" 
           size="icon" 
           className="absolute top-2 right-2"
+          aria-label="Dismiss error"
           onClick={() => setVisible(false)}
         >
           <X className="h-4 w-4" />

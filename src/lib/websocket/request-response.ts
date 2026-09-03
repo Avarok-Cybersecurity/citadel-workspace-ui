@@ -30,29 +30,53 @@ export interface RequestResponseOptions<T> {
   matcher: ResponseMatcher<T>;
 }
 
+/**
+ * A pending request cannot outlive the socket it was sent on.
+ *
+ * When the WebSocket dies, the internal service has no route back: it keys
+ * responses to the connection that asked, and a reconnect is a NEW connection
+ * with a new uuid. So every request in flight at that moment is already dead —
+ * but each one used to sit out its full budget first, and those budgets are not
+ * small: 30s for a peer connect or a disconnect, 35s for a peer list, 60s for a
+ * file download, 120s for the file picker. The user watches a spinner for a
+ * minute over a socket that is gone, and then gets "timed out", which names the
+ * wrong cause.
+ *
+ * Rejecting on the drop turns a minute of false hope into an immediate, true
+ * message. Only the leader tab's client emits this; a follower's request dies
+ * with its leader and is covered by the leader-change path instead.
+ */
+const CONNECTION_LOST: "the connection to the Citadel agent was lost" = 'the connection to the Citadel agent was lost';
+
 export function requestResponse<T>(options: RequestResponseOptions<T>): Promise<T> {
   const { request, requestId, sendRequest, timeoutMs, operationName, matcher } = options;
 
   return new Promise<T>((resolve, reject) => {
-    const cleanup = () => {
+    const cleanup = (): void => {
       clearTimeout(timeout);
       eventEmitter.off('websocket-message', handler);
+      eventEmitter.off('websocket-disconnected', onDisconnected);
     };
 
-    const timeout = setTimeout(() => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       cleanup();
       reject(new Error(`${operationName} request timed out`));
     }, timeoutMs);
 
-    const handler = (message: Record<string, unknown>) => {
-      const successData = matcher.matchSuccess(message);
+    const onDisconnected = (): void => {
+      cleanup();
+      reject(new Error(`${operationName} failed: ${CONNECTION_LOST}`));
+    };
+
+    const handler = (message: Record<string, unknown>): void => {
+      const successData: ReturnType<typeof matcher.matchSuccess> = matcher.matchSuccess(message);
       if (successData !== undefined) {
         cleanup();
         resolve(successData);
         return;
       }
 
-      const failureMsg = matcher.matchFailure(message);
+      const failureMsg: string | undefined = matcher.matchFailure(message);
       if (failureMsg !== undefined) {
         cleanup();
         reject(new Error(failureMsg));
@@ -60,6 +84,7 @@ export function requestResponse<T>(options: RequestResponseOptions<T>): Promise<
     };
 
     eventEmitter.on('websocket-message', handler);
+    eventEmitter.on('websocket-disconnected', onDisconnected);
 
     sendRequest(request, requestId).catch(error => {
       cleanup();
@@ -87,25 +112,35 @@ export function requestResponseSoft(options: {
     matchSuccess, matchFailure, onTimeout, onFailure } = options;
 
   return new Promise<void>((resolve) => {
-    const cleanup = () => {
+    const cleanup = (): void => {
       clearTimeout(timeout);
       eventEmitter.off('websocket-message', handler);
+      eventEmitter.off('websocket-disconnected', onDisconnected);
     };
 
-    const timeout = setTimeout(() => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       cleanup();
       if (onTimeout) onTimeout();
       resolve();
     }, timeoutMs);
 
-    const handler = (message: Record<string, unknown>) => {
+    // Same reasoning as the strict variant, reported through this one's own
+    // failure channel: a soft caller warns and continues, and it should get to
+    // do that now rather than in two minutes.
+    const onDisconnected = (): void => {
+      cleanup();
+      if (onFailure) onFailure(`${operationName} failed: ${CONNECTION_LOST}`);
+      resolve();
+    };
+
+    const handler = (message: Record<string, unknown>): void => {
       if (matchSuccess(message)) {
         cleanup();
         resolve();
         return;
       }
 
-      const failureMsg = matchFailure(message);
+      const failureMsg: string | undefined = matchFailure(message);
       if (failureMsg !== undefined) {
         cleanup();
         if (onFailure) onFailure(failureMsg);
@@ -114,11 +149,46 @@ export function requestResponseSoft(options: {
     };
 
     eventEmitter.on('websocket-message', handler);
+    eventEmitter.on('websocket-disconnected', onDisconnected);
 
     sendRequest(request, requestId).catch(error => {
       cleanup();
       debugLog('RequestResponse', `Failed to send ${operationName}:`, error);
       resolve();
     });
+  });
+}
+
+/**
+ * Fail `promise` as soon as the socket dies, whatever it was waiting for.
+ *
+ * `requestResponse` handles this for the callers that use it. Ten more files
+ * hand-roll the same wait — file transfers among them, at 30s to 120s each —
+ * and each one of those was a minute of spinner over a socket that was already
+ * gone. This is the smallest thing that fixes all ten: one wrapper at the
+ * return, no surgery on ten different cleanup paths.
+ *
+ * It frees the CALLER immediately. The wrapped promise keeps its own listener
+ * until its own timeout, exactly as it does today — that part is unchanged, and
+ * its late settle lands on an already-settled promise rather than becoming an
+ * unhandled rejection, because the handlers below stay attached.
+ */
+export function failOnSocketLoss<T>(operationName: string, promise: Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const onLost = (): void => {
+      eventEmitter.off('websocket-disconnected', onLost);
+      reject(new Error(`${operationName} failed: ${CONNECTION_LOST}`));
+    };
+    eventEmitter.on('websocket-disconnected', onLost);
+    promise.then(
+      (value) => {
+        eventEmitter.off('websocket-disconnected', onLost);
+        resolve(value);
+      },
+      (error) => {
+        eventEmitter.off('websocket-disconnected', onLost);
+        reject(error);
+      },
+    );
   });
 }

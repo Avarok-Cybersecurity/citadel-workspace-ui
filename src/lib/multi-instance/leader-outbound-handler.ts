@@ -16,6 +16,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { waitForSocket } from './wait-for-socket';
 import { instanceChannel } from './instance-channel';
 import type { ProxyResponseData } from './outbound-queue-types';
 import {
@@ -25,38 +26,14 @@ import {
   handleSendP2PMessageProxy,
 } from './leader-proxy-handlers';
 import { debugLog } from '@/lib/debug-config';
+import { requiresILM } from './ilm-policy';
+import { wasExecutedByAnotherLeader } from './executed-requests';
 
 interface OutboundRequest {
   requestId: string;
   senderInstanceId: string;
   payload: Record<string, unknown>;
 }
-
-// Types of messages that should use ILM (reliability layer)
-const ILM_REQUIRED_TYPES = [
-  'Message', // P2P messages need ILM
-];
-
-// Types that can bypass ILM
-const BYPASS_ILM_TYPES = [
-  'GetSessions',
-  'LocalDBSetKV',
-  'LocalDBGetKV',
-  'LocalDBGetAllKV',
-  'GetWorkspace',
-  'ListWorkspaces',
-  'ListMembers',
-  'GetMemberInfo',
-  'Connect',
-  'Register',
-  'Disconnect',
-  'ConnectionManagement',
-  'PeerRegister',
-  'PeerConnect',
-  'PeerDisconnect',
-  'ListAllPeers',
-  'ListRegisteredPeers',
-];
 
 class LeaderOutboundHandler {
   private static instance: LeaderOutboundHandler;
@@ -96,7 +73,42 @@ class LeaderOutboundHandler {
     debugLog('LeaderOutboundHandler', '[LeaderOutboundHandler] WebSocket send function registered');
   }
 
+  /**
+   * Request ids currently being executed on behalf of a follower.
+   *
+   * The proxy handlers ack only AFTER awaiting the operation, so a retry that
+   * arrives mid-flight used to start the work a second time — invisible for
+   * chat, which the receiver deduplicates by message id, and a duplicated write
+   * for anything proxied to the workspace server. Dropped silently rather than
+   * error-acked: the original is still running and acks for both.
+   */
+  private readonly inFlight: Set<string> = new Set<string>();
+
   async handleOutboundRequest(request: OutboundRequest): Promise<void> {
+    if (this.inFlight.has(request.requestId)) {
+      debugLog(
+        'LeaderOutboundHandler',
+        `Ignoring duplicate delivery of ${request.requestId}; the original is still running`,
+      );
+      return;
+    }
+
+    // The cross-leader half of the same dedup. A leadership flap leaves two
+    // tabs both holding `isLeader` for a moment — the sticky leader keeps it
+    // (handleLeaderElection rule 1) while the challenger has already claimed
+    // it (tryBecomeLeader) — and the outbound queue's leader-change replay
+    // fires at exactly that moment, re-delivering entries the sticky leader is
+    // still executing. `inFlight` is per-tab and cannot see those, so a
+    // workspace write or a Connect ran twice. Dropped silently for the same
+    // reason as above: the leader that claimed the execution acks it.
+    if (wasExecutedByAnotherLeader(request.requestId)) {
+      debugLog(
+        'LeaderOutboundHandler',
+        `Ignoring ${request.requestId}; another leader already began executing it`,
+      );
+      return;
+    }
+
     if (!this.isActive) {
       debugLog('LeaderOutboundHandler', 'Received request but not active (not leader)');
       this.sendAck(request.senderInstanceId, request.requestId, 'error', 'Not leader');
@@ -104,11 +116,28 @@ class LeaderOutboundHandler {
     }
 
     if (!this.websocketSendFn) {
-      debugLog('LeaderOutboundHandler', 'WebSocket send function not set');
-      this.sendAck(request.senderInstanceId, request.requestId, 'error', 'WebSocket not ready');
-      return;
+      // Waited for briefly rather than failed outright: a just-promoted leader
+      // is active before its socket exists, and error-acking there loses a real
+      // user operation to a leadership flap. See wait-for-socket.ts.
+      const ready: boolean = await waitForSocket(() => this.websocketSendFn);
+      if (!ready) {
+        debugLog('LeaderOutboundHandler', 'WebSocket send function not set');
+        this.sendAck(request.senderInstanceId, request.requestId, 'error', 'WebSocket not ready');
+        return;
+      }
     }
 
+    this.inFlight.add(request.requestId);
+    // Claim the execution to every other tab BEFORE the work starts, not at
+    // ack time: the duplicate window is precisely the seconds the work is in
+    // flight, and an ack-time claim would leave that window open. A transient
+    // leader records this claim (channel-message-dispatch) and refuses the
+    // replayed id above.
+    instanceChannel.send({
+      type: 'request-executed',
+      targetInstanceId: '*',
+      requestId: request.requestId,
+    });
     try {
       if (!this.isValidSender(request.senderInstanceId)) {
         debugLog('LeaderOutboundHandler', `Invalid sender: ${request.senderInstanceId}`);
@@ -134,18 +163,28 @@ class LeaderOutboundHandler {
         return;
       }
 
-      const requiresIlm = this.requiresILM(request.payload);
+      const requiresIlm: boolean = requiresILM(request.payload);
       debugLog('LeaderOutboundHandler',
         `[LeaderOutboundHandler] Processing ${request.requestId} from ${request.senderInstanceId} (ILM: ${requiresIlm})`
       );
 
-      await this.websocketSendFn(request.payload);
+      // Re-read after the awaits above: a demotion can clear it, and the
+      // narrowing from the readiness check no longer holds here.
+      const send: ((message: Record<string, unknown>) => Promise<void>) | null = this.websocketSendFn;
+      if (!send) {
+        this.sendAck(request.senderInstanceId, request.requestId, 'error', 'WebSocket not ready');
+        return;
+      }
+
+      await send(request.payload);
       this.sendAck(request.senderInstanceId, request.requestId, 'processed');
       debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Sent and ACKed ${request.requestId}`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage: string = error instanceof Error ? error.message : 'Unknown error';
       debugLog('LeaderOutboundHandler', `Failed to process ${request.requestId}:`, error);
       this.sendAck(request.senderInstanceId, request.requestId, 'error', errorMessage);
+    } finally {
+      this.inFlight.delete(request.requestId);
     }
   }
 
@@ -161,25 +200,6 @@ class LeaderOutboundHandler {
     if (!senderInstanceId || senderInstanceId.trim() === '') {
       return false;
     }
-    return true;
-  }
-
-  private requiresILM(payload: Record<string, unknown>): boolean {
-    const messageType = Object.keys(payload)[0];
-
-    if (!messageType) {
-      return false;
-    }
-
-    if (ILM_REQUIRED_TYPES.includes(messageType)) {
-      return true;
-    }
-
-    if (BYPASS_ILM_TYPES.includes(messageType)) {
-      return false;
-    }
-
-    debugLog('LeaderOutboundHandler', `[LeaderOutboundHandler] Unknown message type "${messageType}", using ILM`);
     return true;
   }
 
@@ -203,7 +223,7 @@ class LeaderOutboundHandler {
 }
 
 // Export singleton instance
-export const leaderOutboundHandler = LeaderOutboundHandler.getInstance();
+export const leaderOutboundHandler: LeaderOutboundHandler = LeaderOutboundHandler.getInstance();
 
 // Also export class for testing
 export { LeaderOutboundHandler };

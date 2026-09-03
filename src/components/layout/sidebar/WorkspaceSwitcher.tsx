@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -16,7 +16,7 @@ interface WorkspaceSwitcherProps {
   workspaceName?: string;
 }
 
-export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => {
+export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JSX.Element => {
   const {
     availableWorkspaces,
     currentWorkspace,
@@ -45,37 +45,56 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild>
           <button
-            className="flex items-center gap-3 py-2 hover:bg-purple-500/10 transition-colors rounded-md w-full group bg-transparent pl-3"
+            // flex-1 min-w-0, not w-full. This button has a sibling — the sidebar
+            // toggle — so `w-full` resolved to 100% of the WHOLE header group
+            // while the button still started after that toggle, overhanging its
+            // container by exactly the toggle's width. At 375px that pushed the
+            // chevron 56px into the controls on the right, painting it over
+            // them. flex-1 asks for the space that is actually left.
+            className="flex items-center gap-3 py-2 hover:bg-primary-accent/10 transition-colors rounded-md flex-1 min-w-0 group bg-transparent pl-3"
+            // Addressable by name. Two specs looked for `workspace-switcher`
+            // and `workspace-name`; neither existed, so their preferred lookup
+            // spent three seconds matching nothing on every run before falling
+            // back to `button:has(svg.lucide-chevron-right)` -- a shape, which
+            // is what `check-controls-are-addressed-by-testid` exists to
+            // discourage.
+            data-testid="workspace-switcher"
             disabled={isSwitching}
           >
             {isInitials ? (
-              <div className="w-8 h-8 rounded flex items-center justify-center bg-[#6E59A5] text-white text-sm font-semibold">
+              <div className="w-8 h-8 shrink-0 rounded flex items-center justify-center bg-primary text-primary-foreground text-sm font-semibold">
                 {workspaceLogo || getWorkspaceInitials(workspaceName || currentWorkspace?.username || "W")}
               </div>
             ) : (
               <img
                 src={workspaceLogo || ""}
                 alt={workspaceName || currentWorkspace?.username || "Workspace"}
-                className="w-8 h-8 rounded"
+                className="w-8 h-8 shrink-0 rounded"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             )}
-            <div className="flex-1 text-left">
-              <span className="font-semibold text-white block group-hover:text-white">
+            <div className="flex-1 min-w-0 text-left">
+              <span className="font-semibold text-foreground block truncate group-hover:text-foreground">
                 {workspaceName || currentWorkspace?.workspaceName || "Select Workspace"}
               </span>
               {currentWorkspace && (
-                <span className="text-xs text-gray-500 group-hover:text-gray-400">
+                <span className="block truncate text-xs text-muted-foreground group-hover:text-muted-foreground">
                   {currentWorkspace.fullName || currentWorkspace.username}
                 </span>
               )}
             </div>
             {isSwitching ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+              /* Loader2 like the other 33 spinners, and a token colour: this
+                 was the app's only hand-rolled border spinner, and `border-white`
+                 on the sidebar's 97%-lightness light surface was invisible. */
+              <Loader2 className="w-5 h-5 shrink-0 animate-spin text-foreground mr-2" aria-hidden="true" />
             ) : (
               <ChevronRight
                 className={cn(
-                  "w-5 h-5 text-gray-400 group-hover:text-white transition-transform duration-300 mr-2",
+                  // shrink-0 so a long workspace name squeezes the name, which
+                  // truncates, rather than this arrow, which cannot. (It is not
+                  // what fixed the 375px spill — see the button's own comment.)
+                  "w-5 h-5 shrink-0 text-muted-foreground group-hover:text-foreground transition-transform duration-300 mr-2",
                   isOpen && "rotate-90"
                 )}
               />
@@ -99,10 +118,11 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps) => 
           setTargetWorkspaceForNewAccount(null);
         }
       }}>
-        <DialogContent className="p-0 bg-transparent border-none max-w-xl">
+        <DialogContent aria-label="Switch workspace" className="p-0 bg-transparent border-none max-w-xl">
           {currentStep === "connect" && (
             <ServerConnect
               onNext={handleNext}
+              onCancel={() => setIsAddingWorkspace(false)}
               defaultServer={targetWorkspaceForNewAccount?.serverAddress}
               title={targetWorkspaceForNewAccount ?
                 `Connect to ${targetWorkspaceForNewAccount.workspaceName}` :

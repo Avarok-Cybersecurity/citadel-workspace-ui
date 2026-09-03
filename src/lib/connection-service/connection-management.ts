@@ -12,7 +12,7 @@ import type {
   UserConnectionPreferences
 } from './types';
 
-const CURRENT_USER = 'current-user';
+const CURRENT_USER: "current-user" = 'current-user';
 
 const DEFAULT_PREFERENCES: UserConnectionPreferences = {
   autoAcceptRegistrations: false
@@ -27,7 +27,7 @@ export function createUserConnection(
   isRegistered: boolean,
   isConnected: boolean
 ): UserConnection {
-  const timestamp = Date.now();
+  const timestamp: number = Date.now();
   const connection: UserConnection = {
     userId: CURRENT_USER,
     connectedUserId: userId,
@@ -37,7 +37,7 @@ export function createUserConnection(
     updatedAt: timestamp
   };
 
-  const list = userConnections.get(CURRENT_USER) || [];
+  const list: UserConnection[] = userConnections.get(CURRENT_USER) || [];
   list.push(connection);
   userConnections.set(CURRENT_USER, list);
 
@@ -53,11 +53,11 @@ export function updateUserConnection(
   isRegistered?: boolean,
   isConnected?: boolean
 ): UserConnection | null {
-  const list = userConnections.get(CURRENT_USER) || [];
-  const idx = list.findIndex(conn => conn.connectedUserId === userId);
+  const list: UserConnection[] = userConnections.get(CURRENT_USER) || [];
+  const idx: number = list.findIndex(conn => conn.connectedUserId === userId);
   if (idx === -1) return null;
 
-  const connection = list[idx];
+  const connection: UserConnection = list[idx];
   if (isRegistered !== undefined) connection.isRegistered = isRegistered;
   if (isConnected !== undefined) connection.isConnected = isConnected;
   connection.updatedAt = Date.now();
@@ -75,8 +75,8 @@ export function canMessageUser(
   userConnections: Map<string, UserConnection[]>,
   userId: string
 ): boolean {
-  const list = userConnections.get(CURRENT_USER) || [];
-  const connection = list.find(conn => conn.connectedUserId === userId);
+  const list: UserConnection[] = userConnections.get(CURRENT_USER) || [];
+  const connection: UserConnection | undefined = list.find(conn => conn.connectedUserId === userId);
   return connection?.isRegistered === true && connection?.isConnected === true;
 }
 
@@ -126,7 +126,7 @@ export function setPreferences(
   prefsMap: Map<string, UserConnectionPreferences>,
   partial: Partial<UserConnectionPreferences>
 ): void {
-  const current = getPreferences(prefsMap);
+  const current: UserConnectionPreferences = getPreferences(prefsMap);
   prefsMap.set(CURRENT_USER, { ...current, ...partial });
   debugLog('ConnectionService', 'User preferences updated:', prefsMap.get(CURRENT_USER));
 }

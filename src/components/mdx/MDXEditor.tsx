@@ -15,13 +15,13 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
   height = '400px',
   placeholder = 'Write your content here...'
 }) => {
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const textAreaRef: React.RefObject<HTMLTextAreaElement> = useRef<HTMLTextAreaElement>(null);
   const [selectionStart, setSelectionStart] = useState(0);
   const [selectionEnd, setSelectionEnd] = useState(0);
   const [mediaUploaderOpen, setMediaUploaderOpen] = useState(false);
 
   // Track selection changes
-  const handleSelectionChange = () => {
+  const handleSelectionChange = (): void => {
     if (textAreaRef.current) {
       setSelectionStart(textAreaRef.current.selectionStart);
       setSelectionEnd(textAreaRef.current.selectionEnd);
@@ -32,16 +32,16 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
   const formatText = (
     prefix: string,
     suffix: string = prefix,
-  ) => {
+  ): void => {
     if (!textAreaRef.current) return;
 
-    const textarea = textAreaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = value.substring(start, end);
+    const textarea: HTMLTextAreaElement = textAreaRef.current;
+    const start: number = textarea.selectionStart;
+    const end: number = textarea.selectionEnd;
+    const selectedText: string = value.substring(start, end);
 
     if (selectedText) {
-      const newText = `${value.substring(0, start)}${prefix}${selectedText}${suffix}${value.substring(end)}`;
+      const newText: string = `${value.substring(0, start)}${prefix}${selectedText}${suffix}${value.substring(end)}`;
       onChange(newText);
 
       setTimeout(() => {
@@ -52,7 +52,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
         );
       }, 0);
     } else {
-      const newText = `${value.substring(0, start)}${prefix}${suffix}${value.substring(end)}`;
+      const newText: string = `${value.substring(0, start)}${prefix}${suffix}${value.substring(end)}`;
       onChange(newText);
 
       setTimeout(() => {
@@ -66,27 +66,27 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
   };
 
   // Format handlers
-  const handleBold = () => formatText('**');
-  const handleItalic = () => formatText('*');
-  const handleUnderline = () => formatText('__');
-  const handleCode = () => formatText('`');
-  const handleBlockquote = () => formatText('> ');
+  const handleBold = (): void => formatText('**');
+  const handleItalic = (): void => formatText('*');
+  const handleUnderline = (): void => formatText('__');
+  const handleCode = (): void => formatText('`');
+  const handleBlockquote = (): void => formatText('> ');
 
-  const handleHeading = (level: number) => {
-    const prefix = '#'.repeat(level) + ' ';
+  const handleHeading = (level: number): void => {
+    const prefix: string = '#'.repeat(level) + ' ';
     if (!textAreaRef.current) return;
 
-    const textarea = textAreaRef.current;
-    const start = textarea.selectionStart;
-    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-    const lineEnd = value.indexOf('\n', start);
-    const line = value.substring(lineStart, lineEnd === -1 ? value.length : lineEnd);
+    const textarea: HTMLTextAreaElement = textAreaRef.current;
+    const start: number = textarea.selectionStart;
+    const lineStart: number = value.lastIndexOf('\n', start - 1) + 1;
+    const lineEnd: number = value.indexOf('\n', start);
+    const line: string = value.substring(lineStart, lineEnd === -1 ? value.length : lineEnd);
 
-    const existingHeadingMatch = line.match(/^(#{1,6})\s/);
+    const existingHeadingMatch: RegExpMatchArray | null = line.match(/^(#{1,6})\s/);
 
-    let newText;
+    let newText: string;
     if (existingHeadingMatch) {
-      const existingPrefix = existingHeadingMatch[0];
+      const existingPrefix: string = existingHeadingMatch[0];
       newText = value.substring(0, lineStart) + prefix + line.substring(existingPrefix.length) + value.substring(lineEnd === -1 ? value.length : lineEnd);
     } else {
       newText = value.substring(0, lineStart) + prefix + line + value.substring(lineEnd === -1 ? value.length : lineEnd);
@@ -95,8 +95,8 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
     onChange(newText);
   };
 
-  const handleLink = () => {
-    const selectedText = value.substring(selectionStart, selectionEnd);
+  const handleLink = (): void => {
+    const selectedText: string = value.substring(selectionStart, selectionEnd);
 
     if (selectedText) {
       formatText('[', '](url)');
@@ -105,47 +105,47 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
     }
   };
 
-  const handleImage = () => {
+  const handleImage = (): void => {
     setMediaUploaderOpen(true);
   };
 
-  const handleMediaInsert = (markdownText: string) => {
+  const handleMediaInsert = (markdownText: string): void => {
     if (!textAreaRef.current) return;
 
-    const textarea = textAreaRef.current;
-    const start = textarea.selectionStart;
+    const textarea: HTMLTextAreaElement = textAreaRef.current;
+    const start: number = textarea.selectionStart;
 
-    const newText = value.substring(0, start) + markdownText + value.substring(start);
+    const newText: string = value.substring(0, start) + markdownText + value.substring(start);
     onChange(newText);
 
     setTimeout(() => {
       textarea.focus();
-      const newCursorPos = start + markdownText.length;
+      const newCursorPos: number = start + markdownText.length;
       textarea.setSelectionRange(newCursorPos, newCursorPos);
     }, 0);
   };
 
-  const handleList = (ordered: boolean = false) => {
+  const handleList = (ordered: boolean = false): void => {
     if (!textAreaRef.current) return;
 
-    const textarea = textAreaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
+    const textarea: HTMLTextAreaElement = textAreaRef.current;
+    const start: number = textarea.selectionStart;
+    const end: number = textarea.selectionEnd;
 
     if (start === end) {
-      const prefix = ordered ? '1. ' : '- ';
+      const prefix: "1. " | "- " = ordered ? '1. ' : '- ';
       formatText(prefix);
     } else {
-      const selectedText = value.substring(start, end);
-      const lines = selectedText.split('\n');
+      const selectedText: string = value.substring(start, end);
+      const lines: string[] = selectedText.split('\n');
 
-      const formattedLines = lines.map((line, index) => {
+      const formattedLines: string[] = lines.map((line, index) => {
         if (line.trim() === '') return line;
         return ordered ? `${index + 1}. ${line}` : `- ${line}`;
       });
 
-      const replacement = formattedLines.join('\n');
-      const newText = value.substring(0, start) + replacement + value.substring(end);
+      const replacement: string = formattedLines.join('\n');
+      const newText: string = value.substring(0, start) + replacement + value.substring(end);
       onChange(newText);
     }
   };
@@ -168,7 +168,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
         ref={textAreaRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full p-4 rounded-b-md border border-gray-800 bg-[#232536] text-white resize-none focus:outline-none focus:ring-2 focus:ring-purple-500`}
+        className={`w-full p-4 rounded-b-md border border-border bg-card text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring`}
         style={{ height }}
         placeholder={placeholder}
         onSelect={handleSelectionChange}

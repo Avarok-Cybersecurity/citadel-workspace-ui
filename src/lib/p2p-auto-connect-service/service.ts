@@ -34,11 +34,11 @@ import {
 
 export class P2PAutoConnectService {
   private static instance: P2PAutoConnectService;
-  private readonly state = new AutoConnectState();
+  private readonly state: AutoConnectState = new AutoConnectState();
 
   private constructor() {
-    const broadcastPeerConnected = this.setPeerConnected.bind(this);
-    const connectAll = this.connectToAllRegisteredPeers.bind(this);
+    const broadcastPeerConnected: (localCid: bigint, peerCid: bigint, peerUsername?: string, localUsername?: string) => void = this.setPeerConnected.bind(this);
+    const connectAll: () => Promise<void> = this.connectToAllRegisteredPeers.bind(this);
     setupEventListeners(this.state, broadcastPeerConnected, connectAll);
   }
 
@@ -51,16 +51,14 @@ export class P2PAutoConnectService {
 
   // === Peer Connection State (SSOT) ===
 
-  public setPeerConnected(localCid: bigint, peerCid: bigint, peerUsername: string = '', localUsername: string = ''): void {
-    this.state.setPeerConnectedLocal(localCid, peerCid, peerUsername, localUsername);
+  public setPeerConnected(localCid: bigint, peerCid: bigint): void {
+    this.state.setPeerConnectedLocal(localCid, peerCid);
     if (instanceManager.isLeader) {
       debugLog('P2PAutoConnectService', 'Leader broadcasting connectedPeers update to followers');
       broadcastChannelService.broadcastStateSync({
         type: 'connected-peers-update',
         localCid: localCid.toString(),
         peerCid: peerCid.toString(),
-        peerUsername,
-        localUsername,
       });
     }
   }
@@ -83,12 +81,17 @@ export class P2PAutoConnectService {
 
   // === Online Status ===
 
-  public async refreshOnlineStatus(force = false): Promise<void> {
+  public async refreshOnlineStatus(force: boolean = false): Promise<void> {
     return refreshOnlineStatusFn(this.state, force);
   }
 
   public isPeerOnline(peerCid: bigint): boolean {
     return this.state.isPeerOnline(peerCid);
+  }
+
+  /** Online status, or null when no poll has landed yet. */
+  public peerOnlineStatus(peerCid: bigint): boolean | null {
+    return this.state.peerOnlineStatus(peerCid);
   }
 
   public getOnlinePeers(): bigint[] {
@@ -144,14 +147,18 @@ export class P2PAutoConnectService {
 
   // === Legacy API (uses current CID from context) ===
 
-  public async isPeerConnected(peerCid: bigint): Promise<boolean> {
-    const currentCid = await getCurrentCid();
-    if (!currentCid) return false;
+  /**
+   * Connected, or `null` when we cannot name our own session: connections are
+   * keyed by session, so `false` there answers a question nobody could ask.
+   */
+  public async isPeerConnected(peerCid: bigint): Promise<boolean | null> {
+    const currentCid: bigint | null = await getCurrentCid();
+    if (!currentCid) return null;
     return this.isPeerConnectedForSession(currentCid, peerCid);
   }
 
   public async getConnectedPeers(): Promise<bigint[]> {
-    const currentCid = await getCurrentCid();
+    const currentCid: bigint | null = await getCurrentCid();
     if (!currentCid) return [];
     return this.getPeersForSession(currentCid);
   }
@@ -159,8 +166,8 @@ export class P2PAutoConnectService {
   // === Connection State Reset ===
 
   public async resetConnectionState(): Promise<void> {
-    const currentCid = await getCurrentCid();
-    const peerCount = currentCid ? (this.state.getPeersForSession(currentCid).length) : 0;
+    const currentCid: bigint | null = await getCurrentCid();
+    const peerCount: number = currentCid ? (this.state.getPeersForSession(currentCid).length) : 0;
 
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Resetting connection state for reconnection`);
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Clearing ${peerCount} connected, ${this.state.pendingConnectionCount} pending`);
@@ -183,7 +190,7 @@ export class P2PAutoConnectService {
   // === Background Connection Helpers ===
 
   public async ensurePeerConnectedInBackground(peerCid: bigint): Promise<void> {
-    const currentCid = await getCurrentCid();
+    const currentCid: bigint | null = await getCurrentCid();
     if (!currentCid || currentCid === peerCid) return;
 
     if (this.isPeerConnectedForSession(currentCid, peerCid)) {
@@ -202,8 +209,8 @@ export class P2PAutoConnectService {
     });
   }
 
-  public async waitForPeerConnected(peerCid: bigint, timeoutMs = WAIT_FOR_PEER_TIMEOUT_MS): Promise<boolean> {
-    const currentCid = await getCurrentCid();
+  public async waitForPeerConnected(peerCid: bigint, timeoutMs: number = WAIT_FOR_PEER_TIMEOUT_MS): Promise<boolean> {
+    const currentCid: bigint | null = await getCurrentCid();
     if (!currentCid) return false;
 
     if (this.isPeerConnectedForSession(currentCid, peerCid)) return true;
@@ -211,9 +218,9 @@ export class P2PAutoConnectService {
     await this.ensurePeerConnectedInBackground(peerCid);
 
     return new Promise((resolve) => {
-      const startTime = Date.now();
+      const startTime: number = Date.now();
 
-      const checkInterval = setInterval(() => {
+      const checkInterval: NodeJS.Timeout = setInterval((): void => {
         if (this.isPeerConnectedForSession(currentCid, peerCid)) {
           clearInterval(checkInterval);
           resolve(true);
@@ -224,7 +231,7 @@ export class P2PAutoConnectService {
         }
       }, PEER_CONNECTED_CHECK_INTERVAL_MS);
 
-      const handler = ({ peerCid: connectedPeerCid }: { peerCid: bigint }) => {
+      const handler = ({ peerCid: connectedPeerCid }: { peerCid: bigint }): void => {
         if (connectedPeerCid === peerCid) {
           clearInterval(checkInterval);
           eventEmitter.off('p2p-connection-established', handler);

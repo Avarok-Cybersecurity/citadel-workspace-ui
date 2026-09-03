@@ -1,7 +1,8 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback , type RefObject , type ChangeEvent , type DragEvent } from 'react';
 import { Upload, X, User } from 'lucide-react';
 import { processAvatarImage, validateAvatarFile, avatarToDataUrl } from '@/lib/image-processor';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { activateOnKey } from '@/lib/a11y';
 
 interface AvatarUploadProps {
   currentAvatar?: string; // Base64-encoded current avatar
@@ -9,20 +10,20 @@ interface AvatarUploadProps {
   disabled?: boolean;
 }
 
-export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }: AvatarUploadProps) {
+export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }: AvatarUploadProps): JSX.Element {
   const [preview, setPreview] = useState<string | null>(
     currentAvatar ? avatarToDataUrl(currentAvatar) : null
   );
   const [isDragActive, setIsDragActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
 
-  const handleFile = useCallback(async (file: File) => {
+  const handleFile: (file: File) => Promise<void> = useCallback(async (file: File): Promise<void> => {
     setError(null);
 
     // Validate file
-    const validation = validateAvatarFile(file);
+    const validation: ReturnType<typeof validateAvatarFile> = validateAvatarFile(file);
     if (!validation.isValid) {
       setError(validation.error || 'Invalid file');
       return;
@@ -30,8 +31,8 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
 
     setIsProcessing(true);
     try {
-      const base64 = await processAvatarImage(file);
-      const dataUrl = avatarToDataUrl(base64);
+      const base64: string = await processAvatarImage(file);
+      const dataUrl: string = avatarToDataUrl(base64);
       setPreview(dataUrl);
       onAvatarChange(base64);
     } catch (err) {
@@ -41,14 +42,14 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     }
   }, [onAvatarChange]);
 
-  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop: (e: React.DragEvent<HTMLDivElement>) => void = useCallback((e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragActive(false);
 
     if (disabled) return;
 
-    const file = e.dataTransfer.files[0];
+    const file: File = e.dataTransfer.files[0];
     if (file) {
       runAsyncSetup(async () => {
         await handleFile(file);
@@ -56,7 +57,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     }
   }, [disabled, handleFile]);
 
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver: (e: React.DragEvent<HTMLDivElement>) => void = useCallback((e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     e.stopPropagation();
     if (!disabled) {
@@ -64,20 +65,20 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     }
   }, [disabled]);
 
-  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave: (e: React.DragEvent<HTMLDivElement>) => void = useCallback((e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragActive(false);
   }, []);
 
-  const handleClick = useCallback(() => {
+  const handleClick: () => void = useCallback((): void => {
     if (!disabled && fileInputRef.current) {
       fileInputRef.current.click();
     }
   }, [disabled]);
 
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
+    const file: File | undefined = e.target.files?.[0];
     if (file) {
       runAsyncSetup(async () => {
         await handleFile(file);
@@ -87,7 +88,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     e.target.value = '';
   }, [handleFile]);
 
-  const handleRemove = useCallback((e: React.MouseEvent) => {
+  const handleRemove: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
     e.stopPropagation();
     setPreview(null);
     setError(null);
@@ -98,6 +99,13 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     <div className="flex flex-col items-center gap-3">
       <div
         onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        // Its only content is the preview image or a placeholder icon, so
+        // without this a screen reader announces "button" and nothing else.
+        aria-label={preview ? 'Change profile picture' : 'Upload profile picture'}
+        aria-disabled={disabled}
+        onKeyDown={activateOnKey(handleClick)}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -105,7 +113,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
           relative w-32 h-32 rounded-full overflow-hidden cursor-pointer
           border-2 border-dashed transition-all duration-200
           ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-          ${isDragActive ? 'border-purple-500 bg-purple-500/10' : 'border-gray-600 hover:border-gray-500'}
+          ${isDragActive ? 'border-primary-accent bg-primary-accent/10' : 'border-border hover:border-border'}
           ${isProcessing ? 'animate-pulse' : ''}
         `}
       >
@@ -118,21 +126,22 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
             />
             {!disabled && (
               <button
+                aria-label="Remove avatar"
                 onClick={handleRemove}
-                className="absolute top-0 right-0 p-1 bg-red-600 rounded-full transform translate-x-1/4 -translate-y-1/4 hover:bg-red-500 transition-colors"
+                className="absolute top-0 right-0 p-1 bg-destructive rounded-full transform translate-x-1/4 -translate-y-1/4 hover:bg-destructive transition-colors"
               >
-                <X className="h-3 w-3 text-white" />
+                <X className="h-3 w-3 text-foreground" />
               </button>
             )}
           </>
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800">
+          <div className="w-full h-full flex flex-col items-center justify-center bg-muted">
             {isProcessing ? (
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-accent" />
             ) : (
               <>
-                <User className="h-12 w-12 text-gray-500" />
-                <Upload className="h-5 w-5 text-gray-500 mt-1" />
+                <User className="h-12 w-12 text-muted-foreground" />
+                <Upload className="h-5 w-5 text-muted-foreground mt-1" />
               </>
             )}
           </div>
@@ -148,12 +157,12 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
         />
       </div>
 
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-muted-foreground">
         {isDragActive ? 'Drop image here' : 'Click or drag to upload'}
       </p>
 
       {error && (
-        <p className="text-xs text-red-400">{error}</p>
+        <p role="alert" className="text-xs text-destructive-emphasis">{error}</p>
       )}
     </div>
   );

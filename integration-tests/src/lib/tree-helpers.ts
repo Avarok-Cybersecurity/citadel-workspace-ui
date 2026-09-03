@@ -7,6 +7,7 @@
 
 import type { Page } from 'playwright';
 import { sleep } from './utils.js';
+import { isVisibleWithin } from './utils.js';
 
 // ============================================================================
 // Types
@@ -377,70 +378,43 @@ export async function getTreeStructure(
  * Get the workspace root ID from the current context.
  * Supports multiple workspaces per server by detecting the workspace ID from URL or context.
  */
-export async function getWorkspaceRootId(page: Page): Promise<string | null> {
-  console.log('  [Tree] Searching for workspace root ID...');
+/**
+ * The id single-workspace servers use for the tree root.
+ *
+ * The server synthesises a `Workspace` node for this id in GetNode, but
+ * `get_all_nodes` never contains it — which is why deleting or moving it reports
+ * "not found" rather than "cannot delete root".
+ */
+export const WORKSPACE_ROOT_SENTINEL = 'workspace-root';
 
-  // Try to get from workspace context or localStorage
-  const result = await page.evaluate(() => {
-    // Try workspace context
-    const ctx = (window as unknown as Record<string, unknown>).__workspaceContext as {
-      workspace?: { id: string };
-    } | undefined;
-
-    if (ctx?.workspace?.id) {
-      return { id: ctx.workspace.id, source: 'context' };
-    }
-
-    // Try localStorage/sessionStorage
-    const stored = localStorage.getItem('currentWorkspace') ||
-      sessionStorage.getItem('currentWorkspace');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (parsed.id) return { id: parsed.id, source: 'localStorage' };
-        if (parsed.workspaceId) return { id: parsed.workspaceId, source: 'localStorage' };
-      } catch {
-        if (stored.match(/^[a-f0-9-]{36}$/i)) {
-          return { id: stored, source: 'localStorage-raw' };
-        }
-      }
-    }
-
-    // Try to find workspace ID from DOM
-    const wsElement = document.querySelector('[data-workspace-id]');
-    if (wsElement) {
-      const id = wsElement.getAttribute('data-workspace-id');
-      if (id) return { id, source: 'dom-attribute' };
-    }
-
-    // Try to find any UUID in data attributes that looks like a workspace ID
-    const allElements = Array.from(document.querySelectorAll('[data-id]'));
-    for (const el of allElements) {
-      const id = el.getAttribute('data-id');
-      if (id && id.match(/^[a-f0-9-]{36}$/i)) {
-        return { id, source: 'dom-data-id' };
-      }
-    }
-
-    return { id: null, source: 'not-found' };
-  });
-
-  if (result?.id) {
-    console.log(`  [Tree] Found workspace root ID: ${result.id} (via ${result.source})`);
-    return result.id;
-  }
-
-  // Fallback: Get from URL (supports multiple workspaces)
-  const url = page.url();
-  const match = url.match(/workspace[/=]([a-f0-9-]{36})/i);
+/**
+ * The workspace root id to use as a parent when creating top-level nodes.
+ *
+ * Returns a string, never null. The previous signature was `string | null`
+ * while the body could not actually produce null — it fell through to the
+ * sentinel — and four specs wrote `workspaceRootId !== null` believing that was
+ * an assertion. It always held, and in two of them it sat in the pass gate.
+ *
+ * The detection it used to attempt has been removed rather than left in place:
+ * it probed `window.__workspaceContext`, a `currentWorkspace` storage key,
+ * `[data-workspace-id]` and any 36-char `[data-id]`. The app exposes only
+ * `__websocketService` and `__workspaceService` (see src/vite-env.d.ts) and
+ * renders none of those attributes, so every branch was dead code that made the
+ * function look like it was discovering something.
+ *
+ * The URL check is kept because it can genuinely match on a multi-workspace
+ * server. If you need to know whether the root was identified or assumed,
+ * compare the result against WORKSPACE_ROOT_SENTINEL.
+ */
+export async function getWorkspaceRootId(page: Page): Promise<string> {
+  const match = page.url().match(/workspace[/=]([a-f0-9-]{36})/i);
   if (match) {
-    console.log(`  [Tree] Extracted workspace ID from URL: ${match[1]}`);
+    console.log(`  [Tree] Workspace root id from URL: ${match[1]}`);
     return match[1];
   }
 
-  // Final fallback: Use the default workspace-root constant for single-workspace servers
-  console.log('  [Tree] Using default workspace-root ID');
-  return 'workspace-root';
+  console.log(`  [Tree] Assuming the ${WORKSPACE_ROOT_SENTINEL} sentinel`);
+  return WORKSPACE_ROOT_SENTINEL;
 }
 
 // ============================================================================
@@ -468,10 +442,31 @@ export async function createOfficeViaUI(
     let addBtn = null;
     for (const selector of addBtnSelectors) {
       const btn = page.locator(selector).first();
-      if (await btn.isVisible({ timeout: 5000 }).catch(() => false)) {
+      // waitFor, not isVisible({ timeout }) — Playwright ignores the timeout on
+      // isVisible, making it an immediate snapshot.
+      const visible = await btn.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
+      if (visible) {
         addBtn = btn;
         console.log(`  [UI] Found Add Node button with selector: ${selector}`);
         break;
+      }
+    }
+
+    // The button is disabled until the workspace tree schema arrives — creating a
+    // node needs it to know which child types are allowed. Clicking early opened
+    // no modal and raised a "schema is still loading" toast instead, which is
+    // exactly the race this helper used to lose.
+    if (addBtn) {
+      await addBtn.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined);
+      const enabled = await addBtn
+        .evaluate((el: HTMLButtonElement) => !el.disabled)
+        .catch(() => true);
+      if (!enabled) {
+        console.log('  [UI] Waiting for workspace schema before creating a node...');
+        await page
+          .locator(`${addBtnSelectors[0]}:not([disabled])`)
+          .waitFor({ state: 'visible', timeout: 30_000 })
+          .catch(() => undefined);
       }
     }
 
@@ -485,7 +480,7 @@ export async function createOfficeViaUI(
 
     // Fill the form (use id selector since the input has id="name")
     const nameInput = page.locator('input#name, input[id="name"]').first();
-    if (!await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(nameInput, 2000)) {
       console.log('  [UI] Name input not found');
       await page.keyboard.press('Escape');
       return { success: false, name };
@@ -495,22 +490,26 @@ export async function createOfficeViaUI(
 
     if (description) {
       const descInput = page.locator('textarea#description, textarea[id="description"]').first();
-      if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      if (await isVisibleWithin(descInput, 1000)) {
         await descInput.fill(description);
       }
     }
 
     await sleep(300);
 
-    // Submit - NodeManagementModal uses "Create {EntityType}" as button text
-    const createBtn = page.locator('button:has-text("Create")').first();
-    if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // The entity modal's submit, by testid. It used to be matched on the word
+    // "Create", which every entity modal spells differently -- "Create Office",
+    // "Create Room" -- and which changes whenever the copy does.
+    const createBtn = page.getByTestId('entity-modal-submit').first();
+    if (await isVisibleWithin(createBtn, 2000)) {
       await createBtn.click();
       await sleep(2000);
 
-      // Verify creation
-      const nodeInSidebar = page.locator(`[data-sidebar="menu-button"]:has-text("${name}")`).first();
-      const exists = await nodeInSidebar.isVisible({ timeout: 3000 }).catch(() => false);
+      // Verify creation. waitFor, not isVisible({ timeout }) — see nodeExistsInUI.
+      const exists = await sidebarNode(page, name)
+        .waitFor({ state: 'visible', timeout: 10_000 })
+        .then(() => true)
+        .catch(() => false);
 
       console.log(`  [UI] Node "${name}" created: ${exists}`);
       return { success: exists, name };
@@ -575,7 +574,12 @@ export async function createRoomViaUI(
     // Now look for the create-child item in the open dropdown
     const createChildTestId = `create-child-${nodeId}`;
     const createItem = page.locator(`[data-testid="${createChildTestId}"]`);
-    if (!await createItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // waitFor, not isVisible({ timeout }) — the dropdown animates in.
+    const itemVisible = await createItem
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!itemVisible) {
       // Debug: log what menu items ARE visible
       const menuItems = await page.locator('[role="menuitem"]').allTextContents();
       console.log(`  [UI] Create Child option not found. Visible menu items: ${JSON.stringify(menuItems)}`);
@@ -588,7 +592,7 @@ export async function createRoomViaUI(
 
     // Wait for modal to open - look for the dialog
     const modal = page.locator('[role="dialog"], [role="alertdialog"]').first();
-    const modalVisible = await modal.isVisible({ timeout: 3000 }).catch(() => false);
+    const modalVisible = await isVisibleWithin(modal, 3000);
     if (!modalVisible) {
       console.log('  [UI] Modal did not open');
       return { success: false, name };
@@ -597,7 +601,7 @@ export async function createRoomViaUI(
 
     // Fill the form (use id selector since the input has id="name")
     const nameInput = page.locator('input#name, input[id="name"]').first();
-    if (!await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(nameInput, 2000)) {
       console.log('  [UI] Name input not found');
       await page.keyboard.press('Escape');
       return { success: false, name };
@@ -608,7 +612,7 @@ export async function createRoomViaUI(
 
     if (description) {
       const descInput = page.locator('textarea#description, textarea[id="description"]').first();
-      if (await descInput.isVisible({ timeout: 500 }).catch(() => false)) {
+      if (await isVisibleWithin(descInput, 500)) {
         await descInput.fill(description);
         console.log(`  [UI] Filled description`);
       }
@@ -618,21 +622,21 @@ export async function createRoomViaUI(
 
     // Submit - NodeManagementModal uses "Create {EntityType}" as button text
     const createBtn = page.locator('button:has-text("Create")').first();
-    if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(createBtn, 2000)) {
       console.log('  [UI] Clicking Create button');
       await createBtn.click();
       await sleep(4000); // Wait longer for API call and UI update
 
       // Check for error toast
       const errorToast = page.locator('[role="status"]:has-text("Error"), .toast:has-text("Error")').first();
-      if (await errorToast.isVisible({ timeout: 500 }).catch(() => false)) {
+      if (await isVisibleWithin(errorToast, 500)) {
         console.log('  [UI] Error toast detected');
         return { success: false, name };
       }
 
       // Verify creation - the node should appear in the sidebar
       const nodeInSidebar = page.locator(`[data-sidebar="menu-button"]:has-text("${name}")`).first();
-      const exists = await nodeInSidebar.isVisible({ timeout: 5000 }).catch(() => false);
+      const exists = await isVisibleWithin(nodeInSidebar, 5000);
 
       console.log(`  [UI] Child node "${name}" created: ${exists}`);
       return { success: exists, name };
@@ -664,7 +668,7 @@ export async function navigateToNodeViaUI(
 
   for (const selector of selectors) {
     const nodeBtn = page.locator(selector).first();
-    if (await nodeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(nodeBtn, 2000)) {
       await nodeBtn.click();
       await sleep(1000);
       console.log(`  [UI] Navigated to node "${nodeName}"`);
@@ -728,7 +732,7 @@ export async function deleteNodeViaUI(
 
     // Click delete option using the new testid pattern
     const deleteOption = page.locator(`[data-testid="delete-node-${nodeId}"]`).first();
-    if (!await deleteOption.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (!await isVisibleWithin(deleteOption, 3000)) {
       console.log(`  [UI] Delete option not found`);
       const allMenuItems = await page.locator('[role="menuitem"]').count();
       console.log(`  [UI] DEBUG: Found ${allMenuItems} menu items`);
@@ -741,7 +745,7 @@ export async function deleteNodeViaUI(
 
     // Handle confirmation dialog
     const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(confirmBtn, 2000)) {
       await confirmBtn.click();
       console.log(`  [UI] Node delete confirmed`);
 
@@ -769,9 +773,56 @@ export async function deleteNodeViaUI(
 /**
  * Check if a node exists in the sidebar.
  */
-export async function nodeExistsInUI(page: Page, nodeName: string): Promise<boolean> {
-  const node = page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first();
-  const exists = await node.isVisible({ timeout: 2000 }).catch(() => false);
+/**
+ * Locator for a node in the hierarchy sidebar.
+ *
+ * Matches any button carrying the name as well as
+ * `[data-sidebar="menu-button"]`.
+ *
+ * The comment here used to say that pinning to the attribute would make the
+ * helper depend on which of TWO SidebarMenuButton implementations a node
+ * happened to use — `components/ui/sidebar.tsx` and
+ * `components/ui/sidebar/SidebarMenu.tsx`. There was indeed a second copy. It
+ * had zero importers: a file beats a directory of the same name in module
+ * resolution, so `@/components/ui/sidebar` always meant the 764-line file, and
+ * the tidy split version was never loaded by anything. It has been deleted.
+ *
+ * The broad match is kept because it is what the passing legacy suite has
+ * always used and narrowing it is a separate change with its own evidence —
+ * but the reason written down for it was not true, and a false reason is worse
+ * than none: it stops the question being asked again.
+ */
+export function sidebarNode(page: Page, nodeName: string) {
+  return page.locator(`button:has-text("${nodeName}"), [data-sidebar="menu-button"]:has-text("${nodeName}")`).first();
+}
+
+/**
+ * Wait for a node to disappear from the sidebar.
+ *
+ * Asserting absence with `nodeExistsInUI(...) === false` burns the full
+ * appearance timeout on every deletion check, because it waits for something
+ * that is never going to show up. This waits for the opposite state, so it
+ * returns as soon as the node is actually gone.
+ */
+export async function nodeGoneFromUI(page: Page, nodeName: string, timeout = 10_000): Promise<boolean> {
+  const gone = await sidebarNode(page, nodeName)
+    .waitFor({ state: 'hidden', timeout })
+    .then(() => true)
+    .catch(() => false);
+  console.log(`  [UI] Node "${nodeName}" gone: ${gone}`);
+  return gone;
+}
+
+export async function nodeExistsInUI(page: Page, nodeName: string, timeout = 10_000): Promise<boolean> {
+  // waitFor, NOT isVisible({ timeout }). Playwright ignores the timeout option on
+  // isVisible — it is an immediate snapshot, not a wait. Creation round-trips to
+  // the workspace server and the sidebar re-renders from the response, so an
+  // immediate check reports "does not exist" for a node that is about to appear.
+  // That mistake is why so much of this suite needed sleeps to work at all.
+  const exists = await sidebarNode(page, nodeName)
+    .waitFor({ state: 'visible', timeout })
+    .then(() => true)
+    .catch(() => false);
   console.log(`  [UI] Node "${nodeName}" exists: ${exists}`);
   return exists;
 }

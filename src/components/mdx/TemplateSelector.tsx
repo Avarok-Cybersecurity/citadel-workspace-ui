@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect , type ComponentType } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Check, FileText } from 'lucide-react';
-import { getEntityMetadata } from '@/lib/entity-type-registry';
+import { getEntityMetadata , type EntityTypeMetadata } from '@/lib/entity-type-registry';
+import { activateOnKey } from '@/lib/a11y';
 
 import {
   TemplateCategory,
@@ -46,7 +47,7 @@ const TemplateSelector = ({
   buttonVariant = 'default',
   buttonSize = 'default',
   buttonText = 'Select Template'
-}: TemplateSelectorProps) => {
+}: TemplateSelectorProps): JSX.Element => {
   const [open, setOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<MdxTemplate | null>(null);
   const [templates, setTemplates] = useState<MdxTemplate[]>([]);
@@ -54,13 +55,13 @@ const TemplateSelector = ({
   // Fetch templates by category when opened
   useEffect(() => {
     if (open) {
-      const categoryTemplates = getTemplatesByCategory(category);
+      const categoryTemplates: MdxTemplate[] = getTemplatesByCategory(category);
       setTemplates(categoryTemplates);
       setSelectedTemplate(null);
     }
   }, [open, category]);
 
-  const handleSelectTemplate = () => {
+  const handleSelectTemplate = (): void => {
     if (selectedTemplate) {
       onSelectTemplate(selectedTemplate);
       setOpen(false);
@@ -68,10 +69,10 @@ const TemplateSelector = ({
   };
 
   // Derive icon and label from entity-type-registry (SSOT)
-  const entityType = categoryToEntityType(category);
-  const metadata = getEntityMetadata(entityType);
-  const CategoryIcon = metadata.icon;
-  const categoryLabel = metadata.label;
+  const entityType: string = categoryToEntityType(category);
+  const metadata: EntityTypeMetadata = getEntityMetadata(entityType);
+  const CategoryIcon: ComponentType<{ className?: string; }> = metadata.icon;
+  const categoryLabel: string = metadata.label;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -86,24 +87,24 @@ const TemplateSelector = ({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="w-full max-w-3xl bg-[#232536] text-white border-purple-800">
+      <DialogContent className="w-full max-w-3xl bg-card text-foreground border-border">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CategoryIcon className="h-[18px] w-[18px]" />
             {categoryLabel} Templates
           </DialogTitle>
-          <DialogDescription className="text-gray-300">
+          <DialogDescription className="text-foreground/80">
             Choose a template to start with pre-configured content tailored for specific {category.toLowerCase()} types.
           </DialogDescription>
         </DialogHeader>
 
         <div className="py-4">
           <Tabs defaultValue="gallery" className="w-full">
-            <TabsList className="grid grid-cols-2 mb-4 bg-[#232536]">
-              <TabsTrigger value="gallery" className="data-[state=active]:bg-[#262C4A] data-[state=active]:text-white">
+            <TabsList className="grid grid-cols-2 mb-4 bg-card">
+              <TabsTrigger value="gallery" className="data-[state=active]:bg-surface data-[state=active]:text-foreground">
                 Gallery View
               </TabsTrigger>
-              <TabsTrigger value="list" className="data-[state=active]:bg-[#262C4A] data-[state=active]:text-white">
+              <TabsTrigger value="list" className="data-[state=active]:bg-surface data-[state=active]:text-foreground">
                 List View
               </TabsTrigger>
             </TabsList>
@@ -116,20 +117,23 @@ const TemplateSelector = ({
                       key={template.id}
                       className={`relative rounded-md overflow-hidden border-2 transition-all cursor-pointer
                         ${selectedTemplate?.id === template.id
-                          ? 'border-purple-500 shadow-lg shadow-purple-900/30'
-                          : 'border-gray-700 hover:border-gray-500'
+                          ? 'border-primary-accent shadow-lg shadow-primary/30'
+                          : 'border-border hover:border-border'
                         }`}
                       onClick={() => setSelectedTemplate(template)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={activateOnKey((): void => { ((): void => setSelectedTemplate(template))(); })}
                     >
                       <div className="absolute top-2 right-2 z-10">
                         {selectedTemplate?.id === template.id && (
-                          <div className="rounded-full bg-purple-500 p-1">
+                          <div className="rounded-full bg-primary p-1">
                             <Check size={16} />
                           </div>
                         )}
                       </div>
 
-                      <div className="h-32 bg-[#262C4A] flex items-center justify-center">
+                      <div className="h-32 bg-surface flex items-center justify-center">
                         {template.thumbnail ? (
                           <img
                             src={template.thumbnail}
@@ -137,7 +141,7 @@ const TemplateSelector = ({
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="flex flex-col items-center justify-center text-gray-400">
+                          <div className="flex flex-col items-center justify-center text-muted-foreground">
                             <CategoryIcon className="h-12 w-12" />
                             <span className="text-xs mt-2">{template.type.toString().replace('_', ' ')}</span>
                           </div>
@@ -145,7 +149,7 @@ const TemplateSelector = ({
                       </div>
                       <div className="p-3">
                         <h3 className="font-medium text-sm">{template.name}</h3>
-                        <p className="text-xs text-gray-400 mt-1">{template.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{template.description}</p>
                       </div>
                     </div>
                   ))}
@@ -161,20 +165,23 @@ const TemplateSelector = ({
                       key={template.id}
                       className={`flex items-start p-3 rounded-md transition-all cursor-pointer
                         ${selectedTemplate?.id === template.id
-                          ? 'bg-purple-900/30 border-l-4 border-purple-500'
-                          : 'hover:bg-[#232536]'
+                          ? 'bg-primary/20 border-l-4 border-primary-accent'
+                          : 'hover:bg-card'
                         }`}
                       onClick={() => setSelectedTemplate(template)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={activateOnKey((): void => { ((): void => setSelectedTemplate(template))(); })}
                     >
                       <div className="mr-3 mt-1">
                         <CategoryIcon className="h-5 w-5" />
                       </div>
                       <div className="flex-1">
                         <h3 className="font-medium text-sm">{template.name}</h3>
-                        <p className="text-xs text-gray-400 mt-1">{template.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{template.description}</p>
                       </div>
                       {selectedTemplate?.id === template.id && (
-                        <div className="rounded-full bg-purple-500 p-1 ml-2">
+                        <div className="rounded-full bg-primary p-1 ml-2">
                           <Check size={16} />
                         </div>
                       )}
@@ -190,14 +197,14 @@ const TemplateSelector = ({
           <Button
             variant="outline"
             onClick={() => setOpen(false)}
-            className="border-gray-700 text-gray-300 hover:bg-gray-700"
+            className="border-border text-foreground/80 hover:bg-accent"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSelectTemplate}
             disabled={!selectedTemplate}
-            className="bg-purple-600 hover:bg-purple-700"
+            className="bg-primary hover:bg-primary/90"
           >
             Use Template
           </Button>

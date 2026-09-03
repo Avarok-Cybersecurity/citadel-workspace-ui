@@ -1,0 +1,129 @@
+import { useState, type ReactNode } from 'react';
+import { FileText, MessageSquare } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import GroupChatView from '@/components/chat/GroupChatView';
+import { GroupCallControls , type GroupCallMember } from '@/components/call/GroupCallControls';
+import { usePermission } from '@/hooks/use-permission';
+import { permits } from '@/hooks/use-permission-result';
+import { permissionsService } from '@/lib/permissions-service';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import { debugLog } from '@/lib/debug-config';
+import type { GroupRestriction } from '@/components/chat/group-restriction';
+import { Permission } from '@/lib/permissions-service/types';
+import { GroupCallDock } from '@/components/call/GroupCallDock';
+import { useDomainCallMembers } from '@/hooks/use-domain-call-members';
+import { rememberedTab, rememberTab, type OfficeTab } from './office-tab-memory';
+
+interface OfficeChatTabsProps {
+  contentView: ReactNode;
+  /** The chat channel of this office/room; also scopes its group call. */
+  chatChannelId: string;
+  /** The workspace node whose member roster a call here would ring. */
+  nodeId?: string;
+  roomName: string;
+  currentUserId: string;
+  currentUserName: string;
+  rules?: string;
+}
+
+/**
+ * The Content/Chat tab pair of a chat-enabled office or room, plus its calling
+ * surface. Extracted from BaseOffice both for the file cap and because the
+ * call must dock ABOVE the tabs: inactive tab panels unmount, and a call that
+ * goes silent whenever the user glances at the Content tab reads as dropped.
+ */
+export function OfficeChatTabs({
+  contentView,
+  chatChannelId,
+  nodeId,
+  roomName,
+  currentUserId,
+  currentUserName,
+  rules,
+}: OfficeChatTabsProps): JSX.Element {
+  const callMembers: GroupCallMember[] = useDomainCallMembers(nodeId);
+  const [tab, setTab] = useState<OfficeTab>((): OfficeTab => rememberedTab(chatChannelId));
+  // Office chat is governed by the workspace permission system, not by group
+  // roles, so its only two answers are the permission's.
+  const send: ReturnType<typeof usePermission> = usePermission(nodeId, Permission.SendMessages);
+
+  // `permits`, not `allowed`: four states are not the answer "no", and this
+  // site had three of them. See hooks/use-permission-result.ts.
+  const sendRestriction: GroupRestriction = permits(send) ? 'allowed' : 'denied-by-role';
+
+  // A refusal here removes the composer, and CI has now shown one happening to
+  // a user who should have been able to send. `permits` is false only when an
+  // answer arrived AND withheld the permission, so the useful thing to know is
+  // what that answer said -- the role it came with, and which domain it was
+  // about, since `hasPermission` falls back to the workspace root.
+  //
+  // Logged rather than shown: the reader is told "you do not have permission",
+  // which is the truthful sentence for them; the role and the domain are for
+  // whoever is reading a failing run.
+  if (sendRestriction === 'denied-by-role') {
+    debugLog(
+      'OfficeChatTabs',
+      'composer withheld',
+      {
+        nodeId,
+        role: permissionsService.getRole(nodeId ?? WORKSPACE_ROOT_ID),
+        allowed: send.allowed,
+        answered: send.answered,
+        loading: send.loading,
+        unanswered: send.unanswered,
+      },
+    );
+  }
+
+  return (
+    <div className="w-full h-full flex flex-col">
+      <GroupCallDock roomId={chatChannelId} />
+      <Tabs
+        // Controlled, and seeded from what this room was last left on.
+        // `defaultValue` put the selection in the component instance, and
+        // BaseOffice is keyed on the node id so that it remounts -- which threw
+        // a reader back to Content mid-conversation with no action of theirs.
+        value={tab}
+        onValueChange={(next): void => {
+          const chosen: OfficeTab = next === 'chat' ? 'chat' : 'content';
+          setTab(chosen);
+          rememberTab(chatChannelId, chosen);
+        }}
+        className="w-full flex-1 min-h-0 flex flex-col"
+      >
+        <div className="px-4 pt-4 border-b border-border flex-shrink-0 flex items-center justify-between gap-2">
+          <TabsList className="bg-background">
+            {/* data-[state=active]:text-primary-foreground pairs with the fill above it. Without it the active tab kept the page's text colour, which is ink in light mode: 2.18:1 on the purple fill. Dark mode hid it, because there the page text is already near-white. */}
+            <TabsTrigger value="content" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <FileText className="h-4 w-4 mr-2" />
+              Content
+            </TabsTrigger>
+            <TabsTrigger value="chat" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Chat
+            </TabsTrigger>
+          </TabsList>
+          <GroupCallControls
+            roomId={chatChannelId}
+            roomName={roomName}
+            members={callMembers}
+          />
+        </div>
+
+        <TabsContent value="content" className="mt-0 flex-1 overflow-auto">
+          {contentView}
+        </TabsContent>
+
+        <TabsContent value="chat" className="mt-0 flex-1 overflow-hidden">
+          <GroupChatView
+            groupId={chatChannelId}
+            currentUserId={currentUserId}
+            currentUserName={currentUserName}
+            rules={rules}
+            sendRestriction={sendRestriction}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

@@ -11,6 +11,7 @@ import { debugLog } from '@/lib/debug-config';
 import type { AutoConnectState } from './state';
 import { FRESH_CONNECTION_THRESHOLD_MS } from './types';
 import { getCurrentCid } from './cid-resolver';
+import type { PeerConnectionInfo } from '@/lib/p2p-auto-connect/types';
 
 /**
  * Handle incoming PeerConnect request (when other peer initiates).
@@ -24,19 +25,20 @@ import { getCurrentCid } from './cid-resolver';
  */
 export async function handleIncomingPeerConnect(
   state: AutoConnectState,
-  notification: { cid?: bigint; peer_cid?: bigint; peer_username?: string },
-  broadcastPeerConnected: (localCid: bigint, peerCid: bigint, peerUsername: string) => void
+  // No `peer_username`: PeerConnectNotification does not declare one, and the
+  // read that used to be here produced '' every time. See PeerConnectionInfo.
+  notification: { cid?: bigint; peer_cid?: bigint },
+  broadcastPeerConnected: (localCid: bigint, peerCid: bigint) => void
 ): Promise<void> {
   const targetCid: bigint | undefined = notification.cid;
   const initiatorCid: bigint | undefined = notification.peer_cid;
-  const peerUsername = notification.peer_username || '';
 
   if (initiatorCid === undefined || targetCid === undefined) {
     debugLog('P2PAutoConnectService', 'Invalid PeerConnectNotification - missing cid or peer_cid');
     return;
   }
 
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   if (!currentCid) {
     debugLog('P2PAutoConnectService', 'No current CID, cannot process incoming connection');
     return;
@@ -50,8 +52,8 @@ export async function handleIncomingPeerConnect(
 
   // Check existing connection - distinguish fresh vs stale
   if (state.isPeerConnectedForSession(currentCid, initiatorCid)) {
-    const peerInfo = state.getPeerConnectionInfo(currentCid, initiatorCid);
-    const connectionAge = peerInfo ? Date.now() - peerInfo.connectedAt : Infinity;
+    const peerInfo: PeerConnectionInfo | null = state.getPeerConnectionInfo(currentCid, initiatorCid);
+    const connectionAge: number = peerInfo ? Date.now() - peerInfo.connectedAt : Infinity;
     if (connectionAge < FRESH_CONNECTION_THRESHOLD_MS) {
       debugLog('P2PAutoConnectService', `P2PAutoConnect: Connection to ${initiatorCid.toString().slice(0, 8)}... is fresh (${connectionAge}ms old), skipping`);
     } else {
@@ -68,7 +70,7 @@ export async function handleIncomingPeerConnect(
   }
 
   // Mark initiator as connected - INSTANT update
-  broadcastPeerConnected(currentCid, initiatorCid, peerUsername);
+  broadcastPeerConnected(currentCid, initiatorCid);
   state.cancelRetry(initiatorCid);
   debugLog('P2PAutoConnectService', `P2PAutoConnect: Incoming connection from ${initiatorCid.toString().slice(0, 8)}... (they initiated)`);
 
@@ -78,7 +80,7 @@ export async function handleIncomingPeerConnect(
     debugLog('P2PAutoConnectService', `P2PAutoConnect: PeerConnectAccept sent for ${initiatorCid.toString().slice(0, 8)}...`);
     eventEmitter.emit('p2p-connection-established', { peerCid: initiatorCid });
   } catch (error) {
-    const errMsg = String(error);
+    const errMsg: string = String(error);
     if (errMsg.includes('already connected') || errMsg.includes('Already connected')) {
       debugLog('P2PAutoConnectService', `P2PAutoConnect: Channel already exists for ${initiatorCid.toString().slice(0, 8)}...`);
       eventEmitter.emit('p2p-connection-established', { peerCid: initiatorCid });

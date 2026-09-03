@@ -1,12 +1,15 @@
 import { useState, useCallback } from "react";
+import { matchesSearch } from '@/lib/fold-for-search';
 import { FolderOpen } from "lucide-react";
 import type { RevfsNode } from "@/types/revfs-types";
 import type { SelectMode } from "@/hooks/useVFSSelection";
 import { VFSContextMenu } from "./VFSContextMenu";
 import { GridItem } from "./VFSGridItem";
+import { Button } from '@/components/ui/button';
 import { cn } from "@/lib/utils";
 import { findNodeByPath, type SortField, type SortDirection } from "./vfs-content-helpers";
 import { useVFSKeyboardShortcuts } from "./useVFSKeyboardShortcuts";
+import { activateOnKey } from '@/lib/a11y';
 
 export type { SortField, SortDirection };
 
@@ -45,7 +48,7 @@ export function VFSContentGrid({
   cutItemPaths = new Set(), hasPasteItems = false,
   selectedPaths = new Set(), onSelect, onSelectAll, onClearSelection,
   sortField = 'name', sortDirection = 'asc', filterText = '',
-}: VFSContentGridProps) {
+}: VFSContentGridProps): JSX.Element {
   const [rootDragOver, setRootDragOver] = useState(false);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
 
@@ -55,61 +58,98 @@ export function VFSContentGrid({
     onCut, onCutMultiple, onPaste, onSelectAll, onClearSelection,
   });
 
-  const currentNode = findNodeByPath(tree, currentPath);
-  const allChildren = currentNode?.children ?? [];
-  const children = filterText
-    ? allChildren.filter(n => n.name.toLowerCase().includes(filterText.toLowerCase()))
+  const currentNode: RevfsNode | null = findNodeByPath(tree, currentPath);
+  const allChildren: RevfsNode[] = currentNode?.children ?? [];
+  const children: RevfsNode[] = filterText
+    ? allChildren.filter(n => matchesSearch(n.name, filterText))
     : allChildren;
 
-  const handleBackgroundClick = useCallback(() => { onClearSelection?.(); }, [onClearSelection]);
-  const handleRename = useCallback((node: RevfsNode) => { setRenamingPath(node.path); }, []);
-  const handleRenameConfirm = useCallback(async (node: RevfsNode, newName: string) => {
+  const handleBackgroundClick: () => void = useCallback((): void => { onClearSelection?.(); }, [onClearSelection]);
+  const handleRename: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => { setRenamingPath(node.path); }, []);
+  const handleRenameConfirm: (node: RevfsNode, newName: string) => Promise<void> = useCallback(async (node: RevfsNode, newName: string): Promise<void> => {
     setRenamingPath(null); await onRename(node.path, newName);
   }, [onRename]);
-  const handleRenameCancel = useCallback(() => { setRenamingPath(null); }, []);
-  const handlePasteItem = useCallback(async (node: RevfsNode) => { await onPaste(node.path); }, [onPaste]);
+  const handleRenameCancel: () => void = useCallback((): void => { setRenamingPath(null); }, []);
+  const handlePasteItem: (node: RevfsNode) => Promise<void> = useCallback(async (node: RevfsNode): Promise<void> => { await onPaste(node.path); }, [onPaste]);
 
-  const sorted = [...children].sort((a, b) => {
+  const sorted: RevfsNode[] = [...children].sort((a, b) => {
     if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
-    let cmp = 0;
+    let cmp: number = 0;
     switch (sortField) {
       case 'name': cmp = a.name.localeCompare(b.name); break;
       case 'date': cmp = a.updatedAt - b.updatedAt; break;
       case 'size': cmp = (a.fileMetadata?.fileSize ?? 0) - (b.fileMetadata?.fileSize ?? 0); break;
       case 'type': {
-        const eA = a.type === 'file' ? (a.name.split('.').pop()?.toLowerCase() ?? '') : '';
-        const eB = b.type === 'file' ? (b.name.split('.').pop()?.toLowerCase() ?? '') : '';
+        const eA: string = a.type === 'file' ? (a.name.split('.').pop()?.toLowerCase() ?? '') : '';
+        const eB: string = b.type === 'file' ? (b.name.split('.').pop()?.toLowerCase() ?? '') : '';
         cmp = eA.localeCompare(eB); break;
       }
     }
     return sortDirection === 'asc' ? cmp : -cmp;
   });
 
-  const onRootDragOver = (e: React.DragEvent) => { e.preventDefault(); setRootDragOver(true); };
-  const onRootDrop = (e: React.DragEvent) => {
+  const onRootDragOver = (e: React.DragEvent): void => { e.preventDefault(); setRootDragOver(true); };
+  const onRootDrop = (e: React.DragEvent): void => {
     e.preventDefault(); setRootDragOver(false);
     if (e.dataTransfer.files.length > 0) onDrop(currentPath, e.dataTransfer.files);
   };
 
-  const emptyContextProps = {
+  const emptyContextProps: { node: RevfsNode | null; onNewFolder: () => void; onDelete: () => void; onDownload: () => void; onUploadFile: () => void; onInfo: () => void; onPaste: (() => Promise<void>) | undefined; hasPasteItems: boolean; } = {
     node: null as RevfsNode | null,
-    onNewFolder: () => onNewFolder(currentPath),
-    onDelete: () => {}, onDownload: () => {},
-    onUploadFile: () => onUploadFile(currentPath), onInfo: () => {},
-    onPaste: hasPasteItems ? async () => { await onPaste(currentPath); } : undefined,
+    onNewFolder: (): void => onNewFolder(currentPath),
+    onDelete: (): void => {}, onDownload: (): void => {},
+    onUploadFile: (): void => onUploadFile(currentPath), onInfo: (): void => {},
+    onPaste: hasPasteItems ? async (): Promise<void> => { await onPaste(currentPath); } : undefined,
     hasPasteItems,
   };
+
+  // Three answers, not two. The comment below already distinguishes "empty"
+  // from "nothing matched your filter"; this is the third -- the folder is not
+  // in the tree at all, because it was deleted or renamed somewhere else while
+  // it was open. Telling that user "This folder is empty. Drag files here"
+  // invites them to drop into a folder that no longer exists.
+  if (!currentNode) {
+    return (
+      <div
+        className="flex-1 flex flex-col items-center justify-center text-muted-foreground text-sm"
+        data-testid="vfs-folder-gone"
+      >
+        <FolderOpen className="h-12 w-12 mb-3 text-muted-foreground" />
+        <p>This folder is no longer here</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          It may have been renamed or deleted somewhere else.
+        </p>
+        <Button variant="outline" size="sm" className="mt-3" onClick={() => onNavigate('/')}>
+          Go to the top level
+        </Button>
+      </div>
+    );
+  }
 
   if (sorted.length === 0) {
     return (
       <VFSContextMenu {...emptyContextProps}>
         <div
-          className={cn("flex-1 flex flex-col items-center justify-center text-gray-500 text-sm", rootDragOver && "bg-green-900/10")}
+          className={cn("flex-1 flex flex-col items-center justify-center text-muted-foreground text-sm", rootDragOver && "bg-success/10")}
           onDragOver={onRootDragOver} onDragLeave={() => setRootDragOver(false)} onDrop={onRootDrop}
         >
-          <FolderOpen className="h-12 w-12 mb-3 text-gray-600" />
-          <p>This folder is empty</p>
-          <p className="text-xs text-gray-600 mt-1">Drag files here or right-click to create a folder</p>
+          <FolderOpen className="h-12 w-12 mb-3 text-muted-foreground" />
+          {/* "Empty" and "nothing matched your filter" are different facts, and
+              stating the first when the second is true tells the user their
+              files are gone. */}
+          {filterText ? (
+            <>
+              <p>Nothing here matches &ldquo;{filterText}&rdquo;</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Clear the filter to see everything in this folder.
+              </p>
+            </>
+          ) : (
+            <>
+              <p>This folder is empty</p>
+              <p className="text-xs text-muted-foreground mt-1">Drag files here or right-click to create a folder</p>
+            </>
+          )}
         </div>
       </VFSContextMenu>
     );
@@ -118,8 +158,11 @@ export function VFSContentGrid({
   return (
     <VFSContextMenu {...emptyContextProps}>
       <div
-        className={cn("flex-1 overflow-y-auto p-4", rootDragOver && "bg-green-900/10")}
+        className={cn("flex-1 overflow-y-auto p-4", rootDragOver && "bg-success/10")}
         onClick={handleBackgroundClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={activateOnKey(handleBackgroundClick)}
         onDragOver={onRootDragOver} onDragLeave={() => setRootDragOver(false)} onDrop={onRootDrop}
       >
         <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">

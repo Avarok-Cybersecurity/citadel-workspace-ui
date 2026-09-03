@@ -6,11 +6,14 @@
  */
 
 import * as Y from 'yjs';
+
+import { PERSISTED_LOAD_ORIGIN } from '@/lib/yjs-p2p-provider/types';
 import { sha256Sync } from '@/lib/merkle-tree';
 import { debugLog } from '@/lib/debug-config';
 import type { RevisionEntry } from '@/types/p2p-types';
 
 import type { DocumentMetadata, StoredDocument } from './types';
+import { newStoredDocument } from './document-factory';
 import {
   loadDocumentFromDB,
   saveDocumentToDB,
@@ -22,7 +25,8 @@ import {
 export class LiveDocumentStore {
   private static instance: LiveDocumentStore;
   private documentsCache: Map<string, StoredDocument> = new Map();
-  private initialized = false;
+  /** Single-flight guard: null until the first initialize() call. */
+  private initPromise: Promise<void> | null = null;
 
   private constructor() {}
 
@@ -33,22 +37,31 @@ export class LiveDocumentStore {
     return LiveDocumentStore.instance;
   }
 
-  /** Initialize the store by loading the document index from LocalDB */
-  async initialize(): Promise<void> {
-    if (this.initialized) return;
+  /**
+   * Initialize the store by loading the document index from LocalDB.
+   *
+   * Single-flight: every caller shares one load. A boolean flag set at the
+   * END of the load let concurrent callers each start a load, and gave
+   * `updateIndex` no way to wait for one in flight — it read the cache
+   * mid-population and wrote the partial result over the persisted index.
+   */
+  initialize(): Promise<void> {
+    this.initPromise ??= this.loadIndexIntoCache();
+    return this.initPromise;
+  }
 
+  private async loadIndexIntoCache(): Promise<void> {
     try {
-      const index = await loadIndexFromDB();
+      const index: string[] = await loadIndexFromDB();
       for (const docId of index) {
-        const doc = await loadDocumentFromDB(docId);
+        const doc: StoredDocument | null = await loadDocumentFromDB(docId);
         if (doc) {
           this.documentsCache.set(docId, doc);
         }
       }
-      this.initialized = true;
     } catch (error) {
       debugLog('LiveDocumentStore', 'Failed to initialize:', error);
-      this.initialized = true; // Continue anyway
+      // Continue anyway — an unreadable index must not brick the store.
     }
   }
 
@@ -59,41 +72,16 @@ export class LiveDocumentStore {
     creatorCid: string,
     initialDoc?: Y.Doc,
   ): Promise<DocumentMetadata> {
-    const id = crypto.randomUUID();
-    const now = Date.now();
-
-    const doc = initialDoc || new Y.Doc();
-    const state = Y.encodeStateAsUpdate(doc);
-    const rootHash = sha256Sync(state);
-
-    const metadata: DocumentMetadata = {
-      id,
-      title,
-      peerCid,
-      creatorCid,
-      createdAt: now,
-      updatedAt: now,
-      rootHash,
-      revision: 0,
-    };
-
-    const initialRevision: RevisionEntry = {
-      revision: 0,
-      rootHash,
-      timestamp: now,
-    };
-
-    const storedDoc: StoredDocument = {
-      metadata,
-      state: Array.from(state),
-      revisionChain: [initialRevision],
-    };
+    const storedDoc: StoredDocument = newStoredDocument(
+      crypto.randomUUID(), title, peerCid, creatorCid, initialDoc,
+    );
+    const id: string = storedDoc.metadata.id;
 
     this.documentsCache.set(id, storedDoc);
     await this.saveDocument(id, storedDoc);
     await this.updateIndex();
 
-    return metadata;
+    return storedDoc.metadata;
   }
 
   /** Save a document's current state */
@@ -102,18 +90,45 @@ export class LiveDocumentStore {
     this.documentsCache.set(docId, doc);
   }
 
+  /**
+   * Adopt a document this side did not create, so its edits can be persisted.
+   *
+   * `createDocument` mints a NEW id, which is exactly wrong for a document
+   * arriving from a peer: both sides must agree on the id or they are editing
+   * two different documents. This keeps the id it was given.
+   *
+   * Idempotent — a second call is a no-op — so an open path can call it freely
+   * without needing to know whether this side is the creator.
+   */
+  async adoptDocument(docId: string, title: string, peerCid: string, creatorCid: string): Promise<void> {
+    if (this.documentsCache.has(docId)) return;
+    if (await this.loadDocument(docId)) return;
+
+    const storedDoc: StoredDocument = newStoredDocument(docId, title, peerCid, creatorCid);
+
+    this.documentsCache.set(docId, storedDoc);
+    await this.saveDocument(docId, storedDoc);
+    await this.updateIndex();
+  }
+
   /** Update a document's Yjs state */
   async updateDocumentState(docId: string, ydoc: Y.Doc): Promise<void> {
-    const existing = this.documentsCache.get(docId);
+    const existing: StoredDocument | undefined = this.documentsCache.get(docId);
     if (!existing) {
-      debugLog('LiveDocumentStore', 'Document not found:', docId);
-      return;
+      // Resolving here wrote NOTHING while reporting success, and only the
+      // CREATOR of a document ever had a cache entry — the recipient's open
+      // path builds a tab and no store record. So every peer who received a
+      // shared live document lost everything they typed the moment they closed
+      // the tab, with no error anywhere. The unmount flush, added specifically
+      // "so closing the tab does not drop the last edits", was the same no-op.
+      debugLog('LiveDocumentStore', `Cannot persist ${docId}: no local record. Call adoptDocument first.`);
+      throw new Error(`Live document ${docId} is not tracked locally, so its edits cannot be saved.`);
     }
 
-    const state = Y.encodeStateAsUpdate(ydoc);
-    const rootHash = sha256Sync(state);
-    const now = Date.now();
-    const newRevision = (existing.metadata.revision ?? 0) + 1;
+    const state: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(ydoc);
+    const rootHash: string = sha256Sync(state);
+    const now: number = Date.now();
+    const newRevision: number = (existing.metadata.revision ?? 0) + 1;
 
     const revisionEntry: RevisionEntry = {
       revision: newRevision,
@@ -123,7 +138,7 @@ export class LiveDocumentStore {
     };
 
     // Keep last 100 revisions
-    const revisionChain = [...(existing.revisionChain || []), revisionEntry].slice(-100);
+    const revisionChain: RevisionEntry[] = [...(existing.revisionChain || []), revisionEntry].slice(-100);
 
     const updatedDoc: StoredDocument = {
       metadata: {
@@ -140,35 +155,11 @@ export class LiveDocumentStore {
   }
 
   /** Get the revision chain for a document */
-  async getRevisionChain(docId: string): Promise<RevisionEntry[]> {
-    const doc = await this.loadDocument(docId);
-    return doc?.revisionChain || [];
-  }
-
-  /** Get the current root hash for a document */
-  async getRootHash(docId: string): Promise<string | null> {
-    const doc = await this.loadDocument(docId);
-    return doc?.metadata.rootHash || null;
-  }
-
-  /** Get the creator CID for a document */
-  async getCreatorCid(docId: string): Promise<string | null> {
-    const doc = await this.loadDocument(docId);
-    return doc?.metadata.creatorCid || null;
-  }
-
-  /** Check if a CID is the creator of a document */
-  async isCreator(docId: string, cid: string): Promise<boolean> {
-    const creatorCid = await this.getCreatorCid(docId);
-    return creatorCid === cid;
-  }
-
-  /** Load a document (cache-first, then LocalDB) */
   async loadDocument(docId: string): Promise<StoredDocument | null> {
-    const cached = this.documentsCache.get(docId);
+    const cached: StoredDocument | undefined = this.documentsCache.get(docId);
     if (cached) return cached;
 
-    const doc = await loadDocumentFromDB(docId);
+    const doc: StoredDocument | null = await loadDocumentFromDB(docId);
     if (doc) {
       this.documentsCache.set(docId, doc);
     }
@@ -177,19 +168,23 @@ export class LiveDocumentStore {
 
   /** Load a document into a Y.Doc instance */
   async loadIntoYDoc(docId: string, targetDoc?: Y.Doc): Promise<Y.Doc | null> {
-    const stored = await this.loadDocument(docId);
+    const stored: StoredDocument | null = await this.loadDocument(docId);
     if (!stored) return null;
 
-    const doc = targetDoc || new Y.Doc();
-    const state = new Uint8Array(stored.state);
-    Y.applyUpdate(doc, state);
+    const doc: Y.Doc = targetDoc || new Y.Doc();
+    const state: Uint8Array<ArrayBuffer> = new Uint8Array(stored.state);
+    // Tagged: `targetDoc` is usually the editor's doc, which has the P2P
+    // provider attached, and an untagged apply reaches that provider as a LOCAL
+    // edit — so restoring from storage broadcast the whole document on every
+    // mount. See `isLocalEdit` for why nothing is lost by not sending it.
+    Y.applyUpdate(doc, state, PERSISTED_LOAD_ORIGIN);
 
     return doc;
   }
 
   /** Get document metadata */
   async getDocumentMetadata(docId: string): Promise<DocumentMetadata | null> {
-    const doc = await this.loadDocument(docId);
+    const doc: StoredDocument | null = await this.loadDocument(docId);
     return doc?.metadata || null;
   }
 
@@ -223,14 +218,30 @@ export class LiveDocumentStore {
 
   /** Delete a document */
   async deleteDocument(docId: string): Promise<void> {
+    // Initialize BEFORE mutating: with a cold cache, the delete was a no-op on
+    // an empty map and updateIndex's own initialize could re-load this very
+    // document while the on-disk record still existed.
+    await this.initialize();
     this.documentsCache.delete(docId);
     await deleteDocumentFromDB(docId);
     await this.updateIndex();
   }
 
-  /** Update the document index in LocalDB */
+  /**
+   * Update the document index in LocalDB.
+   *
+   * The index is the ONLY enumeration of documents, and it is overwritten
+   * whole from the cache. Writing it before `initialize()` has absorbed the
+   * persisted index — which happened whenever adopt/create/delete was the
+   * first store action after a page load, since only the list functions
+   * initialize — replaced it with the one or zero entries in the cold cache,
+   * making every other document permanently unlistable. Awaiting the
+   * (single-flight) initialize also closes the read-modify-write race
+   * against a load already in flight.
+   */
   private async updateIndex(): Promise<void> {
-    const docIds = Array.from(this.documentsCache.keys());
+    await this.initialize();
+    const docIds: string[] = Array.from(this.documentsCache.keys());
     await saveIndexToDB(docIds);
   }
 }

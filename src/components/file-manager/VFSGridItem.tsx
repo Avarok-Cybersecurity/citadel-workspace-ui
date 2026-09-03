@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Folder, FolderLock } from "lucide-react";
-import type { RevfsNode } from "@/types/revfs-types";
-import { RevfsFileState, PROTECTED_DIRS } from "@/types/revfs-types";
+import { Folder, FolderLock, type LucideIcon } from "lucide-react";
+import { RevfsFileState, PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
 import type { SelectMode } from "@/hooks/useVFSSelection";
 import { VFSContextMenu } from "./VFSContextMenu";
 import { VFSRenameInput } from "./VFSRenameInput";
 import { cn } from "@/lib/utils";
-import { getFileIcon, formatSize, stateConfig } from "./vfs-content-helpers";
+import { getFileIcon, formatSize, stateConfig, type FileIcon, type FileStateStyle } from "./vfs-content-helpers";
+import { activateOnKey } from '@/lib/a11y';
 
 export interface GridItemProps {
   node: RevfsNode;
@@ -50,22 +50,62 @@ export function GridItem({
   onDrop,
   onSelect,
   hasPasteItems,
-}: GridItemProps) {
+}: GridItemProps): JSX.Element {
   const [dragOver, setDragOver] = useState(false);
-  const isDir = node.type === 'directory';
-  const isProtected = PROTECTED_DIRS.has(node.path);
-  const isRoot = node.path === '/';
-  const canModify = !isProtected && !isRoot;
+  const isDir: boolean = node.type === 'directory';
+  const isProtected: boolean = PROTECTED_DIRS.has(node.path);
+  const isRoot: boolean = node.path === '/';
+  const canModify: boolean = !isProtected && !isRoot;
 
-  const Icon = isDir
+  const Icon: FileIcon = isDir
     ? (isProtected ? FolderLock : Folder)
     : getFileIcon(node.name);
 
-  const handleDoubleClick = () => {
+  const handleDoubleClick = (): void => {
     if (isDir) onNavigate(node.path);
   };
 
-  const handleClick = (e: React.MouseEvent) => {
+  /**
+   * Opening a folder was double-click ONLY.
+   *
+   * Keyboard activation ran `handleClick`, which selects — so a keyboard user
+   * could select a folder and never enter it. And a synthesized `dblclick` is
+   * unreliable on iOS, so on touch the grid was effectively navigation-dead;
+   * the tree sidebar was the only way to move around, and it lists directories
+   * alone.
+   *
+   * Enter opens, Space selects — the convention every file manager uses.
+   */
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
+    if (isDir && e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      onNavigate(node.path);
+      return;
+    }
+    activateOnKey(handleClick)(e);
+  };
+
+  // A single tap opens a folder where there is no hover and no reliable
+  // double-tap. Guarded on the pointer, not on viewport width: a tablet at
+  // desktop width still has no mouse.
+  const isCoarsePointer: boolean =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(hover: none)').matches;
+
+  const handleClickOrOpen = (e: React.MouseEvent): void => {
+    if (isDir && isCoarsePointer) {
+      handleDoubleClick();
+      return;
+    }
+    handleClick(e);
+  };
+
+  // Widened from MouseEvent: this is now also the keyboard activation handler,
+  // and every property it reads (stopPropagation, ctrlKey/metaKey/shiftKey for
+  // the selection mode) exists on both event types.
+  const handleClick = (e: React.MouseEvent | React.KeyboardEvent): void => {
     e.stopPropagation();
     let mode: SelectMode = 'replace';
     if (e.ctrlKey || e.metaKey) {
@@ -80,7 +120,7 @@ export function GridItem({
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent): void => {
     if (isDir) {
       e.preventDefault();
       e.stopPropagation();
@@ -88,7 +128,7 @@ export function GridItem({
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent): void => {
     e.preventDefault();
     e.stopPropagation();
     setDragOver(false);
@@ -97,8 +137,10 @@ export function GridItem({
     }
   };
 
-  const state = node.fileState ? stateConfig[node.fileState] : null;
-  const StateIcon = state?.icon;
+  const state: FileStateStyle | null = node.fileState ? stateConfig[node.fileState] : null;
+  // Guarded on `state` below rather than on this alias: relying on the alias to
+  // narrow `state` is what kept it unannotatable.
+  const StateIcon: LucideIcon | undefined = state?.icon;
 
   return (
     <VFSContextMenu
@@ -108,21 +150,24 @@ export function GridItem({
       onDownload={() => onDownload(node)}
       onUploadFile={() => onUploadFile(isDir ? node.path : '/')}
       onInfo={() => onInfo(node)}
-      onRename={canModify ? () => onRename(node) : undefined}
-      onCut={canModify ? () => onCut(node) : undefined}
-      onCopy={canModify ? () => onCopy(node) : undefined}
-      onPaste={isDir && hasPasteItems ? () => onPaste(node) : undefined}
+      onRename={canModify ? (): void => onRename(node) : undefined}
+      onCut={canModify ? (): void => onCut(node) : undefined}
+      onCopy={canModify ? (): void => onCopy(node) : undefined}
+      onPaste={isDir && hasPasteItems ? (): void => onPaste(node) : undefined}
       hasPasteItems={hasPasteItems}
     >
       <div
         className={cn(
           "relative flex flex-col items-center justify-center p-3 rounded-lg cursor-pointer",
-          "hover:bg-[#232536] transition-colors select-none",
-          dragOver && "bg-green-900/30 ring-1 ring-green-500",
+          "hover:bg-card transition-colors select-none",
+          dragOver && "bg-success/15 ring-1 ring-success",
           isCutItem && "opacity-50",
-          isSelected && "bg-purple-700/40 ring-1 ring-purple-500",
+          isSelected && "bg-primary/40 ring-1 ring-ring",
         )}
-        onClick={handleClick}
+        onClick={handleClickOrOpen}
+        role="button"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
         onDoubleClick={handleDoubleClick}
         onDragOver={handleDragOver}
         onDragLeave={() => setDragOver(false)}
@@ -130,10 +175,10 @@ export function GridItem({
       >
         <Icon className={cn(
           "h-10 w-10 mb-1.5",
-          isDir ? (isProtected ? "text-gray-400" : "text-yellow-400") : "text-gray-300",
+          isDir ? (isProtected ? "text-muted-foreground" : "text-warning-emphasis") : "text-foreground/80",
         )} />
 
-        {StateIcon && (
+        {state && StateIcon && (
           <span title={state.title} className={cn("absolute top-2 right-2", state.color)}>
             <StateIcon className="h-3.5 w-3.5" />
           </span>
@@ -147,11 +192,11 @@ export function GridItem({
             isDirectory={isDir}
           />
         ) : (
-          <span className="text-xs text-gray-200 text-center truncate w-full">{node.name}</span>
+          <span className="text-xs text-foreground text-center truncate w-full">{node.name}</span>
         )}
 
         {node.fileMetadata && !isRenaming && (
-          <span className="text-[10px] text-gray-500">{formatSize(node.fileMetadata.fileSize)}</span>
+          <span className="text-xs text-muted-foreground">{formatSize(node.fileMetadata.fileSize)}</span>
         )}
       </div>
     </VFSContextMenu>

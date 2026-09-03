@@ -8,35 +8,55 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/compon
 import { CheckCircle2, AlertCircle } from "lucide-react";
 
 export const components: MDXComponents = {
+  // Document headings render ONE LEVEL DOWN from their markdown level, because
+  // the page already has an h1 — the office or room name in OfficeLayout. A `#`
+  // that rendered as <h1> gave /workspace two of them, and a screen reader two
+  // competing page titles. The whole chain shifts, so `#` then `##` still nests
+  // rather than collapsing into two siblings. Sizes are unchanged: this is a
+  // semantic correction, not a visual one.
   h1: ({ children }: { children?: React.ReactNode }) => (
-    <h1 className="text-4xl font-bold mb-4 text-white">{children}</h1>
+    <h2 className="text-4xl font-bold mb-4 text-foreground">{children}</h2>
   ),
   h2: ({ children }: { children?: React.ReactNode }) => (
-    <h2 className="text-2xl font-semibold mb-3 text-white">{children}</h2>
+    <h3 className="text-2xl font-semibold mb-3 text-foreground">{children}</h3>
+  ),
+  h3: ({ children }: { children?: React.ReactNode }) => (
+    <h4 className="text-xl font-semibold mb-2 text-foreground">{children}</h4>
+  ),
+  h4: ({ children }: { children?: React.ReactNode }) => (
+    <h5 className="text-lg font-semibold mb-2 text-foreground">{children}</h5>
+  ),
+  h5: ({ children }: { children?: React.ReactNode }) => (
+    <h6 className="text-base font-semibold mb-2 text-foreground">{children}</h6>
+  ),
+  // h6 has nowhere lower to go; it stays h6 rather than becoming a <p> and
+  // vanishing from the heading outline entirely.
+  h6: ({ children }: { children?: React.ReactNode }) => (
+    <h6 className="text-sm font-semibold mb-2 text-foreground">{children}</h6>
   ),
   p: ({ children }: { children?: React.ReactNode }) => (
-    <p className="mb-4 text-gray-300">{children}</p>
+    <p className="mb-4 text-foreground/80">{children}</p>
   ),
   ul: ({ children }: { children?: React.ReactNode }) => (
-    <ul className="list-disc list-inside mb-4 text-gray-300">{children}</ul>
+    <ul className="list-disc list-inside mb-4 text-foreground/80">{children}</ul>
   ),
   li: ({ children }: { children?: React.ReactNode }) => (
     <li className="mb-2">{children}</li>
   ),
   a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
-    <a href={href} className="text-purple-400 hover:text-purple-300 underline">
+    <a href={href} className="text-primary-accent hover:text-primary-accent underline">
       {children}
     </a>
   ),
   del: ({ children }: { children?: React.ReactNode }) => (
-    <del className="text-gray-400 line-through">{children}</del>
+    <del className="text-muted-foreground line-through">{children}</del>
   ),
   img: ({ src, alt }: { src?: string; alt?: string }) => (
     <img src={src} alt={alt} className="max-w-full h-auto rounded-lg shadow-lg my-4" />
   ),
   table: ({ children, ...props }: React.DetailedHTMLProps<React.TableHTMLAttributes<HTMLTableElement>, HTMLTableElement>) => (
     <div className="my-6 w-full overflow-y-auto">
-      <Table {...props} className="w-full border border-gray-800">
+      <Table {...props} className="w-full border border-border">
         {children}
       </Table>
     </div>
@@ -44,41 +64,41 @@ export const components: MDXComponents = {
   thead: TableHeader,
   tbody: TableBody,
   tr: ({ children, ...props }: React.DetailedHTMLProps<React.HTMLAttributes<HTMLTableRowElement>, HTMLTableRowElement>) => (
-    <TableRow {...props} className="hover:bg-purple-500/10 transition-colors">
+    <TableRow {...props} className="hover:bg-primary-accent/10 transition-colors">
       {children}
     </TableRow>
   ),
   th: ({ children, ...props }: React.DetailedHTMLProps<React.ThHTMLAttributes<HTMLTableHeaderCellElement>, HTMLTableHeaderCellElement>) => (
-    <TableHead {...props} className="border-b border-gray-800 bg-gray-900/50 text-white font-medium p-4">
+    <TableHead {...props} className="border-b border-border bg-muted/50 text-foreground font-medium p-4">
       {children}
     </TableHead>
   ),
   td: ({ children, ...props }: React.DetailedHTMLProps<React.TdHTMLAttributes<HTMLTableDataCellElement>, HTMLTableDataCellElement>) => (
-    <TableCell {...props} className="border-b border-gray-800 text-gray-300 p-4">
+    <TableCell {...props} className="border-b border-border text-foreground/80 p-4">
       {children}
     </TableCell>
   ),
   Card: ({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) => (
-    <Card className="bg-[#232536] border-gray-700 mb-6">
+    <Card className="bg-card border-border mb-6">
       <CardHeader>
-        <CardTitle className="text-white">{title}</CardTitle>
-        {description && <CardDescription className="text-gray-300">{description}</CardDescription>}
+        <CardTitle className="text-foreground">{title}</CardTitle>
+        {description && <CardDescription className="text-foreground/80">{description}</CardDescription>}
       </CardHeader>
-      <CardContent className="text-gray-300">{children}</CardContent>
+      <CardContent className="text-foreground/80">{children}</CardContent>
     </Card>
   ),
   Alert: ({ title, children, variant = "default" }: { title: string; children: React.ReactNode; variant?: "default" | "destructive" }) => (
-    <Alert variant={variant} className="mb-6 bg-[#232536] border-purple-800">
-      <AlertTitle className="text-white">{title}</AlertTitle>
-      <AlertDescription className="text-gray-300">{children}</AlertDescription>
+    <Alert variant={variant} className="mb-6 bg-card border-border">
+      <AlertTitle className="text-foreground">{title}</AlertTitle>
+      <AlertDescription className="text-foreground/80">{children}</AlertDescription>
     </Alert>
   ),
   Badge: ({ children, variant = "default" }: { children: React.ReactNode; variant?: "default" | "secondary" | "destructive" | "outline" }) => {
-    const getColorClass = (text: string) => {
+    const getColorClass: (text: string) => "" | "text-success-emphasis flex items-center gap-1 inline-flex" | "text-destructive flex items-center gap-1 inline-flex" = (text: string): "" | "text-success-emphasis flex items-center gap-1 inline-flex" | "text-destructive flex items-center gap-1 inline-flex" => {
       if (text === 'In Progress' || text === 'Trending Up' || text === 'Growing Team') 
-        return 'text-emerald-800 flex items-center gap-1 inline-flex';
+        return 'text-success-emphasis flex items-center gap-1 inline-flex';
       if (text === 'High Priority' || text === 'High Impact' || text === 'Active Hiring') 
-        return 'text-red-600 flex items-center gap-1 inline-flex';
+        return 'text-destructive flex items-center gap-1 inline-flex';
       return '';
     };
 
@@ -99,9 +119,9 @@ export const components: MDXComponents = {
   },
   pre: ({ children }: React.DetailedHTMLProps<React.HTMLAttributes<HTMLPreElement>, HTMLPreElement>) => children,
   code: ({ children, className }: { children?: React.ReactNode; className?: string }) => {
-    const language = className ? className.replace(/language-/, '') : 'typescript';
+    const language: string = className ? className.replace(/language-/, '') : 'typescript';
     // Convert ReactNode to string for the Highlight component
-    const codeString = typeof children === 'string' ? children : String(children ?? '');
+    const codeString: string = typeof children === 'string' ? children : String(children ?? '');
 
     return (
       <Highlight
@@ -110,6 +130,11 @@ export const components: MDXComponents = {
         language={language}
       >
         {({ className, style, tokens, getLineProps, getTokenProps }) => (
+          // Night Owl's editor background. A code block carries its own syntax
+          // palette, deliberately independent of the UI theme: the token colours
+          // inside it are tuned against THIS background, so bg-card would break
+          // their contrast.
+          // eslint-disable-next-line no-restricted-syntax
           <pre className="p-4 rounded-lg overflow-x-auto bg-[#011627] my-4">
             <code className={className} style={style}>
               {tokens.map((line, i) => (

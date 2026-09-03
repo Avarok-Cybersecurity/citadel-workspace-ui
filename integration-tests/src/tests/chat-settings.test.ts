@@ -7,11 +7,16 @@
  * 3. Navigate through outer tabs (General, File, Advanced, Stats)
  * 4. Navigate through inner tabs in File section (Standard, Remote Storage)
  * 5. Test the transfer mode toggle (Browser vs Citadel Protocol)
- * 6. Verify settings persist and UI updates correctly
+ *
+ * Note: this covers the per-conversation chat settings modal, not the admin
+ * modal's Chat tab (that is admin-modal.test.ts). It checks the controls render
+ * and respond; it does not reopen the modal to confirm the transfer mode was
+ * stored, so do not read a pass here as evidence of persistence.
  */
 
 import { Page } from 'playwright';
 import {
+  isVisibleWithin,
   sleep,
   createBrowser,
   createAccount,
@@ -22,6 +27,7 @@ import {
   setupConsoleCapture,
   TestHarness,
   runTestMain,
+  pollUntil,
 } from '../lib/index.js';
 
 // ============================================================================
@@ -85,7 +91,7 @@ async function openChatSettingsModal(page: Page, username: string): Promise<bool
     // Find the settings button using data-testid
     const settingsButton = page.locator('[data-testid="chat-settings-button"]');
 
-    if (await settingsButton.isVisible({ timeout: 5000 })) {
+    if (await isVisibleWithin(settingsButton, 5000)) {
       await settingsButton.click();
       console.log('  Clicked settings button');
 
@@ -94,7 +100,7 @@ async function openChatSettingsModal(page: Page, username: string): Promise<bool
 
       // Check for modal title
       const modalTitle = page.getByRole('heading', { name: 'Chat Settings' });
-      if (await modalTitle.isVisible({ timeout: 3000 })) {
+      if (await isVisibleWithin(modalTitle, 3000)) {
         console.log('  Chat settings modal opened');
         return true;
       }
@@ -112,7 +118,7 @@ async function clickOuterTab(page: Page, tabName: string): Promise<boolean> {
   console.log(`  Clicking outer tab: ${tabName}`);
   try {
     const tabTrigger = page.locator(`[data-testid="tab-${tabName.toLowerCase()}"]`);
-    if (await tabTrigger.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(tabTrigger, 3000)) {
       await tabTrigger.click();
       await sleep(300);
       return true;
@@ -129,7 +135,7 @@ async function clickInnerFileTab(page: Page, tabName: string): Promise<boolean> 
   try {
     const testId = tabName === 'standard' ? 'tab-file-standard' : 'tab-file-remote';
     const tabTrigger = page.locator(`[data-testid="${testId}"]`);
-    if (await tabTrigger.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(tabTrigger, 3000)) {
       await tabTrigger.click();
       await sleep(300);
       return true;
@@ -144,7 +150,7 @@ async function clickInnerFileTab(page: Page, tabName: string): Promise<boolean> 
 async function isContentVisible(page: Page, testId: string): Promise<boolean> {
   try {
     const content = page.locator(`[data-testid="${testId}"]`);
-    return await content.isVisible({ timeout: 2000 });
+    return await isVisibleWithin(content, 2000);
   } catch {
     return false;
   }
@@ -153,7 +159,7 @@ async function isContentVisible(page: Page, testId: string): Promise<boolean> {
 async function isElementVisible(page: Page, testId: string): Promise<boolean> {
   try {
     const element = page.locator(`[data-testid="${testId}"]`);
-    return await element.isVisible({ timeout: 2000 });
+    return await isVisibleWithin(element, 2000);
   } catch {
     return false;
   }
@@ -169,7 +175,7 @@ async function closeChatSettingsModal(page: Page): Promise<void> {
     console.log('  Could not close modal with Escape, trying close button');
     // Try clicking close button
     const closeButton = page.locator('button[aria-label="Close"]').first();
-    if (await closeButton.isVisible({ timeout: 1000 })) {
+    if (await isVisibleWithin(closeButton, 1000)) {
       await closeButton.click();
       await sleep(300);
     }
@@ -218,6 +224,7 @@ async function runChatSettingsTest(): Promise<boolean> {
   };
 
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'Chat Settings Integration Test',
     reportFileName: 'CHAT_SETTINGS_TEST_REPORT.json',
     metadata: { user1: USER1, user2: USER2 },
@@ -391,8 +398,8 @@ async function runChatSettingsTest(): Promise<boolean> {
 
       // Check transfer mode radio group
       const radioGroup = page1.locator('[data-testid="transfer-mode-radio"]');
-      results.chatSettings.transferModeToggle.browserOptionVisible = await radioGroup.locator('#browser').isVisible({ timeout: 2000 }).catch(() => false);
-      results.chatSettings.transferModeToggle.protocolOptionVisible = await radioGroup.locator('#protocol').isVisible({ timeout: 2000 }).catch(() => false);
+      results.chatSettings.transferModeToggle.browserOptionVisible = await isVisibleWithin(radioGroup.locator('#browser'), 2000);
+      results.chatSettings.transferModeToggle.protocolOptionVisible = await isVisibleWithin(radioGroup.locator('#protocol'), 2000);
 
       console.log(`Browser option visible: ${results.chatSettings.transferModeToggle.browserOptionVisible}`);
       console.log(`Protocol option visible: ${results.chatSettings.transferModeToggle.protocolOptionVisible}`);
@@ -433,12 +440,20 @@ async function runChatSettingsTest(): Promise<boolean> {
         const autoAcceptSwitch = page1.locator('[data-testid="auto-accept-switch"]');
         const wasChecked = await autoAcceptSwitch.isChecked().catch(() => false);
 
-        // Toggle it
+        // Toggle it, and WAIT for the state to move.
+        //
+        // This slept 300ms and then read `isChecked()` once. The switch writes
+        // its preference through storage before the checked state settles, so
+        // 300ms is a guess at how long that takes — and when it is wrong the
+        // report says the toggle does not work, which is a claim about the
+        // product made from a number in the test.
         await autoAcceptSwitch.click();
-        await sleep(300);
-
-        const isNowChecked = await autoAcceptSwitch.isChecked().catch(() => false);
-        results.chatSettings.settingsToggle.autoAcceptToggleWorks = wasChecked !== isNowChecked;
+        const flipped: boolean = await pollUntil(
+          async (): Promise<boolean> =>
+            (await autoAcceptSwitch.isChecked().catch(() => wasChecked)) !== wasChecked,
+          5000,
+        );
+        results.chatSettings.settingsToggle.autoAcceptToggleWorks = flipped;
 
         // Toggle it back
         await autoAcceptSwitch.click();
@@ -470,7 +485,20 @@ async function runChatSettingsTest(): Promise<boolean> {
       results.chatSettings.innerFileTabs.standardVisible &&
       results.chatSettings.innerFileTabs.remoteStorageVisible &&
       results.chatSettings.transferModeToggle.browserOptionVisible &&
-      results.chatSettings.transferModeToggle.protocolOptionVisible;
+      results.chatSettings.transferModeToggle.protocolOptionVisible &&
+      // Printed but not gated, until now. Nine booleans below the fold reported
+      // PASS/FAIL to the console while the suite exited 0 regardless -- among
+      // them the auto-accept toggle, which is the control for a recorded fix.
+      // A verdict nobody reads is not a check.
+      results.chatSettings.transferModeToggle.toggleWorks &&
+      results.chatSettings.settingsToggle.autoAcceptVisible &&
+      results.chatSettings.settingsToggle.autoAcceptToggleWorks &&
+      results.chatSettings.outerTabs.generalContent &&
+      results.chatSettings.outerTabs.fileContent &&
+      results.chatSettings.outerTabs.advancedContent &&
+      results.chatSettings.outerTabs.statsContent &&
+      results.chatSettings.innerFileTabs.standardContent &&
+      results.chatSettings.innerFileTabs.remoteStorageContent;
 
     console.log('Account Creation:');
     console.log(`  User 1: ${results.accountCreation.user1 ? '✓ PASS' : '✗ FAIL'}`);

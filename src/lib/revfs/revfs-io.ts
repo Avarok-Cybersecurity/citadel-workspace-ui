@@ -14,7 +14,8 @@ import { P2PCommandType, serializeP2PCommand } from '@/types/p2p-types';
 import type { P2PCommand, P2PMessagingLayerPayload } from '@/types/p2p-types';
 import { RevfsOpfsStorage } from './opfs-storage';
 import { debugLog } from '@/lib/debug-config';
-import { backendSendFile, backendDownloadFile, backendDeleteFile } from './revfs-io-network';
+import { backendSendFile, backendDeleteFile } from './revfs-io-network';
+import { backendDownloadFile } from './revfs-io-download';
 
 export interface RevfsIODeps {
   sendP2PMessageReliable: (localCid: bigint, peerCid: bigint, message: Uint8Array) => Promise<void>;
@@ -24,7 +25,7 @@ export interface RevfsIODeps {
 }
 
 export class RevfsIO {
-  private readonly storage = new RevfsOpfsStorage();
+  private readonly storage: RevfsOpfsStorage = new RevfsOpfsStorage();
   private readonly deps: RevfsIODeps;
 
   constructor(deps: RevfsIODeps) {
@@ -44,7 +45,7 @@ export class RevfsIO {
       case 'load-pending-ops':
         return this.loadPendingOps(intent.treeKey);
       case 'backend-send-file':
-        return backendSendFile(this.deps, intent.cid, intent.peerCid, intent.source, intent.virtualDir);
+        return backendSendFile(this.deps, intent.cid, intent.peerCid, intent.fileName, intent.content, intent.virtualDir);
       case 'backend-download-file':
         return backendDownloadFile(this.deps, intent.cid, intent.peerCid, intent.virtualDir);
       case 'backend-delete-file':
@@ -55,7 +56,7 @@ export class RevfsIO {
   private async sendRevfsOp(peerCid: bigint, operation: RevfsOperation): Promise<RevfsIntentResult> {
     try {
       debugLog('RevfsIO', `sendRevfsOp: op=${operation.op_type} path=${operation.path} peerCid=${peerCid}`);
-      const localCid = await this.deps.getCurrentCid();
+      const localCid: bigint | null = await this.deps.getCurrentCid();
       if (!localCid) throw new Error('No local CID available');
       debugLog('RevfsIO', `sendRevfsOp: localCid=${localCid}`);
 
@@ -75,7 +76,7 @@ export class RevfsIO {
         payload,
       };
 
-      const bytes = serializeP2PCommand(command);
+      const bytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand(command);
       debugLog('RevfsIO', `sendRevfsOp: sending ${bytes.length} bytes to peer ${peerCid}`);
       await this.deps.sendP2PMessageReliable(localCid, peerCid, bytes);
       debugLog('RevfsIO', 'sendRevfsOp: sent successfully');
@@ -97,7 +98,7 @@ export class RevfsIO {
   }
 
   private async loadTree(key: string): Promise<RevfsIntentResult> {
-    const tree = await this.storage.loadTree(key);
+    const tree: RevfsNode | null = await this.storage.loadTree(key);
     return { type: 'load-tree', tree };
   }
 
@@ -112,7 +113,7 @@ export class RevfsIO {
   }
 
   private async loadPendingOps(key: string): Promise<RevfsIntentResult> {
-    const ops = await this.storage.loadPendingOps(key);
+    const ops: RevfsPendingOp[] = await this.storage.loadPendingOps(key);
     return { type: 'load-pending-ops', ops };
   }
 }

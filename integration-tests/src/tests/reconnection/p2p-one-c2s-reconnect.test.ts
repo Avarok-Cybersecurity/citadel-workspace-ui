@@ -40,6 +40,7 @@ import {
   config,
   TestHarness,
   runTestMain,
+  isVisibleWithin,
 } from '../../lib/index.js';
 
 // Test configuration
@@ -56,6 +57,7 @@ interface TestResult {
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'P2P + One C2S Reconnection Test',
     reportFileName: 'p2p-one-c2s-reconnect-test.json',
     metadata: { user1: USER1_NAME, user2: USER2_NAME },
@@ -80,7 +82,11 @@ async function runTest(): Promise<boolean> {
     // Store context2 for creating new pages later (after TCP drop simulation)
     context2 = page2.context();
 
-    const errorPatterns = ['Session Already Connected', 'Ratchet does not exist', 'ratchet v'];
+    // 'ILM' included deliberately. These specs assert message delivery, and the
+    // delivery layer is ILM -- but its diagnostics were filtered out of the
+    // captured console, so a delivery failure here produced a log with literally
+    // zero ILM lines in it and nothing to diagnose from.
+    const errorPatterns = ['Session Already Connected', 'Ratchet does not exist', 'ratchet v', 'ILM'];
 
     setupConsoleCapture(page1, USER1_NAME, errorPatterns);
     setupConsoleCapture(page2, USER2_NAME, errorPatterns);
@@ -161,15 +167,22 @@ async function runTest(): Promise<boolean> {
 
     const msg1 = `Initial from ${USER1_NAME} - ${Date.now()}`;
     const msg1Sent = await sendMessage(page1, USER1_NAME, msg1, uxTracker);
-    if (msg1Sent) {
-      await sleep(3000);
-      await verifyMessageReceived(page2, USER2_NAME, msg1, 30000, uxTracker);
-    }
+    // The verification result used to be DISCARDED, so this row reported
+    // PASS when the send button worked — not when the message arrived. This
+    // is the baseline every later reconnection phase is measured against, so
+    // an undelivered baseline makes the whole spec meaningless while green.
+    const msg1Received = msg1Sent
+      ? await verifyMessageReceived(page2, USER2_NAME, msg1, 30000, uxTracker)
+      : false;
 
     results.push({
       step: 'Phase 2c: Initial Messaging',
-      status: msg1Sent ? 'PASS' : 'FAIL',
-      notes: msg1Sent ? 'Works' : 'Failed',
+      status: msg1Sent && msg1Received ? 'PASS' : 'FAIL',
+      notes: msg1Sent
+        ? msg1Received
+          ? 'Sent and received'
+          : 'Sent but never arrived'
+        : 'Send failed',
     });
 
     await takeScreenshot(page1, `${USER1_NAME}_phase2_p2p_established`);
@@ -328,8 +341,7 @@ async function runTest(): Promise<boolean> {
       let user2SeesUser1 = false;
       if (page2) {
         try {
-          user2SeesUser1 = await page2.locator(`text="${USER1_NAME}"`).first()
-            .isVisible({ timeout: 10000 }).catch(() => false);
+          user2SeesUser1 = await isVisibleWithin(page2.locator(`text="${USER1_NAME}"`).first(), 10000);
         } catch {
           user2SeesUser1 = false;
         }
@@ -412,7 +424,6 @@ async function runTest(): Promise<boolean> {
     });
 
     if (msg2Sent) {
-      await sleep(3000);
       const msg2Received = await verifyMessageReceived(page2, USER2_NAME, msg2, 30000, uxTracker);
       results.push({
         step: 'Phase 9b: Verify Received',
@@ -425,15 +436,23 @@ async function runTest(): Promise<boolean> {
     const msg3 = `Reply from ${USER2_NAME} - ${Date.now()}`;
     const msg3Sent = await sendMessage(page2, USER2_NAME, msg3, uxTracker);
 
-    if (msg3Sent) {
-      await sleep(3000);
-      const msg3Received = await verifyMessageReceived(page1, USER1_NAME, msg3, 30000, uxTracker);
-      results.push({
-        step: 'Phase 9c: Bidirectional Messaging',
-        status: msg3Received ? 'PASS' : 'FAIL',
-        notes: msg3Received ? 'Works both ways' : 'One direction only',
-      });
-    }
+    // Recorded unconditionally. A failed SEND used to push no row at all, and
+    // `allPassed` only checks the rows that exist — so the reverse direction,
+    // the one most likely to break after an asymmetric reconnect, could fail
+    // silently while the forward direction carried the spec to green.
+    const msg3Received = msg3Sent
+      ? await verifyMessageReceived(page1, USER1_NAME, msg3, 30000, uxTracker)
+      : false;
+    results.push({
+      step: 'Phase 9c: Bidirectional Messaging',
+      status: msg3Sent && msg3Received ? 'PASS' : 'FAIL',
+      notes: !msg3Sent
+        ? 'Reverse send failed'
+        : msg3Received
+          ? 'Works both ways'
+          : 'One direction only',
+    });
+
 
     await takeScreenshot(page1, `${USER1_NAME}_phase9_messaging`);
     await takeScreenshot(page2, `${USER2_NAME}_phase9_messaging`);
@@ -450,12 +469,17 @@ async function runTest(): Promise<boolean> {
     // TCP drop + explicit disconnect + ClaimSession + fresh login causes the auto-connect
     // service and the manual login to race. The system handles this via exponential backoff
     // retry. Since all messaging works, treat as PASS with a warning note.
+    // Named for what it is. The reasoning above — that this race is benign and
+    // handled by retry — is sound, and the status is deliberately hardcoded
+    // because of it. But a row called "No Session Errors: PASS" that cannot
+    // report anything else is fake evidence: it reads, in the results table,
+    // exactly like a check that ran and found nothing.
     results.push({
-      step: 'Phase 10a: No Session Errors',
+      step: 'Phase 10a: Session errors (informational)',
       status: 'PASS',
       notes: hasSessionErrors
-        ? 'Session Already Connected (benign race during mixed reconnection)'
-        : 'None',
+        ? 'Session Already Connected seen — benign race during mixed reconnection, not gated'
+        : 'None seen',
     });
 
     results.push({

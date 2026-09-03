@@ -16,6 +16,7 @@ import { serverAutoConnectService } from '../server-auto-connect-service';
 import { instanceManager, instanceChannel } from '../multi-instance';
 import { setSelectedUser, getSelectedUser, clearSelectedUser } from '../tab-context';
 import type { TabSelectionContext } from './types';
+import type { TabUserContext } from '@/lib/tab-context';
 
 /**
  * Service-layer I/O operations.
@@ -31,7 +32,7 @@ export class ConnectionIOServices {
     isConnected: boolean;
     userContext?: TabSelectionContext;
   }): void {
-    const connectionService = ConnectionService.getInstance();
+    const connectionService: ConnectionService = ConnectionService.getInstance();
     connectionService.updateConnectionStatus(status);
   }
 
@@ -96,7 +97,7 @@ export class ConnectionIOServices {
   }
 
   async getSelectedUser(): Promise<TabSelectionContext | null> {
-    const result = await getSelectedUser();
+    const result: TabUserContext | null = await getSelectedUser();
     if (!result) return null;
     return {
       selectedUsername: result.selectedUsername ?? null,
@@ -115,6 +116,14 @@ export class ConnectionIOServices {
 
   async initServerAutoConnect(): Promise<void> {
     await serverAutoConnectService.init();
+  }
+
+  markUserDisconnectedNow(username: string, serverAddress: string): void {
+    serverAutoConnectService.markUserDisconnectedNow(username, serverAddress);
+  }
+
+  async persistUserDisconnected(): Promise<void> {
+    await serverAutoConnectService.persistUserDisconnected();
   }
 
   async markUserDisconnected(username: string, serverAddress: string): Promise<void> {

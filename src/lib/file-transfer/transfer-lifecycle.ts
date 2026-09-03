@@ -1,13 +1,16 @@
 /** Transfer Lifecycle - state machine transitions and core operations. */
 
 import { eventEmitter } from '../event-emitter';
+import { scopedSettingsKey } from './settings-key';
+import { getMimeType, formatBytes } from './transfer-format';
 import { type FileTransferMode, FILE_TRANSFER_REQUEST_TTL_MS } from '@/types/messaging-layer';
 import { FILE_TRANSFER_EVENTS } from './events';
+import { isTerminalTransferState } from './transfer-outcome';
+import { completeStagedDownload } from './server-download';
 import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
 import type { FileTransfer, FileTransferSettings } from './types';
 import { wrapInMemory } from './types';
-import { debugLog } from '@/lib/debug-config';
 
 export interface LifecycleDeps {
   state: FileTransferState;
@@ -24,12 +27,31 @@ export async function sendFile(
   file: File,
   mode: FileTransferMode
 ): Promise<string> {
-  const senderCid = await deps.io.getCurrentCid();
+  const senderCid: bigint | null = await deps.io.getCurrentCid();
   if (!senderCid) {
     throw new Error('No active session');
   }
 
-  const settings = deps.state.getSettings(recipientCid);
+  // Before the transfer record exists, and long before anything is announced.
+  //
+  // The inline send path refuses a zero-byte File -- `send-operations` gates on
+  // `size > 0` and otherwise throws "requires ... a non-empty browser File
+  // object". That throw landed AFTER `announceTransfer`, so the recipient had an
+  // offer for bytes that would never arrive: a bubble they could neither accept
+  // nor decline, while the sender's transfer sat on 'pending' until its TTL.
+  //
+  // Refused here with a reason the user can act on. An empty file is a
+  // reasonable thing to want to send, and supporting it means confirming the
+  // service accepts an empty ByteContents payload -- which is a backend question,
+  // not one this guard should answer by guessing.
+  if (file.size === 0) {
+    throw new Error(
+      `"${file.name}" is empty. Files with no contents cannot be sent; ` +
+        `add some content and try again.`
+    );
+  }
+
+  const settings: FileTransferSettings = deps.state.getSettings(scopedSettingsKey(recipientCid));
   if (file.size > settings.maxFileSize) {
     throw new Error(
       `File size ${formatBytes(file.size)} exceeds max ${formatBytes(settings.maxFileSize)}`
@@ -41,8 +63,8 @@ export async function sendFile(
     thumbnail = await deps.io.generateThumbnail(file);
   }
 
-  const transferId = crypto.randomUUID();
-  const expiresAt = Date.now() + FILE_TRANSFER_REQUEST_TTL_MS;
+  const transferId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+  const expiresAt: number = Date.now() + FILE_TRANSFER_REQUEST_TTL_MS;
 
   const transfer: FileTransfer = {
     id: transferId,
@@ -67,10 +89,27 @@ export async function sendFile(
   if (mode === 'async') {
     await deps.handleAsyncSend(transfer, file);
   } else {
-    deps.state.setPendingFile(transferId, file);
     // `wrapInMemory` brands the File for the intent's `file?: InMemoryOnly<File>`
     // contract — see `types.ts` for why a raw `File` would be a TS error here.
-    await deps.io.executeIntent({ type: 'send-transfer-request', transfer, file: wrapInMemory(file) });
+    // The bytes leave inside this call (SendFile ByteContents); there is no
+    // stashed copy to stream later — the chunk-streaming plane that once
+    // consumed one is gone.
+    //
+    // Marked failed on a throw, like its two siblings. The async branch
+    // (`handleAsyncSend`) and the native-picker path both catch and record the
+    // error; this one did not, so a refused send left the record at 'pending'
+    // for ever with nothing shown to the user. The record was already saved
+    // above, so there is always something to mark.
+    try {
+      await deps.io.executeIntent({ type: 'send-transfer-request', transfer, file: wrapInMemory(file) });
+    } catch (error) {
+      transfer.state = 'error';
+      transfer.errorMessage = error instanceof Error ? error.message : 'SendFile failed';
+      transfer.updatedAt = Date.now();
+      await deps.saveTransfer(transfer);
+      deps.emitStateChange(transfer);
+      throw error;
+    }
   }
 
   deps.emitStateChange(transfer);
@@ -79,81 +118,17 @@ export async function sendFile(
   return transferId;
 }
 
-export async function sendFileWithNativePicker(
-  deps: LifecycleDeps,
-  recipientCid: string,
-  title?: string,
-  allowedExtensions?: string[]
-): Promise<string> {
-  const senderCid = await deps.io.getCurrentCid();
-  if (!senderCid) {
-    throw new Error('No active session');
-  }
-
-  debugLog('transfer-lifecycle', 'Starting native file picker flow');
-
-  const fileInfo = (await deps.io.executeIntent({
-    type: 'pick-file',
-    cid: senderCid,
-    title,
-    allowedExtensions,
-  })) as { file_path: string; file_name: string; file_size: bigint };
-
-  debugLog('transfer-lifecycle', 'File picked', {
-    path: fileInfo.file_path,
-    name: fileInfo.file_name,
-    size: fileInfo.file_size.toString(),
-  });
-
-  const transferId = crypto.randomUUID();
-  const transfer: FileTransfer = {
-    id: transferId,
-    fileName: fileInfo.file_name,
-    fileSize: Number(fileInfo.file_size),
-    fileType: getMimeType(fileInfo.file_name),
-    mode: 'p2p',
-    state: 'transferring',
-    progress: 0,
-    senderCid: senderCid.toString(),
-    recipientCid,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    isIncoming: false,
-  };
-
-  deps.state.setTransfer(transfer);
-  await deps.saveTransfer(transfer);
-  deps.emitStateChange(transfer);
-
-  try {
-    await deps.io.executeIntent({
-      type: 'send-file-via-protocol',
-      cid: senderCid.toString(),
-      peerCid: recipientCid,
-      filePath: fileInfo.file_path,
-      transferId,
-    });
-
-    debugLog('transfer-lifecycle', 'SendFile request submitted');
-    eventEmitter.emit(FILE_TRANSFER_EVENTS.REQUEST_SENT, transfer);
-    return transferId;
-  } catch (error) {
-    transfer.state = 'error';
-    transfer.errorMessage = error instanceof Error ? error.message : 'SendFile failed';
-    transfer.updatedAt = Date.now();
-    await deps.saveTransfer(transfer);
-    deps.emitStateChange(transfer);
-    throw error;
-  }
-}
-
 export async function cancelTransfer(deps: LifecycleDeps, transferId: string): Promise<void> {
-  const transfer = deps.state.getTransfer(transferId);
+  const transfer: FileTransfer | undefined = deps.state.getTransfer(transferId);
   if (!transfer) {
     throw new Error('Transfer not found');
   }
 
-  if (transfer.state === 'complete' || transfer.state === 'cancelled') return;
+  // The exported set, not a third hand-rolled copy of it. This one omitted
+  // 'error', 'declined' and 'expired', so a cancel could rewrite a transfer
+  // that had already failed, been refused, or timed out -- turning a real
+  // outcome into "cancelled" in the history.
+  if (isTerminalTransferState(transfer.state)) return;
 
   await deps.io.executeIntent({
     type: 'send-cancel',
@@ -170,33 +145,62 @@ export async function cancelTransfer(deps: LifecycleDeps, transferId: string): P
 }
 
 export async function acceptTransfer(deps: LifecycleDeps, transferId: string): Promise<void> {
-  const transfer = deps.state.getTransfer(transferId);
+  const transfer: FileTransfer | undefined = deps.state.getTransfer(transferId);
   if (!transfer) throw new Error('Transfer not found');
   if (!transfer.isIncoming) throw new Error('Cannot accept outgoing transfer');
   if (transfer.state !== 'pending' && transfer.state !== 'staged') {
     throw new Error(`Cannot accept transfer in state: ${transfer.state}`);
   }
 
-  await deps.io.executeIntent({
-    type: 'send-response',
-    transferId,
-    targetCid: transfer.senderCid,
-    accepted: true,
-  });
+  // Labelled "Max file size to accept" but read only on the SEND path above,
+  // so lowering the slider never limited what arrived. Size is on the offer.
+  const settings: FileTransferSettings = deps.state.getSettings(scopedSettingsKey(transfer.senderCid));
+  if (transfer.fileSize > settings.maxFileSize) {
+    throw new Error(
+      `File size ${formatBytes(transfer.fileSize)} exceeds your limit of ` +
+        `${formatBytes(settings.maxFileSize)}. Raise it in Chat Settings to accept this file.`
+    );
+  }
+
+  // An async transfer has nothing to respond TO.
+  //
+  // `send-response` needs the protocol `object_id`, which the correlator only
+  // learns from a `FileTransferRequestNotification` whose
+  // `metadata.transfer_type === 'FileTransfer'`. Async mode stages through
+  // RE-VFS, which the internal service auto-accepts and never announces that
+  // way -- so `resolveObjectId` returned undefined and this threw "has not been
+  // announced over the protocol yet" for EVERY async transfer.
+  //
+  // It threw here, above the staged-download branch below, which is why
+  // `completeStagedDownload` was unreachable. Async is the mode the UI labels
+  // "Recommended", so the default way to send a file could not be accepted at
+  // all: both buttons threw, the decline signal was never sent, and the
+  // recipient's bubble sat waiting for ever.
+  const isStaged: boolean = transfer.mode === 'async';
+  if (isStaged && !transfer.virtualPath) {
+    // Fail loudly rather than silently doing neither half.
+    throw new Error(
+      'This staged transfer carries no server path, so it cannot be downloaded. ' +
+        'Ask the sender to resend it.'
+    );
+  }
+
+  if (!isStaged) {
+    await deps.io.executeIntent({
+      type: 'send-response',
+      transferId,
+      targetCid: transfer.senderCid,
+      accepted: true,
+    });
+  }
 
   transfer.state = 'transferring';
   transfer.updatedAt = Date.now();
   await deps.saveTransfer(transfer);
   deps.emitStateChange(transfer);
 
-  if (transfer.mode === 'async' && transfer.virtualPath) {
-    await deps.io.executeIntent({ type: 'download-from-server', transfer });
-    transfer.state = 'complete';
-    transfer.progress = 100;
-    transfer.updatedAt = Date.now();
-    await deps.saveTransfer(transfer);
-    deps.emitStateChange(transfer);
-    eventEmitter.emit(FILE_TRANSFER_EVENTS.COMPLETED, transfer);
+  if (isStaged) {
+    await completeStagedDownload(deps, transfer);
   }
 }
 
@@ -205,7 +209,7 @@ export async function declineTransfer(
   transferId: string,
   reason?: string
 ): Promise<void> {
-  const transfer = deps.state.getTransfer(transferId);
+  const transfer: FileTransfer | undefined = deps.state.getTransfer(transferId);
   if (!transfer) {
     throw new Error('Transfer not found');
   }
@@ -214,13 +218,19 @@ export async function declineTransfer(
     throw new Error('Cannot decline outgoing transfer');
   }
 
-  await deps.io.executeIntent({
-    type: 'send-response',
-    transferId,
-    targetCid: transfer.senderCid,
-    accepted: false,
-    reason,
-  });
+  // Same reason as accept: a staged transfer has no protocol object_id to
+  // name, so issuing the response threw and the decline was never recorded
+  // either. Declining a staged file is local -- the bytes sit on the server
+  // until they expire, and the sender's own transfer completed at staging.
+  if (transfer.mode !== 'async') {
+    await deps.io.executeIntent({
+      type: 'send-response',
+      transferId,
+      targetCid: transfer.senderCid,
+      accepted: false,
+      reason,
+    });
+  }
 
   transfer.state = 'declined';
   transfer.updatedAt = Date.now();
@@ -228,21 +238,7 @@ export async function declineTransfer(
   deps.emitStateChange(transfer);
 }
 
-export function getMimeType(fileName: string): string {
-  const ext = fileName.split('.').pop()?.toLowerCase() || '';
-  const mimeTypes: Record<string, string> = {
-    pdf: 'application/pdf', txt: 'text/plain',
-    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
-    mp3: 'audio/mpeg', mp4: 'video/mp4', zip: 'application/zip',
-    json: 'application/json', html: 'text/html', css: 'text/css', js: 'application/javascript',
-  };
-  return mimeTypes[ext] || 'application/octet-stream';
-}
+// Re-exported so existing importers keep working; see transfer-format.
+export { getMimeType, formatBytes };
 
-export function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
+export { sendFileWithNativePicker } from './send-with-native-picker';

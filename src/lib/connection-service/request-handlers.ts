@@ -21,7 +21,7 @@ export function createRequest(
   type: ConnectionType,
   message?: string
 ): ConnectionRequest {
-  const timestamp = Date.now();
+  const timestamp: number = Date.now();
   return {
     id: uuidv4(),
     requesterId: 'current-user',
@@ -41,7 +41,7 @@ export function findPendingRequest(
   requests: ConnectionRequest[],
   requestId: string
 ): ConnectionRequest {
-  const request = requests.find(req => req.id === requestId);
+  const request: ConnectionRequest | undefined = requests.find(req => req.id === requestId);
   if (!request) {
     throw new Error(`Connection request ${requestId} not found`);
   }
@@ -61,7 +61,7 @@ export function sendRegistrationRequest(
   message: string,
   onSimulateReceived: (request: ConnectionRequest) => void
 ): ConnectionRequest {
-  const request = createRequest(recipientId, ConnectionType.P2P_REGISTRATION, message);
+  const request: ConnectionRequest = createRequest(recipientId, ConnectionType.P2P_REGISTRATION, message);
 
   debugLog('ConnectionService', `Sending P2P registration request to ${recipientId}`);
   requests.push(request);
@@ -83,7 +83,7 @@ export function initiateP2PConnection(
   recipientId: string,
   onAutoAccept: (request: ConnectionRequest) => Promise<void>
 ): void {
-  const request = createRequest(recipientId, ConnectionType.P2P_CONNECTION);
+  const request: ConnectionRequest = createRequest(recipientId, ConnectionType.P2P_CONNECTION);
 
   debugLog('ConnectionService', `Initiating P2P connection with ${recipientId}`);
   requests.push(request);

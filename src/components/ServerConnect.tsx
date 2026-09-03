@@ -1,41 +1,37 @@
+import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Globe, Lock, Shield, ArrowRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { StepIndicator } from "@/components/ui/step-indicator";
 
 interface ServerConnectProps {
   onNext: (address: string, password: string) => void;
-  onCancel?: () => void;
+  /**
+   * Required, with no navigation fallback.
+   *
+   * It was optional, and both Escape and Cancel fell back to `navigate('/')`.
+   * WorkspaceSwitcher renders this inside a Radix Dialog without passing it, so
+   * pressing Escape — the standard way to close a dialog — closed the dialog AND
+   * threw the user out of their workspace to the Landing page. Making it
+   * required means a caller has to say what dismissing means to them.
+   */
+  onCancel: () => void;
   defaultServer?: string;
   title?: string;
   initialAddress?: string;
   initialPassword?: string;
 }
 
-export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialAddress, initialPassword }: ServerConnectProps) => {
+export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialAddress, initialPassword }: ServerConnectProps): JSX.Element => {
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   const [serverAddress, setServerAddress] = useState(defaultServer || initialAddress || '');
   const [password, setPassword] = useState(initialPassword || '');
 
-  // Dismiss on Escape key
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (onCancel) onCancel();
-        else navigate('/');
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onCancel, navigate]);
-
-  const handleConnect = (e: React.FormEvent) => {
+  const handleConnect = (e: React.FormEvent): void => {
     e.preventDefault();
     if (!serverAddress) {
       toast({
@@ -47,7 +43,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
     }
 
     // Basic server address validation — must look like a hostname or IP
-    const trimmed = serverAddress.trim();
+    const trimmed: string = serverAddress.trim();
     if (!trimmed.includes('.') && !trimmed.includes(':')) {
       toast({
         title: "Invalid server address",
@@ -60,32 +56,38 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
     onNext(serverAddress, password);
   };
 
+  const { ref: dialogRef, dialogProps } = useDialogOverlay({ label: 'Connect to a server', onDismiss: onCancel });
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" ref={dialogRef} {...dialogProps}>
       <div className="w-full max-w-md">
-        <Card className="bg-[#1C1D28] border-[#2D3548] shadow-2xl shadow-black/40">
+        <Card className="bg-background border-border shadow-2xl shadow-black/40">
           <CardHeader className="pb-4">
-            <StepIndicator currentStep={1} totalSteps={3} labels={["Server", "Security", "Profile"]} />
-            <h2 className="text-xl font-bold text-white mt-5">{title || "Join Workspace"}</h2>
-            <p className="text-sm text-gray-400 mt-1">
+            {/* "Workspace", not "Server": the field below is labelled
+                Workspace Address, and a step indicator that names a different
+                thing from the field it introduces makes the user wonder which
+                one they are being asked for. */}
+            <StepIndicator currentStep={1} totalSteps={3} labels={["Workspace", "Security", "Profile"]} />
+            <h2 className="text-xl font-bold text-foreground mt-5">{title || "Create Account"}</h2>
+            <p className="text-sm text-muted-foreground mt-1">
               {defaultServer ? "Connect with a different account" : "Enter workspace details to get started"}
             </p>
           </CardHeader>
 
           <form onSubmit={handleConnect}>
-            <CardContent className="space-y-5 max-h-[calc(100vh-16rem)] overflow-y-auto">
+            <CardContent className="space-y-5 max-h-[calc(100dvh-16rem)] overflow-y-auto">
               {/* Workspace Address */}
               <div className="space-y-2">
-                <label htmlFor="serverAddress" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                <label htmlFor="serverAddress" className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                   Workspace Address
                 </label>
                 <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="serverAddress"
                     value={serverAddress}
                     onChange={(e) => setServerAddress(e.target.value)}
-                    className="bg-[#131420] border-[#2D3548] text-white pl-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
                     placeholder="workspace.example.com"
                   />
                 </div>
@@ -93,27 +95,28 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
 
               {/* Workspace Password */}
               <div className="space-y-2">
-                <label htmlFor="password" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                <label htmlFor="password" className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                   Workspace Password (Optional)
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="password"
                     type="password"
+                    autoComplete="off"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-[#131420] border-[#2D3548] text-white pl-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
                     placeholder="••••••••••••"
                   />
                 </div>
               </div>
 
               {/* Security info banner */}
-              <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-purple-500/5 border border-purple-500/10">
-                <Shield className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-gray-400 leading-relaxed">
-                  Citadel uses <span className="text-purple-300">lattice-based cryptography</span>. All connections are
+              <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-primary-accent/5 border border-primary-accent/10">
+                <Shield className="w-4 h-4 text-primary-accent flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Citadel uses <span className="text-primary-accent">lattice-based cryptography</span>. All connections are
                   end-to-end encrypted and resistant to quantum compute attacks.
                 </p>
               </div>
@@ -123,14 +126,15 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
               <Button
                 type="button"
                 variant="ghost"
-                onClick={onCancel || (() => navigate("/"))}
-                className="text-gray-400 hover:text-white hover:bg-transparent"
+                onClick={onCancel}
+                className="text-muted-foreground hover:text-foreground hover:bg-transparent"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="bg-purple-600 hover:bg-purple-500 text-white transition-all gap-2 px-5 rounded-lg shadow-lg shadow-purple-500/20"
+                data-testid="wizard-next"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground transition-all gap-2 px-5 rounded-lg shadow-lg shadow-primary-accent/20"
               >
                 Next
                 <ArrowRight className="w-4 h-4" />

@@ -7,6 +7,7 @@ import { sleep } from '../utils.js';
 import { waitForWorkspaceLoaded, closeAnyModals } from '../modals.js';
 import { takeScreenshot } from '../screenshots.js';
 import { UxIssueTracker } from '../ux-tracker.js';
+import { isVisibleWithin } from '../utils.js';
 
 /**
  * Wait for P2PChat component to be fully ready (mounted with listener registered)
@@ -15,10 +16,10 @@ async function waitForChatReady(page: Page, _peerUsername: string): Promise<void
   console.log(`  Waiting for P2PChat to be fully ready...`);
 
   // Wait for the message input to be visible and enabled
-  const messageInput = page.locator('input[placeholder*="message"], textarea[placeholder*="message"]').first();
+  const messageInput = page.getByTestId('p2p-message-input').first();
 
   for (let i = 0; i < 10; i++) {
-    if (await messageInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(messageInput, 1000)) {
       // Also check if it's enabled (not disabled)
       const isDisabled = await messageInput.isDisabled().catch(() => true);
       if (!isDisabled) {
@@ -51,7 +52,13 @@ export async function openConversation(
   // Bring tab to front
   await page.bringToFront();
 
-  await waitForWorkspaceLoaded(page, 30000);
+  // Logged rather than thrown: these helpers report failure through their
+  // return value and the caller decides. Silently discarding it is what made
+  // the group-call stall unreadable — the log ended at 'Waiting for workspace
+  // to fully load...' and never said whether it arrived.
+  if (!(await waitForWorkspaceLoaded(page, 30000))) {
+    console.log(`  WARNING: ${username}'s workspace never finished loading; continuing anyway`);
+  }
   await closeAnyModals(page);
   await sleep(1000);
 
@@ -64,7 +71,7 @@ export async function openConversation(
     // Strategy 1: Look in sidebar for the peer username directly (most reliable)
     // The peer is rendered in a SidebarMenuButton with the username as text
     const sidebarPeer = page.locator(`[data-sidebar="menu-button"]:has-text("${peerUsername}")`).first();
-    if (await sidebarPeer.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(sidebarPeer, 1000)) {
       console.log(`  Found ${peerUsername} in sidebar via menu-button`);
       await sidebarPeer.click();
       await sleep(2000);
@@ -73,12 +80,16 @@ export async function openConversation(
       return true;
     }
 
-    // Strategy 2: Look in CONNECTED PEERS section using proper ancestor traversal
-    // Go up to SidebarGroup (data-sidebar="group") which contains both header and content
-    const connectedPeersGroup = page.locator('[data-sidebar="group"]:has([data-sidebar="group-label"]:text("CONNECTED PEERS"))');
-    const peerInConnected = connectedPeersGroup.locator(`text="${peerUsername}"`).first();
-    if (await peerInConnected.isVisible({ timeout: 500 }).catch(() => false)) {
-      console.log(`  Found ${peerUsername} in CONNECTED PEERS section`);
+    // Strategy 2: the peer's own row, wherever the sidebar happens to put it.
+    //
+    // This walked into a group headed "CONNECTED PEERS", a heading the app
+    // deliberately stopped using when the members list was given one noun. The
+    // strategy has therefore been dead, and every conversation opened through
+    // one of the others -- silently, since a strategy that finds nothing just
+    // falls through to the next.
+    const peerInConnected = page.getByTestId(`peer-row-${peerUsername}`).first();
+    if (await isVisibleWithin(peerInConnected, 500)) {
+      console.log(`  Found ${peerUsername} in the sidebar peer list`);
       await peerInConnected.click();
       await sleep(2000);
       await waitForChatReady(page, peerUsername);
@@ -86,21 +97,14 @@ export async function openConversation(
       return true;
     }
 
-    // Strategy 3: Look in WORKSPACE MEMBERS section
-    const workspaceMembersGroup = page.locator('[data-sidebar="group"]:has([data-sidebar="group-label"]:text("WORKSPACE MEMBERS"))');
-    const peerInWorkspace = workspaceMembersGroup.locator(`text="${peerUsername}"`).first();
-    if (await peerInWorkspace.isVisible({ timeout: 500 }).catch(() => false)) {
-      console.log(`  Found ${peerUsername} in WORKSPACE MEMBERS section`);
-      await peerInWorkspace.click();
-      await sleep(2000);
-      await waitForChatReady(page, peerUsername);
-      await takeScreenshot(page, `${username}_conversation_opened`);
-      return true;
-    }
+    // A "WORKSPACE MEMBERS" strategy used to sit here. That heading does not
+    // exist -- the members list was deliberately given one noun -- so it never
+    // matched, and strategy 2 above already finds the peer's row wherever the
+    // sidebar puts it.
 
     // Strategy 4: Try button match anywhere in the page
     const peerBtn = page.locator(`button:has-text("${peerUsername}")`).first();
-    if (await peerBtn.isVisible({ timeout: 500 }).catch(() => false)) {
+    if (await isVisibleWithin(peerBtn, 500)) {
       console.log(`  Found ${peerUsername} via button`);
       await peerBtn.click();
       await sleep(2000);
@@ -111,7 +115,7 @@ export async function openConversation(
 
     // Strategy 5: Just look for any element with the peer's username text
     const peerText = page.locator(`text="${peerUsername}"`).first();
-    if (await peerText.isVisible({ timeout: 500 }).catch(() => false)) {
+    if (await isVisibleWithin(peerText, 500)) {
       console.log(`  Found ${peerUsername} via text match`);
       await peerText.click();
       await sleep(2000);

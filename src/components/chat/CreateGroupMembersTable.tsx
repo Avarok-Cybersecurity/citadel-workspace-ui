@@ -24,20 +24,9 @@ import {
 } from '@/components/ui/select';
 import type { GroupRole } from '@/types/group';
 import type { SelectedMember } from './create-group-types';
+import { avatarColor } from '@/lib/avatar-color';
 
-const AVATAR_COLORS = [
-  '#6E59A5', // Purple
-  '#4F46E5', // Indigo
-  '#10B981', // Emerald
-  '#F59E0B', // Amber
-  '#EF4444', // Red
-  '#8B5CF6', // Violet
-  '#EC4899', // Pink
-];
 
-export function getAvatarColor(index: number): string {
-  return AVATAR_COLORS[index % AVATAR_COLORS.length];
-}
 
 interface MembersTableProps {
   selectedMembers: SelectedMember[];
@@ -50,15 +39,15 @@ interface MembersTableProps {
 export function MembersTable({
   selectedMembers,
   assignableRoles,
-  defaultRoles,
+  defaultRoles: _defaultRoles,
   onRoleChange,
   onRemoveMember,
-}: MembersTableProps) {
+}: MembersTableProps): JSX.Element {
   if (selectedMembers.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-[#3D4663] p-6 text-center">
-        <Users className="h-8 w-8 mx-auto text-gray-500 mb-2" />
-        <p className="text-sm text-gray-500">
+      <div className="rounded-md border border-dashed border-border p-6 text-center">
+        <Users className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+        <p className="text-sm text-muted-foreground">
           Add members to your group using the button above
         </p>
       </div>
@@ -66,30 +55,30 @@ export function MembersTable({
   }
 
   return (
-    <div className="rounded-md border border-[#2D3548] overflow-hidden">
+    <div className="rounded-md border border-border overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow className="border-[#2D3548] hover:bg-transparent">
-            <TableHead className="text-gray-400 h-9">User</TableHead>
-            <TableHead className="text-gray-400 h-9 w-32">Role</TableHead>
-            <TableHead className="text-gray-400 h-9 w-12" />
+          <TableRow className="border-border hover:bg-transparent">
+            <TableHead className="text-muted-foreground h-9">User</TableHead>
+            <TableHead className="text-muted-foreground h-9 w-32">Role</TableHead>
+            <TableHead className="text-muted-foreground h-9 w-12" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {selectedMembers.map((member, index) => (
             <TableRow
               key={member.cid}
-              className="border-[#2D3548] hover:bg-[#262C4A]"
+              className="border-border hover:bg-surface"
             >
               <TableCell className="py-2">
                 <div className="flex items-center gap-2">
                   <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-white"
-                    style={{ backgroundColor: getAvatarColor(index) }}
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-foreground"
+                    style={{ backgroundColor: avatarColor(index) }}
                   >
                     {member.username[0]?.toUpperCase() || '?'}
                   </div>
-                  <span className="text-sm text-white">{member.username}</span>
+                  <span className="text-sm text-foreground">{member.username}</span>
                 </div>
               </TableCell>
               <TableCell className="py-2">
@@ -97,15 +86,16 @@ export function MembersTable({
                   value={member.roleId}
                   onValueChange={value => onRoleChange(member.cid, value)}
                 >
-                  <SelectTrigger className="h-8 w-28 bg-[#262C4A] border-[#3D4663] text-white text-xs">
+                  <SelectTrigger
+              aria-label={`Role for ${member.username}`} className="h-8 w-28 bg-surface border-border text-foreground text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#1C1D28] border-[#2D3548]">
+                  <SelectContent className="bg-background border-border">
                     {assignableRoles.map(r => (
                       <SelectItem
                         key={r.id}
                         value={r.id}
-                        className="text-white hover:bg-[#262C4A]"
+                        className="text-foreground hover:bg-surface"
                       >
                         <div className="flex items-center gap-2">
                           {r.color && (
@@ -125,7 +115,8 @@ export function MembersTable({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-gray-400 hover:text-red-400 hover:bg-transparent"
+                  className="tap-target h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-transparent"
+                  aria-label={`Remove ${member.username} from the group`}
                   onClick={() => onRemoveMember(member.cid)}
                 >
                   <X className="h-4 w-4" />

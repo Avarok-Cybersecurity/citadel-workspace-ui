@@ -4,13 +4,16 @@ import { PollingService } from './utils/polling-service';
 import { INTERVAL } from './timeout-constants';
 import { debugLog } from './debug-config';
 
+/** How often to re-probe while waiting for the service to become healthy. */
+const HEALTH_POLL_INTERVAL_MS: number = 1000;
+
 export interface ServiceHealth {
   isHealthy: boolean;
   lastCheck: number;
   error?: string;
 }
 
-const DEFAULT_INTERVAL_MS = INTERVAL.HEALTH_CHECK_MS;
+const DEFAULT_INTERVAL_MS: number = INTERVAL.HEALTH_CHECK_MS;
 
 class HealthCheckService extends PollingService {
   private static instance: HealthCheckService;
@@ -44,10 +47,20 @@ class HealthCheckService extends PollingService {
    */
   public async checkHealth(): Promise<ServiceHealth> {
     try {
-      const isConnected = await websocketService.isConnected();
+      // `canSendRequests`, not `isConnected`. The latter asks whether THIS tab
+      // owns a WASM client, and a follower tab never does -- one WebSocket per
+      // browser, followers proxy through the leader. Probing it here meant
+      // every tab but one reported the local agent unreachable, for ever,
+      // while everything worked: a red "Can't reach the Citadel agent" banner
+      // permanently pinned in the app's own documented multi-tab mode.
+      //
+      // core.ts already carries this distinction, with a comment describing the
+      // identical bug in `fetchActiveSessions`. The rule was written down and
+      // this caller was never brought along.
+      const canReachAgent: boolean = websocketService.canSendRequests();
 
       this.health = {
-        isHealthy: isConnected,
+        isHealthy: canReachAgent,
         lastCheck: Date.now()
       };
 
@@ -97,20 +110,23 @@ class HealthCheckService extends PollingService {
    * Wait for service to be healthy with timeout
    */
   public async waitForHealthy(timeoutMs: number = 30000): Promise<void> {
-    const startTime = Date.now();
+    const startTime: number = Date.now();
 
     while (Date.now() - startTime < timeoutMs) {
-      const health = await this.checkHealth();
+      const health: ServiceHealth = await this.checkHealth();
 
       if (health.isHealthy) {
         return;
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // A real delay, deliberately. There is no push signal for "the service came
+      // up", so this polls; the interval exists to avoid hammering a service that
+      // is already struggling. Not a settling hack — see lib/utils/scheduling.ts.
+      await new Promise(resolve => setTimeout(resolve, HEALTH_POLL_INTERVAL_MS));
     }
 
     throw new Error(`Service did not become healthy within ${timeoutMs}ms`);
   }
 }
 
-export const healthCheckService = HealthCheckService.getInstance();
+export const healthCheckService: HealthCheckService = HealthCheckService.getInstance();

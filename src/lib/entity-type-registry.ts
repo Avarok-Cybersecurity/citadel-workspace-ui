@@ -68,13 +68,13 @@ export function getEntityTypeString(entityType: NodeEntityType): string {
 
 /** Get display metadata for an entity type from the TreeSchema (SSOT). */
 export function getEntityMetadata(entityType: NodeEntityType | string): EntityTypeMetadata {
-  const key = typeof entityType === 'string'
+  const key: string = typeof entityType === 'string'
     ? entityType
     : getEntityTypeString(entityType);
 
   // Primary: read from schema (SSOT)
   if (schemaConfigs) {
-    const config = schemaConfigs.get(key);
+    const config: EntityTypeConfig | undefined = schemaConfigs.get(key);
     if (config) {
       return {
         icon: resolveIcon(config.icon),

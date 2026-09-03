@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { TreeScope } from "@/types/revfs-types";
+import { TreeScope  } from "@/types/revfs-types";
 import { useFileManagerContent } from "./useFileManagerContent";
 import { ConnectingScreen, NoPeersScreen, LoadingScreen, ErrorScreen } from "./FileManagerStatusScreens";
 import { FileManagerStorageBar } from "./FileManagerStorageBar";
@@ -11,8 +11,8 @@ import { StorageLimitModal } from "./StorageLimitModal";
 import { RevfsDisabledModal } from "./RevfsDisabledModal";
 import { VFSPropertiesDialog } from "./VFSPropertiesDialog";
 
-export const FileManagerContent = () => {
-  const fm = useFileManagerContent();
+export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
+  const fm: ReturnType<typeof useFileManagerContent> = useFileManagerContent();
 
   // ── Early returns ──────────────────────────────────────────────────────
 
@@ -29,13 +29,13 @@ export const FileManagerContent = () => {
   }
 
   if (fm.error || !fm.tree) {
-    return <ErrorScreen error={fm.error ?? null} />;
+    return <ErrorScreen error={fm.error ?? null} onRetry={() => { void fm.refresh(); }} />;
   }
 
   // ── Main VFS Browser ──────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full bg-[#1C1D28]">
+    <div className="flex flex-col h-full bg-background">
       <FileManagerStorageBar
         storageMode={fm.storageMode}
         setStorageMode={fm.setStorageMode}

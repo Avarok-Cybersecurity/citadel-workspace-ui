@@ -1,0 +1,9 @@
+[
+  "createEmptyPermissions",
+  "createSelectionDecoration",
+  "decodeMetadataBytes",
+  "deriveLightPalette",
+  "findRegion",
+  "resetToPreset",
+  "stringToUint8Array"
+]

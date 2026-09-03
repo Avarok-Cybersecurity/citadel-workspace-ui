@@ -4,6 +4,7 @@
  * Modal dialog showing detailed properties of a file or directory.
  */
 
+import { formatBytes } from '@/lib/format-bytes';
 import {
   Dialog,
   DialogContent,
@@ -20,7 +21,7 @@ import {
   Upload,
   Download,
 } from "lucide-react";
-import type { RevfsNode } from "@/types/revfs-types";
+import type { RevfsNode, RevfsFileMetadata } from "@/types/revfs-types";
 import { RevfsFileState } from "@/types/revfs-types";
 
 interface VFSPropertiesDialogProps {
@@ -29,32 +30,28 @@ interface VFSPropertiesDialogProps {
   onClose: () => void;
 }
 
-function getFileIcon(fileName: string) {
-  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
-  const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'];
-  const codeExts = ['ts', 'tsx', 'js', 'jsx', 'py', 'rs', 'go', 'java', 'c', 'cpp', 'h', 'css', 'html', 'json', 'yaml', 'yml', 'toml'];
+/** The lucide icon component a file gets from its extension. */
+type FileIcon = typeof Monitor;
+
+function getFileIcon(fileName: string): FileIcon {
+  const ext: string = fileName.split('.').pop()?.toLowerCase() ?? '';
+  const imageExts: string[] = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'];
+  const codeExts: string[] = ['ts', 'tsx', 'js', 'jsx', 'py', 'rs', 'go', 'java', 'c', 'cpp', 'h', 'css', 'html', 'json', 'yaml', 'yml', 'toml'];
   if (imageExts.includes(ext)) return FileImage;
   if (codeExts.includes(ext)) return FileCode;
   return FileText;
 }
 
-function formatSize(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
 
 function formatDate(timestamp: number): string {
   return new Date(timestamp).toLocaleString();
 }
 
 function countItems(node: RevfsNode): { files: number; folders: number } {
-  let files = 0;
-  let folders = 0;
+  let files: number = 0;
+  let folders: number = 0;
 
-  function traverse(n: RevfsNode) {
+  function traverse(n: RevfsNode): void {
     for (const child of n.children ?? []) {
       if (child.type === 'directory') {
         folders++;
@@ -69,7 +66,12 @@ function countItems(node: RevfsNode): { files: number; folders: number } {
   return { files, folders };
 }
 
-const stateLabels: Record<RevfsFileState, { label: string; icon: typeof Monitor }> = {
+interface StateLabel {
+  label: string;
+  icon: FileIcon;
+}
+
+const stateLabels: Record<RevfsFileState, StateLabel> = {
   [RevfsFileState.Hosted]: { label: 'Hosted (stored for peer)', icon: Monitor },
   [RevfsFileState.Remote]: { label: 'Remote (downloadable)', icon: Cloud },
   [RevfsFileState.Sent]: { label: 'Sent', icon: Upload },
@@ -81,22 +83,22 @@ export function VFSPropertiesDialog({
   node,
   isOpen,
   onClose,
-}: VFSPropertiesDialogProps) {
+}: VFSPropertiesDialogProps): JSX.Element | null {
   if (!node) return null;
 
-  const isDir = node.type === 'directory';
-  const Icon = isDir ? Folder : getFileIcon(node.name);
-  const meta = node.fileMetadata;
-  const state = node.fileState ? stateLabels[node.fileState] : null;
-  const StateIcon = state?.icon;
-  const itemCounts = isDir ? countItems(node) : null;
+  const isDir: boolean = node.type === 'directory';
+  const Icon: FileIcon = isDir ? Folder : getFileIcon(node.name);
+  const meta: RevfsFileMetadata | undefined = node.fileMetadata;
+  const state: StateLabel | null = node.fileState ? stateLabels[node.fileState] : null;
+  const StateIcon: FileIcon | undefined = state?.icon;
+  const itemCounts: { files: number; folders: number; } | null = isDir ? countItems(node) : null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-[#232536] text-white border-purple-800 max-w-md">
+      <DialogContent className="bg-card text-foreground border-border max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            <Icon className={isDir ? "h-8 w-8 text-yellow-400" : "h-8 w-8 text-gray-300"} />
+            <Icon className={isDir ? "h-8 w-8 text-warning-emphasis" : "h-8 w-8 text-foreground/80"} />
             <span className="truncate">{node.name}</span>
           </DialogTitle>
         </DialogHeader>
@@ -104,28 +106,28 @@ export function VFSPropertiesDialog({
         <div className="space-y-4 text-sm">
           {/* Type */}
           <div className="flex justify-between">
-            <span className="text-gray-400">Type:</span>
+            <span className="text-muted-foreground">Type:</span>
             <span>{isDir ? 'Folder' : (meta?.fileType || 'File')}</span>
           </div>
 
           {/* Path */}
           <div className="flex justify-between">
-            <span className="text-gray-400">Location:</span>
+            <span className="text-muted-foreground">Location:</span>
             <span className="truncate max-w-[250px]" title={node.path}>{node.path}</span>
           </div>
 
           {/* Size (for files) */}
           {meta && (
             <div className="flex justify-between">
-              <span className="text-gray-400">Size:</span>
-              <span>{formatSize(meta.fileSize)}</span>
+              <span className="text-muted-foreground">Size:</span>
+              <span>{formatBytes(meta.fileSize)}</span>
             </div>
           )}
 
           {/* Item count (for directories) */}
           {itemCounts && (
             <div className="flex justify-between">
-              <span className="text-gray-400">Contains:</span>
+              <span className="text-muted-foreground">Contains:</span>
               <span>
                 {itemCounts.folders > 0 && `${itemCounts.folders} folder${itemCounts.folders !== 1 ? 's' : ''}`}
                 {itemCounts.folders > 0 && itemCounts.files > 0 && ', '}
@@ -138,7 +140,7 @@ export function VFSPropertiesDialog({
           {/* State (for files with state) */}
           {state && StateIcon && (
             <div className="flex justify-between items-center">
-              <span className="text-gray-400">State:</span>
+              <span className="text-muted-foreground">State:</span>
               <span className="flex items-center gap-2">
                 <StateIcon className="h-4 w-4" />
                 {state.label}
@@ -148,21 +150,21 @@ export function VFSPropertiesDialog({
 
           {/* Created */}
           <div className="flex justify-between">
-            <span className="text-gray-400">Created:</span>
+            <span className="text-muted-foreground">Created:</span>
             <span>{formatDate(node.createdAt)}</span>
           </div>
 
           {/* Modified */}
           <div className="flex justify-between">
-            <span className="text-gray-400">Modified:</span>
+            <span className="text-muted-foreground">Modified:</span>
             <span>{formatDate(node.updatedAt)}</span>
           </div>
 
           {/* File ID (for files) */}
           {meta?.fileId && (
             <div className="flex justify-between">
-              <span className="text-gray-400">File ID:</span>
-              <span className="truncate max-w-[200px] text-xs text-gray-500" title={meta.fileId}>
+              <span className="text-muted-foreground">File ID:</span>
+              <span className="truncate max-w-[200px] text-xs text-muted-foreground" title={meta.fileId}>
                 {meta.fileId}
               </span>
             </div>

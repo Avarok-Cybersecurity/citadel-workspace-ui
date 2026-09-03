@@ -26,29 +26,29 @@ export function useGroupRoles(
   const { settings } = group;
   const { roles } = settings;
 
-  const sortedRoles = useMemo(() => {
+  const sortedRoles: GroupRole[] = useMemo(() => {
     return [...roles].sort((a, b) => b.position - a.position);
   }, [roles]);
 
-  const defaultRole = useMemo(() => {
+  const defaultRole: GroupRole | undefined = useMemo((): GroupRole | undefined => {
     return roles.find(r => r.isDefault);
   }, [roles]);
 
-  const ownerRole = useMemo(() => {
+  const ownerRole: GroupRole | undefined = useMemo((): GroupRole | undefined => {
     return roles.find(r => r.isBuiltIn && r.position === 100);
   }, [roles]);
 
-  const getRoleById = useCallback(
+  const getRoleById: (roleId: string) => GroupRole | undefined = useCallback(
     (roleId: string): GroupRole | undefined => {
       return roles.find(r => r.id === roleId);
     },
     [roles]
   );
 
-  const canManageRole = useCallback(
+  const canManageRole: (actorRoleId: string, targetRoleId: string) => boolean = useCallback(
     (actorRoleId: string, targetRoleId: string): boolean => {
-      const actorRole = getRoleById(actorRoleId);
-      const targetRole = getRoleById(targetRoleId);
+      const actorRole: GroupRole | undefined = getRoleById(actorRoleId);
+      const targetRole: GroupRole | undefined = getRoleById(targetRoleId);
 
       if (!actorRole || !targetRole) return false;
       if (targetRole.isBuiltIn) return false;
@@ -58,7 +58,7 @@ export function useGroupRoles(
     [getRoleById]
   );
 
-  const validatePosition = useCallback(
+  const validatePosition: (position: number, excludeRoleId?: string) => boolean = useCallback(
     (position: number, excludeRoleId?: string): boolean => {
       if (position < 1 || position > 99) return false;
 
@@ -69,17 +69,17 @@ export function useGroupRoles(
     [roles]
   );
 
-  const suggestPosition = useCallback((): number => {
-    const nonOwnerRoles = roles.filter(r => !r.isBuiltIn);
+  const suggestPosition: () => number = useCallback((): number => {
+    const nonOwnerRoles: GroupRole[] = roles.filter(r => !r.isBuiltIn);
     if (nonOwnerRoles.length === 0) return 50;
 
-    const lowestPosition = Math.min(...nonOwnerRoles.map(r => r.position));
-    const suggested = Math.floor(lowestPosition / 2);
+    const lowestPosition: number = Math.min(...nonOwnerRoles.map(r => r.position));
+    const suggested: number = Math.floor(lowestPosition / 2);
 
     return suggested > 0 ? suggested : 5;
   }, [roles]);
 
-  const createRole = useCallback(
+  const createRole: (name: string, position: number, permissions: GroupPermissions, color?: string) => GroupRole = useCallback(
     (
       name: string,
       position: number,
@@ -107,12 +107,12 @@ export function useGroupRoles(
     [roles, settings, onSettingsChange]
   );
 
-  const updateRole = useCallback(
+  const updateRole: (roleId: string, updates: Partial<Omit<GroupRole, "id" | "isBuiltIn">>) => GroupSettings = useCallback(
     (
       roleId: string,
       updates: Partial<Omit<GroupRole, 'id' | 'isBuiltIn'>>
     ): GroupSettings => {
-      const updatedRoles = roles.map(role => {
+      const updatedRoles: GroupRole[] = roles.map(role => {
         if (role.id !== roleId) return role;
 
         if (role.isBuiltIn) {
@@ -126,18 +126,34 @@ export function useGroupRoles(
         return { ...role, ...updates };
       });
 
-      if (updates.isDefault === true) {
-        updatedRoles.forEach(r => {
-          if (r.id !== roleId) {
-            r.isDefault = false;
-          }
-        });
-      }
+      // Only one role may be default. Two things matter here beyond that.
+      //
+      // First, the map above returns the ORIGINAL object for every role it is
+      // not editing, so assigning `r.isDefault = false` used to write straight
+      // through to the caller's own array -- the settings the store holds, the
+      // props a memoized child compared by reference, the copy already read
+      // out of persistence. Those saw the flag flip with no state update to
+      // announce it, and if `onSettingsChange` were rejected the write had
+      // already happened. Build a new object for each role instead.
+      //
+      // Second, clear the others only when the target actually BECAME default.
+      // A built-in role keeps everything but its name and colour, so asking to
+      // make one default changes nothing about it -- clearing the rest on the
+      // strength of the request alone would leave the group with no default
+      // role at all, and `resolveRoleId` would start handing out whichever
+      // role happens to sit last. The editor disables that checkbox for
+      // built-in roles, so this is a guard on the hook's own contract rather
+      // than a live path today.
+      const target: GroupRole | undefined = updatedRoles.find(r => r.id === roleId);
+      const becameDefault: boolean = updates.isDefault === true && target?.isDefault === true;
+      const finalRoles: GroupRole[] = becameDefault
+        ? updatedRoles.map(r => (r.id === roleId || !r.isDefault ? r : { ...r, isDefault: false }))
+        : updatedRoles;
 
       const updatedSettings: GroupSettings = {
         ...settings,
-        roles: updatedRoles,
-        defaultRoleId: updates.isDefault ? roleId : settings.defaultRoleId,
+        roles: finalRoles,
+        defaultRoleId: becameDefault ? roleId : settings.defaultRoleId,
       };
 
       onSettingsChange(updatedSettings);
@@ -146,16 +162,16 @@ export function useGroupRoles(
     [roles, settings, onSettingsChange]
   );
 
-  const deleteRole = useCallback(
+  const deleteRole: (roleId: string) => GroupSettings = useCallback(
     (roleId: string): GroupSettings => {
-      const roleToDelete = getRoleById(roleId);
+      const roleToDelete: GroupRole | undefined = getRoleById(roleId);
 
       if (!roleToDelete || roleToDelete.isBuiltIn || roleToDelete.isDefault) {
         debugLog('UseGroupRoles', 'Cannot delete built-in or default role');
         return settings;
       }
 
-      const updatedRoles = roles.filter(r => r.id !== roleId);
+      const updatedRoles: GroupRole[] = roles.filter(r => r.id !== roleId);
 
       const updatedSettings: GroupSettings = {
         ...settings,
@@ -168,9 +184,9 @@ export function useGroupRoles(
     [roles, settings, getRoleById, onSettingsChange]
   );
 
-  const setDefaultRole = useCallback(
+  const setDefaultRole: (roleId: string) => GroupSettings = useCallback(
     (roleId: string): GroupSettings => {
-      const updatedRoles = roles.map(role => ({
+      const updatedRoles: { isDefault: boolean; id: string; name: string; position: number; color?: string; permissions: GroupPermissions; isBuiltIn: boolean; }[] = roles.map(role => ({
         ...role,
         isDefault: role.id === roleId,
       }));

@@ -88,17 +88,39 @@ export async function connectP2P(
         if (errorMsg.includes('Already connected')) {
           return { success: true, alreadyConnected: true };
         }
-        return { success: false, error: errorMsg };
+        // A timeout is not an answer. The request may still complete, and the
+        // app's own auto-connect keeps trying with backoff regardless -- so
+        // the peer row, not this rejection, is what decides.
+        const timedOut = /timed out|timeout/i.test(errorMsg);
+        return { success: false, timedOut, error: errorMsg };
       }
     }, peerUsername);
 
-    if (!result.success) {
-      console.log(`  P2P connect failed: ${result.error}`);
+    // A REFUSAL ends it: the peer is not registered, the CID is missing, the
+    // target is this session. Nothing about waiting changes those.
+    //
+    // A TIMEOUT is different, and returning false on one is why the
+    // reconnection specs failed where a real user would not have noticed. The
+    // SDK's PeerConnect handshake can take longer than the 30s request budget
+    // on a loaded machine, and the app's own p2p-auto-connect-service retries
+    // it with exponential backoff -- so the connection frequently arrives a few
+    // seconds after this rejection. The verification below reads the peer row,
+    // which is the app's own account of whether the channel exists; that is the
+    // authority here, not the ack for one request.
+    if (!result.success && !result.timedOut) {
+      console.log(`  P2P connect refused: ${result.error}`);
       if (uxTracker) {
-        uxTracker.log('major', 'functional', `P2P connect to ${peerUsername} failed: ${result.error}`);
+        uxTracker.log('major', 'functional', `P2P connect to ${peerUsername} refused: ${result.error}`);
       }
       await takeScreenshot(page, `${username}_p2p_connect_failed`);
       return false;
+    }
+
+    if (!result.success) {
+      console.log(
+        `  P2P connect to ${peerUsername} timed out (${result.error}); ` +
+          'waiting for auto-connect to establish it'
+      );
     }
 
     if (result.alreadyConnected) {
@@ -106,14 +128,33 @@ export async function connectP2P(
       return true;
     }
 
-    // Wait for connection to establish
+    // Wait for connection to establish. A timed-out request waits longer,
+    // because what it is waiting for is the auto-connect service's next backoff
+    // tick rather than a handshake already in flight.
     await sleep(3000);
+    const attempts: number = result.timedOut ? 40 : 10;
 
-    // Verify peer in sidebar (CONNECTED PEERS section)
-    const dmSection = page.locator('text="CONNECTED PEERS"').locator('..').locator('..');
-    const peerInSidebar = dmSection.locator(`text="${peerUsername}"`).first();
-
-    const peerVisible = await peerInSidebar.isVisible({ timeout: 5000 }).catch(() => false);
+    // Verify the peer's row says it is connected.
+    //
+    // This used to walk into a section headed "CONNECTED PEERS". That heading
+    // was deliberately removed: the members list called itself three different
+    // things depending on state the user could not see, and was given one noun.
+    // From that day this locator matched nothing, so the check could never
+    // pass, and every P2P connection was reported as
+    //
+    //   FAIL: P2P connect to X sent, but the peer never appeared as connected
+    //
+    // which reads as a protocol failure and is a heading that changed.
+    //
+    // The row's own status text is the right thing to read: it is the string a
+    // screen reader is given, so asserting it also keeps that affordance honest.
+    const peerRow = page.getByTestId(`peer-row-${peerUsername}`);
+    let peerVisible = false;
+    for (let attempt = 0; attempt < attempts && !peerVisible; attempt += 1) {
+      const text: string | null = await peerRow.first().textContent().catch(() => null);
+      peerVisible = (text ?? '').includes('Connected');
+      if (!peerVisible) await sleep(1000);
+    }
 
     if (peerVisible) {
       console.log(`  P2P connect to ${peerUsername} SUCCESS`);
@@ -121,9 +162,20 @@ export async function connectP2P(
       return true;
     }
 
-    // Fallback: Check if connection succeeded even if UI hasn't updated yet
-    console.log(`  P2P connect sent but peer not visible in sidebar yet (may need UI refresh)`);
-    return true; // Connection request sent successfully
+    // Request send is not response. This returned TRUE here — the peer never
+    // appeared under CONNECTED PEERS, which is this function's entire
+    // verification — and it is the documented retry fallback for PeerConnect
+    // timeouts, so it reported the retry as having worked in exactly the case
+    // where it had not.
+    console.log(
+      `  FAIL: P2P connect to ${peerUsername} ${result.timedOut ? 'timed out' : 'sent'}, ` +
+        'but the peer never appeared as connected'
+    );
+    if (uxTracker && result.timedOut) {
+      uxTracker.log('major', 'functional', `P2P connect to ${peerUsername} failed: ${result.error}`);
+    }
+    await takeScreenshot(page, `${username}_p2p_connect_unconfirmed`);
+    return false;
 
   } catch (error) {
     console.log(`  P2P connect error: ${error}`);
@@ -364,10 +416,12 @@ export async function waitForP2PConnection(
         return true;
       }
 
-      // FALLBACK: Check UI visibility (less deterministic but catches edge cases)
-      const connectedPeersGroup = page.locator('[data-sidebar="group"]:has([data-sidebar="group-label"]:text("CONNECTED PEERS"))');
-      const peerInConnected = connectedPeersGroup.locator(`text="${peerUsername}"`).first();
-      const isVisible = await peerInConnected.isVisible({ timeout: 200 }).catch(() => false);
+      // FALLBACK: the row's own status. Same dead heading as above; this
+      // fallback could not fire, so every edge case it was written for went to
+      // the timeout instead.
+      const peerRow = page.getByTestId(`peer-row-${peerUsername}`).first();
+      const rowText: string | null = await peerRow.textContent().catch(() => null);
+      const isVisible: boolean = (rowText ?? '').includes('Connected');
 
       if (isVisible) {
         console.log(`  ${username}: P2P connected to ${peerUsername} (UI visible, attempt ${attempt})`);

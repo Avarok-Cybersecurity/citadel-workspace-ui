@@ -7,9 +7,15 @@
 
 import { WorkspaceClient, type WorkspaceClientConfig } from 'citadel-workspace-client-ts';
 import type { InternalServiceResponse, InternalServiceRequest, ResponseType } from 'citadel-workspace-client-ts';
+import { installLeadershipListener } from './leadership-listener';
 import { eventEmitter } from '../event-emitter';
 import { broadcastChannelService } from '../broadcast-channel-service';
 import { debugLog, errorLog } from '../debug-config';
+import {
+  setupDisconnectionHandler as setupDisconnection,
+  setupSessionReleaseHandler as setupSessionRelease,
+  closeLeaderSocket,
+} from './leader-socket-teardown';
 import {
   instanceManager,
   leaderOutboundHandler,
@@ -19,7 +25,7 @@ import { CID_ROUTED_NOTIFICATIONS } from '../multi-instance/routing-rules';
 import { INTERVAL } from '../timeout-constants';
 
 // Global state key for preventing multiple WASM client initializations
-export const GLOBAL_INIT_KEY = '__citadel_wasm_client_init__';
+export const GLOBAL_INIT_KEY: "__citadel_wasm_client_init__" = '__citadel_wasm_client_init__';
 
 declare global {
   interface Window {
@@ -41,7 +47,12 @@ export interface InitializationConfig {
 }
 
 export class WebSocketInitialization {
+  private leadershipListenerRegistered: boolean = false;
+
   private readonly config: InitializationConfig;
+  /** Owned while leader, so demotion can close it; `creating` blocks doubles. */
+  private leaderClient: WorkspaceClient | null = null;
+  private creating: Promise<WorkspaceClient> | null = null;
 
   constructor(config: InitializationConfig) {
     this.config = config;
@@ -58,13 +69,13 @@ export class WebSocketInitialization {
       return;
     }
 
-    const ELECTION_TIMEOUT_MS = INTERVAL.LEADER_ELECTION_MS;
+    const ELECTION_TIMEOUT_MS: number = INTERVAL.LEADER_ELECTION_MS;
     debugLog('WebSocketInit', `waitForLeaderElection: waiting up to ${ELECTION_TIMEOUT_MS}ms for leader election`);
 
     return new Promise<void>((resolve) => {
-      let resolved = false;
+      let resolved: boolean = false;
 
-      const handler = ({ isLeader, leaderId }: { isLeader: boolean; leaderId: string }) => {
+      const handler = ({ isLeader, leaderId }: { isLeader: boolean; leaderId: string }): void => {
         if (!resolved) {
           resolved = true;
           eventEmitter.off('instance:leader-changed', handler);
@@ -99,40 +110,75 @@ export class WebSocketInitialization {
   }
 
   /**
-   * Initialize as follower (no WebSocket).
+   * Watch for promotion and demotion. Idempotent — safe from either init path.
+   *
+   * This lived inside `initializeAsFollower`, so a tab that BOOTED as leader
+   * never registered it, and `closeLeaderClient` has no other caller: on
+   * demotion it kept a live socket that dropped every frame it received.
    */
+  registerLeadershipListener(): void {
+    if (this.leadershipListenerRegistered) return;
+    this.leadershipListenerRegistered = true;
+
+    installLeadershipListener({
+      createWebSocketAsLeader: () => this.createWebSocketAsLeader(),
+      closeLeaderClient: () => this.closeLeaderClient(),
+    });
+  }
+
+  /** Initialize as follower (no WebSocket). */
   initializeAsFollower(): void {
     debugLog('WebSocketInit', 'Follower tab: Skipping WebSocket creation, will proxy through leader');
-
-    eventEmitter.on('instance:leader-changed', async ({ isLeader: newIsLeader }: { isLeader: boolean; leaderId: string }) => {
-      if (newIsLeader) {
-        debugLog('WebSocketInit', 'Became leader! Creating WebSocket connection...');
-        await this.createWebSocketAsLeader();
-      }
-    });
 
     eventEmitter.emit('on-ws-connection-success');
     debugLog('WebSocketInit', 'Follower initialization complete');
   }
 
-  /**
-   * Create WebSocket connection when this tab is the leader.
-   */
+  /** Create WebSocket connection when this tab is the leader. */
   async createWebSocketAsLeader(): Promise<WorkspaceClient> {
+    // Idempotent: a demoted-then-promoted tab would otherwise open a second
+    // socket while the first is still live. closeLeaderClient waits on it too.
+    if (this.leaderClient) return this.leaderClient;
+    if (this.creating) return this.creating;
+    this.creating = this.doCreateWebSocketAsLeader().finally(() => {
+      this.creating = null;
+    });
+    return this.creating;
+  }
+
+  /**
+   * Tear down the socket this tab owned while it was leader. Waits for an
+   * in-flight build: leaderClient is null while the build awaits, so a demotion
+   * mid-build closed nothing and left a live, deaf socket owned by a follower.
+   */
+  async closeLeaderClient(): Promise<void> {
+    if (this.creating) await this.creating.catch(() => undefined);
+    const client: WorkspaceClient | null = this.leaderClient;
+    if (!client) return;
+    this.leaderClient = null;
+    await closeLeaderSocket(client);
+    this.config.onClientReset();
+    window[GLOBAL_INIT_KEY] = undefined;
+  }
+
+  private async doCreateWebSocketAsLeader(): Promise<WorkspaceClient> {
     const clientConfig: WorkspaceClientConfig = {
       websocketUrl: this.config.websocketUrl,
       messageHandler: (rawMessage: InternalServiceResponse) => {
-        const message = rawMessage;
+        const message: InternalServiceResponse = rawMessage;
         debugLog('WebSocketInit', 'Message received from WASM client', message);
 
         if (instanceManager.isLeader) {
           instanceInboundRouter.routeMessage(message);
         } else {
-          eventEmitter.emit('websocket-message', message);
+          // Drop, do not emit: emitting bypasses the router's CID filtering,
+          // so another session's traffic lands in this tab's bus.
+          // closeLeaderClient makes this a fail-safe, not a delivery path.
+          debugLog('WebSocketInit', 'Dropping message received after demotion');
         }
 
         if (broadcastChannelService.getIsLeader()) {
-          const messageType = Object.keys(message)[0] as ResponseType | undefined;
+          const messageType: ResponseType | undefined = Object.keys(message)[0] as ResponseType | undefined;
           // CID-routed notifications already flow through the inbound router's
           // CID path; broadcasting them again here would cause duplicate
           // delivery on the receiving tab. Single source of truth in
@@ -153,8 +199,9 @@ export class WebSocketInitialization {
 
     try {
       debugLog('WebSocketInit', 'Creating WorkspaceClient with config', clientConfig);
-      const client = new WorkspaceClient(clientConfig);
+      const client: WorkspaceClient = new WorkspaceClient(clientConfig);
       await client.init();
+      this.leaderClient = client;
 
       eventEmitter.emit('on-ws-connection-success');
 
@@ -177,7 +224,7 @@ export class WebSocketInitialization {
     } catch (error) {
       errorLog('Error initializing WorkspaceClient:', error);
 
-      const errorMessage = error instanceof Error ? error.message : 'Failed to initialize WebSocket connection';
+      const errorMessage: string = error instanceof Error ? error.message : 'Failed to initialize WebSocket connection';
       eventEmitter.emit('connection-failure', { error: errorMessage });
 
       throw error;
@@ -185,26 +232,18 @@ export class WebSocketInitialization {
   }
 
   private setupDisconnectionHandler(client: WorkspaceClient): void {
-    eventEmitter.on('websocket-disconnected', async () => {
-      debugLog('WebSocketInit', 'WebSocket disconnected event received, stopping message processing and resetting state');
-      client.stopMessageProcessing();
-      try {
-        await client.close();
-        debugLog('WebSocketInit', 'WASM client closed successfully');
-      } catch (closeError) {
-        debugLog('WebSocketInit', 'WASM client close error (ignored):', closeError);
-      }
-
-      this.config.onClientReset();
-      window[GLOBAL_INIT_KEY] = undefined;
-      debugLog('WebSocketInit', 'WebSocket service state reset after disconnection');
+    setupDisconnection(client, {
+      clearClient: () => {
+        this.leaderClient = null;
+        window[GLOBAL_INIT_KEY] = undefined;
+      },
+      onClientReset: () => this.config.onClientReset(),
+      releaseSession: (cid: bigint) => this.config.releaseSession(cid),
     });
   }
 
+
   private setupSessionReleaseHandler(): void {
-    eventEmitter.on('session:release-request', ({ cid }: { cid: bigint }) => {
-      debugLog('WebSocketInit', `Session release requested for CID ${cid.toString()}`);
-      this.config.releaseSession(cid);
-    });
+    setupSessionRelease({ releaseSession: (cid: bigint) => this.config.releaseSession(cid) });
   }
 }

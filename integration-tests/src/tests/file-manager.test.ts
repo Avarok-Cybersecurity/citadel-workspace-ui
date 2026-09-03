@@ -15,6 +15,7 @@
 
 import { Page } from 'playwright';
 import {
+  isHiddenWithin,
   sleep,
   createSeparateBrowsers,
   createAccount,
@@ -27,6 +28,7 @@ import {
   TestHarness,
   runTestMain,
 } from '../lib/index.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -46,6 +48,8 @@ interface TestResults {
     syncFolder: boolean;
     deleteFolder: boolean;
     peerSeesChanges: boolean;
+    /** The folder disappearing from the PEER after deletion, not just locally. */
+    peerSeesFolderRemoved: boolean;
   };
   fileOperations: {
     uploadFile: boolean;
@@ -116,7 +120,7 @@ async function checkNoPeersState(page: Page, label: string): Promise<boolean> {
   console.log(`\n=== ${label}: Checking "No Peers Connected" state ===`);
   try {
     const heading = page.locator('h2:has-text("No Peers Connected")');
-    const visible = await heading.isVisible({ timeout: 30000 }).catch(() => false);
+    const visible = await isVisibleWithin(heading, 30000);
     console.log(`  "No Peers Connected" visible: ${visible}`);
     return visible;
   } catch (error) {
@@ -160,10 +164,8 @@ async function waitForTreeLoaded(page: Page, label: string, timeoutMs = 30000): 
  */
 async function verifyDefaultFolders(page: Page, label: string): Promise<boolean> {
   console.log(`\n=== ${label}: Verifying default folders ===`);
-  const hasSent = await page.getByText('Sent Files', { exact: true }).first()
-    .isVisible({ timeout: 5000 }).catch(() => false);
-  const hasReceived = await page.getByText('Received Files', { exact: true }).first()
-    .isVisible({ timeout: 5000 }).catch(() => false);
+  const hasSent = await isVisibleWithin(page.getByText('Sent Files', { exact: true }).first(), 5000);
+  const hasReceived = await isVisibleWithin(page.getByText('Received Files', { exact: true }).first(), 5000);
   console.log(`  Sent Files: ${hasSent}, Received Files: ${hasReceived}`);
   return hasSent && hasReceived;
 }
@@ -174,11 +176,6 @@ async function verifyDefaultFolders(page: Page, label: string): Promise<boolean>
 async function createFolderViaToolbar(page: Page, label: string, folderName: string): Promise<boolean> {
   console.log(`\n=== ${label}: Creating folder "${folderName}" ===`);
   try {
-    page.once('dialog', async dialog => {
-      console.log(`  Dialog: "${dialog.message()}"`);
-      await dialog.accept(folderName);
-    });
-
     // Click New Folder button (FolderPlus icon)
     const newFolderBtn = page.locator('button').filter({ has: page.locator('svg.lucide-folder-plus') }).first();
     if (await newFolderBtn.isVisible().catch(() => false)) {
@@ -187,10 +184,19 @@ async function createFolderViaToolbar(page: Page, label: string, folderName: str
       // Fallback: first button in toolbar
       await page.locator('.flex.items-center.gap-1 button').first().click();
     }
+
+    // The name is asked for by an in-app dialog now, not window.prompt, so
+    // there is no native dialog to accept — type into the field and submit.
+    const nameInput = page.locator('#prompt-dialog-input');
+    if (!await isVisibleWithin(nameInput, 5000)) {
+      console.log('  ERROR: the new-folder dialog did not appear');
+      return false;
+    }
+    await nameInput.fill(folderName);
+    await page.getByTestId('prompt-dialog-confirm').click();
     await sleep(2000);
 
-    const visible = await page.getByText(folderName, { exact: true }).first()
-      .isVisible({ timeout: 5000 }).catch(() => false);
+    const visible = await isVisibleWithin(page.getByText(folderName, { exact: true }).first(), 5000);
     console.log(`  Folder "${folderName}" visible: ${visible}`);
     return visible;
   } catch (error) {
@@ -210,7 +216,7 @@ async function navigateIntoFolder(page: Page, label: string, folderName: string)
       await folderItem.click();
       await sleep(1000);
       // Check breadcrumb shows folder
-      const breadcrumbVisible = await page.locator(`button:has-text("${folderName}")`).isVisible({ timeout: 3000 }).catch(() => false);
+      const breadcrumbVisible = await isVisibleWithin(page.locator(`button:has-text("${folderName}")`), 3000);
       console.log(`  Breadcrumb shows folder: ${breadcrumbVisible}`);
       return breadcrumbVisible;
     }
@@ -231,8 +237,7 @@ async function navigateViaBreadcrumb(page: Page, label: string): Promise<boolean
     if (await rootBtn.isVisible().catch(() => false)) {
       await rootBtn.click();
       await sleep(1000);
-      const sentFiles = await page.getByText('Sent Files', { exact: true }).first()
-        .isVisible({ timeout: 3000 }).catch(() => false);
+      const sentFiles = await isVisibleWithin(page.getByText('Sent Files', { exact: true }).first(), 3000);
       console.log(`  Back at root: ${sentFiles}`);
       return sentFiles;
     }
@@ -298,9 +303,9 @@ async function openContextMenu(page: Page, label: string, folderName: string): P
 
       // Context menu uses radix-ui, items are rendered in a portal
       // Look for menu items by role or by containing text
-      const hasNewFolder = await page.locator('[role="menuitem"]:has-text("New Folder")').isVisible({ timeout: 3000 }).catch(() => false);
-      const hasDeleteFolder = await page.locator('[role="menuitem"]:has-text("Delete Folder")').isVisible({ timeout: 1000 }).catch(() => false);
-      const hasDelete = await page.locator('[role="menuitem"]:has-text("Delete")').first().isVisible({ timeout: 1000 }).catch(() => false);
+      const hasNewFolder = await isVisibleWithin(page.locator('[role="menuitem"]:has-text("New Folder")'), 3000);
+      const hasDeleteFolder = await isVisibleWithin(page.locator('[role="menuitem"]:has-text("Delete Folder")'), 1000);
+      const hasDelete = await isVisibleWithin(page.locator('[role="menuitem"]:has-text("Delete")').first(), 1000);
 
       console.log(`  New Folder: ${hasNewFolder}, Delete Folder: ${hasDeleteFolder}, Delete: ${hasDelete}`);
       await page.keyboard.press('Escape');
@@ -336,11 +341,9 @@ async function deleteFolderViaContextMenu(page: Page, label: string, folderName:
     }
     console.log(`  Found folder element`);
 
-    // Set up dialog handler before triggering the context menu
-    page.once('dialog', async dialog => {
-      console.log(`  Confirm dialog: "${dialog.message()}"`);
-      await dialog.accept();
-    });
+    // Deletion is confirmed by an in-app AlertDialog now, not window.confirm,
+    // so there is no native dialog to accept — the confirm button is clicked
+    // after the menu item below.
 
     // Get the bounding box and right-click in the center for more reliable context menu
     const box = await targetElement.boundingBox();
@@ -362,32 +365,53 @@ async function deleteFolderViaContextMenu(page: Page, label: string, folderName:
 
     // Context menu uses radix-ui, items are rendered in a portal with role="menuitem"
     let deleteOption = page.locator('[role="menuitem"]:has-text("Delete Folder")');
-    if (!await deleteOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(deleteOption, 2000)) {
       // Fallback to "Delete" if "Delete Folder" not found
       deleteOption = page.locator('[role="menuitem"]:has-text("Delete")').first();
     }
-    if (await deleteOption.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(deleteOption, 1000)) {
       console.log('  Found delete option, clicking...');
       await deleteOption.click();
 
-      // Wait for deletion to process and UI to update
-      // Check specifically in the tree view (not breadcrumb) for the folder
-      // The tree items are inside the scrollable tree container
-      for (let check = 1; check <= 5; check++) {
-        await sleep(1000);
-        // Check if folder exists in tree view specifically (truncate class is used for tree item names)
-        const inTree = await page.locator(`.truncate:has-text("${folderName}")`).first()
-          .isVisible({ timeout: 1000 }).catch(() => false);
-        // Also check generic location but prefer tree check
-        const anywhereVisible = await page.getByText(folderName, { exact: true }).first()
-          .isVisible({ timeout: 500 }).catch(() => false);
-        console.log(`  Check ${check}: In tree: ${inTree}, Anywhere: ${anywhereVisible}`);
-        if (!inTree) {
-          console.log(`  Folder deleted from tree: true`);
-          return true;
-        }
+      // Confirm in the app's own dialog.
+      const confirmButton = page.getByTestId('confirm-dialog-confirm');
+      if (await isVisibleWithin(confirmButton, 5000)) {
+        console.log('  Confirming deletion in the in-app dialog');
+        await confirmButton.click();
+      } else {
+        console.log('  WARNING: in-app confirm dialog did not appear');
       }
-      console.log(`  Folder deleted: false (still visible in tree after retries)`);
+
+      // Wait for the folder to LEAVE the tree, rather than sleeping and sampling.
+      //
+      // Same reasoning as verifyPeerSeesChanges below, which was already fixed
+      // this way: isVisible does not wait, so this loop was five fixed 1s sleeps
+      // with a point sample after each. Worse, a sample taken while the tree had
+      // not re-rendered finds nothing and reports the folder deleted whether or
+      // not it was. isHiddenWithin asks the right question and returns the moment
+      // it holds, so the common case costs a fraction of the old 5 seconds.
+      // The tree row by name, not any element whose text contains it.
+      // `.truncate` is shared by grid tiles, the properties dialog and the
+      // storage line, and `has-text` matches substrings -- so this asked "is
+      // that word anywhere on the page" while its own message said "still
+      // visible in tree". The app now renders `tree-item-<name>`.
+      const treeItem = page.locator(`[data-testid="tree-item-${folderName}"]`).first();
+      // Fifteen seconds, and the number is measured rather than guessed.
+      //
+      // The instrumentation added for this failure shows the deletion starting
+      // 7.8s AFTER the confirm click -- and 1.6s after this check had already
+      // given up at six. `revfsService.rmdir` takes a per-peer serial lock, so
+      // it queues behind whatever the previous step left in flight; here that
+      // is the file deletion's peer ack and its orphaned-byte sweep. Nothing
+      // was slow to render. The operation had not begun.
+      //
+      // Fifteen matches the peer-side check further down, which waits that long
+      // for the same reason.
+      if (await isHiddenWithin(treeItem, 15_000)) {
+        console.log(`  Folder deleted from tree: true`);
+        return true;
+      }
+      console.log(`  Folder deleted: false (still visible in tree after 6s)`);
       return false;
     }
     console.log('  Delete option not found in context menu');
@@ -407,31 +431,54 @@ async function deleteFolderViaContextMenu(page: Page, label: string, folderName:
 async function verifyPeerSeesChanges(page: Page, label: string, folderName: string, shouldExist: boolean): Promise<boolean> {
   console.log(`\n=== ${label}: Sync and check folder "${folderName}" (expect ${shouldExist ? 'present' : 'absent'}) ===`);
 
-  // Try multiple sync attempts with increasing wait times
+  // Wait for the state we expect, rather than sleeping and sampling once.
+  //
+  // Each attempt used to sleep and then call isVisible({ timeout }), which does
+  // not wait at all — so whether propagation was seen came down to whether it
+  // happened to land inside a fixed 4/5/6 second sleep. That is why this was
+  // flaky in BOTH directions: one run the folder had not arrived yet, the next
+  // run it had not gone away yet, and neither was a product failure.
+  //
+  // isHiddenWithin for the absent case: waiting for something to appear and
+  // waiting for it to go away are different questions, and using the presence
+  // helper for both would report "not there yet" as success.
+  const target = () => page.getByText(folderName, { exact: true }).first();
+
   for (let attempt = 1; attempt <= 3; attempt++) {
     await clickSyncButton(page, label);
-    // Wait longer for sync response to be processed
-    await sleep(3000 + attempt * 1000);
 
-    const visible = await page.getByText(folderName, { exact: true }).first()
-      .isVisible({ timeout: 5000 }).catch(() => false);
-    const result = shouldExist ? visible : !visible;
+    const result = shouldExist
+      ? await isVisibleWithin(target(), 15_000)
+      : await isHiddenWithin(target(), 15_000);
 
-    console.log(`  Attempt ${attempt}: Folder visible: ${visible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${result ? 'PASS' : 'retry...'}`);
-
-    if (result) {
-      return true;
-    }
-
-    if (attempt < 3) {
-      console.log(`  Retrying sync...`);
-    }
+    console.log(`  Attempt ${attempt}: expected ${shouldExist ? 'visible' : 'hidden'}: ${result ? 'PASS' : 'retry...'}`);
+    if (result) return true;
   }
 
-  const finalVisible = await page.getByText(folderName, { exact: true }).first()
-    .isVisible({ timeout: 2000 }).catch(() => false);
+  const finalVisible = await isVisibleWithin(page.getByText(folderName, { exact: true }).first(), 2000);
   const finalResult = shouldExist ? finalVisible : !finalVisible;
   console.log(`  Final result: Folder visible: ${finalVisible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${finalResult ? 'PASS' : 'FAIL'}`);
+
+  if (!finalResult && !shouldExist) {
+    // getByText matches the whole page, so a name left in a breadcrumb or a
+    // toast looks identical to a row that never went away. Report where it
+    // actually is, so this says which.
+    const where = await page.evaluate((name) => {
+      const out: string[] = [];
+      for (const el of Array.from(document.querySelectorAll('*'))) {
+        if (el.children.length) continue;
+        if ((el.textContent || '').trim() !== name) continue;
+        const path: string[] = [];
+        for (let e: Element | null = el; e && path.length < 5; e = e.parentElement) {
+          path.push(`${e.tagName.toLowerCase()}${e.getAttribute('data-testid') ? `[${e.getAttribute('data-testid')}]` : ''}`);
+        }
+        out.push(path.join(' < '));
+      }
+      return out;
+    }, folderName);
+    console.log(`  STILL-PRESENT AT: ${JSON.stringify(where)}`);
+  }
+
   return finalResult;
 }
 
@@ -462,8 +509,7 @@ async function uploadFileViaToolbar(
         await sleep(2000);
         console.log('  Navigated to root via breadcrumb');
         // Verify we're at root by checking that default folders are visible at top level
-        const atRoot = await page.getByText('Sent Files', { exact: true }).first()
-          .isVisible({ timeout: 3000 }).catch(() => false);
+        const atRoot = await isVisibleWithin(page.getByText('Sent Files', { exact: true }).first(), 3000);
         console.log(`  Confirmed at root: ${atRoot}`);
       }
     } else {
@@ -477,8 +523,15 @@ async function uploadFileViaToolbar(
       }
     }
 
-    // Set up file chooser handler
+    // Set up file chooser handler. It has to be armed BEFORE the click or the
+    // event races us, which means the early `return false` below can abandon it.
+    // An abandoned waitForEvent rejects on its own timeout with no handler
+    // attached, and an unhandled rejection takes the whole node process down —
+    // that is how this spec lost every result it had already collected and
+    // reported NO VERDICT. Attaching a no-op catch marks it handled; awaiting
+    // the original promise further down still works exactly as before.
     const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 10000 });
+    fileChooserPromise.catch(() => undefined);
 
     // Click Upload button (Upload icon in toolbar)
     const uploadBtn = page.locator('button').filter({ has: page.locator('svg.lucide-upload') }).first();
@@ -506,8 +559,7 @@ async function uploadFileViaToolbar(
     await sleep(3000);
 
     // Check if file appears in the UI
-    const fileVisible = await page.getByText(fileName, { exact: true }).first()
-      .isVisible({ timeout: 5000 }).catch(() => false);
+    const fileVisible = await isVisibleWithin(page.getByText(fileName, { exact: true }).first(), 5000);
     console.log(`  File "${fileName}" visible: ${fileVisible}`);
 
     // Navigate back to root if we navigated away
@@ -533,8 +585,7 @@ async function verifyFileVisible(page: Page, label: string, fileName: string): P
   console.log(`\n=== ${label}: Verifying file "${fileName}" is visible ===`);
   try {
     // Look for file in tree or content grid
-    const visible = await page.getByText(fileName, { exact: true }).first()
-      .isVisible({ timeout: 5000 }).catch(() => false);
+    const visible = await isVisibleWithin(page.getByText(fileName, { exact: true }).first(), 5000);
     console.log(`  File visible: ${visible}`);
     return visible;
   } catch (error) {
@@ -563,11 +614,7 @@ async function deleteFileViaContextMenu(page: Page, label: string, fileName: str
     }
     console.log(`  Found file element`);
 
-    // Set up dialog handler for confirmation
-    page.once('dialog', async dialog => {
-      console.log(`  Confirm dialog: "${dialog.message()}"`);
-      await dialog.accept();
-    });
+    // In-app confirmation; the confirm button is clicked after the menu item.
 
     // Right-click on file
     const box = await targetElement.boundingBox();
@@ -580,27 +627,34 @@ async function deleteFileViaContextMenu(page: Page, label: string, fileName: str
     await sleep(1500);
 
     // Click Delete option in context menu
-    let deleteOption = page.locator('[role="menuitem"]:has-text("Delete File")');
-    if (!await deleteOption.isVisible({ timeout: 2000 }).catch(() => false)) {
-      deleteOption = page.locator('[role="menuitem"]:has-text("Delete")').first();
-    }
+    // By testid. This looked for "Delete File" first -- a label nothing renders
+    // -- and spent two seconds waiting for nothing before falling back to a
+    // match on the word "Delete", which also matches "Delete Folder" and any
+    // other destructive item the menu grows.
+    const deleteOption = page.getByTestId('vfs-delete').first();
 
-    if (await deleteOption.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(deleteOption, 1000)) {
       console.log('  Found delete option, clicking...');
       await deleteOption.click();
 
-      // Wait and verify deletion
-      for (let check = 1; check <= 5; check++) {
-        await sleep(1000);
-        const stillVisible = await page.locator(`.truncate:has-text("${fileName}")`).first()
-          .isVisible({ timeout: 500 }).catch(() => false);
-        console.log(`  Check ${check}: File visible: ${stillVisible}`);
-        if (!stillVisible) {
-          console.log(`  File deleted: true`);
-          return true;
-        }
+      // Confirm in the app's own dialog.
+      const confirmFileDelete = page.getByTestId('confirm-dialog-confirm');
+      if (await isVisibleWithin(confirmFileDelete, 5000)) {
+        console.log('  Confirming deletion in the in-app dialog');
+        await confirmFileDelete.click();
+      } else {
+        console.log('  WARNING: in-app confirm dialog did not appear');
       }
-      console.log(`  File deleted: false (still visible after retries)`);
+
+      // Wait for the file to GO. Was five 1s sleeps each followed by a point
+      // sample; see the folder-deletion loop above for why that both wastes time
+      // and can report a deletion that did not happen.
+      const fileItem = page.locator(`.truncate:has-text("${fileName}")`).first();
+      if (await isHiddenWithin(fileItem, 6000)) {
+        console.log(`  File deleted: true`);
+        return true;
+      }
+      console.log(`  File deleted: false (still visible after 6s)`);
       return false;
     }
 
@@ -626,10 +680,26 @@ async function verifyPeerSeesFile(
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     await clickSyncButton(page, label);
-    await sleep(3000 + attempt * 1000);
 
-    const visible = await page.getByText(fileName, { exact: true }).first()
-      .isVisible({ timeout: 5000 }).catch(() => false);
+    // The two directions need opposite treatment, and a blanket
+    // "replace the sleeps with waits" sweep would flatten them.
+    //
+    // Waiting for a file to APPEAR needs no fixed delay at all:
+    // `isVisibleWithin` polls, so it returns the moment the file lands and no
+    // later than its timeout. Sleeping first and then polling spends the sleep
+    // every time and buys nothing.
+    //
+    // Confirming a file is ABSENT needs exactly that delay: one that has not
+    // arrived yet looks identical to one that is gone, so without a settle
+    // period the negative is not evidence. Same total patience either way --
+    // the difference is that the positive case can finish early.
+    const settle: number = 3000 + attempt * 1000;
+    if (!shouldExist) await sleep(settle);
+
+    const visible = await isVisibleWithin(
+      page.getByText(fileName, { exact: true }).first(),
+      shouldExist ? settle + 5000 : 5000,
+    );
     const result = shouldExist ? visible : !visible;
 
     console.log(`  Attempt ${attempt}: File visible: ${visible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${result ? 'PASS' : 'retry...'}`);
@@ -643,8 +713,7 @@ async function verifyPeerSeesFile(
     }
   }
 
-  const finalVisible = await page.getByText(fileName, { exact: true }).first()
-    .isVisible({ timeout: 2000 }).catch(() => false);
+  const finalVisible = await isVisibleWithin(page.getByText(fileName, { exact: true }).first(), 2000);
   const finalResult = shouldExist ? finalVisible : !finalVisible;
   console.log(`  Final result: File visible: ${finalVisible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${finalResult ? 'PASS' : 'FAIL'}`);
   return finalResult;
@@ -685,6 +754,7 @@ async function runTest(): Promise<boolean> {
       syncFolder: false,
       deleteFolder: false,
       peerSeesChanges: false,
+      peerSeesFolderRemoved: false,
     },
     fileOperations: {
       uploadFile: false,
@@ -702,8 +772,8 @@ async function runTest(): Promise<boolean> {
   };
 
   try {
-    setupConsoleCapture(page1, 'Alice', ['error', 'Error', 'revfs', 'RE-VFS']);
-    setupConsoleCapture(page2, 'Bob', ['error', 'Error', 'revfs', 'RE-VFS']);
+    setupConsoleCapture(page1, 'Alice', ['error', 'Error', 'revfs', 'RE-VFS', 'ILM']);
+    setupConsoleCapture(page2, 'Bob', ['error', 'Error', 'revfs', 'RE-VFS', 'ILM']);
 
     // ========== STEP 1: Create accounts ==========
     console.log('\n' + '─'.repeat(50));
@@ -731,7 +801,14 @@ async function runTest(): Promise<boolean> {
 
     // Navigate Alice back to workspace for P2P registration
     console.log('\n  Navigating Alice back to workspace...');
-    const workspaceBtn = page1.locator('[data-testid="workspace-button"], [data-testid="sidebar-workspace"], button:has-text("Workspace")');
+    // `workspace-button` and `sidebar-workspace` were in this union and the app
+    // has never rendered either, so the text matcher was doing all of the work.
+    // It is left alone deliberately: CI shows it matching and the click
+    // working, and `has-text` is a SUBSTRING match, so "Configure Workspace"
+    // and "Join New Workspace" are both candidates for `.first()`. Which one it
+    // actually hits needs a run to observe, and guessing at a replacement here
+    // would trade a selector that works for one that might not.
+    const workspaceBtn = page1.locator('button:has-text("Workspace")');
     if (await workspaceBtn.first().isVisible().catch(() => false)) {
       await workspaceBtn.first().click();
       console.log('  Clicked Workspace sidebar button');
@@ -739,7 +816,6 @@ async function runTest(): Promise<boolean> {
       await page1.goBack();
       console.log('  Used goBack() to return to workspace');
     }
-    await sleep(2000);
     await waitForWorkspaceLoaded(page1, 30000);
 
     // ========== STEP 3: P2P Registration ==========
@@ -880,8 +956,22 @@ async function runTest(): Promise<boolean> {
     // Verify file is removed on Alice's side
     results.fileOperations.fileRemoved = !await verifyFileVisible(page1, 'Alice', TEST_FILE_NAME);
 
-    // Sync and verify Bob sees the file is gone
-    results.fileOperations.peerSeesFileRemoved = await verifyPeerSeesFile(page2, 'Bob', TEST_FILE_NAME, false);
+    // Sync and verify Bob sees the file is gone.
+    //
+    // Only meaningful if Bob ever saw it. `verifyPeerSeesFile(..., false)`
+    // returns true when the name is absent, and a file that never arrived is
+    // absent too -- so on the run that found this, "Peer Sees File: FAIL" was
+    // followed by "Peer Sees File Removed: PASS", and the second line carried
+    // no information at all. A check that cannot fail in the state that matters
+    // is worse than a missing one, because it reads as evidence.
+    results.fileOperations.peerSeesFileRemoved = results.fileOperations.peerSeesFile
+      ? await verifyPeerSeesFile(page2, 'Bob', TEST_FILE_NAME, false)
+      : false;
+    if (!results.fileOperations.peerSeesFile) {
+      console.log(
+        '  Skipped the removal check: Bob never saw the file, so its absence proves nothing.',
+      );
+    }
     await takeScreenshot(page2, '10_bob_file_gone');
 
     // ========== STEP 11: Delete Folder ==========
@@ -892,7 +982,8 @@ async function runTest(): Promise<boolean> {
     results.folderOperations.deleteFolder = await deleteFolderViaContextMenu(page1, 'Alice', TEST_FOLDER);
     await takeScreenshot(page1, '09_folder_deleted');
 
-    await verifyPeerSeesChanges(page2, 'Bob', TEST_FOLDER, false);
+    results.folderOperations.peerSeesFolderRemoved =
+      await verifyPeerSeesChanges(page2, 'Bob', TEST_FOLDER, false);
     await takeScreenshot(page2, '09_bob_folder_gone');
 
     await takeScreenshot(page1, 'FINAL_alice');
@@ -921,8 +1012,26 @@ async function runTest(): Promise<boolean> {
       results.fileOperations.fileVisible &&
       results.fileOperations.deleteFile &&
       results.fileOperations.fileRemoved &&
-      results.contextMenu.openContextMenu;
+      results.contextMenu.openContextMenu &&
+      // Peer propagation is the whole point of a peer-to-peer filesystem, and
+      // none of it was gated: a folder could fail to reach Bob, or a file could
+      // fail to disappear from Bob, and this spec still reported PASS. These two
+      // hold reliably once the checks actually wait.
+      results.folderOperations.peerSeesChanges &&
+      results.fileOperations.peerSeesFileRemoved &&
+      // Bob reaching the file manager at all, and seeing a file Alice uploaded.
+      // Both were computed and left out of the gate.
+      results.navigation.bobToFileManager &&
+      results.fileOperations.peerSeesFile;
+      // peerSeesFolderRemoved is deliberately NOT gated — see the note where it
+      // is reported.
 
+    // CHECK is advisory and FAIL is fatal, and three criteria that decide the
+    // run printed CHECK. The last run reported PASS on every visible line and
+    // then "OVERALL: TEST FAILED", which tells a reader nothing: the run had in
+    // fact failed on "Peer Sees File", printed as CHECK. Anything `allPassed`
+    // reads says FAIL when it is false; only genuinely ungated observations
+    // stay CHECK.
     console.log('\nAccount Creation:');
     console.log(`  Alice:                     ${results.accountCreation.alice ? 'PASS' : 'FAIL'}`);
     console.log(`  Bob:                       ${results.accountCreation.bob ? 'PASS' : 'FAIL'}`);
@@ -948,15 +1057,44 @@ async function runTest(): Promise<boolean> {
     console.log(`  Breadcrumb Navigation:     ${results.folderOperations.breadcrumbNavigation ? 'PASS' : 'FAIL'}`);
     console.log(`  Sync Folder:               ${results.folderOperations.syncFolder ? 'PASS' : 'CHECK'}`);
     console.log(`  Delete Folder:             ${results.folderOperations.deleteFolder ? 'PASS' : 'FAIL'}`);
-    console.log(`  Peer Sees Changes:         ${results.folderOperations.peerSeesChanges ? 'PASS' : 'CHECK'}`);
+    // KNOWN GAP, not a flake and not a test bug. Reproduced on consecutive runs
+    // once the check actually waits (it used to sleep and sample once, which is
+    // what hid this). Deleting a folder does not reach the peer, while deleting
+    // a FILE does — peerSeesFileRemoved passes in the same runs.
+    //
+    // Two things point at the cause. In one run Alice emitted no Rmdir at all,
+    // only SyncResponse traffic; serverRmdir (revfs-dir-ops.ts:98) computes the
+    // operation and throws it away — `const [newTree] = treeRmdir(...)` — where
+    // peerRmdir keeps it and calls sendAndAwaitAck. And because mergeTrees is a
+    // union that only ever adds, a removal that is missed once can never be
+    // recovered by a later sync: the peer's copy wins every time.
+    //
+    // Left ungated rather than made to pass: whether directory deletion is meant
+    // to propagate in server-backed mode is a product decision about revfs
+    // semantics, not something to settle from a test.
+    console.log(`  Peer Sees Folder Removed:  ${results.folderOperations.peerSeesFolderRemoved ? 'PASS' : 'KNOWN GAP (see note above)'}`);
+    console.log(`  Peer Sees Changes:         ${results.folderOperations.peerSeesChanges ? 'PASS' : 'FAIL'}`);
 
     console.log('\nFile Operations:');
     console.log(`  Upload File:               ${results.fileOperations.uploadFile ? 'PASS' : 'FAIL'}`);
     console.log(`  File Visible:              ${results.fileOperations.fileVisible ? 'PASS' : 'FAIL'}`);
-    console.log(`  Peer Sees File:            ${results.fileOperations.peerSeesFile ? 'PASS' : 'CHECK'}`);
+    console.log(`  Peer Sees File:            ${results.fileOperations.peerSeesFile ? 'PASS' : 'FAIL'}`);
     console.log(`  Delete File:               ${results.fileOperations.deleteFile ? 'PASS' : 'FAIL'}`);
     console.log(`  File Removed:              ${results.fileOperations.fileRemoved ? 'PASS' : 'FAIL'}`);
-    console.log(`  Peer Sees File Removed:    ${results.fileOperations.peerSeesFileRemoved ? 'PASS' : 'CHECK'}`);
+    console.log(
+      `  Peer Sees File Removed:    ${
+        results.fileOperations.peerSeesFileRemoved
+          ? 'PASS'
+          : results.fileOperations.peerSeesFile
+            ? 'FAIL'
+            : 'NOT CHECKED (the peer never saw the file)'
+      }`,
+    );
+
+    // Gated, and never printed: a run could fail on this alone and the report
+    // showed nothing but passes above a bare "OVERALL: TEST FAILED".
+    console.log('\nNavigation:');
+    console.log(`  Bob Reaches File Manager:  ${results.navigation.bobToFileManager ? 'PASS' : 'FAIL'}`);
 
     console.log('\nContext Menu:');
     console.log(`  Open Context Menu:         ${results.contextMenu.openContextMenu ? 'PASS' : 'FAIL'}`);
@@ -965,8 +1103,6 @@ async function runTest(): Promise<boolean> {
 
     harness.finalize(allPassed, results);
 
-    console.log('\nBrowser will remain open for 10 seconds...');
-    await sleep(10000);
 
     return allPassed;
 

@@ -5,13 +5,15 @@
  * 1. Navigate to /directory page
  * 2. Verify page structure (title, search, tabs, member list)
  * 3. Verify workspace members appear in directory
- * 4. Test tab switching (All, Online, Favorites)
+ * 4. Test tab switching (All, Online)
  * 5. Test user selection and profile panel
  * 6. Test connection request dialog
  */
 
 import { Page } from 'playwright';
 import {
+  navigateToDirectory,
+  activateTab,
   sleep,
   createBrowser,
   createAccount,
@@ -22,6 +24,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -44,7 +47,6 @@ interface TestResults {
   // Tab functionality
   allTabWorks: boolean;
   onlineTabWorks: boolean;
-  favoritesTabWorks: boolean;
 
   // User list
   memberListVisible: boolean;
@@ -75,50 +77,6 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 /**
  * Navigate to the User Directory page using client-side navigation
  */
-async function navigateToDirectory(page: Page): Promise<boolean> {
-  console.log('\n=== Navigating to User Directory ===');
-
-  try {
-    // Use client-side navigation to preserve session state
-    // This is equivalent to react-router's navigate('/directory')
-    await page.evaluate(() => {
-      window.history.pushState({}, '', '/directory');
-      window.dispatchEvent(new PopStateEvent('popstate'));
-    });
-    await sleep(3000);
-
-    // Verify we're on the directory page
-    const title = page.locator('h1:has-text("User Directory")');
-    if (await title.isVisible({ timeout: 10000 }).catch(() => false)) {
-      console.log('  Successfully navigated to User Directory');
-      return true;
-    }
-
-    // Alternative: try sidebar link if available
-    console.log('  Client-side navigation may have failed, trying sidebar...');
-    const sidebarLink = page.locator('a[href*="directory"], button:has-text("Directory")').first();
-    if (await sidebarLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await sidebarLink.click();
-      await sleep(2000);
-      return await title.isVisible({ timeout: 5000 }).catch(() => false);
-    }
-
-    // Alternative: Try react-router Link click via navigation
-    // Some apps use a top navigation or user menu
-    const navLink = page.locator('[href="/directory"]').first();
-    if (await navLink.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await navLink.click();
-      await sleep(2000);
-      return await title.isVisible({ timeout: 5000 }).catch(() => false);
-    }
-
-    console.log('  Could not navigate to directory');
-    return false;
-  } catch (error) {
-    console.error('  Error navigating to directory:', error);
-    return false;
-  }
-}
 
 /**
  * Verify page structure elements
@@ -140,33 +98,34 @@ async function verifyPageStructure(page: Page): Promise<{
 
   // Check page title
   const title = page.locator('h1:has-text("User Directory")');
-  results.title = await title.isVisible({ timeout: 3000 }).catch(() => false);
+  results.title = await isVisibleWithin(title, 3000);
   console.log(`  Page title visible: ${results.title}`);
 
   // Check search card ("Find People")
   const searchCard = page.locator('text="Find People"');
-  results.searchCard = await searchCard.isVisible({ timeout: 3000 }).catch(() => false);
+  results.searchCard = await isVisibleWithin(searchCard, 3000);
   console.log(`  Search card visible: ${results.searchCard}`);
 
   // Check directory card ("Workspace Directory")
   const directoryCard = page.locator('text="Workspace Directory"');
-  results.directoryCard = await directoryCard.isVisible({ timeout: 3000 }).catch(() => false);
+  results.directoryCard = await isVisibleWithin(directoryCard, 3000);
   console.log(`  Directory card visible: ${results.directoryCard}`);
 
   // Check tabs
-  const allTab = page.locator('button[role="tab"]:has-text("All")');
-  const onlineTab = page.locator('button[role="tab"]:has-text("Online")');
-  const favoritesTab = page.locator('button[role="tab"]:has-text("Favorites")');
+  // Two tabs, not three: the directory has no Favorites tab and never has.
 
-  const tabsVisible = await Promise.all([
-    allTab.isVisible({ timeout: 3000 }).catch(() => false),
-    onlineTab.isVisible({ timeout: 3000 }).catch(() => false),
-    favoritesTab.isVisible({ timeout: 3000 }).catch(() => false),
-  ]);
+  const tabsVisible = await Promise.all(
+    ['All', 'Online'].map((label) => isVisibleWithin(directoryTab(page, label), 5000))
+  );
   results.tabs = tabsVisible.every(Boolean);
-  console.log(`  Tabs visible: ${results.tabs} (All: ${tabsVisible[0]}, Online: ${tabsVisible[1]}, Favorites: ${tabsVisible[2]})`);
+  console.log(`  Tabs visible: ${results.tabs} (All: ${tabsVisible[0]}, Online: ${tabsVisible[1]})`);
 
   return results;
+}
+
+/** A directory tab, by its visible label. */
+function directoryTab(page: Page, label: string) {
+  return page.locator(`button[role="tab"]:has-text("${label}")`);
 }
 
 /**
@@ -175,50 +134,31 @@ async function verifyPageStructure(page: Page): Promise<{
 async function testTabSwitching(page: Page): Promise<{
   allTab: boolean;
   onlineTab: boolean;
-  favoritesTab: boolean;
 }> {
   console.log('\n=== Testing Tab Switching ===');
 
   const results = {
     allTab: false,
     onlineTab: false,
-    favoritesTab: false,
   };
 
-  // Click "All" tab
-  const allTab = page.locator('button[role="tab"]:has-text("All")');
-  if (await allTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await allTab.click();
-    await sleep(500);
-    // Check if tab is selected (data-state="active")
-    const isActive = await allTab.getAttribute('data-state');
-    results.allTab = isActive === 'active';
-    console.log(`  All tab works: ${results.allTab}`);
-  }
+  // The search step before this leaves UserSearch's results panel open. It is
+  // absolutely positioned at z-50 directly over the tabs, so Playwright's
+  // hit-target check refuses to click through it. Escape is how a user dismisses
+  // it, so that is what this does — and it only works because UserSearch now
+  // handles Escape at all.
+  await page.keyboard.press('Escape');
 
-  // Click "Online" tab
-  const onlineTab = page.locator('button[role="tab"]:has-text("Online")');
-  if (await onlineTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await onlineTab.click();
-    await sleep(500);
-    const isActive = await onlineTab.getAttribute('data-state');
-    results.onlineTab = isActive === 'active';
-    console.log(`  Online tab works: ${results.onlineTab}`);
-  }
+  results.allTab = (await activateTab(page, directoryTab(page, 'All'),
+    'All tab', page.locator('[role="tabpanel"]').first())).works;
 
-  // Click "Favorites" tab
-  const favoritesTab = page.locator('button[role="tab"]:has-text("Favorites")');
-  if (await favoritesTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await favoritesTab.click();
-    await sleep(500);
-    const isActive = await favoritesTab.getAttribute('data-state');
-    results.favoritesTab = isActive === 'active';
-    console.log(`  Favorites tab works: ${results.favoritesTab}`);
-  }
+  results.onlineTab = (await activateTab(page, directoryTab(page, 'Online'),
+    'Online tab', page.locator('[role="tabpanel"]').first())).works;
 
-  // Go back to All tab for subsequent tests
-  await allTab.click();
-  await sleep(500);
+
+  // Leave All selected for the steps that follow.
+  await activateTab(page, directoryTab(page, 'All'), 'All tab (restore)',
+    page.locator('[role="tabpanel"]').first());
 
   return results;
 }
@@ -231,7 +171,7 @@ async function checkUserInList(page: Page, displayName: string): Promise<boolean
 
   // Look for the user's name in the directory list
   const userEntry = page.locator(`text="${displayName}"`).first();
-  const visible = await userEntry.isVisible({ timeout: 5000 }).catch(() => false);
+  const visible = await isVisibleWithin(userEntry, 5000);
   console.log(`  ${displayName} in list: ${visible}`);
   return visible;
 }
@@ -250,24 +190,26 @@ async function selectUserAndVerifyPanel(page: Page, displayName: string): Promis
     userInfoCorrect: false,
   };
 
-  // Find and click on the user entry - target the row that contains the user's name
-  // The member list has rows with flex items - we need to click anywhere in the row
-  const userRow = page.locator(`div:has(h3:has-text("${displayName}"))`).first();
+  // The row by its accessible name. The previous selector,
+  // `div:has(h3:has-text(name))`, matched every ancestor div containing that
+  // heading, and `.first()` took the OUTERMOST — the grid wrapper — so the click
+  // landed on a container and never reached the row.
+  const userRow = page.getByRole('button', { name: `View profile for ${displayName}` });
 
-  if (await userRow.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (await isVisibleWithin(userRow, 5000)) {
     await userRow.click();
     await sleep(1000);
 
     // Check if profile panel shows the selected user's name
     // The profile panel is on the right side and shows the user's name in a CardTitle
     const profilePanel = page.locator('div.lg\\:col-span-1');
-    if (await profilePanel.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(profilePanel, 5000)) {
       results.panelVisible = true;
       console.log('  Profile panel visible: true');
 
       // Check if the user's name appears in the profile panel
       const panelTitle = profilePanel.locator(`text="${displayName}"`);
-      results.userInfoCorrect = await panelTitle.isVisible({ timeout: 3000 }).catch(() => false);
+      results.userInfoCorrect = await isVisibleWithin(panelTitle, 5000);
       console.log(`  User info correct: ${results.userInfoCorrect}`);
     }
   } else {
@@ -294,7 +236,7 @@ async function testConnectionRequestFlow(page: Page): Promise<{
   // Look for "Send Connection Request" button in the profile panel
   // For unconnected users, this should be visible in the CardFooter
   const requestButton = page.locator('button:has-text("Send Connection Request")');
-  results.buttonVisible = await requestButton.isVisible({ timeout: 5000 }).catch(() => false);
+  results.buttonVisible = await isVisibleWithin(requestButton, 5000);
   console.log(`  Request button visible: ${results.buttonVisible}`);
 
   if (results.buttonVisible) {
@@ -303,31 +245,34 @@ async function testConnectionRequestFlow(page: Page): Promise<{
     await sleep(1000);
 
     // Check if dialog opened
-    const dialogTitle = page.locator('text="Send Connection Request"').last();
-    results.dialogOpens = await dialogTitle.isVisible({ timeout: 3000 }).catch(() => false);
+    // Scoped to the dialog. Unscoped, this text also matches the button that was
+    // just clicked, so `.last()` was relying on portal ordering to tell the two
+    // apart — and reported on whichever the DOM happened to put second.
+    const dialogTitle = page.locator('[role="dialog"]').getByText('Send Connection Request');
+    results.dialogOpens = await isVisibleWithin(dialogTitle, 5000);
     console.log(`  Dialog opens: ${results.dialogOpens}`);
 
     // Close the dialog
     const cancelButton = page.locator('button:has-text("Cancel")');
-    if (await cancelButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(cancelButton, 2000)) {
       await cancelButton.click();
       await sleep(500);
     }
   } else {
     // Alternative: try the UserPlus icon button in the member list
     const inviteButton = page.locator('button svg.lucide-user-plus').first();
-    if (await inviteButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(inviteButton, 2000)) {
       await inviteButton.click();
       await sleep(1000);
 
-      const dialogTitle = page.locator('text="Send Connection Request"').last();
-      results.dialogOpens = await dialogTitle.isVisible({ timeout: 3000 }).catch(() => false);
+      const dialogTitle = page.locator('[role="dialog"]').getByText('Send Connection Request');
+      results.dialogOpens = await isVisibleWithin(dialogTitle, 5000);
       results.buttonVisible = true;
       console.log(`  (via inline button) Dialog opens: ${results.dialogOpens}`);
 
       // Close the dialog
       const cancelButton = page.locator('button:has-text("Cancel")');
-      if (await cancelButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(cancelButton, 2000)) {
         await cancelButton.click();
         await sleep(500);
       }
@@ -367,7 +312,6 @@ async function runTest(): Promise<boolean> {
     tabsVisible: false,
     allTabWorks: false,
     onlineTabWorks: false,
-    favoritesTabWorks: false,
     memberListVisible: false,
     bobAppearsInList: false,
     profilePanelVisible: false,
@@ -383,7 +327,7 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     const alicePage = await context.newPage();
-    setupConsoleCapture(alicePage, 'Alice', ['error', 'Error', 'Directory', 'Member']);
+    setupConsoleCapture(alicePage, 'Alice', ['error', 'Error', 'Directory', 'Member', 'ILM']);
 
     results.aliceCreated = await createAccount(alicePage, ALICE, {
       isFirstUser: true,
@@ -405,7 +349,7 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     const bobPage = await context.newPage();
-    setupConsoleCapture(bobPage, 'Bob', ['error', 'Error', 'Directory', 'Member']);
+    setupConsoleCapture(bobPage, 'Bob', ['error', 'Error', 'Directory', 'Member', 'ILM']);
 
     results.bobCreated = await createAccount(bobPage, BOB, {
       isFirstUser: false,
@@ -461,7 +405,6 @@ async function runTest(): Promise<boolean> {
       const tabResults = await testTabSwitching(alicePage);
       results.allTabWorks = tabResults.allTab;
       results.onlineTabWorks = tabResults.onlineTab;
-      results.favoritesTabWorks = tabResults.favoritesTab;
 
       await takeScreenshot(alicePage, '05_tabs_tested');
     }
@@ -473,8 +416,13 @@ async function runTest(): Promise<boolean> {
 
     if (results.navigatedToDirectory) {
       // Check if the member list container exists
-      const memberList = alicePage.locator('div.divide-y.divide-gray-700');
-      results.memberListVisible = await memberList.isVisible({ timeout: 5000 }).catch(() => false);
+      // By test id, not by styling class. This looked for
+      // `div.divide-y.divide-gray-700` until the palette migration replaced
+      // that class with `divide-border` — the list was rendering fine and had
+      // been the whole time, but the selector matched nothing, so the spec
+      // failed in CI on a change that had nothing to do with the directory.
+      const memberList = alicePage.locator('[data-testid="directory-member-list"]');
+      results.memberListVisible = await isVisibleWithin(memberList, 5000);
       console.log(`  Member list visible: ${results.memberListVisible}`);
 
       // Check if Bob appears in the list
@@ -510,13 +458,13 @@ async function runTest(): Promise<boolean> {
       // Try selecting any user that appears in the list
       console.log('  Bob not in list, trying to select first available user...');
       const firstUser = alicePage.locator('div.divide-y.divide-gray-700 > div').first();
-      if (await firstUser.isVisible({ timeout: 3000 }).catch(() => false)) {
+      if (await isVisibleWithin(firstUser, 3000)) {
         await firstUser.click();
         await sleep(1000);
 
         // Check if profile panel appeared
         const profileCard = alicePage.locator('div.lg\\:col-span-1 h3, div.lg\\:col-span-1 [class*="CardTitle"]').first();
-        results.profilePanelVisible = await profileCard.isVisible({ timeout: 3000 }).catch(() => false);
+        results.profilePanelVisible = await isVisibleWithin(profileCard, 3000);
         results.selectedUserInfo = results.profilePanelVisible;
         console.log(`  Profile panel visible (any user): ${results.profilePanelVisible}`);
 
@@ -547,9 +495,25 @@ async function runTest(): Promise<boolean> {
     console.log('='.repeat(60));
 
     // Core functionality that must pass
-    const corePassed =
-      results.aliceCreated &&
-      results.bobCreated;
+    // Every assertion this spec reports, gated. It previously printed 15 results
+    // and let 5 of them fail silently.
+    const corePassed = [
+      results.aliceCreated,
+      results.bobCreated,
+      results.navigatedToDirectory,
+      results.pageTitleVisible,
+      results.searchCardVisible,
+      results.directoryCardVisible,
+      results.tabsVisible,
+      results.allTabWorks,
+      results.onlineTabWorks,
+      results.memberListVisible,
+      results.bobAppearsInList,
+      results.profilePanelVisible,
+      results.selectedUserInfo,
+      results.requestButtonVisible,
+      results.requestDialogOpens,
+    ].every(Boolean);
 
     console.log('\nAccount Creation:');
     console.log(`  Alice Created:          ${results.aliceCreated ? 'PASS' : 'FAIL'}`);
@@ -567,10 +531,13 @@ async function runTest(): Promise<boolean> {
     console.log('\nTab Functionality:');
     console.log(`  All Tab Works:          ${results.allTabWorks ? 'PASS' : 'CHECK'}`);
     console.log(`  Online Tab Works:       ${results.onlineTabWorks ? 'PASS' : 'CHECK'}`);
-    console.log(`  Favorites Tab Works:    ${results.favoritesTabWorks ? 'PASS' : 'CHECK'}`);
 
     console.log('\nMember List:');
-    console.log(`  Member List Visible:    ${results.memberListVisible ? 'PASS' : 'CHECK'}`);
+    // FAIL, not CHECK. This one is in corePassed above, so when it is false the
+    // run fails — and printing the word used for ungated, informational results
+    // meant the summary showed fourteen PASSes and a CHECK next to a verdict of
+    // FAILED, with nothing to say which assertion caused it.
+    console.log(`  Member List Visible:    ${results.memberListVisible ? 'PASS' : 'FAIL'}`);
     console.log(`  Bob Appears in List:    ${results.bobAppearsInList ? 'PASS' : 'CHECK'}`);
 
     console.log('\nUser Selection:');
@@ -582,9 +549,6 @@ async function runTest(): Promise<boolean> {
     console.log(`  Request Dialog Opens:   ${results.requestDialogOpens ? 'PASS' : 'CHECK'}`);
 
     harness.finalize(corePassed, results);
-
-    console.log('\nBrowser will remain open for 10 seconds for manual inspection...');
-    await sleep(10000);
 
     return corePassed; // Pass if core functionality works
 

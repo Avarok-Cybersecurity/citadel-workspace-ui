@@ -6,48 +6,73 @@
  */
 
 import React from 'react';
+import { groupMessageActions, type GroupMessageActions } from '@/lib/group-conversations/group-message-actions';
+import { DateSeparator } from './shared/DateSeparator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2 } from 'lucide-react';
 import { useGroupChat } from './useGroupChat';
+import { restrictionText, type GroupRestriction } from './group-restriction';
 import { GroupMessageItem } from './GroupMessageItem';
 
 interface GroupChatViewProps {
   groupId: string;
-  currentUserId: string;
+  /** Unused by the view itself; kept only for callers that still pass it. */
+  currentUserId?: string;
   currentUserName: string;
   rules?: string;
   /** Total number of members in this group (for read receipts) */
   totalMembers?: number;
+  /**
+   * Whether this user may send, and if not, why. Required, not defaulted: the
+   * `sendMessages` permission spent its whole life computed and consulted by
+   * nobody because the one composer hardcoded `true`. A default here would put
+   * it straight back.
+   *
+   * Three answers rather than two, because "your role forbids it" and "you are
+   * not in the member list" were both being reported as the former, and the
+   * latter names a role the reader does not have.
+   */
+  sendRestriction: GroupRestriction;
 }
 
 export const GroupChatView: React.FC<GroupChatViewProps> = ({
   groupId,
-  currentUserId,
+  currentUserId: _currentUserId,
   currentUserName,
   rules,
   totalMembers = 2,
+  sendRestriction,
 }) => {
-  const chat = useGroupChat(groupId);
+  const chat: ReturnType<typeof useGroupChat> = useGroupChat(groupId);
+  // A peer group has no edit or delete on the wire; see group-message-actions.
+  const actions: GroupMessageActions = groupMessageActions(groupId);
 
   return (
-    <div className="flex flex-col h-full bg-[#1C1D28]">
+    <div className="flex flex-col h-full bg-background">
       {/* Rules banner */}
       {rules && (
-        <div className="px-4 py-2 bg-purple-900/30 border-b border-purple-800/50">
-          <p className="text-sm text-purple-300">{rules}</p>
+        <div className="px-4 py-2 bg-primary/20 border-b border-primary/40">
+          <p className="text-sm text-primary-accent">{rules}</p>
         </div>
       )}
 
       {/* Messages area */}
       <ScrollArea className="flex-1" ref={chat.scrollAreaRef}>
-        {chat.loading ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-          </div>
-        ) : (
-          <div className="py-4">
+        {/* The log region is OUTSIDE the loading branch on purpose.
+            A live region has to pre-exist its content: created together with a
+            full back-scroll, the insertion is either read aloud in its entirety
+            or dropped, depending on the browser and the reader. The direct
+            message list gets this right (P2PMessageList) and the group view was
+            written the other way. */}
+        <div className="py-4" role="log" aria-label="Group conversation" data-testid="group-chat-view">
+          {chat.loading ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="h-8 w-8 animate-spin text-primary-accent" />
+            </div>
+          ) : (
+            <>
             {/* Load more button */}
             {chat.hasMore && (
               <div className="flex justify-center mb-4">
@@ -68,16 +93,12 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
             {/* Messages grouped by date */}
             {Object.entries(chat.messagesByDate).map(([date, dateMessages]) => (
               <div key={date}>
-                <div className="flex items-center justify-center my-4">
-                  <div className="h-px bg-gray-700 flex-1" />
-                  <span className="px-3 text-xs text-gray-500">{date}</span>
-                  <div className="h-px bg-gray-700 flex-1" />
-                </div>
+                <DateSeparator date={date} />
                 {dateMessages.map((message) => (
                   <GroupMessageItem
                     key={message.id}
                     message={message}
-                    currentUserId={currentUserId}
+                    currentUserName={currentUserName}
                     totalMembers={totalMembers}
                     onEdit={(id, content) => {
                       chat.setEditingId(id);
@@ -85,27 +106,29 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
                     }}
                     onDelete={chat.handleDeleteMessage}
                     onReply={(id) => chat.setReplyToId(id)}
+                    canRevise={actions.canRevise}
                   />
                 ))}
               </div>
             ))}
 
             {chat.messages.length === 0 && !chat.loading && (
-              <div className="flex flex-col items-center justify-center h-48 text-gray-500">
+              <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
                 <p className="text-lg">No messages yet</p>
                 <p className="text-sm">Be the first to send a message!</p>
               </div>
             )}
 
-            <div ref={chat.messagesEndRef} />
-          </div>
-        )}
+              <div ref={chat.messagesEndRef} />
+            </>
+          )}
+        </div>
       </ScrollArea>
 
       {/* Reply indicator */}
       {chat.replyToId && (
-        <div className="px-4 py-2 bg-[#1a1b26] border-t border-[#262C4A]/50 flex items-center justify-between">
-          <span className="text-sm text-gray-400">Replying to message...</span>
+        <div className="px-4 py-2 bg-background border-t border-surface/50 flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Replying to message...</span>
           <Button variant="ghost" size="sm" onClick={() => chat.setReplyToId(null)}>
             Cancel
           </Button>
@@ -114,8 +137,8 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
 
       {/* Edit indicator */}
       {chat.editingId && (
-        <div className="px-4 py-2 bg-[#1a1b26] border-t border-[#262C4A]/50 flex items-center justify-between">
-          <span className="text-sm text-gray-400">Editing message...</span>
+        <div className="px-4 py-2 bg-background border-t border-surface/50 flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Editing message...</span>
           <Button
             variant="ghost"
             size="sm"
@@ -129,8 +152,17 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
         </div>
       )}
 
-      {/* Input area */}
-      <div className="p-4 border-t border-[#262C4A]/50">
+      {/* Input area. A role without `sendMessages` gets the reason, not a box
+          that silently refuses -- a disabled composer with no explanation is
+          indistinguishable from a broken one. */}
+      {sendRestriction !== 'allowed' ? (
+        <div className="p-4 border-t border-surface/50">
+          <p className="text-sm text-muted-foreground" data-testid="group-send-restricted">
+            {restrictionText(sendRestriction, 'send messages')}
+          </p>
+        </div>
+      ) : (
+      <div className="p-4 border-t border-surface/50">
         <div className="flex gap-2">
           <Textarea
             value={chat.editingId ? chat.editContent : chat.inputValue}
@@ -141,13 +173,15 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
             }
             onKeyDown={chat.handleKeyPress}
             placeholder={chat.editingId ? 'Edit message...' : 'Type a message...'}
-            className="flex-1 resize-none bg-[#1a1b26] border-[#262C4A]/50 focus:border-purple-500"
+            data-testid="group-message-input"
+            className="flex-1 resize-none bg-background border-surface/50 focus:border-primary-accent"
             rows={1}
           />
           <Button
+            aria-label={chat.editingId ? 'Save edit' : 'Send message'}
             onClick={chat.editingId ? chat.handleEditMessage : chat.handleSendMessage}
             disabled={chat.sending || (chat.editingId ? !chat.editContent.trim() : !chat.inputValue.trim())}
-            className="bg-purple-600 hover:bg-purple-700"
+            className="bg-primary hover:bg-primary/90"
           >
             {chat.sending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -157,6 +191,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
           </Button>
         </div>
       </div>
+      )}
     </div>
   );
 };

@@ -16,14 +16,14 @@ import { wrapInMemory, type InMemoryOnly, type SendTransferRequestIntent } from 
  */
 describe('InMemoryOnly<T> brand on SendTransferRequestIntent.file', () => {
   it('wrapInMemory is identity at runtime (the brand is compile-time only)', () => {
-    const f = { name: 'a.txt', size: 1, type: 'text/plain' } as unknown as File;
-    const wrapped = wrapInMemory(f);
+    const f: File = { name: 'a.txt', size: 1, type: 'text/plain' } as unknown as File;
+    const wrapped: InMemoryOnly<File> = wrapInMemory(f);
     // Same reference — no defensive copy, no proxy, no wrapper object.
     expect(wrapped).toBe(f);
   });
 
   it('survives in-memory dispatch: intent retains the file reference', () => {
-    const f = { name: 'a.txt', size: 1, type: 'text/plain' } as unknown as File;
+    const f: File = { name: 'a.txt', size: 1, type: 'text/plain' } as unknown as File;
     const intent: SendTransferRequestIntent = {
       type: 'send-transfer-request',
       transfer: { id: 't1' } as unknown as SendTransferRequestIntent['transfer'],
@@ -36,13 +36,13 @@ describe('InMemoryOnly<T> brand on SendTransferRequestIntent.file', () => {
   });
 
   it('JSON.stringify silently drops the file (the failure mode the brand documents)', () => {
-    const f = { name: 'a.txt', size: 1, type: 'text/plain' } as unknown as File;
+    const f: File = { name: 'a.txt', size: 1, type: 'text/plain' } as unknown as File;
     const intent: SendTransferRequestIntent = {
       type: 'send-transfer-request',
       transfer: { id: 't1' } as unknown as SendTransferRequestIntent['transfer'],
       file: wrapInMemory(f),
     };
-    const roundtrip = JSON.parse(JSON.stringify(intent)) as SendTransferRequestIntent;
+    const roundtrip: SendTransferRequestIntent = JSON.parse(JSON.stringify(intent)) as SendTransferRequestIntent;
     // The plain object `{ name, size, type }` JSON-roundtrips to an object
     // — what a real File would lose is its `arrayBuffer()`, `slice()`, etc.
     // The point: the brand at the type level is the only line of defense
@@ -73,7 +73,7 @@ describe('InMemoryOnly<T> brand on SendTransferRequestIntent.file', () => {
     // The branded type is `T & { __brand }`, so `.size`, `.name`, etc.
     // are accessible without unwrap. The executor in `io.ts` reads
     // `intent.file` directly and treats it as `File`.
-    const f = { name: 'a.txt', size: 42, type: 'text/plain' } as unknown as File;
+    const f: File = { name: 'a.txt', size: 42, type: 'text/plain' } as unknown as File;
     const wrapped: InMemoryOnly<File> = wrapInMemory(f);
     expect(wrapped.size).toBe(42);
     expect(wrapped.name).toBe('a.txt');

@@ -1,147 +1,95 @@
 /**
  * Default Node Content Templates
  *
- * Default MDX content for office and room nodes.
+ * The first thing anyone sees inside a new office or room.
+ *
+ * This used to be a Markdown syntax tutorial — bold, italics, code fences. That
+ * teaches people about Markdown, which they either already know or can look up,
+ * and tells them nothing about the product they have just opened. What a new
+ * user actually needs is the answer to "what is this place, and what do I do
+ * next", so that is what it says now.
  */
 
-import { debugLog } from '@/lib/debug-config';
-export const getDefaultNodeContent = (nodeName: string) => `# Welcome to ${nodeName}
+export const getDefaultNodeContent = (nodeName: string): string => `# ${nodeName}
 
-Welcome to your new office workspace! This is a **powerful MDX editor** that supports rich content formatting, interactive components, and collaborative editing.
+This is a room in your workspace: a place for a team to talk, share files, and
+work on documents together. Everything here is end-to-end encrypted with
+post-quantum cryptography, and messages travel directly between people rather
+than through a server.
 
-## What You Can Do Here
+Replace this page with whatever your team needs — it is a normal document and
+everyone with access can edit it.
 
-### Rich Text Formatting
-- **Bold text** for emphasis
-- *Italic text* for style
-- ~~Strikethrough~~ for corrections
-- \`inline code\` for technical terms
-- [Links to resources](https://example.com)
+## Getting started
 
-### Lists & Organization
-1. Numbered lists for sequential items
-2. Perfect for step-by-step guides
-3. Or prioritized tasks
+**Invite people.** Open the members panel from the sidebar to add someone to
+this room. They will need an account on this workspace first.
 
-- Bullet points for general items
-- Great for feature lists
-- Easy to scan and read
+**Talk.** Use the chat alongside this document for conversation. Messages are
+delivered directly to each person, and anything sent while they are offline is
+held and delivered when they return.
 
-### Code Blocks with Syntax Highlighting
-\`\`\`typescript
-// Example TypeScript code
-interface TeamMember {
-  name: string;
-  role: string;
-  skills: string[];
-}
+**Call.** The phone and video buttons at the top of a conversation start an
+audio or video call. Your microphone and camera stay off until you turn them on,
+and the other person is asked before anything connects.
 
-const welcomeNewMember = (member: TeamMember) => {
-  debugLog('DefaultMdxContent', \`Welcome \${member.name} to the team!\`);
-};
-\`\`\`
+**Share files.** Drag a file into the chat. It goes straight to the people in
+the conversation, encrypted, without being uploaded anywhere in between.
 
-### Tables for Data
-| Feature | Status | Priority |
-|---------|--------|----------|
-| MDX Editor | Complete | High |
-| Real-time Sync | In Progress | Medium |
-| File Uploads | Planned | High |
+**Write together.** Open a live document to edit at the same time as someone
+else and see their changes as they type.
 
-### Blockquotes for Important Notes
-> **Pro Tip**: Click the "Edit" button in the top right to start customizing this content. All changes are automatically saved and synced across your team!
+## Organising the workspace
 
-### Task Lists
-- [x] Set up office workspace
-- [x] Explore MDX editor features
-- [ ] Customize this page for your team
-- [ ] Invite team members
-- [ ] Start collaborating!
+Workspaces are made of **offices**, and offices contain **rooms**. Use offices
+for teams or projects and rooms for the topics inside them — the same way you
+would organise physical space.
 
-## Getting Started
+Permissions follow that structure: access granted on an office applies to the
+rooms inside it, so you can give someone a whole project without adding them to
+every room by hand.
 
-1. **Edit This Page**: Click the "Edit" button to modify this content
-2. **Use Templates**: Choose from pre-built templates when creating new content
-3. **Collaborate**: All changes are synced in real-time with your team
-4. **Organize**: Create rooms within this office for different projects or teams
+## Making it yours
 
-## Resources
-
-### Markdown Guide
-Learn more about [Markdown syntax](https://www.markdownguide.org/) to make the most of this editor.
-
-### Keyboard Shortcuts
-- **Bold**: Cmd/Ctrl + B
-- **Italic**: Cmd/Ctrl + I
-- **Link**: Cmd/Ctrl + K
-- **Code**: Cmd/Ctrl + \`
+An administrator can change the workspace's colours and icon under
+**Settings → Theme**. Whatever they choose is what everyone sees, while each
+person still picks light or dark for themselves.
 
 ---
 
-*Ready to make this space your own? Click "Edit" to get started!*`;
+*Every message, file and call in this workspace is encrypted end to end. No
+server in the middle can read them — including the one hosting this workspace.*
+`;
 
-export const getDefaultChildNodeContent = (nodeName: string, nodeDescription?: string) => `# ${nodeName}
+export const getDefaultChildNodeContent = (nodeName: string, nodeDescription?: string): string => `# ${nodeName}
 
-${nodeDescription || 'Welcome to your team room! This is your dedicated space for collaboration and communication.'}
+${nodeDescription || 'A room for focused work: conversation, files, and shared documents in one place.'}
 
-## Room Purpose
+## What this page is for
 
-This room is designed for focused collaboration. Use this space to:
-- Discuss project updates and ideas
-- Share documentation and resources
-- Track goals and milestones
-- Coordinate team activities
+This page belongs to the room and everyone with access can edit it. It works well
+as the thing a newcomer reads first — what the room is for, who is in it, and
+where the important links live.
 
-## Quick Status
+Some teams keep a short brief here. Others keep decisions, or a list of the
+documents that matter. Delete this and write what your team actually needs.
 
-### Current Sprint
-\`\`\`markdown
-Sprint 2.3 - Feature Development
-Start Date: Monday, Jan 15
-End Date: Friday, Jan 26
-Progress: ========.. 80%
-\`\`\`
+## Alongside this page
 
-### Team Updates
-> **Latest Update**: Team standup notes and action items go here.
+**Chat** runs beside the document, so discussion stays next to the work rather
+than in a separate app.
 
-### Active Discussions
-1. **Architecture Review** - Discussing new microservices approach
-2. **UI/UX Improvements** - Gathering feedback on latest designs
-3. **Performance Optimization** - Tracking metrics and improvements
+**Calls** start from the phone or video button at the top of a conversation, for
+when writing is slower than talking.
 
-## Tools & Resources
+**Files** dropped into the chat go directly to the people in the room, encrypted,
+without passing through storage in between.
 
-### Quick Links
-- [Project Board](https://example.com/board)
-- [Documentation](https://example.com/docs)
-- [Design System](https://example.com/design)
-
-### Code Snippets
-Save frequently used code snippets here for easy reference:
-
-\`\`\`bash
-# Deploy to staging
-npm run build
-npm run deploy:staging
-\`\`\`
-
-## Meeting Notes
-
-### Weekly Sync - [Date]
-- **Attendees**: Team members
-- **Topics**: Discussion points
-- **Action Items**:
-  - [ ] Action item 1
-  - [ ] Action item 2
-
-## Room Customization Tips
-
-1. **Personalize**: Update this content to match your team's workflow
-2. **Organize**: Use headers and sections to structure information
-3. **Visualize**: Add tables, lists, and code blocks for clarity
-4. **Collaborate**: Everyone can contribute and edit
+**Live documents** let several people type at once and see each other's changes
+as they happen.
 
 ---
 
-*Start editing to make this room uniquely yours!*`;
+*This room inherits access from the office above it, so anyone who can reach that
+office can reach this room.*
+`;

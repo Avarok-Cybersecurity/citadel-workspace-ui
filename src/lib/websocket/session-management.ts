@@ -37,17 +37,17 @@ export class SessionManagement {
    * Unwrap the optional Response wrapper that some messages arrive with.
    */
   private static unwrapResponse(message: unknown): ConnectionManagementResponse {
-    const msg = message as { Response?: Record<string, unknown> } & Record<string, unknown>;
+    const msg: { Response?: Record<string, unknown>; } & Record<string, unknown> = message as { Response?: Record<string, unknown> } & Record<string, unknown>;
     return (msg.Response || msg) as ConnectionManagementResponse;
   }
 
   /**
    * Create a matcher for ConnectionManagement success/failure responses.
    */
-  private connectionManagementMatcher(requestId: string) {
+  private connectionManagementMatcher(requestId: string): { matchSuccess: (message: Record<string, unknown>) => SessionManagementResult | undefined; matchFailure: (message: Record<string, unknown>) => string | undefined; } {
     return {
       matchSuccess: (message: Record<string, unknown>): SessionManagementResult | undefined => {
-        const response = SessionManagement.unwrapResponse(message);
+        const response: ConnectionManagementResponse = SessionManagement.unwrapResponse(message);
         if (response.ConnectionManagementSuccess?.request_id === requestId) {
           return {
             success: true,
@@ -58,7 +58,7 @@ export class SessionManagement {
         return undefined;
       },
       matchFailure: (message: Record<string, unknown>): string | undefined => {
-        const response = SessionManagement.unwrapResponse(message);
+        const response: ConnectionManagementResponse = SessionManagement.unwrapResponse(message);
         if (response.ConnectionManagementFailure?.request_id === requestId) {
           return response.ConnectionManagementFailure.error || 'Connection management operation failed';
         }
@@ -70,8 +70,8 @@ export class SessionManagement {
   async setOrphanMode(enabled: boolean): Promise<SessionManagementResult> {
     await this.config.init();
 
-    const requestId = crypto.randomUUID();
-    const request = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const request: { ConnectionManagement: { request_id: `${string}-${string}-${string}-${string}-${string}`; management_command: { SetConnectionOrphan: { allow_orphan_sessions: boolean; }; }; }; } = {
       ConnectionManagement: {
         request_id: requestId,
         management_command: { SetConnectionOrphan: { allow_orphan_sessions: enabled } }
@@ -97,10 +97,10 @@ export class SessionManagement {
   async claimSession(sessionCid: string | bigint, onlyIfOrphaned: boolean = false): Promise<SessionManagementResult> {
     await this.config.init();
 
-    const requestId = crypto.randomUUID();
-    const sessionCidBigInt = typeof sessionCid === 'string' ? BigInt(sessionCid) : sessionCid;
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const sessionCidBigInt: bigint = typeof sessionCid === 'string' ? BigInt(sessionCid) : sessionCid;
 
-    const request = {
+    const request: { ConnectionManagement: { request_id: `${string}-${string}-${string}-${string}-${string}`; management_command: { ClaimSession: { session_cid: bigint; only_if_orphaned: boolean; }; }; }; } = {
       ConnectionManagement: {
         request_id: requestId,
         management_command: {
@@ -122,8 +122,8 @@ export class SessionManagement {
   async disconnectOrphan(sessionCid?: string | bigint | null): Promise<SessionManagementResult> {
     await this.config.init();
 
-    const requestId = crypto.randomUUID();
-    const request = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const request: { ConnectionManagement: { request_id: `${string}-${string}-${string}-${string}-${string}`; management_command: { DisconnectOrphan: { session_cid: bigint | null; }; }; }; } = {
       ConnectionManagement: {
         request_id: requestId,
         management_command: {
@@ -143,13 +143,13 @@ export class SessionManagement {
   }
 
   releaseSession(sessionCid: bigint): void {
-    const client = this.config.getClient();
+    const client: WorkspaceClient | null = this.config.getClient();
     if (!client) {
       debugLog('SessionManagement', 'Cannot release session - not the leader (no client)');
       return;
     }
 
-    const request = {
+    const request: { ConnectionManagement: { request_id: `${string}-${string}-${string}-${string}-${string}`; management_command: { ReleaseSession: { session_cid: bigint; }; }; }; } = {
       ConnectionManagement: {
         request_id: crypto.randomUUID(),
         management_command: { ReleaseSession: { session_cid: sessionCid } }

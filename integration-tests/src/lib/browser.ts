@@ -3,8 +3,10 @@
  */
 
 import { chromium, Page } from 'playwright';
+import { formatConsoleLine } from './console-line.js';
+import { reportTimeout } from './screen-state.js';
 import type { BrowserOptions, BrowserSetup } from './types.js';
-import { isCI, config } from './config.js';
+import { isCI, isHeaded, config } from './config.js';
 
 /**
  * Create a browser and context for testing
@@ -15,7 +17,7 @@ import { isCI, config } from './config.js';
  */
 export async function createBrowser(options: BrowserOptions = {}): Promise<BrowserSetup> {
   // Default to headless in CI, visible browser locally
-  const { headless = isCI, slowMo = isCI ? 0 : 50 } = options;
+  const { headless = !isHeaded, slowMo = isHeaded ? 50 : 0 } = options;
 
   // CI-specific args to prevent net::ERR_INSUFFICIENT_RESOURCES
   const ciArgs = isCI ? [
@@ -101,7 +103,7 @@ export async function clearBrowserStorage(page: Page): Promise<void> {
     ]);
     console.log('  Browser storage cleared');
   } catch (error) {
-    console.log('  WARNING: Storage clear failed or timed out, continuing anyway');
+    await reportTimeout(page, 'WARNING: Storage clear failed or timed out, continuing anyway');
   }
 }
 
@@ -314,7 +316,7 @@ export async function createSeparateBrowsers(
   options: BrowserOptions = {}
 ): Promise<MultiBrowserSetup> {
   // Default to headless in CI, visible browser locally
-  const { headless = isCI, slowMo = isCI ? 0 : 50 } = options;
+  const { headless = !isHeaded, slowMo = isHeaded ? 50 : 0 } = options;
 
   const browsers: import('playwright').Browser[] = [];
   const pages: Page[] = [];
@@ -389,14 +391,27 @@ export async function waitForAppReady(page: Page, timeout = 60000): Promise<void
   const startTime = Date.now();
 
   // Wait for ANY of the known landing page elements to appear.
-  // These are rendered by React, so their presence confirms the app has mounted.
+  //
+  // Keyed on testids, not on button COPY. This waited for
+  // `button:has-text("Create Account")` and `"Sign In"`, so renaming
+  // those buttons — to "Create Account" and "Sign In", because neither of the
+  // old ones was English and "Join" meant create an account — made every
+  // Playwright shard and four integration legs time out here, sixty seconds
+  // each, reporting only that the React app never rendered. It had rendered
+  // perfectly; the check was asking for words that no longer existed.
+  //
+  // A readiness probe must not be the thing that breaks when the product's
+  // copy improves.
   await page.waitForSelector(
     [
-      'button:has-text("Join Workspace")',
-      'button:has-text("Login Workspace")',
+      '[data-testid="sign-in-button"]',
+      '[data-testid="create-account-button"]',
       // Workspace page indicators (if already logged in)
       '[data-sidebar="sidebar"]',
-      '[data-testid="workspace-name"]',
+      // `workspace-name` was here and the app never rendered it, so this line
+      // contributed nothing to a probe whose whole point is not to break when
+      // the product changes. The switcher is the workspace shell's own name.
+      '[data-testid="workspace-switcher"]',
     ].join(', '),
     { timeout }
   );
@@ -418,7 +433,7 @@ export function setupConsoleCapture(page: Page, label: string, filterKeywords: s
 
     if (shouldLog) {
       logs.push(`[${new Date().toISOString()}] ${text}`);
-      console.log(`  [${label}] ${text.substring(0, 150)}`);
+      console.log(`  [${label}] ${formatConsoleLine(text)}`);
     }
   });
 

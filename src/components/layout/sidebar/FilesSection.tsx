@@ -1,4 +1,9 @@
 import { FileSpreadsheet, FileText, FileType, FileCode, Folder, FileX } from "lucide-react";
+import { mayLeaveEditor } from '@/lib/leave-editor';
+import { useConfirm } from '@/components/shared/confirm-dialog';
+import { formatBytes } from '@/lib/format-bytes';
+import { peerDisplayName } from '@/lib/peer-display';
+import { useRegisteredPeers } from '@/hooks';
 import { useState, useEffect, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -14,6 +19,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 import { fileTransferService, FILE_TRANSFER_EVENTS, type FileTransfer } from "@/lib/file-transfer";
 import { useEventListeners } from "@/hooks";
+import { formatDateTime } from '@/lib/format-time';
+import type { NavigateFunction } from 'react-router';
 
 /**
  * File display type for sidebar rendering
@@ -28,55 +35,42 @@ interface FileDisplay {
     avatar: string;
   };
   createdAt: string;
-  url: string;
+  /** Where the agent saved it, on the agent's filesystem. Not a URL. */
+  savedTo: string;
 }
 
 /**
  * Format bytes to human readable size
  */
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
 
-/**
- * Format timestamp to readable date
- */
-function formatDate(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-}
 
 /**
  * Convert FileTransfer to FileDisplay for sidebar
  */
-function mapTransferToDisplay(transfer: FileTransfer): FileDisplay {
+function mapTransferToDisplay(
+  transfer: FileTransfer,
+  usernameForCid: (cid: string) => string | undefined,
+): FileDisplay {
   return {
     id: transfer.id,
     name: transfer.fileName,
     type: transfer.fileType || 'Unknown',
     size: transfer.fileSize,
     sender: {
-      name: transfer.senderCid.slice(0, 12) + '...', // Truncate CID for display
-      avatar: '', // Default empty avatar for CID-based senders
+      // A raw decimal CID, truncated, was shown as the sender's identity -- in
+      // the one dialog whose job is to say who sent the file. peerDisplayName
+      // is what every other surface uses; it falls back to a short handle
+      // rather than thirteen digits.
+      name: peerDisplayName({ cid: transfer.senderCid, username: usernameForCid(transfer.senderCid) }),
+      avatar: '',
     },
-    createdAt: formatDate(transfer.updatedAt),
-    url: transfer.downloadPath ?? '',
+    createdAt: formatDateTime(transfer.updatedAt),
+    savedTo: transfer.downloadPath ?? '',
   };
 }
 
-const getFileIcon = (fileName: string) => {
-  const extension = fileName.split('.').pop()?.toLowerCase();
+const getFileIcon: (fileName: string) => JSX.Element = (fileName: string): JSX.Element => {
+  const extension: string | undefined = fileName.split('.').pop()?.toLowerCase();
 
   switch (extension) {
     case 'xlsx':
@@ -96,23 +90,28 @@ const getFileIcon = (fileName: string) => {
   }
 };
 
-export const FilesSection = () => {
+export const FilesSection: () => JSX.Element = (): JSX.Element => {
   const [files, setFiles] = useState<FileDisplay[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileDisplay | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { registeredPeers } = useRegisteredPeers();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
+  const navigate: NavigateFunction = useNavigate();
+  const location: ReturnType<typeof useLocation> = useLocation();
 
   /**
    * Load completed incoming transfers from FileTransferService
    */
-  const loadFiles = useCallback(() => {
-    const downloads = fileTransferService.getAllTransfers()
+  const loadFiles: () => void = useCallback((): void => {
+    const downloads: FileTransfer[] = fileTransferService.getAllTransfers()
       .filter(t => t.state === 'complete' && t.isIncoming)
       .sort((a, b) => b.updatedAt - a.updatedAt); // Most recent first
 
-    setFiles(downloads.map(mapTransferToDisplay));
-  }, []);
+    const usernameForCid = (cid: string): string | undefined =>
+      registeredPeers.find(peer => peer.cid.toString() === cid)?.username;
+
+    setFiles(downloads.map(transfer => mapTransferToDisplay(transfer, usernameForCid)));
+  }, [registeredPeers]);
 
   // Initial load
   useEffect(() => {
@@ -127,32 +126,35 @@ export const FilesSection = () => {
 
   // Also refresh on window focus in case events were missed while tab was inactive
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = (): void => {
       if (document.visibilityState === 'visible') {
         loadFiles();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
+    return (): void => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [loadFiles]);
 
-  const handleFileClick = (file: FileDisplay) => {
+  const handleFileClick = (file: FileDisplay): void => {
     setSelectedFile(file);
     setIsPreviewOpen(true);
   };
 
-  const handleClosePreview = () => {
+  const handleClosePreview = (): void => {
     setIsPreviewOpen(false);
     setSelectedFile(null);
   };
 
-  const params = new URLSearchParams(location.search);
-  const isFileManagerActive = params.get('section') === 'files';
+  const params: URLSearchParams = new URLSearchParams(location.search);
+  const isFileManagerActive: boolean = params.get('section') === 'files';
 
-  const handleFileManagerClick = () => {
-    const newParams = new URLSearchParams(location.search);
+  const handleFileManagerClick = async (): Promise<void> => {
+    // Deletes nodeId from the URL, which unmounts the editor.
+    if (!(await mayLeaveEditor(confirm))) return;
+
+    const newParams: URLSearchParams = new URLSearchParams(location.search);
     newParams.set('section', 'files');
     newParams.delete('nodeId');
     newParams.delete('showP2P');
@@ -164,14 +166,14 @@ export const FilesSection = () => {
   return (
     <>
       <SidebarGroup className="flex-shrink-0 min-h-[4rem]" data-testid="files-section">
-        <SidebarGroupLabel className="text-[#9b87f5] font-semibold px-0 ml-3">FILES</SidebarGroupLabel>
+        <SidebarGroupLabel className="text-primary-accent font-semibold px-0 ml-3">FILES</SidebarGroupLabel>
         <SidebarGroupContent>
           <ScrollArea className="max-h-[30vh]">
             <SidebarMenu>
               {files.length === 0 ? (
                 <SidebarMenuItem>
                   <div
-                    className="px-3 py-2 text-sm text-gray-400 flex items-center gap-2"
+                    className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2"
                     data-testid="no-files-message"
                   >
                     <FileX className="h-4 w-4" />
@@ -182,7 +184,7 @@ export const FilesSection = () => {
                 files.map((file) => (
                   <SidebarMenuItem key={file.id} data-testid={`file-item-${file.id}`}>
                     <SidebarMenuButton
-                      className="text-white hover:bg-purple-500/15 hover:text-white transition-colors"
+                      className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors"
                       onClick={() => handleFileClick(file)}
                     >
                       {getFileIcon(file.name)}
@@ -196,10 +198,11 @@ export const FilesSection = () => {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={isFileManagerActive}
-                  className={`text-white hover:bg-purple-500/15 hover:text-white transition-colors ${
-                    isFileManagerActive ? "bg-purple-500/20 text-purple-200" : ""
+                  // See TreeNodeItem: white belongs on a primary fill, not on the page.
+                  className={`text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors ${
+                    isFileManagerActive ? "bg-primary-accent/20 text-primary-accent" : ""
                   }`}
-                  onClick={handleFileManagerClick}
+                  onClick={() => void handleFileManagerClick()}
                   data-testid="file-manager-button"
                 >
                   <Folder className="h-4 w-4" />

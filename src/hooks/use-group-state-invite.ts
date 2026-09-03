@@ -11,10 +11,18 @@
  * (historical circular-dependency concern).
  */
 
-import { eventEmitter } from '@/lib/event-emitter';
 import type { GroupConversation, GroupMember } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
+// Rendered directly rather than emitted as 'notification:show': that event had
+// three emitters and no listener anywhere, so every one of these notices — the
+// arrival notice AND both failure notices — was written to nobody. The comment
+// at the group-store call site claimed this path "swallows its own failures with
+// a user-facing toast"; the toast did not exist.
+import { toast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
+import type { GroupRole } from '@/types/group-permissions';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import type { StoredSession } from '@/types/session-types';
 
 export interface GroupInvitePayload {
   groupId: string;
@@ -51,7 +59,19 @@ function parseCid(raw: unknown): bigint | null {
  * inviterId) — the caller logs and drops the invite. If the local CID
  * can't be resolved we still build the group (so the UI doesn't
  * silently swallow a valid invite) but the members array will contain
- * only the inviter — a later event can backfill self.
+ * only the inviter.
+ *
+ * That case is now VISIBLE, though not as a toast. Once the `sendMessages` and
+ * `viewMemberList` role switches were wired up, a user missing from the member
+ * list was told "Your role in this group cannot send messages" — naming a role
+ * they do not have. The surfaces now distinguish the two (see
+ * components/chat/group-restriction.ts) and say "you are not listed as a
+ * member of this group yet" in place, at the moment the user tries to act.
+ *
+ * In place rather than a toast, deliberately: a toast at invite time can fire
+ * while the user is looking at something else and then be gone, and this state
+ * is not an event but a condition — it is still true ten minutes later, which
+ * is exactly when they will open the group and wonder.
  *
  * Caller is responsible for committing the result via `setGroups` and
  * for emitting any user-facing notification.
@@ -63,7 +83,7 @@ export async function buildGroupFromInvite(
     debugLog('UseGroupConversations', 'Invalid invite payload (missing required field):', data);
     return null;
   }
-  const inviterCid = parseCid(data.inviterId);
+  const inviterCid: bigint | null = parseCid(data.inviterId);
   if (inviterCid === null) {
     debugLog(
       'UseGroupConversations',
@@ -73,8 +93,8 @@ export async function buildGroupFromInvite(
     return null;
   }
 
-  const defaultRoles = createDefaultRoles();
-  const defaultRole = getDefaultRole({ roles: defaultRoles, defaultRoleId: '' });
+  const defaultRoles: GroupRole[] = createDefaultRoles();
+  const defaultRole: GroupRole | undefined = getDefaultRole({ roles: defaultRoles, defaultRoleId: '' });
 
   const inviterMember: GroupMember = {
     cid: inviterCid,
@@ -86,10 +106,10 @@ export async function buildGroupFromInvite(
   let selfMember: GroupMember | null = null;
   try {
     const { connectionManager } = await import('@/lib/connection');
-    const info = connectionManager.getConnectionInfo();
+    const info: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
     if (info) {
-      const session = await connectionManager.getTabSelectedSession();
-      const selfUsername = info.username || session?.username || 'me';
+      const session: StoredSession | null = await connectionManager.getTabSelectedSession();
+      const selfUsername: string = info.username || session?.username || 'me';
       selfMember = {
         cid: info.cid,
         username: selfUsername,
@@ -166,7 +186,7 @@ export async function applyGroupInvite(
   setGroups: (updater: (prev: GroupConversation[]) => GroupConversation[]) => void,
 ): Promise<void> {
   try {
-    const newGroup = await buildGroupFromInvite(data);
+    const newGroup: GroupConversation | null = await buildGroupFromInvite(data);
     if (!newGroup) {
       // Malformed payload — `buildGroupFromInvite` has already logged the why.
       return;
@@ -174,7 +194,23 @@ export async function applyGroupInvite(
     setGroups((prev) =>
       prev.some((g) => g.id === data.groupId) ? prev : [...prev, newGroup],
     );
-    eventEmitter.emit('notification:show', {
+    // The backend half of auto-accept. Without it the server keeps counting us
+    // merely invited: the EnteredGroup broadcast that puts us on the creator's
+    // member list never fires, their callable roster stays empty, and group
+    // calls remain disabled. The local commit above stays optimistic; the
+    // member-state broadcast this triggers is the reconciliation.
+    try {
+      const { sendGroupRespond } = await import(
+        '@/lib/group-conversations/group-requests'
+      );
+      await sendGroupRespond(data.groupId, data.inviterId, true);
+    } catch (e) {
+      // The group still exists locally and P2P chat routing still works; what
+      // is lost is server-side membership, which the settings panel's invite
+      // path can re-establish. Losing the whole invite over it would be worse.
+      debugLog('UseGroupConversations', 'Backend group acceptance failed:', e);
+    }
+    toast({
       title: 'Group Invitation',
       description: `${data.inviterUsername} invited you to "${data.groupName || 'a group'}"`,
     });
@@ -186,9 +222,10 @@ export async function applyGroupInvite(
     // (rather than letting it silently disappear) AND keep the debug
     // trace for the developer.
     debugLog('UseGroupConversations', 'applyGroupInvite failed:', e);
-    eventEmitter.emit('notification:show', {
+    toast({
       title: 'Group Invitation Failed',
       description: `Could not process invite from ${data.inviterUsername || 'a peer'}. Please try again.`,
+      variant: 'destructive',
     });
   }
 }

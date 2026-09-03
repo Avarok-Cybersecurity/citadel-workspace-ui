@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, type RefObject, type DragEvent, type Dispatch, type SetStateAction } from 'react';
+import { formatBytes } from '@/lib/format-bytes';
 import type { FileTransferMode } from '@/types/messaging-layer';
 import { fileTransferService } from '@/lib/file-transfer';
 import { MAX_BYTE_CONTENTS_SIZE_BYTES } from '@/lib/file-transfer/send-operations';
@@ -11,12 +12,36 @@ interface UseFileTransferOptions {
   maxFileSizeMb: number;
 }
 
+export interface UseFileTransferResult {
+  selectedFile: File | null;
+  previewUrl: string | null;
+  transferMode: FileTransferMode;
+  setTransferMode: Dispatch<SetStateAction<FileTransferMode>>;
+  isDragging: boolean;
+  isSending: boolean;
+  isPickingFile: boolean;
+  error: string | null;
+  nativePickerAvailable: false | null;
+  fileInputRef: RefObject<HTMLInputElement>;
+  maxFileSizeBytes: number;
+  formatBytes: (bytes: number) => string;
+  handleDrop: (e: React.DragEvent) => void;
+  handleDragOver: (e: React.DragEvent) => void;
+  handleDragLeave: (e: React.DragEvent) => void;
+  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleBrowseClick: () => void;
+  handleNativePickerClick: () => Promise<void>;
+  handleRemoveFile: () => void;
+  handleSend: () => Promise<void>;
+  handleClose: () => void;
+}
+
 export function useFileTransfer({
   onClose,
   onSendFile,
   peerCid,
   maxFileSizeMb,
-}: UseFileTransferOptions) {
+}: UseFileTransferOptions): UseFileTransferResult {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [transferMode, setTransferMode] = useState<FileTransferMode>('p2p');
@@ -24,28 +49,21 @@ export function useFileTransfer({
   const [isSending, setIsSending] = useState(false);
   const [isPickingFile, setIsPickingFile] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [nativePickerAvailable, setNativePickerAvailable] = useState<boolean | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [nativePickerAvailable, setNativePickerAvailable] = useState<false | null>(null);
+  const fileInputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
 
   // The drag/browse path sends the selected File inline as `ByteContents`,
   // which `executeSendFile` hard-caps at MAX_BYTE_CONTENTS_SIZE_BYTES (2 MiB)
   // regardless of the configured `maxFileSizeMb`. Cap the selection at the
   // lower of the two so the user is told at selection time instead of hitting
   // a late send failure; larger files must go through the native file picker.
-  const maxFileSizeBytes = Math.min(
+  const maxFileSizeBytes: number = Math.min(
     maxFileSizeMb * 1024 * 1024,
     MAX_BYTE_CONTENTS_SIZE_BYTES
   );
 
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
 
-  const handleRemoveFile = () => {
+  const handleRemoveFile = (): void => {
     setSelectedFile(null);
     setPreviewUrl(null);
     setError(null);
@@ -54,7 +72,7 @@ export function useFileTransfer({
     }
   };
 
-  const handleFileSelect = useCallback((file: File) => {
+  const handleFileSelect: (file: File) => void = useCallback((file: File): void => {
     setError(null);
 
     if (file.size > maxFileSizeBytes) {
@@ -68,8 +86,8 @@ export function useFileTransfer({
     setSelectedFile(file);
 
     if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
+      const reader: FileReader = new FileReader();
+      reader.onload = (e): void => {
         setPreviewUrl(e.target?.result as string);
       };
       reader.readAsDataURL(file);
@@ -78,43 +96,43 @@ export function useFileTransfer({
     }
   }, [maxFileSizeBytes]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop: (e: React.DragEvent) => void = useCallback((e: React.DragEvent): void => {
     e.preventDefault();
     setIsDragging(false);
 
-    const files = e.dataTransfer.files;
+    const files: FileList = e.dataTransfer.files;
     if (files.length > 0) {
       handleFileSelect(files[0]);
     }
   }, [handleFileSelect]);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragOver: (e: React.DragEvent) => void = useCallback((e: React.DragEvent): void => {
     e.preventDefault();
     setIsDragging(true);
   }, []);
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
+  const handleDragLeave: (e: React.DragEvent) => void = useCallback((e: React.DragEvent): void => {
     e.preventDefault();
     setIsDragging(false);
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    const files: FileList | null = e.target.files;
     if (files && files.length > 0) {
       handleFileSelect(files[0]);
     }
   };
 
-  const handleBrowseClick = () => {
+  const handleBrowseClick = (): void => {
     fileInputRef.current?.click();
   };
 
-  const handleNativePickerClick = useCallback(async () => {
+  const handleNativePickerClick: () => Promise<void> = useCallback(async (): Promise<void> => {
     setError(null);
     setIsPickingFile(true);
 
     try {
-      const transferId = await fileTransferService.sendFileWithNativePicker(
+      const transferId: string = await fileTransferService.sendFileWithNativePicker(
         peerCid,
         'Select a file to send',
         undefined
@@ -124,7 +142,7 @@ export function useFileTransfer({
       handleRemoveFile();
       onClose();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to pick file';
+      const errorMessage: string = err instanceof Error ? err.message : 'Failed to pick file';
 
       if (errorMessage.includes('native-dialogs feature is disabled') ||
           errorMessage.includes('File picker not available')) {
@@ -140,7 +158,7 @@ export function useFileTransfer({
     }
   }, [peerCid, onClose]);
 
-  const handleSend = async () => {
+  const handleSend = async (): Promise<void> => {
     if (!selectedFile) return;
 
     setIsSending(true);
@@ -157,7 +175,7 @@ export function useFileTransfer({
     }
   };
 
-  const handleClose = () => {
+  const handleClose = (): void => {
     if (!isSending) {
       handleRemoveFile();
       onClose();

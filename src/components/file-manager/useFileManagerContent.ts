@@ -1,7 +1,7 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, type RefObject, type Dispatch, type SetStateAction } from "react";
 import { useRevfsTree, useServerRevfsTree } from "@/hooks/useRevfsTree";
 import { useVFSClipboard } from "@/hooks/useVFSClipboard";
-import { useVFSSelection } from "@/hooks/useVFSSelection";
+import { useVFSSelection  } from "@/hooks/useVFSSelection";
 import { connectionManager } from "@/lib/connection";
 import { p2pRegistrationService, type Peer } from "@/lib/p2p-registration-service";
 import { peerPairKey, serverTreeKey } from "@/lib/revfs/tree-operations";
@@ -9,51 +9,90 @@ import type { RevfsNode, TreeKey } from "@/types/revfs-types";
 import { TreeScope } from "@/types/revfs-types";
 import { INTERVAL } from "@/lib/timeout-constants";
 import { useFileManagerHandlers } from "./useFileManagerHandlers";
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import type { UseRevfsTreeResult, UseServerRevfsTreeResult } from '@/hooks/useRevfsTree-types';
 
-export function findNodeByPath(tree: RevfsNode, path: string): RevfsNode | null {
-  if (tree.path === path) return tree;
-  for (const child of tree.children ?? []) {
-    const found = findNodeByPath(child, path);
-    if (found) return found;
-  }
-  return null;
-}
+export { findNodeByPath } from '@/lib/revfs/tree-operations';
 
-export function useFileManagerContent() {
+/**
+ * Derived from the hooks it composes rather than restated: the handler block
+ * and the three tree/clipboard/selection members would otherwise be a second
+ * copy of shapes that already have one authority.
+ */
+export type UseFileManagerContentResult = ReturnType<typeof useFileManagerHandlers> & {
+  myCid: bigint | null;
+  registeredPeers: Peer[];
+  selectedPeerCid: bigint | null;
+  setSelectedPeerCid: Dispatch<SetStateAction<bigint | null>>;
+  storageMode: TreeScope;
+  setStorageMode: Dispatch<SetStateAction<TreeScope>>;
+  tree: UseServerRevfsTreeResult['tree'];
+  loading: UseServerRevfsTreeResult['loading'];
+  error: UseServerRevfsTreeResult['error'];
+  refresh: UseServerRevfsTreeResult['refresh'];
+  storageUsed: UseServerRevfsTreeResult['storageUsed'];
+  storageQuota: UseServerRevfsTreeResult['storageQuota'];
+  revfsEnabled: UseServerRevfsTreeResult['revfsEnabled'];
+  storageLabel: string;
+  currentPath: string;
+  setCurrentPath: Dispatch<SetStateAction<string>>;
+  fileInputRef: RefObject<HTMLInputElement>;
+  uploadTargetDir: string;
+  storageLimitModalOpen: boolean;
+  setStorageLimitModalOpen: Dispatch<SetStateAction<boolean>>;
+  attemptedFileSize: number;
+  revfsDisabledModalOpen: boolean;
+  setRevfsDisabledModalOpen: Dispatch<SetStateAction<boolean>>;
+  revfsDisabledReason: 'peer_disabled' | 'server_disabled';
+  propertiesNode: RevfsNode | null;
+  setPropertiesNode: Dispatch<SetStateAction<RevfsNode | null>>;
+  sortField: 'name' | 'date' | 'size' | 'type';
+  sortDirection: 'asc' | 'desc';
+  filterText: string;
+  setFilterText: Dispatch<SetStateAction<string>>;
+  handleSortChange: (field: 'name' | 'date' | 'size' | 'type', direction: 'asc' | 'desc') => void;
+  cutItemPaths: Set<string>;
+  hasPasteItems: ReturnType<typeof useVFSClipboard>['hasItems'];
+  selectedPaths: ReturnType<typeof useVFSSelection>['selectedPaths'];
+  selectItem: ReturnType<typeof useVFSSelection>['select'];
+  clearSelection: ReturnType<typeof useVFSSelection>['clearSelection'];
+};
+
+export function useFileManagerContent(): UseFileManagerContentResult {
   const [myCid, setMyCid] = useState<bigint | null>(null);
   const [registeredPeers, setRegisteredPeers] = useState<Peer[]>([]);
   const [selectedPeerCid, setSelectedPeerCid] = useState<bigint | null>(null);
   const [storageMode, setStorageMode] = useState<TreeScope>(TreeScope.Peer);
 
   useEffect(() => {
-    const update = () => {
-      const info = connectionManager.getConnectionInfo();
+    const update = (): void => {
+      const info: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
       setMyCid(info?.cid ?? null);
       const { registeredPeers: peers } = p2pRegistrationService.getPeers();
       setRegisteredPeers(peers);
     };
     update();
-    const interval = setInterval(update, INTERVAL.HEARTBEAT_MS);
-    return () => clearInterval(interval);
+    const interval: NodeJS.Timeout = setInterval(update, INTERVAL.HEARTBEAT_MS);
+    return (): void => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     if (storageMode === TreeScope.Peer && !selectedPeerCid && registeredPeers.length > 0) {
-      const firstPeer = registeredPeers[0];
+      const firstPeer: Peer = registeredPeers[0];
       if (firstPeer?.cid) setSelectedPeerCid(firstPeer.cid);
     }
   }, [storageMode, selectedPeerCid, registeredPeers]);
 
-  const peerTree = useRevfsTree(
+  const peerTree: UseRevfsTreeResult = useRevfsTree(
     storageMode === TreeScope.Peer ? myCid : null,
     storageMode === TreeScope.Peer ? selectedPeerCid : null
   );
-  const serverTree = useServerRevfsTree(storageMode === TreeScope.Server ? myCid : null);
-  const activeTree = storageMode === TreeScope.Server ? serverTree : peerTree;
+  const serverTree: UseServerRevfsTreeResult = useServerRevfsTree(storageMode === TreeScope.Server ? myCid : null);
+  const activeTree: UseServerRevfsTreeResult = storageMode === TreeScope.Server ? serverTree : peerTree;
   const { tree, loading, error, mkdir, rmdir, uploadFile, downloadFile, removeFile, rename, move, copy, refresh, storageUsed, storageQuota, revfsEnabled } = activeTree;
 
   const { clipboard, cut, copy: copyToClipboard, clear: clearClipboard, hasItems: hasPasteItems, isCut } = useVFSClipboard();
-  const { selectedPaths, select: selectItem, clearSelection } = useVFSSelection();
+  const { selectedPaths, select: selectItem, selectAll, clearSelection } = useVFSSelection();
 
   const currentTreeKey: TreeKey | null = useMemo(() => {
     if (storageMode === TreeScope.Server && myCid) return serverTreeKey(myCid);
@@ -61,17 +100,17 @@ export function useFileManagerContent() {
     return null;
   }, [storageMode, myCid, selectedPeerCid]);
 
-  const cutItemPaths = useMemo(() => {
+  const cutItemPaths: Set<string> = useMemo(() => {
     if (!isCut || !currentTreeKey || clipboard.sourceTreeKey !== currentTreeKey) return new Set<string>();
     return new Set(clipboard.items.map(item => item.path));
   }, [isCut, currentTreeKey, clipboard.sourceTreeKey, clipboard.items]);
 
-  const storageLabel = storageMode === TreeScope.Server
+  const storageLabel: string = storageMode === TreeScope.Server
     ? 'Server'
     : registeredPeers.find(p => p.cid === selectedPeerCid)?.username ?? 'Peer';
 
   const [currentPath, setCurrentPath] = useState('/');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
   const [uploadTargetDir, setUploadTargetDir] = useState('/');
 
   const [storageLimitModalOpen, setStorageLimitModalOpen] = useState(false);
@@ -84,17 +123,50 @@ export function useFileManagerContent() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [filterText, setFilterText] = useState('');
 
-  const handleSortChange = useCallback((field: 'name' | 'date' | 'size' | 'type', direction: 'asc' | 'desc') => {
+  // Drop the selection whenever the view changes underneath it.
+  //
+  // `selectedPaths` is a Set of absolute paths and nothing reconciled it with
+  // what the grid shows: clearSelection had exactly two callers — after a
+  // successful delete, and a click on the background. So navigating, filtering,
+  // switching peer or switching storage mode all left a selection referring to
+  // items that were no longer on screen, while the toolbar still read
+  // "N selected".
+  //
+  // That is destructive, not cosmetic: the Delete shortcut resolves the
+  // selection against the whole tree, so a user who selected 12 files, filtered
+  // to 1, and pressed Delete deleted all 12 — including 11 they could not see.
+  useEffect(() => {
+    clearSelection();
+  }, [currentPath, filterText, storageMode, selectedPeerCid, clearSelection]);
+
+  // And clear the FILTER itself on those same context changes — everything the
+  // comment above says about a stale selection is true of a stale filter, minus
+  // the "N selected" readout that made the selection visible.
+  //
+  // The filter matches only the current directory's immediate children, so it
+  // travelled with the user into folders where it matched nothing — and the
+  // grid then rendered "This folder is empty. Drag files here or right-click to
+  // create a folder" about a folder with files in it. The box is 32px wide in
+  // the top-right corner, so there is nothing on screen to explain it.
+  //
+  // `currentPath` is deliberately absent from the selection effect's siblings
+  // here: the filter belongs to the view, and every one of these changes the
+  // view.
+  useEffect(() => {
+    setFilterText('');
+  }, [currentPath, storageMode, selectedPeerCid]);
+
+  const handleSortChange: (field: "name" | "date" | "size" | "type", direction: "asc" | "desc") => void = useCallback((field: 'name' | 'date' | 'size' | 'type', direction: 'asc' | 'desc'): void => {
     setSortField(field);
     setSortDirection(direction);
   }, []);
 
-  const handlers = useFileManagerHandlers({
+  const handlers: ReturnType<typeof useFileManagerHandlers> = useFileManagerHandlers({
     mkdir, rmdir, removeFile, downloadFile, uploadFile, rename, move, copy, refresh,
-    cut, copyToClipboard, clearClipboard, clearSelection, selectItem,
+    cut, copyToClipboard, clearClipboard, clearSelection, selectAll,
     currentTreeKey, hasPasteItems, clipboard, isCut,
     myCid, storageUsed, storageQuota, revfsEnabled, storageMode, selectedPeerCid,
-    tree, currentPath, fileInputRef,
+    tree, currentPath, filterText, fileInputRef,
     setUploadTargetDir, setRevfsDisabledReason, setRevfsDisabledModalOpen,
     setAttemptedFileSize, setStorageLimitModalOpen, setPropertiesNode,
   });
@@ -103,6 +175,9 @@ export function useFileManagerContent() {
     myCid, registeredPeers, selectedPeerCid, setSelectedPeerCid,
     storageMode, setStorageMode,
     tree, loading, error,
+    // Exposed so the error screen can offer a way out. It was already threaded
+    // into the handlers; the screen that needs it had no route to it.
+    refresh,
     storageUsed, storageQuota, storageLabel,
     currentPath, setCurrentPath,
     fileInputRef, uploadTargetDir,

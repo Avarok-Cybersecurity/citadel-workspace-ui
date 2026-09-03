@@ -15,7 +15,7 @@ interface TypeButtonProps {
   disabled?: boolean;
 }
 
-function TypeButton({ icon, label, active, onClick, disabled }: TypeButtonProps) {
+function TypeButton({ icon, label, active, onClick, disabled }: TypeButtonProps): JSX.Element {
   return (
     <button
       type="button"
@@ -25,12 +25,16 @@ function TypeButton({ icon, label, active, onClick, disabled }: TypeButtonProps)
         flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium
         transition-all duration-150 ease-in-out
         ${active
-          ? 'bg-[#6E59A5] text-white shadow-sm'
-          : 'bg-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
+          ? 'bg-primary text-primary-foreground shadow-sm'
+          : 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-foreground/5'
         }
         ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       `}
       title={label}
+      // The label is hidden below `sm`, so on a phone this button has no text
+      // at all -- which is also why a spec cannot find it by its words. The
+      // testid is derived from the label so every type gets one for free.
+      data-testid={`message-type-${label.toLowerCase().replace(/\s+/g, '-')}`}
     >
       {icon}
       <span className="hidden sm:inline">{label}</span>
@@ -38,10 +42,10 @@ function TypeButton({ icon, label, active, onClick, disabled }: TypeButtonProps)
   );
 }
 
-export function TypeSelectorBar({ selectedType, onTypeChange, disabled }: TypeSelectorBarProps) {
+export function TypeSelectorBar({ selectedType, onTypeChange, disabled }: TypeSelectorBarProps): JSX.Element {
   return (
-    <div className="flex items-center gap-1 px-2 py-1.5 border-t border-[#262C4A]/50 bg-[#1a1b26]">
-      <span className="text-xs text-gray-500 mr-2 hidden sm:inline">Type:</span>
+    <div className="flex items-center gap-1 px-2 py-1.5 border-t border-surface/50 bg-background">
+      <span className="text-xs text-muted-foreground mr-2 hidden sm:inline">Type:</span>
       <TypeButton
         icon={<Type className="h-3.5 w-3.5" />}
         label="Text"

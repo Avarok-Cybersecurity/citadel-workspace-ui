@@ -2,9 +2,11 @@ import React from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Users, RefreshCw, Loader2, Signal } from 'lucide-react';
 import { usePeerDiscovery } from './usePeerDiscovery';
 import { PeerListItem } from './PeerListItem';
+import { shortPeerHandle } from '@/lib/peer-display';
 
 interface PeerDiscoveryModalProps {
   isOpen: boolean;
@@ -28,7 +30,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[#232536] text-white border-gray-700 max-w-2xl">
+      <DialogContent className="bg-card text-foreground border-border max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span className="flex items-center">
@@ -36,11 +38,12 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
               Peer Discovery
             </span>
             <Button
+              aria-label="Refresh peer list"
               variant="ghost"
               size="sm"
-              onClick={discoverPeers}
+              onClick={() => void discoverPeers()}
               disabled={loading}
-              className="text-purple-400 hover:text-purple-300"
+              className="text-primary-accent hover:text-primary-accent"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -49,36 +52,57 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
               )}
             </Button>
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-muted-foreground">
             Discover and connect with other users in your workspace
           </DialogDescription>
         </DialogHeader>
 
         <div className="mt-4">
-          <div className="mb-3 p-3 bg-[#232536] rounded-lg">
+          <div className="mb-3 p-3 bg-card rounded-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <Signal className="h-4 w-4 text-green-400" />
+                <Signal className="h-4 w-4 text-success-emphasis" />
                 <span className="text-sm">You are connected as: <strong>{currentUsername}</strong></span>
               </div>
-              <span className="text-xs text-gray-400">CID: {currentCid?.toString()}</span>
+              {currentCid !== undefined && currentCid !== null && (
+                <span className="text-xs text-muted-foreground">
+                  {/* A short handle, not the raw routing identifier — enough to tell two
+                      sessions apart in a screenshot without putting a u64 in the UI. */}
+                  Session {shortPeerHandle(currentCid)}
+                </span>
+              )}
             </div>
           </div>
 
           <ScrollArea className="h-[400px]">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
+                <Loader2 className="h-8 w-8 animate-spin text-primary-accent" />
               </div>
+            ) : peers === null ? (
+              /* Discovery has not succeeded, which is NOT "there is nobody
+                 here". It left `peers` empty and this rendered the sentence
+                 below -- a confident claim about the workspace, on the strength
+                 of a query that did not answer. The failure toast beside it is
+                 transient; this is what stays on screen once it fades, and the
+                 two said different things. */
+              <EmptyState
+                icon={Users}
+                title="Could not load the people in this workspace"
+                description="Nobody has been ruled out — the list simply has not arrived. Use Refresh to try again."
+              />
             ) : peers.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
-                <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No other users found in the workspace</p>
-                <p className="text-sm mt-2">Open another tab and connect as a different user to test P2P</p>
-              </div>
+              /* The second line here used to read "Open another tab and connect
+                 as a different user to test P2P" -- developer instructions,
+                 shipped to end users as their only guidance on an empty screen. */
+              <EmptyState
+                icon={Users}
+                title="No other users in this workspace yet"
+                description="People who join this workspace appear here, and you can connect to them directly from this list."
+              />
             ) : (
               <div className="space-y-2">
-                {peers.map((peer) => (
+                {(peers ?? []).map((peer) => (
                   <PeerListItem
                     key={peer.cid}
                     peer={peer}
@@ -94,9 +118,9 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
             )}
           </ScrollArea>
 
-          {peers.length > 0 && (
-            <div className="mt-4 p-3 bg-[#3A3F5C] rounded-lg">
-              <p className="text-xs text-gray-400">
+          {(peers?.length ?? 0) > 0 && (
+            <div className="mt-4 p-3 bg-surface rounded-lg">
+              <p className="text-xs text-muted-foreground">
                 <strong>Tip:</strong> Click "Connect" to establish a P2P connection with a peer.
                 Once connected, you can exchange direct messages without going through the server.
               </p>

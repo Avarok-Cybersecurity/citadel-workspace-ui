@@ -137,8 +137,8 @@ async function runTest(): Promise<boolean> {
     const page2 = await context2.newPage();
 
     // Setup console capture
-    setupConsoleCapture(page1, 'Alice', ['group', 'chat', 'message', 'error']);
-    setupConsoleCapture(page2, 'Bob', ['group', 'chat', 'message', 'error']);
+    setupConsoleCapture(page1, 'Alice', ['group', 'chat', 'message', 'error', 'ILM']);
+    setupConsoleCapture(page2, 'Bob', ['group', 'chat', 'message', 'error', 'ILM']);
 
     // ========== STEP 1: Create Accounts ==========
     console.log('\n' + '─'.repeat(50));
@@ -266,7 +266,20 @@ async function runTest(): Promise<boolean> {
 
     const accountsCreated = results.accountCreation.user1 && results.accountCreation.user2;
 
-    const officeTestPassed = !results.officeChatEnabled || (
+    // The seeded workspace declares its offices and rooms chat_enabled, so chat
+    // MUST work. The old `!results.officeChatEnabled || ...` shape turned a
+    // BROKEN Chat tab into a silent pass — `isChatEnabled()` returns false
+    // whenever no tab is visible, including when a regression removed it. The
+    // sibling spec (group-messaging.test.ts) was repaired for exactly this and
+    // the fix was never propagated here.
+    //
+    // Navigation was printed PASS/FAIL and gated on nothing at all, so a spec
+    // that could not even reach an office still reported success.
+    const chatExpected = results.accountCreation.user1 && results.accountCreation.user2;
+
+    const officeTestPassed = (chatExpected ? results.officeChatEnabled : true) && (
+      results.officeNavigation.user1 &&
+      results.officeNavigation.user2 &&
       results.officeChatTab.user1 &&
       results.officeChatTab.user2 &&
       results.officeMessaging.user1Sent &&
@@ -275,7 +288,9 @@ async function runTest(): Promise<boolean> {
       results.officeMessaging.user1Received
     );
 
-    const roomTestPassed = !results.roomChatEnabled || (
+    const roomTestPassed = (chatExpected ? results.roomChatEnabled : true) && (
+      results.roomNavigation.user1 &&
+      results.roomNavigation.user2 &&
       results.roomChatTab.user1 &&
       results.roomChatTab.user2 &&
       results.roomMessaging.user1Sent &&
@@ -313,9 +328,6 @@ async function runTest(): Promise<boolean> {
     console.log(`  User1 Received:             ${results.roomMessaging.user1Received ? 'PASS' : results.roomChatEnabled ? 'FAIL' : 'SKIP'}`);
 
     harness.finalize(allPassed, results);
-
-    console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
-    await sleep(15000);
 
     return allPassed;
 

@@ -1,4 +1,6 @@
+import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
 import React, { useState } from "react";
+import { WorkspaceInitializationDetails } from './WorkspaceInitializationDetails';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +14,7 @@ import { workspaceEvents } from "@/lib/workspace-events";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import type { WorkspaceInitializationModalProps } from './workspace-init-types';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
 export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModalProps> = ({
     isOpen,
@@ -28,7 +31,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
         setMasterPassword(e.target.value);
         setError(null);
     };
@@ -41,7 +44,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
         return true;
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();
 
         if (!validateForm()) {
@@ -52,9 +55,9 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
         setError(null);
 
         try {
-            const metadata = { initialized: true };
-            const metadataBytes = new TextEncoder().encode(JSON.stringify(metadata));
-            const metadataArray = Array.from(metadataBytes);
+            const metadata: { initialized: boolean; } = { initialized: true };
+            const metadataBytes: Uint8Array<ArrayBuffer> = new TextEncoder().encode(JSON.stringify(metadata));
+            const metadataArray: number[] = Array.from(metadataBytes);
 
             const request: WorkspaceProtocolRequestTS = {
                 UpdateWorkspace: {
@@ -67,12 +70,12 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
 
             const payload: WorkspaceProtocolPayloadTS = { Request: request };
 
-            const responsePromise = new Promise<void>((resolve, reject) => {
+            const responsePromise: Promise<void> = new Promise<void>((resolve, reject) => {
                 let unsubscribeWorkspace: (() => void) | null = null;
                 let unsubscribeError: (() => void) | null = null;
                 let timeoutId: NodeJS.Timeout | null = null;
 
-                const cleanup = () => {
+                const cleanup = (): void => {
                     if (unsubscribeWorkspace) unsubscribeWorkspace();
                     if (unsubscribeError) unsubscribeError();
                     if (timeoutId) clearTimeout(timeoutId);
@@ -103,7 +106,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
 
             try {
                 if (username) {
-                    await WorkspaceService.getUserPermissions(username, 'workspace-root');
+                    await WorkspaceService.getUserPermissions(username, WORKSPACE_ROOT_ID);
                     debugLog('WorkspaceInitializationModal', 'User permissions loaded after workspace initialization for:', username);
                 } else {
                     debugLog('WorkspaceInitializationModal', 'No username available to load permissions');
@@ -121,12 +124,11 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
             onSuccess();
         } catch (err: unknown) {
             debugLog('WorkspaceInitializationModal', 'Failed to initialize workspace:', err);
-            const errArg = err instanceof Error ? err : String(err);
-            const userFriendlyMessage = getUserFriendlyErrorMessage(errArg);
+            const userFriendlyMessage: string = getUserFriendlyErrorMessage(err);
             setError(userFriendlyMessage);
 
             toast({
-                title: getErrorTitle(errArg),
+                title: getErrorTitle(err),
                 description: userFriendlyMessage,
                 variant: "destructive",
             });
@@ -135,17 +137,23 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
         }
     };
 
+    // Above the early return: hooks must run in the same order every render.
+    const { ref: dialogRef, dialogProps } = useDialogOverlay({
+        label: 'Initialize workspace',
+        enabled: isOpen,
+    });
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <Card className="bg-[#282A42] border-[#3D3F5A] shadow-lg w-full max-w-md">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" ref={dialogRef} {...dialogProps}>
+            <Card className="bg-card border-surface shadow-lg w-full max-w-md">
                 <CardHeader>
                     <div className="flex items-center gap-2">
-                        <Shield className="h-6 w-6 text-purple-500" />
+                        <Shield className="h-6 w-6 text-primary-accent" />
                         <div>
-                            <CardTitle className="text-white text-xl">Initialize Workspace</CardTitle>
-                            <CardDescription className="text-gray-300">
+                            <CardTitle className="text-foreground text-xl">Initialize Workspace</CardTitle>
+                            <CardDescription className="text-foreground/80">
                                 Enter the workspace password to initialize
                             </CardDescription>
                         </div>
@@ -153,53 +161,48 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                 </CardHeader>
 
                 <form onSubmit={handleSubmit}>
-                    <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-auto">
-                        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2">
-                            <AlertCircle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                            <div className="text-sm text-amber-300">
-                                <p className="font-semibold">You will become the Workspace Administrator</p>
-                                <p className="mt-1">By entering the workspace password, you will initialize this workspace and receive full administrator privileges including the ability to:</p>
-                                <ul className="mt-2 list-disc list-inside text-xs space-y-1">
-                                    <li>Create and manage offices and rooms</li>
-                                    <li>Add and remove users</li>
-                                    <li>Grant permissions to other users</li>
-                                    <li>Configure workspace settings</li>
-                                </ul>
-                                {(workspaceName || workspaceId || serverAddress || username) && (
-                                    <div className="mt-3 pt-2 border-t border-amber-500/30 space-y-1 text-xs">
-                                        {(workspaceId || workspaceName) && (
-                                            <p><span className="text-amber-400">Workspace:</span> {workspaceId || workspaceName}</p>
-                                        )}
-                                        {serverAddress && <p><span className="text-amber-400">Server:</span> {serverAddress}</p>}
-                                        {(fullName || username) && (
-                                            <p><span className="text-amber-400">User:</span> {fullName && username && fullName !== username ? `${fullName} (${username})` : (username || fullName)}</p>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                    <CardContent className="space-y-4 max-h-[calc(100dvh-16rem)] overflow-y-auto">
+                        {/* Says what to do when you cannot complete this. The
+                            password is the operator's WORKSPACE_MASTER_PASSWORD,
+                            which an ordinary member has no way to obtain — and
+                            this used to offer only a "Cancel" that threw them out
+                            of the workspace. */}
+                        <p className="text-sm text-muted-foreground">
+                            This is the <span className="font-medium text-foreground">workspace master password</span>{' '}
+                            from the server operator&rsquo;s configuration — not your account password. If you
+                            do not have it, choose <span className="font-medium text-foreground">Not now</span>:
+                            the workspace is already usable, and an administrator can complete this later.
+                        </p>
+                        <WorkspaceInitializationDetails
+                            workspaceName={workspaceName}
+                            workspaceId={workspaceId}
+                            serverAddress={serverAddress}
+                            username={username}
+                            fullName={fullName}
+                        />
 
                         <div className="space-y-2">
-                            <Label htmlFor="masterPassword" className="text-gray-300">
+                            <Label htmlFor="masterPassword" className="text-foreground/80">
                                 Workspace Password
                             </Label>
                             <Input
                                 id="masterPassword"
+                                autoComplete="off"
                                 name="masterPassword"
                                 type="password"
                                 value={masterPassword}
                                 onChange={handleInputChange}
-                                className="bg-[#3B3D57] border-[#4D4F6C] text-white"
+                                className="bg-surface border-border text-foreground"
                                 placeholder="Enter the workspace password"
                                 disabled={isSubmitting}
                             />
-                            <p className="text-xs text-gray-400">
+                            <p className="text-xs text-muted-foreground">
                                 Contact your workspace administrator if you don't have the password.
                             </p>
                         </div>
 
                         {error && (
-                            <div className="text-red-400 text-sm p-2 bg-red-400/10 rounded border border-red-400/20 flex items-center gap-2">
+                            <div role="alert" className="text-destructive-emphasis text-sm p-2 bg-destructive/10 rounded border border-destructive/20 flex items-center gap-2">
                                 <AlertCircle className="h-4 w-4" />
                                 {error}
                             </div>
@@ -211,14 +214,16 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                             type="button"
                             variant="ghost"
                             onClick={onClose}
-                            className="text-white hover:bg-purple-500/20"
+                            className="text-foreground hover:bg-primary-accent/20"
                             disabled={isSubmitting}
+                            data-testid="init-modal-decline"
                         >
-                            Cancel
+                            Not now
                         </Button>
                         <Button
                             type="submit"
-                            className="bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+                            data-testid="init-modal-submit"
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground transition-colors"
                             disabled={isSubmitting}
                         >
                             {isSubmitting ? (

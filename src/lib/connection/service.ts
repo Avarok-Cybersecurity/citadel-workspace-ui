@@ -3,7 +3,7 @@
 import { ConnectionState } from './state';
 import { ConnectionIO, connectionIO } from './io';
 import type { CurrentConnectionInfo, AuthSuccessParams } from './types';
-import type { StoredSession, ActiveSession } from '@/types/session-types';
+import type { StoredSession, ActiveSession, StoredSessions } from '@/types/session-types';
 import { POST_DISCONNECT_DELAY_MS } from './constants';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
@@ -11,12 +11,14 @@ import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
 import { handleWebSocketMessage } from './message-handling';
 import {
   storeSession, loadStoredSessions, handleAuthSuccess,
-  handleLogout, removeSession, removeAllSessions,
-  clearStoredSessions, updateSessionRole, setActiveSessionIndex,
+  handleLogout, updateSessionRole, setActiveSessionIndex,
 } from './session-management';
+import { removeSession, removeAllSessions, clearStoredSessions } from './session-list';
 import { handleSuccessfulConnection, disconnectSession, switchAccount } from './lifecycle';
 import { attemptLeaderConnection, autoReconnect } from './reconnect';
-import { getActiveSessions, getTabActiveSessionIndex, handleConnectFailure } from './queries';
+import { getActiveSessions, getActiveSessionsResult, type ActiveSessionsResult, getTabActiveSessionIndex, handleConnectFailure } from './queries';
+import type { WebSocketMessage } from '@/types/ws-message-types';
+import type { TabSelectionContext } from '@/lib/connection/types';
 
 export class ConnectionManager {
   private static instance: ConnectionManager;
@@ -95,8 +97,8 @@ export class ConnectionManager {
   private setupEventListeners(): void {
     this.state.executeCleanup();
 
-    const onMessage = async (raw: unknown) => {
-      const message = narrowWebSocketMessage(raw);
+    const onMessage = async (raw: unknown): Promise<void> => {
+      const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
       if (!message) return;
       await handleWebSocketMessage(
         message, this.state, this.io,
@@ -110,7 +112,7 @@ export class ConnectionManager {
   }
 
   private setupLeaderElection(): void {
-    const unsub = this.io.onEvent<{ isLeader: boolean; leaderId: string }>(
+    const unsub: () => void = this.io.onEvent<{ isLeader: boolean; leaderId: string }>(
       'leader-changed',
       async ({ isLeader, leaderId }) => {
         debugLog('ConnectionService', `ConnectionManager: Leader changed - isLeader: ${isLeader}, leaderId: ${leaderId}`);
@@ -144,6 +146,11 @@ export class ConnectionManager {
     return getActiveSessions(this.state, this.io);
   }
 
+  /** The same query, with whether it was actually answered. See queries.ts. */
+  public async getActiveSessionsResult(): Promise<ActiveSessionsResult> {
+    return getActiveSessionsResult(this.state, this.io);
+  }
+
   public invalidateSessionCache(): void {
     this.state.invalidateCache();
     debugLog('ConnectionService', 'ConnectionManager: Session cache invalidated');
@@ -155,7 +162,7 @@ export class ConnectionManager {
 
   public async triggerAutoConnect(): Promise<void> {
     debugLog('ConnectionService', 'ConnectionManager: Manually triggering auto-connect');
-    const active = await this.getActiveSessions();
+    const active: ActiveSession[] = await this.getActiveSessions();
     await loadStoredSessions(this.state, this.io);
     if (this.state.storedSessions.sessions.length > 0) {
       this.state.resetReconnectAttempts();
@@ -165,7 +172,7 @@ export class ConnectionManager {
 
   public async reconnectToStoredSessions(): Promise<void> {
     debugLog('ConnectionService', 'ConnectionManager: Reconnecting to stored sessions');
-    const currentSession = await this.getTabSelectedSession();
+    const currentSession: StoredSession | null = await this.getTabSelectedSession();
     if (currentSession?.cid) {
       await this.io.disconnect(currentSession.cid);
     }
@@ -181,7 +188,7 @@ export class ConnectionManager {
     await clearStoredSessions(this.state, this.io);
   }
 
-  public getStoredSessions() { return this.state.storedSessions; }
+  public getStoredSessions(): StoredSessions { return this.state.storedSessions; }
 
   public async handleAuthSuccess(params: AuthSuccessParams): Promise<void> {
     await handleAuthSuccess(params, this.state, this.io);
@@ -196,9 +203,9 @@ export class ConnectionManager {
   }
 
   public async getTabSelectedSession(): Promise<StoredSession | null> {
-    const tab = await this.io.getSelectedUser();
+    const tab: TabSelectionContext | null = await this.io.getSelectedUser();
     if (!tab?.selectedUsername || !tab?.selectedServerAddress) {
-      const idx = await getTabActiveSessionIndex(this.state, this.io);
+      const idx: number = await getTabActiveSessionIndex(this.state, this.io);
       return this.state.storedSessions.sessions[idx] || null;
     }
     return this.state.findSession(tab.selectedUsername, tab.selectedServerAddress) || null;
@@ -242,4 +249,4 @@ export class ConnectionManager {
 }
 
 // Export singleton instance
-export const connectionManager = ConnectionManager.getInstance();
+export const connectionManager: ConnectionManager = ConnectionManager.getInstance();

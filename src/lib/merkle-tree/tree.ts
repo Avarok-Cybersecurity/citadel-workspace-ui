@@ -55,7 +55,7 @@ export class MerkleTree<T, C = Uint8Array> {
     strategy: ChunkingStrategy<T, C>,
     chunkSize?: number
   ): MerkleTree<T, C> {
-    const rawChunks = strategy.chunk(data, chunkSize);
+    const rawChunks: ReturnType<typeof strategy.chunk> = strategy.chunk(data, chunkSize);
 
     const chunks: Chunk<C>[] = rawChunks.map((c, index) => ({
       index,
@@ -63,9 +63,9 @@ export class MerkleTree<T, C = Uint8Array> {
       hash: sha256Sync(strategy.serialize(c)),
     }));
 
-    const root = buildTree(chunks.map(c => c.hash));
+    const root: MerkleNode = buildTree(chunks.map(c => c.hash));
 
-    const sourceDataHash = sha256Sync(
+    const sourceDataHash: string = sha256Sync(
       new Uint8Array(chunks.flatMap(c => Array.from(strategy.serialize(c.data))))
     );
 
@@ -97,9 +97,9 @@ export class MerkleTree<T, C = Uint8Array> {
    */
   getProof(includeChunks: boolean = false): MerkleProof {
     const levelHashes: string[][] = [];
-    const height = this.getTreeHeight();
+    const height: number = this.getTreeHeight();
 
-    const collectLevel = (node: MerkleNode, targetLevel: number, collected: string[]) => {
+    const collectLevel = (node: MerkleNode, targetLevel: number, collected: string[]): void => {
       if (node.level === targetLevel) {
         collected.push(node.hash);
         return;
@@ -108,7 +108,7 @@ export class MerkleTree<T, C = Uint8Array> {
       if (node.right) collectLevel(node.right, targetLevel, collected);
     };
 
-    for (let l = 0; l <= height; l++) {
+    for (let l: number = 0; l <= height; l++) {
       const hashes: string[] = [];
       collectLevel(this.root, l, hashes);
       levelHashes.push(hashes);
@@ -136,7 +136,7 @@ export class MerkleTree<T, C = Uint8Array> {
    * Get proof for specific chunk indices only
    */
   getProofForChunks(indices: number[]): MerkleProof {
-    const proof = this.getProof(false);
+    const proof: MerkleProof = this.getProof(false);
 
     proof.chunks = indices
       .filter(i => i >= 0 && i < this.chunks.length)
@@ -162,10 +162,10 @@ export class MerkleTree<T, C = Uint8Array> {
     }
 
     const diverged: number[] = [];
-    const localLeafHashes = this.chunks.map(c => c.hash);
-    const remoteLeafHashes = remoteProof.levelHashes[remoteProof.treeHeight] || [];
+    const localLeafHashes: string[] = this.chunks.map(c => c.hash);
+    const remoteLeafHashes: string[] = remoteProof.levelHashes[remoteProof.treeHeight] || [];
 
-    for (let i = 0; i < localLeafHashes.length; i++) {
+    for (let i: number = 0; i < localLeafHashes.length; i++) {
       if (localLeafHashes[i] !== remoteLeafHashes[i]) {
         diverged.push(i);
       }
@@ -178,7 +178,7 @@ export class MerkleTree<T, C = Uint8Array> {
     return this.strategy.reconstruct(this.chunks.map(c => c.data));
   }
 
-  getMetadata() {
+  getMetadata(): { createdAt: number; sourceDataHash: string; strategyType: string; } {
     return { ...this.metadata };
   }
 
@@ -187,11 +187,11 @@ export class MerkleTree<T, C = Uint8Array> {
    * Returns a new tree with merged chunks
    */
   applyRemoteChunks(remoteChunks: SerializedChunk[]): MerkleTree<T, C> {
-    const newChunks = [...this.chunks];
+    const newChunks: Chunk<C>[] = [...this.chunks];
 
     for (const remote of remoteChunks) {
       if (remote.index >= 0 && remote.index < newChunks.length) {
-        const data = this.strategy.deserialize(new Uint8Array(remote.data));
+        const data: ReturnType<typeof this.strategy.deserialize> = this.strategy.deserialize(new Uint8Array(remote.data));
         newChunks[remote.index] = {
           index: remote.index,
           data,
@@ -200,8 +200,8 @@ export class MerkleTree<T, C = Uint8Array> {
       }
     }
 
-    const root = buildTree(newChunks.map(c => c.hash));
-    const sourceDataHash = sha256Sync(
+    const root: MerkleNode = buildTree(newChunks.map(c => c.hash));
+    const sourceDataHash: string = sha256Sync(
       new Uint8Array(newChunks.flatMap(c => Array.from(this.strategy.serialize(c.data))))
     );
 

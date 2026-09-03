@@ -18,7 +18,7 @@ export type {
 } from './types.js';
 
 // Configuration
-export { config } from './config.js';
+export { config, isCI, isHeaded } from './config.js';
 
 // Utilities
 export {
@@ -28,6 +28,7 @@ export {
   isServiceAlive,
   waitForServicesAlive,
 } from './utils.js';
+export { isVisibleWithin, isHiddenWithin , pollUntil} from './utils.js';
 
 // UX Tracking
 export { UxIssueTracker } from './ux-tracker.js';
@@ -191,6 +192,7 @@ export {
   navigateToOfficeViaUI,
   deleteNodeViaUI,
   nodeExistsInUI,
+  nodeGoneFromUI,
 } from './tree-helpers.js';
 export type {
   NodeEntityType,
@@ -204,3 +206,12 @@ export type {
   MoveNodeResult,
   DeleteNodeResult,
 } from './tree-helpers.js';
+
+// Workspace admin registered by global-setup (see src/global-setup.ts).
+export { adminCredentials, hasWorkspaceAdmin, type AdminCredentials } from './admin.js';
+export { activateTab, type TabActivation } from './tabs.js';
+export { navigateInApp, navigateToDirectory } from './navigation.js';
+export { adminDialog, openNodeContextMenu, openAdminPanel, activateAdminTab } from './admin-panel.js';
+export { WORKSPACE_ROOT_SENTINEL } from './tree-helpers.js';
+
+export { settleServerAutoConnect } from './p2p/session.js';

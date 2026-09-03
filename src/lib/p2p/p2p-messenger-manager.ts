@@ -11,24 +11,31 @@
  */
 
 import type { MessagingLayer } from '@/types/messaging-layer';
-import type { MessageType } from '@/types/message-protocol';
+import { notifyEach } from '@/lib/notify-listeners';
+import { markP2PMessageHandlerAttached } from './p2p-handler-ready';
+import { editMessage, deleteMessage } from './messenger-revision';
 import { websocketService } from '../websocket-service';
-import { notificationService } from '../notification-service';
+import { notificationService, type Notification as AppNotification } from '../notification-service';
 import { EventListenerManager } from '../utils/event-listener-manager';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 
 import type { P2PMessage, P2PConversation, PeerPresence } from './p2p-types';
-import type { P2PAttachment } from '@/types/p2p-types';
 import { messagePaginationStore } from './message-pagination-store';
+import { eventEmitter } from '@/lib/event-emitter';
 import { PresenceManager } from './presence-manager';
 import { CheckStateManager } from './checkstate-manager';
 import { MessageHandler } from './message-handler';
 import { MessageSender } from './message-sender';
+import type { SendMessageOptions } from './message-sender-types';
 import { ConversationManager } from './conversation-manager';
-import { resolveCurrentCid, updatePeerPresenceOnConnect, updatePeerPresenceOnDisconnect } from './messenger-cid-resolver';
+import { bindConversationSessionReset, bindCachedMessageLoad } from './reset-conversations';
+import { bindVisibilityFlush } from './visibility-flush';
+import { resolveCurrentCid, updatePeerPresenceOnConnect } from './messenger-cid-resolver';
+import { bindPeerConnectionState } from './bind-peer-connection-state';
 import { syncConnectionsFromBackend, updateFileTransferState, markMessagesAsRead, updateUnreadCount, autoRegisterPeer } from './messenger-compatibility';
 import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
+import type { MessagePage, ConversationMetadata } from '@/lib/p2p/p2p-types';
 
 export class P2PMessengerManager extends EventListenerManager {
   private static instance: P2PMessengerManager;
@@ -36,8 +43,8 @@ export class P2PMessengerManager extends EventListenerManager {
   private messageStatusListeners: ((messageId: string, status: P2PMessage['status']) => void)[] = [];
   private connectionListeners: ((peerCid: bigint, connected: boolean) => void)[] = [];
   private initPromise: Promise<void> | null = null;
-  private isReady = false;
-  private cachedMessagesLoaded = false;
+  private isReady: boolean = false;
+  private cachedMessagesLoaded: boolean = false;
   private activeConversationPeerCid: bigint | null = null;
   private readonly conversationManager: ConversationManager;
   private readonly presenceManager: PresenceManager;
@@ -47,48 +54,57 @@ export class P2PMessengerManager extends EventListenerManager {
 
   private constructor() {
     super();
-    this.conversationManager = new ConversationManager({ getCurrentCid: () => resolveCurrentCid(), maxMessagesPerConversation: 100, maxQueueSize: 100 });
+    this.conversationManager = new ConversationManager({ getCurrentCid: (): Promise<bigint | null> => resolveCurrentCid(), maxMessagesPerConversation: 100, maxQueueSize: 100 });
     this.presenceManager = new PresenceManager({
-      sendCommand: (peerCid, layer) => this.messageSender.sendRawMessage(peerCid, layer),
-      getConnectedPeers: () => Array.from(this.conversationManager.getConnections().entries()).filter(([, c]) => c).map(([p]) => p)
+      sendCommand: (peerCid, layer): Promise<void> => this.messageSender.sendRawMessage(peerCid, layer),
+      getConnectedPeers: (): bigint[] => Array.from(this.conversationManager.getConnections().entries()).filter(([, c]) => c).map(([p]): bigint => p)
     });
     this.checkStateManager = new CheckStateManager({
       timeout: TIMEOUT.CHECKSTATE_MS,
-      sendToP2P: (peerCid, bytes) => this.messageSender.sendRawBytes(peerCid, bytes),
-      getCurrentCid: () => resolveCurrentCid(),
-      getLastMessageIndex: (peerCid) => this.conversationManager.getOrCreateConversation(peerCid).lastMessageIndex
+      sendToP2P: (peerCid, bytes): Promise<void> => this.messageSender.sendRawBytes(peerCid, bytes),
+      getCurrentCid: (): Promise<bigint | null> => resolveCurrentCid(),
+      getLastMessageIndex: (peerCid): number => this.conversationManager.getOrCreateConversation(peerCid).lastMessageIndex
     });
     this.messageSender = new MessageSender({
-      getCurrentCid: () => resolveCurrentCid(),
-      getOrCreateConversation: (peerCid) => this.conversationManager.getOrCreateConversation(peerCid),
-      addMessageToConversation: (peerCid, message) => this.conversationManager.addMessageToConversation(peerCid, message),
-      updateMessageInPages: (peerCid, messageId, updates) => messagePaginationStore.updateMessageInPages(peerCid, messageId, updates),
-      notifyMessageListeners: (message) => this.messageListeners.forEach(l => l(message)),
-      notifyMessageStatusListeners: (messageId, status) => this.messageStatusListeners.forEach(l => l(messageId, status)),
-      isConnected: (peerCid) => this.conversationManager.isConnected(peerCid),
-      tryEnsurePeerReady: (peerCid) => this.checkStateManager.tryEnsurePeerReady(peerCid)
+      getCurrentCid: (): Promise<bigint | null> => resolveCurrentCid(),
+      getOrCreateConversation: (peerCid): P2PConversation => this.conversationManager.getOrCreateConversation(peerCid),
+      addMessageToConversation: (peerCid, message): Promise<boolean> => this.conversationManager.addMessageToConversation(peerCid, message),
+      findStoredMessage: (p, id): Promise<P2PMessage | null> => messagePaginationStore.findMessageInPages(p, id),
+
+      updateMessageInPages: (peerCid, messageId, updates): Promise<boolean> => messagePaginationStore.updateMessageInPages(peerCid, messageId, updates),
+      emitEvent: (event, data): void => this.emit(event, data),
+      notifyMessageListeners: (message): void => notifyEach(this.messageListeners, 'p2p message', message),
+      notifyMessageStatusListeners: (messageId, status): void => notifyEach(this.messageStatusListeners, 'p2p message status', messageId, status),
+      isConnected: (peerCid): boolean => this.conversationManager.isConnected(peerCid),
+      tryEnsurePeerReady: (peerCid): Promise<boolean> => this.checkStateManager.tryEnsurePeerReady(peerCid)
     });
     this.messageHandler = new MessageHandler({
-      getCurrentCid: () => resolveCurrentCid(),
-      isConnected: (peerCid) => this.conversationManager.isConnected(peerCid),
-      getOrCreateConversation: (peerCid) => this.conversationManager.getOrCreateConversation(peerCid),
-      addMessageToConversation: (peerCid, message) => this.conversationManager.addMessageToConversation(peerCid, message),
-      updateMessageInPages: (peerCid, messageId, updates) => messagePaginationStore.updateMessageInPages(peerCid, messageId, updates),
-      getConversations: () => this.conversationManager.getConversationsMap(),
-      notifyMessageListeners: (message) => this.messageListeners.forEach(l => l(message)),
-      notifyMessageStatusListeners: (messageId, status) => this.messageStatusListeners.forEach(l => l(messageId, status)),
-      notifyTypingListeners: (peerCid, isTyping) => this.presenceManager.notifyTypingChange(peerCid, isTyping),
-      notifyPresenceListeners: (peerCid, presence) => this.presenceManager.notifyPresenceChange(peerCid, presence),
-      sendMessageAck: (messageId, ackType, peerCid, recipientCid) => this.messageSender.sendMessageAck(messageId, ackType, peerCid, recipientCid),
-      handleCheckState: (peerCid) => this.checkStateManager.handleCheckState(peerCid),
-      handleCheckStateResponse: (peerCid) => this.checkStateManager.handleCheckStateResponse(peerCid),
-      markPeerReady: (peerCid) => this.checkStateManager.markPeerReady(peerCid),
-      shouldShowNotification: (peerCid) => this.activeConversationPeerCid !== peerCid,
-      addNotification: (title, body, senderId, messageId, recipientCid, options) =>
+      getCurrentCid: (): Promise<bigint | null> => resolveCurrentCid(),
+      isConnected: (peerCid): boolean => this.conversationManager.isConnected(peerCid),
+      getOrCreateConversation: (peerCid): P2PConversation => this.conversationManager.getOrCreateConversation(peerCid),
+      addMessageToConversation: (peerCid, message): Promise<boolean> => this.conversationManager.addMessageToConversation(peerCid, message),
+      updateMessageInPages: (peerCid, messageId, updates): Promise<boolean> => messagePaginationStore.updateMessageInPages(peerCid, messageId, updates),
+      removeMessageFromPages: (peerCid, messageId): Promise<boolean> => messagePaginationStore.removeMessageFromPages(peerCid, messageId),
+      getConversations: (): Map<bigint, P2PConversation> => this.conversationManager.getConversationsMap(),
+      notifyMessageListeners: (message): void => notifyEach(this.messageListeners, 'p2p message', message),
+      notifyMessageStatusListeners: (messageId, status): void => notifyEach(this.messageStatusListeners, 'p2p message status', messageId, status),
+      notifyTypingListeners: (peerCid, isTyping): void => this.presenceManager.notifyTypingChange(peerCid, isTyping),
+      notifyPresenceListeners: (peerCid, presence): void => this.presenceManager.notifyPresenceChange(peerCid, presence),
+      sendMessageAck: (messageId, ackType, peerCid, recipientCid): Promise<void> => this.messageSender.sendMessageAck(messageId, ackType, peerCid, recipientCid),
+      handleCheckState: (peerCid): Promise<void> => this.checkStateManager.handleCheckState(peerCid),
+      handleCheckStateResponse: (peerCid): void => this.checkStateManager.handleCheckStateResponse(peerCid),
+      markPeerReady: (peerCid): void => this.checkStateManager.markPeerReady(peerCid),
+      shouldShowNotification: (peerCid): boolean => this.activeConversationPeerCid !== peerCid,
+      addNotification: (title, body, senderId, messageId, recipientCid, options): AppNotification =>
         notificationService.addMessageNotification(title, body, senderId, messageId, recipientCid, options)
     });
     this.setupEventListeners();
-    if (websocketService.isConnected()) {
+    // `canSendRequests`, not `isConnected`: the latter is false in every follower
+    // tab for ever. This was correct today only by boot ordering -- main.tsx
+    // constructs the manager before init runs, so the connection-success
+    // listener below rescued followers. Any future caller constructing it later
+    // would have booted them with an empty conversation history.
+    if (websocketService.canSendRequests()) {
       this.initPromise = this.loadCachedMessages().then(() => { this.isReady = true; this.emit('p2p:messages-loaded'); })
         .catch(err => debugLog('P2PMessengerManager', 'Loading cached messages failed:', err));
     }
@@ -102,29 +118,36 @@ export class P2PMessengerManager extends EventListenerManager {
   public async waitForReady(): Promise<void> { if (this.isReady) return; if (this.initPromise) await this.initPromise; }
 
   protected setupEventListeners(): void {
-    this.listen('on-ws-connection-success', async () => {
-      if (this.cachedMessagesLoaded) return;
-      debugLog('P2PMessengerManager', '[P2P] WebSocket connected, loading cached messages...');
-      await this.loadCachedMessages();
-      if (this.cachedMessagesLoaded) { this.isReady = true; this.emit('p2p:messages-loaded'); }
-    });
-    if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') this.checkStateManager.flushPendingCheckStateResponses();
-      });
-    }
+    bindCachedMessageLoad(
+      (event, handler) => this.listen(event, handler),
+      () => this.cachedMessagesLoaded,
+      () => this.loadCachedMessages(),
+      () => { this.isReady = true; this.emit('p2p:messages-loaded'); },
+    );
+    bindVisibilityFlush(() => this.checkStateManager.flushPendingCheckStateResponses());
+    // See reset-conversations.ts.
+    bindConversationSessionReset(
+      (event, handler) => this.listen(event, handler),
+      this.conversationManager,
+      // `isReady` regardless — the reload finished and the cache is in a correct
+      // state either way, so the UI must not sit on a spinner. But
+      // `cachedMessagesLoaded` only when it really loaded, or the retry in
+      // `on-ws-connection-success` above is short-circuited permanently.
+      (loaded: boolean) => { this.cachedMessagesLoaded = loaded; this.isReady = true; this.emit('p2p:messages-loaded'); },
+      () => { this.cachedMessagesLoaded = false; this.isReady = false; },
+    );
     this.listen<InternalServiceResponse>('websocket-message', (response) => { void this.messageHandler.handleWebSocketMessage(response); });
-    this.listen<{ peerCid: bigint }>('p2p-connection-established', ({ peerCid }) => {
-      this.conversationManager.setConnection(peerCid, true);
-      this.connectionListeners.forEach(l => l(peerCid, true));
-      this.checkStateManager.markPeerReady(peerCid);
-      updatePeerPresenceOnConnect(this.conversationManager, this.presenceManager, (e, d) => this.emit(e, d), peerCid);
-    });
-    this.listen<{ peerCid: bigint }>('p2p-connection-lost', ({ peerCid }) => {
-      this.conversationManager.setConnection(peerCid, false);
-      this.connectionListeners.forEach(l => l(peerCid, false));
-      this.checkStateManager.clearPeerReadyState(peerCid);
-      updatePeerPresenceOnDisconnect(this.conversationManager, this.presenceManager, (e, d) => this.emit(e, d), peerCid);
+    // Marked immediately after the subscription, not before: the inbound router
+    // acks a forwarded message only once this is set, and acking before the
+    // handler is attached would confirm a delivery that never happened.
+    markP2PMessageHandlerAttached();
+    bindPeerConnectionState((event, handler) => this.listen(event, handler), {
+      conversationManager: this.conversationManager,
+      presenceManager: this.presenceManager,
+      emit: (e, d) => this.emit(e, d),
+      notifyListeners: (peerCid, connected): void => notifyEach(this.connectionListeners, 'p2p connection', peerCid, connected),
+      markReady: (peerCid) => this.checkStateManager.markPeerReady(peerCid),
+      clearReady: (peerCid) => this.checkStateManager.clearPeerReadyState(peerCid),
     });
     this.listen<{ peer: { cid: bigint; username: string } }>('p2p:peer-registered', ({ peer }) => {
       if (peer.cid && peer.username) this.conversationManager.setPeerUsername(peer.cid, peer.username);
@@ -134,9 +157,11 @@ export class P2PMessengerManager extends EventListenerManager {
   private async loadCachedMessages(): Promise<void> { await this.conversationManager.loadFromStorage(); this.cachedMessagesLoaded = true; }
 
   // ===== Public API: Messaging =====
-  public async sendMessage(recipientCid: bigint, content: string, options?: { replyTo?: string; mentions?: string[]; attachments?: P2PAttachment[]; messageType?: MessageType; documentId?: string; documentTitle?: string; }): Promise<P2PMessage> { return this.messageSender.sendMessage(recipientCid, content, options); }
-  public async resendMessage(peerCid: bigint, messageId: string): Promise<void> { const c = this.conversationManager.getConversation(peerCid); if (!c) throw new Error(`Conversation with ${peerCid} not found`); return this.messageSender.resendMessage(peerCid, messageId, c); }
+  public async sendMessage(recipientCid: bigint, content: string, options?: SendMessageOptions): Promise<P2PMessage> { return this.messageSender.sendMessage(recipientCid, content, options); }
+  public async resendMessage(peerCid: bigint, messageId: string): Promise<void> { const c: P2PConversation | undefined = this.conversationManager.getConversation(peerCid); if (!c) throw new Error(`Conversation with ${peerCid} not found`); return this.messageSender.resendMessage(peerCid, messageId, c); }
   public async sendRawMessage(recipientCid: bigint, layer: MessagingLayer): Promise<void> { return this.messageSender.sendRawMessage(recipientCid, layer); }
+  public async editMessage(peerCid: bigint, messageId: string, contents: string): Promise<void> { return editMessage(this.conversationManager, (e, d) => this.emit(e, d), (p, l) => this.sendRawMessage(p, l), peerCid, messageId, contents); }
+  public async deleteMessage(peerCid: bigint, messageId: string): Promise<void> { return deleteMessage(this.conversationManager, (e, d) => this.emit(e, d), (p, l) => this.sendRawMessage(p, l), peerCid, messageId); }
   public async markMessagesAsRead(peerCid: bigint, messageIds?: string[]): Promise<void> { return markMessagesAsRead(this.conversationManager, (msgId, ackType, peer) => this.messageSender.sendMessageAck(msgId, ackType, peer), (e, d) => this.emit(e, d), peerCid, messageIds); }
 
   // ===== Public API: Presence =====
@@ -154,9 +179,34 @@ export class P2PMessengerManager extends EventListenerManager {
   public isConnected(peerCid: bigint): boolean { return this.conversationManager.isConnected(peerCid); }
   public setPeerUsername(peerCid: bigint, username: string): void { this.conversationManager.setPeerUsername(peerCid, username); }
   public async cleanupStaleConversations(validPeerCids: Set<bigint>): Promise<number> { return this.conversationManager.cleanupStaleConversations(validPeerCids); }
-  public async loadMessagePage(peerCid: bigint, pageNumber: number) { return messagePaginationStore.loadMessagePage(peerCid, pageNumber); }
+
+  /**
+   * Erase the stored history for one peer, for real.
+   *
+   * Chat Settings offered "Clear Chat History" and ran
+   * `localStorage.removeItem('chat-history:' + peerCid)` — a key nothing in the
+   * app has ever written. The dialog said "Messages stored on this device are
+   * removed. This cannot be undone." and not one message was removed. In a
+   * product sold on privacy that is the worst kind of defect: the user is told
+   * their data is gone and it is not.
+   *
+   * Both halves are needed. deleteConversationPages clears what survives a
+   * reload; clearMessages clears what is on screen now.
+   */
+  public async clearConversationHistory(peerCid: bigint): Promise<void> {
+    // includeUnattributed: the user has this conversation open and pressed
+    // clear. Refusing on an unstamped legacy record would make their own
+    // button do nothing.
+    await messagePaginationStore.deleteConversationPages(peerCid, {
+      ownerCid: await resolveCurrentCid(),
+      includeUnattributed: true,
+    });
+    this.conversationManager.clearMessages(peerCid);
+    eventEmitter.emit('p2p:conversation-cleared', { peerCid });
+  }
+  public async loadMessagePage(peerCid: bigint, pageNumber: number): Promise<MessagePage | null> { return messagePaginationStore.loadMessagePage(peerCid, pageNumber); }
   public async loadLatestMessages(peerCid: bigint): Promise<P2PMessage[]> { return messagePaginationStore.loadLatestMessages(peerCid); }
-  public async getConversationMetadata(peerCid: bigint) { return messagePaginationStore.loadMetadata(peerCid); }
+  public async getConversationMetadata(peerCid: bigint): Promise<ConversationMetadata | null> { return messagePaginationStore.loadMetadata(peerCid); }
 
   // ===== Public API: Event Listeners =====
   public onMessage(listener: (message: P2PMessage) => void): () => void { this.messageListeners.push(listener); return () => { this.messageListeners = this.messageListeners.filter(l => l !== listener); }; }
@@ -190,11 +240,11 @@ export function getP2PMessengerManager(): P2PMessengerManager {
 // Both `get` and `set` delegate to the real singleton so external callers that
 // assign to exposed fields write through to the real instance rather than
 // silently landing on the empty placeholder target.
-export const p2pMessengerManager = new Proxy({} as P2PMessengerManager, {
-  get(_target, prop, receiver) {
+export const p2pMessengerManager: P2PMessengerManager = new Proxy({} as P2PMessengerManager, {
+  get(_target: P2PMessengerManager, prop: string | symbol, receiver: unknown): unknown {
     return Reflect.get(getP2PMessengerManager(), prop, receiver);
   },
-  set(_target, prop, value, receiver) {
+  set(_target: P2PMessengerManager, prop: string | symbol, value: unknown, receiver: unknown): boolean {
     return Reflect.set(getP2PMessengerManager(), prop, value, receiver);
   },
 });

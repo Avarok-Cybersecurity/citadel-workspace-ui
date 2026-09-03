@@ -20,6 +20,7 @@ import { peerRegistrationStore, PendingPeerRequest } from '@/lib/peer-registrati
 import { useToast, useEventListener } from '@/hooks';
 import { formatDistanceToNow } from 'date-fns';
 import { debugLog } from '@/lib/debug-config';
+import { peerDisplayName, peerInitials } from '@/lib/peer-display';
 
 interface PendingRequestsModalProps {
   isOpen: boolean;
@@ -35,8 +36,8 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
   const { toast } = useToast();
 
   // Load pending requests
-  const loadRequests = useCallback(async () => {
-    const requests = await peerRegistrationStore.getPendingRequests();
+  const loadRequests: () => Promise<void> = useCallback(async (): Promise<void> => {
+    const requests: PendingPeerRequest[] = await peerRegistrationStore.getPendingRequests();
     setPendingRequests(requests);
   }, []);
 
@@ -50,7 +51,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
     loadRequests().catch(err => debugLog('PendingRequestsModal', 'Error:', err));
   });
 
-  const handleAccept = async (request: PendingPeerRequest) => {
+  const handleAccept = async (request: PendingPeerRequest): Promise<void> => {
     setProcessingId(request.id);
     try {
       await peerRegistrationStore.acceptRequest(request.id);
@@ -66,14 +67,14 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
     }
   };
 
-  const handleDecline = async (request: PendingPeerRequest) => {
+  const handleDecline = async (request: PendingPeerRequest): Promise<void> => {
     setProcessingId(request.id);
     try {
       await peerRegistrationStore.declineRequest(request.id);
       toast({
         title: 'Request Declined',
         description: `Declined connection from ${request.peer_username}`,
-        className: 'bg-[#232536] border-red-600 text-red-400',
+        variant: 'destructive',
       });
     } catch (error) {
       toast({
@@ -88,8 +89,8 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
 
   const formatTimestamp = (timestamp: number): string => {
     // Sanity check: Flag stale timestamps
-    const MAX_RELATIVE_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
-    const age = Date.now() - timestamp;
+    const MAX_RELATIVE_AGE_MS: number = 24 * 60 * 60 * 1000; // 24 hours
+    const age: number = Date.now() - timestamp;
 
     if (age > MAX_RELATIVE_AGE_MS) {
       // Show absolute date for old requests
@@ -100,26 +101,22 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
     return formatDistanceToNow(timestamp, { addSuffix: true });
   };
 
-  const getUserInitial = (username: string): string => {
-    return username.charAt(0).toUpperCase();
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[#232536] text-white border-gray-700 max-w-lg">
+      <DialogContent className="bg-card text-foreground border-border max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <UserPlus className="h-5 w-5 mr-2" />
             Pending Connection Requests
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-muted-foreground">
             Users requesting to connect with you
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="h-[350px] mt-4">
           {pendingRequests.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
+            <div className="text-center py-12 text-muted-foreground">
               <UserX className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p>No pending requests</p>
               <p className="text-sm mt-2">
@@ -131,21 +128,17 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
               {pendingRequests.map((request) => (
                 <div
                   key={request.id}
-                  className="flex items-center justify-between p-4 rounded-lg bg-[#232536] hover:bg-[#4F5889] transition-colors"
+                  className="flex items-center justify-between p-4 rounded-lg bg-card hover:bg-surface transition-colors"
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
-                      {getUserInitial(request.peer_username)}
+                    <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
+                      {peerInitials({ cid: request.peer_cid, username: request.peer_username })}
                     </div>
                     <div>
-                      <p className="font-medium text-white">
-                        {request.peer_username}
+                      <p className="font-medium text-foreground">
+                        {peerDisplayName({ cid: request.peer_cid, username: request.peer_username })}
                       </p>
-                      <div className="flex items-center text-xs text-gray-400">
-                        <span className="truncate max-w-[120px]">
-                          CID: {request.peer_cid.toString().slice(0, 8)}...
-                        </span>
-                        <span className="mx-2">•</span>
+                      <div className="flex items-center text-xs text-muted-foreground">
                         <Clock className="h-3 w-3 mr-1" />
                         {formatTimestamp(request.timestamp)}
                       </div>
@@ -155,9 +148,17 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white"
+                      className="border-success text-success-emphasis hover:bg-success/90 hover:text-success-foreground"
                       onClick={() => handleAccept(request)}
                       disabled={processingId === request.id}
+                      // The same handle the peer list's accept button carries.
+                      // This modal is the ONLY surface a badge click reaches,
+                      // and it never had one -- so every spec that opened it
+                      // and reached for `peer-accept` found nothing, retried
+                      // twenty times and gave up. Four reconnect legs and the
+                      // peer-group leg died here, on a modal that was rendering
+                      // correctly the whole time.
+                      data-testid="peer-accept"
                     >
                       {processingId === request.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -168,9 +169,10 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                      className="border-destructive text-destructive hover:bg-destructive/90 hover:text-destructive-foreground"
                       onClick={() => handleDecline(request)}
                       disabled={processingId === request.id}
+                      data-testid="peer-decline"
                     >
                       Decline
                     </Button>
@@ -182,8 +184,8 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
         </ScrollArea>
 
         {pendingRequests.length > 0 && (
-          <div className="mt-4 p-3 bg-[#3A3F5C] rounded-lg">
-            <p className="text-xs text-gray-400">
+          <div className="mt-4 p-3 bg-surface rounded-lg">
+            <p className="text-xs text-muted-foreground">
               <strong>Tip:</strong> Accepting a connection allows you to
               exchange direct messages with that user.
             </p>

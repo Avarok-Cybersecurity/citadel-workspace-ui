@@ -50,7 +50,7 @@ export function useRetry<T, A extends unknown[] = unknown[]>(
     lastParams: null
   });
 
-  const execute = useCallback(
+  const execute: (...params: A) => Promise<T | null> = useCallback(
     async (...params: A): Promise<T | null> => {
       setState(prev => ({
         ...prev,
@@ -61,7 +61,7 @@ export function useRetry<T, A extends unknown[] = unknown[]>(
       }));
 
       try {
-        const result = await operation(...params);
+        const result: Awaited<ReturnType<typeof operation>> = await operation(...params);
         setState(prev => ({
           ...prev,
           data: result,
@@ -75,7 +75,7 @@ export function useRetry<T, A extends unknown[] = unknown[]>(
         
         return result;
       } catch (error) {
-        const errorObj = error instanceof Error ? error : new Error(String(error));
+        const errorObj: Error = error instanceof Error ? error : new Error(String(error));
         
         setState(prev => ({
           ...prev,
@@ -93,7 +93,7 @@ export function useRetry<T, A extends unknown[] = unknown[]>(
     [operation, onSuccess, onError]
   );
 
-  const retry = useCallback(async (): Promise<T | null> => {
+  const retry: () => Promise<T | null> = useCallback(async (): Promise<T | null> => {
     if (!state.lastParams || state.attempt > maxRetries) {
       return null;
     }
@@ -109,11 +109,11 @@ export function useRetry<T, A extends unknown[] = unknown[]>(
     }
 
     // Add exponential backoff delay
-    const delay = retryDelay * Math.pow(2, state.attempt - 1);
+    const delay: number = retryDelay * Math.pow(2, state.attempt - 1);
     await new Promise(resolve => setTimeout(resolve, delay));
 
     try {
-      const result = await operation(...state.lastParams);
+      const result: Awaited<ReturnType<typeof operation>> = await operation(...state.lastParams);
       setState(prev => ({
         ...prev,
         data: result,
@@ -127,7 +127,7 @@ export function useRetry<T, A extends unknown[] = unknown[]>(
       
       return result;
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
+      const errorObj: Error = error instanceof Error ? error : new Error(String(error));
       
       setState(prev => ({
         ...prev,
@@ -143,7 +143,7 @@ export function useRetry<T, A extends unknown[] = unknown[]>(
     }
   }, [state.attempt, state.lastParams, state.error, maxRetries, operation, retryDelay, onRetry, onSuccess, onError]);
 
-  const reset = useCallback(() => {
+  const reset: () => void = useCallback((): void => {
     setState({
       data: null,
       error: null,

@@ -66,7 +66,7 @@ export function sendP2PMessage(ctx: SendingContext, message: YjsP2PMessage): voi
     // across CBOR encode/decode without forcing a per-variant mapping.
     payload: message as unknown as P2PYjsSyncPayload,
   };
-  const bytes = serializeP2PCommand(command);
+  const bytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand(command);
 
   websocketService.sendP2PMessageBytes(
     BigInt(ctx.ownCid),
@@ -89,8 +89,8 @@ export function sendSyncMessage(
 ): void {
   if (!ctx.ownCid) return;
 
-  const messageId = generateMessageId(ctx.documentId);
-  const hash = docHash ?? (ctx.merkleTree?.getRootHash());
+  const messageId: string = generateMessageId(ctx.documentId);
+  const hash: string | undefined = docHash ?? (ctx.merkleTree?.getRootHash());
 
   const message: YjsSyncMessage = {
     type: 'yjs_sync',
@@ -110,6 +110,9 @@ export function sendSyncMessage(
       sentAt: Date.now(),
       expectedHash: hash,
       retryCount: 0,
+      // The full message is stored so an ACK timeout can retransmit the
+      // SAME payload under the SAME message_id (see ack-checker.ts).
+      message,
     });
   }
 

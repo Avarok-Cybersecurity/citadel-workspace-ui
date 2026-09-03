@@ -12,12 +12,12 @@ import { ConnectionIOWebSocket } from './io-websocket';
 import { ConnectionIOServices } from './io-services';
 
 export class ConnectionIO {
-  private ws = new ConnectionIOWebSocket();
-  private svc = new ConnectionIOServices();
+  private ws: ConnectionIOWebSocket = new ConnectionIOWebSocket();
+  private svc: ConnectionIOServices = new ConnectionIOServices();
 
   async executeIntent(intent: ConnectionIntent): Promise<unknown> {
     // Try WebSocket intents first
-    const wsResult = await this.ws.executeWebSocketIntent(intent);
+    const wsResult: unknown = await this.ws.executeWebSocketIntent(intent);
     if (wsResult !== undefined) return wsResult;
 
     // Service-layer intents
@@ -51,7 +51,7 @@ export class ConnectionIO {
   async initWebSocket(): Promise<void> { return this.ws.initWebSocket(); }
   setOrphanMode(enabled: boolean): void { this.ws.setOrphanMode(enabled); }
   async sendWebSocketMessage(message: unknown): Promise<void> { return this.ws.sendWebSocketMessage(message); }
-  isWebSocketConnected(): boolean { return this.ws.isWebSocketConnected(); }
+  canSendRequests(): boolean { return this.ws.canSendRequests(); }
   async waitForWebSocketInit(): Promise<void> { return this.ws.waitForWebSocketInit(); }
   async connect(params: { requestId: string; username: string; password: string; sessionSecuritySettings?: SessionSecuritySettings }): Promise<void> { return this.ws.connect(params); }
   async disconnect(cid: bigint): Promise<void> { return this.ws.disconnect(cid); }
@@ -77,8 +77,10 @@ export class ConnectionIO {
   async clearSelectedUser(): Promise<void> { return this.svc.clearSelectedUser(); }
   async initServerAutoConnect(): Promise<void> { return this.svc.initServerAutoConnect(); }
   async markUserDisconnected(username: string, serverAddress: string): Promise<void> { return this.svc.markUserDisconnected(username, serverAddress); }
+  markUserDisconnectedNow(username: string, serverAddress: string): void { this.svc.markUserDisconnectedNow(username, serverAddress); }
+  async persistUserDisconnected(): Promise<void> { return this.svc.persistUserDisconnected(); }
   async initPeerRegistrationStore(): Promise<void> { return this.svc.initPeerRegistrationStore(); }
 }
 
 // Export singleton instance
-export const connectionIO = new ConnectionIO();
+export const connectionIO: ConnectionIO = new ConnectionIO();

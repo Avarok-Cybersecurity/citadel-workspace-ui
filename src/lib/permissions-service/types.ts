@@ -19,11 +19,17 @@ export enum Permission {
   EditNodeConfig = 'EditNodeConfig',
   UpdateNodeSettings = 'UpdateNodeSettings',
   ManageNodeMembers = 'ManageNodeMembers',
+  /** Rearrange the node tree: move, nest and reorder offices and rooms. */
+  EditTreeStructure = 'EditTreeStructure',
+  /** Define which node types exist and how they behave. */
+  ManageNodeTypes = 'ManageNodeTypes',
   // Workspace permissions
   CreateWorkspace = 'CreateWorkspace',
   UpdateWorkspace = 'UpdateWorkspace',
   DeleteWorkspace = 'DeleteWorkspace',
   EditWorkspaceConfig = 'EditWorkspaceConfig',
+  /** Edit the workspace theme every member sees. */
+  Themes = 'Themes',
   // Content permissions
   ViewContent = 'ViewContent',
   EditContent = 'EditContent',
@@ -59,24 +65,33 @@ export interface DomainPermissions {
 }
 
 /**
- * Human-readable labels for permissions
+ * Human-readable labels for permissions.
+ *
+ * "Human-readable" was doing a lot of work here: these were the enum names with
+ * spaces inserted. "Node" is the code's word for an office or a room, "MDX" is
+ * the file format, and "Tree Structure" is the data structure — none of them
+ * are things an administrator has been shown anywhere else in the product,
+ * which is the permission matrix's whole audience.
  */
 export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.All]: 'All Permissions',
-  [Permission.CreateNode]: 'Create Node',
-  [Permission.DeleteNode]: 'Delete Node',
-  [Permission.UpdateNode]: 'Update Node',
-  [Permission.AddNode]: 'Add Node',
-  [Permission.EditNodeConfig]: 'Edit Node Config',
-  [Permission.UpdateNodeSettings]: 'Update Node Settings',
-  [Permission.ManageNodeMembers]: 'Manage Node Members',
+  [Permission.CreateNode]: 'Create offices and rooms',
+  [Permission.DeleteNode]: 'Delete offices and rooms',
+  [Permission.UpdateNode]: 'Rename offices and rooms',
+  [Permission.AddNode]: 'Add offices and rooms',
+  [Permission.EditNodeConfig]: 'Change office and room settings',
+  [Permission.UpdateNodeSettings]: 'Update office and room settings',
+  [Permission.ManageNodeMembers]: 'Manage who is in an office or room',
   [Permission.CreateWorkspace]: 'Create Workspace',
   [Permission.UpdateWorkspace]: 'Update Workspace',
   [Permission.DeleteWorkspace]: 'Delete Workspace',
   [Permission.EditWorkspaceConfig]: 'Edit Workspace Config',
+  [Permission.Themes]: 'Edit Workspace Theme',
+  [Permission.EditTreeStructure]: 'Reorganise the workspace',
+  [Permission.ManageNodeTypes]: 'Define new kinds of space',
   [Permission.ViewContent]: 'View Content',
   [Permission.EditContent]: 'Edit Content',
-  [Permission.EditMdx]: 'Edit MDX Content',
+  [Permission.EditMdx]: 'Edit documents',
   [Permission.AddUsers]: 'Add Users',
   [Permission.RemoveUsers]: 'Remove Users',
   [Permission.BanUser]: 'Ban User',
@@ -84,8 +99,37 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.ReadMessages]: 'Read Messages',
   [Permission.UploadFiles]: 'Upload Files',
   [Permission.DownloadFiles]: 'Download Files',
-  [Permission.ManageDomains]: 'Manage Domains',
+  [Permission.ManageDomains]: 'Manage every space in the workspace',
   [Permission.ConfigureSystem]: 'Configure System',
+};
+
+/** Every permission, in declaration order. Mirrors `Permission::ALL_VARIANTS`. */
+export const ALL_PERMISSIONS: Permission[] = Object.values(Permission);
+
+/**
+ * What each role is granted by default, mirroring `Permission::for_role` in
+ * citadel-workspace-types. The server is authoritative — this exists so the
+ * admin UI can show what a role means before it is applied, and
+ * scripts/check-permission-parity.mjs fails the build if the two disagree.
+ *
+ * Admin is listed as the full set rather than the bare `All` wildcard the server
+ * stores: the two grant identical access, and the permission matrix would
+ * otherwise render an administrator with every box unticked but one.
+ */
+export const ROLE_DEFAULT_PERMISSIONS: Record<string, Permission[]> = {
+  Admin: ALL_PERMISSIONS,
+  Owner: ALL_PERMISSIONS.filter(
+    (p) => p !== Permission.All && p !== Permission.ConfigureSystem,
+  ),
+  Member: [
+    Permission.ViewContent,
+    Permission.SendMessages,
+    Permission.ReadMessages,
+    Permission.UploadFiles,
+    Permission.DownloadFiles,
+  ],
+  Guest: [Permission.ViewContent],
+  Banned: [],
 };
 
 /**
@@ -114,6 +158,8 @@ export const PERMISSION_CATEGORIES = {
       Permission.EditNodeConfig,
       Permission.UpdateNodeSettings,
       Permission.ManageNodeMembers,
+      Permission.EditTreeStructure,
+      Permission.ManageNodeTypes,
     ],
   },
   workspace: {
@@ -123,6 +169,7 @@ export const PERMISSION_CATEGORIES = {
       Permission.UpdateWorkspace,
       Permission.DeleteWorkspace,
       Permission.EditWorkspaceConfig,
+      Permission.Themes,
     ],
   },
   users: {

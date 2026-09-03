@@ -27,16 +27,6 @@ export interface LeaderElectionMessage {
   priority: number;
 }
 
-export function isLeaderElectionMessage(data: unknown): data is LeaderElectionMessage {
-  if (typeof data !== 'object' || data === null) return false;
-  const record = data as Record<string, unknown>;
-  return (
-    typeof record.tabId === 'string' &&
-    typeof record.timestamp === 'number' &&
-    typeof record.priority === 'number'
-  );
-}
-
-export const CHANNEL_NAME = 'citadel-workspace-sync';
-export const REQUEST_EXPIRY_MS = 30 * 60 * 1000;
-export const CLEANUP_INTERVAL_MS = INTERVAL.CLEANUP_MS;
+export const CHANNEL_NAME: "citadel-workspace-sync" = 'citadel-workspace-sync';
+export const REQUEST_EXPIRY_MS: number = 30 * 60 * 1000;
+export const CLEANUP_INTERVAL_MS: number = INTERVAL.CLEANUP_MS;

@@ -6,7 +6,6 @@
  */
 
 import { debugLog } from '@/lib/debug-config';
-import type { ResponseType } from 'citadel-workspace-client-ts';
 import {
   CID_FIELDS,
   CID_ROUTED_NOTIFICATIONS,
@@ -26,7 +25,7 @@ export function extractRequestId(message: Record<string, unknown>): string | nul
     return null;
   }
 
-  const messageType = getMessageType(message);
+  const messageType: ReturnType<typeof getMessageType> = getMessageType(message);
 
   // Skip request_id extraction for notification messages that should be routed by CID
   if (CID_ROUTED_NOTIFICATIONS.has(messageType)) {
@@ -34,7 +33,7 @@ export function extractRequestId(message: Record<string, unknown>): string | nul
     return null;
   }
 
-  const payload = message[messageType] as Record<string, unknown> | undefined;
+  const payload: Record<string, unknown> | undefined = message[messageType] as Record<string, unknown> | undefined;
 
   if (payload && typeof payload === 'object') {
     if (payload.request_id) {
@@ -62,8 +61,8 @@ export function extractTargetCid(message: Record<string, unknown>): string | nul
   }
 
   // Check nested in message type (e.g., { MessageNotification: { cid: ... } })
-  const messageType = getMessageType(message);
-  const payload = message[messageType] as Record<string, unknown> | undefined;
+  const messageType: ReturnType<typeof getMessageType> = getMessageType(message);
+  const payload: Record<string, unknown> | undefined = message[messageType] as Record<string, unknown> | undefined;
 
   if (payload && typeof payload === 'object') {
     for (const field of CID_FIELDS) {
@@ -73,7 +72,7 @@ export function extractTargetCid(message: Record<string, unknown>): string | nul
     }
 
     // Check for Response wrapper
-    const response = payload.Response as Record<string, unknown> | undefined;
+    const response: Record<string, unknown> | undefined = payload.Response as Record<string, unknown> | undefined;
     if (response) {
       for (const field of CID_FIELDS) {
         if (response[field]) {

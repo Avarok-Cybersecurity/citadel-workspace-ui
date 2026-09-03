@@ -199,8 +199,14 @@ async function runTest(): Promise<boolean> {
 
     // Get workspace root ID
     workspaceRootId = await getWorkspaceRootId(page);
-    results.workspaceRootFound = workspaceRootId !== null;
-    logStep('Workspace root found', results.workspaceRootFound, workspaceRootId || 'unknown');
+    // `workspaceRootId !== null` was not an assertion: getWorkspaceRootId falls
+    // back to the WORKSPACE_ROOT_SENTINEL and cannot return null, so this always
+    // held — and it counted toward this spec's pass total. Resolving the id to a
+    // real Workspace node at depth 0 is the check that was intended.
+    const rootNode = await getNodeViaProtocol(page, workspaceRootId);
+    results.workspaceRootFound =
+      rootNode !== null && rootNode.entity_type === 'Workspace' && rootNode.depth === 0;
+    logStep('Workspace root resolves', results.workspaceRootFound, workspaceRootId);
 
     if (!workspaceRootId) {
       throw new Error('Could not find workspace root ID');
@@ -531,7 +537,24 @@ async function runTest(): Promise<boolean> {
 
     console.log('\nSchema Enforcement (Custom Types):');
     console.log(`  Team Under Workspace Rejected:  ${results.teamUnderWorkspaceRejected ? 'PASS' : 'FAIL'}`);
-    console.log(`  Office Under Team Rejected:     ${results.officeUnderTeamRejected ? 'PASS' : 'FAIL'}`);
+    // Not gated, and deliberately not reported as a plain FAIL: this is a known
+    // server-side gap, not a regression, and calling it FAIL invites someone to
+    // "fix" the test.
+    //
+    // CreateNodeType { name: "Team", allowed_parents: ["Department"] } writes a
+    // rule for parent_type "Department" and none for parent_type "Team".
+    // TreeSchema::is_child_allowed then hits its `.unwrap_or(true)` — "if no rule
+    // exists for this parent type, allow all children by default"
+    // (citadel-workspace-types/src/structs.rs:816) — so a custom type constrains
+    // what it can sit UNDER but never what it can CONTAIN, and an Office is
+    // accepted under a Team.
+    //
+    // Enforcement is asymmetric as a result: Team-under-Workspace and
+    // Room-under-Workspace are both correctly rejected, because those parents do
+    // have rules. Fixing it means either flipping that default or having
+    // CreateNodeType register a rule for the new type as a parent — a decision
+    // about existing workspaces, not something to change from a test.
+    console.log(`  Office Under Team Rejected:     ${results.officeUnderTeamRejected ? 'PASS' : 'KNOWN GAP (custom types do not constrain their children — see comment)'}`);
     console.log(`  Schema Violation Error:         ${results.schemaViolationErrorReturned ? 'PASS' : 'FAIL'}`);
 
     console.log('\nDefault Schema Enforcement:');
@@ -569,10 +592,6 @@ async function runTest(): Promise<boolean> {
       console.log('Note: Custom type creation may not be implemented yet.');
       console.log('Schema enforcement tests show the expected behavior.');
     }
-
-    // Keep browser open for inspection
-    console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
-    await sleep(15000);
 
     if (browser) {
       await browser.close();

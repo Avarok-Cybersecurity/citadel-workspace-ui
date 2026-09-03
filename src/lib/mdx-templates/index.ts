@@ -26,8 +26,7 @@ export {
   roomTemplates,
 } from './room-templates';
 
-import type { MdxTemplate } from './types';
-import { TemplateCategory, OfficeType, RoomType } from './types';
+import { TemplateCategory, OfficeType, RoomType , type MdxTemplate } from './types';
 import { officeTemplates } from './office-templates';
 import { roomTemplates } from './room-templates';
 

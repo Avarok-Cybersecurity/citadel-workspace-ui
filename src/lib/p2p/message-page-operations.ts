@@ -12,19 +12,19 @@ import type {
   MessagePage,
   P2PMessage,
 } from './p2p-types';
-import {
-  PAGINATED_PREFIX,
-} from './p2p-types';
+import { conversationPrefix, legacyConversationPrefix, hasLegacyFallback } from './message-page-keys';
+import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import { debugLog } from '@/lib/debug-config';
+import { isGenuinelyAbsent } from '@/lib/storage/absence';
 
 /**
  * Load metadata by full key.
  */
 export async function loadMetadataByKey(key: string): Promise<ConversationMetadata | null> {
   try {
-    const response = await websocketService.sendLocalDBGet(0n, key);
+    const response: { value: number[]; } | null = await websocketService.sendLocalDBGet(0n, key);
     if (response?.value) {
-      const rawValue = response.value;
+      const rawValue: number[] = response.value;
       let valueStr: string;
       if (Array.isArray(rawValue)) {
         valueStr = bytesToString(rawValue);
@@ -33,15 +33,23 @@ export async function loadMetadataByKey(key: string): Promise<ConversationMetada
       } else {
         return null;
       }
-      const parsed = JSON.parse(valueStr) as Record<string, unknown>;
+      const parsed: Record<string, unknown> = JSON.parse(valueStr) as Record<string, unknown>;
       return {
         ...parsed,
+        // Parsed back to bigint, like peerCid. Serialized as a string and left
+        // as one, every ownership comparison is string-vs-bigint and therefore
+        // always false — which silently turns the delete guard into "refuse
+        // everything", including the account's own sweep.
+        ownerCid: typeof parsed.ownerCid === 'string' ? BigInt(parsed.ownerCid) : parsed.ownerCid,
         peerCid: typeof parsed.peerCid === 'string' ? BigInt(parsed.peerCid) : parsed.peerCid
       } as ConversationMetadata;
     }
     return null;
-  } catch {
-    return null;
+  } catch (error) {
+    if (isGenuinelyAbsent(error)) return null;
+    // Anything else is a failure to READ, not an absence of data. Returning
+    // null here is what let a 5s timeout be mistaken for a new conversation.
+    throw error;
   }
 }
 
@@ -49,18 +57,43 @@ export async function loadMetadataByKey(key: string): Promise<ConversationMetada
  * Load metadata for a specific peer.
  */
 export async function loadMetadata(peerCid: bigint): Promise<ConversationMetadata | null> {
-  const key = `${PAGINATED_PREFIX}${peerCid.toString()}_metadata`;
-  return loadMetadataByKey(key);
+  const scoped: ConversationMetadata | null = await loadMetadataByKey(`${conversationPrefix(peerCid)}_metadata`);
+  if (scoped || !hasLegacyFallback(peerCid)) return scoped;
+
+  // Nothing under the account-scoped key. Records written before conversations
+  // were scoped live under the peer-only prefix; read them so existing history
+  // is not orphaned by the rename.
+  //
+  // Only OURS, though: an unattributed record predates the ownerCid stamp and
+  // could belong to anyone, but adopting it is the same guess the old shared
+  // key made. A record stamped for a different account is left alone.
+  const legacy: ConversationMetadata | null = await loadMetadataByKey(`${legacyConversationPrefix(peerCid)}_metadata`);
+  if (!legacy) return null;
+  if (legacy.ownerCid !== undefined && legacy.ownerCid !== instanceManager.cid) {
+    debugLog('MessagePageOperations', `[P2P] Legacy conversation ${peerCid.toString().slice(0, 8)} belongs to another account`);
+    return null;
+  }
+  return legacy;
+}
+
+/** Read a page under the legacy peer-only prefix, for conversations not yet migrated. */
+async function loadLegacyMessagePage(peerCid: bigint, pageNumber: number): Promise<MessagePage | null> {
+  return loadMessagePageByKey(`${legacyConversationPrefix(peerCid)}_${pageNumber}`);
 }
 
 /**
  * Save metadata for a peer.
  */
 export async function saveMetadata(peerCid: bigint, metadata: ConversationMetadata): Promise<void> {
-  const key = `${PAGINATED_PREFIX}${peerCid.toString()}_metadata`;
-  const serializableMetadata = { ...metadata, peerCid: metadata.peerCid.toString() };
-  const valueStr = JSON.stringify(serializableMetadata);
-  const valueBytes = stringToBytes(valueStr);
+  const key: string = `${conversationPrefix(peerCid)}_metadata`;
+  const serializableMetadata: { peerCid: string; ownerCid: string | undefined; peerUsername?: string; totalMessageCount: number; oldestMessageTimestamp: number; newestMessageTimestamp: number; latestPage: number; messagesPerPage: number; unreadCount: number; lastMessageIndex: number; lastUpdated: number; } = {
+    ...metadata,
+    peerCid: metadata.peerCid.toString(),
+    // Stamped so this record can later be proved ours — see ConversationMetadata.
+    ownerCid: metadata.ownerCid === undefined ? undefined : metadata.ownerCid.toString(),
+  };
+  const valueStr: string = JSON.stringify(serializableMetadata);
+  const valueBytes: number[] = stringToBytes(valueStr);
   await websocketService.sendLocalDBSet(0n, key, valueBytes);
 }
 
@@ -68,11 +101,18 @@ export async function saveMetadata(peerCid: bigint, metadata: ConversationMetada
  * Load a specific page of messages for a peer.
  */
 export async function loadMessagePage(peerCid: bigint, pageNumber: number): Promise<MessagePage | null> {
-  const key = `${PAGINATED_PREFIX}${peerCid.toString()}_${pageNumber}`;
+  const scoped: MessagePage | null = await loadMessagePageByKey(`${conversationPrefix(peerCid)}_${pageNumber}`);
+  if (scoped || !hasLegacyFallback(peerCid)) return scoped;
+  // Pre-scoping history: loadMetadata has already refused a record owned by
+  // another account, so reaching here means this conversation is ours.
+  return loadLegacyMessagePage(peerCid, pageNumber);
+}
+
+async function loadMessagePageByKey(key: string): Promise<MessagePage | null> {
   try {
-    const response = await websocketService.sendLocalDBGet(0n, key);
+    const response: { value: number[]; } | null = await websocketService.sendLocalDBGet(0n, key);
     if (response?.value) {
-      const rawValue = response.value;
+      const rawValue: number[] = response.value;
       let valueStr: string;
       if (Array.isArray(rawValue)) {
         valueStr = bytesToString(rawValue);
@@ -81,7 +121,7 @@ export async function loadMessagePage(peerCid: bigint, pageNumber: number): Prom
       } else {
         return null;
       }
-      const parsed = JSON.parse(valueStr) as MessagePage & {
+      const parsed: MessagePage & { peerCid: string | bigint; messages: Array<P2PMessage & { senderCid: string | bigint; recipientCid: string | bigint; }>; } = JSON.parse(valueStr) as MessagePage & {
         peerCid: string | bigint;
         messages: Array<P2PMessage & { senderCid: string | bigint; recipientCid: string | bigint }>;
       };
@@ -96,8 +136,11 @@ export async function loadMessagePage(peerCid: bigint, pageNumber: number): Prom
       } as MessagePage;
     }
     return null;
-  } catch {
-    return null;
+  } catch (error) {
+    if (isGenuinelyAbsent(error)) return null;
+    // Anything else is a failure to READ, not an absence of data. Returning
+    // null here is what let a 5s timeout be mistaken for a new conversation.
+    throw error;
   }
 }
 
@@ -105,8 +148,11 @@ export async function loadMessagePage(peerCid: bigint, pageNumber: number): Prom
  * Save a page of messages for a peer.
  */
 export async function saveMessagePage(peerCid: bigint, pageNumber: number, page: MessagePage): Promise<void> {
-  const key = `${PAGINATED_PREFIX}${peerCid.toString()}_${pageNumber}`;
-  const serializablePage = {
+  const key: string = `${conversationPrefix(peerCid)}_${pageNumber}`;
+  const serializablePage: Omit<MessagePage, 'peerCid' | 'messages'> & {
+    peerCid: string;
+    messages: (Omit<P2PMessage, 'senderCid' | 'recipientCid'> & { senderCid: string; recipientCid: string })[];
+  } = {
     ...page,
     peerCid: page.peerCid.toString(),
     messages: page.messages.map(m => ({
@@ -115,27 +161,32 @@ export async function saveMessagePage(peerCid: bigint, pageNumber: number, page:
       recipientCid: m.recipientCid.toString()
     }))
   };
-  const valueStr = JSON.stringify(serializablePage);
-  const valueBytes = stringToBytes(valueStr);
+  const valueStr: string = JSON.stringify(serializablePage);
+  const valueBytes: number[] = stringToBytes(valueStr);
   await websocketService.sendLocalDBSet(0n, key, valueBytes);
 }
 
 /**
- * Delete all pages and metadata for a conversation.
+ * `loadMetadata`, but a failed read is reported as absence.
+ *
+ * For callers where "could not read" and "not there" lead to the same
+ * harmless outcome — skip the update, render nothing yet. The append path
+ * must NOT use this: there, treating a failed read as a new conversation is
+ * what overwrites page 0 and orphans the rest.
  */
-export async function deleteConversationPages(peerCid: bigint): Promise<void> {
-  const metadata = await loadMetadata(peerCid);
-  if (!metadata) return;
-
-  const deletePromises: Promise<void>[] = [];
-  for (let pageNum = 0; pageNum <= metadata.latestPage; pageNum++) {
-    const key = `${PAGINATED_PREFIX}${peerCid.toString()}_${pageNum}`;
-    deletePromises.push(websocketService.sendLocalDBDelete(0n, key));
+export async function tryLoadMetadata(peerCid: bigint): Promise<ConversationMetadata | null> {
+  try {
+    return await loadMetadata(peerCid);
+  } catch {
+    return null;
   }
+}
 
-  const metadataKey = `${PAGINATED_PREFIX}${peerCid.toString()}_metadata`;
-  deletePromises.push(websocketService.sendLocalDBDelete(0n, metadataKey));
-
-  await Promise.all(deletePromises);
-  debugLog('MessagePageOperations', `[P2P] Deleted ${metadata.latestPage + 1} pages + metadata for peer ${peerCid.toString().slice(0, 8)}...`);
+/** `loadMessagePage`, with the same tolerance as tryLoadMetadata. */
+export async function tryLoadMessagePage(peerCid: bigint, pageNumber: number): Promise<MessagePage | null> {
+  try {
+    return await loadMessagePage(peerCid, pageNumber);
+  } catch {
+    return null;
+  }
 }

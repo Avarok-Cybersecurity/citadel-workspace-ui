@@ -4,8 +4,7 @@
  * Pre-defined MDX content templates for office types.
  */
 
-import type { MdxTemplate } from './types';
-import { TemplateCategory, OfficeType } from './types';
+import { TemplateCategory, OfficeType , type MdxTemplate } from './types';
 
 export const generalOfficeTemplate: MdxTemplate = {
   id: 'office-general',

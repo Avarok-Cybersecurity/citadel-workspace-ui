@@ -10,23 +10,23 @@ import { chromium, type Page, type Browser, type BrowserContext } from 'playwrig
 import {
     clearBrowserStorage,
     waitForAppReady,
-    createAccount,
     waitForWorkspaceLoaded,
     closeAnyModals,
     createOfficeViaUI,
     createRoomViaUI,
     deleteNodeViaUI,
     nodeExistsInUI,
+    nodeGoneFromUI,
+    hasWorkspaceAdmin,
+    adminCredentials,
+    loginAfterDisconnect,
     navigateToOfficeViaUI,
-    sleep,
-} from '../lib/index.js';
+    sleep, isHeaded,} from '../lib/index.js';
 import { config, isCI } from '../lib/config.js';
 
 /* ── Shared state ── */
 
 const timestamp = Date.now();
-const USERNAME = `pw_crud_${timestamp}`;
-const PASSWORD = config.DEFAULT_PASSWORD;
 
 let browser: Browser;
 let context: BrowserContext;
@@ -40,8 +40,8 @@ const ROOM_NAME = `Test Room ${timestamp}`;
 test.describe.serial('Office & Room CRUD', () => {
     test.beforeAll(async () => {
         browser = await chromium.launch({
-            headless: isCI,
-            slowMo: isCI ? 0 : 50,
+            headless: !isHeaded,
+            slowMo: isHeaded ? 50 : 0,
             args: [
                 '--disable-background-timer-throttling',
                 '--disable-backgrounding-occluded-windows',
@@ -57,20 +57,47 @@ test.describe.serial('Office & Room CRUD', () => {
         await context.clearCookies();
         page = await context.newPage();
 
-        // Register and authenticate
+        // Log in as the admin global-setup registered, rather than registering a
+        // fresh account here. Only the account that initialises the workspace gets
+        // EditTreeStructure, so a spec that registers its own user is an admin only
+        // if it happened to run first — which made this spec pass alone and fail in
+        // the suite, purely on alphabetical filename order.
+        const admin = adminCredentials();
+
         await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
         await clearBrowserStorage(page);
         await waitForAppReady(page, 60_000);
 
-        const registered = await createAccount(page, USERNAME, {
-            isFirstUser: true,
-            password: PASSWORD,
-            uxTracker: null,
-        });
-        expect(registered).toBe(true);
+        const loggedIn = await loginAfterDisconnect(
+            page,
+            admin.username,
+            admin.password,
+            null,
+            config.WORKSPACE_SERVER
+        );
+        expect(loggedIn, `Could not log in as the workspace admin (${admin.username})`).toBe(true);
 
-        await waitForWorkspaceLoaded(page, 30_000);
+        // Checked, not fired and forgotten: this returns false rather than
+        // throwing, so ignoring it let a workspace that never loaded run the
+        // whole block and fail later somewhere unrelated.
+        expect(
+          await waitForWorkspaceLoaded(page, 30_000),
+          'the workspace should finish loading',
+        ).toBe(true);
         await closeAnyModals(page);
+
+        // global-setup registered the workspace admin. Assert we actually have
+        // one: when the server already held a workspace from an earlier run, its
+        // account joined as an ordinary member and node creation would be denied.
+        // Saying so here names the cause — test isolation — instead of surfacing
+        // it later as a server permission error.
+        expect(
+            hasWorkspaceAdmin(),
+            'No workspace admin for this run: the server already held a workspace, so ' +
+            'global-setup registered an ordinary member and node creation will be ' +
+            'denied with "Permission denied: EditTreeStructure required". Reset with ' +
+            '`docker compose down && docker compose up -d`.'
+        ).toBe(true);
     });
 
     test.afterAll(async () => {
@@ -79,7 +106,11 @@ test.describe.serial('Office & Room CRUD', () => {
 
     test('Create an office', async () => {
         const created = await createOfficeViaUI(page, OFFICE_NAME);
-        expect(created).toBeTruthy();
+        // .success, not the object: createOfficeViaUI returns { success, name },
+        // and an object is always truthy — so `expect(created).toBeTruthy()`
+        // passed even when creation had failed, which is why this spec's real
+        // failure only surfaced one assertion later.
+        expect(created.success).toBe(true);
 
         // Verify it appears in the sidebar
         const exists = await nodeExistsInUI(page, OFFICE_NAME);
@@ -96,7 +127,10 @@ test.describe.serial('Office & Room CRUD', () => {
     });
 
     test('Create a room inside the office', async () => {
-        const created = await createRoomViaUI(page, ROOM_NAME);
+        // Signature is (page, name, description, parentName). Without parentName the
+        // helper falls back to the FIRST node in the sidebar — the workspace root —
+        // and creates the room there instead of inside the office under test.
+        const created = await createRoomViaUI(page, ROOM_NAME, '', OFFICE_NAME);
         expect(created).toBeTruthy();
 
         const exists = await nodeExistsInUI(page, ROOM_NAME);
@@ -104,20 +138,20 @@ test.describe.serial('Office & Room CRUD', () => {
     });
 
     test('Delete the room', async () => {
+        // .success, not the object: deleteNodeViaUI returns { success, cascaded },
+        // and comparing an object to `true` can never pass.
         const deleted = await deleteNodeViaUI(page, ROOM_NAME);
-        expect(deleted).toBe(true);
+        expect(deleted.success).toBe(true);
 
-        await sleep(1000);
-        const exists = await nodeExistsInUI(page, ROOM_NAME);
-        expect(exists).toBe(false);
+        // Wait for it to be gone rather than polling "does it exist" and expecting
+        // false, which spends the whole appearance timeout waiting for something
+        // that will never appear.
+        expect(await nodeGoneFromUI(page, ROOM_NAME)).toBe(true);
     });
 
     test('Delete the office', async () => {
         const deleted = await deleteNodeViaUI(page, OFFICE_NAME);
-        expect(deleted).toBe(true);
-
-        await sleep(1000);
-        const exists = await nodeExistsInUI(page, OFFICE_NAME);
-        expect(exists).toBe(false);
+        expect(deleted.success).toBe(true);
+        expect(await nodeGoneFromUI(page, OFFICE_NAME)).toBe(true);
     });
 });

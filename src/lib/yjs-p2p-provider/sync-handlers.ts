@@ -9,9 +9,7 @@ import * as Y from 'yjs';
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
 import type { YjsSyncMessage, SyncState } from './types';
-import { sendSyncMessage, sendAck } from './sending';
-import type { SendingContext } from './sending';
-import type { YjsMerkleTree } from '@/lib/yjs-merkle-strategy';
+import { sendSyncMessage, sendAck , type SendingContext } from './sending';
 
 /** Subset of provider state needed by sync handlers */
 export interface SyncHandlerContext extends SendingContext {
@@ -31,13 +29,13 @@ export interface SyncHandlerContext extends SendingContext {
 export function handleSyncStep1(
   ctx: SyncHandlerContext,
   stateVector: Uint8Array,
-  message: YjsSyncMessage
+  _message: YjsSyncMessage
 ): void {
   // Avoid responding to duplicate/old sync messages
   if (ctx.syncState === 'synced' && ctx.initialSyncComplete) {
     debugLog('YjsP2PProvider', `[Yjs] Ignoring SyncStep1 - already synced`);
     // Just send SyncStep2 with any updates they might need
-    const diff = Y.encodeStateAsUpdate(ctx.doc, stateVector);
+    const diff: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(ctx.doc, stateVector);
     if (diff.length > 2) { // More than empty update
       sendSyncMessage(ctx, 'sync_step2', diff, false); // No ACK needed for response
     }
@@ -47,12 +45,12 @@ export function handleSyncStep1(
   debugLog('YjsP2PProvider', `[Yjs] Received SyncStep1 from peer`);
 
   // Compute diff that peer needs
-  const diff = Y.encodeStateAsUpdate(ctx.doc, stateVector);
+  const diff: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(ctx.doc, stateVector);
 
   // Only send our state vector back if we're in idle state (haven't initiated sync yet)
   // This prevents the ping-pong pattern
   if (ctx.syncState === 'idle') {
-    const myStateVector = Y.encodeStateVector(ctx.doc);
+    const myStateVector: Uint8Array<ArrayBufferLike> = Y.encodeStateVector(ctx.doc);
     sendSyncMessage(ctx, 'sync_step1', myStateVector, false);
   }
 
@@ -115,7 +113,7 @@ export function handleUpdate(
 
   // Verify hash matches if provided
   if (message.doc_hash && ctx.merkleTree) {
-    const localHash = ctx.merkleTree.getRootHash();
+    const localHash: string = ctx.merkleTree.getRootHash();
     if (localHash !== message.doc_hash) {
       debugLog('YjsP2PProvider', `Hash mismatch after update! Local: ${localHash}, Remote: ${message.doc_hash}`);
       ctx.handleHashMismatch(message.doc_hash);
@@ -156,7 +154,7 @@ export function handleFullState(
  */
 export function handleRequestFullState(
   ctx: SyncHandlerContext,
-  message: YjsSyncMessage
+  _message: YjsSyncMessage
 ): void {
   // Only creator should respond
   if (ctx.ownCid !== ctx.creatorCid) {
@@ -166,25 +164,13 @@ export function handleRequestFullState(
 
   debugLog('YjsP2PProvider', `[Yjs] Sending full state as creator`);
 
-  const fullState = Y.encodeStateAsUpdate(ctx.doc);
+  const fullState: Uint8Array<ArrayBufferLike> = Y.encodeStateAsUpdate(ctx.doc);
   sendSyncMessage(ctx, 'full_state', fullState, true);
 }
 
-/**
- * Handle hash check request
- */
-export function handleHashCheck(
-  ctx: SyncHandlerContext,
-  message: YjsSyncMessage
-): void {
-  if (!ctx.merkleTree) return;
-
-  const localHash = ctx.merkleTree.getRootHash();
-
-  if (message.doc_hash && localHash !== message.doc_hash) {
-    ctx.handleHashMismatch(message.doc_hash);
-  } else {
-    // Send our hash back for verification
-    sendSyncMessage(ctx, 'hash_check', new Uint8Array(0), false, localHash);
-  }
-}
+// handleHashCheck was removed: 'hash_check' had no initiator anywhere in the
+// tree, and this responder answered a MATCHING hash with another hash_check —
+// wiring the missing initiator would have shipped an infinite ping-pong.
+// Hash verification is carried by the data-bearing paths above instead
+// (doc_hash on update/full_state, local_hash on every ACK), both feeding
+// handleHashMismatch for creator-authority recovery.

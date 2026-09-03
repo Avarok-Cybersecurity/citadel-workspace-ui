@@ -13,4 +13,4 @@ export { LiveDocumentStore } from './service';
 
 // Singleton instance
 import { LiveDocumentStore } from './service';
-export const liveDocumentStore = LiveDocumentStore.getInstance();
+export const liveDocumentStore: LiveDocumentStore = LiveDocumentStore.getInstance();

@@ -21,7 +21,7 @@ import { debugLog } from '../debug-config';
 
 export abstract class PollingService {
   private pollingInterval: ReturnType<typeof setInterval> | null = null;
-  private isPaused = false;
+  private isPaused: boolean = false;
 
   /**
    * Start the polling loop. No-op if already polling.
@@ -117,7 +117,7 @@ import { EventListenerManager } from './event-listener-manager';
 
 export abstract class EventListenerPollingService extends EventListenerManager {
   private pollingInterval: ReturnType<typeof setInterval> | null = null;
-  private isPaused = false;
+  private isPaused: boolean = false;
 
   /**
    * Start both event listeners and polling.

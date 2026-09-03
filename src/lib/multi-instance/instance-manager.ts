@@ -13,12 +13,15 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { sessionGet, sessionSet } from '@/lib/safe-session-storage';
 import { debugLog } from '@/lib/debug-config';
 import type { InstanceState, InstanceInfo } from './instance-manager-types';
+import { documentNonce, mintInstanceId } from './instance-identity';
 
 export type { InstanceState, InstanceInfo } from './instance-manager-types';
+import * as registry from './instance-registry';
 
-const INSTANCE_ID_KEY = 'citadel-instance-id';
+const INSTANCE_ID_KEY: "citadel-instance-id" = 'citadel-instance-id';
 
 class InstanceManager {
   private static instance: InstanceManager;
@@ -48,25 +51,54 @@ class InstanceManager {
 
   /**
    * Get or create a unique instance ID for this tab
-   * Persisted in sessionStorage so it survives page reloads but not new tabs
+   * Persisted in sessionStorage so it survives a page reload. NOT unique on its
+   * own: Duplicate Tab copies sessionStorage, so a twin boots with this exact
+   * id — see instance-identity.ts and `reissueInstanceId`.
    *
    * Format: Pure BigInt-compatible string (timestamp_ms * 10^6 + random)
    * This enables deterministic leader election where highest ID wins
    */
   private getOrCreateInstanceId(): string {
-    let instanceId = sessionStorage.getItem(INSTANCE_ID_KEY);
+    // Through the guarded accessors: `sessionStorage` throws outright under
+    // strict privacy settings and some embedded contexts, and this runs during
+    // boot. Unguarded it rendered a blank page -- see safe-session-storage.
+    const stored: string | null = sessionGet(INSTANCE_ID_KEY);
+    if (stored) return stored;
 
-    if (!instanceId) {
-      // Generate BigInt-compatible ID: timestamp (ms) * 10^6 + random
-      // This ensures later tabs have higher IDs (timestamp-based)
-      // Random component prevents collisions within same millisecond
-      const timestamp = BigInt(Date.now());
-      const random = BigInt(Math.floor(Math.random() * 1_000_000));
-      instanceId = (timestamp * 1_000_000n + random).toString();
-      sessionStorage.setItem(INSTANCE_ID_KEY, instanceId);
+    const minted: string = mintInstanceId();
+    if (!sessionSet(INSTANCE_ID_KEY, minted)) {
+      // Storage refused. The id still has to be stable for this document, or
+      // leader election re-rolls it on every read and no tab ever wins.
+      this.inMemoryInstanceId = minted;
     }
+    return this.inMemoryInstanceId ?? minted;
+  }
 
-    return instanceId;
+  /** Only when sessionStorage refuses; see getOrCreateInstanceId. */
+  private inMemoryInstanceId: string | null = null;
+
+  /** This document's non-persisted marker. See instance-identity.ts. */
+  get documentNonce(): string {
+    return documentNonce;
+  }
+
+  /**
+   * Take a new instance id because another document is using ours.
+   *
+   * Duplicate Tab copies sessionStorage, so the twin's id is identical and the
+   * channel's self-filter hides each from the other — both then elect
+   * themselves leader and open a second WebSocket. Re-rolling here is what
+   * makes them distinguishable so exactly one wins.
+   */
+  reissueInstanceId(): string {
+    const replacement: string = mintInstanceId();
+    if (!sessionSet(INSTANCE_ID_KEY, replacement)) {
+      // Storage refused; the reissue must still take effect for this document.
+      this.inMemoryInstanceId = replacement;
+    }
+    this._instanceId = replacement;
+    debugLog('InstanceManager', `Instance id re-issued (duplicate detected): ${replacement}`);
+    return replacement;
   }
 
   private setupEventListeners(): void {
@@ -79,10 +111,10 @@ class InstanceManager {
       eventEmitter.emit('instance:state-changed', this.getState());
     });
 
-    eventEmitter.on('instance:registry-update', (data: { instanceId: string; cid: bigint | null }) => {
-      this.knownInstances.set(data.instanceId, data.cid);
-      debugLog('InstanceManager', `[InstanceManager] Registry updated: ${data.instanceId} -> ${data.cid?.toString()}`);
-    });
+    // There was an 'instance:registry-update' listener here that set the same
+    // entry. Nothing ever emitted it; the registry is really maintained through
+    // registerInstance(), called from channel-messaging and route-by-request-id.
+    // Two ways to write one map, one of them dead.
 
     eventEmitter.on('instance:disconnected', (data: { instanceId: string }) => {
       this.knownInstances.delete(data.instanceId);
@@ -124,13 +156,24 @@ class InstanceManager {
   // ============ Setters ============
 
   setCid(cid: bigint | null): void {
-    const previousCid = this._cid;
+    const previousCid: bigint | null = this._cid;
     this._cid = cid;
     this.knownInstances.set(this._instanceId, cid);
 
     debugLog('InstanceManager', `[InstanceManager] CID changed: ${previousCid?.toString()} -> ${cid?.toString()}`);
 
     eventEmitter.emit('instance:state-changed', this.getState());
+
+    // Only when it actually changed. Four listeners treat this event as "the
+    // session switched" and reset destructively — the permissions cache, the
+    // group reconciler, the conversation cache, and the channel's rebroadcast.
+    // Five call sites re-set the cid on paths that are not switches (post-auth
+    // setup, IO service init, tab-selection sync, orphan selection, connect),
+    // and CID is permanent per account, so being handed the cid we already hold
+    // is never a switch.
+    if (previousCid === cid) {
+      return;
+    }
 
     eventEmitter.emit('instance:cid-changed', {
       instanceId: this._instanceId,
@@ -148,42 +191,19 @@ class InstanceManager {
   // ============ Instance Registry ============
 
   registerInstance(instanceId: string, cid: bigint | null): void {
-    this.knownInstances.set(instanceId, cid);
-    debugLog('InstanceManager', `[InstanceManager] Registered instance: ${instanceId} -> ${cid?.toString()}`);
-    // Emit so the inbound router can drain its CID-keyed orphan-message
-    // buffer the moment a cid-report arrives — turns the self-heal flow
-    // from "deliver locally, then route correctly next time" into
-    // "buffer briefly, deliver to the right tab when the report lands".
-    //
-    // SUBSCRIBER CONTRACT: `cid` is `bigint | null`. Null fires on
-    // the initial registry seed before the instance has a CID (e.g.
-    // pre-ConnectSuccess). `unregisterInstance` does NOT emit
-    // `instance:registered` — it only deletes from the map.
-    // Subscribers MUST guard `if (cid === null) return;` — the orphan
-    // buffer drain at `instance-inbound-router.ts` is the canonical
-    // pattern.
-    eventEmitter.emit('instance:registered', { instanceId, cid });
+    registry.registerInstance(this.knownInstances, instanceId, cid);
   }
 
   unregisterInstance(instanceId: string): void {
-    this.knownInstances.delete(instanceId);
-    debugLog('InstanceManager', `[InstanceManager] Unregistered instance: ${instanceId}`);
+    registry.unregisterInstance(this.knownInstances, instanceId);
   }
 
   findInstanceByCid(cid: bigint): string | null {
-    for (const [instanceId, instanceCid] of this.knownInstances) {
-      if (instanceCid === cid) {
-        return instanceId;
-      }
-    }
-    return null;
+    return registry.findInstanceByCid(this.knownInstances, cid);
   }
 
   getAllInstances(): InstanceInfo[] {
-    return Array.from(this.knownInstances.entries()).map(([instanceId, cid]) => ({
-      instanceId,
-      cid,
-    }));
+    return registry.getAllInstances(this.knownInstances);
   }
 
   ownsCid(cid: bigint): boolean {
@@ -206,7 +226,7 @@ class InstanceManager {
 }
 
 // Export singleton instance
-export const instanceManager = InstanceManager.getInstance();
+export const instanceManager: InstanceManager = InstanceManager.getInstance();
 
 // Also export class for testing
 export { InstanceManager };

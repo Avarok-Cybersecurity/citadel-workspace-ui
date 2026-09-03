@@ -6,20 +6,45 @@
  */
 
 import * as Y from 'yjs';
-import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness';
+import { Awareness, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness';
 import { eventEmitter } from '@/lib/event-emitter';
 import { YjsMerkleTree, computeDocumentHash } from '@/lib/yjs-merkle-strategy';
 import { debugLog } from '@/lib/debug-config';
 
-import type { YjsOrigin, YjsP2PMessage, YjsSyncMessage, SyncState, PendingAck } from './types';
+import type { YjsOrigin, YjsP2PMessage, SyncState, PendingAck } from './types';
+
+/**
+ * Did this update come from the person at the keyboard?
+ *
+ * Only a local edit is worth sending. 'remote' and 'creator-resync' came FROM
+ * the peer and 'merkle-reconstruct' is a local rebuild of state already agreed
+ * on, so re-broadcasting any of them is redundant.
+ *
+ * A restore from storage is deliberately NOT suppressed. Suppressing it removes
+ * a full-document push at every mount and was tried; it is also the only thing
+ * that carries a restored document to the peer, because nothing re-syncs after
+ * the initial exchange. See
+ * `__tests__/a-restore-from-storage-still-reaches-the-peer.test.ts`.
+ *
+ * Exported so the tests assert against THIS rule rather than a copy of it. A
+ * test carrying its own list would keep passing while this one changed.
+ */
+export function isLocalEdit(origin: YjsOrigin): boolean {
+  return (
+    origin !== 'remote' &&
+    origin !== 'merkle-reconstruct' &&
+    origin !== 'creator-resync'
+  );
+}
 import { YJS_SYNC_COOLDOWN_MS, YJS_SYNC_RESET_DELAY_MS, YJS_HEALTH_CHECK_INTERVAL_MS } from './constants';
-import { sendSyncMessage, sendUpdate, broadcastAwareness } from './sending';
-import type { SendingContext } from './sending';
-import { handleSyncStep1, handleSyncStep2, handleUpdate, handleFullState, handleRequestFullState, handleHashCheck } from './sync-handlers';
-import { handleAwarenessMessage, handleAckMessage, handleDivergenceMessage } from './message-handlers';
+import { UpdateCoalescer } from './update-coalescer';
+import { sendSyncMessage, sendUpdate, broadcastAwareness , type SendingContext } from './sending';
+import { dispatchYjsMessage } from './message-dispatch';
 import { checkPendingAcks, handleHashMismatch } from './ack-checker';
 
 export class YjsP2PProvider {
+  /** Buffers rapid edits into one merged update; see UpdateCoalescer. */
+  private coalescer: UpdateCoalescer;
   doc: Y.Doc;
   awareness: Awareness;
   documentId: string;
@@ -36,12 +61,12 @@ export class YjsP2PProvider {
   private updateHandler: ((update: Uint8Array, origin: YjsOrigin) => void) | null = null;
   private awarenessHandler: ((update: { added: number[]; updated: number[]; removed: number[] }, origin: YjsOrigin) => void) | null = null;
 
-  private connected = false;
-  private destroyed = false;
-  private initialSyncComplete = false;
+  private connected: boolean = false;
+  private destroyed: boolean = false;
+  private initialSyncComplete: boolean = false;
   private ackCheckInterval: ReturnType<typeof setInterval> | null = null;
   private lastSyncInitiated: number = 0;
-  private syncInProgress = false;
+  private syncInProgress: boolean = false;
 
   constructor(documentId: string, peerCid: string, doc: Y.Doc, ownCid: string | null, creatorCid: string | null = null) {
     this.doc = doc;
@@ -51,6 +76,16 @@ export class YjsP2PProvider {
     this.creatorCid = creatorCid || ownCid;
     this.awareness = new Awareness(doc);
     this.merkleTree = YjsMerkleTree.fromDocument(doc, documentId, this.creatorCid);
+    this.coalescer = new UpdateCoalescer((merged) => {
+      if (this.destroyed) return;
+      // Fold this batch into the tree BEFORE sending: the receiver compares
+      // its hash AFTER applying, so the doc_hash on the wire must be the
+      // POST-update hash. The reversed order made every non-empty update
+      // read as "diverged" — a full resync per 300ms batch, which also
+      // masked lost updates. COUPLED with the retransmit in ack-checker.ts.
+      this.updateMerkleTree();
+      sendUpdate(this.ctx, merged);
+    });
     this.setupUpdateHandler();
     this.setupAwarenessHandler();
     this.setupMessageListener();
@@ -67,21 +102,21 @@ export class YjsP2PProvider {
     initiateSync: () => void;
   } {
     // eslint-disable-next-line @typescript-eslint/no-this-alias -- required for getter/setter context binding
-    const self = this;
+    const self: this = this;
     return {
-      get ownCid() { return self.ownCid; },
-      get peerCid() { return self.peerCid; },
-      get documentId() { return self.documentId; },
-      get creatorCid() { return self.creatorCid; },
-      get revision() { return self.revision; },
+      get ownCid(): string | null { return self.ownCid; },
+      get peerCid(): string { return self.peerCid; },
+      get documentId(): string { return self.documentId; },
+      get creatorCid(): string | null { return self.creatorCid; },
+      get revision(): number { return self.revision; },
       set revision(v: number) { self.revision = v; },
-      get merkleTree() { return self.merkleTree; },
-      get pendingAcks() { return self.pendingAcks; },
-      get doc() { return self.doc; },
-      get awareness() { return self.awareness; },
-      get syncState() { return self.syncState; },
+      get merkleTree(): YjsMerkleTree | null { return self.merkleTree; },
+      get pendingAcks(): Map<string, PendingAck> { return self.pendingAcks; },
+      get doc(): Y.Doc { return self.doc; },
+      get awareness(): Awareness { return self.awareness; },
+      get syncState(): SyncState { return self.syncState; },
       set syncState(v: SyncState) { self.syncState = v; },
-      get initialSyncComplete() { return self.initialSyncComplete; },
+      get initialSyncComplete(): boolean { return self.initialSyncComplete; },
       set initialSyncComplete(v: boolean) { self.initialSyncComplete = v; },
       updateMerkleTree: () => self.updateMerkleTree(),
       handleHashMismatch: (h: string) => handleHashMismatch(self.ctx, h),
@@ -89,30 +124,31 @@ export class YjsP2PProvider {
     };
   }
 
-  private setupUpdateHandler() {
-    this.updateHandler = (update: Uint8Array, origin: YjsOrigin) => {
+  private setupUpdateHandler(): void {
+    this.updateHandler = (update: Uint8Array, origin: YjsOrigin): void => {
       if (this.destroyed) return;
-      if (origin === 'remote' || origin === 'merkle-reconstruct' || origin === 'creator-resync') return;
-      sendUpdate(this.ctx, update);
-      this.updateMerkleTree();
+      if (!isLocalEdit(origin)) return;
+      // Buffered, not sent: one message per keystroke overruns a stop-and-wait
+      // transport and the later edits time out waiting for a turn.
+      this.coalescer.add(update);
     };
     this.doc.on('update', this.updateHandler);
   }
 
-  private setupAwarenessHandler() {
-    this.awarenessHandler = ({ added, updated, removed }, origin) => {
+  private setupAwarenessHandler(): void {
+    this.awarenessHandler = ({ added, updated, removed }, origin): void => {
       if (this.destroyed) return;
       if (origin === 'remote') return;
-      const changedClients = added.concat(updated).concat(removed);
+      const changedClients: number[] = added.concat(updated).concat(removed);
       if (changedClients.length > 0) {
-        const update = encodeAwarenessUpdate(this.awareness, changedClients);
+        const update: Uint8Array<ArrayBufferLike> = encodeAwarenessUpdate(this.awareness, changedClients);
         broadcastAwareness(this.ctx, update);
       }
     };
     this.awareness.on('update', this.awarenessHandler);
   }
 
-  private setupMessageListener() {
+  private setupMessageListener(): void {
     // Listen on `yjs:p2p-command` rather than `p2p:raw-message`.
     // `message-handler.ts` already CBOR-decodes incoming bytes into a
     // `P2PCommand` and dispatches `YjsP2PSync` payloads through this
@@ -127,14 +163,14 @@ export class YjsP2PProvider {
       if (peerCid.toString() !== this.peerCid) return;
       // Filter by document_id when present (sync/awareness/ack carry it;
       // a future generic Yjs command might not).
-      const docId = typeof payload.document_id === 'string' ? payload.document_id : undefined;
+      const docId: string | undefined = typeof payload.document_id === 'string' ? payload.document_id : undefined;
       if (docId !== undefined && docId !== this.documentId) return;
-      this.handleMessage(payload as unknown as YjsP2PMessage);
+      dispatchYjsMessage(this.ctx, payload as unknown as YjsP2PMessage);
     });
   }
 
-  private initiateSync() {
-    const now = Date.now();
+  private initiateSync(): void {
+    const now: number = Date.now();
     if (this.syncInProgress || (now - this.lastSyncInitiated < YJS_SYNC_COOLDOWN_MS)) {
       debugLog('YjsP2PProvider', `[Yjs] Sync throttled (cooldown: ${Math.ceil((YJS_SYNC_COOLDOWN_MS - (now - this.lastSyncInitiated)) / 1000)}s remaining)`);
       return;
@@ -142,48 +178,17 @@ export class YjsP2PProvider {
     this.syncInProgress = true;
     this.lastSyncInitiated = now;
     debugLog('YjsP2PProvider', `[Yjs] Initiating sync for document ${this.documentId} with peer ${this.peerCid}`);
-    const stateVector = Y.encodeStateVector(this.doc);
+    const stateVector: Uint8Array<ArrayBufferLike> = Y.encodeStateVector(this.doc);
     sendSyncMessage(this.ctx, 'sync_step1', stateVector, false);
     this.syncState = 'awaiting_step1_response';
     setTimeout(() => { this.syncInProgress = false; }, YJS_SYNC_RESET_DELAY_MS);
   }
 
-  private handleMessage(message: YjsP2PMessage) {
-    switch (message.type) {
-      case 'yjs_sync': this.handleSyncMessage(message); break;
-      case 'yjs_awareness': handleAwarenessMessage(this.ctx, message); break;
-      case 'yjs_ack': handleAckMessage(this.ctx, message); break;
-      case 'yjs_divergence': handleDivergenceMessage(this.ctx, message); break;
-      default:
-        // `setupMessageListener` casts the CBOR payload with `as unknown as
-        // YjsP2PMessage`; a future `yjs_*` variant added on the sender side
-        // before this switch is updated would otherwise be silently dropped.
-        // Surface the unknown type in dev tools so the gap is visible.
-        debugLog(
-          'YjsP2PProvider',
-          'handleMessage: unknown Yjs message type',
-          (message as { type?: unknown }).type,
-        );
-    }
-  }
-
-  private handleSyncMessage(message: YjsSyncMessage) {
-    const data = new Uint8Array(message.data);
-    switch (message.sub_type) {
-      case 'sync_step1': handleSyncStep1(this.ctx, data, message); break;
-      case 'sync_step2': handleSyncStep2(this.ctx, data, message); break;
-      case 'update': handleUpdate(this.ctx, data, message); break;
-      case 'full_state': handleFullState(this.ctx, data, message); break;
-      case 'request_full': handleRequestFullState(this.ctx, message); break;
-      case 'hash_check': handleHashCheck(this.ctx, message); break;
-    }
-  }
-
-  private startAckChecker() {
+  private startAckChecker(): void {
     this.ackCheckInterval = setInterval(() => checkPendingAcks(this.ctx), YJS_HEALTH_CHECK_INTERVAL_MS);
   }
 
-  private updateMerkleTree() {
+  private updateMerkleTree(): void {
     if (this.merkleTree) {
       this.merkleTree.updateFromDocument(this.doc);
     } else {
@@ -195,16 +200,43 @@ export class YjsP2PProvider {
   // PUBLIC API
   // ============================================
 
-  setLocalState(state: Record<string, unknown>) { this.awareness.setLocalState(state); }
-  getStates() { return this.awareness.getStates(); }
-  get isConnected() { return this.connected && !this.destroyed; }
-  get isSynced() { return this.initialSyncComplete; }
+  setLocalState(state: Record<string, unknown>): void { this.awareness.setLocalState(state); }
+  /**
+   * Set ONE awareness field, leaving the rest of the local state alone.
+   *
+   * `setLocalState` replaces the whole object. TipTap's CollaborationCursor keeps
+   * its `cursor` field in this same awareness state, so any caller that only
+   * wanted to set its own field was wiping every peer's view of this user's
+   * cursor and selection as a side effect.
+   */
+  setLocalStateField(field: string, value: unknown): void {
+    this.awareness.setLocalStateField(field, value);
+  }
+  getStates(): ReturnType<Awareness['getStates']> { return this.awareness.getStates(); }
+  get isConnected(): boolean { return this.connected && !this.destroyed; }
+  get isSynced(): boolean { return this.initialSyncComplete; }
   getSyncState(): SyncState { return this.syncState; }
   getDocumentHash(): string { return this.merkleTree?.getRootHash() ?? computeDocumentHash(this.doc); }
-  forceResync() { this.initiateSync(); }
+  forceResync(): void { this.initiateSync(); }
 
-  destroy() {
+  destroy(): void {
     if (this.destroyed) return;
+    // Flushed BEFORE the destroyed flag, or edits made in the last 120ms are
+    // silently dropped -- closing a document right after typing is the normal
+    // way to use one.
+    this.coalescer.flush();
+    // Departure goes out HERE, while the awareness 'update' handler is still
+    // attached and the destroyed flag is still down. `awareness.destroy()`
+    // below fires its own removal only after both, so no peer ever heard it:
+    // whoever closed a document stayed a ghost cursor for everyone else until
+    // the ~30s awareness timeout expired. Guarded so a failure to encode or
+    // send can never abort the teardown that follows -- which is all the old
+    // suppression actually protected.
+    try {
+      removeAwarenessStates(this.awareness, [this.doc.clientID], 'destroy');
+    } catch (error) {
+      debugLog('YjsP2PProvider', 'destroy: departure broadcast failed:', error);
+    }
     this.destroyed = true;
     this.connected = false;
     if (this.ackCheckInterval) { clearInterval(this.ackCheckInterval); this.ackCheckInterval = null; }

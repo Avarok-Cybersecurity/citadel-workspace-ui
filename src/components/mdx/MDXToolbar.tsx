@@ -39,8 +39,8 @@ interface ToolbarButton {
   onClick: () => void;
 }
 
-function ToolbarDivider() {
-  return <div className="w-px h-6 bg-gray-700 mx-1" />;
+function ToolbarDivider(): JSX.Element {
+  return <div className="w-px h-6 bg-border mx-1" />;
 }
 
 export function MDXToolbar({
@@ -53,7 +53,7 @@ export function MDXToolbar({
   onCode,
   onLink,
   onImage,
-}: MDXToolbarProps) {
+}: MDXToolbarProps): JSX.Element {
   const formatGroup: ToolbarButton[] = [
     { icon: <Bold className="h-4 w-4" />, label: 'Bold', onClick: onBold },
     { icon: <Italic className="h-4 w-4" />, label: 'Italic', onClick: onItalic },
@@ -81,11 +81,17 @@ export function MDXToolbar({
     { icon: <Image className="h-4 w-4" />, label: 'Image', onClick: onImage },
   ];
 
-  const renderGroup = (buttons: ToolbarButton[]) =>
+  const renderGroup: (buttons: ToolbarButton[]) => JSX.Element[] = (buttons: ToolbarButton[]): JSX.Element[] =>
     buttons.map(({ icon, label, onClick }) => (
       <Tooltip key={label}>
         <TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" onClick={onClick}>
+          {/*
+            aria-label from the same `label` the tooltip shows. Without it these
+            are twelve icon-only buttons whose name lives in a TooltipContent
+            that is not rendered until hover, so a screen reader announces
+            "button" twelve times and a keyboard user cannot tell them apart.
+          */}
+          <Button variant="ghost" size="icon" onClick={onClick} aria-label={label}>
             {icon}
           </Button>
         </TooltipTrigger>
@@ -95,7 +101,7 @@ export function MDXToolbar({
 
   return (
     <TooltipProvider>
-      <div className="bg-[#232536] p-2 mb-2 rounded-t-md border-b border-gray-700 flex flex-wrap gap-1">
+      <div className="bg-card p-2 mb-2 rounded-t-md border-b border-border flex flex-wrap gap-1">
         {renderGroup(formatGroup)}
         <ToolbarDivider />
         {renderGroup(headingGroup)}

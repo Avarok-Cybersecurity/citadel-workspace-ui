@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/client" />
 
 // Window augmentation for dev-only debug exports
 // These are set at module scope in main.tsx, service files for integration testing
@@ -15,6 +16,7 @@ declare global {
     __p2pRegistrationService?: P2PRegistrationService;
     __p2pAutoConnectService?: P2PAutoConnectService;
     __websocketService?: typeof websocketService;
+    __serverAutoConnectService?: { getPendingReconnectCount(): number };
     __connectionManager?: ConnectionManager;
     __fileTransferService?: FileTransferService;
     __workspaceService?: WorkspaceService;

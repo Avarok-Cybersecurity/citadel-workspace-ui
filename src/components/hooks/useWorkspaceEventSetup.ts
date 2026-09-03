@@ -1,13 +1,15 @@
+import type { WorkspaceMetadataBytes } from '@/types/workspace-metadata';
 import { useEffect } from 'react';
-import { workspaceEvents, type ConnectionInfo, type WorkspacesPayload } from '@/lib/workspace-events';
+import { workspaceEvents } from '@/lib/workspace-events';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 import { connectionManager } from '@/lib/connection';
 import UserService from '@/lib/user-service';
-import WorkspaceService from '@/lib/workspace-service';
 import { bytesToString } from '@/lib/utils/encoding-utils';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
 import { debugLog } from '@/lib/debug-config';
+import type { UserRegistrationInfo } from '@/lib/user-service';
+import type { StoredSession } from '@/types/session-types';
 
 interface UseWorkspaceEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -15,23 +17,53 @@ interface UseWorkspaceEventSetupProps {
 
 export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps): void {
   useEffect(() => {
-    const setupWorkspaceListeners = async () => {
+    // Kept, not discarded.
+    //
+    // `onMemberEvent` and `onWorkspaceEvent` return their unsubscribe
+    // SYNCHRONOUSLY, and `await` on a plain value throws nothing away by
+    // itself -- but nothing here captured the result, and the effect returned
+    // no cleanup. Every remount left another set of live listeners behind, each
+    // retaining a closure over `setState`, and every event then ran an
+    // ever-growing pile of dead handlers.
+    //
+    // Nothing broke visibly, because setState on an unmounted component is a
+    // no-op, which is exactly why it accumulated. `use-domain-members` carries
+    // the same paragraph about the same mistake, fixed there and not here.
+    //
+    // The sibling `useMessageEventSetup` calls `cleanupAllListeners()` on
+    // unmount, which does remove these -- and also removes every listener this
+    // hook did not create. That is not a substitute for owning your own
+    // unsubscribe.
+    const unsubscribes: Array<() => void> = [];
+    let cancelled: boolean = false;
+    /** Unsubscribes immediately if the effect has already been cleaned up. */
+    const keep = (unsubscribe: () => void): void => {
+      if (cancelled) unsubscribe();
+      else unsubscribes.push(unsubscribe);
+    };
+
+    const setupWorkspaceListeners = async (): Promise<void> => {
       // Loading state
-      await workspaceEvents.onWorkspaceEvent('workspace:loading', (connectionInfo: ConnectionInfo) => {
-        setLoading(setState, 'workspace', true, connectionInfo.request_id);
-      });
+      keep(workspaceEvents.onWorkspaceEvent('workspace:loading', () => {
+        setLoading(setState, 'workspace', true);
+      }));
 
       // Workspace loaded event
-      await workspaceEvents.onWorkspaceEvent('workspace:loaded', async (payload) => {
-        const rawMetadata = payload.workspace.metadata;
+      keep(workspaceEvents.onWorkspaceEvent('workspace:loaded', async (payload) => {
+        // The event carries what the wire carries: `Workspace.metadata` is
+        // `Vec<u8>`, emitted as `response.Workspace.metadata || []`. The
+        // payload's declared type says otherwise, which is why the object
+        // branch below exists.
+        const rawMetadata: WorkspaceMetadataBytes | Record<string, unknown> | undefined =
+          payload.workspace.metadata as WorkspaceMetadataBytes | Record<string, unknown> | undefined;
 
         // Parse metadata as JSON to check initialization status
-        let isInitialized = false;
+        let isInitialized: boolean = false;
         let parsedMetadata: Record<string, unknown> | undefined;
         try {
           if (rawMetadata && typeof rawMetadata === 'object') {
             if (Array.isArray(rawMetadata) && rawMetadata.length > 0) {
-              const metadataString = bytesToString(rawMetadata as number[]);
+              const metadataString: string = bytesToString(rawMetadata as number[]);
               parsedMetadata = JSON.parse(metadataString);
               isInitialized = parsedMetadata?.initialized === true;
             } else if (!Array.isArray(rawMetadata)) {
@@ -49,11 +81,20 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
           workspace: {
             id: payload.workspace.id,
             name: payload.workspace.name,
-            metadata: parsedMetadata
+            // The BYTES, not the parse. `WorkspaceState.workspace.metadata` is
+            // declared `WorkspaceMetadataBytes` and says "Raw Vec<u8> from the
+            // wire. Decode it; do not read properties off it" -- and storing
+            // the decoded object here made that declaration false for every
+            // consumer. `parsedMetadata` is still what decides `isInitialized`
+            // just above; it simply is not what the field holds.
+            //
+            // The type file argues this at length because the opposite once
+            // broke something: `getWorkspaceLogo` tested `metadata.logo` on a
+            // byte array, so every workspace fell back to initials.
+            metadata: rawMetadata as WorkspaceMetadataBytes | undefined
           },
           loading: { ...prev.loading, workspace: false },
           needsWorkspaceInitialization: !isInitialized,
-          lastRequestId: payload.connection.request_id
         }));
 
         // Broadcast workspace state to other tabs
@@ -63,17 +104,16 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
             workspace: { id: payload.workspace.id, name: payload.workspace.name, metadata: parsedMetadata },
             loading: { workspace: false },
             needsWorkspaceInitialization: !isInitialized,
-            lastRequestId: payload.connection.request_id
           }
         });
 
         // Try to load user information if not already loaded
-        const userService = UserService;
-        const currentUser = await userService.getCurrentUser();
+        const userService: typeof UserService = UserService;
+        const currentUser: UserRegistrationInfo | null = await userService.getCurrentUser();
 
         if (currentUser) {
-          const storedSession = await connectionManager.getTabSelectedSession();
-          const role = storedSession?.role;
+          const storedSession: StoredSession | null = await connectionManager.getTabSelectedSession();
+          const role: string | undefined = storedSession?.role;
 
           setState(prev => ({
             ...prev,
@@ -86,30 +126,31 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
           }));
         }
 
-        // Fetch workspace list now that connection is active
-        await WorkspaceService.listWorkspaces().catch((err: unknown) => {
-          debugLog('UseWorkspaceEventSetup', 'Failed to list workspaces:', err);
-        });
-      });
-
-      // Workspaces listed event
-      await workspaceEvents.onWorkspaceEvent('workspaces:listed', (payload: WorkspacesPayload) => {
-        setState(prev => ({
-          ...prev,
-          workspaces: payload.workspaces,
-        }));
-      });
+        // `listWorkspaces()` used to run here on every workspace load, and its
+        // result was written into `state.workspaces` -- which nothing in the
+        // tree ever read. A network round trip per load feeding dead state, and
+        // a field in the context type that made the app look as though it
+        // tracked a workspace list. The switcher reads stored sessions, not
+        // this. Removed rather than left as a decoy; one line brings it back if
+        // something ever needs it.
+      }));
 
       // Workspace not initialized event
-      await workspaceEvents.onWorkspaceEvent('workspace:not-initialized', () => {
+      keep(workspaceEvents.onWorkspaceEvent('workspace:not-initialized', () => {
         setState(prev => ({
           ...prev,
           needsWorkspaceInitialization: true,
           loading: { ...prev.loading, workspace: false }
         }));
-      });
+      }));
     };
 
     runAsyncSetup(setupWorkspaceListeners);
+
+    return (): void => {
+      cancelled = true;
+      for (const unsubscribe of unsubscribes) unsubscribe();
+      unsubscribes.length = 0;
+    };
   }, [setState]);
 }

@@ -19,31 +19,31 @@ export type { CursorUser, FlashComment } from './collaborator-cursor-helpers';
  * Used by Tiptap's CollaborationCursor extension
  */
 export function createCollaboratorCursor(user: CursorUser): HTMLElement {
-  const cursor = document.createElement('span');
+  const cursor: ReturnType<typeof document.createElement> = document.createElement('span');
   cursor.className = 'collaborator-cursor';
   cursor.setAttribute('data-user', user.name);
   cursor.style.setProperty('--cursor-color', user.color);
 
-  const line = document.createElement('span');
+  const line: ReturnType<typeof document.createElement> = document.createElement('span');
   line.className = 'collaborator-cursor__line';
   line.style.backgroundColor = user.color;
   cursor.appendChild(line);
 
-  const tooltip = document.createElement('div');
+  const tooltip: HTMLDivElement = document.createElement('div');
   tooltip.className = 'collaborator-cursor__tooltip';
   tooltip.style.backgroundColor = hexToRgba(user.color, 0.9);
   tooltip.textContent = user.name;
   tooltip.setAttribute('data-expanded', 'false');
 
-  let lastLeft = 0;
-  let lastTop = 0;
+  let lastLeft: number = 0;
+  let lastTop: number = 0;
   let rafId: number | null = null;
 
-  const updateTooltipPosition = () => {
+  const updateTooltipPosition = (): void => {
     rafId = null;
-    const cursorRect = cursor.getBoundingClientRect();
-    const newLeft = cursorRect.left;
-    const newTop = cursorRect.top - tooltip.offsetHeight - 4;
+    const cursorRect: DOMRect = cursor.getBoundingClientRect();
+    const newLeft: number = cursorRect.left;
+    const newTop: number = cursorRect.top - tooltip.offsetHeight - 4;
 
     if (newLeft !== lastLeft || newTop !== lastTop) {
       lastLeft = newLeft;
@@ -53,7 +53,7 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
     }
   };
 
-  const schedulePositionUpdate = () => {
+  const schedulePositionUpdate = (): void => {
     if (rafId === null) {
       rafId = requestAnimationFrame(updateTooltipPosition);
     }
@@ -61,13 +61,13 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
 
   setTimeout(updateTooltipPosition, 0);
 
-  const scrollHandler = () => schedulePositionUpdate();
+  const scrollHandler = (): void => schedulePositionUpdate();
   document.addEventListener('scroll', scrollHandler, true);
 
-  const resizeHandler = () => schedulePositionUpdate();
+  const resizeHandler = (): void => schedulePositionUpdate();
   window.addEventListener('resize', resizeHandler);
 
-  const checkRemoval = () => {
+  const checkRemoval: () => boolean = () => {
     if (!document.contains(cursor)) {
       document.removeEventListener('scroll', scrollHandler, true);
       window.removeEventListener('resize', resizeHandler);
@@ -79,13 +79,13 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
     return false;
   };
 
-  const cleanupInterval = setInterval(() => {
+  const cleanupInterval: NodeJS.Timeout = setInterval((): void => {
     if (checkRemoval()) {
       clearInterval(cleanupInterval);
     }
   }, 1000);
 
-  let inputShown = false;
+  let inputShown: boolean = false;
   let inputContainer: HTMLElement | null = null;
 
   tooltip.addEventListener('click', (e) => {
@@ -107,42 +107,42 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
       inputContainer = document.createElement('div');
       inputContainer.className = 'collaborator-cursor__input-container';
 
-      const header = document.createElement('div');
+      const header: HTMLDivElement = document.createElement('div');
       header.className = 'collaborator-cursor__input-header';
       header.textContent = `Flash Comment to ${user.name}`;
       inputContainer.appendChild(header);
 
-      const input = document.createElement('textarea');
+      const input: HTMLTextAreaElement = document.createElement('textarea');
       input.className = 'collaborator-cursor__input';
       input.placeholder = 'Type your comment (100 words max)...';
       input.maxLength = 600;
       inputContainer.appendChild(input);
 
-      const wordCount = document.createElement('div');
+      const wordCount: HTMLDivElement = document.createElement('div');
       wordCount.className = 'collaborator-cursor__word-count';
       wordCount.textContent = '0/100 words';
       inputContainer.appendChild(wordCount);
 
       input.addEventListener('input', () => {
-        const words = input.value.trim().split(/\s+/).filter(w => w.length > 0);
-        const count = words.length;
+        const words: string[] = input.value.trim().split(/\s+/).filter(w => w.length > 0);
+        const count: number = words.length;
         wordCount.textContent = `${count}/100 words`;
         wordCount.style.color = count > 100 ? '#ef4444' : '#9ca3af';
       });
 
-      const buttons = document.createElement('div');
+      const buttons: HTMLDivElement = document.createElement('div');
       buttons.className = 'collaborator-cursor__buttons';
 
-      const sendBtn = document.createElement('button');
+      const sendBtn: HTMLButtonElement = document.createElement('button');
       sendBtn.className = 'collaborator-cursor__send-btn';
       sendBtn.textContent = 'Send';
       sendBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const text = input.value.trim();
-        const words = text.split(/\s+/).filter(w => w.length > 0);
+        const text: string = input.value.trim();
+        const words: string[] = text.split(/\s+/).filter(w => w.length > 0);
 
         if (text && words.length <= 100) {
-          const cursorRect = cursor.getBoundingClientRect();
+          const cursorRect: DOMRect = cursor.getBoundingClientRect();
 
           const flashComment: FlashComment = {
             id: generateFlashCommentId(),
@@ -171,7 +171,7 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
       });
       buttons.appendChild(sendBtn);
 
-      const cancelBtn = document.createElement('button');
+      const cancelBtn: HTMLButtonElement = document.createElement('button');
       cancelBtn.className = 'collaborator-cursor__cancel-btn';
       cancelBtn.textContent = 'Cancel';
       cancelBtn.addEventListener('click', (e) => {

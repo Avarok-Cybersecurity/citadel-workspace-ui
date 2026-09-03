@@ -7,25 +7,39 @@ import type { IFileTransferIORouter } from './io-router';
 import type {
   SendFileParams, SendFileResult, CancelTransferParams, RespondTransferParams,
   DownloadFileParams, TransferRequestEvent, TransferProgressEvent,
-  TransferCompleteEvent, TransferStatusEvent, ChunkData, BlobResult,
+  TransferCompleteEvent, TransferStatusEvent,
 } from './io-router-types';
 import type { FileTransfer } from './types';
-import {
-  executeSendFile, executeCancelTransfer,
-  throwChunkNotSupported, throwCompleteNotSupported,
-} from './send-operations';
+import { executeSendFile, executeCancelTransfer } from './send-operations';
 import {
   executeRespondToTransfer, executeDownloadFile, createTransferRequestHandler,
   createProgressHandler, createCompleteHandler, createStatusChangeHandler,
 } from './receive-operations';
+import type { TickCorrelation } from './tick-events';
+import type { TabUserContext } from '@/lib/tab-context';
 
 export class RealProtocolIORouter implements IFileTransferIORouter {
-  private subscriptions = new Map<string, () => void>();
-  private disposed = false;
+  private subscriptions: Map<string, () => void> = new Map<string, () => void>();
+  private disposed: boolean = false;
 
   // Map client transferId to protocol objectId for correlation
-  private transferIdToObjectId = new Map<string, string>();
-  private objectIdToTransferId = new Map<string, string>();
+  private transferIdToObjectId: Map<string, string> = new Map<string, string>();
+  private objectIdToTransferId: Map<string, string> = new Map<string, string>();
+
+  /**
+   * Correlation state for the id-less tick stream (see tick-events.ts):
+   * the ticks and completes that report a transfer's progress carry no
+   * object id on the wire, only the notification's request_id — which for
+   * an accepted reception is the RespondFileTransfer request UUID. These
+   * maps join that UUID (and the download path ReceptionBeginning reveals)
+   * back to the client transfer id.
+   */
+  private readonly tickCorrelation: TickCorrelation = {
+    objectIdToTransferId: this.objectIdToTransferId,
+    requestIdToTransferId: new Map<string, string>(),
+    requestIdToDownloadPath: new Map<string, string>(),
+    foreignRequestIds: new Set<string>(),
+  };
 
   async sendFile(params: SendFileParams): Promise<SendFileResult> {
     return executeSendFile(params);
@@ -35,61 +49,66 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
     executeCancelTransfer(params, this.transferIdToObjectId, this.objectIdToTransferId);
   }
 
-  async sendChunk(
-    _transferId: string,
-    _recipientCid: bigint,
-    _chunkIndex: number,
-    _totalChunks: number,
-    _data: string
-  ): Promise<void> {
-    throwChunkNotSupported();
-  }
-
-  async sendComplete(
-    _transferId: string,
-    _targetCid: bigint,
-    _success: boolean,
-    _errorMessage?: string
-  ): Promise<void> {
-    throwCompleteNotSupported();
-  }
-
   async respondToTransfer(params: RespondTransferParams): Promise<void> {
-    return executeRespondToTransfer(params);
+    const requestId: string = await executeRespondToTransfer(params);
+    // An accept spawns the reception tick stream under this request UUID.
+    // Register the join BEFORE any tick can arrive (the WebSocket is ordered,
+    // so nothing for this stream precedes the request we just sent).
+    if (params.accept && params.transferId) {
+      this.tickCorrelation.requestIdToTransferId.set(requestId, params.transferId);
+    }
   }
 
   async downloadFile(params: DownloadFileParams): Promise<void> {
     return executeDownloadFile(params);
   }
 
+  /**
+   * Mark an OUTGOING tick stream as NOT a chat transfer, so its ticks and
+   * completes are dropped instead of falling back to the oldest live transfer
+   * for the same peer pair (see protocol-transfer-events.ts).
+   *
+   * The incoming path recognises a foreign stream by itself at
+   * ReceptionBeginning, whose metadata names the transfer_type. Sender-side
+   * variants carry no metadata at all, so the only party who knows the stream
+   * is foreign is the code that initiates it — a revfs push's ticks come back
+   * stamped with the originating SendFile request_id (the internal service
+   * reclaims it in object_transfer_handle.rs via `take_push`). Must be called
+   * BEFORE the SendFile request is sent; the WebSocket is ordered, so no tick
+   * for the stream can precede the registration.
+   */
+  markForeignOutgoingStream(requestId: string): void {
+    this.tickCorrelation.foreignRequestIds.add(requestId);
+  }
+
   onTransferRequest(callback: (event: TransferRequestEvent) => void): () => void {
-    const handler = createTransferRequestHandler(callback);
+    const handler: (message: Record<string, unknown>) => void = createTransferRequestHandler(callback);
     eventEmitter.on('websocket-message', handler);
-    const unsubscribe = () => eventEmitter.off('websocket-message', handler);
+    const unsubscribe = (): void => eventEmitter.off('websocket-message', handler);
     this.subscriptions.set(`request-${Date.now()}`, unsubscribe);
     return unsubscribe;
   }
 
   onProgress(callback: (event: TransferProgressEvent) => void): () => void {
-    const handler = createProgressHandler(callback, this.objectIdToTransferId);
+    const handler: (message: Record<string, unknown>) => void = createProgressHandler(callback, this.tickCorrelation);
     eventEmitter.on('websocket-message', handler);
-    const unsubscribe = () => eventEmitter.off('websocket-message', handler);
+    const unsubscribe = (): void => eventEmitter.off('websocket-message', handler);
     this.subscriptions.set(`progress-${Date.now()}`, unsubscribe);
     return unsubscribe;
   }
 
   onComplete(callback: (event: TransferCompleteEvent) => void): () => void {
-    const handler = createCompleteHandler(callback, this.objectIdToTransferId);
+    const handler: (message: Record<string, unknown>) => void = createCompleteHandler(callback, this.tickCorrelation);
     eventEmitter.on('websocket-message', handler);
-    const unsubscribe = () => eventEmitter.off('websocket-message', handler);
+    const unsubscribe = (): void => eventEmitter.off('websocket-message', handler);
     this.subscriptions.set(`complete-${Date.now()}`, unsubscribe);
     return unsubscribe;
   }
 
   onStatusChange(callback: (event: TransferStatusEvent) => void): () => void {
-    const handler = createStatusChangeHandler(callback, this.objectIdToTransferId);
+    const handler: (message: Record<string, unknown>) => void = createStatusChangeHandler(callback, this.tickCorrelation);
     eventEmitter.on('websocket-message', handler);
-    const unsubscribe = () => eventEmitter.off('websocket-message', handler);
+    const unsubscribe = (): void => eventEmitter.off('websocket-message', handler);
     this.subscriptions.set(`status-${Date.now()}`, unsubscribe);
     return unsubscribe;
   }
@@ -98,49 +117,16 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   // File Utilities
   // ============================================================================
 
-  async fileChunkToBase64(chunk: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        const base64 = result.split(',')[1];
-        resolve(base64);
-      };
-      reader.onerror = () => reject(new Error('Failed to read chunk'));
-      reader.readAsDataURL(chunk);
-    });
-  }
-
-  base64ToBinary(base64: string): Uint8Array {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes;
-  }
-
-  createBlobFromChunks(chunks: ChunkData[], fileType: string): BlobResult {
-    const sortedChunks = [...chunks].sort((a, b) => a.index - b.index);
-    const binaryChunks: Uint8Array[] = [];
-    for (const chunk of sortedChunks) {
-      binaryChunks.push(this.base64ToBinary(chunk.data));
-    }
-    const blob = new Blob(binaryChunks as BlobPart[], { type: fileType });
-    const downloadUrl = URL.createObjectURL(blob);
-    return { blob, downloadUrl };
-  }
-
   async generateThumbnail(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = e => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_SIZE = 100;
-          let width = img.width;
-          let height = img.height;
+      const reader: FileReader = new FileReader();
+      reader.onload = (e: ProgressEvent<FileReader>): void => {
+        const img: HTMLImageElement = new Image();
+        img.onload = (): void => {
+          const canvas: HTMLCanvasElement = document.createElement('canvas');
+          const MAX_SIZE: number = 100;
+          let width: number = img.width;
+          let height: number = img.height;
 
           if (width > height) {
             if (width > MAX_SIZE) {
@@ -156,7 +142,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
 
           canvas.width = width;
           canvas.height = height;
-          const ctx = canvas.getContext('2d');
+          const ctx: ReturnType<typeof canvas.getContext> = canvas.getContext('2d');
           if (ctx) {
             ctx.drawImage(img, 0, 0, width, height);
             resolve(canvas.toDataURL('image/jpeg', 0.7));
@@ -164,10 +150,10 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
             reject(new Error('Could not get canvas context'));
           }
         };
-        img.onerror = () => reject(new Error('Could not load image'));
+        img.onerror = (): void => reject(new Error('Could not load image'));
         img.src = e.target?.result as string;
       };
-      reader.onerror = () => reject(new Error('Could not read file'));
+      reader.onerror = (): void => reject(new Error('Could not read file'));
       reader.readAsDataURL(file);
     });
   }
@@ -177,7 +163,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   // ============================================================================
 
   async getCurrentCid(): Promise<bigint | null> {
-    const tabSelection = await getSelectedUser();
+    const tabSelection: TabUserContext | null = await getSelectedUser();
     if (tabSelection?.selectedCid) {
       return tabSelection.selectedCid;
     }
@@ -185,7 +171,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   }
 
   notifyStateChange(transfer: FileTransfer): void {
-    const peerCid = transfer.isIncoming ? transfer.senderCid : transfer.recipientCid;
+    const peerCid: string = transfer.isIncoming ? transfer.senderCid : transfer.recipientCid;
     p2pMessengerManager.updateFileTransferState(BigInt(peerCid), transfer.id, {
       transfer_state: transfer.state,
       transfer_progress: transfer.progress,
@@ -195,6 +181,15 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   // ============================================================================
   // Helper Methods
   // ============================================================================
+
+  /**
+   * The protocol object_id for a transfer, or undefined when the two halves have
+   * not been joined yet. Protected rather than private because the accept path
+   * lives in the subclass and MUST translate before responding.
+   */
+  protected resolveObjectId(transferId: string): string | undefined {
+    return this.transferIdToObjectId.get(transferId);
+  }
 
   registerTransferMapping(transferId: string, objectId: string): void {
     this.transferIdToObjectId.set(transferId, objectId);
@@ -216,5 +211,8 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
 
     this.transferIdToObjectId.clear();
     this.objectIdToTransferId.clear();
+    this.tickCorrelation.requestIdToTransferId.clear();
+    this.tickCorrelation.requestIdToDownloadPath.clear();
+    this.tickCorrelation.foreignRequestIds.clear();
   }
 }

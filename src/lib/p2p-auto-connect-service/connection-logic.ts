@@ -5,7 +5,9 @@
  */
 
 import { websocketService } from '../websocket-service';
+import { wireMapEntries } from '@/lib/wire-map';
 import { p2pRegistrationService } from '../p2p-registration-service';
+import { ownsSession } from './session-ownership';
 import { connectionManager } from '../connection';
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from '../multi-instance';
@@ -14,12 +16,15 @@ import type { AutoConnectState } from './state';
 import { BASE_DELAY_MS, MAX_DELAY_MS, POLL_INTERVAL_MS } from './constants';
 import { getCurrentCid } from './cid-resolver';
 import { refreshOnlineStatus } from './polling';
+import type { PeerConnectionInfo, ConnectionAttempt } from '@/lib/p2p-auto-connect/types';
+import type { ActiveSession } from '@/types/session-types';
 
 /**
  * Connect to a single peer with exponential backoff + online check.
  * Uses deterministic initiator selection: higher CID is the initiator.
  * Only runs on leader tab.
  */
+
 export async function connectToPeer(
   state: AutoConnectState,
   peerCid: bigint,
@@ -27,14 +32,14 @@ export async function connectToPeer(
 ): Promise<void> {
   debugLog('P2PAutoConnectService', `connectToPeer: START peerCid=${peerCid?.toString().slice(0, 8)}, forceInitiator=${forceInitiator}`);
 
-  const shouldForceInitiator = forceInitiator;
+  const shouldForceInitiator: boolean = forceInitiator;
 
   if (!instanceManager.isLeader) {
     debugLog('P2PAutoConnectService', `[P2PAutoConnect] connectToPeer skipped for ${peerCid?.toString().slice(0, 8)} (not leader tab)`);
     return;
   }
 
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   if (!currentCid) {
     debugLog('P2PAutoConnectService', 'connectToPeer: ABORT - no currentCid');
     return;
@@ -59,18 +64,18 @@ export async function connectToPeer(
   // sends PeerConnect with `cid = peerCid` and `peer_cid = currentCid` —
   // i.e., it initiates *on behalf of* the higher-CID session through the
   // shared WS. The internal service routes the request to the right session
-  // by `cid`. Both same-browser sessions are owned by this WS, so this is
-  // safe and required for two-tab P2P to work.
-  //
-  // For external peers (other browsers) this branch is also harmless: the
-  // leader will issue the call from the local side's CID, which the server
-  // either accepts (if it owns that session) or rejects with a benign error.
-  let initiatorCid = currentCid;
-  let targetCid = peerCid;
+  // by `cid`. Both same-browser sessions are owned by this WS, so reversing is
+  // safe there; across browsers we initiate from our own side.
+  let initiatorCid: bigint = currentCid;
+  let targetCid: bigint = peerCid;
   if (shouldForceInitiator) {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: FORCE INITIATOR MODE - Client ${currentCid.toString().slice(0, 8)}... forcing PeerConnect to ${peerCid.toString().slice(0, 8)}... (ClaimSession reconnection)`);
-  } else if (currentCid < peerCid) {
-    debugLog('P2PAutoConnectService', `P2PAutoConnect: Local CID ${currentCid.toString().slice(0, 8)}... < peer ${peerCid.toString().slice(0, 8)}...; initiating from peer side over shared WS (multi-tab P2P)`);
+  } else if (currentCid < peerCid && (await ownsSession(peerCid))) {
+    // Reverse ONLY when this browser owns the peer's session. The old
+    // condition was CID ordering alone, which sent requests naming another
+    // connection's session and relied on being refused to learn the peer was
+    // connected. The service now refuses those outright — see session-ownership.ts.
+    debugLog('P2PAutoConnectService', `P2PAutoConnect: Local CID ${currentCid.toString().slice(0, 8)}... < peer ${peerCid.toString().slice(0, 8)}...; both sessions are ours, initiating from peer side (multi-tab P2P)`);
     initiatorCid = peerCid;
     targetCid = currentCid;
   } else {
@@ -84,16 +89,16 @@ export async function connectToPeer(
   state.addPendingConnection(peerCid);
 
   if (state.isPeerConnectedForSession(currentCid, peerCid)) {
-    const peerInfo = state.getPeerConnectionInfo(currentCid, peerCid);
-    const connectionAge = peerInfo ? Date.now() - peerInfo.connectedAt : Infinity;
+    const peerInfo: PeerConnectionInfo | null = state.getPeerConnectionInfo(currentCid, peerCid);
+    const connectionAge: number = peerInfo ? Date.now() - peerInfo.connectedAt : Infinity;
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Already connected to ${peerCid.toString().slice(0, 8)}... (${connectionAge}ms old), skipping`);
     state.removePendingConnection(peerCid);
     return;
   }
 
-  const attempt = state.getConnectionAttempt(peerCid) || { attempts: 0, timeout: null };
-  const isOnline = state.isPeerOnline(peerCid);
-  const cacheValid = state.onlineStatusAge < 10_000;
+  const attempt: ConnectionAttempt = state.getConnectionAttempt(peerCid) || { attempts: 0, timeout: null };
+  const isOnline: boolean = state.isPeerOnline(peerCid);
+  const cacheValid: boolean = state.onlineStatusAge < 10_000;
 
   if (cacheValid && !isOnline && !shouldForceInitiator) {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Peer ${peerCid.toString().slice(0, 8)}... offline (cached), scheduling next check`);
@@ -108,13 +113,13 @@ export async function connectToPeer(
     await websocketService.openP2PConnection(initiatorCid, targetCid);
     debugLog('P2PAutoConnectService', 'connectToPeer: openP2PConnection SUCCESS');
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage: string = error instanceof Error ? error.message : String(error);
 
     if (errorMessage.includes('Already connected') || errorMessage.includes('already connected')) {
       debugLog('P2PAutoConnectService', `P2PAutoConnect: Peer ${peerCid.toString().slice(0, 8)}... already connected (treating as success)`);
       state.removePendingConnection(peerCid);
       state.cancelRetry(peerCid);
-      const cid = await getCurrentCid();
+      const cid: bigint | null = await getCurrentCid();
       if (cid) {
         state.setPeerConnectedLocal(cid, peerCid);
       }
@@ -122,9 +127,9 @@ export async function connectToPeer(
     }
 
     state.removePendingConnection(peerCid);
-    const delay = Math.min(BASE_DELAY_MS * Math.pow(2, attempt.attempts), MAX_DELAY_MS);
+    const delay: number = Math.min(BASE_DELAY_MS * Math.pow(2, attempt.attempts), MAX_DELAY_MS);
     attempt.attempts++;
-    const nextDelay = delay >= MAX_DELAY_MS ? POLL_INTERVAL_MS : delay;
+    const nextDelay: number = delay >= MAX_DELAY_MS ? POLL_INTERVAL_MS : delay;
 
     attempt.timeout = setTimeout(() => connectToPeer(state, peerCid), nextDelay);
     state.setConnectionAttempt(peerCid, attempt);
@@ -139,7 +144,7 @@ export async function connectToPeer(
  * Connect to all registered peers (on startup or after accept).
  */
 export async function connectToAllRegisteredPeers(state: AutoConnectState): Promise<void> {
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   debugLog('P2PAutoConnectService', `connectToAllRegisteredPeers: currentCid=${currentCid?.toString().slice(0, 8) || 'null'}`);
 
   if (!currentCid || currentCid === 0n) {
@@ -155,7 +160,7 @@ export async function connectToAllRegisteredPeers(state: AutoConnectState): Prom
     registeredPeers = await p2pRegistrationService.listRegisteredPeers();
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Found ${registeredPeers.length} registered peers via ListRegisteredPeers`);
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage: string = error instanceof Error ? error.message : String(error);
     if (errorMessage?.includes('CID 0') || errorMessage?.includes('No active')) {
       return;
     }
@@ -168,11 +173,11 @@ export async function connectToAllRegisteredPeers(state: AutoConnectState): Prom
     }
   }
 
-  const shouldForceInitiator = state.forceInitiatorMode;
+  const shouldForceInitiator: boolean = state.forceInitiatorMode;
 
   debugLog('P2PAutoConnectService', `connectToAllRegisteredPeers: launching connections to ${registeredPeers.length} peers, forceInitiator=${shouldForceInitiator}`);
   for (const peer of registeredPeers) {
-    const peerCid = peer.cid;
+    const peerCid: bigint | undefined = peer.cid;
     if (peerCid && peerCid !== currentCid) {
       connectToPeer(state, peerCid, shouldForceInitiator).catch((err) => {
         debugLog('P2PAutoConnectService', `Failed to initiate connection to ${peerCid}:`, err);
@@ -189,20 +194,21 @@ export async function connectToAllRegisteredPeers(state: AutoConnectState): Prom
 /** Fallback: Get registered peers from GetSessions response. */
 async function getRegisteredPeersViaGetSessions(currentCid: bigint): Promise<Array<{ cid: bigint; username: string }>> {
   try {
-    const sessions = await connectionManager.getActiveSessions();
-    const mySession = sessions.find(s => s.cid === currentCid);
+    const sessions: ActiveSession[] = await connectionManager.getActiveSessions();
+    const mySession: ActiveSession | undefined = sessions.find(s => s.cid === currentCid);
 
-    if (!mySession?.peer_connections || Object.keys(mySession.peer_connections).length === 0) {
+    // Object.keys on a Map is always [], so this branch was always taken.
+    const wirePeers: [string, { peer_username?: string; }][] = wireMapEntries<{ peer_username?: string }>(mySession?.peer_connections, 'peer_connections');
+    if (wirePeers.length === 0) {
       debugLog('P2PAutoConnectService', 'P2PAutoConnect: No peer_connections in session, using local peer registry...');
       const { registeredPeers } = p2pRegistrationService.getPeers();
       return registeredPeers.map(p => ({ cid: p.cid, username: p.username }));
     }
 
-    const peers: Array<{ cid: bigint; username: string }> = [];
-    for (const [peerCidStr, peerInfo] of Object.entries(mySession.peer_connections)) {
-      peers.push({ cid: BigInt(peerCidStr), username: peerInfo.peer_username || '' });
-    }
-    return peers;
+    return wirePeers.map(([peerCidStr, peerInfo]) => ({
+      cid: BigInt(peerCidStr),
+      username: peerInfo.peer_username || '',
+    }));
   } catch (error) {
     debugLog('P2PAutoConnectService', 'GetSessions fallback failed:', error);
     return [];
@@ -214,10 +220,9 @@ export function handleConnectionSuccess(
   state: AutoConnectState,
   localCid: bigint,
   peerCid: bigint,
-  peerUsername: string = '',
-  broadcastPeerConnected: (localCid: bigint, peerCid: bigint, peerUsername: string) => void
+  broadcastPeerConnected: (localCid: bigint, peerCid: bigint) => void
 ): void {
-  broadcastPeerConnected(localCid, peerCid, peerUsername);
+  broadcastPeerConnected(localCid, peerCid);
   state.removePendingConnection(peerCid);
   state.cancelRetry(peerCid);
   debugLog('P2PAutoConnectService', `P2PAutoConnect: Connected to ${peerCid.toString().slice(0, 8)}...`);
@@ -234,7 +239,7 @@ export function handlePeerDisconnect(state: AutoConnectState, localCid: bigint, 
 
 /** Clear a peer from connected state (without emitting events). */
 export async function clearPeerFromConnected(state: AutoConnectState, peerCid: bigint): Promise<void> {
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   if (currentCid) {
     state.setPeerDisconnected(currentCid, peerCid);
   }

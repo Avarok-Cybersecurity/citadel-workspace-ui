@@ -133,8 +133,8 @@ export interface RevfsPendingOp {
 // Protected Folder Constants
 // ============================================================================
 
-export const SENT_FILES_DIR = '/Sent Files';
-export const RECEIVED_FILES_DIR = '/Received Files';
+export const SENT_FILES_DIR: "/Sent Files" = '/Sent Files';
+export const RECEIVED_FILES_DIR: "/Received Files" = '/Received Files';
 
 export const PROTECTED_DIRS: ReadonlySet<string> = new Set([
   SENT_FILES_DIR,

@@ -5,6 +5,8 @@
  * Respects role hierarchy for actions.
  */
 
+import { membersByRank, assignableRoles } from './members-by-rank';
+import { groupRestriction, restrictionText, type GroupRestriction } from './group-restriction';
 import { useState, useMemo, useCallback } from 'react';
 import { UserMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,9 +28,11 @@ import {
 } from '@/components/ui/table';
 import type { GroupMemberWithRole } from '@/types/group';
 import { useGroupPermissions } from '@/hooks/use-group-permissions';
-import { getRoleIcon, getAvatarColor } from './GroupMemberManagementHelpers';
-import type { GroupMemberManagementProps } from './GroupMemberManagementHelpers';
+import { memberAvatarColor } from '@/lib/avatar-color';
+import { getRoleIcon, type GroupMemberManagementProps } from './GroupMemberManagementHelpers';
 import { KickConfirmDialog } from './KickConfirmDialog';
+import { PeerPickerPopover } from './PeerPickerPopover';
+import type { GroupRole } from '@/types/group-permissions';
 
 // ============================================================================
 // Component
@@ -38,36 +42,23 @@ export function GroupMemberManagement({
   group,
   onRoleChange,
   onKickMember,
-}: GroupMemberManagementProps) {
-  const { can, canManageMember, canAssignRole, isOwner } = useGroupPermissions(group);
+  invitablePeers = [],
+  onInviteMember,
+}: GroupMemberManagementProps): JSX.Element {
+  const { can, canManageMember, canAssignRole, listedAsMember, myRole } = useGroupPermissions(group);
   const [memberToKick, setMemberToKick] = useState<GroupMemberWithRole | null>(null);
   const [isKicking, setIsKicking] = useState(false);
 
-  // Get members with resolved roles, sorted by hierarchy
-  const sortedMembers = useMemo(() => {
-    return [...group.members]
-      .flatMap(member => {
-        const role = group.settings.roles.find(r => r.id === member.roleId);
-        if (!role) return [];
-        return [{ ...member, role } as GroupMemberWithRole];
-      })
-      .sort((a, b) => {
-        if (a.role.position !== b.role.position) {
-          return b.role.position - a.role.position;
-        }
-        return a.username.localeCompare(b.username);
-      });
-  }, [group.members, group.settings.roles]);
+  const sortedMembers: GroupMemberWithRole[] = useMemo(
+    (): GroupMemberWithRole[] => membersByRank(group),
+    [group],
+  );
 
   // Roles that can be assigned (excludes built-in owner role)
-  const assignableRoles = useMemo(() => {
-    return group.settings.roles
-      .filter(r => !r.isBuiltIn)
-      .sort((a, b) => b.position - a.position);
-  }, [group.settings.roles]);
+  const roles: GroupRole[] = useMemo((): GroupRole[] => assignableRoles(group), [group]);
 
   // Handle role change
-  const handleRoleChange = useCallback(
+  const handleRoleChange: (member: GroupMemberWithRole, newRoleId: string) => Promise<void> = useCallback(
     async (member: GroupMemberWithRole, newRoleId: string) => {
       if (newRoleId !== member.roleId) {
         await onRoleChange(member.cid.toString(), newRoleId);
@@ -77,7 +68,7 @@ export function GroupMemberManagement({
   );
 
   // Handle kick confirmation
-  const handleKickConfirm = async () => {
+  const handleKickConfirm = async (): Promise<void> => {
     if (!memberToKick) return;
 
     setIsKicking(true);
@@ -90,28 +81,51 @@ export function GroupMemberManagement({
   };
 
   // Check what actions are available for a member
-  const canKick = can('kickMembers');
-  const canAssign = can('assignRoles');
+  const canKick: boolean = can('kickMembers');
+  const canAssign: boolean = can('assignRoles');
+
+  const viewRestriction: GroupRestriction = groupRestriction(listedAsMember, myRole !== undefined, can('viewMemberList'));
+  if (viewRestriction !== 'allowed') {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground" data-testid="group-members-restricted">
+          {restrictionText(viewRestriction, 'see the member list')}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white">
+        <h3 className="text-sm font-semibold text-foreground">
           Members ({group.members.length})
         </h3>
+        {/* Only offered to members whose role permits it, and only when the
+            caller supplied a handler — inviting was previously unreachable
+            entirely, invitePeer having had no caller anywhere. */}
+        {onInviteMember && can('inviteMembers') && (
+          <PeerPickerPopover
+            peers={invitablePeers}
+            label="Invite"
+            emptyMessage="Everyone you have registered is already in this group"
+            data-testid="group-invite-picker"
+            onSelect={(peer) => { void onInviteMember(peer.cid); }}
+          />
+        )}
       </div>
 
       {/* Member Table */}
       <ScrollArea className="max-h-[400px]">
-        <div className="rounded-md border border-[#2D3548] overflow-hidden">
+        <div className="rounded-md border border-border overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="border-[#2D3548] hover:bg-transparent">
-                <TableHead className="text-gray-400 h-10">Member</TableHead>
-                <TableHead className="text-gray-400 h-10 w-40">Role</TableHead>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground h-10">Member</TableHead>
+                <TableHead className="text-muted-foreground h-10 w-40">Role</TableHead>
                 {canKick && (
-                  <TableHead className="text-gray-400 h-10 w-20 text-right">
+                  <TableHead className="text-muted-foreground h-10 w-20 text-right">
                     Actions
                   </TableHead>
                 )}
@@ -119,31 +133,31 @@ export function GroupMemberManagement({
             </TableHeader>
             <TableBody>
               {sortedMembers.map((member, index) => {
-                const isOwnerMember = member.cid === group.ownerId;
-                const canManageThis = canManageMember(member.cid);
-                const canAssignThis = canAssign && canAssignRole(member.roleId);
+                const isOwnerMember: boolean = member.cid === group.ownerId;
+                const canManageThis: boolean = canManageMember(member.cid);
+                const canAssignThis: boolean = canAssign && canAssignRole(member.roleId);
 
                 return (
                   <TableRow
                     key={member.cid}
-                    className="border-[#2D3548] hover:bg-[#262C4A]"
+                    className="border-border hover:bg-surface"
                   >
                     {/* Member Info */}
                     <TableCell className="py-3">
                       <div className="flex items-center gap-3">
                         <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium text-white"
-                          style={{ backgroundColor: getAvatarColor(member, index) }}
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium text-foreground"
+                          style={{ backgroundColor: memberAvatarColor(member, index) }}
                         >
                           {member.username[0]?.toUpperCase() || '?'}
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-white font-medium">
+                          <span className="text-sm text-foreground font-medium">
                             {member.username}
                           </span>
                           {getRoleIcon(member.role)}
                           {isOwnerMember && (
-                            <span className="text-xs text-amber-500">(Owner)</span>
+                            <span className="text-xs text-warning-emphasis">(Owner)</span>
                           )}
                         </div>
                       </div>
@@ -156,17 +170,18 @@ export function GroupMemberManagement({
                           value={member.roleId}
                           onValueChange={value => handleRoleChange(member, value)}
                         >
-                          <SelectTrigger className="h-8 w-32 bg-[#262C4A] border-[#3D4663] text-white text-xs">
+                          <SelectTrigger
+              aria-label={`Role for ${member.username}`} className="h-8 w-32 bg-surface border-border text-foreground text-xs">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-[#1C1D28] border-[#2D3548]">
-                            {assignableRoles
+                          <SelectContent className="bg-background border-border">
+                            {roles
                               .filter(r => canAssignRole(r.id))
                               .map(r => (
                                 <SelectItem
                                   key={r.id}
                                   value={r.id}
-                                  className="text-white hover:bg-[#262C4A]"
+                                  className="text-foreground hover:bg-surface"
                                 >
                                   <div className="flex items-center gap-2">
                                     {r.color && (
@@ -182,7 +197,7 @@ export function GroupMemberManagement({
                           </SelectContent>
                         </Select>
                       ) : (
-                        <div className="flex items-center gap-2 text-sm text-gray-300">
+                        <div className="flex items-center gap-2 text-sm text-foreground/80">
                           {member.role.color && (
                             <span
                               className="w-2 h-2 rounded-full"
@@ -201,7 +216,7 @@ export function GroupMemberManagement({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={() => setMemberToKick(member)}
                             title="Kick member"
                           >

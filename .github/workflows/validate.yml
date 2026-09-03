@@ -17,7 +17,12 @@ env:
   # integration-tests). The previous `u64-to-bigint-optimization`
   # baseline pre-dated several workspace deps, which made `npm ci`
   # fail at the parent root and cascaded into ~40 CI failures.
-  PARENT_BRANCH: misc-fixes
+  # Track the parent's default branch. This was pinned to a feature branch
+  # ('u64-to-bigint-optimization', later 'misc-fixes'), so this submodule's CI
+  # validated against whatever that branch happened to contain — which drifts,
+  # and eventually stops existing. Every check here is only meaningful against
+  # the parent revision this code will actually be integrated into.
+  PARENT_BRANCH: master
   SKIP_WASM_BUILD: "1"
   # Match parent repo's directory name so docker containers get expected names
   # (e.g., citadel-workspace-server-1 instead of parent-server-1)
@@ -26,6 +31,9 @@ env:
 jobs:
   unit-tests:
     name: Unit Tests
+    # Observed the same work as the parent job, 6m there; this bounds a hang, not performance.
+    # Without it a stuck job holds a runner for GitHub's 360-minute default.
+    timeout-minutes: 25
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -62,6 +70,9 @@ jobs:
 
   typecheck:
     name: TypeScript Type Check - ${{ matrix.project }}
+    # Observed the same work as the parent job, under a minute there; this bounds a hang, not performance.
+    # Without it a stuck job holds a runner for GitHub's 360-minute default.
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -107,50 +118,182 @@ jobs:
             ln -sf ${{ github.workspace }}/parent/node_modules/playwright ${{ matrix.path }}/node_modules/playwright
             npm run typecheck -w cw-integration-tests
           fi
-      - name: Enforce 250-line file limit
+      # These gates lived ONLY in the parent repo's workflow, so a PR opened
+      # against this repository — which is where essentially all UI work happens
+      # — could regress the installable PWA, the offline shell, the
+      # accessibility score or the landing critical path with nothing noticing.
+      # Each one fails silently in production: a broken manifest field simply
+      # stops the browser offering to install, and a chunk pulled onto the first
+      # paint is invisible until someone measures.
+      # WITHOUT THIS, EVERY GATE BELOW FAILS BEFORE IT MEASURES ANYTHING.
+      #
+      # They all begin with `vite build`, and that build embeds the wasm-pack
+      # glue `citadel_internal_service_wasm_client.js`, which is NOT git-tracked
+      # (typescript-client/.gitignore:13). It is produced by the
+      # `sync-wasm-client` one-shot container in docker-compose.yml.
+      #
+      # The gates were copied here from the parent repo's workflow without the
+      # step that pays for their input, so `vite build` died with
+      # "Could not resolve ../citadel_internal_service_wasm_client.js" and named
+      # the importer rather than the cause. The parent's own comment warns about
+      # exactly this -- it puts these gates in the job that generates the
+      # artefacts, "not in the typecheck matrix", because there it does not
+      # exist. This job IS the typecheck matrix, so it has to generate them.
+      - name: Generate WASM artifacts (required for the production build)
+        if: matrix.project == 'citadel-workspaces'
+        env:
+          WORKSPACE_MASTER_PASSWORD: 'ci-prod-build'
+          INTERNAL_SERVICE_PORT: '12345'
+        run: docker compose up --build sync-wasm-client
+
+      # sync-wasm-client runs as root and bind-mounts this tree read-write. It
+      # runs a Vite build of its own, so it leaves `citadel-workspaces/dist/`
+      # owned by root -- and the next step's `vite build` runs as `runner` and
+      # cannot write into it:
+      #
+      #   Unable to write the service worker file.
+      #   'EACCES: permission denied, open .../citadel-workspaces/dist/sw.js.map'
+      #
+      # Removing rather than chowning: `dist/` is build output with no inputs in
+      # it, the next step regenerates it entirely, and a chown would leave a
+      # half-root tree if the container's layout ever changes. The container
+      # writing into a host tree is the same hazard that has poisoned
+      # `node_modules` here before; this bounds it to one directory.
+      #
+      # The path is relative to the job's `defaults.run.working-directory:
+      # parent`, NOT to the workspace root -- the opposite of the step-level
+      # `working-directory:` rule two steps up. The first version of this step
+      # said `parent/citadel-workspaces/dist`, which resolved to
+      # `parent/parent/...`; `rm -rf` on a path that does not exist succeeds
+      # silently, so the step went green and the EACCES came back unchanged.
+      # A cleanup that cannot fail is the same defect as a gate that cannot
+      # fail, so this one verifies the directory is gone.
+      - name: Reclaim the tree the WASM container wrote into
         if: matrix.project == 'citadel-workspaces'
         run: |
-          # Files that pre-date this PR and already exceed the cap.
-          # The 250-line rule was introduced after they were written;
-          # this PR is not the right place to refactor them. Tracked
-          # as known violations so the cap still keeps NEW files in
-          # check.
-          SKIP_FILES=(
-            "components/ui/sidebar.tsx"
-            "components/layout/sidebar/TreeNodesSection.tsx"
-            "components/p2p/ChatSettingsPanel.tsx"
-            "components/tree/TreeGraphEditor.tsx"
-            "lib/file-transfer/io.ts"
-            "lib/file-transfer/service.ts"
-            "pages/Landing.tsx"
-            "types/messaging-layer.ts"
-            "types/workspace-protocol.ts"
-          )
-
-          VIOLATIONS=0
-          while IFS= read -r file; do
-            rel="${file#citadel-workspaces/src/}"
-            skip=false
-            for s in "${SKIP_FILES[@]}"; do
-              if [ "$rel" = "$s" ]; then skip=true; break; fi
-            done
-            if $skip; then continue; fi
-
-            lines=$(wc -l < "$file")
-            if [ "$lines" -gt 250 ]; then
-              echo "::error file=$file::$file has $lines lines (limit: 250)"
-              VIOLATIONS=$((VIOLATIONS + 1))
-            fi
-          done < <(find citadel-workspaces/src -type f \( -name '*.ts' -o -name '*.tsx' \) ! -name '*.bak')
-
-          if [ "$VIOLATIONS" -gt 0 ]; then
-            echo "FAIL: $VIOLATIONS file(s) exceed the 250-line limit"
+          sudo rm -rf citadel-workspaces/dist
+          if [ -e citadel-workspaces/dist ]; then
+            echo "::error::citadel-workspaces/dist still exists after removal"
             exit 1
           fi
-          echo "All TypeScript files within 250-line limit"
+          echo "reclaimed: citadel-workspaces/dist is gone"
+
+      - name: Landing bundle budget
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run build && npm run check:bundle
+        working-directory: parent/citadel-workspaces
+
+      - name: PWA installability
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:pwa
+        working-directory: parent/citadel-workspaces
+
+      - name: Lighthouse baselines
+        # Accessibility and SEO are held at 100 because they are rule checks, not
+        # measurements. Performance has a loose floor: a shared runner is slower
+        # and noisier than a laptop, and a flaky gate is worse than no gate
+        # because people learn to re-run it without reading it.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:lighthouse
+        working-directory: parent/citadel-workspaces
+
+      - name: Install Chromium for the offline check
+        if: matrix.project == 'citadel-workspaces'
+        # Retried, and each attempt bounded. The parent repo's copy of this step
+        # stalled for 55 minutes in run 33300992291 and was killed by the job
+        # budget without running a test -- a CDN fetch with no retry and no
+        # timeout of its own. npm retries its own fetches; this download does
+        # not, which is why it is the one that hangs.
+        run: |
+          # `--with-deps` shells out to apt-get, and unattended-upgrades holds
+          # /var/lib/dpkg/lock-frontend for minutes after boot, so every attempt
+          # dies with exit 100. Retrying into a held lock does not help; waiting
+          # for the lock does.
+          wait_for_apt_lock() {
+            command -v fuser >/dev/null 2>&1 || { sleep 30; return 0; }
+            waited=0
+            while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+              if [ "$waited" -ge 300 ]; then
+                echo "dpkg lock still held after 5m; attempting anyway"
+                return 0
+              fi
+              echo "waiting for the dpkg lock (${waited}s elapsed)"
+              sleep 10
+              waited=$((waited + 10))
+            done
+          }
+          wait_for_apt_lock
+          attempt=1
+          wait_for_apt_lock
+          until timeout 600 npx playwright install --with-deps chromium; do
+            if [ "$attempt" -ge 3 ]; then
+              echo "playwright install still failing after 3 attempts"
+              exit 1
+            fi
+            echo "playwright install failed or stalled (attempt $attempt/3); retrying"
+            attempt=$((attempt + 1))
+            sleep $((attempt * 15))
+            wait_for_apt_lock
+          done
+        working-directory: parent/citadel-workspaces
+
+      - name: PWA offline behaviour
+        # The app tells the user it will load without a connection. Nothing
+        # verified that promise until this: a precache that stopped covering the
+        # shell would leave an installed app opening to a blank page offline.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:pwa-offline
+        working-directory: parent/citadel-workspaces
+
+      - name: PWA update flow
+        # The upgrade half of the lifecycle, and the half that fails silently:
+        # an installed worker keeps serving its cached bundle by design, so a
+        # broken update path produces no error and no complaint — the app just
+        # stops changing. The unit test beside PwaUpdatePrompt mocks the
+        # register hook, proving the component reacts to needRefresh but never
+        # that anything sets it.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:pwa-update
+        working-directory: parent/citadel-workspaces
+
+      - name: Reduced motion
+        # Neither axe nor Lighthouse reports motion, so ninety of the app's
+        # hundred animations opted out of prefers-reduced-motion unnoticed.
+        # Also checks that suppressing motion did not suppress the dialogs the
+        # motion was attached to — a failure only reduced-motion users would see.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:reduced-motion
+        working-directory: parent/citadel-workspaces
+
+      - name: Mobile layout
+        # axe measures colour, names and roles — not size. Three controls
+        # shipped under the WCAG 2.2 24px target floor, including the close
+        # button on every dialog in the app, with every a11y gate green.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:mobile
+        working-directory: parent/citadel-workspaces
+
+      # Delegates to the parent repo's gate rather than reimplementing it.
+      #
+      # This step carried its own bash copy of the 250-line rule with its own
+      # SKIP_FILES list, and the two drifted: `lib/connection/service.ts` is
+      # 252 lines and is recorded in scripts/check-file-length.mjs as a held
+      # exception, but was absent from the list here -- so this repo failed a
+      # file the parent passes, on a rule both are supposed to enforce.
+      #
+      # The parent's version is also the stricter one: it pins each exception
+      # to an EXACT line count (`['lib/connection/service.ts', 252]`), so a
+      # held file cannot quietly grow, where a name-only skip list lets it
+      # grow forever. Two implementations of one rule drift toward the weaker.
+      - name: Enforce 250-line file limit
+        if: matrix.project == 'citadel-workspaces'
+        run: node scripts/check-file-length.mjs
 
   lint:
     name: ESLint - ${{ matrix.project }}
+    # Observed the same work as the parent job, 1m there; this bounds a hang, not performance.
+    # Without it a stuck job holds a runner for GitHub's 360-minute default.
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -198,8 +341,152 @@ jobs:
           ${{ github.workspace }}/parent/node_modules/.bin/eslint . --max-warnings 0
         working-directory: parent/${{ matrix.path }}
 
+  playwright-tests:
+    # The @playwright/test suite under integration-tests/src/tests-pw, which ran in
+    # no job at all — those specs were compiled by the typecheck job and then never
+    # executed against a running stack. Sharded rather than one job per spec, so
+    # adding a spec needs no matrix edit. Mirrors the parent repo's job.
+    name: Playwright - shard ${{ matrix.shard }}
+    # Observed the same work as the parent job, 41m there; this bounds a hang, not performance.
+    # Without it a stuck job holds a runner for GitHub's 360-minute default.
+    timeout-minutes: 80
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    defaults:
+      run:
+        working-directory: parent
+    steps:
+      - name: Checkout parent repo (workspace structure)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.PARENT_REPO }}
+          ref: ${{ env.PARENT_BRANCH }}
+          path: parent
+      - name: Checkout submodule code (this PR)
+        uses: actions/checkout@v4
+        with:
+          path: parent/citadel-workspaces
+      - name: Init citadel-internal-service submodule
+        run: git submodule update --init --recursive citadel-internal-service
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /usr/local/.ghcup "$AGENT_TOOLSDIRECTORY"
+          # Best effort: this frees cache, it does not build anything. apt takes a
+          # lock, and unattended-upgrades holds one for minutes after boot — the
+          # failure that killed test:crud in this same workflow. A cleanup that
+          # cannot run is not a reason to fail the build. Preventive: no run has
+          # failed here, but the mechanism is one already proven live in this file.
+          sudo apt-get clean || echo 'apt-get clean skipped (lock held)'
+          df -h
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Dependencies
+        # Root install first, and before `playwright install` — see the long note
+        # on the integration-tests job for why both orderings matter.
+        run: npm ci
+      - name: Install Playwright Browsers
+        # Retried, and each attempt bounded. The parent repo's copy of this step
+        # stalled for 55 minutes in run 33300992291 and was killed by the job
+        # budget without running a test -- a CDN fetch with no retry and no
+        # timeout of its own. npm retries its own fetches; this download does
+        # not, which is why it is the one that hangs.
+        run: |
+          # Wait for apt before asking playwright to use it.
+          #
+          # `--with-deps` shells out to apt-get, and the runner image's
+          # unattended-upgrades holds /var/lib/dpkg/lock-frontend for minutes
+          # after boot. Every attempt then dies on
+          #   E: Could not get lock /var/lib/dpkg/lock-frontend.
+          #      It is held by process NNNN (apt-get)
+          # with exit code 100 — which is not a download failure, so retrying
+          # into it does not help. The existing 30s/45s backoff was not the right
+          # shape: the wait needed is "until the lock is free", not a guess.
+          wait_for_apt_lock() {
+            command -v fuser >/dev/null 2>&1 || { sleep 30; return 0; }
+            waited=0
+            while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+              if [ "$waited" -ge 300 ]; then
+                echo "dpkg lock still held after 5m; attempting anyway"
+                return 0
+              fi
+              echo "waiting for the dpkg lock (${waited}s elapsed)"
+              sleep 10
+              waited=$((waited + 10))
+            done
+          }
+          attempt=1
+          wait_for_apt_lock
+          until timeout 600 npx playwright install chromium --with-deps; do
+            if [ "$attempt" -ge 3 ]; then
+              echo "playwright install still failing after 3 attempts"
+              exit 1
+            fi
+            echo "playwright install failed or stalled (attempt $attempt/3); retrying"
+            attempt=$((attempt + 1))
+            sleep $((attempt * 15))
+            wait_for_apt_lock
+          done
+      - name: Symlink workspace deps for integration-tests
+        run: |
+          mkdir -p citadel-workspaces/integration-tests/node_modules
+          ln -sf ${{ github.workspace }}/parent/node_modules/playwright \
+                 citadel-workspaces/integration-tests/node_modules/playwright
+          ln -sf ${{ github.workspace }}/parent/node_modules/@playwright \
+                 citadel-workspaces/integration-tests/node_modules/@playwright
+      - name: Pull base images (retried)
+        # A base-image manifest pull is a network fetch that happens before any
+        # RUN, so the retry gate on RUN fetches cannot see it. A run died on a
+        # 502 from registry-1.docker.io resolving `FROM rust:1.92.0` and took
+        # test:tree-permissions with it -- a red job with no test signal, the
+        # same shape as the failure that gate was written for.
+        run: ../scripts/pull-base-images.sh
+        # Step-level working-directory is relative to the WORKSPACE ROOT, not to
+        # the job's `defaults.run.working-directory: parent`. Without the prefix
+        # this named a path that does not exist here and the step died with
+        # "No such file or directory" before running anything -- a red job with
+        # no signal about the thing it was meant to test.
+        working-directory: parent/citadel-workspaces
+      - name: Start Services
+        env:
+          INTERNAL_SERVICE_PORT: '12345'
+          WORKSPACE_MASTER_PASSWORD: 'ci-test-password'
+        run: docker compose up -d --build --wait
+      - name: Dump Service Logs on Start Failure
+        if: failure()
+        run: |
+          docker compose logs sync-wasm-client 2>&1 | tail -200
+          docker compose logs server 2>&1 | tail -50
+          docker compose logs internal-service 2>&1 | tail -50
+      - name: Clean Docker Build Cache
+        run: |
+          docker builder prune -af
+          docker image prune -af
+          df -h
+      - name: Run Playwright Tests
+        env:
+          IN_CI: 'true'
+          WORKSPACE_MASTER_PASSWORD: 'ci-test-password'
+          INTERNAL_SERVICE_PORT: '12345'
+        run: npx playwright test --shard=${{ matrix.shard }}/3
+        working-directory: parent/citadel-workspaces/integration-tests
+      - name: Upload Playwright Report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-shard-${{ matrix.shard }}
+          path: |
+            parent/citadel-workspaces/integration-tests/playwright-report/
+            parent/citadel-workspaces/integration-tests/test-results/
+
   integration-tests:
     name: Integration Test - ${{ matrix.test }}
+    # Observed the same work as the parent job, 26m there; this bounds a hang, not performance.
+    # Without it a stuck job holds a runner for GitHub's 360-minute default.
+    timeout-minutes: 55
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -215,8 +502,6 @@ jobs:
             artifact: group-multiuser
           - test: test:crud
             artifact: crud
-          - test: test:login
-            artifact: login
           - test: test:prev-sessions
             artifact: prev-sessions
           - test: test:file-transfer
@@ -276,6 +561,32 @@ jobs:
             artifact: reconnect-p2p-one-c2s
           - test: test:reconnect-p2p-only
             artifact: reconnect-p2p-only
+          - test: test:file-manager
+            artifact: file-manager
+          - test: test:native-file-picker
+            artifact: native-file-picker
+          - test: test:office-chat
+            artifact: office-chat
+          - test: test:peer-group
+            artifact: peer-group
+          - test: test:revfs:peer
+            artifact: revfs-peer
+          - test: test:revfs:server
+            artifact: revfs-server
+          - test: test:room-chat
+            artifact: room-chat
+          - test: test:tree-cascade
+            artifact: tree-cascade
+          - test: test:tree-custom-types
+            artifact: tree-custom-types
+          - test: test:tree-deep
+            artifact: tree-deep
+          - test: test:tree-move
+            artifact: tree-move
+          - test: test:tree-permissions
+            artifact: tree-permissions
+          - test: test:tree-validator
+            artifact: tree-validator
     defaults:
       run:
         working-directory: parent
@@ -299,7 +610,12 @@ jobs:
           sudo rm -rf /usr/local/share/boost
           sudo rm -rf /usr/local/.ghcup
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          sudo apt-get clean
+          # Best effort: this frees cache, it does not build anything. apt takes a
+          # lock, and unattended-upgrades holds one for minutes after boot — the
+          # failure that killed test:crud in this same workflow. A cleanup that
+          # cannot run is not a reason to fail the build. Preventive: no run has
+          # failed here, but the mechanism is one already proven live in this file.
+          sudo apt-get clean || echo 'apt-get clean skipped (lock held)'
           df -h
       - uses: actions/setup-node@v4
         with:
@@ -326,7 +642,47 @@ jobs:
         # Now that deps are installed, this resolves to the locked
         # version's `playwright install` and downloads the matching
         # chromium build.
-        run: npx playwright install chromium --with-deps
+        # Retried, and each attempt bounded. The parent repo's copy of this step
+        # stalled for 55 minutes in run 33300992291 and was killed by the job
+        # budget without running a test -- a CDN fetch with no retry and no
+        # timeout of its own. npm retries its own fetches; this download does
+        # not, which is why it is the one that hangs.
+        run: |
+          # Wait for apt before asking playwright to use it.
+          #
+          # `--with-deps` shells out to apt-get, and the runner image's
+          # unattended-upgrades holds /var/lib/dpkg/lock-frontend for minutes
+          # after boot. Every attempt then dies on
+          #   E: Could not get lock /var/lib/dpkg/lock-frontend.
+          #      It is held by process NNNN (apt-get)
+          # with exit code 100 — which is not a download failure, so retrying
+          # into it does not help. The existing 30s/45s backoff was not the right
+          # shape: the wait needed is "until the lock is free", not a guess.
+          wait_for_apt_lock() {
+            command -v fuser >/dev/null 2>&1 || { sleep 30; return 0; }
+            waited=0
+            while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+              if [ "$waited" -ge 300 ]; then
+                echo "dpkg lock still held after 5m; attempting anyway"
+                return 0
+              fi
+              echo "waiting for the dpkg lock (${waited}s elapsed)"
+              sleep 10
+              waited=$((waited + 10))
+            done
+          }
+          attempt=1
+          wait_for_apt_lock
+          until timeout 600 npx playwright install chromium --with-deps; do
+            if [ "$attempt" -ge 3 ]; then
+              echo "playwright install still failing after 3 attempts"
+              exit 1
+            fi
+            echo "playwright install failed or stalled (attempt $attempt/3); retrying"
+            attempt=$((attempt + 1))
+            sleep $((attempt * 15))
+            wait_for_apt_lock
+          done
       - name: Symlink workspace deps for integration-tests build
         # `tsc` in integration-tests walks node_modules up the tree
         # (NodeNext). Symlinking playwright from the workspace-root
@@ -338,6 +694,19 @@ jobs:
                  citadel-workspaces/integration-tests/node_modules/playwright
           ln -sf ${{ github.workspace }}/parent/node_modules/@playwright \
                  citadel-workspaces/integration-tests/node_modules/@playwright
+      - name: Pull base images (retried)
+        # A base-image manifest pull is a network fetch that happens before any
+        # RUN, so the retry gate on RUN fetches cannot see it. A run died on a
+        # 502 from registry-1.docker.io resolving `FROM rust:1.92.0` and took
+        # test:tree-permissions with it -- a red job with no test signal, the
+        # same shape as the failure that gate was written for.
+        run: ../scripts/pull-base-images.sh
+        # Step-level working-directory is relative to the WORKSPACE ROOT, not to
+        # the job's `defaults.run.working-directory: parent`. Without the prefix
+        # this named a path that does not exist here and the step died with
+        # "No such file or directory" before running anything -- a red job with
+        # no signal about the thing it was meant to test.
+        working-directory: parent/citadel-workspaces
       - name: Start Services
         env:
           INTERNAL_SERVICE_PORT: '12345'

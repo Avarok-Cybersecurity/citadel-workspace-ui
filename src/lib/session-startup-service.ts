@@ -37,9 +37,7 @@
  */
 
 import { eventEmitter } from './event-emitter';
-import { p2pRegistrationService } from './p2p-registration-service';
-import { p2pAutoConnectService } from './p2p-auto-connect-service';
-import { wasmConnectionManager } from './wasm-connection-manager';
+import { runStartupSequence } from './session-startup-sequence';
 import { debugLog } from '@/lib/debug-config';
 
 export interface SessionActivatedEvent {
@@ -52,12 +50,12 @@ export interface SessionActivatedEvent {
 class SessionStartupService {
   private static instance: SessionStartupService;
   private lastActivatedCid: string | null = null;
-  private isStartingUp = false;
+  private isStartingUp: boolean = false;
   // Track when the last reconnection startup completed (for time-based guards)
   private lastReconnectionCompletedAt: number = 0;
   // Grace period in ms after reconnection during which stale cleanup is skipped
   // 15s is needed because Test 8 has multiple steps between reconnection and verification
-  private static readonly RECONNECTION_GRACE_PERIOD_MS = 15000;
+  private static readonly RECONNECTION_GRACE_PERIOD_MS: number = 15000;
 
   private constructor() {
     this.setupEventListeners();
@@ -80,7 +78,7 @@ class SessionStartupService {
       // - Login: User logged back in after explicit disconnect - must re-establish P2P connections
       // Both scenarios preserve the CID, so we can't use CID matching to block them.
       // This is critical for ILM to deliver queued messages after reconnection.
-      const isReconnection = event.activationType === 'claim' || event.activationType === 'login';
+      const isReconnection: boolean = event.activationType === 'claim' || event.activationType === 'login';
       debugLog('SessionStartupService', `isReconnection=${isReconnection} (type=${event.activationType}), lastActivatedCid=${this.lastActivatedCid?.slice(0, 8)}, isStartingUp=${this.isStartingUp}`);
 
       // Prevent duplicate activations for same CID (except for ClaimSession and Login)
@@ -120,74 +118,14 @@ class SessionStartupService {
       debugLog('SessionStartupService', 'PROCEEDING with startup sequence');
 
       try {
-        await this.runStartupSequence(event);
+        await runStartupSequence(event, () => {
+          this.lastReconnectionCompletedAt = Date.now();
+          debugLog('SessionStartupService', `SessionStartup: Reconnection completed, grace period started (${SessionStartupService.RECONNECTION_GRACE_PERIOD_MS}ms)`);
+        });
       } finally {
         this.isStartingUp = false;
       }
     });
-  }
-
-  private async runStartupSequence(event: SessionActivatedEvent): Promise<void> {
-    try {
-      // 0. For reconnection scenarios (ClaimSession OR Login), reset connection state
-      // This is CRITICAL because:
-      // - For ClaimSession: TCP drops with orphan mode, PeerDisconnect is NOT sent to peers
-      //   So peers' connectedPeers Set still has this user's CID
-      // - For Login: After explicit disconnect, the previous session is destroyed
-      //   A new session with a new CID is created, but local state may be stale
-      //
-      // By resetting state, we ensure fresh PeerConnect calls that properly
-      // establish bidirectional channels.
-      if (event.activationType === 'claim' || event.activationType === 'login') {
-        debugLog('SessionStartupService', `SessionStartup: Resetting connection state for ${event.activationType}`);
-        await p2pAutoConnectService.resetConnectionState();
-      }
-
-      // 0.25. For login reconnections, wait for SDK stabilization after prior session cleanup
-      // The backend needs time for the old Connection's channel drops to propagate through
-      // the protocol layer before we establish a new P2P session
-      if (event.activationType === 'login') {
-        debugLog('SessionStartupService', 'SessionStartup: Waiting 2s for SDK stabilization after login');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-
-      // 0.5. CRITICAL: Start WASM connection manager to open ILM messenger handle
-      // This MUST happen before P2P operations so that the ILM layer is ready
-      // to send and receive messages. Without this, ACKs are never sent for
-      // inbound messages, causing outbound messages to block waiting for ACKs.
-      try {
-        await wasmConnectionManager.start(event.cid);
-        debugLog('SessionStartupService', 'SessionStartup: WASM connection manager started for CID:', event.cid.slice(0, 8) + '...');
-      } catch (error) {
-        debugLog('SessionStartupService', 'Failed to start WASM connection manager:', error);
-        // Don't fail the entire startup - P2P may still work without ILM
-      }
-
-      // 1. Start P2P registration service (idempotent - won't restart if already running)
-      // This handles peer discovery and registration notifications
-      await p2pRegistrationService.start({ autoRegisterAll: false });
-      debugLog('SessionStartupService', 'SessionStartup: P2P Registration Service started');
-
-      // 2. Connect to all registered peers
-      // CRITICAL: This is what was missing after ClaimSession!
-      // Without this, Alice's ILM never sees Bob as connected
-      await p2pAutoConnectService.connectToAllRegisteredPeers();
-      debugLog('SessionStartupService', 'SessionStartup: P2P Auto-Connect initiated for all registered peers');
-
-      // 3. Track reconnection completion time for grace period logic
-      if (event.activationType === 'claim' || event.activationType === 'login') {
-        this.lastReconnectionCompletedAt = Date.now();
-        debugLog('SessionStartupService', `SessionStartup: Reconnection completed, grace period started (${SessionStartupService.RECONNECTION_GRACE_PERIOD_MS}ms)`);
-      }
-
-      // 4. Emit completion event for any listeners that need to know startup is done
-      eventEmitter.emit('session:startup-complete', event);
-      debugLog('SessionStartupService', `SessionStartup: Startup sequence complete for ${event.username}`);
-    } catch (error) {
-      debugLog('SessionStartupService', 'Error during startup sequence:', error);
-      // Emit error event but don't re-throw - session is still active
-      eventEmitter.emit('session:startup-error', { ...event, error });
-    }
   }
 
   /**
@@ -222,7 +160,7 @@ class SessionStartupService {
 
     // Check grace period after reconnection
     if (this.lastReconnectionCompletedAt > 0) {
-      const elapsed = Date.now() - this.lastReconnectionCompletedAt;
+      const elapsed: number = Date.now() - this.lastReconnectionCompletedAt;
       if (elapsed < SessionStartupService.RECONNECTION_GRACE_PERIOD_MS) {
         debugLog('SessionStartupService', `[SessionStartup] Within reconnection grace period (${elapsed}ms of ${SessionStartupService.RECONNECTION_GRACE_PERIOD_MS}ms)`);
         return true;
@@ -234,4 +172,4 @@ class SessionStartupService {
 }
 
 // Export singleton instance - instantiation sets up event listeners
-export const sessionStartupService = SessionStartupService.getInstance();
+export const sessionStartupService: SessionStartupService = SessionStartupService.getInstance();

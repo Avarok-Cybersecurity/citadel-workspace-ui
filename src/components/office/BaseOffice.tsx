@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
+import { readerIdentity, type ReaderIdentity, type TabIdentity } from '@/lib/tab-identity';
+import { useTabIdentity } from '@/hooks/use-tab-identity';
+import { useChatSurface, type ChatSurface } from './chat-surface';
 import { useToast } from "@/hooks/use-toast";
 import { MDXProvider } from '@mdx-js/react';
-import { evaluate } from '@mdx-js/mdx';
-import remarkGfm from 'remark-gfm';
-import * as runtime from 'react/jsx-runtime';
 import { components } from "./mdxComponents";
 import { OfficeLayout } from "./OfficeLayout";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -11,16 +11,18 @@ import { OfficeSkeletonLoader } from "../ui/skeleton-office";
 import { MDXEditor } from "@/components/mdx/MDXEditor";
 import TemplateSelector from "@/components/mdx/TemplateSelector";
 import { TemplateCategory, MdxTemplate } from "@/lib/mdx-templates";
-import { FileText, MessageSquare } from "lucide-react";
+import { saveOfficeContent } from "./save-office-content";
+import { useCompiledMdx } from "./use-compiled-mdx";
+import { useUnsavedMdxGuard, DISCARD_EDIT_PROMPT } from "./use-unsaved-mdx-guard";
+import { useConfirm } from "@/components/shared/confirm-dialog";
+import { permitsAndReport } from "@/lib/permission-diagnostics";
 import WorkspaceService from "@/lib/workspace-service";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import GroupChatView from "@/components/chat/GroupChatView";
+import { OfficeChatTabs } from "./OfficeChatTabs";
 import { usePermission } from '@/hooks/use-permission';
 import { Permission } from "@/contexts/PermissionsContext";
-import { connectionManager } from "@/lib/connection";
-import { runAsyncSetup } from '@/lib/utils/async-utils';
-import { applyGfmStrikethrough } from '../room/mdx-preprocess';
 import { debugLog } from '@/lib/debug-config';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 interface BaseOfficeProps {
   title: string;
@@ -28,67 +30,93 @@ interface BaseOfficeProps {
   nodeId?: string;
 }
 
-export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps) => {
+export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps): JSX.Element => {
   const { state } = useWorkspace();
 
   // Get the entity data from workspace state (unified node hierarchy)
-  const entityData = nodeId ? state.nodes[nodeId] : null;
+  const entityData: DomainNode | null = nodeId ? state.nodes[nodeId] : null;
 
   // Initialize content from mdx_content if available, otherwise use getInitialContent
   const [content, setContent] = useState<string>(
     entityData?.mdx_content || getInitialContent()
   );
-  const [compiledContent, setCompiledContent] = useState<React.ReactNode | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isNewContent, setIsNewContent] = useState(!entityData?.mdx_content);
-  const [tabSession, setTabSession] = useState<{ username?: string; fullName?: string } | null>(null);
-  const { toast } = useToast();
 
-  // Load tab session asynchronously
-  useEffect(() => {
-    runAsyncSetup(async () => {
-      const session = await connectionManager.getTabSelectedSession();
-      setTabSession(session);
-    });
-  }, []);
+  const [isNewContent, setIsNewContent] = useState(!entityData?.mdx_content);
+  const { toast } = useToast();
+  // Selection first, saved account second — see `tabIdentity`.
+  const tabSession: TabIdentity | null = useTabIdentity();
 
   // Determine if we're in a loading state
-  const isLoading = state.loading.nodes && !entityData;
+  const isLoading: boolean = state.loading.nodes && !entityData;
+
+  const { compiled: compiledContent, renderError } = useCompiledMdx(
+    content,
+    components,
+    // Only the STORED document is verified. While the user is editing, `content`
+    // is their unsaved buffer and will not match any hash — refusing to render
+    // their own typing would be absurd.
+    isEditing || isNewContent ? undefined : entityData?.mdx_content_hash,
+  );
 
   // Determine the domain ID for permission checks
-  const domainId = nodeId;
+  const domainId: string | undefined = nodeId;
 
   // Check if user can edit the MDX content using the permissions system
-  const { allowed: canEditMdx, reason: editDeniedReason, loading: permissionLoading } = usePermission(
+  const edit: ReturnType<typeof usePermission> = usePermission(
     domainId,
     Permission.EditMdx
   );
 
-  const handleSave = async () => {
-    try {
-      if (nodeId) {
-        await WorkspaceService.updateNode(nodeId, { mdxContent: content });
-      }
+  const { isDirty } = useUnsavedMdxGuard({ isEditing, content, ownerId: nodeId ?? WORKSPACE_ROOT_ID });
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
 
-      toast({
-        title: "Changes saved",
-        description: `The ${entityData?.name || title} page has been updated`,
-        className: "bg-[#232536] border-purple-800 text-purple-200",
-      });
-    } catch (error) {
-      debugLog('BaseOffice', 'Failed to save MDX content:', error);
-      toast({
-        title: "Error saving changes",
-        description: "There was a problem saving your changes. Please try again.",
-        variant: "destructive",
-      });
-    }
-
-    setIsEditing(false);
+  // Cancel used to be a bare toggle. The load effect below then restored the
+  // stored document over the buffer, so the edits were gone with no prompt.
+  const handleEditToggle = async (): Promise<void> => {
+    if (isEditing && isDirty && !(await confirm(DISCARD_EDIT_PROMPT))) return;
+    setIsEditing(!isEditing);
   };
 
-  // Update content when entity data changes
+  const handleSave = async (): Promise<void> => {
+    // The decision lives in saveOfficeContent so it can be tested without
+    // rendering the MDX pipeline; this supplies the I/O and reacts to the answer.
+    const saved: boolean = await saveOfficeContent({
+      nodeId,
+      content,
+      displayName: entityData?.name || title,
+      write: (id, mdxContent) => WorkspaceService.updateNode(id, { mdxContent }),
+      notify: ({ kind, title: noticeTitle, description }) =>
+        toast({
+          title: noticeTitle,
+          description,
+          variant: kind === 'success' ? 'success' : 'destructive',
+        }),
+      log: (message, error) => debugLog('BaseOffice', message, error),
+    });
+
+    // Only on a confirmed write: anything else and the user's text exists
+    // nowhere but this editor.
+    if (saved) setIsEditing(false);
+  };
+
+  // Load the document into the buffer — but NEVER while the user is editing it.
+  //
+  // `content` is the controlled value of the textarea, so every run of this
+  // effect replaced whatever was being typed and destroyed the native undo
+  // stack with it. It fired far more often than "when entity data changes":
+  // `getInitialContent` was a new function identity on every render of
+  // WorkspaceView, which subscribes to the whole workspace store — so a
+  // colleague's typing indicator or an incoming message elsewhere in the app
+  // wiped the open editor. On a brand-new node the else branch ran and replaced
+  // the user's work with the default template.
+  //
+  // A remote save is the deterministic case: it mints a new node object, and
+  // the author's paragraph became the other person's. Not overwriting is the
+  // safe half of that; telling the user their view is now stale is recorded in
+  // docs/ROBUSTNESS.md as the other half.
   useEffect(() => {
+    if (isEditing) return;
     if (entityData?.mdx_content) {
       setContent(entityData.mdx_content);
       setIsNewContent(false);
@@ -96,35 +124,11 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
       setContent(getInitialContent());
       setIsNewContent(true);
     }
-  }, [entityData, getInitialContent]);
+  }, [entityData, getInitialContent, isEditing]);
 
-  useEffect(() => {
-    const compileContent = async () => {
-      try {
-        debugLog('BaseOffice', 'Compiling MDX content...');
-        // remark-gfm handles strikethrough, tables, autolinks, task-lists.
-        // Pre-pass escapes JSX-significant chars inside `~~...~~` regions
-        // so `~~value < 5~~` doesn't fail MDX parsing before remark-gfm
-        // consumes it. See `applyGfmStrikethrough` for details.
-        const processedContent = applyGfmStrikethrough(content);
-        const result = await evaluate(processedContent, {
-          ...runtime,
-          remarkPlugins: [remarkGfm],
-          useMDXComponents: () => components,
-          baseUrl: window.location.origin
-        });
-        debugLog('BaseOffice', 'MDX compilation successful');
-        setCompiledContent(result.default({ components: components }));
-      } catch (error) {
-        debugLog('BaseOffice', 'Error compiling MDX:', error);
-      }
-    };
-
-    runAsyncSetup(compileContent);
-  }, [content]);
 
   // Handle template selection
-  const handleTemplateSelect = (template: MdxTemplate) => {
+  const handleTemplateSelect = (template: MdxTemplate): void => {
     // Replace content with template content
     setContent(template.content);
 
@@ -132,7 +136,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     toast({
       title: "Template applied",
       description: `Applied "${template.name}" template. You can now customize it.`,
-      className: "bg-[#232536] border-purple-800 text-purple-200",
+      variant: 'success',
     });
 
     // Content is no longer new once a template is applied
@@ -140,28 +144,32 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   };
 
   // Show skeleton loader during loading state
+  // Chat is enabled, disabled, or NOT YET ANSWERED -- see chat-surface.ts.
+  // `entityData?.chat_enabled ?? false` read the third as the second, so a node
+  // momentarily absent from `state.nodes` took the whole tab surface down and
+  // the composer with it.
+  const chat: ChatSurface | null = useChatSurface(nodeId, entityData);
+
   if (isLoading) {
     return <OfficeSkeletonLoader />;
   }
 
-  // Use permission check result, defaulting to true if no domain ID (demo mode)
-  const hasEditPermission = !domainId || canEditMdx;
-
-  // Check if chat is enabled for this office/room
-  const chatEnabled = entityData?.chat_enabled ?? false;
-  const chatChannelId = entityData?.chat_channel_id;
+  // True with no domain ID (demo mode). Otherwise `permitsAndReport`, whose
+  // docstring carries both halves of the reasoning: why an unanswered question
+  // must not read as a refusal, and why being offered without an answer is
+  // worth a line in the log.
+  const hasEditPermission: boolean = !domainId || permitsAndReport('BaseOffice', 'edit offered without an answer', domainId, edit);
+  const editDeniedReason: string | null = edit.reason;
 
   // Get current user info from workspace state OR connection manager
-  // The workspace state currentUser may not be populated yet during initial render
-  // tabSession is loaded asynchronously via useEffect
-  const currentUserId = state.currentUser?.id || state.currentUser?.username || tabSession?.username || 'unknown';
-  const currentUserName = state.currentUser?.displayName || state.currentUser?.username || tabSession?.fullName || tabSession?.username || 'Unknown User';
+  // State first, tab identity second — see `readerIdentity`.
+  const reader: ReaderIdentity = readerIdentity(state.currentUser, tabSession);
 
   // Content view (MDX editor or rendered content)
-  const contentView = isEditing ? (
+  const contentView: JSX.Element = isEditing ? (
     <div className="px-6 lg:px-10 pt-8 pb-4 max-w-4xl">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-white">Edit Content</h2>
+        <h2 className="text-lg font-semibold text-foreground">Edit Content</h2>
         <div className="flex gap-2">
           {(isNewContent || content.trim() === '') && (
             <TemplateSelector
@@ -182,20 +190,30 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
       />
     </div>
   ) : (
-    <div className="px-6 lg:px-10 pt-8 pb-4 prose prose-invert prose-sm md:prose-base lg:prose-lg max-w-4xl">
+    // dark:prose-invert, not prose-invert. The modifier inverts Typography's
+    // colours FOR a dark background, so applying it unconditionally made every
+    // heading and every bold run light-on-light in light mode: a workspace
+    // document showed its body copy and its emoji, and nothing else.
+    <div className="px-6 lg:px-10 pt-8 pb-4 prose dark:prose-invert prose-sm md:prose-base lg:prose-lg max-w-4xl">
       <MDXProvider components={components}>
-        {compiledContent}
+        {compiledContent ?? (renderError && (
+          // Only when there is nothing to show. A transient compile error while
+          // typing keeps the last good render, which is the whole point of
+          // holding it -- but a document that has never rendered used to be a
+          // blank body under a title, indistinguishable from an empty one.
+          <p role="alert" className="text-destructive-emphasis">{renderError}</p>
+        ))}
       </MDXProvider>
     </div>
   );
 
   // If chat is not enabled, just show the content
-  if (!chatEnabled || !chatChannelId) {
+  if (!chat || !chat.enabled || !chat.channelId) {
     return (
       <OfficeLayout
         title={entityData?.name || title}
         isEditing={isEditing}
-        onEditToggle={() => setIsEditing(!isEditing)}
+        onEditToggle={() => { void handleEditToggle(); }}
         onSave={handleSave}
         canEdit={hasEditPermission}
         editDeniedReason={editDeniedReason || undefined}
@@ -210,38 +228,20 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     <OfficeLayout
       title={entityData?.name || title}
       isEditing={isEditing}
-      onEditToggle={() => setIsEditing(!isEditing)}
+      onEditToggle={() => { void handleEditToggle(); }}
       onSave={handleSave}
       canEdit={hasEditPermission}
       editDeniedReason={editDeniedReason || undefined}
     >
-      <Tabs defaultValue="content" className="w-full h-full flex flex-col">
-        <div className="px-4 pt-4 border-b border-[#2D3548] flex-shrink-0">
-          <TabsList className="bg-[#1C1D28]">
-            <TabsTrigger value="content" className="data-[state=active]:bg-purple-600">
-              <FileText className="h-4 w-4 mr-2" />
-              Content
-            </TabsTrigger>
-            <TabsTrigger value="chat" className="data-[state=active]:bg-purple-600">
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Chat
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="content" className="mt-0 flex-1 overflow-auto">
-          {contentView}
-        </TabsContent>
-
-        <TabsContent value="chat" className="mt-0 flex-1 overflow-hidden">
-          <GroupChatView
-            groupId={chatChannelId}
-            currentUserId={currentUserId}
-            currentUserName={currentUserName}
-            rules={entityData?.rules ?? undefined}
-          />
-        </TabsContent>
-      </Tabs>
+      <OfficeChatTabs
+        contentView={contentView}
+        chatChannelId={chat.channelId}
+        nodeId={nodeId}
+        roomName={entityData?.name || title}
+        currentUserId={reader.id}
+        currentUserName={reader.displayName}
+        rules={entityData?.rules ?? undefined}
+      />
     </OfficeLayout>
   );
 };

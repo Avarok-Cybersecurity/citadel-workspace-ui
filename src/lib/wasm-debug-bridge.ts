@@ -19,14 +19,14 @@ declare global {
 export function parseAndFormatMixedContent(input: unknown): string {
   // If input is not a string, format it directly
   if (typeof input !== 'string') {
-    const formatted = formatForDebug(input);
+    const formatted: unknown = formatForDebug(input);
     return typeof formatted === 'string' ? formatted : JSON.stringify(formatted);
   }
   
   // First, check if the entire string is valid JSON
   try {
-    const parsed = JSON.parse(input);
-    const formatted = formatForDebug(parsed);
+    const parsed: unknown = JSON.parse(input);
+    const formatted: unknown = formatForDebug(parsed);
     return typeof formatted === 'string' ? formatted : JSON.stringify(formatted);
   } catch {
     // Not valid JSON as a whole, continue with mixed parsing
@@ -34,18 +34,18 @@ export function parseAndFormatMixedContent(input: unknown): string {
   
   // More robust regex to match JSON objects and arrays
   // This handles nested structures better
-  const jsonRegex = /(\{(?:[^{}]|(?:\{[^{}]*\})|(?:\[[^\[\]]*\]))*\})|(\[(?:[^\[\]]|(?:\{[^{}]*\})|(?:\[[^\[\]]*\]))*\])/g;
+  const jsonRegex: RegExp = /(\{(?:[^{}]|(?:\{[^{}]*\})|(?:\[[^\[\]]*\]))*\})|(\[(?:[^\[\]]|(?:\{[^{}]*\})|(?:\[[^\[\]]*\]))*\])/g;
   
   // Track the parts of the string and their positions
   const parts: Array<{type: 'text' | 'json', content: string, start: number, end: number}> = [];
-  let lastIndex = 0;
+  let lastIndex: number = 0;
   
   // Find all JSON matches
-  const matches = Array.from(input.matchAll(jsonRegex));
+  const matches: RegExpExecArray[] = Array.from(input.matchAll(jsonRegex));
   
   for (const match of matches) {
-    const jsonStr = match[0];
-    const startIndex = match.index!;
+    const jsonStr: string = match[0];
+    const startIndex: number = match.index!;
     
     // Add any text before this JSON object
     if (startIndex > lastIndex) {
@@ -96,9 +96,9 @@ export function parseAndFormatMixedContent(input: unknown): string {
   return parts.map(part => {
     if (part.type === 'json') {
       try {
-        const parsed = JSON.parse(part.content);
+        const parsed: unknown = JSON.parse(part.content);
         // formatForDebug returns the formatted object, we need to stringify it
-        const formatted = formatForDebug(parsed);
+        const formatted: unknown = formatForDebug(parsed);
         return typeof formatted === 'string' ? formatted : JSON.stringify(formatted);
       } catch {
         // If parsing fails somehow, return the original content
@@ -114,13 +114,13 @@ export function parseAndFormatMixedContent(input: unknown): string {
  * Set up the global wasmDebugLog function that the WASM module can call
  * This bridges the WASM debug logs to use our TypeScript debug formatter
  */
-export function setupWasmDebugBridge() {
+export function setupWasmDebugBridge(): void {
   // Make the debug log function available globally for WASM to call
-  window.wasmDebugLog = (logStr: string) => {
+  window.wasmDebugLog = (logStr: string): void => {
     try {
-      const mappedLog = parseAndFormatMixedContent(logStr);
+      const mappedLog: string = parseAndFormatMixedContent(logStr);
       debugLog('WasmDebugBridge', "sanitized log: " + mappedLog);
-    } catch (error) {
+    } catch (_error) {
       // If any error occurs, just log the original string
       debugLog('WasmDebugBridge', logStr);
     }
@@ -128,7 +128,7 @@ export function setupWasmDebugBridge() {
 
   // Set up the WebSocket disconnection callback
   // This is called by the WASM module when the WebSocket connection dies
-  window.onWasmWebSocketDisconnected = (reason: string) => {
+  window.onWasmWebSocketDisconnected = (reason: string): void => {
     debugLog('WasmDebugBridge', 'WebSocket disconnected:', reason);
 
     // Emit connection-failure event to show the retry modal

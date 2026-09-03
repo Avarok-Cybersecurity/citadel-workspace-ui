@@ -60,13 +60,11 @@ async function startBrowserCapture() {
   log('Dev server started, launching browser...');
   
   try {
-    // Import puppeteer
-    const puppeteer = await import('puppeteer');
-    
-    const browser = await puppeteer.default.launch({
+    const { chromium } = await import('playwright');
+
+    const browser = await chromium.launch({
       headless: false,
-      devtools: true,
-      args: ['--window-size=1280,800']
+      args: ['--window-size=1280,800', '--auto-open-devtools-for-tabs'],
     });
     
     const page = await browser.newPage();
@@ -86,7 +84,7 @@ async function startBrowserCapture() {
     
     // Capture network errors
     page.on('requestfailed', (request) => {
-      log(`[NETWORK ERROR] ${request.url()} failed: ${request.failure().errorText}`);
+      log(`[NETWORK ERROR] ${request.url()} failed: ${request.failure()?.errorText ?? 'unknown'}`);
     });
     
     log('Navigating to app...');

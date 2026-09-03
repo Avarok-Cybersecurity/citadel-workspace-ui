@@ -18,8 +18,6 @@ import type {
   TransferProgressEvent,
   TransferCompleteEvent,
   TransferStatusEvent,
-  ChunkData,
-  BlobResult,
 } from './io-router-types';
 import type { FileTransfer } from './types';
 
@@ -30,6 +28,22 @@ import type { FileTransfer } from './types';
  * allowing the FileTransferService to work with the I/O layer without changing business logic.
  */
 export interface IFileTransferIORouter {
+  /**
+   * Declare that an outgoing SendFile stream is NOT a chat transfer.
+   *
+   * The internal service stamps a revfs push's ticks with the browser's own
+   * SendFile request_id, and the tick correlator falls back to the oldest live
+   * transfer to the same peer when it cannot match one -- so an unregistered
+   * push can complete or fail an unrelated pending chat transfer. Every caller
+   * that issues a SendFile for something other than a chat transfer must say
+   * so here.
+   *
+   * On the interface rather than only on the protocol router so a caller
+   * outside this module can reach it without narrowing the type, and so a
+   * future router cannot quietly omit it.
+   */
+  markForeignOutgoingStream(requestId: string): void;
+
   // ============================================================================
   // Send Operations
   // ============================================================================
@@ -54,45 +68,6 @@ export interface IFileTransferIORouter {
    */
   cancelTransfer(params: CancelTransferParams): Promise<void>;
 
-  /**
-   * Send a file chunk (deprecated - not used by real protocol).
-   *
-   * The Citadel SDK handles chunking automatically. This method exists for
-   * interface compatibility but throws an error when called.
-   *
-   * @param transferId - Transfer ID
-   * @param recipientCid - Recipient CID
-   * @param chunkIndex - Chunk index (0-based)
-   * @param totalChunks - Total number of chunks
-   * @param data - Base64 encoded chunk data
-   * @deprecated Chunking is handled by the Citadel SDK
-   */
-  sendChunk(
-    transferId: string,
-    recipientCid: bigint,
-    chunkIndex: number,
-    totalChunks: number,
-    data: string
-  ): Promise<void>;
-
-  /**
-   * Send transfer completion notification (deprecated - not used by real protocol).
-   *
-   * The Citadel SDK signals completion automatically. This method exists for
-   * interface compatibility but throws an error when called.
-   *
-   * @param transferId - Transfer ID
-   * @param targetCid - Target CID
-   * @param success - Whether transfer was successful
-   * @param errorMessage - Error message if failed
-   * @deprecated Completion is signaled by the Citadel SDK
-   */
-  sendComplete(
-    transferId: string,
-    targetCid: bigint,
-    success: boolean,
-    errorMessage?: string
-  ): Promise<void>;
 
   // ============================================================================
   // Receive Operations
@@ -157,31 +132,6 @@ export interface IFileTransferIORouter {
   // ============================================================================
   // File Utilities
   // ============================================================================
-
-  /**
-   * Read a file chunk as base64.
-   *
-   * @param chunk - Blob chunk to convert
-   * @returns Base64 encoded string
-   */
-  fileChunkToBase64(chunk: Blob): Promise<string>;
-
-  /**
-   * Convert base64 string back to binary.
-   *
-   * @param base64 - Base64 encoded string
-   * @returns Binary data
-   */
-  base64ToBinary(base64: string): Uint8Array;
-
-  /**
-   * Create blob from received chunks and generate object URL.
-   *
-   * @param chunks - Array of received chunks
-   * @param fileType - MIME type of the file
-   * @returns Blob and object URL for download
-   */
-  createBlobFromChunks(chunks: ChunkData[], fileType: string): BlobResult;
 
   /**
    * Generate thumbnail for an image file.

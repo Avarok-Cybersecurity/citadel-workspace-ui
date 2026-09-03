@@ -9,6 +9,7 @@ import React from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
+import { CallEntryButtons } from '@/components/call/CallEntryButtons';
 import { getInitials } from '@/components/chat/shared';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { PeerPresence } from '@/lib/p2p';
@@ -20,6 +21,14 @@ interface P2PChatHeaderProps {
   isConnected: boolean;
   isRegistered: boolean;
   onSettingsClick: () => void;
+  /** Omitted where calling is not wired up, so the header stays usable. */
+  call?: {
+    canCall: boolean;
+    inCall: boolean;
+    capability: { supported: boolean; reason?: string };
+    onStartCall: (video: boolean) => void;
+    onLeave: () => void;
+  };
 }
 
 interface StatusDisplay {
@@ -29,33 +38,44 @@ interface StatusDisplay {
   customColor?: string;
 }
 
-function getStatusDisplay(
+export function getStatusDisplay(
   presence: PeerPresence,
   connected: boolean,
   registered: boolean
 ): StatusDisplay {
   if (connected) {
-    return { text: 'Online', color: 'bg-green-500', textColor: 'text-green-400' };
+    return { text: 'Online', color: 'bg-success', textColor: 'text-success-emphasis' };
   }
-  if (registered) {
-    return { text: 'Registered', color: 'bg-blue-500', textColor: 'text-blue-400' };
-  }
+
+  // `registered` used to short-circuit here, and it is true for every peer you
+  // can have a conversation with -- by construction, since the conversation
+  // exists because the registration does. So every branch below was
+  // unreachable: Away, Offline and the user's own custom status were sent by
+  // the peer, received, routed and stored, and displayed nowhere. The one
+  // surface designed to show presence showed the word "Registered" instead,
+  // which is protocol vocabulary, not a state a person is in.
+  //
+  // Registration now only decides what "we know nothing" looks like: an
+  // unregistered peer is genuinely unknown, a registered one with no presence
+  // yet is offline.
   switch (presence.status) {
     case MessagingLayerType.Online:
-      return { text: 'Online', color: 'bg-green-500', textColor: 'text-green-400' };
+      return { text: 'Online', color: 'bg-success', textColor: 'text-success-emphasis' };
     case MessagingLayerType.Away:
-      return { text: 'Away', color: 'bg-yellow-500', textColor: 'text-yellow-400' };
+      return { text: 'Away', color: 'bg-warning', textColor: 'text-warning-emphasis' };
     case MessagingLayerType.Offline:
-      return { text: 'Offline', color: 'bg-gray-400', textColor: 'text-gray-400' };
+      return { text: 'Offline', color: 'bg-muted-foreground', textColor: 'text-muted-foreground' };
     case MessagingLayerType.CustomState:
       return {
         text: presence.customText || 'Custom',
-        color: presence.customColor ? undefined : 'bg-purple-500',
-        textColor: 'text-purple-400',
+        color: presence.customColor ? undefined : 'bg-primary',
+        textColor: 'text-primary-accent',
         customColor: presence.customColor
       };
     default:
-      return { text: 'Offline', color: 'bg-gray-400', textColor: 'text-gray-400' };
+      return registered
+        ? { text: 'Offline', color: 'bg-muted-foreground', textColor: 'text-muted-foreground' }
+        : { text: 'Not connected', color: 'bg-muted-foreground', textColor: 'text-muted-foreground' };
   }
 }
 
@@ -66,39 +86,66 @@ export function P2PChatHeader({
   isConnected,
   isRegistered,
   onSettingsClick,
-}: P2PChatHeaderProps) {
-  const statusDisplay = getStatusDisplay(peerPresence, isConnected, isRegistered);
+  call,
+}: P2PChatHeaderProps): JSX.Element {
+  const statusDisplay: StatusDisplay = getStatusDisplay(peerPresence, isConnected, isRegistered);
 
   return (
-    <div className="border-b border-[#262C4A]/50 p-4 bg-[#1a1b26]">
+    <div className="border-b border-surface/50 p-4 bg-background">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar className="h-8 w-8 shrink-0">
             <AvatarFallback>{getInitials(peerName)}</AvatarFallback>
           </Avatar>
-          <div>
-            <h3 className="text-base font-semibold text-white">{peerName}</h3>
-            <div className="flex items-center gap-2 text-xs text-gray-400">
+          {/* min-w-0, or the `truncate` below can never fire: a flex item
+              defaults to min-width:auto, so this div never becomes narrower
+              than the name's max-content width and a long peer name renders
+              underneath the call and settings buttons. GroupChatHeader has
+              carried this exact fix, with a comment, since it was written. */}
+          <div className="min-w-0">
+            <h3 className="truncate text-base font-semibold text-foreground">{peerName}</h3>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <div
                 className={`h-2 w-2 rounded-full ${statusDisplay.color || ''}`}
                 style={statusDisplay.customColor ? { backgroundColor: statusDisplay.customColor } : undefined}
               />
               <span className={statusDisplay.textColor}>{statusDisplay.text}</span>
-              {peerTyping && (
-                <span className="ml-2 text-purple-400 animate-pulse">typing...</span>
-              )}
+              {/* Permanently mounted so the region pre-exists its text; a live
+                  region created together with its content is announced
+                  inconsistently or not at all. The pulse was purely visual. */}
+              <span role="status" aria-live="polite" className="ml-2 text-primary-accent">
+                {peerTyping ? <span className="animate-pulse">typing...</span> : null}
+              </span>
             </div>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onSettingsClick}
-          className="text-gray-400 hover:text-white hover:bg-[#262C4A]"
-          data-testid="chat-settings-button"
-        >
-          <Settings className="h-5 w-5" />
-        </Button>
+        {/* One group, so justify-between has exactly TWO children to separate:
+            identity on the left, actions on the right. With the call buttons as
+            a third sibling they were distributed to the MIDDLE of the header —
+            visibly wrong, and it grew worse as the peer name got shorter.
+            shrink-0 keeps the actions intact when a long name runs out of room. */}
+        <div className="flex shrink-0 items-center gap-1">
+          {call && (
+            <CallEntryButtons
+              targetName={peerName}
+              canCall={call.canCall}
+              inCall={call.inCall}
+              capability={call.capability}
+              onStartCall={call.onStartCall}
+              onLeave={call.onLeave}
+            />
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onSettingsClick}
+            aria-label="Chat settings"
+            className="text-muted-foreground hover:text-foreground hover:bg-surface"
+            data-testid="chat-settings-button"
+          >
+            <Settings className="h-5 w-5" aria-hidden="true" />
+          </Button>
+        </div>
       </div>
     </div>
   );

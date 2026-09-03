@@ -10,17 +10,22 @@
 
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
+import { makeForwardFallback, attachForwardListeners, startPendingRequestCleanup, emitLocal } from './router-forwarding';
+import { setP2PReplay } from '@/lib/p2p/p2p-handler-ready';
 import { instanceChannel } from './instance-channel';
 import { debugLog } from '@/lib/debug-config';
+import { routeByRequestId, type PendingRequest } from './route-by-request-id';
 import { INTERVAL } from '../timeout-constants';
 import {
   REQUEST_TRACKING_TIMEOUT_MS,
   LEADER_MUST_PROCESS_LOCALLY,
+  UNRELIABLE_FORWARDS,
   getMessageType,
   shouldBroadcast,
 } from './routing-rules';
 import { extractRequestId, extractTargetCid } from './message-routing';
 import { OrphanBuffer } from './orphan-buffer';
+import type { InstanceInfo } from '@/lib/multi-instance/instance-manager-types';
 
 debugLog('InstanceInboundRouter', '[ILM-Router] Module loading...');
 
@@ -28,20 +33,21 @@ class InstanceInboundRouter {
   private static instance: InstanceInboundRouter;
 
   private isActive: boolean = false;
-  private pendingRequestMap: Map<string, { instanceId: string; timestamp: number }> = new Map();
+  private pendingRequestMap: Map<string, PendingRequest> = new Map();
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
   /**
-   * Buffer for messages whose owner couldn't be found at dispatch
-   * time. See `orphan-buffer.ts` for the timer/replay lifecycle.
-   * Drained when `instance:registered` fires with a matching CID; on
-   * timeout, the buffer invokes `processLocalMessage` so we never
-   * silently strand a real message.
+   * Holds messages with no known owner AND forwards awaiting an ack. See
+   * `orphan-buffer.ts` for the timer/replay lifecycle and
+   * `router-forwarding.ts` for what a timeout does.
    */
-  private readonly orphanBuffer = new OrphanBuffer(
-    (message) => this.processLocalMessage(message),
+  private readonly orphanBuffer: OrphanBuffer = new OrphanBuffer(
+    makeForwardFallback((message) => this.processLocalMessage(message)),
   );
 
   private constructor() {
+    // Replays re-enter the same path, so a held message is delivered exactly
+    // as a fresh one would be.
+    setP2PReplay((message) => this.processLocalMessage(message));
     debugLog('InstanceInboundRouter', '[ILM-Router] Constructor called, setting up event listeners...');
     this.setupEventListeners();
     this.startCleanupInterval();
@@ -67,10 +73,9 @@ class InstanceInboundRouter {
       }
     });
 
-    eventEmitter.on('channel:inbound-message', (data: { payload: unknown; senderInstanceId: string }) => {
-      const messageType = getMessageType(data.payload);
-      debugLog('InstanceInboundRouter', `[ILM-Router] Received forwarded message: type=${messageType}`);
-      this.processLocalMessage(data.payload);
+    attachForwardListeners({
+      processLocally: (message) => this.processLocalMessage(message),
+      retireForward: (requestId) => this.orphanBuffer.ack(requestId),
     });
 
     eventEmitter.on('channel:outbound-request', (data: { requestId?: string; senderInstanceId: string; payload?: unknown }) => {
@@ -98,14 +103,8 @@ class InstanceInboundRouter {
   // ── Cleanup ──────────────────────────────────────────────────────────
 
   private startCleanupInterval(): void {
-    this.cleanupInterval = setInterval(() => {
-      const now = Date.now();
-      for (const [requestId, entry] of this.pendingRequestMap) {
-        if (now - entry.timestamp > REQUEST_TRACKING_TIMEOUT_MS) {
-          this.pendingRequestMap.delete(requestId);
-        }
-      }
-    }, INTERVAL.CLEANUP_MS);
+    this.cleanupInterval = startPendingRequestCleanup(
+      this.pendingRequestMap, REQUEST_TRACKING_TIMEOUT_MS, INTERVAL.CLEANUP_MS);
   }
 
   registerPendingRequest(requestId: string, instanceId: string): void {
@@ -117,12 +116,12 @@ class InstanceInboundRouter {
 
   routeMessage(message: Record<string, unknown>): void {
     if (!this.isActive) {
-      debugLog('InstanceInboundRouter', 'routeMessage called but not leader');
+      debugLog('InstanceInboundRouter', '[ILM-Router] routeMessage called but not leader');
       return;
     }
 
-    const messageType = getMessageType(message);
-    const requestId = extractRequestId(message);
+    const messageType: ReturnType<typeof getMessageType> = getMessageType(message);
+    const requestId: string | null = extractRequestId(message);
     debugLog('InstanceInboundRouter',
       `[ILM-Router] routeMessage: type=${messageType}, requestId=${requestId}, pendingMapSize=${this.pendingRequestMap.size}`
     );
@@ -134,48 +133,15 @@ class InstanceInboundRouter {
     }
 
     if (requestId) {
-      const routed = this.routeByRequestId(message, messageType, requestId);
+      const routed: boolean = routeByRequestId({ pendingRequestMap: this.pendingRequestMap, processLocalMessage: (m) => this.processLocalMessage(m) }, message, messageType, requestId);
       if (routed) return;
     }
 
     this.routeByCid(message, messageType);
   }
 
-  private routeByRequestId(
-    message: Record<string, unknown>,
-    messageType: string,
-    requestId: string,
-  ): boolean {
-    const pending = this.pendingRequestMap.get(requestId);
-    if (!pending) return false;
-
-    debugLog('InstanceInboundRouter',
-      `[ILM-Router] Routing ${messageType} by request_id ${requestId} -> ${pending.instanceId}`
-    );
-    this.pendingRequestMap.delete(requestId);
-
-    if (messageType === 'ConnectSuccess' || messageType === 'RegisterSuccess') {
-      const cid = extractTargetCid(message);
-      if (cid) {
-        debugLog('InstanceInboundRouter', `[ILM-Router] Registering CID ${cid} for instance ${pending.instanceId}`);
-        instanceManager.registerInstance(pending.instanceId, BigInt(cid));
-      }
-    }
-
-    if (pending.instanceId === instanceManager.instanceId) {
-      this.processLocalMessage(message);
-    } else {
-      instanceChannel.forwardToInstance(pending.instanceId, message);
-      if (LEADER_MUST_PROCESS_LOCALLY.has(messageType)) {
-        debugLog('InstanceInboundRouter', `[ILM-Router] Also processing ${messageType} locally for central state (via request_id path)`);
-        this.processLocalMessage(message);
-      }
-    }
-    return true;
-  }
-
   private routeByCid(message: Record<string, unknown>, messageType: string): void {
-    const targetCid = extractTargetCid(message);
+    const targetCid: string | null = extractTargetCid(message);
     debugLog('InstanceInboundRouter', `[ILM-Router] Routing ${messageType} (CID: ${targetCid || 'none'})`);
 
     if (!targetCid) {
@@ -183,13 +149,30 @@ class InstanceInboundRouter {
       return;
     }
 
-    const targetInstance = instanceManager.findInstanceByCid(BigInt(targetCid));
+    const targetInstance: string | null = instanceManager.findInstanceByCid(BigInt(targetCid));
 
     if (targetInstance) {
       if (targetInstance === instanceManager.instanceId) {
         this.processLocalMessage(message);
       } else {
-        instanceChannel.forwardToInstance(targetInstance, message);
+        // Retained until the target acks. No ack within the buffer timeout and
+        // the fallback above fires — the same terminal path an unowned CID
+        // takes — so a dropped BroadcastChannel post can no longer lose the
+        // message. A cid re-registration meanwhile drains and re-routes it,
+        // which is the mid-reload recovery path.
+        if (UNRELIABLE_FORWARDS.has(messageType)) {
+          // Fire and forget; see UNRELIABLE_FORWARDS. Retaining a media frame
+          // costs a uuid, a timer and the payload PER FRAME, and its fallback
+          // decodes another tab's video on this one.
+          instanceChannel.forwardToInstance(targetInstance, message);
+        } else {
+          const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+          this.orphanBuffer.push(targetCid, message, messageType, {
+            requestId,
+            targetInstanceId: targetInstance,
+          });
+          instanceChannel.forwardToInstance(targetInstance, message, requestId);
+        }
         if (LEADER_MUST_PROCESS_LOCALLY.has(messageType)) {
           debugLog('InstanceInboundRouter', `[ILM-Router] Also processing ${messageType} locally for central state (ILM visibility)`);
           this.processLocalMessage(message);
@@ -202,19 +185,22 @@ class InstanceInboundRouter {
         this.processLocalMessage(message);
         return;
       }
-      const knownInstances = instanceManager.getAllInstances();
-      debugLog('InstanceInboundRouter', `No instance owns CID ${targetCid}, message may be lost`);
-      debugLog('InstanceInboundRouter', `Known instances: ${knownInstances.map(i => `${i.instanceId}->${i.cid?.toString()}`).join(', ')}`);
-      // Self-heal: BUFFER the orphaned message for up to the buffer
-      // timeout, then either replay to the correct tab when a
-      // cid-report lands OR fall back to processing locally on
-      // timeout. Prior to the buffer, the current message was always
-      // processed on the leader tab immediately — visible misdelivery
-      // for user-facing notifications (chat messages, file-transfer
-      // prompts) on every first message after a stale CID map. The
-      // buffer holds for the BroadcastChannel round-trip; if no
-      // follower owns the CID, the fallback timer makes the leader
-      // process locally so we never strand a real message.
+      const knownInstances: InstanceInfo[] = instanceManager.getAllInstances();
+      debugLog('InstanceInboundRouter', `[ILM-Router] No instance owns CID ${targetCid}, message may be lost`);
+      debugLog('InstanceInboundRouter', `[ILM-Router] Known instances: ${knownInstances.map(i => `${i.instanceId}->${i.cid?.toString()}`).join(', ')}`);
+      // Self-heal: buffer the orphan, then replay to the right tab when a
+      // cid-report lands, or fall back to processing locally on timeout.
+      // Processing on the leader immediately (the old behaviour) misdelivered
+      // user-facing notifications on every first message after a stale CID map;
+      // the fallback timer still guarantees nothing is stranded.
+      if (UNRELIABLE_FORWARDS.has(messageType)) {
+        // Dropped, not buffered. A frame replayed after the orphan timeout is
+        // two seconds stale, which is a worse artefact than the gap the
+        // pipeline already knows how to recover from.
+        debugLog('InstanceInboundRouter', `[ILM-Router] Dropping ${messageType} for unowned CID ${targetCid}`);
+        instanceChannel.requestCidReport();
+        return;
+      }
       this.orphanBuffer.push(targetCid, message, messageType);
       instanceChannel.requestCidReport();
     }
@@ -228,7 +214,7 @@ class InstanceInboundRouter {
   }
 
   private processLocalMessage(message: unknown): void {
-    eventEmitter.emit('websocket-message', message);
+    emitLocal(message); // holds P2P traffic until something can receive it
   }
 
   routeToInstance(targetInstanceId: string, message: unknown): void {
@@ -245,5 +231,5 @@ class InstanceInboundRouter {
 }
 
 // Export singleton instance + class (the latter for testing).
-export const instanceInboundRouter = InstanceInboundRouter.getInstance();
+export const instanceInboundRouter: InstanceInboundRouter = InstanceInboundRouter.getInstance();
 export { InstanceInboundRouter };

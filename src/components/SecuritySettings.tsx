@@ -1,6 +1,8 @@
+import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
+import { DEFAULT_SECURITY_SETTINGS } from './security-settings-defaults';
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ArrowRight } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { SecurityLevelSelect } from "./security/SecurityLevelSelect";
 import { SecurityModeSelect } from "./security/SecurityModeSelect";
 import { useState, useEffect } from "react";
@@ -41,18 +43,9 @@ export const SecuritySettings = ({
   onComplete,
   initialValues,
   isFromLogin = false
-}: SecuritySettingsProps) => {
+}: SecuritySettingsProps): JSX.Element => {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
-  const queryClient = useQueryClient();
-  const [settings, setSettings] = useState<SecuritySettingsValues>({
-    securityLevel: 'Standard',
-    secrecyMode: 'BestEffort',
-    encryptionAlgorithm: 'AES_GCM_256',
-    kemAlgorithm: 'MlKem',
-    sigAlgorithm: 'None',
-    headerObfuscatorSettings: {},
-    storeCredentials: false,
-  });
+  const [settings, setSettings] = useState<SecuritySettingsValues>(DEFAULT_SECURITY_SETTINGS);
 
   // Initialize settings with provided initialValues if available
   useEffect(() => {
@@ -67,15 +60,17 @@ export const SecuritySettings = ({
   const { mutate: updateSecuritySettings } = useMutation({
     mutationFn: (newSettings: SecuritySettingsValues) => {
       debugLog('SecuritySettings', 'Updating security settings:', JSON.stringify(newSettings));
-      debugLog('SecuritySettings', 'serverConnectForm cache BEFORE onSuccess:', queryClient.getQueryData(['serverConnectForm']));
       return Promise.resolve(newSettings);
     },
     onSuccess: (updatedSettings) => {
-      debugLog('SecuritySettings', 'onSuccess called, serverConnectForm cache:', queryClient.getQueryData(['serverConnectForm']));
-      // Save the security settings to query cache
-      queryClient.setQueryData(['securitySettings'], updatedSettings);
-
-      debugLog('SecuritySettings', 'serverConnectForm cache AFTER setQueryData securitySettings:', queryClient.getQueryData(['serverConnectForm']));
+      // NOT written to the query cache.
+      //
+      // Nothing observed the ['securitySettings'] key, so React Query dropped
+      // the entry after its default five-minute gcTime and the registration
+      // hook's `|| defaults` fallback quietly took over: a user who raised
+      // their security level and then spent five minutes on the profile step
+      // registered with the defaults, permanently, with nothing said. The
+      // chosen values now travel by prop, like the server address does.
 
       // If onComplete is provided, call it with the current settings
       if (onComplete) {
@@ -86,33 +81,35 @@ export const SecuritySettings = ({
     },
   });
 
-  const handleNext = () => {
+  const handleNext = (): void => {
     // Update the security settings and let the onSuccess handler navigate
     updateSecuritySettings(settings);
   };
 
-  const handleSettingChange = <K extends keyof SecuritySettingsValues>(key: K, value: SecuritySettingsValues[K]) => {
+  const handleSettingChange = <K extends keyof SecuritySettingsValues>(key: K, value: SecuritySettingsValues[K]): void => {
     setSettings(prev => ({
       ...prev,
       [key]: value
     }));
   };
 
+  const { ref: dialogRef, dialogProps } = useDialogOverlay({ label: 'Security settings', onDismiss: onBack });
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto" ref={dialogRef} {...dialogProps}>
       <div className="w-full max-w-xl">
-        <Card className="bg-[#1C1D28] border-[#2D3548] shadow-2xl shadow-black/40">
+        <Card className="bg-background border-border shadow-2xl shadow-black/40">
           <CardHeader className="pb-4">
             {!isFromLogin && (
               <StepIndicator currentStep={2} totalSteps={3} labels={["Server", "Security", "Profile"]} />
             )}
-            <h2 className="text-xl font-bold text-white mt-5">Security Settings</h2>
-            <p className="text-sm text-gray-400 mt-1">
+            <h2 className="text-xl font-bold text-foreground mt-5">Security Settings</h2>
+            <p className="text-sm text-muted-foreground mt-1">
               Configure security settings for your workspace connection
             </p>
           </CardHeader>
 
-          <CardContent className="space-y-5 max-h-[calc(100vh-16rem)] overflow-y-auto scrollbar-visible">
+          <CardContent className="space-y-5 max-h-[calc(100dvh-16rem)] overflow-y-auto scrollbar-visible">
             <SecurityLevelSelect
               value={settings.securityLevel}
               onChange={(value) => handleSettingChange('securityLevel', value as SecurityLevel)}
@@ -126,9 +123,9 @@ export const SecuritySettings = ({
             <div className="space-y-2">
               <button
                 onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-                className="flex items-center gap-2 text-gray-400 w-full transition-colors duration-200 hover:text-purple-300 py-2"
+                className="flex items-center gap-2 text-muted-foreground w-full transition-colors duration-200 hover:text-primary-accent py-2"
               >
-                <span className="text-[11px] font-semibold tracking-wider uppercase">Advanced Settings</span>
+                <span className="text-xs font-semibold tracking-wider uppercase">Advanced Settings</span>
                 <ChevronDown
                   className={cn(
                     "w-4 h-4 transition-transform duration-300",
@@ -153,14 +150,15 @@ export const SecuritySettings = ({
               type="button"
               variant="ghost"
               onClick={onBack}
-              className="text-gray-400 hover:text-white hover:bg-transparent"
+              className="text-muted-foreground hover:text-foreground hover:bg-transparent"
             >
               Back
             </Button>
             <Button
               type="button"
               onClick={handleNext}
-              className="bg-purple-600 hover:bg-purple-500 text-white transition-all gap-2 px-5 rounded-lg shadow-lg shadow-purple-500/20"
+              data-testid="wizard-next"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground transition-all gap-2 px-5 rounded-lg shadow-lg shadow-primary-accent/20"
             >
               {isFromLogin ? "Save" : "Next"}
               {!isFromLogin && <ArrowRight className="w-4 h-4" />}

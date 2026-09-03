@@ -8,11 +8,10 @@
 import { v4 as uuidv4 } from 'uuid';
 import { websocketService } from '@/lib/websocket-service';
 import { instanceManager } from '@/lib/multi-instance';
-import type { StoredSession, ActiveSession } from '@/types/session-types';
+import type { StoredSession, ActiveSession, StoredSessions } from '@/types/session-types';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
-import type { ConnectionAttempt } from './types';
-import { BASE_DELAY, MAX_DELAY } from './types';
+import { BASE_DELAY, MAX_DELAY , type ConnectionAttempt } from './types';
 
 /**
  * Generate a unique key for a session.
@@ -34,7 +33,7 @@ export async function reconnectToDisconnectedSessions(
 
   const { connectionManager } = await import('@/lib/connection');
 
-  const storedSessions = connectionManager.getStoredSessions();
+  const storedSessions: StoredSessions = connectionManager.getStoredSessions();
   if (!storedSessions.sessions || storedSessions.sessions.length === 0) return;
 
   let activeSessions: ActiveSession[] = [];
@@ -45,11 +44,11 @@ export async function reconnectToDisconnectedSessions(
     debugLog('ServerAutoConnectService', 'Failed to get active sessions:', error);
   }
 
-  const activeKeys = new Set<string>();
+  const activeKeys: Set<string> = new Set<string>();
   debugLog('ServerAutoConnectService', `Active sessions count: ${activeSessions.length}`);
   for (const session of activeSessions) {
     if (session.username) {
-      const key = `${session.username}@${session.server_address}`;
+      const key: string = `${session.username}@${session.server_address}`;
       activeKeys.add(key);
       debugLog('ServerAutoConnectService', `Active session key: ${key}`);
     }
@@ -57,7 +56,7 @@ export async function reconnectToDisconnectedSessions(
 
   debugLog('ServerAutoConnectService', `Stored sessions count: ${storedSessions.sessions.length}`);
   for (const session of storedSessions.sessions) {
-    const sessionKey = getSessionKey(session);
+    const sessionKey: string = getSessionKey(session);
     debugLog('ServerAutoConnectService', `Checking stored session: ${sessionKey}, active: ${activeKeys.has(sessionKey)}`);
 
     if (activeKeys.has(sessionKey)) {
@@ -104,11 +103,18 @@ export async function attemptReconnect(
   sessionKey: string,
   session: StoredSession
 ): Promise<void> {
-  const attempt = reconnectAttempts.get(sessionKey);
+  const attempt: ConnectionAttempt | undefined = reconnectAttempts.get(sessionKey);
   if (!attempt) return;
 
   try {
     debugLog('ServerAutoConnectService', `Attempting reconnect for ${session.username} (attempt ${attempt.attempts + 1})`);
+
+    if (!session.password) {
+      // Already filtered above, but the guard is what makes that filter a fact
+      // rather than a comment: a password-less session must never reach connect.
+      debugLog('ServerAutoConnectService', `No stored credentials for ${session.username}; skipping`);
+      return;
+    }
 
     await websocketService.connect(
       uuidv4(),
@@ -118,7 +124,7 @@ export async function attemptReconnect(
     );
     // Success handled by event listener
   } catch (error) {
-    const delay = Math.min(BASE_DELAY * Math.pow(2, attempt.attempts), MAX_DELAY);
+    const delay: number = Math.min(BASE_DELAY * Math.pow(2, attempt.attempts), MAX_DELAY);
     attempt.attempts++;
     attempt.lastError = error instanceof Error ? error.message : String(error);
 
@@ -144,11 +150,24 @@ export function cancelRetry(
   reconnectAttempts: Map<string, ConnectionAttempt>,
   sessionKey: string
 ): void {
-  const attempt = reconnectAttempts.get(sessionKey);
-  if (attempt?.timeout) {
+  const attempt: ConnectionAttempt | undefined = reconnectAttempts.get(sessionKey);
+  if (!attempt) return;
+
+  // Clear the timer if there is one, but delete the entry EITHER WAY.
+  //
+  // The delete used to sit inside `if (attempt?.timeout)`, and `timeout` is
+  // null until a retry is actually scheduled — so a session that connected
+  // successfully on its first attempt kept its entry forever. The scheduler
+  // skips any session already in this map (`if (reconnectAttempts.has(...))
+  // continue`), so auto-reconnect never fired again for that account for the
+  // life of the tab: the happy path disabled the recovery path.
+  //
+  // It also kept getPendingReconnectCount() above zero permanently, which is
+  // the readiness signal main.tsx exposes for tests to wait on.
+  if (attempt.timeout) {
     clearTimeout(attempt.timeout);
-    reconnectAttempts.delete(sessionKey);
   }
+  reconnectAttempts.delete(sessionKey);
 }
 
 /**

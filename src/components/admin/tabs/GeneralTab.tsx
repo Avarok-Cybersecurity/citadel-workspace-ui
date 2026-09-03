@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef  , type MutableRefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,8 +9,9 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '@/lib/workspace-service';
 import { Loader2 } from 'lucide-react';
 import { debugLog } from '@/lib/debug-config';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
-export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
+export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTabProps): JSX.Element {
   const { state } = useWorkspace();
   const { toast } = useToast();
   const [name, setName] = useState('');
@@ -20,9 +21,23 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
   const [hasChanges, setHasChanges] = useState(false);
   const [originalName, setOriginalName] = useState('');
   const [originalDescription, setOriginalDescription] = useState('');
+  const seededKeyRef: MutableRefObject<string | null> = useRef<string | null>(null);
+  const dirtyRef: MutableRefObject<boolean> = useRef(false);
 
   useEffect(() => {
-    const loadData = () => {
+    // `state.nodes` is re-minted by ANY node event in the workspace — including a
+    // teammate saving an unrelated document — so this effect re-runs constantly.
+    // Re-seeding then replaced whatever the admin was typing AND reset the
+    // originals, flipping hasChanges back to false so Save greyed out: the work
+    // was gone and the UI denied it had existed.
+    //
+    // An untouched form still follows the store, which is what makes a genuine
+    // remote rename visible. Only unsaved edits are protected.
+    const entityKey: string = `${entityType}:${entityId}`;
+    if (seededKeyRef.current === entityKey && dirtyRef.current) return;
+    seededKeyRef.current = entityKey;
+
+    const loadData = (): void => {
       setLoading(true);
       try {
         if (entityType === 'workspace' && state.workspace) {
@@ -31,7 +46,7 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
           setOriginalName(state.workspace.name);
           setOriginalDescription(state.workspace.description || '');
         } else {
-          const node = state.nodes[entityId];
+          const node: DomainNode = state.nodes[entityId];
           if (node) {
             setName(node.name);
             setDescription(node.description || '');
@@ -48,10 +63,12 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
   }, [entityType, entityId, state.workspace, state.nodes]);
 
   useEffect(() => {
-    setHasChanges(name !== originalName || description !== originalDescription);
+    const dirty: boolean = name !== originalName || description !== originalDescription;
+    setHasChanges(dirty);
+    dirtyRef.current = dirty;
   }, [name, description, originalName, originalDescription]);
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
     if (!name.trim()) {
       toast({
         title: 'Error',
@@ -90,7 +107,7 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
       toast({
         title: 'Success',
         description: `${entityType.charAt(0).toUpperCase() + entityType.slice(1)} updated successfully`,
-        className: 'bg-[#232536] border-purple-800 text-purple-200',
+        variant: 'success',
       });
 
       setOriginalName(name);
@@ -108,7 +125,7 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = (): void => {
     setName(originalName);
     setDescription(originalDescription);
   };
@@ -116,7 +133,7 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8" data-testid="general-tab-loading">
-        <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary-accent" />
       </div>
     );
   }
@@ -124,23 +141,23 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
   return (
     <div className="space-y-6" data-testid="general-tab-content">
       <div className="space-y-2">
-        <Label htmlFor="entity-name" className="text-white">
-          Name <span className="text-red-400">*</span>
+        <Label htmlFor="entity-name" className="text-foreground">
+          Name <span className="text-destructive-emphasis">*</span>
         </Label>
         <Input
           id="entity-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={`Enter ${entityType} name`}
-          className="bg-[#232536] border-[#3D3F5A] text-white placeholder:text-gray-500"
+          className="bg-card border-surface text-foreground placeholder:text-muted-foreground"
           maxLength={100}
           data-testid="general-name-input"
         />
-        <p className="text-xs text-gray-400">{name.length}/100 characters</p>
+        <p className="text-xs text-muted-foreground">{name.length}/100 characters</p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="entity-description" className="text-white">
+        <Label htmlFor="entity-description" className="text-foreground">
           Description
         </Label>
         <Textarea
@@ -148,11 +165,11 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder={`Enter ${entityType} description (optional)`}
-          className="bg-[#232536] border-[#3D3F5A] text-white placeholder:text-gray-500 min-h-[100px]"
+          className="bg-card border-surface text-foreground placeholder:text-muted-foreground min-h-[100px]"
           maxLength={500}
           data-testid="general-description-input"
         />
-        <p className="text-xs text-gray-400">{description.length}/500 characters</p>
+        <p className="text-xs text-muted-foreground">{description.length}/500 characters</p>
       </div>
 
       <div className="flex justify-end gap-3 pt-4">
@@ -160,7 +177,7 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
           variant="outline"
           onClick={handleCancel}
           disabled={!hasChanges || saving}
-          className="border-gray-600 text-white hover:bg-[#232536]"
+          className="border-border text-foreground hover:bg-card"
           data-testid="general-cancel-button"
         >
           Reset
@@ -168,7 +185,7 @@ export function GeneralTab({ entityType, entityId, onClose }: AdminTabProps) {
         <Button
           onClick={handleSave}
           disabled={!hasChanges || saving}
-          className="bg-purple-600 hover:bg-purple-700 text-white"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
           data-testid="general-save-button"
         >
           {saving ? (

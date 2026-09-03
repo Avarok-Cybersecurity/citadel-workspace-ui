@@ -19,8 +19,7 @@ import {
     waitForP2PChannelReady,
     sendMessage,
     verifyMessageReceived,
-    sleep,
-} from '../lib/index.js';
+    sleep, isHeaded,} from '../lib/index.js';
 import { config, isCI } from '../lib/config.js';
 
 /* ── Shared state ── */
@@ -56,8 +55,8 @@ const LAUNCH_ARGS = [
 
 async function createSession(label: 'a' | 'b', isFirst: boolean): Promise<UserSession> {
     const browser = await chromium.launch({
-        headless: isCI,
-        slowMo: isCI ? 0 : 50,
+        headless: !isHeaded,
+        slowMo: isHeaded ? 50 : 0,
         args: LAUNCH_ARGS,
     });
     const context = await browser.newContext({ storageState: undefined });
@@ -80,7 +79,13 @@ async function createSession(label: 'a' | 'b', isFirst: boolean): Promise<UserSe
         throw new Error(`Failed to register ${label}: ${user.username}`);
     }
 
-    await waitForWorkspaceLoaded(page, 30_000);
+    // Checked, not fired and forgotten: this returns false rather than
+    // throwing, so ignoring it let a workspace that never loaded run the
+    // whole block and fail later somewhere unrelated.
+    expect(
+      await waitForWorkspaceLoaded(page, 30_000),
+      'the workspace should finish loading',
+    ).toBe(true);
     await closeAnyModals(page);
 
     return { browser, context, page, username: user.username };
@@ -100,21 +105,62 @@ test.describe.serial('P2P Messaging', () => {
         await sessionB?.browser.close();
     });
 
+    // Every helper below returns a boolean and is DESIGNED not to throw —
+    // registration.ts says so outright: "these helpers report failure through
+    // their return value and the caller decides. Silently discarding it is what
+    // made the group-call stall unreadable."
+    //
+    // This test discarded all six. A total handshake failure surfaced in CI as
+    // two green tests named "P2P registration and handshake" and "Open
+    // conversations on both sides", on the suite's flagship leg.
     test('P2P registration and handshake', async () => {
         // User A discovers and registers with User B
-        await p2pRegister(sessionA.page, sessionA.username, sessionB.username);
+        expect(
+            await p2pRegister(sessionA.page, sessionA.username, sessionB.username),
+            `${sessionA.username} should be able to register with ${sessionB.username}`
+        ).toBe(true);
 
         // User B accepts the request
-        await acceptP2PRequest(sessionB.page, sessionB.username);
+        expect(
+            await acceptP2PRequest(sessionB.page, sessionB.username),
+            `${sessionB.username} should be able to accept the request`
+        ).toBe(true);
 
         // Wait for P2P channel to be fully ready (bidirectional)
-        await waitForP2PChannelReady(sessionA.page, sessionA.username, sessionB.username);
-        await waitForP2PChannelReady(sessionB.page, sessionB.username, sessionA.username);
+        expect(
+            await waitForP2PChannelReady(sessionA.page, sessionA.username, sessionB.username),
+            `the channel should be ready from ${sessionA.username} to ${sessionB.username}`
+        ).toBe(true);
+        expect(
+            await waitForP2PChannelReady(sessionB.page, sessionB.username, sessionA.username),
+            `the channel should be ready from ${sessionB.username} to ${sessionA.username}`
+        ).toBe(true);
     });
 
     test('Open conversations on both sides', async () => {
-        await openConversation(sessionA.page, sessionA.username, sessionB.username);
-        await openConversation(sessionB.page, sessionB.username, sessionA.username);
+        expect(
+            await openConversation(sessionA.page, sessionA.username, sessionB.username),
+            `${sessionA.username} should be able to open the conversation`
+        ).toBe(true);
+        expect(
+            await openConversation(sessionB.page, sessionB.username, sessionA.username),
+            `${sessionB.username} should be able to open the conversation`
+        ).toBe(true);
+    });
+
+    // A chat transcript has to be a live region or an arriving message is
+    // silent: a screen reader user only learns about it by going to look. axe
+    // reports nothing — a live region is not required markup, it is a decision
+    // that had not been made. Asserted where a conversation is actually open,
+    // because that is the only place the transcript exists.
+    test('the transcript is announced as it grows', async () => {
+        const log = sessionA.page.getByRole('log', { name: /conversation/i });
+        await expect(log).toBeAttached();
+
+        // role="log" implies polite announcement of additions; an assertive
+        // region here would interrupt the user mid-sentence on every message.
+        const live = await log.first().getAttribute('aria-live');
+        expect(live === null || live === 'polite', `aria-live was "${live}"`).toBe(true);
     });
 
     test('Send message A → B', async () => {
@@ -164,5 +210,78 @@ test.describe.serial('P2P Messaging', () => {
             const received = await verifyMessageReceived(sessionA.page, sessionA.username, msg);
             expect(received).toBe(true);
         }
+    });
+
+    // The Stats tab read `p2p-messages:{cid}` and `file-transfers:{cid}` from
+    // localStorage. Neither key is written anywhere in the app — each appeared
+    // exactly once, in the read — so both tiles showed 0 for every conversation
+    // no matter how long. Asserted AFTER the exchanges above, so a zero here
+    // means the panel is not reading real data.
+    //
+    // Runs before the clear test, which empties the transcript on purpose.
+    test('the stats tab counts real messages', async () => {
+        const page = sessionA.page;
+        await page.getByTestId('chat-settings-button').click({ force: true });
+        const statsTab = page.getByTestId('tab-stats');
+        await expect(statsTab).toBeEnabled({ timeout: 10_000 });
+        await statsTab.click({ force: true });
+
+        const count = page.getByText('Messages', { exact: true }).locator('..').locator('p').first();
+        await expect(count).toBeVisible({ timeout: 30_000 });
+        const text = (await count.textContent())?.trim() ?? '';
+        expect(Number(text), `stats showed "${text}" after a conversation`).toBeGreaterThan(0);
+
+        // Close the panel so the following test starts from the chat again.
+        await page.keyboard.press('Escape');
+    });
+
+    // "Clear Chat History" ran localStorage.removeItem('chat-history:' + cid) —
+    // a key nothing in the app has ever written — while its dialog said
+    // "Messages stored on this device are removed. This cannot be undone."
+    // Nothing was removed. In a product sold on privacy, being TOLD the data is
+    // gone when it is not is worse than not offering the button.
+    //
+    // Runs last: it destroys the transcript the earlier tests built.
+    test('clearing chat history actually removes the messages', async () => {
+        const page = sessionA.page;
+        const doomed = `Clear me [${Date.now()}]`;
+        await sendMessage(page, sessionA.username, doomed);
+        await expect(page.getByText(doomed, { exact: false }).first()).toBeVisible({ timeout: 30_000 });
+
+        await page.getByTestId('chat-settings-button').click({ force: true });
+        // The control lives in the Advanced tab, which is not the default one.
+        await page.getByTestId('tab-advanced').click({ force: true });
+        // `force` gets past the panel's own scrim; the wait is what stops the
+        // click landing before the control it names has arrived.
+        const clearButton = page.getByRole('button', { name: /clear chat history/i });
+        await expect(clearButton).toBeEnabled({ timeout: 10_000 });
+        await clearButton.click({ force: true });
+
+        // NOT forced, and the wait is the point.
+        //
+        // The confirmation is a Radix AlertDialog that animates in. `force`
+        // skips the actionability check, so this clicked the coordinates of a
+        // button that had not finished arriving -- the click landed on nothing
+        // and the dialog was still open thirty seconds later, with the message
+        // it was supposed to delete behind it. It failed once and passed on
+        // retry, which is what a race looks like from the outside.
+        const confirmClear = page.getByRole('button', { name: /^clear history$/i });
+        await expect(confirmClear).toBeEnabled({ timeout: 10_000 });
+        await confirmClear.click();
+
+        // The dialog closing is the app's own statement that it took the
+        // answer. Asserting the messages are gone without it cannot tell "the
+        // clear did nothing" from "the click did nothing".
+        await expect(confirmClear).toHaveCount(0, { timeout: 10_000 });
+
+        // Gone from the open conversation — the in-memory copy, which the old
+        // implementation never touched either.
+        await expect(page.getByText(doomed, { exact: false })).toHaveCount(0, { timeout: 30_000 });
+
+        // And gone after a reload, which is the half that proves the PERSISTED
+        // pages were deleted rather than the view merely re-rendered.
+        await page.reload({ waitUntil: 'commit', timeout: 60_000 });
+        await waitForAppReady(page, 60_000);
+        await expect(page.getByText(doomed, { exact: false })).toHaveCount(0, { timeout: 30_000 });
     });
 });

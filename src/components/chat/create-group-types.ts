@@ -5,7 +5,8 @@
 export interface AvailablePeer {
   cid: string;
   username: string;
-  isOnline: boolean;
+  /** True, false, or null when no poll has landed. See lib/presence.ts. */
+  isOnline: boolean | null;
 }
 
 export interface SelectedMember {

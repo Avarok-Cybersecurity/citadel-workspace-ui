@@ -14,6 +14,7 @@
 
 import type { Page, Browser, BrowserContext } from 'playwright';
 import {
+  isVisibleWithin,
   sleep,
   createBrowser,
   createAccount,
@@ -41,6 +42,7 @@ interface TestResult {
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'C2S Reconnection Test',
     reportFileName: 'c2s-reconnection-test.json',
     metadata: { username: USERNAME },
@@ -62,7 +64,7 @@ async function runTest(): Promise<boolean> {
     page = await context.newPage();
 
     // Setup console capture to detect session errors
-    setupConsoleCapture(page, USERNAME, ['Session Already Connected', 'Ratchet does not exist', 'ratchet v']);
+    setupConsoleCapture(page, USERNAME, ['Session Already Connected', 'Ratchet does not exist', 'ratchet v', 'ILM']);
 
     // Also track errors in our array
     page.on('console', (msg) => {
@@ -121,7 +123,7 @@ async function runTest(): Promise<boolean> {
     // Navigate to General office if visible (optional — not a test criterion)
     try {
       const generalOffice = page.locator('text=General').first();
-      if (await generalOffice.isVisible({ timeout: 3000 })) {
+      if (await isVisibleWithin(generalOffice, 3000)) {
         await generalOffice.click();
         await sleep(1000);
         console.log('  Clicked General office');
@@ -200,7 +202,7 @@ async function runTest(): Promise<boolean> {
     // Try to navigate to General office again to verify workspace functionality
     try {
       const generalOffice = page.locator('text=General').first();
-      if (await generalOffice.isVisible({ timeout: 5000 })) {
+      if (await isVisibleWithin(generalOffice, 5000)) {
         await generalOffice.click();
         await sleep(1000);
         console.log('  Clicked General office after reconnection');

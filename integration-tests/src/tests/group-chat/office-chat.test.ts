@@ -3,6 +3,28 @@
  *
  * Tests group chat messaging in an office with parameterized user counts (2, 3).
  * Each test creates N users and verifies bidirectional messaging between all pairs.
+ *
+ * A note worth keeping, because this spec spent a while looking like a product bug
+ * and was not one.
+ *
+ * It failed on the SECOND direction of every exchange, and wholesale with three
+ * users. The messages were arriving and rendering correctly the whole time — a
+ * screenshot of the "failed" tab showed the message on screen. The assertion was
+ * at fault: verifyGroupMessageReceived raced the exact text against a
+ * 20-character prefix in one locator, and every message here begins
+ * "office msg from ", so once a second message was on screen the union matched two
+ * different elements. Playwright raises a strict-mode violation for that, and
+ * isVisibleWithin's catch turns it into a plain false.
+ *
+ * The lesson that generalises: a locator union needs an outer .first() to collapse
+ * it — `a.or(b).first()`, never `a.first().or(b.first())` — and a "did it arrive"
+ * assertion must match on something unique to the message, not on a prefix shared
+ * by every message in the run.
+ *
+ * The delivery path itself is fine, and was verified directly: the receiving tab
+ * logs the MessageNotification, decodes it to a GroupMessageNotification, and
+ * hands it to groupMessagingManager, in both browser topologies (N tabs sharing
+ * one WebSocket, and isolated contexts).
  */
 
 import {

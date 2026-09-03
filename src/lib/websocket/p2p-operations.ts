@@ -8,8 +8,9 @@
 import { requestResponse, requestResponseSoft } from './request-response';
 import { debugLog, errorLog } from '../debug-config';
 import { getDefaultSecuritySettings } from '../security-utils';
-import { stringToBytes } from '../utils/encoding-utils';
+import { sendP2PMessage, sendP2PMessageBytes } from './p2p-message-dispatch';
 import { TIMEOUT } from '../timeout-constants';
+import type { SessionSecuritySettings } from '@/lib/security-utils';
 
 export interface P2PConfig {
   init: () => Promise<void>;
@@ -24,56 +25,14 @@ export class P2POperations {
     this.config = config;
   }
 
-  /**
-   * Common send path for both string- and bytes-shaped P2P message APIs.
-   * Validates the CID pair, builds the `InternalServiceRequest::Message`
-   * envelope, and dispatches via `config.sendMessage`. The wire `message`
-   * field is `Vec<u8>` on the Rust side — `number[]` is the JSON-friendly
-   * representation both branches converge on.
-   */
-  private async dispatchP2PMessage(
-    cid: bigint, targetCid: bigint, messageBytes: number[], callerLabel: string
-  ): Promise<void> {
-    await this.config.init();
-    if (cid === undefined || cid === null) {
-      throw new Error('CID is required to send P2P message');
-    }
-    if (targetCid === undefined || targetCid === null) {
-      throw new Error('Target CID (peer_cid) is required to send P2P message');
-    }
-
-    const messageRequest = {
-      Message: {
-        request_id: crypto.randomUUID(),
-        message: messageBytes,
-        cid: cid,
-        peer_cid: targetCid,
-        security_level: 'Standard'
-      }
-    };
-
-    debugLog('P2POperations', `[P2P] ${callerLabel}`, {
-      cid: cid.toString(), targetCid: targetCid.toString(), messageLength: messageBytes.length,
-    });
-
-    await this.config.sendMessage(messageRequest);
-  }
-
-  /**
-   * Send a P2P message to a peer.
-   */
+  /** Send a P2P message to a peer. Delegates to the dispatch module. */
   async sendP2PMessage(cid: bigint, targetCid: bigint, message: string): Promise<void> {
-    return this.dispatchP2PMessage(cid, targetCid, stringToBytes(message), 'sendP2PMessage');
+    return sendP2PMessage(this.config, cid, targetCid, message);
   }
 
-  /**
-   * Send raw bytes over the P2P channel. Mirrors `sendP2PMessage` but skips
-   * the UTF-8 reinterpretation step — callers (e.g. the Yjs provider, which
-   * CBOR-encodes its messages) already have bytes and would otherwise lose
-   * data when `stringToBytes` round-trips them through `TextEncoder`.
-   */
+  /** Send raw bytes over the P2P channel. Delegates to the dispatch module. */
   async sendP2PMessageBytes(cid: bigint, targetCid: bigint, message: Uint8Array): Promise<void> {
-    return this.dispatchP2PMessage(cid, targetCid, Array.from(message), 'sendP2PMessageBytes');
+    return sendP2PMessageBytes(this.config, cid, targetCid, message);
   }
 
   /**
@@ -92,13 +51,21 @@ export class P2POperations {
 
     debugLog('P2POperations', 'Opening P2P connection', { cid: cid.toString(), targetCid: targetCid.toString() });
 
-    const requestId = crypto.randomUUID();
-    const peerConnectRequest = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const peerConnectRequest: { PeerConnect: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: bigint; udp_mode: string; session_security_settings: SessionSecuritySettings; }; } = {
       PeerConnect: {
         request_id: requestId,
         cid: cid,
         peer_cid: targetCid,
-        udp_mode: 'Disabled',
+        // Enabled so a call has a datagram path. Media cannot ride the reliable
+        // channel: there is no such thing as a lost packet there, so congestion
+        // becomes unbounded latency instead of loss, and a call three seconds
+        // behind is worse than one that dropped a frame.
+        //
+        // Messaging is unaffected — it keeps using the reliable channel. If UDP
+        // negotiation fails the connection still comes up; only calling is lost,
+        // and the media layer reports that explicitly rather than hanging.
+        udp_mode: 'Enabled',
         session_security_settings: getDefaultSecuritySettings()
       }
     };
@@ -109,7 +76,7 @@ export class P2POperations {
       operationName: 'PeerConnect',
       matcher: {
         matchSuccess: (msg) => {
-          const r = msg as { PeerConnectSuccess?: { request_id: string } };
+          const r: { PeerConnectSuccess?: { request_id: string; }; } = msg as { PeerConnectSuccess?: { request_id: string } };
           if (r.PeerConnectSuccess?.request_id === requestId) {
             debugLog('P2POperations', 'P2P connection established', { targetCid: targetCid.toString() });
             return true;
@@ -117,9 +84,9 @@ export class P2POperations {
           return undefined;
         },
         matchFailure: (msg) => {
-          const r = msg as { PeerConnectFailure?: { request_id: string; message?: string } };
+          const r: { PeerConnectFailure?: { request_id: string; message?: string; }; } = msg as { PeerConnectFailure?: { request_id: string; message?: string } };
           if (r.PeerConnectFailure?.request_id === requestId) {
-            const error = r.PeerConnectFailure.message || 'PeerConnect failed';
+            const error: string = r.PeerConnectFailure.message || 'PeerConnect failed';
             errorLog('P2P connection failed:', error);
             return error;
           }
@@ -143,14 +110,17 @@ export class P2POperations {
 
     debugLog('P2POperations', 'Accepting P2P connection', { cid: cid.toString(), peerCid: peerCid.toString() });
 
-    const requestId = crypto.randomUUID();
-    const acceptRequest = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const acceptRequest: { PeerConnectAccept: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: bigint; accept: boolean; udp_mode: string; session_security_settings: {}; peer_session_password: null; }; } = {
       PeerConnectAccept: {
         request_id: requestId,
         cid: cid,
         peer_cid: peerCid,
         accept: true,
-        udp_mode: (notification?.udp_mode as string) || 'Disabled',
+        // Mirrors the initiator, defaulting to Enabled: a call needs BOTH ends
+        // to have negotiated a datagram path, so an acceptor that quietly
+        // dropped to Disabled would make every call it answered media-less.
+        udp_mode: (notification?.udp_mode as string) || 'Enabled',
         session_security_settings: notification?.session_security_settings || getDefaultSecuritySettings(),
         peer_session_password: null
       }
@@ -161,15 +131,26 @@ export class P2POperations {
       sendRequest: this.config.sendMessage,
       operationName: 'PeerConnectAccept',
       matchSuccess: (msg) => {
-        const r = msg as { PeerConnectAcceptSuccess?: { request_id: string } };
-        if (r.PeerConnectAcceptSuccess?.request_id === requestId) {
+        // `accept` is read, not just `request_id`. The response answers a
+        // decline with the same type — it means "your answer was delivered",
+        // not "they accepted" — so matching on the id alone would report a
+        // refusal as a established connection. That exact confusion, on
+        // PeerRegisterSuccess, is what registered peers people had declined.
+        const r: { PeerConnectAcceptSuccess?: { request_id: string; accept?: boolean; }; } =
+          msg as { PeerConnectAcceptSuccess?: { request_id: string; accept?: boolean } };
+        const answer: { request_id: string; accept?: boolean } | undefined = r.PeerConnectAcceptSuccess;
+        if (answer?.request_id === requestId) {
+          if (answer.accept === false) {
+            debugLog('P2POperations', 'P2P connection was DECLINED, not accepted', { peerCid });
+            return false;
+          }
           debugLog('P2POperations', 'P2P connection accept sent', { peerCid });
           return true;
         }
         return false;
       },
       matchFailure: (msg) => {
-        const r = msg as { PeerConnectAcceptFailure?: { request_id: string; message?: string } };
+        const r: { PeerConnectAcceptFailure?: { request_id: string; message?: string; }; } = msg as { PeerConnectAcceptFailure?: { request_id: string; message?: string } };
         if (r.PeerConnectAcceptFailure?.request_id === requestId) {
           return r.PeerConnectAcceptFailure.message || 'PeerConnectAccept failed';
         }
@@ -197,8 +178,8 @@ export class P2POperations {
 
     debugLog('P2POperations', 'Disconnecting P2P connection', { localCid: localCid.toString(), peerCid: peerCid.toString() });
 
-    const requestId = crypto.randomUUID();
-    const peerDisconnectRequest = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const peerDisconnectRequest: { PeerDisconnect: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: bigint; }; } = {
       PeerDisconnect: { request_id: requestId, cid: localCid, peer_cid: peerCid }
     };
 
@@ -208,7 +189,7 @@ export class P2POperations {
       operationName: 'PeerDisconnect',
       matcher: {
         matchSuccess: (msg) => {
-          const r = msg as {
+          const r: { PeerDisconnectSuccess?: { request_id: string; }; DisconnectNotification?: { request_id?: string; peer_cid?: bigint; }; } = msg as {
             PeerDisconnectSuccess?: { request_id: string };
             DisconnectNotification?: { request_id?: string; peer_cid?: bigint };
           };
@@ -217,7 +198,7 @@ export class P2POperations {
             return true;
           }
           if (r.DisconnectNotification) {
-            const n = r.DisconnectNotification;
+            const n: { request_id?: string; peer_cid?: bigint; } = r.DisconnectNotification;
             if (n.request_id === requestId || n.peer_cid === peerCid) {
               debugLog('P2POperations', 'P2P disconnect notification received', { peerCid: peerCid.toString() });
               return true;
@@ -226,9 +207,9 @@ export class P2POperations {
           return undefined;
         },
         matchFailure: (msg) => {
-          const r = msg as { PeerDisconnectFailure?: { request_id: string; message?: string } };
+          const r: { PeerDisconnectFailure?: { request_id: string; message?: string; }; } = msg as { PeerDisconnectFailure?: { request_id: string; message?: string } };
           if (r.PeerDisconnectFailure?.request_id === requestId) {
-            const error = r.PeerDisconnectFailure.message || 'PeerDisconnect failed';
+            const error: string = r.PeerDisconnectFailure.message || 'PeerDisconnect failed';
             errorLog('P2P disconnect failed:', error);
             return error;
           }

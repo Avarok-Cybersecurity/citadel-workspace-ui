@@ -15,26 +15,26 @@ interface BubbleFooterProps {
   onRetry?: () => void;
 }
 
-function getMessageStatusIcon(message: P2PMessage) {
+function getMessageStatusIcon(message: P2PMessage): JSX.Element | null {
   switch (message.status) {
     case 'pending':
-      return <Clock className="h-3 w-3 text-gray-400" data-testid="message-status-pending" />;
+      return <Clock className="h-3 w-3 text-muted-foreground" data-testid="message-status-pending" />;
     case 'sent':
-      return <Check className="h-3 w-3 text-gray-400" data-testid="message-status-sent" />;
+      return <Check className="h-3 w-3 text-muted-foreground" data-testid="message-status-sent" />;
     case 'delivered':
-      return <CheckCheck className="h-3 w-3 text-gray-400" data-testid="message-status-delivered" />;
+      return <CheckCheck className="h-3 w-3 text-muted-foreground" data-testid="message-status-delivered" />;
     case 'read':
-      return <CheckCheck className="h-3 w-3 text-sky-400" data-testid="message-status-read" />;
+      return <CheckCheck className="h-3 w-3 text-primary-accent" data-testid="message-status-read" />;
     case 'failed':
-      return <XCircle className="h-3 w-3 text-red-400" data-testid="message-status-failed" />;
+      return <XCircle className="h-3 w-3 text-destructive" data-testid="message-status-failed" />;
     default:
       return null;
   }
 }
 
-export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
-  const isFailed = message.status === 'failed';
-  const statusIcon = getMessageStatusIcon(message);
+export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps): JSX.Element {
+  const isFailed: boolean = message.status === 'failed';
+  const statusIcon: JSX.Element | null = getMessageStatusIcon(message);
 
   return (
     <>
@@ -42,6 +42,17 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
         <span className="text-xs opacity-70" data-testid="message-timestamp">
           {formatTime(message.timestamp)}
         </span>
+        {message.edited_at !== undefined && (
+          // Both parties need to see that a message was revised, or an edit is
+          // indistinguishable from having misread the original.
+          <span
+            className="text-xs opacity-70"
+            data-testid="message-edited-marker"
+            title={`Edited ${formatTime(message.edited_at)}`}
+          >
+            (edited)
+          </span>
+        )}
         {isOwn && statusIcon && (
           <TooltipProvider delayDuration={300}>
             <Tooltip>
@@ -52,7 +63,7 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
               </TooltipTrigger>
               <TooltipContent
                 side="top"
-                className="bg-[#1C1D28] border-gray-700 p-3"
+                className="bg-background border-border p-3"
               >
                 <MessageStatusDetails message={message} />
               </TooltipContent>
@@ -63,16 +74,16 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps) {
         {isOwn && isFailed && onRetry && (
           <button
             onClick={onRetry}
-            className="ml-1 p-0.5 rounded hover:bg-white/10 transition-colors"
+            className="ml-1 p-0.5 rounded hover:bg-foreground/10 transition-colors"
             title="Retry sending"
           >
-            <RefreshCw className="h-3 w-3 text-red-400 hover:text-white" />
+            <RefreshCw className="h-3 w-3 text-destructive hover:text-foreground" />
           </button>
         )}
       </div>
       {/* Error message for failed sends */}
       {isOwn && isFailed && message.error && (
-        <p className="text-xs text-red-400 mt-1">{message.error}</p>
+        <p className="text-xs text-destructive-emphasis mt-1">{message.error}</p>
       )}
     </>
   );

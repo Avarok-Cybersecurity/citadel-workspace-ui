@@ -29,8 +29,31 @@ import {
   navigateToOfficeViaUI,
   deleteNodeViaUI,
   nodeExistsInUI,
+  nodeGoneFromUI,
+  // Protocol reads — used only to verify what the UI actions actually did on
+  // the server. The UI can only show you a name in a list; it cannot show you
+  // which parent the server recorded.
+  getNodeViaProtocol,
+  getTreeStructure,
+  type TreeNode,
   type DiagnosticsHandle,
 } from '../lib/index.js';
+
+/**
+ * Find a node by name anywhere in a tree.
+ *
+ * `findNodeInTree` from the shared lib searches by id, and the UI helpers only
+ * ever hand back names — the ids live in the `tree-node-<id>` testids, which is
+ * a longer way round than just asking the server for the tree.
+ */
+function findNodeIdByName(tree: TreeNode, name: string): string | null {
+  if (tree.node.name === name) return tree.node.id;
+  for (const child of tree.children) {
+    const found = findNodeIdByName(child, name);
+    if (found) return found;
+  }
+  return null;
+}
 
 // ============================================================================
 // Types
@@ -40,7 +63,8 @@ interface TestResults {
   // Setup
   accountCreation: boolean;
   workspaceLoaded: boolean;
-  workspaceRootFound: boolean;
+  /** The workspace root resolves to a real Workspace node on the server. */
+  workspaceRootResolves: boolean;
 
   // Node Creation Tests
   officeCreated: boolean;
@@ -88,7 +112,7 @@ async function runTest(): Promise<boolean> {
   const results: TestResults = {
     accountCreation: false,
     workspaceLoaded: false,
-    workspaceRootFound: false,
+    workspaceRootResolves: false,
     officeCreated: false,
     roomCreated: false,
     roomUnderCorrectParent: false,
@@ -129,8 +153,11 @@ async function runTest(): Promise<boolean> {
       throw new Error('Failed to create admin account');
     }
 
-    await waitForWorkspaceLoaded(page);
-    results.workspaceLoaded = true;
+    // waitForWorkspaceLoaded returns whether the sidebar ever appeared; it does
+    // not throw on timeout. Discarding it and assigning `true` made this a
+    // result that could only ever print PASS, including on the run where the
+    // workspace never loaded and everything after it failed for that reason.
+    results.workspaceLoaded = await waitForWorkspaceLoaded(page);
     await takeScreenshot(page, `${ADMIN_USER}_admin_ready`);
 
     // ========================================================================
@@ -140,9 +167,17 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 2: Get Workspace Root ID');
     console.log('-'.repeat(50));
 
+    // `getWorkspaceRootId` cannot return null — it falls back to the
+    // 'workspace-root' sentinel every server in this codebase understands. So
+    // `!== null` asserted nothing and passed unconditionally. What is worth
+    // asserting is that the id it hands back actually resolves to a Workspace
+    // node on the server, which is what the rest of the test depends on.
     const workspaceRootId = await getWorkspaceRootId(page);
-    results.workspaceRootFound = workspaceRootId !== null;
-    console.log(`  Workspace root ID: ${workspaceRootId || 'NOT FOUND (using placeholder)'}`);
+    console.log(`  Workspace root ID: ${workspaceRootId}`);
+    const rootNode = workspaceRootId ? await getNodeViaProtocol(page, workspaceRootId) : null;
+    results.workspaceRootResolves =
+      rootNode !== null && rootNode.entity_type === 'Workspace' && rootNode.depth === 0;
+    console.log(`  Workspace root resolves: ${results.workspaceRootResolves ? 'PASS' : 'FAIL'}`);
 
     // ========================================================================
     // STEP 3: Create Office Node
@@ -184,8 +219,22 @@ async function runTest(): Promise<boolean> {
         results.roomCreated = roomResult.success;
         console.log(`  Room creation: ${results.roomCreated ? 'PASS' : 'FAIL'}`);
 
-        // Verify room is in the sidebar (under the office context)
-        results.roomUnderCorrectParent = await nodeExistsInUI(page, TEST_ROOM);
+        // Parentage is not something the sidebar can tell you. This assertion
+        // used to be `nodeExistsInUI(TEST_ROOM)` — byte-for-byte the same call
+        // as `roomExistsAfterCreate` two steps later — so a room created at the
+        // workspace root instead of under the office would have passed it.
+        // Ask the server what parent it actually recorded.
+        const tree = await getTreeStructure(page);
+        const officeId = tree ? findNodeIdByName(tree, TEST_OFFICE) : null;
+        const roomId = tree ? findNodeIdByName(tree, TEST_ROOM) : null;
+        if (officeId && roomId) {
+          const roomNode = await getNodeViaProtocol(page, roomId);
+          results.roomUnderCorrectParent =
+            roomNode !== null && roomNode.parent_id === officeId;
+          console.log(`  Room parent: ${roomNode?.parent_id} (expected office ${officeId})`);
+        } else {
+          console.log(`  Could not locate office/room in the server tree (office=${officeId}, room=${roomId})`);
+        }
         console.log(`  Room under correct parent: ${results.roomUnderCorrectParent ? 'PASS' : 'FAIL'}`);
       }
     }
@@ -214,10 +263,11 @@ async function runTest(): Promise<boolean> {
       results.officeDeletedWithCascade = deleteResult.success;
       console.log(`  Office deleted: ${results.officeDeletedWithCascade ? 'PASS' : 'FAIL'}`);
 
-      // Verify room was also deleted (cascade)
-      await sleep(1000);
-      const roomStillExists = await nodeExistsInUI(page, TEST_ROOM);
-      results.roomDeletedByCascade = !roomStillExists;
+      // Absence, asserted as absence. `!(await nodeExistsInUI(...))` waits the
+      // full 10s appearance timeout for a node that is supposed to be gone;
+      // nodeGoneFromUI waits for the opposite state and returns as soon as it
+      // holds.
+      results.roomDeletedByCascade = await nodeGoneFromUI(page, TEST_ROOM);
       console.log(`  Room deleted by cascade: ${results.roomDeletedByCascade ? 'PASS' : 'FAIL'}`);
     }
 
@@ -273,7 +323,7 @@ async function runTest(): Promise<boolean> {
     console.log('\nSetup:');
     console.log(`  Account Creation:           ${results.accountCreation ? 'PASS' : 'FAIL'}`);
     console.log(`  Workspace Loaded:           ${results.workspaceLoaded ? 'PASS' : 'FAIL'}`);
-    console.log(`  Workspace Root Found:       ${results.workspaceRootFound ? 'PASS' : 'SKIP'}`);
+    console.log(`  Workspace Root Resolves:    ${results.workspaceRootResolves ? 'PASS' : 'FAIL'}`);
 
     console.log('\nNode Creation:');
     console.log(`  Office Created:             ${results.officeCreated ? 'PASS' : 'FAIL'}`);
@@ -292,14 +342,23 @@ async function runTest(): Promise<boolean> {
     console.log(`  Second Office Created:       ${results.secondOfficeCreated ? 'PASS' : 'FAIL'}`);
     console.log(`  Leaf Node Deleted:           ${results.leafNodeDeletedWithoutCascade ? 'PASS' : 'FAIL'}`);
 
-    // Determine overall pass/fail
+    // Every line this test prints above is now gated here. The old list read
+    // six of the eleven results, so a room created under the wrong parent, an
+    // office that vanished from the sidebar, or a leaf delete that silently
+    // did nothing all printed FAIL and the run still exited green.
     const criticalTests = [
       results.accountCreation,
       results.workspaceLoaded,
+      results.workspaceRootResolves,
       results.officeCreated,
       results.roomCreated,
+      results.roomUnderCorrectParent,
+      results.officeExistsAfterCreate,
+      results.roomExistsAfterCreate,
       results.officeDeletedWithCascade,
       results.roomDeletedByCascade,
+      results.secondOfficeCreated,
+      results.leafNodeDeletedWithoutCascade,
     ];
 
     const allCriticalPassed = criticalTests.every(Boolean);
@@ -307,10 +366,6 @@ async function runTest(): Promise<boolean> {
     console.log('\n' + '='.repeat(60));
     console.log(`OVERALL: ${allCriticalPassed ? 'TEST PASSED' : 'TEST FAILED'}`);
     console.log('='.repeat(60));
-
-    // Keep browser open for inspection
-    console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
-    await sleep(15000);
 
     if (browser) {
       await browser.close();

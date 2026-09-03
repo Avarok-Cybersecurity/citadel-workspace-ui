@@ -6,6 +6,7 @@
  */
 
 import { useCallback } from 'react';
+import { failureDescription } from '@/lib/p2p/peer-failure-detail';
 import { fileTransferService } from '@/lib/file-transfer';
 import { useToast } from '@/hooks/use-toast';
 import type { FileTransferMode } from '@/types/messaging-layer';
@@ -30,7 +31,7 @@ export function useP2PFileTransfer({
 }: UseP2PFileTransferProps): UseP2PFileTransferReturn {
   const { toast } = useToast();
 
-  const handleSendFile = useCallback(async (file: File, mode: FileTransferMode) => {
+  const handleSendFile: (file: File, mode: FileTransferMode) => Promise<void> = useCallback(async (file: File, mode: FileTransferMode): Promise<void> => {
     try {
       await fileTransferService.sendFile(peerCid.toString(), file, mode);
       toast({
@@ -42,13 +43,13 @@ export function useP2PFileTransfer({
       toast({
         variant: 'destructive',
         title: 'Failed to send file',
-        description: error instanceof Error ? error.message : 'Check your connection and try again.',
+        description: failureDescription(error, 'Check your connection and try again.'),
       });
       throw error;
     }
   }, [peerCid, peerName, toast]);
 
-  const handleAcceptTransfer = useCallback(async (transferId: string) => {
+  const handleAcceptTransfer: (transferId: string) => Promise<void> = useCallback(async (transferId: string): Promise<void> => {
     try {
       await fileTransferService.acceptTransfer(transferId);
     } catch (error) {
@@ -56,28 +57,42 @@ export function useP2PFileTransfer({
       toast({
         variant: 'destructive',
         title: 'Failed to accept file',
-        description: error instanceof Error ? error.message : 'Unknown error',
+        description: failureDescription(error, 'Unknown error'),
       });
     }
   }, [toast]);
 
-  const handleDeclineTransfer = useCallback(async (transferId: string) => {
+  // Decline and cancel report failures the same way accept above already did.
+  // They used to only debugLog, which is a no-op outside dev — so a decline
+  // that failed left the request sitting there with no explanation, and the
+  // obvious reading is that the button is broken.
+  const handleDeclineTransfer: (transferId: string) => Promise<void> = useCallback(async (transferId: string): Promise<void> => {
     try {
       await fileTransferService.declineTransfer(transferId);
     } catch (error) {
       debugLog('UseP2PFileTransfer', 'Failed to decline transfer:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Failed to decline file',
+        description: failureDescription(error, 'Unknown error'),
+      });
     }
-  }, []);
+  }, [toast]);
 
-  const handleCancelTransfer = useCallback(async (transferId: string) => {
+  const handleCancelTransfer: (transferId: string) => Promise<void> = useCallback(async (transferId: string): Promise<void> => {
     try {
       await fileTransferService.cancelTransfer(transferId);
     } catch (error) {
       debugLog('UseP2PFileTransfer', 'Failed to cancel transfer:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Failed to cancel transfer',
+        description: failureDescription(error, 'Unknown error'),
+      });
     }
-  }, []);
+  }, [toast]);
 
-  const handleOpenFile = useCallback((downloadPath: string) => {
+  const handleOpenFile: (downloadPath: string) => void = useCallback((downloadPath: string): void => {
     debugLog('UseP2PFileTransfer', 'Opening file:', downloadPath);
     toast({
       title: 'File Ready',

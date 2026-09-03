@@ -28,8 +28,10 @@ import {
   closeAnyModals,
   TestHarness,
   runTestMain,
+  isHiddenWithin,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -42,6 +44,7 @@ interface TestResults {
   defaultTree: boolean;
   folderCreation: boolean;
   folderDeletion: boolean;
+  deletionPersisted: boolean;
   fileUpload: boolean;
   fileVisible: boolean;
   fileDeletion: boolean;
@@ -107,7 +110,7 @@ async function switchToServerStorageMode(page: Page): Promise<boolean> {
     }
 
     // Click the Server Storage button
-    if (await serverStorageBtn.isVisible({ timeout: 5000 })) {
+    if (await isVisibleWithin(serverStorageBtn, 5000)) {
       await serverStorageBtn.click();
       console.log('  Clicked Server Storage button');
       await sleep(1000);
@@ -123,7 +126,7 @@ async function switchToServerStorageMode(page: Page): Promise<boolean> {
 
     // Alternative: try clicking by text if role selector doesn't work
     const altBtn = page.locator('button').filter({ hasText: 'Server Storage' });
-    if (await altBtn.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(altBtn, 3000)) {
       await altBtn.click();
       console.log('  Clicked Server Storage button (alt selector)');
       await sleep(1000);
@@ -155,8 +158,8 @@ async function verifyDefaultFolders(page: Page): Promise<boolean> {
   const sentFiles = page.getByText('Sent Files', { exact: true }).first();
   const receivedFiles = page.getByText('Received Files', { exact: true }).first();
 
-  const hasSent = await sentFiles.isVisible({ timeout: 5000 }).catch(() => false);
-  const hasReceived = await receivedFiles.isVisible({ timeout: 5000 }).catch(() => false);
+  const hasSent = await isVisibleWithin(sentFiles, 5000);
+  const hasReceived = await isVisibleWithin(receivedFiles, 5000);
 
   console.log(`  Sent Files visible: ${hasSent}`);
   console.log(`  Received Files visible: ${hasReceived}`);
@@ -166,22 +169,25 @@ async function verifyDefaultFolders(page: Page): Promise<boolean> {
 async function createFolder(page: Page, folderName: string): Promise<boolean> {
   console.log(`\n=== Creating folder "${folderName}" ===`);
   try {
-    // Handle the prompt() dialog that will be triggered
-    page.once('dialog', async dialog => {
-      console.log(`  Dialog appeared: "${dialog.message()}"`);
-      await dialog.accept(folderName);
-    });
-
-    // Click the New Folder button in toolbar (FolderPlus icon)
+    // The name is asked for by an in-app dialog now, not window.prompt, so
+    // there is no native dialog to accept — type into the field and submit.
     const newFolderBtn = page.locator('button').filter({ has: page.locator('svg.lucide-folder-plus') });
-    if (await newFolderBtn.isVisible({ timeout: 5000 })) {
+    if (await isVisibleWithin(newFolderBtn, 5000)) {
       await newFolderBtn.click();
       console.log('  Clicked New Folder button');
+
+      const nameInput = page.locator('#prompt-dialog-input');
+      if (!await isVisibleWithin(nameInput, 5000)) {
+        console.log('  ERROR: the new-folder dialog did not appear');
+        return false;
+      }
+      await nameInput.fill(folderName);
+      await page.getByTestId('prompt-dialog-confirm').click();
       await sleep(2000);
 
       // Verify folder appeared
       const folder = page.getByText(folderName, { exact: true }).first();
-      const exists = await folder.isVisible({ timeout: 5000 }).catch(() => false);
+      const exists = await isVisibleWithin(folder, 5000);
       console.log(`  Folder "${folderName}" visible: ${exists}`);
       return exists;
     }
@@ -197,15 +203,12 @@ async function createFolder(page: Page, folderName: string): Promise<boolean> {
 async function deleteFolder(page: Page, folderName: string): Promise<boolean> {
   console.log(`\n=== Deleting folder "${folderName}" ===`);
   try {
-    // Handle the confirm() dialog
-    page.once('dialog', async dialog => {
-      console.log(`  Confirm dialog: "${dialog.message()}"`);
-      await dialog.accept();
-    });
+    // Deletion is confirmed by an in-app AlertDialog now, not window.confirm;
+    // the confirm button is clicked after the menu item below.
 
     // Right-click on the folder
     const folder = page.getByText(folderName, { exact: true }).first();
-    if (!await folder.isVisible({ timeout: 5000 })) {
+    if (!await isVisibleWithin(folder, 5000)) {
       console.log('  Folder not found');
       return false;
     }
@@ -216,15 +219,33 @@ async function deleteFolder(page: Page, folderName: string): Promise<boolean> {
 
     // Click Delete in context menu
     const deleteItem = page.locator('[role="menuitem"]').filter({ hasText: /delete/i });
-    if (await deleteItem.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(deleteItem, 3000)) {
       await deleteItem.click();
       console.log('  Clicked Delete menu item');
+
+      // Confirm in the app's own dialog.
+      const confirmDelete = page.getByTestId('confirm-dialog-confirm');
+      if (await isVisibleWithin(confirmDelete, 5000)) {
+        await confirmDelete.click();
+        console.log('  Confirmed deletion in the in-app dialog');
+      } else {
+        console.log('  WARNING: in-app confirm dialog did not appear');
+      }
       await sleep(2000);
 
-      // Verify folder gone
-      const stillVisible = await page.getByText(folderName, { exact: true }).first().isVisible({ timeout: 2000 }).catch(() => false);
-      console.log(`  Folder still visible: ${stillVisible}`);
-      return !stillVisible;
+      // Verify folder gone.
+      //
+      // isHiddenWithin, not isVisible({ timeout }). That option is declared
+      // ignored, so this sampled once: a tree that had not re-rendered yet
+      // reported the folder absent and deleteFolder returned success whether or
+      // not anything was deleted. This value gates results.folderDeletion, so
+      // the false positive propagated straight into the run's verdict.
+      const gone = await isHiddenWithin(
+        page.getByText(folderName, { exact: true }).first(),
+        5000
+      );
+      console.log(`  Folder still visible: ${!gone}`);
+      return gone;
     }
 
     console.log('  Delete menu item not found');
@@ -240,7 +261,7 @@ async function verifyServerStorageIndicator(page: Page): Promise<boolean> {
   try {
     // Look for the server storage indicator text
     const indicator = page.getByText('Private encrypted storage on Citadel server');
-    const visible = await indicator.isVisible({ timeout: 5000 }).catch(() => false);
+    const visible = await isVisibleWithin(indicator, 5000);
     console.log(`  Server storage indicator visible: ${visible}`);
     return visible;
   } catch {
@@ -251,7 +272,7 @@ async function verifyServerStorageIndicator(page: Page): Promise<boolean> {
 async function refreshTree(page: Page): Promise<void> {
   console.log('\n=== Refreshing tree ===');
   const syncBtn = page.locator('button').filter({ has: page.locator('svg.lucide-refresh-cw') });
-  if (await syncBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(syncBtn, 3000)) {
     await syncBtn.click();
     console.log('  Clicked refresh button');
     await sleep(2000);
@@ -281,6 +302,7 @@ async function runTest(): Promise<boolean> {
     defaultTree: false,
     folderCreation: false,
     folderDeletion: false,
+    deletionPersisted: false,
     fileUpload: false,
     fileVisible: false,
     fileDeletion: false,
@@ -335,7 +357,7 @@ async function runTest(): Promise<boolean> {
       console.log('  Detected "No Peers Connected" state');
       // Click the "Use Server Storage" button
       const useServerBtn = page.getByRole('button', { name: /use server storage/i });
-      if (await useServerBtn.isVisible({ timeout: 3000 })) {
+      if (await isVisibleWithin(useServerBtn, 3000)) {
         await useServerBtn.click();
         console.log('  Clicked "Use Server Storage" button');
         await sleep(2000);
@@ -391,8 +413,20 @@ async function runTest(): Promise<boolean> {
 
       // Refresh to verify deletion persisted
       await refreshTree(page);
-      const stillGone = !await page.getByText(FOLDER_NAME, { exact: true }).first().isVisible({ timeout: 2000 }).catch(() => true);
-      console.log(`  Folder deletion persisted: ${stillGone}`);
+      // isHiddenWithin, not isVisible({ timeout }): the latter is an immediate
+      // snapshot (Playwright declares that option ignored), so a tree that had
+      // simply not re-rendered yet read as "folder gone" and the deletion looked
+      // persisted whether or not it was.
+      //
+      // The result is also RECORDED now. It was previously computed into a local
+      // and logged, and nothing consumed it — the line "Folder deletion
+      // persisted: false" could print while the test passed, which is the same
+      // as not checking that deletion survives a refresh at all.
+      results.deletionPersisted = await isHiddenWithin(
+        page.getByText(FOLDER_NAME, { exact: true }).first(),
+        5000
+      );
+      console.log(`  Folder deletion persisted: ${results.deletionPersisted}`);
     }
 
     // ========== RESULTS ==========
@@ -404,7 +438,8 @@ async function runTest(): Promise<boolean> {
       results.switchToServerMode &&
       results.defaultTree &&
       results.folderCreation &&
-      results.folderDeletion;
+      results.folderDeletion &&
+      results.deletionPersisted;
 
     console.log('\n' + '='.repeat(60));
     console.log('TEST RESULTS');
@@ -416,11 +451,10 @@ async function runTest(): Promise<boolean> {
     console.log(`  Default Tree:           ${results.defaultTree ? 'PASS' : 'FAIL'}`);
     console.log(`  Folder Creation:        ${results.folderCreation ? 'PASS' : 'FAIL'}`);
     console.log(`  Folder Deletion:        ${results.folderDeletion ? 'PASS' : 'FAIL'}`);
+    console.log(`  Deletion Persisted:     ${results.deletionPersisted ? 'PASS' : 'FAIL'}`);
 
     harness.finalize(corePassed, results);
 
-    console.log('\nBrowser will remain open for 10 seconds...');
-    await sleep(10000);
 
     return corePassed;
 

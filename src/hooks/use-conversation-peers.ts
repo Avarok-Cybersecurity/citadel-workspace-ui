@@ -4,6 +4,7 @@
  * Manages peers with active P2P conversations, sorted by last message time.
  */
 
+import { peerDisplayName } from '@/lib/peer-display';
 import { useState, useEffect, useCallback } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
@@ -11,12 +12,15 @@ import { P2PMessengerManager } from '@/lib/p2p';
 import { connectionManager } from '@/lib/connection';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import type { RegisteredPeer } from './use-registered-peers';
+import type { P2PConversation } from '@/lib/p2p/p2p-types';
 
 export interface ConversationPeer {
   peerCid: string;
   peerUsername: string;
-  isOnline: boolean;
-  isConnected: boolean;
+  /** True, false, or null when no poll has landed. See lib/presence.ts. */
+  isOnline: boolean | null;
+  /** True, false, or null when the check did not answer. */
+  isConnected: boolean | null;
   unreadCount: number;
   lastMessageTime?: number;
 }
@@ -35,29 +39,31 @@ export function useConversationPeers({
 }: UseConversationPeersProps): UseConversationPeersReturn {
   const [peersWithConversations, setPeersWithConversations] = useState<ConversationPeer[]>([]);
 
-  const loadConversations = useCallback(async () => {
-    const messenger = P2PMessengerManager.getInstance();
-    const conversations = messenger.getAllConversations();
+  const loadConversations: () => Promise<void> = useCallback(async (): Promise<void> => {
+    const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
+    const conversations: P2PConversation[] = messenger.getAllConversations();
 
     // Get current user's CID to filter out self-conversations
-    const currentCid = connectionManager.getConnectionInfo()?.cid?.toString();
+    const currentCid: string | undefined = connectionManager.getConnectionInfo()?.cid?.toString();
 
     // Only include peers with actual messages, excluding self-conversations
-    const filteredConversations = conversations
+    const filteredConversations: P2PConversation[] = conversations
       .filter(c => c.messages.length > 0)
       .filter(c => c.peerCid.toString() !== currentCid);
 
-    const convPeers = await Promise.all(filteredConversations.map(async c => {
-      const peerCidStr = c.peerCid.toString();
+    const convPeers: { peerCid: string; peerUsername: string; isOnline: boolean | null; isConnected: boolean | null; unreadCount: number; lastMessageTime: number; }[] = await Promise.all(filteredConversations.map(async c => {
+      const peerCidStr: string = c.peerCid.toString();
       // Find the username from registered peers
-      const registeredPeer = registeredPeers.find(p => p.cid === peerCidStr);
-      // Prefer registered peer username, then a friendly "Peer" label
-      const displayName = registeredPeer?.username ||
-        (peerCidStr ? `Peer ${peerCidStr.slice(-6)}` : 'Unknown Peer');
+      const registeredPeer: RegisteredPeer | undefined = registeredPeers.find(p => p.cid === peerCidStr);
+      // One module decides how a peer is named. This site hand-rolled its own
+      // handle from the LAST six decimal digits, which differs from every other
+      // surface, so one peer appeared under two names depending on where you
+      // looked.
+      const displayName: string = peerDisplayName({ cid: c.peerCid, username: registeredPeer?.username });
       return {
         peerCid: peerCidStr,
         peerUsername: displayName,
-        isOnline: p2pAutoConnectService.isPeerOnline(c.peerCid),
+        isOnline: p2pAutoConnectService.peerOnlineStatus(c.peerCid),
         isConnected: await p2pAutoConnectService.isPeerConnected(c.peerCid),
         unreadCount: c.unreadCount,
         lastMessageTime: c.messages[c.messages.length - 1]?.timestamp
@@ -73,13 +79,13 @@ export function useConversationPeers({
   useEffect(() => {
     runAsyncSetup(loadConversations);
 
-    const handleMessageUpdate = async () => { await loadConversations(); };
+    const handleMessageUpdate = async (): Promise<void> => { await loadConversations(); };
 
     eventEmitter.on('p2p:message-received', handleMessageUpdate);
     eventEmitter.on('p2p:message-sent', handleMessageUpdate);
     eventEmitter.on('p2p:conversation-updated', handleMessageUpdate);
 
-    return () => {
+    return (): void => {
       eventEmitter.off('p2p:message-received', handleMessageUpdate);
       eventEmitter.off('p2p:message-sent', handleMessageUpdate);
       eventEmitter.off('p2p:conversation-updated', handleMessageUpdate);

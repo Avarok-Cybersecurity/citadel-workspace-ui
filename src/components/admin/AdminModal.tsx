@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState  , type ComponentType } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -13,8 +13,9 @@ import { MembersTab } from './tabs/MembersTab';
 import { ChatSettingsTab } from './tabs/ChatSettingsTab';
 import { AdminModalProps, EntityData } from './types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { getEntityMetadata } from '@/lib/entity-type-registry';
+import { getEntityMetadata , type EntityTypeMetadata } from '@/lib/entity-type-registry';
 import { debugLog } from '@/lib/debug-config';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 export function AdminModal({
   isOpen,
@@ -22,7 +23,7 @@ export function AdminModal({
   entityType,
   entityId,
   defaultTab = 'general',
-}: AdminModalProps) {
+}: AdminModalProps): JSX.Element {
   const { state } = useWorkspace();
   const [entity, setEntity] = useState<EntityData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,7 +35,7 @@ export function AdminModal({
       return;
     }
 
-    const loadEntity = () => {
+    const loadEntity = (): void => {
       setLoading(true);
       try {
         if (entityType === 'workspace') {
@@ -46,7 +47,7 @@ export function AdminModal({
             });
           }
         } else {
-          const node = state.nodes[entityId];
+          const node: DomainNode = state.nodes[entityId];
           if (node) {
             setEntity({
               id: node.id,
@@ -65,53 +66,56 @@ export function AdminModal({
     loadEntity();
   }, [isOpen, entityType, entityId, state.workspace, state.nodes]);
 
-  const handleOpenChange = (open: boolean) => {
+  const handleOpenChange = (open: boolean): void => {
     if (!open) {
       onClose();
     }
   };
 
-  const meta = getEntityMetadata(entityType);
-  const EntityIcon = meta.icon;
+  const meta: EntityTypeMetadata = getEntityMetadata(entityType);
+  const EntityIcon: ComponentType<{ className?: string; }> = meta.icon;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="sm:max-w-[700px] bg-[#282A42] border-[#3D3F5A]"
+        className="sm:max-w-[700px] bg-card border-surface"
         data-testid="admin-modal"
       >
         <DialogHeader>
-          <DialogTitle className="text-white text-xl flex items-center">
+          <DialogTitle className="text-foreground text-xl flex items-center">
             <EntityIcon className="h-5 w-5 mr-2" />
             {loading ? `Loading ${meta.label}...` : `${entity?.name || meta.label} Settings`}
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-muted-foreground">
             Manage {meta.label.toLowerCase()} settings, members, and chat configuration
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue={defaultTab} className="mt-4">
-          <TabsList className="grid w-full grid-cols-3 bg-[#1a1b26] h-12">
+          <TabsList className="grid w-full grid-cols-3 bg-background h-12">
             <TabsTrigger
               value="general"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400 gap-1.5"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5"
               data-testid="admin-tab-general"
+             aria-label="General"
             >
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">General</span>
             </TabsTrigger>
             <TabsTrigger
               value="members"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400 gap-1.5"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5"
               data-testid="admin-tab-members"
+             aria-label="Members"
             >
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Members</span>
             </TabsTrigger>
             <TabsTrigger
               value="chat"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-400 gap-1.5"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5"
               data-testid="admin-tab-chat"
+             aria-label="Chat"
             >
               <MessageSquare className="h-4 w-4" />
               <span className="hidden sm:inline">Chat</span>

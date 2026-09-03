@@ -6,14 +6,16 @@
  */
 
 import { debugLog } from '@/lib/debug-config';
+import { isPrivilegedRole } from '@/lib/role-predicate';
 import { Permission, PERMISSION_LABELS } from './types';
 import type { UserRole, DomainPermissions } from './types';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
 /**
  * Parse raw permission strings into a Permission Set, filtering unknown values.
  */
 export function parsePermissionSet(permissions: string[]): Set<Permission> {
-  const permSet = new Set<Permission>();
+  const permSet: Set<Permission> = new Set<Permission>();
   for (const perm of permissions) {
     if (Object.values(Permission).includes(perm as Permission)) {
       permSet.add(perm as Permission);
@@ -31,7 +33,7 @@ export function updateCacheEntry(
   role: UserRole,
   permissions: string[],
 ): void {
-  const permSet = parsePermissionSet(permissions);
+  const permSet: Set<Permission> = parsePermissionSet(permissions);
 
   cache.set(domainId, {
     domainId,
@@ -57,24 +59,57 @@ export function hasPermission(
   domainId: string,
   permission: Permission,
 ): boolean {
-  const cached = cache.get(domainId);
+  const cached: DomainPermissions | undefined = cache.get(domainId);
 
   if (cached) {
-    if (cached.role === 'Admin' || cached.role === 'Owner') return true;
+    if (isPrivilegedRole(cached.role)) return true;
     if (cached.permissions.has(Permission.All)) return true;
     if (cached.permissions.has(permission)) return true;
   }
 
   // Hierarchy fallback: check workspace-root for inherited permissions
-  if (domainId !== 'workspace-root') {
-    const root = cache.get('workspace-root');
+  if (domainId !== WORKSPACE_ROOT_ID) {
+    const root: DomainPermissions | undefined = cache.get(WORKSPACE_ROOT_ID);
     if (root) {
-      if (root.role === 'Admin' || root.role === 'Owner') return true;
+      if (isPrivilegedRole(root.role)) return true;
       if (root.permissions.has(Permission.All)) return true;
       return root.permissions.has(permission);
     }
   }
 
+  return false;
+}
+
+/**
+ * Whether an answer for this domain exists at all.
+ *
+ * `hasPermission` returns `false` for a cache MISS, which is indistinguishable
+ * from "we asked and you may not". Every caller that renders a denial needs to
+ * know the difference: an office chat gated on `SendMessages` replaced its
+ * composer with "You do not have permission to send messages here" for every
+ * user in a three-user run, because the answer had never been stored.
+ *
+ * The whole INHERITANCE CHAIN has to have answered, not just the domain asked
+ * about. `hasPermission` denies on the domain's own entry and only then falls
+ * back to the workspace root — so a node that grants nothing while the root has
+ * never been fetched produces a definite-looking refusal for a permission the
+ * root may well confer.
+ *
+ * CI showed exactly that: an office chat composer replaced by "You do not have
+ * permission to send messages here" for a user whose role grants it.
+ *
+ * A root entry alone still counts, because a domain with no entry of its own is
+ * answered entirely by the fallback. What does not count is a domain entry
+ * without the root behind it.
+ */
+export function hasAnswerFor(
+  cache: Map<string, DomainPermissions>,
+  domainId: string,
+): boolean {
+  if (domainId === WORKSPACE_ROOT_ID) return cache.has(WORKSPACE_ROOT_ID);
+  if (cache.has(WORKSPACE_ROOT_ID)) return true;
+  // The domain answered and the root did not, so a denial here is not yet a
+  // fact: the permission it withheld may be inherited.
   return false;
 }
 
@@ -85,11 +120,11 @@ export function getRole(
   cache: Map<string, DomainPermissions>,
   domainId: string,
 ): UserRole | null {
-  const cached = cache.get(domainId);
+  const cached: DomainPermissions | undefined = cache.get(domainId);
   if (cached?.role) return cached.role;
 
-  if (domainId !== 'workspace-root') {
-    const root = cache.get('workspace-root');
+  if (domainId !== WORKSPACE_ROOT_ID) {
+    const root: DomainPermissions | undefined = cache.get(WORKSPACE_ROOT_ID);
     if (root?.role) return root.role;
   }
 
@@ -104,12 +139,12 @@ export function getDeniedReason(
   domainId: string,
   permission: Permission,
 ): string {
-  const cached = cache.get(domainId);
+  const cached: DomainPermissions | undefined = cache.get(domainId);
   if (!cached) {
     return 'Permissions have not been loaded for this domain';
   }
 
-  const label = PERMISSION_LABELS[permission] || permission;
-  const roleLabel = typeof cached.role === 'string' ? cached.role : 'Custom';
+  const label: string = PERMISSION_LABELS[permission] || permission;
+  const roleLabel: "Member" | "Admin" | "Owner" | "Guest" | "Banned" | "Custom" = typeof cached.role === 'string' ? cached.role : 'Custom';
   return `You don't have the "${label}" permission. Your role: ${roleLabel}`;
 }

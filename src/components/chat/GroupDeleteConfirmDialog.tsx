@@ -30,15 +30,15 @@ export function GroupDeleteConfirmDialog({
   groupName,
   isDeleting,
   onConfirm,
-}: GroupDeleteConfirmDialogProps) {
+}: GroupDeleteConfirmDialogProps): JSX.Element {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="bg-[#1C1D28] border-[#2D3548]">
+      <AlertDialogContent className="bg-background border-border">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-white">
+          <AlertDialogTitle className="text-foreground">
             Delete &quot;{groupName}&quot;?
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-gray-400">
+          <AlertDialogDescription className="text-muted-foreground">
             This action cannot be undone. All messages, members, and settings
             will be permanently deleted.
           </AlertDialogDescription>
@@ -46,14 +46,14 @@ export function GroupDeleteConfirmDialog({
         <AlertDialogFooter>
           <AlertDialogCancel
             disabled={isDeleting}
-            className="bg-transparent border-[#3D4663] text-white hover:bg-[#262C4A]"
+            className="bg-transparent border-border text-foreground hover:bg-surface"
           >
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isDeleting}
-            className="bg-red-600 hover:bg-red-700 text-white"
+            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
           >
             {isDeleting ? 'Deleting...' : 'Delete Group'}
           </AlertDialogAction>

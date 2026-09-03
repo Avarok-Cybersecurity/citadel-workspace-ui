@@ -5,6 +5,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { failOnSocketLoss } from './request-response';
 import { debugLog } from '../debug-config';
 import { TIMEOUT } from '../timeout-constants';
 
@@ -33,8 +34,8 @@ export class FilePicker {
   ): Promise<FilePickerResult> {
     await this.config.init();
 
-    const requestId = crypto.randomUUID();
-    const request = {
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+    const request: { PickFile: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; title: string | null; allowed_extensions: string[] | null; }; } = {
       PickFile: {
         request_id: requestId,
         cid: cid,
@@ -45,15 +46,15 @@ export class FilePicker {
 
     debugLog('FilePicker', 'Sending PickFile request', request);
 
-    return new Promise((resolve, reject) => {
+    return failOnSocketLoss('PickFile', new Promise((resolve, reject) => {
       // Longer timeout for file picker - user interaction can take time
-      const timeout = setTimeout(() => {
+      const timeout: NodeJS.Timeout = setTimeout((): void => {
         eventEmitter.off('websocket-message', handleMessage);
         reject(new Error('File picker timed out'));
       }, TIMEOUT.FILE_PICKER_MS); // 2 minute timeout
 
-      const handleMessage = (message: Record<string, unknown>) => {
-        const msg = message as {
+      const handleMessage = (message: Record<string, unknown>): void => {
+        const msg: { PickFileSuccess?: { request_id: string; file_path: string; file_name: string; file_size: bigint; }; PickFileFailure?: { request_id: string; message?: string; }; } = message as {
           PickFileSuccess?: { request_id: string; file_path: string; file_name: string; file_size: bigint };
           PickFileFailure?: { request_id: string; message?: string };
         };
@@ -79,6 +80,6 @@ export class FilePicker {
         eventEmitter.off('websocket-message', handleMessage);
         reject(error);
       });
-    });
+    }));
   }
 }

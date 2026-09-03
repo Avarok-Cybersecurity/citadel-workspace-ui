@@ -45,7 +45,7 @@ export class MissingWebsocketLocationError extends Error {
 
 /** The HTTP origin a websocket URL shares with a page: `wss://h` and `https://h` are same-origin. */
 function websocketOrigin(url: URL): string {
-  const protocol =
+  const protocol: string =
     url.protocol === 'wss:' ? 'https:' : url.protocol === 'ws:' ? 'http:' : url.protocol;
   return `${protocol}//${url.host}`;
 }
@@ -64,7 +64,7 @@ function httpToWebsocketScheme(protocol: string): string {
 function warnIfOffOrigin(candidate: string, location: UrlLocation | undefined): void {
   if (!location) return;
 
-  const pageOrigin = `${location.protocol}//${location.host}`;
+  const pageOrigin: string = `${location.protocol}//${location.host}`;
 
   // Resolve against the page, exactly as the browser will. Parsing without a base and treating
   // every failure as "relative, therefore same-origin" would wave through a PROTOCOL-RELATIVE
@@ -90,7 +90,7 @@ function warnIfOffOrigin(candidate: string, location: UrlLocation | undefined): 
   // Report the WEBSOCKET scheme, not the resolved HTTP one. A protocol-relative candidate
   // (`//host/ws`) resolves against the page, so `parsed.protocol` reads `http(s):` - but the
   // browser will attempt `ws(s):`. Printing the http form would name a URL nobody ever requested.
-  const safeUrl = `${httpToWebsocketScheme(parsed.protocol)}//${parsed.host}`;
+  const safeUrl: string = `${httpToWebsocketScheme(parsed.protocol)}//${parsed.host}`;
   console.warn(
     `[websocket] Configured agent URL (${safeUrl}) is not same-origin with the page ` +
       `(${pageOrigin}). The Content-Security-Policy is \`connect-src 'self'\`, so the browser will ` +
@@ -107,7 +107,7 @@ export function resolveWebsocketUrl(
   /** The page's location; `undefined` outside a browser, where an override is then required. */
   location: UrlLocation | undefined,
 ): string {
-  const override = configuredUrl || buildTimeUrl;
+  const override: string | undefined = configuredUrl || buildTimeUrl;
   if (override) {
     warnIfOffOrigin(override, location);
     return override;
@@ -117,6 +117,6 @@ export function resolveWebsocketUrl(
 
   // Follow the page's scheme: a page served over TLS must not open an insecure socket (browsers
   // block the mixed content), and a plain-http page cannot complete a `wss` handshake.
-  const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+  const scheme: "wss" | "ws" = location.protocol === 'https:' ? 'wss' : 'ws';
   return `${scheme}://${location.host}/ws`;
 }

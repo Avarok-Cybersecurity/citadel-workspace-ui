@@ -10,14 +10,13 @@
 import { vi } from 'vitest';
 import { RevfsService } from '../revfs-service';
 import type { RevfsIntent, RevfsIntentResult } from '@/types/revfs-intents';
-import { RevfsOpType } from '@/types/revfs-types';
-import type { RevfsOperation } from '@/types/revfs-types';
+import { RevfsOpType , type RevfsOperation } from '@/types/revfs-types';
 import { RevfsState } from '../revfs-state';
 
 // ── Constants ───────────────────────────────────────────────────────────
 
-export const ALICE = 100n;
-export const BOB = 200n;
+export const ALICE: bigint = 100n;
+export const BOB: bigint = 200n;
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -39,21 +38,21 @@ export function createTestService(
   opts: { autoAck?: boolean } = {},
 ): RevfsService {
   const { autoAck = true } = opts;
-  const service = new RevfsService();
+  const service: RevfsService = new RevfsService();
   service.initialize({
     sendP2PMessageReliable: vi.fn(),
     getCurrentCid: vi.fn().mockResolvedValue(ALICE),
     sendInternalServiceRequest: vi.fn(),
   });
 
-  const io = (service as unknown as { io: { execute: (i: RevfsIntent) => Promise<RevfsIntentResult> } }).io;
-  const state = getState(service);
+  const io: { execute: (i: RevfsIntent) => Promise<RevfsIntentResult>; } = (service as unknown as { io: { execute: (i: RevfsIntent) => Promise<RevfsIntentResult> } }).io;
+  const state: RevfsState = getState(service);
 
   io.execute = vi.fn(async (intent: RevfsIntent) => {
-    const result = intentHandler(intent);
+    const result: RevfsIntentResult = intentHandler(intent);
 
     if (autoAck && intent.type === 'send-revfs-op' && result.type === 'send-revfs-op' && result.success) {
-      const op = (intent as { operation: RevfsOperation }).operation;
+      const op: RevfsOperation = (intent as { operation: RevfsOperation }).operation;
       if (op.op_type !== RevfsOpType.Ack && op.op_type !== RevfsOpType.SyncRequest && op.op_type !== RevfsOpType.SyncResponse) {
         queueMicrotask(() => state.resolveAck(op.op_id, true));
       }
@@ -91,6 +90,7 @@ export function defaultIntentHandler(overrides?: Partial<Record<RevfsIntent['typ
 }
 
 export function getExecuteCalls(service: RevfsService): RevfsIntent[] {
-  const io = (service as unknown as { io: { execute: ReturnType<typeof vi.fn> } }).io;
+  const io: { execute: ReturnType<typeof vi.fn> } =
+    (service as unknown as { io: { execute: ReturnType<typeof vi.fn> } }).io;
   return io.execute.mock.calls.map((c: unknown[]) => c[0] as RevfsIntent);
 }

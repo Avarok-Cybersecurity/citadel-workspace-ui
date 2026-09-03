@@ -1,7 +1,7 @@
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess } from '@/lib/toast-helpers';
 import WorkspaceService from '@/lib/workspace-service';
-import { getEntityMetadata, getEntityTypeString } from '@/lib/entity-type-registry';
+import { getEntityMetadata, getEntityTypeString , type EntityTypeMetadata } from '@/lib/entity-type-registry';
 import type { DomainNode } from '@/components/layout/sidebar/TreeNodesSection';
 import {
   EntityManagementModal,
@@ -63,13 +63,13 @@ export function NodeManagementModal({
   entityType,
   parentId,
   node,
-}: NodeManagementModalProps) {
+}: NodeManagementModalProps): JSX.Element {
   const { toast } = useToast();
-  const meta = getEntityMetadata(entityType);
-  const modes = buildModes(meta.label);
-  const fields = buildFields(meta);
+  const meta: EntityTypeMetadata = getEntityMetadata(entityType);
+  const modes: Record<"create" | "edit", ModeConfig> = buildModes(meta.label);
+  const fields: FieldConfig[] = buildFields(meta);
 
-  const handleSubmit = async (formData: Record<string, string>) => {
+  const handleSubmit = async (formData: Record<string, string>): Promise<void> => {
     if (mode === 'create') {
       if (parentId === undefined) {
         throw new Error('parentId is required for create mode');
@@ -90,7 +90,7 @@ export function NodeManagementModal({
     }
   };
 
-  const initialData = node
+  const initialData: { name: string; description: string; } | undefined = node
     ? { name: node.name, description: node.description ?? '' }
     : undefined;
 

@@ -110,7 +110,7 @@ export class ConnectionService {
   }
 
   public async acceptConnectionRequest(requestId: string): Promise<void> {
-    const request = findPendingRequest(this.connectionRequests, requestId);
+    const request: ConnectionRequest = findPendingRequest(this.connectionRequests, requestId);
     try {
       debugLog('ConnectionService', `Accepting connection request ${requestId}`);
       markAccepted(request);
@@ -128,7 +128,7 @@ export class ConnectionService {
   }
 
   public async rejectConnectionRequest(requestId: string): Promise<void> {
-    const request = findPendingRequest(this.connectionRequests, requestId);
+    const request: ConnectionRequest = findPendingRequest(this.connectionRequests, requestId);
     try {
       debugLog('ConnectionService', `Rejecting connection request ${requestId}`);
       markRejected(request);
@@ -140,7 +140,7 @@ export class ConnectionService {
   }
 
   public async cancelConnectionRequest(requestId: string): Promise<void> {
-    const request = findPendingRequest(this.connectionRequests, requestId);
+    const request: ConnectionRequest = findPendingRequest(this.connectionRequests, requestId);
     try {
       debugLog('ConnectionService', `Canceling connection request ${requestId}`);
       markCanceled(request);
@@ -191,9 +191,23 @@ export class ConnectionService {
     this.onNewConnectionRequest = handler;
   }
 
-  public onConnectionChange(handler: (connection: ConnectionStatus) => void): void {
+  /**
+   * Subscribe to connection changes. Returns an unsubscribe function.
+   *
+   * This used to return void, so every caller's listener stayed registered for
+   * the lifetime of the app. Two of the three subscribers re-run their effect on
+   * state changes and on remount (AppLayout remounts per route), so the handler
+   * array grew without bound: every connection change then ran a pile of dead
+   * handlers, each doing IndexedDB reads, and each retaining its dead component's
+   * closure. `P2PMessengerManager.onConnectionChange` has always returned an
+   * unsubscribe; this one never got it.
+   */
+  public onConnectionChange(handler: (connection: ConnectionStatus) => void): () => void {
     this.connectionChangeHandlers.push(handler);
     if (this.currentConnection) handler(this.currentConnection);
+    return () => {
+      this.connectionChangeHandlers = this.connectionChangeHandlers.filter(h => h !== handler);
+    };
   }
 
   public updateConnectionStatus(connection: ConnectionStatus): void {

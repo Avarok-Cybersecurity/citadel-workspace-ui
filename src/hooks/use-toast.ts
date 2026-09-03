@@ -1,191 +1,121 @@
-import * as React from "react"
+/**
+ * Toasts.
+ *
+ * The app previously mounted TWO toast systems at once — shadcn's `<Toaster />`
+ * (backed by a hand-rolled reducer in this file) and `<Sonner />` — so which
+ * visual style a notification got depended on which feature raised it: 33 files
+ * used `useToast()`, while the file manager imported `toast` from `sonner`
+ * directly. Same product, two different-looking notifications.
+ *
+ * This module now keeps the `useToast()` / `toast({ title, description })` call
+ * shape those 33 files already use, but renders through Sonner. One system, no
+ * call-site churn, and the shadcn toast/toaster components are gone.
+ */
 
-import type {
-  ToastActionElement,
-  ToastProps,
-} from "@/components/ui/toast"
+import type React from 'react';
+import { createElement } from 'react';
+import { toast as sonnerToast } from 'sonner';
 
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+/**
+ * `destructive` is the shadcn name the existing call sites pass; it is kept so
+ * they need no edit. `outline` was used once and has no error semantics, so it
+ * renders neutral.
+ */
+export type ToastVariant = 'default' | 'success' | 'destructive' | 'outline';
 
-type ToasterToast = ToastProps & {
-  id: string
-  title?: React.ReactNode
-  description?: React.ReactNode
-  action?: ToastActionElement
+export interface ToastOptions {
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  variant?: ToastVariant;
+  /** Milliseconds before auto-dismiss. Omit for Sonner's default. */
+  duration?: number;
+  action?: { label: string; onClick: () => void };
+  /**
+   * Stable identity for a toast that can be raised more than once for the same
+   * underlying fact. Sonner replaces an existing toast with the same id instead
+   * of stacking a second one, which is what a re-offer wants: the update prompt
+   * accumulated an identical infinite-duration toast every time the user
+   * returned to the tab.
+   */
+  id?: string | number;
 }
 
-const actionTypes = {
-  ADD_TOAST: "ADD_TOAST",
-  UPDATE_TOAST: "UPDATE_TOAST",
-  DISMISS_TOAST: "DISMISS_TOAST",
-  REMOVE_TOAST: "REMOVE_TOAST",
-} as const
-
-let count = 0
-
-function genId() {
-  count = (count + 1) % Number.MAX_SAFE_INTEGER
-  return count.toString()
+export interface ToastHandle {
+  id: string | number;
+  dismiss: () => void;
 }
 
-type ActionType = typeof actionTypes
-
-type Action =
-  | {
-      type: ActionType["ADD_TOAST"]
-      toast: ToasterToast
-    }
-  | {
-      type: ActionType["UPDATE_TOAST"]
-      toast: Partial<ToasterToast>
-    }
-  | {
-      type: ActionType["DISMISS_TOAST"]
-      toastId?: ToasterToast["id"]
-    }
-  | {
-      type: ActionType["REMOVE_TOAST"]
-      toastId?: ToasterToast["id"]
-    }
-
-interface State {
-  toasts: ToasterToast[]
+/**
+ * Sonner's first argument is the headline. Call sites overwhelmingly pass
+ * `title` + `description`, but a few pass only one of them — falling back keeps
+ * a toast with just a description from rendering as an empty bubble.
+ */
+function headline(options: ToastOptions): React.ReactNode {
+  return options.title ?? options.description ?? '';
 }
 
-const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
-
-const addToRemoveQueue = (toastId: string) => {
-  if (toastTimeouts.has(toastId)) {
-    return
-  }
-
-  const timeout = setTimeout(() => {
-    toastTimeouts.delete(toastId)
-    dispatch({
-      type: "REMOVE_TOAST",
-      toastId: toastId,
-    })
-  }, TOAST_REMOVE_DELAY)
-
-  toastTimeouts.set(toastId, timeout)
+function body(options: ToastOptions): React.ReactNode | undefined {
+  return options.title ? options.description : undefined;
 }
 
-export const reducer = (state: State, action: Action): State => {
-  switch (action.type) {
-    case "ADD_TOAST":
-      return {
-        ...state,
-        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
-      }
-
-    case "UPDATE_TOAST":
-      return {
-        ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === action.toast.id ? { ...t, ...action.toast } : t
-        ),
-      }
-
-    case "DISMISS_TOAST": {
-      const { toastId } = action
-
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
-      if (toastId) {
-        addToRemoveQueue(toastId)
-      } else {
-        state.toasts.forEach((toast) => {
-          addToRemoveQueue(toast.id)
-        })
-      }
-
-      return {
-        ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === toastId || toastId === undefined
-            ? {
-                ...t,
-                open: false,
-              }
-            : t
-        ),
-      }
-    }
-    case "REMOVE_TOAST":
-      if (action.toastId === undefined) {
-        return {
-          ...state,
-          toasts: [],
-        }
-      }
-      return {
-        ...state,
-        toasts: state.toasts.filter((t) => t.id !== action.toastId),
-      }
-  }
+/**
+ * An error toast announces itself, and can be found by the selector everyone
+ * reaches for.
+ *
+ * The DESCRIPTION carries the alert, not the headline. Wrapping the headline
+ * was the first attempt and it cost the description entirely -- Sonner renders
+ * no description when its message is a ReactNode, so the toast shrank to
+ * "Connection Error" and dropped the sentence telling the user what to do. The
+ * agent-down gate caught it on the next run.
+ *
+ * Sonner renders its toasts inside a single `aria-live="polite"` region, so an
+ * error waited for the user to pause before being read -- and an error that
+ * blocks the action they just took is the case for `assertive`. The app already
+ * uses `role="alert"` for the equivalent inline errors.
+ *
+ * It also closes a trap this repository has fallen into twice, and had already
+ * written down: a Sonner toast carries no `role="alert"`, so an assertion
+ * looking for one reports "the app said nothing" about an app that said exactly
+ * the right thing. Documenting that did not stop it happening again. Making the
+ * selector true does.
+ *
+ * Only for errors. Success and neutral toasts are ambient and interrupting a
+ * screen-reader user with them is the opposite of helpful.
+ */
+function announce(description: React.ReactNode, variant: ToastVariant): React.ReactNode {
+  if (variant !== 'destructive' || description === undefined) return description;
+  return createElement('span', { role: 'alert' }, description);
 }
 
-const listeners: Array<(state: State) => void> = []
+export function toast(options: ToastOptions): ToastHandle {
+  const payload: { description: React.ReactNode; duration: number | undefined; action: { label: string; onClick: () => void; } | undefined; id: string | number | undefined; } = {
+    description: announce(body(options), options.variant ?? 'default'),
+    duration: options.duration,
+    action: options.action,
+    id: options.id,
+  };
 
-let memoryState: State = { toasts: [] }
+  const message: React.ReactNode = headline(options);
 
-function dispatch(action: Action) {
-  memoryState = reducer(memoryState, action)
-  listeners.forEach((listener) => {
-    listener(memoryState)
-  })
+  const id: string | number =
+    options.variant === 'destructive'
+      ? sonnerToast.error(message, payload)
+      : options.variant === 'success'
+        ? sonnerToast.success(message, payload)
+        : sonnerToast(message, payload);
+
+  return { id, dismiss: () => sonnerToast.dismiss(id) };
 }
 
-type Toast = Omit<ToasterToast, "id">
-
-function toast({ ...props }: Toast) {
-  const id = genId()
-
-  const update = (props: ToasterToast) =>
-    dispatch({
-      type: "UPDATE_TOAST",
-      toast: { ...props, id },
-    })
-  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
-
-  dispatch({
-    type: "ADD_TOAST",
-    toast: {
-      ...props,
-      id,
-      open: true,
-      onOpenChange: (open) => {
-        if (!open) dismiss()
-      },
-    },
-  })
-
-  return {
-    id: id,
-    dismiss,
-    update,
-  }
+/**
+ * Kept as a hook so the 33 existing `const { toast } = useToast()` call sites are
+ * unchanged. There is no per-component state any more — `toast` is a stable
+ * module-level function — so this deliberately returns the same object shape
+ * rather than something memoised per render.
+ */
+export function useToast(): {
+  toast: typeof toast;
+  dismiss: (id?: string | number) => void;
+} {
+  return { toast, dismiss: sonnerToast.dismiss };
 }
-
-function useToast() {
-  const [state, setState] = React.useState<State>(memoryState)
-
-  React.useEffect(() => {
-    listeners.push(setState)
-    return () => {
-      const index = listeners.indexOf(setState)
-      if (index > -1) {
-        listeners.splice(index, 1)
-      }
-    }
-  }, [state])
-
-  return {
-    ...state,
-    toast,
-    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
-  }
-}
-
-export { useToast, toast }

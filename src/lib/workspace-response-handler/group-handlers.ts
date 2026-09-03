@@ -8,8 +8,7 @@
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
 import { groupMessagingManager } from '@/lib/group-messaging-manager';
-import { isVariant } from 'citadel-workspace-client-ts';
-import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
+import { isVariant , type WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 import type { ConnectionInfo } from './workspace-handlers';
 
 /**
@@ -30,6 +29,25 @@ export function handleGroupVariants(
       message,
       connection: connectionInfo,
     });
+    // The sidebar's unread badge, last-message preview and recency sort all
+    // hang off 'group:message-received', which NOTHING emitted. Two half-built
+    // pipes that never met: the badge never incremented for any message ever,
+    // and the recency sort never reordered because lastMessageTime was never
+    // set. Emitted here, beside its sibling, in the shape the store reads.
+    eventEmitter.emit('group:message-received', {
+      groupId: group_id,
+      // So the store can apply it once. The transport redelivers, and without
+      // an id every redelivery added another to the unread badge.
+      messageId: message.id,
+      senderId: message.sender_id,
+      senderName: message.sender_name,
+      content: message.content,
+    });
+    // Raw as well, so a sender awaiting confirmation can see it. This handler
+    // returned true without it, so gating the send on this variant would have
+    // made every successful send wait out the timeout — the exact regression
+    // round twenty-six shipped.
+    eventEmitter.emit('workspace:raw-response', response);
     return true;
   }
 
@@ -57,6 +75,14 @@ export function handleGroupVariants(
       editedAt: edited_at,
       connection: connectionInfo,
     });
+    // Also raw, so a caller awaiting confirmation can see it.
+    //
+    // `Success` and `Error` emit this; the handled variants did not — they
+    // returned true and the response ended there. So every write gated on THIS
+    // variant waited out its 15s timeout and told the user "the change may not
+    // have been saved", after the same handler had already applied it. The
+    // action worked, and the app said it had not.
+    eventEmitter.emit('workspace:raw-response', response);
     return true;
   }
 
@@ -70,6 +96,14 @@ export function handleGroupVariants(
       deletedBy: deleted_by,
       connection: connectionInfo,
     });
+    // Also raw, so a caller awaiting confirmation can see it.
+    //
+    // `Success` and `Error` emit this; the handled variants did not — they
+    // returned true and the response ended there. So every write gated on THIS
+    // variant waited out its 15s timeout and told the user "the change may not
+    // have been saved", after the same handler had already applied it. The
+    // action worked, and the app said it had not.
+    eventEmitter.emit('workspace:raw-response', response);
     return true;
   }
 

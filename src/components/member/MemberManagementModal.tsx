@@ -16,7 +16,7 @@ interface MemberManagementModalProps {
   member?: { id: string; username: string; role: string };
 }
 
-const ROLE_OPTIONS = [
+const ROLE_OPTIONS: { value: string; label: string; }[] = [
   { value: "Owner", label: "Owner" },
   { value: "Admin", label: "Admin" },
   { value: "Member", label: "Member" },
@@ -54,7 +54,7 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
   isOpen, onClose, mode, domainId, member,
 }) => {
   const { toast } = useToast();
-  const location = domainId ? "domain" : "workspace";
+  const location: "domain" | "workspace" = domainId ? "domain" : "workspace";
 
   const modes: Record<"add" | "edit" | "remove", ModeConfig> = {
     add: { ...BASE_MODES.add, description: `Add a new member to this ${location}` },
@@ -62,7 +62,7 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
     remove: { ...BASE_MODES.remove, description: `Remove member from this ${location}` },
   };
 
-  const handleSubmit = async (formData: Record<string, string>) => {
+  const handleSubmit = async (formData: Record<string, string>): Promise<void> => {
     if (mode === "add") {
       await WorkspaceService.addMember(formData.username, formData.role as UserRoleTS, domainId);
       toastSuccess(toast, "Member Added", `${formData.username} has been added to the ${location} as ${formData.role}`);
@@ -75,8 +75,8 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
     }
   };
 
-  const customContent = mode === "remove" && member ? (
-    <div className="text-white">
+  const customContent: JSX.Element | undefined = mode === "remove" && member ? (
+    <div className="text-foreground">
       Are you sure you want to remove <strong>{member.username}</strong> from this {location}?
     </div>
   ) : undefined;

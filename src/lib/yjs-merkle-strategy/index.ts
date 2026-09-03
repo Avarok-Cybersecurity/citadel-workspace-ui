@@ -9,9 +9,4 @@ export { YjsChunkingStrategy } from './strategy';
 export type { YjsMerkleProof } from './tree';
 export { YjsMerkleTree } from './tree';
 
-export type { SyncDecision } from './sync';
-export {
-  determineSyncAction,
-  computeDocumentHash,
-  computeStateVectorHash,
-} from './sync';
+export { computeDocumentHash } from './sync';

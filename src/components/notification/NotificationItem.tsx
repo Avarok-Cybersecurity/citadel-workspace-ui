@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useToast } from '@/hooks/use-toast';
 import NotificationService, { 
   Notification, 
   NotificationType 
@@ -21,26 +20,25 @@ interface NotificationItemProps {
   notification: Notification;
 }
 
-const NotificationItem = ({ notification }: NotificationItemProps) => {
+const NotificationItem: ({ notification }: NotificationItemProps) => JSX.Element = ({ notification }: NotificationItemProps): JSX.Element => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { toast } = useToast();
-  const notificationService = NotificationService.getInstance();
+  const notificationService: NotificationService = NotificationService.getInstance();
   
   // Mark as read when rendered
   if (!notification.read) {
     notificationService.markAsRead(notification.id);
   }
   
-  const handleDismiss = () => {
+  const handleDismiss = (): void => {
     notificationService.removeNotification(notification.id);
   };
   
   // Format the timestamp
-  const formattedTime = formatDistanceToNow(notification.timestamp, { addSuffix: true });
-  const exactTime = format(notification.timestamp, 'PPpp');
+  const formattedTime: string = formatDistanceToNow(notification.timestamp, { addSuffix: true });
+  const exactTime: string = format(notification.timestamp, 'PPpp');
   
   // Get the appropriate icon based on notification type
-  const getNotificationIcon = () => {
+  const getNotificationIcon: () => JSX.Element = (): JSX.Element => {
     switch (notification.type) {
       case NotificationType.MESSAGE:
         return <MessageSquare className="h-4 w-4" />;
@@ -54,54 +52,64 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
   };
   
   // Get border color based on priority
-  const getBorderColor = () => {
+  const getBorderColor: () => "border-destructive" | "border-primary-accent" | "border-border" = (): "border-destructive" | "border-primary-accent" | "border-border" => {
     switch (notification.priority) {
       case 'high':
-        return 'border-red-500';
+        return 'border-destructive';
       case 'normal':
-        return 'border-blue-500';
+        return 'border-primary-accent';
       case 'low':
-        return 'border-gray-500';
+        return 'border-border';
       default:
-        return 'border-gray-500';
+        return 'border-border';
     }
   };
   
   // Handle card click (for PEER_REGISTRATION cards, opens the modal)
-  const handleCardClick = (e: React.MouseEvent) => {
+  const handleCardClick = (e: React.MouseEvent): void => {
     // Don't trigger if clicking buttons or the dismiss X
     if ((e.target as HTMLElement).closest('button')) return;
 
-    // Call onCardClick if provided in data
-    if (notification.data?.onCardClick) {
-      notification.data.onCardClick();
+    // Narrowed, not assumed. `data` is `Record<string, unknown>` -- it arrives
+    // from whoever raised the notification -- so a callback in it is a claim
+    // until it is checked. It used to be typed `any`, which let this call
+    // anything at all under that key, including a string.
+    const onCardClick: unknown = notification.data?.onCardClick;
+    if (typeof onCardClick === 'function') {
+      (onCardClick as () => void)();
     }
   };
 
-  const isClickable = notification.type === NotificationType.PEER_REGISTRATION && notification.data?.onCardClick;
+  // This decides the CURSOR, not the behaviour: `handleCardClick` above runs
+  // unconditionally and does or does not find a callback. It used to also
+  // require `type === PEER_REGISTRATION`, so a message card that did something
+  // when clicked gave the reader no sign that it would -- an affordance
+  // missing from a control that worked. (What made the click itself dead was a
+  // key mismatch: the message pipeline supplied `onOpen`.)
+  const isClickable: boolean = typeof notification.data?.onCardClick === 'function';
 
   return (
     <Card
       onClick={handleCardClick}
-      className={`bg-[#262C4A] border-l-4 ${getBorderColor()}
-        hover:bg-[#2E355A] transition-colors duration-200
+      className={`bg-surface border-l-4 ${getBorderColor()}
+        hover:bg-surface transition-colors duration-200
         ${notification.read ? 'opacity-80' : 'opacity-100'}
         ${isClickable ? 'cursor-pointer' : ''}`}
     >
       <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="bg-[#232536] p-1 rounded-full">
+            <div className="bg-card p-1 rounded-full">
               {getNotificationIcon()}
             </div>
-            <CardTitle className="text-sm font-medium text-white">
+            <CardTitle className="text-sm font-medium text-foreground">
               {notification.title}
             </CardTitle>
           </div>
           <Button 
             variant="ghost" 
             size="icon"
-            className="h-6 w-6 text-gray-400 hover:text-white"
+            className="tap-target h-6 w-6 text-muted-foreground hover:text-foreground"
             onClick={handleDismiss}
           >
             <span className="sr-only">Dismiss</span>
@@ -109,7 +117,7 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
           </Button>
         </div>
         <CardDescription 
-          className="text-xs text-gray-400"
+          className="text-xs text-muted-foreground"
           title={exactTime}
         >
           {formattedTime}
@@ -120,8 +128,9 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
         <div className="flex items-start space-x-3">
           {notification.senderId && (
             <Avatar className="h-8 w-8">
-              <AvatarImage src="" />
-              <AvatarFallback className="bg-[#444A6C] text-white text-xs">
+              {/* Decorative: the notification title carries the sender. */}
+              <AvatarImage src="" alt="" />
+              <AvatarFallback className="bg-surface text-foreground text-xs">
                 {String(notification.senderId).substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
@@ -136,7 +145,7 @@ const NotificationItem = ({ notification }: NotificationItemProps) => {
               <Button 
                 variant="link" 
                 size="sm"
-                className="p-0 h-auto text-xs mt-1 text-purple-300"
+                className="p-0 h-auto text-xs mt-1 text-primary-accent"
                 onClick={() => setIsExpanded(!isExpanded)}
               >
                 {isExpanded ? 'Show less' : 'Show more'}

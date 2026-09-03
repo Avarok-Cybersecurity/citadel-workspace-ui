@@ -34,13 +34,13 @@ export const LeaderIndicator: React.FC = () => {
           <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-opacity-20">
             {isLeader ? (
               <>
-                <Wifi className="h-4 w-4 text-green-500" />
-                <span className="text-xs text-green-500 font-medium">Leader</span>
+                <Wifi className="h-4 w-4 text-success-emphasis" />
+                <span className="text-xs text-success-emphasis font-medium">Leader</span>
               </>
             ) : (
               <>
-                <WifiOff className="h-4 w-4 text-gray-500" />
-                <span className="text-xs text-gray-500 font-medium">Follower</span>
+                <WifiOff className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground font-medium">Follower</span>
               </>
             )}
           </div>

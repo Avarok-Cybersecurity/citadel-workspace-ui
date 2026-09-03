@@ -5,12 +5,13 @@ import {
   FolderOpen,
   ChevronRight,
   ChevronDown,
+  type LucideIcon,
 } from "lucide-react";
-import type { RevfsNode } from "@/types/revfs-types";
-import { PROTECTED_DIRS } from "@/types/revfs-types";
+import { PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
 import { VFSContextMenu } from "./VFSContextMenu";
 import { VFSStorageUsage } from "./VFSStorageUsage";
 import { cn } from "@/lib/utils";
+import { activateOnKey } from '@/lib/a11y';
 
 // ============================================================================
 // Sidebar Tree Node (directories only)
@@ -40,18 +41,18 @@ function SidebarNode({
   onDelete,
   onUploadFile,
   onDrop,
-}: SidebarNodeProps) {
+}: SidebarNodeProps): JSX.Element {
   const [dragOver, setDragOver] = useState(false);
-  const isProtected = PROTECTED_DIRS.has(node.path);
-  const FolderIcon = isProtected ? FolderLock : expanded ? FolderOpen : Folder;
+  const isProtected: ReturnType<typeof PROTECTED_DIRS.has> = PROTECTED_DIRS.has(node.path);
+  const FolderIcon: LucideIcon = isProtected ? FolderLock : expanded ? FolderOpen : Folder;
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent): void => {
     e.preventDefault();
     e.stopPropagation();
     setDragOver(true);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent): void => {
     e.preventDefault();
     e.stopPropagation();
     setDragOver(false);
@@ -60,12 +61,14 @@ function SidebarNode({
     }
   };
 
-  const handleClick = () => {
+  const handleClick = (): void => {
     onNavigate(node.path);
     if (!expanded) onToggle();
   };
 
-  const handleChevronClick = (e: React.MouseEvent) => {
+  // Widened from MouseEvent: also the keyboard activation handler, and it only
+  // uses stopPropagation, which both event types have.
+  const handleChevronClick = (e: React.MouseEvent | React.KeyboardEvent): void => {
     e.stopPropagation();
     onToggle();
   };
@@ -81,23 +84,37 @@ function SidebarNode({
     >
       <div
         className={cn(
-          "flex items-center py-1 px-1 cursor-pointer rounded text-sm text-gray-300 hover:bg-[#232536]",
-          isActive && "bg-purple-700/50 text-white",
-          dragOver && "bg-green-900/30 ring-1 ring-green-500",
+          "flex items-center py-1 px-1 cursor-pointer rounded text-sm text-foreground/80 hover:bg-card",
+          isActive && "bg-primary/50 text-primary-foreground",
+          dragOver && "bg-success/15 ring-1 ring-success",
         )}
         style={{ paddingLeft: `${depth * 16 + 4}px` }}
+        // Addressable by name. The file-manager spec has looked for
+        // `tree-item-<name>` all along and the app never rendered it, so every
+        // lookup fell through to `.truncate:has-text(name)` -- a class shared
+        // by grid tiles, the properties dialog and the storage line, matching
+        // by substring. That is why a folder whose deletion had been removed
+        // from the tree, persisted AND acknowledged by the peer still read as
+        // "still visible in tree after 6s".
+        data-testid={`tree-item-${node.name}`}
         onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={activateOnKey(handleClick)}
         onDragOver={handleDragOver}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
       >
         <span
-          className="mr-0.5 text-gray-400 hover:text-gray-200"
+          className="mr-0.5 text-muted-foreground hover:text-foreground"
           onClick={handleChevronClick}
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateOnKey(handleChevronClick)}
         >
           {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </span>
-        <FolderIcon className={cn("h-4 w-4 mr-1.5 shrink-0", isProtected ? "text-gray-400" : "text-yellow-400")} />
+        <FolderIcon className={cn("h-4 w-4 mr-1.5 shrink-0", isProtected ? "text-muted-foreground" : "text-warning-emphasis")} />
         <span className="truncate text-xs">{node.name}</span>
       </div>
     </VFSContextMenu>
@@ -135,12 +152,12 @@ export function VFSTreeView({
   storageUsed,
   storageQuota,
   storageLabel,
-}: VFSTreeViewProps) {
+}: VFSTreeViewProps): JSX.Element {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['/']));
 
-  const toggleExpand = useCallback((path: string) => {
+  const toggleExpand: (path: string) => void = useCallback((path: string): void => {
     setExpanded(prev => {
-      const next = new Set(prev);
+      const next: Set<string> = new Set(prev);
       if (next.has(path)) next.delete(path);
       else next.add(path);
       return next;
@@ -171,7 +188,7 @@ export function VFSTreeView({
     }
 
     if (expanded.has(node.path) && node.children) {
-      const dirs = node.children
+      const dirs: RevfsNode[] = node.children
         .filter(c => c.type === 'directory')
         .sort((a, b) => a.name.localeCompare(b.name));
       for (const child of dirs) {
@@ -182,31 +199,45 @@ export function VFSTreeView({
     return rows;
   };
 
-  const showStorageUsage = storageUsed !== undefined && storageQuota !== undefined;
+  // Names the pair that exists rather than a boolean about it: a boolean alias
+  // narrows the two only while it carries no annotation, so this is the typed
+  // form of the same guard.
+  const storageUsage: { used: number; quota: number } | null =
+    storageUsed !== undefined && storageQuota !== undefined
+      ? { used: storageUsed, quota: storageQuota }
+      : null;
 
   return (
-    <div className="w-52 shrink-0 border-r border-purple-800 flex flex-col bg-[#2E3450]">
+    // Hidden below md. A fixed 208px tree beside the grid left ~167px on a
+    // 375px phone — one column of tiles with names truncated to a few
+    // characters, a third of the screen spent on a folder tree. Every other
+    // split in the app got a mobile path; this one squashed. The grid opens
+    // folders and the path bar navigates up, so nothing is unreachable without it.
+    <div className="hidden w-52 shrink-0 border-r border-border md:flex flex-col bg-surface">
       {/* Scrollable tree area */}
       <div className="flex-1 overflow-y-auto py-1">
         {/* Root entry */}
         <div
           className={cn(
-            "flex items-center py-1 px-2 cursor-pointer rounded text-xs text-gray-400 hover:bg-[#232536] mx-1 mb-0.5",
-            currentPath === '/' && "bg-purple-700/50 text-white",
+            "flex items-center py-1 px-2 cursor-pointer rounded text-xs text-muted-foreground hover:bg-card mx-1 mb-0.5",
+            currentPath === '/' && "bg-primary/50 text-primary-foreground",
           )}
           onClick={() => onNavigate('/')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateOnKey((): void => { ((): void => onNavigate('/'))(); })}
         >
-          <Folder className="h-3.5 w-3.5 mr-1.5 text-yellow-400" />
+          <Folder className="h-3.5 w-3.5 mr-1.5 text-warning-emphasis" />
           <span>Root</span>
         </div>
         {renderNode(tree, 0)}
       </div>
 
       {/* Storage usage bar (fixed at bottom) */}
-      {showStorageUsage && (
+      {storageUsage && (
         <VFSStorageUsage
-          usedBytes={storageUsed}
-          quotaBytes={storageQuota}
+          usedBytes={storageUsage.used}
+          quotaBytes={storageUsage.quota}
           label={storageLabel}
         />
       )}

@@ -1,10 +1,15 @@
+import { isPlaceholderName } from '@/lib/peer-display';
 import { useEffect } from 'react';
+import { isMemberOnline } from '@/lib/presence';
 import { workspaceEvents, type ConnectionInfo } from '@/lib/workspace-events';
 import { connectionManager } from '@/lib/connection';
 import WorkspaceService from '@/lib/workspace-service';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
-import { setLoading, trackRequest, runAsyncSetup } from './event-setup-utils';
+import { setLoading, runAsyncSetup } from './event-setup-utils';
 import { debugLog } from '@/lib/debug-config';
+import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
+import type { User, UserRole } from '@/types/workspace-entities';
+import type { StoredSession } from '@/types/session-types';
 
 interface UseMemberEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -12,22 +17,51 @@ interface UseMemberEventSetupProps {
 
 export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): void {
   useEffect(() => {
-    const setupMemberListeners = async () => {
+    // Kept, not discarded.
+    //
+    // `onMemberEvent` and `onWorkspaceEvent` return their unsubscribe
+    // SYNCHRONOUSLY, and `await` on a plain value throws nothing away by
+    // itself -- but nothing here captured the result, and the effect returned
+    // no cleanup. Every remount left another set of live listeners behind, each
+    // retaining a closure over `setState`, and every event then ran an
+    // ever-growing pile of dead handlers.
+    //
+    // Nothing broke visibly, because setState on an unmounted component is a
+    // no-op, which is exactly why it accumulated. `use-domain-members` carries
+    // the same paragraph about the same mistake, fixed there and not here.
+    //
+    // The sibling `useMessageEventSetup` calls `cleanupAllListeners()` on
+    // unmount, which does remove these -- and also removes every listener this
+    // hook did not create. That is not a substitute for owning your own
+    // unsubscribe.
+    const unsubscribes: Array<() => void> = [];
+    let cancelled: boolean = false;
+    /** Unsubscribes immediately if the effect has already been cleaned up. */
+    const keep = (unsubscribe: () => void): void => {
+      if (cancelled) unsubscribe();
+      else unsubscribes.push(unsubscribe);
+    };
+
+    const setupMemberListeners = async (): Promise<void> => {
       // Member events
-      await workspaceEvents.onMemberEvent('members:loading', (payload) => {
-        setLoading(setState, 'members', true, payload.connection.request_id);
+      keep(workspaceEvents.onMemberEvent('members:loading', (payload) => {
+        setLoading(setState, 'members', true);
+        // listMembers resolves on SEND, not on response — fall back to the empty
+        // state rather than a spinner that can never resolve.
+        armLoadingDeadline('members', () => setLoading(setState, 'members', false));
 
         if (payload.domainId) {
           debugLog('UseMemberEventSetup', `Loading members for domain: ${payload.domainId}, request ID: ${payload.connection.request_id}`);
         }
-      });
+      }));
 
-      await workspaceEvents.onMemberEvent('members:loaded', async (payload) => {
+      keep(workspaceEvents.onMemberEvent('members:loaded', async (payload) => {
+        cancelLoadingDeadline('members');
         setState(prev => {
           // Try to find the current user in the members list and update their role
-          let updatedCurrentUser = prev.currentUser;
+          let updatedCurrentUser: { id: string; username: string; name: string; role?: string; displayName?: string; avatarUrl?: string; } | undefined = prev.currentUser;
           if (prev.currentUser && payload.members) {
-            const currentUserMember = payload.members.find(
+            const currentUserMember: User | undefined = payload.members.find(
               (m: { username?: string; role?: string; displayName?: string }) =>
                 m.username === prev.currentUser?.username
             );
@@ -40,10 +74,10 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
               };
 
               // Persist role to stored session for WorkspaceSwitcher (async)
-              const roleToSave = currentUserMember.role;
+              const roleToSave: UserRole = currentUserMember.role;
               if (roleToSave) {
                 runAsyncSetup(async () => {
-                  const session = await connectionManager.getTabSelectedSession();
+                  const session: StoredSession | null = await connectionManager.getTabSelectedSession();
                   if (session) {
                     await connectionManager.updateSessionRole(session.username, session.serverAddress, roleToSave);
                   }
@@ -66,8 +100,8 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
           const membersRecord: Record<string, import('@/types/workspace-entities').User> = {};
           if (payload.members) {
             for (const m of payload.members) {
-              const member = m as { id?: string; username?: string; displayName?: string; role?: string };
-              const id = member.id || member.username;
+              const member: { id?: string; username?: string; displayName?: string; role?: string; } = m as { id?: string; username?: string; displayName?: string; role?: string };
+              const id: string | undefined = member.id || member.username;
               if (!id) {
                 debugLog('UseMemberEventSetup', 'Dropping member with no stable id/username', member);
                 continue;
@@ -77,7 +111,11 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
                 username: member.username || id,
                 displayName: member.displayName || member.username || id,
                 role: member.role as import('@/types/workspace-entities').UserRole | undefined,
-                isOnline: false,
+                // Real presence rather than a constant. A member arriving from
+                // a member event was recorded as offline whatever the registry
+                // said, so anyone rendering this record showed a grey dot for a
+                // peer the sidebar was showing as online at the same moment.
+                isOnline: isMemberOnline(id),
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
               };
@@ -89,23 +127,22 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
             currentUser: updatedCurrentUser,
             members: membersRecord,
             loading: { ...prev.loading, members: false },
-            lastRequestId: payload.connection.request_id
           };
         });
-      });
+      }));
 
-      // Member added event
-      await workspaceEvents.onMemberEvent('member:added', (payload: { member: unknown; connection: ConnectionInfo }) => {
-        debugLog('UseMemberEventSetup', 'Member added:', payload.member);
-        trackRequest(setState, payload.connection.request_id);
-      });
+      // `member:added` / `member:removed` had subscriptions here, but the only
+      // emitters lived in handlers for response variants the server never
+      // constructs (AddMember/RemoveMember exist as requests only). Both
+      // handlers did nothing beyond trackRequest, and the list is refreshed by
+      // `members:reload`, emitted from the write path once the server confirms.
 
       // Member role updated event
-      await workspaceEvents.onMemberEvent('member:role-updated', (payload: { userId: string; role: string; connection: ConnectionInfo }) => {
+      keep(workspaceEvents.onMemberEvent('member:role-updated', (payload: { userId: string; role: string; connection: ConnectionInfo }) => {
         debugLog('UseMemberEventSetup', 'Member role updated:', payload.userId, payload.role);
         setState(prev => {
           // Update currentUser's role if it matches
-          let updatedCurrentUser = prev.currentUser;
+          let updatedCurrentUser: { id: string; username: string; name: string; role?: string; displayName?: string; avatarUrl?: string; } | undefined = prev.currentUser;
           if (prev.currentUser && (prev.currentUser.username === payload.userId || prev.currentUser.id === payload.userId)) {
             debugLog('UseMemberEventSetup', `Updating current user role to: ${payload.role}`);
             updatedCurrentUser = {
@@ -115,7 +152,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
 
             // Persist role to stored session for WorkspaceSwitcher (async)
             runAsyncSetup(async () => {
-              const session = await connectionManager.getTabSelectedSession();
+              const session: StoredSession | null = await connectionManager.getTabSelectedSession();
               if (session) {
                 await connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
               }
@@ -124,25 +161,24 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
           return {
             ...prev,
             currentUser: updatedCurrentUser,
-            lastRequestId: payload.connection.request_id
           };
         });
-      });
+      }));
 
       // User permissions loaded event - updates currentUser's role
-      await workspaceEvents.onMemberEvent('user:permissions:loaded', (payload: { userId: string; role: string; connection?: ConnectionInfo }) => {
+      keep(workspaceEvents.onMemberEvent('user:permissions:loaded', (payload: { userId: string; role: string; connection?: ConnectionInfo }) => {
         debugLog('UseMemberEventSetup', 'User permissions loaded:', payload.userId, payload.role);
         setState(prev => {
           // Update currentUser's role if it matches
-          let updatedCurrentUser = prev.currentUser;
+          let updatedCurrentUser: { id: string; username: string; name: string; role?: string; displayName?: string; avatarUrl?: string; } | undefined = prev.currentUser;
 
           // Check against currentUser username/id OR the stored session username
-          const storedSession = connectionManager.getStoredSessionsArray()[0];
-          const isCurrentUser = prev.currentUser && (
+          const storedSession: StoredSession = connectionManager.getStoredSessionsArray()[0];
+          const isCurrentUser: boolean | undefined = prev.currentUser && (
             prev.currentUser.username === payload.userId ||
             prev.currentUser.id === payload.userId ||
             // Also match if currentUser has placeholder "Loading..." but payload matches stored session
-            (prev.currentUser.username === 'Loading...' && storedSession?.username === payload.userId)
+            (isPlaceholderName(prev.currentUser.username) && storedSession?.username === payload.userId)
           );
 
           if (isCurrentUser && prev.currentUser) {
@@ -150,14 +186,14 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
             updatedCurrentUser = {
               ...prev.currentUser,
               // Also update username if it was 'Loading...'
-              username: prev.currentUser.username === 'Loading...' ? payload.userId : prev.currentUser.username,
-              id: prev.currentUser.id === 'Loading...' ? payload.userId : prev.currentUser.id,
+              username: isPlaceholderName(prev.currentUser.username) ? payload.userId : prev.currentUser.username,
+              id: isPlaceholderName(prev.currentUser.id) ? payload.userId : prev.currentUser.id,
               role: payload.role
             };
 
             // Persist role to stored session for WorkspaceSwitcher (async)
             runAsyncSetup(async () => {
-              const session = await connectionManager.getTabSelectedSession();
+              const session: StoredSession | null = await connectionManager.getTabSelectedSession();
               if (session) {
                 await connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
               }
@@ -166,28 +202,27 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
           return {
             ...prev,
             currentUser: updatedCurrentUser,
-            lastRequestId: payload.connection?.request_id
           };
         });
-      });
-
-      // Member removed event
-      await workspaceEvents.onMemberEvent('member:removed', (payload: { userId: string; connection: ConnectionInfo }) => {
-        debugLog('UseMemberEventSetup', 'Member removed:', payload.userId);
-        trackRequest(setState, payload.connection.request_id);
-      });
+      }));
 
       // Members reload event
-      await workspaceEvents.onWorkspaceEvent('members:reload', async () => {
+      keep(workspaceEvents.onWorkspaceEvent('members:reload', async () => {
         debugLog('UseMemberEventSetup', 'Reloading members list...');
-        const params = new URLSearchParams(window.location.search);
-        const domainId = params.get("nodeId");
+        const params: URLSearchParams = new URLSearchParams(window.location.search);
+        const domainId: string | null = params.get("nodeId");
         if (domainId) {
           await WorkspaceService.listMembers(domainId);
         }
-      });
+      }));
     };
 
     runAsyncSetup(setupMemberListeners);
+
+    return (): void => {
+      cancelled = true;
+      for (const unsubscribe of unsubscribes) unsubscribe();
+      unsubscribes.length = 0;
+    };
   }, [setState]);
 }

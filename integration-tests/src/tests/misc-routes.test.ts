@@ -22,6 +22,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -61,20 +62,24 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 async function testMessagesRoute(page: Page): Promise<boolean> {
   console.log('\n=== Testing /messages Route ===');
 
-  await page.goto(`${config.BASE_URL}/?section=messages`, { waitUntil: 'commit', timeout: 30000 });
+  // /messages is the actual route (see App.tsx). `?section=messages` is not a
+  // route at all, so this had been loading the landing page and asserting against it.
+  await page.goto(`${config.BASE_URL}/messages`, { waitUntil: 'commit', timeout: 30000 });
   await sleep(3000);
 
-  // Check if messages/chat area rendered
-  const chatArea = page.locator('text="Messages", text="Direct Messages", text="DIRECT MESSAGES", [class*="chat"]').first();
-  const visible = await chatArea.isVisible({ timeout: 5000 }).catch(() => false);
+  // The /messages route renders AppLayout with the peer list and chat panes, so
+  // the sidebar is the reliable signal that the route mounted.
+  //
+  // The previous check was
+  //   'text="Messages", text="Direct Messages", ..., [class*="chat"]'
+  // which puts several text engines and a CSS selector in one comma-separated
+  // string. Playwright cannot parse that as intended, so it never matched, and the
+  // fallback ("did ANY content render") meant the assertion could pass on the
+  // landing page — which is what it was actually loading, since the old URL used a
+  // ?section= query that is not a route.
+  const shell = page.locator('[data-sidebar="sidebar"]').first();
+  const visible = await isVisibleWithin(shell, 15000);
   console.log(`  Messages route loaded: ${visible}`);
-
-  if (!visible) {
-    // Alternative check: any content loaded (not blank page)
-    const content = await page.locator('main, [role="main"]').first().textContent().catch(() => '');
-    return (content?.length ?? 0) > 20;
-  }
-
   return visible;
 }
 
@@ -86,12 +91,12 @@ async function testNotFoundPage(page: Page): Promise<boolean> {
 
   // Check for 404 elements
   const notFound404 = page.locator('text="404"').first();
-  const notFoundMsg = page.locator('text="not found", text="Not Found", text="Page not found"').first();
+  const notFoundMsg = page.getByText(/not found/i).first();
   const homeLink = page.locator('a[href="/"], a:has-text("Home"), a:has-text("Return")').first();
 
-  const has404 = await notFound404.isVisible({ timeout: 3000 }).catch(() => false);
-  const hasMsg = await notFoundMsg.isVisible({ timeout: 2000 }).catch(() => false);
-  const hasHome = await homeLink.isVisible({ timeout: 2000 }).catch(() => false);
+  const has404 = await isVisibleWithin(notFound404, 3000);
+  const hasMsg = await isVisibleWithin(notFoundMsg, 2000);
+  const hasHome = await isVisibleWithin(homeLink, 2000);
 
   const renders = has404 || hasMsg;
   console.log(`  404 page renders: ${renders} (404: ${has404}, Message: ${hasMsg}, Home link: ${hasHome})`);
@@ -107,44 +112,44 @@ async function testSidebarCollapse(page: Page): Promise<{
 
   const results = { visible: false, collapseWorks: false, expandWorks: false };
 
-  // Navigate back to workspace first
-  await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 30000 });
-  await sleep(2000);
+  // Navigate to the WORKSPACE, not the site root. BASE_URL lands on the marketing
+  // page, which has no sidebar at all — so this check reported "sidebar not
+  // visible" and returned early, taking the collapse and expand assertions with
+  // it. All three had been failing silently since they were never gated.
+  await page.goto(`${config.BASE_URL}/workspace`, { waitUntil: 'commit', timeout: 30000 });
   await waitForWorkspaceLoaded(page, 15000);
 
   // Check sidebar is visible
   const sidebar = page.locator('[data-sidebar="sidebar"], aside, nav.sidebar, [class*="Sidebar"]').first();
-  results.visible = await sidebar.isVisible({ timeout: 5000 }).catch(() => false);
+  results.visible = await isVisibleWithin(sidebar, 5000);
   console.log(`  Sidebar visible: ${results.visible}`);
 
   if (!results.visible) return results;
 
   // Find collapse toggle button
-  const collapseBtn = page.locator('button:has(svg.lucide-panel-left), button:has(svg.lucide-sidebar), button[aria-label*="Collapse"], button[aria-label*="sidebar"]').first();
-  if (await collapseBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+  const collapseBtn = page.locator('[data-testid="sidebar-toggle"]').first();
+  if (await isVisibleWithin(collapseBtn, 3000)) {
+    // Assert the STATE, not the visibility of the collapsed element. A collapsed
+    // sidebar has zero width, so `isVisible()` on it is false either way — the
+    // previous check could not distinguish "collapsed" from "never collapsed".
+    const stateEl = page.locator('[data-state="expanded"], [data-state="collapsed"]').last();
+
     await collapseBtn.click();
-    await sleep(500);
-
-    // Check if sidebar collapsed (width reduced or hidden)
-    const sidebarAfter = page.locator('[data-sidebar="sidebar"], aside').first();
-    const stillVisible = await sidebarAfter.isVisible({ timeout: 1000 }).catch(() => false);
-
-    // Sidebar might still be visible but narrower, check for collapsed state
-    const collapsedState = page.locator('[data-collapsed="true"], [data-state="collapsed"]').first();
-    const isCollapsed = (await collapsedState.isVisible({ timeout: 1000 }).catch(() => false)) || !stillVisible;
-
-    results.collapseWorks = isCollapsed;
+    results.collapseWorks = await stateEl
+      .and(page.locator('[data-state="collapsed"]'))
+      .waitFor({ state: 'attached', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
     console.log(`  Collapse works: ${results.collapseWorks}`);
 
-    // Expand again
     if (results.collapseWorks) {
-      const expandBtn = page.locator('button:has(svg.lucide-panel-left), button:has(svg.lucide-sidebar), button[aria-label*="Expand"], button[aria-label*="sidebar"]').first();
-      if (await expandBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await expandBtn.click();
-        await sleep(500);
-        results.expandWorks = true;
-        console.log('  Expand works: true');
-      }
+      await collapseBtn.click();
+      results.expandWorks = await stateEl
+        .and(page.locator('[data-state="expanded"]'))
+        .waitFor({ state: 'attached', timeout: 5000 })
+        .then(() => true)
+        .catch(() => false);
+      console.log(`  Expand works: ${results.expandWorks}`);
     }
   } else {
     console.log('  Collapse button not found');
@@ -158,13 +163,13 @@ async function testProfileEdit(page: Page): Promise<boolean> {
 
   // Open user dropdown
   const avatarButton = page.locator('[data-testid="user-avatar-button"]');
-  if (!(await avatarButton.isVisible({ timeout: 5000 }).catch(() => false))) return false;
+  if (!(await isVisibleWithin(avatarButton, 5000))) return false;
 
   await avatarButton.click();
   await sleep(500);
 
   const profileItem = page.locator('[role="menuitem"]:has-text("Profile")');
-  if (!(await profileItem.isVisible({ timeout: 3000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(profileItem, 3000))) {
     await page.keyboard.press('Escape');
     return false;
   }
@@ -174,18 +179,18 @@ async function testProfileEdit(page: Page): Promise<boolean> {
 
   // Check if profile modal opened with editable fields
   const dialog = page.locator('[role="dialog"]').first();
-  if (!(await dialog.isVisible({ timeout: 3000 }).catch(() => false))) return false;
+  if (!(await isVisibleWithin(dialog, 3000))) return false;
 
   // Try editing display name
   const nameInput = page.locator('input[name="displayName"], input[placeholder*="name"], input[placeholder*="Name"]').first();
-  if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(nameInput, 3000)) {
     const originalValue = await nameInput.inputValue();
     await nameInput.fill('Updated Name');
     await sleep(300);
 
     // Look for Save button
     const saveBtn = page.locator('button:has-text("Save"), button:has-text("Update"), button[type="submit"]').first();
-    if (await saveBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(saveBtn, 2000)) {
       console.log('  Profile edit fields found and editable');
       // Restore original value
       await nameInput.fill(originalValue || USERNAME);
@@ -226,7 +231,7 @@ async function runTest(): Promise<boolean> {
 
   try {
     const page = await context.newPage();
-    setupConsoleCapture(page, 'Misc', ['error', 'Error']);
+    setupConsoleCapture(page, 'Misc', ['error', 'Error', 'ILM']);
 
     // ========== STEP 1: Create Account ==========
     console.log('\n' + '\u2500'.repeat(50));
@@ -309,13 +314,13 @@ async function runTest(): Promise<boolean> {
       await sleep(500);
       // ProtocolWarning renders a fixed bottom-left alert with "Protocol Warning" title
       const warningTitle = page.locator('text="Protocol Warning"').first();
-      results.protocolWarningRenders = await warningTitle.isVisible({ timeout: 5000 }).catch(() => false);
+      results.protocolWarningRenders = await isVisibleWithin(warningTitle, 5000);
       console.log(`  ProtocolWarning visible: ${results.protocolWarningRenders}`);
 
       if (results.protocolWarningRenders) {
         // Also verify the message content
         const warningMsg = page.locator('text="Test protocol warning: connection timeout"').first();
-        const msgVisible = await warningMsg.isVisible({ timeout: 2000 }).catch(() => false);
+        const msgVisible = await isVisibleWithin(warningMsg, 2000);
         console.log(`  Warning message visible: ${msgVisible}`);
       }
     }
@@ -326,7 +331,19 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.accountCreated;
+    // Gate on the routes and chrome this spec is named for. It previously passed
+    // on accountCreated alone, so the 404 page, the sidebar and profile editing
+    // could all be broken and it would still report PASSED.
+    const criticalResults = [
+      results.accountCreated,
+      results.messagesRouteWorks,
+      results.notFoundPageRenders,
+      results.sidebarVisible,
+      results.sidebarCollapseWorks,
+      results.sidebarExpandWorks,
+      results.profileEditWorks,
+    ];
+    const corePassed = criticalResults.every(Boolean);
 
     console.log(`\n  Account Created:           ${results.accountCreated ? 'PASS' : 'FAIL'}`);
     console.log(`  Messages Route:            ${results.messagesRouteWorks ? 'PASS' : 'CHECK'}`);

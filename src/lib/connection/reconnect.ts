@@ -14,6 +14,7 @@ import {
   MAX_RECONNECT_DELAY_MS,
 } from './constants';
 import { debugLog } from '@/lib/debug-config';
+import type { TabSelectionContext } from '@/lib/connection/types';
 
 /**
  * Attempt leader connection if conditions are met.
@@ -33,7 +34,7 @@ export async function attemptLeaderConnection(
     return;
   }
 
-  const activeSessions = await getActiveSessions();
+  const activeSessions: ActiveSession[] = await getActiveSessions();
   await doAutoReconnect(activeSessions);
 }
 
@@ -54,7 +55,7 @@ export async function autoReconnect(
     return;
   }
 
-  const tabSelection = await io.getSelectedUser();
+  const tabSelection: TabSelectionContext | null = await io.getSelectedUser();
   let session: StoredSession | undefined;
 
   if (tabSelection?.selectedUsername && tabSelection?.selectedServerAddress) {
@@ -67,15 +68,15 @@ export async function autoReconnect(
 
   if (!session) return;
 
-  const connectionKey = state.createConnectionKey(session.username, session.serverAddress);
+  const connectionKey: string = state.createConnectionKey(session.username, session.serverAddress);
   if (state.hasConnectionAttempt(connectionKey)) {
     debugLog('ConnectionService', `ConnectionManager: Connection already in progress for ${connectionKey}`);
     return;
   }
 
   // Check if session is already active
-  const freshActiveSessions = await getActiveSessions();
-  const alreadyActive = freshActiveSessions.find(
+  const freshActiveSessions: ActiveSession[] = await getActiveSessions();
+  const alreadyActive: ActiveSession | undefined = freshActiveSessions.find(
     (s) => s.username === session!.username && s.server_address === session!.serverAddress
   );
 
@@ -131,7 +132,14 @@ async function performAutoReconnect(
       debugLog('ConnectionService', 'Service health check failed, attempting anyway:', healthError);
     }
 
-    const requestId = crypto.randomUUID();
+    if (!session.password) {
+      // See lifecycle.ts: no stored password means no silent reconnect.
+      throw new Error(
+        `Cannot reconnect ${session.username} automatically: credentials were not saved. Please sign in again.`,
+      );
+    }
+
+    const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
     await io.connect({
       requestId,
       username: session.username,
@@ -160,7 +168,7 @@ async function handleAutoReconnectError(
   io.updateConnectionService({ cid: null, isConnected: false });
   io.broadcastConnectionStatus({ isConnected: false });
 
-  const errorMessage = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  const errorMessage: string = (error instanceof Error ? error.message : String(error)).toLowerCase();
   if (
     errorMessage.includes('session already connected') ||
     errorMessage.includes('localhost is already trying to connect')
@@ -171,8 +179,8 @@ async function handleAutoReconnectError(
   }
 
   if (!state.hasReachedMaxReconnectAttempts()) {
-    const attempts = state.incrementReconnectAttempts();
-    const delay = state.calculateBackoffDelay(attempts, MAX_RECONNECT_DELAY_MS);
+    const attempts: number = state.incrementReconnectAttempts();
+    const delay: number = state.calculateBackoffDelay(attempts, MAX_RECONNECT_DELAY_MS);
     debugLog('ConnectionService', `ConnectionManager: Will retry in ${delay}ms (attempt ${attempts}/${state.maxReconnectAttempts})`);
 
     setTimeout(async () => {
@@ -192,16 +200,16 @@ async function handleSessionAlreadyConnectedError(
 ): Promise<void> {
   debugLog('ConnectionService', 'ConnectionManager: Session already connected error - likely stale session');
 
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  const extractedCid = state.extractCidFromErrorMessage(errorMessage);
+  const errorMessage: string = error instanceof Error ? error.message : String(error);
+  const extractedCid: string | null = state.extractCidFromErrorMessage(errorMessage);
   if (extractedCid) {
     io.emitEvent('session-already-connected', { cid: extractedCid, message: errorMessage });
     return;
   }
 
   try {
-    const sessions = await getActiveSessions();
-    const match = sessions.find(
+    const sessions: ActiveSession[] = await getActiveSessions();
+    const match: ActiveSession | undefined = sessions.find(
       (s) => s.username === session.username && s.server_address === session.serverAddress
     );
     if (match) {

@@ -1,9 +1,10 @@
-import { Download, X, Check, Zap } from 'lucide-react';
-import { getBubbleStyles } from './types';
+import { X, Check, Zap } from 'lucide-react';
+import { getBubbleStyles, BUBBLE_MAX_WIDTH , type FileTransferBubbleProps } from './types';
 import { BubbleFooter } from './BubbleFooter';
-import type { FileTransferBubbleProps } from './types';
 import { debugLog } from '@/lib/debug-config';
 import { getFileIcon, formatBytes, getStatusContent } from './file-transfer-helpers';
+import { activateOnKey } from '@/lib/a11y';
+import type { StatusContent } from '@/components/p2p/bubbles/file-transfer-helpers';
 
 /**
  * FileTransferBubble - Displays file transfer messages with state-dependent UI
@@ -34,11 +35,11 @@ export function FileTransferBubble({
   onDecline,
   onCancel,
   onOpen
-}: FileTransferBubbleProps) {
-  const isFailed = message.status === 'failed' || message.transfer_state === 'error';
-  const bubbleStyles = getBubbleStyles(isOwn, isFailed);
+}: FileTransferBubbleProps): JSX.Element {
+  const isFailed: boolean = message.status === 'failed' || message.transfer_state === 'error';
+  const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
 
-  const state = message.transfer_state || 'pending';
+  const state: string = message.transfer_state || 'pending';
 
   // DEBUG: Log to understand why Accept/Decline may not show
   debugLog('FileTransferBubble', '[FileTransferBubble] Debug:', {
@@ -49,35 +50,35 @@ export function FileTransferBubble({
     transfer_id: message.transfer_id,
     fileName: message.file_name
   });
-  const progress = message.transfer_progress || 0;
-  const fileName = message.file_name || 'Unknown file';
-  const fileSize = message.file_size || 0;
-  const fileType = message.file_type || 'application/octet-stream';
-  const transferMode = message.transfer_mode || 'async';
+  const progress: number = message.transfer_progress || 0;
+  const fileName: string = message.file_name || 'Unknown file';
+  const fileSize: number = message.file_size || 0;
+  const fileType: string = message.file_type || 'application/octet-stream';
+  const transferMode: "async" | "p2p" = message.transfer_mode || 'async';
 
-  const status = getStatusContent(state, isOwn, message);
+  const status: StatusContent = getStatusContent(state, isOwn, message);
 
-  const handleClick = () => {
+  const handleClick = (): void => {
     if (status.clickable && onOpen && message.virtual_path) {
       onOpen(message.virtual_path);
     }
   };
 
-  const handleAccept = (e: React.MouseEvent) => {
+  const handleAccept = (e: React.MouseEvent): void => {
     e.stopPropagation();
     if (onAccept && message.transfer_id) {
       onAccept(message.transfer_id);
     }
   };
 
-  const handleDecline = (e: React.MouseEvent) => {
+  const handleDecline = (e: React.MouseEvent): void => {
     e.stopPropagation();
     if (onDecline && message.transfer_id) {
       onDecline(message.transfer_id);
     }
   };
 
-  const handleCancel = (e: React.MouseEvent) => {
+  const handleCancel = (e: React.MouseEvent): void => {
     e.stopPropagation();
     if (onCancel && message.transfer_id) {
       onCancel(message.transfer_id);
@@ -89,16 +90,19 @@ export function FileTransferBubble({
       data-testid="file-transfer-bubble"
       data-transfer-state={state}
       data-is-own={String(isOwn)}
-      className={`max-w-[70%] rounded-lg px-3 py-2 ${bubbleStyles}`}
+      className={`${BUBBLE_MAX_WIDTH} rounded-lg px-3 py-2 ${bubbleStyles}`}
     >
       <div
         className={`${status.clickable ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
         onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={activateOnKey(handleClick)}
       >
         {/* File info header */}
         <div className="flex items-start gap-3 mb-2">
           {/* File icon with thumbnail support */}
-          <div className="p-2 rounded bg-white/10 flex-shrink-0">
+          <div className="p-2 rounded bg-foreground/10 flex-shrink-0">
             {message.file_thumbnail ? (
               <img
                 src={message.file_thumbnail}
@@ -116,7 +120,7 @@ export function FileTransferBubble({
             <div className="flex items-center gap-2 text-xs opacity-70">
               <span>{formatBytes(fileSize)}</span>
               {transferMode === 'p2p' && (
-                <span className="flex items-center gap-1 text-yellow-400">
+                <span className="flex items-center gap-1 text-warning-emphasis">
                   <Zap className="h-3 w-3" />
                   P2P
                 </span>
@@ -134,9 +138,17 @@ export function FileTransferBubble({
         {/* Progress bar */}
         {status.showProgress && (
           <div className="mb-2">
-            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div
+            role="progressbar"
+            aria-valuenow={Math.round(progress)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`Transfer of ${fileName}`}
+            aria-valuetext={`${Math.round(progress)} percent`}
+            className="h-1.5 bg-foreground/10 rounded-full overflow-hidden"
+          >
               <div
-                className="h-full bg-sky-400 rounded-full transition-all duration-300"
+                className="h-full bg-primary-accent rounded-full transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -152,14 +164,14 @@ export function FileTransferBubble({
           <div className="flex gap-2 mt-2">
             <button
               onClick={handleAccept}
-              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded text-sm transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-success/20 hover:bg-success/30 text-success-emphasis rounded text-sm transition-colors"
             >
               <Check className="h-4 w-4" />
               Accept
             </button>
             <button
               onClick={handleDecline}
-              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded text-sm transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-destructive/20 hover:bg-destructive/30 text-destructive-emphasis rounded text-sm transition-colors"
             >
               <X className="h-4 w-4" />
               Decline
@@ -171,7 +183,7 @@ export function FileTransferBubble({
           <div className="mt-2">
             <button
               onClick={handleCancel}
-              className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-gray-500/20 hover:bg-gray-500/30 text-gray-300 rounded text-sm transition-colors"
+              className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-muted-foreground/20 hover:bg-muted-foreground/30 text-foreground/80 rounded text-sm transition-colors"
             >
               <X className="h-4 w-4" />
               Cancel

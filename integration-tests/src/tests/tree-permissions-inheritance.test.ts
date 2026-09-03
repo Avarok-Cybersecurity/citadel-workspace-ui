@@ -72,11 +72,17 @@ interface TestResults {
   // Non-Admin Access Tests
   memberCanViewNodes: boolean;
   memberCannotCreateNode: boolean;
+  /** The member's rejected create left nothing behind, as seen by the admin. */
+  memberCreateHadNoEffect: boolean;
   memberCannotDeleteNode: boolean;
+  /** The member's rejected delete left the node intact, as seen by the admin. */
+  memberDeleteHadNoEffect: boolean;
   memberCanViewDeepNodes: boolean;
 
   // ManageNodeTypes Permission Tests
   adminCanCreateNodeType: boolean;
+  /** The type the admin created is visible through ListNodeTypes. */
+  adminNodeTypeListed: boolean;
   memberCannotCreateNodeType: boolean;
 }
 
@@ -261,11 +267,14 @@ async function runTest(): Promise<boolean> {
     // Non-Admin Access Tests
     memberCanViewNodes: false,
     memberCannotCreateNode: false,
+    memberCreateHadNoEffect: false,
     memberCannotDeleteNode: false,
+    memberDeleteHadNoEffect: false,
     memberCanViewDeepNodes: false,
 
     // ManageNodeTypes Permission Tests
     adminCanCreateNodeType: false,
+    adminNodeTypeListed: false,
     memberCannotCreateNodeType: false,
   };
 
@@ -315,8 +324,10 @@ async function runTest(): Promise<boolean> {
       throw new Error('Failed to create admin account');
     }
 
-    await waitForWorkspaceLoaded(adminContext.page);
-    results.adminWorkspaceLoaded = true;
+    // waitForWorkspaceLoaded returns whether the sidebar ever appeared and does
+    // not throw on timeout, so discarding it and assigning `true` produced a
+    // result that could only print PASS.
+    results.adminWorkspaceLoaded = await waitForWorkspaceLoaded(adminContext.page);
     await takeScreenshot(adminContext.page, `${ADMIN_USER}_admin_ready`);
 
     // Get workspace root ID
@@ -342,8 +353,7 @@ async function runTest(): Promise<boolean> {
       throw new Error('Failed to create member account');
     }
 
-    await waitForWorkspaceLoaded(memberContext.page);
-    results.memberWorkspaceLoaded = true;
+    results.memberWorkspaceLoaded = await waitForWorkspaceLoaded(memberContext.page);
     await takeScreenshot(memberContext.page, `${MEMBER_USER}_member_ready`);
 
     // ========================================================================
@@ -461,9 +471,14 @@ async function runTest(): Promise<boolean> {
 
     results.adminCanCreateNodeType = nodeTypeResult.success;
 
-    // List node types to verify
+    // A count was being printed and dropped. The count on its own says
+    // nothing — the schema always yields several built-in types. What the
+    // step is claiming is that the type the admin just created is now part of
+    // the workspace's type set, which is what ListNodeTypes is for.
     const nodeTypes = await listNodeTypes(adminContext.page);
-    console.log(`  Node types count: ${nodeTypes.length}`);
+    results.adminNodeTypeListed = nodeTypes.some(t => t.name === CUSTOM_NODE_TYPE_NAME);
+    console.log(`  Node types: ${nodeTypes.map(t => t.name).join(', ')}`);
+    console.log(`  New type listed: ${results.adminNodeTypeListed ? 'PASS' : 'FAIL'}`);
 
     await takeScreenshot(adminContext.page, `${ADMIN_USER}_node_type_created`);
 
@@ -502,21 +517,37 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 8: Member Tries to Create Node (Should Fail)');
     console.log('-'.repeat(50));
 
+    const memberOfficeName = `MemberOffice_${timestamp}`;
     const memberCreateResult = await attemptCreateNode(
       memberContext.page,
       workspaceRootId,
       { Child: 'Office' },
-      `MemberOffice_${timestamp}`,
+      memberOfficeName,
       'Office attempted by member'
     );
 
-    // Member should NOT be able to create nodes
-    // Either the creation fails, or we get a permission error
-    results.memberCannotCreateNode = !memberCreateResult.success ||
-      isPermissionDeniedError(memberCreateResult.error);
+    // The old form was `!success || isPermissionDeniedError(error)`. The right
+    // half is dead — when `success` is true there is no error to inspect — so
+    // it collapsed to "the request didn't succeed", and a dropped socket or the
+    // helper's own 15s timeout counted as the permission system working. It has
+    // to be refused, and refused *for the right reason*: the server answers
+    // "Permission denied: EditTreeStructure required"
+    // (async_node_ops.rs create_node).
+    results.memberCannotCreateNode =
+      !memberCreateResult.success && isPermissionDeniedError(memberCreateResult.error);
 
     console.log(`  Member create result: success=${memberCreateResult.success}, error=${memberCreateResult.error}`);
-    console.log(`  Test result (should not create): ${results.memberCannotCreateNode}`);
+    console.log(`  Refused as a permission error: ${results.memberCannotCreateNode ? 'PASS' : 'FAIL'}`);
+
+    // And confirm from the admin's session that nothing was actually written.
+    // A refusal message with a node behind it would be the worst outcome of
+    // all, and nothing here was checking for it.
+    const treeAfterMemberCreate = await getTreeStructure(adminContext.page);
+    const memberOfficeLeaked = treeAfterMemberCreate
+      ? treeAfterMemberCreate.children.some(c => c.node.name === memberOfficeName)
+      : true; // could not check — treat as not-verified rather than pass
+    results.memberCreateHadNoEffect = !memberOfficeLeaked;
+    console.log(`  Member's office absent from the tree: ${results.memberCreateHadNoEffect ? 'PASS' : 'FAIL'}`);
 
     await takeScreenshot(memberContext.page, `${MEMBER_USER}_create_attempt`);
 
@@ -534,20 +565,25 @@ async function runTest(): Promise<boolean> {
         false
       );
 
-      // Member should NOT be able to delete nodes
-      results.memberCannotDeleteNode = !memberDeleteResult.success ||
-        isPermissionDeniedError(memberDeleteResult.error);
+      // Same tightening as the create case: a refusal, and specifically a
+      // permission refusal, rather than "anything other than success".
+      results.memberCannotDeleteNode =
+        !memberDeleteResult.success && isPermissionDeniedError(memberDeleteResult.error);
 
       console.log(`  Member delete result: success=${memberDeleteResult.success}, error=${memberDeleteResult.error}`);
-      console.log(`  Test result (should not delete): ${results.memberCannotDeleteNode}`);
+      console.log(`  Refused as a permission error: ${results.memberCannotDeleteNode ? 'PASS' : 'FAIL'}`);
 
-      // Verify node still exists after member's delete attempt
-      const nodeStillExists = await verifyNodeExists(adminContext.page, testOfficeId);
-      console.log(`  Node still exists: ${nodeStillExists}`);
+      // This is the assertion with teeth — the office is still there when the
+      // admin looks. It was computed and printed and then discarded, so a
+      // member who could actually delete workspace structure while receiving
+      // an error message would not have failed this test.
+      results.memberDeleteHadNoEffect = await verifyNodeExists(adminContext.page, testOfficeId);
+      console.log(`  Node still exists: ${results.memberDeleteHadNoEffect ? 'PASS' : 'FAIL'}`);
     } else {
-      // No office to test deletion on
-      results.memberCannotDeleteNode = true;
-      console.log(`  Skipped - no office node available`);
+      // Genuinely unreachable without an office, and an office the admin failed
+      // to create is already a FAIL on adminCanCreateOffice — so leave these
+      // false rather than claiming a pass we did not earn.
+      console.log(`  Skipped - no office node available (adminCanCreateOffice will report the cause)`);
     }
 
     await takeScreenshot(memberContext.page, `${MEMBER_USER}_delete_attempt`);
@@ -566,12 +602,18 @@ async function runTest(): Promise<boolean> {
       ['Office']
     );
 
-    // Member should NOT be able to create custom node types
-    results.memberCannotCreateNodeType = !memberNodeTypeResult.success ||
-      isPermissionDeniedError(memberNodeTypeResult.error);
+    // Member should NOT be able to create custom node types.
+    //
+    // Unlike the create/delete cases this one cannot insist on the error text:
+    // `createNodeType` in tree-helpers reports only a boolean, so the server's
+    // "Permission denied: Only admins can create custom node types" never
+    // reaches us and `attemptCreateNodeType` substitutes 'Unknown error'.
+    // Refusal is therefore all we can assert here. Threading the error string
+    // out of that helper would be a lib change — see the report.
+    results.memberCannotCreateNodeType = !memberNodeTypeResult.success;
 
     console.log(`  Member node type result: success=${memberNodeTypeResult.success}, error=${memberNodeTypeResult.error}`);
-    console.log(`  Test result (should not create): ${results.memberCannotCreateNodeType}`);
+    console.log(`  Node type creation refused: ${results.memberCannotCreateNodeType ? 'PASS' : 'FAIL'}`);
 
     await takeScreenshot(memberContext.page, `${MEMBER_USER}_node_type_attempt`);
 
@@ -599,19 +641,26 @@ async function runTest(): Promise<boolean> {
     console.log(`  Deleted ${deletedCount}/${deepHierarchyIds.length} deep hierarchy nodes`);
 
     // Delete test office (with cascade since it has a room)
+    let officeDeleted = false;
     if (testOfficeId) {
       const officeDeleteResult = await attemptDeleteNode(
         adminContext.page,
         testOfficeId,
         true // cascade delete
       );
-      if (officeDeleteResult.success) {
+      officeDeleted = officeDeleteResult.success;
+      if (officeDeleted) {
         console.log(`  Deleted test office with cascade`);
-        deletedCount++;
       }
     }
 
-    results.adminCanDeleteNodes = deletedCount > 0;
+    // `deletedCount > 0` passed as long as any one of six deletes worked, which
+    // is not what "admin can delete nodes" means — an admin blocked at depth 3
+    // would still have scored a pass off the depth-5 delete. Every delete the
+    // admin issued has to have succeeded.
+    results.adminCanDeleteNodes =
+      deletedCount === deepHierarchyIds.length && (testOfficeId === null || officeDeleted);
+    console.log(`  Admin deletes all succeeded: ${results.adminCanDeleteNodes ? 'PASS' : 'FAIL'}`);
 
     await takeScreenshot(adminContext.page, `${ADMIN_USER}_cleanup_complete`);
 
@@ -652,15 +701,21 @@ async function runTest(): Promise<boolean> {
     console.log(`  Admin Can Edit All Depths:   ${results.adminCanEditAtAllDepths ? 'PASS' : 'FAIL'}`);
     console.log(`  Admin Can Delete Nodes:      ${results.adminCanDeleteNodes ? 'PASS' : 'FAIL'}`);
     console.log(`  Admin Can Create Node Type:  ${results.adminCanCreateNodeType ? 'PASS' : 'FAIL'}`);
+    console.log(`  Admin Node Type Listed:      ${results.adminNodeTypeListed ? 'PASS' : 'FAIL'}`);
 
     console.log('\nMember Access Tests:');
     console.log(`  Member Can View Nodes:       ${results.memberCanViewNodes ? 'PASS' : 'FAIL'}`);
     console.log(`  Member Can View Deep Nodes:  ${results.memberCanViewDeepNodes ? 'PASS' : 'FAIL'}`);
     console.log(`  Member Cannot Create Node:   ${results.memberCannotCreateNode ? 'PASS' : 'FAIL'}`);
+    console.log(`  Member Create Had No Effect: ${results.memberCreateHadNoEffect ? 'PASS' : 'FAIL'}`);
     console.log(`  Member Cannot Delete Node:   ${results.memberCannotDeleteNode ? 'PASS' : 'FAIL'}`);
+    console.log(`  Member Delete Had No Effect: ${results.memberDeleteHadNoEffect ? 'PASS' : 'FAIL'}`);
     console.log(`  Member Cannot Create Type:   ${results.memberCannotCreateNodeType ? 'PASS' : 'FAIL'}`);
 
-    // Determine overall pass/fail
+    // The admin half was gated on account setup and the two shallow creates
+    // only, so a deep hierarchy the admin could not build, depths the admin
+    // could not reach, deletes that failed, and a custom node type that never
+    // appeared all printed FAIL against a green run.
     const criticalTests = [
       results.adminAccountCreated,
       results.memberAccountCreated,
@@ -668,12 +723,24 @@ async function runTest(): Promise<boolean> {
       results.memberWorkspaceLoaded,
       results.adminCanCreateOffice,
       results.adminCanCreateRoom,
+      results.adminCanCreateDeepHierarchy,
+      results.adminCanEditAtAllDepths,
+      results.adminCanDeleteNodes,
+      results.adminCanCreateNodeType,
+      results.adminNodeTypeListed,
     ];
 
+    // The member half is the security boundary this file exists to defend.
+    // "Had no effect" matters more than "was refused": a refusal message over a
+    // mutation that landed is the failure mode worth catching.
     const permissionTests = [
       results.memberCanViewNodes,
+      results.memberCanViewDeepNodes,
       results.memberCannotCreateNode,
+      results.memberCreateHadNoEffect,
       results.memberCannotDeleteNode,
+      results.memberDeleteHadNoEffect,
+      results.memberCannotCreateNodeType,
     ];
 
     const allCriticalPassed = criticalTests.every(Boolean);
@@ -685,10 +752,6 @@ async function runTest(): Promise<boolean> {
     console.log(`PERMISSION TESTS: ${allPermissionsPassed ? 'PASSED' : 'FAILED'}`);
     console.log(`OVERALL: ${overallPass ? 'TEST PASSED' : 'TEST FAILED'}`);
     console.log('='.repeat(60));
-
-    // Keep browser open for inspection
-    console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
-    await sleep(15000);
 
     if (browser) {
       await browser.close();

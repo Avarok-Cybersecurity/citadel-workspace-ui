@@ -5,6 +5,7 @@
  */
 
 import { connectionManager } from '../connection';
+import { wireMapEntries } from '@/lib/wire-map';
 import { p2pRegistrationService } from '../p2p-registration-service';
 import { instanceManager } from '../multi-instance';
 import { POLLING } from '../timeout-constants';
@@ -13,6 +14,9 @@ import { debugLog } from '@/lib/debug-config';
 import type { AutoConnectState } from './state';
 import { ONLINE_STATUS_CACHE_TTL_MS, POLL_INTERVAL_MS } from './constants';
 import { getCurrentCid } from './cid-resolver';
+import type { PeerConnectionInfo } from '@/lib/p2p-auto-connect/types';
+import type { PeerInfoResponse } from '@/lib/p2p-registration-service/types';
+import type { ActiveSession } from '@/types/session-types';
 
 /**
  * Start periodic GetSessions polling for backend state sync.
@@ -33,7 +37,7 @@ export function startBackendPolling(state: AutoConnectState): void {
   state.backendPollInterval = setInterval(async () => {
     if (state.isRefreshing) return;
 
-    const currentCid = await getCurrentCid();
+    const currentCid: bigint | null = await getCurrentCid();
     if (!currentCid || currentCid === 0n) return;
 
     state.isRefreshing = true;
@@ -61,30 +65,38 @@ export function stopBackendPolling(state: AutoConnectState): void {
  */
 export async function refreshFromBackend(state: AutoConnectState, localCid: bigint): Promise<void> {
   try {
-    const localCidBigInt = ensureBigInt(localCid);
-    const sessions = await connectionManager.getActiveSessions();
-    const mySession = sessions.find(s => s.cid === localCidBigInt);
+    const localCidBigInt: bigint = ensureBigInt(localCid);
+    const sessions: ActiveSession[] = await connectionManager.getActiveSessions();
+    const mySession: ActiveSession | undefined = sessions.find(s => s.cid === localCidBigInt);
 
-    const existingPeerMap = state.getPeerMapForSession(localCidBigInt);
+    const existingPeerMap: Map<bigint, PeerConnectionInfo> = state.getPeerMapForSession(localCidBigInt);
 
     if (!mySession?.peer_connections) {
       return; // Preserve existing event-based connections
     }
 
-    const now = Date.now();
-    for (const [peerCidStr, info] of Object.entries(mySession.peer_connections)) {
-      const peerCidBigInt = BigInt(peerCidStr);
-      const existingInfo = existingPeerMap.get(peerCidBigInt);
+    const now: number = Date.now();
+    // wireMapEntries, not Object.entries. peer_connections is a Rust HashMap,
+    // which serde-wasm-bindgen delivers as a JS Map (maps-as-objects is not
+    // enabled) while ts-rs declares Record<string, T> -- so Object.entries
+    // returns [] and this loop body never ran. The fix was found and applied in
+    // p2p-registration-service/connection.ts and not carried here, so
+    // refreshFromBackend silently merged nothing.
+    for (const [peerCidStr] of wireMapEntries<{ peer_username?: string }>(
+      mySession.peer_connections,
+      'peer_connections',
+    )) {
+      const peerCidBigInt: bigint = BigInt(peerCidStr);
+      const existingInfo: PeerConnectionInfo | undefined = existingPeerMap.get(peerCidBigInt);
 
       existingPeerMap.set(peerCidBigInt, {
         peerCid: peerCidBigInt,
-        peerUsername: info.peer_username || existingInfo?.peerUsername || '',
         connectedAt: existingInfo?.connectedAt || now,
         lastVerified: now,
       });
     }
   } catch (error) {
-    const errMsg = String(error);
+    const errMsg: string = String(error);
     if (!errMsg.includes('CID 0') && !errMsg.includes('No active')) {
       debugLog('P2PAutoConnectService', 'Backend poll failed:', error);
     }
@@ -95,20 +107,19 @@ export async function refreshFromBackend(state: AutoConnectState, localCid: bigi
  * Refresh online status from internal service (with caching).
  * @param force - If true, bypass cache and force refresh
  */
-export async function refreshOnlineStatus(state: AutoConnectState, force = false): Promise<void> {
-  const now = Date.now();
+export async function refreshOnlineStatus(state: AutoConnectState, force: boolean = false): Promise<void> {
   if (!force && state.onlineStatusAge < ONLINE_STATUS_CACHE_TTL_MS) {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Using cached online status (${Math.round(state.onlineStatusAge / 1000)}s old)`);
     return;
   }
 
   try {
-    const peers = await p2pRegistrationService.listAllPeers();
+    const peers: PeerInfoResponse[] = await p2pRegistrationService.listAllPeers();
     const onlineCids: bigint[] = [];
 
     for (const peer of peers) {
-      const cid = peer.cid;
-      const isOnline = peer.online_status ?? false;
+      const cid: bigint | undefined = peer.cid;
+      const isOnline: boolean = peer.online_status ?? false;
       if (cid && isOnline) {
         onlineCids.push(cid);
       }
@@ -117,7 +128,7 @@ export async function refreshOnlineStatus(state: AutoConnectState, force = false
     state.setOnlinePeers(onlineCids);
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Refreshed online status, ${onlineCids.length} peers online`);
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage: string = error instanceof Error ? error.message : String(error);
     if (errorMessage?.includes('CID 0') || errorMessage?.includes('No active')) {
       return;
     }

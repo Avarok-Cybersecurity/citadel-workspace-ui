@@ -27,12 +27,12 @@ import {
 // ============================================================================
 
 export function mkdir(tree: RevfsNode, path: string): [RevfsNode, RevfsOperation] {
-  const normalized = normalizePath(path);
-  const parent = parentPath(normalized);
-  const name = baseName(normalized);
+  const normalized: string = normalizePath(path);
+  const parent: string = parentPath(normalized);
+  const name: string = baseName(normalized);
 
-  const newTree = cloneTree(tree);
-  const parentNode = findNode(newTree, parent);
+  const newTree: RevfsNode = cloneTree(tree);
+  const parentNode: RevfsNode | null = findNode(newTree, parent);
   if (!parentNode || parentNode.type !== 'directory') {
     throw new Error(`Parent directory not found: ${parent}`);
   }
@@ -40,7 +40,7 @@ export function mkdir(tree: RevfsNode, path: string): [RevfsNode, RevfsOperation
     throw new Error(`Directory already exists: ${normalized}`);
   }
 
-  const t = now();
+  const t: number = now();
   const child: RevfsNode = {
     name,
     type: 'directory',
@@ -69,7 +69,7 @@ export function mkdir(tree: RevfsNode, path: string): [RevfsNode, RevfsOperation
 // ============================================================================
 
 export function rmdir(tree: RevfsNode, path: string): [RevfsNode, RevfsOperation] {
-  const normalized = normalizePath(path);
+  const normalized: string = normalizePath(path);
 
   if (PROTECTED_DIRS.has(normalized)) {
     throw new Error(`Cannot remove protected directory: ${normalized}`);
@@ -78,14 +78,14 @@ export function rmdir(tree: RevfsNode, path: string): [RevfsNode, RevfsOperation
     throw new Error('Cannot remove root directory');
   }
 
-  const parent = parentPath(normalized);
-  const newTree = cloneTree(tree);
-  const parentNode = findNode(newTree, parent);
+  const parent: string = parentPath(normalized);
+  const newTree: RevfsNode = cloneTree(tree);
+  const parentNode: RevfsNode | null = findNode(newTree, parent);
   if (!parentNode || !parentNode.children) {
     throw new Error(`Parent directory not found: ${parent}`);
   }
 
-  const idx = parentNode.children.findIndex(c => c.path === normalized);
+  const idx: number = parentNode.children.findIndex(c => c.path === normalized);
   if (idx < 0) {
     throw new Error(`Directory not found: ${normalized}`);
   }
@@ -116,22 +116,32 @@ export function placeFile(
   metadata: RevfsFileMetadata,
   viewerCid: bigint,
 ): [RevfsNode, RevfsOperation] {
-  const normalized = normalizePath(path);
-  const parent = parentPath(normalized);
-  const name = baseName(normalized);
+  const normalized: string = normalizePath(path);
+  const parent: string = parentPath(normalized);
+  const name: string = baseName(normalized);
 
-  const newTree = cloneTree(tree);
-  const parentNode = findNode(newTree, parent);
+  const newTree: RevfsNode = cloneTree(tree);
+  const parentNode: RevfsNode | null = findNode(newTree, parent);
   if (!parentNode || parentNode.type !== 'directory') {
     throw new Error(`Parent directory not found: ${parent}`);
   }
 
-  // Determine file state: if I uploaded it, I'm Hosting; otherwise Remote
-  const fileState = metadata.uploadedByCid === viewerCid
-    ? RevfsFileState.Hosted
-    : RevfsFileState.Remote;
+  // This was inverted, against the enum's own documentation.
+  //
+  // `uploadFileToPeer` sends the BYTES to the peer (`backend-send-file` with
+  // that peer's cid), so after an upload it is the PEER who stores the encrypted
+  // blob. RevfsFileState says exactly that: Remote = "peer stores the encrypted
+  // blob for me (downloadable)", Hosted = "I store it for the peer (can't
+  // decrypt)". Stamping the uploader Hosted made a user's own file permanently
+  // un-downloadable — the download handler excludes Hosted — and told them it
+  // was "Hosted for peer (encrypted, cannot open)" about a file only they could
+  // open. The peer, meanwhile, was stamped Remote and pulled from the uploader's
+  // node, where nothing was ever stored. The file was retrievable by nobody.
+  const fileState: RevfsFileState = metadata.uploadedByCid === viewerCid
+    ? RevfsFileState.Remote
+    : RevfsFileState.Hosted;
 
-  const t = now();
+  const t: number = now();
   const fileNode: RevfsNode = {
     name,
     type: 'file',
@@ -145,7 +155,7 @@ export function placeFile(
   if (!parentNode.children) parentNode.children = [];
 
   // Replace existing file at same path if present
-  const existingIdx = parentNode.children.findIndex(c => c.path === normalized);
+  const existingIdx: number = parentNode.children.findIndex(c => c.path === normalized);
   if (existingIdx >= 0) {
     parentNode.children[existingIdx] = fileNode;
   } else {
@@ -169,16 +179,16 @@ export function placeFile(
 // ============================================================================
 
 export function removeFile(tree: RevfsNode, path: string): [RevfsNode, RevfsOperation] {
-  const normalized = normalizePath(path);
-  const parent = parentPath(normalized);
+  const normalized: string = normalizePath(path);
+  const parent: string = parentPath(normalized);
 
-  const newTree = cloneTree(tree);
-  const parentNode = findNode(newTree, parent);
+  const newTree: RevfsNode = cloneTree(tree);
+  const parentNode: RevfsNode | null = findNode(newTree, parent);
   if (!parentNode || !parentNode.children) {
     throw new Error(`Parent directory not found: ${parent}`);
   }
 
-  const idx = parentNode.children.findIndex(c => c.path === normalized);
+  const idx: number = parentNode.children.findIndex(c => c.path === normalized);
   if (idx < 0) {
     throw new Error(`File not found: ${normalized}`);
   }

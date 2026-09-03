@@ -23,8 +23,8 @@ import {
 } from '../routing-rules';
 import { extractTargetCid } from '../message-routing';
 
-const targetCid = '1281805798482117626';
-const senderCid = '18170202856123884154';
+const targetCid: "1281805798482117626" = '1281805798482117626';
+const senderCid: "18170202856123884154" = '18170202856123884154';
 
 function notification(type: string, payload: Record<string, unknown>): Record<string, unknown> {
   return { [type]: payload };
@@ -43,6 +43,13 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     FileTransferRequestNotification: { cid: targetCid, peer_cid: senderCid, metadata: { object_id: '42' }, request_id: 'r4' },
     FileTransferStatusNotification: { cid: targetCid, peer_cid: senderCid, status: 'in-progress', request_id: 'r5' },
     FileTransferTickNotification: { cid: targetCid, peer_cid: senderCid, transmitted_bytes: 1024, request_id: 'r6' },
+    // Media frames carry request_id: null — they are unsolicited, so `cid` is
+    // the ONLY thing that can route them. Routed any other way, a second
+    // session in the same browser would receive another session's call.
+    MediaFrameNotification: { cid: targetCid, peer_cid: senderCid, track: 1, kind: 1, sequence: 7, timestamp: 0, flags: 1, payload: [1, 2], request_id: null },
+    MediaGapNotification: { cid: targetCid, peer_cid: senderCid, track: 1, missing_from: 4, missing_to: 6, request_id: null },
+    // The generated binding: { cid, peer_cid, message, group_key, request_id }.
+    GroupMessageNotification: { cid: targetCid, peer_cid: senderCid, message: [1, 2, 3], group_key: { cid: senderCid, mgid: '42' }, request_id: 'r7' },
   };
 
   it('has a test fixture for every CID-routed notification type', () => {
@@ -54,10 +61,34 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     }
   });
 
+  it('routes exactly these notifications by cid, and no fewer', () => {
+    // The coverage check above is one-directional: it says every MEMBER has a
+    // fixture. REMOVING a member shrinks the set, every remaining fixture still
+    // extracts fine (the extractor is type-agnostic), and nothing fails —
+    // so deleting 'MediaFrameNotification' would silently reinstate wrong-tab
+    // call delivery, which is the exact defect this set exists to prevent.
+    //
+    // Written out rather than derived, so removing a member fails here and
+    // adding one is a deliberate edit in two places.
+    expect([...CID_ROUTED_NOTIFICATIONS].sort()).toEqual(
+      [
+        'FileTransferRequestNotification',
+        'FileTransferStatusNotification',
+        'FileTransferTickNotification',
+        'GroupMessageNotification',
+        'MediaFrameNotification',
+        'MediaGapNotification',
+        'MessageNotification',
+        'PeerConnectNotification',
+        'PeerRegisterNotification',
+      ].sort(),
+    );
+  });
+
   for (const type of Object.keys(SHAPES)) {
     it(`extracts target cid from ${type}`, () => {
-      const msg = notification(type, SHAPES[type]);
-      const extracted = extractTargetCid(msg);
+      const msg: Record<string, unknown> = notification(type, SHAPES[type]);
+      const extracted: string | null = extractTargetCid(msg);
       expect(extracted, `${type} should yield the recipient cid`).toBe(targetCid);
     });
   }
@@ -66,8 +97,8 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     // Defensive: some pipelines wrap notifications with a top-level
     // `cid` AND a payload `cid`. The router checks top-level first, so
     // pin that precedence too.
-    const otherCid = '9999999999999999999';
-    const msg = { cid: otherCid, FileTransferRequestNotification: SHAPES.FileTransferRequestNotification };
+    const otherCid: "9999999999999999999" = '9999999999999999999';
+    const msg: { cid: "9999999999999999999"; FileTransferRequestNotification: Record<string, unknown>; } = { cid: otherCid, FileTransferRequestNotification: SHAPES.FileTransferRequestNotification };
     expect(extractTargetCid(msg)).toBe(otherCid);
   });
 
@@ -76,7 +107,7 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     // walks the list in order. Pinning this so a future "tighten extraction
     // to cid-only" change has to remove the fallback explicitly rather than
     // by accident.
-    const msg = notification('FileTransferRequestNotification', { peer_cid: senderCid, metadata: { object_id: '42' } });
+    const msg: Record<string, unknown> = notification('FileTransferRequestNotification', { peer_cid: senderCid, metadata: { object_id: '42' } });
     expect(extractTargetCid(msg)).toBe(senderCid);
   });
 
@@ -84,7 +115,7 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     // Required for the self-heal trigger path — extractTargetCid must
     // return null (not undefined or empty string) so the router's
     // `if (!targetCid)` branch reliably fires.
-    const msg = notification('FileTransferRequestNotification', { metadata: { object_id: '42' }, request_id: 'r-no-cid' });
+    const msg: Record<string, unknown> = notification('FileTransferRequestNotification', { metadata: { object_id: '42' }, request_id: 'r-no-cid' });
     expect(extractTargetCid(msg)).toBeNull();
   });
 });

@@ -13,6 +13,15 @@
 export type YjsOrigin = string | null | undefined;
 
 /**
+ * Origin for a restore-from-storage apply.
+ *
+ * Lives here, beside `YjsOrigin`, because two modules need the same string: the
+ * store tags its apply with it and the provider tests for it. A literal in each
+ * would be one rename away from a document broadcast returning unnoticed.
+ */
+export const PERSISTED_LOAD_ORIGIN: string = 'persisted-load';
+
+/**
  * Sync message sub-types for proper protocol handling
  */
 export type SyncSubType =
@@ -20,9 +29,13 @@ export type SyncSubType =
   | 'sync_step2'      // Differential update
   | 'update'          // Live document update
   | 'ack'             // Acknowledgment with hash
-  | 'hash_check'      // Request hash verification
   | 'full_state'      // Full state for creator authority resync
   | 'request_full';   // Request full state from creator
+// 'hash_check' was removed: it was the dead half of a protocol with no
+// initiator, and its responder replied to a MATCH with another hash_check —
+// completing it as written would have shipped an infinite ping-pong. Hash
+// verification rides the data-bearing messages instead (doc_hash on
+// update/full_state, local_hash on every ACK).
 
 export interface YjsSyncMessage {
   type: 'yjs_sync';
@@ -50,20 +63,14 @@ export interface YjsAckMessage {
   revision: number;
 }
 
-export interface YjsDivergenceMessage {
-  type: 'yjs_divergence';
-  document_id: string;
-  local_hash: string;
-  remote_hash: string;
-  diverged_chunks?: number[];
-  action: 'request_chunks' | 'full_resync';
-}
-
+// YjsDivergenceMessage ('yjs_divergence') was removed with its handler: no
+// code path anywhere constructed or sent one, so the handler was dead. The
+// live divergence signal is a hash mismatch on an update or ACK, which routes
+// through handleHashMismatch (ack-checker.ts).
 export type YjsP2PMessage =
   | YjsSyncMessage
   | YjsAwarenessMessage
-  | YjsAckMessage
-  | YjsDivergenceMessage;
+  | YjsAckMessage;
 
 // ============================================
 // SYNC STATE MACHINE
@@ -73,12 +80,22 @@ export type SyncState =
   | 'idle'
   | 'awaiting_step1_response'
   | 'awaiting_step2_response'
-  | 'synced'
-  | 'diverged';
+  | 'synced';
+// 'diverged' was only ever written by the removed yjs_divergence handler;
+// recovery goes straight to full_state/request_full without a resting state.
 
 export interface PendingAck {
   messageId: string;
   sentAt: number;
   expectedHash?: string;
   retryCount: number;
+  /**
+   * The exact wire message, kept so an ACK timeout can RETRANSMIT it.
+   * Without this the "retry" path could only re-arm the timer — a lost
+   * update was logged as retried but never resent, then silently abandoned.
+   * Same message_id on every attempt: the eventual ACK clears this entry
+   * whichever attempt got through, and Yjs update application is idempotent
+   * so a duplicate arrival is harmless.
+   */
+  message: YjsSyncMessage;
 }

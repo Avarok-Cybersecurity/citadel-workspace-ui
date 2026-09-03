@@ -10,15 +10,18 @@
  * "Peer already registered" is NOT an error - expected after reconnect.
  */
 
+import { peerRecord } from './peer-record';
+import { isPlaceholderName } from '@/lib/peer-display';
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from '../multi-instance';
 import { connectionManager } from '../connection';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
-import type { BroadcastStateSyncData } from '@/types/ws-message-types';
+import type { BroadcastStateSyncData, WebSocketMessage } from '@/types/ws-message-types';
 import { debugLog } from '@/lib/debug-config';
 import type { Peer, PeerInfoResponse, PeerRegistrationOptions, PendingRequestEntry } from './types';
 import { POLLING_INTERVAL } from './constants';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import {
   listAllPeers as doListAllPeers,
   listRegisteredPeers as doListRegisteredPeers,
@@ -41,14 +44,16 @@ import {
 
 export class P2PRegistrationService {
   private static instance: P2PRegistrationService;
-  private isRunning = false;
-  private registeredPeers = new Map<bigint, Peer>();
-  private allPeers = new Map<bigint, Peer>();
+  private isRunning: boolean = false;
+  private registeredPeers: Map<bigint, Peer> = new Map<bigint, Peer>();
+  private allPeers: Map<bigint, Peer> = new Map<bigint, Peer>();
   private pollingInterval: NodeJS.Timeout | null = null;
-  private pendingRequests = new Map<string, PendingRequestEntry>();
-  private outgoingRegistrations = new Set<bigint>();
-  private incomingRegistrations = new Set<bigint>();
-  private isCheckingPeers = false;
+  private pendingRequests: Map<string, PendingRequestEntry> = new Map<string, PendingRequestEntry>();
+  private outgoingRegistrations: Set<bigint> = new Set<bigint>();
+  private incomingRegistrations: Set<bigint> = new Set<bigint>();
+  private isCheckingPeers: boolean = false;
+  /** The options start() was called with, replayed on every reconnect re-sync. */
+  private startOptions: PeerRegistrationOptions = {};
 
   private constructor() {
     this.setupEventListeners();
@@ -63,7 +68,7 @@ export class P2PRegistrationService {
 
   private setupEventListeners(): void {
     eventEmitter.on('websocket-message', (raw: unknown) => {
-      const message = narrowWebSocketMessage(raw);
+      const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
       if (!message) return;
       routeMessage(message, {
         pendingRequests: this.pendingRequests,
@@ -76,30 +81,27 @@ export class P2PRegistrationService {
       });
     });
 
-    eventEmitter.on('connection:status-changed', async ({ isConnected }: { isConnected: boolean }) => {
-      if (isConnected && this.isRunning) {
-        await this.checkAndRegisterPeers();
-      }
+    // Re-sync as soon as the socket is back instead of waiting out the 30s
+    // poll. This listened for 'connection:status-changed', which nothing emits,
+    // so the immediate re-sync never ran. Replays start()'s options, because
+    // re-checking without them would silently drop autoRegisterAll.
+    eventEmitter.on('on-ws-connection-success', async () => {
+      if (!this.isRunning) return;
+      await this.checkAndRegisterPeers(this.startOptions);
     });
 
     eventEmitter.on('broadcast-state-sync', (raw: unknown) => {
-      const data = raw as BroadcastStateSyncData;
+      const data: BroadcastStateSyncData = raw as BroadcastStateSyncData;
       if (data?.type === 'registered-peer-update' && !instanceManager.isLeader) {
-        const peerCid = data.peerCid as string | undefined;
-        const peerUsername = data.peerUsername as string | undefined;
-        const isOutgoing = data.isOutgoing as boolean | undefined;
-        const isIncoming = data.isIncoming as boolean | undefined;
+        const peerCid: string | undefined = data.peerCid as string | undefined;
+        const peerUsername: string | undefined = data.peerUsername as string | undefined;
+        const isOutgoing: boolean | undefined = data.isOutgoing as boolean | undefined;
+        const isIncoming: boolean | undefined = data.isIncoming as boolean | undefined;
         if (peerCid !== undefined) {
-          const peerCidBigInt = BigInt(peerCid);
+          const peerCidBigInt: bigint = BigInt(peerCid);
           debugLog('P2PRegistrationService', `[P2P-SYNC] Follower received registeredPeers update: ${peerCidBigInt.toString().slice(0, 8)}... (${peerUsername ?? ''})`);
           this.setPeerRegisteredLocal(peerCidBigInt, peerUsername || '', isOutgoing, isIncoming);
-          const peer: Peer = {
-            cid: peerCidBigInt,
-            username: peerUsername || `User ${peerCidBigInt.toString().slice(0, 8)}`,
-            fullName: peerUsername || `User ${peerCidBigInt.toString().slice(0, 8)}`,
-            isOnline: true,
-            isRegistered: true
-          };
+          const peer: Peer = peerRecord(peerCidBigInt, peerUsername, true);
           eventEmitter.emit('p2p:peer-registered', { peer, isOutgoing, isIncoming, fromBroadcast: true });
         }
       }
@@ -107,15 +109,9 @@ export class P2PRegistrationService {
   }
 
   private setPeerRegisteredLocal(peerCid: bigint, peerUsername: string, isOutgoing?: boolean, isIncoming?: boolean): void {
-    const peer: Peer = this.allPeers.get(peerCid) || {
-      cid: peerCid,
-      username: peerUsername || `User ${peerCid.toString().slice(0, 8)}`,
-      fullName: peerUsername || `User ${peerCid.toString().slice(0, 8)}`,
-      isOnline: true,
-      isRegistered: true
-    };
+    const peer: Peer = this.allPeers.get(peerCid) || peerRecord(peerCid, peerUsername, true);
     peer.isRegistered = true;
-    if (peerUsername && peerUsername !== 'Unknown' && !peerUsername.startsWith('User ')) {
+    if (!isPlaceholderName(peerUsername)) {
       peer.username = peerUsername;
       peer.fullName = peerUsername;
     }
@@ -134,11 +130,12 @@ export class P2PRegistrationService {
       debugLog('P2PRegistrationService', 'P2P Registration Service already running');
       return;
     }
-    const connectionInfo = connectionManager.getConnectionInfo();
+    const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
     if (!connectionInfo?.cid) {
       throw new Error('No active connection. Please connect first.');
     }
     this.isRunning = true;
+    this.startOptions = options;
     debugLog('P2PRegistrationService', 'Starting P2P Registration Service');
     await this.checkAndRegisterPeers(options);
     this.pollingInterval = setInterval(() => {
@@ -165,8 +162,8 @@ export class P2PRegistrationService {
     }
     this.isCheckingPeers = true;
     try {
-      const allPeers = await doListAllPeers(this.pendingRequests);
-      const registeredPeers = await doListRegisteredPeersWithRetry(this.pendingRequests);
+      const allPeers: PeerInfoResponse[] = await doListAllPeers(this.pendingRequests);
+      const registeredPeers: PeerInfoResponse[] = await doListRegisteredPeersWithRetry(this.pendingRequests);
       updatePeerMaps(this.allPeers, this.registeredPeers, allPeers, registeredPeers);
       if (options.autoRegisterAll) {
         await doRegisterUnregisteredPeers(this.allPeers, options, this.pendingRequests);
@@ -176,7 +173,7 @@ export class P2PRegistrationService {
         registeredPeers: Array.from(this.registeredPeers.values())
       });
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage: string = error instanceof Error ? error.message : String(error);
       if (errorMessage?.includes('CID 0') || errorMessage?.includes('No active')) return;
       debugLog('P2PRegistrationService', 'Error checking and registering peers:', error);
     } finally {
@@ -188,7 +185,7 @@ export class P2PRegistrationService {
     return doListAllPeers(this.pendingRequests);
   }
 
-  public async listRegisteredPeersWithRetry(maxRetries = 2): Promise<PeerInfoResponse[]> {
+  public async listRegisteredPeersWithRetry(maxRetries: number = 2): Promise<PeerInfoResponse[]> {
     return doListRegisteredPeersWithRetry(this.pendingRequests, maxRetries);
   }
 

@@ -20,8 +20,10 @@ import {
   closeAnyModals,
   TestHarness,
   runTestMain,
+  isHiddenWithin,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { activateTab as sharedActivateTab, isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -81,26 +83,26 @@ async function openUserDropdown(page: Page): Promise<boolean> {
     // Find the user avatar button using data-testid (most reliable)
     const avatarButton = page.locator('[data-testid="user-avatar-button"]');
 
-    if (await avatarButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(avatarButton, 5000)) {
       console.log('  Found avatar button via data-testid');
       await avatarButton.click();
       await sleep(500);
 
       // Check if dropdown opened
       const dropdownContent = page.locator('[role="menu"]');
-      const opened = await dropdownContent.isVisible({ timeout: 3000 }).catch(() => false);
+      const opened = await isVisibleWithin(dropdownContent, 3000);
       console.log(`  Dropdown opened: ${opened}`);
       return opened;
     }
 
     // Alternative: try finding by button containing Avatar
     const altButton = page.locator('button:has([class*="Avatar"])').first();
-    if (await altButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(altButton, 3000)) {
       console.log('  Found avatar button via class selector');
       await altButton.click();
       await sleep(500);
       const dropdownContent = page.locator('[role="menu"]');
-      const opened = await dropdownContent.isVisible({ timeout: 3000 }).catch(() => false);
+      const opened = await isVisibleWithin(dropdownContent, 3000);
       console.log(`  Dropdown opened (alt): ${opened}`);
       return opened;
     }
@@ -121,7 +123,7 @@ async function clickSettingsMenuItem(page: Page): Promise<boolean> {
 
   try {
     const settingsItem = page.locator('[role="menuitem"]:has-text("Settings")');
-    if (!(await settingsItem.isVisible({ timeout: 3000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(settingsItem, 3000))) {
       console.log('  Settings menu item not found');
       return false;
     }
@@ -131,7 +133,7 @@ async function clickSettingsMenuItem(page: Page): Promise<boolean> {
 
     // Check if settings modal opened
     const modalTitle = page.locator('text="Settings"').first();
-    const opened = await modalTitle.isVisible({ timeout: 3000 }).catch(() => false);
+    const opened = await isVisibleWithin(modalTitle, 3000);
     console.log(`  Settings modal opened: ${opened}`);
     return opened;
   } catch (error) {
@@ -157,28 +159,32 @@ async function verifyModalStructure(page: Page): Promise<{
   };
 
   // Check title
-  const title = page.locator('[role="dialog"] text="Settings"').first();
-  results.title = await title.isVisible({ timeout: 3000 }).catch(() => false);
+  // getByRole, not '[role="dialog"] text="Settings"' — that mixes a CSS selector
+  // with the text engine in one string, which Playwright cannot parse as intended,
+  // so the check could never have matched.
+  const title = page.getByRole('heading', { name: 'Settings' }).first();
+  results.title = await isVisibleWithin(title, 3000);
   console.log(`  Title visible: ${results.title}`);
 
   // Check description
   const description = page.locator('text="Configure your workspace preferences"');
-  results.description = await description.isVisible({ timeout: 3000 }).catch(() => false);
+  results.description = await isVisibleWithin(description, 3000);
   console.log(`  Description visible: ${results.description}`);
 
   // Check tabs (General, Connections, Appearance, Privacy, Permissions)
-  const generalTab = page.locator('button[role="tab"]:has-text("General"), button[role="tab"]:has(svg.lucide-settings)');
+  const dialog = page.locator('[role="dialog"]');
+  const generalTab = dialog.locator('button[role="tab"]').nth(0);
   const connectionsTab = page.locator('button[role="tab"]:has-text("Connections"), button[role="tab"]:has(svg.lucide-wifi)');
   const appearanceTab = page.locator('button[role="tab"]:has-text("Appearance"), button[role="tab"]:has(svg.lucide-palette)');
   const privacyTab = page.locator('button[role="tab"]:has-text("Privacy"), button[role="tab"]:has(svg.lucide-shield)');
   const permissionsTab = page.locator('button[role="tab"]:has-text("Permissions"), button[role="tab"]:has(svg.lucide-lock)');
 
   const tabsVisible = await Promise.all([
-    generalTab.isVisible({ timeout: 3000 }).catch(() => false),
-    connectionsTab.isVisible({ timeout: 3000 }).catch(() => false),
-    appearanceTab.isVisible({ timeout: 3000 }).catch(() => false),
-    privacyTab.isVisible({ timeout: 3000 }).catch(() => false),
-    permissionsTab.isVisible({ timeout: 3000 }).catch(() => false),
+    isVisibleWithin(generalTab, 3000),
+    isVisibleWithin(connectionsTab, 3000),
+    isVisibleWithin(appearanceTab, 3000),
+    isVisibleWithin(privacyTab, 3000),
+    isVisibleWithin(permissionsTab, 3000),
   ]);
   results.tabs = tabsVisible.some(Boolean); // At least some tabs visible (icons might be shown without text on small screens)
   console.log(`  Tabs visible: ${results.tabs} (${tabsVisible.filter(Boolean).length}/5 visible)`);
@@ -189,90 +195,47 @@ async function verifyModalStructure(page: Page): Promise<{
 /**
  * Test tab switching and content
  */
+/**
+ * Click a tab and report whether it actually became active.
+ *
+ * Waits for `data-state="active"` rather than clicking and reading the attribute
+ * after a fixed 300ms — Radix sets it asynchronously, so the old version was
+ * sampling a race.
+ *
+ * A tab that is DISABLED is reported as such rather than as a failure. Connections
+ * and Permissions carry `disabled={!isConnected}` in SettingsModal, so on a
+ * disconnected session they are correctly unavailable; failing the suite for that
+ * would be asserting the opposite of the intended behaviour.
+ */
+async function activateTab(page: Page, index: number, name: string) {
+  // Scoped to the dialog: a bare `button[role="tab"]` matches page-wide, and the
+  // office view behind the modal renders its own Content/Chat tabs FIRST — so
+  // nth(0) and nth(1) were the office's tabs, not Settings'. This test was
+  // reporting on the wrong control entirely, and the modal being on top is why
+  // clicking one of them did not activate it.
+  return sharedActivateTab(
+    page,
+    page.locator('[role="dialog"] button[role="tab"]').nth(index),
+    name,
+    page.locator('[role="dialog"] [role="tabpanel"]').first()
+  );
+}
+
 async function testTabSwitching(page: Page): Promise<{
-  general: { works: boolean; hasContent: boolean };
-  connections: { works: boolean; hasContent: boolean };
-  appearance: { works: boolean; hasContent: boolean };
-  privacy: { works: boolean; hasContent: boolean };
-  permissions: { works: boolean; hasContent: boolean };
+  general: { works: boolean; hasContent: boolean; disabled: boolean };
+  connections: { works: boolean; hasContent: boolean; disabled: boolean };
+  appearance: { works: boolean; hasContent: boolean; disabled: boolean };
+  privacy: { works: boolean; hasContent: boolean; disabled: boolean };
+  permissions: { works: boolean; hasContent: boolean; disabled: boolean };
 }> {
   console.log('\n=== Testing Tab Switching ===');
-
-  const results = {
-    general: { works: false, hasContent: false },
-    connections: { works: false, hasContent: false },
-    appearance: { works: false, hasContent: false },
-    privacy: { works: false, hasContent: false },
-    permissions: { works: false, hasContent: false },
+  return {
+    general: await activateTab(page, 0, 'General'),
+    connections: await activateTab(page, 1, 'Connections'),
+    appearance: await activateTab(page, 2, 'Appearance'),
+    privacy: await activateTab(page, 3, 'Privacy'),
+    permissions: await activateTab(page, 4, 'Permissions'),
   };
-
-  // Test General tab (default)
-  const generalTab = page.locator('button[role="tab"]').first(); // First tab is General
-  if (await generalTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await generalTab.click({ force: true });
-    await sleep(300);
-    const isActive = await generalTab.getAttribute('data-state');
-    results.general.works = isActive === 'active';
-
-    // Check for tab content (GeneralSettingsTab should have some content)
-    const tabContent = page.locator('[role="tabpanel"]');
-    results.general.hasContent = await tabContent.isVisible({ timeout: 2000 }).catch(() => false);
-    console.log(`  General: works=${results.general.works}, hasContent=${results.general.hasContent}`);
-  }
-
-  // Test Connections tab
-  const connectionsTab = page.locator('button[role="tab"]').nth(1);
-  if (await connectionsTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await connectionsTab.click({ force: true });
-    await sleep(300);
-    const isActive = await connectionsTab.getAttribute('data-state');
-    results.connections.works = isActive === 'active';
-
-    const tabContent = page.locator('[role="tabpanel"]');
-    results.connections.hasContent = await tabContent.isVisible({ timeout: 2000 }).catch(() => false);
-    console.log(`  Connections: works=${results.connections.works}, hasContent=${results.connections.hasContent}`);
-  }
-
-  // Test Appearance tab
-  const appearanceTab = page.locator('button[role="tab"]').nth(2);
-  if (await appearanceTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await appearanceTab.click({ force: true });
-    await sleep(300);
-    const isActive = await appearanceTab.getAttribute('data-state');
-    results.appearance.works = isActive === 'active';
-
-    const tabContent = page.locator('[role="tabpanel"]');
-    results.appearance.hasContent = await tabContent.isVisible({ timeout: 2000 }).catch(() => false);
-    console.log(`  Appearance: works=${results.appearance.works}, hasContent=${results.appearance.hasContent}`);
-  }
-
-  // Test Privacy tab
-  const privacyTab = page.locator('button[role="tab"]').nth(3);
-  if (await privacyTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await privacyTab.click({ force: true });
-    await sleep(300);
-    const isActive = await privacyTab.getAttribute('data-state');
-    results.privacy.works = isActive === 'active';
-
-    const tabContent = page.locator('[role="tabpanel"]');
-    results.privacy.hasContent = await tabContent.isVisible({ timeout: 2000 }).catch(() => false);
-    console.log(`  Privacy: works=${results.privacy.works}, hasContent=${results.privacy.hasContent}`);
-  }
-
-  // Test Permissions tab
-  const permissionsTab = page.locator('button[role="tab"]').nth(4);
-  if (await permissionsTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await permissionsTab.click({ force: true });
-    await sleep(300);
-    const isActive = await permissionsTab.getAttribute('data-state');
-    results.permissions.works = isActive === 'active';
-
-    const tabContent = page.locator('[role="tabpanel"]');
-    results.permissions.hasContent = await tabContent.isVisible({ timeout: 2000 }).catch(() => false);
-    console.log(`  Permissions: works=${results.permissions.works}, hasContent=${results.permissions.hasContent}`);
-  }
-
-  return results;
 }
 
 /**
@@ -282,13 +245,32 @@ async function closeSettingsModal(page: Page): Promise<boolean> {
   console.log('\n=== Closing Settings Modal ===');
 
   try {
-    // Try pressing Escape
-    await page.keyboard.press('Escape');
-    await sleep(500);
+    // Confirm the modal is actually OPEN first. Without this the check below
+    // passes just as happily against a modal that was never open, which is the
+    // same as not checking.
+    const dialog = page.getByRole('dialog').first();
+    const wasOpen = await isVisibleWithin(dialog, 5000);
+    if (!wasOpen) {
+      console.log('  Modal was not open before Escape - nothing to close');
+      return false;
+    }
 
-    // Check if modal closed
-    const modalTitle = page.locator('[role="dialog"] text="Settings"').first();
-    const closed = !(await modalTitle.isVisible({ timeout: 1000 }).catch(() => false));
+    await page.keyboard.press('Escape');
+
+    // Wait for it to GO, rather than sampling once and hoping.
+    //
+    // This previously read:
+    //   page.locator('[role="dialog"] text="Settings"')
+    //     .isVisible({ timeout: 1000 }).catch(() => false)
+    // and reported PASS unconditionally. Two faults compounded. The selector
+    // mixes CSS with the text engine, which does not parse - Playwright throws
+    // `Unexpected token "=" while parsing css selector`. The `.catch(() => false)`
+    // then swallowed that throw, and the surrounding `!` turned it into
+    // "closed: true". Verified against a page holding a plainly visible dialog:
+    // it still reported closed. Separately, isVisible's timeout option is
+    // declared `@deprecated This option is ignored`, so even a valid selector
+    // would have sampled once, 500ms into a close animation.
+    const closed = await isHiddenWithin(dialog, 5000);
     console.log(`  Modal closed: ${closed}`);
     return closed;
   } catch (error) {
@@ -344,7 +326,7 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     const page = await context.newPage();
-    setupConsoleCapture(page, 'Settings', ['error', 'Error', 'Settings', 'settings']);
+    setupConsoleCapture(page, 'Settings', ['error', 'Error', 'Settings', 'settings', 'ILM']);
 
     results.accountCreated = await createAccount(page, USERNAME, {
       isFirstUser: true,
@@ -384,7 +366,7 @@ async function runTest(): Promise<boolean> {
 
     if (results.userDropdownOpens) {
       const settingsItem = page.locator('[role="menuitem"]:has-text("Settings")');
-      results.settingsMenuItemVisible = await settingsItem.isVisible({ timeout: 3000 }).catch(() => false);
+      results.settingsMenuItemVisible = await isVisibleWithin(settingsItem, 3000);
       console.log(`  Settings menu item visible: ${results.settingsMenuItemVisible}`);
       await takeScreenshot(page, '03_settings_menu_item');
     }
@@ -420,11 +402,14 @@ async function runTest(): Promise<boolean> {
 
     if (results.tabsVisible) {
       const tabResults = await testTabSwitching(page);
-      results.generalTabWorks = tabResults.general.works;
-      results.connectionsTabWorks = tabResults.connections.works;
-      results.appearanceTabWorks = tabResults.appearance.works;
-      results.privacyTabWorks = tabResults.privacy.works;
-      results.permissionsTabWorks = tabResults.permissions.works;
+      // "reachable" = it activated, OR it is deliberately disabled (Connections and
+      // Permissions require an active workspace connection). Both are correct
+      // behaviour; only a tab that is enabled and still will not activate is a bug.
+      results.generalTabWorks = tabResults.general.works || tabResults.general.disabled;
+      results.connectionsTabWorks = tabResults.connections.works || tabResults.connections.disabled;
+      results.appearanceTabWorks = tabResults.appearance.works || tabResults.appearance.disabled;
+      results.privacyTabWorks = tabResults.privacy.works || tabResults.privacy.disabled;
+      results.permissionsTabWorks = tabResults.permissions.works || tabResults.permissions.disabled;
 
       results.generalTabHasContent = tabResults.general.hasContent;
       results.connectionsTabHasContent = tabResults.connections.hasContent;
@@ -453,7 +438,29 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.accountCreated && results.userDropdownOpens;
+    // Gate on what this spec is FOR. It previously passed on
+    // `accountCreated && userDropdownOpens` alone, so a Settings Modal Test would
+    // report PASSED with the modal broken, every tab dead and the close button
+    // gone — the other 16 results were printed and thrown away.
+    //
+    // Tab *content* is deliberately not gated: some tabs render conditionally on
+    // permissions, so "has content" is genuinely informational. Whether each tab
+    // is reachable is not.
+    const criticalResults = [
+      results.accountCreated,
+      results.userDropdownOpens,
+      results.settingsMenuItemVisible,
+      results.modalOpens,
+      results.titleVisible,
+      results.tabsVisible,
+      results.generalTabWorks,
+      results.connectionsTabWorks,
+      results.appearanceTabWorks,
+      results.privacyTabWorks,
+      results.permissionsTabWorks,
+      results.modalCloses,
+    ];
+    const corePassed = criticalResults.every(Boolean);
 
     console.log('\nAccount Creation:');
     console.log(`  Account Created:          ${results.accountCreated ? 'PASS' : 'FAIL'}`);
@@ -486,9 +493,6 @@ async function runTest(): Promise<boolean> {
     console.log(`  Modal Closes:             ${results.modalCloses ? 'PASS' : 'CHECK'}`);
 
     harness.finalize(corePassed, results);
-
-    console.log('\nBrowser will remain open for 10 seconds for manual inspection...');
-    await sleep(10000);
 
     return corePassed;
 

@@ -1,21 +1,32 @@
+import { forgetSession, withoutForgotten } from '@/lib/sessions/forgotten-sessions';
+import { syncSelectedSessionToWasm } from './sync-selected-session-to-wasm';
 import { useState, useCallback } from "react";
+import type { UseOrphanSessionsResult } from './useOrphanSessions-types';
+import { useAttentionGlow } from './use-attention-glow';
+import { readLastLocation } from '@/lib/sessions/last-location';
+import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
+import { describeFailure } from '@/lib/failure-message';
+import { withWorkspaceNames } from '@/lib/sessions/with-workspace';
+import { markLastAccessed, readLastAccessed } from '@/lib/sessions/last-accessed';
 import { useNavigate } from "react-router-dom";
 import { connectionManager } from "@/lib/connection";
 import { websocketService } from "@/lib/websocket-service";
-import type { ActiveSession } from "@/types/session-types";
+import type { ActiveSession, StoredSessions } from "@/types/session-types";
 import type { DisconnectAction } from "./DisconnectConfirmModal";
 import type { DisconnectStatus } from "./LoadingModal";
 import { useToast, useEventListener } from "@/hooks";
-import { setSelectedUser, getSelectedUser } from "@/lib/tab-context";
+import { setSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
+import { startMessagingForSession } from "@/lib/start-messaging";
 import { instanceManager, instanceChannel } from "@/lib/multi-instance";
-import { p2pRegistrationService } from "@/lib/p2p-registration-service";
 import { notificationService, type UnreadCountChange } from "@/lib/notification-service";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { serverAutoConnectService } from "@/lib/server-auto-connect-service";
 import { eventEmitter } from "@/lib/event-emitter";
 import { postAuthSetup } from "@/lib/post-auth-setup";
 import { debugLog } from '@/lib/debug-config';
+import type { NavigateFunction } from 'react-router';
+import { signOutSession, type SignOutResult, type SignOutTarget } from './sign-out-session';
 
 export interface OrphanSessionWithWorkspace extends ActiveSession {
   workspaceName: string;
@@ -23,15 +34,15 @@ export interface OrphanSessionWithWorkspace extends ActiveSession {
   lastAccessed?: number;
 }
 
-export function useOrphanSessions() {
-  const navigate = useNavigate();
+export function useOrphanSessions(): UseOrphanSessionsResult {
+  const navigate: NavigateFunction = useNavigate();
   const { toast } = useToast();
   const [sessions, setSessions] = useState<OrphanSessionWithWorkspace[]>([]);
   const [disconnectTarget, setDisconnectTarget] = useState<{
     session: ActiveSession;
     workspaceName: string;
   } | null>(null);
-  const [glowingSessionCid, setGlowingSessionCid] = useState<bigint | null>(null);
+  const { glowing: glowingSessionCid, observe } = useAttentionGlow();
   const [notificationCounts, setNotificationCounts] = useState<Map<string, number>>(new Map());
 
   const [loadingModal, setLoadingModal] = useState<{
@@ -45,70 +56,51 @@ export function useOrphanSessions() {
     workspaceName: "",
   });
 
-  const loadActiveSessions = useCallback(async () => {
+  const loadActiveSessions: () => Promise<void> = useCallback(async (): Promise<void> => {
     try {
       await connectionManager.waitForReady();
-      const activeSessions = await connectionManager.getActiveSessions();
-      const storedSessions = connectionManager.getStoredSessions();
+      const { ok, sessions: activeSessions } = await connectionManager.getActiveSessionsResult();
+      // A query that was never answered is not the answer "no sessions". The
+      // navbar renders nothing at zero, so treating a timeout as emptiness made
+      // the Active Sessions strip disappear and the user log in again -- and
+      // CIDs are permanent, so a stale list is strictly better than an empty
+      // one here.
+      if (!ok) return;
+      const visibleSessions: typeof activeSessions = withoutForgotten(activeSessions);
 
-      const sessionsWithWorkspace: OrphanSessionWithWorkspace[] = activeSessions.map(
-        (activeSession: ActiveSession) => {
-          const storedIndex = storedSessions.sessions.findIndex(
-            (stored) =>
-              stored.username === activeSession.username &&
-              stored.serverAddress === activeSession.server_address
-          );
-          const storedSession = storedSessions.sessions[storedIndex];
-          const lastAccessedKey = `session_last_accessed_${activeSession.cid}`;
-          const lastAccessed = parseInt(localStorage.getItem(lastAccessedKey) || '0', 10);
+      const storedSessions: StoredSessions = connectionManager.getStoredSessions();
 
-          return {
-            ...activeSession,
-            workspaceName: storedSession?.username || activeSession.username,
-            storedSessionIndex: storedIndex,
-            lastAccessed,
-          };
-        }
+      const sessionsWithWorkspace: OrphanSessionWithWorkspace[] = withWorkspaceNames(
+        visibleSessions,
+        storedSessions.sessions,
+        readLastAccessed,
       );
-
-      sessionsWithWorkspace.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
       setSessions(sessionsWithWorkspace);
-      debugLog('OrphanSessionsNavbar', 'Loaded active sessions:', sessionsWithWorkspace);
 
-      const tabSelection = await getSelectedUser();
-      if (tabSelection?.selectedCid) {
-        const sel = sessionsWithWorkspace.find(s => s.cid === tabSelection.selectedCid);
-        if (sel?.cid !== undefined) {
-          try {
-            await wasmConnectionManager.addSession(sel.cid.toString());
-            if (sel.peer_connections) {
-              p2pRegistrationService.syncPeerConnectionsFromSession(sel.peer_connections).catch(() => {});
-            }
-          } catch (_) { /* WASM add session best-effort */ }
-        }
-      }
+      await syncSelectedSessionToWasm(sessionsWithWorkspace);
     } catch (error) {
+      // Keep whatever was last known good. Clearing here asserted "you have no
+      // sessions" on the strength of a failure.
       debugLog('OrphanSessionsNavbar', 'Failed to load active sessions:', error);
-      setSessions([]);
     }
   }, []);
 
-  const handleNavigate = async (session: OrphanSessionWithWorkspace) => {
+  const handleNavigate = async (session: OrphanSessionWithWorkspace): Promise<void> => {
     try {
       debugLog('OrphanSessionsNavbar', 'Navigating to workspace:', session.workspaceName);
 
-      const lastAccessedKey = `session_last_accessed_${session.cid}`;
-      localStorage.setItem(lastAccessedKey, Date.now().toString());
+      markLastAccessed(session.cid);
 
       toast({
         title: "Reconnecting...",
         description: `Loading ${session.workspaceName}`,
-        className: "bg-[#232536] border-purple-800 text-purple-200",
+        variant: 'success',
       });
 
-      try { await websocketService.claimSession(session.cid, true); }
-      catch (e: unknown) {
-        if (!(e instanceof Error && e.message?.includes('not orphaned'))) throw e;
+      const outcome: ClaimOutcome = await claimSessionForThisTab(session.cid);
+      if (outcome.status === 'owned-by-another-tab') {
+        toast(SESSION_OWNED_ELSEWHERE);
+        return;
       }
 
       if (session.storedSessionIndex >= 0) await connectionManager.setActiveSessionIndex(session.storedSessionIndex);
@@ -127,94 +119,97 @@ export function useOrphanSessions() {
       // applied uniformly.
       await postAuthSetup(session.cid);
 
-      try { await wasmConnectionManager.start(session.cid.toString()); }
-      catch (_) { /* WASM start best-effort */ }
+      // Was `catch (_) { }`. Best-effort is fine; invisible is not -- a claim
+      // that brought back a session with dead messaging looked exactly like one
+      // that worked.
+      await startMessagingForSession(session.cid.toString());
 
       eventEmitter.emit('session:activated', {
         cid: session.cid.toString(), username: session.username,
         serverAddress: session.server_address, activationType: 'claim' as const
       });
 
-      navigate(getWorkspacePath());
+      // Back where they were, when there is a where. An in-tab refresh keeps
+      // its place because the URL is the state; this path -- the actual second
+      // session, from the landing page -- navigated to the workspace root with
+      // no params, so a user who closed the browser mid-conversation landed on
+      // the default office and re-found it by hand, every day.
+      navigate(readLastLocation(session.cid) ?? getWorkspacePath());
 
       toast({
         title: "Connected!",
         description: `Now viewing ${session.workspaceName}`,
-        className: "bg-[#232536] border-purple-800 text-purple-200",
+        variant: 'success',
       });
     } catch (error) {
       debugLog('OrphanSessionsNavbar', 'Failed to navigate to workspace:', error);
       toast({
         title: "Connection Failed",
-        description: "Could not reconnect to workspace. Please try logging in again.",
+        description: describeFailure(error, "Could not reconnect to workspace. Please try logging in again."),
         variant: "destructive",
       });
     }
   };
 
-  const handleDisconnect = (session: OrphanSessionWithWorkspace) => {
+  const handleDisconnect = (session: OrphanSessionWithWorkspace): void => {
     setDisconnectTarget({ session, workspaceName: session.workspaceName });
   };
 
-  const handleConfirmDisconnect = async (action: DisconnectAction) => {
+  const handleConfirmDisconnect = async (action: DisconnectAction): Promise<void> => {
     if (!disconnectTarget) return;
 
-    const workspaceName = disconnectTarget.workspaceName;
-    const cid = disconnectTarget.session.cid;
-    const username = disconnectTarget.session.username;
-    const serverAddress = disconnectTarget.session.server_address;
+    const workspaceName: string = disconnectTarget.workspaceName;
+    const target: SignOutTarget = {
+      cid: disconnectTarget.session.cid,
+      username: disconnectTarget.session.username,
+      serverAddress: disconnectTarget.session.server_address,
+    };
 
     setDisconnectTarget(null);
     setLoadingModal({ open: true, status: "disconnecting", workspaceName });
 
-    try {
-      debugLog('OrphanSessionsNavbar', `${action === 'deregister' ? 'Deregistering' : 'Disconnecting'} session:`, cid);
+    const result: SignOutResult = await signOutSession(
+      {
+        markUserDisconnected: (username, serverAddress) =>
+          serverAutoConnectService.markUserDisconnected(username, serverAddress),
+        currentWasmCid: () => wasmConnectionManager.getCurrentCid(),
+        stopWasm: () => wasmConnectionManager.stop(),
+        deregister: (cid) => websocketService.deregister(cid),
+        disconnect: (cid) => websocketService.disconnect(cid),
+        invalidateSessionCache: () => connectionManager.invalidateSessionCache(),
+        removeSession: (username, serverAddress) =>
+          connectionManager.removeSession(username, serverAddress),
+        forget: (cid) => {
+          // Both: the state now, and every list until the server agrees.
+          forgetSession(cid);
+          setSessions(prev => prev.filter(s => s.cid !== cid));
+        },
+        reload: () => loadActiveSessions(),
+      },
+      target,
+      action,
+      () => setLoadingModal(prev => ({ ...prev, status: "cleaning" })),
+    );
 
-      await serverAutoConnectService.markUserDisconnected(username, serverAddress);
-
-      if (cid !== undefined && wasmConnectionManager.getCurrentCid() === cid.toString()) {
-        wasmConnectionManager.stop();
-      }
-
-      if (action === 'deregister') {
-        await websocketService.deregister(cid);
-      } else {
-        await websocketService.disconnect(cid);
-      }
-
-      connectionManager.invalidateSessionCache();
-      await connectionManager.removeSession(username, serverAddress);
-
-      setLoadingModal(prev => ({ ...prev, status: "cleaning" }));
-      await loadActiveSessions();
+    if (result.status === 'done') {
       setLoadingModal(prev => ({ ...prev, status: "ready" }));
+      return;
+    }
 
-      debugLog('OrphanSessionsNavbar', `Successfully ${action === 'deregister' ? 'deregistered' : 'disconnected'}`);
-    } catch (error) {
-      debugLog('OrphanSessionsNavbar', `Failed to ${action}:`, error);
-      setLoadingModal(prev => ({
-        ...prev,
-        status: "error",
-        errorMessage: error instanceof Error ? error.message : 'Unknown error',
-      }));
-
-      setTimeout(() => {
-        setLoadingModal(prev => ({ ...prev, open: false }));
-      }, 3000);
+    setLoadingModal(prev => ({ ...prev, status: "error", errorMessage: result.message }));
+    // A refusal is a decision the user can act on and stays until dismissed; a
+    // failure is transient and clears itself, as it always has.
+    if (result.status === 'failed') {
+      setTimeout(() => { setLoadingModal(prev => ({ ...prev, open: false })); }, 3000);
     }
   };
 
-  const handleLoadingComplete = () => {
+  const handleLoadingComplete = (): void => {
     setLoadingModal(prev => ({ ...prev, open: false }));
   };
 
-  const triggerGlow = (cid: bigint) => {
-    setGlowingSessionCid(cid);
-    setTimeout(() => { setGlowingSessionCid(null); }, 4000);
-  };
-
   // WebSocket connection success handler
-  const handleWsConnectionSuccess = useCallback(async () => {
+  const handleWsConnectionSuccess: () => Promise<void> = useCallback(async (): Promise<void> => {
     debugLog('OrphanSessionsNavbar', 'WebSocket connected, reloading sessions...');
     await loadActiveSessions();
   }, [loadActiveSessions]);
@@ -222,9 +217,12 @@ export function useOrphanSessions() {
   useEventListener('on-ws-connection-success', handleWsConnectionSuccess);
 
   // Notification count handler
-  const handleUnreadCountChanged = useCallback((change: UnreadCountChange) => {
-    setNotificationCounts(new Map(change.byCid));
-  }, []);
+  const handleUnreadCountChanged: (change: UnreadCountChange) => void = useCallback((change: UnreadCountChange): void => {
+    const next: Map<string, number> = new Map(change.byCid);
+    setNotificationCounts(next);
+    // The glow the chip was built for, and which nothing used to start.
+    observe(next);
+  }, [observe]);
 
   useEventListener<UnreadCountChange>('unread-count-changed', handleUnreadCountChanged);
 
@@ -240,7 +238,6 @@ export function useOrphanSessions() {
     handleDisconnect,
     handleConfirmDisconnect,
     handleLoadingComplete,
-    triggerGlow,
     notificationService,
   };
 }

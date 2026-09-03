@@ -14,7 +14,7 @@ export { PermissionsService } from './service';
 
 // Singleton instance
 import { PermissionsService } from './service';
-export const permissionsService = PermissionsService.getInstance();
+export const permissionsService: PermissionsService = PermissionsService.getInstance();
 
 // Default export for convenience
 export default permissionsService;

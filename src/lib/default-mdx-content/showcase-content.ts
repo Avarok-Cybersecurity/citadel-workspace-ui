@@ -4,7 +4,7 @@
  * Default MDX content that demonstrates all editor features.
  */
 
-export const getDefaultMDXShowcase = () => `# MDX Editor Showcase
+export const getDefaultMDXShowcase = (): string => `# MDX Editor Showcase
 
 Welcome to the MDX editor! This page demonstrates all the powerful features available for creating rich, interactive content.
 

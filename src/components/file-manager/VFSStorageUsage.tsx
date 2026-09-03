@@ -1,4 +1,5 @@
 import { HardDrive } from 'lucide-react';
+import { formatBytes } from '@/lib/format-bytes';
 import { cn } from '@/lib/utils';
 
 interface VFSStorageUsageProps {
@@ -10,14 +11,7 @@ interface VFSStorageUsageProps {
 /**
  * Format bytes to human-readable string (e.g., "45.2 MB")
  */
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  const value = bytes / Math.pow(k, i);
-  return `${value.toFixed(value < 10 ? 1 : 0)} ${sizes[i]}`;
-}
+
 
 /**
  * Storage usage progress bar for the RE-VFS tree view sidebar.
@@ -26,36 +20,36 @@ function formatBytes(bytes: number): string {
  * - Warning (80-95%): yellow
  * - Critical (>= 95%): red
  */
-export function VFSStorageUsage({ usedBytes, quotaBytes, label }: VFSStorageUsageProps) {
-  const percentage = quotaBytes > 0 ? Math.min((usedBytes / quotaBytes) * 100, 100) : 0;
-  const isWarning = percentage >= 80 && percentage < 95;
-  const isCritical = percentage >= 95;
+export function VFSStorageUsage({ usedBytes, quotaBytes, label }: VFSStorageUsageProps): JSX.Element {
+  const percentage: number = quotaBytes > 0 ? Math.min((usedBytes / quotaBytes) * 100, 100) : 0;
+  const isWarning: boolean = percentage >= 80 && percentage < 95;
+  const isCritical: boolean = percentage >= 95;
 
   // Determine bar color based on usage
-  const barColor = isCritical
-    ? 'bg-red-500'
+  const barColor: "bg-warning" | "bg-destructive" | "bg-primary" = isCritical
+    ? 'bg-destructive'
     : isWarning
-      ? 'bg-yellow-500'
-      : 'bg-purple-500';
+      ? 'bg-warning'
+      : 'bg-primary';
 
-  const textColor = isCritical
-    ? 'text-red-400'
+  const textColor: "text-destructive" | "text-warning-emphasis" | "text-muted-foreground" = isCritical
+    ? 'text-destructive'
     : isWarning
-      ? 'text-yellow-400'
-      : 'text-gray-400';
+      ? 'text-warning-emphasis'
+      : 'text-muted-foreground';
 
   return (
-    <div className="px-2 py-2 border-t border-purple-800 bg-[#2E3450]">
+    <div className="px-2 py-2 border-t border-border bg-surface">
       {/* Label row */}
       <div className="flex items-center gap-1.5 mb-1.5">
         <HardDrive className={cn('h-3 w-3', textColor)} />
-        <span className="text-xs text-gray-400 truncate">
+        <span className="text-xs text-muted-foreground truncate">
           {label ? `${label} Storage` : 'Storage'}
         </span>
       </div>
 
       {/* Progress bar */}
-      <div className="w-full h-1.5 bg-[#1E2235] rounded-full overflow-hidden mb-1">
+      <div className="w-full h-1.5 bg-card rounded-full overflow-hidden mb-1">
         <div
           className={cn('h-full rounded-full transition-all duration-300', barColor)}
           style={{ width: `${percentage}%` }}

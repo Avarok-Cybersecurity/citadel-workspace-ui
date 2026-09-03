@@ -18,14 +18,14 @@ interface UseEventEmitterSetupProps {
 export function useEventEmitterSetup({ setState }: UseEventEmitterSetupProps): void {
   useEffect(() => {
     // Setup user profile update listener
-    const userProfileHandler = (data: { user: { name?: string; metadata?: { avatar?: { content?: string; String?: string } | string } }; connection: unknown }) => {
+    const userProfileHandler = (data: { user: { name?: string; metadata?: { avatar?: { content?: string; String?: string } | string } }; connection: unknown }): void => {
       debugLog('UseEventEmitterSetup', 'WorkspaceEventHandler: Received user profile update', data);
 
-      const user = data.user;
+      const user: { name?: string; metadata?: { avatar?: { content?: string; String?: string; } | string; }; } = data.user;
       let avatarUrl: string | undefined;
       if (user.metadata?.avatar) {
-        const avatar = user.metadata.avatar;
-        const avatarData = typeof avatar === 'string'
+        const avatar: string | { content?: string; String?: string; } = user.metadata.avatar;
+        const avatarData: string | undefined = typeof avatar === 'string'
           ? avatar
           : avatar?.content || avatar?.String;
         if (avatarData) {
@@ -47,7 +47,7 @@ export function useEventEmitterSetup({ setState }: UseEventEmitterSetupProps): v
     };
 
     // Broadcast state sync handler
-    const broadcastSyncHandler = (data: { type: string; data: unknown }) => {
+    const broadcastSyncHandler = (data: { type: string; data: unknown }): void => {
       debugLog('UseEventEmitterSetup', 'WorkspaceEventHandler: Received broadcast state sync', data);
 
       if (data.type === 'workspace') {
@@ -75,7 +75,7 @@ export function useEventEmitterSetup({ setState }: UseEventEmitterSetupProps): v
     eventEmitter.on('broadcast-state-sync', broadcastSyncHandler);
 
     // Cleanup
-    return () => {
+    return (): void => {
       eventEmitter.off('user:profile-updated', userProfileHandler);
       eventEmitter.off('broadcast-state-sync', broadcastSyncHandler);
     };

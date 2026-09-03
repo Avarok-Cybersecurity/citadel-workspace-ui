@@ -33,8 +33,8 @@ export function simulateRequestReceived(
       sourceId: request.id,
       priority: NotificationPriority.NORMAL,
       actionButtons: [
-        { id: 'accept', label: 'Accept', variant: 'default', onClick: () => acceptRequest(request.id) },
-        { id: 'reject', label: 'Reject', variant: 'destructive', onClick: () => rejectRequest(request.id) }
+        { id: 'accept', label: 'Accept', variant: 'default', onClick: (): Promise<void> => acceptRequest(request.id) },
+        { id: 'reject', label: 'Reject', variant: 'destructive', onClick: (): Promise<void> => rejectRequest(request.id) }
       ]
     });
 

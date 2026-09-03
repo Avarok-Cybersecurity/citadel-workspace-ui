@@ -10,10 +10,13 @@ import {
   createOnline,
   isPresenceUpdate,
   TYPING_POLL_INTERVAL_MS,
+  TYPING_DISPLAY_DURATION_MS,
 } from '@/types/messaging-layer';
 import type { MessagingLayer } from '@/types/messaging-layer';
 import type { PeerPresence } from './p2p-types';
 import { debugLog } from '@/lib/debug-config';
+import { notifyEach } from '@/lib/notify-listeners';
+import { getPrivacySettings } from '@/lib/privacy-settings';
 
 export type PresenceListener = (peerCid: bigint, presence: PeerPresence) => void;
 export type TypingListener = (peerCid: bigint, isTyping: boolean) => void;
@@ -24,6 +27,22 @@ export interface PresenceManagerConfig {
   /** Function to get all connected peer CIDs */
   getConnectedPeers: () => bigint[];
 }
+
+/**
+ * The fastest a typing indicator is worth resending.
+ *
+ * Half the duration the peer displays it for: the indicator never lapses, and
+ * the rate cannot follow the poll interval into something faster.
+ *
+ * At today's constants this guard never binds -- the poll is 1000ms and this
+ * is 2000/2 -- so it changes nothing now and has no test, because a test
+ * against these values cannot tell it from its own absence. It is here because
+ * the rate WAS incidental: `lastSentTyping` was written and read nowhere, so a
+ * poll made snappier for the local user would have multiplied traffic to the
+ * peer, and every one of these shares the reliable ILM path and send window
+ * with real messages.
+ */
+const MIN_TYPING_SEND_INTERVAL_MS: number = TYPING_DISPLAY_DURATION_MS / 2;
 
 export class PresenceManager {
   private presenceListeners: PresenceListener[] = [];
@@ -66,6 +85,9 @@ export class PresenceManager {
    * Send presence update to a specific peer
    */
   public async sendPresenceUpdate(recipientCid: bigint, presence: MessagingLayer): Promise<void> {
+    // Gated here rather than in broadcastPresence so that BOTH the broadcast and
+    // the single-peer path obey it — broadcastPresence loops through this one.
+    if (!getPrivacySettings().showOnlineStatus) return;
     if (!isPresenceUpdate(presence)) {
       debugLog('PresenceManager', 'Invalid presence layer type');
       return;
@@ -78,7 +100,7 @@ export class PresenceManager {
    * Broadcast presence update to all connected peers
    */
   public async broadcastPresence(presence: MessagingLayer): Promise<void> {
-    const connectedPeers = this.config.getConnectedPeers();
+    const connectedPeers: bigint[] = this.config.getConnectedPeers();
 
     for (const peerCid of connectedPeers) {
       await this.sendPresenceUpdate(peerCid, presence);
@@ -119,14 +141,14 @@ export class PresenceManager {
    * Notify presence listeners of a change
    */
   public notifyPresenceChange(peerCid: bigint, presence: PeerPresence): void {
-    this.presenceListeners.forEach(listener => listener(peerCid, presence));
+    notifyEach(this.presenceListeners, 'presence', peerCid, presence);
   }
 
   /**
    * Notify typing listeners of a change
    */
   public notifyTypingChange(peerCid: bigint, isTyping: boolean): void {
-    this.typingListeners.forEach(listener => listener(peerCid, isTyping));
+    notifyEach(this.typingListeners, 'typing', peerCid, isTyping);
   }
 
   /**
@@ -138,19 +160,31 @@ export class PresenceManager {
     // Stop any existing polling for this peer
     this.stopTypingPolling(recipientCid);
 
-    const state = {
+    const state: { intervalId: NodeJS.Timeout | null; lastText: string; lastSentTyping: number; } = {
       intervalId: null as NodeJS.Timeout | null,
       lastText: getCurrentText(),
       lastSentTyping: 0
     };
 
     state.intervalId = setInterval(() => {
-      const currentText = getCurrentText();
-      const textChanged = currentText !== state.lastText;
+      const currentText: string = getCurrentText();
+      const textChanged: boolean = currentText !== state.lastText;
       state.lastText = currentText;
 
-      // Only send typing indicator if text actually changed and is non-empty
-      if (textChanged && currentText.length > 0) {
+      // Changed, non-empty, and not more often than the peer needs.
+      //
+      // `lastSentTyping` was written here and read nowhere, so the send rate
+      // was whatever `TYPING_POLL_INTERVAL_MS` happened to be -- one per
+      // second, which is fine against a 2s display duration, and would become
+      // five per second the day somebody polled at 200ms for a snappier
+      // indicator. Every one of these goes down the same reliable ILM path as
+      // real messages, behind the same send window.
+      //
+      // The rate now derives from the duration it exists to sustain: half of
+      // it, so the indicator never lapses, and no faster whatever the poll
+      // becomes.
+      const sinceLastSend: number = Date.now() - state.lastSentTyping;
+      if (textChanged && currentText.length > 0 && sinceLastSend >= MIN_TYPING_SEND_INTERVAL_MS) {
         void this.sendTypingIndicator(recipientCid);
         state.lastSentTyping = Date.now();
       }
@@ -164,7 +198,7 @@ export class PresenceManager {
    * Call this when the user blurs the input field or sends a message.
    */
   public stopTypingPolling(recipientCid: bigint): void {
-    const state = this.typingPollingState.get(recipientCid);
+    const state: { intervalId: NodeJS.Timeout | null; lastText: string; lastSentTyping: number; } | undefined = this.typingPollingState.get(recipientCid);
     if (state?.intervalId) {
       clearInterval(state.intervalId);
     }
@@ -176,12 +210,16 @@ export class PresenceManager {
    *
    * Public so callers that already manage their own typing state (e.g.
    * MessagingService.sendTypingIndicator, triggered by input focus/blur
-   * effects in RetryableMessageSender) can fire an indicator without
+   * effects in a message composer) can fire an indicator without
    * setting up the full polling machinery.
    */
   public async sendTypingIndicator(recipientCid: bigint): Promise<void> {
+    // "Show typing indicators: off" now means the peer is not told. It used to
+    // mean nothing at all: the setting was written to localStorage and read by
+    // no one.
+    if (!getPrivacySettings().showTypingIndicators) return;
     try {
-      const layer = createTyping();
+      const layer: MessagingLayer = createTyping();
       await this.config.sendCommand(recipientCid, layer);
     } catch (error) {
       debugLog('PresenceManager', 'Failed to send typing indicator:', error);

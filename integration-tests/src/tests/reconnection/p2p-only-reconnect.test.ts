@@ -48,6 +48,7 @@ interface TestResult {
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'P2P-Only Reconnection Test',
     reportFileName: 'p2p-only-reconnect-test.json',
     metadata: { user1: USER1_NAME, user2: USER2_NAME },
@@ -71,7 +72,11 @@ async function runTest(): Promise<boolean> {
     page2 = browserSetup.pages[1];
 
     // Setup console capture for ratchet errors
-    const errorPatterns = ['Session Already Connected', 'Ratchet does not exist', 'ratchet v'];
+    // 'ILM' included deliberately. These specs assert message delivery, and the
+    // delivery layer is ILM -- but its diagnostics were filtered out of the
+    // captured console, so a delivery failure here produced a log with literally
+    // zero ILM lines in it and nothing to diagnose from.
+    const errorPatterns = ['Session Already Connected', 'Ratchet does not exist', 'ratchet v', 'ILM'];
 
     setupConsoleCapture(page1, USER1_NAME, errorPatterns);
     setupConsoleCapture(page2, USER2_NAME, errorPatterns);
@@ -200,7 +205,6 @@ async function runTest(): Promise<boolean> {
     });
 
     if (msg1Sent) {
-      await sleep(3000);
       const msg1Received = await verifyMessageReceived(page2, USER2_NAME, msg1, 30000, uxTracker);
       results.push({
         step: 'Phase 3c: Verify Message Received (user2)',
@@ -283,7 +287,6 @@ async function runTest(): Promise<boolean> {
     });
 
     if (msg2Sent) {
-      await sleep(3000);
       const msg2Received = await verifyMessageReceived(page1, USER1_NAME, msg2, 30000, uxTracker);
       results.push({
         step: 'Phase 6b: Verify Message Received (user1)',

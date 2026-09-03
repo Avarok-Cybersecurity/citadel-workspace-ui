@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mapWasmMember } from '../member-mapping';
+import type { MappedMember } from '@/lib/workspace-response-handler/member-mapping';
 
 /**
  * Unit tests for `mapWasmMember`. The mapping is the single normalisation
@@ -10,7 +11,7 @@ import { mapWasmMember } from '../member-mapping';
  */
 describe('mapWasmMember', () => {
   it('preserves a fully-populated record verbatim in the canonical fields', () => {
-    const out = mapWasmMember({
+    const out: MappedMember = mapWasmMember({
       id: 'user-1',
       username: 'alice',
       displayName: 'Alice Anderson',
@@ -24,19 +25,19 @@ describe('mapWasmMember', () => {
   });
 
   it('falls back to `name` for both username and displayName when those are missing', () => {
-    const out = mapWasmMember({ id: 'u', name: 'bob' });
+    const out: MappedMember = mapWasmMember({ id: 'u', name: 'bob' });
     expect(out.username).toBe('bob');
     expect(out.displayName).toBe('bob');
   });
 
   it('falls back to id when neither name nor username is present', () => {
-    const out = mapWasmMember({ id: 'u-7' });
+    const out: MappedMember = mapWasmMember({ id: 'u-7' });
     expect(out.username).toBe('u-7');
     expect(out.displayName).toBe('u-7');
   });
 
   it('returns an empty object-shape with empty strings rather than crashing on {}', () => {
-    const out = mapWasmMember({});
+    const out: MappedMember = mapWasmMember({});
     expect(out.id).toBeUndefined();
     expect(out.username).toBe('');
     expect(out.displayName).toBe('');
@@ -47,24 +48,24 @@ describe('mapWasmMember', () => {
     // Regression: the original implementation guarded on `typeof raw.id ===
     // 'string'` and silently set id: undefined for numeric ids, which the
     // downstream `if (!id)` filter then dropped from the member list.
-    const out = mapWasmMember({ id: 42, username: 'eve' });
+    const out: MappedMember = mapWasmMember({ id: 42, username: 'eve' });
     expect(out.id).toBe('42');
     expect(out.username).toBe('eve');
   });
 
   it('coerces a bigint id to string', () => {
-    const out = mapWasmMember({ id: 12345678901234567890n, username: 'frank' });
+    const out: MappedMember = mapWasmMember({ id: 12345678901234567890n, username: 'frank' });
     expect(out.id).toBe('12345678901234567890');
   });
 
   it('drops obviously bogus id types (boolean, object) rather than coercing them', () => {
-    const out = mapWasmMember({ id: true, username: 'g' });
+    const out: MappedMember = mapWasmMember({ id: true, username: 'g' });
     expect(out.id).toBeUndefined();
     expect(out.username).toBe('g');
   });
 
   it('preserves arbitrary extra fields unchanged via the spread', () => {
-    const out = mapWasmMember({ id: 'u', name: 'x', joined_at: 12345, online: true });
+    const out: MappedMember = mapWasmMember({ id: 'u', name: 'x', joined_at: 12345, online: true });
     expect((out as Record<string, unknown>).joined_at).toBe(12345);
     expect((out as Record<string, unknown>).online).toBe(true);
   });

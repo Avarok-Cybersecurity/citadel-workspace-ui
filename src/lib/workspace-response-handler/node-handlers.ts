@@ -7,8 +7,7 @@
 
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
-import { isVariant } from 'citadel-workspace-client-ts';
-import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
+import { isVariant , type WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 import type { ConnectionInfo } from './workspace-handlers';
 
 /**
@@ -21,7 +20,7 @@ export function handleNodeVariants(
   connectionInfo: ConnectionInfo,
 ): boolean {
   if (isVariant(response, 'Node')) {
-    const node = response.Node;
+    const node: Extract<WorkspaceProtocolResponse, { Node: unknown }>['Node'] = response.Node;
     debugLog('WorkspaceResponseHandler', 'Node response received', {
       id: node.id, name: node.name, entityType: node.entity_type,
     });
@@ -71,6 +70,32 @@ export function handleNodeVariants(
     });
     eventEmitter.emit('node:deleted', {
       nodeId: node_id, childrenDeleted: children_deleted, connection: connectionInfo,
+    });
+    eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
+  // Broadcast by the server to every OTHER member when someone saves a node's
+  // content (async_process_command.rs, on UpdateNode with mdx_content). Nothing
+  // in the UI handled it: the editor saw their own change, everyone else kept
+  // the version they loaded until they navigated away and back. The one response
+  // variant of 25 with no handler on this side.
+  if (isVariant(response, 'NodeContentUpdated')) {
+    const { node_id, mdx_content, mdx_content_hash, updated_by, timestamp } =
+      response.NodeContentUpdated;
+    debugLog('WorkspaceResponseHandler', 'NodeContentUpdated response received', {
+      node_id, updated_by, length: mdx_content.length,
+    });
+    eventEmitter.emit('node:content-updated', {
+      nodeId: node_id,
+      mdxContent: mdx_content,
+      mdxContentHash: mdx_content_hash ?? undefined,
+      updatedBy: updated_by,
+      // ts-rs declares this bigint; the wire is JSON with no reviver, so it
+      // arrives as a number. Coerced rather than cast, so the value is what the
+      // type says either way.
+      timestamp: Number(timestamp),
+      connection: connectionInfo,
     });
     eventEmitter.emit('workspace:raw-response', response);
     return true;

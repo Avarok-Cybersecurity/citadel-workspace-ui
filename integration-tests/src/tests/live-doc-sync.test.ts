@@ -23,6 +23,7 @@ import {
   TestHarness,
   runTestMain,
 } from '../test-lib.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -62,7 +63,7 @@ async function createLiveDoc(page: Page, username: string, docTitle: string): Pr
 
   // Click on "Live Doc" type selector button
   const liveDocTypeBtn = page.locator('button[title="Live Doc"]');
-  if (await liveDocTypeBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(liveDocTypeBtn, 3000)) {
     await liveDocTypeBtn.click();
     await sleep(500);
     console.log('  Selected Live Doc message type');
@@ -72,8 +73,10 @@ async function createLiveDoc(page: Page, username: string, docTitle: string): Pr
   }
 
   // BUG WORKAROUND: P2PChat.tsx returns early if input is empty BEFORE checking live_document
-  const messageInput = page.locator('input[placeholder*="Document content"], input[placeholder*="message"]').first();
-  if (await messageInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+  // One testid covers both modes: the composer is the same control whether it
+  // is holding a message or a document body, and only its placeholder changes.
+  const messageInput = page.getByTestId('p2p-message-input').first();
+  if (await isVisibleWithin(messageInput, 2000)) {
     await messageInput.fill('initial content');
     await sleep(300);
     console.log('  Filled input with placeholder text (workaround)');
@@ -81,7 +84,7 @@ async function createLiveDoc(page: Page, username: string, docTitle: string): Pr
 
   // Click the Send button to open LiveDocumentModal
   const sendBtn = page.locator('button[type="submit"]').last();
-  if (await sendBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(sendBtn, 2000)) {
     await sendBtn.click();
     await sleep(1500);
     console.log('  Clicked Send to open Live Doc modal');
@@ -91,14 +94,14 @@ async function createLiveDoc(page: Page, username: string, docTitle: string): Pr
 
   // Fill in the document title
   const titleInput = page.locator('input[placeholder="Document title..."]');
-  if (await titleInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(titleInput, 3000)) {
     console.log('  Found title input, filling...');
     await titleInput.fill(docTitle);
     await sleep(500);
 
     // Click "Create & Send" button
     const createBtn = page.locator('button:has-text("Create & Send")');
-    if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(createBtn, 2000)) {
       await createBtn.click();
       await sleep(3000);
       console.log('  Document created!');
@@ -135,7 +138,7 @@ async function typeInEditor(page: Page, username: string, text: string): Promise
   let editorFound = false;
   for (let attempt = 0; attempt < 20; attempt++) {
     try {
-      const visible = await editor.isVisible({ timeout: 1000 });
+      const visible = await isVisibleWithin(editor, 1000);
       if (visible) {
         console.log(`  Editor found after ${attempt + 1} seconds`);
         editorFound = true;
@@ -188,9 +191,25 @@ async function typeInEditor(page: Page, username: string, text: string): Promise
 /**
  * Get content from the ProseMirror editor
  */
+/**
+ * Wait for `text` to appear in the collaborative editor.
+ *
+ * Polls the editor's own content rather than using a locator, because the text
+ * arrives inside ProseMirror's managed DOM and the assertion is about the
+ * document's value, not about any one element rendering.
+ */
+async function waitForEditorText(page: Page, text: string, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if ((await getEditorContent(page)).includes(text)) return true;
+    await sleep(500);
+  }
+  return false;
+}
+
 async function getEditorContent(page: Page): Promise<string> {
   const editor = page.locator('.ProseMirror').first();
-  if (await editor.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(editor, 3000)) {
     const content = await editor.textContent();
     return content ?? '';
   }
@@ -205,7 +224,7 @@ async function openLiveDocTab(page: Page, username: string, docTitle: string): P
 
   // Look for tab with document title
   const docTab = page.locator(`button:has-text("${docTitle}")`).first();
-  if (await docTab.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (await isVisibleWithin(docTab, 5000)) {
     await docTab.click();
     await sleep(2000);
     console.log(`  Opened Live Doc tab: ${docTitle}`);
@@ -215,7 +234,7 @@ async function openLiveDocTab(page: Page, username: string, docTitle: string): P
 
   // Try any tab with a FileText icon
   const anyDocTab = page.locator('button:has(svg.lucide-file-text)').first();
-  if (await anyDocTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await isVisibleWithin(anyDocTab, 2000)) {
     await anyDocTab.click();
     await sleep(2000);
     console.log(`  Opened a Live Doc tab`);
@@ -234,6 +253,7 @@ async function openLiveDocTab(page: Page, username: string, docTitle: string): P
 async function runTest(): Promise<boolean> {
   // Initialize test harness
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'Live Doc Bidirectional Sync Test',
     reportFileName: 'LIVE_DOC_TEST_REPORT.json',
     metadata: { user1: USER1, user2: USER2, docTitle: DOC_TITLE },
@@ -255,8 +275,8 @@ async function runTest(): Promise<boolean> {
 
   try {
     // Capture YJS-related logs
-    const logs1 = setupConsoleCapture(page1, 'User1', ['Yjs', 'sync', 'Sync', 'P2P']);
-    const logs2 = setupConsoleCapture(page2, 'User2', ['Yjs', 'sync', 'Sync', 'P2P']);
+    const logs1 = setupConsoleCapture(page1, 'User1', ['Yjs', 'sync', 'Sync', 'P2P', 'ILM']);
+    const logs2 = setupConsoleCapture(page2, 'User2', ['Yjs', 'sync', 'Sync', 'P2P', 'ILM']);
 
     // ========== STEP 1: Create accounts ==========
     console.log('\n' + '─'.repeat(50));
@@ -311,12 +331,12 @@ async function runTest(): Promise<boolean> {
     // After creating the live doc, a LiveDocumentBubble should appear in the message list
     // Look for the bubble with the document title or a FileText icon
     const liveDocBubble = page1.locator(`button:has-text("${DOC_TITLE}"), [class*="live-doc"], [class*="LiveDoc"], [data-message-type="live_document"]`).first();
-    results.liveDocBubbleVisible = await liveDocBubble.isVisible({ timeout: 5000 }).catch(() => false);
+    results.liveDocBubbleVisible = await isVisibleWithin(liveDocBubble, 5000);
 
     if (!results.liveDocBubbleVisible) {
       // Alternative: look for any bubble with FileText icon in message area
       const fileTextBubble = page1.locator('button:has(svg.lucide-file-text)').first();
-      results.liveDocBubbleVisible = await fileTextBubble.isVisible({ timeout: 3000 }).catch(() => false);
+      results.liveDocBubbleVisible = await isVisibleWithin(fileTextBubble, 3000);
     }
 
     console.log(`  LiveDocumentBubble visible: ${results.liveDocBubbleVisible}`);
@@ -327,7 +347,11 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 6: User 1 Types Text');
     console.log('─'.repeat(50));
 
-    const TEXT1 = 'Hello from User 1!';
+    // Unique per run. The document can outlive a run, so a fixed string like
+    // "Hello from User 1!" could still be sitting in it from last time and the
+    // sync check would pass without anything having synced now.
+    const RUN = Date.now().toString(36);
+    const TEXT1 = `Hello from User 1 [${RUN}]`;
     await typeInEditor(page1, USER1, TEXT1);
 
     // ========== STEP 7: User 2 Opens Live Doc ==========
@@ -344,8 +368,11 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 8: Verify Sync (User 1 -> User 2)');
     console.log('─'.repeat(50));
 
+    // Wait for the text to arrive rather than sleeping a fixed 5s: it returns as
+    // soon as sync lands, and on failure it has genuinely waited the full budget
+    // instead of giving up at exactly 5s.
     console.log('  Waiting for YJS sync...');
-    await sleep(5000);
+    const arrivedAt2 = await waitForEditorText(page2, TEXT1, 20_000);
     const content2 = await getEditorContent(page2);
 
     console.log(`\n${'='.repeat(40)}`);
@@ -353,7 +380,9 @@ async function runTest(): Promise<boolean> {
     console.log('='.repeat(40));
     console.log(`User 2 editor content: "${content2}"`);
 
-    if (content2.includes(TEXT1) || content2.includes('Hello')) {
+    // Only the exact marker counts. The old check also accepted the substring
+    // 'Hello', which any greeting in the document would satisfy.
+    if (arrivedAt2) {
       console.log('  PASS: User 2 received User 1\'s text');
       results.user1ToUser2Sync = true;
     } else {
@@ -365,7 +394,7 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 9: User 2 Types Text');
     console.log('─'.repeat(50));
 
-    const TEXT2 = ' And hello from User 2!';
+    const TEXT2 = ` And hello from User 2 [${RUN}]`;
     await takeScreenshot(page2, `${USER2}_before_typing`);
     await typeInEditor(page2, USER2, TEXT2);
 
@@ -375,11 +404,11 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     console.log('  Waiting for reverse sync...');
-    await sleep(5000);
+    const arrivedAt1 = await waitForEditorText(page1, TEXT2.trim(), 20_000);
     const content1 = await getEditorContent(page1);
     console.log(`User 1 editor content: "${content1}"`);
 
-    if (content1.includes('User 2') || content1.includes('hello from User 2')) {
+    if (arrivedAt1) {
       console.log('  PASS: User 1 received User 2\'s text (bidirectional sync works!)');
       results.user2ToUser1Sync = true;
     } else {
@@ -417,8 +446,6 @@ async function runTest(): Promise<boolean> {
     } as unknown as Record<string, any>);
 
     console.log('\nCheck screenshots directory for visual verification');
-    console.log('Browser will remain open for 30 seconds for manual inspection...');
-    await sleep(30000);
 
     return testPassed;
 

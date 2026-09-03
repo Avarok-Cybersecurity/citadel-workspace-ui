@@ -14,35 +14,40 @@ import {
 } from './settings';
 import { Settings, Wifi, Palette, Shield, Lock } from 'lucide-react';
 import { connectionManager } from '@/lib/connection';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
 interface SettingsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
-  const connectionInfo = connectionManager.getConnectionInfo();
-  const isConnected = !!connectionInfo?.cid;
+export function SettingsModal({ open, onOpenChange }: SettingsModalProps): JSX.Element {
+  const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
+  const isConnected: boolean = !!connectionInfo?.cid;
 
-  const tabTriggerClass = "data-[state=active]:bg-purple-600 data-[state=active]:text-white text-gray-500 gap-1.5 text-xs rounded-lg transition-all data-[state=active]:shadow-md data-[state=active]:shadow-purple-500/20";
+  const tabTriggerClass: "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5 text-xs rounded-lg transition-all data-[state=active]:shadow-md data-[state=active]:shadow-primary-accent/20" = "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5 text-xs rounded-lg transition-all data-[state=active]:shadow-md data-[state=active]:shadow-primary-accent/20";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[640px] bg-[#1C1D28] border-[#2D3548] shadow-2xl shadow-black/40 sm:max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-[#2D3548]">
-          <DialogTitle className="text-xl font-bold text-white">Settings</DialogTitle>
-          <p className="text-sm text-gray-400 mt-1">Configure your workspace preferences</p>
+      <DialogContent className="sm:max-w-[640px] bg-background border-border shadow-2xl shadow-black/40 sm:max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
+          <DialogTitle className="text-xl font-bold text-foreground">Settings</DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">Configure your workspace preferences</p>
         </DialogHeader>
 
         <Tabs defaultValue="general" className="flex-1 flex flex-col min-h-0">
           <div className="px-6 pt-4 pb-2">
-            <TabsList className="grid w-full grid-cols-5 bg-[#131420] h-10 rounded-lg p-1">
-              <TabsTrigger value="general" className={tabTriggerClass}>
+            {/* Each trigger's text is hidden below `sm`, which left five
+                icon-only tabs with no accessible name on a phone. aria-label
+                gives them one at every width. */}
+            <TabsList className="grid w-full grid-cols-5 bg-input h-10 rounded-lg p-1">
+              <TabsTrigger value="general" aria-label="General" className={tabTriggerClass}>
                 <Settings className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">General</span>
               </TabsTrigger>
               <TabsTrigger
                 value="connections"
+                aria-label="Connections"
                 className={tabTriggerClass}
                 disabled={!isConnected}
                 title={!isConnected ? "Connect to a workspace first" : undefined}
@@ -50,16 +55,17 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 <Wifi className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Connect</span>
               </TabsTrigger>
-              <TabsTrigger value="appearance" className={tabTriggerClass}>
+              <TabsTrigger value="appearance" aria-label="Theme" className={tabTriggerClass}>
                 <Palette className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Theme</span>
               </TabsTrigger>
-              <TabsTrigger value="privacy" className={tabTriggerClass}>
+              <TabsTrigger value="privacy" aria-label="Privacy" className={tabTriggerClass}>
                 <Shield className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Privacy</span>
               </TabsTrigger>
               <TabsTrigger
                 value="permissions"
+                aria-label="Permissions"
                 className={tabTriggerClass}
                 disabled={!isConnected}
                 title={!isConnected ? "Connect to a workspace first" : undefined}

@@ -55,27 +55,43 @@ import {
 // Types
 // ============================================================================
 
+/**
+ * `?: boolean` marks a case whose precondition the default schema does not
+ * allow us to set up. Those report SKIP and are excluded from the gate; the
+ * reason is stated where each is (not) assigned. Everything else is required.
+ *
+ * The previous version expressed SKIP by writing `true` into the result, so
+ * "the schema refused, therefore we never tested this" printed as PASS.
+ */
 interface TestResults {
   // Setup
   accountCreation: boolean;
   workspaceLoaded: boolean;
-  workspaceRootFound: boolean;
+  /** The workspace root id resolves to a real Workspace node on the server. */
+  workspaceRootResolves: boolean;
 
   // Basic Move Operations
-  officeMoveToSibling: boolean;
+  /** Requires an office nested under another office — not possible by default. */
+  officeMoveToSibling?: boolean;
+  siblingsShareParentAndDepth?: boolean;
   roomMoveToDifferentOffice: boolean;
+  movedNodeParentUpdated: boolean;
   oldParentChildrenUpdated: boolean;
   newParentChildrenUpdated: boolean;
 
-  // Move with Descendants
-  officeWithDescendantsMoved: boolean;
-  descendantsRetainStructure: boolean;
-  descendantsDepthRecalculated: boolean;
+  // Move with Descendants — all require Office-under-Office nesting.
+  officeWithDescendantsMoved?: boolean;
+  descendantsRetainStructure?: boolean;
+  descendantsDepthRecalculated?: boolean;
 
   // Depth Recalculation
-  depthRecalculatedOnMove: boolean;
-  depthDecreasedCorrectly: boolean;
-  depthIncreasedCorrectly: boolean;
+  deepRoomInitialDepth: boolean;
+  /** Requires Room directly under Workspace — not possible by default. */
+  depthDecreasedCorrectly?: boolean;
+  depthIncreasedCorrectly?: boolean;
+  /** Either the move recalculated depth, or the schema refused it for the
+   *  documented reason. Always evaluated. */
+  schemaRefusedOrDepthRecalculated: boolean;
 
   // Invalid Moves (all should fail/be rejected)
   moveToSelfRejected: boolean;
@@ -86,6 +102,12 @@ interface TestResults {
   // Response Validation
   responsesContainOldParentId: boolean;
   responsesContainNewParentId: boolean;
+}
+
+/** Render an optional result: absent means the case was never reached. */
+function report(value: boolean | undefined): string {
+  if (value === undefined) return 'SKIP';
+  return value ? 'PASS' : 'FAIL';
 }
 
 // ============================================================================
@@ -184,23 +206,17 @@ async function runTest(): Promise<boolean> {
     // Setup
     accountCreation: false,
     workspaceLoaded: false,
-    workspaceRootFound: false,
+    workspaceRootResolves: false,
 
     // Basic Move Operations
-    officeMoveToSibling: false,
     roomMoveToDifferentOffice: false,
+    movedNodeParentUpdated: false,
     oldParentChildrenUpdated: false,
     newParentChildrenUpdated: false,
 
-    // Move with Descendants
-    officeWithDescendantsMoved: false,
-    descendantsRetainStructure: false,
-    descendantsDepthRecalculated: false,
-
     // Depth Recalculation
-    depthRecalculatedOnMove: false,
-    depthDecreasedCorrectly: false,
-    depthIncreasedCorrectly: false,
+    deepRoomInitialDepth: false,
+    schemaRefusedOrDepthRecalculated: false,
 
     // Invalid Moves
     moveToSelfRejected: false,
@@ -242,18 +258,28 @@ async function runTest(): Promise<boolean> {
       throw new Error('Failed to create admin account');
     }
 
-    await waitForWorkspaceLoaded(page);
-    results.workspaceLoaded = true;
+    // waitForWorkspaceLoaded returns whether the sidebar ever appeared; it does
+    // not throw on timeout. Discarding it and assigning `true` made this a
+    // result that could only ever print PASS, including on the run where the
+    // workspace never loaded and everything after it failed for that reason.
+    results.workspaceLoaded = await waitForWorkspaceLoaded(page);
     await takeScreenshot(page, `${ADMIN_USER}_ready`);
 
-    // Get workspace root ID
+    // `getWorkspaceRootId` falls back to the 'workspace-root' sentinel, so
+    // `!== null` was a gate that could not fail. Assert instead that the id
+    // resolves to a Workspace node — every move in this file is expressed
+    // relative to it.
     workspaceRootId = await getWorkspaceRootId(page);
-    results.workspaceRootFound = workspaceRootId !== null;
     console.log(`  Workspace root ID: ${workspaceRootId || 'NOT FOUND'}`);
 
     if (!workspaceRootId) {
       throw new Error('Failed to find workspace root ID');
     }
+
+    const rootNode = await getNodeViaProtocol(page, workspaceRootId);
+    results.workspaceRootResolves =
+      rootNode !== null && rootNode.entity_type === 'Workspace' && rootNode.depth === 0;
+    console.log(`  Workspace root resolves: ${results.workspaceRootResolves ? 'PASS' : 'FAIL'}`);
 
     // ========================================================================
     // STEP 2: Create Test Hierarchy
@@ -361,9 +387,12 @@ async function runTest(): Promise<boolean> {
           true // Should contain
         );
 
-        // Verify node's parent_id updated
-        const nodeParentCorrect = await verifyNodeParent(page, roomA1Id, officeBId);
-        console.log(`  Node parent_id updated: ${nodeParentCorrect ? 'PASS' : 'FAIL'}`);
+        // The node's own parent_id has to agree with the two children lists.
+        // This was computed and printed and then dropped on the floor — a move
+        // that fixed up both parents' children arrays but left the child
+        // pointing at its old parent would have passed the whole step.
+        results.movedNodeParentUpdated = await verifyNodeParent(page, roomA1Id, officeBId);
+        console.log(`  Node parent_id updated: ${results.movedNodeParentUpdated ? 'PASS' : 'FAIL'}`);
       } else {
         console.log(`  Move FAILED: ${moveResult.error}`);
         uxTracker.log('major', 'functional', `Room move failed: ${moveResult.error}`);
@@ -406,8 +435,11 @@ async function runTest(): Promise<boolean> {
 
         // Verify initial depth (Room under Office = depth 2)
         if (roomDeepId) {
-          const initialDepthCorrect = await verifyNodeDepth(page, roomDeepId, 2);
-          console.log(`  Initial Room depth (2): ${initialDepthCorrect ? 'PASS' : 'FAIL'}`);
+          // Ungated before. If the room did not start at depth 2 the whole
+          // "depth changed correctly" story below is measured from the wrong
+          // baseline, so this is a precondition worth failing on.
+          results.deepRoomInitialDepth = await verifyNodeDepth(page, roomDeepId, 2);
+          console.log(`  Initial Room depth (2): ${results.deepRoomInitialDepth ? 'PASS' : 'FAIL'}`);
 
           // NOTE: Moving room directly under workspace violates the default schema
           // (Workspace → Office → Room). This is expected to fail with schema validation.
@@ -417,36 +449,41 @@ async function runTest(): Promise<boolean> {
           const moveToRootResult = await moveNodeViaProtocol(page, roomDeepId, workspaceRootId);
 
           if (moveToRootResult.success) {
-            // If schema allowed this move, test depth recalculation
-            results.depthRecalculatedOnMove = true;
+            // The schema allowed it, so the depth must actually have changed.
             const newNode = await getNodeViaProtocol(page, roomDeepId);
-            if (newNode) {
-              results.depthDecreasedCorrectly = newNode.depth === 1;
-              console.log(`  New depth after move: ${newNode.depth} (expected: 1) - ${results.depthDecreasedCorrectly ? 'PASS' : 'FAIL'}`);
+            results.depthDecreasedCorrectly = newNode?.depth === 1;
+            console.log(`  New depth after move: ${newNode?.depth} (expected: 1) - ${report(results.depthDecreasedCorrectly)}`);
 
-              console.log(`  Moving Room Deep back under Office Deep...`);
-              const moveBackResult = await moveNodeViaProtocol(page, roomDeepId, officeDeepId!);
+            console.log(`  Moving Room Deep back under Office Deep...`);
+            const moveBackResult = await moveNodeViaProtocol(page, roomDeepId, officeDeepId!);
+            const nodeAfterMoveBack = moveBackResult.success
+              ? await getNodeViaProtocol(page, roomDeepId)
+              : null;
+            results.depthIncreasedCorrectly = nodeAfterMoveBack?.depth === 2;
+            console.log(`  Depth after move back: ${nodeAfterMoveBack?.depth} (expected: 2) - ${report(results.depthIncreasedCorrectly)}`);
 
-              if (moveBackResult.success) {
-                const nodeAfterMoveBack = await getNodeViaProtocol(page, roomDeepId);
-                if (nodeAfterMoveBack) {
-                  results.depthIncreasedCorrectly = nodeAfterMoveBack.depth === 2;
-                  console.log(`  Depth after move back: ${nodeAfterMoveBack.depth} (expected: 2) - ${results.depthIncreasedCorrectly ? 'PASS' : 'FAIL'}`);
-                }
-              }
-            }
+            results.schemaRefusedOrDepthRecalculated =
+              results.depthDecreasedCorrectly === true && results.depthIncreasedCorrectly === true;
           } else {
-            // Schema correctly rejected the move - this is expected behavior
-            const isSchemaViolation = moveToRootResult.error?.includes('not allowed under parent type');
+            // The default schema is Workspace → Office → Room, so a Room
+            // directly under the workspace is a legitimate refusal and the
+            // depth-change pair genuinely cannot be exercised here — they stay
+            // undefined and print SKIP.
+            //
+            // Previously all three were set to `true` on this path, which meant
+            // "the schema refused" and "depth recalculation works" were
+            // indistinguishable in the output, and an unexpected failure (a
+            // permission error, a timeout) also left them at `false` with no
+            // way to tell it apart from a real depth bug.
+            const isSchemaViolation =
+              moveToRootResult.error?.includes('not allowed under parent type') ?? false;
+            results.schemaRefusedOrDepthRecalculated = isSchemaViolation;
             if (isSchemaViolation) {
               console.log(`  Move correctly rejected by schema: ${moveToRootResult.error}`);
-              console.log(`  SKIP: Depth change tests require custom schema (not Workspace→Office→Room)`);
-              // Mark as SKIP rather than FAIL since schema enforcement is working correctly
-              results.depthRecalculatedOnMove = true; // Schema validation works
-              results.depthDecreasedCorrectly = true; // Not applicable with default schema
-              results.depthIncreasedCorrectly = true; // Not applicable with default schema
+              console.log(`  SKIP: depth-change pair needs a schema that allows Room under Workspace`);
             } else {
-              console.log(`  Move FAILED (unexpected): ${moveToRootResult.error}`);
+              console.log(`  Move FAILED for a reason other than the schema: ${moveToRootResult.error}`);
+              uxTracker.log('major', 'functional', `Unexpected MoveNode failure: ${moveToRootResult.error}`);
             }
           }
         }
@@ -507,18 +544,21 @@ async function runTest(): Promise<boolean> {
           }
         }
       } else {
-        // Schema correctly rejected the move - this is expected behavior
-        const isSchemaViolation = moveOfficeResult.error?.includes('not allowed under parent type');
+        // Office-under-Office is not in the default schema, so this whole case
+        // is unreachable here and stays undefined (SKIP) rather than being
+        // written `true`, which is what previously made a refused move
+        // indistinguishable from a verified one in the summary.
+        const isSchemaViolation =
+          moveOfficeResult.error?.includes('not allowed under parent type') ?? false;
         if (isSchemaViolation) {
           console.log(`  Move correctly rejected by schema: ${moveOfficeResult.error}`);
-          console.log(`  SKIP: Office nesting tests require custom schema (not Workspace→Office→Room)`);
-          // Mark as SKIP rather than FAIL since schema enforcement is working correctly
-          results.officeWithDescendantsMoved = true; // Schema validation works
-          results.descendantsRetainStructure = true; // Not applicable with default schema
-          results.descendantsDepthRecalculated = true; // Not applicable with default schema
+          console.log(`  SKIP: office-nesting cases need a schema that allows Office under Office`);
         } else {
-          console.log(`  Office move FAILED (unexpected): ${moveOfficeResult.error}`);
-          uxTracker.log('minor', 'functional', `Office nesting move failed: ${moveOfficeResult.error}`);
+          // A failure that is NOT the schema refusal is a real failure, and it
+          // has to be able to fail the run.
+          console.log(`  Office move FAILED for a reason other than the schema: ${moveOfficeResult.error}`);
+          results.officeWithDescendantsMoved = false;
+          uxTracker.log('major', 'functional', `Office nesting move failed unexpectedly: ${moveOfficeResult.error}`);
         }
       }
     }
@@ -611,27 +651,33 @@ async function runTest(): Promise<boolean> {
         console.log(`  Moving Office A back to workspace root (sibling of Office B)...`);
         const moveSiblingResult = await moveNodeViaProtocol(page, officeAId, workspaceRootId);
 
+        results.officeMoveToSibling = moveSiblingResult.success;
         if (moveSiblingResult.success) {
-          results.officeMoveToSibling = true;
           console.log(`  Office sibling move succeeded`);
 
-          // Verify it's now at the same level as Office B
+          // "Sibling" means same parent AND same depth. Both were printed and
+          // neither was recorded, so a move that reparented correctly but left
+          // a stale depth would have reported a clean sibling move.
           const officeAAfter = await getNodeViaProtocol(page, officeAId);
           const officeBAfter = await getNodeViaProtocol(page, officeBId!);
-
-          if (officeAAfter && officeBAfter) {
-            const sameParent = officeAAfter.parent_id === officeBAfter.parent_id;
-            const sameDepth = officeAAfter.depth === officeBAfter.depth;
-            console.log(`  Same parent: ${sameParent ? 'PASS' : 'FAIL'}`);
-            console.log(`  Same depth: ${sameDepth ? 'PASS' : 'FAIL'}`);
-          }
+          results.siblingsShareParentAndDepth =
+            officeAAfter !== null &&
+            officeBAfter !== null &&
+            officeAAfter.parent_id === officeBAfter.parent_id &&
+            officeAAfter.depth === officeBAfter.depth;
+          console.log(`  Office A: parent=${officeAAfter?.parent_id} depth=${officeAAfter?.depth}`);
+          console.log(`  Office B: parent=${officeBAfter?.parent_id} depth=${officeBAfter?.depth}`);
+          console.log(`  Same parent and depth: ${report(results.siblingsShareParentAndDepth)}`);
         } else {
           console.log(`  Office sibling move FAILED: ${moveSiblingResult.error}`);
         }
       } else {
-        // Office A is already at workspace root - this counts as a pass
-        console.log(`  Office A is already at workspace root level`);
-        results.officeMoveToSibling = true;
+        // Nothing was moved, so nothing was tested. Under the default schema
+        // Office A can never leave the workspace root (Step 5's move is
+        // refused), so this branch is always the one taken — which is why
+        // recording it as a pass, as the old code did, meant this result was
+        // permanently green without a single MoveNode having been issued.
+        console.log(`  SKIP: Office A never left the workspace root, so there was no sibling move to verify`);
       }
     }
 
@@ -688,23 +734,26 @@ async function runTest(): Promise<boolean> {
     console.log('\nSetup:');
     console.log(`  Account Creation:           ${results.accountCreation ? 'PASS' : 'FAIL'}`);
     console.log(`  Workspace Loaded:           ${results.workspaceLoaded ? 'PASS' : 'FAIL'}`);
-    console.log(`  Workspace Root Found:       ${results.workspaceRootFound ? 'PASS' : 'FAIL'}`);
+    console.log(`  Workspace Root Resolves:    ${results.workspaceRootResolves ? 'PASS' : 'FAIL'}`);
 
     console.log('\nBasic Move Operations:');
-    console.log(`  Office Move to Sibling:     ${results.officeMoveToSibling ? 'PASS' : 'FAIL'}`);
+    console.log(`  Office Move to Sibling:     ${report(results.officeMoveToSibling)}`);
+    console.log(`  Siblings Share Parent/Depth:${report(results.siblingsShareParentAndDepth)}`);
     console.log(`  Room Move to Diff Office:   ${results.roomMoveToDifferentOffice ? 'PASS' : 'FAIL'}`);
+    console.log(`  Moved Node Parent Updated:  ${results.movedNodeParentUpdated ? 'PASS' : 'FAIL'}`);
     console.log(`  Old Parent Updated:         ${results.oldParentChildrenUpdated ? 'PASS' : 'FAIL'}`);
     console.log(`  New Parent Updated:         ${results.newParentChildrenUpdated ? 'PASS' : 'FAIL'}`);
 
     console.log('\nMove with Descendants:');
-    console.log(`  Office+Descendants Moved:   ${results.officeWithDescendantsMoved ? 'PASS' : 'SKIP'}`);
-    console.log(`  Descendants Retained:       ${results.descendantsRetainStructure ? 'PASS' : 'SKIP'}`);
-    console.log(`  Depths Recalculated:        ${results.descendantsDepthRecalculated ? 'PASS' : 'SKIP'}`);
+    console.log(`  Office+Descendants Moved:   ${report(results.officeWithDescendantsMoved)}`);
+    console.log(`  Descendants Retained:       ${report(results.descendantsRetainStructure)}`);
+    console.log(`  Depths Recalculated:        ${report(results.descendantsDepthRecalculated)}`);
 
     console.log('\nDepth Recalculation:');
-    console.log(`  Depth Recalc on Move:       ${results.depthRecalculatedOnMove ? 'PASS' : 'FAIL'}`);
-    console.log(`  Depth Decreased:            ${results.depthDecreasedCorrectly ? 'PASS' : 'FAIL'}`);
-    console.log(`  Depth Increased:            ${results.depthIncreasedCorrectly ? 'PASS' : 'FAIL'}`);
+    console.log(`  Initial Room Depth:         ${results.deepRoomInitialDepth ? 'PASS' : 'FAIL'}`);
+    console.log(`  Schema Refused or Recalced: ${results.schemaRefusedOrDepthRecalculated ? 'PASS' : 'FAIL'}`);
+    console.log(`  Depth Decreased:            ${report(results.depthDecreasedCorrectly)}`);
+    console.log(`  Depth Increased:            ${report(results.depthIncreasedCorrectly)}`);
 
     console.log('\nInvalid Moves (Should Reject):');
     console.log(`  Move to Self Rejected:      ${results.moveToSelfRejected ? 'PASS' : 'FAIL'}`);
@@ -716,27 +765,43 @@ async function runTest(): Promise<boolean> {
     console.log(`  Contains old_parent_id:     ${results.responsesContainOldParentId ? 'PASS' : 'FAIL'}`);
     console.log(`  Contains new_parent_id:     ${results.responsesContainNewParentId ? 'PASS' : 'FAIL'}`);
 
-    // Determine overall pass/fail
+    // Every non-SKIP result printed above is gated. The old list omitted the
+    // moved node's own parent_id and both halves of the NodeMoved response
+    // contract, so a MoveNode that reported the wrong old/new parent — the one
+    // thing "Response Validation" exists to check — could not fail the run.
     const criticalTests = [
       results.accountCreation,
       results.workspaceLoaded,
-      results.workspaceRootFound,
+      results.workspaceRootResolves,
       results.roomMoveToDifferentOffice,
+      results.movedNodeParentUpdated,
       results.oldParentChildrenUpdated,
       results.newParentChildrenUpdated,
-      results.depthRecalculatedOnMove,
+      results.deepRoomInitialDepth,
+      results.schemaRefusedOrDepthRecalculated,
       results.moveToSelfRejected,
       results.moveToCycleRejected,
       results.moveWorkspaceRootRejected,
       results.moveToNonExistentRejected,
+      results.responsesContainOldParentId,
+      results.responsesContainNewParentId,
     ];
 
-    const allCriticalPassed = criticalTests.every(Boolean);
-    const overallPass = allCriticalPassed;
+    // Cases the default schema will not let us set up print SKIP and are
+    // excluded — but if one of them did run and disagreed, it still fails.
+    const notFailed = (v: boolean | undefined) => v !== false;
+    const optionalTests = [
+      results.officeMoveToSibling,
+      results.siblingsShareParentAndDepth,
+      results.officeWithDescendantsMoved,
+      results.descendantsRetainStructure,
+      results.descendantsDepthRecalculated,
+      results.depthDecreasedCorrectly,
+      results.depthIncreasedCorrectly,
+    ];
 
-    // Keep browser open for inspection
-    console.log('\nBrowser will remain open for 10 seconds for manual inspection...');
-    await sleep(10000);
+    const allCriticalPassed = criticalTests.every(Boolean) && optionalTests.every(notFailed);
+    const overallPass = allCriticalPassed;
 
     if (browser) {
       await browser.close();

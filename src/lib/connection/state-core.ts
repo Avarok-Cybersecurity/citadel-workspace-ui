@@ -22,11 +22,11 @@ import { debugLog } from '@/lib/debug-config';
 
 export class ConnectionStateCore {
   // Core state
-  protected _isInitialized = false;
+  protected _isInitialized: boolean = false;
   protected _storedSessions: StoredSessions = { sessions: [] };
   protected _currentConnectionInfo: CurrentConnectionInfo | null = null;
-  protected _isLeader = false;
-  protected _reconnectAttempts = 0;
+  protected _isLeader: boolean = false;
+  protected _reconnectAttempts: number = 0;
 
   // Ready promise for initialization
   protected _readyPromise: Promise<void>;
@@ -138,7 +138,7 @@ export class ConnectionStateCore {
   }
 
   addOrUpdateSession(session: StoredSession): void {
-    const existingIndex = this.findSessionIndex(session.username, session.serverAddress);
+    const existingIndex: number = this.findSessionIndex(session.username, session.serverAddress);
     if (existingIndex >= 0) {
       this._storedSessions.sessions[existingIndex] = session;
     } else {
@@ -211,7 +211,7 @@ export class ConnectionStateCore {
   // ============================================================================
 
   extractCidFromErrorMessage(message: string): string | null {
-    const cidMatch = message.match(/cid\s*=\s*(\d+)/i);
+    const cidMatch: RegExpMatchArray | null = message.match(/cid\s*=\s*(\d+)/i);
     return cidMatch ? cidMatch[1] : null;
   }
 

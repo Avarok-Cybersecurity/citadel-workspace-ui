@@ -28,6 +28,7 @@
  */
 
 import {
+  settleServerAutoConnect,
   sleep,
   createSeparateBrowsers,
   createAccount,
@@ -111,6 +112,7 @@ const USER2 = `harddc_bob_${timestamp}`;
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'Hard Disconnect Offline Messaging Test',
     reportFileName: 'HARD_DISCONNECT_OFFLINE_TEST_REPORT.json',
     metadata: { user1: USER1, user2: USER2 },
@@ -253,10 +255,13 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 5: Initial Bidirectional Messaging');
     console.log('─'.repeat(50));
 
-    // ServerAutoConnect polls every ~30s and can cause "Session Already Connected"
-    // errors that block ILM. Wait for one full cycle to pass before messaging.
-    console.log('  Waiting 35s for ServerAutoConnect cycle to settle...');
-    await sleep(35000);
+    // ServerAutoConnect polls every ~30s and a reconnect landing mid-test can
+    // cause "Session Already Connected", which blocks ILM. This used to sleep 35s
+    // — one full cycle — to be sure. Waiting for the reconnect queue to empty
+    // asks the actual question and returns as soon as it is true.
+    console.log('  Waiting for the ServerAutoConnect cycle to settle...');
+    await settleServerAutoConnect(page1);
+    await settleServerAutoConnect(page2);
 
     const INITIAL_MSG_1 = `Hello Bob! Time: ${new Date().toLocaleTimeString()}`;
     const INITIAL_MSG_2 = `Hi Alice! Got it! Time: ${new Date().toLocaleTimeString()}`;
@@ -503,7 +508,15 @@ async function runTest(): Promise<boolean> {
       results.disconnection.sessionNotOrphaned &&
       results.reconnection.user2LoggedIn &&
       results.reconnection.p2pReEstablished &&
-      offlineDeliverySuccess;
+      offlineDeliverySuccess &&
+      // Printed PASS/FAIL and gated on nothing, so a run could print two FAILs
+      // and still exit 0. Post-reconnect bidirectional messaging is the fragile
+      // part this whole spec exists for — ILM channel asymmetry means Alice->Bob
+      // can work while Bob->Alice does not. `offline-messaging.test.ts` already
+      // carries this fix, with a comment describing the same bug; it was never
+      // carried across to here.
+      results.postReconnectMessaging.user1Received &&
+      results.postReconnectMessaging.user2Received;
 
     console.log('\nPhase 1 - Account & Registration:');
     console.log(`  Account Creation:       ${results.accountCreation.user1 && results.accountCreation.user2 ? 'PASS' : 'FAIL'}`);
@@ -534,11 +547,6 @@ async function runTest(): Promise<boolean> {
     console.log(`\n  Result: ${corePassed ? 'PASS' : 'FAIL'}`);
 
     harness.finalize(corePassed, results);
-
-    if (!process.env.IN_CI) {
-      console.log('\nBrowser will remain open for 20 seconds for manual inspection...');
-      await sleep(20000);
-    }
 
     return corePassed;
 

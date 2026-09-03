@@ -5,7 +5,8 @@
  * status tracking, and stale conversation cleanup.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { isPlaceholderName, peerDisplayName } from '@/lib/peer-display';
+import { useState, useEffect, useRef, useCallback , type MutableRefObject } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
@@ -17,8 +18,16 @@ import { debugLog } from '@/lib/debug-config';
 export interface RegisteredPeer {
   cid: string;
   username: string;
-  isOnline: boolean;
-  isConnected: boolean;
+  /** True, false, or null when no poll has landed. See lib/presence.ts. */
+  isOnline: boolean | null;
+  /**
+   * True, false, or null when the check did not answer in time.
+   *
+   * A one-second race that resolves `false` is a stopwatch, not an answer: a
+   * connected peer whose check was slow rendered as merely online. Same shape
+   * as `isOnline` above.
+   */
+  isConnected: boolean | null;
 }
 
 interface UseRegisteredPeersReturn {
@@ -31,43 +40,45 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
   const [registeredPeers, setRegisteredPeers] = useState<RegisteredPeer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [startupComplete, setStartupComplete] = useState(true);
-  const startupCompleteRef = useRef(startupComplete);
+  const startupCompleteRef: MutableRefObject<boolean> = useRef(startupComplete);
 
   useEffect(() => {
     startupCompleteRef.current = startupComplete;
   }, [startupComplete]);
 
-  const loadRegisteredPeers = useCallback(async () => {
+  const loadRegisteredPeers: () => Promise<void> = useCallback(async (): Promise<void> => {
     setIsLoading(true);
     try {
       const { registeredPeers: cachedPeers } = p2pRegistrationService.getPeers();
 
       let freshPeers: Array<{ cid?: bigint; username?: string }> = [];
       try {
-        freshPeers = await p2pRegistrationService.listRegisteredPeers();
+        // Retrying variant, not the single-shot one. ListRegisteredPeers times out
+        // intermittently under concurrent P2P activity; with a single attempt this
+        // hook silently fell back to the cache, which is why a freshly-registered
+        // peer could take a poll cycle (or several) to appear in the sidebar.
+        freshPeers = await p2pRegistrationService.listRegisteredPeersWithRetry();
       } catch (e: unknown) {
-        const errorMessage = e instanceof Error ? e.message : String(e);
-        debugLog('UseRegisteredPeers', `listRegisteredPeers failed (${errorMessage}), using cached peers`);
+        const errorMessage: string = e instanceof Error ? e.message : String(e);
+        debugLog('UseRegisteredPeers', `listRegisteredPeers failed after retries (${errorMessage}), using cached peers`);
       }
 
       // Merge cached and fresh peers
-      const mergedPeersMap = new Map<string, { cid?: bigint; username?: string }>();
+      const mergedPeersMap: Map<string, { cid?: bigint; username?: string; }> = new Map<string, { cid?: bigint; username?: string }>();
 
       for (const p of cachedPeers) {
-        const cidStr = p.cid?.toString() || '';
+        const cidStr: string = p.cid?.toString() || '';
         if (cidStr) mergedPeersMap.set(cidStr, p);
       }
 
       for (const p of freshPeers) {
-        const cidStr = p.cid?.toString() || '';
+        const cidStr: string = p.cid?.toString() || '';
         if (cidStr) {
-          const existing = mergedPeersMap.get(cidStr);
+          const existing: { cid?: bigint; username?: string; } | undefined = mergedPeersMap.get(cidStr);
           if (existing) {
-            const mergedPeer = {
+            const mergedPeer: { username: string | undefined; cid?: bigint; } = {
               ...p,
-              username: (existing.username && existing.username !== 'Unknown' && !existing.username.startsWith('User '))
-                ? existing.username
-                : p.username
+              username: isPlaceholderName(existing.username) ? p.username : existing.username
             };
             mergedPeersMap.set(cidStr, mergedPeer);
           } else {
@@ -76,51 +87,52 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
         }
       }
 
-      const peersToUse = Array.from(mergedPeersMap.values());
+      const peersToUse: { cid?: bigint; username?: string; }[] = Array.from(mergedPeersMap.values());
 
       let peerList: RegisteredPeer[] = [];
       try {
         peerList = await Promise.all(peersToUse.map(async p => {
-          const cidStr = p.cid?.toString() || '';
-          const displayName = (p.username && p.username !== 'Unknown')
-            ? p.username
-            : (cidStr ? `Peer ${cidStr.slice(-6)}` : 'Unknown Peer');
-          const peerCidBigInt = p.cid ?? BigInt(0);
-          const isOnline = p2pAutoConnectService.isPeerOnline(peerCidBigInt);
-          let isConnected = false;
+          const cidStr: string = p.cid?.toString() || '';
+          const displayName: string = peerDisplayName({ cid: p.cid, username: p.username });
+          const peerCidBigInt: bigint = p.cid ?? BigInt(0);
+          const isOnline: boolean | null = p2pAutoConnectService.peerOnlineStatus(peerCidBigInt);
+          let isConnected: boolean | null = null;
           try {
-            const connectedPromise = p2pAutoConnectService.isPeerConnected(peerCidBigInt);
-            const timeoutPromise = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1000));
-            isConnected = await Promise.race([connectedPromise, timeoutPromise]);
+            // Already `boolean | null`: the service answers null when this tab
+            // cannot name its own session, which is not "not connected".
+            const connectedPromise: Promise<boolean | null> = p2pAutoConnectService.isPeerConnected(peerCidBigInt);
+            // Null, not false: the timeout means the check did not finish, which
+            // is not the same as it having answered "no".
+            const timeoutPromise: Promise<null> = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000));
+            isConnected = await Promise.race<boolean | null>([connectedPromise, timeoutPromise]);
           } catch {
-            isConnected = false;
+            isConnected = null;
           }
           return { cid: cidStr, username: displayName, isOnline, isConnected };
         }));
       } catch (mapError) {
         debugLog('UseRegisteredPeers', 'Promise.all mapping failed:', mapError);
         peerList = peersToUse.map(p => {
-          const cidStr = p.cid?.toString() || '';
-          const displayName = (p.username && p.username !== 'Unknown')
-            ? p.username
-            : (cidStr ? `Peer ${cidStr.slice(-6)}` : 'Unknown Peer');
-          return { cid: cidStr, username: displayName, isOnline: false, isConnected: false };
+          const cidStr: string = p.cid?.toString() || '';
+          const displayName: string = peerDisplayName({ cid: p.cid, username: p.username });
+          // The listing failed; nobody has said whether these peers are online.
+          return { cid: cidStr, username: displayName, isOnline: null, isConnected: null };
         });
       }
 
       setRegisteredPeers(peerList);
 
       // Clean up stale conversations
-      const isStartupInProgress = sessionStartupService.isStartupInProgress();
+      const isStartupInProgress: boolean = sessionStartupService.isStartupInProgress();
       if (startupCompleteRef.current && !isStartupInProgress) {
-        const validPeerCids = new Set(peerList.filter(p => p.cid).map(p => BigInt(p.cid)));
-        const connectedPeerCids = await p2pAutoConnectService.getConnectedPeers();
+        const validPeerCids: Set<bigint> = new Set(peerList.filter(p => p.cid).map(p => BigInt(p.cid)));
+        const connectedPeerCids: bigint[] = await p2pAutoConnectService.getConnectedPeers();
         for (const cid of connectedPeerCids) {
           validPeerCids.add(cid);
         }
 
-        const messenger = P2PMessengerManager.getInstance();
-        const cleanedCount = await messenger.cleanupStaleConversations(validPeerCids);
+        const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
+        const cleanedCount: number = await messenger.cleanupStaleConversations(validPeerCids);
         if (cleanedCount > 0) {
           debugLog('UseRegisteredPeers', `[P2P] useRegisteredPeers: Cleaned up ${cleanedCount} stale conversation(s)`);
         }
@@ -134,17 +146,17 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
 
   // Track session startup state
   useEffect(() => {
-    const handleSessionActivated = (event: { activationType: string }) => {
+    const handleSessionActivated = (event: { activationType: string }): void => {
       if (event.activationType === 'login' || event.activationType === 'claim') {
         setStartupComplete(false);
       }
     };
-    const handleStartupComplete = () => setStartupComplete(true);
+    const handleStartupComplete = (): void => setStartupComplete(true);
 
     eventEmitter.on('session:activated', handleSessionActivated);
     eventEmitter.on('session:startup-complete', handleStartupComplete);
 
-    return () => {
+    return (): void => {
       eventEmitter.off('session:activated', handleSessionActivated);
       eventEmitter.off('session:startup-complete', handleStartupComplete);
     };
@@ -154,7 +166,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
   useEffect(() => {
     runAsyncSetup(loadRegisteredPeers);
 
-    const handlePeerUpdate = async () => { await loadRegisteredPeers(); };
+    const handlePeerUpdate = async (): Promise<void> => { await loadRegisteredPeers(); };
 
     eventEmitter.on('p2p:peer-registered', handlePeerUpdate);
     eventEmitter.on('p2p:registration-accepted', handlePeerUpdate);
@@ -163,7 +175,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
     eventEmitter.on('p2p-connection-lost', handlePeerUpdate);
     eventEmitter.on('session:startup-complete', handlePeerUpdate);
 
-    return () => {
+    return (): void => {
       eventEmitter.off('p2p:peer-registered', handlePeerUpdate);
       eventEmitter.off('p2p:registration-accepted', handlePeerUpdate);
       eventEmitter.off('p2p:peers-updated', handlePeerUpdate);

@@ -5,7 +5,7 @@
  * for group chats.
  */
 
-import type { GroupRole, GroupPermissions } from './group-permissions';
+import type { GroupRole } from './group-permissions';
 
 // ============================================================================
 // Members

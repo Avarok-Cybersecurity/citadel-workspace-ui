@@ -20,7 +20,7 @@ interface TableProps {
   className?: string;
 }
 
-const TableComponent = ({ data, children, className }: TableProps) => {
+const TableComponent = ({ data, children, className }: TableProps): JSX.Element => {
   if (children) {
     return (
       <div className="my-6 w-full overflow-y-auto">
@@ -35,23 +35,23 @@ const TableComponent = ({ data, children, className }: TableProps) => {
     <div className="my-6 w-full overflow-y-auto">
       <UITable>
         <TableHeader>
-          <TableRow className="border-b border-gray-800">
-            <TableHead className="text-white font-medium p-4 bg-[#232536]">Time</TableHead>
-            <TableHead className="text-white font-medium p-4 bg-[#232536]">Monday</TableHead>
-            <TableHead className="text-white font-medium p-4 bg-[#232536]">Tuesday</TableHead>
-            <TableHead className="text-white font-medium p-4 bg-[#232536]">Wednesday</TableHead>
+          <TableRow className="border-b border-border">
+            <TableHead className="text-foreground font-medium p-4 bg-card">Time</TableHead>
+            <TableHead className="text-foreground font-medium p-4 bg-card">Monday</TableHead>
+            <TableHead className="text-foreground font-medium p-4 bg-card">Tuesday</TableHead>
+            <TableHead className="text-foreground font-medium p-4 bg-card">Wednesday</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {data?.map((item, index) => (
             <TableRow 
               key={index}
-              className="hover:bg-purple-500/10 transition-colors"
+              className="hover:bg-primary-accent/10 transition-colors"
             >
-              <TableCell className="text-gray-300">{item.time}</TableCell>
-              <TableCell className="text-gray-300">{item.monday}</TableCell>
-              <TableCell className="text-gray-300">{item.tuesday}</TableCell>
-              <TableCell className="text-gray-300">{item.wednesday}</TableCell>
+              <TableCell className="text-foreground/80">{item.time}</TableCell>
+              <TableCell className="text-foreground/80">{item.monday}</TableCell>
+              <TableCell className="text-foreground/80">{item.tuesday}</TableCell>
+              <TableCell className="text-foreground/80">{item.wednesday}</TableCell>
             </TableRow>
           ))}
         </TableBody>

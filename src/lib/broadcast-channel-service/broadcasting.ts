@@ -25,32 +25,6 @@ export function broadcast(
   }
 }
 
-/**
- * Build and broadcast a leader claim message.
- */
-export function broadcastLeaderClaim(
-  channel: BroadcastChannel | null,
-  tabId: string,
-  isLeader: boolean
-): void {
-  const message: BroadcastMessage = {
-    type: 'leader-election',
-    data: {
-      tabId,
-      timestamp: Date.now(),
-      priority: isLeader ? 100 : 0
-    },
-    timestamp: Date.now(),
-    tabId,
-    isLeader
-  };
-  broadcast(channel, message);
-}
-
-/**
- * Build and broadcast a workspace response (leader only).
- * Extracts target CID from P2P notifications for receiver filtering.
- */
 export function broadcastWorkspaceResponse(
   channel: BroadcastChannel | null,
   tabId: string,
@@ -62,10 +36,10 @@ export function broadcastWorkspaceResponse(
     return;
   }
 
-  const responseType = Object.keys(response)[0];
+  const responseType: string = Object.keys(response)[0];
   debugLog('BroadcastChannelService', `Broadcasting ${responseType} as workspace-response`);
 
-  const responseRecord = response as Record<string, Record<string, unknown>>;
+  const responseRecord: Record<string, Record<string, unknown>> = response as Record<string, Record<string, unknown>>;
   const targetCid: bigint | undefined =
     (responseRecord.PeerConnectNotification?.cid as bigint | undefined) ||
     (responseRecord.PeerRegisterNotification?.cid as bigint | undefined) ||
@@ -158,8 +132,8 @@ export function broadcastP2PNotification(
     return;
   }
 
-  const notificationCid = data.notification?.cid?.toString();
-  const peerCid = data.notification?.peer_cid?.toString();
+  const notificationCid: string = data.notification?.cid?.toString();
+  const peerCid: string = data.notification?.peer_cid?.toString();
 
   debugLog('BroadcastChannelService', '[BroadcastChannel] Broadcasting P2P notification to followers:', {
     notificationCid: notificationCid?.slice(0, 12),

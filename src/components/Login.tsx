@@ -1,45 +1,37 @@
-import React, { useEffect, useState } from "react";
+import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
+import { LoginAdvancedOptions } from "./LoginAdvancedOptions";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { ChevronLeft, ChevronDown, Settings, Loader2, Eye, EyeOff, User, Lock, Globe, LogIn } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { ChevronLeft, Loader2, Eye, EyeOff, User, Lock, LogIn } from "lucide-react";
 import { SecuritySettings, SecuritySettingsValues } from "./SecuritySettings";
 import { useLoginHandler } from "./useLoginHandler";
-import { cn } from "@/lib/utils";
 
 interface LoginProps {
   onNext: (connectionId: string) => void;
   onCancel: () => void;
 }
 
-export function Login({ onNext, onCancel }: LoginProps) {
+export function Login({ onNext, onCancel }: LoginProps): JSX.Element {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [showSecuritySettings, setShowSecuritySettings] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  // Dismiss on Escape key
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onCancel]);
 
   const {
     username,
     setUsername,
     password,
     setPassword,
-    server,
-    setServer,
     error,
+    invalidField,
     loading,
     securitySettings,
     setSecuritySettings,
     handleLogin,
   } = useLoginHandler({ onNext });
 
-  const handleSecuritySettingsComplete = (values: SecuritySettingsValues) => {
+  const handleSecuritySettingsComplete = (values: SecuritySettingsValues): void => {
     setSecuritySettings({
       securityLevel: values.securityLevel,
       secrecyMode: values.secrecyMode,
@@ -51,8 +43,15 @@ export function Login({ onNext, onCancel }: LoginProps) {
     });
   };
 
+  const { ref: dialogRef, dialogProps } = useDialogOverlay({
+    label: 'Sign in',
+    onDismiss: onCancel,
+    // SecuritySettings brings its own dialog treatment when shown.
+    enabled: !showSecuritySettings,
+  });
+
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4" ref={dialogRef} {...dialogProps}>
       {showSecuritySettings ? (
         <SecuritySettings
           onNext={() => setShowSecuritySettings(false)}
@@ -70,20 +69,21 @@ export function Login({ onNext, onCancel }: LoginProps) {
           isFromLogin={true}
         />
       ) : (
-        <Card className="bg-[#1C1D28] border-[#2D3548] shadow-2xl shadow-black/40 w-full max-w-md">
+        <Card className="bg-background border-border shadow-2xl shadow-black/40 w-full max-w-md">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3">
               <Button
                 onClick={onCancel}
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-gray-400 hover:text-white hover:bg-purple-500/15 rounded-lg"
+                aria-label="Back"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-primary-accent/15 rounded-lg"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
               </Button>
               <div>
-                <h2 className="text-xl font-bold text-white">Login to Workspace</h2>
-                <p className="text-sm text-gray-400 mt-0.5">
+                <h2 className="text-xl font-bold text-foreground">Login to Workspace</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
                   Enter your credentials to connect
                 </p>
               </div>
@@ -91,115 +91,94 @@ export function Login({ onNext, onCancel }: LoginProps) {
           </CardHeader>
 
           <form onSubmit={handleLogin}>
-            <CardContent className="space-y-4 max-h-[calc(100vh-16rem)] overflow-y-auto">
+            <CardContent className="space-y-4 max-h-[calc(100dvh-16rem)] overflow-y-auto">
               {/* Username */}
               <div className="space-y-1.5">
-                <label htmlFor="username" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                <label htmlFor="username" className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                   Username
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="username"
+                    autoComplete="username"
+                    aria-invalid={invalidField === 'username' ? true : undefined}
+                    aria-describedby={error ? 'login-error' : undefined}
                     placeholder="Enter your username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="bg-[#131420] border-[#2D3548] text-white pl-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
                   />
                 </div>
               </div>
 
               {/* Password */}
               <div className="space-y-1.5">
-                <label htmlFor="password" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
+                <label htmlFor="password" className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                   Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    aria-invalid={invalidField === 'password' ? true : undefined}
+                    aria-describedby={error ? 'login-error' : undefined}
                     placeholder="••••••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-[#131420] border-[#2D3548] text-white pl-10 pr-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    className="bg-input border-border text-foreground pl-10 pr-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-                    tabIndex={-1}
+                    // The name says what the control is; aria-pressed below says whether it
+                  // is on. Flipping both made them contradict -- "Hide password,
+                  // pressed" announces as hidden while the password is on screen.
+                  aria-label="Show password"
+                    aria-pressed={showPassword}
+                    // The icon stays 16px; the BUTTON is 24px, the WCAG 2.2
+                    // target-size floor. Centring the icon inside keeps the
+                    // position identical while the thumb gets something to aim
+                    // at. `right-3` becomes right-2 to keep the visual inset
+                    // once the box grew.
+                    className="tap-target absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center text-muted-foreground hover:text-foreground/80 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword
+                      ? <EyeOff className="h-4 w-4" aria-hidden="true" />
+                      : <Eye className="h-4 w-4" aria-hidden="true" />}
                   </button>
                 </div>
               </div>
 
-              {/* Server Address */}
-              <div className="space-y-1.5">
-                <label htmlFor="server" className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
-                  Server Address
-                </label>
-                <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <Input
-                    id="server"
-                    placeholder="workspace.example.com:12349"
-                    value={server}
-                    onChange={(e) => setServer(e.target.value)}
-                    className="bg-[#131420] border-[#2D3548] text-white pl-10 h-11 rounded-lg placeholder:text-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
-                  />
-                </div>
-              </div>
+              {/* No Server Address field.
+                  Signing in does not need one and never did: the SDK pins the
+                  server in the account's CNAC at registration, and `connect`
+                  takes no address at all. The field was collected, stored as
+                  metadata, and never used to reach anything -- so a user who
+                  typed the wrong address still signed in to wherever their
+                  account lives, and a user whose account was somewhere else
+                  waited out a 30s timeout with the box on screen implying it
+                  was the thing to correct. Registration still asks, because
+                  that is the one moment the address is genuinely needed. */}
 
-              {/* Advanced Options */}
-              <button
-                type="button"
-                className="flex items-center gap-2 text-gray-400 w-full transition-colors duration-200 hover:text-purple-300 py-1"
-                onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-              >
-                <Settings className="h-3.5 w-3.5" />
-                <span className="text-[11px] font-semibold tracking-wider uppercase">Advanced Options</span>
-                <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200 ml-auto", isAdvancedOpen && "rotate-180")} />
-              </button>
-
-              {isAdvancedOpen && (
-                <div className="space-y-3 p-3 bg-[#131420] rounded-lg border border-[#2D3548]">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
-                      Security Settings
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="border-purple-500/50 text-purple-300 hover:bg-purple-500/15 hover:text-white text-xs h-7 px-3 rounded-md"
-                      onClick={() => setShowSecuritySettings(true)}
-                    >
-                      Configure
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold tracking-wider uppercase text-gray-400">
-                      Remember Credentials
-                    </span>
-                    <Switch
-                      id="remember"
-                      checked={securitySettings.storeCredentials}
-                      onCheckedChange={(checked) => setSecuritySettings({
-                        ...securitySettings,
-                        storeCredentials: checked
-                      })}
-                    />
-                  </div>
-                </div>
-              )}
+              <LoginAdvancedOptions
+                isOpen={isAdvancedOpen}
+                onToggle={() => setIsAdvancedOpen(!isAdvancedOpen)}
+                onConfigureSecurity={() => setShowSecuritySettings(true)}
+                securitySettings={securitySettings}
+                setSecuritySettings={setSecuritySettings}
+              />
 
               {/* Error */}
               {error && (
-                <div className="flex items-center gap-2 text-red-400 text-sm p-3 bg-red-500/10 rounded-lg border border-red-500/20">
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
+                <div
+                  id="login-error"
+                  role="alert"
+                  className="flex items-center gap-2 text-destructive-emphasis text-sm p-3 bg-destructive/10 rounded-lg border border-destructive/20"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-destructive flex-shrink-0" />
                   {error}
                 </div>
               )}
@@ -208,18 +187,19 @@ export function Login({ onNext, onCancel }: LoginProps) {
             <CardFooter className="pt-2">
               <Button
                 type="submit"
-                className="w-full bg-purple-600 hover:bg-purple-500 text-white h-11 rounded-lg shadow-lg shadow-purple-500/20 transition-all gap-2"
+                data-testid="login-submit"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 rounded-lg shadow-lg shadow-primary-accent/20 transition-all gap-2"
                 disabled={loading}
               >
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Connecting...
+                    Signing in...
                   </>
                 ) : (
                   <>
                     <LogIn className="h-4 w-4" />
-                    Connect
+                    Sign In
                   </>
                 )}
               </Button>

@@ -4,10 +4,15 @@
  * Centralized service to manage all types of notifications in the application.
  */
 import { eventEmitter } from '../event-emitter';
+import { playNotificationChime } from './chime';
+import { showBrowserNotification } from './browser-notification';
 import { v4 as uuidv4 } from 'uuid';
 import { debugLog } from '@/lib/debug-config';
 import type { Notification, NotificationHandler, UnreadCountChange } from './types';
-import { NotificationType, NotificationPriority } from './types';
+import { NotificationType, NotificationPriority, notificationBelongsTo } from './types';
+import { belongingTo, everything, messagesFrom, type ReadPredicate } from './read-state';
+import { unreadCountFor, unreadCountsByCid } from './unread-counts';
+import { peerRegistrationNotification } from './peer-registration-notification';
 
 export class NotificationService {
   private static instance: NotificationService;
@@ -37,58 +42,20 @@ export class NotificationService {
 
     // Browser notification + sound when tab is not focused
     if (typeof document !== 'undefined' && document.hidden) {
-      this.showBrowserNotification(fullNotification);
+      showBrowserNotification(fullNotification);
       this.playNotificationSound();
     }
 
     return fullNotification;
   }
 
-  private showBrowserNotification(notification: Notification): void {
-    if (typeof window === 'undefined' || !('Notification' in window)) return;
-
-    if (Notification.permission === 'granted') {
-      new Notification(notification.title, {
-        body: notification.content,
-        icon: '/favicon.ico',
-        tag: notification.id,
-      });
-    } else if (Notification.permission !== 'denied') {
-      // Fire-and-forget: we don't gate the rest of the notification
-      // pipeline on the user's permission decision.
-      void Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-          new Notification(notification.title, {
-            body: notification.content,
-            icon: '/favicon.ico',
-            tag: notification.id,
-          });
-        }
-      });
-    }
-  }
-
   private playNotificationSound(): void {
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
-      oscillator.connect(gain);
-      gain.connect(ctx.destination);
-      oscillator.frequency.setValueAtTime(880, ctx.currentTime);
-      oscillator.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.1, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-      oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + 0.3);
-    } catch {
-      // Audio not available
-    }
+    playNotificationChime();
   }
 
   public addMessageNotification(
     title: string, content: string, senderId: string,
-    messageId: string, recipientCid?: string, data?: Record<string, any>
+    messageId: string, recipientCid?: string, data?: Record<string, unknown>
   ): Notification {
     return this.addNotification({
       type: NotificationType.MESSAGE, title, content, senderId,
@@ -101,18 +68,11 @@ export class NotificationService {
     onAccept: () => void, onDecline: () => void, onCardClick: () => void,
     recipientCid?: string
   ): Notification {
-    return this.addNotification({
-      type: NotificationType.PEER_REGISTRATION,
-      title: `${peerUsername} wants to connect`,
-      content: `CID: ${peerCid.slice(0, 12)}...`,
-      senderId: peerCid, sourceId: requestId, recipientCid,
-      priority: NotificationPriority.HIGH,
-      actionButtons: [
-        { id: 'accept', label: 'Accept', variant: 'default', onClick: onAccept },
-        { id: 'decline', label: 'Decline', variant: 'destructive', onClick: onDecline }
-      ],
-      data: { requestId, peerCid, peerUsername, onCardClick }
-    });
+    return this.addNotification(
+      peerRegistrationNotification({
+        peerUsername, peerCid, requestId, onAccept, onDecline, onCardClick, recipientCid,
+      }),
+    );
   }
 
   public addSystemNotification(
@@ -126,7 +86,7 @@ export class NotificationService {
   }
 
   public markAsRead(notificationId: string): void {
-    const notification = this.notifications.get(notificationId);
+    const notification: Notification | undefined = this.notifications.get(notificationId);
     if (notification && !notification.read) {
       notification.read = true;
       this.notifications.set(notificationId, notification);
@@ -135,36 +95,65 @@ export class NotificationService {
     }
   }
 
+  /**
+   * Mark every notification read, across every session.
+   *
+   * Almost never what a caller wants. The panel is per-session, so use
+   * `markAllAsReadForCid`; this exists for a genuine sign-out-everything sweep.
+   */
   public markAllAsRead(): void {
-    let anyChanged = false;
+    this.markRead(everything);
+  }
+
+  /**
+   * Mark read only what the given session can see.
+   *
+   * The panel is correctly CID-scoped, but its two-second auto-read called the
+   * service-wide sweep — so opening the bell in one workspace cleared the unread
+   * badges of every OTHER session in the OrphanSessionsNavbar. Worst on the
+   * logged-out landing page, where `sessionCid` is null: the panel renders "No
+   * notifications" and two seconds later every session's badge is gone.
+   *
+   * Uses `notificationBelongsTo`, the same predicate the panel filters with, so
+   * "what was shown" and "what was marked read" cannot disagree.
+   */
+  public markAllAsReadForCid(cid: string | null): void {
+    this.markRead(belongingTo(cid));
+  }
+
+  private markRead(
+    shouldMark: ReadPredicate,
+    // The by-sender sweep never notified the per-notification handlers and the
+    // panel sweeps always did. Preserved rather than unified, because changing
+    // it would re-render every subscriber on every read receipt.
+    { notifyHandlers = true }: { notifyHandlers?: boolean } = {},
+  ): void {
+    // Re-deliver only what this sweep actually changed. The store is
+    // insert-only in normal operation (`cleanup()` has no callers), so
+    // notifying every stored notification per sweep re-delivered the entire
+    // ever-growing history to every handler each time a bell was opened.
+    const changed: Notification[] = [];
     for (const [id, notification] of this.notifications.entries()) {
-      if (!notification.read) {
+      if (!notification.read && shouldMark(notification)) {
         notification.read = true;
         this.notifications.set(id, notification);
-        anyChanged = true;
+        changed.push(notification);
       }
     }
-    this.notifyAllHandlers();
-    if (anyChanged) { this.notifyUnreadChange(); }
+    if (notifyHandlers) {
+      for (const notification of changed) { this.notifyHandlers(notification); }
+    }
+    if (changed.length > 0) { this.notifyUnreadChange(); }
   }
 
   public markMessageNotificationsAsReadBySender(senderId: string): void {
-    let anyChanged = false;
-    for (const [id, notification] of this.notifications.entries()) {
-      if (notification.type === NotificationType.MESSAGE &&
-        notification.senderId === senderId && !notification.read) {
-        notification.read = true;
-        this.notifications.set(id, notification);
-        anyChanged = true;
-      }
-    }
-    if (anyChanged) { this.notifyUnreadChange(); }
+    this.markRead(messagesFrom(senderId), { notifyHandlers: false });
   }
 
   public removeNotification(notificationId: string): void {
-    const notification = this.notifications.get(notificationId);
+    const notification: Notification | undefined = this.notifications.get(notificationId);
     if (notification) {
-      const wasUnread = !notification.read;
+      const wasUnread: boolean = !notification.read;
       this.notifications.delete(notificationId);
       this.notifyRemovedHandler(notification);
       if (wasUnread) { this.notifyUnreadChange(); }
@@ -184,25 +173,34 @@ export class NotificationService {
     return this.getNotifications().filter(n => n.type === type);
   }
 
+  /**
+   * The notifications that belong to `cid`, plus those belonging to no session.
+   *
+   * `recipientCid` was recorded on every notification and plumbed through to
+   * `getUnreadCountByCid` — and the panel that actually renders them ignored it
+   * entirely, filtering only by type. Message notifications carry a
+   * 100-character plaintext preview and the sender's name, so a tab that
+   * switched accounts (the workspace-switcher / ClaimSession flow this product
+   * is built around) showed the previous account's messages to the new one.
+   * `cleanup()` has no callers, so nothing clears them on logout either.
+   *
+   * Undefined `recipientCid` means "not session-scoped" and is always shown.
+   */
+  public getNotificationsForCid(cid: string | null): Notification[] {
+    return this.getNotifications().filter((n) => notificationBelongsTo(n, cid));
+  }
+
   public getUnreadCountByCid(cid: string): number {
-    return Array.from(this.notifications.values())
-      .filter(n => !n.read && n.recipientCid === cid).length;
+    return unreadCountFor(this.notifications.values(), cid);
   }
 
   public getUnreadCountsByCid(): Map<string, number> {
-    const counts = new Map<string, number>();
-    for (const notification of this.notifications.values()) {
-      if (!notification.read && notification.recipientCid) {
-        const current = counts.get(notification.recipientCid) || 0;
-        counts.set(notification.recipientCid, current + 1);
-      }
-    }
-    return counts;
+    return unreadCountsByCid(this.notifications.values());
   }
 
   public notifyUnreadChange(): void {
-    const notifications = Array.from(this.notifications.values());
-    const unread = notifications.filter(n => !n.read);
+    const notifications: Notification[] = Array.from(this.notifications.values());
+    const unread: Notification[] = notifications.filter(n => !n.read);
     const change: UnreadCountChange = {
       total: unread.length,
       messages: unread.filter(n => n.type === NotificationType.MESSAGE).length,
@@ -222,10 +220,6 @@ export class NotificationService {
     for (const handler of this.notificationHandlers) { handler(notification); }
   }
 
-  private notifyAllHandlers(): void {
-    for (const notification of this.getNotifications()) { this.notifyHandlers(notification); }
-  }
-
   private notifyRemovedHandler(notification: Notification): void {
     for (const handler of this.notificationHandlers) {
       handler({ ...notification, id: `removed:${notification.id}` });
@@ -238,7 +232,7 @@ export class NotificationService {
   }
 }
 
-export const notificationService = NotificationService.getInstance();
+export const notificationService: NotificationService = NotificationService.getInstance();
 
 if (typeof window !== 'undefined' && import.meta.env.DEV) {
   window.notificationService = notificationService;

@@ -6,22 +6,22 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { P2PMessengerManager } from '@/lib/p2p';
 import { notificationService } from '@/lib/notification-service';
 import { MessageCircle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { debugLog } from '@/lib/debug-config';
 import { ChatTabBar } from './ChatTabBar';
-import { useMarkdownFormat } from './MarkdownToolbar';
+import { ComposeContextBanner } from './ComposeContextBanner';
 import { LiveDocumentView } from './LiveDocumentView';
 import { LiveDocumentModal } from './LiveDocumentModal';
 import { FileTransferModal } from './FileTransferModal';
 import { ChatSettingsPanel } from './ChatSettingsPanel';
 import { P2PChatHeader } from './P2PChatHeader';
+import { CallStage } from '@/components/call/CallStage';
+import { useDirectCall } from './hooks/use-direct-call';
 import { P2PMessageList } from './P2PMessageList';
 import { P2PMessageInput } from './P2PMessageInput';
 import { useP2PMessages, useP2PFileTransfer, useP2PTabs } from './hooks';
-import type { MessageType } from '@/types/message-protocol';
+import { useP2PCompose } from './hooks/useP2PCompose';
+import type { DirectCallBinding } from '@/components/p2p/hooks/use-direct-call';
 
 export type ChatMode = 'p2p' | 'group';
 
@@ -46,32 +46,27 @@ export function P2PChat({
   currentUserCid,
   currentUserName = 'You',
   mode = 'p2p',
-  groupId,
+  groupId: _groupId,
   showSenderName,
   showSenderAvatar,
   rules,
   onEditMessage,
   onDeleteMessage,
   onReplyMessage,
-}: P2PChatProps) {
-  const isGroupMode = mode === 'group';
-  const displaySenderName = showSenderName ?? isGroupMode;
-  const displaySenderAvatar = showSenderAvatar ?? isGroupMode;
+}: P2PChatProps): JSX.Element {
+  // Hooks first, before any early return in this component. Placing them lower
+  // put them after one, which breaks React's hook ordering and fails
+  // intermittently at runtime rather than reliably.
+  const callBinding: DirectCallBinding = useDirectCall(peerCid, peerName);
 
-  const [inputMessage, setInputMessage] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-  const inputMessageRef = useRef(inputMessage);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const isGroupMode: boolean = mode === 'group';
+  const displaySenderName: boolean = showSenderName ?? isGroupMode;
+  const displaySenderAvatar: boolean = showSenderAvatar ?? isGroupMode;
 
-  const [messageType, setMessageType] = useState<MessageType>('text');
-  const [showDocModal, setShowDocModal] = useState(false);
+  const scrollRef: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
+
   const [showFileModal, setShowFileModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showMarkdownPreview, setShowMarkdownPreview] = useState(false);
-
-  const { toast } = useToast();
-  const messenger = P2PMessengerManager.getInstance();
-  const applyFormat = useMarkdownFormat(inputRef, setInputMessage, () => inputMessage);
 
   // Tabs hook
   const {
@@ -84,17 +79,61 @@ export function P2PChat({
   const {
     messages, peerTyping, peerPresence, isConnected, isRegistered,
     isLoadingMore, hasMorePages, handleScroll, handleRetryMessage,
+    handleEditMessage, handleDeleteMessage,
   } = useP2PMessages({
     peerCid, activeTabIdRef, scrollRef,
     onUnreadMessage: useCallback(() => setMessagesHasUnread(true), [setMessagesHasUnread]),
   });
 
   // File transfer hook
-  const fileTransfer = useP2PFileTransfer({ peerCid, peerName });
+  const fileTransfer: ReturnType<typeof useP2PFileTransfer> = useP2PFileTransfer({ peerCid, peerName });
 
-  useEffect(() => { inputMessageRef.current = inputMessage; }, [inputMessage]);
+  // Composition hook (input, reply/edit context, send, live-doc flow)
+  const {
+    inputRef, inputMessage, setInputMessage, isSending,
+    messageType, showDocModal, setShowDocModal,
+    showMarkdownPreview, setShowMarkdownPreview,
+    applyFormat,
+    replyingTo, editingMessage,
+    handleReplyMessage, handleStartEdit, cancelComposeContext,
+    handleSendMessage, handleDocCreate, handleMessageTypeChange,
+    handleInputFocus, handleInputBlur,
+  } = useP2PCompose({
+    peerCid, messages,
+    editMessage: handleEditMessage,
+    createDocument: handleCreateDocument,
+  });
+
+  // Follow the conversation only when the reader is already at the bottom.
+  //
+  // This used to pin unconditionally on every change of `messages`, so someone
+  // scrolled up reading yesterday's thread was yanked back down by any new
+  // message — and, because the status subscription allocated a new array
+  // regardless of whether the id was in THIS conversation, by any
+  // sent/delivered/read transition anywhere in the messenger.
+  //
+  // It also fought the pagination anchoring in useP2PMessages, which goes to
+  // real trouble to preserve scroll position across a prepend.
+  const FOLLOW_THRESHOLD_PX: number = 80;
+  const hasJumpedToLatest: React.MutableRefObject<boolean> = useRef(false);
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const el: HTMLDivElement | null = scrollRef.current;
+    if (!el || messages.length === 0) return;
+
+    // The first paint of a conversation must land on the newest message —
+    // scrollTop is 0 there, so a pure "am I near the bottom" test would open
+    // every conversation at the top of its history. P2PChat is keyed by peer,
+    // so this ref resets when the conversation changes.
+    if (!hasJumpedToLatest.current) {
+      hasJumpedToLatest.current = true;
+      el.scrollTop = el.scrollHeight;
+      return;
+    }
+
+    const distanceFromBottom: number = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceFromBottom <= FOLLOW_THRESHOLD_PX) {
+      el.scrollTop = el.scrollHeight;
+    }
   }, [messages]);
 
   // Mark notifications as read when viewing conversation
@@ -104,57 +143,61 @@ export function P2PChat({
     }
   }, [peerCid, activeTabId]);
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
-    if (messageType === 'live_document') { setShowDocModal(true); return; }
-    messenger.stopTypingPolling(peerCid);
-    try {
-      await messenger.sendMessage(peerCid, inputMessage, { messageType });
-      setInputMessage('');
-    } catch (error) {
-      debugLog('P2PChat', 'Failed to send message:', error);
-      toast({ variant: 'destructive', title: 'Failed to send message', description: 'Check your connection and try again.' });
-    }
-  };
-
-  const handleDocCreate = useCallback(async (title: string, initialContent: string) => {
-    await handleCreateDocument(title, initialContent);
-    setShowDocModal(false);
-    setInputMessage('');
-  }, [handleCreateDocument]);
-
-  const handleMessageTypeChange = useCallback((type: MessageType) => {
-    setMessageType(type);
-    if (type === 'live_document' && inputMessage.trim()) setShowDocModal(true);
-  }, [inputMessage]);
-
-  const handleInputFocus = useCallback(() => {
-    if (peerCid) messenger.startTypingPolling(peerCid, () => inputMessageRef.current);
-  }, [peerCid, messenger]);
-
-  const handleInputBlur = useCallback(() => {
-    if (peerCid) messenger.stopTypingPolling(peerCid);
-  }, [peerCid, messenger]);
-
   if (!peerCid) {
     return (
-      <div className="h-full flex flex-col items-center justify-center bg-[#1C1D28]">
-        <MessageCircle className="h-12 w-12 text-gray-400 mb-4" />
-        <p className="text-gray-500">Select a conversation to start messaging</p>
+      <div className="h-full flex flex-col items-center justify-center bg-background">
+        <MessageCircle className="h-12 w-12 text-muted-foreground mb-4" />
+        <p className="text-muted-foreground">Select a conversation to start messaging</p>
       </div>
     );
   }
 
-  const isViewingDocument = activeTab?.type === 'live_document';
+  const isViewingDocument: boolean = activeTab?.type === 'live_document';
+
 
   return (
-    <div className="h-full flex flex-col bg-[#1C1D28]">
-      <P2PChatHeader peerName={peerName} peerPresence={peerPresence} peerTyping={peerTyping} isConnected={isConnected} isRegistered={isRegistered} onSettingsClick={() => setShowSettingsModal(true)} />
+    <div className="h-full flex flex-col bg-background" data-testid="p2p-chat">
+      <P2PChatHeader
+        peerName={peerName}
+        peerPresence={peerPresence}
+        peerTyping={peerTyping}
+        isConnected={isConnected}
+        isRegistered={isRegistered}
+        onSettingsClick={() => setShowSettingsModal(true)}
+        call={{
+          canCall: isConnected,
+          inCall: callBinding.active,
+          capability: callBinding.capability,
+          onStartCall: callBinding.startCall,
+          onLeave: callBinding.leave,
+        }}
+      />
+
+      {/* Docked above the messages, so the conversation stays usable during a
+          call — which is the entire reason to put calling inside a messenger. */}
+      {callBinding.call && (
+        <CallStage
+          call={callBinding.call}
+          selfUsername="You"
+          localStream={callBinding.localStream}
+          remoteStreams={callBinding.remoteStreams}
+          remoteScreenStreams={callBinding.remoteScreenStreams}
+          screenStream={callBinding.screenStream}
+          qualities={callBinding.qualities}
+          onToggleMic={callBinding.toggleMic}
+          onToggleCamera={callBinding.toggleCamera}
+          onToggleScreenShare={callBinding.toggleScreenShare}
+          onAnnotate={callBinding.annotate}
+          videoQuality={callBinding.videoQuality}
+          onVideoQualityChange={callBinding.setVideoQuality}
+          onLeave={callBinding.leave}
+        />
+      )}
       <ChatTabBar tabs={tabsWithUnread} activeTabId={activeTabId} onTabSelect={handleTabSelect} onTabClose={handleCloseTab} />
 
       {rules && (
-        <div className="px-4 py-2 bg-purple-900/30 border-b border-purple-800/50">
-          <p className="text-sm text-purple-300">{rules}</p>
+        <div className="px-4 py-2 bg-primary/20 border-b border-primary/40">
+          <p className="text-sm text-primary-accent">{rules}</p>
         </div>
       )}
 
@@ -174,12 +217,18 @@ export function P2PChat({
               onDeclineTransfer={fileTransfer.handleDeclineTransfer}
               onCancelTransfer={fileTransfer.handleCancelTransfer}
               onOpenFile={fileTransfer.handleOpenFile}
-              onEditMessage={onEditMessage} onDeleteMessage={onDeleteMessage}
-              onReplyMessage={onReplyMessage}
+              onEditMessage={onEditMessage ?? handleStartEdit}
+              onDeleteMessage={onDeleteMessage ?? handleDeleteMessage}
+              onReplyMessage={onReplyMessage ?? handleReplyMessage}
+            />
+            <ComposeContextBanner
+              replyingTo={replyingTo}
+              editingMessage={editingMessage}
+              onCancel={cancelComposeContext}
             />
             <P2PMessageInput
               ref={inputRef} inputMessage={inputMessage} messageType={messageType}
-              showMarkdownPreview={showMarkdownPreview} canSendMessages={true}
+              showMarkdownPreview={showMarkdownPreview} canSendMessages={true} isSending={isSending}
               onInputChange={setInputMessage} onInputFocus={handleInputFocus}
               onInputBlur={handleInputBlur} onSubmit={handleSendMessage}
               onFileClick={() => setShowFileModal(true)} onFormat={applyFormat}

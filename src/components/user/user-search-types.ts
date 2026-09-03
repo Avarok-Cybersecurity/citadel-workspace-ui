@@ -3,6 +3,7 @@
  */
 
 import { UserRole } from '@/types/workspace-entities';
+import { roleBadgeClass } from '@/lib/role-badge';
 
 export interface UserData {
   id: string;
@@ -10,7 +11,8 @@ export interface UserData {
   avatarUrl?: string;
   email?: string;
   role?: UserRole;
-  isOnline?: boolean;
+  /** True, false, or null when nobody has said. See lib/presence.ts. */
+  isOnline?: boolean | null;
   lastActive?: number;
 }
 
@@ -24,17 +26,8 @@ export interface UserSearchProps {
 }
 
 /** Get role badge CSS class */
+/** @deprecated Use roleBadgeClass. Kept as a thin alias for existing imports. */
 export function getRoleBadgeClass(role?: UserRole): string {
-  switch (role) {
-    case UserRole.Owner:
-      return 'bg-purple-500 hover:bg-purple-600';
-    case UserRole.Admin:
-      return 'bg-blue-500 hover:bg-blue-600';
-    case UserRole.Member:
-      return 'bg-green-500 hover:bg-green-600';
-    case UserRole.Guest:
-      return 'bg-gray-500 hover:bg-gray-600';
-    default:
-      return 'bg-gray-500 hover:bg-gray-600';
-  }
+  return roleBadgeClass(role);
 }
+

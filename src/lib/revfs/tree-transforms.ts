@@ -19,6 +19,7 @@ import {
   findNode,
   makeOpId,
   now,
+  rebasePath,
 } from './tree-queries';
 
 // ============================================================================
@@ -34,7 +35,7 @@ export function renameNode(
   path: string,
   newName: string,
 ): [RevfsNode, RevfsOperation] {
-  const normalized = normalizePath(path);
+  const normalized: string = normalizePath(path);
 
   if (normalized === '/') {
     throw new Error('Cannot rename root directory');
@@ -46,16 +47,16 @@ export function renameNode(
     throw new Error('Invalid name: must be non-empty and cannot contain slashes');
   }
 
-  const parent = parentPath(normalized);
-  const newPath = parent === '/' ? `/${newName}` : `${parent}/${newName}`;
+  const parent: string = parentPath(normalized);
+  const newPath: string = parent === '/' ? `/${newName}` : `${parent}/${newName}`;
 
-  const newTree = cloneTree(tree);
-  const parentNode = findNode(newTree, parent);
+  const newTree: RevfsNode = cloneTree(tree);
+  const parentNode: RevfsNode | null = findNode(newTree, parent);
   if (!parentNode || !parentNode.children) {
     throw new Error(`Parent directory not found: ${parent}`);
   }
 
-  const idx = parentNode.children.findIndex(c => c.path === normalized);
+  const idx: number = parentNode.children.findIndex(c => c.path === normalized);
   if (idx < 0) {
     throw new Error(`Node not found: ${normalized}`);
   }
@@ -64,11 +65,11 @@ export function renameNode(
     throw new Error(`A node with name "${newName}" already exists in this directory`);
   }
 
-  const node = parentNode.children[idx];
-  const t = now();
+  const node: RevfsNode = parentNode.children[idx];
+  const t: number = now();
 
   const updatePaths = (n: RevfsNode, oldBasePath: string, newBasePath: string): void => {
-    n.path = n.path.replace(oldBasePath, newBasePath);
+    n.path = rebasePath(n.path, oldBasePath, newBasePath);
     n.updatedAt = t;
     if (n.children) {
       for (const child of n.children) {
@@ -105,8 +106,8 @@ export function moveNode(
   sourcePath: string,
   destParentPath: string,
 ): [RevfsNode, RevfsOperation] {
-  const normalizedSource = normalizePath(sourcePath);
-  const normalizedDest = normalizePath(destParentPath);
+  const normalizedSource: string = normalizePath(sourcePath);
+  const normalizedDest: string = normalizePath(destParentPath);
 
   if (normalizedSource === '/') {
     throw new Error('Cannot move root directory');
@@ -118,39 +119,39 @@ export function moveNode(
     throw new Error('Cannot move a directory into itself');
   }
 
-  const newTree = cloneTree(tree);
+  const newTree: RevfsNode = cloneTree(tree);
 
-  const sourceParent = parentPath(normalizedSource);
-  const sourceParentNode = findNode(newTree, sourceParent);
+  const sourceParent: string = parentPath(normalizedSource);
+  const sourceParentNode: RevfsNode | null = findNode(newTree, sourceParent);
   if (!sourceParentNode || !sourceParentNode.children) {
     throw new Error(`Source parent not found: ${sourceParent}`);
   }
 
-  const sourceIdx = sourceParentNode.children.findIndex(c => c.path === normalizedSource);
+  const sourceIdx: number = sourceParentNode.children.findIndex(c => c.path === normalizedSource);
   if (sourceIdx < 0) {
     throw new Error(`Source not found: ${normalizedSource}`);
   }
 
-  const destParentNode = findNode(newTree, normalizedDest);
+  const destParentNode: RevfsNode | null = findNode(newTree, normalizedDest);
   if (!destParentNode || destParentNode.type !== 'directory') {
     throw new Error(`Destination directory not found: ${normalizedDest}`);
   }
 
-  const nodeName = baseName(normalizedSource);
-  const newPath = normalizedDest === '/' ? `/${nodeName}` : `${normalizedDest}/${nodeName}`;
+  const nodeName: string = baseName(normalizedSource);
+  const newPath: string = normalizedDest === '/' ? `/${nodeName}` : `${normalizedDest}/${nodeName}`;
 
   if (!destParentNode.children) destParentNode.children = [];
   if (destParentNode.children.some(c => c.name === nodeName)) {
     throw new Error(`A node with name "${nodeName}" already exists at destination`);
   }
 
-  const t = now();
+  const t: number = now();
 
   const [movedNode] = sourceParentNode.children.splice(sourceIdx, 1);
   sourceParentNode.updatedAt = t;
 
   const updatePaths = (n: RevfsNode, oldBasePath: string, newBasePath: string): void => {
-    n.path = n.path.replace(oldBasePath, newBasePath);
+    n.path = rebasePath(n.path, oldBasePath, newBasePath);
     n.updatedAt = t;
     if (n.children) {
       for (const child of n.children) {

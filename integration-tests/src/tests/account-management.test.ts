@@ -21,6 +21,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isHiddenWithin, isVisibleWithin, waitForAppReady } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -38,7 +39,6 @@ interface TestResults {
   rememberCredentialsVisible: boolean;
 
   // Saved workspaces
-  savedWorkspacesVisible: boolean;
 
   // LoginConflictModal
   loginConflictDetected: boolean;
@@ -64,60 +64,41 @@ async function testAccountManagementDialog(page: Page): Promise<{
 
   const results = { opens: false, sessionList: false };
 
-  // Try opening from WorkspaceSwitcher
-  const switcherBtn = page.locator('button:has(svg.lucide-chevron-right), [data-testid="workspace-switcher"]').first();
-  if (await switcherBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-    await switcherBtn.click();
-    await sleep(500);
+  // Manage Accounts is a button on the LANDING page (Landing.tsx renders
+  // <ManageAccountsButton/>), not an item in the workspace switcher dropdown.
+  // This used to open the switcher and hunt for a "Manage Accounts" menu item
+  // that has never been there, so the dialog was never opened and both this and
+  // the session-list assertion reported failures the app had not made.
+  await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
+  await waitForAppReady(page, 60_000);
 
-    // Look for "Manage Accounts" option
-    const manageAccounts = page.locator('[role="menuitem"]:has-text("Manage Accounts"), button:has-text("Manage Accounts")').first();
-    if (await manageAccounts.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await manageAccounts.click();
-      await sleep(1000);
-
-      // Check if dialog opened
-      const dialog = page.locator('[role="dialog"]').first();
-      results.opens = await dialog.isVisible({ timeout: 3000 }).catch(() => false);
-      console.log(`  Dialog opens: ${results.opens}`);
-
-      if (results.opens) {
-        // Check for session list
-        const sessionList = page.locator('text="Active Sessions", text="Saved Accounts"').first();
-        results.sessionList = await sessionList.isVisible({ timeout: 3000 }).catch(() => false);
-
-        if (!results.sessionList) {
-          // Check for any session entry with CID or username
-          const dialogText = await dialog.textContent().catch(() => '');
-          results.sessionList = (dialogText?.length ?? 0) > 50;
-        }
-        console.log(`  Session list visible: ${results.sessionList}`);
-
-        // Close dialog
-        await page.keyboard.press('Escape');
-        await sleep(300);
-      }
-    } else {
-      // Close dropdown
-      await page.keyboard.press('Escape');
-      await sleep(300);
-    }
+  const manageAccounts = page.getByRole('button', { name: 'Manage Accounts' });
+  if (!(await isVisibleWithin(manageAccounts, 10_000))) {
+    console.log('  Manage Accounts button not found on the landing page');
+    return results;
   }
 
-  // Alternative: try from landing page "Manage Accounts" button
-  if (!results.opens) {
-    const manageBtn = page.locator('button:has-text("Manage Accounts")').first();
-    if (await manageBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await manageBtn.click();
-      await sleep(1000);
+  await manageAccounts.click();
 
-      const dialog = page.locator('[role="dialog"]').first();
-      results.opens = await dialog.isVisible({ timeout: 3000 }).catch(() => false);
-      if (results.opens) {
-        results.sessionList = true;
-        await page.keyboard.press('Escape');
-      }
-    }
+  const dialog = page.locator('[role="dialog"]').first();
+  results.opens = await isVisibleWithin(dialog, 10_000);
+  console.log(`  Dialog opens: ${results.opens}`);
+
+  if (results.opens) {
+    // Active Sessions, by its real heading. The old check accepted "the dialog
+    // has more than 50 characters of text" as a fallback, which any open dialog
+    // satisfies and which therefore asserted nothing at all.
+    //
+    // Only Active Sessions is asserted. Saved Accounts renders solely when
+    // storedSessions is non-empty, which requires having logged in with Remember
+    // Credentials enabled — something this spec never does, so requiring it would
+    // be asserting a state the test did not create. This account was just
+    // created, so an active session must be listed.
+    results.sessionList = await isVisibleWithin(dialog.getByText(/Active Sessions/), 5000);
+    console.log(`  Active sessions listed: ${results.sessionList}`);
+
+    await page.keyboard.press('Escape');
+    await isHiddenWithin(dialog, 5000);
   }
 
   return results;
@@ -131,61 +112,43 @@ async function testLoginPage(page: Page): Promise<{
 
   const results = { renders: false, rememberCredentials: false };
 
-  // Navigate to landing
-  await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-  await sleep(2000);
+  await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
+  await waitForAppReady(page, 60_000);
 
-  // Click "Login Workspace"
-  const loginBtn = page.locator('button:has-text("Login Workspace")');
-  if (!(await loginBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
-    console.log('  Login button not found');
+  const loginBtn = page.getByTestId('sign-in-button');
+  if (!(await isVisibleWithin(loginBtn, 10_000))) {
+    console.log('  Sign In button not found');
     return results;
   }
 
   await loginBtn.click();
-  await sleep(1000);
 
-  // Verify login page rendered
-  const loginTitle = page.locator('text="Login to Workspace", text="Login"').first();
-  results.renders = await loginTitle.isVisible({ timeout: 5000 }).catch(() => false);
+  // The real heading (Login.tsx renders <h2>Login to Workspace</h2>). The old
+  // selector was `'text="Login to Workspace", text="Login"'` — a comma list of
+  // two text engines, which is not parsed as a union of the two, so it matched
+  // nothing regardless of what had rendered.
+  results.renders = await isVisibleWithin(
+    page.getByRole('heading', { name: 'Login to Workspace' }), 10_000
+  );
   console.log(`  Login page renders: ${results.renders}`);
 
   if (!results.renders) return results;
 
-  // Check for "Remember credentials" switch
-  const rememberSwitch = page.locator('label:has-text("Remember"), [role="switch"], input[type="checkbox"]').first();
-  results.rememberCredentials = await rememberSwitch.isVisible({ timeout: 3000 }).catch(() => false);
-
-  if (!results.rememberCredentials) {
-    // Alternative: check for any text about remembering
-    const rememberText = page.locator('text="Remember", text="remember"').first();
-    results.rememberCredentials = await rememberText.isVisible({ timeout: 2000 }).catch(() => false);
+  // Remember Credentials sits inside the collapsed "Advanced Options" section,
+  // beside Configure. Without expanding it the control is genuinely not on
+  // screen — the same omission that hid the Configure button in
+  // security-settings.
+  const advancedOptions = page.getByRole('button', { name: /Advanced Options/i });
+  if (await isVisibleWithin(advancedOptions, 10_000)) {
+    await advancedOptions.click();
   }
 
+  results.rememberCredentials = await isVisibleWithin(page.getByText(/Remember Credentials/i), 5000);
   console.log(`  Remember credentials visible: ${results.rememberCredentials}`);
 
-  // Close login modal
   await page.keyboard.press('Escape');
-  await sleep(300);
 
   return results;
-}
-
-async function testSavedWorkspaces(page: Page): Promise<boolean> {
-  console.log('\n=== Testing Saved Workspaces ===');
-
-  // Check if there's a saved workspaces section on the landing page
-  const savedSection = page.locator('text="Saved Workspaces", text="Recent Workspaces", text="Saved"').first();
-  let visible = await savedSection.isVisible({ timeout: 3000 }).catch(() => false);
-
-  if (!visible) {
-    // Check for workspace cards/items that represent saved connections
-    const workspaceCards = page.locator('[class*="workspace-card"], [class*="saved-workspace"]').first();
-    visible = await workspaceCards.isVisible({ timeout: 2000 }).catch(() => false);
-  }
-
-  console.log(`  Saved workspaces visible: ${visible}`);
-  return visible;
 }
 
 // ============================================================================
@@ -209,13 +172,12 @@ async function runTest(): Promise<boolean> {
     sessionListVisible: false,
     loginPageRenders: false,
     rememberCredentialsVisible: false,
-    savedWorkspacesVisible: false,
     loginConflictDetected: false,
   };
 
   try {
     const page = await context.newPage();
-    setupConsoleCapture(page, 'AcctMgmt', ['error', 'Error', 'Login', 'Account']);
+    setupConsoleCapture(page, 'AcctMgmt', ['error', 'Error', 'Login', 'Account', 'ILM']);
 
     // ========== STEP 1: Create Account ==========
     console.log('\n' + '\u2500'.repeat(50));
@@ -259,7 +221,6 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 4: Check Saved Workspaces');
     console.log('\u2500'.repeat(50));
 
-    results.savedWorkspacesVisible = await testSavedWorkspaces(page);
     await takeScreenshot(page, '04_saved_workspaces');
 
     // ========== STEP 5: Login Conflict ==========
@@ -279,14 +240,22 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.accountCreated;
+    // loginConflictDetected stays out: it needs a second session competing for
+    // the same account, which this spec does not set up, and it already reports
+    // SKIP rather than CHECK. The other five are unconditional.
+    const corePassed = [
+      results.accountCreated,
+      results.accountMgmtOpens,
+      results.sessionListVisible,
+      results.loginPageRenders,
+      results.rememberCredentialsVisible,
+    ].every(Boolean);
 
     console.log(`\n  Account Created:           ${results.accountCreated ? 'PASS' : 'FAIL'}`);
     console.log(`  Acct Mgmt Dialog Opens:    ${results.accountMgmtOpens ? 'PASS' : 'CHECK'}`);
     console.log(`  Session List:              ${results.sessionListVisible ? 'PASS' : 'CHECK'}`);
     console.log(`  Login Page Renders:        ${results.loginPageRenders ? 'PASS' : 'CHECK'}`);
     console.log(`  Remember Credentials:      ${results.rememberCredentialsVisible ? 'PASS' : 'CHECK'}`);
-    console.log(`  Saved Workspaces:          ${results.savedWorkspacesVisible ? 'PASS' : 'CHECK'}`);
     console.log(`  Login Conflict:            ${results.loginConflictDetected ? 'PASS' : 'SKIP'}`);
 
     harness.finalize(corePassed, results);

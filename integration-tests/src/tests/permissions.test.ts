@@ -22,6 +22,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -83,14 +84,14 @@ async function openSettingsFromTopBar(page: Page): Promise<boolean> {
 
     // Click the avatar button to open the dropdown menu
     const avatarButton = page.locator('[data-testid="user-avatar-button"]').first();
-    if (await avatarButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(avatarButton, 3000)) {
       console.log('    Clicking avatar button...');
       await avatarButton.click();
       await sleep(500);
 
       // Click "Settings" option in the dropdown
       const settingsOption = page.locator('[role="menuitem"]:has-text("Settings")').first();
-      if (await settingsOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(settingsOption, 2000)) {
         console.log('    Clicking Settings option...');
         await settingsOption.click();
         await sleep(1000);
@@ -100,7 +101,7 @@ async function openSettingsFromTopBar(page: Page): Promise<boolean> {
 
         // Verify Settings modal with tabs is open
         const tabsList = page.locator('[role="dialog"] [role="tablist"]').first();
-        const hasTabs = await tabsList.isVisible({ timeout: 3000 }).catch(() => false);
+        const hasTabs = await isVisibleWithin(tabsList, 3000);
         if (hasTabs) {
           console.log('    Settings Modal opened successfully (with tabs)');
           return true;
@@ -128,7 +129,7 @@ async function navigateToPermissionsTab(page: Page): Promise<boolean> {
     // Find the permissions tab button and get its aria-controls to find the panel ID
     const permissionsTab = dialog.locator('button[aria-controls*="permissions"]').first();
 
-    if (!await permissionsTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(permissionsTab, 2000)) {
       console.log('    Permissions tab button not found');
       return false;
     }
@@ -156,7 +157,7 @@ async function navigateToPermissionsTab(page: Page): Promise<boolean> {
 
     // Wait for the permissions panel to become visible
     const permissionsPanel = dialog.locator(`[id*="permissions"][role="tabpanel"]`).first();
-    const isPanelVisible = await permissionsPanel.isVisible({ timeout: 3000 }).catch(() => false);
+    const isPanelVisible = await isVisibleWithin(permissionsPanel, 3000);
 
     if (isPanelVisible) {
       const panelText = await permissionsPanel.textContent().catch(() => '');
@@ -171,7 +172,7 @@ async function navigateToPermissionsTab(page: Page): Promise<boolean> {
     await sleep(500);
 
     // Check again
-    const isPanelVisibleAfterKeyboard = await permissionsPanel.isVisible({ timeout: 2000 }).catch(() => false);
+    const isPanelVisibleAfterKeyboard = await isVisibleWithin(permissionsPanel, 2000);
     if (isPanelVisibleAfterKeyboard) {
       console.log('    Permissions panel visible after keyboard navigation');
       return true;
@@ -191,7 +192,7 @@ async function navigateToPermissionsTab(page: Page): Promise<boolean> {
 async function countSettingsTabs(page: Page): Promise<number> {
   const dialog = getSettingsDialog(page);
   const tabsList = dialog.locator('[role="tablist"]').first();
-  if (!await tabsList.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (!await isVisibleWithin(tabsList, 3000)) {
     return 0;
   }
 
@@ -205,7 +206,7 @@ async function countSettingsTabs(page: Page): Promise<number> {
 async function tabExists(page: Page, tabText: string): Promise<boolean> {
   const dialog = getSettingsDialog(page);
   const tab = dialog.locator(`[role="tablist"] button:has-text("${tabText}")`).first();
-  return await tab.isVisible({ timeout: 2000 }).catch(() => false);
+  return await isVisibleWithin(tab, 2000);
 }
 
 /**
@@ -215,10 +216,10 @@ async function permissionsTabHasLockIcon(page: Page): Promise<boolean> {
   const dialog = getSettingsDialog(page);
   // Look for lock icon in the permissions tab trigger using aria-controls attribute
   const permissionsTab = dialog.locator('button[aria-controls*="permissions"]').first();
-  if (await permissionsTab.isVisible({ timeout: 1000 }).catch(() => false)) {
+  if (await isVisibleWithin(permissionsTab, 1000)) {
     // Check for any SVG (lucide icons render as SVG)
     const svg = permissionsTab.locator('svg').first();
-    const hasSvg = await svg.isVisible({ timeout: 1000 }).catch(() => false);
+    const hasSvg = await isVisibleWithin(svg, 1000);
     if (hasSvg) {
       console.log('    Found SVG icon in Permissions tab');
       return true;
@@ -239,16 +240,18 @@ async function permissionsTabHasLockIcon(page: Page): Promise<boolean> {
 async function workspaceAccordionExists(page: Page): Promise<boolean> {
   const dialog = getSettingsDialog(page);
   // Look for workspace text or Building2 icon
+  // "Root Workspace" was in this list twice. The sidebar's members heading was
+  // given one noun and no screen says those words any more, so both entries
+  // were dead -- and a dead entry in a fallback list is worse than none: it
+  // reads as coverage, and the list quietly gets shorter than it looks.
   const workspaceSelectors = [
-    'text="Root Workspace"',
-    'span:has-text("Root Workspace")',
     'text="Your Permissions"',
     '[data-state] button:has-text("Workspace")',
   ];
 
   for (const selector of workspaceSelectors) {
     const element = dialog.locator(selector).first();
-    if (await element.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(element, 1000)) {
       console.log(`    Found workspace element: ${selector}`);
       return true;
     }
@@ -272,7 +275,7 @@ async function roleBadgeDisplayed(page: Page): Promise<boolean> {
 
   for (const selector of roleBadges) {
     const badge = dialog.locator(selector).first();
-    if (await badge.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(badge, 1000)) {
       const text = await badge.textContent();
       console.log(`    Found role badge: ${text}`);
       return true;
@@ -292,7 +295,7 @@ async function permissionCategoriesExist(page: Page): Promise<boolean> {
 
   for (const category of categories) {
     const categoryElement = dialog.locator(`text="${category}"`).first();
-    if (await categoryElement.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(categoryElement, 1000)) {
       foundCount++;
     }
   }
@@ -318,7 +321,7 @@ async function permissionRowsExist(page: Page): Promise<boolean> {
   let foundCount = 0;
   for (const label of permissionLabels) {
     const row = dialog.locator(`text="${label}"`).first();
-    if (await row.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(row, 1000)) {
       foundCount++;
     }
   }
@@ -336,8 +339,8 @@ async function statusIndicatorsCorrect(page: Page): Promise<boolean> {
   const allowedIndicator = dialog.locator('text="Allowed"').first();
   const deniedIndicator = dialog.locator('text="Denied"').first();
 
-  const hasAllowed = await allowedIndicator.isVisible({ timeout: 2000 }).catch(() => false);
-  const hasDenied = await deniedIndicator.isVisible({ timeout: 2000 }).catch(() => false);
+  const hasAllowed = await isVisibleWithin(allowedIndicator, 2000);
+  const hasDenied = await isVisibleWithin(deniedIndicator, 2000);
 
   // At least one status indicator should be visible
   if (hasAllowed || hasDenied) {
@@ -349,8 +352,8 @@ async function statusIndicatorsCorrect(page: Page): Promise<boolean> {
   const checkIcon = dialog.locator('.lucide-check-circle-2, [class*="check-circle"]').first();
   const xIcon = dialog.locator('.lucide-x-circle, [class*="x-circle"]').first();
 
-  const hasCheckIcon = await checkIcon.isVisible({ timeout: 1000 }).catch(() => false);
-  const hasXIcon = await xIcon.isVisible({ timeout: 1000 }).catch(() => false);
+  const hasCheckIcon = await isVisibleWithin(checkIcon, 1000);
+  const hasXIcon = await isVisibleWithin(xIcon, 1000);
 
   console.log(`    Icons found: CheckCircle=${hasCheckIcon}, XCircle=${hasXIcon}`);
   return hasCheckIcon || hasXIcon;
@@ -366,7 +369,7 @@ async function editButtonExists(page: Page): Promise<boolean> {
 
   // Look for Edit button in the office header
   const editButton = page.locator('button:has-text("Edit")').first();
-  return await editButton.isVisible({ timeout: 3000 }).catch(() => false);
+  return await isVisibleWithin(editButton, 3000);
 }
 
 /**
@@ -375,7 +378,7 @@ async function editButtonExists(page: Page): Promise<boolean> {
 async function legendVisible(page: Page): Promise<boolean> {
   const dialog = getSettingsDialog(page);
   const legend = dialog.locator('text="Legend"').first();
-  return await legend.isVisible({ timeout: 2000 }).catch(() => false);
+  return await isVisibleWithin(legend, 2000);
 }
 
 // ============================================================================
@@ -384,6 +387,7 @@ async function legendVisible(page: Page): Promise<boolean> {
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'Permissions System Test',
     reportFileName: 'PERMISSIONS_TEST_REPORT.json',
     metadata: { username: USERNAME },
@@ -415,7 +419,7 @@ async function runTest(): Promise<boolean> {
     const page = await context.newPage();
 
     // Setup console capture - exclude verbose permission messages
-    setupConsoleCapture(page, 'PermTest', ['error', 'Error']);
+    setupConsoleCapture(page, 'PermTest', ['error', 'Error', 'ILM']);
 
     // ========== STEP 0: Create account and login ==========
     console.log('\n' + '─'.repeat(50));
@@ -452,7 +456,7 @@ async function runTest(): Promise<boolean> {
 
     for (const selector of closeSelectors) {
       const closeBtn = page.locator(selector).first();
-      if (await closeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      if (await isVisibleWithin(closeBtn, 1000)) {
         console.log(`  Found close button with selector: ${selector}`);
         await closeBtn.click();
         await sleep(800);
@@ -461,7 +465,10 @@ async function runTest(): Promise<boolean> {
     }
 
     // Verify modal is closed
-    const modalStillOpen = await page.locator('[role="dialog"]:has-text("Connection Preferences")').isVisible({ timeout: 500 }).catch(() => false);
+    // No dialog is titled "Connection Preferences"; this has been asking
+    // whether a modal that cannot exist is still open, and always getting
+    // false. Ask about the dialog that is actually there.
+    const modalStillOpen = await isVisibleWithin(page.locator('[role="dialog"]'), 500);
     if (modalStillOpen) {
       console.log('  Modal still open, trying Escape key...');
       await page.keyboard.press('Escape');
@@ -522,7 +529,7 @@ async function runTest(): Promise<boolean> {
         // Expand workspace accordion if needed and check categories (scoped to dialog)
         const dialogForAccordion = getSettingsDialog(page);
         const workspaceHeader = dialogForAccordion.locator('[data-state="closed"] button').first();
-        if (await workspaceHeader.isVisible({ timeout: 1000 }).catch(() => false)) {
+        if (await isVisibleWithin(workspaceHeader, 1000)) {
           await workspaceHeader.click();
           await sleep(500);
         }
@@ -542,7 +549,7 @@ async function runTest(): Promise<boolean> {
     // Expand a category to see permission rows (scoped to dialog)
     const dialog = getSettingsDialog(page);
     const contentCategory = dialog.locator('button:has-text("Content")').first();
-    if (await contentCategory.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(contentCategory, 2000)) {
       await contentCategory.click();
       await sleep(500);
     }
@@ -583,7 +590,7 @@ async function runTest(): Promise<boolean> {
     // Scroll to bottom to see legend (scoped to dialog)
     const dialogForLegend = getSettingsDialog(page);
     const tabContent = dialogForLegend.locator('[role="tabpanel"]').first();
-    if (await tabContent.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(tabContent, 1000)) {
       await tabContent.evaluate((el) => el.scrollTop = el.scrollHeight);
       await sleep(500);
     }
@@ -633,9 +640,6 @@ async function runTest(): Promise<boolean> {
     console.log(`  Legend visible:              ${results.legendVisible ? 'PASS' : 'FAIL'}`);
 
     harness.finalize(allPassed, results);
-
-    console.log('\nBrowser will remain open for 10 seconds for manual inspection...');
-    await sleep(10000);
 
     return allPassed;
 

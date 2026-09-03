@@ -3,7 +3,7 @@
  * Extracted from magic numbers scattered across the codebase.
  */
 
-export const TIMEOUT = {
+export const TIMEOUT: { readonly SERVER_REQUEST_MS: 5000; readonly DISCONNECT_REQUEST_MS: 30000; readonly FILE_PICKER_MS: 120000; readonly LOCALDB_REQUEST_MS: 5000; readonly GET_SELECTED_USER_MS: 2000; readonly P2P_CONNECT_REQUEST_MS: 30000; readonly P2P_ACCEPT_REQUEST_MS: 10000; readonly P2P_DISCONNECT_MS: 10000; readonly P2P_MESSAGE_MS: 500; readonly SEARCH_DEBOUNCE_MS: 300; readonly SESSION_MANAGEMENT_MS: 3000; readonly CLAIM_SESSION_MS: 10000; readonly PEER_REGISTER_MS: 10000; readonly PERMISSION_FETCH_MS: 10000; readonly PEER_LIST_MS: 35000; readonly FILE_SEND_MS: 30000; readonly FILE_DOWNLOAD_MS: 60000; readonly OUTBOUND_ACK_MS: 30000; readonly CHECKSTATE_MS: 3000; readonly SW_ACTIVATION_MS: 3000; } = {
   /** Default timeout for server requests (WebSocket round-trip) */
   SERVER_REQUEST_MS: 5000,
   /** Timeout for disconnect requests (may involve cleanup) */
@@ -32,8 +32,19 @@ export const TIMEOUT = {
   PEER_REGISTER_MS: 10000,
   /** Timeout for permission fetch operations */
   PERMISSION_FETCH_MS: 10000,
-  /** Timeout for peer list operations */
-  PEER_LIST_MS: 6000,
+  /**
+   * Timeout for peer list operations.
+   *
+   * Must exceed the agent's own PEER_LIST_TIMEOUT, which is 30s
+   * (citadel-internal-service .../requests/peer/mod.rs). It was 6000, chosen
+   * against a 5s wrapper that no longer exists — so under load the browser
+   * declared discovery failed while the service was still legitimately working,
+   * and the late answer arrived with no listener.
+   *
+   * Longer than the thing it waits on, not shorter: giving up first turns a
+   * slow answer into a wrong one.
+   */
+  PEER_LIST_MS: 35000,
   /** Timeout for file send requests */
   FILE_SEND_MS: 30000,
   /** Timeout for file download requests */
@@ -42,9 +53,17 @@ export const TIMEOUT = {
   OUTBOUND_ACK_MS: 30000,
   /** Timeout for CheckState (peer readiness check) */
   CHECKSTATE_MS: 3000,
+
+  /**
+   * How long to wait for a waiting service worker to take control after being
+   * sent SKIP_WAITING, before reloading anyway. Short on purpose: the user has
+   * pressed a recovery button on a crashed screen, so a reload that misses the
+   * update beats a button that appears to hang.
+   */
+  SW_ACTIVATION_MS: 3000,
 } as const;
 
-export const INTERVAL = {
+export const INTERVAL: { readonly HEALTH_CHECK_MS: 30000; readonly HEARTBEAT_MS: 2000; readonly LEADER_ELECTION_MS: 3000; readonly LEADER_TIMEOUT_MS: 5000; readonly CLEANUP_MS: 60000; readonly REQUEST_TRACKING_MS: 300000; readonly PERMISSION_CACHE_MS: 60000; } = {
   /** Health check polling interval */
   HEALTH_CHECK_MS: 30000,
   /** WebSocket heartbeat/keep-alive interval */
@@ -61,7 +80,7 @@ export const INTERVAL = {
   PERMISSION_CACHE_MS: 60000,
 } as const;
 
-export const POLLING = {
+export const POLLING: { readonly P2P_REGISTRATION_INTERVAL_MS: 30000; readonly SERVER_POLL_INTERVAL_MS: 60000; readonly OUTGOING_REQUESTS_INTERVAL_MS: 300000; readonly GET_SESSIONS_POLL_INTERVAL_MS: 5000; } = {
   /** P2P registration polling interval */
   P2P_REGISTRATION_INTERVAL_MS: 30000,
   /** Server auto-reconnect polling interval */
@@ -72,7 +91,7 @@ export const POLLING = {
   GET_SESSIONS_POLL_INTERVAL_MS: 5000,
 } as const;
 
-export const NETWORK = {
+export const NETWORK: { readonly WORKSPACE_SERVER_PORT: 12349; } = {
   // INTERNAL_SERVICE_PORT was removed: its only consumer was the old
   // `ws://localhost:${INTERNAL_SERVICE_PORT}` default, which is gone now that the socket URL is
   // derived from the page (see websocket-service/resolve-url.ts). Leaving it would invite someone

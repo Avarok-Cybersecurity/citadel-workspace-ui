@@ -11,6 +11,12 @@ import type {
 // ============================================================================
 
 export interface UseGroupConversationsResult {
+  /**
+   * False until the persisted group restore has finished. A consumer that looks
+   * a group up before this is true has learned nothing about whether it exists —
+   * `getGroup` reads synchronously and the restore is asynchronous.
+   */
+  hydrated: boolean;
   /** All group conversations */
   groups: GroupConversation[];
   /** Loading state */
@@ -23,7 +29,12 @@ export interface UseGroupConversationsResult {
     initialMembers: Array<{ cid: string; username: string; roleId?: string }>
   ) => Promise<string>;
   /** Invite a peer to a group */
-  invitePeer: (groupId: string, peerCid: string, roleId?: string) => Promise<void>;
+  /**
+   * Invite a peer. GroupInvite carries no role field, so a caller wanting a
+   * specific role calls updateMemberRole after this resolves — folding it in
+   * here would just hide a second request behind a parameter.
+   */
+  invitePeer: (groupId: string, peerCid: string) => Promise<void>;
   /** Leave a group */
   leaveGroup: (groupId: string) => Promise<void>;
   /** Kick a member from a group */
@@ -42,19 +53,13 @@ export interface UseGroupConversationsResult {
 // Protocol Boundary Adapter
 // ============================================================================
 
-import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 
-/**
- * Adapts a locally-constructed request object to the WASM-generated InternalServiceRequest type.
- * The cast is needed because locally-built object literals are structurally compatible at runtime
- * but TypeScript cannot verify structural compatibility with WASM-generated nominal types.
- */
-export function toInternalServiceRequest(request: Record<string, unknown>): InternalServiceRequest {
-  return request as unknown as InternalServiceRequest;
-}
+// One implementation, in lib/wasm-request: this cast is where the app crosses
+// into the WASM nominal types, and a grep for it should find every crossing.
+export { toInternalServiceRequest } from '@/lib/wasm-request';
 
 // ============================================================================
 // Constants
 // ============================================================================
 
-export const STORAGE_KEY = 'citadel_group_conversations';
+export const STORAGE_KEY: "citadel_group_conversations" = 'citadel_group_conversations';

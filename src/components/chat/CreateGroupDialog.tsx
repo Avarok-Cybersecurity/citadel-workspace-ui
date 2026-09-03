@@ -19,20 +19,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { debugLog } from '@/lib/debug-config';
-import { MembersTable, getAvatarColor } from './CreateGroupMembersTable';
+import { MembersTable } from './CreateGroupMembersTable';
+import { avatarColor } from '@/lib/avatar-color';
 import type { AvailablePeer, SelectedMember, CreateGroupDialogProps } from './create-group-types';
+import type { GroupRole } from '@/types/group-permissions';
 
 // Re-export types for backward compatibility
 export type { AvailablePeer, SelectedMember, CreateGroupDialogProps };
 
-const AVATAR_COLORS_LENGTH = 7;
+const AVATAR_COLORS_LENGTH: number = 7;
 
 export function CreateGroupDialog({
   open,
@@ -40,9 +38,9 @@ export function CreateGroupDialog({
   availablePeers,
   onCreateGroup,
   currentUsername,
-}: CreateGroupDialogProps) {
-  const defaultRoles = useMemo(() => createDefaultRoles(), []);
-  const memberRole = useMemo(
+}: CreateGroupDialogProps): JSX.Element {
+  const defaultRoles: GroupRole[] = useMemo((): GroupRole[] => createDefaultRoles(), []);
+  const memberRole: GroupRole | undefined = useMemo(
     () => getDefaultRole({ roles: defaultRoles, defaultRoleId: '' }),
     [defaultRoles]
   );
@@ -50,20 +48,21 @@ export function CreateGroupDialog({
   const [groupName, setGroupName] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<SelectedMember[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [showPeerSelector, setShowPeerSelector] = useState(false);
 
-  const displayName = groupName.trim() || `${currentUsername}'s Group`;
+  const displayName: string = groupName.trim() || `${currentUsername}'s Group`;
 
-  const unselectedPeers = useMemo(() => {
-    const selectedCids = new Set(selectedMembers.map(m => m.cid));
+  const unselectedPeers: AvailablePeer[] = useMemo(() => {
+    const selectedCids: Set<string> = new Set(selectedMembers.map(m => m.cid));
     return availablePeers.filter(p => !selectedCids.has(p.cid));
   }, [availablePeers, selectedMembers]);
 
-  const assignableRoles = useMemo(() => {
+  const assignableRoles: GroupRole[] = useMemo((): GroupRole[] => {
     return defaultRoles.filter(r => !r.isBuiltIn);
   }, [defaultRoles]);
 
-  const handleAddMember = useCallback(
+  const handleAddMember: (peer: AvailablePeer) => void = useCallback(
     (peer: AvailablePeer) => {
       const newMember: SelectedMember = {
         cid: peer.cid,
@@ -76,19 +75,20 @@ export function CreateGroupDialog({
     [memberRole, defaultRoles]
   );
 
-  const handleRemoveMember = useCallback((cid: string) => {
+  const handleRemoveMember: (cid: string) => void = useCallback((cid: string): void => {
     setSelectedMembers(prev => prev.filter(m => m.cid !== cid));
   }, []);
 
-  const handleRoleChange = useCallback((cid: string, roleId: string) => {
+  const handleRoleChange: (cid: string, roleId: string) => void = useCallback((cid: string, roleId: string): void => {
     setSelectedMembers(prev =>
       prev.map(m => (m.cid === cid ? { ...m, roleId } : m))
     );
   }, []);
 
-  const handleCreate = useCallback(async () => {
+  const handleCreate: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (selectedMembers.length === 0) return;
     setIsCreating(true);
+    setCreateError(null);
     try {
       await onCreateGroup(displayName, selectedMembers);
       setGroupName('');
@@ -96,28 +96,34 @@ export function CreateGroupDialog({
       onOpenChange(false);
     } catch (error) {
       debugLog('CreateGroupDialog', 'Failed to create group:', error);
+      // Shown, not only logged. debugLog compiles to a no-op outside dev, so
+      // this failure left the dialog open with the form intact and NOTHING
+      // said — the user cannot tell a failure from a slow request, and clicks
+      // Create again.
+      setCreateError('Could not create the group. Check your connection and try again.');
     } finally {
       setIsCreating(false);
     }
   }, [displayName, selectedMembers, onCreateGroup, onOpenChange]);
 
-  const handleClose = useCallback(() => {
-    if (!isCreating) {
-      setGroupName('');
-      setSelectedMembers([]);
-      onOpenChange(false);
-    }
-  }, [isCreating, onOpenChange]);
+  // No `if (!isCreating)` guard: onOpenChange is Radix's SINGLE dismissal
+  // channel, so guarding it disables the X, Escape and outside-click together,
+  // while the submit button is disabled too. See shared/confirm-dialog.
+  const handleClose: () => void = useCallback((): void => {
+    setGroupName('');
+    setSelectedMembers([]);
+    onOpenChange(false);
+  }, [onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px] bg-[#1C1D28] border-[#2D3548] text-white">
+      <DialogContent className="sm:max-w-[500px] bg-background border-border text-foreground">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-white">
-            <Users className="h-5 w-5 text-[#6E59A5]" />
+          <DialogTitle className="flex items-center gap-2 text-foreground">
+            <Users className="h-5 w-5 text-primary-accent" />
             Create New Group
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-muted-foreground">
             Create a group chat with your P2P peers.
           </DialogDescription>
         </DialogHeader>
@@ -125,17 +131,18 @@ export function CreateGroupDialog({
         <div className="space-y-6 py-4">
           {/* Group Name Section */}
           <div className="space-y-2">
-            <Label htmlFor="groupName" className="text-sm text-gray-300">
+            <Label htmlFor="groupName" className="text-sm text-foreground/80">
               Group Name
             </Label>
             <Input
               id="groupName"
+              data-testid="create-group-name"
               placeholder={`${currentUsername}'s Group`}
               value={groupName}
               onChange={e => setGroupName(e.target.value)}
-              className="bg-[#262C4A] border-[#3D4663] text-white placeholder:text-gray-500"
+              className="bg-surface border-border text-foreground placeholder:text-muted-foreground"
             />
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               Leave empty to use default: "{currentUsername}'s Group"
             </p>
           </div>
@@ -143,26 +150,27 @@ export function CreateGroupDialog({
           {/* Members Section */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm text-gray-300">Members</Label>
+              <Label className="text-sm text-foreground/80">Members</Label>
               <Popover open={showPeerSelector} onOpenChange={setShowPeerSelector}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
+                    data-testid="create-group-add-member"
                     disabled={unselectedPeers.length === 0}
-                    className="h-8 bg-[#262C4A] border-[#3D4663] text-white hover:bg-[#3D4663]"
+                    className="h-8 bg-surface border-border text-foreground hover:bg-border"
                   >
                     <Plus className="h-4 w-4 mr-1" />
                     Add Member
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="w-64 p-2 bg-[#1C1D28] border-[#2D3548]"
+                  className="w-64 p-2 bg-background border-border"
                   align="end"
                 >
                   <ScrollArea className="max-h-48">
                     {unselectedPeers.length === 0 ? (
-                      <p className="text-sm text-gray-500 p-2">
+                      <p className="text-sm text-muted-foreground p-2">
                         No more peers available
                       </p>
                     ) : (
@@ -170,24 +178,25 @@ export function CreateGroupDialog({
                         {unselectedPeers.map(peer => (
                           <button
                             key={peer.cid}
+                            data-testid={`create-group-peer-${peer.username}`}
                             onClick={() => handleAddMember(peer)}
-                            className="w-full flex items-center gap-2 p-2 rounded hover:bg-[#262C4A] text-left"
+                            className="w-full flex items-center gap-2 p-2 rounded hover:bg-surface text-left"
                           >
                             <div
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-white"
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-foreground"
                               style={{
-                                backgroundColor: getAvatarColor(
+                                backgroundColor: avatarColor(
                                   parseInt(peer.cid) % AVATAR_COLORS_LENGTH
                                 ),
                               }}
                             >
                               {peer.username[0]?.toUpperCase() || '?'}
                             </div>
-                            <span className="text-sm text-white flex-1 truncate">
+                            <span className="text-sm text-foreground flex-1 truncate">
                               {peer.username}
                             </span>
                             {peer.isOnline && (
-                              <span className="w-2 h-2 rounded-full bg-green-500" />
+                              <span className="w-2 h-2 rounded-full bg-success" />
                             )}
                           </button>
                         ))}
@@ -208,19 +217,26 @@ export function CreateGroupDialog({
           </div>
         </div>
 
+        {createError && (
+          <p role="alert" className="px-1 text-sm text-destructive-emphasis">
+            {createError}
+          </p>
+        )}
+
         <DialogFooter className="gap-2">
+          {/* Backing out of an in-flight create is always legitimate. */}
           <Button
             variant="outline"
             onClick={handleClose}
-            disabled={isCreating}
-            className="bg-transparent border-[#3D4663] text-white hover:bg-[#262C4A]"
+            className="bg-transparent border-border text-foreground hover:bg-surface"
           >
             Cancel
           </Button>
           <Button
             onClick={handleCreate}
+            data-testid="create-group-submit"
             disabled={selectedMembers.length === 0 || isCreating}
-            className="bg-[#6E59A5] hover:bg-[#5D4A94] text-white"
+            className="bg-primary text-primary-foreground"
           >
             {isCreating ? 'Creating...' : 'Create Group'}
           </Button>

@@ -1,117 +1,80 @@
 import { useState, useEffect } from 'react';
-import { Palette, Monitor, Type, Layout } from 'lucide-react';
+import { Monitor, Type, Layout } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
+import { ThemeSelector } from './ThemeSelector';
+import { WorkspaceAppearanceSection } from './WorkspaceAppearanceSection';
+import {
+  type AppearanceSettings,
+  loadAppearanceSettings,
+  saveAppearanceSettings,
+} from '@/lib/appearance-settings';
 
-const STORAGE_KEY = 'citadel:appearance-settings';
+/**
+ * Compact Mode and Group Messages used to sit here too. Neither had any
+ * consumer anywhere in the tree -- no `.compact-mode` rule existed, and the app
+ * has no message grouping to switch off -- so both were switches that moved and
+ * changed nothing. They are gone rather than left in place: a settings page
+ * where flipping a control does nothing visible is worse than a shorter one,
+ * because it teaches the user not to trust the controls that DO work.
+ */
 
-interface AppearanceSettings {
-  compactMode: boolean;
-  fontSize: number;
-  sidebarWidth: 'narrow' | 'default' | 'wide';
-  showAvatars: boolean;
-  animationsEnabled: boolean;
-  messageGrouping: boolean;
-}
+export function AppearanceSettingsTab(): JSX.Element {
+  const [settings, setSettings] = useState<AppearanceSettings>(loadAppearanceSettings);
 
-const defaultSettings: AppearanceSettings = {
-  compactMode: false,
-  fontSize: 14,
-  sidebarWidth: 'default',
-  showAvatars: true,
-  animationsEnabled: true,
-  messageGrouping: true,
-};
+  // Persisting and applying are the same act, and both live in the module that
+  // main.tsx also calls at boot -- which is what makes a choice survive a
+  // reload instead of lasting only as long as this tab is mounted.
+  useEffect(() => { saveAppearanceSettings(settings); }, [settings]);
 
-function loadSettings(): AppearanceSettings {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return { ...defaultSettings, ...JSON.parse(stored) };
-  } catch { /* ignore */ }
-  return defaultSettings;
-}
-
-function saveSettings(settings: AppearanceSettings) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  // Emit custom event so other components can react
-  window.dispatchEvent(new CustomEvent('appearance-settings-changed', { detail: settings }));
-}
-
-export function AppearanceSettingsTab() {
-  const [settings, setSettings] = useState<AppearanceSettings>(loadSettings);
-
-  useEffect(() => {
-    saveSettings(settings);
-    // Apply font size to root
-    document.documentElement.style.fontSize = `${settings.fontSize}px`;
-    // Apply compact mode
-    document.documentElement.classList.toggle('compact-mode', settings.compactMode);
-    // Apply animations
-    document.documentElement.classList.toggle('reduce-motion', !settings.animationsEnabled);
-  }, [settings]);
-
-  const update = <K extends keyof AppearanceSettings>(key: K, value: AppearanceSettings[K]) => {
+  const update = <K extends keyof AppearanceSettings>(key: K, value: AppearanceSettings[K]): void => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
   return (
     <div className="space-y-5">
+      <ThemeSelector />
+
+      {/* The workspace's colours sit beside the personal light/dark choice: this
+          is the one place a user asks "how does this look", and the adjacency
+          makes the split legible. */}
+      <WorkspaceAppearanceSection />
+
       {/* Display Density */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
-          <Layout className="h-4 w-4 text-purple-400" />
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
+          <Layout className="h-4 w-4 text-primary-accent" />
           Display
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
-            <Label className="text-sm font-medium">Compact Mode</Label>
-            <p className="text-xs text-gray-500">Reduce spacing between elements</p>
+            <Label htmlFor="show-avatars" className="text-sm font-medium">Show Avatars</Label>
+            <p className="text-xs text-muted-foreground">Display user avatars in messages and lists</p>
           </div>
-          <Switch
-            checked={settings.compactMode}
-            onCheckedChange={(v) => update('compactMode', v)}
-          />
-        </div>
-
-        <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
-          <div>
-            <Label className="text-sm font-medium">Show Avatars</Label>
-            <p className="text-xs text-gray-500">Display user avatars in messages and lists</p>
-          </div>
-          <Switch
+          <Switch id="show-avatars"
             checked={settings.showAvatars}
             onCheckedChange={(v) => update('showAvatars', v)}
-          />
-        </div>
-
-        <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
-          <div>
-            <Label className="text-sm font-medium">Group Messages</Label>
-            <p className="text-xs text-gray-500">Visually group consecutive messages from the same sender</p>
-          </div>
-          <Switch
-            checked={settings.messageGrouping}
-            onCheckedChange={(v) => update('messageGrouping', v)}
           />
         </div>
       </div>
 
       {/* Typography */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
-          <Type className="h-4 w-4 text-purple-400" />
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
+          <Type className="h-4 w-4 text-primary-accent" />
           Typography
         </div>
 
-        <div className="p-3 rounded-lg bg-[#1a1b26]/50 space-y-2">
+        <div className="p-3 rounded-lg bg-background/50 space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Font Size</Label>
-            <span className="text-xs text-gray-400">{settings.fontSize}px</span>
+            <Label htmlFor="font-size" className="text-sm font-medium">Font Size</Label>
+            <span className="text-xs text-muted-foreground">{settings.fontSize}px</span>
           </div>
-          <Slider
+          <Slider id="font-size"
+            label="Font size in pixels"
             value={[settings.fontSize]}
             onValueChange={([v]) => update('fontSize', v)}
             min={12}
@@ -124,22 +87,22 @@ export function AppearanceSettingsTab() {
 
       {/* Sidebar */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
-          <Monitor className="h-4 w-4 text-purple-400" />
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">
+          <Monitor className="h-4 w-4 text-primary-accent" />
           Layout
         </div>
 
-        <div className="p-3 rounded-lg bg-[#1a1b26]/50">
+        <div className="p-3 rounded-lg bg-background/50">
           <div className="flex items-center justify-between">
             <div>
-              <Label className="text-sm font-medium">Sidebar Width</Label>
-              <p className="text-xs text-gray-500">Adjust the navigation sidebar width</p>
+              <Label htmlFor="sidebar-width" className="text-sm font-medium">Sidebar Width</Label>
+              <p className="text-xs text-muted-foreground">Adjust the navigation sidebar width</p>
             </div>
             <Select
               value={settings.sidebarWidth}
               onValueChange={(v) => update('sidebarWidth', v as AppearanceSettings['sidebarWidth'])}
             >
-              <SelectTrigger className="w-28 h-8 bg-[#262C4A] border-[#3D4567] text-sm">
+              <SelectTrigger id="sidebar-width" className="w-28 h-8 bg-surface border-surface text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -151,12 +114,12 @@ export function AppearanceSettingsTab() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1b26]/50">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
-            <Label className="text-sm font-medium">Animations</Label>
-            <p className="text-xs text-gray-500">Enable smooth transitions and effects</p>
+            <Label htmlFor="animations" className="text-sm font-medium">Animations</Label>
+            <p className="text-xs text-muted-foreground">Enable smooth transitions and effects</p>
           </div>
-          <Switch
+          <Switch id="animations"
             checked={settings.animationsEnabled}
             onCheckedChange={(v) => update('animationsEnabled', v)}
           />

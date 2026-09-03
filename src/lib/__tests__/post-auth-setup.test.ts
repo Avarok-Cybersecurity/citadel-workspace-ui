@@ -15,7 +15,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Spies declared via `vi.hoisted` so they exist before `vi.mock` (which
 // is itself hoisted) evaluates its factory.
-const spies = vi.hoisted(() => {
+const spies: {
+  calls: { name: string; args: unknown[] }[];
+  setConnectionIdSpy: ReturnType<typeof vi.fn>;
+  loadWorkspaceSpy: ReturnType<typeof vi.fn>;
+  listNodesSpy: ReturnType<typeof vi.fn>;
+  listMembersSpy: ReturnType<typeof vi.fn>;
+  getTreeSchemaSpy: ReturnType<typeof vi.fn>;
+} = vi.hoisted(() => {
   const calls: { name: string; args: unknown[] }[] = [];
   return {
     calls,
@@ -27,6 +34,9 @@ const spies = vi.hoisted(() => {
     }),
     listNodesSpy: vi.fn(async () => {
       calls.push({ name: 'listNodes', args: [] });
+    }),
+    listMembersSpy: vi.fn(async () => {
+      calls.push({ name: 'listMembers', args: [] });
     }),
     getTreeSchemaSpy: vi.fn(async () => {
       calls.push({ name: 'getTreeSchema', args: [] });
@@ -40,6 +50,7 @@ vi.mock('@/lib/workspace-service', () => ({
     loadWorkspace: spies.loadWorkspaceSpy,
     listNodes: spies.listNodesSpy,
     getTreeSchema: spies.getTreeSchemaSpy,
+    listMembers: spies.listMembersSpy,
   },
 }));
 
@@ -50,12 +61,13 @@ describe('postAuthSetup', () => {
     spies.calls.length = 0;
     spies.setConnectionIdSpy.mockClear();
     spies.loadWorkspaceSpy.mockClear();
+    spies.listMembersSpy.mockClear();
     spies.listNodesSpy.mockClear();
     spies.getTreeSchemaSpy.mockClear();
   });
 
   it('runs the full sequence in order: setConnectionId → loadWorkspace → listNodes → getTreeSchema', async () => {
-    const cid = 42n;
+    const cid: bigint = 42n;
     await postAuthSetup(cid);
 
     expect(spies.calls.map(c => c.name)).toEqual([
@@ -63,6 +75,12 @@ describe('postAuthSetup', () => {
       'loadWorkspace',
       'listNodes',
       'getTreeSchema',
+      // The members, which is how this client learns its OWN role: the server
+      // promotes the first account to Admin on connect and the browser was
+      // reading role from a stored session record written once at registration.
+      // Nothing asked for the list at boot, so an administrator who never opened
+      // the members panel was shown a member's app.
+      'listMembers',
     ]);
     expect(spies.setConnectionIdSpy).toHaveBeenCalledWith(cid);
   });
@@ -73,6 +91,9 @@ describe('postAuthSetup', () => {
       'setConnectionId',
       'loadWorkspace',
       'listNodes',
+      // Skipping the tree schema does not skip the role: a caller that does not
+      // need entity types still needs to know whether it is an administrator.
+      'listMembers',
     ]);
     expect(spies.getTreeSchemaSpy).not.toHaveBeenCalled();
   });

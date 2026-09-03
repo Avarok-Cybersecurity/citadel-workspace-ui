@@ -1,8 +1,10 @@
 /**
  * Message Pagination Store
  *
- * Handles persisting P2P messages to IndexedDB using a paginated format.
- * Messages are stored in pages to support lazy loading and efficient storage.
+ * Paginated P2P message persistence into the INTERNAL SERVICE's LocalDB, NOT
+ * browser IndexedDB (via message-page-operations -> sendLocalDB* ->
+ * LocalDBGetKV). "IndexedDB" would imply history survives on the browser alone;
+ * it needs the local agent. Fine with no internet, empty with no agent.
  *
  * Format:
  *   - Metadata: msgs_with_peer_{CID}_metadata
@@ -11,77 +13,52 @@
  */
 
 import { websocketService } from '../websocket-service';
+import { loadAllMetadata } from './load-all-metadata';
 import type {
   ConversationMetadata,
   MessagePage,
   P2PMessage,
 } from './p2p-types';
+import { MESSAGES_PER_PAGE } from './p2p-types';
 import {
-  MESSAGES_PER_PAGE,
-  PAGINATED_PREFIX,
-} from './p2p-types';
+  findMessageInPages,
+  findUnreadFromPeer,
+  updateMessageInPages,
+  removeMessageFromPages,
+  updatePeerUsernameInMetadata,
+  updateUnreadCount,
+} from './message-metadata-mutations';
 import {
-  loadMetadataByKey,
   loadMetadata,
+  tryLoadMetadata,
   saveMetadata,
   loadMessagePage,
+  tryLoadMessagePage,
   saveMessagePage,
-  deleteConversationPages,
 } from './message-page-operations';
+import { deleteConversationPages, type DeleteScope } from './message-page-delete';
 import { debugLog } from '@/lib/debug-config';
+import { withPeerLock } from './peer-write-lock';
+import { placeInPage, recordAppend } from './message-page-append';
+import { isGenuinelyAbsent } from '@/lib/storage/absence';
 
 export class MessagePaginationStore {
-  private readonly dbPrefix = 'p2p_messages';
+  private readonly dbPrefix: "p2p_messages" = 'p2p_messages';
 
   public async deleteOldFormat(): Promise<void> {
     try {
-      const key = `${this.dbPrefix}_conversations`;
+      const key: string = `${this.dbPrefix}_conversations`;
       await websocketService.sendLocalDBDelete(0n, key);
       debugLog('MessagePaginationStore', '[P2P] Deleted old monolithic format');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (!errorMessage.includes('Key not found')) {
+      if (!isGenuinelyAbsent(error)) {
         debugLog('MessagePaginationStore', 'Failed to delete old format:', error);
       }
     }
   }
 
   public async loadAllMetadata(): Promise<ConversationMetadata[]> {
-    const results: ConversationMetadata[] = [];
-
-    try {
-      const allKeys = await websocketService.sendLocalDBListKeys(0n, `${PAGINATED_PREFIX}`);
-
-      if (!allKeys || allKeys.length === 0) {
-        debugLog('MessagePaginationStore', '[P2P] No paginated conversations found (fresh install)');
-        return results;
-      }
-
-      const metadataKeys = allKeys.filter((key: string) => key.endsWith('_metadata'));
-      debugLog('MessagePaginationStore', `[P2P] Found ${metadataKeys.length} conversation metadata keys`);
-
-      for (const key of metadataKeys) {
-        try {
-          const metadata = await loadMetadataByKey(key);
-          if (metadata) {
-            results.push(metadata);
-          }
-        } catch (e) {
-          debugLog('MessagePaginationStore', `Failed to load metadata for key ${key}:`, e);
-        }
-      }
-
-      debugLog('MessagePaginationStore', `[P2P] Loaded ${results.length} conversation(s) from paginated storage`);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('Key not found') || errorMessage.includes('No keys found')) {
-        debugLog('MessagePaginationStore', '[P2P] No paginated conversations found');
-      } else {
-        debugLog('MessagePaginationStore', 'Failed to load metadata:', error);
-      }
-    }
-
-    return results;
+    return loadAllMetadata();
   }
 
   public async loadMetadata(peerCid: bigint): Promise<ConversationMetadata | null> {
@@ -101,17 +78,45 @@ export class MessagePaginationStore {
   }
 
   public async appendMessageToPage(
+    peerCid: bigint, message: P2PMessage,
+    getCurrentCid: () => Promise<bigint | null>, getPeerUsername: () => string | undefined
+  ): Promise<void> {
+    return withPeerLock(peerCid, () =>
+      this.appendUnserialised(peerCid, message, getCurrentCid, getPeerUsername));
+  }
+  /**
+   * Whether this id is already on the newest page or the one before it.
+   *
+   * See the call site for why two pages and not one, and for what that bound
+   * does not cover.
+   */
+  private async alreadyStored(
+    peerCid: bigint,
+    latestPage: number,
+    currentPage: MessagePage,
+    messageId: string,
+  ): Promise<boolean> {
+    if (currentPage.messages.some((m) => m.id === messageId)) return true;
+    if (latestPage === 0) return false;
+    const previous: MessagePage | null = await tryLoadMessagePage(peerCid, latestPage - 1);
+    return previous?.messages.some((m) => m.id === messageId) ?? false;
+  }
+
+  private async appendUnserialised(
     peerCid: bigint,
     message: P2PMessage,
     getCurrentCid: () => Promise<bigint | null>,
     getPeerUsername: () => string | undefined
   ): Promise<void> {
-    let metadata = await loadMetadata(peerCid);
-    const isNewConversation = !metadata;
+    let metadata: ConversationMetadata | null = await loadMetadata(peerCid);
+    const isNewConversation: boolean = !metadata;
+
+    const ownerCid: bigint | null = await getCurrentCid();
 
     if (!metadata) {
       metadata = {
         peerCid,
+        ownerCid: ownerCid ?? undefined,
         peerUsername: getPeerUsername(),
         totalMessageCount: 0,
         oldestMessageTimestamp: message.timestamp,
@@ -124,7 +129,16 @@ export class MessagePaginationStore {
       };
     }
 
-    let currentPage = await loadMessagePage(peerCid, metadata.latestPage);
+    // Adopt an unstamped record the first time the account that is actually
+    // using it writes to it. Attribution by USE is the only signal available —
+    // the key carries no owner — and it is safe in the direction that matters:
+    // it can only ever move a record from "nobody may delete this" to "one
+    // specific account may".
+    if (metadata.ownerCid === undefined && ownerCid !== null) {
+      metadata.ownerCid = ownerCid;
+    }
+
+    let currentPage: MessagePage | null = await loadMessagePage(peerCid, metadata.latestPage);
     if (!currentPage) {
       currentPage = {
         peerCid,
@@ -135,6 +149,28 @@ export class MessagePaginationStore {
           maxTimestamp: message.timestamp
         }
       };
+    }
+
+    // The last gate before a duplicate becomes permanent. ILM can redeliver an
+    // inbound message after a reload (its delivered-set is memory-only), and the
+    // upstream in-memory dedup cannot see it — that window is capped at 100 and
+    // comes back EMPTY after a reload. A blind push wrote two copies into one
+    // page, and the render-side merge dedups ACROSS batches but not within one,
+    // so the pair rendered twice for ever.
+    //
+    // BEFORE the rollover below, not after. Rolling over replaces `currentPage`
+    // with a fresh empty one, so a duplicate arriving exactly as a page filled
+    // was compared against nothing and written into the new page while its twin
+    // sat on the page that had just been closed.
+    //
+    // And against the previous page as well: the redelivery window is whatever
+    // ILM still holds in its persisted inbound map at restart, which does not
+    // have to fall inside the newest 50. Two pages is a bound, not a proof —
+    // a redelivery older than that is still stored twice, which is no worse
+    // than before and is stated here rather than assumed away.
+    if (await this.alreadyStored(peerCid, metadata.latestPage, currentPage, message.id)) {
+      debugLog('MessagePaginationStore', `[P2P] Skipping duplicate message ${message.id}`);
+      return;
     }
 
     if (currentPage.messages.length >= MESSAGES_PER_PAGE) {
@@ -153,79 +189,50 @@ export class MessagePaginationStore {
       debugLog('MessagePaginationStore', `[P2P] Created new page ${metadata.latestPage} for peer ${peerCid.toString().slice(0, 8)}...`);
     }
 
-    currentPage.messages.push(message);
-    currentPage.messages.sort((a, b) => a.timestamp - b.timestamp);
-    currentPage.pageTimestamps.minTimestamp = currentPage.messages[0].timestamp;
-    currentPage.pageTimestamps.maxTimestamp = currentPage.messages[currentPage.messages.length - 1].timestamp;
+    placeInPage(currentPage, message);
+    recordAppend(metadata, message, isNewConversation, await getCurrentCid());
 
-    metadata.totalMessageCount++;
-    metadata.newestMessageTimestamp = message.timestamp;
-    if (isNewConversation || message.timestamp < metadata.oldestMessageTimestamp) {
-      metadata.oldestMessageTimestamp = message.timestamp;
-    }
-    metadata.lastMessageIndex = Math.max(metadata.lastMessageIndex, message.index);
-    metadata.lastUpdated = Date.now();
-
-    const currentCid = await getCurrentCid();
-    if (message.senderCid !== currentCid && message.status === 'delivered') {
-      metadata.unreadCount++;
-    }
-
-    await Promise.all([
-      saveMessagePage(peerCid, metadata.latestPage, currentPage),
-      saveMetadata(peerCid, metadata)
-    ]);
+    // Page first, pointer last: two round-trips, no transaction, and
+    // `latestPage` is the only pointer to the page.
+    await saveMessagePage(peerCid, metadata.latestPage, currentPage);
+    await saveMetadata(peerCid, metadata);
   }
 
   public async loadLatestMessages(peerCid: bigint): Promise<P2PMessage[]> {
-    const metadata = await loadMetadata(peerCid);
+    const metadata: ConversationMetadata | null = await tryLoadMetadata(peerCid);
     if (!metadata) return [];
 
-    const latestPage = await loadMessagePage(peerCid, metadata.latestPage);
+    const latestPage: MessagePage | null = await tryLoadMessagePage(peerCid, metadata.latestPage);
     return latestPage?.messages || [];
   }
 
+  public async findUnreadFromPeer(peerCid: bigint): Promise<P2PMessage[]> {
+    return findUnreadFromPeer(peerCid);
+  }
+
+  public async findMessageInPages(peerCid: bigint, messageId: string): Promise<P2PMessage | null> {
+    return findMessageInPages(peerCid, messageId);
+  }
+
   public async updateMessageInPages(peerCid: bigint, messageId: string, updates: Partial<P2PMessage>): Promise<boolean> {
-    const metadata = await loadMetadata(peerCid);
-    if (!metadata) return false;
+    return withPeerLock(peerCid, () => updateMessageInPages(peerCid, messageId, updates));
+  }
 
-    for (let pageNum = metadata.latestPage; pageNum >= 0; pageNum--) {
-      const page = await loadMessagePage(peerCid, pageNum);
-      if (!page) continue;
-
-      const msgIndex = page.messages.findIndex(m => m.id === messageId);
-      if (msgIndex !== -1) {
-        page.messages[msgIndex] = { ...page.messages[msgIndex], ...updates };
-        await saveMessagePage(peerCid, pageNum, page);
-        return true;
-      }
-    }
-
-    return false;
+  public async removeMessageFromPages(peerCid: bigint, messageId: string): Promise<boolean> {
+    return withPeerLock(peerCid, () => removeMessageFromPages(peerCid, messageId));
   }
 
   public async updatePeerUsernameInMetadata(peerCid: bigint, username: string): Promise<void> {
-    const metadata = await loadMetadata(peerCid);
-    if (metadata) {
-      metadata.peerUsername = username;
-      metadata.lastUpdated = Date.now();
-      await saveMetadata(peerCid, metadata);
-    }
+    return withPeerLock(peerCid, () => updatePeerUsernameInMetadata(peerCid, username));
   }
 
   public async updateUnreadCount(peerCid: bigint, unreadCount: number): Promise<void> {
-    const metadata = await loadMetadata(peerCid);
-    if (metadata) {
-      metadata.unreadCount = unreadCount;
-      metadata.lastUpdated = Date.now();
-      await saveMetadata(peerCid, metadata);
-    }
+    return withPeerLock(peerCid, () => updateUnreadCount(peerCid, unreadCount));
   }
-
-  public async deleteConversationPages(peerCid: bigint): Promise<void> {
-    return deleteConversationPages(peerCid);
+  public async deleteConversationPages(peerCid: bigint, scope: DeleteScope): Promise<void> {
+    return deleteConversationPages(peerCid, scope);
   }
 }
 
 // Singleton export
-export const messagePaginationStore = new MessagePaginationStore();
+export const messagePaginationStore: MessagePaginationStore = new MessagePaginationStore();

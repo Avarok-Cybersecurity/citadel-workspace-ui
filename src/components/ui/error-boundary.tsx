@@ -25,16 +25,16 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('[ErrorBoundary] Caught error:', error, errorInfo);
     this.props.onError?.(error, errorInfo);
   }
 
-  handleRetry = () => {
+  handleRetry = (): void => {
     this.setState({ hasError: false, error: null });
   };
 
-  render() {
+  render(): string | number | boolean | JSX.Element | Iterable<ReactNode> | null | undefined {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
@@ -43,9 +43,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       // Default fallback UI
       return (
         <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-          <div className="w-16 h-16 mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
+          <div className="w-16 h-16 mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
             <svg
-              className="w-8 h-8 text-red-400"
+              className="w-8 h-8 text-destructive"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -58,15 +58,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-white mb-2">
+          <h3 className="text-lg font-semibold text-foreground mb-2">
             Something went wrong
           </h3>
-          <p className="text-gray-400 text-sm mb-4 max-w-md">
+          <p className="text-muted-foreground text-sm mb-4 max-w-md">
             {this.state.error?.message || 'An unexpected error occurred'}
           </p>
           <button
             onClick={this.handleRetry}
-            className="px-4 py-2 text-sm font-medium text-white bg-[#6E59A5] hover:bg-[#7c68d6] rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg transition-colors"
           >
             Try Again
           </button>

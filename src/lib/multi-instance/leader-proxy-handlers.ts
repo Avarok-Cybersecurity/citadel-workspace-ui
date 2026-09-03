@@ -7,7 +7,7 @@
  */
 
 import type { ProxyResponseData } from './outbound-queue-types';
-import type { WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
+import type { WorkspaceProtocolRequest, WorkspaceClient } from 'citadel-workspace-client-ts';
 import { debugLog } from '@/lib/debug-config';
 
 interface ProxyRequest {
@@ -24,7 +24,7 @@ type SendAckFn = (
   data?: ProxyResponseData
 ) => void;
 
-async function getWebSocketClient() {
+async function getWebSocketClient(): Promise<WorkspaceClient | null> {
   const { websocketService } = await import('../websocket-service');
   return websocketService.getClient();
 }
@@ -35,14 +35,14 @@ export async function handleWorkspaceRequestProxy(
 ): Promise<void> {
   debugLog('LeaderProxyHandlers', `Handling workspace request proxy from ${request.senderInstanceId}`);
 
-  const client = await getWebSocketClient();
+  const client: Awaited<ReturnType<typeof getWebSocketClient>> = await getWebSocketClient();
   if (!client) {
     debugLog('LeaderProxyHandlers', 'No WASM client available for workspace request');
     sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
     return;
   }
 
-  const cid = BigInt(request.payload.cid as string | number | bigint | boolean);
+  const cid: bigint = BigInt(request.payload.cid as string | number | bigint | boolean);
   await client.sendWorkspaceRequest(cid, request.payload.request as WorkspaceProtocolRequest);
 
   sendAck(request.senderInstanceId, request.requestId, 'processed');
@@ -55,7 +55,7 @@ export async function handleOpenMessengerProxy(
 ): Promise<void> {
   debugLog('LeaderProxyHandlers', `Handling openMessenger proxy from ${request.senderInstanceId}`);
 
-  const client = await getWebSocketClient();
+  const client: Awaited<ReturnType<typeof getWebSocketClient>> = await getWebSocketClient();
   if (!client) {
     debugLog('LeaderProxyHandlers', 'No WASM client available for openMessenger');
     sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
@@ -74,14 +74,14 @@ export async function handleEnsureMessengerProxy(
 ): Promise<void> {
   debugLog('LeaderProxyHandlers', `Handling ensureMessenger proxy from ${request.senderInstanceId}`);
 
-  const client = await getWebSocketClient();
+  const client: Awaited<ReturnType<typeof getWebSocketClient>> = await getWebSocketClient();
   if (!client) {
     debugLog('LeaderProxyHandlers', 'No WASM client available for ensureMessenger');
     sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
     return;
   }
 
-  const wasOpened = await client.ensureMessengerOpen(request.payload.cid as string);
+  const wasOpened: boolean = await client.ensureMessengerOpen(request.payload.cid as string);
 
   sendAck(request.senderInstanceId, request.requestId, 'processed', undefined, { wasOpened });
   debugLog('LeaderProxyHandlers', `ensureMessenger proxy processed for ${request.requestId}`);
@@ -93,14 +93,14 @@ export async function handleSendP2PMessageProxy(
 ): Promise<void> {
   debugLog('LeaderProxyHandlers', `Handling sendP2PMessage proxy from ${request.senderInstanceId}`);
 
-  const client = await getWebSocketClient();
+  const client: Awaited<ReturnType<typeof getWebSocketClient>> = await getWebSocketClient();
   if (!client) {
     debugLog('LeaderProxyHandlers', 'No WASM client available for sendP2PMessage');
     sendAck(request.senderInstanceId, request.requestId, 'error', 'No WASM client');
     return;
   }
 
-  const messageBytes = new Uint8Array(request.payload.message as ArrayLike<number>);
+  const messageBytes: Uint8Array<ArrayBuffer> = new Uint8Array(request.payload.message as ArrayLike<number>);
   await client.sendP2PMessageReliable(
     request.payload.localCid as string,
     request.payload.peerCid as string,

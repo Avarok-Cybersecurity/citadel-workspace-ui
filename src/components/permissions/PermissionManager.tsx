@@ -1,19 +1,22 @@
+import { PermissionMatrixTable } from './PermissionMatrixTable';
 import React, { useState, useEffect, useCallback } from 'react';
+import { describeFailure } from '@/lib/failure-message';
+import { useLoadedPermissions } from './use-loaded-permissions';
+import { PermissionMatrixNotice } from './PermissionMatrixNotice';
 import { Shield, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import WorkspaceService from '@/lib/workspace-service';
 import type { PermissionTS, UpdateOperationTS } from '@/types/workspace-protocol';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
-import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { getEntityMetadata } from '@/lib/entity-type-registry';
 import { debugLog } from '@/lib/debug-config';
+import type { PermissionsLoad } from '@/components/permissions/use-loaded-permissions';
+import type { PermissionDefinition } from '@/components/permissions/permission-constants';
 import {
   PERMISSION_CATEGORIES,
   ROLE_HIERARCHY,
-  getRoleDefaultPermissions,
-} from './permission-constants';
+  getRoleDefaultPermissions, roleColumnsFor } from './permission-constants';
 
 interface PermissionManagerProps {
   userId: string;
@@ -31,10 +34,13 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
   onClose,
 }) => {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Track permissions per role
+  // What the SERVER currently grants. The load used to be fired and its result
+  // discarded even on success, so the matrix below rendered client-side default
+  // constants and Save diffed against those — see use-loaded-permissions.
+  const load: PermissionsLoad = useLoadedPermissions(userId, domainId);
+
   const [rolePermissions, setRolePermissions] = useState<RolePermissions>(() => {
     const initial: RolePermissions = {};
     for (const role of ROLE_HIERARCHY) {
@@ -43,20 +49,26 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
     return initial;
   });
 
-  useEffect(() => {
-    runAsyncSetup(async () => {
-      try {
-        await WorkspaceService.getUserPermissions(userId, domainId);
-      } catch (error) {
-        debugLog('PermissionManager', 'Error loading permissions:', error);
-      }
-    });
-  }, [userId, domainId]);
+  // The set the diff is taken against. Held separately from the editable state
+  // so Save can compute what actually CHANGED rather than how the edits differ
+  // from a default nobody consulted.
+  const [serverPermissions, setServerPermissions] = useState<Set<string> | null>(null);
 
-  const togglePermission = useCallback((role: string, permissionId: string) => {
+  useEffect(() => {
+    if (load.status !== 'loaded') return;
+    setServerPermissions(load.permissions);
+    setRolePermissions((prev) => ({
+      ...prev,
+      // The user's own role is the row that describes THEM; the rest of the
+      // matrix stays at its defaults, which is what it has always shown.
+      [load.role]: new Set(load.permissions),
+    }));
+  }, [load]);
+
+  const togglePermission: (role: string, permissionId: string) => void = useCallback((role: string, permissionId: string): void => {
     setRolePermissions(prev => {
-      const next = { ...prev };
-      const perms = new Set(next[role]);
+      const next: { [x: string]: Set<string>; } = { ...prev };
+      const perms: Set<string> = new Set(next[role]);
       if (perms.has(permissionId)) {
         perms.delete(permissionId);
       } else {
@@ -67,52 +79,63 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
     });
   }, []);
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
+    // Refused rather than guessed. Saving without knowing what the server has
+    // is how the defaults got written over real permissions.
+    if (load.status !== 'loaded' || !serverPermissions) return;
+
     setIsSaving(true);
     try {
-      // Save permission overrides for each role
-      for (const role of ROLE_HIERARCHY) {
-        const currentPerms = rolePermissions[role.value];
-        const roleDefaults = new Set(getRoleDefaultPermissions(role.value));
-        const addedPermissions = [...currentPerms].filter(p => !roleDefaults.has(p));
-        const removedPermissions = [...roleDefaults].filter(p => !currentPerms.has(p));
+      // Diffed against what the SERVER has, for the row that describes this
+      // user. It used to diff every role's row against that role's client-side
+      // DEFAULTS and apply all four to this one user — so an admin who changed
+      // nothing still sent writes, and every write was relative to a baseline
+      // the server had never agreed to.
+      const edited: Set<string> = rolePermissions[load.role] ?? new Set<string>();
+      const addedPermissions: string[] = [...edited].filter((p) => !serverPermissions.has(p));
+      const removedPermissions: string[] = [...serverPermissions].filter((p) => !edited.has(p));
 
-        if (addedPermissions.length > 0) {
-          await WorkspaceService.updateMemberPermissions(
-            userId, domainId, addedPermissions as PermissionTS[], 'Add' as UpdateOperationTS
-          );
-        }
-        if (removedPermissions.length > 0) {
-          await WorkspaceService.updateMemberPermissions(
-            userId, domainId, removedPermissions as PermissionTS[], 'Remove' as UpdateOperationTS
-          );
-        }
+      if (addedPermissions.length > 0) {
+        await WorkspaceService.updateMemberPermissions(
+          userId, domainId, addedPermissions as PermissionTS[], 'Add' as UpdateOperationTS
+        );
+      }
+      if (removedPermissions.length > 0) {
+        await WorkspaceService.updateMemberPermissions(
+          userId, domainId, removedPermissions as PermissionTS[], 'Remove' as UpdateOperationTS
+        );
       }
 
       toastSuccess(toast, "Permissions Updated", "Permissions saved successfully.");
       if (onClose) onClose();
     } catch (error) {
       debugLog('PermissionManager', 'Error saving permissions:', error);
-      toastError(toast, "Error", "Failed to update permissions. Please try again.");
+      toastError(toast, "Error", describeFailure(error, "Failed to update permissions. Please try again."));
     } finally {
       setIsSaving(false);
     }
   };
 
-  const DomainIcon = getEntityMetadata(domainType).icon;
-  const allPermissions = Object.entries(PERMISSION_CATEGORIES);
+  // The member's own role always gets a column, even when it is not one of the
+  // four in ROLE_HIERARCHY — Save applies that row and no other, so without it
+  // every edit lands somewhere Save never reads. See `roleColumnsFor`.
+  const roleColumns: { value: string; label: string; color: string; }[] =
+    roleColumnsFor(load.status === 'loaded' ? load.role : undefined);
+
+  const DomainIcon: React.ComponentType<{ className?: string; }> = getEntityMetadata(domainType).icon;
+  const allPermissions: [string, PermissionDefinition[]][] = Object.entries(PERMISSION_CATEGORIES);
 
   return (
-    <div className="bg-[#1C1D28] border border-[#2D3548] rounded-xl shadow-2xl shadow-black/40 max-h-[85vh] flex flex-col overflow-hidden">
+    <div className="bg-background border border-border rounded-xl shadow-2xl shadow-black/40 max-h-[85vh] min-w-0 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-5 border-b border-[#2D3548] flex-shrink-0">
+      <div className="px-6 py-5 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
-            <Shield className="h-4.5 w-4.5 text-purple-400" />
+          <div className="w-9 h-9 rounded-lg bg-primary-accent/10 flex items-center justify-center">
+            <Shield className="h-4.5 w-4.5 text-primary-accent" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Permission Manager</h2>
-            <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+            <h2 className="text-lg font-bold text-foreground">Permission Manager</h2>
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
               <DomainIcon className="h-3 w-3" />
               {getEntityMetadata(domainType).label} permissions
             </p>
@@ -120,94 +143,34 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
         </div>
       </div>
 
-      {/* Matrix Table */}
-      <div className="flex-1 overflow-auto min-h-0">
-        <table className="w-full border-collapse">
-          {/* Role column headers */}
-          <thead className="sticky top-0 z-10 bg-[#1C1D28]">
-            <tr>
-              <th className="text-left text-[11px] font-semibold tracking-wider uppercase text-gray-500 px-6 py-3 w-[200px] border-b border-[#2D3548]">
-                Permission
-              </th>
-              {ROLE_HIERARCHY.map(role => (
-                <th
-                  key={role.value}
-                  className="text-center px-3 py-3 border-b border-[#2D3548] min-w-[90px]"
-                >
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-gray-300">
-                    <div className={`w-1.5 h-1.5 rounded-full ${role.color}`} />
-                    {role.label}
-                  </span>
-                </th>
-              ))}
-            </tr>
-          </thead>
+      <PermissionMatrixNotice load={load} />
 
-          <tbody>
-            {allPermissions.map(([category, permissions]) => (
-              <React.Fragment key={category}>
-                {/* Category header row */}
-                <tr>
-                  <td
-                    colSpan={ROLE_HIERARCHY.length + 1}
-                    className="px-6 pt-4 pb-1.5"
-                  >
-                    <span className="text-[11px] font-semibold tracking-wider uppercase text-purple-400">
-                      {category}
-                    </span>
-                  </td>
-                </tr>
-
-                {/* Permission rows */}
-                {permissions.map((permission, idx) => (
-                  <tr
-                    key={permission.id}
-                    className={`group hover:bg-purple-500/[0.03] transition-colors ${
-                      idx === permissions.length - 1 ? '' : ''
-                    }`}
-                  >
-                    <td className="px-6 py-2">
-                      <span className="text-sm text-gray-300">{permission.label}</span>
-                    </td>
-                    {ROLE_HIERARCHY.map(role => {
-                      const isChecked = rolePermissions[role.value]?.has(permission.id) ?? false;
-                      return (
-                        <td key={role.value} className="text-center px-3 py-2">
-                          <div className="flex items-center justify-center">
-                            <Checkbox
-                              checked={isChecked}
-                              onCheckedChange={() => togglePermission(role.value, permission.id)}
-                              className="h-4 w-4 border-[#3B3D57] data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
-                            />
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <PermissionMatrixTable
+        allPermissions={allPermissions}
+        rolePermissions={rolePermissions}
+        togglePermission={togglePermission}
+        roleColumns={roleColumns}
+      />
 
       {/* Footer */}
-      <div className="flex-shrink-0 flex items-center justify-end px-6 py-4 border-t border-[#2D3548]">
+      <div className="flex-shrink-0 flex items-center justify-end px-6 py-4 border-t border-border">
         <div className="flex gap-2">
           {onClose && (
             <Button
               variant="ghost"
               onClick={onClose}
               disabled={isSaving}
-              className="text-gray-400 hover:text-white hover:bg-transparent h-9 text-sm"
+              className="text-muted-foreground hover:text-foreground hover:bg-transparent h-9 text-sm"
             >
               Cancel
             </Button>
           )}
           <Button
             onClick={handleSave}
-            disabled={isSaving}
-            className="bg-purple-600 hover:bg-purple-500 text-white h-9 text-sm rounded-lg shadow-lg shadow-purple-500/20 gap-2 px-5"
+            // Disabled until the server's answer is in. A matrix showing
+            // defaults is not something to save.
+            disabled={isSaving || load.status !== 'loaded'}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 text-sm rounded-lg shadow-lg shadow-primary-accent/20 gap-2 px-5"
           >
             {isSaving ? (
               <>

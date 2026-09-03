@@ -26,9 +26,12 @@ import type { QueuedMessage, AckResult } from './outbound-queue-types';
 export type { QueuedMessage, AckResult, ProxyResponseData } from './outbound-queue-types';
 export { isEnsureMessengerOpenResponse } from './outbound-queue-types';
 
-const ACK_TIMEOUT_MS = TIMEOUT.SERVER_REQUEST_MS;
-const MAX_RETRIES = 3;
-const CHECK_INTERVAL_MS = 1000;
+// Deliberately shorter than sendToLeader's 30s: this deadline also bounds
+// giving up, so matching it turns a dead leader into a 90s hang. Duplicate
+// execution is prevented at the leader (inFlight). ROBUSTNESS round 153.
+const ACK_TIMEOUT_MS: number = TIMEOUT.SERVER_REQUEST_MS;
+const MAX_RETRIES: number = 3;
+const CHECK_INTERVAL_MS: number = 1000;
 
 class OutboundQueue extends PollingService {
   private static instance: OutboundQueue;
@@ -62,7 +65,20 @@ class OutboundQueue extends PollingService {
     });
   }
 
+  /** Nothing to time out means nothing to poll for. */
+  private stopIfIdle(): void {
+    if (this.queue.size === 0 && this.isPolling) this.stopPolling();
+  }
+
+  /**
+   * Arm the timeout checker. The Timeout/Retry contract at the top of this file
+   * does not happen without it — and it had no caller anywhere in production,
+   * so `handleTimeout`, `MAX_RETRIES` and `outbound-failed` were unreachable
+   * code behind a written promise. `enqueue` arms it now, so it cannot be
+   * forgotten again.
+   */
   start(): void {
+    if (this.isPolling) return;
     this.startPolling();
     debugLog('OutboundQueue', '[OutboundQueue] Started timeout checker');
   }
@@ -73,7 +89,7 @@ class OutboundQueue extends PollingService {
   }
 
   enqueue(payload: unknown, requestId?: string): string {
-    const id = requestId || crypto.randomUUID();
+    const id: string = requestId || crypto.randomUUID();
 
     const message: QueuedMessage = {
       requestId: id,
@@ -84,13 +100,15 @@ class OutboundQueue extends PollingService {
     };
 
     this.queue.set(id, message);
+    // Self-arming — see `start()`.
+    if (!this.isPolling) this.start();
     debugLog('OutboundQueue', `[OutboundQueue] Enqueued message: ${id} (queue size: ${this.queue.size})`);
 
     return id;
   }
 
   acknowledge(requestId: string, result: AckResult): void {
-    const message = this.queue.get(requestId);
+    const message: QueuedMessage | undefined = this.queue.get(requestId);
 
     if (!message) {
       debugLog('OutboundQueue', `[OutboundQueue] ACK for unknown requestId: ${requestId}`);
@@ -102,8 +120,9 @@ class OutboundQueue extends PollingService {
     }
 
     this.queue.delete(requestId);
+    this.stopIfIdle();
 
-    const latency = Date.now() - message.timestamp;
+    const latency: number = Date.now() - message.timestamp;
     debugLog('OutboundQueue', `[OutboundQueue] ACK received: ${requestId} (status: ${result.status}, latency: ${latency}ms)`);
 
     if (result.status === 'error') {
@@ -121,11 +140,12 @@ class OutboundQueue extends PollingService {
   }
 
   remove(requestId: string): void {
-    const message = this.queue.get(requestId);
+    const message: QueuedMessage | undefined = this.queue.get(requestId);
     if (message?.timeoutId) {
       clearTimeout(message.timeoutId);
     }
     this.queue.delete(requestId);
+    this.stopIfIdle();
   }
 
   getPending(): QueuedMessage[] {
@@ -133,17 +153,17 @@ class OutboundQueue extends PollingService {
   }
 
   getTimedOut(): QueuedMessage[] {
-    const now = Date.now();
+    const now: number = Date.now();
     return Array.from(this.queue.values()).filter(
       (msg) => now - msg.timestamp > ACK_TIMEOUT_MS
     );
   }
 
   private checkTimeouts(): void {
-    const now = Date.now();
+    const now: number = Date.now();
 
     for (const [requestId, message] of this.queue) {
-      const elapsed = now - message.timestamp;
+      const elapsed: number = now - message.timestamp;
 
       if (elapsed > ACK_TIMEOUT_MS) {
         this.handleTimeout(requestId, message);
@@ -156,6 +176,7 @@ class OutboundQueue extends PollingService {
       debugLog('OutboundQueue', `Max retries exceeded for ${requestId}, giving up`);
 
       this.queue.delete(requestId);
+    this.stopIfIdle();
 
       eventEmitter.emit('outbound-failed', {
         requestId,
@@ -196,11 +217,11 @@ class OutboundQueue extends PollingService {
   }
 
   getStats(): { size: number; oldestMs: number | null } {
-    const now = Date.now();
+    const now: number = Date.now();
     let oldestMs: number | null = null;
 
     for (const message of this.queue.values()) {
-      const age = now - message.timestamp;
+      const age: number = now - message.timestamp;
       if (oldestMs === null || age > oldestMs) {
         oldestMs = age;
       }
@@ -225,5 +246,5 @@ class OutboundQueue extends PollingService {
   }
 }
 
-export const outboundQueue = OutboundQueue.getInstance();
+export const outboundQueue: OutboundQueue = OutboundQueue.getInstance();
 export { OutboundQueue };

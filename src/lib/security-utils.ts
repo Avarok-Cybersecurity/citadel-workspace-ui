@@ -92,7 +92,7 @@ export function normalizeHeaderObfuscatorSettings(
     }
 
     // Record<string, string> case like { EnabledWithKey: "12345" }
-    const record = settings as Record<string, string>;
+    const record: Record<string, string> = settings as Record<string, string>;
     if (record.EnabledWithKey) {
       return { EnabledWithKey: parseInt(record.EnabledWithKey, 10) };
     }

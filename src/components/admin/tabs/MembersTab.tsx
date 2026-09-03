@@ -1,4 +1,8 @@
 import { useState, useEffect } from 'react';
+import { isAdminRole } from '@/lib/role-predicate';
+import { describeFailure } from '@/lib/failure-message';
+import { isForDomain } from '@/lib/workspace-events/is-for-domain';
+import { useMemberAdminActions } from './use-member-admin-actions';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -7,138 +11,99 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ConfirmDeleteDialog } from '@/components/shared/ConfirmDeleteDialog';
 import { useToast } from '@/hooks/use-toast';
 import { AdminTabProps, MemberData, UserRole, USER_ROLES } from '../types';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '@/lib/workspace-service';
+import { workspaceEvents, type MembersPayload } from '@/lib/workspace-events';
 import { PermissionManager } from '@/components/permissions/PermissionManager';
 import { Loader2, Shield } from 'lucide-react';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 import { debugLog } from '@/lib/debug-config';
 import { MemberRow, ROLE_COLORS } from './MemberRow';
 
-export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
-  const { state } = useWorkspace();
+export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTabProps): JSX.Element {
   const { toast } = useToast();
+  const deadlineKey: string = `admin-members:${entityId}`; // per entity: modals must not clash
   const [members, setMembers] = useState<MemberData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedMember, setSelectedMember] = useState<MemberData | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<MemberData | null>(null);
-  const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     runAsyncSetup(loadMembers);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityType, entityId]);
 
-  const loadMembers = async () => {
+  // listMembers() dispatches a request and returns void; the result arrives as a
+  // `members:loaded` event. This used to `await` that call and branch on the
+  // return value, with a comment noting the branch was dead — so it always fell
+  // through to a fallback over state.members, which is empty here, and the tab
+  // reported "No members found" no matter who was in the workspace. Subscribing
+  // is what MembersSection in the sidebar already does; this now matches it.
+  useEffect(() => {
+    const handleMembersLoaded = (payload: MembersPayload): void => {
+      if (!payload.members) return;
+      // Someone else's domain, arriving while this tab is open, used to render
+      // here -- and the role changes and removals below would then name THIS
+      // entity with users taken from that list.
+      if (!isForDomain(payload.domainId, entityId)) return;
+      setMembers(
+        payload.members.map((m) => ({
+          userId: m.id,
+          username: m.username,
+          name: m.displayName,
+          avatarUrl: m.avatarUrl,
+          role: (m.role ?? 'Member') as UserRole,
+        }))
+      );
+      cancelLoadingDeadline(deadlineKey);
+      setLoading(false);
+    };
+    // Return the unsubscribe — see use-domain-members.ts for why the async
+    // wrapper that used to swallow it leaked a listener per tab visit.
+    return workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded);
+  }, [deadlineKey, entityId]);
+
+  const loadMembers = async (): Promise<void> => {
     setLoading(true);
+    // listMembers resolves on SEND and loading was cleared only by the success
+    // event, so a refusal left the panel spinning (useMemberEventSetup has had this).
+    armLoadingDeadline(deadlineKey, () => setLoading(false));
     try {
-      const domainId = entityId;
-
-      // listMembers() is fire-and-forget (Promise<void>); response below is always void.
-      // Members load asynchronously via workspace events. This branch is dead code.
-      const response: unknown = await WorkspaceService.listMembers(domainId);
-
-      if (response && typeof response === 'object' && 'ListMembers' in response) {
-        const resp = response as { ListMembers: { members: Array<{ user_id: string; username?: string; name?: string; avatar_url?: string; role?: string }> } };
-        const memberList: MemberData[] = resp.ListMembers.members.map((m) => ({
-          userId: m.user_id,
-          username: m.username || m.user_id,
-          name: m.name,
-          avatarUrl: m.avatar_url,
-          role: m.role as UserRole,
-        }));
-        setMembers(memberList);
-      } else {
-        // Fallback to workspace members from state
-        if (state.members && Object.keys(state.members).length > 0) {
-          const memberList: MemberData[] = Object.values(state.members).map((m) => ({
-            userId: m.id,
-            username: m.username,
-            name: m.displayName,
-            avatarUrl: m.avatarUrl,
-            role: (m.role ?? 'Member') as UserRole,
-          }));
-          setMembers(memberList);
-        }
-      }
+      await WorkspaceService.listMembers(entityId);
     } catch (error) {
-      debugLog('MembersTab', 'Failed to load members:', error);
+      debugLog('MembersTab', 'Failed to request members:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load members',
+        description: describeFailure(error, 'Failed to load members'),
         variant: 'destructive',
       });
-    } finally {
+      cancelLoadingDeadline(deadlineKey);
       setLoading(false);
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: UserRole) => {
-    setUpdatingRoles(prev => new Set(prev).add(userId));
-    try {
-      await WorkspaceService.updateMemberRole(userId, newRole);
+  const { updatingRoles, changeRole, removeMember } = useMemberAdminActions(entityId, setMembers);
 
-      setMembers(prev =>
-        prev.map(m =>
-          m.userId === userId ? { ...m, role: newRole } : m
-        )
-      );
+  const handleRoleChange: (userId: string, newRole: UserRole) => Promise<void> = changeRole;
 
-      toast({
-        title: 'Role Updated',
-        description: `Member role updated to ${newRole}`,
-        className: 'bg-[#232536] border-purple-800 text-purple-200',
-      });
-    } catch (error) {
-      debugLog('MembersTab', 'Failed to update role:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update member role',
-        variant: 'destructive',
-      });
-    } finally {
-      setUpdatingRoles(prev => {
-        const next = new Set(prev);
-        next.delete(userId);
-        return next;
-      });
-    }
-  };
-
-  const handleRemoveMember = async () => {
+  const handleRemoveMember = async (): Promise<void> => {
     if (!memberToRemove) return;
-
     try {
-      await WorkspaceService.removeMember(memberToRemove.userId, entityId);
-
-      setMembers(prev => prev.filter(m => m.userId !== memberToRemove.userId));
-
-      toast({
-        title: 'Member Removed',
-        description: `${memberToRemove.name || memberToRemove.username} has been removed`,
-        className: 'bg-[#232536] border-purple-800 text-purple-200',
-      });
-    } catch (error) {
-      debugLog('MembersTab', 'Failed to remove member:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to remove member',
-        variant: 'destructive',
-      });
+      await removeMember(memberToRemove);
     } finally {
       setMemberToRemove(null);
     }
   };
 
-  const handleAdvancedPermissions = (member: MemberData) => {
+  const handleAdvancedPermissions = (member: MemberData): void => {
     setSelectedMember(member);
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8" data-testid="members-tab-loading">
-        <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary-accent" />
       </div>
     );
   }
@@ -147,15 +112,20 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
   if (showAdvanced && selectedMember) {
     return (
       <div className="space-y-4" data-testid="members-advanced-permissions">
-        <div className="flex items-center justify-between">
-          <h3 className="text-white font-medium">
+        {/* Stacks below `sm`, and the name breaks rather than pushing.
+            A generated handle beside a button that will not shrink made this row
+            370px wide inside a 341px dialog — the panel then scrolled sideways
+            and took the permission matrix's label column off the left edge with
+            it. The matrix itself already fits; this header was the overhang. */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <h3 className="text-foreground font-medium min-w-0 break-all sm:truncate">
             Permissions for {selectedMember.name || selectedMember.username}
           </h3>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setSelectedMember(null)}
-            className="border-gray-600 text-white hover:bg-[#232536]"
+            className="border-border text-foreground hover:bg-card shrink-0 self-end sm:self-auto"
           >
             Back to Members
           </Button>
@@ -173,10 +143,10 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
   return (
     <div className="space-y-4" data-testid="members-tab-content">
       {/* Advanced Toggle */}
-      <div className="flex items-center justify-between p-3 bg-[#1a1b26] rounded-lg">
+      <div className="flex items-center justify-between p-3 bg-background rounded-lg">
         <div className="flex items-center gap-2">
-          <Shield className="h-4 w-4 text-purple-400" />
-          <Label htmlFor="advanced-toggle" className="text-white cursor-pointer">
+          <Shield className="h-4 w-4 text-primary-accent" />
+          <Label htmlFor="advanced-toggle" className="text-foreground cursor-pointer">
             Show Advanced Permissions
           </Label>
         </div>
@@ -192,7 +162,7 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
       <ScrollArea className="h-[300px] pr-4">
         <div className="space-y-2">
           {members.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
+            <div className="text-center py-8 text-muted-foreground">
               No members found
             </div>
           ) : (
@@ -201,6 +171,10 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
                 key={member.userId}
                 member={member}
                 showAdvanced={showAdvanced}
+                isOnlyAdmin={
+                  isAdminRole(member.role) &&
+                  members.filter((m) => isAdminRole(m.role)).length === 1
+                }
                 isUpdatingRole={updatingRoles.has(member.userId)}
                 onRoleChange={handleRoleChange}
                 onAdvancedPermissions={handleAdvancedPermissions}
@@ -212,12 +186,12 @@ export function MembersTab({ entityType, entityId, onClose }: AdminTabProps) {
       </ScrollArea>
 
       {/* Role Legend */}
-      <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-600">
+      <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
         {USER_ROLES.map((role) => (
           <Badge
             key={role}
             variant="outline"
-            className="border-gray-600 text-gray-400"
+            className="border-border text-muted-foreground"
           >
             <div className={`w-2 h-2 rounded-full ${ROLE_COLORS[role]} mr-1`} />
             {role}

@@ -9,6 +9,7 @@ import { WorkspaceClient } from 'citadel-workspace-client-ts';
 import { debugLog } from '../debug-config';
 import { instanceManager, instanceChannel, instanceInboundRouter } from '../multi-instance';
 import { isEnsureMessengerOpenResponse } from '../multi-instance/outbound-queue';
+import type { AckResult } from '@/lib/multi-instance/outbound-queue-types';
 
 export interface MessengerConfig {
   init: () => Promise<void>;
@@ -40,7 +41,7 @@ export class MessengerOperations {
     debugLog('MessengerOperations', 'Opening messenger handle for CID', { cid: cid.toString() });
 
     if (instanceManager.isLeader) {
-      const client = this.config.getClient();
+      const client: WorkspaceClient | null = this.config.getClient();
       if (!client) {
         throw new Error('WebSocket client not available (leader without client)');
       }
@@ -48,15 +49,15 @@ export class MessengerOperations {
     } else {
       debugLog('MessengerOperations', '[Follower] Proxying openMessengerFor through leader');
 
-      const proxyRequest = {
+      const proxyRequest: { __openMessengerProxy: boolean; cid: string; } = {
         __openMessengerProxy: true,
         cid: cid.toString()
       };
 
-      const requestId = crypto.randomUUID();
+      const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
       instanceInboundRouter.registerPendingRequest(requestId, instanceManager.instanceId);
 
-      const result = await instanceChannel.sendToLeader(proxyRequest, requestId);
+      const result: AckResult = await instanceChannel.sendToLeader(proxyRequest, requestId);
       if (result.status === 'error') {
         throw new Error(`Leader failed to open messenger: ${result.error}`);
       }
@@ -79,7 +80,7 @@ export class MessengerOperations {
     }
 
     if (instanceManager.isLeader) {
-      const client = this.config.getClient();
+      const client: WorkspaceClient | null = this.config.getClient();
       if (!client) {
         throw new Error('WebSocket client not available (leader without client)');
       }
@@ -87,15 +88,15 @@ export class MessengerOperations {
     } else {
       debugLog('MessengerOperations', '[Follower] Proxying ensureMessengerOpen through leader');
 
-      const proxyRequest = {
+      const proxyRequest: { __ensureMessengerProxy: boolean; cid: string; } = {
         __ensureMessengerProxy: true,
         cid: cid.toString()
       };
 
-      const requestId = crypto.randomUUID();
+      const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
       instanceInboundRouter.registerPendingRequest(requestId, instanceManager.instanceId);
 
-      const result = await instanceChannel.sendToLeader(proxyRequest, requestId);
+      const result: AckResult = await instanceChannel.sendToLeader(proxyRequest, requestId);
       if (result.status === 'error') {
         throw new Error(`Leader failed to ensure messenger: ${result.error}`);
       }
@@ -135,7 +136,7 @@ export class MessengerOperations {
     });
 
     if (instanceManager.isLeader) {
-      const client = this.config.getClient();
+      const client: WorkspaceClient | null = this.config.getClient();
       if (!client) {
         throw new Error('WebSocket client not available (leader without client)');
       }
@@ -144,7 +145,7 @@ export class MessengerOperations {
       debugLog('MessengerOperations', '[Follower] Proxying sendP2PMessageReliable through leader');
 
       // Convert Uint8Array to Array for serialization over BroadcastChannel
-      const proxyRequest = {
+      const proxyRequest: { __sendP2PMessageProxy: boolean; localCid: string; peerCid: string; message: number[]; securityLevel: "Standard" | "Reinforced" | "High" | "Extreme" | undefined; } = {
         __sendP2PMessageProxy: true,
         localCid: localCid.toString(),
         peerCid: peerCid.toString(),
@@ -152,10 +153,10 @@ export class MessengerOperations {
         securityLevel: securityLevel
       };
 
-      const requestId = crypto.randomUUID();
+      const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
       instanceInboundRouter.registerPendingRequest(requestId, instanceManager.instanceId);
 
-      const result = await instanceChannel.sendToLeader(proxyRequest, requestId);
+      const result: AckResult = await instanceChannel.sendToLeader(proxyRequest, requestId);
       if (result.status === 'error') {
         throw new Error(`Leader failed to send P2P message: ${result.error}`);
       }

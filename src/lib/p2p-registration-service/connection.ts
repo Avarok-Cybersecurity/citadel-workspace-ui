@@ -5,15 +5,19 @@
  * and accept/decline registration requests.
  */
 
+import type { PendingPeerRequest } from '@/lib/peer-registration-store/types';
+import { peerRecord } from './peer-record';
 import { websocketService } from '../websocket-service';
 import { peerRegistrationStore } from '../peer-registration-store';
 import { stringToBytes, bytesToString } from '../utils/encoding-utils';
+import { wireMapEntries } from '@/lib/wire-map';
 import { debugLog } from '@/lib/debug-config';
 import { eventEmitter } from '../event-emitter';
 import type { Peer, PeerInfoResponse, PendingRequestEntry } from './types';
 import { AUTO_ACCEPT_KEY, RETRY_BACKOFF_MS, DEFAULT_LIST_RETRIES } from './constants';
 import { getCurrentCid, listRegisteredPeers } from './discovery';
 import { registerPeer } from './registration';
+import { isGenuinelyAbsent } from '@/lib/storage/absence';
 
 /**
  * List currently registered peers with retry logic.
@@ -21,10 +25,10 @@ import { registerPeer } from './registration';
  */
 export async function listRegisteredPeersWithRetry(
   pendingRequests: Map<string, PendingRequestEntry>,
-  maxRetries = DEFAULT_LIST_RETRIES
+  maxRetries: number = DEFAULT_LIST_RETRIES
 ): Promise<PeerInfoResponse[]> {
   let lastError: Error | null = null;
-  for (let i = 0; i < maxRetries; i++) {
+  for (let i: number = 0; i < maxRetries; i++) {
     try {
       return await listRegisteredPeers(pendingRequests);
     } catch (error: unknown) {
@@ -56,12 +60,17 @@ export async function syncPeerConnectionsFromSession(
     return;
   }
 
-  const peerCids = Object.keys(peerConnections);
+  // peer_connections is a Rust HashMap: a JS Map here, on which Object.keys is
+  // []. Cached-peer sync after a reconnect therefore synced nothing.
+  const peerEntries: [string, { cid: bigint; peer_cid: bigint; peer_username: string; }][] = wireMapEntries<{ cid: bigint; peer_cid: bigint; peer_username: string }>(
+    peerConnections, 'peer_connections',
+  );
+  const peerCids: string[] = peerEntries.map(([cid]) => cid);
   debugLog('P2PRegistrationService', '[P2P Registration] Syncing peer connections from session:', peerCids);
 
   let serverPeerCids: Set<bigint> | null = null;
   try {
-    const serverPeers = await listRegisteredPeers(pendingRequests);
+    const serverPeers: PeerInfoResponse[] = await listRegisteredPeers(pendingRequests);
     serverPeerCids = new Set(
       serverPeers.map(p => p.cid as bigint).filter((c): c is bigint => c !== undefined)
     );
@@ -70,7 +79,7 @@ export async function syncPeerConnectionsFromSession(
       Array.from(serverPeerCids).map(c => c.toString())
     );
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage: string = error instanceof Error ? error.message : String(error);
     if (errorMessage?.includes('CID 0') || errorMessage?.includes('No active')) {
       debugLog('P2PRegistrationService', '[P2P Registration] No active session, skipping sync of cached peer data');
       return;
@@ -79,8 +88,8 @@ export async function syncPeerConnectionsFromSession(
     return;
   }
 
-  for (const [peerCidStr, peerInfo] of Object.entries(peerConnections)) {
-    const peerCid = BigInt(peerCidStr);
+  for (const [peerCidStr, peerInfo] of peerEntries) {
+    const peerCid: bigint = BigInt(peerCidStr);
 
     if (serverPeerCids && !serverPeerCids.has(peerCid)) {
       debugLog('P2PRegistrationService', `[P2P Registration] Skipping stale peer ${peerCid.toString()} (not in server registry)`);
@@ -92,13 +101,7 @@ export async function syncPeerConnectionsFromSession(
       continue;
     }
 
-    const peer: Peer = {
-      cid: peerCid,
-      username: peerInfo.peer_username || `User ${peerCid.toString().slice(0, 8)}`,
-      fullName: peerInfo.peer_username || `User ${peerCid.toString().slice(0, 8)}`,
-      isOnline: false,
-      isRegistered: true
-    };
+    const peer: Peer = peerRecord(peerCid, peerInfo.peer_username, false);
 
     allPeers.set(peerCid, peer);
     registeredPeers.set(peerCid, peer);
@@ -114,17 +117,16 @@ export async function syncPeerConnectionsFromSession(
  */
 export async function getAutoAcceptSetting(cidOverride?: bigint): Promise<boolean> {
   try {
-    const currentCid = cidOverride ?? await getCurrentCid();
+    const currentCid: bigint | null = cidOverride ?? await getCurrentCid();
     if (!currentCid || currentCid === 0n) return false;
 
-    const result = await websocketService.sendLocalDBGet(currentCid, AUTO_ACCEPT_KEY);
+    const result: { value: number[]; } | null = await websocketService.sendLocalDBGet(currentCid, AUTO_ACCEPT_KEY);
     if (result?.value) {
-      const decoded = bytesToString(result.value);
+      const decoded: string = bytesToString(result.value);
       return decoded === 'true';
     }
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage?.includes('Key not found')) {
+    if (isGenuinelyAbsent(error)) {
       debugLog('P2PRegistrationService', '[P2P] Auto-accept setting not found, using default: false');
     } else {
       debugLog('P2PRegistrationService', 'Failed to get auto-accept setting:', error);
@@ -137,7 +139,7 @@ export async function getAutoAcceptSetting(cidOverride?: bigint): Promise<boolea
  * Set auto-accept setting in LocalDB.
  */
 export async function setAutoAcceptSetting(autoAccept: boolean): Promise<void> {
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   if (!currentCid || currentCid === 0n) {
     throw new Error('No active user session');
   }
@@ -159,7 +161,7 @@ export async function handleIncomingRegistrationWithCid(
   peerUsername: string | undefined,
   pendingRequests: Map<string, PendingRequestEntry>
 ): Promise<void> {
-  const autoAccept = await getAutoAcceptSetting(notificationCid);
+  const autoAccept: boolean = await getAutoAcceptSetting(notificationCid);
 
   if (autoAccept) {
     debugLog('P2PRegistrationService', `[P2P] Auto-accepting registration from ${peerUsername || peerCid.toString()}`);
@@ -188,7 +190,7 @@ export async function acceptRegistrationRequest(
   pendingRequests: Map<string, PendingRequestEntry>,
   registeredPeers?: Map<bigint, Peer>
 ): Promise<void> {
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   if (!currentCid || currentCid === 0n) {
     throw new Error('No active user session');
   }
@@ -201,13 +203,7 @@ export async function acceptRegistrationRequest(
   await peerRegistrationStore.removeRequestByPeerCid(peerCid);
 
   if (registeredPeers) {
-    const peer = registeredPeers.get(peerCid) || {
-      cid: peerCid,
-      username: peerUsername || `User ${peerCid.toString().slice(0, 8)}`,
-      fullName: peerUsername || `User ${peerCid.toString().slice(0, 8)}`,
-      isOnline: true,
-      isRegistered: true
-    };
+    const peer: Peer = registeredPeers.get(peerCid) || peerRecord(peerCid, peerUsername, true);
     registeredPeers.set(peerCid, peer);
   }
 
@@ -215,10 +211,29 @@ export async function acceptRegistrationRequest(
 }
 
 /**
- * Decline a registration request - removes from pending requests.
+ * Decline a registration request.
+ *
+ * Delegates to the store, which SENDS the decline. This used to remove the
+ * local entry and nothing else -- exactly the bug `declineRequest` records
+ * having fixed for itself:
+ *
+ *   Removing the local entry was the whole of decline, so a declined request
+ *   came back every five minutes forever.
+ *
+ * Two declines with the same meaning, one of them weaker, and the weaker one
+ * carried the more obvious name on the more obvious object: it is exported
+ * from this service's public index, so it is what a new caller reaches for.
+ * Nothing called it, which is the only reason the bug was not live.
  */
 export async function declineRegistrationRequest(peerCid: bigint): Promise<void> {
   debugLog('P2PRegistrationService', `[P2P] Declining registration from ${peerCid.toString()}`);
-  await peerRegistrationStore.removeRequestByPeerCid(peerCid);
+  const pending: PendingPeerRequest[] = await peerRegistrationStore.getPendingRequests();
+  const request: PendingPeerRequest | undefined = pending.find((r) => r.peer_cid === peerCid);
+  if (request) {
+    await peerRegistrationStore.declineRequest(request.id);
+  } else {
+    // Nothing to answer, but the local entry must still go.
+    await peerRegistrationStore.removeRequestByPeerCid(peerCid);
+  }
   eventEmitter.emit('p2p:registration-declined', { peerCid });
 }

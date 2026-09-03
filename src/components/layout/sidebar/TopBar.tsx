@@ -1,8 +1,10 @@
-import { Menu, LogOut, ArrowLeft } from "lucide-react";
+import { Menu, LogOut, ArrowLeft, Download } from "lucide-react";
+import { isPrivilegedRole } from '@/lib/role-predicate';
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
+import { useInstallAction } from "@/components/pwa/use-install-action";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,8 +13,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useToast } from "@/hooks/use-toast";
-import { toastSuccess } from "@/lib/toast-helpers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import NotificationCenter from "@/components/notification/NotificationCenter";
@@ -20,192 +20,186 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { SettingsModal } from "@/components/SettingsModal";
 import { getUserInitials } from "@/lib/workspace-metadata-service";
 import { LeaderIndicator } from "@/components/ui/leader-indicator";
+import { isDiagnosticsUiEnabled } from "@/lib/debug-config";
 import { connectionManager } from "@/lib/connection";
-import { useNavigate } from "react-router-dom";
-import { clearSelectedUser, getSelectedUser } from "@/lib/tab-context";
-import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
+import { getSelectedUser , type TabUserContext } from "@/lib/tab-context";
 import { useState, useEffect } from "react";
 import { ExitConfirmModal } from "@/components/ExitConfirmModal";
 import { ProfileModal } from "@/components/settings/ProfileModal";
-import { DisconnectLoadingModal, DisconnectStatus } from "@/components/LoadingModal";
+import { DisconnectLoadingModal } from "@/components/LoadingModal";
 import { cn } from "@/lib/utils";
-import { runAsyncSetup } from '@/lib/utils/async-utils';
-import { debugLog } from '@/lib/debug-config';
+import { useSessionExit } from './use-session-exit';
+import type { StoredSession } from '@/types/session-types';
 
 interface TopBarProps {
   // Optional prop for backward compatibility
   currentWorkspace?: string;
 }
 
-export const TopBar = ({ currentWorkspace }: TopBarProps) => {
+export const TopBar = ({ currentWorkspace }: TopBarProps): JSX.Element => {
+  // Installing was only offered on the landing page, so anyone already signed
+  // in had no way to it except the browser's own omnibox icon, which is easy to
+  // miss and absent on some platforms. Renders nothing unless the browser has
+  // actually offered a prompt and we are not already the installed copy.
+  const { canInstall, installNow } = useInstallAction();
   const { toggleSidebar } = useSidebar();
-  const isMobile = useIsMobile();
-  const { toast } = useToast();
+  const isMobile: boolean = useIsMobile();
   const { state } = useWorkspace();
-  const navigate = useNavigate();
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [disconnectStatus, setDisconnectStatus] = useState<DisconnectStatus>("disconnecting");
-  const [disconnectError, setDisconnectError] = useState<string | undefined>();
+  const {
+    showDisconnectModal, disconnectStatus, disconnectError,
+    handleExit, handleSignOut, handleDisconnectComplete,
+  } = useSessionExit();
 
   // Get workspace name from context or fallback to prop
-  const workspaceName = state.workspace?.name || currentWorkspace || "Citadel Workspace";
+  const workspaceName: string = state.workspace?.name || currentWorkspace || "Citadel Workspace";
 
   // Fallback identity from tab-context — the orphan-claim path doesn't
   // persist a stored-session row, so without this fallback the TopBar
   // renders "U"/"User" even though tab-context knows the username.
   const [sessionFallback, setSessionFallback] = useState<{ username: string; fullName?: string } | null>(null);
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const tab = await getSelectedUser();
+    let cancelled: boolean = false;
+    void (async (): Promise<void> => {
+      const tab: TabUserContext | null = await getSelectedUser();
       if (cancelled) return;
       if (tab?.selectedUsername) { setSessionFallback({ username: tab.selectedUsername }); return; }
-      const session = await connectionManager.getTabSelectedSession();
+      const session: StoredSession | null = await connectionManager.getTabSelectedSession();
       if (!cancelled) setSessionFallback(session?.username ? { username: session.username, fullName: session.fullName } : null);
     })();
-    return () => { cancelled = true; };
+    return (): void => { cancelled = true; };
   }, [state.currentUser?.username]);
 
-  const username = state.currentUser?.username || sessionFallback?.username || "User";
-  const name = state.currentUser?.name || sessionFallback?.fullName || username;
-  const userInitials = getUserInitials(name);
-  const avatarUrl = state.currentUser?.avatarUrl;
-
-  // Check if user is admin (handle both 'Admin' from backend and 'admin' from frontend)
-  const userRole = state.currentUser?.role;
-  const isAdmin = userRole === 'Admin' || userRole === 'admin' || userRole === 'Owner' || userRole === 'owner';
+  const username: string = state.currentUser?.username || sessionFallback?.username || "User";
+  const name: string = state.currentUser?.name || sessionFallback?.fullName || username;
+  const userInitials: string = getUserInitials(name);
+  const avatarUrl: string | undefined = state.currentUser?.avatarUrl;
 
 
-  const handleExit = () => {
-    // Stop WASM connection manager polling (session stays active but this tab won't poll)
-    wasmConnectionManager.stop();
+  const userRole: string | undefined = state.currentUser?.role;
+  const isAdmin: boolean = isPrivilegedRole(userRole);
 
-    // Just navigate to landing page, keep session active
-    runAsyncSetup(clearSelectedUser);
-    navigate('/');
-
-    toastSuccess(toast, "Returned to landing page", "Your session is still active. Click your workspace icon to return instantly.");
-  };
-
-  const handleSignOut = async () => {
-    // Show the disconnect modal immediately
-    setDisconnectStatus("disconnecting");
-    setDisconnectError(undefined);
-    setShowDisconnectModal(true);
-
-    // Sign Out is an explicit user intent — even if the backend disconnect
-    // fails (e.g., WS already dropped, no current session on this tab), the
-    // local saved-session + tab-context must be cleared and we must navigate
-    // to the landing page. Otherwise WorkspaceLoader's auto-claim re-attaches
-    // the orphan and the user ends up right back where they started.
-    const currentSession = await connectionManager.getTabSelectedSession();
-    const tabSelection = await getSelectedUser();
-    const cid = tabSelection?.selectedCid ?? currentSession?.cid ?? null;
-
-    // Stop WASM connection manager polling regardless of below outcome
-    wasmConnectionManager.stop();
-
-    if (cid) {
-      try {
-        debugLog('TopBar', 'Fully signing out user', currentSession?.username, 'CID:', cid.toString());
-        await connectionManager.disconnect({
-          cid,
-          username: currentSession?.username,
-          serverAddress: currentSession?.serverAddress,
-        });
-      } catch (error) {
-        // Best-effort: log the failure but keep cleaning up locally so the user
-        // ends up signed out on this device. The server-side orphan (if any)
-        // will time out on its own.
-        debugLog('TopBar', 'Backend disconnect failed, continuing local sign-out:', error);
-      }
-    } else {
-      debugLog('TopBar', 'No CID available for backend disconnect, skipping');
-    }
-
-    setDisconnectStatus("cleaning");
-
-    try {
-      if (currentSession?.username && currentSession?.serverAddress) {
-        await connectionManager.removeSession(currentSession.username, currentSession.serverAddress);
-      }
-      await clearSelectedUser();
-    } catch (error) {
-      debugLog('TopBar', 'Local sign-out cleanup raised, ignoring:', error);
-    }
-
-    setDisconnectStatus("ready");
-  };
-
-  const handleDisconnectComplete = () => {
-    setShowDisconnectModal(false);
-    if (disconnectStatus === "ready") {
-      navigate('/');
-      toastSuccess(toast, "Signed out", "You have been fully logged out. You'll need to login again to access this workspace.");
-    }
-  };
 
   return (
-    <div className="fixed top-0 left-0 right-0 h-14 bg-[#1C1D28] border-b border-[#2D3548] flex items-center justify-between pr-4 z-50">
-      <div className="flex items-center">
-        {isMobile && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-purple-500/15 hover:text-white md:hidden mr-4"
-            onClick={toggleSidebar}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        )}
+    // <header>, not a div: this is the app's banner, and it completes the
+    // landmark set alongside <nav> and <main> in AppLayout. Without it a screen
+    // reader has no way to jump to the workspace switcher or the user menu.
+    <header className="fixed top-0 left-0 right-0 h-14 bg-background border-b border-border flex items-center justify-between pr-4 z-50">
+      {/*
+        min-w-0 so this group can shrink. Flex children default to
+        min-width:auto, meaning they refuse to go narrower than their content —
+        so a long workspace name pushed the group on the right, avatar included,
+        clean off a 375px viewport. That put Profile, Settings and Sign out out
+        of reach entirely on a phone.
+      */}
+      <div className="flex items-center min-w-0 flex-1">
+        {/*
+          Shown at every width, not just on mobile. The toggle was gated behind
+          `isMobile` AND `md:hidden`, so on a desktop viewport there was no way to
+          collapse the sidebar at all — even though useSidebar().toggleSidebar and
+          the Sidebar's own collapse behaviour were already wired up. Reclaiming
+          that horizontal space matters most on the wide screens where the control
+          was missing.
+        */}
+        <Button
+          variant="ghost"
+          size="icon"
+          // shrink-0 for the same reason the right-hand group has it: `size="icon"`
+          // asks for 40x40, but a flex child yields before its siblings do, and
+          // at 375px this one was squeezed to 16px wide — a 40px-tall sliver.
+          // On a phone this is THE control that opens navigation, so it is the
+          // last thing that should give way.
+          className="shrink-0 text-foreground hover:bg-primary-accent/15 hover:text-foreground mr-4"
+          onClick={toggleSidebar}
+          aria-label={isMobile ? 'Toggle navigation menu' : 'Toggle sidebar'}
+          title={isMobile ? 'Toggle navigation menu' : 'Toggle sidebar'}
+          data-testid="sidebar-toggle"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
         <WorkspaceSwitcher workspaceName={workspaceName} />
       </div>
-      <div className="flex items-center space-x-2">
-        <LeaderIndicator />
+      {/* shrink-0: these controls are the way out of the app and must never be
+          what gives way when space runs short. */}
+      <div className="flex items-center space-x-2 flex-shrink-0">
+        {/* Internal multi-tab state — hidden from end users; see isDiagnosticsUiEnabled. */}
+        {isDiagnosticsUiEnabled() && <LeaderIndicator />}
         <NotificationCenter />
 
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="p-0 hover:bg-purple-500/15" title={isAdmin ? "Workspace Administrator" : undefined} data-testid="user-avatar-button">
+            {/* Named on the BUTTON, not left to the avatar inside it. The
+                initials fallback is unmounted by Radix the moment a real
+                picture loads, so a name that lives only in that fallback
+                disappears exactly when the user personalises their account.
+                `title` was admin-only, so non-admins had nothing at all. */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="p-0 hover:bg-primary-accent/15"
+              aria-label={isAdmin ? `Account menu for ${username} (workspace administrator)` : `Account menu for ${username}`}
+              title={isAdmin ? "Workspace Administrator" : undefined}
+              data-testid="user-avatar-button"
+            >
               <Avatar className={cn(
                 "h-8 w-8",
-                isAdmin && "ring-2 ring-amber-400 ring-offset-1 ring-offset-[#1C1D28]"
+                isAdmin && "ring-2 ring-warning ring-offset-1 ring-offset-background"
               )}>
-                <AvatarImage src={avatarUrl || ""} />
-                <AvatarFallback className="bg-[#444A6C] text-white">{userInitials}</AvatarFallback>
+                {/* NOT decorative. This avatar is the entire content of the
+                    account-menu button, and Radix unmounts the initials
+                    fallback once a real picture loads — so setting a profile
+                    picture used to leave the only route to Profile, Settings
+                    and Sign out announced as "button". The button also carries
+                    its own aria-label, which is what survives if the image
+                    fails to load at all. */}
+                <AvatarImage src={avatarUrl || ""} alt="" />
+                <AvatarFallback className="bg-surface text-foreground">{userInitials}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 bg-[#1C1D28] text-white border-[#2D3548] shadow-xl shadow-black/40">
-            <DropdownMenuLabel className="text-gray-300 text-xs font-normal">{name}</DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-[#2D3548]" />
+          <DropdownMenuContent align="end" className="w-56 bg-background text-foreground border-border shadow-xl shadow-black/40">
+            <DropdownMenuLabel className="text-foreground/80 text-xs font-normal">{name}</DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-border" />
             <DropdownMenuItem
-              className="text-gray-200 cursor-pointer focus:bg-purple-500/15 focus:text-white"
+              className="text-foreground cursor-pointer focus:bg-primary-accent/15 focus:text-foreground"
               onClick={() => setShowProfileModal(true)}
+              data-testid="account-menu-profile"
             >
               Profile
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="text-gray-200 cursor-pointer focus:bg-purple-500/15 focus:text-white"
+              className="text-foreground cursor-pointer focus:bg-primary-accent/15 focus:text-foreground"
               onClick={() => setShowSettingsModal(true)}
+              data-testid="account-menu-settings"
             >
               Settings
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-[#2D3548]" />
+            {canInstall && (
+              <DropdownMenuItem
+                className="text-foreground cursor-pointer gap-2 focus:bg-primary-accent/15 focus:text-foreground"
+                onClick={installNow}
+                data-testid="account-menu-install"
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Install app
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator className="bg-border" />
             <DropdownMenuItem
-              className="text-gray-400 cursor-pointer gap-2 focus:bg-purple-500/15 focus:text-white"
+              className="text-muted-foreground cursor-pointer gap-2 focus:bg-primary-accent/15 focus:text-foreground"
               onClick={() => setShowExitConfirm(true)}
+              data-testid="account-menu-exit"
             >
               <ArrowLeft className="h-4 w-4" />
               Exit to Landing
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="text-red-400 cursor-pointer gap-2 focus:bg-red-500/10 focus:text-red-300"
+              className="text-destructive-emphasis cursor-pointer gap-2 focus:bg-destructive/10 focus:text-destructive-emphasis"
               onClick={handleSignOut}
+              data-testid="account-menu-signout"
             >
               <LogOut className="h-4 w-4" />
               Sign Out
@@ -236,6 +230,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
         workspaceName={workspaceName}
         errorMessage={disconnectError}
         onComplete={handleDisconnectComplete}
+        onCancel={handleDisconnectComplete}
       />
 
       {/* Settings modal */}
@@ -243,6 +238,6 @@ export const TopBar = ({ currentWorkspace }: TopBarProps) => {
         open={showSettingsModal}
         onOpenChange={setShowSettingsModal}
       />
-    </div>
+    </header>
   );
 };

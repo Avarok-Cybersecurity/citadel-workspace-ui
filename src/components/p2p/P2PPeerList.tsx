@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAddPeer } from './use-add-peer';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { p2pRegistrationService, type Peer } from '@/lib/p2p-registration-service';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -11,29 +12,29 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import type { PeerInfo } from './P2PPeerListHelpers';
 import { ConversationPeerItem } from './ConversationPeerItem';
+import { peerDisplayName, peerInitials, isUnnamedPeer } from '@/lib/peer-display';
+import type { P2PConversation, P2PMessage } from '@/lib/p2p/p2p-types';
 
 interface P2PPeerListProps {
   onSelectPeer: (peerCid: string) => void;
   selectedPeerCid?: string;
 }
 
-export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps) {
+export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps): JSX.Element {
   const [peers, setPeers] = useState<PeerInfo[]>([]);
   const [availablePeers, setAvailablePeers] = useState<Peer[]>([]);
   const [showAvailablePeers, setShowAvailablePeers] = useState(false);
-  const [newPeerCid, setNewPeerCid] = useState('');
-  const [isAddingPeer, setIsAddingPeer] = useState(false);
 
-  const messenger = P2PMessengerManager.getInstance();
+  const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
 
-  const loadPeers = useCallback(() => {
-    const conversations = messenger.getAllConversations();
+  const loadPeers: () => void = useCallback((): void => {
+    const conversations: P2PConversation[] = messenger.getAllConversations();
     const peerList: PeerInfo[] = conversations.map(conv => {
-      const lastMessage = conv.messages[conv.messages.length - 1];
-      const peerCidStr = conv.peerCid.toString();
+      const lastMessage: P2PMessage = conv.messages[conv.messages.length - 1];
+      const peerCidStr: string = conv.peerCid.toString();
       return {
         cid: peerCidStr,
-        name: conv.peerUsername || `User ${peerCidStr.slice(0, 8)}...`,
+        name: peerDisplayName({ cid: conv.peerCid, username: conv.peerUsername }),
         isConnected: messenger.isConnected(conv.peerCid),
         unreadCount: conv.unreadCount,
         lastMessage: lastMessage?.content,
@@ -46,7 +47,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
   }, [messenger]);
 
   useEffect(() => {
-    const initPeers = async () => {
+    const initPeers = async (): Promise<void> => {
       await messenger.waitForReady();
       await messenger.syncConnectionsFromBackend();
       loadPeers();
@@ -54,21 +55,21 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
     };
     initPeers().catch(err => debugLog('P2PPeerList', 'Failed to init peers:', err));
 
-    const unsubscribeMessage = messenger.onMessage(() => {
+    const unsubscribeMessage: () => void = messenger.onMessage((): void => {
       loadPeers();
     });
 
-    const unsubscribeConnection = messenger.onConnectionChange(() => {
+    const unsubscribeConnection: () => void = messenger.onConnectionChange((): void => {
       loadPeers();
     });
 
-    return () => {
+    return (): void => {
       unsubscribeMessage();
       unsubscribeConnection();
     };
   }, [loadPeers, messenger]);
 
-  const handlePeersUpdated = useCallback((data: { allPeers: Peer[]; registeredPeers: Peer[] }) => {
+  const handlePeersUpdated: (data: { allPeers: Peer[]; registeredPeers: Peer[]; }) => void = useCallback((data: { allPeers: Peer[]; registeredPeers: Peer[] }): void => {
     setAvailablePeers(data.allPeers);
     loadPeers();
   }, [loadPeers]);
@@ -76,39 +77,33 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
   useEventListener<{ allPeers: Peer[]; registeredPeers: Peer[] }>('p2p:peers-updated', handlePeersUpdated);
   useEventListener('p2p:messages-loaded', loadPeers);
 
-  const loadAvailablePeers = () => {
+  const loadAvailablePeers = (): void => {
     const { allPeers } = p2pRegistrationService.getPeers();
     setAvailablePeers(allPeers);
   };
 
-  const handleAddPeer = async () => {
-    if (!newPeerCid.trim()) return;
-
-    setIsAddingPeer(true);
-    try {
-      await messenger.autoRegisterPeer(BigInt(newPeerCid));
-      setNewPeerCid('');
-      loadPeers();
-    } catch (error) {
-      debugLog('P2PPeerList', 'Failed to add peer:', error);
-    } finally {
-      setIsAddingPeer(false);
-    }
-  };
+  const {
+    value: newPeerCid,
+    setValue: setNewPeerCid,
+    error: addPeerError,
+    setError: setAddPeerError,
+    adding: isAddingPeer,
+    submit: handleAddPeer,
+  } = useAddPeer((cid) => messenger.autoRegisterPeer(cid), loadPeers);
 
   return (
-    <div className="h-full flex flex-col bg-[#131420]">
-      <div className="px-4 py-3 border-b border-[#2D3548]">
+    <div className="h-full flex flex-col bg-input">
+      <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-purple-400" />
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <MessageCircle className="h-4 w-4 text-primary-accent" />
             Direct Messages
           </h3>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setShowAvailablePeers(!showAvailablePeers)}
-            className="h-7 text-gray-500 hover:text-white text-xs gap-1"
+            className="h-7 text-muted-foreground hover:text-foreground text-xs gap-1"
           >
             <Users className="h-3.5 w-3.5" />
             {availablePeers.length}
@@ -117,7 +112,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       </div>
 
       <div className="flex-1 p-0 flex flex-col">
-        <div className="p-3 border-b border-[#2D3548]">
+        <div className="p-3 border-b border-border">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -127,19 +122,31 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
           >
             <Input
               value={newPeerCid}
-              onChange={(e) => setNewPeerCid(e.target.value)}
-              placeholder="Enter peer CID..."
-              className="flex-1 bg-[#1C1D28] border-[#2D3548] text-white placeholder-gray-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 h-9 rounded-lg text-sm"
+              onChange={(e) => {
+                setNewPeerCid(e.target.value);
+                if (addPeerError) setAddPeerError(null);
+              }}
+              placeholder="Peer CID (or use Discover Peers)"
+              aria-invalid={addPeerError ? true : undefined}
+              aria-describedby={addPeerError ? 'add-peer-error' : undefined}
+              className="flex-1 bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 h-9 rounded-lg text-sm"
             />
             <Button
               type="submit"
               size="icon"
+              aria-label="Add peer"
               disabled={isAddingPeer || !newPeerCid.trim()}
-              className="bg-purple-600 hover:bg-purple-500 text-white h-9 w-9 rounded-lg"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 w-9 rounded-lg"
             >
-              <UserPlus className="h-4 w-4" />
+              <UserPlus className="h-4 w-4" aria-hidden="true" />
             </Button>
           </form>
+          {addPeerError && (
+            // role="alert" so a screen reader announces it, not only shows it.
+            <p id="add-peer-error" role="alert" className="mt-2 text-xs text-destructive-emphasis">
+              {addPeerError}
+            </p>
+          )}
         </div>
 
         <ScrollArea className="flex-1">
@@ -151,7 +158,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                 </div>
                 <div className="space-y-1">
                   {availablePeers.map((peer) => {
-                    const peerCidStr = peer.cid.toString();
+                    const peerCidStr: string = peer.cid.toString();
                     return (
                     <Button
                       key={peerCidStr}
@@ -169,21 +176,23 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                       <div className="flex items-center gap-3 w-full">
                         <Avatar className="h-8 w-8">
                           <AvatarFallback className="text-xs">
-                            {peer.username?.[0] || peerCidStr.slice(0, 2)}
+                            {peerInitials({ cid: peer.cid, username: peer.username, fullName: peer.fullName })}
                           </AvatarFallback>
                         </Avatar>
 
                         <div className="flex-1 text-left">
                           <div className="font-medium text-sm">
-                            {peer.fullName || peer.username || `User ${peerCidStr.slice(0, 8)}...`}
+                            {peerDisplayName({ cid: peer.cid, username: peer.username, fullName: peer.fullName })}
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            {peerCidStr.slice(0, 16)}...
-                          </div>
+                          {isUnnamedPeer({ cid: peer.cid, username: peer.username, fullName: peer.fullName }) && (
+                            <div className="text-xs text-muted-foreground">
+                              Name not shared yet
+                            </div>
+                          )}
                         </div>
 
                         {peer.isRegistered ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <CheckCircle className="h-4 w-4 text-success-emphasis" />
                         ) : (
                           <UserPlus className="h-4 w-4 text-muted-foreground" />
                         )}
@@ -196,10 +205,18 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
               </div>
             )}
             {peers.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
+              <div className="text-center py-8 text-muted-foreground">
                 <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p className="text-sm">No conversations yet</p>
-                <p className="text-xs mt-1">Add a peer to start messaging</p>
+                {/* This said "Add a peer to start messaging" and pointed at an
+                    input that wants a CID -- an internal identifier no screen
+                    in the app displays, under an acronym the reader was never
+                    told. The two paths that actually work are named here
+                    instead. */}
+                <p className="text-xs mt-1">
+                  Find someone in the workspace directory, or use Discover Peers
+                  in the sidebar.
+                </p>
               </div>
             ) : (
               <div className="space-y-1">

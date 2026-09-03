@@ -18,55 +18,72 @@ import { websocketService } from '@/lib/websocket-service';
 import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
-import { ToastAction } from '@/components/ui/toast';
 import { healthCheckService } from '@/lib/health-check';
 import { getSelectedUser } from '@/lib/tab-context';
 import { TIMEOUT } from '@/lib/timeout-constants';
-import { revfsService } from '@/lib/revfs';
+import { startRevfs } from '@/lib/revfs/revfs-loader';
 import '@/lib/session-startup-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { debugLog } from '@/lib/debug-config';
-import React from 'react';
+import { makeSessionAlreadyConnectedHandler } from './session-already-connected';
+import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import type { StoredSession } from '@/types/session-types';
+import {
+  NOT_FAILING, onFailure, onDismiss, onSuccess, isRetryDialogOpen,
+  type RetryVisibility,
+} from './connection-retry-visibility';
 
 interface ConnectionHandlerState {
-  showConnectionRetry: boolean;
+  /** See connection-retry-visibility: a dismissal survives repeated failures. */
+  retry: RetryVisibility;
   connectionError: string | null;
   orphanSessionCid: string | null;
 }
 
-export function useConnectionHandler() {
+export function useConnectionHandler(): { showConnectionRetry: boolean; connectionError: string | null; orphanSessionCid: string | null; setShowConnectionRetry: (v: boolean) => void; } {
   const [state, setState] = useState<ConnectionHandlerState>({
-    showConnectionRetry: false,
+    retry: NOT_FAILING,
     connectionError: null,
     orphanSessionCid: null,
   });
   const { toast } = useToast();
 
   useEffect(() => {
-    const initializeServices = async () => {
+    const initializeServices = async (): Promise<void> => {
       try {
         debugLog('WorkspaceApp', 'Starting ConnectionManager initialization...');
-        healthCheckService.startHealthChecks(10000);
         await connectionManager.initialize();
         debugLog('WorkspaceApp', 'ConnectionManager initialized successfully');
       } catch (error) {
         debugLog('WorkspaceApp', 'Failed to initialize ConnectionManager:', error);
+      } finally {
+        // After initialization, not before. The first probe is immediate, so
+        // starting here sampled the service before it could possibly be up and
+        // published "agent unreachable" to a banner that then sat there until
+        // the next poll ten seconds later -- on every single boot, teaching
+        // people to ignore the one banner that explains a real failure.
+        //
+        // In `finally` rather than after the await: an initialization that
+        // FAILS is exactly when the banner needs to be right.
+        healthCheckService.startHealthChecks(10000);
       }
     };
 
     runAsyncSetup(initializeServices);
 
-    const notificationService = NotificationService.getInstance();
-    const messagingService = MessagingService.getInstance();
-    const connectionService = ConnectionService.getInstance();
-    const userService = UserService;
+    const notificationService: NotificationService = NotificationService.getInstance();
+    const messagingService: MessagingService = MessagingService.getInstance();
+    const connectionService: ConnectionService = ConnectionService.getInstance();
+    const userService: typeof UserService = UserService;
 
-    revfsService.initialize({
+    // Starts the engine loading and initializes it. Deferred so the sync
+    // engine stays off the landing page's critical path; see revfs-loader.
+    void startRevfs({
       sendP2PMessageReliable: (localCid, peerCid, message) =>
         websocketService.sendP2PMessageReliable(localCid, peerCid, message),
       getCurrentCid: async () => {
-        const info = connectionManager.getConnectionInfo();
+        const info: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
         return info?.cid ?? null;
       },
       sendInternalServiceRequest: (request: unknown) =>
@@ -76,11 +93,11 @@ export function useConnectionHandler() {
     let lastProcessedCid: string | null = null;
 
     debugLog('WorkspaceApp', 'Subscribing to connection changes');
-    connectionService.onConnectionChange(async (connection) => {
+    const unsubscribeConnection: () => void = connectionService.onConnectionChange(async (connection): Promise<void> => {
       debugLog('WorkspaceApp', `onConnectionChange called, cid=${connection?.cid?.toString()}, isConnected=${connection?.isConnected}`);
-      const cidValue = typeof connection?.cid === 'string' ? parseInt(connection.cid, 10) : connection?.cid;
+      const cidValue: number | bigint | null = typeof connection?.cid === 'string' ? parseInt(connection.cid, 10) : connection?.cid;
       if (connection && connection.cid && cidValue !== 0) {
-        const cidString = connection.cid.toString();
+        const cidString: string = connection.cid.toString();
         if (lastProcessedCid === cidString) {
           debugLog('WorkspaceApp', 'Skipping redundant connection update for CID:', cidString);
           return;
@@ -90,11 +107,11 @@ export function useConnectionHandler() {
         if (connection.userContext?.selectedCid) {
           tabSelection = { selectedCid: connection.userContext.selectedCid };
         } else {
-          const maxRetries = 5;
-          const retryDelayMs = 200;
-          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          const maxRetries: 5 = 5;
+          const retryDelayMs: 200 = 200;
+          for (let attempt: number = 1; attempt <= maxRetries; attempt++) {
             try {
-              const timeoutPromise = new Promise<null>((_, reject) =>
+              const timeoutPromise: Promise<null> = new Promise<null>((_, reject) =>
                 setTimeout(() => reject(new Error('getSelectedUser timeout')), TIMEOUT.GET_SELECTED_USER_MS)
               );
               tabSelection = await Promise.race([getSelectedUser(), timeoutPromise]);
@@ -111,10 +128,10 @@ export function useConnectionHandler() {
         if (tabSelection.selectedCid.toString() !== cidString) return;
 
         lastProcessedCid = cidString;
-        const cidBigInt = typeof connection.cid === 'bigint' ? connection.cid : BigInt(connection.cid);
+        const cidBigInt: bigint = typeof connection.cid === 'bigint' ? connection.cid : BigInt(connection.cid);
 
-        const allStoredSessions = connectionManager.getStoredSessionsArray();
-        const storedSession = allStoredSessions.find(s => s.cid?.toString() === cidString);
+        const allStoredSessions: StoredSession[] = connectionManager.getStoredSessionsArray();
+        const storedSession: StoredSession | undefined = allStoredSessions.find(s => s.cid?.toString() === cidString);
         if (!storedSession) return;
 
         // Single source of truth for post-auth setup
@@ -156,50 +173,49 @@ export function useConnectionHandler() {
       }
     });
 
-    const handleConnectionFailure = (event: { error: string }) => {
-      setState(prev => ({ ...prev, connectionError: event.error, showConnectionRetry: true }));
+    const handleConnectionFailure = (event: { error: string }): void => {
+      // Through the rule, not a bare `true`. The client retries while the agent
+      // is down, so this fires every couple of seconds -- and setting `true`
+      // here reopened the dialog within a second or two of every dismissal,
+      // indefinitely. The user could not put it away.
+      setState(prev => ({ ...prev, connectionError: event.error, retry: onFailure(prev.retry) }));
     };
 
-    const handleSessionAlreadyConnected = async (event: { cid: string; message: string }) => {
-      debugLog('WorkspaceApp', 'Session already connected event:', event);
-      toast({
-        title: "Session Already Connected",
-        description: "You are already connected in another window or tab.",
-        variant: "destructive",
-        action: React.createElement(ToastAction, {
-          altText: "Try again",
-          onClick: async () => {
-            try {
-              await websocketService.setOrphanMode(true);
-              await websocketService.disconnectOrphan(null);
-              toast({ title: "Orphaned sessions cleared", description: "Please try logging in again" });
-            } catch (error) {
-              debugLog('WorkspaceApp', 'Failed to disconnect orphan sessions:', error);
-            }
-          }
-        }, "Clear Sessions") as React.ReactElement
-      });
-      setState(prev => ({ ...prev, showConnectionRetry: false }));
+    // A connection that succeeds ends the outage the dismissal was about, so
+    // the NEXT failure interrupts again.
+    const handleConnectionSuccess = (): void => {
+      setState(prev => (prev.retry === NOT_FAILING ? prev : { ...prev, retry: onSuccess() }));
     };
+
+    const handleSessionAlreadyConnected: (event: { cid: string; message: string; }) => Promise<void> = makeSessionAlreadyConnectedHandler({ toast, setState });
 
     eventEmitter.on('connection-failure', handleConnectionFailure);
+    eventEmitter.on('on-ws-connection-success', handleConnectionSuccess);
     eventEmitter.on('session-already-connected', handleSessionAlreadyConnected);
 
-    return () => {
+    return (): void => {
+      // Drop this hook's own subscription explicitly. `connectionService.cleanup()`
+      // below wipes the singleton's whole handler array — every other component's
+      // subscription with it — which is only survivable because this hook mounts
+      // above the router and unmounts last. Owning our own teardown means that
+      // stops being load-bearing.
+      unsubscribeConnection();
       messagingService.cleanup();
       connectionService.cleanup();
       WorkspaceService.cleanup();
       runAsyncSetup(() => userService.cleanup());
       healthCheckService.stopHealthChecks();
       eventEmitter.off('connection-failure', handleConnectionFailure);
+      eventEmitter.off('on-ws-connection-success', handleConnectionSuccess);
       eventEmitter.off('session-already-connected', handleSessionAlreadyConnected);
     };
   }, [toast]);
 
   return {
-    showConnectionRetry: state.showConnectionRetry,
+    showConnectionRetry: isRetryDialogOpen(state.retry),
     connectionError: state.connectionError,
     orphanSessionCid: state.orphanSessionCid,
-    setShowConnectionRetry: (v: boolean) => setState(prev => ({ ...prev, showConnectionRetry: v })),
+    setShowConnectionRetry: (v: boolean): void =>
+      setState(prev => ({ ...prev, retry: v ? onFailure(prev.retry) : onDismiss(prev.retry) })),
   };
 }

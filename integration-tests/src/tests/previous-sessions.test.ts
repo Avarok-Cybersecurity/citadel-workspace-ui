@@ -12,6 +12,7 @@
  */
 
 import { Page } from 'playwright';
+import { signedInAs } from '../lib/signed-in-as.js';
 import {
   sleep,
   createBrowser,
@@ -24,6 +25,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config, isCI } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -84,8 +86,8 @@ async function tryLoginQuick(page: Page, username: string, password: string): Pr
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 30000 });
     await waitForAppReady(page, 15000);
 
-    const loginBtn = page.locator('button:has-text("Login Workspace")');
-    if (!await loginBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const loginBtn = page.getByTestId('sign-in-button');
+    if (!await isVisibleWithin(loginBtn, 3000)) {
       console.log('  tryLoginQuick: Login button not found');
       return false;
     }
@@ -96,18 +98,30 @@ async function tryLoginQuick(page: Page, username: string, password: string): Pr
     await page.locator('input#password').fill(password);
 
     const advancedBtn = page.locator('button:has-text("Advanced Options")');
-    if (await advancedBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await isVisibleWithin(advancedBtn, 1000)) {
       await advancedBtn.click({ force: true });
       await sleep(300);
       const serverInput = page.locator('input#server');
-      if (await serverInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      if (await isVisibleWithin(serverInput, 1000)) {
         await serverInput.fill(config.WORKSPACE_SERVER);
       }
     }
 
-    await page.locator('button[type="submit"]:has-text("Connect")').click({ force: true });
-    await sleep(3000);
-    return await waitForWorkspaceLoaded(page, 45000);
+    await page.getByTestId('login-submit').click();
+    if (!(await waitForWorkspaceLoaded(page, 45000))) return false;
+
+    // WHOSE workspace. `waitForWorkspaceLoaded` is satisfied by sidebar labels
+    // and a workspace name, which every signed-in user has -- so with two other
+    // live sessions in this browser, ServerAutoConnect reconnecting one of them
+    // looked exactly like the account under test still working. The caller uses
+    // this to decide whether a deregistration was permanent, and that question
+    // cannot be answered by a screen that does not name anybody.
+    const who: string | null = await signedInAs(page);
+    if (who !== username) {
+      console.log(`  tryLoginQuick: a workspace loaded, but for ${who ?? 'nobody named'} rather than ${username}`);
+      return false;
+    }
+    return true;
   } catch {
     return false;
   }
@@ -118,7 +132,7 @@ async function tryLoginQuick(page: Page, username: string, password: string): Pr
  */
 async function getSessionCount(page: Page): Promise<number> {
   const container = page.locator('[data-testid="sessions-scroll-container"]');
-  if (!(await container.isVisible({ timeout: 3000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(container, 3000))) {
     return 0;
   }
   const icons = container.locator('[data-testid^="session-icon-"]');
@@ -130,7 +144,7 @@ async function getSessionCount(page: Page): Promise<number> {
  */
 async function sessionExistsInNavbar(page: Page, username: string): Promise<boolean> {
   const icon = page.locator(`[data-testid="session-icon-${username}"]`);
-  return await icon.isVisible({ timeout: 3000 }).catch(() => false);
+  return await isVisibleWithin(icon, 3000);
 }
 
 /**
@@ -209,7 +223,7 @@ async function waitForAllSessionsInNavbar(
  */
 async function getSessionOrder(page: Page): Promise<string[]> {
   const container = page.locator('[data-testid="sessions-scroll-container"]');
-  if (!(await container.isVisible({ timeout: 3000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(container, 3000))) {
     return [];
   }
 
@@ -236,13 +250,12 @@ async function clickSessionIcon(page: Page, username: string): Promise<boolean> 
   console.log(`\n=== Clicking session icon for ${username} ===`);
 
   const button = page.locator(`[data-testid="session-button-${username}"]`);
-  if (!(await button.isVisible({ timeout: 5000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(button, 5000))) {
     console.log('  Session button not found');
     return false;
   }
 
   await button.click();
-  await sleep(3000);
 
   // Verify workspace loaded
   const loaded = await waitForWorkspaceLoaded(page, 30000);
@@ -260,6 +273,63 @@ async function clickSessionIcon(page: Page, username: string): Promise<boolean> 
  * Navigates to landing page and waits for OrphanSessionsNavbar to render
  * before interacting with session icons.
  */
+/**
+ * Wait for the sign-out to actually finish, rather than for the click to land.
+ *
+ * Confirming starts an async chain -- mark the user disconnected, stop the WASM
+ * client, send Disconnect and await its response (a 30s budget), invalidate the
+ * cache, reload the list. This function used to return `true` two seconds after
+ * the click, and the caller then navigated the page, which abandons whatever
+ * was still in flight. So the three checks it feeds reported the product broken
+ * whenever the round trip took longer than the sleep: the session was still
+ * there because the request was never finished, not because the service kept
+ * it.
+ *
+ * The app already says when it is done: `disconnect-loading-modal` is on screen
+ * for the duration and closes on "ready". Waiting for THAT is waiting for the
+ * operation. An error leaves it open with the reason, which is reported here
+ * rather than being read as a slow success.
+ */
+async function waitForDisconnectToFinish(
+  page: Page,
+  action: 'disconnect' | 'deregister'
+): Promise<boolean> {
+  const modal = page.locator('[data-testid="disconnect-loading-modal"]');
+
+  // A modal that never appears is NOT a success.
+  //
+  // This used to shrug one off, on the reasoning that it may have come and
+  // gone on a fast local run. But `waitFor({ state: 'detached' })` is
+  // immediately true for a locator matching nothing, so the pair returned true
+  // for an operation that never started -- which is exactly what happened when
+  // the deregister path stopped at a second confirmation this file did not
+  // answer. Three checks reported success for an account that was never
+  // deleted.
+  //
+  // The operation is fast but not instant: it disconnects, deregisters,
+  // re-queries and re-renders. If nothing rendered in five seconds, nothing
+  // was asked for.
+  const appeared = await modal
+    .waitFor({ state: 'visible', timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!appeared) {
+    console.log(`  ${action} never started: the loading modal never appeared`);
+    return false;
+  }
+
+  try {
+    await modal.waitFor({ state: 'detached', timeout: 60000 });
+  } catch {
+    const reason = (await modal.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+    console.log(`  ${action} never completed; the modal still says: ${reason.slice(0, 200)}`);
+    return false;
+  }
+
+  console.log(action === 'deregister' ? '  Deregistered successfully' : '  Disconnected successfully');
+  return true;
+}
+
 async function disconnectViaNavbar(
   page: Page,
   username: string,
@@ -276,7 +346,7 @@ async function disconnectViaNavbar(
   let iconFound = false;
 
   for (let attempt = 1; attempt <= 3; attempt++) {
-    iconFound = await icon.isVisible({ timeout: 8000 }).catch(() => false);
+    iconFound = await isVisibleWithin(icon, 8000);
     if (iconFound) break;
     if (attempt < 3) {
       console.log(`  Session icon not visible on attempt ${attempt}, reloading...`);
@@ -297,7 +367,7 @@ async function disconnectViaNavbar(
   for (let attempt = 1; attempt <= 3; attempt++) {
     await icon.hover();
     await sleep(1000);
-    btnVisible = await disconnectBtn.isVisible({ timeout: 3000 }).catch(() => false);
+    btnVisible = await isVisibleWithin(disconnectBtn, 3000);
     if (btnVisible) break;
     if (attempt < 3) {
       console.log(`  Disconnect button not visible on attempt ${attempt}, re-hovering...`);
@@ -313,30 +383,48 @@ async function disconnectViaNavbar(
   await sleep(1000);
 
   // Handle the confirmation modal — scope selector to dialog to avoid matching the overlay button
-  const dialogSelector = 'div[role="alertdialog"], div[role="dialog"], [data-testid="confirm-dialog"]';
+  // `confirm-dialog` was the third member of this union and the app has never
+  // rendered it. The two role selectors are what match, and they are the right
+  // thing to match on: a confirmation IS a dialog, and the role is what a
+  // screen reader is given.
+  const dialogSelector = 'div[role="alertdialog"], div[role="dialog"]';
   const dialog = page.locator(dialogSelector).first();
-  const dialogVisible = await dialog.isVisible({ timeout: 5000 }).catch(() => false);
+  const dialogVisible = await isVisibleWithin(dialog, 5000);
 
-  if (action === 'deregister') {
-    // Look for Deregister button, scoped to dialog if visible
-    const scope = dialogVisible ? dialog : page;
-    const deregisterBtn = scope.locator('button:has-text("Deregister")').first();
-    if (await deregisterBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await deregisterBtn.click();
-      await sleep(3000);
-      console.log('  Deregistered successfully');
-      return true;
+  // By testid. These looked for buttons reading "Deregister" and "Disconnect".
+  // The modal deliberately stopped using those words -- its own comment says it
+  // "read 'Deregister permanently removes this account' ... as if the difference
+  // were obvious" -- and now offers "Sign out" and "Delete account permanently",
+  // which is plainly better copy. From that day neither button was found, and
+  // three checks in this file have reported the product as broken:
+  // Disconnect Removes, Deregister Removes, Deregister Permanent.
+  //
+  // Note this is a case the spec-copy gate cannot catch: "Disconnect" and
+  // "Deregister" both still appear elsewhere in the app, so the strings exist
+  // -- just not on these controls. Existing somewhere is not the same as being
+  // the label of the thing you are pressing.
+  const scope = dialogVisible ? dialog : page;
+  const confirmBtn = scope
+    .getByTestId(action === 'deregister' ? 'confirm-delete-account' : 'confirm-sign-out')
+    .first();
+  if (await isVisibleWithin(confirmBtn, 5000)) {
+    await confirmBtn.click();
+
+    // Deleting an account is asked TWICE. The modal's own comment says so:
+    // the two buttons sit side by side, and the destructive one used to fire
+    // on the first click. This step never answered the second dialog, so
+    // `handleConfirm` returned and nothing happened -- while the checks below
+    // reported "Deregistered successfully" and "Deregister is permanent".
+    if (action === 'deregister') {
+      const second = page.getByTestId('confirm-dialog-confirm').first();
+      if (!(await isVisibleWithin(second, 5000))) {
+        console.log('  Second confirmation never appeared; deletion was not asked for');
+        return false;
+      }
+      await second.click();
     }
-  } else {
-    // Look for Disconnect confirmation button — exclude the overlay button via :not([data-testid])
-    const scope = dialogVisible ? dialog : page;
-    const confirmBtn = scope.locator('button:has-text("Disconnect"):not([data-testid])').first();
-    if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await confirmBtn.click();
-      await sleep(2000);
-      console.log('  Disconnected successfully');
-      return true;
-    }
+
+    return await waitForDisconnectToFinish(page, action);
   }
 
   console.log('  Confirmation button not found');
@@ -350,6 +438,7 @@ async function disconnectViaNavbar(
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'Previous Sessions Navbar Test',
     reportFileName: 'PREVIOUS_SESSIONS_TEST_REPORT.json',
     metadata: { users: USERS, sessionCount: SESSION_COUNT, isCI },
@@ -382,7 +471,7 @@ async function runTest(): Promise<boolean> {
     const page = await context.newPage();
 
     // Setup console capture
-    setupConsoleCapture(page, 'PrevSessions', ['error', 'Error', 'OrphanSessionsNavbar', 'Disconnect']);
+    setupConsoleCapture(page, 'PrevSessions', ['error', 'Error', 'OrphanSessionsNavbar', 'Disconnect', 'ILM']);
 
     // ========== Create Sessions (N sessions) ==========
     for (let i = 0; i < SESSION_COUNT; i++) {
@@ -438,7 +527,7 @@ async function runTest(): Promise<boolean> {
 
     // Check navbar visibility and structure AFTER sessions have loaded
     const navbar = page.locator('[data-testid="previous-sessions-navbar"]');
-    results.navbarVisible = await navbar.isVisible({ timeout: 5000 }).catch(() => false);
+    results.navbarVisible = await isVisibleWithin(navbar, 5000);
     console.log(`  Navbar visible: ${results.navbarVisible}`);
 
     // The OrphanSessionsNavbar header was relabelled from
@@ -448,13 +537,13 @@ async function runTest(): Promise<boolean> {
     // CSS and silently match nothing.
     const label = page
       .locator('text="Active Sessions"')
-      .or(page.locator('text="Previous Sessions:"'))
+
       .first();
-    results.previousSessionsLabel = await label.isVisible({ timeout: 3000 }).catch(() => false);
+    results.previousSessionsLabel = await isVisibleWithin(label, 3000);
     console.log(`  Previous Sessions label: ${results.previousSessionsLabel}`);
 
     const scrollContainer = page.locator('[data-testid="sessions-scroll-container"]');
-    results.scrollContainerExists = await scrollContainer.isVisible({ timeout: 3000 }).catch(() => false);
+    results.scrollContainerExists = await isVisibleWithin(scrollContainer, 3000);
     console.log(`  Scroll container exists: ${results.scrollContainerExists}`);
 
     const count = await getSessionCount(page);
@@ -644,9 +733,6 @@ async function runTest(): Promise<boolean> {
     console.log(`  Most Recent First:         ${results.mostRecentFirst ? 'PASS' : 'ADVISORY-FAIL'}`);
 
     harness.finalize(allPassed, results);
-
-    console.log('\nBrowser will remain open for 15 seconds for manual inspection...');
-    await sleep(15000);
 
     return allPassed;
 

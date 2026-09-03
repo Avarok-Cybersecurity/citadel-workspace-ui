@@ -1,22 +1,24 @@
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef , type MutableRefObject } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AppLayout } from "./layout/AppLayout";
 import { WorkspaceView } from "./workspace/WorkspaceView";
 import { FileManagerContent } from "./file-manager/FileManagerContent";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { debugLog } from '@/lib/debug-config';
+import type { NavigateFunction } from 'react-router';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
-export const Office = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const params = new URLSearchParams(location.search);
-  const nodeId = params.get("nodeId");
-  const section = params.get("section");
+export const Office: () => JSX.Element = (): JSX.Element => {
+  const location: ReturnType<typeof useLocation> = useLocation();
+  const navigate: NavigateFunction = useNavigate();
+  const params: URLSearchParams = new URLSearchParams(location.search);
+  const nodeId: string | null = params.get("nodeId");
+  const section: string | null = params.get("section");
   const { state } = useWorkspace();
 
   // Track if we've already navigated to prevent loops
-  const hasNavigatedToDefault = useRef(false);
+  const hasNavigatedToDefault: MutableRefObject<boolean> = useRef(false);
 
   // Auto-navigate to default node when no nodeId is selected
   // Skip if a section (e.g. "files") is explicitly active
@@ -24,11 +26,11 @@ export const Office = () => {
     if (nodeId || section || hasNavigatedToDefault.current) return;
 
     // Find the default node from state
-    const defaultNode = Object.values(state.nodes).find(n => n.is_default);
+    const defaultNode: DomainNode | undefined = Object.values(state.nodes).find(n => n.is_default);
     if (defaultNode) {
       hasNavigatedToDefault.current = true;
       debugLog('Office', `[Office] Navigating to default node: ${defaultNode.name} (${defaultNode.id})`);
-      const newParams = new URLSearchParams(location.search);
+      const newParams: URLSearchParams = new URLSearchParams(location.search);
       newParams.set("nodeId", defaultNode.id);
       navigate(`/workspace?${newParams.toString()}`, { replace: true });
     }

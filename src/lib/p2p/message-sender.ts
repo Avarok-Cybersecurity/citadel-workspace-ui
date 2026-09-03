@@ -5,7 +5,7 @@
  * Delegates low-level operations to message-send-operations.
  */
 
-import type { P2PAttachment } from '@/types/p2p-types';
+import { describeError } from '@/lib/describe-error';
 import {
   createMessagingLayerCommand,
 } from '@/types/p2p-types';
@@ -13,11 +13,11 @@ import {
   createMessage,
 } from '@/types/messaging-layer';
 import type { MessagingLayer } from '@/types/messaging-layer';
-import type { MessageType } from '@/types/message-protocol';
 import { p2pRegistrationService } from '../p2p-registration-service';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import type { P2PMessage, P2PConversation } from './p2p-types';
-import type { MessageSenderConfig } from './message-sender-types';
+import { persistMessageStatus } from './message-status-persistence';
+import type { MessageSenderConfig, SendMessageOptions } from './message-sender-types';
 import {
   sendRawMessage as rawMessageOp,
   sendMessageAck as messageAckOp,
@@ -25,8 +25,11 @@ import {
   sendRawBytes as rawBytesOp,
 } from './message-send-operations';
 import { debugLog } from '@/lib/debug-config';
+import { markSendFailed } from './mark-send-failed';
+import { resendMessage } from './resend-message';
+import type { P2PCommand } from '@/types/p2p-commands';
 
-export type { MessageSenderConfig } from './message-sender-types';
+export type { MessageSenderConfig, SendMessageOptions } from './message-sender-types';
 
 export class MessageSender {
   private readonly config: MessageSenderConfig;
@@ -38,21 +41,14 @@ export class MessageSender {
   public async sendMessage(
     recipientCid: bigint,
     content: string,
-    options?: {
-      replyTo?: string;
-      mentions?: string[];
-      attachments?: P2PAttachment[];
-      messageType?: MessageType;
-      documentId?: string;
-      documentTitle?: string;
-    }
+    options?: SendMessageOptions
   ): Promise<P2PMessage> {
     debugLog('MessageSender', `[P2P] *** sendMessage ENTRY *** recipientCid=${recipientCid?.toString().slice(0, 8)}..., content="${content.slice(0, 20)}..."`);
 
     const { replyTo, mentions, attachments, messageType = 'text', documentId, documentTitle } = options || {};
 
-    const isAlreadyConnected = await p2pAutoConnectService.isPeerConnected(recipientCid) || this.config.isConnected(recipientCid);
-    const isAlreadyRegistered = p2pRegistrationService.isPeerRegistered(recipientCid);
+    const isAlreadyConnected: boolean = await p2pAutoConnectService.isPeerConnected(recipientCid) || this.config.isConnected(recipientCid);
+    const isAlreadyRegistered: boolean = p2pRegistrationService.isPeerRegistered(recipientCid);
 
     if (!isAlreadyRegistered && !isAlreadyConnected) {
       debugLog('MessageSender', `Peer ${recipientCid.toString()} not registered and not connected, registering now...`);
@@ -63,7 +59,7 @@ export class MessageSender {
         debugLog('MessageSender', `Successfully registered peer ${recipientCid.toString()}`);
       } catch (error) {
         debugLog('MessageSender', `Failed to register peer ${recipientCid.toString()}:`, error);
-        throw new Error(`Failed to register peer for P2P communication: ${error}`);
+        throw new Error(`Failed to register peer for P2P communication: ${describeError(error)}`);
       }
     } else {
       debugLog('MessageSender', `Peer ${recipientCid.toString()} already ${isAlreadyConnected ? 'connected' : 'registered'}, skipping registration`);
@@ -71,25 +67,25 @@ export class MessageSender {
 
     void p2pAutoConnectService.ensurePeerConnectedInBackground(recipientCid);
 
-    const peerReady = await this.config.tryEnsurePeerReady(recipientCid);
+    const peerReady: boolean = await this.config.tryEnsurePeerReady(recipientCid);
     if (!peerReady) {
       debugLog('MessageSender', `[P2P] Sending to ${recipientCid.toString()} without CheckState confirmation (transport handles delivery)`);
     }
 
-    const conversation = this.config.getOrCreateConversation(recipientCid);
-    const index = conversation.lastMessageIndex + 1;
+    const conversation: P2PConversation = this.config.getOrCreateConversation(recipientCid);
+    const index: number = conversation.lastMessageIndex + 1;
 
-    const currentCid = await this.config.getCurrentCid();
+    const currentCid: bigint | null = await this.config.getCurrentCid();
     if (!currentCid) {
       throw new Error('Not connected to server');
     }
 
-    const timestamp = Date.now();
-    const messageId = crypto.randomUUID();
+    const timestamp: number = Date.now();
+    const messageId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
 
-    const layer = createMessage(content, timestamp);
+    const layer: MessagingLayer = createMessage(content, timestamp);
 
-    const command = createMessagingLayerCommand(
+    const command: P2PCommand = createMessagingLayerCommand(
       layer,
       currentCid,
       recipientCid,
@@ -113,20 +109,39 @@ export class MessageSender {
       document_title: documentTitle
     };
 
-    await this.config.addMessageToConversation(recipientCid, message);
+    try {
+      await this.config.addMessageToConversation(recipientCid, message);
+    } catch (error) {
+      // The in-memory push happens before the durable append, so on a storage
+      // failure the message is already in the conversation — at 'pending',
+      // outside the try below that would have marked it 'failed'. It surfaced
+      // as a bubble stuck on "sending…" for the rest of the session, and the
+      // retry affordance is gated on 'failed', so there was no way to act on it
+      // short of retyping. Mark it here, then rethrow: the caller still toasts
+      // and keeps the composer text.
+      markSendFailed(this.config, message, messageId, error, 'Could not be saved');
+      throw error;
+    }
     this.config.notifyMessageListeners(message);
+    // The conversation list sorts by most recent message and refreshes on this
+    // event. It had a subscriber and no emitter, so sending a message never
+    // moved that conversation up the list - only receiving one did.
+    this.config.emitEvent('p2p:message-sent', { peerCid: recipientCid, message });
+    options?.onOptimisticAppend?.();
 
     debugLog('MessageSender', `[P2P] Sending message ${messageId} to ${recipientCid.toString().slice(0, 8)}...`);
-    const sendStartTime = Date.now();
+    const sendStartTime: number = Date.now();
     try {
       await this.sendP2PCommand(recipientCid, command);
       message.status = 'sent';
       this.config.notifyMessageStatusListeners(messageId, 'sent');
+      await persistMessageStatus(this.config, recipientCid, messageId, message);
       debugLog('MessageSender', `[P2P] Message ${messageId} sent successfully in ${Date.now() - sendStartTime}ms`);
     } catch (error) {
-      message.status = 'failed';
-      message.error = error instanceof Error ? error.message : 'Failed to send';
-      this.config.notifyMessageStatusListeners(messageId, 'failed');
+      markSendFailed(this.config, message, messageId, error, 'Failed to send');
+      // Before the rethrow. The failed status is exactly the one worth keeping:
+      // it is what makes the message retryable after a reload.
+      await persistMessageStatus(this.config, recipientCid, messageId, message);
       debugLog('MessageSender', `Message ${messageId} FAILED after ${Date.now() - sendStartTime}ms:`, error);
       throw error;
     }
@@ -134,68 +149,9 @@ export class MessageSender {
     return message;
   }
 
+  /** Retry a message that previously failed. See ./resend-message. */
   public async resendMessage(peerCid: bigint, messageId: string, conversation: P2PConversation): Promise<void> {
-    const message = conversation.messages.find(m => m.id === messageId);
-    if (!message) {
-      throw new Error(`Message ${messageId} not found in conversation`);
-    }
-
-    if (message.status !== 'failed') {
-      debugLog('MessageSender', `[P2P] Message ${messageId} is not in failed state (${message.status}), skipping resend`);
-      return;
-    }
-
-    debugLog('MessageSender', `[P2P] Resending message ${messageId} to ${peerCid}`);
-
-    message.status = 'pending';
-    message.error = undefined;
-    this.config.notifyMessageStatusListeners(messageId, 'pending');
-
-    await p2pAutoConnectService.ensurePeerConnectedInBackground(peerCid);
-
-    const peerReady = await this.config.tryEnsurePeerReady(peerCid);
-    if (!peerReady) {
-      debugLog('MessageSender', `[P2P] Resending to ${peerCid} without CheckState confirmation`);
-    }
-
-    const currentCid = await this.config.getCurrentCid();
-    if (!currentCid) {
-      message.status = 'failed';
-      message.error = 'Not connected to server';
-      this.config.notifyMessageStatusListeners(messageId, 'failed');
-      throw new Error('Not connected to server');
-    }
-
-    const layer = createMessage(message.content, message.timestamp);
-    const command = createMessagingLayerCommand(
-      layer,
-      currentCid,
-      peerCid,
-      message.index,
-      {
-        messageId: message.id,
-        replyTo: message.replyTo,
-        mentions: message.mentions,
-        attachments: message.attachments as P2PAttachment[] | undefined,
-        messageType: message.message_type,
-        documentId: message.document_id,
-        documentTitle: message.document_title
-      }
-    );
-
-    try {
-      await this.sendP2PCommand(peerCid, command);
-      message.status = 'sent';
-      this.config.notifyMessageStatusListeners(messageId, 'sent');
-      debugLog('MessageSender', `[P2P] Successfully resent message ${messageId}`);
-    } catch (error) {
-      message.status = 'failed';
-      message.error = error instanceof Error ? error.message : 'Failed to send';
-      this.config.notifyMessageStatusListeners(messageId, 'failed');
-      throw error;
-    }
-
-    await this.config.updateMessageInPages(peerCid, messageId, { status: message.status, error: message.error });
+    return resendMessage(this, this.config, peerCid, messageId, conversation);
   }
 
   public async sendRawMessage(recipientCid: bigint, layer: MessagingLayer): Promise<void> {

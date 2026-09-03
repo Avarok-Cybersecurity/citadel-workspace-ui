@@ -17,6 +17,7 @@ import {
   findNode,
   makeOpId,
   now,
+  rebasePath,
 } from './tree-queries';
 
 // ============================================================================
@@ -33,8 +34,8 @@ export function copyNode(
   destParentPath: string,
   newFileIdGenerator?: () => string,
 ): [RevfsNode, RevfsOperation] {
-  const normalizedSource = normalizePath(sourcePath);
-  const normalizedDest = normalizePath(destParentPath);
+  const normalizedSource: string = normalizePath(sourcePath);
+  const normalizedDest: string = normalizePath(destParentPath);
 
   if (normalizedSource === '/') {
     throw new Error('Cannot copy root directory');
@@ -43,29 +44,29 @@ export function copyNode(
     throw new Error(`Cannot copy protected directory: ${normalizedSource}`);
   }
 
-  const newTree = cloneTree(tree);
+  const newTree: RevfsNode = cloneTree(tree);
 
-  const sourceNode = findNode(newTree, normalizedSource);
+  const sourceNode: RevfsNode | null = findNode(newTree, normalizedSource);
   if (!sourceNode) {
     throw new Error(`Source not found: ${normalizedSource}`);
   }
 
-  const destParentNode = findNode(newTree, normalizedDest);
+  const destParentNode: RevfsNode | null = findNode(newTree, normalizedDest);
   if (!destParentNode || destParentNode.type !== 'directory') {
     throw new Error(`Destination directory not found: ${normalizedDest}`);
   }
 
   if (!destParentNode.children) destParentNode.children = [];
 
-  const t = now();
-  let finalName = sourceNode.name;
+  const t: number = now();
+  let finalName: string = sourceNode.name;
 
-  const existingNames = new Set(destParentNode.children.map(c => c.name));
+  const existingNames: Set<string> = new Set(destParentNode.children.map(c => c.name));
   if (existingNames.has(finalName)) {
-    const ext = sourceNode.type === 'file' ? getExtension(finalName) : '';
-    const basePart = ext ? finalName.slice(0, -ext.length - 1) : finalName;
+    const ext: string = sourceNode.type === 'file' ? getExtension(finalName) : '';
+    const basePart: string = ext ? finalName.slice(0, -ext.length - 1) : finalName;
 
-    let suffix = 1;
+    let suffix: number = 1;
     do {
       finalName = suffix === 1
         ? (ext ? `${basePart} (copy).${ext}` : `${basePart} (copy)`)
@@ -74,18 +75,24 @@ export function copyNode(
     } while (existingNames.has(finalName) && suffix < 100);
   }
 
-  const newPath = normalizedDest === '/' ? `/${finalName}` : `${normalizedDest}/${finalName}`;
+  const newPath: string = normalizedDest === '/' ? `/${finalName}` : `${normalizedDest}/${finalName}`;
 
   const copyWithNewPaths = (node: RevfsNode, oldBasePath: string, newBasePath: string): RevfsNode => {
     const copy: RevfsNode = {
       ...node,
       name: node.path === oldBasePath ? finalName : node.name,
-      path: node.path.replace(oldBasePath, newBasePath),
+      path: rebasePath(node.path, oldBasePath, newBasePath),
       createdAt: t,
       updatedAt: t,
     };
 
     if (copy.fileMetadata && newFileIdGenerator) {
+      // Fresh identity, SHARED bytes. `virtualDirectory` is the upload-time
+      // backend key and is deliberately kept: the backend cannot duplicate an
+      // object and the browser does not hold the bytes, so both nodes point
+      // at one blob. Every delete site refcounts that key via
+      // tree-byte-refs.ts and only destroys the blob with its last reference
+      // — without that, deleting either copy silently broke the other.
       copy.fileMetadata = {
         ...copy.fileMetadata,
         fileId: newFileIdGenerator(),
@@ -101,7 +108,7 @@ export function copyNode(
     return copy;
   };
 
-  const copiedNode = copyWithNewPaths(sourceNode, normalizedSource, newPath);
+  const copiedNode: RevfsNode = copyWithNewPaths(sourceNode, normalizedSource, newPath);
   destParentNode.children.push(copiedNode);
   destParentNode.updatedAt = t;
 
@@ -130,20 +137,59 @@ export function copyNode(
  * - If local has a path remote doesn't AND remote.updatedAt > local child's updatedAt,
  *   remove it (deletion propagates)
  */
-export function mergeTrees(local: RevfsNode, remote: RevfsNode): RevfsNode {
-  if (local.type === 'file' || remote.type === 'file') {
+export function mergeTrees(
+  local: RevfsNode,
+  remote: RevfsNode,
+  /**
+   * Paths whose removal is queued locally and not yet applied by the peer.
+   *
+   * The union rule below is deliberate — deletions are carried by explicit
+   * RemoveFile/RemoveDir operations and never inferred, because "never had it"
+   * and "deleted it" look identical in a tree. What it lacked was knowledge of
+   * what is deliberately on its way out.
+   *
+   * `removeFile` destroys the bytes, removes the node and QUEUES the op; until
+   * the peer applies and acks it, their tree still lists the file. A
+   * SyncResponse in that window merged their copy back in, and the restored
+   * node names a `virtualDirectory` whose bytes are already gone: a file that
+   * reappears in the manager, opens to nothing, and counts against the quota.
+   *
+   * This says "do not RESURRECT these", not "delete these" — a path we still
+   * hold locally stays until its own operation runs.
+   */
+  pendingRemovals: ReadonlySet<string> = new Set<string>(),
+): RevfsNode {
+  if (local.type === 'file' && remote.type === 'file') {
     return local.updatedAt >= remote.updatedAt ? cloneTree(local) : cloneTree(remote);
   }
 
-  const merged = cloneTree(local);
-  const remoteChildren = remote.children ?? [];
-  const localChildren = merged.children ?? [];
+  // Types disagree at this path: one side is a directory, the other a file.
+  //
+  // This used to be `||`, so a timestamp decided it -- and a newer file
+  // arriving at a directory's path replaced the directory AND everything
+  // underneath it. The loser there is not a competing version of the same
+  // thing; it is every descendant, and nothing records that they existed, so
+  // there is no recovering them and no sign anything was lost. A peer a moment
+  // behind, or a stale op replayed out of order, is enough.
+  //
+  // The directory wins, whatever the clocks say. That is the same rule the
+  // union merge below already follows: this file's own note says deletions are
+  // carried by explicit RemoveFile/RemoveDir operations and never inferred, and
+  // a directory disappearing because a file turned up at its path is a deletion
+  // nobody asked for.
+  if (local.type !== remote.type) {
+    return cloneTree(local.type === 'directory' ? local : remote);
+  }
+
+  const merged: RevfsNode = cloneTree(local);
+  const remoteChildren: RevfsNode[] = remote.children ?? [];
+  const localChildren: RevfsNode[] = merged.children ?? [];
 
   for (const remoteChild of remoteChildren) {
-    const localIdx = localChildren.findIndex(c => c.path === remoteChild.path);
+    const localIdx: number = localChildren.findIndex(c => c.path === remoteChild.path);
     if (localIdx >= 0) {
-      localChildren[localIdx] = mergeTrees(localChildren[localIdx], remoteChild);
-    } else {
+      localChildren[localIdx] = mergeTrees(localChildren[localIdx], remoteChild, pendingRemovals);
+    } else if (!pendingRemovals.has(remoteChild.path)) {
       localChildren.push(cloneTree(remoteChild));
     }
   }

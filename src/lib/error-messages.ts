@@ -1,13 +1,40 @@
+import { describeError } from './describe-error';
 /**
  * Transforms technical error messages into user-friendly messages
  */
-export function getUserFriendlyErrorMessage(error: string | Error): string {
-  const errorMessage = typeof error === 'string' ? error : error.message;
+/**
+ * `unknown`, not `string | Error`.
+ *
+ * Three call sites — login, registration and workspace initialization, which
+ * is every flow a new user meets — narrowed with
+ * `err instanceof Error ? err : String(err)` before calling this. `String()`
+ * on a structured rejection is `[object Object]`, and the revfs and websocket
+ * layers both reject with one. That string then matches none of the branches
+ * below, is not protocol jargon and is under 200 characters, so it reached the
+ * user through the passthrough as:
+ *
+ *   Something went wrong: [object Object]
+ *
+ * Taking `unknown` and normalising here removes the coercion from all three at
+ * once, rather than asking each to remember.
+ */
+export function getUserFriendlyErrorMessage(error: unknown): string {
+  const errorMessage: string = describeError(error);
   
   // Connection-related errors
   if (errorMessage.includes('WebSocket connection failed') || 
       errorMessage.includes('Failed to initialize WASM client')) {
-    return 'Unable to connect to the workspace server. Please check your internet connection and try again.';
+    // Not "check your internet connection". This socket is SAME-ORIGIN /ws,
+    // proxied to the internal service — the local agent that owns protocol
+    // connections. When it fails, the usual cause is that the agent is not
+    // running or is restarting, and a user who goes off to check their wifi is
+    // being sent somewhere that cannot help.
+    //
+    // Genuine loss of network is already covered, and better: OfflineBanner
+    // watches navigator.onLine, and WorkspaceApp suppresses the retry modal
+    // while offline so the two never both fire. That left this string handling
+    // only the case its advice did not fit.
+    return 'Unable to reach the Citadel agent on this machine. It may not be running yet, or may be restarting — try again in a moment.';
   }
   
   if (errorMessage.includes('Connection closed before receiving a handshake')) {
@@ -33,7 +60,12 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
     return 'No account found with that username. Please check your username or create a new account.';
   }
   
-  if (errorMessage.includes('User already exists')) {
+  // The SDK's actual message is `Username <name> already exists!`, captured
+  // from the live toast. The previous literal 'User already exists' never
+  // matched it, so the single most ordinary registration failure — picking a
+  // name someone already has — fell through to the raw
+  // "Something went wrong: Username bob already exists!" fallback.
+  if (/already exists/i.test(errorMessage) && /user/i.test(errorMessage)) {
     return 'An account with that username already exists. Please choose a different username.';
   }
   
@@ -46,8 +78,7 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
     return 'Failed to initialize the workspace. Please check your workspace password.';
   }
   
-  if (errorMessage.includes('Invalid workspace password') || 
-      errorMessage.includes('workspace master password')) {
+  if (/invalid workspace password|workspace master password/i.test(errorMessage)) {
     return 'Incorrect workspace password. Please try again.';
   }
   
@@ -61,18 +92,21 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
     return 'Connection blocked by security settings. Please contact your administrator.';
   }
   
-  // Account/password errors (backend-specific wording)
-  if (errorMessage.includes('invalid password') || 
-      errorMessage.includes('wrong password') ||
-      errorMessage.includes('password mismatch') ||
-      errorMessage.includes('incorrect password')) {
+  // Account/password errors, matched case-insensitively.
+  //
+  // These were all-lowercase `.includes()` needles, and `.includes()` is
+  // case-sensitive — while the SDK emits `#[form = "Invalid password"]` with a
+  // capital I (citadel_io/src/error/code.rs). So the branch handling the
+  // product's single most common error could never fire, and a mistyped
+  // password fell through to "Something went wrong: Invalid password".
+  //
+  // Exactly the bug documented above for 'User already exists', which was
+  // fixed with a case-insensitive regex. Same remedy here.
+  if (/invalid password|wrong password|password mismatch|incorrect password/i.test(errorMessage)) {
     return 'Incorrect password. Please check your password and try again.';
   }
 
-  if (errorMessage.includes('does not exist') || 
-      errorMessage.includes('not registered') ||
-      errorMessage.includes('no user') ||
-      errorMessage.includes('account not found')) {
+  if (/does not exist|not registered|no user|account not found/i.test(errorMessage)) {
     return 'No account found with that username on this server. Please check your username or register a new account.';
   }
 
@@ -95,13 +129,20 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
     return 'The service is temporarily unavailable. Please try again in a few minutes.';
   }
   
-  // If no specific match, include the actual error text for debugging
-  // Instead of hiding it behind a completely generic message
-  const cleanedMessage = errorMessage
+  // Unmatched text is passed through, because a generic sentence hides the one
+  // clue anybody has. What it must NOT pass through is protocol vocabulary: the
+  // words below are the transport's, and to a user they read as the app
+  // speaking a language it never taught them.
+  const cleanedMessage: string = errorMessage
     .replace(/Error:\s*/i, '')
     .replace(/^\s+|\s+$/g, '');
-  
-  if (cleanedMessage && cleanedMessage.length < 200) {
+
+  const isProtocolJargon: boolean =
+    /\b(ratchet|handshake|ILM|CID|toolset|packet|codec|serde|deserializ|kem|psk)\b/i.test(
+      cleanedMessage,
+    );
+
+  if (cleanedMessage && cleanedMessage.length < 200 && !isProtocolJargon) {
     return `Something went wrong: ${cleanedMessage}`;
   }
   return 'An unexpected error occurred. Please try again or contact support if the problem persists.';
@@ -110,8 +151,8 @@ export function getUserFriendlyErrorMessage(error: string | Error): string {
 /**
  * Gets a user-friendly title for an error
  */
-export function getErrorTitle(error: string | Error): string {
-  const errorMessage = typeof error === 'string' ? error : error.message;
+export function getErrorTitle(error: unknown): string {
+  const errorMessage: string = describeError(error);
   
   if (errorMessage.includes('connection') || errorMessage.includes('WebSocket') ||
       errorMessage.includes('Connection') || errorMessage.includes('ECONNREFUSED')) {
@@ -133,6 +174,13 @@ export function getErrorTitle(error: string | Error): string {
   
   if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
     return 'Request Timeout';
+  }
+
+  // Checked before the generic fallback so the commonest registration failure
+  // gets a title that says what happened. Previously it rendered as a bare
+  // "Error" over the raw server string.
+  if (/already exists/i.test(errorMessage) && /user/i.test(errorMessage)) {
+    return 'Username Taken';
   }
 
   if (errorMessage.includes('not found') || errorMessage.includes('not exist') ||

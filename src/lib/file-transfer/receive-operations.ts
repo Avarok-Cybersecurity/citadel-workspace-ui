@@ -1,8 +1,8 @@
-/** Receive Operations - RespondFileTransfer, DownloadFile, subscription factories, tick parser. */
+/** Receive Operations - RespondFileTransfer, DownloadFile, subscription factories. */
 
 import { eventEmitter } from '../event-emitter';
+import { failOnSocketLoss } from '../websocket/request-response';
 import { websocketService } from '../websocket-service';
-import { isVariant } from 'citadel-workspace-client-ts';
 import type {
   RespondTransferParams, DownloadFileParams, TransferRequestEvent,
   TransferProgressEvent, TransferCompleteEvent, TransferStatusEvent,
@@ -11,12 +11,24 @@ import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
 import type {
   FileTransferRequestNotification, FileTransferStatusNotification,
-  FileTransferTickNotification, ObjectTransferStatus,
+  FileTransferTickNotification,
 } from './protocol-types';
+import { parseTickNotification, type TickCorrelation } from './tick-events';
+import type { ParsedTick } from '@/lib/file-transfer/tick-events';
+import type { VirtualObjectMetadata } from '@avarok/citadel-protocol-types';
 
-export async function executeRespondToTransfer(params: RespondTransferParams): Promise<void> {
-  const requestId = crypto.randomUUID();
-  const request = {
+/**
+ * Send RespondFileTransfer and return the request UUID it was sent under.
+ *
+ * The return value matters: when we ACCEPT a transfer, the internal service
+ * spawns the reception tick updater with exactly this request_id, so it is
+ * the one stable key that ties the id-less ticks and completes that follow
+ * back to the transfer being accepted. The router records it in the
+ * correlation maps (see tick-events.ts).
+ */
+export async function executeRespondToTransfer(params: RespondTransferParams): Promise<string> {
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+  const request: { RespondFileTransfer: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: bigint; object_id: bigint; accept: boolean; download_location: string | null; }; } = {
     RespondFileTransfer: {
       request_id: requestId,
       cid: params.cid,
@@ -36,11 +48,12 @@ export async function executeRespondToTransfer(params: RespondTransferParams): P
   });
 
   await websocketService.sendRequest(request);
+  return requestId;
 }
 
 export async function executeDownloadFile(params: DownloadFileParams): Promise<void> {
-  const requestId = crypto.randomUUID();
-  const request = {
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+  const request: { DownloadFile: { request_id: `${string}-${string}-${string}-${string}-${string}`; virtual_directory: string; cid: bigint; peer_cid: bigint | null; security_level: string | null; delete_on_pull: boolean; }; } = {
     DownloadFile: {
       request_id: requestId,
       virtual_directory: params.virtualDirectory,
@@ -58,15 +71,15 @@ export async function executeDownloadFile(params: DownloadFileParams): Promise<v
     peerCid: params.peerCid?.toString(),
   });
 
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
+  return failOnSocketLoss('ReceiveFile', new Promise((resolve, reject) => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       eventEmitter.off('websocket-message', handleMessage);
       reject(new Error('DownloadFile request timed out'));
     }, TIMEOUT.FILE_DOWNLOAD_MS);
 
-    const handleMessage = (message: Record<string, unknown>) => {
-      const success = message.DownloadFileSuccess as { request_id?: string } | undefined;
-      const failure = message.DownloadFileFailure as
+    const handleMessage = (message: Record<string, unknown>): void => {
+      const success: { request_id?: string; } | undefined = message.DownloadFileSuccess as { request_id?: string } | undefined;
+      const failure: { request_id?: string; message?: string; } | undefined = message.DownloadFileFailure as
         | { request_id?: string; message?: string }
         | undefined;
 
@@ -80,7 +93,7 @@ export async function executeDownloadFile(params: DownloadFileParams): Promise<v
       if (failure?.request_id === requestId) {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handleMessage);
-        const errorMsg = failure.message || 'DownloadFile failed';
+        const errorMsg: string = failure.message || 'DownloadFile failed';
         debugLog('receive-operations', 'DownloadFile failed', errorMsg);
         reject(new Error(errorMsg));
       }
@@ -93,156 +106,119 @@ export async function executeDownloadFile(params: DownloadFileParams): Promise<v
       eventEmitter.off('websocket-message', handleMessage);
       reject(error);
     });
-  });
+  }));
 }
 
 export function createTransferRequestHandler(
   callback: (event: TransferRequestEvent) => void
 ): (message: Record<string, unknown>) => void {
   return (message: Record<string, unknown>) => {
-    const notification = message.FileTransferRequestNotification as
+    const notification: FileTransferRequestNotification | undefined = message.FileTransferRequestNotification as
       | FileTransferRequestNotification
       | undefined;
+    if (!notification) return;
 
-    if (notification) {
-      const objectId = notification.metadata.object_id.toString();
-      callback({
-        cid: notification.cid, peerCid: notification.peer_cid, protocolId: objectId,
-        fileName: notification.metadata.name, fileSize: Number(notification.metadata.file_size),
-        fileType: notification.metadata.mime_type,
-        transferMode: undefined, thumbnail: undefined, expiresAt: undefined, virtualPath: undefined,
-      });
-    }
+    const metadata: VirtualObjectMetadata = notification.metadata;
+    // RE-VFS pushes arrive through the same notification; they are handled by
+    // the revfs service and must not enter the chat-transfer correlator, where
+    // their name/size could join against an unrelated chat announcement.
+    if (metadata.transfer_type !== 'FileTransfer') return;
+
+    callback({
+      cid: notification.cid,
+      peerCid: notification.peer_cid,
+      protocolId: metadata.object_id.toString(),
+      fileName: metadata.name,
+      // The wire calls the byte count `plaintext_length`; there is no
+      // `file_size` field. Reading one here returned undefined -> NaN, which
+      // made every offer-correlation join fail on size.
+      fileSize: Number(metadata.plaintext_length),
+      // VirtualObjectMetadata carries no MIME type; the announcement message
+      // is the source of the display type.
+      fileType: undefined,
+      transferMode: undefined, thumbnail: undefined, expiresAt: undefined, virtualPath: undefined,
+    });
   };
 }
 
 export function createProgressHandler(
   callback: (event: TransferProgressEvent) => void,
-  objectIdToTransferId: Map<string, string>
+  correlation: TickCorrelation
 ): (message: Record<string, unknown>) => void {
   return (message: Record<string, unknown>) => {
-    const notification = message.FileTransferTickNotification as
+    const notification: FileTransferTickNotification | undefined = message.FileTransferTickNotification as
       | FileTransferTickNotification
       | undefined;
+    if (!notification) return;
 
-    if (notification) {
-      const progressEvent = parseTickStatus(notification.status);
-      if (progressEvent) {
-        const transferId =
-          objectIdToTransferId.get(progressEvent.protocolId) || progressEvent.protocolId;
-        callback({
-          transferId,
-          protocolId: progressEvent.protocolId,
-          bytesTransferred: progressEvent.bytesTransferred,
-          totalBytes: progressEvent.totalBytes,
-          percentage: progressEvent.percentage,
-          status: progressEvent.status,
-        });
-      }
-    }
+    const parsed: ParsedTick = parseTickNotification(notification, correlation);
+    if (parsed?.kind !== 'progress') return;
+
+    callback({
+      transferId: parsed.transferId,
+      cid: parsed.cid,
+      peerCid: parsed.peerCid,
+      direction: parsed.direction,
+      bytesTransferred: parsed.bytesTransferred,
+      totalBytes: parsed.totalBytes,
+      percentage: parsed.percentage,
+      status: parsed.status,
+    });
   };
 }
 
 export function createCompleteHandler(
   callback: (event: TransferCompleteEvent) => void,
-  objectIdToTransferId: Map<string, string>
+  correlation: TickCorrelation
 ): (message: Record<string, unknown>) => void {
   return (message: Record<string, unknown>) => {
-    const notification = message.FileTransferTickNotification as
+    const notification: FileTransferTickNotification | undefined = message.FileTransferTickNotification as
       | FileTransferTickNotification
       | undefined;
+    if (!notification) return;
 
-    if (notification) {
-      const status = notification.status;
-      let objectId: string | undefined;
-      let success = false;
-      let errorMessage: string | undefined;
+    const parsed: ParsedTick = parseTickNotification(notification, correlation);
+    if (parsed?.kind !== 'complete') return;
 
-      if (isVariant(status, 'TransferComplete')) {
-        objectId = status.TransferComplete.object_id.toString();
-        success = true;
-      } else if (isVariant(status, 'ReceptionComplete')) {
-        objectId = status.ReceptionComplete.object_id.toString();
-        success = true;
-      } else if (isVariant(status, 'Fail')) {
-        objectId = status.Fail.object_id.toString();
-        success = false;
-        errorMessage = status.Fail.message;
-      }
-
-      if (objectId !== undefined) {
-        const transferId = objectIdToTransferId.get(objectId) || objectId;
-        callback({ transferId, protocolId: objectId, success, errorMessage });
-      }
-    }
+    callback({
+      transferId: parsed.transferId,
+      cid: parsed.cid,
+      peerCid: parsed.peerCid,
+      direction: parsed.direction,
+      success: parsed.success,
+      downloadPath: parsed.downloadPath,
+      errorMessage: parsed.errorMessage,
+    });
   };
 }
 
 export function createStatusChangeHandler(
   callback: (event: TransferStatusEvent) => void,
-  objectIdToTransferId: Map<string, string>
+  correlation: TickCorrelation
 ): (message: Record<string, unknown>) => void {
   return (message: Record<string, unknown>) => {
-    const notification = message.FileTransferStatusNotification as
+    const notification: FileTransferStatusNotification | undefined = message.FileTransferStatusNotification as
       | FileTransferStatusNotification
       | undefined;
+    if (!notification) return;
 
-    if (notification) {
-      const objectId = notification.object_id.toString();
-      callback({
-        protocolId: objectId,
-        cid: notification.cid,
-        success: notification.success,
-        accepted: notification.response && notification.success,
-        message: notification.message,
-      });
+    const objectId: string = notification.object_id.toString();
+    const transferId: string | undefined = correlation.objectIdToTransferId.get(objectId);
+    // The status notification is the one recipient-side message that carries
+    // BOTH the object_id and the accept request's request_id, so it is a
+    // second chance to join the tick stream to its transfer (belt to
+    // ReceptionBeginning's braces).
+    if (transferId && notification.request_id) {
+      correlation.requestIdToTransferId.set(notification.request_id, transferId);
     }
+
+    callback({
+      protocolId: objectId,
+      transferId,
+      cid: notification.cid,
+      success: notification.success,
+      accepted: notification.response && notification.success,
+      message: notification.message ?? undefined,
+    });
   };
-}
-
-export function parseTickStatus(
-  status: ObjectTransferStatus
-): {
-  protocolId: string;
-  bytesTransferred: number;
-  totalBytes: number;
-  percentage: number;
-  status: 'uploading' | 'downloading' | 'complete' | 'failed';
-} | null {
-  if (isVariant(status, 'TransferTick')) {
-    const tick = status.TransferTick;
-    const sent = Number(tick.sent);
-    const total = Number(tick.total);
-    return {
-      protocolId: tick.object_id.toString(),
-      bytesTransferred: sent,
-      totalBytes: total,
-      percentage: total > 0 ? Math.round((sent / total) * 100) : 0,
-      status: 'uploading',
-    };
-  }
-  if (isVariant(status, 'ReceptionTick')) {
-    const tick = status.ReceptionTick;
-    const received = Number(tick.received);
-    const total = Number(tick.total);
-    return {
-      protocolId: tick.object_id.toString(),
-      bytesTransferred: received,
-      totalBytes: total,
-      percentage: total > 0 ? Math.round((received / total) * 100) : 0,
-      status: 'downloading',
-    };
-  }
-  if (isVariant(status, 'ReceptionBeginning')) {
-    const tick = status.ReceptionBeginning;
-    return {
-      protocolId: tick.object_id.toString(),
-      bytesTransferred: 0,
-      totalBytes: Number(tick.total_length),
-      percentage: 0,
-      status: 'downloading',
-    };
-  }
-
-  return null;
 }

@@ -23,8 +23,10 @@ import {
   closeAnyModals,
   TestHarness,
   runTestMain,
+  isHiddenWithin,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -142,8 +144,8 @@ async function verifyDefaultFolders(page: Page, label: string): Promise<boolean>
   const sentFiles = page.getByText('Sent Files', { exact: true }).first();
   const receivedFiles = page.getByText('Received Files', { exact: true }).first();
 
-  const hasSent = await sentFiles.isVisible({ timeout: 5000 }).catch(() => false);
-  const hasReceived = await receivedFiles.isVisible({ timeout: 5000 }).catch(() => false);
+  const hasSent = await isVisibleWithin(sentFiles, 5000);
+  const hasReceived = await isVisibleWithin(receivedFiles, 5000);
 
   console.log(`  Sent Files visible: ${hasSent}`);
   console.log(`  Received Files visible: ${hasReceived}`);
@@ -153,22 +155,25 @@ async function verifyDefaultFolders(page: Page, label: string): Promise<boolean>
 async function createFolder(page: Page, label: string, folderName: string): Promise<boolean> {
   console.log(`\n=== ${label}: Creating folder "${folderName}" ===`);
   try {
-    // Handle the prompt() dialog that will be triggered
-    page.once('dialog', async dialog => {
-      console.log(`  Dialog appeared: "${dialog.message()}"`);
-      await dialog.accept(folderName);
-    });
-
-    // Click the New Folder button in toolbar (FolderPlus icon)
+    // The name is asked for by an in-app dialog now, not window.prompt, so
+    // there is no native dialog to accept — type into the field and submit.
     const newFolderBtn = page.locator('button').filter({ has: page.locator('svg.lucide-folder-plus') });
-    if (await newFolderBtn.isVisible({ timeout: 5000 })) {
+    if (await isVisibleWithin(newFolderBtn, 5000)) {
       await newFolderBtn.click();
       console.log('  Clicked New Folder button');
+
+      const nameInput = page.locator('#prompt-dialog-input');
+      if (!await isVisibleWithin(nameInput, 5000)) {
+        console.log('  ERROR: the new-folder dialog did not appear');
+        return false;
+      }
+      await nameInput.fill(folderName);
+      await page.getByTestId('prompt-dialog-confirm').click();
       await sleep(2000);
 
       // Verify folder appeared
       const folder = page.getByText(folderName, { exact: true }).first();
-      const exists = await folder.isVisible({ timeout: 5000 }).catch(() => false);
+      const exists = await isVisibleWithin(folder, 5000);
       console.log(`  Folder "${folderName}" visible: ${exists}`);
       return exists;
     }
@@ -187,7 +192,7 @@ async function syncAndCheckFolder(page: Page, label: string, folderName: string,
     // Try multiple sync attempts — P2P ops may take a moment to propagate
     for (let attempt = 0; attempt < 10; attempt++) {
       const syncBtn = page.locator('button').filter({ has: page.locator('svg.lucide-refresh-cw') });
-      if (await syncBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+      if (await isVisibleWithin(syncBtn, 5000)) {
         await syncBtn.click();
         console.log(`  Clicked Sync button (attempt ${attempt + 1}/10)`);
       }
@@ -220,15 +225,12 @@ async function syncAndCheckFolder(page: Page, label: string, folderName: string,
 async function deleteFolder(page: Page, label: string, folderName: string): Promise<boolean> {
   console.log(`\n=== ${label}: Deleting folder "${folderName}" ===`);
   try {
-    // Handle the confirm() dialog
-    page.once('dialog', async dialog => {
-      console.log(`  Confirm dialog: "${dialog.message()}"`);
-      await dialog.accept();
-    });
+    // Deletion is confirmed by an in-app AlertDialog now, not window.confirm;
+    // the confirm button is clicked after the menu item below.
 
     // Right-click on the folder
     const folder = page.getByText(folderName, { exact: true }).first();
-    if (!await folder.isVisible({ timeout: 5000 })) {
+    if (!await isVisibleWithin(folder, 5000)) {
       console.log('  Folder not found');
       return false;
     }
@@ -239,15 +241,33 @@ async function deleteFolder(page: Page, label: string, folderName: string): Prom
 
     // Click Delete in context menu
     const deleteItem = page.locator('[role="menuitem"]').filter({ hasText: /delete/i });
-    if (await deleteItem.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(deleteItem, 3000)) {
       await deleteItem.click();
       console.log('  Clicked Delete menu item');
+
+      // Confirm in the app's own dialog.
+      const confirmDelete = page.getByTestId('confirm-dialog-confirm');
+      if (await isVisibleWithin(confirmDelete, 5000)) {
+        await confirmDelete.click();
+        console.log('  Confirmed deletion in the in-app dialog');
+      } else {
+        console.log('  WARNING: in-app confirm dialog did not appear');
+      }
       await sleep(2000);
 
-      // Verify folder gone
-      const stillVisible = await page.getByText(folderName, { exact: true }).first().isVisible({ timeout: 2000 }).catch(() => false);
-      console.log(`  Folder still visible: ${stillVisible}`);
-      return !stillVisible;
+      // Verify folder gone.
+      //
+      // isHiddenWithin, not isVisible({ timeout }). That option is declared
+      // ignored, so this sampled once: a tree that had not re-rendered yet
+      // reported the folder absent and deleteFolder returned success whether or
+      // not anything was deleted. This value gates results.folderDeletion, so
+      // the false positive propagated straight into the run's verdict.
+      const gone = await isHiddenWithin(
+        page.getByText(folderName, { exact: true }).first(),
+        5000
+      );
+      console.log(`  Folder still visible: ${!gone}`);
+      return gone;
     }
 
     console.log('  Delete menu item not found');
@@ -508,11 +528,6 @@ async function runTest(): Promise<boolean> {
     console.log(`  Bob sees gone:    ${results.folderDeletion.bobSeesGone ? 'PASS' : 'FAIL'}`);
 
     harness.finalize(allPassed, results);
-
-    if (!process.env.IN_CI) {
-      console.log('\nBrowser will remain open for 10 seconds...');
-      await sleep(10000);
-    }
 
     return allPassed;
 

@@ -1,27 +1,24 @@
 // Instance Channel (Singleton): coordinates leader election + message handling.
 import { eventEmitter } from '../event-emitter';
+import { reissueTabId , type TabUserContext } from '@/lib/tab-context';
+import { handleOutboundAck } from './channel-messaging';
+import { sendToLeader } from './send-to-leader';
 import { instanceManager } from './instance-manager';
-import { outboundQueue, type AckResult, type ProxyResponseData } from './outbound-queue';
+import { documentNonce, acceptInbound } from './instance-identity';
+import { dispatchChannelMessage } from './channel-message-dispatch';
+import { type AckResult } from './outbound-queue';
 import { debugLog } from '@/lib/debug-config';
-import { TIMEOUT } from '../timeout-constants';
+import { describeForwarded } from '@/lib/p2p/message-fingerprint';
 import { CHANNEL_NAME, type ChannelMessage } from './channel-types';
 import type { LeaderElectionState } from './channel-leader-election';
 import {
+  relinquishLeadership as relinquish,
   startLeaderElection,
-  tryBecomeLeader,
-  handleLeaderElection,
-  handleLeaderHeartbeat,
-  sendHeartbeat,
 } from './channel-leader-election';
-import {
-  handleOutboundRequest,
-  handleOutboundAck,
-  handleInboundForward,
-  handleInstanceAnnounce,
-  handleInstanceGoodbye,
-  handleSessionRelease,
-  handleCidUpdate,
-} from './channel-messaging';
+import { replayOutboundRequest } from './channel-messaging';
+import { setupBeforeUnloadHandler } from './channel-lifecycle';
+
+
 
 // Re-export types for consumers
 export type { ChannelMessage, ChannelMessageType } from './channel-types';
@@ -38,7 +35,7 @@ class InstanceChannel {
       leaderCheckInterval: null,
       heartbeatInterval: null,
       initTime: Date.now(),
-      send: (msg) => this.send(msg),
+      send: (msg): void => this.send(msg),
     };
     this.initialize();
   }
@@ -62,7 +59,7 @@ class InstanceChannel {
       this.setupEventListeners();
       startLeaderElection(this.electionState);
       this.announcePresence();
-      this.setupBeforeUnloadHandler();
+      setupBeforeUnloadHandler(this);
       debugLog('InstanceChannel', '[InstanceChannel] Initialized');
     } catch (error) {
       debugLog('InstanceChannel', 'Failed to initialize:', error);
@@ -71,24 +68,41 @@ class InstanceChannel {
 
   private setupEventListeners(): void {
     eventEmitter.on('instance:cid-changed', (data: { instanceId: string; cid: bigint | null }) => {
-      this.send({
-        type: 'cid-update', targetInstanceId: '*',
-        payload: { cid: data.cid ? data.cid.toString() : null },
-      });
+      this.send({ type: 'cid-update', targetInstanceId: '*', payload: { cid: data.cid?.toString() ?? null } });
     });
 
     // Re-broadcast on leader change so a new leader inherits every
     // follower's CID. Without it, CID-routed notifications drop with
     // `No instance owns CID …` after a handover.
     eventEmitter.on('instance:leader-changed', () => { this.broadcastCid(); this.announcePresence(); });
+
+    // OutboundQueue emits 'outbound-retry' for its timeout retry AND its
+    // leader-change replay, and nothing subscribed — so a request in flight
+    // when the leader died just failed on the 30s ACK timeout.
+    eventEmitter.on('outbound-retry', ({ requestId, payload }: { requestId: string; payload: unknown }) => {
+      replayOutboundRequest(requestId, payload, (message) => this.send(message));
+    });
   }
+
+  private readonly identityRepair: { reissue: () => string; announce: () => void; } = {
+    // Both ids, not just the instance one. sessionStorage is copied on
+    // Duplicate Tab, so the twins share the TAB id too -- and every
+    // `tab-<id>-*` storage key with it, including the selected session.
+    reissue: (): string => {
+      reissueTabId();
+      return instanceManager.reissueInstanceId();
+    },
+    announce: (): void => this.send({ type: 'instance-announce' as const, targetInstanceId: '*' }),
+  };
 
   private setupMessageHandler(): void {
     if (!this.channel) return;
 
-    this.channel.onmessage = (event: MessageEvent<ChannelMessage>) => {
-      const message = event.data;
-      if (message.senderInstanceId === instanceManager.instanceId) return;
+    this.channel.onmessage = (event: MessageEvent<ChannelMessage>): void => {
+      const message: ChannelMessage = event.data;
+
+      // Gated by DOCUMENT, not instance id — see instance-identity.ts.
+      if (!acceptInbound(message, instanceManager.instanceId, this.identityRepair)) return;
       if (!this.isMessageForUs(message)) return;
       this.handleMessage(message);
     };
@@ -98,66 +112,32 @@ class InstanceChannel {
     });
   }
 
-  private setupBeforeUnloadHandler(): void {
-    window.addEventListener('beforeunload', () => {
-      const myCid = instanceManager.cid;
-
-      if (myCid) {
-        const otherInstancesWithSameCid = instanceManager.getAllInstances()
-          .filter(i => i.instanceId !== instanceManager.instanceId && i.cid === myCid);
-
-        if (otherInstancesWithSameCid.length === 0) {
-          debugLog('InstanceChannel', `[InstanceChannel] Last tab with CID ${myCid} closing, releasing session`);
-          if (instanceManager.isLeader) {
-            eventEmitter.emit('session:release-request', { cid: myCid });
-          } else {
-            this.send({ type: 'session-release', targetInstanceId: 'leader', payload: { cid: myCid } });
-          }
-        }
-      }
-
-      this.announceGoodbye();
-    });
-  }
-
   private isMessageForUs(message: ChannelMessage): boolean {
-    const target = message.targetInstanceId;
+    const target: string = message.targetInstanceId;
     if (target === '*' || target === 'broadcast') return true;
     if (target === 'leader') return instanceManager.isLeader;
     return target === instanceManager.instanceId;
   }
 
   private handleMessage(message: ChannelMessage): void {
-    if (message.type !== 'leader-heartbeat') {
-      debugLog('InstanceChannel', `[InstanceChannel] Received ${message.type} from ${message.senderInstanceId}`);
-    }
-
-    switch (message.type) {
-      case 'outbound-request': handleOutboundRequest(message); break;
-      case 'outbound-ack': handleOutboundAck(message); break;
-      case 'inbound-forward': handleInboundForward(message); break;
-      case 'leader-election': handleLeaderElection(this.electionState, message); break;
-      case 'leader-heartbeat': handleLeaderHeartbeat(this.electionState, message); break;
-      case 'instance-announce': handleInstanceAnnounce(this.electionState, message); break;
-      case 'instance-goodbye': handleInstanceGoodbye(this.electionState, message); break;
-      case 'session-release': handleSessionRelease(message); break;
-      case 'cid-update': handleCidUpdate(message); break;
-      // Self-heal: leader missed our cid-update. No `instanceManager.cid` guard so
-      // broadcastCid()'s tab-context fallback runs — post claim/reload owners
-      // (CID not yet in instanceManager) still answer; the old guard stranded them.
-      case 'cid-report-request': this.broadcastCid(); break;
-    }
+    dispatchChannelMessage(message, this.electionState, () => this.broadcastCid());
   }
 
   // Some auth paths land the CID in tab-context before instanceManager;
   // the heal must look there too or route-miss recovery is a no-op.
   broadcastCid(): void {
     if (instanceManager.cid) { this.sendCidUpdate(instanceManager.cid); return; }
-    void (async () => {
+    // `void` alone satisfies no-floating-promises but does NOT handle rejection:
+    // getSelectedUser reads IndexedDB, which throws when storage is unavailable
+    // (private mode, denied permission, quota). Without this catch that surfaced
+    // as an unhandled rejection. The heal is best effort - log and move on.
+    void (async (): Promise<void> => {
       const { getSelectedUser } = await import('../tab-context');
-      const tab = await getSelectedUser();
+      const tab: TabUserContext | null = await getSelectedUser();
       if (tab?.selectedCid) { instanceManager.setCid(tab.selectedCid); this.sendCidUpdate(tab.selectedCid); }
-    })();
+    })().catch((error) => {
+      debugLog('InstanceChannel', 'broadcastCid: could not read the selected tab CID', error);
+    });
   }
 
   private sendCidUpdate(cid: bigint): void {
@@ -177,6 +157,7 @@ class InstanceChannel {
     const fullMessage: ChannelMessage = {
       ...message,
       senderInstanceId: message.senderInstanceId || instanceManager.instanceId,
+      senderDocumentNonce: documentNonce,
       timestamp: message.timestamp || Date.now(),
     };
 
@@ -188,36 +169,48 @@ class InstanceChannel {
   }
 
   sendToLeader(payload: unknown, requestId?: string): Promise<AckResult> {
-    const id = requestId || crypto.randomUUID();
-
-    return new Promise((resolve) => {
-      outboundQueue.enqueue(payload, id);
-
-      const ackHandler = (event: { requestId: string; status: 'processed' | 'error'; error?: string; data?: ProxyResponseData }) => {
-        if (event.requestId === id) {
-          clearTimeout(timeout);
-          eventEmitter.off('outbound-ack', ackHandler);
-          resolve({ status: event.status, error: event.error, data: event.data });
-        }
-      };
-
-      eventEmitter.on('outbound-ack', ackHandler);
-
-      const timeout = setTimeout(() => {
-        eventEmitter.off('outbound-ack', ackHandler);
-        resolve({ status: 'error', error: 'Timeout waiting for ACK from leader' });
-      }, TIMEOUT.OUTBOUND_ACK_MS);
-
-      this.send({ type: 'outbound-request', targetInstanceId: 'leader', requestId: id, payload });
-    });
+    return sendToLeader(this, payload, requestId);
   }
 
   sendAck(targetInstanceId: string, requestId: string, result: AckResult): void {
-    this.send({ type: 'outbound-ack', targetInstanceId, requestId, status: result.status, error: result.error, data: result.data });
+    const message: Omit<ChannelMessage, 'senderInstanceId' | 'timestamp'> = {
+      type: 'outbound-ack' as const,
+      targetInstanceId,
+      requestId,
+      status: result.status,
+      error: result.error,
+      data: result.data,
+    };
+
+    // A tab can be the leader answering its OWN queued request: after a leader
+    // dies, a follower holding one wins the election and the replay executes
+    // locally. BroadcastChannel never delivers to the posting context, so that
+    // ack vanished — the entry survived, checkTimeouts re-fired it every 5s, and
+    // each retry re-executed the request, which then reported as failed.
+    if (targetInstanceId === instanceManager.instanceId) {
+      handleOutboundAck({
+        ...message,
+        senderInstanceId: instanceManager.instanceId,
+        timestamp: Date.now(),
+      } as ChannelMessage);
+      return;
+    }
+
+    this.send(message);
   }
 
-  forwardToInstance(targetInstanceId: string, payload: unknown): void {
-    this.send({ type: 'inbound-forward', targetInstanceId, payload });
+  forwardToInstance(targetInstanceId: string, payload: unknown, requestId?: string): void {
+    // Fingerprinted so the hop joins to the receiving tab's processLocalMessage.
+    // With `requestId` set the router retains the message until the target tab
+    // acks; no ack within the buffer timeout means the leader falls back to
+    // processing locally, so a bare BroadcastChannel post can no longer lose it.
+    debugLog('InstanceChannel', `[ILM-Router] forward -> ${targetInstanceId} ${describeForwarded(payload)}`);
+    this.send({ type: 'inbound-forward', targetInstanceId, payload, requestId });
+  }
+
+  /** Confirms a forwarded message reached an attached handler here. */
+  sendInboundAck(targetInstanceId: string, requestId: string): void {
+    this.send({ type: 'inbound-ack', targetInstanceId, requestId });
   }
 
   broadcast(payload: unknown): void {
@@ -227,6 +220,11 @@ class InstanceChannel {
   announcePresence(): void {
     debugLog('InstanceChannel', `announcePresence: instanceId=${instanceManager.instanceId}, cid=${instanceManager.cid?.toString()}`);
     this.send({ type: 'instance-announce', targetInstanceId: '*', payload: { cid: instanceManager.cid } });
+  }
+
+  /** Give up leadership this tab cannot serve — see relinquishLeadership. */
+  relinquishLeadership(): void {
+    relinquish(this.electionState);
   }
 
   announceGoodbye(): void {
@@ -243,7 +241,7 @@ class InstanceChannel {
 }
 
 // Export singleton instance
-export const instanceChannel = InstanceChannel.getInstance();
+export const instanceChannel: InstanceChannel = InstanceChannel.getInstance();
 
 // Also export class for testing
 export { InstanceChannel };

@@ -35,6 +35,7 @@ import {
   p2pRegister,
   acceptP2PRequest,
 } from '../../lib/index.js';
+import { isVisibleWithin } from '../../lib/index.js';
 
 // ============================================================================
 // Configuration
@@ -130,9 +131,13 @@ async function createPeerGroup(
 
   // Click "+" button next to CONVERSATIONS header in sidebar
   // The button is a small icon-only button within the SidebarGroup containing "CONVERSATIONS"
-  const newGroupBtn = page.locator('[data-sidebar="group"]:has([data-sidebar="group-label"]:has-text("CONVERSATIONS")) button').first();
+  // By testid. Finding it by walking into the group labelled "CONVERSATIONS"
+  // made the failure read as "the button is missing" when the truth was that
+  // the whole section is conditional -- which is a fact worth reporting
+  // plainly, not one to discover through a structural selector.
+  const newGroupBtn = page.getByTestId('new-group-chat-button').first();
 
-  if (!await newGroupBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (!await isVisibleWithin(newGroupBtn, 5000)) {
     console.log('    New Group button not found in sidebar');
     uxTracker.log('critical', 'functional', 'New Group button not found in sidebar');
     await takeScreenshot(page, `${creator.username}_new_group_btn_not_found`);
@@ -145,8 +150,8 @@ async function createPeerGroup(
   await takeScreenshot(page, `${creator.username}_create_group_dialog`);
 
   // Fill in group name - input has id="groupName" and placeholder with "'s Group"
-  const nameInput = page.locator('input#groupName, input[placeholder*="Group"]').first();
-  if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+  const nameInput = page.getByTestId('create-group-name').first();
+  if (await isVisibleWithin(nameInput, 3000)) {
     await nameInput.fill(groupName);
     console.log(`    Group name filled: ${groupName}`);
   } else {
@@ -161,8 +166,8 @@ async function createPeerGroup(
     console.log(`    Adding member: ${member.username}`);
 
     // Click "Add Member" button
-    const addMemberBtn = page.locator('button:has-text("Add Member")').first();
-    if (!await addMemberBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    const addMemberBtn = page.getByTestId('create-group-add-member').first();
+    if (!await isVisibleWithin(addMemberBtn, 2000)) {
       console.log(`    Add Member button not found for ${member.username}`);
       continue;
     }
@@ -171,8 +176,15 @@ async function createPeerGroup(
     await sleep(500);
 
     // Select the peer from the popover
-    const peerOption = page.locator(`[role="option"]:has-text("${member.username}"), button:has-text("${member.username}")`).first();
-    if (await peerOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // The option INSIDE the dialog, by its own id.
+    //
+    // This matched `button:has-text("<username>")`, and the sidebar's peer row
+    // is a button with the username in it -- so the click resolved to a control
+    // behind the modal and Playwright reported, correctly and unhelpfully,
+    // "<div class=...bg-black/80> intercepts pointer events" for thirty
+    // seconds. The dialog has carried `create-group-peer-<username>` all along.
+    const peerOption = page.getByTestId(`create-group-peer-${member.username}`).first();
+    if (await isVisibleWithin(peerOption, 2000)) {
       await peerOption.click();
       console.log(`    Selected member: ${member.username}`);
       await sleep(500);
@@ -185,8 +197,12 @@ async function createPeerGroup(
   await takeScreenshot(page, `${creator.username}_group_members_added`);
 
   // Click "Create Group" button
-  const createBtn = page.locator('button:has-text("Create Group")').last();
-  if (!await createBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+  // By testid. `button:has-text("Create Group")` also matches the dialog's own
+  // heading region and whatever else carries those words, so this was
+  // `.last()` -- picking by DOM order, which is how round 287's locator came to
+  // resolve to the row behind a modal and report it as a product failure.
+  const createBtn = page.getByTestId('create-group-submit');
+  if (!await isVisibleWithin(createBtn, 3000)) {
     console.log('    Create Group button not found');
     uxTracker.log('critical', 'functional', 'Create Group button not found in dialog');
     await takeScreenshot(page, `${creator.username}_create_btn_not_found`);
@@ -194,7 +210,19 @@ async function createPeerGroup(
   }
 
   await createBtn.click();
-  await sleep(3000);
+
+  // WAIT for the navigation, do not sleep at it.
+  //
+  // This slept three seconds and then read the URL. Creating a group is a round
+  // trip to the peer, and on a link that is retransmitting -- which CI's is --
+  // three seconds is not enough: the URL had not changed yet, the fallback
+  // looked for a sidebar row that was not there yet either, and the helper
+  // reported "group creation produced no group id" for a group that arrived a
+  // second later. A fixed sleep turns a slow success into a failure and names
+  // the product for it.
+  await page
+    .waitForURL(/\/groups\/[^/]+/, { timeout: 30_000 })
+    .catch(() => { /* fall through to the sidebar check below */ });
 
   await takeScreenshot(page, `${creator.username}_group_created`);
 
@@ -209,12 +237,20 @@ async function createPeerGroup(
     return groupId;
   }
 
-  // Alternative: Look for group in sidebar
-  const groupRow = page.locator(`text="${groupName}"`).first();
-  if (await groupRow.isVisible({ timeout: 3000 }).catch(() => false)) {
-    console.log(`    Group "${groupName}" visible in sidebar`);
-    // Return a placeholder ID - the actual ID would come from state
-    return `group-${Date.now()}`;
+  // Alternative: the row in the sidebar, which carries the real id.
+  //
+  // This returned `group-${Date.now()}` -- a fabricated id that no later step
+  // can use, so a caller that "succeeded" here then failed on something that
+  // read like a different defect. `group-row-<id>` is what the sidebar renders,
+  // and the id in it is the group's own.
+  const groupRow = page.locator(`[data-testid^="group-row-"]:has-text("${groupName}")`).first();
+  if (await isVisibleWithin(groupRow, 10_000)) {
+    const testId: string | null = await groupRow.getAttribute('data-testid');
+    const fromRow: string | undefined = testId?.slice('group-row-'.length);
+    if (fromRow) {
+      console.log(`    Group "${groupName}" visible in sidebar as ${fromRow}`);
+      return fromRow;
+    }
   }
 
   console.log('    Could not confirm group creation');
@@ -228,18 +264,30 @@ async function createPeerGroup(
 async function navigateToGroup(
   user: UserSession,
   groupName: string,
+  groupId: string,
   uxTracker: UxIssueTracker
 ): Promise<boolean> {
-  console.log(`\n  ${user.username}: Navigating to group "${groupName}"...`);
+  console.log(`\n  ${user.username}: Navigating to group ${groupId}...`);
 
   const page = user.page;
 
-  // Look for group in sidebar
-  const groupRow = page.locator(`text="${groupName}"`).first();
+  // By ID, not by the creator's chosen name.
+  //
+  // `GroupCreate` carries `{cid, request_id, initial_users_to_invite}` and no
+  // name field, so the name the creator typed never leaves their machine --
+  // round 425 records that, and keeps it locally for the creator alone. An
+  // invitee builds their copy with `buildGroupFromInvite`, which falls back to
+  // "<inviter>'s Group". Looking for the creator's name on the INVITEE's screen
+  // asks for something the protocol cannot deliver, and reported it as the
+  // product failing.
+  //
+  // The id is shared: it is the group's own `<cid>:<mgid>`, which round 434
+  // made the creator obtain correctly, and it is what `group-row-<id>` renders.
+  const groupRow = page.locator(`[data-testid="group-row-${groupId}"]`).first();
 
-  if (!await groupRow.isVisible({ timeout: 10000 }).catch(() => false)) {
-    console.log(`    Group "${groupName}" not visible in sidebar for ${user.username}`);
-    uxTracker.log('major', 'functional', `Group "${groupName}" not visible for ${user.username}`);
+  if (!await isVisibleWithin(groupRow, 10000)) {
+    console.log(`    Group ${groupId} not visible in sidebar for ${user.username}`);
+    uxTracker.log('major', 'functional', `Group ${groupId} not visible for ${user.username}`);
     await takeScreenshot(page, `${user.username}_group_not_visible`);
     return false;
   }
@@ -250,8 +298,12 @@ async function navigateToGroup(
   await takeScreenshot(page, `${user.username}_in_group`);
 
   // Verify we're in the group chat
-  const groupHeader = page.locator(`h2:has-text("${groupName}"), [role="heading"]:has-text("${groupName}")`).first();
-  const inGroup = await groupHeader.isVisible({ timeout: 5000 }).catch(() => false);
+  // The header shows whatever THIS user's copy is called, which for an invitee
+  // is the fallback name rather than the creator's. Being on the group's route
+  // is what "in the group" means.
+  await page.waitForURL(new RegExp(`/groups/${groupId.replace(/[.*+?^$()|[\]\\]/g, '\\$&')}`), { timeout: 5_000 }).catch(() => {});
+  const groupHeader = page.locator('[data-testid="group-chat-view"]').first();
+  const inGroup = await isVisibleWithin(groupHeader, 5000);
 
   if (!inGroup) {
     console.log(`    Failed to navigate to group for ${user.username}`);
@@ -273,9 +325,9 @@ async function sendGroupChatMessage(
   const page = sender.page;
 
   // Find message input
-  const messageInput = page.locator('input[placeholder*="message"], textarea[placeholder*="message"]').first();
+  const messageInput = page.getByTestId('group-message-input').first();
 
-  if (!await messageInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (!await isVisibleWithin(messageInput, 5000)) {
     console.log(`    Message input not found for ${sender.username}`);
     uxTracker.log('major', 'functional', `Message input not found for ${sender.username}`);
     return false;
@@ -288,7 +340,7 @@ async function sendGroupChatMessage(
 
   // Verify message appears in chat
   const sentMessage = page.locator(`.message:has-text("${message}"), div:has-text("${message}")`).first();
-  const sent = await sentMessage.isVisible({ timeout: 5000 }).catch(() => false);
+  const sent = await isVisibleWithin(sentMessage, 5000);
 
   return sent;
 }
@@ -307,7 +359,7 @@ async function verifyGroupChatMessageReceived(
   // Wait for message to appear
   const messageLocator = page.locator(`text="${message}"`).first();
 
-  const received = await messageLocator.isVisible({ timeout: timeoutMs }).catch(() => false);
+  const received = await isVisibleWithin(messageLocator, timeoutMs);
 
   if (!received) {
     console.log(`    Message not received by ${receiver.username}: "${message.substring(0, 30)}..."`);
@@ -499,10 +551,16 @@ async function runPeerGroupTest(userCount: number): Promise<boolean> {
     results.groupCreated = groupId !== null;
 
     if (!results.groupCreated) {
-      console.log('\n  SKIPPED: Peer group UI not yet implemented (CreateGroupDialog / GroupChatPage)');
-      console.log('  This test requires WASM bindings for groupCreate, groupInvite, groupMessage.');
-      console.log('  Treating as PASS (feature not yet available).\n');
-      return true; // Skip gracefully
+      // This used to `return true` -- "Treating as PASS (feature not yet
+      // available)". Deleting CreateGroupDialog.tsx made createPeerGroup return
+      // null, which took that branch, and the leg went green in CI. A spec that
+      // passes when the feature it tests is absent is not a test of anything.
+      //
+      // The dialog exists; it has since the note was written. If group creation
+      // fails now, that is a defect, and a red leg is the correct report.
+      console.error('\n  FAIL: group creation produced no group id.');
+      console.error('  CreateGroupDialog exists, so this is a real failure, not an absent feature.\n');
+      return false;
     }
 
     // ========== STEP 4: All Users Navigate to Group ==========
@@ -517,9 +575,15 @@ async function runPeerGroupTest(userCount: number): Promise<boolean> {
       // Wait for invite notification to be processed
       await sleep(3000);
 
+      // `groupId` is checked above -- `results.groupCreated` is `groupId !==
+      // null` -- but narrow it here too rather than asserting non-null, so a
+      // future reorder cannot turn a missing id into a lookup for "null".
+      if (!groupId) break;
+
       results.groupNavigation[member.username] = await navigateToGroup(
         member,
         groupName,
+        groupId,
         uxTracker
       );
     }
@@ -583,9 +647,12 @@ async function runPeerGroupTest(userCount: number): Promise<boolean> {
       errorMsg.includes('resource limit');
 
     if (isBrowserCrash && userCount >= 3) {
-      console.log('\n  Browser resource exhaustion for 3+ users (peer group UI not implemented yet)');
-      console.log('  Treating as PASS (feature not yet available).\n');
-      return true; // Skip gracefully
+      // Also used to return true. A browser that dies mid-run has told us
+      // nothing about the feature, and reporting that as a pass is worse than
+      // reporting nothing: it is the only signal anybody reads.
+      console.error('\n  FAIL: browser crashed or ran out of resources with 3+ users.');
+      console.error('  This is a real result about running three sessions, not an absent feature.\n');
+      return false;
     }
 
     return false;

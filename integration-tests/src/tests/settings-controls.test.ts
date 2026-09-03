@@ -10,6 +10,7 @@
 
 import { Page } from 'playwright';
 import {
+  activateTab,
   sleep,
   createBrowser,
   createAccount,
@@ -21,6 +22,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -38,6 +40,14 @@ interface TestResults {
 
   // Persistence
   settingsReopen: boolean;
+  /**
+   * Whether the auto-reconnect choice survived close-and-reopen.
+   *
+   * This was a console.log and nothing else: the run printed "Settings
+   * persistence verified: false" and exited 0. Persistence is the entire point
+   * of reopening the modal, so it is the one result the step must produce.
+   */
+  settingsPersisted: boolean;
 }
 
 // ============================================================================
@@ -54,51 +64,57 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 
 async function openSettingsModal(page: Page): Promise<boolean> {
   const avatarButton = page.locator('[data-testid="user-avatar-button"]');
-  if (!(await avatarButton.isVisible({ timeout: 5000 }).catch(() => false))) return false;
+  if (!(await isVisibleWithin(avatarButton, 5000))) return false;
 
   await avatarButton.click();
   await sleep(500);
 
   const settingsItem = page.locator('[role="menuitem"]:has-text("Settings")');
-  if (!(await settingsItem.isVisible({ timeout: 3000 }).catch(() => false))) return false;
+  if (!(await isVisibleWithin(settingsItem, 3000))) return false;
 
   await settingsItem.click();
   await sleep(500);
 
   const modal = page.locator('[role="dialog"]').first();
-  return await modal.isVisible({ timeout: 3000 }).catch(() => false);
+  return await isVisibleWithin(modal, 3000);
 }
 
 async function testGeneralTab(page: Page): Promise<boolean> {
   console.log('\n=== Testing General Tab Controls ===');
 
-  // Scope tab locator to the dialog to avoid matching tabs elsewhere on the page,
-  // and wait for the dialog open animation to fully settle before clicking.
-  await sleep(500);
-  const generalTab = page.locator('[role="dialog"] button[role="tab"]').first();
-  if (await generalTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await generalTab.click();
-    await sleep(300);
+  const dialog = page.locator('[role="dialog"]');
 
-    const tabPanel = page.locator('[role="tabpanel"]');
-    const hasContent = await tabPanel.isVisible({ timeout: 2000 }).catch(() => false);
+  // The shared helper waits for THIS tab to report active and resolves its panel
+  // via aria-controls, instead of sleeping and then reading an unscoped
+  // [role="tabpanel"] that also matches the office view behind the modal.
+  const { works } = await activateTab(
+    page,
+    dialog.locator('button[role="tab"]').first(),
+    'General tab',
+    dialog.locator('[role="tabpanel"]').first()
+  );
+  if (!works) return false;
 
-    if (hasContent) {
-      const panelText = await tabPanel.textContent().catch(() => '');
-      const hasControls = (panelText?.length ?? 0) > 10;
-      console.log(`  General tab has controls: ${hasControls}`);
-      return hasControls;
-    }
-  }
-  console.log('  General tab not found or empty');
-  return false;
+  // The controls the tab actually offers, rather than "the panel has more than
+  // ten characters of text" — which any rendered panel satisfies and which
+  // therefore asserted nothing.
+  const heading = await isVisibleWithin(dialog.getByText('User Profile'), 5000);
+  const displayName = await isVisibleWithin(dialog.locator('#displayName'), 5000);
+  const save = await isVisibleWithin(dialog.getByRole('button', { name: /save/i }), 5000);
+
+  const hasControls = heading && displayName && save;
+  console.log(
+    `  General tab has controls: ${hasControls} ` +
+      `(heading: ${heading}, displayName: ${displayName}, save: ${save})`
+  );
+  return hasControls;
 }
 
 async function testConnectionsTab(page: Page): Promise<boolean> {
   console.log('\n=== Testing Connections Tab ===');
 
   const connectionsTab = page.locator('[role="dialog"] button[role="tab"]').nth(1);
-  if (!(await connectionsTab.isVisible({ timeout: 2000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(connectionsTab, 2000))) {
     console.log('  Connections tab not found');
     return false;
   }
@@ -108,7 +124,7 @@ async function testConnectionsTab(page: Page): Promise<boolean> {
 
   // Look for auto-reconnect switch
   const autoReconnect = page.locator('#auto-reconnect').first();
-  const visible = await autoReconnect.isVisible({ timeout: 3000 }).catch(() => false);
+  const visible = await isVisibleWithin(autoReconnect, 3000);
   console.log(`  Auto-reconnect switch visible: ${visible}`);
 
   if (!visible) return false;
@@ -145,7 +161,7 @@ async function testAppearanceTab(page: Page): Promise<boolean> {
   console.log('\n=== Testing Appearance Tab ===');
 
   const appearanceTab = page.locator('[role="dialog"] button[role="tab"]').nth(2);
-  if (!(await appearanceTab.isVisible({ timeout: 2000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(appearanceTab, 2000))) {
     console.log('  Appearance tab not found');
     return false;
   }
@@ -155,12 +171,12 @@ async function testAppearanceTab(page: Page): Promise<boolean> {
 
   // Look for theme toggle/select (dark/light/system)
   const themeControl = page.locator('[role="combobox"], [role="switch"], [role="radiogroup"], select').first();
-  let visible = await themeControl.isVisible({ timeout: 3000 }).catch(() => false);
+  let visible = await isVisibleWithin(themeControl, 3000);
 
   if (!visible) {
     // Alternative: look for theme-related text
-    const themeText = page.locator('text="Theme", text="Dark", text="Light", text="System"').first();
-    visible = await themeText.isVisible({ timeout: 2000 }).catch(() => false);
+    const themeText = page.getByText(/Theme|Dark|Light|System/).first();
+    visible = await isVisibleWithin(themeText, 2000);
   }
 
   console.log(`  Theme control visible: ${visible}`);
@@ -171,7 +187,7 @@ async function testPrivacyTab(page: Page): Promise<boolean> {
   console.log('\n=== Testing Privacy Tab ===');
 
   const privacyTab = page.locator('[role="dialog"] button[role="tab"]').nth(3);
-  if (!(await privacyTab.isVisible({ timeout: 2000 }).catch(() => false))) {
+  if (!(await isVisibleWithin(privacyTab, 2000))) {
     console.log('  Privacy tab not found');
     return false;
   }
@@ -181,7 +197,7 @@ async function testPrivacyTab(page: Page): Promise<boolean> {
 
   // Look for any privacy-related controls
   const privacyControl = page.locator('[role="switch"], input[type="checkbox"], [role="combobox"]').first();
-  let visible = await privacyControl.isVisible({ timeout: 3000 }).catch(() => false);
+  let visible = await isVisibleWithin(privacyControl, 3000);
 
   if (!visible) {
     // Check for content in the tab panel
@@ -217,11 +233,12 @@ async function runTest(): Promise<boolean> {
     appearanceThemeToggle: false,
     privacyControls: false,
     settingsReopen: false,
+    settingsPersisted: false,
   };
 
   try {
     const page = await context.newPage();
-    setupConsoleCapture(page, 'Settings', ['error', 'Error']);
+    setupConsoleCapture(page, 'Settings', ['error', 'Error', 'ILM']);
 
     // ========== STEP 1: Create Account ==========
     console.log('\n' + '\u2500'.repeat(50));
@@ -311,13 +328,14 @@ async function runTest(): Promise<boolean> {
     if (results.settingsReopen) {
       // Verify the auto-reconnect state persisted after close/reopen
       const connectionsTab = page.locator('[role="dialog"] button[role="tab"]').nth(1);
-      if (await connectionsTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(connectionsTab, 2000)) {
         await connectionsTab.click();
         await sleep(300);
         const autoReconnect = page.locator('#auto-reconnect').first();
         const persistedState = await autoReconnect.getAttribute('data-state').catch(() => null);
+        results.settingsPersisted = persistedState === 'checked';
         console.log(`  Auto-reconnect persisted state: "${persistedState}"`);
-        console.log(`  Settings persistence verified: ${persistedState === 'checked'}`);
+        console.log(`  Settings persistence verified: ${results.settingsPersisted}`);
       }
 
       await page.keyboard.press('Escape');
@@ -330,7 +348,18 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.accountCreated && results.settingsModalOpens;
+    // All seven. General Tab Controls was failing silently behind an unscoped
+    // panel lookup and a character-count assertion.
+    const corePassed = [
+      results.accountCreated,
+      results.settingsModalOpens,
+      results.generalTabControls,
+      results.connectionsAutoReconnect,
+      results.appearanceThemeToggle,
+      results.privacyControls,
+      results.settingsReopen,
+      results.settingsPersisted,
+    ].every(Boolean);
 
     console.log(`\n  Account Created:           ${results.accountCreated ? 'PASS' : 'FAIL'}`);
     console.log(`  Settings Modal Opens:      ${results.settingsModalOpens ? 'PASS' : 'FAIL'}`);
@@ -339,6 +368,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  Theme Toggle:              ${results.appearanceThemeToggle ? 'PASS' : 'CHECK'}`);
     console.log(`  Privacy Controls:          ${results.privacyControls ? 'PASS' : 'CHECK'}`);
     console.log(`  Settings Reopen:           ${results.settingsReopen ? 'PASS' : 'CHECK'}`);
+    console.log(`  Settings Persisted:        ${results.settingsPersisted ? 'PASS' : 'FAIL'}`);
 
     harness.finalize(corePassed, results);
     return corePassed;

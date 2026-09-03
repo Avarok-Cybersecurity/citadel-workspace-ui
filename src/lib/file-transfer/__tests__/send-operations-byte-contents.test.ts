@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach  } from 'vitest';
 
 /**
  * Pinning tests for `executeSendFile`'s source-discriminator logic.
@@ -19,7 +19,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * fires *before* the buffer allocation by spying on `arrayBuffer()`.
  */
 
-const sendRequestSpy = vi.hoisted(() => vi.fn<(request: unknown) => Promise<void>>(async () => undefined));
+const sendRequestSpy = vi.hoisted(() => vi.fn<(request: unknown) => Promise<void>>(async (): Promise<undefined> => undefined));
 
 vi.mock('../../websocket-service', () => ({
   websocketService: {
@@ -34,8 +34,8 @@ import type { SendFileParams } from '../io-router-types';
 // toString on BlobPart). Build a fake File via Object.defineProperty so
 // `source instanceof File` succeeds AND `size` / `arrayBuffer()` return
 // the test bytes faithfully.
-function makeFakeFile(name: string, bytes: Uint8Array, size = bytes.byteLength): File {
-  const file = new File([new Uint8Array(0)], name);
+function makeFakeFile(name: string, bytes: Uint8Array, size: number = bytes.byteLength): File {
+  const file: File = new File([new Uint8Array(0)], name);
   Object.defineProperty(file, 'size', { value: size, configurable: true });
   Object.defineProperty(file, 'arrayBuffer', {
     value: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
@@ -95,7 +95,7 @@ describe('executeSendFile — source discrimination', () => {
   it('encodes a pickFileRequestId source as { PickFileRef: { pick_file_request_id } }', async () => {
     // PickFileRef is only reached when `source` is NOT a string. Real callers
     // pass a placeholder File alongside the pickFileRequestId.
-    const placeholder = new File([new Uint8Array(0)], 'placeholder');
+    const placeholder: File = new File([new Uint8Array(0)], 'placeholder');
     void executeSendFile(buildParams({
       source: placeholder,
       pickFileRequestId: 'pick-42',
@@ -110,8 +110,8 @@ describe('executeSendFile — source discrimination', () => {
   });
 
   it('encodes a browser File source as { ByteContents: { file_name, data: number[] } } with the file bytes', async () => {
-    const expectedBytes = new Uint8Array([0xCA, 0xFE, 0xBA, 0xBE]);
-    const file = makeFakeFile('hello.bin', expectedBytes);
+    const expectedBytes: Uint8Array<ArrayBuffer> = new Uint8Array([0xCA, 0xFE, 0xBA, 0xBE]);
+    const file: File = makeFakeFile('hello.bin', expectedBytes);
 
     void executeSendFile(buildParams({
       source: file,
@@ -122,7 +122,7 @@ describe('executeSendFile — source discrimination', () => {
     // arrayBuffer() is async — wait until the production code has dispatched
     // the request rather than guessing at the number of microtask turns.
     await vi.waitFor(() => expect(sendRequestSpy).toHaveBeenCalledTimes(1));
-    const sent = extractSendFile();
+    const sent: { request_id: string; source: unknown; cid: bigint; peer_cid: bigint; chunk_size: number | null; transfer_type: string; } = extractSendFile();
     expect(sent.source).toEqual({
       ByteContents: {
         file_name: 'hello.bin',
@@ -135,14 +135,14 @@ describe('executeSendFile — source discrimination', () => {
 });
 
 describe('executeSendFile — ByteContents size guard', () => {
-  it('rejects browser File payloads above the 2 MiB inline cap before any allocation', async () => {
+  it('rejects browser File payloads above the inline cap before any allocation', async () => {
     // Build a File whose `.size` reports above the cap. The fake
     // `arrayBuffer()` is wrapped in a spy that fails the test loudly if
     // the production code reaches it — that would mean the size check
     // ran *after* the allocation, defeating the OOM protection.
-    const sizeBytes = 3 * 1024 * 1024;
-    const allocSpy = vi.fn(async () => new ArrayBuffer(sizeBytes));
-    const oversized = new File([new Uint8Array(0)], 'too-big.bin');
+    const sizeBytes: number = 17 * 1024 * 1024;
+    const allocSpy: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<ArrayBuffer> => new ArrayBuffer(sizeBytes));
+    const oversized: File = new File([new Uint8Array(0)], 'too-big.bin');
     Object.defineProperty(oversized, 'size', { value: sizeBytes, configurable: true });
     Object.defineProperty(oversized, 'arrayBuffer', { value: allocSpy, configurable: true });
 
@@ -155,6 +155,24 @@ describe('executeSendFile — ByteContents size guard', () => {
 
     expect(allocSpy).not.toHaveBeenCalled();
     expect(sendRequestSpy).not.toHaveBeenCalled();
+  });
+
+  it('lets a 3 MiB file through the guard — the cap is the service\'s 16 MiB, not a second private 2 MiB', async () => {
+    // Two constants both governed inline ByteContents payloads: 2 MiB here,
+    // 16 MiB in server-upload.ts mirroring the internal service. A 3 MiB p2p
+    // send was refused AFTER its offer was announced while the same bytes
+    // staged fine in async mode. One cap now; this pins that the p2p guard
+    // uses it.
+    const { eventEmitter } = await import('../../event-emitter');
+    const sizeBytes: number = 3 * 1024 * 1024;
+    const smallEnough: File = makeFakeFile('mid.bin', new Uint8Array([9, 9]), sizeBytes);
+
+    const pending: Promise<unknown> = executeSendFile(buildParams({ source: smallEnough, transferId: 'tid-mid' }));
+
+    await vi.waitFor(() => expect(sendRequestSpy).toHaveBeenCalledTimes(1));
+    const requestId: string = extractSendFile().request_id;
+    eventEmitter.emit('websocket-message', { SendFileRequestSuccess: { request_id: requestId } });
+    await expect(pending).resolves.toBeTruthy();
   });
 
   it('rejects a non-File, non-string, no-pickFileRequestId combination with a clear error', async () => {

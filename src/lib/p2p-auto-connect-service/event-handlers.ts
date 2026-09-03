@@ -18,7 +18,7 @@ import { handleIncomingPeerConnect } from './incoming-connect';
 import { startPolling, stopPolling, startBackendPolling, stopBackendPolling } from './polling';
 
 /** Callback type for setPeerConnected (broadcasts to followers) */
-type BroadcastPeerConnected = (localCid: bigint, peerCid: bigint, peerUsername: string, localUsername?: string) => void;
+type BroadcastPeerConnected = (localCid: bigint, peerCid: bigint) => void;
 
 /**
  * Set up all event listeners for the P2P auto-connect service.
@@ -70,21 +70,18 @@ export function setupEventListeners(
 
   // Follower tab connectedPeers sync
   eventEmitter.on('broadcast-state-sync', (raw: unknown) => {
-    const data = raw as BroadcastStateSyncData;
+    const data: BroadcastStateSyncData = raw as BroadcastStateSyncData;
     if (data?.type === 'connected-peers-update' && !instanceManager.isLeader) {
-      const localCid = data.localCid as string | undefined;
-      const peerCid = data.peerCid as string | undefined;
-      const peerUsername = data.peerUsername as string | undefined;
-      const localUsername = data.localUsername as string | undefined;
+      const localCid: string | undefined = data.localCid as string | undefined;
+      const peerCid: string | undefined = data.peerCid as string | undefined;
       if (localCid !== undefined && peerCid !== undefined) {
-        const localCidBigInt = BigInt(localCid);
-        const peerCidBigInt = BigInt(peerCid);
+        const localCidBigInt: bigint = BigInt(localCid);
+        const peerCidBigInt: bigint = BigInt(peerCid);
         debugLog('P2PAutoConnectService', `Follower received connectedPeers update: ${localCidBigInt.toString().slice(0, 8)}... <-> ${peerCidBigInt.toString().slice(0, 8)}...`);
-        state.setPeerConnectedLocal(localCidBigInt, peerCidBigInt, peerUsername || '', localUsername || '');
-        eventEmitter.emit('p2p-connection-established', {
-          peerCid: peerCidBigInt,
-          peerUsername: peerUsername || ''
-        });
+        state.setPeerConnectedLocal(localCidBigInt, peerCidBigInt);
+        // `{ peerCid }` alone, as the other three emitters of this event
+        // already send: every consumer destructures only peerCid.
+        eventEmitter.emit('p2p-connection-established', { peerCid: peerCidBigInt });
       }
     }
   });
@@ -95,7 +92,7 @@ export function setupEventListeners(
     if (peerCid === undefined) return;
 
     if (isIncoming) {
-      const weRegisteredFirst = p2pRegistrationService.hasOutgoingRegistration(peerCid);
+      const weRegisteredFirst: boolean = p2pRegistrationService.hasOutgoingRegistration(peerCid);
       if (weRegisteredFirst) {
         state.addOnlinePeer(peerCid);
         debugLog('P2PAutoConnectService', `P2PAutoConnect: Mutual registration complete with ${peerCid.toString().slice(0, 8)}..., initiating immediate connection`);
@@ -135,7 +132,7 @@ function setupWebSocketMessageHandler(
   broadcastPeerConnected: BroadcastPeerConnected
 ): void {
   eventEmitter.on('websocket-message', async (raw: unknown) => {
-    const message = narrowWebSocketMessage(raw);
+    const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
     if (!message) return;
 
     if (hasVariant(message, 'PeerConnectSuccess')) {
@@ -143,14 +140,13 @@ function setupWebSocketMessageHandler(
     }
 
     if (hasVariant(message, 'PeerConnectNotification')) {
-      const notification = getVariant(message, 'PeerConnectNotification')!;
+      const notification: Record<string, unknown> = getVariant(message, 'PeerConnectNotification')!;
       if (instanceManager.isLeader) {
-        const targetCid = notification.cid as bigint | undefined;
-        const initiatorCid = notification.peer_cid as bigint | undefined;
-        const peerUsername = (notification.peer_username as string) || '';
+        const targetCid: bigint | undefined = notification.cid as bigint | undefined;
+        const initiatorCid: bigint | undefined = notification.peer_cid as bigint | undefined;
         if (targetCid !== undefined && initiatorCid !== undefined) {
           debugLog('P2PAutoConnectService', `Leader updating connectedPeers for target CID ${targetCid.toString().slice(0, 8)}... -> peer ${initiatorCid.toString().slice(0, 8)}...`);
-          broadcastPeerConnected(targetCid, initiatorCid, peerUsername);
+          broadcastPeerConnected(targetCid, initiatorCid);
         }
       }
       handleIncomingPeerConnect(
@@ -167,7 +163,7 @@ function setupWebSocketMessageHandler(
     }
 
     if (hasVariant(message, 'DisconnectNotification')) {
-      const v = getVariant(message, 'DisconnectNotification')!;
+      const v: Record<string, unknown> = getVariant(message, 'DisconnectNotification')!;
       if (v.peer_cid) {
         await handleDisconnectVariant(state, message, 'DisconnectNotification');
       }
@@ -180,21 +176,20 @@ async function handlePeerConnectSuccess(
   message: WebSocketMessage,
   broadcastPeerConnected: BroadcastPeerConnected
 ): Promise<void> {
-  const v = getVariant(message, 'PeerConnectSuccess')!;
-  const messageCid = v.cid as bigint | undefined;
-  const peerCid = v.peer_cid as bigint | undefined;
-  const peerUsername = (v.peer_username as string) || '';
+  const v: Record<string, unknown> = getVariant(message, 'PeerConnectSuccess')!;
+  const messageCid: bigint | undefined = v.cid as bigint | undefined;
+  const peerCid: bigint | undefined = v.peer_cid as bigint | undefined;
 
   if (instanceManager.isLeader && messageCid !== undefined && peerCid !== undefined) {
     debugLog('P2PAutoConnectService', `Leader updating connectedPeers for initiator CID ${messageCid.toString().slice(0, 8)}... -> peer ${peerCid.toString().slice(0, 8)}...`);
-    broadcastPeerConnected(messageCid, peerCid, peerUsername);
+    broadcastPeerConnected(messageCid, peerCid);
   }
 
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   if (messageCid !== undefined && currentCid && messageCid !== currentCid) return;
 
   if (peerCid !== undefined && peerCid !== currentCid && currentCid) {
-    handleConnectionSuccess(state, currentCid, peerCid, peerUsername, broadcastPeerConnected);
+    handleConnectionSuccess(state, currentCid, peerCid, broadcastPeerConnected);
   }
 }
 
@@ -203,16 +198,16 @@ async function handleDisconnectVariant(
   message: WebSocketMessage,
   variant: 'PeerDisconnect' | 'DisconnectNotification'
 ): Promise<void> {
-  const v = getVariant(message, variant)!;
-  const messageCid = v.cid as bigint | undefined;
-  const peerCid = v.peer_cid as bigint | undefined;
+  const v: Record<string, unknown> = getVariant(message, variant)!;
+  const messageCid: bigint | undefined = v.cid as bigint | undefined;
+  const peerCid: bigint | undefined = v.peer_cid as bigint | undefined;
 
   if (instanceManager.isLeader && messageCid !== undefined && peerCid !== undefined) {
     debugLog('P2PAutoConnectService', `Leader ${variant}: removing peer ${peerCid.toString().slice(0, 8)}... from CID ${messageCid.toString().slice(0, 8)}...`);
     state.setPeerDisconnected(messageCid, peerCid);
   }
 
-  const currentCid = await getCurrentCid();
+  const currentCid: bigint | null = await getCurrentCid();
   if (messageCid !== undefined && currentCid && messageCid !== currentCid) return;
 
   if (peerCid !== undefined && currentCid) {

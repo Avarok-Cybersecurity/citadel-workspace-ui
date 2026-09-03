@@ -1,17 +1,29 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users } from 'lucide-react';
 import { AccountManagementDialog } from './AccountManagementDialog';
 
-export function ManageAccountsButton() {
+export function ManageAccountsButton(): JSX.Element {
   const [dialogOpen, setDialogOpen] = useState(false);
+  /**
+   * The button, so closing the dialog can put focus back on it.
+   *
+   * Measured: closing this dialog with Escape left `document.activeElement` on
+   * `<body>`, so a keyboard user was dropped at the top of the document and had
+   * to tab back down to where they were. The other two dialogs on this screen
+   * restore focus; this one did not, which is the difference a person notices
+   * and no automated scan reports -- the markup is identical either way.
+   */
+  const triggerRef: React.RefObject<HTMLButtonElement> = useRef<HTMLButtonElement>(null);
 
   return (
     <>
       <Button
         variant="outline"
         size="sm"
-        className="gap-2 border-purple-500 text-purple-400 hover:bg-purple-500/20"
+        ref={triggerRef}
+        data-testid="manage-accounts-button"
+        className="gap-2 border-primary-accent text-primary-accent hover:bg-primary-accent/20"
         onClick={() => setDialogOpen(true)}
       >
         <Users className="h-4 w-4" />
@@ -21,6 +33,7 @@ export function ManageAccountsButton() {
       <AccountManagementDialog
         isOpen={dialogOpen}
         onClose={() => setDialogOpen(false)}
+        onRestoreFocus={() => triggerRef.current?.focus()}
       />
     </>
   );

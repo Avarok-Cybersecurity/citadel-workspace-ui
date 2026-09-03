@@ -19,7 +19,6 @@
 
 import { useEffect, useRef } from 'react';
 import { eventEmitter, type EventHandler } from '@/lib/event-emitter';
-import { debugLog } from '@/lib/debug-config';
 
 /**
  * Subscribe to a single event with automatic cleanup.
@@ -33,7 +32,7 @@ export function useEventListener<T = unknown>(
   deps: React.DependencyList = []
 ): void {
   // Store handler in ref to avoid re-subscribing on every render
-  const handlerRef = useRef<EventHandler<T>>(handler);
+  const handlerRef: React.MutableRefObject<EventHandler<T>> = useRef<EventHandler<T>>(handler);
 
   // Update ref when handler changes
   useEffect(() => {
@@ -46,9 +45,9 @@ export function useEventListener<T = unknown>(
       handlerRef.current(payload);
     };
 
-    const unsubscribe = eventEmitter.on(eventName, stableHandler);
+    const unsubscribe: () => void = eventEmitter.on(eventName, stableHandler);
 
-    return () => {
+    return (): void => {
       unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,7 +65,7 @@ export function useEventListeners<T = unknown>(
   handler: EventHandler<T>,
   deps: React.DependencyList = []
 ): void {
-  const handlerRef = useRef<EventHandler<T>>(handler);
+  const handlerRef: React.MutableRefObject<EventHandler<T>> = useRef<EventHandler<T>>(handler);
 
   useEffect(() => {
     handlerRef.current = handler;
@@ -77,11 +76,11 @@ export function useEventListeners<T = unknown>(
       handlerRef.current(payload);
     };
 
-    const unsubscribes = eventNames.map(name =>
+    const unsubscribes: (() => void)[] = eventNames.map(name =>
       eventEmitter.on(name, stableHandler)
     );
 
-    return () => {
+    return (): void => {
       unsubscribes.forEach(unsub => unsub());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -98,7 +97,7 @@ export function useEventCollector<T = unknown>(
   eventName: string,
   maxItems: number = 100
 ): T[] {
-  const itemsRef = useRef<T[]>([]);
+  const itemsRef: React.MutableRefObject<T[]> = useRef<T[]>([]);
 
   useEventListener<T>(eventName, (payload) => {
     itemsRef.current = [...itemsRef.current.slice(-(maxItems - 1)), payload];

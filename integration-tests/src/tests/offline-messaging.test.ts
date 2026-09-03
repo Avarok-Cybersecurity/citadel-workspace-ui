@@ -18,6 +18,7 @@
  */
 
 import {
+  settleServerAutoConnect,
   sleep,
   createSeparateBrowsers,
   createAccount,
@@ -38,6 +39,7 @@ import {
   TestHarness,
   runTestMain,
 } from '../lib/index.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -100,6 +102,7 @@ const USER2 = `offline_bob_${timestamp}`;
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'Offline Messaging Test',
     reportFileName: 'OFFLINE_MESSAGING_TEST_REPORT.json',
     metadata: { user1: USER1, user2: USER2 },
@@ -224,10 +227,13 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 5: Initial Bidirectional Messaging');
     console.log('─'.repeat(50));
 
-    // ServerAutoConnect polls every ~30s and can cause "Session Already Connected"
-    // errors that block ILM message delivery. Wait for one full cycle to settle.
-    console.log('  Waiting 35s for ServerAutoConnect cycle to settle...');
-    await sleep(35000);
+    // ServerAutoConnect polls every ~30s and a reconnect landing mid-test can
+    // cause "Session Already Connected", which blocks ILM delivery. This used to
+    // sleep 35s — one full cycle — to be sure. Waiting for the reconnect queue to
+    // empty asks the actual question and returns as soon as it is true.
+    console.log('  Waiting for the ServerAutoConnect cycle to settle...');
+    await settleServerAutoConnect(page1);
+    await settleServerAutoConnect(page2);
 
     const INITIAL_MSG_1 = `Hello Bob! Time: ${new Date().toLocaleTimeString()}`;
     const INITIAL_MSG_2 = `Hi Alice! Got it! Time: ${new Date().toLocaleTimeString()}`;
@@ -344,21 +350,20 @@ async function runTest(): Promise<boolean> {
     // which triggers beforeunload → ReleaseSession, destroying the orphan session.
     // Instead, click the session button directly on tempCheckPage.
     const reconnectPage = tempCheckPage;
-    setupConsoleCapture(reconnectPage, 'Bob-Reconnect', ['P2P', 'error', 'Error', 'ILM']);
+    setupConsoleCapture(reconnectPage, 'Bob-Reconnect', ['P2P', 'error', 'Error', 'ILM', 'LOSS-DIAG']);
 
     // Click the orphan session button directly (already visible from STEP 7)
     const sessionButton = reconnectPage.locator(`[data-testid="session-button-${USER2}"]`);
     const sessionIcon = reconnectPage.locator(`[data-testid="session-icon-${USER2}"]`);
     let claimClicked = false;
-    if (await sessionButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(sessionButton, 3000)) {
       await sessionButton.click();
       claimClicked = true;
-    } else if (await sessionIcon.isVisible({ timeout: 2000 }).catch(() => false)) {
+    } else if (await isVisibleWithin(sessionIcon, 2000)) {
       await sessionIcon.click();
       claimClicked = true;
     }
     if (claimClicked) {
-      await sleep(3000);
       results.reconnection.claimSessionSuccess = await waitForWorkspaceLoaded(reconnectPage, 45000);
     } else {
       console.log(`  Session button not visible on tempCheckPage for ${USER2}`);
@@ -480,7 +485,14 @@ async function runTest(): Promise<boolean> {
       results.disconnection.user2Disconnected &&
       results.disconnection.sessionOrphaned &&
       results.reconnection.claimSessionSuccess &&
-      offlineDeliverySuccess;
+      offlineDeliverySuccess &&
+      // Printed PASS/FAIL and gated on nothing, directly under a comment saying
+      // all checks are mandatory. Post-reconnect bidirectional messaging is the
+      // fragile part this spec exists for — ILM channel asymmetry means
+      // Alice->Bob can work while Bob->Alice does not — so a run could print two
+      // FAILs and still exit 0.
+      results.postReconnectMessaging.user1Received &&
+      results.postReconnectMessaging.user2Received;
 
     console.log('\nPhase 1 - Account & Registration:');
     console.log(`  Account Creation:       ${results.accountCreation.user1 && results.accountCreation.user2 ? 'PASS' : 'FAIL'}`);
@@ -508,11 +520,6 @@ async function runTest(): Promise<boolean> {
     console.log(`  Bob -> Alice:           ${results.postReconnectMessaging.user1Received ? 'PASS' : 'FAIL'}`);
 
     harness.finalize(allPassed, results);
-
-    if (!process.env.IN_CI) {
-      console.log('\nBrowser will remain open for 20 seconds for manual inspection...');
-      await sleep(20000);
-    }
 
     return allPassed;
 

@@ -5,8 +5,7 @@
  * used by the message handler.
  */
 
-import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
-import { isResponseType } from 'citadel-workspace-client-ts';
+import { isResponseType , type InternalServiceResponse } from 'citadel-workspace-client-ts';
 import type { P2PMessage, P2PConversation, PeerPresence } from './p2p-types';
 
 // ============================================================================
@@ -51,6 +50,7 @@ export interface MessageHandlerConfig {
   getOrCreateConversation: (peerCid: bigint) => P2PConversation;
   addMessageToConversation: (peerCid: bigint, message: P2PMessage) => Promise<boolean>;
   updateMessageInPages: (peerCid: bigint, messageId: string, updates: Partial<P2PMessage>) => Promise<boolean>;
+  removeMessageFromPages: (peerCid: bigint, messageId: string) => Promise<boolean>;
   getConversations: () => Map<bigint, P2PConversation>;
   notifyMessageListeners: (message: P2PMessage) => void;
   notifyMessageStatusListeners: (messageId: string, status: P2PMessage['status']) => void;
@@ -67,6 +67,6 @@ export interface MessageHandlerConfig {
     senderId: string,
     messageId: string,
     recipientCid: string | undefined,
-    options: { peerCid: string; onOpen: () => void }
+    options: { peerCid: string; onCardClick: () => void }
   ) => void;
 }

@@ -6,21 +6,12 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { failOnSocketLoss } from '../websocket/request-response';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
 import { TIMEOUT } from '../timeout-constants';
-
-type CidLike = bigint | string | number | null | undefined;
-
-/**
- * Normalize CID for comparison - extract last 10 digits to handle JS precision loss
- * with u64 values.
- */
-export function normalizeCid(cid: CidLike): string {
-  if (!cid) return '';
-  const str = cid.toString();
-  return str.length > 10 ? str.slice(-10) : str;
-}
+import { toCidKey, type CidLike } from '@/lib/utils/cid-utils';
+import type { WebSocketMessage } from '@/types/ws-message-types';
 
 /**
  * Wait for a PeerRegister/PeerConnect response matching the given request.
@@ -31,36 +22,37 @@ export function waitForAcceptResponse(
   targetPeerCid: bigint,
   currentCid: bigint
 ): Promise<void> {
-  const targetNormalized = normalizeCid(targetPeerCid);
+  const targetKey: string = toCidKey(targetPeerCid);
 
-  return new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => {
+  return failOnSocketLoss('AcceptPeerRegister', new Promise<void>((resolve, reject) => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       eventEmitter.off('websocket-message', handleMessage);
       reject(new Error('Registration request timed out'));
     }, TIMEOUT.PEER_REGISTER_MS);
 
-    const handleMessage = (raw: unknown) => {
-      const message = narrowWebSocketMessage(raw);
+    const handleMessage = (raw: unknown): void => {
+      const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
       if (!message) return;
 
-      const msg = message as Record<string, Record<string, unknown> | undefined>;
+      const msg: Record<string, Record<string, unknown> | undefined> = message as Record<string, Record<string, unknown> | undefined>;
 
-      const matchesByRequestId =
+      const matchesByRequestId: boolean =
         msg.PeerRegisterSuccess?.request_id === registerRequestId ||
         msg.PeerConnectSuccess?.request_id === registerRequestId;
 
-      const responsePeerCid =
+      const responsePeerCid: unknown =
         msg.PeerRegisterSuccess?.peer_cid ||
         msg.PeerConnectSuccess?.peer_cid ||
         msg.PeerConnectNotification?.peer_cid;
-      const responseCid = msg.PeerConnectNotification?.cid;
+      const responseCid: unknown = msg.PeerConnectNotification?.cid;
 
-      const matchesByPeerCid = normalizeCid(responsePeerCid as CidLike) === targetNormalized && !!targetNormalized;
-      const matchesByCid = normalizeCid(responseCid as CidLike) === targetNormalized && !!targetNormalized;
+      const matchesByPeerCid: boolean = !!targetKey && toCidKey(responsePeerCid as CidLike) === targetKey;
+      const matchesByCid: boolean = !!targetKey && toCidKey(responseCid as CidLike) === targetKey;
 
-      const isOurNotification = msg.PeerConnectNotification &&
-        (normalizeCid(msg.PeerConnectNotification.cid as CidLike) === normalizeCid(currentCid) ||
-         normalizeCid(msg.PeerConnectNotification.peer_cid as CidLike) === normalizeCid(currentCid));
+      const currentKey: string = toCidKey(currentCid);
+      const isOurNotification: boolean = !!msg.PeerConnectNotification && !!currentKey &&
+        (toCidKey(msg.PeerConnectNotification.cid as CidLike) === currentKey ||
+         toCidKey(msg.PeerConnectNotification.peer_cid as CidLike) === currentKey);
 
       if (msg.PeerRegisterSuccess || msg.PeerConnectSuccess || msg.PeerConnectNotification) {
         debugLog('PeerRegistrationStore', 'Checking response match', {
@@ -79,12 +71,12 @@ export function waitForAcceptResponse(
                  msg.PeerConnectFailure?.request_id === registerRequestId) {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handleMessage);
-        const errorMsg = (msg.PeerRegisterFailure?.message as string) ||
+        const errorMsg: string = (msg.PeerRegisterFailure?.message as string) ||
                         (msg.PeerConnectFailure?.message as string) || 'Registration failed';
         reject(new Error(errorMsg));
       }
     };
 
     eventEmitter.on('websocket-message', handleMessage);
-  });
+  }));
 }

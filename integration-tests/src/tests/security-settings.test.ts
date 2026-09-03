@@ -2,7 +2,7 @@
  * Security Settings Integration Test (P1)
  *
  * Tests Security Settings overlay and all interactive elements:
- * 1. SecuritySettings overlay renders during Join Workspace flow
+ * 1. SecuritySettings overlay renders during Create Account flow
  * 2. SecurityLevelSelect dropdown options
  * 3. SecurityModeSelect dropdown options
  * 4. AdvancedSettings toggle (crypto params)
@@ -23,6 +23,7 @@ import {
   waitForAppReady,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -57,7 +58,7 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 // ============================================================================
 
 /**
- * Navigate to Join Workspace flow and stop at Security Settings
+ * Navigate to Create Account flow and stop at Security Settings
  */
 async function navigateToSecuritySettings(page: Page): Promise<boolean> {
   console.log('\n=== Navigating to Security Settings ===');
@@ -69,10 +70,10 @@ async function navigateToSecuritySettings(page: Page): Promise<boolean> {
     await page.reload({ waitUntil: 'commit', timeout: 60000 });
     await waitForAppReady(page, 30000);
 
-    // Click "Join Workspace"
-    const joinBtn = page.locator('button:has-text("Join Workspace")');
-    if (!(await joinBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
-      console.log('  Join Workspace button not found');
+    // Click "Create Account"
+    const joinBtn = page.getByTestId('create-account-button');
+    if (!(await isVisibleWithin(joinBtn, 5000))) {
+      console.log('  Create Account button not found');
       return false;
     }
     await joinBtn.click();
@@ -80,7 +81,7 @@ async function navigateToSecuritySettings(page: Page): Promise<boolean> {
 
     // Fill workspace address
     const serverInput = page.getByRole('textbox', { name: 'Workspace Address' });
-    if (!(await serverInput.isVisible({ timeout: 5000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(serverInput, 5000))) {
       console.log('  Workspace Address input not found');
       return false;
     }
@@ -94,7 +95,7 @@ async function navigateToSecuritySettings(page: Page): Promise<boolean> {
 
     // Verify Security Settings overlay is visible
     const securityTitle = page.locator('text="Security Settings"');
-    const visible = await securityTitle.isVisible({ timeout: 5000 }).catch(() => false);
+    const visible = await isVisibleWithin(securityTitle, 5000);
     console.log(`  Security Settings overlay visible: ${visible}`);
     return visible;
   } catch (error) {
@@ -113,7 +114,7 @@ async function verifySecurityLevelSelect(page: Page): Promise<boolean> {
   try {
     const selectTrigger = page.locator('#security-level').first();
 
-    if (!(await selectTrigger.isVisible({ timeout: 3000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(selectTrigger, 3000))) {
       console.log('  Security Level select not found');
       return false;
     }
@@ -127,7 +128,7 @@ async function verifySecurityLevelSelect(page: Page): Promise<boolean> {
     await sleep(500);
 
     const reinforcedOption = page.locator('[role="option"]:has-text("Reinforced")').first();
-    if (await reinforcedOption.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(reinforcedOption, 3000)) {
       await reinforcedOption.click();
       await sleep(500);
 
@@ -138,8 +139,12 @@ async function verifySecurityLevelSelect(page: Page): Promise<boolean> {
       return changed;
     }
 
-    console.log('  Reinforced option not found in dropdown');
-    return true; // Dropdown exists even if we can't change it
+    // Returning true here meant "the dropdown exists even if we can't change
+    // it" -- but the function is called verifySecurityLevel, and a dropdown
+    // whose options never appear is a security setting the user cannot choose.
+    // Deleting every <option> would have passed.
+    console.error('  FAIL: the Reinforced option never appeared, so the level cannot be changed.');
+    return false;
   } catch (error) {
     console.error('  Error verifying Security Level:', error);
     return false;
@@ -156,7 +161,7 @@ async function verifySecurityModeSelect(page: Page): Promise<boolean> {
   try {
     const selectTrigger = page.locator('#security-mode').first();
 
-    if (!(await selectTrigger.isVisible({ timeout: 3000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(selectTrigger, 3000))) {
       console.log('  Security Mode select not found');
       return false;
     }
@@ -209,9 +214,9 @@ async function testAdvancedSettings(page: Page): Promise<{
 
   try {
     // Find the "ADVANCED SETTINGS" toggle button
-    const advancedToggle = page.locator('button:has-text("ADVANCED SETTINGS"), button:has-text("Advanced Settings"), button:has-text("Advanced")').first();
+    const advancedToggle = page.locator('button:has-text("Advanced Settings"), button:has-text("Advanced")').first();
 
-    results.toggleVisible = await advancedToggle.isVisible({ timeout: 3000 }).catch(() => false);
+    results.toggleVisible = await isVisibleWithin(advancedToggle, 3000);
     console.log(`  Advanced toggle visible: ${results.toggleVisible}`);
 
     if (!results.toggleVisible) return results;
@@ -220,15 +225,17 @@ async function testAdvancedSettings(page: Page): Promise<{
     await advancedToggle.click();
     await sleep(500);
 
-    // Check if crypto algorithm fields appeared
-    const encryptionAlgo = page.locator('#encryption-algorithm, text="Encryption Algorithm"').first();
-    const kemAlgo = page.locator('#kem-algorithm, text="KEM Algorithm"').first();
+    // getByText, not `'#encryption-algorithm, text="Encryption Algorithm"'`. A
+    // comma list mixing a CSS id with the text engine is not parsed as a union of
+    // the two, so neither alternative ever matched and the panel looked empty
+    // however well it had expanded.
+    const encVisible = await isVisibleWithin(page.getByText('Encryption Algorithm', { exact: true }), 5000);
+    const kemVisible = await isVisibleWithin(page.getByText('KEM Algorithm', { exact: true }), 5000);
 
-    const encVisible = await encryptionAlgo.isVisible({ timeout: 3000 }).catch(() => false);
-    const kemVisible = await kemAlgo.isVisible({ timeout: 3000 }).catch(() => false);
-
-    results.expandWorks = encVisible || kemVisible;
-    results.cryptoParamsVisible = encVisible || kemVisible;
+    // Both, not either: the panel exists to expose these parameters, so one
+    // showing up while the other does not is a failure worth seeing.
+    results.expandWorks = encVisible && kemVisible;
+    results.cryptoParamsVisible = encVisible && kemVisible;
     console.log(`  Expand works: ${results.expandWorks} (enc: ${encVisible}, kem: ${kemVisible})`);
 
     return results;
@@ -254,18 +261,25 @@ async function testLoginConfigureButton(page: Page): Promise<{
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
     await waitForAppReady(page, 30000);
 
-    // Click "Login Workspace"
-    const loginBtn = page.locator('button:has-text("Login Workspace")');
-    if (!(await loginBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
-      console.log('  Login Workspace button not found');
+    // Click "Sign In"
+    const loginBtn = page.getByTestId('sign-in-button');
+    if (!(await isVisibleWithin(loginBtn, 5000))) {
+      console.log('  Sign In button not found');
       return results;
     }
     await loginBtn.click();
-    await sleep(1000);
 
-    // Look for "Configure" button on the Login screen
-    const configureBtn = page.locator('button:has-text("Configure")').first();
-    results.buttonVisible = await configureBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    // Configure sits inside the "Advanced Options" section, which starts
+    // collapsed. The test never opened it, so the button was genuinely not on
+    // screen and this and every assertion after it reported a failure the app
+    // had not made.
+    const advancedOptions = page.getByRole('button', { name: /Advanced Options/i });
+    if (await isVisibleWithin(advancedOptions, 10_000)) {
+      await advancedOptions.click();
+    }
+
+    const configureBtn = page.getByRole('button', { name: 'Configure' }).first();
+    results.buttonVisible = await isVisibleWithin(configureBtn, 5000);
     console.log(`  Configure button visible: ${results.buttonVisible}`);
 
     if (!results.buttonVisible) return results;
@@ -276,7 +290,7 @@ async function testLoginConfigureButton(page: Page): Promise<{
 
     // Verify Security Settings opened
     const securityTitle = page.locator('text="Security Settings"');
-    results.opensSecuritySettings = await securityTitle.isVisible({ timeout: 5000 }).catch(() => false);
+    results.opensSecuritySettings = await isVisibleWithin(securityTitle, 5000);
     console.log(`  Opens Security Settings: ${results.opensSecuritySettings}`);
 
     return results;
@@ -318,11 +332,11 @@ async function runTest(): Promise<boolean> {
 
   try {
     const page = await context.newPage();
-    setupConsoleCapture(page, 'Security', ['error', 'Error', 'security', 'Security']);
+    setupConsoleCapture(page, 'Security', ['error', 'Error', 'security', 'Security', 'ILM']);
 
     // ========== STEP 1: Navigate to Security Settings ==========
     console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 1: Navigate to Security Settings via Join Workspace');
+    console.log('STEP 1: Navigate to Security Settings via Create Account');
     console.log('\u2500'.repeat(50));
 
     results.overlayRenders = await navigateToSecuritySettings(page);
@@ -367,19 +381,19 @@ async function runTest(): Promise<boolean> {
 
     // ========== STEP 5: Complete Join to create account ==========
     console.log('\n' + '\u2500'.repeat(50));
-    console.log('STEP 5: Complete Join Workspace');
+    console.log('STEP 5: Complete Create Account');
     console.log('\u2500'.repeat(50));
 
     // Click NEXT to pass through Security Settings
     const nextBtn = page.getByRole('button', { name: 'NEXT' });
-    if (await nextBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(nextBtn, 3000)) {
       await nextBtn.click();
       await sleep(2000);
     }
 
     // Fill user details and create account
     const fullNameInput = page.getByRole('textbox', { name: 'Full Name' });
-    if (await fullNameInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(fullNameInput, 5000)) {
       await fullNameInput.fill(USERNAME);
       await sleep(300);
 
@@ -410,7 +424,7 @@ async function runTest(): Promise<boolean> {
 
     // Handle workspace init for first user
     const masterPwField = page.locator('input#masterPassword');
-    if (await masterPwField.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(masterPwField, 5000)) {
       await masterPwField.fill(config.WORKSPACE_PASSWORD);
       await sleep(500);
       const initBtn = page.locator('button:has-text("Initialize & Become Admin")');
@@ -444,7 +458,19 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.overlayRenders && results.accountCreated;
+    // All nine. Four were failing silently: two on a selector that could not
+    // match, two because the Configure button sits behind a collapsed section.
+    const corePassed = [
+      results.overlayRenders,
+      results.accountCreated,
+      results.securityLevelVisible,
+      results.securityModeVisible,
+      results.advancedToggleVisible,
+      results.advancedExpandWorks,
+      results.cryptoParamsVisible,
+      results.loginConfigureButtonVisible,
+      results.configureOpensSecuritySettings,
+    ].every(Boolean);
 
     console.log('\nSecurity Settings Overlay:');
     console.log(`  Overlay Renders:           ${results.overlayRenders ? 'PASS' : 'FAIL'}`);

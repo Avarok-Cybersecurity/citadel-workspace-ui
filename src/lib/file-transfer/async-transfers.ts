@@ -9,19 +9,17 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { debugLog } from '@/lib/debug-config';
 import {
-  type MessagingLayer,
   MessagingLayerType,
   type FileTransferRequestData,
   type FileTransferResponseData,
-  isFileTransferRequest,
-  isFileTransferResponse,
 } from '@/types/messaging-layer';
 import { FILE_TRANSFER_EVENTS } from './events';
 import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
-import type { FileTransfer, TransferProgressEvent } from './types';
-import { debugLog } from '@/lib/debug-config';
+import type { FileTransfer } from './types';
+import { isTerminalTransferState } from './transfer-outcome';
 
 /** Dependencies injected from the FileTransferService */
 export interface AsyncTransferDeps {
@@ -40,7 +38,7 @@ export async function handleAsyncSend(
   file: File
 ): Promise<void> {
   try {
-    const virtualPath = (await deps.io.executeIntent({
+    const virtualPath: string = (await deps.io.executeIntent({
       type: 'upload-to-server',
       file,
       transferId: transfer.id,
@@ -73,7 +71,7 @@ export async function handleTransferRequest(
   getAutoAccept: (cid: string) => boolean,
   acceptTransfer: (id: string) => Promise<void>
 ): Promise<void> {
-  const currentCid = await deps.io.getCurrentCid();
+  const currentCid: bigint | null = await deps.io.getCurrentCid();
   if (!currentCid) return;
 
   const transfer: FileTransfer = {
@@ -98,39 +96,54 @@ export async function handleTransferRequest(
   await deps.saveTransfer(transfer);
 
   if (getAutoAccept(senderCid)) {
-    await acceptTransfer(transfer.id);
-  } else {
-    eventEmitter.emit(FILE_TRANSFER_EVENTS.REQUEST_RECEIVED, transfer);
+    try {
+      await acceptTransfer(transfer.id);
+      return;
+    } catch (error) {
+      // Auto-accept now has a reason to refuse: the receiver's size limit.
+      // Falling through to the prompt rather than letting this throw, because
+      // a throw here would leave the transfer pending with no notification at
+      // all — the user would get neither the file nor the offer of it.
+      debugLog('AsyncTransfers', 'Auto-accept declined, asking instead:', error);
+    }
   }
+  eventEmitter.emit(FILE_TRANSFER_EVENTS.REQUEST_RECEIVED, transfer);
 }
 
 /**
- * Handle FileTransferResponse - start P2P stream if accepted, mark declined otherwise.
+ * Handle the peer's in-band accept/decline of OUR outgoing offer.
+ *
+ * The bytes themselves move over the protocol plane (SendFile / ticks); this
+ * signal exists because the protocol tells a sender nothing about a decline —
+ * see in-band-signals.ts. An accept here is an early 'transferring' (the tick
+ * stream confirms it moments later); a decline is the sender's ONLY route to a
+ * terminal state.
+ *
+ * This used to also start a base64 chunk stream on accept — the abandoned
+ * message-plane transfer implementation, deleted along with the pending-file
+ * stash it read from.
  */
 export async function handleTransferResponse(
   deps: AsyncTransferDeps,
   data: FileTransferResponseData & { type: MessagingLayerType.FileTransferResponse },
-  _senderCid: string,
-  streamFileToRecipient: (transfer: FileTransfer, file: File) => Promise<void>
+  _senderCid: string
 ): Promise<void> {
-  const transfer = deps.state.getTransfer(data.transfer_id);
+  const transfer: FileTransfer | undefined = deps.state.getTransfer(data.transfer_id);
   if (!transfer || transfer.isIncoming) return;
+  // Never regress a terminal transfer: a late or duplicated response must not
+  // resurrect a bubble that already completed, failed or was cancelled. The
+  // set is the exported one, not a local list — a hand-rolled copy here
+  // omitted 'expired', so an accept arriving after the offer's TTL revived an
+  // expired offer to 'transferring' for bytes nobody would ever send.
+  if (isTerminalTransferState(transfer.state)) {
+    return;
+  }
 
   if (data.accepted) {
     transfer.state = 'transferring';
-    if (transfer.mode === 'p2p') {
-      const file = deps.state.getPendingFile(transfer.id);
-      if (file) {
-        await streamFileToRecipient(transfer, file);
-      } else {
-        transfer.state = 'error';
-        transfer.errorMessage = 'File data not found';
-      }
-    }
   } else {
     transfer.state = 'declined';
     transfer.errorMessage = data.decline_reason;
-    deps.state.deletePendingFile(transfer.id);
   }
 
   transfer.updatedAt = Date.now();

@@ -14,6 +14,7 @@ import {
   FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES,
   REVFS_DEFAULT_QUOTA_BYTES,
 } from '@/types/messaging-layer';
+import { notifyEach } from '@/lib/notify-listeners';
 
 export class FileTransferState {
   // Active transfers by ID
@@ -24,15 +25,6 @@ export class FileTransferState {
 
   // Progress callbacks by transfer ID
   private progressCallbacks: Map<string, ((progress: TransferProgressEvent) => void)[]> = new Map();
-
-  // Pending files waiting to be sent after acceptance (transfer_id -> File)
-  private pendingFiles: Map<string, File> = new Map();
-
-  // Received chunks for incoming P2P transfers (transfer_id -> chunks[])
-  private receivedChunks: Map<string, { data: string; index: number }[]> = new Map();
-
-  // Map to store received file blobs for retrieval
-  private receivedFiles: Map<string, Blob> = new Map();
 
   // ============================================================================
   // Transfer Operations
@@ -76,18 +68,27 @@ export class FileTransferState {
   // Settings Operations
   // ============================================================================
 
-  getSettings(peerCid: string): FileTransferSettings {
-    const stored = this.peerSettings.get(peerCid);
-    if (stored) return stored;
+  /** The shape a peer gets when nothing has been saved for them. */
+  static readonly DEFAULT_SETTINGS: FileTransferSettings = {
+    autoAccept: false,
+    maxFileSize: FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES,
+    transferMode: 'browser',
+    allowRevfsStorage: true, // Default to true for RE-VFS file browser functionality
+    revfsQuota: REVFS_DEFAULT_QUOTA_BYTES,
+  };
 
-    // Return defaults
-    return {
-      autoAccept: false,
-      maxFileSize: FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES,
-      transferMode: 'browser',
-      allowRevfsStorage: true, // Default to true for RE-VFS file browser functionality
-      revfsQuota: REVFS_DEFAULT_QUOTA_BYTES,
-    };
+  getSettings(peerCid: string): FileTransferSettings {
+    const stored: FileTransferSettings | undefined = this.peerSettings.get(peerCid);
+
+    // Merge OVER the defaults rather than returning the stored object as-is.
+    //
+    // These come from localStorage, written by whatever version of the app the
+    // user last ran. Returning the blob verbatim means every field added after
+    // they saved arrives `undefined`: `allowRevfsStorage` reads as off, silently
+    // disabling RE-VFS for that peer, and `revfsQuota` shows as `NaN` MB in the
+    // settings UI. Nothing has shipped in that state yet — this closes the class
+    // before the next field does it.
+    return { ...FileTransferState.DEFAULT_SETTINGS, ...stored };
   }
 
   setSettings(peerCid: string, settings: FileTransferSettings): void {
@@ -109,9 +110,9 @@ export class FileTransferState {
 
     // Return unsubscribe function
     return () => {
-      const callbacks = this.progressCallbacks.get(transferId);
+      const callbacks: ((progress: TransferProgressEvent) => void)[] | undefined = this.progressCallbacks.get(transferId);
       if (callbacks) {
-        const index = callbacks.indexOf(callback);
+        const index: number = callbacks.indexOf(callback);
         if (index !== -1) {
           callbacks.splice(index, 1);
         }
@@ -124,80 +125,21 @@ export class FileTransferState {
   }
 
   notifyProgressCallbacks(transferId: string, event: TransferProgressEvent): void {
-    const callbacks = this.progressCallbacks.get(transferId);
+    const callbacks: ((progress: TransferProgressEvent) => void)[] | undefined = this.progressCallbacks.get(transferId);
     if (callbacks) {
-      callbacks.forEach(cb => cb(event));
+      // One subscriber's bug must not stop the others hearing about a transfer.
+      // A bare forEach propagates: the first callback to throw ends the loop, so
+      // every later subscriber stops receiving progress for the rest of the
+      // transfer, and the throw unwinds into whoever reported the progress.
+      notifyEach(callbacks, 'file-transfer progress', event);
     }
   }
 
-  // ============================================================================
-  // Pending Files (for P2P streaming)
-  // ============================================================================
-
-  getPendingFile(transferId: string): File | undefined {
-    return this.pendingFiles.get(transferId);
-  }
-
-  setPendingFile(transferId: string, file: File): void {
-    this.pendingFiles.set(transferId, file);
-  }
-
-  deletePendingFile(transferId: string): boolean {
-    return this.pendingFiles.delete(transferId);
-  }
-
-  // ============================================================================
-  // Received Chunks (for incoming P2P transfers)
-  // ============================================================================
-
-  getReceivedChunks(transferId: string): { data: string; index: number }[] | undefined {
-    return this.receivedChunks.get(transferId);
-  }
-
-  initReceivedChunks(transferId: string): void {
-    if (!this.receivedChunks.has(transferId)) {
-      this.receivedChunks.set(transferId, []);
-    }
-  }
-
-  addReceivedChunk(transferId: string, chunk: { data: string; index: number }): void {
-    const chunks = this.receivedChunks.get(transferId);
-    if (chunks) {
-      chunks.push(chunk);
-    }
-  }
-
-  getReceivedChunkCount(transferId: string): number {
-    return this.receivedChunks.get(transferId)?.length ?? 0;
-  }
-
-  deleteReceivedChunks(transferId: string): boolean {
-    return this.receivedChunks.delete(transferId);
-  }
-
-  // ============================================================================
-  // Received Files (completed downloads)
-  // ============================================================================
-
-  getReceivedFile(transferId: string): Blob | undefined {
-    return this.receivedFiles.get(transferId);
-  }
-
-  setReceivedFile(transferId: string, blob: Blob): void {
-    this.receivedFiles.set(transferId, blob);
-  }
-
-  deleteReceivedFile(transferId: string): boolean {
-    return this.receivedFiles.delete(transferId);
-  }
-
-  // ============================================================================
-  // Cleanup
-  // ============================================================================
-
-  cleanupTransfer(transferId: string): void {
-    this.pendingFiles.delete(transferId);
-    this.receivedChunks.delete(transferId);
-    // Note: Don't delete receivedFiles - user may still want to download
-  }
 }
+
+// The pending-file stash, received-chunk buffers and received-file blobs that
+// used to live here served the message-plane chunk transfer — a second
+// implementation nothing ever emitted (its chunk messages had no producers).
+// The bytes of a real transfer never pass through browser state at all: they
+// leave inside the SendFile request and arrive on disk at the path the
+// ReceptionBeginning tick names.

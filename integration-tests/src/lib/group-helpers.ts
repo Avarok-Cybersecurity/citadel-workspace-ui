@@ -16,7 +16,9 @@ import {
   sendGroupMessage,
   verifyGroupMessageReceived,
   wakeUpTab,
+  setupConsoleCapture,
 } from './index.js';
+import { RUN_DIAGNOSTIC_KEYWORDS } from './composer-diagnostics.js';
 import type { UxIssueTracker } from './ux-tracker.js';
 
 // ============================================================================
@@ -74,6 +76,14 @@ export async function createNUsers(
     const username = `${prefix}${i + 1}_${timestamp}`;
     const isFirstUser = i === 0;
 
+    // Every group-chat spec gets its pages from here, and none of them
+    // captured console output. So when the composer was replaced by a
+    // restriction notice, the run reported "Message input not found" while the
+    // app had already logged which permission state produced the refusal --
+    // into a console nobody was reading. Attached at the point pages are born
+    // rather than in each spec, so a new spec cannot forget.
+    setupConsoleCapture(page, username, [...RUN_DIAGNOSTIC_KEYWORDS]);
+
     console.log(`\n  Creating user ${i + 1}/${count}: ${username}`);
 
     const created = await createAccount(page, username, {
@@ -85,7 +95,13 @@ export async function createNUsers(
       throw new Error(`Failed to create user: ${username}`);
     }
 
-    await waitForWorkspaceLoaded(page, 30000);
+    // Logged rather than thrown: these helpers report failure through their
+    // return value and the caller decides. Silently discarding it is what made
+    // the group-call stall unreadable — the log ended at 'Waiting for workspace
+    // to fully load...' and never said whether it arrived.
+    if (!(await waitForWorkspaceLoaded(page, 30000))) {
+      console.log(`    WARNING: ${username}'s workspace never finished loading; continuing anyway`);
+    }
 
     users.push({ page, username, isFirstUser });
   }
@@ -323,12 +339,21 @@ export function calculateAllPassed(results: Omit<GroupTestResults, 'allPassed'>)
   const navOk = Object.values(results.navigationSuccess).every(v => v);
   if (!navOk) return false;
 
-  // If chat not enabled, consider it passed (feature may be disabled)
-  if (!results.chatEnabled) return true;
+  // Chat MUST be enabled. This used to `return true` when it was not, and
+  // `chatEnabled` is not configuration — it is measured by probing the UI under
+  // test for a Chat tab. So the single most likely group-chat regression, the
+  // Chat tab disappearing, silently skipped steps 4 and 5 and reported a pass.
+  // A precondition that cannot be established has to fail the run, not excuse
+  // the assertions that depend on it.
+  if (!results.chatEnabled) return false;
 
   // All chat tabs switched
   const tabsOk = Object.values(results.chatTabSwitch).every(v => v);
   if (!tabsOk) return false;
+
+  // `[].every()` is true, so an empty result set passed here as well — a run
+  // that sent no messages at all read as full success.
+  if (results.messagingResults.length === 0) return false;
 
   // All messages sent and received
   const msgOk = results.messagingResults.every(m => m.sent && m.received);

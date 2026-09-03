@@ -16,6 +16,8 @@ import {
   createCheckStateResponse,
 } from '@/types/messaging-layer';
 import { debugLog } from '@/lib/debug-config';
+import type { MessagingLayer } from '@/types/messaging-layer';
+import type { P2PCommand } from '@/types/p2p-commands';
 
 export interface CheckStateConfig {
   /** Timeout for CheckState response (ms) */
@@ -32,6 +34,17 @@ export class CheckStateManager {
   // Peer ready state tracking for CheckState/CheckStateResponse handshake
   private peerReadyState: Map<bigint, boolean> = new Map();
   private pendingCheckStates: Map<bigint, { resolve: () => void; reject: (e: Error) => void }> = new Map();
+
+  /**
+   * Handshakes in progress, so concurrent callers share one.
+   *
+   * `pendingCheckStates` is keyed by peer alone, so a second call overwrote the
+   * first's `{resolve, reject}` and the timeout checked "is there ANY entry",
+   * not "is mine still there" — leaving one promise permanently unsettled.
+   * message-sender awaits this before persisting, so the composer cleared and
+   * the message never appeared, was never stored, and raised no error.
+   */
+  private inFlightChecks: Map<bigint, Promise<void>> = new Map();
 
   // Queue for pending CheckState responses when tab is hidden
   private pendingCheckStateResponses: bigint[] = [];
@@ -64,7 +77,7 @@ export class CheckStateManager {
    */
   public clearPeerReadyState(peerCid: bigint): void {
     this.peerReadyState.delete(peerCid);
-    const pending = this.pendingCheckStates.get(peerCid);
+    const pending: { resolve: () => void; reject: (e: Error) => void; } | undefined = this.pendingCheckStates.get(peerCid);
     if (pending) {
       pending.reject(new Error('Peer disconnected'));
       this.pendingCheckStates.delete(peerCid);
@@ -77,7 +90,7 @@ export class CheckStateManager {
   public handleCheckStateResponse(peerCid: bigint): void {
     debugLog('CheckstateManager', '[P2P] Received CheckStateResponse from peer:', peerCid);
     this.peerReadyState.set(peerCid, true);
-    const pending = this.pendingCheckStates.get(peerCid);
+    const pending: { resolve: () => void; reject: (e: Error) => void; } | undefined = this.pendingCheckStates.get(peerCid);
     if (pending) {
       pending.resolve();
       this.pendingCheckStates.delete(peerCid);
@@ -103,11 +116,11 @@ export class CheckStateManager {
    * Send CheckStateResponse to a peer
    */
   public async sendCheckStateResponse(peerCid: bigint): Promise<void> {
-    const currentCid = await this.config.getCurrentCid();
+    const currentCid: bigint | null = await this.config.getCurrentCid();
     if (!currentCid) return;
 
-    const response = createCheckStateResponse();
-    const command = createMessagingLayerCommand(
+    const response: MessagingLayer = createCheckStateResponse();
+    const command: P2PCommand = createMessagingLayerCommand(
       response,
       currentCid,
       peerCid,
@@ -115,7 +128,7 @@ export class CheckStateManager {
     );
 
     try {
-      const bytes = serializeP2PCommand(command);
+      const bytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand(command);
       await this.config.sendToP2P(peerCid, bytes);
       debugLog('CheckstateManager', '[P2P] Sent CheckStateResponse to peer:', peerCid);
     } catch (error) {
@@ -137,16 +150,34 @@ export class CheckStateManager {
       return;
     }
 
+    // Share a handshake already under way rather than starting a second one.
+    const existing: Promise<void> | undefined = this.inFlightChecks.get(peerCid);
+    if (existing) {
+      debugLog('CheckstateManager', '[P2P] Joining in-flight CheckState for peer:', peerCid);
+      return existing;
+    }
+
+    const handshake: Promise<void> = this.runCheckState(peerCid);
+    this.inFlightChecks.set(peerCid, handshake);
+    try {
+      return await handshake;
+    } finally {
+      this.inFlightChecks.delete(peerCid);
+    }
+  }
+
+  /** The handshake itself. Only ever one per peer at a time; see ensurePeerReady. */
+  private async runCheckState(peerCid: bigint): Promise<void> {
     debugLog('CheckstateManager', '[P2P] Initiating CheckState handshake with peer:', peerCid);
 
-    const currentCid = await this.config.getCurrentCid();
+    const currentCid: bigint | null = await this.config.getCurrentCid();
     if (!currentCid) {
       throw new Error('Not connected to server');
     }
 
     // Create CheckState command
-    const checkState = createCheckState();
-    const command = createMessagingLayerCommand(
+    const checkState: MessagingLayer = createCheckState();
+    const command: P2PCommand = createMessagingLayerCommand(
       checkState,
       currentCid,
       peerCid,
@@ -154,7 +185,7 @@ export class CheckStateManager {
     );
 
     // Create promise that resolves when CheckStateResponse received
-    const readyPromise = new Promise<void>((resolve, reject) => {
+    const readyPromise: Promise<void> = new Promise<void>((resolve, reject) => {
       this.pendingCheckStates.set(peerCid, { resolve, reject });
 
       // Timeout handling
@@ -168,7 +199,7 @@ export class CheckStateManager {
 
     // Send the CheckState request
     try {
-      const bytes = serializeP2PCommand(command);
+      const bytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand(command);
       await this.config.sendToP2P(peerCid, bytes);
       debugLog('CheckstateManager', '[P2P] Sent CheckState to peer:', peerCid);
     } catch (error) {

@@ -11,8 +11,8 @@ import { debugLog } from '@/lib/debug-config';
 import { INTERVAL } from '../timeout-constants';
 import type { ChannelMessage } from './channel-types';
 
-const HEARTBEAT_INTERVAL_MS = INTERVAL.HEARTBEAT_MS;
-const LEADER_TIMEOUT_MS = INTERVAL.LEADER_TIMEOUT_MS;
+const HEARTBEAT_INTERVAL_MS: number = INTERVAL.HEARTBEAT_MS;
+const LEADER_TIMEOUT_MS: number = INTERVAL.LEADER_TIMEOUT_MS;
 
 export interface LeaderElectionState {
   lastLeaderHeartbeat: number;
@@ -23,10 +23,10 @@ export interface LeaderElectionState {
 }
 
 export function handleLeaderElection(state: LeaderElectionState, message: ChannelMessage): void {
-  const payload = message.payload as Record<string, unknown> | undefined;
+  const payload: Record<string, unknown> | undefined = message.payload as Record<string, unknown> | undefined;
   if (payload?.isLeader) {
-    const theirId = BigInt((payload.instanceIdBigInt as string) || '0');
-    const myId = instanceManager.instanceIdAsBigInt;
+    const theirId: bigint = BigInt((payload.instanceIdBigInt as string) || '0');
+    const myId: bigint = instanceManager.instanceIdAsBigInt;
 
     // STICKY LEADERSHIP RULE 1: If we're already the leader, stay leader
     if (instanceManager.isLeader) {
@@ -54,9 +54,9 @@ export function handleLeaderElection(state: LeaderElectionState, message: Channe
     }
 
     // STICKY LEADERSHIP RULE 3: If there's already an established leader, ignore new claims
-    const currentLeaderId = instanceManager.leaderId;
+    const currentLeaderId: string | null = instanceManager.leaderId;
     if (currentLeaderId && currentLeaderId !== message.senderInstanceId) {
-      const timeSinceHeartbeat = Date.now() - state.lastLeaderHeartbeat;
+      const timeSinceHeartbeat: number = Date.now() - state.lastLeaderHeartbeat;
       if (timeSinceHeartbeat < LEADER_TIMEOUT_MS) {
         debugLog('InstanceChannel', `[InstanceChannel] Ignoring leader claim from ${message.senderInstanceId} - already following ${currentLeaderId}`);
         return;
@@ -92,7 +92,7 @@ export function handleLeaderHeartbeat(state: LeaderElectionState, message: Chann
   // does so via tryBecomeLeader after LEADER_TIMEOUT_MS of no heartbeat —
   // that path is unaffected.
   if (instanceManager.isLeader) {
-    const myId = instanceManager.instanceIdAsBigInt;
+    const myId: bigint = instanceManager.instanceIdAsBigInt;
     let theirId: bigint;
     try { theirId = BigInt(message.senderInstanceId); } catch { theirId = 0n; }
     if (myId <= theirId) {
@@ -116,11 +116,11 @@ export function handleLeaderHeartbeat(state: LeaderElectionState, message: Chann
 }
 
 export function startLeaderElection(state: LeaderElectionState): void {
-  const INITIAL_WAIT_MS = HEARTBEAT_INTERVAL_MS + 500;
+  const INITIAL_WAIT_MS: number = HEARTBEAT_INTERVAL_MS + 500;
 
   state.leaderCheckInterval = setInterval(() => {
-    const now = Date.now();
-    const timeSinceInit = now - state.initTime;
+    const now: number = Date.now();
+    const timeSinceInit: number = now - state.initTime;
 
     if (instanceManager.isLeader) {
       sendHeartbeat(state);
@@ -144,7 +144,7 @@ export function startLeaderElection(state: LeaderElectionState): void {
 }
 
 export function tryBecomeLeader(state: LeaderElectionState): void {
-  const myId = instanceManager.instanceIdAsBigInt;
+  const myId: bigint = instanceManager.instanceIdAsBigInt;
 
   if (instanceManager.isLeader) {
     debugLog('InstanceChannel', '[InstanceChannel] Already leader, staying leader');
@@ -153,7 +153,7 @@ export function tryBecomeLeader(state: LeaderElectionState): void {
   }
 
   if (state.lastLeaderHeartbeat > 0) {
-    const timeSinceHeartbeat = Date.now() - state.lastLeaderHeartbeat;
+    const timeSinceHeartbeat: number = Date.now() - state.lastLeaderHeartbeat;
     if (timeSinceHeartbeat < LEADER_TIMEOUT_MS) {
       debugLog('InstanceChannel', `[InstanceChannel] Recent heartbeat ${timeSinceHeartbeat}ms ago, not challenging (timeout: ${LEADER_TIMEOUT_MS}ms)`);
       return;
@@ -179,6 +179,44 @@ export function tryBecomeLeader(state: LeaderElectionState): void {
 
   debugLog('InstanceChannel', `[InstanceChannel] Became leader (ID: ${myId})`);
   sendHeartbeat(state);
+}
+
+/**
+ * Give up leadership this tab cannot actually serve.
+ *
+ * Promotion is handled by an `async` listener, and `emit` calls handlers
+ * synchronously — so a rejection from `createWebSocketAsLeader` escapes the
+ * emitter's own try/catch and nothing observes it. The tab stayed `isLeader`,
+ * kept winning every subsequent election (the first branch of `tryBecomeLeader`
+ * short-circuits for an existing leader), and answered every request from every
+ * tab in the browser with "WebSocket not ready" — forever, because there was no
+ * self-demotion path anywhere. A leader that cannot serve never yielded, since
+ * the yield branch only fires on a competing heartbeat that never comes.
+ *
+ * Broadcasting goodbye makes the other tabs re-elect within ~100ms rather than
+ * waiting out LEADER_TIMEOUT_MS.
+ */
+export function relinquishLeadership(state: LeaderElectionState): void {
+  if (!instanceManager.isLeader) return;
+
+  debugLog('InstanceChannel', 'Relinquishing leadership: this tab cannot serve it');
+  instanceManager.setLeader(false, '');
+
+  // Our own cooldown, not a claim about anyone else: `tryBecomeLeader` refuses
+  // to challenge within LEADER_TIMEOUT_MS of this stamp, so the tab that just
+  // failed does not immediately re-claim and fail again. Other tabs keep their
+  // own clocks and are unaffected.
+  state.lastLeaderHeartbeat = Date.now();
+
+  state.send({
+    type: 'instance-goodbye',
+    targetInstanceId: '*',
+    senderInstanceId: instanceManager.instanceId,
+    timestamp: Date.now(),
+  });
+
+  eventEmitter.emit('instance:leader-changed', { isLeader: false, leaderId: '' });
+  eventEmitter.emit('leader-changed', { isLeader: false, leaderId: '' });
 }
 
 export function sendHeartbeat(state: LeaderElectionState): void {

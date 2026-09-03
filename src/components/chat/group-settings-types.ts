@@ -1,3 +1,4 @@
+import type { AvailablePeer } from './create-group-types';
 /**
  * Types for GroupSettingsPanel component.
  */
@@ -18,4 +19,8 @@ export interface GroupSettingsPanelProps {
   onKickMember: (memberCid: string) => Promise<void>;
   /** Callback when the group is deleted */
   onDeleteGroup: () => Promise<void>;
+  /** Peers who can still be invited. */
+  invitablePeers?: AvailablePeer[];
+  /** Callback when a peer is invited. Omit to hide the invite control. */
+  onInviteMember?: (peerCid: string) => Promise<void>;
 }

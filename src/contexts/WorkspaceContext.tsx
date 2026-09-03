@@ -1,7 +1,7 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import { User } from '../types/workspace-entities';
-import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
+import type { WorkspaceMetadataBytes } from '@/types/workspace-metadata';
 
 // Define the shape of our workspace state
 export interface WorkspaceState {
@@ -9,9 +9,9 @@ export interface WorkspaceState {
     id: string;
     name: string;
     description?: string;
-    metadata?: Record<string, any>;
+    /** Raw `Vec<u8>` from the wire. Decode it; do not read properties off it. */
+    metadata?: WorkspaceMetadataBytes;
   };
-  workspaces: WorkspaceMetadataTS[];
   currentUser?: {
     id: string;
     username: string;
@@ -28,6 +28,17 @@ export interface WorkspaceState {
     members: boolean;
     nodes: boolean;
   };
+  /**
+   * The node list's deadline expired without an answer.
+   *
+   * `loading.nodes` going false is not evidence the workspace is empty. The
+   * tree said "Your workspace is empty. Click the + button to create your first
+   * space" after a load that never came back -- and acting on that advice
+   * creates a duplicate space in a workspace whose contents merely failed to
+   * fetch. `use-domain-members` reached the same conclusion for members first.
+   */
+  nodesUnavailable: boolean;
+
   error?: string;
   protocolWarning?: {
     message: string;
@@ -47,16 +58,15 @@ export interface WorkspaceState {
     peerIds: string[];
     lastUpdated: number;
   };
-  lastRequestId?: string;
 }
 
 // Default initial state
 const initialState: WorkspaceState = {
   workspace: undefined,
-  workspaces: [],
   currentUser: undefined,
   members: {},
   nodes: {},
+  nodesUnavailable: false,
   treeSchema: null,
   loading: {
     workspace: false,
@@ -73,30 +83,33 @@ const initialState: WorkspaceState = {
 };
 
 // Create the context
-export const WorkspaceContext = createContext<{
+export const WorkspaceContext: React.Context<{ state: WorkspaceState; }> = createContext<{
   state: WorkspaceState;
-  sendMessage?: (content: string, recipientId: string) => Promise<boolean>;
 }>({
   state: initialState
 });
 
 // Custom hook to use the workspace context
-export const useWorkspace = () => useContext(WorkspaceContext);
+export const useWorkspace: () => { state: WorkspaceState; } = (): { state: WorkspaceState; } => useContext(WorkspaceContext);
 
 // Provider component
 export interface WorkspaceProviderProps {
   children: React.ReactNode;
   state: WorkspaceState;
-  sendMessage?: (content: string, recipientId: string) => Promise<boolean>;
 }
 
 export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({
   children,
-  state,
-  sendMessage
+  state
 }) => {
+  // Memoised: an object literal here is a new reference on every render of the
+  // provider, and context propagation bypasses React's element-identity
+  // bailout — so all 20 useWorkspace() consumers re-rendered whenever the
+  // provider did, regardless of whether `state` had changed.
+  const value: { state: WorkspaceState; } = useMemo((): { state: WorkspaceState; } => ({ state }), [state]);
+
   return (
-    <WorkspaceContext.Provider value={{ state, sendMessage }}>
+    <WorkspaceContext.Provider value={value}>
       {children}
     </WorkspaceContext.Provider>
   );

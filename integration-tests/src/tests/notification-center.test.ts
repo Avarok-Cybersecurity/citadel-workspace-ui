@@ -21,8 +21,10 @@ import {
   closeAnyModals,
   TestHarness,
   runTestMain,
+  isHiddenWithin,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { activateTab, isVisibleWithin } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -79,9 +81,12 @@ async function openNotificationCenter(page: Page): Promise<boolean> {
   try {
     // Look for the bell icon button in the TopBar
     // It's a ghost button with a Bell icon
-    const bellButton = page.locator('button:has(svg.lucide-bell)').first();
+    // By testid, not by the icon inside it. `svg.lucide-bell` is lucide's own
+  // class name and nothing promises to keep it -- the responsive spec already
+  // says so and addresses this same control by name.
+  const bellButton = page.getByTestId('notification-bell').first();
 
-    if (!(await bellButton.isVisible({ timeout: 5000 }).catch(() => false))) {
+    if (!(await isVisibleWithin(bellButton, 5000))) {
       console.log('  Bell icon not found');
       return false;
     }
@@ -93,13 +98,23 @@ async function openNotificationCenter(page: Page): Promise<boolean> {
     // Check if sheet opened
     const sheetTitle = page.locator('text="Notifications"');
 
-    const opened = await sheetTitle.isVisible({ timeout: 3000 }).catch(() => false);
+    const opened = await isVisibleWithin(sheetTitle, 3000);
     console.log(`  Notification center opened: ${opened}`);
     return opened;
   } catch (error) {
     console.error('  Error opening notification center:', error);
     return false;
   }
+}
+
+/**
+ * A notification-center tab, scoped to the sheet.
+ *
+ * The sheet renders over the office view, which has Content/Chat tabs of its
+ * own; an unscoped `button[role="tab"]` matches those first.
+ */
+function notificationTab(page: Page, label: string) {
+  return page.locator(`[role="dialog"] button[role="tab"]:has-text("${label}")`);
 }
 
 /**
@@ -120,27 +135,21 @@ async function verifySheetStructure(page: Page): Promise<{
 
   // Check title
   const title = page.locator('text="Notifications"');
-  results.title = await title.isVisible({ timeout: 3000 }).catch(() => false);
+  results.title = await isVisibleWithin(title, 3000);
   console.log(`  Title visible: ${results.title}`);
 
   // Check tabs (All, Messages, Requests, System)
-  const allTab = page.locator('button[role="tab"]:has-text("All")');
-  const messagesTab = page.locator('button[role="tab"]:has-text("Messages")');
-  const requestsTab = page.locator('button[role="tab"]:has-text("Requests")');
-  const systemTab = page.locator('button[role="tab"]:has-text("System")');
-
-  const tabsVisible = await Promise.all([
-    allTab.isVisible({ timeout: 3000 }).catch(() => false),
-    messagesTab.isVisible({ timeout: 3000 }).catch(() => false),
-    requestsTab.isVisible({ timeout: 3000 }).catch(() => false),
-    systemTab.isVisible({ timeout: 3000 }).catch(() => false),
-  ]);
+  const tabsVisible = await Promise.all(
+    ['All', 'Messages', 'Requests', 'System'].map((label) =>
+      isVisibleWithin(notificationTab(page, label), 5000)
+    )
+  );
   results.tabs = tabsVisible.every(Boolean);
   console.log(`  Tabs visible: ${results.tabs} (All: ${tabsVisible[0]}, Messages: ${tabsVisible[1]}, Requests: ${tabsVisible[2]}, System: ${tabsVisible[3]})`);
 
   // Check Clear All button
   const clearAllButton = page.locator('button:has-text("Clear All")');
-  results.clearAllButton = await clearAllButton.isVisible({ timeout: 3000 }).catch(() => false);
+  results.clearAllButton = await isVisibleWithin(clearAllButton, 3000);
   console.log(`  Clear All button visible: ${results.clearAllButton}`);
 
   return results;
@@ -164,49 +173,21 @@ async function testTabSwitching(page: Page): Promise<{
     systemTab: false,
   };
 
-  // Click "All" tab
-  const allTab = page.locator('button[role="tab"]:has-text("All")');
-  if (await allTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await allTab.click();
-    await sleep(300);
-    const isActive = await allTab.getAttribute('data-state');
-    results.allTab = isActive === 'active';
-    console.log(`  All tab works: ${results.allTab}`);
-  }
+  results.allTab = (await activateTab(page, notificationTab(page, 'All'), 'All tab',
+    page.locator('[role="dialog"] [role="tabpanel"]').first())).works;
 
-  // Click "Messages" tab
-  const messagesTab = page.locator('button[role="tab"]:has-text("Messages")');
-  if (await messagesTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await messagesTab.click();
-    await sleep(300);
-    const isActive = await messagesTab.getAttribute('data-state');
-    results.messagesTab = isActive === 'active';
-    console.log(`  Messages tab works: ${results.messagesTab}`);
-  }
+  results.messagesTab = (await activateTab(page, notificationTab(page, 'Messages'), 'Messages tab',
+    page.locator('[role="dialog"] [role="tabpanel"]').first())).works;
 
-  // Click "Requests" tab
-  const requestsTab = page.locator('button[role="tab"]:has-text("Requests")');
-  if (await requestsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await requestsTab.click();
-    await sleep(300);
-    const isActive = await requestsTab.getAttribute('data-state');
-    results.requestsTab = isActive === 'active';
-    console.log(`  Requests tab works: ${results.requestsTab}`);
-  }
+  results.requestsTab = (await activateTab(page, notificationTab(page, 'Requests'), 'Requests tab',
+    page.locator('[role="dialog"] [role="tabpanel"]').first())).works;
 
-  // Click "System" tab
-  const systemTab = page.locator('button[role="tab"]:has-text("System")');
-  if (await systemTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await systemTab.click();
-    await sleep(300);
-    const isActive = await systemTab.getAttribute('data-state');
-    results.systemTab = isActive === 'active';
-    console.log(`  System tab works: ${results.systemTab}`);
-  }
+  results.systemTab = (await activateTab(page, notificationTab(page, 'System'), 'System tab',
+    page.locator('[role="dialog"] [role="tabpanel"]').first())).works;
 
-  // Go back to All tab
-  await allTab.click();
-  await sleep(300);
+  // Leave the All tab selected for whatever runs next.
+  await activateTab(page, notificationTab(page, 'All'), 'All tab (restore)',
+    page.locator('[role="dialog"] [role="tabpanel"]').first());
 
   return results;
 }
@@ -218,8 +199,18 @@ async function checkEmptyState(page: Page): Promise<boolean> {
   console.log('\n=== Checking Empty State ===');
 
   // Look for the empty state message
+  // Check the Requests tab specifically. This used to inspect whichever tab the
+  // previous step left active — System — which by then holds real connection
+  // notifications, so the empty state was correctly absent and the assertion
+  // reported a failure the app had not made. A fresh account has received no peer
+  // registration requests, so Requests is the one tab that must be empty.
+  await activateTab(page, notificationTab(page, 'Requests'), 'Requests tab',
+    page.locator('[role="dialog"] [role="tabpanel"]').first());
+
+  // isVisibleWithin, not isVisible({ timeout }): the latter never waits, and the
+  // list has just re-rendered.
   const emptyState = page.locator('text="No notifications to display"');
-  const visible = await emptyState.isVisible({ timeout: 3000 }).catch(() => false);
+  const visible = await isVisibleWithin(emptyState, 5000);
   console.log(`  Empty state visible: ${visible}`);
   return visible;
 }
@@ -231,13 +222,24 @@ async function closeNotificationCenter(page: Page): Promise<boolean> {
   console.log('\n=== Closing Notification Center ===');
 
   try {
-    // Try pressing Escape
-    await page.keyboard.press('Escape');
-    await sleep(500);
+    // Confirm it is actually OPEN first. Reporting "closed" for a sheet that
+    // never opened is the same as not checking at all.
+    const sheet = page.getByRole('dialog').first();
+    const wasOpen = await isVisibleWithin(sheet, 5000);
+    if (!wasOpen) {
+      console.log('  Notification center was not open before Escape');
+      return false;
+    }
 
-    // Check if sheet closed
-    const sheetTitle = page.locator('text="Notifications"');
-    const closed = !(await sheetTitle.isVisible({ timeout: 1000 }).catch(() => false));
+    await page.keyboard.press('Escape');
+
+    // Wait for it to GO. This previously sampled `text="Notifications"` once,
+    // 500ms after Escape, via isVisible({ timeout: 1000 }) - whose timeout
+    // option Playwright declares `@deprecated This option is ignored`, so it
+    // never waited out the close animation. The bare text selector was also
+    // page-wide, so any other "Notifications" label would have reported the
+    // sheet as still open. Scoped to the dialog and genuinely awaited.
+    const closed = await isHiddenWithin(sheet, 5000);
     console.log(`  Notification center closed: ${closed}`);
     return closed;
   } catch (error) {
@@ -252,8 +254,11 @@ async function closeNotificationCenter(page: Page): Promise<boolean> {
 async function checkBellIconVisible(page: Page): Promise<boolean> {
   console.log('\n=== Checking Bell Icon ===');
 
-  const bellButton = page.locator('button:has(svg.lucide-bell)').first();
-  const visible = await bellButton.isVisible({ timeout: 5000 }).catch(() => false);
+  // By testid, not by the icon inside it. `svg.lucide-bell` is lucide's own
+  // class name and nothing promises to keep it -- the responsive spec already
+  // says so and addresses this same control by name.
+  const bellButton = page.getByTestId('notification-bell').first();
+  const visible = await isVisibleWithin(bellButton, 5000);
   console.log(`  Bell icon visible: ${visible}`);
   return visible;
 }
@@ -301,7 +306,7 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     const page = await context.newPage();
-    setupConsoleCapture(page, 'Notifications', ['error', 'Error', 'notification', 'Notification']);
+    setupConsoleCapture(page, 'Notifications', ['error', 'Error', 'notification', 'Notification', 'ILM']);
 
     results.accountCreated = await createAccount(page, USERNAME, {
       isFirstUser: true,
@@ -416,8 +421,13 @@ async function runTest(): Promise<boolean> {
 
     // Check badge appears on bell icon (should show unread count)
     // Badge component renders as a div (shadcn), not a span
-    const badge = page.locator('button:has(svg.lucide-bell) .absolute').first();
-    const badgeVisible = await badge.isVisible({ timeout: 3000 }).catch(() => false);
+    // By name. This was `button:has(svg.lucide-bell) .absolute` -- an icon
+    // library's internal class and a Tailwind positioning utility, either of
+    // which can change without anyone touching the notification centre. The
+    // responsive spec already addresses the bell itself by testid for the same
+    // reason; the badge had no name until now.
+    const badge = page.getByTestId('notification-badge').first();
+    const badgeVisible = await isVisibleWithin(badge, 3000);
     results.notificationBadgeChecked = badgeVisible;
     if (badgeVisible) {
       const badgeText = await badge.textContent().catch(() => '');
@@ -439,7 +449,7 @@ async function runTest(): Promise<boolean> {
 
       // Look for our injected notification text
       const testAlert = page.locator('text="Test Alert 1"').first();
-      const itemVisible = await testAlert.isVisible({ timeout: 3000 }).catch(() => false);
+      const itemVisible = await isVisibleWithin(testAlert, 3000);
       console.log(`  Injected notification item visible: ${itemVisible}`);
 
       if (itemVisible) {
@@ -469,7 +479,22 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const corePassed = results.accountCreated && results.bellIconVisible;
+    const corePassed = [
+      results.accountCreated,
+      results.bellIconVisible,
+      results.sheetOpens,
+      results.titleVisible,
+      results.tabsVisible,
+      results.clearAllButtonVisible,
+      results.allTabWorks,
+      results.messagesTabWorks,
+      results.requestsTabWorks,
+      results.systemTabWorks,
+      results.emptyStateVisible,
+      results.sheetCloses,
+      results.notificationBadgeChecked,
+      results.notificationItemInteraction,
+    ].every(Boolean);
 
     console.log('\nAccount Creation:');
     console.log(`  Account Created:          ${results.accountCreated ? 'PASS' : 'FAIL'}`);

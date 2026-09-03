@@ -7,6 +7,7 @@ import { sleep } from '../utils.js';
 import { waitForWorkspaceLoaded, closeAnyModals } from '../modals.js';
 import { takeScreenshot } from '../screenshots.js';
 import { UxIssueTracker } from '../ux-tracker.js';
+import { isHiddenWithin, isVisibleWithin } from '../utils.js';
 
 /**
  * Options for p2pRegister function
@@ -52,48 +53,57 @@ export async function p2pRegister(
   await sleep(5000);
 
   // Try to open Peer Discovery modal
+  // The modal appearing IS the signal each of these is waiting for, so each
+  // method waits for it rather than sleeping and assuming.
+  //
+  // This also makes the fallbacks reachable. `modalOpened` used to be set to
+  // true immediately after Method 1's click, without checking anything, so
+  // Methods 2 and 3 could never run — the chain looked like a retry strategy but
+  // only ever had one attempt. Three fixed 2s waits are gone with it.
+  const modalTitle = page.locator('text="Peer Discovery"');
   let modalOpened = false;
 
-  // Method 1: Click the UserPlus button directly
+  // Method 1: click the UserPlus button directly.
   const userPlusBtn = page.locator('button:has(svg.lucide-user-plus), button[title="Discover Peers"]').first();
-  if (await userPlusBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await isVisibleWithin(userPlusBtn, 3000)) {
     console.log('  Found Discover Peers button, clicking...');
     await userPlusBtn.click();
-    await sleep(2000);
-    modalOpened = true;
+    modalOpened = await isVisibleWithin(modalTitle, 8000);
   }
 
-  // Method 2: Hover over WORKSPACE MEMBERS section first
+  // Method 2: the button may only be revealed on hover over the members header.
+  //
+  // That header used to read "WORKSPACE MEMBERS" and this hovered it by name.
+  // The members list was deliberately given one noun and now reads "Members" or
+  // "<Entity> Members", so the hover target was never found and this whole
+  // method has been dead. Hover the header's actions instead, which is where
+  // the button lives regardless of what the heading says.
   if (!modalOpened) {
-    const membersSection = page.locator('text="WORKSPACE MEMBERS"').first();
-    if (await membersSection.isVisible({ timeout: 2000 }).catch(() => false)) {
-      console.log('  Hovering over WORKSPACE MEMBERS...');
+    const membersSection = page.getByTestId('members-header-actions').first();
+    if (await isVisibleWithin(membersSection, 2000)) {
+      console.log('  Hovering over the members header...');
       await membersSection.hover();
-      await sleep(1000);
 
       const discoverBtn = page.locator('button[title="Discover Peers"], button:has(svg.lucide-user-plus)').first();
-      if (await discoverBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(discoverBtn, 3000)) {
         await discoverBtn.click();
-        await sleep(2000);
-        modalOpened = true;
+        modalOpened = await isVisibleWithin(modalTitle, 8000);
       }
     }
   }
 
-  // Method 3: Force click
+  // Method 3: force past whatever is overlapping it.
   if (!modalOpened) {
     console.log('  Attempting force click on Discover Peers...');
     await page.locator('button[title="Discover Peers"]').click({ force: true, timeout: 5000 }).catch(() => {});
-    await sleep(2000);
+    modalOpened = await isVisibleWithin(modalTitle, 8000);
   }
 
   await takeScreenshot(page, `${myUsername}_peer_discovery`);
 
-  // Wait for peer list modal
-  const modalTitle = page.locator('text="Peer Discovery"');
-  if (!await modalTitle.isVisible({ timeout: 8000 }).catch(() => false)) {
+  if (!modalOpened) {
     const altModal = page.locator('[role="dialog"]:has-text("Peer"), [role="dialog"]:has-text("Discovery")');
-    if (!await altModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (!await isVisibleWithin(altModal, 2000)) {
       if (uxTracker) {
         uxTracker.log('critical', 'functional', 'Peer Discovery modal did not open');
       }
@@ -112,7 +122,7 @@ export async function p2pRegister(
     if (retry > 0) {
       console.log(`  Retry ${retry}/${MAX_RETRIES - 1}: Refreshing peer list...`);
       const refreshBtn = page.locator('[role="dialog"] button:has(svg.lucide-refresh-cw)');
-      if (await refreshBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(refreshBtn, 2000)) {
         await refreshBtn.click();
         await sleep(1000);
       }
@@ -122,7 +132,7 @@ export async function p2pRegister(
     console.log('  Waiting for peer list to load...');
     for (let i = 0; i < 15; i++) {
       const loadingSpinner = page.locator('[role="dialog"] svg.lucide-loader-2.animate-spin, [role="dialog"] .animate-spin');
-      const isLoading = await loadingSpinner.isVisible({ timeout: 500 }).catch(() => false);
+      const isLoading = await isVisibleWithin(loadingSpinner, 500);
 
       if (!isLoading) {
         console.log('  Peer list loaded');
@@ -162,11 +172,13 @@ export async function p2pRegister(
     // Method 2: Look for peer username text
     if (!peerFound) {
       const peerText = dialog.locator(`text="${peerUsername}"`).first();
-      if (await peerText.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(peerText, 2000)) {
         console.log(`  Found peer text, looking for Connect button nearby...`);
         const container = peerText.locator('xpath=ancestor::div[.//button[contains(text(), "Connect")]]').first();
-        const connectBtn = container.locator('button:has-text("Connect")');
-        if (await connectBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        // By testid: the button said "Connect" when this was written, and this file
+    // is the one every P2P spec goes through.
+    const connectBtn = container.getByTestId('peer-connect');
+        if (await isVisibleWithin(connectBtn, 2000)) {
           peerFound = true;
           console.log(`  Found peer ${peerUsername}, clicking Connect...`);
           await connectBtn.click();
@@ -198,7 +210,10 @@ export async function p2pRegister(
   // Conditionally close modal based on keepModalOpen option
   if (!keepModalOpen) {
     await page.keyboard.press('Escape');
-    await sleep(500);
+    // The modal being gone is the signal; sleeping 500ms and hoping left the
+    // next step racing a dialog that was still animating out and swallowing its
+    // clicks.
+    await isHiddenWithin(page.locator('[role="dialog"]'), 5000);
   } else {
     console.log(`  Keeping modal open for badge verification`);
   }
@@ -234,7 +249,7 @@ export async function verifyConnectedBadgeInModal(
 
   // The modal should already be open - verify it
   const modal = page.locator('[role="dialog"]:has-text("Peer Discovery")');
-  if (!await modal.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (!await isVisibleWithin(modal, 2000)) {
     console.log('  ERROR: Peer Discovery modal is not open');
     if (uxTracker) {
       uxTracker.log('critical', 'functional', 'Peer Discovery modal not open for badge verification');
@@ -249,12 +264,12 @@ export async function verifyConnectedBadgeInModal(
     // Find the peer's row in the modal
     const peerRow = modal.locator(`div.rounded-lg:has(p.font-medium:text-is("${peerUsername}"))`).first();
 
-    if (await peerRow.isVisible({ timeout: 500 }).catch(() => false)) {
+    if (await isVisibleWithin(peerRow, 500)) {
       // Check for "Connected" badge within this peer's row
       // The badge has: bg-blue-500/20 class, UserCheck icon (lucide-user-check), and text "Connected"
       const connectedBadge = peerRow.locator('[class*="bg-blue-500"]:has-text("Connected"), div:has(svg.lucide-user-check):has-text("Connected")').first();
 
-      if (await connectedBadge.isVisible({ timeout: 100 }).catch(() => false)) {
+      if (await isVisibleWithin(connectedBadge, 100)) {
         console.log(`  SUCCESS: Found "Connected" badge for ${peerUsername}`);
         await takeScreenshot(page, `${myUsername}_connected_badge_verified`);
         return true;
@@ -262,7 +277,7 @@ export async function verifyConnectedBadgeInModal(
 
       // Also check for "Awaiting Response..." button (means badge hasn't updated yet)
       const awaitingBtn = peerRow.locator('button:has-text("Awaiting Response")');
-      if (await awaitingBtn.isVisible({ timeout: 100 }).catch(() => false)) {
+      if (await isVisibleWithin(awaitingBtn, 100)) {
         console.log(`  Still showing "Awaiting Response..." (waiting for PeerRegisterSuccess event)`);
       }
     }
@@ -286,7 +301,7 @@ export async function verifyConnectedBadgeInModal(
 export async function closePeerDiscoveryModal(page: Page): Promise<void> {
   console.log('  Closing Peer Discovery modal');
   await page.keyboard.press('Escape');
-  await sleep(500);
+  await isHiddenWithin(page.locator('[role="dialog"]'), 5000);
 }
 
 /**
@@ -299,8 +314,15 @@ export async function acceptP2PRequest(
 ): Promise<boolean> {
   console.log(`\n=== ${username}: Checking for P2P requests ===`);
 
-  await waitForWorkspaceLoaded(page, 30000);
-  await sleep(3000); // Give more time for P2P notification to arrive
+  // Logged rather than thrown: these helpers report failure through their
+  // return value and the caller decides. Silently discarding it is what made
+  // the group-call stall unreadable — the log ended at 'Waiting for workspace
+  // to fully load...' and never said whether it arrived.
+  if (!(await waitForWorkspaceLoaded(page, 30000))) {
+    console.log(`  WARNING: ${username}'s workspace never finished loading; continuing anyway`);
+  }
+  // No fixed wait here: the badge poll below already retries for as long as it
+  // takes, so a 3s sleep only delayed the first look.
 
   // Look for pending request badge using specific selector
   // The badge is in the sidebar with data-testid="pending-requests-badge"
@@ -312,7 +334,7 @@ export async function acceptP2PRequest(
   const MAX_WAIT_ATTEMPTS = 20;
   for (let i = 0; i < MAX_WAIT_ATTEMPTS; i++) {
     const badge = page.locator(badgeSelector).first();
-    const isVisible = await badge.isVisible({ timeout: 1000 }).catch(() => false);
+    const isVisible = await isVisibleWithin(badge, 1000);
 
     if (isVisible) {
       console.log(`  ✓ Found pending request badge (attempt ${i + 1})`);
@@ -327,12 +349,12 @@ export async function acceptP2PRequest(
 
       // Wait for modal to open - look for the "Pending Connection Requests" title
       const modalTitle = page.locator('text="Pending Connection Requests"');
-      if (await modalTitle.isVisible({ timeout: 3000 }).catch(() => false)) {
+      if (await isVisibleWithin(modalTitle, 3000)) {
         console.log(`  ✓ Modal opened successfully`);
 
         // Find and click the Accept button
-        const acceptBtn = page.locator('button:has-text("Accept")').first();
-        if (await acceptBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+        const acceptBtn = page.getByTestId('peer-accept').first();
+        if (await isVisibleWithin(acceptBtn, 5000)) {
           console.log(`  ✓ Found Accept button, clicking...`);
           await acceptBtn.click();
           await sleep(3000);
@@ -343,7 +365,16 @@ export async function acceptP2PRequest(
           await sleep(500);
           return true;
         } else {
-          console.log(`  ✗ Accept button not found in modal`);
+          // Say WHICH thing is missing. "Accept button not found in modal"
+          // read as "the request never arrived" for as long as the modal's
+          // button simply had no testid, and sent four reconnection legs
+          // looking at the P2P layer for a defect that was in the markup.
+          const rowCount: number = await page.getByTestId('peer-accept').count();
+          console.log(
+            `  ✗ No [data-testid="peer-accept"] inside the open modal ` +
+              `(${rowCount} on the page). The modal is up; either it lists no ` +
+              `requests, or its accept control is not addressable.`,
+          );
           await takeScreenshot(page, `${username}_no_accept_button`);
           if (uxTracker) {
             uxTracker.log('major', 'functional', 'Accept button not found in pending requests modal');

@@ -1,41 +1,51 @@
 /** Sidebar section displaying workspace members, P2P peers, and conversations. */
 
-import { UserPlus, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
+import { MembersEmptyState } from './MembersEmptyState';
+import { PendingRequestsBadge } from './PendingRequestsBadge';
+import { membersSectionLabel } from './members-section-label';
+import { MembersHeaderActions } from './MembersHeaderActions';
+import { connectionManager } from '@/lib/connection';
+import { mayLeaveEditor } from '@/lib/leave-editor';
+import { useConfirm } from '@/components/shared/confirm-dialog';
 import { useLocation, useNavigate } from "react-router-dom";
+import { activeConversation, conversationHref, type ActiveConversation } from "./active-conversation";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
 import { MemberListItems } from './MemberListItems';
-import WorkspaceService from "@/lib/workspace-service";
-import { Badge } from "@/components/ui/badge";
-import { workspaceEvents, type MembersPayload } from "@/lib/workspace-events";
 import { getEntityMetadata, getEntityTypeString } from "@/lib/entity-type-registry";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { peerRegistrationStore } from "@/lib/peer-registration-store";
 import { GroupConversationRow } from "./GroupConversationRow";
 import { PeerListRow } from "./PeerListRow";
 import { useGroupConversations, useRegisteredPeers, useConversationPeers, useEventListener } from '@/hooks';
-import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { useDomainMembers } from '@/hooks/use-domain-members';
 import { debugLog } from '@/lib/debug-config';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 import { MembersSectionModals } from './MembersSectionModals';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import type { NavigateFunction } from 'react-router';
+import type { RegisteredPeer } from '@/hooks/use-registered-peers';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
-export const MembersSection = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
+export const MembersSection: () => JSX.Element = (): JSX.Element => {
+  const location: ReturnType<typeof useLocation> = useLocation();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
+  const [showInvite, setShowInvite] = useState(false);
+  const navigate: NavigateFunction = useNavigate();
   const { state } = useWorkspace();
-  const params = new URLSearchParams(location.search);
-  const currentNodeId = params.get("nodeId");
+  const params: URLSearchParams = new URLSearchParams(location.search);
+  const currentNodeId: string | null = params.get("nodeId");
 
-  const [members, setMembers] = useState<WorkspaceMember[]>([]);
-  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
@@ -54,11 +64,11 @@ export const MembersSection = () => {
   const { registeredPeers } = useRegisteredPeers();
   const { peersWithConversations } = useConversationPeers({ registeredPeers });
 
-  const conversationPeerCids = new Set(peersWithConversations.map(c => c.peerCid));
-  const filteredRegisteredPeers = registeredPeers.filter(p => !conversationPeerCids.has(p.cid));
+  const conversationPeerCids: Set<string> = new Set(peersWithConversations.map(c => c.peerCid));
+  const filteredRegisteredPeers: RegisteredPeer[] = registeredPeers.filter(p => !conversationPeerCids.has(p.cid));
 
-  const updatePendingCount = useCallback(async () => {
-    const count = await peerRegistrationStore.getPendingCount();
+  const updatePendingCount: () => Promise<void> = useCallback(async (): Promise<void> => {
+    const count: number = await peerRegistrationStore.getPendingCount();
     setPendingRequestCount(count);
   }, []);
 
@@ -72,54 +82,40 @@ export const MembersSection = () => {
 
   useEventListener('open-pending-requests-modal', () => { setShowPendingRequests(true); });
 
-  const activeDomainId = currentNodeId;
-  useEffect(() => {
-    const loadMembers = async () => {
-      if (!activeDomainId) { setMembers([]); return; }
-      setIsLoadingMembers(true);
-      try { await WorkspaceService.listMembers(activeDomainId); }
-      catch (error) { debugLog('MembersSection', 'Error loading members:', error); }
-      finally { setIsLoadingMembers(false); }
-    };
-    runAsyncSetup(loadMembers);
-  }, [activeDomainId]);
+  const activeDomainId: string | null = currentNodeId;
+  const { members, isLoadingMembers, membersUnavailable } = useDomainMembers(activeDomainId);
 
-  useEffect(() => {
-    const handleMembersLoaded = (payload: MembersPayload) => {
-      if (payload.members) setMembers(payload.members);
-    };
-    runAsyncSetup(async () => { await workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded); });
-  }, []);
-
-  const handleEditMember = (member: WorkspaceMember) => { setSelectedMember(member); setShowEditModal(true); };
-  const handleRemoveMember = (member: WorkspaceMember) => { setSelectedMember(member); setShowRemoveModal(true); };
-  const handleManagePermissions = (member: WorkspaceMember) => {
-    let domainId = 'workspace-root';
-    let domainType = 'workspace';
+  const handleEditMember = (m: WorkspaceMember): void => { setSelectedMember(m); setShowEditModal(true); };
+  const handleRemoveMember = (m: WorkspaceMember): void => { setSelectedMember(m); setShowRemoveModal(true); };
+  const handleManagePermissions = (member: WorkspaceMember): void => {
+    let domainId: string = WORKSPACE_ROOT_ID;
+    let domainType: string = 'workspace';
     if (currentNodeId) {
       domainId = currentNodeId;
-      const node = state.nodes[currentNodeId];
+      const node: DomainNode = state.nodes[currentNodeId];
       domainType = node ? getEntityTypeString(node.entity_type).toLowerCase() : 'workspace';
     }
     setPermissionModalData({ userId: member.id, domainId, domainType });
     setShowPermissionModal(true);
   };
 
-  const handlePeerClick = (cid: string, username: string) => {
-    const searchParams = new URLSearchParams(location.search);
-    searchParams.set('showP2P', 'true');
-    searchParams.set('p2pUser', username);
-    searchParams.set('channel', cid);
-    navigate(`${location.pathname}?${searchParams.toString()}`);
+  // Which row to mark as the one on screen. Derived from the route rather than
+  // held as state, so it cannot drift from what is actually rendered.
+  const active: ActiveConversation = activeConversation(location.pathname, location.search);
+
+  const handlePeerClick = async (cid: string, username: string): Promise<void> => {
+    // The workspace view renders P2P chat instead of the editor, so this
+    // unmounts the buffer as completely as selecting another node does.
+    if (!(await mayLeaveEditor(confirm))) return;
+
+    navigate(conversationHref(location.pathname, location.search, { cid, username }));
   };
 
-  const getLocationText = () => {
-    if (currentNodeId) {
-      const node = state.nodes[currentNodeId];
-      if (node) return `${getEntityMetadata(node.entity_type).label} Members`;
-    }
-    if (registeredPeers.length > 0 && members.length === 0) return "Connected Peers";
-    return "Workspace Members";
+  const getLocationText = (): string => {
+    const node: DomainNode | undefined = currentNodeId ? state.nodes[currentNodeId] : undefined;
+    return membersSectionLabel({
+      entityLabel: node ? getEntityMetadata(node.entity_type).label : undefined,
+    });
   };
 
   return (
@@ -127,33 +123,25 @@ export const MembersSection = () => {
       <SidebarGroup className="flex-shrink-0 min-h-[4rem] mb-4">
         <div className="flex items-center justify-between px-3 mb-2">
           <div className="flex items-center gap-2">
-            <SidebarGroupLabel className="text-[#9b87f5] font-semibold m-0 px-0">
+            <SidebarGroupLabel className="text-primary-accent font-semibold m-0 px-0">
               {getLocationText().toUpperCase()}
             </SidebarGroupLabel>
-            {pendingRequestCount > 0 && (
-              <Badge
-                data-testid="pending-requests-badge"
-                className="h-5 min-w-[20px] px-1.5 bg-red-500 text-white cursor-pointer hover:bg-red-600 transition-colors"
-                onClick={(e) => { e.stopPropagation(); setShowPendingRequests(true); }}
-                title={`${pendingRequestCount} pending connection request${pendingRequestCount > 1 ? 's' : ''}`}
-              >
-                {pendingRequestCount}
-              </Badge>
-            )}
+            <PendingRequestsBadge count={pendingRequestCount} onOpen={() => setShowPendingRequests(true)} />
           </div>
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-[#9b87f5] hover:bg-purple-500/15 hover:text-white" onClick={() => setShowPeerDiscovery(true)} title="Discover Peers">
-            <UserPlus className="h-4 w-4" />
-          </Button>
+          <MembersHeaderActions
+            onDiscover={() => setShowPeerDiscovery(true)}
+            onInvite={() => setShowInvite(true)}
+          />
         </div>
         <SidebarGroupContent>
           <ScrollArea className="max-h-[30vh]">
             <SidebarMenu>
               {isLoadingMembers ? (
-                <div className="px-3 py-2 text-sm text-muted-foreground">Loading members...</div>
+                <SidebarMenuItem className="px-3 py-2 text-sm text-muted-foreground">
+                  Loading members...
+                </SidebarMenuItem>
               ) : members.length === 0 && filteredRegisteredPeers.length === 0 && registeredPeers.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-muted-foreground">
-                  No members yet. Use the <UserPlus className="h-3 w-3 inline mx-1" /> button to discover peers.
-                </div>
+                <MembersEmptyState unavailable={membersUnavailable} />
               ) : members.length > 0 && (
                 <MemberListItems
                   members={members}
@@ -168,10 +156,10 @@ export const MembersSection = () => {
           </ScrollArea>
 
           {filteredRegisteredPeers.length > 0 && (
-            <div className="mt-2 border-t border-[#232536] pt-2">
+            <div className="mt-2 border-t border-card pt-2">
               <SidebarMenu>
                 {filteredRegisteredPeers.map((peer) => (
-                  <PeerListRow key={peer.cid} cid={peer.cid} username={peer.username} isOnline={peer.isOnline} isConnected={peer.isConnected} onClick={() => handlePeerClick(peer.cid, peer.username)} />
+                  <PeerListRow key={peer.cid} cid={peer.cid} username={peer.username} isOnline={peer.isOnline} isConnected={peer.isConnected} isActive={peer.cid === active.peerCid} onClick={() => void handlePeerClick(peer.cid, peer.username)} />
                 ))}
               </SidebarMenu>
             </div>
@@ -179,13 +167,19 @@ export const MembersSection = () => {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      {(peersWithConversations.length > 0 || groupConversations.length > 0) && (
+      {/* Shown when there is anyone to talk to, not once a conversation already
+          exists. The only control that opens the create-group dialog lives in
+          here, so gating on conversations meant nobody could create their FIRST
+          group: you needed a conversation to get the button that starts one.
+          Still hidden with no peers at all -- a create-group dialog with nobody
+          to add is a dead end, and offering it is worse than not. */}
+      {(registeredPeers.length > 0 || groupConversations.length > 0) && (
         <SidebarGroup className="flex-shrink-0 min-h-[2rem] mb-4">
           <div className="flex items-center justify-between px-3">
-            <SidebarGroupLabel className="text-[#9b87f5] font-semibold text-xs px-0">CONVERSATIONS</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-primary-accent font-semibold text-xs px-0">CONVERSATIONS</SidebarGroupLabel>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-[#9b87f5] hover:text-white hover:bg-[#6E59A5]" onClick={() => setShowCreateGroupDialog(true)}>
+                <Button variant="ghost" size="sm" aria-label="New group chat" data-testid="new-group-chat-button" className="tap-target h-6 w-6 p-0 text-primary-accent hover:text-primary-foreground hover:bg-primary" onClick={() => setShowCreateGroupDialog(true)}>
                   <Plus className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
@@ -195,11 +189,17 @@ export const MembersSection = () => {
           <SidebarGroupContent>
             <SidebarMenu>
               {peersWithConversations.map((conv) => (
-                <PeerListRow key={conv.peerCid} cid={conv.peerCid} username={conv.peerUsername} isOnline={conv.isOnline} isConnected={conv.isConnected} unreadCount={conv.unreadCount} onClick={() => handlePeerClick(conv.peerCid, conv.peerUsername)} />
+                <PeerListRow key={conv.peerCid} cid={conv.peerCid} username={conv.peerUsername} isOnline={conv.isOnline} isConnected={conv.isConnected} unreadCount={conv.unreadCount} isActive={conv.peerCid === active.peerCid} onClick={() => void handlePeerClick(conv.peerCid, conv.peerUsername)} />
               ))}
               {groupConversations.map((group) => (
-                <GroupConversationRow key={group.id} group={group} onClick={(g) => navigate(`/groups/${g.id}`)} />
+                <GroupConversationRow key={group.id} group={group} isActive={group.id === active.groupId} onClick={(g) => navigate(`/groups/${g.id}`)} />
               ))}
+              {peersWithConversations.length === 0 && groupConversations.length === 0 && (
+                <SidebarMenuItem className="px-3 py-2 text-sm text-muted-foreground">
+                  No conversations yet. Pick somebody above, or use the button to
+                  start a group.
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -226,6 +226,10 @@ export const MembersSection = () => {
         onSetShowRemoveModal={setShowRemoveModal}
         onSetShowAllMembersDialog={setShowAllMembersDialog}
         onSetShowPermissionModal={setShowPermissionModal}
+        showInvite={showInvite}
+        onSetShowInvite={setShowInvite}
+        workspaceName={state.workspace?.name || 'this workspace'}
+        serverAddress={connectionManager.getConnectionInfo()?.serverAddress}
         onSetShowPeerDiscovery={setShowPeerDiscovery}
         onSetShowPendingRequests={setShowPendingRequests}
         onSetShowCreateGroupDialog={setShowCreateGroupDialog}
@@ -234,8 +238,13 @@ export const MembersSection = () => {
         onEditMember={handleEditMember}
         onRemoveMember={handleRemoveMember}
         onManagePermissions={handleManagePermissions}
-        onCreateGroup={async (name, membersList) => { await createGroup(name, membersList); }}
+        onCreateGroup={async (name, membersList) => {
+          // Open it: every other way into a group navigates; this one did not.
+          const groupId: string = await createGroup(name, membersList);
+          if (groupId) navigate(`/groups/${groupId}`);
+        }}
       />
+
     </>
   );
 };

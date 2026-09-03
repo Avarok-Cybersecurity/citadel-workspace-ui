@@ -1,19 +1,26 @@
 import { useState } from "react";
+import { firstFieldToFix } from '@/lib/first-field-to-fix';
+
+/** The login form's fields, in the order they are rendered. */
+const LOGIN_FIELD_ORDER: readonly ["username", "password"] = ['username', 'password'] as const;
+type LoginField = (typeof LOGIN_FIELD_ORDER)[number];
+import { DEFAULT_SECURITY_SETTINGS } from './security-settings-defaults';
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { websocketService } from "@/lib/websocket-service";
 import { connectionManager } from "@/lib/connection";
 import { eventEmitter } from "@/lib/event-emitter";
-import { isResponseType } from 'citadel-workspace-client-ts';
-import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
-import { getDefaultSecuritySettings } from "@/lib/security-utils";
-import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
+import { isResponseType , type InternalServiceResponse } from 'citadel-workspace-client-ts';
+import { startMessagingForSession } from "@/lib/start-messaging";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser } from "@/lib/tab-context";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { redirectToExistingSession } from './login-session-redirect';
+import { mapSecuritySettings  , type SessionSecuritySettings } from '@/lib/security-utils';
+import type { NavigateFunction } from 'react-router';
+import type { StoredSessions, StoredSession, ActiveSession } from '@/types/session-types';
 import type {
   SecurityLevel, SecrecyMode, EncryptionAlgorithm, KemAlgorithm, SigAlgorithm,
 } from "@/types";
@@ -32,64 +39,108 @@ interface UseLoginHandlerParams {
   onNext: (connectionId: string) => void;
 }
 
-export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
+/** Everything the sign-in form renders and submits with. */
+export interface LoginHandler {
+  username: string;
+  setUsername: React.Dispatch<React.SetStateAction<string>>;
+  password: string;
+  setPassword: React.Dispatch<React.SetStateAction<string>>;
+  server: string;
+  setServer: React.Dispatch<React.SetStateAction<string>>;
+  error: string | null;
+  loading: boolean;
+  securitySettings: SecuritySettingsState;
+  // The setter React gives, not a narrowed one: a caller that passes an updater
+  // function is doing the ordinary thing, and narrowing this to a plain value
+  // makes the hook's own state harder to use than useState's.
+  setSecuritySettings: React.Dispatch<React.SetStateAction<SecuritySettingsState>>;
+  handleLogin: (e: React.FormEvent) => Promise<void>;
+  /** Which field to mark, so the message lands on the control it is about. */
+  invalidField: LoginField | null;
+}
+
+export function useLoginHandler({ onNext }: UseLoginHandlerParams): LoginHandler {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  // Registration still needs one; signing in does not. Kept so the hook's
+  // shape is unchanged for the join flow that shares it.
   const [server, setServer] = useState("");
   const [error, setError] = useState<string | null>(null);
+  /** The field a refused submit pointed at, so the form can mark it invalid. */
+  const [invalidField, setInvalidField] = useState<LoginField | null>(null);
   const [loading, setLoading] = useState(false);
-  const [securitySettings, setSecuritySettings] = useState<SecuritySettingsState>({
-    securityLevel: 'Standard', secrecyMode: 'BestEffort',
-    encryptionAlgorithm: 'AES_GCM_256', kemAlgorithm: 'MlKem',
-    sigAlgorithm: 'None', headerObfuscatorSettings: {}, storeCredentials: false
-  });
+  const [securitySettings, setSecuritySettings] =
+    useState<SecuritySettingsState>(DEFAULT_SECURITY_SETTINGS);
 
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const navigate: NavigateFunction = useNavigate();
 
-  const doRedirect = (session: { cid: bigint; username: string; server_address: string }) =>
+  const doRedirect = (session: { cid: bigint; username: string; server_address: string }): Promise<void> =>
     redirectToExistingSession(session, { navigate, toast, onNext });
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) { setError("Username and password are required"); return; }
+    if (!username.trim() || !password.trim()) {
+      setError("Username and password are required");
+      // And take them to the field, which announcing alone does not.
+      //
+      // This said the sentence and left focus on Sign In with no field marked
+      // invalid: a screen-reader user hears "username and password are
+      // required" with their cursor on a button, and there is nothing to say
+      // which of the two is missing. The join form was given this in round 230
+      // and the login form was not -- the same fix, in one of the two places it
+      // belonged.
+      const field: "username" | "password" | null = firstFieldToFix(LOGIN_FIELD_ORDER, { username, password });
+      setInvalidField(field);
+      if (field) document.getElementById(field)?.focus();
+      return;
+    }
 
     setLoading(true);
     setError(null);
+    setInvalidField(null);
 
     try {
-      const activeSessions = await connectionManager.getActiveSessions();
-      const existingSession = activeSessions.find(session => session.username === username.trim());
-      if (existingSession) {
-        debugLog('Login', 'User already has active session, redirecting:', existingSession);
-        try {
-          await doRedirect({
-            cid: existingSession.cid,
-            username: existingSession.username ?? username.trim(),
-            server_address: existingSession.server_address,
-          });
-        } finally {
-          setLoading(false);
-        }
-        return;
-      }
+      // No pre-emptive claim on a username match.
+      //
+      // This used to look up the active sessions, match on username ALONE, and
+      // redirect straight into the session -- so the password box on the login
+      // form was never read whenever a session for that username was already
+      // active on this agent. Typing any password, or the wrong one, signed you
+      // in. `getActiveSessions` is agent-wide, so the username did not even have
+      // to be one this browser had ever signed in as.
+      //
+      // The legitimate case it was short-circuiting is still handled, one step
+      // later and by the right party: Connect goes to the server with the
+      // credentials, and if a session is already live the server answers
+      // SessionAlreadyActive, which the handler below turns into the same
+      // redirect. Whether the password is correct stops being a question this
+      // component answers.
+      //
+      // NOTE, recorded rather than implied: the internal service's own reuse
+      // branch does not verify the password either (see docs/ROBUSTNESS.md).
+      // Removing this does not by itself close that hole -- it removes the
+      // frontend's independent copy of it, and puts the decision where it can
+      // actually be made.
 
-      const storedSessions = connectionManager.getStoredSessions();
-      const storedSession = storedSessions.sessions.find(s => s.username === username.trim());
-      const serverAddress = storedSession?.serverAddress || server.trim() || '';
+      // Metadata only. `connect` takes no server address -- the SDK pinned the
+      // account's server in its CNAC at registration and dials that -- so this
+      // exists to label the stored session, not to reach anything. The login
+      // form no longer asks for it, because a field that cannot change where
+      // you connect should not look like it can.
+      const storedSessions: StoredSessions = connectionManager.getStoredSessions();
+      const storedSession: StoredSession | undefined = storedSessions.sessions.find(s => s.username === username.trim());
+      const serverAddress: string = storedSession?.serverAddress ?? '';
 
-      if (!serverAddress) { debugLog('Login', 'No stored session and no server address provided'); }
-      else if (!storedSession) { debugLog('Login', 'Using form server address:', serverAddress); }
-
-      const requestId = crypto.randomUUID();
-      let responseReceived = false;
-      const responsePromise = new Promise<bigint>((resolve, reject) => {
-        const timeout = setTimeout(() => {
+      const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+      let responseReceived: boolean = false;
+      const responsePromise: Promise<bigint> = new Promise<bigint>((resolve, reject) => {
+        const timeout: NodeJS.Timeout = setTimeout((): void => {
           if (!responseReceived) { eventEmitter.off('websocket-message', handler); reject(new Error('Connection timeout')); }
         }, 30000);
 
-        const handler = (message: InternalServiceResponse) => {
-          const response = (message as Record<string, unknown>).Response
+        const handler = (message: InternalServiceResponse): void => {
+          const response: InternalServiceResponse = (message as Record<string, unknown>).Response
             ? ((message as Record<string, unknown>).Response as InternalServiceResponse) : message;
 
           if (isResponseType(response, 'ConnectSuccess') && response.ConnectSuccess.request_id === requestId) {
@@ -105,9 +156,9 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
             });
           } else if (isResponseType(response, 'ConnectFailure') && response.ConnectFailure.request_id === requestId) {
             responseReceived = true; clearTimeout(timeout); eventEmitter.off('websocket-message', handler);
-            const errorMessage = response.ConnectFailure.message || 'Connection failed';
+            const errorMessage: string = response.ConnectFailure.message || 'Connection failed';
             if (errorMessage.toLowerCase().includes('already connected')) {
-              const errorCid = response.ConnectFailure.cid;
+              const errorCid: bigint = response.ConnectFailure.cid;
               if (errorCid && errorCid !== 0n && errorCid !== BigInt(0)) {
                 runAsyncSetup(async () => {
                   try { await doRedirect({ cid: errorCid as bigint, username: username.trim(), server_address: serverAddress }); }
@@ -116,8 +167,8 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
               } else {
                 runAsyncSetup(async () => {
                   try {
-                    const sessions = await connectionManager.getActiveSessions();
-                    const match = sessions.find(s => s.username === username.trim());
+                    const sessions: ActiveSession[] = await connectionManager.getActiveSessions();
+                    const match: ActiveSession | undefined = sessions.find(s => s.username === username.trim());
                     if (match?.cid !== undefined) {
                       try { await doRedirect({ cid: match.cid, username: match.username ?? username.trim(), server_address: match.server_address }); }
                       finally { setLoading(false); }
@@ -133,19 +184,34 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
         eventEmitter.on('websocket-message', handler);
       });
 
-      await websocketService.connect(requestId, username, password, undefined);
-      const cid = await responsePromise;
+      // The settings the user actually chose, not the defaults.
+      //
+      // This passed `undefined`, and `auth-operations` fills that gap with
+      // `getDefaultSecuritySettings()` — so every choice made in the Security
+      // Settings dialog reached this hook's state and died there. A user who
+      // selected a higher security level, a post-quantum KEM and a signature
+      // algorithm connected with Standard/BestEffort/AES_GCM_256 and was told
+      // nothing. The registration flow has always mapped these correctly; the
+      // login flow read neither its own state nor the shared cache.
+      const chosenSettings: SessionSecuritySettings = mapSecuritySettings(securitySettings);
+      await websocketService.connect(requestId, username, password, chosenSettings);
+      const cid: bigint = await responsePromise;
 
       await connectionManager.handleAuthSuccess({
         username, password, fullName: username, serverAddress,
-        serverPassword: "", securitySettings: getDefaultSecuritySettings(), cid
+        // Stored as chosen too. Persisting the defaults here meant every
+        // reconnect silently downgraded to them as well, so the choice was lost
+        // for the life of the session, not just the first connect.
+        serverPassword: "", securitySettings: chosenSettings, cid,
+        // The switch the user actually toggled. It reached this hook's state and
+        // went no further, so the password was stored either way.
+        storeCredentials: securitySettings.storeCredentials,
       });
 
       await setSelectedUser({ selectedUsername: username.trim(), selectedServerAddress: serverAddress, selectedCid: cid });
       await postAuthSetup(cid);
 
-      try { await wasmConnectionManager.start(cid.toString()); }
-      catch (err) { debugLog('Login', 'Failed to start WASM connection manager:', err); }
+      const messagingReady: boolean = await startMessagingForSession(cid.toString());
 
       eventEmitter.emit('session:activated', {
         cid: cid.toString(), username: username.trim(),
@@ -153,11 +219,22 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
       });
 
       onNext(cid.toString());
-      toast({ title: "Login successful", description: "Connected to workspace successfully" });
+      // Not an unconditional "Connected to workspace successfully". The ILM
+      // messenger can fail to start while everything else succeeds, and this
+      // toast used to announce success over it -- the user was told they were
+      // connected and then found that nothing they sent arrived.
+      toast(
+        messagingReady
+          ? { title: 'Login successful', description: 'Connected to workspace successfully' }
+          : {
+              variant: 'destructive',
+              title: 'Signed in, but messaging is unavailable',
+              description: 'Your workspace loaded. Messages cannot be sent or received until you reload.',
+            },
+      );
     } catch (err: unknown) {
-      const errArg = err instanceof Error ? err : String(err);
-      setError(getUserFriendlyErrorMessage(errArg));
-      toast({ variant: "destructive", title: getErrorTitle(errArg), description: getUserFriendlyErrorMessage(errArg) });
+      setError(getUserFriendlyErrorMessage(err));
+      toast({ variant: "destructive", title: getErrorTitle(err), description: getUserFriendlyErrorMessage(err) });
     } finally {
       setLoading(false);
     }
@@ -165,6 +242,6 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams) {
 
   return {
     username, setUsername, password, setPassword, server, setServer,
-    error, loading, securitySettings, setSecuritySettings, handleLogin,
+    error, loading, securitySettings, setSecuritySettings, handleLogin, invalidField,
   };
 }

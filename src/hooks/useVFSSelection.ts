@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { findNodeByPath } from '@/lib/revfs/tree-operations';
 import type { RevfsNode } from '@/types/revfs-types';
 
 export type SelectMode = 'replace' | 'toggle' | 'range';
@@ -21,22 +22,13 @@ interface UseVFSSelectionResult {
   getSelectedNodes: (tree: RevfsNode) => RevfsNode[];
 }
 
-function findNodeByPath(tree: RevfsNode, path: string): RevfsNode | null {
-  if (tree.path === path) return tree;
-  for (const child of tree.children ?? []) {
-    const found = findNodeByPath(child, path);
-    if (found) return found;
-  }
-  return null;
-}
-
 export function useVFSSelection(): UseVFSSelectionResult {
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const [lastSelectedPath, setLastSelectedPath] = useState<string | null>(null);
 
-  const select = useCallback((path: string, mode: SelectMode, allPaths?: string[]) => {
+  const select: (path: string, mode: SelectMode, allPaths?: string[]) => void = useCallback((path: string, mode: SelectMode, allPaths?: string[]): void => {
     setSelectedPaths(prev => {
-      const next = new Set(prev);
+      const next: Set<string> = new Set(prev);
 
       switch (mode) {
         case 'replace':
@@ -54,11 +46,11 @@ export function useVFSSelection(): UseVFSSelectionResult {
 
         case 'range':
           if (lastSelectedPath && allPaths) {
-            const startIdx = allPaths.indexOf(lastSelectedPath);
-            const endIdx = allPaths.indexOf(path);
+            const startIdx: number = allPaths.indexOf(lastSelectedPath);
+            const endIdx: number = allPaths.indexOf(path);
             if (startIdx !== -1 && endIdx !== -1) {
               const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
-              for (let i = from; i <= to; i++) {
+              for (let i: number = from; i <= to; i++) {
                 next.add(allPaths[i]);
               }
             }
@@ -76,28 +68,28 @@ export function useVFSSelection(): UseVFSSelectionResult {
     }
   }, [lastSelectedPath, selectedPaths]);
 
-  const selectAll = useCallback((paths: string[]) => {
+  const selectAll: (paths: string[]) => void = useCallback((paths: string[]): void => {
     setSelectedPaths(new Set(paths));
     if (paths.length > 0) {
       setLastSelectedPath(paths[paths.length - 1]);
     }
   }, []);
 
-  const clearSelection = useCallback(() => {
+  const clearSelection: () => void = useCallback((): void => {
     setSelectedPaths(new Set());
     setLastSelectedPath(null);
   }, []);
 
-  const isSelected = useCallback((path: string) => {
+  const isSelected: (path: string) => boolean = useCallback((path: string) => {
     return selectedPaths.has(path);
   }, [selectedPaths]);
 
-  const selectionCount = useMemo(() => selectedPaths.size, [selectedPaths]);
+  const selectionCount: number = useMemo(() => selectedPaths.size, [selectedPaths]);
 
-  const getSelectedNodes = useCallback((tree: RevfsNode): RevfsNode[] => {
+  const getSelectedNodes: (tree: RevfsNode) => RevfsNode[] = useCallback((tree: RevfsNode): RevfsNode[] => {
     const nodes: RevfsNode[] = [];
     for (const path of selectedPaths) {
-      const node = findNodeByPath(tree, path);
+      const node: RevfsNode | null = findNodeByPath(tree, path);
       if (node) nodes.push(node);
     }
     return nodes;

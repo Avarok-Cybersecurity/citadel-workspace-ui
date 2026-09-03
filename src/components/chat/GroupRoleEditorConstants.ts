@@ -25,7 +25,7 @@ export interface GroupRoleEditorProps {
 // Constants
 // ============================================================================
 
-export const PRESET_COLORS = [
+export const PRESET_COLORS: string[] = [
   '#FFD700', // Gold
   '#6E59A5', // Purple
   '#4F46E5', // Indigo

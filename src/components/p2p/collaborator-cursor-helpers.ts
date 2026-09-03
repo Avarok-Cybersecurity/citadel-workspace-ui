@@ -19,11 +19,11 @@ export interface FlashComment {
 
 /** Parse hex color to RGBA for transparency */
 export function hexToRgba(hex: string, alpha: number): string {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  const result: RegExpExecArray | null = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   if (result) {
-    const r = parseInt(result[1], 16);
-    const g = parseInt(result[2], 16);
-    const b = parseInt(result[3], 16);
+    const r: number = parseInt(result[1], 16);
+    const g: number = parseInt(result[2], 16);
+    const b: number = parseInt(result[3], 16);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
   return hex;
@@ -52,7 +52,7 @@ export function buildContextMenuFlashComment(
   cursorCoords: { top: number; left: number },
   user: { userId: string; userName: string; userColor: string },
 ): FlashComment | null {
-  const text = (rawText ?? '').trim();
+  const text: string = (rawText ?? '').trim();
   if (!text) return null;
   return {
     id: generateFlashCommentId(),

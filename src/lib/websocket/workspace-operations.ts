@@ -8,6 +8,7 @@
 import { WorkspaceClient, type WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 import { debugLog } from '../debug-config';
 import { instanceManager, instanceChannel, instanceInboundRouter } from '../multi-instance';
+import type { AckResult } from '@/lib/multi-instance/outbound-queue-types';
 
 export interface WorkspaceOpsConfig {
   init: () => Promise<void>;
@@ -29,7 +30,7 @@ export class WorkspaceOperations {
     }
 
     if (instanceManager.isLeader) {
-      const client = this.config.getClient();
+      const client: WorkspaceClient | null = this.config.getClient();
       if (!client) {
         throw new Error('WebSocket client not available (leader without client)');
       }
@@ -38,16 +39,16 @@ export class WorkspaceOperations {
     } else {
       debugLog('WorkspaceOperations', '[Follower] Proxying workspace request through leader');
 
-      const proxyRequest = {
+      const proxyRequest: { __workspaceRequestProxy: boolean; cid: string; request: unknown; } = {
         __workspaceRequestProxy: true,
         cid: cid.toString(),
         request: request
       };
 
-      const requestId = crypto.randomUUID();
+      const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
       instanceInboundRouter.registerPendingRequest(requestId, instanceManager.instanceId);
 
-      const result = await instanceChannel.sendToLeader(proxyRequest, requestId);
+      const result: AckResult = await instanceChannel.sendToLeader(proxyRequest, requestId);
 
       if (result.status === 'error') {
         throw new Error(`Leader failed to send workspace request: ${result.error}`);

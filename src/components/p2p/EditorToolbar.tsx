@@ -22,17 +22,20 @@ interface ToolbarButtonProps {
   title: string;
 }
 
-function ToolbarButton({ icon, onClick, active, disabled, title }: ToolbarButtonProps) {
+function ToolbarButton({ icon, onClick, active, disabled, title }: ToolbarButtonProps): JSX.Element {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      /* Same reason as MarkdownToolbar: active was a colour and nothing more. */
+      aria-pressed={active}
+      aria-label={title}
       className={`
         p-1.5 rounded transition-colors
         ${active
-          ? 'bg-[#6E59A5] text-white'
-          : 'hover:bg-white/10 text-gray-400 hover:text-white'
+          ? 'bg-primary text-primary-foreground'
+          : 'hover:bg-foreground/10 text-muted-foreground hover:text-foreground'
         }
         ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       `}
@@ -43,11 +46,11 @@ function ToolbarButton({ icon, onClick, active, disabled, title }: ToolbarButton
   );
 }
 
-export function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
+export function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }): JSX.Element | null {
   if (!editor) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-1 p-2 border-b border-[#262C4A]/50 bg-[#1a1b26]">
+    <div className="flex flex-wrap items-center gap-1 p-2 border-b border-surface/50 bg-background">
       <ToolbarButton
         icon={<Bold className="h-4 w-4" />}
         onClick={() => editor.chain().focus().toggleBold().run()}
@@ -67,7 +70,7 @@ export function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor>
         title="Strikethrough"
       />
 
-      <div className="w-px h-5 bg-gray-600/50 mx-1" />
+      <div className="w-px h-5 bg-border mx-1" />
 
       <ToolbarButton
         icon={<Heading1 className="h-4 w-4" />}
@@ -82,7 +85,7 @@ export function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor>
         title="Heading 2"
       />
 
-      <div className="w-px h-5 bg-gray-600/50 mx-1" />
+      <div className="w-px h-5 bg-border mx-1" />
 
       <ToolbarButton
         icon={<List className="h-4 w-4" />}
@@ -97,7 +100,7 @@ export function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor>
         title="Numbered List"
       />
 
-      <div className="w-px h-5 bg-gray-600/50 mx-1" />
+      <div className="w-px h-5 bg-border mx-1" />
 
       <ToolbarButton
         icon={<Quote className="h-4 w-4" />}

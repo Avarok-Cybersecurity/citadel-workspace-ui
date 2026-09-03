@@ -5,11 +5,13 @@
  */
 
 import type { Page } from 'playwright';
+import { reportTimeout } from './screen-state.js';
 import { sleep } from './utils.js';
 import { takeScreenshot } from './screenshots.js';
 import type { UxIssueTracker } from './ux-tracker.js';
 import { waitForTreeDataLoaded } from './modals.js';
 import { createNodeViaProtocol, listNodesViaProtocol, updateNodeViaProtocol } from './tree-helpers.js';
+import { isVisibleWithin } from './utils.js';
 
 export interface GroupChatOptions {
   uxTracker?: UxIssueTracker | null;
@@ -37,7 +39,7 @@ export async function navigateToOffice(
 
     for (const selector of selectors) {
       const officeLink = page.locator(selector).first();
-      if (await officeLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(officeLink, 2000)) {
         // Use JavaScript click to bypass any Playwright click issues
         await officeLink.evaluate((el: HTMLElement) => el.click());
         await sleep(2000);
@@ -48,15 +50,15 @@ export async function navigateToOffice(
     }
 
     // Try expanding hierarchy section first
-    const officesHeader = page.locator('text="HIERARCHY", [data-testid="hierarchy-section"]').first();
-    if (await officesHeader.isVisible({ timeout: 2000 }).catch(() => false)) {
+    const officesHeader = page.getByText('HIERARCHY').or(page.locator('[data-testid="hierarchy-section"]')).first();
+    if (await isVisibleWithin(officesHeader, 2000)) {
       await officesHeader.click();
       await sleep(1000);
 
       // Try again after expanding
       for (const selector of selectors) {
         const officeLink = page.locator(selector).first();
-        if (await officeLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+        if (await isVisibleWithin(officeLink, 2000)) {
           // Use JavaScript click to bypass any Playwright click issues
           await officeLink.evaluate((el: HTMLElement) => el.click());
           await sleep(2000);
@@ -98,7 +100,7 @@ export async function navigateToRoom(
 
     for (const selector of selectors) {
       const roomLink = page.locator(selector).first();
-      if (await roomLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await isVisibleWithin(roomLink, 2000)) {
         // Use JavaScript click to bypass any Playwright click issues
         await roomLink.evaluate((el: HTMLElement) => el.click());
         await sleep(2000);
@@ -126,7 +128,7 @@ export async function navigateToRoom(
       // Try selectors again after expanding
       for (const selector of selectors) {
         const roomLink = page.locator(selector).first();
-        if (await roomLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+        if (await isVisibleWithin(roomLink, 2000)) {
           await roomLink.evaluate((el: HTMLElement) => el.click());
           await sleep(2000);
           console.log(`  Clicked on room "${roomName}" (after expanding, ${selector})`);
@@ -166,25 +168,63 @@ export async function switchToChatTab(
 
     for (const selector of selectors) {
       const chatTab = page.locator(selector).first();
-      if (await chatTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await chatTab.click();
-        await sleep(1500);
-        console.log(`  Switched to Chat tab (${selector})`);
-        await takeScreenshot(page, `${username}_chat_tab`);
-        return true;
+      if (!(await isVisibleWithin(chatTab, 2000))) continue;
+
+      await chatTab.click();
+
+      // The click is not the switch. This used to return true here, so
+      // "should open the office Chat tab" passed on a click that landed and
+      // did nothing -- and the failure surfaced later as "Message input not
+      // found", which reads as a missing composer rather than a tab that never
+      // opened. Radix marks the open trigger `data-state="active"`, so that is
+      // the thing to wait for.
+      const opened = await chatTab
+        .evaluate(
+          (el) =>
+            new Promise<boolean>((resolve) => {
+              const check = (): boolean => el.getAttribute('data-state') === 'active';
+              if (check()) return resolve(true);
+              const observer = new MutationObserver(() => {
+                if (check()) {
+                  observer.disconnect();
+                  resolve(true);
+                }
+              });
+              observer.observe(el, { attributes: true, attributeFilter: ['data-state'] });
+              setTimeout(() => {
+                observer.disconnect();
+                resolve(check());
+              }, 5000);
+            }),
+        )
+        .catch(() => false);
+
+      await takeScreenshot(page, `${username}_chat_tab`);
+      if (!opened) {
+        console.log(`  WARNING: clicked the Chat tab (${selector}) and it did not become active`);
+        if (options.uxTracker) {
+          options.uxTracker.log('critical', 'functional', 'Chat tab click did not open the chat panel');
+        }
+        return false;
       }
+
+      console.log(`  Switched to Chat tab (${selector})`);
+      return true;
     }
 
     // Check if chat tab content is already visible (might already be on chat tab)
-    const chatView = page.locator('[data-testid="group-chat-view"], .group-chat-view').first();
-    if (await chatView.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // The log region by name. `.group-chat-view` was the half that matched:
+    // the testid never existed, so this union was one dead selector beside one
+    // class nobody guaranteed.
+    const chatView = page.locator('[data-testid="group-chat-view"]').first();
+    if (await isVisibleWithin(chatView, 2000)) {
       console.log(`  Chat view already visible`);
       return true;
     }
 
     // Check if message input is visible (indicates we're on chat tab)
-    const messageInput = page.locator('textarea[placeholder*="message" i]').first();
-    if (await messageInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    const messageInput = page.getByTestId('group-message-input').first();
+    if (await isVisibleWithin(messageInput, 2000)) {
       console.log(`  Chat input already visible`);
       return true;
     }
@@ -216,15 +256,15 @@ export async function isChatEnabled(page: Page, username: string): Promise<boole
 
   for (const selector of selectors) {
     const chatTab = page.locator(selector).first();
-    if (await chatTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(chatTab, 2000)) {
       console.log(`  Chat enabled: true (found ${selector})`);
       return true;
     }
   }
 
   // Also check if we're already on a chat view
-  const chatInput = page.locator('textarea[placeholder*="message" i]').first();
-  if (await chatInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+  const chatInput = page.getByTestId('group-message-input').first();
+  if (await isVisibleWithin(chatInput, 1000)) {
     console.log(`  Chat enabled: true (chat input visible)`);
     return true;
   }
@@ -247,12 +287,31 @@ export async function sendGroupMessage(
 
   try {
     // Find the message input (textarea)
-    const messageInput = page.locator('textarea[placeholder*="message"], textarea[placeholder*="Type"], input[placeholder*="message"]').first();
+    const messageInput = page.getByTestId('group-message-input').first();
 
-    if (!(await messageInput.isVisible({ timeout: 5000 }).catch(() => false))) {
-      console.log(`  WARNING: Message input not found`);
+    if (!(await isVisibleWithin(messageInput, 5000))) {
+      // "Not found" was the whole report for four separate causes, and it named
+      // none of them. These three are distinguishable from the page, and which
+      // one it is decides where to look next:
+      //
+      //   attached but not visible  -> a layout problem; the composer is there
+      //   a restriction notice      -> a permission decision, with its wording
+      //   neither                   -> the chat view did not render at all
+      const attached: number = await messageInput.count().catch((): number => 0);
+      const restricted = page.getByTestId('group-send-restricted').first();
+      const restrictedText: string | null = await restricted
+        .textContent({ timeout: 1000 })
+        .catch((): null => null);
+
+      const why: string = restrictedText
+        ? `the composer was replaced by a restriction notice: "${restrictedText.trim()}"`
+        : attached > 0
+          ? 'the composer is in the DOM but not visible -- a layout problem, not a permission one'
+          : 'no composer and no restriction notice: the chat view did not render';
+
+      console.log(`  WARNING: Message input not found -- ${why}`);
       if (options.uxTracker) {
-        options.uxTracker.log('major', 'functional', 'Group chat message input not visible');
+        options.uxTracker.log('major', 'functional', `Group chat message input not visible: ${why}`);
       }
       return false;
     }
@@ -264,7 +323,7 @@ export async function sendGroupMessage(
     // Find and click the send button
     const sendButton = page.locator('button:has(svg), button[aria-label*="send"], button[aria-label*="Send"]').last();
 
-    if (await sendButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(sendButton, 2000)) {
       await sendButton.click();
       await sleep(1000);
       console.log(`  Message sent via button`);
@@ -297,26 +356,39 @@ export async function verifyGroupMessageReceived(
   console.log(`  Looking for: "${expectedMessage.substring(0, 50)}..."`);
 
   try {
-    const messageLocator = page.locator(`text="${expectedMessage}"`).first();
-    const found = await messageLocator.isVisible({ timeout }).catch(() => false);
+    // Wait for the message text itself, and nothing broader.
+    //
+    // This assertion decides whether a group message arrived. It used to call
+    // `isVisible({ timeout })`, which ignores the timeout and answers about the
+    // current instant, so a 15-second budget was really "is it on screen this
+    // millisecond" and delivery only looked to work because of a sleep upstream.
+    //
+    // The first repair raced the exact text against a 20-character prefix in one
+    // locator: `exact.or(prefix)`. That is WRONG here, and subtly. Spec messages
+    // are built as `${type} msg from ${sender} to ${receiver} @ ${ts}`, so every
+    // message in a run shares its first 20 characters. As soon as a second
+    // message is on screen the union matches two DIFFERENT elements, Playwright
+    // raises a strict-mode violation, and isVisibleWithin's catch turns that into
+    // a plain `false` — reported as "message not received" for a message sitting
+    // visibly on the page. It made office-chat and room-chat fail on the second
+    // direction of every exchange while the product was working correctly.
+    //
+    // A prefix fallback cannot be made safe: it is by construction ambiguous
+    // between messages. It is also unnecessary — each message ends in a unique
+    // timestamp, so the full string identifies exactly one bubble.
+    //
+    // Substring rather than exact match, so surrounding whitespace or wrapping in
+    // the bubble does not matter. getByText rather than `text="..."` because the
+    // message is interpolated and a quote in it would break a hand-built selector.
+    const message = page.getByText(expectedMessage).first();
 
-    if (found) {
-      console.log(`  Message found!`);
+    if (await isVisibleWithin(message, timeout)) {
+      console.log(`  Message found`);
       await takeScreenshot(page, `${username}_received_group_msg`);
       return true;
     }
 
-    // Try partial match
-    const partialMessage = expectedMessage.substring(0, 20);
-    const partialLocator = page.locator(`text="${partialMessage}"`).first();
-    const partialFound = await partialLocator.isVisible({ timeout: 5000 }).catch(() => false);
-
-    if (partialFound) {
-      console.log(`  Message found (partial match)`);
-      return true;
-    }
-
-    console.log(`  WARNING: Message not found within ${timeout}ms`);
+    await reportTimeout(page, `WARNING: Message not found within ${timeout}ms`);
     if (options.uxTracker) {
       options.uxTracker.log('major', 'functional', `Group message not received: "${expectedMessage.substring(0, 30)}..."`);
     }
@@ -335,7 +407,10 @@ export async function getMessageCount(page: Page, username: string): Promise<num
 
   try {
     // Look for message bubbles/items
-    const messages = page.locator('[data-testid="message-item"], .message-item, [class*="message"]');
+    // `[class*="message"]` matched any element whose class merely CONTAINS
+    // "message" -- wrappers, the composer, anything -- so this returned a
+    // number that was not the message count. The app now names each message.
+    const messages = page.locator('[data-testid="message-item"]');
     const count = await messages.count();
     console.log(`  Found ${count} messages`);
     return count;
@@ -376,7 +451,7 @@ export async function loadOlderMessages(
   try {
     const loadMoreBtn = page.locator('button:has-text("Load older"), button:has-text("Load more")').first();
 
-    if (await loadMoreBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(loadMoreBtn, 3000)) {
       await loadMoreBtn.click();
       await sleep(2000);
       console.log(`  Clicked "Load older messages"`);
@@ -400,7 +475,7 @@ export async function checkRulesBanner(page: Page, username: string): Promise<st
   try {
     const rulesBanner = page.locator('[class*="rules"], [class*="banner"]:has-text("Rule")').first();
 
-    if (await rulesBanner.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isVisibleWithin(rulesBanner, 3000)) {
       const rulesText = await rulesBanner.textContent();
       console.log(`  Rules found: "${rulesText?.substring(0, 50)}..."`);
       return rulesText;
@@ -425,7 +500,7 @@ export async function hasOffices(page: Page, username: string): Promise<boolean>
   try {
     // Check for the "No nodes yet" empty-state message
     const noNodesMsg = page.locator('text=No nodes yet').first();
-    if (await noNodesMsg.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(noNodesMsg, 2000)) {
       console.log(`  No nodes found (empty state)`);
       return false;
     }
@@ -488,7 +563,7 @@ export async function createOffice(
       let clicked = false;
       for (const selector of addBtnSelectors) {
         const btn = page.locator(selector).first();
-        if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        if (await isVisibleWithin(btn, 2000)) {
           await btn.click();
           await sleep(500);
           console.log(`  Clicked Add Node button (${selector})`);
@@ -504,7 +579,7 @@ export async function createOffice(
 
       // Wait for the NodeManagementModal name input to appear
       const nameInput = page.locator('input#name, input[id="name"]').first();
-      if (await nameInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+      if (await isVisibleWithin(nameInput, 5000)) {
         modalVisible = true;
         break;
       }
@@ -523,15 +598,15 @@ export async function createOffice(
     // Fill in description
     if (description) {
       const descInput = page.locator('textarea#description, textarea[id="description"]').first();
-      if (await descInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      if (await isVisibleWithin(descInput, 1000)) {
         await descInput.fill(description);
         await sleep(300);
       }
     }
 
-    // Click Create button
-    const createBtn = page.locator('button:has-text("Create")').first();
-    if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // The entity modal's submit, by testid; see tree-helpers.
+    const createBtn = page.getByTestId('entity-modal-submit').first();
+    if (await isVisibleWithin(createBtn, 2000)) {
       await createBtn.click();
       await sleep(3000);
     } else {
@@ -541,7 +616,7 @@ export async function createOffice(
 
     // Check for permission error
     const errorAlert = page.locator('text="Permission denied"').first();
-    if (await errorAlert.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await isVisibleWithin(errorAlert, 2000)) {
       console.log(`  ERROR: Permission denied when creating node`);
       if (options.uxTracker) {
         options.uxTracker.log('major', 'functional', 'Cannot create node: Permission denied');
@@ -552,7 +627,7 @@ export async function createOffice(
 
     // Verify node was created
     const nodeInList = page.locator(`button:has-text("${officeName}")`).first();
-    if (await nodeInList.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(nodeInList, 5000)) {
       console.log(`  Node "${officeName}" created successfully`);
 
       // Enable chat on the newly created node so group messaging tests work.
@@ -652,7 +727,7 @@ export async function switchToContentTab(
   try {
     const contentTab = page.locator('[data-state][value="content"], button:has-text("Content"), [role="tab"]:has-text("Content")').first();
 
-    if (await contentTab.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await isVisibleWithin(contentTab, 5000)) {
       await contentTab.click();
       await sleep(1500);
       console.log(`  Switched to Content tab`);

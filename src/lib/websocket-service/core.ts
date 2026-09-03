@@ -5,6 +5,7 @@
  */
 
 import type { WorkspaceClient } from 'citadel-workspace-client-ts';
+import { instanceManager } from '../multi-instance/instance-manager';
 // Namespace import to break circular dependency:
 // THIS FILE → connection/index.ts → io.ts → io-websocket.ts → websocket-service (cycle)
 // Property access on the namespace object is a live binding, deferred to call time.
@@ -18,20 +19,20 @@ import { sendRequest as sendRequestFn } from './send-request';
 
 export class WebSocketServiceCore {
   client: WorkspaceClient | null = null;
-  isInitialized = false;
+  isInitialized: boolean = false;
   initializationPromise: Promise<void> | null = null;
 
   private readonly modules: ServiceModules;
 
   // Exposed for initialization.ts
-  get initOps() { return this.modules.initOps; }
+  get initOps(): ServiceModules['initOps'] { return this.modules.initOps; }
 
   constructor(config: WebSocketServiceConfig = {}) {
     // Resolves to a same-origin `/ws` path; resolve-url.ts owns that policy and explains it.
     // `window` is guarded rather than assumed: the guard is defensive (the only construction site
     // is the module-scope singleton in index.ts, and the import cycle above makes this module
     // unimportable in node regardless), and absent a browser the resolver throws by design.
-    const wsUrl = resolveWebsocketUrl(
+    const wsUrl: string = resolveWebsocketUrl(
       config.websocketUrl,
       import.meta.env.VITE_WS_URL,
       typeof window !== 'undefined' ? window.location : undefined,
@@ -81,29 +82,21 @@ export class WebSocketServiceCore {
   async connect(
     requestId: string, username: string, password: string,
     sessionSecuritySettings?: SessionSecuritySettings
-  ): Promise<void> {
-    return this.modules.authOps.connect(requestId, username, password, sessionSecuritySettings);
-  }
+  ): Promise<void> { return this.modules.authOps.connect(requestId, username, password, sessionSecuritySettings) }
 
   async register(
     requestId: string, username: string, password: string,
     fullName: string, serverAddr: string, serverPassword?: string,
     sessionSecuritySettings?: SessionSecuritySettings
-  ): Promise<void> {
-    return this.modules.authOps.register(requestId, username, password, fullName, serverAddr, serverPassword, sessionSecuritySettings);
-  }
+  ): Promise<void> { return this.modules.authOps.register(requestId, username, password, fullName, serverAddr, serverPassword, sessionSecuritySettings) }
 
   // ============== Workspace ==============
 
-  async sendWorkspaceRequest(cid: bigint, request: unknown): Promise<void> {
-    return this.modules.workspaceOps.sendWorkspaceRequest(cid, request);
-  }
+  async sendWorkspaceRequest(cid: bigint, request: unknown): Promise<void> { return this.modules.workspaceOps.sendWorkspaceRequest(cid, request) }
 
   // ============== P2P ==============
 
-  async sendP2PMessage(cid: bigint, targetCid: bigint, message: string): Promise<void> {
-    return this.modules.p2pOps.sendP2PMessage(cid, targetCid, message);
-  }
+  async sendP2PMessage(cid: bigint, targetCid: bigint, message: string): Promise<void> { return this.modules.p2pOps.sendP2PMessage(cid, targetCid, message) }
 
   /**
    * Send a raw `Uint8Array` over the P2P channel without `stringToBytes`-
@@ -112,48 +105,30 @@ export class WebSocketServiceCore {
    * `sendP2PMessage` above would otherwise round-trip the bytes through
    * `stringToBytes` which assumes UTF-8 and corrupts binary payloads.
    */
-  async sendP2PMessageBytes(cid: bigint, targetCid: bigint, message: Uint8Array): Promise<void> {
-    return this.modules.p2pOps.sendP2PMessageBytes(cid, targetCid, message);
-  }
+  async sendP2PMessageBytes(cid: bigint, targetCid: bigint, message: Uint8Array): Promise<void> { return this.modules.p2pOps.sendP2PMessageBytes(cid, targetCid, message) }
 
-  async openP2PConnection(cid: bigint, targetCid: bigint): Promise<void> {
-    return this.modules.p2pOps.openP2PConnection(cid, targetCid);
-  }
+  async openP2PConnection(cid: bigint, targetCid: bigint): Promise<void> { return this.modules.p2pOps.openP2PConnection(cid, targetCid) }
 
-  async acceptPeerConnect(cid: bigint, peerCid: bigint, notification: Record<string, unknown> | null): Promise<void> {
-    return this.modules.p2pOps.acceptPeerConnect(cid, peerCid, notification);
-  }
+  async acceptPeerConnect(cid: bigint, peerCid: bigint, notification: Record<string, unknown> | null): Promise<void> { return this.modules.p2pOps.acceptPeerConnect(cid, peerCid, notification) }
 
-  async disconnectP2P(localCid: bigint, peerCid: bigint): Promise<void> {
-    return this.modules.p2pOps.disconnectP2P(localCid, peerCid);
-  }
+  async disconnectP2P(localCid: bigint, peerCid: bigint): Promise<void> { return this.modules.p2pOps.disconnectP2P(localCid, peerCid) }
 
   // ============== Messenger ==============
 
-  async openMessengerFor(cid: bigint): Promise<void> {
-    return this.modules.messengerOps.openMessengerFor(cid);
-  }
+  async openMessengerFor(cid: bigint): Promise<void> { return this.modules.messengerOps.openMessengerFor(cid) }
 
-  async ensureMessengerOpen(cid: bigint): Promise<boolean> {
-    return this.modules.messengerOps.ensureMessengerOpen(cid);
-  }
+  async ensureMessengerOpen(cid: bigint): Promise<boolean> { return this.modules.messengerOps.ensureMessengerOpen(cid) }
 
   async sendP2PMessageReliable(
     localCid: bigint, peerCid: bigint, message: Uint8Array,
     securityLevel?: 'Standard' | 'Reinforced' | 'High' | 'Extreme'
-  ): Promise<void> {
-    return this.modules.messengerOps.sendP2PMessageReliable(localCid, peerCid, message, securityLevel);
-  }
+  ): Promise<void> { return this.modules.messengerOps.sendP2PMessageReliable(localCid, peerCid, message, securityLevel) }
 
   // ============== Disconnect ==============
 
-  async disconnect(cid: bigint): Promise<void> {
-    return this.modules.disconnectOps.disconnect(cid);
-  }
+  async disconnect(cid: bigint): Promise<void> { return this.modules.disconnectOps.disconnect(cid) }
 
-  async deregister(cid: bigint): Promise<void> {
-    return this.modules.disconnectOps.deregister(cid);
-  }
+  async deregister(cid: bigint): Promise<void> { return this.modules.disconnectOps.deregister(cid) }
 
   async disconnectAndClose(): Promise<void> {
     // Mirrors the disconnection handler in `websocket/initialization.ts`:
@@ -165,7 +140,7 @@ export class WebSocketServiceCore {
     // memory if a future caller invoked this method on an active
     // connection (no current callers, but the method's name commits to
     // a full teardown).
-    const client = this.client;
+    const client: WorkspaceClient | null = this.client;
     if (client) {
       client.stopMessageProcessing();
       try {
@@ -179,21 +154,15 @@ export class WebSocketServiceCore {
 
   // ============== Session Management ==============
 
-  async setOrphanMode(enabled: boolean): Promise<unknown> {
-    return this.modules.sessionMgmt.setOrphanMode(enabled);
-  }
+  async setOrphanMode(enabled: boolean): Promise<unknown> { return this.modules.sessionMgmt.setOrphanMode(enabled) }
 
   setOrphanModeNonBlocking(enabled: boolean): void {
     this.modules.sessionMgmt.setOrphanModeNonBlocking(enabled);
   }
 
-  async claimSession(sessionCid: string | bigint, onlyIfOrphaned?: boolean): Promise<unknown> {
-    return this.modules.sessionMgmt.claimSession(sessionCid, onlyIfOrphaned ?? false);
-  }
+  async claimSession(sessionCid: string | bigint, onlyIfOrphaned?: boolean): Promise<unknown> { return this.modules.sessionMgmt.claimSession(sessionCid, onlyIfOrphaned ?? false) }
 
-  async disconnectOrphan(sessionCid?: string | bigint | null): Promise<unknown> {
-    return this.modules.sessionMgmt.disconnectOrphan(sessionCid);
-  }
+  async disconnectOrphan(sessionCid?: string | bigint | null): Promise<unknown> { return this.modules.sessionMgmt.disconnectOrphan(sessionCid) }
 
   releaseSession(sessionCid: bigint): void {
     this.modules.sessionMgmt.releaseSession(sessionCid);
@@ -202,6 +171,26 @@ export class WebSocketServiceCore {
   // ============== State / Getters ==============
 
   isConnected(): boolean { return this.isInitialized && this.client !== null; }
+
+  /**
+   * Whether this tab can get a request to the internal service.
+   *
+   * NOT the same question as `isConnected`, which asks whether THIS tab owns a
+   * WASM client. A follower never owns one — `doInit` sets `client = null` for
+   * followers by design — and proxies through the leader instead.
+   *
+   * Callers that gate a *send* on `isConnected` therefore refuse forever in
+   * every follower tab. That is why a second tab in the same browser showed the
+   * logged-out landing page with no Active Sessions strip: `fetchActiveSessions`
+   * failed this gate and returned `[]` WITHOUT EVER SENDING GetSessions, then
+   * cached the empty answer. No amount of retrying could help.
+   *
+   * `isConnected` is deliberately left alone: its other callers want to know
+   * whether a client exists, which is a different and still-valid question.
+   */
+  canSendRequests(): boolean {
+    return this.isInitialized && (this.client !== null || !instanceManager.isLeader);
+  }
   getClient(): WorkspaceClient | null { return this.client; }
 
   async getWasmModule(): Promise<WorkspaceClient | null> {
@@ -224,17 +213,11 @@ export class WebSocketServiceCore {
     return this.modules.localDB.get(cid, key);
   }
 
-  async sendLocalDBSet(cid: bigint, key: string, value: number[]): Promise<void> {
-    return this.modules.localDB.set(cid, key, value);
-  }
+  async sendLocalDBSet(cid: bigint, key: string, value: number[]): Promise<void> { return this.modules.localDB.set(cid, key, value) }
 
-  async sendLocalDBDelete(cid: bigint, key: string): Promise<void> {
-    return this.modules.localDB.delete(cid, key);
-  }
+  async sendLocalDBDelete(cid: bigint, key: string): Promise<void> { return this.modules.localDB.delete(cid, key) }
 
-  async sendLocalDBListKeys(cid: bigint, prefix?: string): Promise<string[]> {
-    return this.modules.localDB.listKeys(cid, prefix);
-  }
+  async sendLocalDBListKeys(cid: bigint, prefix?: string): Promise<string[]> { return this.modules.localDB.listKeys(cid, prefix) }
 
   // ============== File Picker ==============
 

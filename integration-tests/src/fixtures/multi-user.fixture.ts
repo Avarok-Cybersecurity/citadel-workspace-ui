@@ -18,8 +18,10 @@ import {
     acceptP2PRequest,
     openConversation,
     waitForP2PChannelReady,
-} from '../lib/index.js';
+    adminCredentials,
+    loginAfterDisconnect, isHeaded,} from '../lib/index.js';
 import { config, isCI } from '../lib/config.js';
+import { forwardConsole } from '../lib/forward-console.js';
 
 /* ── Fixture types ── */
 
@@ -36,6 +38,13 @@ export interface MultiUserFixture {
     userA: UserSession;
     /** Second user — fully authenticated */
     userB: UserSession;
+}
+
+export interface AdminMemberFixture {
+    /** The workspace admin global-setup registered — the only account that can edit. */
+    admin: UserSession;
+    /** A freshly registered account, which joins as an ordinary Member. */
+    member: UserSession;
 }
 
 export interface P2PConnectedFixture extends MultiUserFixture {
@@ -67,16 +76,18 @@ const COMMON_ARGS = [
 
 /* ── Helper: create a fully authenticated user session ── */
 
+
 async function createUserSession(label: string): Promise<UserSession> {
     const browser = await chromium.launch({
-        headless: isCI,
-        slowMo: isCI ? 0 : 50,
+        headless: !isHeaded,
+        slowMo: isHeaded ? 50 : 0,
         args: [...COMMON_ARGS, ...(isCI ? CI_ARGS : [])],
     });
 
     const context = await browser.newContext({ storageState: undefined });
     await context.clearCookies();
     const page = await context.newPage();
+    forwardConsole(page, label);
 
     // Navigate and wait
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
@@ -99,10 +110,65 @@ async function createUserSession(label: string): Promise<UserSession> {
         throw new Error(`Failed to register user ${label}: ${username}`);
     }
 
-    await waitForWorkspaceLoaded(page, 30_000);
+    // Checked, not fired and forgotten. This returns false rather than throwing,
+    // so discarding it let a workspace that never rendered carry on into the
+    // test, where it surfaces much later as something unrelated — a peer
+    // 'missing' from the sidebar, or a seven-minute group-call timeout whose
+    // log says only that it was waiting.
+    if (!(await waitForWorkspaceLoaded(page, 30_000))) {
+        await browser.close();
+        throw new Error(`Workspace never finished loading for ${label}: ${username}`);
+    }
     await closeAnyModals(page);
 
     console.log(`  [${label.toUpperCase()}] Authenticated as: ${username}`);
+    return { browser, context, page, username, password };
+}
+
+/**
+ * Log a fresh browser into the admin account global-setup registered.
+ *
+ * Registering another account here would not do: only the first member of the
+ * workspace is promoted to Admin, so a spec that needs edit rights has to use
+ * that account rather than hope it ran first.
+ */
+async function loginAdminSession(): Promise<UserSession> {
+    const { username, password } = adminCredentials();
+
+    const browser = await chromium.launch({
+        headless: !isHeaded,
+        slowMo: isHeaded ? 50 : 0,
+        args: [...COMMON_ARGS, ...(isCI ? CI_ARGS : [])],
+    });
+
+    const context = await browser.newContext({ storageState: undefined });
+    await context.clearCookies();
+    const page = await context.newPage();
+    forwardConsole(page, 'admin');
+
+    await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
+    await clearBrowserStorage(page);
+    await waitForAppReady(page, 60_000);
+
+    const loggedIn = await loginAfterDisconnect(
+        page,
+        username,
+        password,
+        null,
+        config.WORKSPACE_SERVER,
+    );
+    if (!loggedIn) {
+        await browser.close();
+        throw new Error(`Could not log in as the workspace admin (${username})`);
+    }
+
+    if (!(await waitForWorkspaceLoaded(page, 30_000))) {
+        await browser.close();
+        throw new Error(`Workspace never finished loading for admin ${username}`);
+    }
+    await closeAnyModals(page);
+
+    console.log(`  [ADMIN] Authenticated as: ${username}`);
     return { browser, context, page, username, password };
 }
 
@@ -148,5 +214,27 @@ export const p2pConnectedTest = multiUserTest.extend<P2PConnectedFixture>({
 
         console.log('  P2P connection established and conversations open');
         await use(true);
+    },
+});
+
+/**
+ * `adminMemberTest` — the workspace admin plus an ordinary member, in separate
+ * browsers.
+ *
+ * Use this for anything that needs one side to actually be able to change the
+ * workspace. `multiUserTest` gives two members, and a member holds ViewContent
+ * but not EditContent or EditMdx by design.
+ */
+export const adminMemberTest = base.extend<AdminMemberFixture>({
+    admin: async ({ }, use) => {
+        const session = await loginAdminSession();
+        await use(session);
+        await session.browser.close();
+    },
+
+    member: async ({ }, use) => {
+        const session = await createUserSession('member');
+        await use(session);
+        await session.browser.close();
     },
 });

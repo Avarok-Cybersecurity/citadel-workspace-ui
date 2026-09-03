@@ -17,7 +17,8 @@ export interface User extends Entity {
   profileImage?: string;
   avatarUrl?: string; // URL to user's avatar image
   email?: string; // User's email address
-  isOnline: boolean;
+  /** True, false, or null when nobody has said. See lib/presence.ts. */
+  isOnline: boolean | null;
   role?: UserRole;
   permissions?: UserPermissions;
   lastActive?: number; // Timestamp of last activity

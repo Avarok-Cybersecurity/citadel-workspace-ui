@@ -45,7 +45,7 @@ interface PermissionsContextType {
   getDeniedReason: (domainId: string, permission: Permission) => string;
 }
 
-const PermissionsContext = createContext<PermissionsContextType | null>(null);
+const PermissionsContext: React.Context<PermissionsContextType | null> = createContext<PermissionsContextType | null>(null);
 
 /**
  * Permissions Provider component
@@ -58,26 +58,26 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   /**
    * Sync state with service cache
    */
-  const syncWithService = useCallback(() => {
-    const cached = permissionsService.getAllCachedPermissions();
+  const syncWithService: () => void = useCallback((): void => {
+    const cached: Map<string, DomainPermissions> = permissionsService.getAllCachedPermissions();
     setPermissions(new Map(cached));
   }, []);
 
   /**
    * Fetch permissions for a specific domain
    */
-  const fetchPermissionsForDomain = useCallback(async (domainId: string): Promise<DomainPermissions | null> => {
+  const fetchPermissionsForDomain: (domainId: string) => Promise<DomainPermissions | null> = useCallback(async (domainId: string): Promise<DomainPermissions | null> => {
     setLoading(true);
     setError(null);
     try {
-      const result = await permissionsService.fetchPermissions(domainId);
+      const result: DomainPermissions | null = await permissionsService.fetchPermissions(domainId);
       // Only sync if we got a result - avoids infinite loop when no user is logged in
       if (result) {
         syncWithService();
       }
       return result;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch permissions';
+      const message: string = err instanceof Error ? err.message : 'Failed to fetch permissions';
       setError(message);
       debugLog('PermissionsContext', 'Error fetching permissions:', err);
       return null;
@@ -89,12 +89,12 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   /**
    * Refresh all permissions or a specific domain
    */
-  const refreshPermissions = useCallback(async (domainId?: string) => {
+  const refreshPermissions: (domainId?: string) => Promise<void> = useCallback(async (domainId?: string): Promise<void> => {
     if (domainId) {
       await fetchPermissionsForDomain(domainId);
     } else {
       // Refresh all cached domains
-      const cached = permissionsService.getAllCachedPermissions();
+      const cached: Map<string, DomainPermissions> = permissionsService.getAllCachedPermissions();
       setLoading(true);
       try {
         await Promise.all(
@@ -102,7 +102,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         );
         syncWithService();
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to refresh permissions';
+        const message: string = err instanceof Error ? err.message : 'Failed to refresh permissions';
         setError(message);
       } finally {
         setLoading(false);
@@ -113,41 +113,41 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   /**
    * Permission check functions (delegated to service)
    */
-  const hasPermission = useCallback((domainId: string, permission: Permission): boolean => {
+  const hasPermission: (domainId: string, permission: Permission) => boolean = useCallback((domainId: string, permission: Permission): boolean => {
     return permissionsService.hasPermission(domainId, permission);
   }, []);
 
-  const hasAnyPermission = useCallback((domainId: string, perms: Permission[]): boolean => {
+  const hasAnyPermission: (domainId: string, perms: Permission[]) => boolean = useCallback((domainId: string, perms: Permission[]): boolean => {
     return permissionsService.hasAnyPermission(domainId, perms);
   }, []);
 
-  const hasAllPermissions = useCallback((domainId: string, perms: Permission[]): boolean => {
+  const hasAllPermissions: (domainId: string, perms: Permission[]) => boolean = useCallback((domainId: string, perms: Permission[]): boolean => {
     return permissionsService.hasAllPermissions(domainId, perms);
   }, []);
 
   /**
    * Role checks
    */
-  const getRole = useCallback((domainId: string): UserRole | null => {
+  const getRole: (domainId: string) => UserRole | null = useCallback((domainId: string): UserRole | null => {
     return permissionsService.getRole(domainId);
   }, []);
 
-  const isAdmin = useCallback((domainId: string): boolean => {
+  const isAdmin: (domainId: string) => boolean = useCallback((domainId: string): boolean => {
     return permissionsService.isAdmin(domainId);
   }, []);
 
-  const isOwner = useCallback((domainId: string): boolean => {
+  const isOwner: (domainId: string) => boolean = useCallback((domainId: string): boolean => {
     return permissionsService.isOwner(domainId);
   }, []);
 
   /**
    * Utilities
    */
-  const getPermissionLabel = useCallback((permission: Permission): string => {
+  const getPermissionLabel: (permission: Permission) => string = useCallback((permission: Permission): string => {
     return permissionsService.getPermissionLabel(permission);
   }, []);
 
-  const getDeniedReason = useCallback((domainId: string, permission: Permission): string => {
+  const getDeniedReason: (domainId: string, permission: Permission) => string = useCallback((domainId: string, permission: Permission): string => {
     return permissionsService.getDeniedReason(domainId, permission);
   }, []);
 
@@ -159,15 +159,15 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     syncWithService();
 
     // Listen for permission updates
-    const handlePermissionsUpdated = () => {
+    const handlePermissionsUpdated = (): void => {
       syncWithService();
     };
 
-    const handleRoleChanged = () => {
+    const handleRoleChanged = (): void => {
       syncWithService();
     };
 
-    const handlePermissionsLoaded = () => {
+    const handlePermissionsLoaded = (): void => {
       syncWithService();
     };
 
@@ -175,7 +175,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     eventEmitter.on('permissions:role-changed', handleRoleChanged);
     eventEmitter.on('user:permissions:loaded', handlePermissionsLoaded);
 
-    return () => {
+    return (): void => {
       eventEmitter.off('permissions:updated', handlePermissionsUpdated);
       eventEmitter.off('permissions:role-changed', handleRoleChanged);
       eventEmitter.off('user:permissions:loaded', handlePermissionsLoaded);
@@ -185,7 +185,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   /**
    * Context value (memoized to prevent unnecessary re-renders)
    */
-  const value = useMemo<PermissionsContextType>(() => ({
+  const value: PermissionsContextType = useMemo<PermissionsContextType>(() => ({
     permissions,
     loading,
     error,
@@ -226,7 +226,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
  * Hook to access permissions context
  */
 export function usePermissions(): PermissionsContextType {
-  const context = useContext(PermissionsContext);
+  const context: PermissionsContextType | null = useContext(PermissionsContext);
   if (!context) {
     throw new Error('usePermissions must be used within a PermissionsProvider');
   }

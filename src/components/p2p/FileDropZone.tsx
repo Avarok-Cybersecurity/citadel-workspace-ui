@@ -1,11 +1,12 @@
 import { Upload, FolderOpen, FileImage, FileText, FileVideo, FileAudio, File, X } from 'lucide-react';
+import { activateOnKey } from '@/lib/a11y';
 
-function getFileIcon(mimeType: string) {
-  if (mimeType.startsWith('image/')) return <FileImage className="h-8 w-8 text-purple-400" />;
-  if (mimeType.startsWith('video/')) return <FileVideo className="h-8 w-8 text-blue-400" />;
-  if (mimeType.startsWith('audio/')) return <FileAudio className="h-8 w-8 text-green-400" />;
-  if (mimeType.startsWith('text/') || mimeType.includes('pdf')) return <FileText className="h-8 w-8 text-orange-400" />;
-  return <File className="h-8 w-8 text-gray-400" />;
+function getFileIcon(mimeType: string): JSX.Element {
+  if (mimeType.startsWith('image/')) return <FileImage className="h-8 w-8 text-primary-accent" />;
+  if (mimeType.startsWith('video/')) return <FileVideo className="h-8 w-8 text-primary-accent" />;
+  if (mimeType.startsWith('audio/')) return <FileAudio className="h-8 w-8 text-success-emphasis" />;
+  if (mimeType.startsWith('text/') || mimeType.includes('pdf')) return <FileText className="h-8 w-8 text-warning-emphasis" />;
+  return <File className="h-8 w-8 text-muted-foreground" />;
 }
 
 interface FileDropZoneProps {
@@ -14,7 +15,22 @@ interface FileDropZoneProps {
   isDragging: boolean;
   isSending: boolean;
   isPickingFile: boolean;
-  nativePickerAvailable: boolean | null;
+  /**
+   * Whether the native file picker can be used: `false` once it has refused,
+   * `null` while nothing is known.
+   *
+   * Never `true`, and the type says so. Availability is only ever learned by
+   * TRYING -- the picker reports "native-dialogs feature is disabled" or "File
+   * picker not available" when it cannot run -- so there is no moment at which
+   * the app learns it works, only moments at which it learns it does not.
+   *
+   * Readers must therefore ask `!== false`, which is what they do: an unknown
+   * picker is offered, because the only way to find out is to offer it. Written
+   * as `=== true` the control would never render at all, and that is a live
+   * hazard rather than a hypothetical -- this codebase has shipped both halves of
+   * that mistake before.
+   */
+  nativePickerAvailable: false | null;
   maxFileSizeBytes: number;
   formatBytes: (bytes: number) => string;
   onDrop: (e: React.DragEvent) => void;
@@ -40,10 +56,10 @@ export function FileDropZone({
   onBrowseClick,
   onNativePickerClick,
   onRemoveFile,
-}: FileDropZoneProps) {
+}: FileDropZoneProps): JSX.Element {
   if (selectedFile) {
     return (
-      <div className="bg-[#262C4A] rounded-lg p-4">
+      <div className="bg-surface rounded-lg p-4">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0">
             {previewUrl ? (
@@ -53,20 +69,21 @@ export function FileDropZone({
                 className="h-16 w-16 object-cover rounded-lg"
               />
             ) : (
-              <div className="h-16 w-16 flex items-center justify-center bg-[#1C1D28] rounded-lg">
+              <div className="h-16 w-16 flex items-center justify-center bg-background rounded-lg">
                 {getFileIcon(selectedFile.type)}
               </div>
             )}
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm truncate">{selectedFile.name}</p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               {formatBytes(selectedFile.size)} • {selectedFile.type || 'Unknown type'}
             </p>
           </div>
           <button
+            aria-label="Remove attached file"
             onClick={onRemoveFile}
-            className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+            className="p-1 rounded hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
             disabled={isSending}
           >
             <X className="h-4 w-4" />
@@ -82,16 +99,16 @@ export function FileDropZone({
         <button
           onClick={onNativePickerClick}
           disabled={isPickingFile || isSending}
-          className="w-full flex items-center gap-3 p-4 rounded-lg border border-[#6E59A5] bg-[#6E59A5]/10 hover:bg-[#6E59A5]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full flex items-center gap-3 p-4 rounded-lg border border-primary bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <div className="p-2 rounded-lg bg-[#6E59A5]/20">
-            <FolderOpen className="h-5 w-5 text-purple-400" />
+          <div className="p-2 rounded-lg bg-primary/20">
+            <FolderOpen className="h-5 w-5 text-primary-accent" />
           </div>
           <div className="flex-1 text-left">
-            <span className="font-medium text-white">
+            <span className="font-medium text-foreground">
               {isPickingFile ? 'Opening file picker...' : 'Browse Files'}
             </span>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Uses native file picker with full path access
             </p>
           </div>
@@ -100,9 +117,9 @@ export function FileDropZone({
 
       {nativePickerAvailable !== false && (
         <div className="flex items-center gap-2">
-          <div className="flex-1 h-px bg-[#3a3f5c]" />
-          <span className="text-xs text-gray-500">or</span>
-          <div className="flex-1 h-px bg-[#3a3f5c]" />
+          <div className="flex-1 h-px bg-surface" />
+          <span className="text-xs text-muted-foreground">or</span>
+          <div className="flex-1 h-px bg-surface" />
         </div>
       )}
 
@@ -111,17 +128,20 @@ export function FileDropZone({
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onClick={onBrowseClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={activateOnKey(onBrowseClick)}
         className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
           isDragging
-            ? 'border-purple-500 bg-purple-500/10'
-            : 'border-[#3a3f5c] hover:border-[#6E59A5] hover:bg-[#262C4A]'
+            ? 'border-primary-accent bg-primary-accent/10'
+            : 'border-surface hover:border-primary hover:bg-surface'
         }`}
       >
-        <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-        <p className="text-sm text-gray-300">
-          Drop file here or <span className="text-purple-400">browse</span>
+        <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+        <p className="text-sm text-foreground/80">
+          Drop file here or <span className="text-primary-accent">browse</span>
         </p>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Maximum file size: {formatBytes(maxFileSizeBytes)}
         </p>
       </div>

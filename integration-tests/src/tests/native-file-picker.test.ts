@@ -18,6 +18,7 @@
 
 import { Page } from 'playwright';
 import {
+  isVisibleWithin,
   sleep,
   createBrowser,
   createAccount,
@@ -78,14 +79,14 @@ async function openFileTransferModal(page: Page, username: string): Promise<bool
   try {
     const attachButton = page.locator('button').filter({ has: page.locator('svg.lucide-paperclip') });
 
-    if (await attachButton.isVisible({ timeout: 5000 })) {
+    if (await isVisibleWithin(attachButton, 5000)) {
       await attachButton.click();
       console.log('  Clicked attachment button');
 
       await sleep(1000);
 
       const modalTitle = page.getByRole('heading', { name: 'Send File' });
-      if (await modalTitle.isVisible({ timeout: 3000 })) {
+      if (await isVisibleWithin(modalTitle, 3000)) {
         console.log('  File transfer modal opened');
         return true;
       }
@@ -110,8 +111,8 @@ async function checkNativePickerButton(page: Page, username: string): Promise<bo
     // Also check by text
     const byText = page.locator('button').filter({ hasText: 'Browse Files' });
 
-    const hasNativeButton = await nativeButton.isVisible({ timeout: 5000 }).catch(() => false);
-    const hasTextButton = await byText.isVisible({ timeout: 2000 }).catch(() => false);
+    const hasNativeButton = await isVisibleWithin(nativeButton, 5000);
+    const hasTextButton = await isVisibleWithin(byText, 2000);
 
     console.log(`  Native button (FolderOpen icon): ${hasNativeButton}`);
     console.log(`  Button with "Browse Files" text: ${hasTextButton}`);
@@ -130,7 +131,7 @@ async function clickNativePickerButton(page: Page, username: string): Promise<bo
       has: page.locator('svg.lucide-folder-open')
     }).first();
 
-    if (await nativeButton.isVisible({ timeout: 3000 })) {
+    if (await isVisibleWithin(nativeButton, 3000)) {
       await nativeButton.click();
       console.log('  Clicked native file picker button');
       return true;
@@ -138,7 +139,7 @@ async function clickNativePickerButton(page: Page, username: string): Promise<bo
 
     // Fallback to text match
     const byText = page.locator('button').filter({ hasText: 'Browse Files' }).first();
-    if (await byText.isVisible({ timeout: 2000 })) {
+    if (await isVisibleWithin(byText, 2000)) {
       await byText.click();
       console.log('  Clicked Browse Files button (text match)');
       return true;
@@ -194,7 +195,7 @@ async function waitForNativeDialogResult(
 
     // Check if "Opening file picker..." text is still showing
     const pickingText = page.getByText('Opening file picker...');
-    if (await pickingText.isVisible({ timeout: 500 }).catch(() => false)) {
+    if (await isVisibleWithin(pickingText, 500)) {
       // Still waiting for dialog
       continue;
     }
@@ -257,6 +258,7 @@ async function verifySendFileProtocolUsed(page: Page, username: string): Promise
 
 async function runTest(): Promise<boolean> {
   const harness = await TestHarness.create({
+    restartBackend: true,
     testName: 'Native File Picker Integration Test',
     reportFileName: 'NATIVE_FILE_PICKER_TEST_REPORT.json',
     metadata: { user1: USER1, user2: USER2 },
@@ -296,8 +298,8 @@ async function runTest(): Promise<boolean> {
     const page1 = await context.newPage();
     const page2 = await context2.newPage();
 
-    setupConsoleCapture(page1, 'Alice', ['PickFile', 'SendFile', 'file', 'transfer', 'error', 'native']);
-    setupConsoleCapture(page2, 'Bob', ['file', 'transfer', 'error']);
+    setupConsoleCapture(page1, 'Alice', ['PickFile', 'SendFile', 'file', 'transfer', 'error', 'native', 'ILM']);
+    setupConsoleCapture(page2, 'Bob', ['file', 'transfer', 'error', 'ILM']);
 
     // ========== STEP 1: Create accounts ==========
     console.log('\n' + '-'.repeat(50));
@@ -404,7 +406,7 @@ async function runTest(): Promise<boolean> {
             const startTime = Date.now();
             while (Date.now() - startTime < 30000) {
               const completeIndicator = page2.getByText(/Downloaded|complete/i);
-              if (await completeIndicator.isVisible({ timeout: 2000 }).catch(() => false)) {
+              if (await isVisibleWithin(completeIndicator, 2000)) {
                 results.nativePickerFlow.transferCompleted = true;
                 console.log('  Transfer completed on receiver side');
                 break;
@@ -450,9 +452,6 @@ async function runTest(): Promise<boolean> {
     }
 
     harness.finalize(nativePickerPassed, results);
-
-    console.log('\nBrowser will remain open for 20 seconds for manual inspection...');
-    await sleep(20000);
 
     return nativePickerPassed;
 

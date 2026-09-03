@@ -11,7 +11,31 @@ import type {
   UpdateOperationTS,
   UserRoleTS,
 } from '@/types/workspace-protocol';
+import { workspaceResponseHandler } from '@/lib/workspace-response-handler';
 import type { ProtocolSender } from './workspace-operations';
+import { aboutMember } from './response-matchers';
+import { awaitWriteResponse } from './await-write-response';
+import { eventEmitter } from '@/lib/event-emitter';
+
+/**
+ * Tell the members surfaces to reload, once the server has actually accepted.
+ *
+ * `members:reload` used to be emitted only from response handlers for
+ * `AddMember`, `RemoveMember` and `UpdateMemberRole` — response variants the
+ * protocol does not have. They exist as REQUESTS only; the server answers with
+ * `Success` and `MemberRoleUpdated`. So those branches were unreachable, and the
+ * members list simply never refreshed after an admin added a member, removed
+ * one, or changed a role.
+ *
+ * Emitted here instead, after `awaitWriteResponse` resolves — which is the point
+ * at which the change is known to have happened, and the only place that knows
+ * it.
+ */
+async function afterMemberWrite<T>(write: Promise<T>): Promise<T> {
+  const result: T = await write;
+  eventEmitter.emit('members:reload', undefined);
+  return result;
+}
 
 /**
  * Add a member to a domain node
@@ -31,7 +55,12 @@ export async function addMember(
       metadata: metadata ? Array.from(metadata) : undefined
     }
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER accepts it. A refusal arrives as a response,
+  // which cannot reject a send-only promise — so this used to report success
+  // for writes the server was about to refuse.
+  return afterMemberWrite(
+    awaitWriteResponse('AddMember', () => sender.sendProtocolRequest(requestPart)),
+  );
 }
 
 /**
@@ -51,16 +80,37 @@ export async function updateMemberRole(
   sender: ProtocolSender,
   userId: string,
   role: string,
+  /**
+   * Accepted, transmitted, and DISCARDED by the server.
+   *
+   * `update_workspace_member_role` in async_domain_server_ops.rs ends with
+   * `if let Some(_metadata_bytes) = metadata { // TODO: Handle metadata updates
+   * when needed }` — the bytes arrive and nothing reads them. No caller passes
+   * this today, which is the only reason it has cost nothing.
+   *
+   * Left in place rather than removed because the protocol type carries it, but
+   * said here so that passing it is a decision rather than an assumption: a
+   * caller who supplies metadata gets a success response and no stored data.
+   */
   metadata?: Uint8Array
 ): Promise<unknown> {
-  const requestPart = {
+  const requestPart: WorkspaceProtocolRequestTS = {
     UpdateMemberRole: {
       user_id: userId,
       role,
       metadata: metadata ? Array.from(metadata) : undefined
     }
   } as WorkspaceProtocolRequestTS;
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER accepts it. A refusal arrives as a response,
+  // which cannot reject a send-only promise — so this used to report success
+  // for writes the server was about to refuse.
+  return afterMemberWrite(
+    awaitWriteResponse(
+      'UpdateMemberRole',
+      () => sender.sendProtocolRequest(requestPart),
+      aboutMember(userId),
+    ),
+  );
 }
 
 /**
@@ -81,7 +131,10 @@ export async function updateMemberPermissions(
       operation
     }
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER accepts it. A refusal arrives as a response,
+  // which cannot reject a send-only promise — so this used to report success
+  // for writes the server was about to refuse.
+  return awaitWriteResponse('UpdateMemberPermissions', () => sender.sendProtocolRequest(requestPart));
 }
 
 /**
@@ -98,13 +151,22 @@ export async function removeMember(
       domain_id: domainId
     }
   };
-  return sender.sendProtocolRequest(requestPart);
+  // Resolves when the SERVER accepts it. A refusal arrives as a response,
+  // which cannot reject a send-only promise — so this used to report success
+  // for writes the server was about to refuse.
+  return afterMemberWrite(
+    awaitWriteResponse('RemoveMember', () => sender.sendProtocolRequest(requestPart)),
+  );
 }
 
 /**
  * List members in a workspace or domain node
  */
 export async function listMembers(sender: ProtocolSender, domainId?: string): Promise<void> {
+  // Same dead-flag problem as ListNodes: nothing ever emitted 'members:loading',
+  // so every member list rendered its empty state as a statement of fact while
+  // the request was still on the wire.
+  workspaceResponseHandler.emitLoadingEvent('members:loading', { domainId });
   const requestPart: WorkspaceProtocolRequestTS = {
     ListMembers: { domain_id: domainId }
   };
@@ -119,7 +181,7 @@ export async function getUserPermissions(
   userId: string,
   domainId: string
 ): Promise<void> {
-  const requestPart = {
+  const requestPart: WorkspaceProtocolRequestTS = {
     GetUserPermissions: {
       user_id: userId,
       domain_id: domainId

@@ -4,36 +4,53 @@
  * Outbound file transfer operations for the real protocol I/O router:
  * - SendFile: Initiate file transfer via InternalServiceRequest
  * - CancelTransfer: Clean up local state (protocol cancels implicitly)
- * - sendChunk / sendComplete: Stubs (SDK handles these automatically)
  */
 
 import { eventEmitter } from '../event-emitter';
+import { failOnSocketLoss } from '../websocket/request-response';
+import { formatBytes } from '../format-bytes';
 import { websocketService } from '../websocket-service';
-import type { FileSource } from './io-router-types';
-import type { SendFileParams, SendFileResult, CancelTransferParams } from './io-router-types';
+import type { FileSource, SendFileParams, SendFileResult, CancelTransferParams } from './io-router-types';
 import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
 
 /**
- * Hard ceiling on `FileSource.ByteContents` payloads.
+ * ONE cap governs every inline `FileSource.ByteContents` payload:
+ * `MAX_BYTE_CONTENTS_BYTES` in server-upload.ts, which mirrors the internal
+ * service's own limit (requests/file/upload.rs, 16 MiB — the authority).
  *
- * `Array.from(new Uint8Array(buffer))` materialises the entire file as a
- * boxed-number JavaScript array, which uses roughly 4-8 bytes per byte of
- * file data on V8. The subsequent CBOR / WebSocket-frame serialisation
- * allocates roughly the same volume again. A 100 MB file therefore lands
- * north of half a gigabyte of transient heap and reliably crashes the tab.
+ * This module used to carry its own second cap of 2 MiB for the same
+ * mechanism. Two limits for one wire format meant the p2p path refused files
+ * the "async" path shipped every day, and a 2–16 MiB p2p send died here AFTER
+ * its offer was already announced to the recipient. The memory cost of an
+ * inline payload (`Array.from` boxes every byte, ~4-8x on V8, and the frame
+ * serialisation doubles it again) is the same on both paths and is bounded by
+ * the same 16 MiB the staging upload already demonstrates in production;
+ * files above it must use the native PickFile flow, which streams from disk.
  *
- * Larger uploads must go through the native PickFile flow which streams
- * from disk. This constant is intentionally conservative; raise it only
- * alongside memory-usage measurements.
+ * Re-exported under the old name for the existing importer outside this
+ * module (components/p2p/useFileTransfer.ts).
  */
-export const MAX_BYTE_CONTENTS_SIZE_BYTES = 2 * 1024 * 1024; // 2 MiB
+export { MAX_BYTE_CONTENTS_BYTES as MAX_BYTE_CONTENTS_SIZE_BYTES } from './server-upload';
+import { MAX_BYTE_CONTENTS_BYTES } from './server-upload';
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+/**
+ * Refuse a browser File that exceeds the inline ByteContents cap.
+ *
+ * Exported so the send-request executor can apply it BEFORE the offer is
+ * announced to the recipient (see send-transfer-request.ts) — throwing only
+ * here, after the announcement, is what left recipients with phantom offers.
+ */
+export function assertInlineSendable(file: Pick<File, 'name' | 'size'>): void {
+  if (file.size > MAX_BYTE_CONTENTS_BYTES) {
+    throw new Error(
+      `File "${file.name}" is ${formatBytes(file.size)}; ` +
+        `inline browser uploads are capped at ${formatBytes(MAX_BYTE_CONTENTS_BYTES)}. ` +
+        `Use the native file picker for larger files.`
+    );
+  }
 }
+
 
 interface SendFileSuccessResponse {
   cid: bigint;
@@ -62,16 +79,10 @@ export async function executeSendFile(
     // Size guard: refuse payloads that would OOM the tab when converted
     // to a boxed-number JS array. Check BEFORE calling arrayBuffer() so
     // we fail fast without allocating the buffer at all.
-    if (params.source.size > MAX_BYTE_CONTENTS_SIZE_BYTES) {
-      throw new Error(
-        `File "${params.source.name}" is ${formatBytes(params.source.size)}; ` +
-          `inline browser uploads are capped at ${formatBytes(MAX_BYTE_CONTENTS_SIZE_BYTES)}. ` +
-          `Use the native file picker for larger files.`
-      );
-    }
+    assertInlineSendable(params.source);
 
     // Read browser File as bytes and send as ByteContents
-    const buffer = await params.source.arrayBuffer();
+    const buffer: ArrayBuffer = await params.source.arrayBuffer();
     source = {
       ByteContents: {
         file_name: params.source.name,
@@ -88,8 +99,8 @@ export async function executeSendFile(
     );
   }
 
-  const requestId = crypto.randomUUID();
-  const request = {
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+  const request: { SendFile: { request_id: `${string}-${string}-${string}-${string}-${string}`; source: FileSource; cid: bigint; peer_cid: bigint | null; chunk_size: number | null; transfer_type: string; }; } = {
     SendFile: {
       request_id: requestId,
       source,
@@ -104,7 +115,7 @@ export async function executeSendFile(
   // file as a `data: number[]`, which would dump (potentially secret) file
   // contents into dev logs and allocate/format a huge array on every inline
   // transfer. Log a redacted summary instead.
-  const sourceSummary =
+  const sourceSummary: { Path: string; } | { PickFileRef: { pick_file_request_id: string; }; } | { kind: "ByteContents"; fileName: string; byteLength: number; } =
     'ByteContents' in source
       ? {
           kind: 'ByteContents' as const,
@@ -120,15 +131,15 @@ export async function executeSendFile(
     transferId: params.transferId,
   });
 
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
+  return failOnSocketLoss('SendFile', new Promise((resolve, reject) => {
+    const timeout: NodeJS.Timeout = setTimeout((): void => {
       eventEmitter.off('websocket-message', handleMessage);
       reject(new Error('SendFile request timed out'));
     }, TIMEOUT.FILE_SEND_MS);
 
-    const handleMessage = (message: Record<string, unknown>) => {
-      const success = message.SendFileRequestSuccess as SendFileSuccessResponse | undefined;
-      const failure = message.SendFileRequestFailure as SendFileFailureResponse | undefined;
+    const handleMessage = (message: Record<string, unknown>): void => {
+      const success: SendFileSuccessResponse | undefined = message.SendFileRequestSuccess as SendFileSuccessResponse | undefined;
+      const failure: SendFileFailureResponse | undefined = message.SendFileRequestFailure as SendFileFailureResponse | undefined;
 
       if (success?.request_id === requestId) {
         clearTimeout(timeout);
@@ -143,7 +154,7 @@ export async function executeSendFile(
       if (failure?.request_id === requestId) {
         clearTimeout(timeout);
         eventEmitter.off('websocket-message', handleMessage);
-        const errorMsg = failure.message || 'SendFile failed';
+        const errorMsg: string = failure.message || 'SendFile failed';
         debugLog('send-operations', 'SendFile failed', errorMsg);
         reject(new Error(errorMsg));
       }
@@ -156,7 +167,7 @@ export async function executeSendFile(
       eventEmitter.off('websocket-message', handleMessage);
       reject(error);
     });
-  });
+  }));
 }
 
 /**
@@ -174,29 +185,10 @@ export function executeCancelTransfer(
     reason: params.reason,
   });
 
-  const objectId = transferIdToObjectId.get(params.transferId);
+  const objectId: string | undefined = transferIdToObjectId.get(params.transferId);
   if (objectId) {
     objectIdToTransferId.delete(objectId);
     transferIdToObjectId.delete(params.transferId);
   }
 }
 
-/**
- * sendChunk is not supported - the Citadel SDK handles chunking internally.
- */
-export function throwChunkNotSupported(): never {
-  throw new Error(
-    'sendChunk not supported by RealProtocolIORouter. ' +
-    'Chunking is handled automatically by the Citadel SDK.'
-  );
-}
-
-/**
- * sendComplete is not supported - the Citadel SDK signals completion automatically.
- */
-export function throwCompleteNotSupported(): never {
-  throw new Error(
-    'sendComplete not supported by RealProtocolIORouter. ' +
-    'Completion is signaled automatically by the Citadel SDK.'
-  );
-}

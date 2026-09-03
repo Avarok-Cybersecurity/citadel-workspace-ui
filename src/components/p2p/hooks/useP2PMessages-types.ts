@@ -3,6 +3,7 @@
  */
 
 import type { P2PMessage, PeerPresence } from '@/lib/p2p';
+import { mergeById } from '@/lib/p2p/merge-by-id';
 
 export interface UseP2PMessagesProps {
   peerCid: bigint;
@@ -21,18 +22,23 @@ export interface UseP2PMessagesReturn {
   hasMorePages: boolean;
   handleScroll: (event: React.UIEvent<HTMLDivElement>) => void;
   handleRetryMessage: (message: P2PMessage) => Promise<void>;
+  handleEditMessage: (messageId: string, content: string) => Promise<void>;
+  handleDeleteMessage: (messageId: string) => Promise<void>;
 }
 
 /**
- * Merges new messages into existing messages, deduplicating by id and sorting by timestamp.
- * Returns the previous array reference if no new messages were added (React optimization).
+ * New arrivals merged into what is already rendered.
+ *
+ * The EXISTING copy wins a duplicate id, and the previous array reference is
+ * returned when nothing new arrived — React re-renders on reference inequality,
+ * and without that a thread re-sorts on every keystroke.
+ *
+ * The winner is passed explicitly because the messaging adapter's merge
+ * resolves the same conflict the other way (in-memory beats storage), and the
+ * two used to share a name and disagree silently.
  */
 export function mergeMessages(existing: P2PMessage[], incoming: P2PMessage[]): P2PMessage[] {
-  if (existing.length === 0) return [...incoming];
-  const existingIds = new Set(existing.map(m => m.id));
-  const newMessages = incoming.filter(m => !existingIds.has(m.id));
-  if (newMessages.length === 0) return existing;
-  return [...existing, ...newMessages].sort((a, b) => a.timestamp - b.timestamp);
+  return mergeById(existing, incoming, 'existing');
 }
 
 /**
@@ -40,8 +46,8 @@ export function mergeMessages(existing: P2PMessage[], incoming: P2PMessage[]): P
  * Returns the previous array reference if no new messages were added.
  */
 export function prependMessages(existing: P2PMessage[], older: P2PMessage[]): P2PMessage[] {
-  const existingIds = new Set(existing.map(m => m.id));
-  const newMessages = older.filter(m => !existingIds.has(m.id));
+  const existingIds: Set<string> = new Set(existing.map(m => m.id));
+  const newMessages: P2PMessage[] = older.filter(m => !existingIds.has(m.id));
   if (newMessages.length === 0) return existing;
   return [...newMessages, ...existing].sort((a, b) => a.timestamp - b.timestamp);
 }
