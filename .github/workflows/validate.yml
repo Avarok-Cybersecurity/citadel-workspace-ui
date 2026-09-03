@@ -273,53 +273,21 @@ jobs:
         run: npm run check:mobile
         working-directory: parent/citadel-workspaces
 
+      # Delegates to the parent repo's gate rather than reimplementing it.
+      #
+      # This step carried its own bash copy of the 250-line rule with its own
+      # SKIP_FILES list, and the two drifted: `lib/connection/service.ts` is
+      # 252 lines and is recorded in scripts/check-file-length.mjs as a held
+      # exception, but was absent from the list here -- so this repo failed a
+      # file the parent passes, on a rule both are supposed to enforce.
+      #
+      # The parent's version is also the stricter one: it pins each exception
+      # to an EXACT line count (`['lib/connection/service.ts', 252]`), so a
+      # held file cannot quietly grow, where a name-only skip list lets it
+      # grow forever. Two implementations of one rule drift toward the weaker.
       - name: Enforce 250-line file limit
         if: matrix.project == 'citadel-workspaces'
-        run: |
-          # Files that pre-date this PR and already exceed the cap.
-          # The 250-line rule was introduced after they were written;
-          # this PR is not the right place to refactor them. Tracked
-          # as known violations so the cap still keeps NEW files in
-          # check.
-          SKIP_FILES=(
-            "components/ui/sidebar.tsx"
-            "components/layout/sidebar/TreeNodesSection.tsx"
-            "components/p2p/ChatSettingsPanel.tsx"
-            "lib/file-transfer/service.ts"
-            "pages/Landing.tsx"
-            "types/messaging-layer.ts"
-            "types/workspace-protocol.ts"
-          )
-
-          VIOLATIONS=0
-          while IFS= read -r file; do
-            rel="${file#citadel-workspaces/src/}"
-            skip=false
-            for s in "${SKIP_FILES[@]}"; do
-              if [ "$rel" = "$s" ]; then skip=true; break; fi
-            done
-            if $skip; then continue; fi
-
-            lines=$(wc -l < "$file")
-            if [ "$lines" -gt 250 ]; then
-              echo "::error file=$file::$file has $lines lines (limit: 250)"
-              VIOLATIONS=$((VIOLATIONS + 1))
-            fi
-          # The path is relative to the job's `defaults.run.working-directory:
-          # parent`, where this PR's code is checked out at
-          # parent/citadel-workspaces — so `citadel-workspaces/src` is correct
-          # here even though no such directory exists at this repo's own root.
-          #
-          # Tests are excluded deliberately: the cap exists to stop a MODULE
-          # accreting responsibilities, while a test file's length measures how
-          # many cases it covers, which is the opposite signal.
-          done < <(find citadel-workspaces/src -type f \( -name '*.ts' -o -name '*.tsx' \) ! -name '*.bak' ! -path '*/__tests__/*')
-
-          if [ "$VIOLATIONS" -gt 0 ]; then
-            echo "FAIL: $VIOLATIONS file(s) exceed the 250-line limit"
-            exit 1
-          fi
-          echo "All TypeScript files within 250-line limit"
+        run: node scripts/check-file-length.mjs
 
   lint:
     name: ESLint - ${{ matrix.project }}
