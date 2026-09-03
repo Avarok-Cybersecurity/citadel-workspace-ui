@@ -159,9 +159,24 @@ jobs:
       # half-root tree if the container's layout ever changes. The container
       # writing into a host tree is the same hazard that has poisoned
       # `node_modules` here before; this bounds it to one directory.
+      #
+      # The path is relative to the job's `defaults.run.working-directory:
+      # parent`, NOT to the workspace root -- the opposite of the step-level
+      # `working-directory:` rule two steps up. The first version of this step
+      # said `parent/citadel-workspaces/dist`, which resolved to
+      # `parent/parent/...`; `rm -rf` on a path that does not exist succeeds
+      # silently, so the step went green and the EACCES came back unchanged.
+      # A cleanup that cannot fail is the same defect as a gate that cannot
+      # fail, so this one verifies the directory is gone.
       - name: Reclaim the tree the WASM container wrote into
         if: matrix.project == 'citadel-workspaces'
-        run: sudo rm -rf parent/citadel-workspaces/dist
+        run: |
+          sudo rm -rf citadel-workspaces/dist
+          if [ -e citadel-workspaces/dist ]; then
+            echo "::error::citadel-workspaces/dist still exists after removal"
+            exit 1
+          fi
+          echo "reclaimed: citadel-workspaces/dist is gone"
 
       - name: Landing bundle budget
         if: matrix.project == 'citadel-workspaces'
