@@ -125,6 +125,27 @@ jobs:
       # Each one fails silently in production: a broken manifest field simply
       # stops the browser offering to install, and a chunk pulled onto the first
       # paint is invisible until someone measures.
+      # WITHOUT THIS, EVERY GATE BELOW FAILS BEFORE IT MEASURES ANYTHING.
+      #
+      # They all begin with `vite build`, and that build embeds the wasm-pack
+      # glue `citadel_internal_service_wasm_client.js`, which is NOT git-tracked
+      # (typescript-client/.gitignore:13). It is produced by the
+      # `sync-wasm-client` one-shot container in docker-compose.yml.
+      #
+      # The gates were copied here from the parent repo's workflow without the
+      # step that pays for their input, so `vite build` died with
+      # "Could not resolve ../citadel_internal_service_wasm_client.js" and named
+      # the importer rather than the cause. The parent's own comment warns about
+      # exactly this -- it puts these gates in the job that generates the
+      # artefacts, "not in the typecheck matrix", because there it does not
+      # exist. This job IS the typecheck matrix, so it has to generate them.
+      - name: Generate WASM artifacts (required for the production build)
+        if: matrix.project == 'citadel-workspaces'
+        env:
+          WORKSPACE_MASTER_PASSWORD: 'ci-prod-build'
+          INTERNAL_SERVICE_PORT: '12345'
+        run: docker compose up --build sync-wasm-client
+
       - name: Landing bundle budget
         if: matrix.project == 'citadel-workspaces'
         run: npm run build && npm run check:bundle
@@ -423,7 +444,12 @@ jobs:
         # test:tree-permissions with it -- a red job with no test signal, the
         # same shape as the failure that gate was written for.
         run: ../scripts/pull-base-images.sh
-        working-directory: citadel-workspaces
+        # Step-level working-directory is relative to the WORKSPACE ROOT, not to
+        # the job's `defaults.run.working-directory: parent`. Without the prefix
+        # this named a path that does not exist here and the step died with
+        # "No such file or directory" before running anything -- a red job with
+        # no signal about the thing it was meant to test.
+        working-directory: parent/citadel-workspaces
       - name: Start Services
         env:
           INTERNAL_SERVICE_PORT: '12345'
@@ -675,7 +701,12 @@ jobs:
         # test:tree-permissions with it -- a red job with no test signal, the
         # same shape as the failure that gate was written for.
         run: ../scripts/pull-base-images.sh
-        working-directory: citadel-workspaces
+        # Step-level working-directory is relative to the WORKSPACE ROOT, not to
+        # the job's `defaults.run.working-directory: parent`. Without the prefix
+        # this named a path that does not exist here and the step died with
+        # "No such file or directory" before running anything -- a red job with
+        # no signal about the thing it was meant to test.
+        working-directory: parent/citadel-workspaces
       - name: Start Services
         env:
           INTERNAL_SERVICE_PORT: '12345'
