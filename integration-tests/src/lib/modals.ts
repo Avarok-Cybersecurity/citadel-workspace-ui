@@ -36,7 +36,21 @@ export async function closeAnyModals(page: Page, maxAttempts = 5): Promise<void>
       break; // No modal visible
     }
 
-    console.log(`  closeAnyModals: Modal detected (attempt ${i + 1}/${maxAttempts})`);
+    // Name the match. `[data-state="open"]` is every open Radix primitive --
+    // collapsibles, popovers, tooltips -- not only dialogs, and a bare "Modal
+    // detected" could not say which one this loop was about to press Cancel on.
+    const what = await backdrop
+      .evaluate((el) => {
+        const id = el.getAttribute('data-testid') ?? el.getAttribute('aria-label') ?? el.getAttribute('role') ?? '';
+        // Playwright's isVisible() is true for an element at opacity 0 or
+        // behind everything else, so say what a person would actually see.
+        const r = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        const geometry = `${Math.round(r.width)}x${Math.round(r.height)}@${Math.round(r.x)},${Math.round(r.y)} opacity=${cs.opacity} z=${cs.zIndex}`;
+        return `<${el.tagName.toLowerCase()} ${id}> "${(el.textContent ?? '').trim().slice(0, 60)}" [${geometry}]`;
+      })
+      .catch(() => '<gone>');
+    console.log(`  closeAnyModals: Modal detected (attempt ${i + 1}/${maxAttempts}): ${what}`);
 
     // Strategy 1: Click Cancel or Close button inside the modal
     const cancelBtn = page.locator(
@@ -47,7 +61,10 @@ export async function closeAnyModals(page: Page, maxAttempts = 5): Promise<void>
     ).first();
 
     if (await cancelBtn.isVisible().catch(() => false)) {
-      console.log('  closeAnyModals: Clicking Cancel/Close button');
+      const label = await cancelBtn
+        .evaluate((el) => `${el.getAttribute('aria-label') ?? ''} "${(el.textContent ?? '').trim().slice(0, 40)}"`)
+        .catch(() => '<gone>');
+      console.log(`  closeAnyModals: Clicking Cancel/Close button: ${label}`);
       // The click may LOSE ITS TARGET, and that is a success, not a failure.
       //
       // Modals here animate in and out, so the button is mid-transform when
