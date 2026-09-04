@@ -139,6 +139,21 @@ jobs:
       # exactly this -- it puts these gates in the job that generates the
       # artefacts, "not in the typecheck matrix", because there it does not
       # exist. This job IS the typecheck matrix, so it has to generate them.
+      # A base-image manifest pull happens before any RUN, so the retry gate on
+      # RUN fetches cannot see it. A 502 from registry-1.docker.io resolving
+      # `FROM rust:...` kills the job with no test signal -- the exact shape
+      # check-base-image-pulls-retry.mjs exists to prevent, and it caught the
+      # step below being added without this one.
+      #
+      # No step-level `working-directory`, so this runs in the job default
+      # `parent`, where the parent repo's scripts/ lives. The two older
+      # pre-pull steps in this file say `../scripts/` because they override the
+      # directory to parent/citadel-workspaces; copying their path here would
+      # have looked right and resolved to nothing.
+      - name: Pull base images (retried)
+        if: matrix.project == 'citadel-workspaces'
+        run: ./scripts/pull-base-images.sh
+
       - name: Generate WASM artifacts (required for the production build)
         if: matrix.project == 'citadel-workspaces'
         env:
