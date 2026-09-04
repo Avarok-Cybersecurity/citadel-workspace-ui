@@ -30,6 +30,14 @@ import { AxeBuilder } from '@axe-core/playwright';
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.A11Y_PORT ?? 4186);
 const ORIGIN = `http://localhost:${PORT}`;
+// These checks drive the production bundle, where first-run onboarding is ON
+// (isOnboardingEnabled in src/lib/debug-config.ts). They exercise the
+// registration wizard but are not testing onboarding, so they opt out with the
+// explicit off-switch -- the same one a production Playwright run uses for its
+// fixture accounts. Without it the intent dialog intercepts the click on
+// create-account and #serverAddress never appears, which is exactly how
+// check:mobile failed when onboarding landed.
+const APP = `${ORIGIN}/?onboarding=0`;
 /**
  * The surface under test, installed into every page as `__a11yScope()`.
  *
@@ -96,7 +104,7 @@ async function main() {
 
     /** The wizard's second step, from a fresh load. Waits, never sleeps. */
     const toSecurityStep = async () => {
-      await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+      await page.goto(APP, { waitUntil: 'domcontentloaded' });
       await page.getByTestId('create-account-button').click();
       await page.locator('#serverAddress').waitFor({ state: 'visible', timeout: 30_000 });
       await page.locator('#serverAddress').fill('127.0.0.1:12349');
@@ -137,17 +145,17 @@ async function main() {
     };
 
     const screens = [
-      ['landing', async () => { await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' }); }],
+      ['landing', async () => { await page.goto(APP, { waitUntil: 'domcontentloaded' }); }],
       ['sign-in', async () => {
-        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.goto(APP, { waitUntil: 'domcontentloaded' });
         await page.getByTestId('sign-in-button').click();
       }],
       ['create-account', async () => {
-        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.goto(APP, { waitUntil: 'domcontentloaded' });
         await page.getByTestId('create-account-button').click();
       }],
       ['manage-accounts', async () => {
-        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.goto(APP, { waitUntil: 'domcontentloaded' });
         await page.getByTestId('manage-accounts-button').click();
       }],
       // Settings is reachable from the landing page with no account, and every
@@ -174,7 +182,7 @@ async function main() {
           // showing" version depended on the previous surface leaving the
           // modal open, which is the same hidden sequence that timed the
           // wizard steps out in CI.
-          await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+          await page.goto(APP, { waitUntil: 'domcontentloaded' });
           await page.locator('button').filter({ hasText: /^Settings$/ }).first().click();
           const trigger = page.locator('[role="tab"]').filter({ hasText: tab }).first();
           await trigger.waitFor({ state: 'visible', timeout: 30_000 });
@@ -208,7 +216,7 @@ async function main() {
       // screen -- recorded, not fixed here, because the fix is a visible reason
       // and that is a design decision rather than a defect to sneak in.
       ['settings/session-gated tabs', async () => {
-        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.goto(APP, { waitUntil: 'domcontentloaded' });
         await page.locator('button').filter({ hasText: /^Settings$/ }).first().click();
         for (const tab of ['Connect', 'Perms']) {
           const trigger = page.locator('[role="tab"]').filter({ hasText: tab }).first();
@@ -254,7 +262,7 @@ async function main() {
       // nothing is running -- which is how it went unscanned while silently
       // corrupting the measurement of the screen underneath it.
       ['connection-failed', async () => {
-        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.goto(APP, { waitUntil: 'domcontentloaded' });
         await page.getByTestId('connection-retry-modal').waitFor({ state: 'visible', timeout: 60_000 });
       }],
       // Any unrouted path. Cheap, and it is the one screen a user reaches by
@@ -303,7 +311,7 @@ async function main() {
     // and the security settings survived, which made the loss read as a glitch
     // rather than the rule.
     {
-      await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+      await page.goto(APP, { waitUntil: 'domcontentloaded' });
       await dismissConnectionFailure(page);
       await toProfileStep();
       await page.locator('#fullName').fill('Ada Lovelace');
@@ -336,7 +344,7 @@ async function main() {
       ['create-account', 'create-account-button'],
       ['manage-accounts', 'manage-accounts-button'],
     ]) {
-      await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+      await page.goto(APP, { waitUntil: 'domcontentloaded' });
       await dismissConnectionFailure(page);
       const trigger = page.getByTestId(testid);
       await trigger.focus();

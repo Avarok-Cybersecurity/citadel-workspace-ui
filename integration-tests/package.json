@@ -64,7 +64,8 @@
     "test:pw:headed": "npx playwright test --headed",
     "typecheck": "tsc --noEmit",
     "lint": "npx eslint .",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test:onboarding": "playwright test src/tests-pw/onboarding.spec.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
