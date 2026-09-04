@@ -32,6 +32,14 @@ const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.AGENT_DOWN_PORT ?? 4203);
 const DEAD_AGENT_PORT = Number(process.env.AGENT_DOWN_AGENT_PORT ?? 12399);
 const ORIGIN = `http://localhost:${PORT}`;
+// These checks drive the production bundle, where first-run onboarding is ON
+// (isOnboardingEnabled in src/lib/debug-config.ts). They exercise the
+// registration wizard but are not testing onboarding, so they opt out with the
+// explicit off-switch -- the same one a production Playwright run uses for its
+// fixture accounts. Without it the intent dialog intercepts the click on
+// create-account and #serverAddress never appears, which is exactly how
+// check:mobile failed when onboarding landed.
+const APP = `${ORIGIN}/?onboarding=0`;
 
 const results = [];
 const record = (name, ok, detail = '') => results.push({ name, ok, detail });
@@ -94,7 +102,7 @@ async function main() {
   try {
     const context = await browser.newContext({ viewport: { width: 375, height: 667 } });
     const page = await context.newPage();
-    await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+    await page.goto(APP, { waitUntil: 'domcontentloaded' });
 
     const banner = await page
       .waitForSelector('[data-testid="agent-down-banner"]', { timeout: 30_000 })
@@ -198,7 +206,7 @@ async function main() {
       // Swallowing is the worse half: a selector that stops matching reads as
       // "the app never reached the profile step", which is a defect report
       // about the product for a fault in the check.
-      await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+      await page.goto(APP, { waitUntil: 'domcontentloaded' });
       // A fresh load brings the retry dialog back -- correctly, it is a new
       // failure -- and it would swallow the clicks below.
       await page.waitForSelector('[role="dialog"]', { timeout: 20_000 });

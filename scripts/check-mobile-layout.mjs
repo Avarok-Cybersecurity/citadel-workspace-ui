@@ -24,6 +24,14 @@ import { chromium } from 'playwright';
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.MOBILE_CHECK_PORT ?? 4178);
 const ORIGIN = `http://localhost:${PORT}`;
+// These checks drive the production bundle, where first-run onboarding is ON
+// (isOnboardingEnabled in src/lib/debug-config.ts). They exercise the
+// registration wizard but are not testing onboarding, so they opt out with the
+// explicit off-switch -- the same one a production Playwright run uses for its
+// fixture accounts. Without it the intent dialog intercepts the click on
+// create-account and #serverAddress never appears, which is exactly how
+// check:mobile failed when onboarding landed.
+const APP = `${ORIGIN}/?onboarding=0`;
 const MIN_TARGET = 24;
 
 /** Narrowest first, so the first failure reported is the hardest case. */
@@ -112,16 +120,16 @@ async function main() {
     // Fixing those earlier gates is what surfaced this one. A dead check behind
     // a failing check is indistinguishable from a passing one.
     const screens = [
-      ['landing', async () => { await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' }); }],
+      ['landing', async () => { await page.goto(APP, { waitUntil: 'domcontentloaded' }); }],
       ['create-account', async () => {
         await page.getByTestId('create-account-button').click();
       }],
       ['sign-in', async () => {
-        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.goto(APP, { waitUntil: 'domcontentloaded' });
         await page.getByTestId('sign-in-button').click();
       }],
       ['manage-accounts', async () => {
-        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.goto(APP, { waitUntil: 'domcontentloaded' });
         await page.getByTestId('manage-accounts-button').click();
       }],
       // The join wizard's later steps, which is where the toast collision was.
@@ -132,7 +140,7 @@ async function main() {
       // first step of the wizard. A rule that cannot reach the screen it was
       // written for is a rule about nothing.
       ['join/security', async () => {
-        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.goto(APP, { waitUntil: 'domcontentloaded' });
         await page.getByTestId('create-account-button').click();
         await page.locator('#serverAddress').waitFor({ state: 'visible', timeout: 30_000 });
         await page.locator('#serverAddress').fill('127.0.0.1:12349');
@@ -141,7 +149,7 @@ async function main() {
         await page.getByRole('heading', { name: /Security/i }).waitFor({ state: 'visible', timeout: 30_000 });
       }],
       ['join/profile', async () => {
-        await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+        await page.goto(APP, { waitUntil: 'domcontentloaded' });
         await page.getByTestId('create-account-button').click();
         await page.locator('#serverAddress').waitFor({ state: 'visible', timeout: 30_000 });
         await page.locator('#serverAddress').fill('127.0.0.1:12349');
@@ -174,7 +182,7 @@ async function main() {
           // conditional version depended on the previous surface leaving the
           // Settings modal open -- a hidden sequence that timed out in CI when
           // a click landed a fraction later than it does locally.
-          await page.goto(ORIGIN, { waitUntil: 'domcontentloaded' });
+          await page.goto(APP, { waitUntil: 'domcontentloaded' });
           await page.locator('button').filter({ hasText: /^Settings$/ }).first().click();
           const trigger = page.locator('[role="tab"]').filter({ hasText: tab }).first();
           await trigger.waitFor({ state: 'visible', timeout: 30_000 });

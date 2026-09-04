@@ -29,6 +29,14 @@ const APP_ROOT = resolve(__dirname, '..');
 const DIST = resolve(APP_ROOT, 'dist');
 const PORT = Number(process.env.PWA_CHECK_PORT ?? 4174);
 const ORIGIN = `http://localhost:${PORT}`;
+// These checks drive the production bundle, where first-run onboarding is ON
+// (isOnboardingEnabled in src/lib/debug-config.ts). They exercise the
+// registration wizard but are not testing onboarding, so they opt out with the
+// explicit off-switch -- the same one a production Playwright run uses for its
+// fixture accounts. Without it the intent dialog intercepts the click on
+// create-account and #serverAddress never appears, which is exactly how
+// check:mobile failed when onboarding landed.
+const APP = `${ORIGIN}/?onboarding=0`;
 
 function fail(message) {
   console.error(`\n  ${message}\n`);
@@ -79,7 +87,7 @@ async function main() {
     const context = await browser.newContext();
     const page = await context.newPage();
 
-    await page.goto(`${ORIGIN}/`, { waitUntil: 'load' });
+    await page.goto(APP, { waitUntil: 'load' });
 
     // Raced against a timeout, because `navigator.serviceWorker.ready` NEVER
     // SETTLES when no worker registers — it does not reject, so awaiting it
