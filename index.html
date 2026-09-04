@@ -100,6 +100,9 @@
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       }
     </script>
+    <!-- Filled in by the hosting nginx when the operator publishes a loopback agent origin
+         (LOOPBACK_AGENT_ORIGIN); empty means "reach the agent through same-origin /ws". -->
+    <meta name="citadel-loopback-agent" content="" />
   </head>
 
   <body>

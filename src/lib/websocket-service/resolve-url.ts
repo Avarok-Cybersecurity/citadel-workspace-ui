@@ -98,6 +98,29 @@ function warnIfOffOrigin(candidate: string, location: UrlLocation | undefined): 
   );
 }
 
+/** The `<meta>` the hosting nginx fills in with the visitor's own agent origin, if it has one. */
+export const LOOPBACK_AGENT_META: string = 'citadel-loopback-agent';
+
+/** A bare `wss://host:port` origin: no path, no query, no userinfo. Anything else is ignored. */
+const LOOPBACK_ORIGIN_SHAPE: RegExp = /^wss:\/\/[a-z0-9]([a-z0-9.-]*[a-z0-9])?:[0-9]{1,5}$/;
+
+/** True for the hosts a browser treats as the visitor's own machine. */
+export function isLoopbackHost(hostWithPort: string): boolean {
+  const host: string = hostWithPort.replace(/:[0-9]+$/, '').toLowerCase();
+  return host === 'localhost' || host.endsWith('.localhost') || host === '127.0.0.1' || host === '[::1]';
+}
+
+/** Read the published loopback agent origin from the page, or `undefined` when none is set. */
+export function readLoopbackAgentOrigin(
+  doc: { querySelector(selector: string): { getAttribute(name: string): string | null } | null },
+): string | undefined {
+  const content: string | null | undefined = doc
+    .querySelector(`meta[name="${LOOPBACK_AGENT_META}"]`)
+    ?.getAttribute('content');
+  const trimmed: string = (content ?? '').trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export function resolveWebsocketUrl(
   /** Programmatic override. Highest precedence; used by tests and embedders. */
   configuredUrl: string | undefined,
@@ -106,6 +129,19 @@ export function resolveWebsocketUrl(
   buildTimeUrl: string | undefined,
   /** The page's location; `undefined` outside a browser, where an override is then required. */
   location: UrlLocation | undefined,
+  /**
+   * The agent on the VISITOR'S OWN machine, as published by the hosting nginx (see
+   * `readLoopbackAgentOrigin`). A hosted page cannot reach an agent through its own origin: the
+   * public stack keeps the `/ws` proxy off, because one shared agent would hold every user's
+   * ratchet keys. So the operator points a name at 127.0.0.1 (`local.example.com`), issues a
+   * real certificate for it, and the page dials `wss://local.example.com:12345` -- which resolves
+   * to the visitor's loopback, where their own agent terminates TLS. The CSP carries the same
+   * origin, so this is the ONE off-origin socket the browser will open.
+   *
+   * Used only when the page is NOT itself on loopback: a locally-served page (127.0.0.1:8080)
+   * reaches its agent through the same-origin `/ws` proxy, which is enabled exactly there.
+   */
+  loopbackAgentOrigin?: string | undefined,
 ): string {
   const override: string | undefined = configuredUrl || buildTimeUrl;
   if (override) {
@@ -114,6 +150,10 @@ export function resolveWebsocketUrl(
   }
 
   if (!location) throw new MissingWebsocketLocationError();
+  const loopback: string = (loopbackAgentOrigin ?? '').trim();
+  if (loopback.length > 0 && !isLoopbackHost(location.host) && LOOPBACK_ORIGIN_SHAPE.test(loopback)) {
+    return loopback;
+  }
 
   // Follow the page's scheme: a page served over TLS must not open an insecure socket (browsers
   // block the mixed content), and a plain-http page cannot complete a `wss` handshake.

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach  } from 'vitest';
-import { resolveWebsocketUrl, MissingWebsocketLocationError } from '../resolve-url';
+import { resolveWebsocketUrl, readLoopbackAgentOrigin, isLoopbackHost, MissingWebsocketLocationError } from '../resolve-url';
 
 /**
  * The browser reaches the local Citadel agent over exactly one URL, decided here. Get this wrong
@@ -134,5 +134,52 @@ describe('resolveWebsocketUrl', () => {
       resolveWebsocketUrl(undefined, '//elsewhere.example/ws', http);
       expect(spy).toHaveBeenCalledOnce();
     });
+  });
+});
+
+/**
+ * A hosted page has no route to the visitor's agent through its own origin -- the public stack
+ * keeps /ws off. The operator publishes `wss://local.<domain>:<port>` (a name that resolves to
+ * 127.0.0.1) and the page must dial exactly that, and only from a page that is not itself local.
+ */
+describe('loopback agent origin', () => {
+  const hosted: { protocol: string; host: string; } = { protocol: 'https:', host: 'work.example.com' };
+  const local: { protocol: string; host: string; } = { protocol: 'http:', host: '127.0.0.1:8080' };
+  const origin: string = 'wss://local.example.com:12345';
+
+  it('dials the published loopback origin from a hosted page', () => {
+    expect(resolveWebsocketUrl(undefined, undefined, hosted, origin)).toBe(origin);
+  });
+
+  it('ignores it when the page itself is on loopback -- same-origin /ws is the proxy there', () => {
+    expect(resolveWebsocketUrl(undefined, undefined, local, origin)).toBe('ws://127.0.0.1:8080/ws');
+    expect(resolveWebsocketUrl(undefined, undefined, { protocol: 'http:', host: 'localhost:5291' }, origin))
+      .toBe('ws://localhost:5291/ws');
+  });
+
+  it('an explicit override still wins', () => {
+    expect(resolveWebsocketUrl('wss://work.example.com/ws', undefined, hosted, origin))
+      .toBe('wss://work.example.com/ws');
+  });
+
+  it('accepts only a bare wss origin -- a path, a plain ws scheme or junk falls back to /ws', () => {
+    for (const bad of ['ws://local.example.com:12345', 'wss://local.example.com:12345/ws', 'javascript:alert(1)', 'wss://', '  ']) {
+      expect(resolveWebsocketUrl(undefined, undefined, hosted, bad)).toBe('wss://work.example.com/ws');
+    }
+  });
+
+  it('reads the meta the hosting nginx fills in, and treats an empty one as absent', () => {
+    const doc = (content: string | null): { querySelector(): { getAttribute(): string | null } } => ({
+      querySelector: () => ({ getAttribute: () => content }),
+    });
+    expect(readLoopbackAgentOrigin(doc(origin))).toBe(origin);
+    expect(readLoopbackAgentOrigin(doc(''))).toBeUndefined();
+    expect(readLoopbackAgentOrigin(doc(null))).toBeUndefined();
+    expect(readLoopbackAgentOrigin({ querySelector: () => null })).toBeUndefined();
+  });
+
+  it("knows which hosts are the visitor's own machine", () => {
+    for (const h of ['localhost', 'localhost:8080', 'app.localhost', '127.0.0.1:5291', '[::1]:8080']) expect(isLoopbackHost(h)).toBe(true);
+    for (const h of ['work.example.com', 'local.example.com:12345', '127.0.0.1.example.com']) expect(isLoopbackHost(h)).toBe(false);
   });
 });
