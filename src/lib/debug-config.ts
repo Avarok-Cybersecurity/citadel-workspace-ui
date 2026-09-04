@@ -84,3 +84,46 @@ export function isDiagnosticsUiEnabled(): boolean {
     return false;
   }
 }
+
+/**
+ * Whether the first-run onboarding surfaces are shown.
+ *
+ * The INVERSE of `isDiagnosticsUiEnabled` above, and deliberately so. Diagnostics
+ * are for us and hidden from users; onboarding is for users and hidden from us.
+ *
+ * Off in development, because the integration suite creates an account for
+ * almost every spec and each one would then have to click through a tour it is
+ * not testing. Account creation already costs 9 UI interactions (11 for the
+ * first user, who also initialises the workspace) across two full page loads --
+ * see integration-tests/src/lib/account.ts. Onboarding on top of that would be
+ * paid ~90 times per suite run to assert nothing.
+ *
+ * On in production, where a first-time operator has no idea that "Create
+ * Account" on a bare address is also how they become the administrator.
+ *
+ * Forced on in any build by an explicit opt-in, which is how the onboarding
+ * specs exercise it without a production build:
+ *   - `?onboarding=1` in the URL, or
+ *   - `localStorage.setItem('citadel:onboarding', 'true')`
+ *
+ * And forced OFF by `?onboarding=0`, so a production-mode Playwright run can
+ * still create its fixtures cheaply and opt in only for the specs under test.
+ * Without that, testing onboarding against a production build would mean every
+ * setup account pays for it again.
+ */
+export function isOnboardingEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    const param: string | null = new URLSearchParams(window.location.search).get('onboarding');
+    // The explicit off-switch wins over everything, including production.
+    if (param === '0') return false;
+    if (param === '1') return true;
+    if (window.localStorage.getItem('citadel:onboarding') === 'true') return true;
+  } catch {
+    // Storage can throw in a sandboxed/partitioned context. Fall through to the
+    // environment default rather than treating that as an opt-out.
+  }
+
+  return !isDev;
+}
