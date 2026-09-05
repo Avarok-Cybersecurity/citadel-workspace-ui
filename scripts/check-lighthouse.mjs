@@ -42,6 +42,17 @@ const URL = `http://localhost:${PORT}/`;
 const IS_CI = Boolean(process.env.CI);
 
 /**
+ * How many times to measure before judging performance.
+ *
+ * Three, because the observed spread (35..80 over thirteen runs of unchanged
+ * production source) makes a single sample uninformative, and because each run
+ * costs real CI time. Three samples take the false-failure rate from roughly
+ * one in thirteen to well under one in a thousand, while still failing every
+ * time the bundle actually collapses.
+ */
+const PERF_SAMPLES = IS_CI ? 3 : 1;
+
+/**
  * The performance floor is the only one that depends on the machine, so it is
  * the only one that differs by environment.
  *
@@ -153,14 +164,57 @@ async function main() {
       );
     }
 
-    const result = await lighthouse(
-      URL,
-      { port: chrome.port, output: 'json', logLevel: 'error' },
-      undefined,
+    // Sample the noise instead of betting against it.
+    //
+    // ONE run decided this gate, and one run of Lighthouse is not a
+    // measurement of the app -- it is a measurement of the runner. Thirteen
+    // consecutive runs of this check, across commits that changed no
+    // production source at all, scored:
+    //
+    //   35, 41, 46, 52, 52, 55, 57, 57, 62, 62, 64, 71, 80
+    //
+    // A 45-point spread with the floor at 40, so the floor sits INSIDE the
+    // noise band: roughly one run in thirteen fails having found nothing. That
+    // is the outcome this file's own header warns about -- "a flaky gate is
+    // worse than no gate, people learn to re-run it without reading it" -- and
+    // it happened because the floor was chosen from a single observation.
+    //
+    // The fix is more samples, not a lower floor. Lowering it to clear 35 would
+    // put the bar under half the observed range and the gate would stop
+    // detecting the collapse it exists for.
+    const runs = [];
+    for (let attempt = 0; attempt < PERF_SAMPLES; attempt += 1) {
+      const sample = await lighthouse(
+        URL,
+        { port: chrome.port, output: 'json', logLevel: 'error' },
+        undefined,
+      );
+      if (!sample?.lhr) fail('Lighthouse returned no result.');
+      runs.push(sample.lhr);
+    }
+
+    const perfScores = runs
+      .map((lhr) => lhr.categories?.performance?.score)
+      .filter((n) => typeof n === 'number');
+    console.log(
+      `\n  performance samples: ${perfScores.map((n) => Math.round(n * 100)).join(', ')}`,
     );
 
-    if (!result?.lhr) fail('Lighthouse returned no result.');
-    const { categories, audits } = result.lhr;
+    // Report the run that scored best on performance.
+    //
+    // BEST, not median, and the reason is what this floor is for: the header
+    // says it exists to catch "a real collapse (a bundle blowing up, a
+    // render-blocking script) rather than drift". A collapse depresses every
+    // sample; runner noise depresses one. If the best of several runs is still
+    // under the floor, something is genuinely wrong with the bundle.
+    //
+    // The deterministic categories are NOT taken from that run alone -- see
+    // below. Picking a single run for everything would let a best-performance
+    // run hide an accessibility regression that appeared in another.
+    const bestIndex = perfScores.length
+      ? perfScores.indexOf(Math.max(...perfScores))
+      : 0;
+    const { categories, audits } = runs[bestIndex];
 
     console.log(`\n  Lighthouse — ${URL} (mobile, throttled)\n`);
 
@@ -174,7 +228,22 @@ async function main() {
       }
       // A null score means the category could not be computed — treat as a
       // failure rather than passing something unmeasured.
-      const score = category.score;
+      // Performance is judged on the best run; the deterministic categories are
+      // judged on the WORST across all runs.
+      //
+      // Taking everything from the best-performance run would let that run hide
+      // an accessibility or best-practices regression that showed up in
+      // another. These categories are rule checks rather than measurements, so
+      // a disagreement between runs is itself a finding -- and the safe way to
+      // read a disagreement is to believe the worse one.
+      const score =
+        key === 'performance'
+          ? category.score
+          : runs.reduce((lowest, lhr) => {
+              const n = lhr.categories?.[key]?.score;
+              if (typeof n !== 'number') return lowest;
+              return typeof lowest === 'number' ? Math.min(lowest, n) : n;
+            }, undefined);
       let ok = typeof score === 'number' && score >= baseline;
       let excused = '';
       if (!ok && key === 'best-practices') {
