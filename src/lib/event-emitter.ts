@@ -1,4 +1,4 @@
-import { debugLog, errorLog } from './debug-config';
+import { errorLog } from './debug-config';
 
 export type EventHandler<T = unknown> = (payload: T) => void;
 
