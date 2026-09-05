@@ -98,8 +98,16 @@ export class RevfsIO {
   }
 
   private async loadTree(key: string): Promise<RevfsIntentResult> {
-    const tree: RevfsNode | null = await this.storage.loadTree(key);
-    return { type: 'load-tree', tree };
+    try {
+      const tree: RevfsNode | null = await this.storage.loadTree(key);
+      return { type: 'load-tree', tree };
+    } catch (err) {
+      // Reported, not flattened to `tree: null`. The caller persists a default
+      // tree when nothing loaded, which over a readable-but-unread tree is
+      // data loss.
+      debugLog('RevfsIO', 'loadTree failed; refusing to report an empty tree:', err);
+      return { type: 'load-tree', tree: null, unreadable: true };
+    }
   }
 
   private async persistPendingOps(key: string, ops: RevfsPendingOp[]): Promise<RevfsIntentResult> {
