@@ -47,7 +47,11 @@ export type RevfsIntent =
 export type RevfsIntentResult =
   | { type: 'send-revfs-op'; success: boolean }
   | { type: 'persist-tree'; success: boolean }
-  | { type: 'load-tree'; tree: RevfsNode | null }
+  // `tree: null` means the tree is genuinely absent -- a first run. `unreadable`
+  // means storage failed to answer, which is NOT the same thing and must never
+  // be treated as an empty tree: the caller would write a default over a tree
+  // that is still on disk.
+  | { type: 'load-tree'; tree: RevfsNode | null; unreadable?: boolean }
   | { type: 'persist-pending-ops'; success: boolean }
   | { type: 'load-pending-ops'; ops: RevfsPendingOp[] }
   | { type: 'backend-send-file'; success: boolean; virtualDir?: string }
