@@ -24,6 +24,7 @@ const base: Omit<ComponentProps<typeof P2PMessageList>, 'ref'> = {
   peerName: 'alice',
   peerCid: 2n,
   isLoadingMore: false,
+    isLoadingHistory: false,
   hasMorePages: false,
   displaySenderName: false,
   displaySenderAvatar: false,
@@ -62,5 +63,31 @@ describe('an empty P2P conversation', () => {
 
     expect(screen.queryByText(/No messages yet/i)).toBeNull();
     expect(screen.getByText('hi')).toBeInTheDocument();
+  });
+});
+
+/**
+ * The empty state is a STATEMENT, and it must not be made before the history is read.
+ *
+ * `isLoadingMore` is about pagination, so between opening a conversation and its stored
+ * messages arriving, "No messages yet. Say hello to Bob" was printed over months of history —
+ * on the product's core flow, every time.
+ */
+describe('the empty state waits until it is true', () => {
+  it('says nothing while the history is still being read', () => {
+    render(<P2PMessageList {...base} isLoadingHistory />);
+    expect(screen.queryByText(/No messages yet/i), 'claimed the conversation was empty before reading it').toBeNull();
+    expect(screen.queryByText(/Say hello/i)).toBeNull();
+  });
+
+  it('says it once the history is read and there is genuinely nothing', () => {
+    render(<P2PMessageList {...base} isLoadingHistory={false} />);
+    expect(screen.getByText(/No messages yet/i)).toBeInTheDocument();
+  });
+
+  it('never says it when there are messages, loading or not', () => {
+    const withHistory = { ...base, messages: [{ id: 'm1', content: 'hello', senderCid: 2n, timestamp: 1, status: 'delivered' }] as never };
+    render(<P2PMessageList {...withHistory} isLoadingHistory />);
+    expect(screen.queryByText(/No messages yet/i)).toBeNull();
   });
 });

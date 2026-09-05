@@ -39,6 +39,15 @@ export function useP2PMessages({
   const [currentPage, setCurrentPage] = useState<number | null>(null);
   const [hasMorePages, setHasMorePages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  /**
+   * True until this conversation's stored history has been read.
+   *
+   * `isLoadingMore` is about PAGINATION — it is set by `loadMore` — so the empty state was
+   * shown from the moment a conversation opened until the awaits below returned: "No messages
+   * yet. Say hello to Bob" printed over months of history, then the transcript appeared. It
+   * starts true because the effect that clears it has not run yet on first render.
+   */
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
   const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
   const confirm: ReturnType<typeof useConfirm> = useConfirm();
@@ -50,6 +59,7 @@ export function useP2PMessages({
       return;
     }
 
+    setIsLoadingHistory(true);
     const loadConversation = async (): Promise<void> => {
       await messenger.waitForReady();
       await messenger.syncConnectionsFromBackend();
@@ -83,7 +93,15 @@ export function useP2PMessages({
         setPeerPresence({ status: MessagingLayerType.Online, lastUpdate: Date.now() });
       }
     };
-    runAsyncSetup(loadConversation);
+    // Cleared whatever happens: a conversation that fails to load must stop claiming to be
+    // loading, and `finally` is the only place that is true of both outcomes.
+    runAsyncSetup(async () => {
+      try {
+        await loadConversation();
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    });
 
     const unsubscribeConversationEvents: () => void = subscribeToConversationEvents({
       messenger, peerCid, activeTabIdRef, onUnreadMessage,
@@ -210,6 +228,7 @@ export function useP2PMessages({
     isConnected,
     isRegistered,
     isLoadingMore,
+    isLoadingHistory,
     hasMorePages,
     handleScroll,
     handleRetryMessage,

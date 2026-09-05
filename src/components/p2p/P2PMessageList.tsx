@@ -18,6 +18,8 @@ interface P2PMessageListProps {
   peerName: string;
   peerCid: bigint;
   isLoadingMore: boolean;
+  /** True until the stored history has been read; see useP2PMessages. */
+  isLoadingHistory: boolean;
   hasMorePages: boolean;
   displaySenderName: boolean;
   displaySenderAvatar: boolean;
@@ -42,6 +44,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
       peerName,
       peerCid: _peerCid,
       isLoadingMore,
+      isLoadingHistory,
       hasMorePages,
       displaySenderName,
       displaySenderAvatar,
@@ -91,7 +94,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
               <div className="text-xs text-muted-foreground">↑ Scroll up for older messages</div>
             </div>
           )}
-          {messages.length === 0 && !isLoadingMore && (
+          {messages.length === 0 && !isLoadingMore && !isLoadingHistory && (
             // The group chat view has had this since it was written; the P2P
             // one rendered an empty div, so the first conversation a new user
             // opens -- the product's core flow -- was a blank void that reads
