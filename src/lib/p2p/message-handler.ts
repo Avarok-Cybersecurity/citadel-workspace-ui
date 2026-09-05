@@ -21,6 +21,8 @@ import { debugLog } from '@/lib/debug-config';
 import { dispatchInboundCommand } from './inbound-command-dispatch';
 import { isCallSignalPayload } from '@/types/p2p-commands';
 import { eventEmitter } from '../event-emitter';
+import { consumeSendFailure } from './send-failure';
+import { peerMessageBytes } from './peer-message-bytes';
 
 import { isForThisSession } from '../sessions/notification-ownership';
 import { isPeerMessage, isMessageNotification, type MessageNotificationPayload , type MessageHandlerConfig } from './message-handler-types';
@@ -59,6 +61,8 @@ export class MessageHandler {
    * Handle WebSocket message response
    */
   public async handleWebSocketMessage(response: InternalServiceResponse): Promise<void> {
+    // The agent's only signal that a message did NOT go out; see p2p/send-failure.ts.
+    if (consumeSendFailure(response)) return;
     if (isMessageNotification(response)) {
       await this.handleMessageNotification(response);
       return;
@@ -67,13 +71,9 @@ export class MessageHandler {
     if (isPeerMessage(response)) {
       const { peer_cid, message } = response.PeerMessage;
       try {
-        let messageBytes: Uint8Array;
-        if (Array.isArray(message)) {
-          messageBytes = new Uint8Array(message);
-        } else if (message instanceof Uint8Array) {
-          messageBytes = message;
-        } else {
-          debugLog('P2PMessageHandler', 'Unexpected PeerMessage format (expected array or Uint8Array):', typeof message);
+        const messageBytes: Uint8Array | null = peerMessageBytes(message);
+        if (!messageBytes) {
+          debugLog('P2PMessageHandler', 'Unexpected PeerMessage format:', typeof message);
           return;
         }
         const command: P2PCommand = deserializeP2PCommand(messageBytes);

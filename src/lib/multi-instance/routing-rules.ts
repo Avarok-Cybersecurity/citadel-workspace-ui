@@ -51,6 +51,10 @@ export const CID_ROUTED_NOTIFICATIONS: Set<ResponseType> = new Set<ResponseType>
   // the sender's request -- so with two sessions in one browser, one session
   // would receive the other's group chat.
   'GroupMessageNotification',         // cid = recipient, request_id = sender's
+  // cid = the session whose send failed. Its request_id belongs to a transport
+  // frame, not to the request any tab issued, so request_id routing drops it --
+  // which is how the UI came to ignore send failures entirely.
+  'MessageSendFailure',
 ]);
 
 /**
