@@ -1,4 +1,4 @@
-import { debugLog } from './debug-config';
+import { debugLog, errorLog } from './debug-config';
 
 export type EventHandler<T = unknown> = (payload: T) => void;
 
@@ -14,7 +14,7 @@ export class TypedEventEmitter<T> {
       try {
         callback(event);
       } catch (error) {
-        debugLog('EventEmitter', 'Error in typed event handler:', error);
+        errorLog('EventEmitter', 'Error in typed event handler:', error);
       }
     });
   }
@@ -62,7 +62,19 @@ export class EventEmitter {
         try {
           handler(payload);
         } catch (error) {
-          debugLog('EventEmitter', `Error in event handler for ${event}:`, error);
+          // `errorLog`, not `debugLog`. vite.config.ts puts `debugLog` in
+          // esbuild's `pure` list, so in every production build the minifier
+          // dropped this call AND its argument -- an exception thrown by any
+          // of the ~156 event subscribers was caught, discarded, and left no
+          // trace anywhere. The remaining subscribers still ran, so the app
+          // was left half-updated: a message stored but not rendered, a group
+          // added but not counted, and nothing to find afterwards.
+          //
+          // That config's own comment gives the rule: "`errorLog` is
+          // deliberately NOT here: it logs in every build, because a render
+          // crash is the one error a user cannot report themselves." A
+          // swallowed subscriber exception is the same kind of error.
+          errorLog('EventEmitter', `Error in event handler for ${event}:`, error);
         }
       });
     }
