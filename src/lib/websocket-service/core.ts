@@ -12,7 +12,7 @@ import { instanceManager } from '../multi-instance/instance-manager';
 import * as connModule from '../connection';
 import type { SessionSecuritySettings } from '../security-utils';
 import type { WebSocketServiceConfig } from './types';
-import { resolveWebsocketUrl } from './resolve-url';
+import { resolveWebsocketUrl, readLoopbackAgentOrigin } from './resolve-url';
 import { createServiceModules, type ServiceModules } from './module-init';
 import { initService, waitForInit as waitForInitFn, resetService } from './initialization';
 import { sendRequest as sendRequestFn } from './send-request';
@@ -36,6 +36,7 @@ export class WebSocketServiceCore {
       config.websocketUrl,
       import.meta.env.VITE_WS_URL,
       typeof window !== 'undefined' ? window.location : undefined,
+      typeof document !== 'undefined' ? readLoopbackAgentOrigin(document) : undefined,
     );
 
     this.modules = createServiceModules(
