@@ -10,6 +10,7 @@ import type { P2PNotificationData } from '@/types/ws-message-types';
 import { eventEmitter } from '@/lib/event-emitter';
 import { PollingService } from '@/lib/utils/polling-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { getSelectedUser } from '@/lib/tab-context';
 import { debugLog } from '@/lib/debug-config';
 import type { BroadcastMessage, PendingRequest } from './types';
 import { CHANNEL_NAME, CLEANUP_INTERVAL_MS, REQUEST_EXPIRY_MS } from './types';
@@ -105,7 +106,7 @@ export class BroadcastChannelService extends PollingService {
             await handleWorkspaceResponse(message, this.isLeader, (rid, cid) => this.isResponseForThisCid(rid, cid));
             break;
           case 'state-sync':
-            handleStateSync(message);
+            await handleStateSync(message);
             break;
           case 'connection-status':
             handleConnectionStatus(message);
@@ -150,8 +151,18 @@ export class BroadcastChannelService extends PollingService {
     doBroadcastWorkspaceResponse(this.channel, this.tabId, this.isLeader, response);
   }
 
+  /**
+   * Broadcast state for THIS tab's session.
+   *
+   * The cid is resolved here rather than asked of every caller: the senders are hooks and
+   * services that already know which session they belong to implicitly, and a stamp that
+   * depends on remembering to pass it is a stamp that will be missed.
+   */
   public broadcastStateSync(data: unknown): void {
-    doBroadcastStateSync(this.channel, this.tabId, this.isLeader, data);
+    runAsyncSetup(async () => {
+      const selection = await getSelectedUser();
+      doBroadcastStateSync(this.channel, this.tabId, this.isLeader, data, selection?.selectedCid);
+    });
   }
 
   public broadcastConnectionStatus(status: { isConnected: boolean; cid?: bigint }): void {
