@@ -6,6 +6,7 @@
  */
 
 import type { CallManagerInternals } from './call-manager-internals';
+import { stillInCall } from './participant-presence';
 import type { CallState } from '@/lib/call/call-state';
 import { nextOpenAttempt, type OpenRetryDecision } from './open-session-retry';
 
@@ -65,7 +66,26 @@ async function openSessionOnce(m: CallManagerInternals, cid: bigint): Promise<vo
       // Closed here rather than just dropped: the service opened it, so
       // somebody has to tell it not to keep it.
       const current: CallState | null = m.getState();
-      if (!current || current.status === 'ended' || current.status === 'failed') {
+      const stillHere: boolean = (() => {
+        const p = current?.participants.get(cid);
+        return p !== undefined && stillInCall(p);
+      })();
+      // The PARTICIPANT is re-read here, not just the call.
+      //
+      // The failure path below already does this (`state.participants.has(cid)`
+      // before retrying). The success path checked only the call's status, so a
+      // peer who left WHILE their open was in flight came back: teardown could
+      // not cancel it, because `closeSessionFor` returns early on
+      // `!openSessions.delete(cid)` and this peer is not in `openSessions`
+      // until the line below. The open then confirmed and `peer-connected`
+      // marked them active again.
+      //
+      // What that costs: a ghost tile with released decoders, a media session
+      // held open on the service forever, `sendFrame` still encoding to
+      // somebody who left -- and, because `anyoneActive` is true for the
+      // ghost, the call never reaches 'ended'. Camera light on, duration
+      // ticking, nobody there.
+      if (!current || current.status === 'ended' || current.status === 'failed' || !stillHere) {
         await m.transport.closeSession(cid).catch(() => undefined);
         return;
       }
