@@ -21,6 +21,8 @@
  */
 import { connectionManager } from '@/lib/connection';
 import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
+import { startMessagingForSession } from '@/lib/start-messaging';
+import { eventEmitter } from '@/lib/event-emitter';
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser } from '@/lib/tab-context';
 import { instanceManager, instanceChannel } from '@/lib/multi-instance';
@@ -82,6 +84,22 @@ async function adoptSession(session: ActiveSession): Promise<void> {
   instanceChannel.announcePresence();
 
   await postAuthSetup(session.cid);
+
+  // The two steps this function's own doc claims it already takes.
+  //
+  // It says it "mirrors the orphan-claim path in `useOrphanSessions` step for
+  // step". It did not: that path also starts messaging and emits
+  // `session:activated`, which is the sole trigger for
+  // session-startup-sequence. Without them the adopted session has the
+  // previous account's ILM handle and no P2P channels, while `postAuthSetup`
+  // loads the tree and members so everything looks right.
+  await startMessagingForSession(session.cid.toString());
+  eventEmitter.emit('session:activated', {
+    cid: session.cid.toString(),
+    username: session.username,
+    serverAddress: session.server_address,
+    activationType: 'claim' as const,
+  });
 }
 
 export async function connectToServer(serverAddress: string): Promise<ConnectOutcome> {

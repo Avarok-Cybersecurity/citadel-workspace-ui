@@ -10,6 +10,8 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { connectionManager } from "@/lib/connection";
 import { ConnectionService } from "@/lib/connection-service";
 import { postAuthSetup } from '@/lib/post-auth-setup';
+import { startMessagingForSession } from '@/lib/start-messaging';
+import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess, toastError } from "@/lib/toast-helpers";
 import { getSelectedUser, setSelectedUser , type TabUserContext } from "@/lib/tab-context";
@@ -146,6 +148,26 @@ export function useWorkspaceSwitcher(workspaceName?: string): UseWorkspaceSwitch
       });
 
       await postAuthSetup(targetSession.cid);
+
+      // The two steps that actually activate the session, which this path did
+      // not take. `postAuthSetup` loads the workspace tree, offices and
+      // members -- so the switch LOOKED healthy while the ILM messenger handle
+      // was still open for the previous account and no P2P channels existed
+      // for this one. Outbound messages blocked on ACKs nobody would send,
+      // nothing inbound arrived, and the toast said "Connected!".
+      //
+      // `session:activated` is the sole trigger for session-startup-sequence:
+      // resetConnectionState, startMessagingForSession, the P2P registration
+      // service, connectToAllRegisteredPeers, and session:startup-complete.
+      // Four other call sites emit it; the sidebar switcher was the omission,
+      // and it is the most common multi-account action in the product.
+      await startMessagingForSession(targetSession.cid.toString());
+      eventEmitter.emit('session:activated', {
+        cid: targetSession.cid.toString(),
+        username: workspace.username,
+        serverAddress: workspace.serverAddress,
+        activationType: 'claim' as const
+      });
 
       toastSuccess(toast, "Connected!", (
         <div className="flex items-center gap-2">
