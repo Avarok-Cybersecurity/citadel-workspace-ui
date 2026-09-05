@@ -81,6 +81,40 @@ describe('toGroupEvents', () => {
     expect(events.map((e) => e.payload.memberCid)).toEqual([9n, 11n]);
   });
 
+  it('does NOT remove you when the leave was refused', () => {
+    // `GroupLeaveNotification` carries `success` and `message` and both were
+    // dropped, so a refused leave removed you from your own member list:
+    // group-membership-events filters you out, use-group-permissions finds no
+    // role, and the page renders "You are not listed as a member of this group
+    // yet" for a group you are still in. group-store persists it, so it
+    // survives a reload.
+    const events: GroupEvent[] = toGroupEvents(
+      { GroupLeaveNotification: { cid: 7n, group_key: KEY, success: false, message: 'not permitted' } },
+      SELF, 'alice', peerName,
+    );
+
+    expect(
+      events.some((e) => e.name === 'group:member-left'),
+      'a refused leave still removed the member',
+    ).toBe(false);
+    expect(events[0]?.name).toBe('group:failed');
+    expect(
+      (events[0]?.payload as { message: string }).message,
+      'the server said why and it was discarded',
+    ).toBe('not permitted');
+  });
+
+  it('still removes you when the leave succeeded', () => {
+    // The control. Without it the fix could drop every leave notification and
+    // no assertion about refusals would notice.
+    const events: GroupEvent[] = toGroupEvents(
+      { GroupLeaveNotification: { cid: 7n, group_key: KEY, success: true } },
+      SELF, 'alice', peerName,
+    );
+
+    expect(events[0]?.name).toBe('group:member-left');
+  });
+
   it('maps GroupEndNotification to group:deleted', () => {
     const events: GroupEvent[] = toGroupEvents({ GroupEndNotification: { cid: 7n, group_key: KEY, success: true } }, SELF, 'alice', peerName);
 

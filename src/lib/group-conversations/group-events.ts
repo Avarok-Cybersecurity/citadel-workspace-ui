@@ -156,6 +156,30 @@ export function toGroupEvents(
     // one therefore removed whoever happened to be member zero.
     const cid: bigint | null = toCid(left.cid);
     if (cid === null) return [];
+    // Gated on `success`, like GroupEndNotification below -- whose comment
+    // describes this exact bug one variant over.
+    //
+    // `GroupLeaveNotification` carries `success: bool` and `message: String`
+    // and both were dropped, so a REFUSED leave still removed you from your
+    // own member list. `group-membership-events` filters you out of
+    // `group.members`, `use-group-permissions` then finds no role and sets
+    // `sendMessages: false`, and the page renders "You are not listed as a
+    // member of this group yet" -- for a group you are still a full member of.
+    // `group-store` persists it, so it survives a reload, and there is no way
+    // back short of clearing IndexedDB.
+    //
+    // The server's reason is surfaced rather than discarded: a refusal the
+    // user cannot see is the reason this looked like a UI bug.
+    if (left.success === false) {
+      return [{
+        name: 'group:failed',
+        payload: {
+          operation: 'Leave',
+          message: typeof left.message === 'string' ? left.message : '',
+          requestId: undefined,
+        },
+      }];
+    }
     return [{
       name: 'group:member-left',
       payload: {
