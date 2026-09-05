@@ -64,3 +64,42 @@ export function agentPlatformCandidates(nav: Navigator = navigator): AgentPlatfo
 export function agentDownloadUrl(platform: AgentPlatform): string {
   return `https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest/download/${AGENT_ASSETS[platform]}`;
 }
+
+/** What the hosted page knows that the command needs. */
+export interface RunCommandInputs {
+  platform: AgentPlatform;
+  /** The page's own origin: the one page this agent should let drive it. */
+  pageOrigin: string;
+  /** The published loopback origin (`wss://local.example.com:12345`), or none. */
+  loopbackOrigin: string | undefined;
+}
+
+/**
+ * The exact command to start the agent for THIS page.
+ *
+ * Three things a visitor could not have guessed: the binary in the archive is `citadel-agent`
+ * (the release workflow names it so; a test here checks that against the workflow), the agent
+ * refuses to start without `--allowed-origins`, and a page served from elsewhere needs the
+ * loopback name and where to fetch its certificate. Every one of them is derivable from the
+ * page, so the page says them. A copy button that yields something unrunnable is worse than
+ * none: it looks like the instruction, so the reader stops looking for the real one.
+ */
+export function agentRunCommand({ platform, pageOrigin, loopbackOrigin }: RunCommandInputs): string {
+  const binary: string = platform === 'windows-x64' ? '.\\citadel-agent.exe' : './citadel-agent';
+  const parts: string[] = [
+    binary,
+    '--bind 127.0.0.1:12345',
+    '--backend filesystem',
+    `--allowed-origins ${pageOrigin}`,
+  ];
+  if (loopbackOrigin) {
+    let host: string | undefined;
+    try {
+      host = new URL(loopbackOrigin).hostname;
+    } catch {
+      host = undefined;
+    }
+    if (host) parts.push(`--loopback-host ${host}`, `--loopback-cert-url ${pageOrigin}/agent`);
+  }
+  return parts.join(' ');
+}
