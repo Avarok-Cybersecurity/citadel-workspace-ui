@@ -27,7 +27,12 @@ vi.mock('../message-page-operations', () => ({
     peakInFlight = Math.max(peakInFlight, inFlight);
     await new Promise((r) => setTimeout(r, 10));
     inFlight -= 1;
-    return { peerCid: key.replace(/\D/g, ''), messageCount: 1 };
+    // bigint, because that is what `ConversationMetadata.peerCid` is.
+    // Returning a string here made the fixture disagree with the type it
+    // stands in for, and the assertion below then had to cast the result to
+    // `{ peerCid: string }` to compile -- a cast that made the test agree with
+    // the fixture rather than with production.
+    return { peerCid: BigInt(key.replace(/\D/g, '')), messageCount: 1 };
   },
 }));
 vi.mock('@/lib/multi-instance', () => ({ instanceManager: { cid: null } }));
@@ -56,8 +61,11 @@ describe('boot loads conversations in parallel', () => {
   it('returns every conversation, in key order', async () => {
     const result = await loadAllMetadata();
     expect(result).toHaveLength(keys.length);
-    expect(result.map((m) => (m as { peerCid: string }).peerCid)).toEqual(
-      keys.map((k) => k.replace(/\D/g, '')),
+    // Compared as bigint. `peerCid` IS a bigint -- CLAUDE.md's CID rule is
+    // that string is for display, keys and logging only -- so casting it to
+    // `{ peerCid: string }` was a lie tsc rightly refused.
+    expect(result.map((m) => m.peerCid)).toEqual(
+      keys.map((k) => BigInt(k.replace(/\D/g, ''))),
     );
   });
 
