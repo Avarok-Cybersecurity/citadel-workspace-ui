@@ -42,4 +42,29 @@ describe('production logging', () => {
     expect(source).toMatch(/isDev\s*\?/);
     expect(source).toContain('noop');
   });
+
+  it('does not swallow subscriber exceptions into a stripped call', () => {
+    // event-emitter's catch used `debugLog`, which is on the pure list above --
+    // so in every production build the minifier dropped the call and its
+    // argument, and an exception thrown by any of the ~156 event subscribers
+    // vanished. The remaining subscribers still ran, leaving the app
+    // half-updated with nothing to find afterwards.
+    //
+    // Asserted on the source rather than the built bundle because the pure
+    // list is what does the dropping, and it is already read above.
+    const emitter: string = stripComments(
+      readFileSync(join(process.cwd(), 'src/lib/event-emitter.ts'), 'utf8'),
+    );
+    // Anchored on the log line itself: a `catch { ... }` body cannot be matched
+    // with a naive brace regex here, because the message is a template literal
+    // containing `${event}`.
+    const caught: string =
+      emitter.split('\n').find((l) => l.includes('Error in event handler')) ?? '';
+    expect(caught, 'the handler-error log line in event-emitter.ts is gone').not.toBe('');
+    expect(
+      caught,
+      'a subscriber exception is logged with a call the production minifier removes',
+    ).not.toContain('debugLog(');
+    expect(caught).toContain('errorLog(');
+  });
 });
