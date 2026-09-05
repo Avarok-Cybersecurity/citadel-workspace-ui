@@ -114,10 +114,29 @@ class InstanceInboundRouter {
 
   // ── Routing ──────────────────────────────────────────────────────────
 
-  routeMessage(message: Record<string, unknown>): void {
+  /**
+   * Route one inbound message, and report whether it was DELIVERED — that is,
+   * whether every tab entitled to this message has now been handed it.
+   *
+   * The caller needs that answer because there is a second delivery path
+   * (`broadcastChannelService.broadcastWorkspaceResponse`) that used to run
+   * alongside this one, suppressed only for the types listed in
+   * `CID_ROUTED_NOTIFICATIONS`. That list was written for a different purpose —
+   * stopping request_id routing — and every message that routes by CID without
+   * being on it therefore reached the owning tab TWICE: once forwarded here,
+   * once broadcast. All seven group notifications are built with
+   * `request_id: None` and a recipient `cid`, so every group invite, join
+   * request, member-state change, leave, end and disconnect was delivered
+   * twice, and so was `DisconnectNotification` (broadcast here, then broadcast
+   * again). A duplicated invite is a duplicated auto-accept.
+   *
+   * Answering from what actually happened, rather than from a hand-kept list of
+   * types someone remembered to add, is what stops that list drifting again.
+   */
+  routeMessage(message: Record<string, unknown>): boolean {
     if (!this.isActive) {
       debugLog('InstanceInboundRouter', '[ILM-Router] routeMessage called but not leader');
-      return;
+      return false;
     }
 
     const messageType: ReturnType<typeof getMessageType> = getMessageType(message);
@@ -129,24 +148,27 @@ class InstanceInboundRouter {
     if (shouldBroadcast(messageType)) {
       debugLog('InstanceInboundRouter', `[ILM-Router] Broadcasting ${messageType}`);
       this.broadcastToAll(message);
-      return;
+      return true; // Every tab already has it.
     }
 
     if (requestId) {
       const routed: boolean = routeByRequestId({ pendingRequestMap: this.pendingRequestMap, processLocalMessage: (m) => this.processLocalMessage(m) }, message, messageType, requestId);
-      if (routed) return;
+      if (routed) return true;
     }
 
-    this.routeByCid(message, messageType);
+    return this.routeByCid(message, messageType);
   }
 
-  private routeByCid(message: Record<string, unknown>, messageType: string): void {
+  /** Returns whether the message reached the instance that owns its CID. */
+  private routeByCid(message: Record<string, unknown>, messageType: string): boolean {
     const targetCid: string | null = extractTargetCid(message);
     debugLog('InstanceInboundRouter', `[ILM-Router] Routing ${messageType} (CID: ${targetCid || 'none'})`);
 
     if (!targetCid) {
+      // Nobody can own it, so the leader takes it and the legacy broadcast
+      // stays the only way a follower could ever see it. Not delivered.
       this.processLocalMessage(message);
-      return;
+      return false;
     }
 
     const targetInstance: string | null = instanceManager.findInstanceByCid(BigInt(targetCid));
@@ -178,12 +200,13 @@ class InstanceInboundRouter {
           this.processLocalMessage(message);
         }
       }
+      return true; // The instance that owns this CID has it.
     } else {
       if (messageType === 'ConnectSuccess' || messageType === 'RegisterSuccess') {
         debugLog('InstanceInboundRouter', `[ILM-Router] Registering CID ${targetCid} for self (leader's own connection)`);
         instanceManager.registerInstance(instanceManager.instanceId, BigInt(targetCid));
         this.processLocalMessage(message);
-        return;
+        return true;
       }
       const knownInstances: InstanceInfo[] = instanceManager.getAllInstances();
       debugLog('InstanceInboundRouter', `[ILM-Router] No instance owns CID ${targetCid}, message may be lost`);
@@ -199,10 +222,14 @@ class InstanceInboundRouter {
         // pipeline already knows how to recover from.
         debugLog('InstanceInboundRouter', `[ILM-Router] Dropping ${messageType} for unowned CID ${targetCid}`);
         instanceChannel.requestCidReport();
-        return;
+        return true; // Deliberately dropped, not awaiting a second path.
       }
       this.orphanBuffer.push(targetCid, message, messageType);
       instanceChannel.requestCidReport();
+      // Buffered, not delivered: no instance owns this CID yet. The legacy
+      // broadcast remains as the second chance it has always been, and the
+      // receiving tab's own CID filter decides whether to keep it.
+      return false;
     }
   }
 

@@ -21,7 +21,7 @@ import {
   leaderOutboundHandler,
   instanceInboundRouter
 } from '../multi-instance';
-import { CID_ROUTED_NOTIFICATIONS } from '../multi-instance/routing-rules';
+
 import { INTERVAL } from '../timeout-constants';
 
 // Global state key for preventing multiple WASM client initializations
@@ -168,8 +168,9 @@ export class WebSocketInitialization {
         const message: InternalServiceResponse = rawMessage;
         debugLog('WebSocketInit', 'Message received from WASM client', message);
 
+        let deliveredByRouter: boolean = false;
         if (instanceManager.isLeader) {
-          instanceInboundRouter.routeMessage(message);
+          deliveredByRouter = instanceInboundRouter.routeMessage(message);
         } else {
           // Drop, do not emit: emitting bypasses the router's CID filtering,
           // so another session's traffic lands in this tab's bus.
@@ -178,15 +179,23 @@ export class WebSocketInitialization {
         }
 
         if (broadcastChannelService.getIsLeader()) {
-          const messageType: ResponseType | undefined = Object.keys(message)[0] as ResponseType | undefined;
-          // CID-routed notifications already flow through the inbound router's
-          // CID path; broadcasting them again here would cause duplicate
-          // delivery on the receiving tab. Single source of truth in
-          // routing-rules.ts.
-          if (!messageType || !CID_ROUTED_NOTIFICATIONS.has(messageType)) {
+          // Broadcast only what the router did NOT deliver. This gate used to
+          // ask whether the type was in `CID_ROUTED_NOTIFICATIONS` — a list
+          // written to stop request_id routing, borrowed here for a different
+          // question. Anything that routes by CID without being on that list
+          // was delivered twice: forwarded by the router, then broadcast
+          // again. That is every group notification (all seven are built with
+          // `request_id: None` and a recipient `cid`) and
+          // `DisconnectNotification`, which the router already broadcasts.
+          // A duplicated invite is a duplicated auto-accept.
+          //
+          // Asking the router what it actually did cannot drift the way a
+          // hand-kept list of type names does.
+          if (!deliveredByRouter) {
             broadcastChannelService.broadcastWorkspaceResponse(message);
           } else {
-            debugLog('WebSocketInit', `Skipping legacy broadcast for CID-routed ${messageType} (handled by instanceInboundRouter)`);
+            const messageType: ResponseType | undefined = Object.keys(message)[0] as ResponseType | undefined;
+            debugLog('WebSocketInit', `Skipping legacy broadcast for ${messageType ?? 'message'} (delivered by instanceInboundRouter)`);
           }
         }
 
