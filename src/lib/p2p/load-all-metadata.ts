@@ -22,6 +22,38 @@ import { isGenuinelyAbsent } from '@/lib/storage/absence';
 import { PAGINATED_PREFIX, type ConversationMetadata } from './p2p-types';
 import { debugLog } from '@/lib/debug-config';
 
+/**
+ * How many conversation reads may be in flight at once.
+ *
+ * One socket carries them all, so this is a queue depth rather than parallelism: high enough
+ * that latency stops dominating boot, low enough that a device with hundreds of conversations
+ * does not hand the agent a burst it will serialise anyway.
+ */
+const METADATA_READ_CONCURRENCY = 8;
+
+/** Map with a bounded number of concurrent workers, preserving input order in the output. */
+async function mapWithConcurrency<In, Out>(
+  items: In[],
+  limit: number,
+  work: (item: In) => Promise<Out>,
+): Promise<Out[]> {
+  const out: Out[] = new Array<Out>(items.length);
+  let next = 0;
+  const workers: Array<Promise<void>> = [];
+  for (let w = 0; w < Math.min(limit, items.length); w++) {
+    workers.push(
+      (async (): Promise<void> => {
+        while (next < items.length) {
+          const index: number = next++;
+          out[index] = await work(items[index]);
+        }
+      })(),
+    );
+  }
+  await Promise.all(workers);
+  return out;
+}
+
 export async function loadAllMetadata(): Promise<ConversationMetadata[]> {
     const results: ConversationMetadata[] = [];
 
@@ -50,22 +82,41 @@ export async function loadAllMetadata(): Promise<ConversationMetadata[]> {
       // unsafe.
       const own: bigint | null = instanceManager.cid;
 
-      for (const key of metadataKeys) {
-        try {
-          const metadata: ConversationMetadata | null = await loadMetadataByKey(key);
-          if (metadata) {
-            const belongsToAnother: boolean =
-              own !== null && metadata.ownerCid !== undefined && metadata.ownerCid !== own;
-            if (belongsToAnother) {
-              debugLog('MessagePaginationStore', `[P2P] Skipping ${key}: another account's conversation`);
-            } else {
-              results.push(metadata);
-            }
+      // Read the conversations CONCURRENTLY.
+      //
+      // Each `loadMetadataByKey` is a round trip to the agent -- and on a follower tab, a
+      // BroadcastChannel hop to the leader and back on top of that -- so awaiting them one at
+      // a time made boot cost N round trips in series. This is on the path to a usable
+      // workspace: with twenty conversations it was twenty latencies a person waits through,
+      // for data whose parts have no ordering between them.
+      //
+      // Bounded rather than a bare Promise.all over every key: one socket carries them all, so
+      // firing hundreds at once would move the queue rather than remove it. Order is preserved,
+      // so the result is identical to the serial version, key for key.
+      const loaded: Array<ConversationMetadata | null> = await mapWithConcurrency(
+        metadataKeys,
+        METADATA_READ_CONCURRENCY,
+        async (key: string): Promise<ConversationMetadata | null> => {
+          try {
+            return await loadMetadataByKey(key);
+          } catch (e) {
+            debugLog('MessagePaginationStore', `Failed to load metadata for key ${key}:`, e);
+            return null;
           }
-        } catch (e) {
-          debugLog('MessagePaginationStore', `Failed to load metadata for key ${key}:`, e);
+        },
+      );
+
+      metadataKeys.forEach((key: string, index: number) => {
+        const metadata: ConversationMetadata | null = loaded[index] ?? null;
+        if (!metadata) return;
+        const belongsToAnother: boolean =
+          own !== null && metadata.ownerCid !== undefined && metadata.ownerCid !== own;
+        if (belongsToAnother) {
+          debugLog('MessagePaginationStore', `[P2P] Skipping ${key}: another account's conversation`);
+        } else {
+          results.push(metadata);
         }
-      }
+      });
 
       debugLog('MessagePaginationStore', `[P2P] Loaded ${results.length} conversation(s) from paginated storage`);
     } catch (error) {
