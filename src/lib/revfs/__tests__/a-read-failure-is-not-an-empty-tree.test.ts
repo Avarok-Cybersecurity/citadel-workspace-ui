@@ -23,7 +23,10 @@ const BOB = 2n;
 /** An IO stub whose load-tree answer is whatever the test says it is. */
 function ioReturning(loadResult: RevfsIntentResult) {
   const persisted: RevfsIntent[] = [];
-  const execute = vi.fn(async (intent: RevfsIntent): Promise<RevfsIntentResult> => {
+  // Synchronous: `IntentHandler` is `(intent) => RevfsIntentResult`, not a
+  // promise-returning one. vitest awaits either, so an async mock ran fine and
+  // only `tsc` caught it.
+  const execute = vi.fn((intent: RevfsIntent): RevfsIntentResult => {
     if (intent.type === 'load-tree') return loadResult;
     persisted.push(intent);
     if (intent.type === 'persist-tree') return { type: 'persist-tree', success: true };
