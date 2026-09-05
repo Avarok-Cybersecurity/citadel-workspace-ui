@@ -17,6 +17,7 @@
  */
 
 import type { Page, Browser, Locator } from 'playwright';
+import { waitForAdminRole } from '../lib/admin-role.js';
 import {
   sleep,
   createBrowser,
@@ -472,11 +473,9 @@ async function runTest(): Promise<boolean> {
     // TopBar puts `title="Workspace Administrator"` on the avatar button when
     // the user's role is Admin or Owner, and that is on screen from the moment
     // the workspace loads.
-    results.isAdmin = await isVisibleWithin(
-      page.locator('[data-testid="user-avatar-button"][title="Workspace Administrator"]'),
-      10_000
-    );
-    console.log(`  Admin status: ${results.isAdmin ? 'PASS' : 'FAIL'}`);
+    // See waitForAdminRole for why this is not a 10s wall: the role trails the
+    // workspace load, and two different failures used to share one FAIL.
+    results.isAdmin = await waitForAdminRole(page);
 
     // ========================================================================
     // STEP 2: Get Initial Tree Structure (Verify Workspace Root)

@@ -33,6 +33,7 @@ import {
 } from '../lib/index.js';
 
 import type { Page, Browser } from 'playwright';
+import { waitForAdminRole } from '../lib/admin-role.js';
 import { isVisibleWithin, isHiddenWithin } from '../lib/index.js';
 
 // ============================================================================
@@ -507,12 +508,9 @@ async function runTest(): Promise<boolean> {
     results.workspaceLoaded = await waitForWorkspaceLoaded(adminPage);
     await takeScreenshot(adminPage, `${ADMIN_USER}_admin_ready`);
 
-    // AdminSettingsSection renders nothing at all unless state.currentUser.role is
-    // Admin, and "ADMIN SETTINGS" is its group label — so its presence is a real
-    // signal, unlike a bare "Admin" text match which also hits the role badge.
-    const adminIndicator = adminPage.getByText('ADMIN SETTINGS').first();
-    results.isAdmin = await isVisibleWithin(adminIndicator, 10000);
-    console.log(`  Admin status: ${results.isAdmin}`);
+    // See waitForAdminRole for why this is not a 10s wall: the role trails the
+    // workspace load, and two different failures used to share one FAIL.
+    results.isAdmin = await waitForAdminRole(adminPage);
 
     // ========================================================================
     // STEP 2: Create Office (Admin Only)

@@ -6,6 +6,7 @@ import type { Page } from 'playwright';
 import type { CreateAccountOptions } from './types.js';
 import { config } from './config.js';
 import { closeAnyModals, waitForWorkspaceLoaded } from './modals.js';
+import { waitForRegistrationToSettle } from './post-registration.js';
 import { takeScreenshot } from './screenshots.js';
 import { clearBrowserStorage, waitForAppReady } from './browser.js';
 import { isVisibleWithin } from './utils.js';
@@ -143,11 +144,19 @@ export async function createAccount(page: Page, username: string, options: Creat
     // first user whose modal had not rendered yet would silently skip
     // initialisation and end up a NON-ADMIN, which then surfaces much later as
     // "Permission denied: EditTreeStructure required" on the first create.
+    // Every branch below logs. This block used to be silent, so a run that
+    // ended on the landing page with a live session chip could not say whether
+    // the modal never rendered, the submit button was missing, or the server
+    // refused the password -- three different defects with one symptom, and
+    // closeAnyModals() then pressed Cancel on whatever was left, discarding the
+    // admin without a trace.
+    const modalWait = Date.now();
     const modalAppeared = await passwordField
       .waitFor({ state: 'visible', timeout: 10_000 })
       .then(() => true)
       .catch(() => false);
     if (modalAppeared) {
+      console.log(`  Initialize Workspace modal appeared after ${Date.now() - modalWait}ms`);
       await passwordField.fill(config.WORKSPACE_PASSWORD);
 
       const initBtn = page.getByTestId('init-modal-submit');
@@ -155,10 +164,21 @@ export async function createAccount(page: Page, username: string, options: Creat
         await initBtn.click();
         // Wait for the modal to actually close rather than a flat 5s — that is
         // the signal that the server accepted the initialisation.
-        await passwordField.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {
-          // Still open: waitForWorkspaceLoaded below surfaces it properly.
-        });
+        const closeWait = Date.now();
+        const closed = await passwordField
+          .waitFor({ state: 'hidden', timeout: 30_000 })
+          .then(() => true)
+          .catch(() => false);
+        console.log(
+          closed
+            ? `  Initialize Workspace modal closed after ${Date.now() - closeWait}ms (server accepted)`
+            : '  Initialize Workspace modal STILL OPEN after 30s — server did not accept the master password'
+        );
+      } else {
+        console.log('  Initialize Workspace modal has no visible submit button (init-modal-submit)');
       }
+    } else {
+      console.log('  Initialize Workspace modal did not appear within 10s of registration');
     }
   }
 
@@ -172,6 +192,8 @@ export async function createAccount(page: Page, username: string, options: Creat
   // The watcher for that rejection is armed before the submit click above, not
   // here: closeAnyModals presses Escape, which dismisses Sonner toasts, and the
   // 30s post-submit race outlives the toast entirely.
+
+  await waitForRegistrationToSettle(page);
 
   await closeAnyModals(page);
 
