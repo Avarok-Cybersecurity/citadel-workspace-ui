@@ -40,10 +40,18 @@ export async function loadDocumentFromDB(docId: string): Promise<StoredDocument 
     if (isGenuinelyAbsent(error)) {
       debugLog('LiveDocumentStore', 'No stored document', docId);
     } else {
-      // `null` is read upstream as "this document does not exist", which is a
-      // fine answer for an absent key and a wrong one for a read that failed.
-      debugLog('LiveDocumentStore', 'COULD NOT READ document; reporting it as ' +
-        'missing, which it may not be:', docId, error);
+      // Rethrown, as `deleteDocumentFromDB` below already does with the same
+      // predicate. This branch used to log and fall through to `return null`,
+      // and its own comment said why that was wrong: null is read upstream as
+      // "this document does not exist", which is a fine answer for an absent
+      // key and a wrong one for a read that failed.
+      //
+      // `adoptDocument` acts on that null by writing a fresh revision-0
+      // document over the top. So a routine 5s LocalDB timeout replaced a real
+      // document with an empty one, permanently, and reported nothing. The
+      // correct form was fifty lines below in this same file.
+      debugLog('LiveDocumentStore', 'COULD NOT READ document:', docId, error);
+      throw error;
     }
   }
 

@@ -54,9 +54,18 @@ export class LiveDocumentStore {
     try {
       const index: string[] = await loadIndexFromDB();
       for (const docId of index) {
-        const doc: StoredDocument | null = await loadDocumentFromDB(docId);
-        if (doc) {
-          this.documentsCache.set(docId, doc);
+        // Per-document, so one unreadable document does not abandon the rest.
+        // `loadDocumentFromDB` now throws on a read failure rather than
+        // reporting the document absent; without this the first timeout would
+        // stop the whole cache load, which is a regression on the old
+        // swallow-everything behaviour rather than a fix.
+        try {
+          const doc: StoredDocument | null = await loadDocumentFromDB(docId);
+          if (doc) {
+            this.documentsCache.set(docId, doc);
+          }
+        } catch (error) {
+          debugLog('LiveDocumentStore', 'Skipping unreadable document', docId, error);
         }
       }
     } catch (error) {
