@@ -50,6 +50,9 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     MediaGapNotification: { cid: targetCid, peer_cid: senderCid, track: 1, missing_from: 4, missing_to: 6, request_id: null },
     // The generated binding: { cid, peer_cid, message, group_key, request_id }.
     GroupMessageNotification: { cid: targetCid, peer_cid: senderCid, message: [1, 2, 3], group_key: { cid: senderCid, mgid: '42' }, request_id: 'r7' },
+    // No peer_cid on this one: the agent's failure answer carries the sender's
+    // own cid, a reason, and a transport-frame request_id.
+    MessageSendFailure: { cid: targetCid, message: 'Peer connection for 42 not found', request_id: 'r9' },
   };
 
   it('has a test fixture for every CID-routed notification type', () => {
@@ -79,6 +82,7 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
         'MediaFrameNotification',
         'MediaGapNotification',
         'MessageNotification',
+        'MessageSendFailure',
         'PeerConnectNotification',
         'PeerRegisterNotification',
       ].sort(),
