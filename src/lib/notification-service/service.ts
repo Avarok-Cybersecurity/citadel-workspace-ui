@@ -33,8 +33,29 @@ export class NotificationService {
   }
 
   public addNotification(notification: Omit<Notification, 'id' | 'timestamp' | 'read'>): Notification {
+    // A redelivered message replaces its entry rather than adding a second.
+    //
+    // The map is keyed by a fresh `uuidv4()`, so two calls carrying the SAME
+    // `sourceId` produced two bell entries for one message. ILM redelivers on
+    // reconnect and on a missed ACK, so a flaky link showed the same message
+    // two, three, four times.
+    //
+    // A test asserted this could not happen -- "keys a redelivered message to
+    // the same id, so it cannot stack" -- by checking the ARGUMENT passed to a
+    // wholly mocked `addMessageNotification`. It never reached this method, so
+    // it certified a guarantee the product did not have.
+    //
+    // `sourceId` is optional: peer-registration uses the request id, messages
+    // use the message id, and anything without one keeps the old behaviour of
+    // always adding.
+    const existingId: string | undefined = notification.sourceId
+      ? [...this.notifications.values()].find(
+          (n: Notification) => n.sourceId === notification.sourceId && n.type === notification.type,
+        )?.id
+      : undefined;
+
     const fullNotification: Notification = {
-      ...notification, id: uuidv4(), timestamp: Date.now(), read: false
+      ...notification, id: existingId ?? uuidv4(), timestamp: Date.now(), read: false
     };
     this.notifications.set(fullNotification.id, fullNotification);
     this.notifyHandlers(fullNotification);
