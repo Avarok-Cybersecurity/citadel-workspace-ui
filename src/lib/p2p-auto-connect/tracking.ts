@@ -64,6 +64,27 @@ export class P2PConnectionState extends ConnectedPeersState {
   }
 
   setConnectionAttempt(peerCid: bigint, attempt: ConnectionAttempt): void {
+    // Clear the timer being replaced.
+    //
+    // `connectToPeer` schedules a retry and stores it here, but it calls
+    // `removePendingConnection` FIRST -- so the `hasPendingConnection` guard
+    // that is supposed to stop a second attempt is already open by the time
+    // the 30s poll comes round again. The poll re-enters, schedules another
+    // retry, and this overwrote the handle without cancelling it. Every cycle
+    // started a chain that never ended.
+    //
+    // With 15 offline peers and a tab open an hour that is ~1,800 live timers,
+    // each firing a `connectToPeer` that reads the current CID from IndexedDB
+    // and, when the 10s status cache is stale, opens a real P2P connection to
+    // an offline peer against the SDK's 30s timeout.
+    //
+    // `deleteConnectionAttempt` below already clears correctly, but it is only
+    // reached from `cancelRetry` on success -- the path an offline peer never
+    // takes.
+    const existing: ConnectionAttempt | undefined = this.connectionAttempts.get(peerCid);
+    if (existing?.timeout && existing.timeout !== attempt.timeout) {
+      clearTimeout(existing.timeout);
+    }
     this.connectionAttempts.set(peerCid, attempt);
   }
 
