@@ -67,14 +67,21 @@ export function broadcastStateSync(
   channel: BroadcastChannel | null,
   tabId: string,
   isLeader: boolean,
-  data: unknown
+  data: unknown,
+  /**
+   * The session this state belongs to. Without it every tab applies the leader's workspace,
+   * including a tab signed in as somebody else — see handleStateSync. Optional so a sender
+   * that genuinely has no session yet still broadcasts.
+   */
+  targetCid?: bigint,
 ): void {
   const message: BroadcastMessage = {
     type: 'state-sync',
     data,
     timestamp: Date.now(),
     tabId,
-    isLeader
+    isLeader,
+    targetCid,
   };
   broadcast(channel, message);
 }

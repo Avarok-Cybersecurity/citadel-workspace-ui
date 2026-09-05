@@ -82,7 +82,35 @@ export function handleRegisterRequest(
   }
 }
 
-export function handleStateSync(message: BroadcastMessage): void {
+/**
+ * Apply a leader tab's state to this tab — but only if it is this tab's session.
+ *
+ * The four handlers above gate on the payload's own cid; this one did not, and its payload
+ * carries none. The leader broadcasts `{ type: 'workspace', data: { workspace, loading,
+ * needsWorkspaceInitialization } }` and every tab applied it, including a tab signed in as
+ * somebody else. That is not a hypothetical arrangement: one browser, one WebSocket, several
+ * sessions in several tabs is how this product is used and how it is tested.
+ *
+ * What went wrong when it happened before is recorded in the metadata type: a workspace object
+ * assigned over another session's erased `initialized`, and a modal backdrop then blocked the
+ * whole app with nothing on screen to explain it.
+ *
+ * `targetCid` already exists on the envelope and `handleWorkspaceResponse` already honours it;
+ * state-sync simply never set or read it. A message with no `targetCid` is still applied, so a
+ * sender that cannot name a session (an early boot broadcast) keeps working as before.
+ */
+export async function handleStateSync(message: BroadcastMessage): Promise<void> {
+  if (message.targetCid !== undefined) {
+    const tabSelection: TabUserContext | null = await getSelectedUser();
+    const tabCid: bigint | undefined = tabSelection?.selectedCid;
+    if (tabCid !== undefined && message.targetCid !== tabCid) {
+      debugLog(
+        'BroadcastChannelService',
+        `Skipping state-sync for CID ${message.targetCid.toString().slice(0, 8)}... (this tab is ${tabCid.toString().slice(0, 8)}...)`,
+      );
+      return;
+    }
+  }
   eventEmitter.emit('broadcast-state-sync', message.data);
 }
 
