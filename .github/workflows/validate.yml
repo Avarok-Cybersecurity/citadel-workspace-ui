@@ -130,7 +130,10 @@ jobs:
         working-directory: parent/citadel-workspaces
 
   typecheck:
-    needs: parent-ref
+    # This job brings the Docker stack up too (it needs the generated WASM
+    # bindings), so it is expensive by the same measure as the two below and
+    # must wait for the lint that can refute the PR in 60 seconds.
+    needs: [parent-ref, lint]
     name: TypeScript Type Check - ${{ matrix.project }}
     # Observed the same work as the parent job, under a minute there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
@@ -522,7 +525,17 @@ jobs:
         working-directory: parent/citadel-workspaces
 
   playwright-tests:
-    needs: parent-ref
+    # The cheap gates first. Both of these bring up the full Docker stack --
+    # a cold `cargo build --release` of the server kernel AND the internal
+    # service, per leg, across 47 integration legs and 3 Playwright shards.
+    # Gated only on `parent-ref`, a PR that fails ESLint in 60 seconds still
+    # paid for all fifty of them.
+    #
+    # The parent workflow has gated its equivalents this way for some time
+    # (`needs: [crate-coverage, lint, typecheck, …]`); this one did not, and
+    # `check-expensive-jobs-wait-for-cheap-ones` could not say so because it
+    # read the parent's workflow file alone.
+    needs: [parent-ref, lint, typecheck, unit-tests]
     # The @playwright/test suite under integration-tests/src/tests-pw, which ran in
     # no job at all — those specs were compiled by the typecheck job and then never
     # executed against a running stack. Sharded rather than one job per spec, so
@@ -713,7 +726,17 @@ jobs:
             parent/citadel-workspaces/integration-tests/test-results/
 
   integration-tests:
-    needs: parent-ref
+    # The cheap gates first. Both of these bring up the full Docker stack --
+    # a cold `cargo build --release` of the server kernel AND the internal
+    # service, per leg, across 47 integration legs and 3 Playwright shards.
+    # Gated only on `parent-ref`, a PR that fails ESLint in 60 seconds still
+    # paid for all fifty of them.
+    #
+    # The parent workflow has gated its equivalents this way for some time
+    # (`needs: [crate-coverage, lint, typecheck, …]`); this one did not, and
+    # `check-expensive-jobs-wait-for-cheap-ones` could not say so because it
+    # read the parent's workflow file alone.
+    needs: [parent-ref, lint, typecheck, unit-tests]
     name: Integration Test - ${{ matrix.test }}
     # Observed the same work as the parent job, 26m there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
