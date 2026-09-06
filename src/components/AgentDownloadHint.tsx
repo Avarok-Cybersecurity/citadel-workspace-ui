@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Copy, Download, ExternalLink } from 'lucide-react';
+import { Check, Copy, ExternalLink } from 'lucide-react';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { interactive } from '@/lib/a11y';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import {
   agentRunCommand,
 } from '@/lib/agent-download';
 import { readLoopbackAgentOrigin } from '@/lib/websocket-service/resolve-url';
+import { OS_ICONS } from '@/components/icons/os-icons';
 
 const LABELS: Record<AgentPlatform, string> = {
   'macos-arm64': 'macOS (Apple Silicon)',
@@ -58,14 +59,24 @@ export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navi
 
       {candidates.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-2">
-          {candidates.map((platform) => (
-            <Button key={platform} variant="secondary" size="sm" asChild>
-              <a href={agentDownloadUrl(platform)} download={AGENT_ASSETS[platform]}>
-                <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-                {LABELS[platform]}
-              </a>
-            </Button>
-          ))}
+          {candidates.map((platform) => {
+            // The platform's own mark, not a generic download arrow: with two
+            // macOS builds offered side by side, the icon is what tells the
+            // reader at a glance that the page identified their machine.
+            const OsIcon: React.FC<{ className?: string }> = OS_ICONS[platform];
+            return (
+              <Button key={platform} variant="secondary" size="sm" asChild>
+                <a
+                  href={agentDownloadUrl(platform)}
+                  download={AGENT_ASSETS[platform]}
+                  data-testid={`agent-download-${platform}`}
+                >
+                  <OsIcon className="mr-2 h-4 w-4" />
+                  {LABELS[platform]}
+                </a>
+              </Button>
+            );
+          })}
         </div>
       ) : (
         // No build fits this device — phones and tablets land here. Offering a

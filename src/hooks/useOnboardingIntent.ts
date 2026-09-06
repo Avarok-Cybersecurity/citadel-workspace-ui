@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { isOnboardingEnabled } from '@/lib/debug-config';
 import { suppressInitPrompt } from '@/lib/workspace-init-prompt';
 import { debugLog } from '@/lib/debug-config';
+import { useServiceHealth } from '@/hooks/use-service-health';
 
 /** What the user said they were doing. `undefined` means they dismissed without saying. */
 export type OnboardingChoice = 'admin' | 'member' | undefined;
@@ -33,14 +34,41 @@ export interface OnboardingIntentState {
 
 export function useOnboardingIntent(beginWizard: () => void): OnboardingIntentState {
   const [open, setOpen] = useState(false);
+  const { isHealthy } = useServiceHealth();
+
+  // Not while the agent is unreachable.
+  //
+  // On the hosted UI this is the FIRST-RUN state, not an edge case: the page
+  // loads from work.avarok.net, the agent runs on the visitor's own machine,
+  // and until they install it `wss://local.avarok.net:12345` refuses. Verified
+  // against production -- clicking "Create Account" there put the intent dialog
+  // on screen underneath ConnectionRetryModal, with OfflineBanner saying the
+  // same thing across the top. Three notices for one condition, two of them
+  // modal, each trapping focus.
+  //
+  // The retry dialog is the one that must win: it alone carries the agent
+  // download links and the command to run it. This question -- what will you
+  // need to hand -- is premature when no account can be created yet, and it is
+  // asked again the moment the agent answers.
+  //
+  // WorkspaceApp already declines to stack the retry dialog on OfflineBanner
+  // for the DEVICE-offline case, with this same reasoning written next to it.
+  // `isOnline` is not this condition: the agent is on localhost and can be dead
+  // while the browser is perfectly online, which is exactly the hosted case.
+  useEffect((): void => {
+    if (!isHealthy) setOpen(false);
+  }, [isHealthy]);
 
   const request: () => void = useCallback((): void => {
-    if (isOnboardingEnabled()) {
+    if (isOnboardingEnabled() && isHealthy) {
       setOpen(true);
       return;
     }
+    // Unreachable agent: do NOT fall through to the wizard. It would open on a
+    // connection that cannot complete, on top of the dialog explaining why.
+    if (!isHealthy) return;
     beginWizard();
-  }, [beginWizard]);
+  }, [beginWizard, isHealthy]);
 
   const resolve: (choice?: OnboardingChoice) => void = useCallback((choice?: OnboardingChoice): void => {
     setOpen(false);
