@@ -125,84 +125,6 @@ const LOCAL_HOSTNAMES: Record<string, string> = {
   'localhost.localdomain': '127.0.0.1',
 };
 
-/**
- * Resolve a hostname to an IP address using Google's DNS-over-HTTPS API.
- *
- * Special cases:
- * 1. Well-known local hostnames (localhost -> 127.0.0.1) are resolved locally
- * 2. Other hostnames are resolved via Google's DNS-over-HTTPS API
- *
- * @param hostname - The hostname to resolve
- * @returns The resolved IPv4 address
- * @throws Error if DNS resolution fails
- */
-async function resolveDNS(hostname: string): Promise<string> {
-  const lowerHostname: string = hostname.toLowerCase();
-
-  // Check well-known local hostnames first
-  if (lowerHostname in LOCAL_HOSTNAMES) {
-    const resolved: string = LOCAL_HOSTNAMES[lowerHostname];
-    debugLog('AddressResolver', `DNS resolved (local): ${hostname} -> ${resolved}`);
-    return resolved;
-  }
-
-  // Use Google's DNS-over-HTTPS API for real hostnames
-  // See: https://developers.google.com/speed/public-dns/docs/doh/json
-  const dnsUrl: string = `https://dns.google/resolve?name=${encodeURIComponent(hostname)}&type=A`;
-
-  debugLog('AddressResolver', `DNS resolution: Querying Google DNS for '${hostname}'...`);
-
-  try {
-    const response: Response = await fetch(dnsUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/dns-json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`DNS query failed with status ${response.status}`);
-    }
-
-    const data: Awaited<ReturnType<typeof response.json>> = await response.json();
-
-    // Check for DNS errors
-    if (data.Status !== 0) {
-      // DNS RCODE: number =NOERROR, 1=FORMERR, 2=SERVFAIL, 3=NXDOMAIN, etc.
-      const errorMessages: Record<number, string> = {
-        1: 'Format error',
-        2: 'Server failure',
-        3: 'Non-existent domain',
-        4: 'Not implemented',
-        5: 'Query refused',
-      };
-      const errorMsg: string = errorMessages[data.Status] || `DNS error code ${data.Status}`;
-      throw new Error(`DNS resolution failed for '${hostname}': ${errorMsg}`);
-    }
-
-    // Extract the first A record (IPv4)
-    const answers: { type: number; data: string }[] | undefined = data.Answer;
-    if (!answers || answers.length === 0) {
-      throw new Error(`No DNS records found for '${hostname}'`);
-    }
-
-    // Find the first A record (type 1)
-    const aRecord: ReturnType<typeof answers.find> = answers.find((record: { type: number; data: string }): boolean => record.type === 1);
-    if (!aRecord) {
-      throw new Error(`No A (IPv4) record found for '${hostname}'`);
-    }
-
-    const resolvedIP: string = aRecord.data;
-    debugLog('AddressResolver', `DNS resolved (Google DoH): ${hostname} -> ${resolvedIP}`);
-    return resolvedIP;
-  } catch (error) {
-    if (error instanceof Error) {
-      debugLog('AddressResolver', `DNS resolution error for '${hostname}':`, error.message);
-      throw new Error(`Cannot resolve hostname '${hostname}': ${error.message}`);
-    }
-    throw error;
-  }
-}
 
 /**
  * Resolve a server address for Connect/Register commands.
@@ -235,11 +157,20 @@ export async function resolveServerAddress(serverAddr: string): Promise<string> 
     return result;
   }
 
-  // Resolve hostname via DNS
-  debugLog('AddressResolver', `Address resolver: Resolving hostname ${host}...`);
-  const resolvedIP: string = await resolveDNS(host);
-  const result: string = `${resolvedIP}:${effectivePort}`;
-  debugLog('AddressResolver', `Address resolver: ${serverAddr} -> ${result} (DNS resolved)`);
+  // A hostname is passed THROUGH, with its port normalised. The agent resolves
+  // it.
+  //
+  // This used to fetch `https://dns.google/resolve`. A hosted UI's own
+  // Content-Security-Policy refuses that connection -- `connect-src` lists the
+  // page's origin and the loopback agent, and nothing else -- so on
+  // work.avarok.net every hostname address failed with a 30-second
+  // "Registration timed out" while a raw IP worked. Where the fetch did
+  // succeed, it told Google which server each user was joining.
+  //
+  // The agent has a resolver and no CSP, and `Register.server_addr` is a
+  // string on the wire, so nothing else changes.
+  const result: string = `${host}:${effectivePort}`;
+  debugLog('AddressResolver', `Address resolver: ${serverAddr} -> ${result} (hostname; the agent resolves it)`);
   return result;
 }
 
