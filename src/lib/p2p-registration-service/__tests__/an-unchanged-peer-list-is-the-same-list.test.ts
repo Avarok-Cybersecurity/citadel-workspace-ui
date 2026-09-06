@@ -43,7 +43,7 @@ describe('the peer list keeps its identity while it is the same list', () => {
     let current: PeerLists = lists([a], [a]);
     const first: PeerLists = current;
 
-    for (let i = 0; i < 30; i += 1) {
+    for (let i: number = 0; i < 30; i += 1) {
       current = stableLists(current, lists([a], [a]));
     }
 

@@ -34,7 +34,7 @@ export interface PeerLists {
 /** Same length, and every element the same object. */
 export function sameMembers(a: readonly Peer[], b: readonly Peer[]): boolean {
   if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i += 1) {
+  for (let i: number = 0; i < a.length; i += 1) {
     if (a[i] !== b[i]) return false;
   }
   return true;
