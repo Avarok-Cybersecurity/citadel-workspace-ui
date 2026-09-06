@@ -401,20 +401,33 @@ jobs:
       - name: Install Workspace Dependencies
         run: npm ci
       - name: Build citadel-internal-service typescript-client
-        run: npm ci && npm run build
+        # A bare build, matching the unit-tests and typecheck jobs above.
+        #
+        # This alone said `npm ci && npm run build`. `citadel-internal-service/
+        # typescript-client` is a member of the ROOT npm workspace, so that nested
+        # install re-resolved it from its own tracked lockfile -- which pins uuid
+        # 9.0.1 and ws 8.18.3 against the root's 13.0.2 and 8.21.3 -- and unhoisted
+        # the root's devDependencies on the way past.
+        #
+        # Everything below it existed to undo that: a pinned `npm install
+        # eslint@9.39.2` over the lockfile's version, and three `ln -sf` calls
+        # putting @eslint/js, globals and typescript-eslint back where node
+        # resolution would have found them anyway. All three are gone, because the
+        # thing they compensated for is gone. Verified rather than assumed: with a
+        # plain root `npm ci` and none of them, the member resolves all four
+        # packages from the root and `eslint . --max-warnings 0` exits 0.
+        #
+        # The parent forbids both patterns -- check-no-nested-npm-ci-in-workspaces
+        # and check-ci-runs-lockfile-versions -- but reads only its OWN workflows,
+        # so this file was never scanned. docs/ROBUSTNESS.md records deleting this
+        # exact `eslint@9.39.2` line from the parent; it survived here.
+        run: npm run build
         working-directory: parent/citadel-internal-service/typescript-client
       - name: Build citadel-workspace-client-ts
         run: npm run build
         working-directory: parent/citadel-workspace-client-ts
-      - name: Install ESLint at root (workspaces hoisting issue)
-        run: npm install eslint@9.39.2 --save-dev
       - name: Run ESLint
-        run: |
-          mkdir -p node_modules/@eslint
-          ln -sf ${{ github.workspace }}/parent/node_modules/@eslint/js node_modules/@eslint/js
-          ln -sf ${{ github.workspace }}/parent/node_modules/globals node_modules/globals
-          ln -sf ${{ github.workspace }}/parent/node_modules/typescript-eslint node_modules/typescript-eslint
-          ${{ github.workspace }}/parent/node_modules/.bin/eslint . --max-warnings 0
+        run: ${{ github.workspace }}/parent/node_modules/.bin/eslint . --max-warnings 0
         working-directory: parent/${{ matrix.path }}
 
       # Static gates that need no build, no browser and no running stack.

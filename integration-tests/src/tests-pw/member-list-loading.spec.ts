@@ -21,7 +21,24 @@
 import { expect } from '@playwright/test';
 import { adminMemberTest } from '../fixtures/multi-user.fixture.js';
 
-const EMPTY_STATE = /No members yet/i;
+/**
+ * The sidebar's empty state, addressed by TESTID.
+ *
+ * This was `/No members yet/i`, matched with `getByText`. The sidebar has never
+ * rendered that sentence: `MembersEmptyState.tsx` says "Nobody else is here yet.
+ * Invite someone with the share button above". The only "No members yet" in the
+ * app is `pages/DirectoryTabContent.tsx`, a different screen this spec never
+ * opens.
+ *
+ * So `sawEmptyState` was structurally false and `expect(sawEmptyState).toBe(false)`
+ * — the one assertion this spec exists for — could not fail. The loading fix in
+ * `MembersSection.tsx` could be reverted whole and this stayed green.
+ *
+ * A testid rather than copy, because copy is what drifted: the header above still
+ * quotes the old sentence as the bug's symptom, which is exactly how a stale
+ * locator survives review.
+ */
+const EMPTY_STATE_TESTID = 'members-empty';
 
 adminMemberTest('the sidebar never reports an empty member list while loading', async ({ admin }) => {
     adminMemberTest.setTimeout(300_000);
@@ -32,7 +49,11 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
     const nodes = page.locator('[data-testid^="tree-node-menu-"]');
     await expect(nodes.first(), 'the node tree should render').toBeAttached({ timeout: 60_000 });
 
-    const emptyState = page.getByText(EMPTY_STATE);
+    // That this testid is one the app actually renders is enforced statically by
+    // check-specs-search-for-real-copy.mjs, which now resolves every getByTestId
+    // in a spec against src/. A runtime check here could only run once the element
+    // is on screen, which is precisely the state this spec asserts never happens.
+    const emptyState = page.getByTestId(EMPTY_STATE_TESTID);
     const memberEntry = page.getByText(admin.username, { exact: false });
 
     let sawEmptyState = false;
