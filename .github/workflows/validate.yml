@@ -387,6 +387,16 @@ jobs:
         if: matrix.project == 'citadel-workspaces'
         run: node scripts/check-file-length.mjs
 
+      # Also delegated to the parent. Half the contract this gate enforces --
+      # the Vite dev proxy's `target:` scheme -- lives in THIS repo, so a
+      # change here can break the agent handshake for every container path
+      # while the parent's own CI is not running. Enforcing it only there
+      # would be the usual mistake: one gate, reading one of the two repos
+      # that can violate it.
+      - name: The agent's TLS mode matches every proxy that fronts it
+        if: matrix.project == 'citadel-workspaces'
+        run: node scripts/check-agent-tls-matches-its-proxies.mjs
+
   lint:
     needs: parent-ref
     name: ESLint - ${{ matrix.project }}
