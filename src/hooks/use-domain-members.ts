@@ -77,8 +77,13 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
   useEffect(() => {
     const handleMembersLoaded = (payload: MembersPayload): void => {
       // See is-for-domain: a list fetched for another domain used to replace
-      // this one, and this hook's members are the corpus the user search
-      // searches.
+      // this one.
+      //
+      // NOT the user-search corpus, though this comment said so for a while.
+      // `UserSearch.tsx:99` reads the global `state.members`, written by
+      // `useMemberEventSetup` -- which is where that guard was missing, because
+      // this comment claimed the role and the guard went where it pointed.
+      // This hook backs the sidebar's per-domain member list.
       if (!isForDomain(payload.domainId, activeDomainId ?? undefined)) return;
       if (payload.members) setMembers(payload.members);
       // The response is what ends the load.

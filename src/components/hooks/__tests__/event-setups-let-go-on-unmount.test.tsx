@@ -24,6 +24,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { eventEmitter } from '@/lib/event-emitter';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { useMemberEventSetup } from '../useMemberEventSetup';
 import { useWorkspaceEventSetup } from '../useWorkspaceEventSetup';
 import { useNodeEventSetup } from '../useNodeEventSetup';
@@ -57,7 +58,16 @@ const SETUPS: readonly EventSetup[] = [
     name: 'useMemberEventSetup',
     use: useMemberEventSetup,
     event: 'members:loaded',
-    payload: { members: [], domainId: 'd', connection: {} },
+    // WORKSPACE_ROOT_ID, not an arbitrary id. `liveHandlers` counts by EMITTING
+    // the event and watching `setState`, so a payload this subscriber legitimately
+    // filters out reads as "no live handler" -- which is what happened when the
+    // is-for-domain guard was added here: both tests failed with "expected 0 to
+    // be greater than 0", their own positive control reporting a leak-check that
+    // could no longer see the handler rather than a handler that had gone.
+    //
+    // The probe must be a message the subscriber accepts, or a liveness test
+    // becomes a test of the filter.
+    payload: { members: [], domainId: WORKSPACE_ROOT_ID, connection: {} },
   },
   {
     name: 'useWorkspaceEventSetup',
