@@ -1,5 +1,9 @@
 import { useState, useCallback } from 'react';
 import { isOnboardingEnabled } from '@/lib/debug-config';
+import { suppressInitPrompt } from '@/lib/workspace-init-prompt';
+
+/** What the user said they were doing. `undefined` means they dismissed without saying. */
+export type OnboardingChoice = 'admin' | 'member' | undefined;
 
 /**
  * Whether to ask "new workspace or joining one?" before the registration wizard.
@@ -19,8 +23,11 @@ export interface OnboardingIntentState {
   open: boolean;
   /** Call in place of starting the wizard directly. */
   request: () => void;
-  /** Dismiss or choose; either way the wizard proceeds unchanged. */
-  resolve: () => void;
+  /**
+   * Dismiss or choose. The wizard proceeds identically either way — the answer
+   * does not branch registration — but it is not discarded: see below.
+   */
+  resolve: (choice?: OnboardingChoice) => void;
 }
 
 export function useOnboardingIntent(beginWizard: () => void): OnboardingIntentState {
@@ -34,8 +41,25 @@ export function useOnboardingIntent(beginWizard: () => void): OnboardingIntentSt
     beginWizard();
   }, [beginWizard]);
 
-  const resolve: () => void = useCallback((): void => {
+  const resolve: (choice?: OnboardingChoice) => void = useCallback((choice?: OnboardingChoice): void => {
     setOpen(false);
+    // "Joining a workspace someone else set up" is the user telling us, in as
+    // many words, that they do not hold WORKSPACE_MASTER_PASSWORD. The dialog's
+    // own copy promises them they "should not be asked for it" -- and until now
+    // the answer was discarded, so they were asked anyway, by a modal that
+    // appears AFTER the account exists and is shown to every user until someone
+    // completes it.
+    //
+    // This is the SAME suppression dismissing that modal already performs, and
+    // it is scoped to the tab session for the same reason, so it grants no new
+    // state and no lasting one. It cannot strand a workspace: nothing actually
+    // requires initialization, since the root is seeded at boot and Admin is
+    // granted at connect to the first member.
+    //
+    // Only `member` suppresses. `admin` has been told to have the password to
+    // hand and SHOULD be prompted; dismissing without answering says nothing,
+    // and is left exactly as it was.
+    if (choice === 'member') suppressInitPrompt();
     beginWizard();
   }, [beginWizard]);
 

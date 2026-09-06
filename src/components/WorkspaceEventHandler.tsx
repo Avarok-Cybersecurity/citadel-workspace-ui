@@ -1,6 +1,10 @@
 import { isPlaceholderName } from '@/lib/peer-display';
 import React, { useEffect, useState } from 'react';
-import { sessionGet, sessionRemove, sessionSet } from '@/lib/safe-session-storage';
+import {
+  initPromptSuppressed,
+  suppressInitPrompt,
+  clearInitPromptSuppression,
+} from '@/lib/workspace-init-prompt';
 import { WorkspaceProvider, WorkspaceState } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '../lib/workspace-service';
 import { WorkspaceInitializationModal } from './WorkspaceInitializationModal';
@@ -61,7 +65,7 @@ export const WorkspaceEventHandler: React.FC<{
 
   const [showInitModal, setShowInitModal] = useState(false);
   const [initModalDismissed, setInitModalDismissed] = useState(() => {
-    return sessionGet('workspace-init-modal-dismissed') === 'true';
+    return initPromptSuppressed();
   });
 
   useEffect(() => {
@@ -102,7 +106,7 @@ export const WorkspaceEventHandler: React.FC<{
 
   const handleWorkspaceInitialized = (): void => {
     setShowInitModal(false);
-    sessionRemove('workspace-init-modal-dismissed');
+    clearInitPromptSuppression();
     setState(prev => ({ ...prev, needsWorkspaceInitialization: false, error: undefined }));
     WorkspaceService.loadWorkspace()
       .then(() => debugLog('WorkspaceEventHandler', 'Workspace reloaded after initialization'))
@@ -124,7 +128,7 @@ export const WorkspaceEventHandler: React.FC<{
   const handleInitCancelled = (): void => {
     setShowInitModal(false);
     setInitModalDismissed(true);
-    sessionSet('workspace-init-modal-dismissed', 'true');
+    suppressInitPrompt();
     // Deliberately no navigation.
     //
     // This used to `window.location.assign('/')`, throwing the user out of the

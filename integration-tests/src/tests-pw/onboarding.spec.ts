@@ -18,9 +18,43 @@
  * leave state behind.
  */
 
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { test, expect, type Page } from '@playwright/test';
 import { waitForAppReady } from '../lib/index.js';
 import { config } from '../lib/config.js';
+
+/**
+ * The key the app writes when it decides not to ask for the master password.
+ *
+ * DERIVED from the module that declares it, never retyped. A spec holding its
+ * own copy is a second source for one fact: rename the constant and this spec
+ * keeps asserting on a key nothing writes any more, which reads as "the member
+ * path was not suppressed" — a failure pointing at the wrong thing entirely —
+ * or, in the absence assertions, as a pass.
+ */
+const OWNER: string = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../src/lib/workspace-init-prompt.ts',
+);
+const SUPPRESSED_KEY: string = ((): string => {
+  const declared: RegExpMatchArray | null = readFileSync(OWNER, 'utf8').match(
+    /INIT_PROMPT_SUPPRESSED_KEY: string = '([^']+)'/,
+  );
+  if (!declared) {
+    throw new Error(
+      `Could not read INIT_PROMPT_SUPPRESSED_KEY from ${OWNER}. Failing loudly rather ` +
+        'than guessing a key: a wrong key makes every assertion below meaningless.',
+    );
+  }
+  return declared[1];
+})();
+
+/** What the page has stored under that key, if anything. */
+async function suppressed(page: Page): Promise<string | null> {
+  return page.evaluate((key: string): string | null => sessionStorage.getItem(key), SUPPRESSED_KEY);
+}
 
 async function openLanding(page: Page, query: string = ''): Promise<void> {
   await page.goto(`${config.BASE_URL}${query}`, { waitUntil: 'commit', timeout: 60_000 });
@@ -105,6 +139,57 @@ test.describe('First-run onboarding', () => {
     await expect(page.getByRole('textbox', { name: 'Workspace Address' })).toBeVisible({
       timeout: 30_000,
     });
+  });
+
+  // What the answer DOES, not just what the dialog says.
+  //
+  // The unit tests call `resolve('member')` directly, so they cannot see which
+  // BUTTON passes which value: swap the two `onChoose` arguments and every unit
+  // test stays green while the admin is silently spared the prompt and the
+  // member is handed it. Only a real click through the real DOM discriminates,
+  // which is why these three live here.
+  //
+  // Still no account is registered — the answer is recorded client-side, before
+  // the wizard runs — so the promise at the top of this file holds.
+  test('choosing "joining" stops the master-password prompt for this tab', async ({ page }) => {
+    await openLanding(page, '?onboarding=1');
+    await clickCreateAccount(page);
+    await expect(page.getByTestId('onboarding-intent')).toBeVisible({ timeout: 30_000 });
+
+    // The paired control for the two absence assertions below: this proves the
+    // key is one the app really writes. Without it, a renamed or misspelled key
+    // makes `toBeNull()` true forever and all three tests pass over a feature
+    // that does nothing.
+    expect(await suppressed(page), 'nothing is decided until the dialog is answered').toBeNull();
+
+    await page.getByTestId('onboarding-intent-member').click();
+
+    expect(
+      await suppressed(page),
+      'a member said they do not hold the master password; they must not be asked for it',
+    ).toBe('true');
+  });
+
+  test('choosing "setting up" leaves the prompt in place', async ({ page }) => {
+    await openLanding(page, '?onboarding=1');
+    await clickCreateAccount(page);
+    await page.getByTestId('onboarding-intent-admin').click();
+
+    expect(
+      await suppressed(page),
+      'the administrator is the one person the prompt is for',
+    ).toBeNull();
+  });
+
+  test('skipping decides nothing', async ({ page }) => {
+    await openLanding(page, '?onboarding=1');
+    await clickCreateAccount(page);
+    await page.getByTestId('onboarding-intent-skip').click();
+
+    expect(
+      await suppressed(page),
+      'saying nothing is not saying "I am joining"',
+    ).toBeNull();
   });
 
   // The off-switch is what lets a production Playwright run build its fixture

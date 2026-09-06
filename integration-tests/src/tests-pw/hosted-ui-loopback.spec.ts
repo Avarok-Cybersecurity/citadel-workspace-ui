@@ -18,7 +18,7 @@
  * nothing to test against; the spec says so rather than passing vacuously.
  */
 import { test, expect, chromium, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { formatConsoleLine } from '../lib/console-line';
+import { formatConsoleLine } from '../lib/console-line.js';
 
 const HOSTED_UI_URL: string | undefined = process.env.HOSTED_UI_URL;
 const LOCAL_UI_URL: string | undefined = process.env.LOCAL_UI_URL;
