@@ -32,12 +32,23 @@ import fg from 'fast-glob';
 
 const SRC: string = join(process.cwd(), 'src');
 
-/** Reads LocalDB, catches, and does not classify — with the reason why. */
+/**
+ * Reads LocalDB, catches, and does not classify — with the reason why.
+ *
+ * `peer-registration-store/persistence.ts` was on this list with the reason
+ * "its catches wrap sendMessage rejections on the WRITE path, where absence is
+ * not a state". That was simply false: the catch and the reject callback it
+ * named are both on the READ path, and both resolved as though the key held
+ * nothing. Two pending contact requests could be erased by one timeout. An
+ * exemption is a claim about the code, and this one was never true.
+ *
+ * Known limit, stated here rather than discovered later: `classifies` below is
+ * a whole-FILE test. A module where one function classifies and another does
+ * not passes. `live-document-store/persistence.ts` is exactly that shape today.
+ */
 const EXEMPT: Record<string, string> = {
   'lib/connection/io-websocket.ts':
     'its one catch is around JSON decoding of a value already read, not the read',
-  'lib/peer-registration-store/persistence.ts':
-    'its catches wrap sendMessage rejections on the WRITE path, where absence is not a state',
   'lib/peer-registration-store/service.ts':
     'catches around accept/decline requests, not around a read',
 };

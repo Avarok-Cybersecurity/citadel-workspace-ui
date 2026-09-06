@@ -8,6 +8,8 @@
 import { websocketService } from '../websocket-service';
 import { stringToBytes, bytesToString } from '../utils/encoding-utils';
 import { parsePersistedJSON } from '../storage-utils';
+import { isGenuinelyAbsent } from '@/lib/storage/absence';
+import { failOnSocketLoss } from '@/lib/websocket/request-response';
 
 /**
  * Keys older builds wrote as bare strings via safeJSONStringify. New writes are
@@ -30,6 +32,34 @@ import {
   ownOutgoing,
 } from './storage-keys';
 
+/**
+ * Keys whose contents have actually been read into memory.
+ *
+ * Every write in this module writes a WHOLE list. That is only sound when the
+ * list in memory is a faithful copy of the key, which is true only if the key
+ * was read. If the read failed -- timeout, socket down, denied storage -- the
+ * in-memory list is empty for a reason that has nothing to do with what is
+ * stored, and writing it deletes the lot. Nobody is told, because the write
+ * itself succeeds.
+ *
+ * The guard lives HERE rather than in the service because there are seven
+ * whole-list write sites across four modules (service.ts, outgoing-mutations.ts
+ * x3, record-incoming.ts, and the two loaders' own callers). A guard in the
+ * service would have covered three of them -- which is this repository's most
+ * common defect shape, a correct fix applied in one of the places its mechanism
+ * appears. One guard, on the path they all funnel through, cannot be bypassed
+ * by adding an eighth.
+ *
+ * Absence counts as read: a key that genuinely holds nothing is a complete
+ * picture of nothing, and the first write to it must be allowed to happen.
+ */
+const readIntoMemory: Set<string> = new Set<string>();
+
+/** For tests: forget what has been read, so a fresh scenario starts cold. */
+export function resetReadTracking(): void {
+  readIntoMemory.clear();
+}
+
 /** Generic LocalDB set operation */
 async function localDBSet(
   key: string,
@@ -37,6 +67,16 @@ async function localDBSet(
   pendingKVRequests: Map<string, KVPendingEntry>,
   label: string
 ): Promise<void> {
+  if (!readIntoMemory.has(key)) {
+    // Refusing is the point. Writing a list assembled without a successful
+    // read replaces whatever is stored with whatever this tab happens to
+    // hold, which after a failed read is nothing at all.
+    throw new Error(
+      `Refusing to write ${label}: '${key}' was never successfully read, so ` +
+        `writing the in-memory list would erase whatever is stored under it.`,
+    );
+  }
+
   const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   const { persistJSON } = await import('../storage-utils');
   const valueStr: string = persistJSON(data);
@@ -48,7 +88,11 @@ async function localDBSet(
     }
   };
 
-  return new Promise<void>((resolve, reject) => {
+  // Wrapped so the wait ends when the SOCKET does, not only when the timer
+  // does. The internal service keys responses to the connection that asked, so
+  // a request in flight at a drop can never be answered -- waiting the full
+  // budget and then reporting "timed out" names the wrong cause.
+  return failOnSocketLoss(`${label} persist`, new Promise<void>((resolve, reject) => {
     pendingKVRequests.set(requestId, { resolve: () => resolve(), reject });
     // `sendMessage`, not `getClient()`. A follower tab owns no client by
     // design, and the old branch RESOLVED SUCCESSFULLY on that path -- so an
@@ -65,11 +109,29 @@ async function localDBSet(
       if (pendingKVRequests.has(requestId)) {
         pendingKVRequests.delete(requestId);
         debugLog('PeerRegistrationStore', `${label} persist timed out`);
-        resolve(undefined);
+        // REJECT. This resolved, so a persist that timed out reported success
+        // -- and the caller went on believing the write had landed. Accept a
+        // request, have the removal time out and "succeed", and on the next
+        // reload the accepted request is pending again.
+        //
+        // The send-failure branch eight lines above already rejects. Same
+        // function, same kind of failure, two answers.
+        reject(new Error(`${label} persist timed out after ${REQUEST_TIMEOUT_MS}ms`));
       }
     }, REQUEST_TIMEOUT_MS);
-  });
+  }));
 }
+
+/**
+ * What a read actually did, as distinct from whether it threw.
+ *
+ * `failed` is the case this file used to erase. Every failure branch --
+ * a KV rejection, a send rejection, a timeout -- resolved `undefined`, which is
+ * indistinguishable from "the key holds nothing". The caller then took an empty
+ * in-memory list as the truth and the next incoming request wrote that list
+ * over the key, deleting every request the read had failed to return.
+ */
+export type LoadOutcome = 'loaded' | 'absent' | 'failed';
 
 /** Generic LocalDB get operation */
 async function localDBGet<T>(
@@ -77,7 +139,7 @@ async function localDBGet<T>(
   pendingKVRequests: Map<string, KVPendingEntry>,
   onLoaded: (data: T[]) => Promise<void>,
   label: string
-): Promise<void> {
+): Promise<LoadOutcome> {
   const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   const request: { LocalDBGetKV: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: null; key: string; }; } = {
     LocalDBGetKV: {
@@ -85,17 +147,38 @@ async function localDBGet<T>(
     }
   };
 
-  return new Promise((resolve) => {
+  // Same reason as the write path: a load still pending when the socket drops
+  // can never be answered. It resolves 'failed' rather than rejecting, because
+  // a failed read is a state this module's callers must be able to inspect --
+  // it is what withholds permission to write the whole list back.
+  return failOnSocketLoss(`${label} load`, new Promise<LoadOutcome>((resolve) => {
     pendingKVRequests.set(requestId, {
       resolve: async (data: unknown) => {
         if (data && Array.isArray(data)) {
           await onLoaded(data as T[]);
+          readIntoMemory.add(key);
+          resolve('loaded');
+          return;
         }
-        resolve(undefined);
+        // resolveKVResponse passes null for an empty value, which is a real
+        // "this key holds nothing" rather than a failure.
+        readIntoMemory.add(key);
+        resolve('absent');
       },
-      reject: () => {
-        debugLog('PeerRegistrationStore', `Failed to load ${label} from LocalDB`);
-        resolve(undefined);
+      // An absent key and a broken read are not the same event, and this
+      // reported both as nothing-stored. `isGenuinelyAbsent` is the one place
+      // that distinction is spelled out; this file was on the test's exemption
+      // list with the reason "its catches wrap sendMessage rejections on the
+      // WRITE path" -- which was simply false. This is the read path.
+      reject: (error: Error) => {
+        if (isGenuinelyAbsent(error)) {
+          debugLog('PeerRegistrationStore', `No ${label} stored yet`);
+          readIntoMemory.add(key);
+          resolve('absent');
+          return;
+        }
+        debugLog('PeerRegistrationStore', `Failed to load ${label} from LocalDB`, error);
+        resolve('failed');
       }
     });
     // See the persist path above: skipping this in a follower silently loaded
@@ -103,15 +186,21 @@ async function localDBGet<T>(
     websocketService.sendMessage(request as unknown as Record<string, unknown>).catch(error => {
       debugLog('PeerRegistrationStore', `Failed to send ${label} load request:`, error);
       pendingKVRequests.delete(requestId);
-      resolve(undefined);
+      resolve('failed');
     });
     setTimeout(() => {
       if (pendingKVRequests.has(requestId)) {
         pendingKVRequests.delete(requestId);
         debugLog('PeerRegistrationStore', `${label} load timed out`);
-        resolve(undefined);
+        resolve('failed');
       }
     }, REQUEST_TIMEOUT_MS);
+  })).catch((error: unknown) => {
+    // A socket loss arrives as a rejection from failOnSocketLoss. For a READ
+    // that is the same conclusion as any other failure: the list is unknown,
+    // so nothing may be written over it.
+    debugLog('PeerRegistrationStore', `${label} load ended with the socket`, error);
+    return 'failed' as LoadOutcome;
   });
 }
 
@@ -136,16 +225,16 @@ export function persistPendingToLocalDB(
 export function loadPendingFromLocalDB(
   kv: Map<string, KVPendingEntry>,
   onLoaded: (requests: PendingPeerRequest[]) => Promise<void>
-): Promise<void> {
+): Promise<LoadOutcome> {
   return localDBGet<PendingPeerRequest>(
     pendingKey(), kv,
     async (data) => {
       await onLoaded(ownPending(data));
     },
     'pending',
-  ).then(() => {
-    if (!hasLegacyPending()) return;
-    return localDBGet<PendingPeerRequest>(
+  ).then(async (outcome) => {
+    if (!hasLegacyPending()) return outcome;
+    const legacy: LoadOutcome = await localDBGet<PendingPeerRequest>(
       STORAGE_KEY, kv,
       async (data) => {
         const mine: PendingPeerRequest[] = ownPending(data);
@@ -153,6 +242,10 @@ export function loadPendingFromLocalDB(
       },
       'pending (legacy)',
     );
+    // Either read failing means the in-memory list is incomplete, and it is
+    // completeness that licenses a whole-list write. The scoped read
+    // succeeding does not make up for the legacy one failing.
+    return outcome === 'failed' || legacy === 'failed' ? 'failed' : outcome;
   });
 }
 
@@ -166,7 +259,7 @@ export function persistOutgoingToLocalDB(
 export function loadOutgoingFromLocalDB(
   kv: Map<string, KVPendingEntry>,
   onLoaded: (requests: OutgoingPeerRequest[]) => Promise<void>
-): Promise<void> {
+): Promise<LoadOutcome> {
   const accept = async (data: OutgoingPeerRequest[]): Promise<void> => {
     const valid: OutgoingPeerRequest[] = data.filter(r => r.toCid && r.fromCid);
     const invalidCount: number = data.length - valid.length;
@@ -176,17 +269,20 @@ export function loadOutgoingFromLocalDB(
     await onLoaded(ownOutgoing(valid));
   };
 
-  return localDBGet<OutgoingPeerRequest>(outgoingKey(), kv, accept, 'outgoing').then(() => {
-    if (!hasLegacyOutgoing()) return;
-    return localDBGet<OutgoingPeerRequest>(
-      OUTGOING_STORAGE_KEY, kv,
-      async (data) => {
-        const mine: OutgoingPeerRequest[] = ownOutgoing(data.filter(r => r.toCid && r.fromCid));
-        if (mine.length > 0) await onLoaded(mine);
-      },
-      'outgoing (legacy)',
-    );
-  });
+  return localDBGet<OutgoingPeerRequest>(outgoingKey(), kv, accept, 'outgoing').then(
+    async (outcome) => {
+      if (!hasLegacyOutgoing()) return outcome;
+      const legacy: LoadOutcome = await localDBGet<OutgoingPeerRequest>(
+        OUTGOING_STORAGE_KEY, kv,
+        async (data) => {
+          const mine: OutgoingPeerRequest[] = ownOutgoing(data.filter(r => r.toCid && r.fromCid));
+          if (mine.length > 0) await onLoaded(mine);
+        },
+        'outgoing (legacy)',
+      );
+      return outcome === 'failed' || legacy === 'failed' ? 'failed' : outcome;
+    },
+  );
 }
 
 /** Resolve a LocalDB get KV response */
