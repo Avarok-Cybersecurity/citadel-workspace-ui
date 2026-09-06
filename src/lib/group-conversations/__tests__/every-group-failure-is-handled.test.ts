@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readdirSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { join, dirname } from 'node:path';
+import { join } from 'node:path';
 import { GROUP_FAILURE_VARIANTS } from '../group-events';
 
 /**
@@ -32,38 +31,39 @@ import { GROUP_FAILURE_VARIANTS } from '../group-events';
  * package already depends on.
  */
 /**
- * Found through Node's own resolution, not a hardcoded `../`.
+ * Where the generated types are, tried in order.
  *
- * The package is an npm workspace member, so it resolves from wherever the app
- * itself resolves it — the parent checkout in CI, and nowhere in a standalone
- * worktree of this submodule, which is the honest answer in that case rather
- * than a path that happens to work.
+ * NOT `require.resolve`. The package's `exports` map declares only `"."`, so
+ * `require.resolve('citadel-internal-service-wasm-client/package.json')` is
+ * blocked by design — the first two versions of this test failed everywhere,
+ * including the parent checkout where the app resolves the package perfectly
+ * well, and the message blamed the worktree rather than the exports map.
+ *
+ * These are plain filesystem paths, in the order they occur: the package linked
+ * into this workspace, the same link one level up (where npm hoists it when the
+ * UI is checked out inside the parent, which is what CI does), and the
+ * submodule source it is linked from.
  */
+const CANDIDATES: readonly string[] = [
+  join('node_modules', 'citadel-internal-service-wasm-client', 'src', 'types'),
+  join('..', 'node_modules', 'citadel-internal-service-wasm-client', 'src', 'types'),
+  join('..', 'citadel-internal-service', 'typescript-client', 'src', 'types'),
+];
+
 function generatedTypesDir(): string | null {
-  try {
-    const req: NodeRequire = createRequire(import.meta.url);
-    const manifest: string = req.resolve('citadel-internal-service-wasm-client/package.json');
-    return join(dirname(manifest), 'src', 'types');
-  } catch {
-    return null;
+  for (const candidate of CANDIDATES) {
+    const full: string = join(process.cwd(), candidate);
+    if (existsSync(full)) return full;
   }
+  return null;
 }
 
-/**
- * Throws rather than returning `[]` when the package cannot be resolved.
- *
- * An empty list would make "lists every real variant" pass vacuously — nothing
- * is missing from nothing — while "lists nothing fictional" failed with all
- * eleven names in the diff. One assertion silently satisfied and the other
- * loudly wrong, for the same cause. Now all three say the same true thing.
- */
 function generatedFailureVariants(): string[] {
   const dir: string | null = generatedTypesDir();
   if (dir === null || !existsSync(dir)) {
     throw new Error(
-      'citadel-internal-service-wasm-client did not resolve, so the generated types could not ' +
-        'be read and nothing here was checked. It resolves wherever the app does; in a ' +
-        'standalone worktree of this submodule it does not, and CI checks out the parent.',
+      'the generated types are at none of the known locations, so nothing here was checked. ' +
+        'They are absent in a standalone worktree of this submodule; CI checks out the parent.',
     );
   }
   return readdirSync(dir)
@@ -79,9 +79,9 @@ describe('the group failure arm', () => {
     const dir: string | null = generatedTypesDir();
     expect(
       dir,
-      'citadel-internal-service-wasm-client did not resolve, so this test examined nothing. ' +
-        'It resolves wherever the app does; in a standalone worktree of this submodule it ' +
-        'does not, and CI checks out the parent.',
+      `the generated types are at none of ${CANDIDATES.length} known locations, so this test ` +
+        'examined nothing. They are absent in a standalone worktree of this submodule; CI ' +
+        'checks out the parent, where they are one level up.',
     ).not.toBeNull();
     expect(generatedFailureVariants().length).toBeGreaterThan(5);
   });
