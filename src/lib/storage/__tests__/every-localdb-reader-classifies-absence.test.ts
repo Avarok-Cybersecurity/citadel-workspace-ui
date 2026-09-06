@@ -47,6 +47,9 @@ const SRC: string = join(process.cwd(), 'src');
  * not passes. `live-document-store/persistence.ts` is exactly that shape today.
  */
 const EXEMPT: Record<string, string> = {
+  'lib/live-document-store/service.ts':
+    'its catch does not decide absence — it records that the index is untrustworthy, ' +
+    'so the write is refused; the classification is in persistence.loadIndexFromDB',
   'lib/connection/io-websocket.ts':
     'its one catch is around JSON decoding of a value already read, not the read',
   'lib/peer-registration-store/service.ts':
@@ -54,7 +57,12 @@ const EXEMPT: Record<string, string> = {
 };
 
 function readsLocalDb(source: string): boolean {
-  return /sendLocalDBGet|localDBGet\(|FromLocalDB\(/.test(source);
+  // `FromDB(` as well as `FromLocalDB(`. `live-document-store` names its
+  // readers `loadIndexFromDB` / `loadDocumentFromDB`, which matched none of
+  // the original three patterns -- so the module holding the index read, the
+  // one whose result decides what the index is OVERWRITTEN with, was outside
+  // this rule entirely.
+  return /sendLocalDBGet|localDBGet\(|FromLocalDB\(|FromDB\(/.test(source);
 }
 
 describe('a module that reads LocalDB', () => {
