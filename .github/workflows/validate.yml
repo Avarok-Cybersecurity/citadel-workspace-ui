@@ -369,6 +369,26 @@ jobs:
           ${{ github.workspace }}/parent/node_modules/.bin/eslint . --max-warnings 0
         working-directory: parent/${{ matrix.path }}
 
+      # Static gates that need no build, no browser and no running stack.
+      #
+      # `check:spec-copy` had an npm script and NO CI invocation, so it had
+      # never run anywhere -- the parent repo has check-every-gate-is-invoked
+      # for its own gates and this submodule has no equivalent. Five more
+      # (check:event-pairs, :sourcemaps, :a11y, :agent-down, :types,
+      # :toast-header) are in the same position but need a build or a browser;
+      # they are recorded in docs rather than wired blindly here.
+      - name: Spec locators match real app copy
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:spec-copy
+        working-directory: parent/citadel-workspaces
+      - name: Debug log arguments are cheap
+        # debugLog is a noop in production but its ARGUMENTS are still
+        # evaluated: one site hashed every byte of every inbound P2P message
+        # for a logger that discards it.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:debug-args
+        working-directory: parent/citadel-workspaces
+
   playwright-tests:
     # The @playwright/test suite under integration-tests/src/tests-pw, which ran in
     # no job at all — those specs were compiled by the typecheck job and then never

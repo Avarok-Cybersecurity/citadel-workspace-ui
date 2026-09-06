@@ -9,7 +9,7 @@ import { isPlaceholderName } from '@/lib/peer-display';
 import { websocketService } from '../websocket-service';
 import { failOnSocketLoss } from '../websocket/request-response';
 import { broadcastChannelService } from '../broadcast-channel-service';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, debugEnabled } from '@/lib/debug-config';
 import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 import type { Peer, PeerInfoResponse, PendingRequestEntry } from './types';
 import { PEER_LIST_TIMEOUT } from './constants';
@@ -100,7 +100,11 @@ export async function listRegisteredPeers(
   await websocketService.sendMessage(request);
   const response: Record<string, unknown> = await failOnSocketLoss('ListAllPeers', responsePromise);
 
-  debugLog('P2PRegistrationService', '[P2P-ListRegisteredPeers] Raw response:', JSON.stringify(response, (k, v) => typeof v === 'bigint' ? v.toString() : v));
+  // Guarded: this stringifies the WHOLE peer-list response, on a 30s poll
+  // plus every event-driven caller, to hand it to a noop in production.
+  if (debugEnabled) {
+    debugLog('P2PRegistrationService', '[P2P-ListRegisteredPeers] Raw response:', JSON.stringify(response, (k, v) => typeof v === 'bigint' ? v.toString() : v));
+  }
 
   return parsePeersResponse(response);
 }

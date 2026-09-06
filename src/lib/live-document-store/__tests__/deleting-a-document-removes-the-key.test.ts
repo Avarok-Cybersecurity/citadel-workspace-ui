@@ -35,7 +35,7 @@ vi.mock('@/lib/websocket-service', () => ({
 }));
 
 const logged: unknown[][] = [];
-vi.mock('@/lib/debug-config', () => ({
+vi.mock('@/lib/debug-config', () => ({ debugEnabled: false,
   debugLog: (...args: unknown[]): void => { logged.push(args); },
 }));
 

@@ -105,25 +105,6 @@ export function broadcastConnectionStatus(
   broadcast(channel, message);
 }
 
-/**
- * Build and broadcast a P2P raw message for Yjs sync (leader only).
- */
-export function broadcastP2PRawMessage(
-  channel: BroadcastChannel | null,
-  tabId: string,
-  isLeader: boolean,
-  data: { peerCid: bigint; message: Uint8Array }
-): void {
-  if (!isLeader) return;
-  const message: BroadcastMessage = {
-    type: 'p2p-raw-message',
-    data,
-    timestamp: Date.now(),
-    tabId,
-    isLeader: true
-  };
-  broadcast(channel, message);
-}
 
 /**
  * Build and broadcast a P2P notification to follower tabs (leader only).

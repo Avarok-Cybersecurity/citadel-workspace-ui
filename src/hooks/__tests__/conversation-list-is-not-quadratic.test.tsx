@@ -46,7 +46,7 @@ vi.mock('@/lib/p2p-auto-connect-service', () => ({
     },
   },
 }));
-vi.mock('@/lib/debug-config', () => ({ debugLog: (): void => {} }));
+vi.mock('@/lib/debug-config', () => ({ debugEnabled: false, debugLog: (): void => {} }));
 
 import { useConversationPeers } from '../use-conversation-peers';
 

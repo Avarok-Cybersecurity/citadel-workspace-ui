@@ -17,7 +17,7 @@ import {
   KemAlgorithm,
   SigAlgorithm
 } from "@/types";
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, debugEnabled } from '@/lib/debug-config';
 
 export interface SecuritySettingsValues {
   securityLevel: SecurityLevel;
@@ -59,7 +59,9 @@ export const SecuritySettings = ({
 
   const { mutate: updateSecuritySettings } = useMutation({
     mutationFn: (newSettings: SecuritySettingsValues) => {
-      debugLog('SecuritySettings', 'Updating security settings:', JSON.stringify(newSettings));
+      if (debugEnabled) {
+        debugLog('SecuritySettings', 'Updating security settings:', JSON.stringify(newSettings));
+      }
       return Promise.resolve(newSettings);
     },
     onSuccess: (updatedSettings) => {

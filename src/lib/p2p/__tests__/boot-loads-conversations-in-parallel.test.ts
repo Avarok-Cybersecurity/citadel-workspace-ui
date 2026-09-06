@@ -36,7 +36,7 @@ vi.mock('../message-page-operations', () => ({
   },
 }));
 vi.mock('@/lib/multi-instance', () => ({ instanceManager: { cid: null } }));
-vi.mock('@/lib/debug-config', () => ({ debugLog: (): void => {} }));
+vi.mock('@/lib/debug-config', () => ({ debugEnabled: false, debugLog: (): void => {} }));
 
 import { loadAllMetadata } from '../load-all-metadata';
 

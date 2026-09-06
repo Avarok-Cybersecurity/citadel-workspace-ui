@@ -36,6 +36,21 @@ function printable(value: unknown): unknown {
   return value;
 }
 
+/**
+ * Whether debug logging is on, for guarding EXPENSIVE arguments.
+ *
+ * `debugLog` is `noop` in production, but its arguments are still evaluated at
+ * the call site -- so `debugLog('x', fnv1a64(bytes))` hashes every byte of
+ * every message in production and hands the result to a function that discards
+ * it. At the 16 MiB inline transfer cap that is close to a second of
+ * main-thread time per call site, for no output.
+ *
+ * Guard the few sites that do real work; the ~1100 that pass strings do not
+ * need this. Rollup drops an `if (debugEnabled)` branch from the production
+ * bundle entirely, so the guard costs nothing at runtime.
+ */
+export const debugEnabled: boolean = isDev;
+
 export const debugLog: (category: string, ...args: unknown[]) => void = isDev
   ? (category, ...args): void => console.log(`[${category}]`, ...args.map(printable))
   : noop;

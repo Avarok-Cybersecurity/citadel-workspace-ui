@@ -7,7 +7,7 @@
 import { INTERVAL } from '@/lib/timeout-constants';
 
 export interface BroadcastMessage {
-  type: 'workspace-response' | 'leader-election' | 'state-sync' | 'connection-status' | 'register-request' | 'p2p-raw-message' | 'p2p-notification';
+  type: 'workspace-response' | 'leader-election' | 'state-sync' | 'connection-status' | 'register-request' | 'p2p-notification';
   data: unknown;
   timestamp: number;
   tabId: string;

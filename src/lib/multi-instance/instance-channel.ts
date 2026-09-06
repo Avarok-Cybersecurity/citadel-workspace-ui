@@ -7,7 +7,7 @@ import { instanceManager } from './instance-manager';
 import { documentNonce, acceptInbound } from './instance-identity';
 import { dispatchChannelMessage } from './channel-message-dispatch';
 import { type AckResult } from './outbound-queue';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, debugEnabled } from '@/lib/debug-config';
 import { describeForwarded } from '@/lib/p2p/message-fingerprint';
 import { CHANNEL_NAME, type ChannelMessage } from './channel-types';
 import type { LeaderElectionState } from './channel-leader-election';
@@ -204,7 +204,11 @@ class InstanceChannel {
     // With `requestId` set the router retains the message until the target tab
     // acks; no ack within the buffer timeout means the leader falls back to
     // processing locally, so a bare BroadcastChannel post can no longer lose it.
-    debugLog('InstanceChannel', `[ILM-Router] forward -> ${targetInstanceId} ${describeForwarded(payload)}`);
+    // Guarded: describeForwarded copies the payload and hashes it per byte,
+    // and this runs on every leader->follower forward.
+    if (debugEnabled) {
+      debugLog('InstanceChannel', `[ILM-Router] forward -> ${targetInstanceId} ${describeForwarded(payload)}`);
+    }
     this.send({ type: 'inbound-forward', targetInstanceId, payload, requestId });
   }
 
