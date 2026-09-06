@@ -393,6 +393,11 @@ jobs:
         run: npm run check:gates-invoked
         working-directory: parent/citadel-workspaces
 
+      - name: Every event has an emitter and a listener
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:event-pairs
+        working-directory: parent/citadel-workspaces
+
       - name: Spec locators match real app copy
         if: matrix.project == 'citadel-workspaces'
         run: npm run check:spec-copy

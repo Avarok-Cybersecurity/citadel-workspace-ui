@@ -33,7 +33,6 @@ const WORKFLOWS = join(ROOT, '.github', 'workflows');
  * is how one of them gets forgotten.
  */
 const NOT_IN_CI = new Map([
-  ['check:event-pairs', 'static, but RED today on a real finding: an event with no consumer'],
   ['check:types', 'static, but RED today on a real finding: declarations without a type'],
   ['check:a11y', 'needs the built app served and a browser driving it'],
   ['check:toast-header', 'needs a running app with a toast on screen; it measures geometry'],
