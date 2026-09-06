@@ -20,7 +20,7 @@ import type { SessionSecuritySettings } from '../p2p-registration-service';
 import type { StoredSessions, GetSessionsRequest, GetSessionsResponse } from '@/types/session-types';
 import type { ConnectionIntent, PendingRequest } from './types';
 import { SESSION_STORAGE_KEY } from '@/types/session-types';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, debugEnabled } from '@/lib/debug-config';
 
 /**
  * WebSocket and LocalDB I/O operations.
@@ -136,7 +136,15 @@ export class ConnectionIOWebSocket {
       );
     }
     const valueStr: string = persistJSON(sessions);
-    debugLog('ConnectionIO', 'Storing sessions, serialized:', formatForDebug(valueStr));
+    // Guarded: `formatForDebug` JSON.parses the string and rebuilds the whole
+    // object recursively, and this runs on every session-store write -- auth,
+    // auto-reconnect, logout, role update, active-index change. debugLog is a
+    // noop in production but its ARGUMENTS are evaluated, so unguarded this
+    // rebuilt the entire stored-session list and discarded it. Rollup drops the
+    // branch from the production bundle, so the guard costs nothing.
+    if (debugEnabled) {
+      debugLog('ConnectionIO', 'Storing sessions, serialized:', formatForDebug(valueStr));
+    }
     const valueBytes: number[] = stringToBytes(valueStr);
     await this.localDBSet(0n, SESSION_STORAGE_KEY, valueBytes);
   }

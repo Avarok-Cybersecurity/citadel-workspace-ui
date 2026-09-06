@@ -31,8 +31,19 @@ const SRC = join(ROOT, 'src');
  * A denylist rather than a general "any call expression" rule: plenty of cheap
  * accessors appear in log arguments and forbidding all of them would be noise
  * nobody could act on.
+ *
+ * The cost of a denylist is that it is only as complete as its last edit, and
+ * it under-reported for exactly that reason. `formatForDebug` was missing:
+ * given a string it runs `JSON.parse` and then rebuilds the whole object
+ * recursively, and it sat unguarded inside a `debugLog` on the session-store
+ * write path -- so every auth, auto-reconnect, logout, role update and
+ * active-index change re-parsed and rebuilt the entire stored-session list in
+ * production and threw the result away. The gate read green over it.
+ *
+ * When adding an entry here, add it because the function does WORK, not
+ * because it looks costly: the bar is a loop, a parse, or a full traversal.
  */
-const EXPENSIVE = /\b(fnv1a64|sha256Sync|describeForwarded|JSON\.stringify)\s*\(/;
+const EXPENSIVE = /\b(fnv1a64|sha256Sync|describeForwarded|formatForDebug|JSON\.stringify)\s*\(/;
 
 /** Log functions that are compiled away, so their arguments are wasted work. */
 const NOOP_IN_PROD = /\b(debugLog|warnLog)\s*\(/;
