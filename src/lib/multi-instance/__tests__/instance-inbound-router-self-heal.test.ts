@@ -139,6 +139,56 @@ describe('InstanceInboundRouter self-heal (CID-routed message for unknown CID)',
     }
   });
 
+  it('says so when the drain finds no owner after all, instead of dropping the fact', () => {
+    // The comment above the drain used to assert this could not happen ("the cid
+    // is now known"), and the boolean that tests the assertion was discarded. It
+    // CAN happen: `instance:registered` fires for every cid-update, and the
+    // instance can be gone again by the time the buffer drains.
+    //
+    // The message is not lost -- routeByCid hands it to the leader -- but a
+    // CID-routed notification processed by the LEADER rather than the session it
+    // names is the wrong session, which is the whole failure CID_ROUTED_NOTIFICATIONS
+    // exists to prevent. This drain is its last chance: the fallback timer is
+    // already cleared and the entry is out of the buffer, so if nothing says so
+    // here, nothing ever does.
+    instanceManagerMock.findInstanceByCid.mockReturnValue(null);
+
+    const warn: ReturnType<typeof vi.fn> = vi.fn();
+    const originalWarn: typeof console.warn = console.warn;
+    console.warn = warn;
+
+    const local: ReturnType<typeof vi.fn> = vi.fn();
+    eventEmitter.on('websocket-message', local);
+
+    const cidRoutedMessage: { MessageNotification: { cid: string; peer_cid: string; message: number[]; request_id: null; }; } = {
+      MessageNotification: {
+        cid: '55555',
+        peer_cid: '99',
+        message: [1, 2, 3],
+        request_id: null,
+      },
+    };
+
+    try {
+      instanceInboundRouter.routeMessage(cidRoutedMessage);
+      expect(warn, 'buffering is not the failure; nothing to report yet').not.toHaveBeenCalled();
+
+      // The owner registers -- so the buffer drains -- but it still does not own
+      // the CID when the replay looks it up.
+      eventEmitter.emit('instance:registered', { instanceId: 'follower-x', cid: 55555n });
+
+      expect(instanceChannelMock.forwardToInstance,
+        'no instance owned it, so nothing was forwarded').not.toHaveBeenCalled();
+      expect(warn, 'the unclaimed drain must be reported').toHaveBeenCalledTimes(1);
+      // Name the CID and the type, or the line cannot be acted on.
+      expect(String(warn.mock.calls[0]?.[0])).toContain('55555');
+      expect(String(warn.mock.calls[0]?.[0])).toContain('MessageNotification');
+    } finally {
+      console.warn = originalWarn;
+      eventEmitter.off('websocket-message', local);
+    }
+  });
+
   it('falls back to local processing when the fallback timer fires before any cid-report', async () => {
     instanceManagerMock.findInstanceByCid.mockReturnValue(null);
 
