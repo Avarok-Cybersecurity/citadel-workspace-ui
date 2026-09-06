@@ -10,6 +10,7 @@ import { debugLog } from '@/lib/debug-config';
 import { persistSessionUpsert } from './persist-one-session';
 import { saveRecentServer } from '@/lib/server-utils';
 import { isGenuinelyAbsent } from '@/lib/storage/absence';
+import { markSessionsRead } from './sessions-read-state';
 
 /** Store a session to state and persist to LocalDB. */
 /**
@@ -54,6 +55,10 @@ export async function loadStoredSessions(
   } catch (error) {
     if (isGenuinelyAbsent(error)) {
       debugLog('ConnectionService', 'No stored sessions yet');
+      // The key genuinely holds nothing, which is a complete picture of
+      // nothing. A first-run user's first write must land, so say so
+      // explicitly rather than leaving the write guard to infer it.
+      markSessionsRead();
       return;
     }
     // Not the same thing at all. An empty session list is what the reconnect

@@ -11,6 +11,7 @@
 // live bindings — reading `wsModule.websocketService` is deferred until call time,
 // by which point the cycle has fully resolved and the singleton is initialized.
 import * as wsModule from '../websocket-service';
+import { markSessionsRead, sessionsHaveBeenRead } from './sessions-read-state';
 import { failOnSocketLoss } from '../websocket/request-response';
 import { persistJSON, parsePersistedJSON } from '../storage-utils';
 import { formatForDebug } from '../debug-formatter';
@@ -115,6 +116,25 @@ export class ConnectionIOWebSocket {
   }
 
   async storeSessionsToLocalDB(sessions: StoredSessions): Promise<void> {
+    if (!sessionsHaveBeenRead()) {
+      // The key is SHARED across tabs and this writes the whole list. That is
+      // only sound when the list came from the key; if the read failed, the
+      // list is empty for a reason unrelated to what is stored, and writing it
+      // deletes every remembered account -- silently, because the write
+      // succeeds.
+      //
+      // Round 596 narrowed two of these writes to a single-session upsert
+      // (persist-one-session.ts) and left five whole-list writers behind, in
+      // session-list.ts, session-management.ts and service.ts. The guard is
+      // here, on the one method all five call, rather than at those five
+      // sites: a guard applied at some of the places its mechanism appears is
+      // this repository's most common defect, and it is the shape that fix
+      // itself had.
+      throw new Error(
+        'Refusing to write the stored-session list: it was never successfully ' +
+          'read, so writing it would erase every remembered account.',
+      );
+    }
     const valueStr: string = persistJSON(sessions);
     debugLog('ConnectionIO', 'Storing sessions, serialized:', formatForDebug(valueStr));
     const valueBytes: number[] = stringToBytes(valueStr);
@@ -122,7 +142,12 @@ export class ConnectionIOWebSocket {
   }
 
   async loadSessionsFromLocalDB(): Promise<StoredSessions | null> {
+    // Deliberately NOT wrapped in a catch. A failed read must reach the
+    // caller, which classifies it with isGenuinelyAbsent; swallowing it here
+    // would put the decision in the one place that cannot tell the two cases
+    // apart. `sessionsWereRead` is set only on the paths that reached the key.
     const result: { value: number[]; } | null = await this.localDBGet(0n, SESSION_STORAGE_KEY);
+    markSessionsRead();
     if (result && result.value) {
       try {
         const jsonStr: string = bytesToString(result.value);

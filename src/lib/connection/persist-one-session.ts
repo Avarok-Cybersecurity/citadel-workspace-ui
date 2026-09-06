@@ -35,6 +35,7 @@ import type { StoredSession, StoredSessions } from '@/types/session-types';
 import type { ConnectionIO } from './io';
 import { debugLog } from '@/lib/debug-config';
 import { isGenuinelyAbsent } from '@/lib/storage/absence';
+import { markSessionsRead } from './sessions-read-state';
 
 /**
  * Sessions currently on disk.
@@ -60,6 +61,10 @@ async function onDisk(io: ConnectionIO): Promise<StoredSessions | null> {
   } catch (error) {
     if (isGenuinelyAbsent(error)) {
       debugLog('ConnectionIO', 'No sessions stored yet; this is the first write');
+      // Genuine absence is a complete picture of nothing, so the write that
+      // follows is allowed to land. Says so explicitly rather than leaving
+      // storeSessionsToLocalDB's guard to infer it.
+      markSessionsRead();
       return null;
     }
     throw error;

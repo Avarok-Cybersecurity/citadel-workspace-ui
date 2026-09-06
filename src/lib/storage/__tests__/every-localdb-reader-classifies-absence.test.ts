@@ -56,6 +56,23 @@ const EXEMPT: Record<string, string> = {
     'catches around accept/decline requests, not around a read',
 };
 
+/**
+ * Source with comments removed.
+ *
+ * `classifies` below is a substring test, so a file that merely NAMES
+ * `isGenuinelyAbsent` in a comment counted as classifying. `io-websocket.ts`
+ * tripped exactly that: a comment explaining that its CALLER does the
+ * classification made the file look like it classified, and its exemption was
+ * reported as stale.
+ *
+ * This repository has found the same shape before, in a gate that matched the
+ * example string quoted in its own header. A check a comment can satisfy is a
+ * check prose can pass.
+ */
+function withoutComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+}
+
 function readsLocalDb(source: string): boolean {
   // `FromDB(` as well as `FromLocalDB(`. `live-document-store` names its
   // readers `loadIndexFromDB` / `loadDocumentFromDB`, which matched none of
@@ -77,10 +94,18 @@ describe('a module that reads LocalDB', () => {
 
     for (const rel of files) {
       const source: string = readFileSync(join(SRC, rel), 'utf-8');
-      if (!readsLocalDb(source)) continue;
-      if (!/catch\s*\(/.test(source)) continue;
+      const code: string = withoutComments(source);
+      if (!readsLocalDb(code)) continue;
+      if (!/catch\s*\(/.test(code)) continue;
 
-      const classifies: boolean = source.includes('isGenuinelyAbsent');
+      // A CALL, not a mention. `includes('isGenuinelyAbsent')` was satisfied by
+      // the import line alone, so a file could import the classifier, never
+      // call it, and pass. Verified: stubbing out every real call in
+      // live-document-store/persistence.ts while leaving the import left this
+      // test green.
+      const classifies: boolean = /isGenuinelyAbsent\s*\(/.test(
+        code.replace(/^\s*import[^;]*;/gm, ''),
+      );
       if (classifies && rel in EXEMPT) staleExemptions.push(rel);
       if (!classifies && !(rel in EXEMPT)) offenders.push(rel);
     }
