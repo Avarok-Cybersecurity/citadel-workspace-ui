@@ -6,10 +6,10 @@
  */
 
 import { WorkspaceClient, type WorkspaceClientConfig } from 'citadel-workspace-client-ts';
-import type { InternalServiceResponse, InternalServiceRequest, ResponseType } from 'citadel-workspace-client-ts';
+import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 import { installLeadershipListener } from './leadership-listener';
+import { leaderInboundHandler } from './leader-inbound-handler';
 import { eventEmitter } from '../event-emitter';
-import { broadcastChannelService } from '../broadcast-channel-service';
 import { debugLog, errorLog } from '../debug-config';
 import {
   setupDisconnectionHandler as setupDisconnection,
@@ -18,10 +18,9 @@ import {
 } from './leader-socket-teardown';
 import {
   instanceManager,
-  leaderOutboundHandler,
-  instanceInboundRouter
+  leaderOutboundHandler
 } from '../multi-instance';
-import { CID_ROUTED_NOTIFICATIONS } from '../multi-instance/routing-rules';
+
 import { INTERVAL } from '../timeout-constants';
 
 // Global state key for preventing multiple WASM client initializations
@@ -164,36 +163,7 @@ export class WebSocketInitialization {
   private async doCreateWebSocketAsLeader(): Promise<WorkspaceClient> {
     const clientConfig: WorkspaceClientConfig = {
       websocketUrl: this.config.websocketUrl,
-      messageHandler: (rawMessage: InternalServiceResponse) => {
-        const message: InternalServiceResponse = rawMessage;
-        debugLog('WebSocketInit', 'Message received from WASM client', message);
-
-        if (instanceManager.isLeader) {
-          instanceInboundRouter.routeMessage(message);
-        } else {
-          // Drop, do not emit: emitting bypasses the router's CID filtering,
-          // so another session's traffic lands in this tab's bus.
-          // closeLeaderClient makes this a fail-safe, not a delivery path.
-          debugLog('WebSocketInit', 'Dropping message received after demotion');
-        }
-
-        if (broadcastChannelService.getIsLeader()) {
-          const messageType: ResponseType | undefined = Object.keys(message)[0] as ResponseType | undefined;
-          // CID-routed notifications already flow through the inbound router's
-          // CID path; broadcasting them again here would cause duplicate
-          // delivery on the receiving tab. Single source of truth in
-          // routing-rules.ts.
-          if (!messageType || !CID_ROUTED_NOTIFICATIONS.has(messageType)) {
-            broadcastChannelService.broadcastWorkspaceResponse(message);
-          } else {
-            debugLog('WebSocketInit', `Skipping legacy broadcast for CID-routed ${messageType} (handled by instanceInboundRouter)`);
-          }
-        }
-
-        if (this.config.messageHandler) {
-          this.config.messageHandler(message);
-        }
-      },
+      messageHandler: leaderInboundHandler(this.config.messageHandler),
       errorHandler: this.config.errorHandler,
     };
 
