@@ -7,6 +7,7 @@ import type { AuthSuccessParams } from './types';
 import type { StoredSession, StoredSessions } from '@/types/session-types';
 import { selectUserWithoutBlocking } from './select-user';
 import { debugLog } from '@/lib/debug-config';
+import { persistSessionUpsert } from './persist-one-session';
 import { saveRecentServer } from '@/lib/server-utils';
 import { isGenuinelyAbsent } from '@/lib/storage/absence';
 
@@ -29,7 +30,10 @@ export async function storeSession(
 ): Promise<boolean> {
   state.addOrUpdateSession(session);
   try {
-    await io.storeSessionsToLocalDB(state.storedSessions);
+    // One session, not this tab's whole list. See persist-one-session.ts: the
+    // key is shared and each tab's array is its own, so pushing the array
+    // erased accounts other tabs had stored.
+    await persistSessionUpsert(session, state.storedSessions, io);
     return true;
   } catch (error) {
     debugLog('ConnectionService', 'Failed to store session', error);
