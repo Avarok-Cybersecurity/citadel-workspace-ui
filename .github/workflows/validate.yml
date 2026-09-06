@@ -624,6 +624,45 @@ jobs:
           INTERNAL_SERVICE_PORT: '12345'
         run: npx playwright test --shard=${{ matrix.shard }}/3
         working-directory: parent/citadel-workspaces/integration-tests
+      # AFTER the test step, deliberately.
+      #
+      # `Dump Service Logs on Start Failure` above only ever fires for a stack
+      # that fails to START: steps run in order, so by the time a TEST fails
+      # that step has already been skipped. Six P2P specs failed in run
+      # 34050229807 -- registration, both call specs, screen share, member-list,
+      # and three reconnection legs -- and the jobs carried no backend log at
+      # all, so the one line that separates "the request never arrived" from
+      # "it arrived and was not answered" was not available. The parent
+      # workflow has had this step for some time; this repository did not.
+      - name: Dump Service Logs on Test Failure
+        if: failure()
+        run: |
+          echo "=== server: membership and refusal decisions ==="
+          docker compose logs -t server 2>&1 \
+            | grep -E "first workspace member|awaits initialization|promoted to Admin|Refusing" \
+            | tail -40 || true
+          echo "=== server (tail, ratchet noise dropped) ==="
+          docker compose logs -t server 2>&1 \
+            | grep -vE "ratchet_manager\.rs|endpoint_crypto_container" | tail -120
+          # The P2P causal chain, which a blind tail cannot show.
+          #
+          # Run 33347976897 (file-manager) needed exactly this and did not have
+          # it: Alice's service logged `sink.send() SUCCEEDED` for every message
+          # after a file transfer while the peer received none of them, and the
+          # one line that separates "the bytes never arrived" from "they arrived
+          # and were not delivered" -- `[PeerChannelCreated] Received P2P
+          # message!` -- was pushed out of the tail by ratchet_manager INFO
+          # spam, which fills all 120 lines on its own.
+          echo "=== internal-service: P2P send/receive chain ==="
+          docker compose logs -t internal-service 2>&1 \
+            | grep -E "\[P2P-MSG\]|\[PeerChannelCreated\]|\[P2P-RECV-CHANNEL\]|\[UDP-NEGOTIATION\]|Auto-accepted inbound REVFS|Failed to auto-accept" \
+            | tail -80 || true
+          echo "=== internal-service: warnings and errors ==="
+          docker compose logs -t internal-service 2>&1 \
+            | grep -E "WARN|ERROR" | grep -vE "ratchet_manager\.rs" | tail -60 || true
+          echo "=== internal-service (tail, ratchet noise dropped) ==="
+          docker compose logs -t internal-service 2>&1 \
+            | grep -vE "ratchet_manager\.rs|endpoint_crypto_container" | tail -120
       - name: Upload Playwright Report
         if: failure()
         uses: actions/upload-artifact@v4
@@ -893,6 +932,45 @@ jobs:
           INTERNAL_SERVICE_PORT: '12345'
         run: npm run ${{ matrix.test }}
         working-directory: parent/citadel-workspaces/integration-tests
+      # AFTER the test step, deliberately.
+      #
+      # `Dump Service Logs on Start Failure` above only ever fires for a stack
+      # that fails to START: steps run in order, so by the time a TEST fails
+      # that step has already been skipped. Six P2P specs failed in run
+      # 34050229807 -- registration, both call specs, screen share, member-list,
+      # and three reconnection legs -- and the jobs carried no backend log at
+      # all, so the one line that separates "the request never arrived" from
+      # "it arrived and was not answered" was not available. The parent
+      # workflow has had this step for some time; this repository did not.
+      - name: Dump Service Logs on Test Failure
+        if: failure()
+        run: |
+          echo "=== server: membership and refusal decisions ==="
+          docker compose logs -t server 2>&1 \
+            | grep -E "first workspace member|awaits initialization|promoted to Admin|Refusing" \
+            | tail -40 || true
+          echo "=== server (tail, ratchet noise dropped) ==="
+          docker compose logs -t server 2>&1 \
+            | grep -vE "ratchet_manager\.rs|endpoint_crypto_container" | tail -120
+          # The P2P causal chain, which a blind tail cannot show.
+          #
+          # Run 33347976897 (file-manager) needed exactly this and did not have
+          # it: Alice's service logged `sink.send() SUCCEEDED` for every message
+          # after a file transfer while the peer received none of them, and the
+          # one line that separates "the bytes never arrived" from "they arrived
+          # and were not delivered" -- `[PeerChannelCreated] Received P2P
+          # message!` -- was pushed out of the tail by ratchet_manager INFO
+          # spam, which fills all 120 lines on its own.
+          echo "=== internal-service: P2P send/receive chain ==="
+          docker compose logs -t internal-service 2>&1 \
+            | grep -E "\[P2P-MSG\]|\[PeerChannelCreated\]|\[P2P-RECV-CHANNEL\]|\[UDP-NEGOTIATION\]|Auto-accepted inbound REVFS|Failed to auto-accept" \
+            | tail -80 || true
+          echo "=== internal-service: warnings and errors ==="
+          docker compose logs -t internal-service 2>&1 \
+            | grep -E "WARN|ERROR" | grep -vE "ratchet_manager\.rs" | tail -60 || true
+          echo "=== internal-service (tail, ratchet noise dropped) ==="
+          docker compose logs -t internal-service 2>&1 \
+            | grep -vE "ratchet_manager\.rs|endpoint_crypto_container" | tail -120
       - name: Upload Screenshots on Failure
         if: failure()
         uses: actions/upload-artifact@v4
