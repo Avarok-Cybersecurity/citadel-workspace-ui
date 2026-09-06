@@ -54,13 +54,26 @@ export class RevfsOpfsStorage {
     await writable.close();
   }
 
+  /**
+   * `null` ONLY when the file is genuinely absent.
+   *
+   * This used to catch everything and return null, so a revoked handle, a
+   * quota error, a locked file or any transient `NotReadableError` was
+   * indistinguishable from a first run. `loadTree` returned null, the service
+   * built a default tree and persisted it -- over a tree that was still on
+   * disk. A read failure destroyed the user's files.
+   *
+   * Every other error is rethrown so the caller can tell "nothing here" from
+   * "could not look".
+   */
   private async readFile(dir: FileSystemDirectoryHandle, name: string): Promise<string | null> {
     try {
       const fileHandle: FileSystemFileHandle = await dir.getFileHandle(name);
       const file: File = await fileHandle.getFile();
       return await file.text();
-    } catch {
-      return null;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'NotFoundError') return null;
+      throw err;
     }
   }
 

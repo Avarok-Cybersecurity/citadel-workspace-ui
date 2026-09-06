@@ -114,6 +114,17 @@ export class RevfsService {
       return result.tree;
     }
 
+    // A tree we could not READ is not an empty tree.
+    //
+    // Below this line a default tree is built, cached and PERSISTED. Reaching
+    // it after a storage failure writes that default over a tree still on
+    // disk, and the user's files are gone. Storage now says which case it is;
+    // this returns the default for the caller to render but neither caches nor
+    // persists it, so nothing is destroyed and the next call retries the load.
+    if (result.type === 'load-tree' && result.unreadable) {
+      return createDefaultTree();
+    }
+
     const defaultTree: RevfsNode = createDefaultTree();
     this.state.setTree(key, defaultTree);
     await persistTree(io, key, defaultTree);
@@ -134,6 +145,17 @@ export class RevfsService {
     if (result.type === 'load-tree' && result.tree) {
       this.state.setTree(key, result.tree);
       return result.tree;
+    }
+
+    // A tree we could not READ is not an empty tree.
+    //
+    // Below this line a default tree is built, cached and PERSISTED. Reaching
+    // it after a storage failure writes that default over a tree still on
+    // disk, and the user's files are gone. Storage now says which case it is;
+    // this returns the default for the caller to render but neither caches nor
+    // persists it, so nothing is destroyed and the next call retries the load.
+    if (result.type === 'load-tree' && result.unreadable) {
+      return createDefaultTree();
     }
 
     const defaultTree: RevfsNode = createDefaultTree();
