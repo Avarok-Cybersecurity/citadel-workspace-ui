@@ -84,6 +84,15 @@ export async function restorePersistedGroups(): Promise<void> {
         return missing.length === 0 ? prev : [...prev, ...missing];
       });
     }
+    // Anything that arrived BEFORE the read completed was held in memory but
+    // not written: persistGroups refuses to write a key it has not read, since
+    // at that point an empty list is indistinguishable from a lost one. Now
+    // that the read has happened, flush what we hold.
+    //
+    // Inside the try, after the merge, so it runs only when the read actually
+    // succeeded -- persistGroups would refuse anyway, but doing it here says
+    // why rather than relying on the refusal.
+    if (groups.length > 0) void persistGroups(groups);
   } finally {
     // Marked even when the read finds nothing or fails. "Hydration finished"
     // and "there are groups" are different facts, and a consumer waiting on the
