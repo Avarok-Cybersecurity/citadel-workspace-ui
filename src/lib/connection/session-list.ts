@@ -12,6 +12,7 @@
 import type { ConnectionState } from './state';
 import type { ConnectionIO } from './io';
 import { debugLog } from '@/lib/debug-config';
+import { persistSessionRemoval } from './persist-one-session';
 
 /** Remove a single session from state and persist. */
 export async function removeSession(
@@ -19,7 +20,9 @@ export async function removeSession(
   state: ConnectionState, io: ConnectionIO,
 ): Promise<void> {
   state.removeSession(username, serverAddress);
-  await io.storeSessionsToLocalDB(state.storedSessions);
+  // One session, not this tab's whole list. A whole-list write here also
+  // resurrected accounts another tab had removed, and erased ones it had added.
+  await persistSessionRemoval(username, serverAddress, state.storedSessions, io);
 }
 
 /**
