@@ -4,6 +4,7 @@
  * Methods for workspace CRUD: load, get, list, create, update.
  */
 
+import { workspaceWithId, workspaceChangedTo } from './response-matchers';
 import type { WorkspaceProtocolRequestTS } from '@/types/workspace-protocol';
 import { workspaceResponseHandler } from '@/lib/workspace-response-handler';
 import { debugLog } from '@/lib/debug-config';
@@ -65,7 +66,13 @@ export async function createWorkspace(
   };
   // Same reasoning as updateWorkspace: a refusal arrives as a response and
   // cannot reject a send-only promise.
-  return awaitWriteResponse('CreateWorkspace', () => sender.sendProtocolRequest(requestPart));
+  // The new workspace's id is not known yet, so this matches the name it is
+  // being created with -- the same compromise `newChildOf` makes for nodes.
+  return awaitWriteResponse(
+    'CreateWorkspace',
+    () => sender.sendProtocolRequest(requestPart),
+    workspaceChangedTo({ name }),
+  );
 }
 
 /**
@@ -94,7 +101,14 @@ export async function updateWorkspaceTheme(
   // Resolves when the SERVER accepts it. A refusal arrives as a response,
   // which cannot reject a send-only promise — so this used to report success
   // for writes the server was about to refuse.
-  return awaitWriteResponse('UpdateWorkspaceTheme', () => sender.sendProtocolRequest(requestPart));
+  // Narrowed by id where one was given: `Workspace` is answered by
+  // `GetWorkspace` and broadcast to the other members, so without this a
+  // concurrent read or a colleague's save resolves this write.
+  return awaitWriteResponse(
+    'UpdateWorkspaceTheme',
+    () => sender.sendProtocolRequest(requestPart),
+    workspaceId === undefined ? undefined : workspaceWithId(workspaceId),
+  );
 }
 
 export async function updateWorkspace(
@@ -115,5 +129,13 @@ export async function updateWorkspace(
   // A refusal (no permission, wrong master password) arrives as a response,
   // which cannot reject a send-only promise — so GeneralTab toasted "updated
   // successfully" and cleared its dirty flag for a rename the server rejected.
-  return awaitWriteResponse('UpdateWorkspace', () => sender.sendProtocolRequest(requestPart));
+  // Narrowed by what this request CHANGES. A concurrent `GetWorkspace` answers
+  // with the workspace as it is now -- the value being replaced -- so the
+  // answer carrying the new name is ours and the one carrying the old name is
+  // not. See `workspaceChangedTo`.
+  return awaitWriteResponse(
+    'UpdateWorkspace',
+    () => sender.sendProtocolRequest(requestPart),
+    workspaceChangedTo({ name, description }),
+  );
 }
