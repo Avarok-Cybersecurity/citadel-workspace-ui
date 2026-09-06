@@ -12,12 +12,21 @@ import type { UserRole, DomainPermissions } from './types';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
 /**
+ * The permissions the server can name, as a set.
+ *
+ * `Object.values(Permission)` allocates a fresh array on every call, and the call sat inside a
+ * loop over the permissions of one domain — so checking a member's grants allocated one array
+ * per permission. Hoisted: the enum does not change at runtime.
+ */
+const KNOWN_PERMISSIONS: Set<Permission> = new Set(Object.values(Permission));
+
+/**
  * Parse raw permission strings into a Permission Set, filtering unknown values.
  */
 export function parsePermissionSet(permissions: string[]): Set<Permission> {
   const permSet: Set<Permission> = new Set<Permission>();
   for (const perm of permissions) {
-    if (Object.values(Permission).includes(perm as Permission)) {
+    if (KNOWN_PERMISSIONS.has(perm as Permission)) {
       permSet.add(perm as Permission);
     }
   }
