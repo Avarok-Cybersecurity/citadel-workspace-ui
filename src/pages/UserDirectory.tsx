@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { reachablePeer } from './reachable-peer';
 import { DirectoryTabContent } from './DirectoryTabContent';
 import { describeFailure } from '@/lib/failure-message';
@@ -44,7 +44,18 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
 
   const currentUserId: string = state.currentUser?.id || state.currentUser?.username || '';
 
-  const allMembers: MemberDisplay[] = Object.values(state.members || {}).map(member => ({
+  // Index the peers ONCE per change, not once per member.
+  //
+  // The map below ran `registeredPeers.find(...)` for every member, so the directory cost
+  // O(members × peers) — and it sat in the render body with no memo, so it was paid again on
+  // every render of a page whose state comes from `useWorkspace()`, which changes on every
+  // received message.
+  const peerByUsername: Map<string, RegisteredPeer> = useMemo(
+    () => new Map(registeredPeers.map((peer: RegisteredPeer) => [peer.username, peer])),
+    [registeredPeers],
+  );
+
+  const allMembers: MemberDisplay[] = useMemo(() => Object.values(state.members || {}).map(member => ({
     id: member.id,
     displayName: member.displayName,
     avatarUrl: member.avatarUrl,
@@ -62,10 +73,10 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
     // `.some(...)` answered "is this person registered with me", which is not
     // presence: a registered peer who is offline showed a green dot under a tab
     // labelled Online. The registry already carries the real flag.
-    isOnline: registeredPeers.find((peer) => peer.username === member.id)?.isOnline ?? false,
+    isOnline: peerByUsername.get(member.id)?.isOnline ?? false,
     // Undefined, not 0: nothing tracks last-seen, and 0 rendered as 1970.
     lastActive: undefined,
-  }));
+  })), [state.members, peerByUsername]);
 
   const filteredMembers: MemberDisplay[] = allMembers.filter(member => {
     // `=== true`: a member whose presence nobody has reported is not evidence
