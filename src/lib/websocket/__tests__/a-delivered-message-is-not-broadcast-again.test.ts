@@ -38,7 +38,7 @@ vi.mock('../../multi-instance', () => ({
 
 vi.mock('../../broadcast-channel-service', () => ({
   broadcastChannelService: {
-    getIsLeader: () => true,
+    getIsLeader: (): boolean => true,
     broadcastWorkspaceResponse,
   },
 }));

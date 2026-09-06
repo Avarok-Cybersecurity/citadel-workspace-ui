@@ -37,6 +37,43 @@ const EXPENSIVE = /\b(fnv1a64|sha256Sync|describeForwarded|JSON\.stringify)\s*\(
 /** Log functions that are compiled away, so their arguments are wasted work. */
 const NOOP_IN_PROD = /\b(debugLog|warnLog)\s*\(/;
 
+/**
+ * The line where the top-level declaration containing `index` begins.
+ *
+ * Column-zero heuristic: `export function`, `function`, `const x = (` and
+ * class members at two spaces all start a region a guard could live in. It is
+ * a bound on how far back to look, not a parser -- a guard further up than
+ * its own function cannot apply to this call anyway.
+ */
+function enclosingStart(lines, index) {
+  for (let i = index; i >= 0; i -= 1) {
+    if (/^(export\s+)?(async\s+)?(function|class|const|let)\b/.test(lines[i])) return i;
+  }
+  return 0;
+}
+
+/**
+ * The text of the call beginning on `lines[start]`, to its closing paren.
+ *
+ * Bounded at 20 lines: an argument list longer than that is not a log call,
+ * and an unbalanced paren (a string containing one, a comment) must not make
+ * this run to the end of the file.
+ */
+function callText(lines, start) {
+  let depth = 0;
+  let seen = false;
+  const parts = [];
+  for (let i = start; i < lines.length && i < start + 20; i += 1) {
+    parts.push(lines[i]);
+    for (const ch of lines[i]) {
+      if (ch === '(') { depth += 1; seen = true; }
+      else if (ch === ')') depth -= 1;
+    }
+    if (seen && depth <= 0) break;
+  }
+  return parts.join('\n');
+}
+
 function* walk(dir) {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
@@ -67,12 +104,36 @@ for (const file of walk(SRC)) {
   lines.forEach((line, i) => {
     if (!NOOP_IN_PROD.test(line)) return;
     logCalls += 1;
-    if (!EXPENSIVE.test(line)) return;
 
-    // The guard may be on this line or just above it — an `if (debugEnabled) {`
-    // block opened up to three lines earlier still encloses this call.
-    const window = lines.slice(Math.max(0, i - 3), i + 1).join('\n');
-    if (/\bif\s*\(\s*debugEnabled\s*\)/.test(window)) { guarded += 1; return; }
+    // The whole CALL, not one line of it.
+    //
+    // The first version tested `debugLog(` and the expensive argument on the
+    // SAME line, so a call written across several lines escaped entirely --
+    // and router-diagnostics.ts is exactly that shape: `debugLog(` on one
+    // line, `describeForwarded(message)` two lines below, running once per
+    // inbound message in every tab. The gate reported "all of them guarded"
+    // while the largest remaining instance sat outside its view.
+    //
+    // Read forward to the call's closing paren by depth, so the window is the
+    // argument list rather than a guessed number of lines.
+    const call = callText(lines, i);
+    if (!EXPENSIVE.test(call)) return;
+
+    // Two guard shapes, both legitimate:
+    //
+    //   if (debugEnabled) { debugLog(...) }   — wraps the call
+    //   if (!debugEnabled) return;            — guards the whole function
+    //
+    // The second is often the better code when a function does nothing but
+    // log, and the first version of this gate could not see it: it looked
+    // three lines up for a wrapping `if`, so an early return at the top of
+    // the function read as unguarded. Search back to the start of the
+    // enclosing top-level declaration instead of a fixed number of lines.
+    const functionStart = enclosingStart(lines, i);
+    const window = lines.slice(functionStart, i + 1).join('\n');
+    const wrapped = /\bif\s*\(\s*debugEnabled\s*\)/.test(window);
+    const earlyReturn = /\bif\s*\(\s*!\s*debugEnabled\s*\)\s*return\b/.test(window);
+    if (wrapped || earlyReturn) { guarded += 1; return; }
 
     problems.push(`${relative(ROOT, file)}:${i + 1}  ${line.trim().slice(0, 90)}`);
   });

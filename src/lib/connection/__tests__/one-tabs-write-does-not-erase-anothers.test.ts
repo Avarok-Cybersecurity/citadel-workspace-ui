@@ -29,7 +29,7 @@ import type { ConnectionIO } from '../io';
 let disk: StoredSessions | null = null;
 let readFails: Error | null = null;
 
-const io = {
+const io: ConnectionIO = {
   loadSessionsFromLocalDB: async (): Promise<StoredSessions | null> => {
     if (readFails) throw readFails;
     return disk === null ? null : { sessions: [...disk.sessions] };

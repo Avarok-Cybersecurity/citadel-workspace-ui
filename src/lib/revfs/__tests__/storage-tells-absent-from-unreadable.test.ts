@@ -13,11 +13,23 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RevfsOpfsStorage } from '@/lib/revfs/opfs-storage';
 
-const KEY = 'alice:bob';
+const KEY: string = 'alice:bob';
+
+/**
+ * A directory handle that returns itself, so any depth of path resolves.
+ *
+ * Declared as a named type because the object refers to `dir` inside its own
+ * initializer — the annotator that types the rest of this suite cannot infer a
+ * self-referential shape, and left it bare.
+ */
+interface SelfReturningDir {
+  getDirectoryHandle: (...args: unknown[]) => Promise<SelfReturningDir>;
+  getFileHandle: (...args: unknown[]) => Promise<never>;
+}
 
 /** An OPFS whose file read fails in whichever way the test names. */
 function opfsThrowing(error: unknown): void {
-  const dir = {
+  const dir: SelfReturningDir = {
     getDirectoryHandle: vi.fn(async () => dir),
     getFileHandle: vi.fn(async () => {
       throw error;

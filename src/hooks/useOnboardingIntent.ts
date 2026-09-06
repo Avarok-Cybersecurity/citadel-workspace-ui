@@ -26,7 +26,7 @@ export interface OnboardingIntentState {
 export function useOnboardingIntent(beginWizard: () => void): OnboardingIntentState {
   const [open, setOpen] = useState(false);
 
-  const request = useCallback((): void => {
+  const request: () => void = useCallback((): void => {
     if (isOnboardingEnabled()) {
       setOpen(true);
       return;
@@ -34,7 +34,7 @@ export function useOnboardingIntent(beginWizard: () => void): OnboardingIntentSt
     beginWizard();
   }, [beginWizard]);
 
-  const resolve = useCallback((): void => {
+  const resolve: () => void = useCallback((): void => {
     setOpen(false);
     beginWizard();
   }, [beginWizard]);

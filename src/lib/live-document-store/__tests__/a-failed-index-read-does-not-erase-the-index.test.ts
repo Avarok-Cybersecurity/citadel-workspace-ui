@@ -53,10 +53,11 @@ vi.mock('@/lib/websocket-service', () => ({
 // nothing writes. The first test PASSED while measuring nothing -- only the
 // two beside it, which assert on content rather than absence, exposed it.
 import { DOCUMENTS_INDEX_KEY as INDEX_KEY, DOCUMENTS_KEY_PREFIX } from '../types';
+import type { DocumentMetadata } from '@/lib/live-document-store/types';
 
 /** Put a listed document on disk, index entry and body together. */
 function seedDocument(id: string): void {
-  const doc = {
+  const doc: { metadata: { id: string; title: string; peerCid: string; creatorCid: string; createdAt: number; updatedAt: number; }; state: never[]; } = {
     metadata: { id, title: id, peerCid: '1', creatorCid: '1', createdAt: 0, updatedAt: 0 },
     state: [],
   };
@@ -117,7 +118,7 @@ describe('the document index', () => {
     getBehaviour = 'absent';
     const store: LiveDocumentStore = await freshStore();
 
-    const meta = await store.createDocument('notes', '1', '1');
+    const meta: DocumentMetadata = await store.createDocument('notes', '1', '1');
 
     expect(indexOnDisk()).toEqual([meta.id]);
   });
@@ -137,7 +138,7 @@ describe('the document index', () => {
     await expect(store.createDocument('first', '1', '1')).rejects.toThrow(/never successfully read/);
 
     getBehaviour = 'stored';
-    const meta = await store.createDocument('second', '1', '1');
+    const meta: DocumentMetadata = await store.createDocument('second', '1', '1');
 
     expect(
       indexOnDisk(),

@@ -55,7 +55,7 @@ const twoAccounts: StoredSessions = {
 function namesOnDisk(): string[] | null {
   const raw: number[] | undefined = stored.get(SESSION_STORAGE_KEY);
   if (!raw) return null;
-  const parsed = JSON.parse(new TextDecoder().decode(new Uint8Array(raw))) as StoredSessions;
+  const parsed: StoredSessions = JSON.parse(new TextDecoder().decode(new Uint8Array(raw))) as StoredSessions;
   return parsed.sessions.map((s) => s.username).sort();
 }
 

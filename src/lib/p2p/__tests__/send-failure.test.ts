@@ -42,7 +42,7 @@ describe('send failures the agent reports', () => {
 
   it('emits an event a surface can render', () => {
     const seen: unknown[] = [];
-    const off = eventEmitter.on('p2p:send-failed', (e: unknown) => seen.push(e));
+    const off: () => void = eventEmitter.on('p2p:send-failed', (e: unknown) => seen.push(e));
     expect(reportSendFailure({ cid: 7n, message: 'Peer connection for 42 not found' })).toBe(true);
     expect(seen).toHaveLength(1);
     expect(seen[0]).toMatchObject({ cid: 7n, reason: 'Peer connection for 42 not found' });
@@ -61,7 +61,7 @@ describe('send failures the agent reports', () => {
     expect(reportSendFailure({ cid: 9n, message: 'x' }, t0 + 200)).toBe(true);
     // And the same session is reported again once the interval has passed.
     expect(reportSendFailure({ cid: 7n, message: 'x' }, t0 + REPORT_INTERVAL_MS + 1)).toBe(true);
-    const failedEvents = emit.mock.calls.filter(([name]) => name === 'p2p:send-failed');
+    const failedEvents: unknown[][] = emit.mock.calls.filter(([name]) => name === 'p2p:send-failed');
     expect(failedEvents).toHaveLength(3);
     emit.mockRestore();
   });

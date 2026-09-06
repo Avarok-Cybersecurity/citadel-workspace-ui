@@ -10,16 +10,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 
-const CONVERSATIONS = 25;
-const PEERS = 200;
-let currentCidCalls = 0;
+const CONVERSATIONS: number = 25;
+const PEERS: number = 200;
+let currentCidCalls: number = 0;
 
-const conversations = Array.from({ length: CONVERSATIONS }, (_, i) => ({
+const conversations: { peerCid: bigint; messages: { timestamp: number; }[]; unreadCount: number; }[] = Array.from({ length: CONVERSATIONS }, (_: unknown, i: number): { peerCid: bigint; messages: { timestamp: number; }[]; unreadCount: number; } => ({
   peerCid: BigInt(1000 + i),
   messages: [{ timestamp: i }],
   unreadCount: 0,
 }));
-const registeredPeers = Array.from({ length: PEERS }, (_, i) => ({
+const registeredPeers: { cid: string; username: string; isOnline: boolean; }[] = Array.from({ length: PEERS }, (_: unknown, i: number): { cid: string; username: string; isOnline: boolean; } => ({
   cid: String(1000 + i),
   username: `peer${i}`,
   isOnline: true,
@@ -32,10 +32,10 @@ vi.mock('@/lib/p2p/current-cid', () => ({
   },
 }));
 vi.mock('@/lib/p2p', () => ({
-  P2PMessengerManager: { getInstance: () => ({ getAllConversations: () => conversations }) },
+  P2PMessengerManager: { getInstance: (): { getAllConversations: () => { peerCid: bigint; messages: { timestamp: number; }[]; unreadCount: number; }[]; } => ({ getAllConversations: (): { peerCid: bigint; messages: { timestamp: number; }[]; unreadCount: number; }[] => conversations }) },
 }));
 vi.mock('@/lib/connection', () => ({
-  connectionManager: { getConnectionInfo: () => ({ cid: 7n }) },
+  connectionManager: { getConnectionInfo: (): { cid: bigint; } => ({ cid: 7n }) },
 }));
 vi.mock('@/lib/p2p-auto-connect-service', () => ({
   p2pAutoConnectService: {
@@ -49,6 +49,7 @@ vi.mock('@/lib/p2p-auto-connect-service', () => ({
 vi.mock('@/lib/debug-config', () => ({ debugEnabled: false, debugLog: (): void => {} }));
 
 import { useConversationPeers } from '../use-conversation-peers';
+import type { ConversationPeer } from '@/hooks/use-conversation-peers';
 
 describe('the conversation list is not quadratic', () => {
   beforeEach(() => {
@@ -67,7 +68,7 @@ describe('the conversation list is not quadratic', () => {
   it('names every peer correctly through the index', async () => {
     const { result } = renderHook(() => useConversationPeers({ registeredPeers } as never));
     await waitFor(() => expect(result.current.peersWithConversations.length).toBe(CONVERSATIONS));
-    const names = result.current.peersWithConversations.map((p) => p.peerUsername);
+    const names: string[] = result.current.peersWithConversations.map((p: ConversationPeer): string => p.peerUsername);
     expect(names).toContain('peer0');
     expect(new Set(names).size, 'every conversation resolved to a distinct peer').toBe(CONVERSATIONS);
   });

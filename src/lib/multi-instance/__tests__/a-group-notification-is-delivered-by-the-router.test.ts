@@ -64,7 +64,7 @@ import { instanceInboundRouter } from '../instance-inbound-router';
  * asserted here anyway, because the verdict must be right for it too and
  * because nothing should depend on which list somebody remembered to edit.
  */
-const GROUP_NOTIFICATIONS = [
+const GROUP_NOTIFICATIONS: readonly ["GroupInviteNotification", "GroupJoinRequestNotification", "GroupMemberStateChangeNotification", "GroupLeaveNotification", "GroupEndNotification", "GroupDisconnectNotification", "GroupRequestJoinPendingNotification", "GroupMessageNotification"] = [
   'GroupInviteNotification',
   'GroupJoinRequestNotification',
   'GroupMemberStateChangeNotification',

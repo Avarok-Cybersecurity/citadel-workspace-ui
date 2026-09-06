@@ -39,21 +39,21 @@ describe('state-sync stays in its session', () => {
   });
 
   it('applies state addressed to this tab', async () => {
-    const off = eventEmitter.on('broadcast-state-sync', (d: unknown) => applied.push(d));
+    const off: () => void = eventEmitter.on('broadcast-state-sync', (d: unknown): number => applied.push(d));
     await handleStateSync(stateSync(200n));
     expect(applied).toHaveLength(1);
     if (typeof off === 'function') off();
   });
 
   it('drops state addressed to another session', async () => {
-    const off = eventEmitter.on('broadcast-state-sync', (d: unknown) => applied.push(d));
+    const off: () => void = eventEmitter.on('broadcast-state-sync', (d: unknown): number => applied.push(d));
     await handleStateSync(stateSync(999n));
     expect(applied, "another session's workspace must not be applied here").toHaveLength(0);
     if (typeof off === 'function') off();
   });
 
   it('still applies an unaddressed message, so an early-boot sender keeps working', async () => {
-    const off = eventEmitter.on('broadcast-state-sync', (d: unknown) => applied.push(d));
+    const off: () => void = eventEmitter.on('broadcast-state-sync', (d: unknown): number => applied.push(d));
     await handleStateSync(stateSync(undefined));
     expect(applied).toHaveLength(1);
     if (typeof off === 'function') off();
@@ -61,7 +61,7 @@ describe('state-sync stays in its session', () => {
 
   it('applies anything when this tab has no session yet', async () => {
     selected.cid = undefined;
-    const off = eventEmitter.on('broadcast-state-sync', (d: unknown) => applied.push(d));
+    const off: () => void = eventEmitter.on('broadcast-state-sync', (d: unknown): number => applied.push(d));
     await handleStateSync(stateSync(999n));
     expect(applied).toHaveLength(1);
     if (typeof off === 'function') off();

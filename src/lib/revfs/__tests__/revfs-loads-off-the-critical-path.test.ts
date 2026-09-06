@@ -45,7 +45,7 @@ whose every operation throws, instead of letting it leave the op unacked',
 
   it('initializes the service exactly once across repeated starts', async (): Promise<void> => {
     const first: Awaited<ReturnType<typeof startRevfs>> = await startRevfs(deps());
-    const spy = vi.spyOn(first.revfsService, 'initialize');
+    const spy: ReturnType<typeof vi.spyOn> = vi.spyOn(first.revfsService, 'initialize');
 
     await startRevfs(deps());
     await startRevfs(deps());

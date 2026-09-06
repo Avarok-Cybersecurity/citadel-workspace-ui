@@ -11,8 +11,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const keys: string[] = Array.from({ length: 20 }, (_, i) => `p2p_conv_${i}_metadata`);
-let inFlight = 0;
-let peakInFlight = 0;
+let inFlight: number = 0;
+let peakInFlight: number = 0;
 const started: string[] = [];
 
 vi.mock('@/lib/websocket-service', () => ({
@@ -21,7 +21,7 @@ vi.mock('@/lib/websocket-service', () => ({
   },
 }));
 vi.mock('../message-page-operations', () => ({
-  loadMetadataByKey: async (key: string) => {
+  loadMetadataByKey: async (key: string): Promise<{ peerCid: bigint; messageCount: number; }> => {
     started.push(key);
     inFlight += 1;
     peakInFlight = Math.max(peakInFlight, inFlight);
@@ -39,6 +39,7 @@ vi.mock('@/lib/multi-instance', () => ({ instanceManager: { cid: null } }));
 vi.mock('@/lib/debug-config', () => ({ debugEnabled: false, debugLog: (): void => {} }));
 
 import { loadAllMetadata } from '../load-all-metadata';
+import type { ConversationMetadata } from '@/lib/p2p/p2p-types';
 
 describe('boot loads conversations in parallel', () => {
   beforeEach(() => {
@@ -59,7 +60,7 @@ describe('boot loads conversations in parallel', () => {
   });
 
   it('returns every conversation, in key order', async () => {
-    const result = await loadAllMetadata();
+    const result: ConversationMetadata[] = await loadAllMetadata();
     expect(result).toHaveLength(keys.length);
     // Compared as bigint. `peerCid` IS a bigint -- CLAUDE.md's CID rule is
     // that string is for display, keys and logging only -- so casting it to
@@ -70,9 +71,9 @@ describe('boot loads conversations in parallel', () => {
   });
 
   it('finishes in well under the serial time', async () => {
-    const started_at = Date.now();
+    const started_at: number = Date.now();
     await loadAllMetadata();
-    const elapsed = Date.now() - started_at;
+    const elapsed: number = Date.now() - started_at;
     // 20 reads × 10ms serial = 200ms; eight at a time should be nearer 30ms.
     expect(elapsed, `took ${elapsed}ms, which is the serial cost`).toBeLessThan(150);
   });

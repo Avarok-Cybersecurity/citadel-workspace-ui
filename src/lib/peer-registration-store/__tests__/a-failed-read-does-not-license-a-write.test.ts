@@ -49,7 +49,7 @@ import type { KVPendingEntry } from '../types';
 
 /** The request id of the last LocalDBGetKV that went out. */
 function lastGetRequestId(): string {
-  const get = [...sent].reverse().find((m) => 'LocalDBGetKV' in m);
+  const get: Record<string, unknown> | undefined = [...sent].reverse().find((m: Record<string, unknown>): boolean => 'LocalDBGetKV' in m);
   if (!get) throw new Error('no LocalDBGetKV was sent');
   return (get.LocalDBGetKV as { request_id: string }).request_id;
 }
@@ -73,7 +73,7 @@ async function persistAnswering(
   // localDBSet does a dynamic `import()` before sending, so the request is
   // several microtask turns away rather than one. Poll rather than guess.
   let set: Record<string, unknown> | undefined;
-  for (let i = 0; i < 50 && !set; i += 1) {
+  for (let i: number = 0; i < 50 && !set; i += 1) {
     await new Promise((r) => setTimeout(r, 0));
     set = [...sent].reverse().find((m) => 'LocalDBSetKV' in m);
   }

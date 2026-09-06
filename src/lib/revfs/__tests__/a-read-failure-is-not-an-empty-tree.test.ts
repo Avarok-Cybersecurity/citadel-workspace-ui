@@ -13,12 +13,12 @@
  * the unreadable case must persist nothing.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi  } from 'vitest';
 import type { RevfsIntent, RevfsIntentResult } from '@/types/revfs-intents';
 import { createTestService } from './revfs-service-test-helpers';
 
-const ALICE = 1n;
-const BOB = 2n;
+const ALICE: bigint = 1n;
+const BOB: bigint = 2n;
 
 /** An IO stub whose load-tree answer is whatever the test says it is. */
 function ioReturning(loadResult: RevfsIntentResult) {
@@ -26,7 +26,7 @@ function ioReturning(loadResult: RevfsIntentResult) {
   // Synchronous: `IntentHandler` is `(intent) => RevfsIntentResult`, not a
   // promise-returning one. vitest awaits either, so an async mock ran fine and
   // only `tsc` caught it.
-  const execute = vi.fn((intent: RevfsIntent): RevfsIntentResult => {
+  const execute = vi.fn<(intent: RevfsIntent) => RevfsIntentResult>((intent: RevfsIntent): RevfsIntentResult => {
     if (intent.type === 'load-tree') return loadResult;
     persisted.push(intent);
     if (intent.type === 'persist-tree') return { type: 'persist-tree', success: true };
@@ -38,8 +38,8 @@ function ioReturning(loadResult: RevfsIntentResult) {
 
 describe('a read failure is not an empty tree', () => {
   it('does not persist a default over a tree it could not read', async () => {
-    const io = ioReturning({ type: 'load-tree', tree: null, unreadable: true });
-    const service = createTestService(io.execute);
+    const io: ReturnType<typeof ioReturning> = ioReturning({ type: 'load-tree', tree: null, unreadable: true });
+    const service: ReturnType<typeof createTestService> = createTestService(io.execute);
 
     await service.getTree(ALICE, BOB);
 
@@ -52,8 +52,8 @@ describe('a read failure is not an empty tree', () => {
   it('still seeds and persists a default when the tree is genuinely absent', async () => {
     // The control. Without it the fix could simply stop persisting ever, and
     // no assertion about the failure case would notice.
-    const io = ioReturning({ type: 'load-tree', tree: null });
-    const service = createTestService(io.execute);
+    const io: ReturnType<typeof ioReturning> = ioReturning({ type: 'load-tree', tree: null });
+    const service: ReturnType<typeof createTestService> = createTestService(io.execute);
 
     await service.getTree(ALICE, BOB);
 
@@ -66,13 +66,13 @@ describe('a read failure is not an empty tree', () => {
   it('retries the load rather than caching the unreadable result', async () => {
     // Not caching is what makes this recoverable: a transient failure must not
     // pin an empty tree in memory for the rest of the session.
-    const io = ioReturning({ type: 'load-tree', tree: null, unreadable: true });
-    const service = createTestService(io.execute);
+    const io: ReturnType<typeof ioReturning> = ioReturning({ type: 'load-tree', tree: null, unreadable: true });
+    const service: ReturnType<typeof createTestService> = createTestService(io.execute);
 
     await service.getTree(ALICE, BOB);
     await service.getTree(ALICE, BOB);
 
-    const loads = io.execute.mock.calls.filter(
+    const loads: [RevfsIntent][] = io.execute.mock.calls.filter(
       ([intent]) => (intent as RevfsIntent).type === 'load-tree',
     );
     expect(loads.length, 'the second call served a cached empty tree').toBe(2);

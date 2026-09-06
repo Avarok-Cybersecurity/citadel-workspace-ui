@@ -54,7 +54,7 @@ export function failureReason(failure: SendFailure): string {
  * A dead channel produces one of these per frame -- the live-server run
  * produced 125 -- and 125 toasts is not a better experience than silence.
  */
-export const REPORT_INTERVAL_MS = 15_000;
+export const REPORT_INTERVAL_MS: number = 15_000;
 
 const lastReported: Map<string, number> = new Map();
 

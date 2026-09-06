@@ -12,6 +12,9 @@ import type { ComponentProps } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { P2PMessageList } from '../P2PMessageList';
+import type { P2PMessage } from '@/lib/p2p/p2p-types';
+import type { Key } from 'react';
+import type { UIEvent } from 'react';
 
 vi.mock('../MessageBubble', () => ({
   MessageBubble: ({ message }: { message: { content: string } }): JSX.Element => <div>{message.content}</div>,
@@ -86,7 +89,7 @@ describe('the empty state waits until it is true', () => {
   });
 
   it('never says it when there are messages, loading or not', () => {
-    const withHistory = { ...base, messages: [{ id: 'm1', content: 'hello', senderCid: 2n, timestamp: 1, status: 'delivered' }] as never };
+    const withHistory: { messages: never; currentUserCid?: bigint | undefined; currentUserName: string; peerName: string; peerCid: bigint; isLoadingMore: boolean; isLoadingHistory: boolean; hasMorePages: boolean; displaySenderName: boolean; displaySenderAvatar: boolean; onScroll: (event: React.UIEvent<HTMLDivElement>) => void; onRetryMessage: (message: P2PMessage) => void; onOpenDocument: (docId: string, title: string) => void; onAcceptTransfer: (transferId: string) => Promise<void>; onDeclineTransfer: (transferId: string) => Promise<void>; onCancelTransfer: (transferId: string) => Promise<void>; onOpenFile: (downloadPath: string) => void; onEditMessage?: ((messageId: string, content: string) => void) | undefined; onDeleteMessage?: ((messageId: string) => void) | undefined; onReplyMessage?: ((messageId: string) => void) | undefined; key?: Key | null | undefined; } = { ...base, messages: [{ id: 'm1', content: 'hello', senderCid: 2n, timestamp: 1, status: 'delivered' }] as never };
     render(<P2PMessageList {...withHistory} isLoadingHistory />);
     expect(screen.queryByText(/No messages yet/i)).toBeNull();
   });

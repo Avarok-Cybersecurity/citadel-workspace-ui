@@ -12,18 +12,18 @@ import { parsePermissionSet } from '../cache';
 describe('parsePermissionSet', () => {
   it('keeps every permission the server can name', () => {
     const all: string[] = Object.values(Permission) as string[];
-    const parsed = parsePermissionSet(all);
+    const parsed: Set<Permission> = parsePermissionSet(all);
     expect(parsed.size).toBe(all.length);
     for (const p of all) expect(parsed.has(p as Permission)).toBe(true);
   });
 
   it('drops what is not a permission, rather than trusting the wire', () => {
-    const parsed = parsePermissionSet(['NotAPermission', '', 'ViewContent__', '__proto__']);
+    const parsed: Set<Permission> = parsePermissionSet(['NotAPermission', '', 'ViewContent__', '__proto__']);
     expect(parsed.size).toBe(0);
   });
 
   it('is unaffected by duplicates and order', () => {
-    const one = Object.values(Permission)[0] as string;
+    const one: string = Object.values(Permission)[0] as string;
     expect(parsePermissionSet([one, one, one]).size).toBe(1);
   });
 });

@@ -23,6 +23,7 @@ import type { NavigateFunction } from 'react-router';
 import type { ActiveSession } from '@/types/session-types';
 import { OnboardingIntent } from '@/components/onboarding/OnboardingIntent';
 import { useOnboardingIntent } from '@/hooks/useOnboardingIntent';
+import type { OnboardingIntentState } from '@/hooks/useOnboardingIntent';
 
 export const Landing: () => JSX.Element = (): JSX.Element => {
   const navigate: NavigateFunction = useNavigate();
@@ -135,7 +136,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
     }
   };
   const handleJoinBack = (): void => setCurrentStep('security');
-  const beginWizard = useCallback((): void => {
+  const beginWizard: () => void = useCallback((): void => {
     clearProfileDraft();
     // Allow joining new workspaces regardless of existing sessions (Slack-like multi-workspace)
     setCurrentStep('server');
@@ -143,8 +144,8 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
 
   // Production only: ask which job the user is here to do before the wizard,
   // so the master password is named before it is needed rather than after.
-  const intent = useOnboardingIntent(beginWizard);
-  const startRegistration = intent.request;
+  const intent: OnboardingIntentState = useOnboardingIntent(beginWizard);
+  const startRegistration: () => void = intent.request;
   const startLogin = (): void => {
     // Allow login flow - username-specific conflict check happens in Login.tsx
     setCurrentStep('login');

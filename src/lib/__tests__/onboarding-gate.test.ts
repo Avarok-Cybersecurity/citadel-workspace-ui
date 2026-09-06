@@ -36,24 +36,24 @@ describe('isOnboardingEnabled', () => {
   });
 
   it('is OFF in development, so the suite does not pay for it', async () => {
-    const enabled = await loadWith(true);
+    const enabled: () => boolean = await loadWith(true);
     expect(enabled()).toBe(false);
   });
 
   it('is ON in production, where a first-time operator needs it', async () => {
-    const enabled = await loadWith(false);
+    const enabled: () => boolean = await loadWith(false);
     expect(enabled()).toBe(true);
   });
 
   it('can be forced on in development by ?onboarding=1', async () => {
     window.history.replaceState({}, '', '/?onboarding=1');
-    const enabled = await loadWith(true);
+    const enabled: () => boolean = await loadWith(true);
     expect(enabled()).toBe(true);
   });
 
   it('can be forced on in development by localStorage', async () => {
     window.localStorage.setItem('citadel:onboarding', 'true');
-    const enabled = await loadWith(true);
+    const enabled: () => boolean = await loadWith(true);
     expect(enabled()).toBe(true);
   });
 
@@ -63,14 +63,14 @@ describe('isOnboardingEnabled', () => {
   // account click through the tour again.
   it('?onboarding=0 wins over production', async () => {
     window.history.replaceState({}, '', '/?onboarding=0');
-    const enabled = await loadWith(false);
+    const enabled: () => boolean = await loadWith(false);
     expect(enabled()).toBe(false);
   });
 
   it('?onboarding=0 wins over the localStorage opt-in', async () => {
     window.localStorage.setItem('citadel:onboarding', 'true');
     window.history.replaceState({}, '', '/?onboarding=0');
-    const enabled = await loadWith(false);
+    const enabled: () => boolean = await loadWith(false);
     expect(enabled()).toBe(false);
   });
 
@@ -78,7 +78,7 @@ describe('isOnboardingEnabled', () => {
   // to the environment default, not be read as an opt-out — otherwise
   // onboarding would silently vanish in production for partitioned storage.
   it('falls back to the environment default when storage throws', async () => {
-    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation((): never => {
       throw new Error('storage partitioned');
     });
     try {

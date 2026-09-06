@@ -14,6 +14,7 @@ import { getSelectedUser } from '@/lib/tab-context';
 import { debugLog } from '@/lib/debug-config';
 import type { BroadcastMessage, PendingRequest } from './types';
 import { CHANNEL_NAME, CLEANUP_INTERVAL_MS, REQUEST_EXPIRY_MS } from './types';
+import type { TabUserContext } from '@/lib/tab-context';
 import {
   handleWorkspaceResponse,
   handleRegisterRequest,
@@ -155,7 +156,7 @@ export class BroadcastChannelService extends PollingService {
    */
   public broadcastStateSync(data: unknown): void {
     runAsyncSetup(async () => {
-      const selection = await getSelectedUser();
+      const selection: TabUserContext | null = await getSelectedUser();
       doBroadcastStateSync(this.channel, this.tabId, this.isLeader, data, selection?.selectedCid);
     });
   }
