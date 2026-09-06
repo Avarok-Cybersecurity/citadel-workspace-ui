@@ -7,6 +7,7 @@ import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, getVariant } from '@/lib/ws-message-boundary';
 import { TIMEOUT } from './timeout-constants';
 import type { WebSocketMessage } from '@/types/ws-message-types';
+import { wireMapEntries } from '@/lib/wire-map';
 
 /**
  * Server info stored in LocalDB
@@ -54,16 +55,26 @@ export async function listKnownServers(options: { cid: string }): Promise<{ serv
           clearTimeout(timeout);
           eventEmitter.off('websocket-message', handler);
 
-          // Extract servers from the response
+          // Extract servers from the response.
+          //
+          // `wireMapEntries`, not `Object.keys`. `LocalDBGetAllKVSuccess.map` is
+          // a Rust HashMap, and serde-wasm-bindgen delivers it as a real JS Map
+          // whatever the generated `Record<string, T>` says -- so `Object.keys`
+          // returned NOTHING, silently, with the compiler agreeing. This
+          // function therefore always reported zero known servers while
+          // `known_servers` was being written correctly the whole time, and
+          // every user retyped the workspace address on every visit.
+          //
+          // The fix already existed in `local-db-operations.ts`, whose own
+          // comment spells out this exact trap, and was never carried here.
           const servers: StoredServer[] = [];
-          const kvMap: Record<string, unknown> | undefined = getAllKVSuccess.map as Record<string, unknown> | undefined;
 
-          if (kvMap) {
+          {
             // Look for server-related keys
-            Object.keys(kvMap).forEach(key => {
+            wireMapEntries<unknown>(getAllKVSuccess.map, 'LocalDBGetAllKV.map').forEach(([key, entry]) => {
               if (key.startsWith('server_') || key === 'known_servers') {
                 try {
-                  const value: unknown = kvMap[key];
+                  const value: unknown = entry;
                   if (Array.isArray(value)) {
                     // If it's a byte array, convert to string
                     const jsonStr: string = bytesToString(value);
