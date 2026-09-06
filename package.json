@@ -31,6 +31,7 @@
     "check:types": "node scripts/check-explicit-types.mjs",
     "check:spec-copy": "node scripts/check-specs-search-for-real-copy.mjs",
     "check:debug-args": "node scripts/check-debug-args-are-cheap.mjs",
+    "check:gates-invoked": "node scripts/check-every-gate-is-invoked.mjs",
     "check:toast-header": "node scripts/check-toast-clears-header.mjs"
   },
   "dependencies": {

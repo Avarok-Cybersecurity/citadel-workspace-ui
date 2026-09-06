@@ -211,6 +211,14 @@ jobs:
         run: npm run build && npm run check:bundle
         working-directory: parent/citadel-workspaces
 
+      - name: Source maps
+        # Runs here because it reads dist/, which the bundle-budget step above
+        # has just built. It had an npm script and no CI invocation, so it had
+        # never run anywhere.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:sourcemaps
+        working-directory: parent/citadel-workspaces
+
       - name: PWA installability
         if: matrix.project == 'citadel-workspaces'
         run: npm run check:pwa
@@ -377,6 +385,14 @@ jobs:
       # (check:event-pairs, :sourcemaps, :a11y, :agent-down, :types,
       # :toast-header) are in the same position but need a build or a browser;
       # they are recorded in docs rather than wired blindly here.
+      - name: Every gate is invoked by something
+        # check:spec-copy had an npm script, a careful header, and no CI
+        # invocation, so it had never run from the day it was written. The
+        # parent repo has had this check since the same thing happened there.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:gates-invoked
+        working-directory: parent/citadel-workspaces
+
       - name: Spec locators match real app copy
         if: matrix.project == 'citadel-workspaces'
         run: npm run check:spec-copy
