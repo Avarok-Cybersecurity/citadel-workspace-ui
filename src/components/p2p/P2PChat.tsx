@@ -78,7 +78,7 @@ export function P2PChat({
   // Messages hook
   const {
     messages, peerTyping, peerPresence, isConnected, isRegistered,
-    isLoadingMore, hasMorePages, handleScroll, handleRetryMessage,
+    isLoadingMore, isLoadingHistory, hasMorePages, handleScroll, handleRetryMessage,
     handleEditMessage, handleDeleteMessage,
   } = useP2PMessages({
     peerCid, activeTabIdRef, scrollRef,
@@ -209,7 +209,7 @@ export function P2PChat({
             <P2PMessageList
               ref={scrollRef} messages={messages} currentUserCid={currentUserCid}
               currentUserName={currentUserName} peerName={peerName} peerCid={peerCid}
-              isLoadingMore={isLoadingMore} hasMorePages={hasMorePages}
+              isLoadingMore={isLoadingMore} isLoadingHistory={isLoadingHistory} hasMorePages={hasMorePages}
               displaySenderName={displaySenderName} displaySenderAvatar={displaySenderAvatar}
               onScroll={handleScroll} onRetryMessage={handleRetryMessage}
               onOpenDocument={handleOpenDocument}
