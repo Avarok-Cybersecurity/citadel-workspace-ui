@@ -84,6 +84,57 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       /**
+       * Ship ONE copy of the WASM binary.
+       *
+       * wasm-bindgen's glue ends with a fallback:
+       *
+       *     if (module_or_path === undefined) {
+       *       module_or_path = new URL('..._bg.wasm?v=...', import.meta.url);
+       *     }
+       *
+       * That branch never runs. `InternalServiceWasmClient` always calls
+       * `wasmModule.default('/wasm/citadel_internal_service_wasm_client_bg.wasm')`
+       * with an explicit path, because Vite mangles `import.meta.url` in the
+       * glue. But Vite resolves `new URL(..., import.meta.url)` STATICALLY, so
+       * it emitted the binary a second time as a hashed asset — 2,553,625
+       * bytes, byte-identical to public/wasm's copy (same md5), referenced only
+       * by the glue chunk and fetched by nobody. It shipped in every image
+       * layer, every registry push and every deploy, and was served from the
+       * origin.
+       *
+       * Rewriting the expression to the path the client already uses removes
+       * the emitted asset AND makes that fallback correct instead of dead: if a
+       * future caller ever omits the argument, it now resolves to the file that
+       * is actually served rather than to a hashed sibling.
+       *
+       * Not `globIgnores` — that only kept it out of the service worker's
+       * precache (see below), which is a different problem and left the file
+       * built and shipped.
+       */
+      {
+        name: 'wasm-glue-uses-the-served-path',
+        enforce: 'pre' as const,
+        transform(code: string, id: string): { code: string; map: null } | null {
+          if (!id.includes('citadel_internal_service_wasm_client.js')) return null;
+          const rewritten: string = code.replace(
+            /new URL\(\s*'citadel_internal_service_wasm_client_bg\.wasm[^']*'\s*,\s*import\.meta\.url\s*\)/g,
+            "'/wasm/citadel_internal_service_wasm_client_bg.wasm'",
+          );
+          // A silent no-op here would put the duplicate back on the next
+          // wasm-pack output whose wording changed, and nothing would say so.
+          if (rewritten === code) {
+            throw new Error(
+              'wasm-glue-uses-the-served-path: found no `new URL(..._bg.wasm, import.meta.url)` in ' +
+                `${id}. The glue changed shape; without this rewrite the binary is emitted twice.`,
+            );
+          }
+          // `map: null` rather than no map: the edit is one expression on one
+          // line and does not move anything, and Rollup otherwise warns that
+          // the sourcemap is likely wrong on every build.
+          return { code: rewritten, map: null };
+        },
+      },
+      /**
        * Installable PWA + offline app shell.
        *
        * `registerType: 'prompt'` rather than 'autoUpdate': this app holds live
