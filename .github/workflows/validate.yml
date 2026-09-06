@@ -62,9 +62,22 @@ jobs:
       - name: Build citadel-workspace-client-ts
         run: npm run build
         working-directory: parent/citadel-workspace-client-ts
-      - name: Install Vitest
-        run: npm install vitest@3.0.7 --save-dev
       - name: Run Unit Tests
+        # No `npm install vitest@...` before this. There used to be one, and it
+        # pinned 3.0.7 over the root lockfile's 3.2.7 -- so CI ran a different
+        # test runner from every developer and from the committed lock, while
+        # both logs say only "vitest". A behaviour difference between those
+        # versions reads as "passes locally, fails in CI" with the version never
+        # suspected.
+        #
+        # It is not needed: `npm ci` at the parent root hoists vitest to
+        # `node_modules/vitest`, and `npx vitest` resolves it from there. The two
+        # build steps above are bare `tsc` and touch no install, so nothing was
+        # being compensated for -- worth checking, because removing a redundant
+        # install in this repository previously broke three jobs with exit 127,
+        # and the thing it had been compensating for was a nested `npm ci`.
+        #
+        # The parent enforces this with scripts/check-ci-installs-match-the-lockfile.mjs.
         run: npx vitest run
         working-directory: parent/citadel-workspaces
 
