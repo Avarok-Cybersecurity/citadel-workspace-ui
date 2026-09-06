@@ -198,8 +198,26 @@ export async function createAccount(page: Page, username: string, options: Creat
   await closeAnyModals(page);
 
   // Raced against the success signal so a working registration pays nothing.
+  //
+  // The rejection arm may only WIN when it is actually a rejection.
+  //
+  // `rejection` resolves to `{ kind: 'no-error' }` after 15 seconds whenever no
+  // error toast appears -- which is the ordinary SUCCESSFUL case. Raced bare, it
+  // therefore beat `waitForWorkspaceLoaded` on any machine where the workspace
+  // takes longer than ~15s to load, `outcome.kind` came back `no-error`, and the
+  // branch below reported "Workspace never loaded" for a workspace that loaded
+  // moments later. `Promise.race` does not cancel the loser, so the log shows
+  // both: the failure, and then "Workspace fully loaded" from the still-running
+  // waiter.
+  //
+  // That is every integration job on a loaded CI runner, and no local run,
+  // because locally the workspace loads in a second or two.
+  //
+  // The inner race above already does exactly this -- `r.kind === 'rejected' ?
+  // undefined : new Promise(() => {})` -- and the reasoning was not carried the
+  // seventy lines down to here.
   const outcome = await Promise.race([
-    rejection,
+    rejection.then((r) => (r.kind === 'rejected' ? r : new Promise<never>(() => {}))),
     waitForWorkspaceLoaded(page, 45000).then((ok) => ({
       kind: ok ? ('loaded' as const) : ('not-loaded' as const),
       detail: '',
