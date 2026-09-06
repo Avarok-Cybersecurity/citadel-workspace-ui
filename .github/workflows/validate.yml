@@ -3,7 +3,10 @@ name: Validate PR
 on:
   pull_request:
   push:
-    branches: ["main", "u64-to-bigint-optimization"]
+    # This repo's default branch is `master`. This said `main`, which does not exist
+    # here, alongside a feature branch that has since been deleted -- so a push to the
+    # default branch ran NOTHING, and only pull_request events were ever validated.
+    branches: ["master"]
 
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
@@ -11,17 +14,14 @@ concurrency:
 
 env:
   PARENT_REPO: Avarok-Cybersecurity/citadel-workspace
-  # `misc-fixes` is the parent's currently-active integration branch and
-  # the only one whose package-lock.json knows about every dep this
-  # submodule's package.json files declare (notably @playwright/test in
-  # integration-tests). The previous `u64-to-bigint-optimization`
-  # baseline pre-dated several workspace deps, which made `npm ci`
-  # fail at the parent root and cascaded into ~40 CI failures.
-  # Track the parent's default branch. This was pinned to a feature branch
-  # ('u64-to-bigint-optimization', later 'misc-fixes'), so this submodule's CI
-  # validated against whatever that branch happened to contain — which drifts,
-  # and eventually stops existing. Every check here is only meaningful against
-  # the parent revision this code will actually be integrated into.
+  # The FALLBACK parent revision, used only when the parent has no branch matching the
+  # one under test here — see the `parent-ref` job, which does the resolving.
+  #
+  # It tracks the parent's default branch. It was once pinned to a feature branch
+  # ('u64-to-bigint-optimization', later 'misc-fixes'), so this submodule's CI validated
+  # against whatever that branch happened to contain — which drifts, and eventually
+  # stops existing. A check here is only meaningful against the parent revision this
+  # code will actually be integrated into.
   PARENT_BRANCH: master
   SKIP_WASM_BUILD: "1"
   # Match parent repo's directory name so docker containers get expected names
@@ -29,7 +29,45 @@ env:
   COMPOSE_PROJECT_NAME: citadel-workspace
 
 jobs:
+  # Which revision of the parent supplies this repo's build layout and gate scripts.
+  #
+  # Pinning this to the parent's default branch makes a coordinated change across the
+  # two repos UNMERGEABLE. The parent's 250-line gate, for instance, carries an
+  # allowance table keyed to THIS repo's files, and that table cannot describe the old
+  # and the new file lengths at once. So this repo could not go green until the parent
+  # merged the new table, and the parent could not go green until it pinned the new
+  # files: each waiting on the other, with no merge order that works.
+  #
+  # Preferring a parent branch of the SAME NAME breaks the cycle -- the two halves of
+  # one change validate against each other -- and anything with no counterpart branch
+  # falls back to the default exactly as before.
+  parent-ref:
+    name: Resolve parent ref
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.pick.outputs.ref }}
+    steps:
+      - id: pick
+        env:
+          # Passed as environment, never interpolated into the script body: the branch
+          # name is attacker-controlled on a fork PR, and an expression expanded inside
+          # `run` is a shell-injection sink.
+          CANDIDATE: ${{ github.head_ref || github.ref_name }}
+          FALLBACK: ${{ env.PARENT_BRANCH }}
+          PARENT: ${{ env.PARENT_REPO }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ref="$FALLBACK"
+          if [ -n "${CANDIDATE:-}" ] && gh api "repos/$PARENT/branches/$CANDIDATE" >/dev/null 2>&1; then
+            ref="$CANDIDATE"
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "Parent $PARENT will be checked out at '$ref' (branch under test: '${CANDIDATE:-none}', fallback: '$FALLBACK')."
+
   unit-tests:
+    needs: parent-ref
     name: Unit Tests
     # Observed the same work as the parent job, 6m there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
@@ -43,7 +81,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.PARENT_REPO }}
-          ref: ${{ env.PARENT_BRANCH }}
+          ref: ${{ needs.parent-ref.outputs.ref }}
           path: parent
       - name: Checkout submodule code (this PR)
         uses: actions/checkout@v4
@@ -82,6 +120,7 @@ jobs:
         working-directory: parent/citadel-workspaces
 
   typecheck:
+    needs: parent-ref
     name: TypeScript Type Check - ${{ matrix.project }}
     # Observed the same work as the parent job, under a minute there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
@@ -103,7 +142,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.PARENT_REPO }}
-          ref: ${{ env.PARENT_BRANCH }}
+          ref: ${{ needs.parent-ref.outputs.ref }}
           path: parent
       - name: Checkout submodule code (this PR)
         uses: actions/checkout@v4
@@ -326,6 +365,7 @@ jobs:
         run: node scripts/check-file-length.mjs
 
   lint:
+    needs: parent-ref
     name: ESLint - ${{ matrix.project }}
     # Observed the same work as the parent job, 1m there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
@@ -347,7 +387,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.PARENT_REPO }}
-          ref: ${{ env.PARENT_BRANCH }}
+          ref: ${{ needs.parent-ref.outputs.ref }}
           path: parent
       - name: Checkout submodule code (this PR)
         uses: actions/checkout@v4
@@ -410,7 +450,18 @@ jobs:
         run: npm run check:debug-args
         working-directory: parent/citadel-workspaces
 
+      - name: Parent checkouts all take the resolved ref
+        # Five jobs check the parent out to run ITS gate scripts against this PR.
+        # While that ref was hardcoded to the parent's default branch, a change
+        # spanning both repos could not be merged in either order. A sixth site
+        # added later with the old form would be silent: the job passes, against
+        # the wrong parent revision.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:parent-ref
+        working-directory: parent/citadel-workspaces
+
   playwright-tests:
+    needs: parent-ref
     # The @playwright/test suite under integration-tests/src/tests-pw, which ran in
     # no job at all — those specs were compiled by the typecheck job and then never
     # executed against a running stack. Sharded rather than one job per spec, so
@@ -432,7 +483,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.PARENT_REPO }}
-          ref: ${{ env.PARENT_BRANCH }}
+          ref: ${{ needs.parent-ref.outputs.ref }}
           path: parent
       - name: Checkout submodule code (this PR)
         uses: actions/checkout@v4
@@ -552,6 +603,7 @@ jobs:
             parent/citadel-workspaces/integration-tests/test-results/
 
   integration-tests:
+    needs: parent-ref
     name: Integration Test - ${{ matrix.test }}
     # Observed the same work as the parent job, 26m there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
@@ -664,7 +716,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.PARENT_REPO }}
-          ref: ${{ env.PARENT_BRANCH }}
+          ref: ${{ needs.parent-ref.outputs.ref }}
           path: parent
       - name: Checkout submodule code (this PR)
         uses: actions/checkout@v4
