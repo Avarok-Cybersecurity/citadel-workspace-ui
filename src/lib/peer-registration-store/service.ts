@@ -35,6 +35,8 @@ import {
   persistOutgoingToLocalDB,
   loadOutgoingFromLocalDB,
 } from './persistence';
+import { everyKeyWasRead } from './initialisation';
+import type { LoadOutcome } from './local-db-client';
 import {
   createNotificationWithCallbacks,
   processIncomingNotification,
@@ -76,12 +78,18 @@ class PeerRegistrationStore {
   public async initialize(): Promise<void> {
     if (this.isInitializedFlag) return;
     if (this.initializationPromise) return this.initializationPromise;
+    let bothRead: boolean = false;
     this.initializationPromise = (async (): Promise<void> => {
-      await Promise.all([this.loadFromLocalDB(), this.loadOutgoingFromLocalDB()]);
+      const outcomes: LoadOutcome[] = await Promise.all(
+        [this.loadFromLocalDB(), this.loadOutgoingFromLocalDB()]);
+      bothRead = everyKeyWasRead(outcomes);
+      if (!bothRead) debugLog('PeerRegistrationStore',
+        `Not every key was read (${outcomes.join(', ')}); staying uninitialised to retry`);
       this.startPollLoop();
     })();
     await this.initializationPromise;
-    this.isInitializedFlag = true;
+    // See initialisation.ts for why a failed read must not latch.
+    this.isInitializedFlag = bothRead;
     this.initializationPromise = null;
   }
 
@@ -204,8 +212,8 @@ class PeerRegistrationStore {
     if (needsPersist) await persistOutgoingToLocalDB(this.outgoingRequests, this.pendingKVRequests);
   }
 
-  private async loadFromLocalDB(): Promise<void> {
-    await loadPendingFromLocalDB(this.pendingKVRequests, async (requests) => {
+  private async loadFromLocalDB(): Promise<LoadOutcome> {
+    return loadPendingFromLocalDB(this.pendingKVRequests, async (requests) => {
       this.pendingRequests = requests;
       debugLog('PeerRegistrationStore', 'Loaded', requests.length, 'pending requests');
       const current: PendingPeerRequest[] = await this.getPendingRequests();
@@ -214,8 +222,8 @@ class PeerRegistrationStore {
     });
   }
 
-  private async loadOutgoingFromLocalDB(): Promise<void> {
-    await loadOutgoingFromLocalDB(this.pendingKVRequests, async (requests) => {
+  private async loadOutgoingFromLocalDB(): Promise<LoadOutcome> {
+    return loadOutgoingFromLocalDB(this.pendingKVRequests, async (requests) => {
       this.outgoingRequests = requests;
       debugLog('PeerRegistrationStore', 'Loaded', requests.length, 'valid outgoing requests');
       await this.emitOutgoingUpdate();
