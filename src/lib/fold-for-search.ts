@@ -23,3 +23,21 @@ export function foldForSearch(value: string): string {
 export function matchesSearch(haystack: string, needle: string): boolean {
   return foldForSearch(haystack).includes(foldForSearch(needle));
 }
+
+/**
+ * A predicate that folds the needle ONCE.
+ *
+ * `matchesSearch` folds both arguments on every call, and every call site in
+ * this app is inside a `.filter` over a collection with the needle
+ * loop-invariant — so the query was NFD-normalised, mark-stripped and
+ * lower-cased once per candidate. Filtering a 500-node tree meant 500 redundant
+ * Unicode normalisations of the same three characters, synchronously in the
+ * render pass, on every keystroke.
+ *
+ * `matchesSearch` remains for a genuine one-off comparison; use this whenever
+ * the needle is fixed across the collection.
+ */
+export function searchMatcher(needle: string): (haystack: string) => boolean {
+  const folded: string = foldForSearch(needle);
+  return (haystack: string): boolean => foldForSearch(haystack).includes(folded);
+}
