@@ -13,7 +13,7 @@ import type { RevfsIntentResult } from '@/types/revfs-intents';
 import type { RevfsState } from './revfs-state';
 import type { RevfsIO } from './revfs-io';
 import { debugLog } from '@/lib/debug-config';
-import { persistPendingOps } from './persist-pending-ops';
+import { persistPendingOps, markPendingOpsRead } from './persist-pending-ops';
 
 const ACK_TIMEOUT_MS: number = 15_000;
 
@@ -90,6 +90,13 @@ async function restorePersistedOps(deps: RetryDeps, key: TreeKey): Promise<void>
   // crashed three existing tests whose mock returns undefined, and that was the
   // right complaint: losing the whole retry pass is worse than not restoring.
   if (!result || result.type !== 'load-pending-ops' || !Array.isArray(result.ops)) return;
+
+  // The read reached the key and came back with an answer -- including an
+  // empty one, which is a complete picture of nothing and must not stop a
+  // first write from landing. Deliberately NOT in the catch above: a failed
+  // read is exactly the case that must withhold permission to write.
+  markPendingOpsRead(key);
+
   if (result.ops.length === 0) return;
 
   const known: Set<string> = new Set(
@@ -202,6 +209,14 @@ export async function sendAndAwaitAck(
   op: RevfsOperation,
   key: TreeKey,
 ): Promise<boolean> {
+  // Restore before any of the three failure paths below writes the whole
+  // queue. `restorePersistedOps` was reachable only from `runRetryPass`, so a
+  // session that reloaded while the peer was unreachable held an empty queue,
+  // and the first failed send wrote that one operation over everything the
+  // previous session had queued. Merging by op_id makes this idempotent, so
+  // calling it here costs a read and nothing else.
+  await restorePersistedOps(deps, key);
+
   const ackPromise: Promise<boolean> = deps.state.registerAck(op.op_id, ACK_TIMEOUT_MS);
   const sendResult: boolean = await deps.sendOp(peerCid, op);
   if (!sendResult) {

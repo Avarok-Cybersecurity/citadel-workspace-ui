@@ -28,11 +28,49 @@ import type { RevfsIO } from './revfs-io';
 import type { RevfsIntentResult } from '@/types/revfs-intents';
 import type { RevfsPendingOp, TreeKey } from '@/types/revfs-types';
 
+/**
+ * Tree keys whose persisted queue has actually been read into memory.
+ *
+ * `persistPendingOps` writes the WHOLE queue for a key. That is sound only
+ * when the in-memory queue came from disk. `sendAndAwaitAck` persisted on all
+ * three of its failure paths and never restored -- `restorePersistedOps` was
+ * reachable only from `runRetryPass` -- so a page that reloaded while a peer
+ * was unreachable, then queued one new operation, wrote a queue of exactly
+ * that one over everything the previous session had queued.
+ *
+ * That is the sixth site of this mechanism in this codebase. The others are
+ * the session upsert helper, peer-registration-store, live-document-store,
+ * connection/io-websocket and group-conversations, and the guard is in the
+ * same place each time: on the single function every write funnels through,
+ * not at the call sites, because covering some of them is the defect rather
+ * than the fix.
+ *
+ * Per KEY, not one flag: a queue read for peer A says nothing about peer B's.
+ */
+const readKeys: Set<string> = new Set<string>();
+
+/** Record that a key's queue was read, whatever it found. */
+export function markPendingOpsRead(key: TreeKey): void {
+  readKeys.add(String(key));
+}
+
+/** For tests: forget what has been read, so a scenario starts cold. */
+export function resetPendingOpsReadTracking(): void {
+  readKeys.clear();
+}
+
 export async function persistPendingOps(
   io: RevfsIO,
   treeKey: TreeKey,
   ops: RevfsPendingOp[],
 ): Promise<void> {
+  if (!readKeys.has(String(treeKey))) {
+    // Refusing is the point: writing a queue assembled without a read
+    // replaces whatever is stored with whatever this session happens to hold.
+    errorLog('RevfsService', `Refusing to write the retry queue for ${String(treeKey)}: it was never read`);
+    return;
+  }
+
   const result: RevfsIntentResult | undefined = await io.execute({
     type: 'persist-pending-ops',
     treeKey,
