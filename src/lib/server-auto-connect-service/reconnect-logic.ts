@@ -11,6 +11,7 @@ import { instanceManager } from '@/lib/multi-instance';
 import type { StoredSession, ActiveSession, StoredSessions } from '@/types/session-types';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import type { ActiveSessionsResult } from '@/lib/connection/queries';
 import { BASE_DELAY, MAX_DELAY , type ConnectionAttempt } from './types';
 
 /**
@@ -46,7 +47,7 @@ export async function reconnectToDisconnectedSessions(
   // Four other call sites already adopted the strict variant; this one, where
   // the empty list is acted on destructively, did not.
   connectionManager.invalidateSessionCache();
-  const result = await connectionManager.getActiveSessionsResult();
+  const result: ActiveSessionsResult = await connectionManager.getActiveSessionsResult();
   if (!result.ok) {
     debugLog(
       'ServerAutoConnectService',

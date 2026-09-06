@@ -89,6 +89,10 @@ export function reportSendFailure(failure: SendFailure, now: number = Date.now()
 export function consumeSendFailure(response: unknown): boolean {
   const failure: SendFailure | null = readSendFailure(response);
   if (!failure) return false;
+  // The discarded boolean is the RATE LIMIT, not the failure: `false` means this
+  // peer's failure was already reported within REPORT_INTERVAL_MS, so the user
+  // has the toast on screen. The failure itself is what this function returns,
+  // and the caller acts on that.
   reportSendFailure(failure);
   return true;
 }

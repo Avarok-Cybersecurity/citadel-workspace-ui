@@ -102,7 +102,7 @@ describe('a pending-op write that failed', () => {
     // The guard itself. Without this the two tests either side of it pass
     // whether or not the write was attempted.
     const attempted: string[] = [];
-    const recordingIo = {
+    const recordingIo: RevfsIO = {
       execute: async (intent: { type: string }): Promise<unknown> => {
         attempted.push(intent.type);
         return { type: intent.type, success: true };
@@ -137,7 +137,7 @@ describe('a pending-op write that failed', () => {
     // the first assertion this passes when the write is refused outright,
     // which is the same green for the opposite reason.
     const seen: string[] = [];
-    const recording = deps(true, false);
+    const recording: Parameters<typeof sendAndAwaitAck>[0] = deps(true, false);
     const inner: RevfsIO['execute'] = recording.io.execute;
     recording.io.execute = async (intent: RevfsIntent): Promise<RevfsIntentResult> => {
       seen.push(intent.type);

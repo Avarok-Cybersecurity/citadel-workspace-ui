@@ -18,6 +18,7 @@
  * nothing to test against; the spec says so rather than passing vacuously.
  */
 import { test, expect, chromium, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { formatConsoleLine } from '../lib/console-line';
 
 const HOSTED_UI_URL: string | undefined = process.env.HOSTED_UI_URL;
 const LOCAL_UI_URL: string | undefined = process.env.LOCAL_UI_URL;
@@ -45,9 +46,9 @@ function observeSockets(page: Page): Observed {
     ws.on('socketerror', (err: string) => { seen.errors.push(`${ws.url()}: ${err}`); });
   });
   page.on('console', (msg) => {
-    if (msg.type() === 'error' || msg.type() === 'warning') seen.console.push(`${msg.type()}: ${msg.text().slice(0, 200)}`);
+    if (msg.type() === 'error' || msg.type() === 'warning') seen.console.push(`${msg.type()}: ${formatConsoleLine(msg.text())}`);
   });
-  page.on('pageerror', (err) => { seen.console.push(`pageerror: ${String(err).slice(0, 200)}`); });
+  page.on('pageerror', (err) => { seen.console.push(`pageerror: ${formatConsoleLine(String(err))}`); });
   return seen;
 }
 

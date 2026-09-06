@@ -13,7 +13,7 @@
  * the unreadable case must persist nothing.
  */
 
-import { describe, expect, it, vi  } from 'vitest';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 import type { RevfsIntent, RevfsIntentResult } from '@/types/revfs-intents';
 import { createTestService } from './revfs-service-test-helpers';
 
@@ -21,7 +21,10 @@ const ALICE: bigint = 1n;
 const BOB: bigint = 2n;
 
 /** An IO stub whose load-tree answer is whatever the test says it is. */
-function ioReturning(loadResult: RevfsIntentResult) {
+function ioReturning(loadResult: RevfsIntentResult): {
+  execute: Mock<(intent: RevfsIntent) => RevfsIntentResult>;
+  persisted: RevfsIntent[];
+} {
   const persisted: RevfsIntent[] = [];
   // Synchronous: `IntentHandler` is `(intent) => RevfsIntentResult`, not a
   // promise-returning one. vitest awaits either, so an async mock ran fine and
@@ -73,7 +76,7 @@ describe('a read failure is not an empty tree', () => {
     await service.getTree(ALICE, BOB);
 
     const loads: [RevfsIntent][] = io.execute.mock.calls.filter(
-      ([intent]) => (intent as RevfsIntent).type === 'load-tree',
+      ([intent]): boolean => (intent as RevfsIntent).type === 'load-tree',
     );
     expect(loads.length, 'the second call served a cached empty tree').toBe(2);
   });
