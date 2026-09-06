@@ -4,6 +4,7 @@
  * Centralized service to manage all types of notifications in the application.
  */
 import { eventEmitter } from '../event-emitter';
+import { notifyEach } from '@/lib/notify-listeners';
 import { playNotificationChime } from './chime';
 import { showBrowserNotification } from './browser-notification';
 import { v4 as uuidv4 } from 'uuid';
@@ -217,13 +218,14 @@ export class NotificationService {
   }
 
   private notifyHandlers(notification: Notification): void {
-    for (const handler of this.notificationHandlers) { handler(notification); }
+    notifyEach(this.notificationHandlers, 'notification', notification);
   }
 
   private notifyRemovedHandler(notification: Notification): void {
-    for (const handler of this.notificationHandlers) {
-      handler({ ...notification, id: `removed:${notification.id}` });
-    }
+    notifyEach(this.notificationHandlers, 'notification-removed', {
+      ...notification,
+      id: `removed:${notification.id}`,
+    });
   }
 
   public cleanup(): void {
