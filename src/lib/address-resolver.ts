@@ -117,13 +117,9 @@ function parseAddress(address: string): { host: string; port: number | null } {
   return { host, port: parsePort(address.slice(lastColon + 1), address) };
 }
 
-/**
- * Well-known hostnames that resolve locally
- */
-const LOCAL_HOSTNAMES: Record<string, string> = {
-  'localhost': '127.0.0.1',
-  'localhost.localdomain': '127.0.0.1',
-};
+// `LOCAL_HOSTNAMES` lived here, mapping localhost -> 127.0.0.1 for the
+// browser-side resolver. The agent resolves names now, and `localhost` is one
+// its own resolver handles, so the table has nothing left to do.
 
 
 /**
