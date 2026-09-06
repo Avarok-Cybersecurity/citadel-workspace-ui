@@ -53,6 +53,22 @@ export function createRegistrationResponseHandler(
       return;
     }
 
+    // The THIRD terminal answer a Connect can give, and the one this handler
+    // did not have. `connect.rs` returns exactly ConnectSuccess, ConnectFailure
+    // and SessionAlreadyActive; with `connect_after_register` the internal
+    // service re-dispatches a real Connect under the SAME request_id
+    // (register.rs:74-86), so all three reach here, and an unhandled one falls
+    // through to the 30s timeout and reports "Registration timed out" for a
+    // registration that SUCCEEDED. That is the identical failure the
+    // ConnectFailure comment above describes; the reasoning was not carried to
+    // the remaining variant.
+    //
+    // Resolved rather than rejected, matching what the login handler does with
+    // it: a live session for these credentials is the outcome the caller wanted.
+    // `handleConnectSuccess` reads `cid`, which this payload carries.
+    const sa: Record<string, unknown> | undefined = getVariant(message, 'SessionAlreadyActive');
+    if (sa && matchId(sa)) { cleanup(); handleConnectSuccess(sa, resolve, reject).catch(reject); return; }
+
     const we: Record<string, unknown> | undefined = getVariant(message, 'WorkspaceError');
     if (we && matchId(we)) {
       cleanup();
@@ -72,6 +88,8 @@ export function createRegistrationResponseHandler(
       if (wrf && matchId(wrf)) { rejectWith(wrf, 'Registration failed'); return; }
       const wcf: Record<string, unknown> | undefined = response.ConnectFailure as Record<string, unknown> | undefined;
       if (wcf && matchId(wcf)) { rejectWith(wcf, 'Connection after registration failed'); return; }
+      const wsa: Record<string, unknown> | undefined = response.SessionAlreadyActive as Record<string, unknown> | undefined;
+      if (wsa && matchId(wsa)) { cleanup(); handleConnectSuccess(wsa, resolve, reject).catch(reject); return; }
     }
   };
 }
