@@ -50,6 +50,12 @@ const EXEMPT: Record<string, string> = {
   'lib/live-document-store/service.ts':
     'its catch does not decide absence — it records that the index is untrustworthy, ' +
     'so the write is refused; the classification is in persistence.loadIndexFromDB',
+  // The reads moved to local-db-client.ts when this file passed the 250-line
+  // cap; that module classifies. What is left here is `resolveKVResponse`,
+  // whose catch wraps parsePersistedJSON on bytes already returned — a decode
+  // failure, not an absent key. Same reason as io-websocket.ts below.
+  'lib/peer-registration-store/persistence.ts':
+    'its remaining catch is around JSON decoding of a value already read; the reads live in local-db-client.ts',
   'lib/connection/io-websocket.ts':
     'its one catch is around JSON decoding of a value already read, not the read',
   'lib/peer-registration-store/service.ts':
@@ -79,7 +85,22 @@ function readsLocalDb(source: string): boolean {
   // the original three patterns -- so the module holding the index read, the
   // one whose result decides what the index is OVERWRITTEN with, was outside
   // this rule entirely.
-  return /sendLocalDBGet|localDBGet\(|FromLocalDB\(|FromDB\(/.test(source);
+  // `LocalDBGetKV` — the request literal — as well as the helper names.
+  //
+  // Splitting peer-registration-store's client into its own module put the
+  // reads in a file this rule could not see: the helper is DEFINED there as
+  // `localDBGet<T>(`, and `localDBGet\(` needs the paren directly after the
+  // name. The module issuing the raw request is exactly the module that must
+  // classify, so match on the request it builds rather than on the name a
+  // caller happens to use.
+  // `LocalDBGetKV: {` — the request being BUILT, not a response variant.
+  //
+  // A bare `LocalDBGetKV` also matches `LocalDBGetKVSuccess` and
+  // `LocalDBGetKVFailure`, which is what event-handlers.ts reads: it handles
+  // answers, it does not issue reads, and it has no absence decision to make.
+  // The colon-brace is what distinguishes constructing the request from
+  // recognising its reply.
+  return /sendLocalDBGet|localDBGet\s*[<(]|FromLocalDB\(|FromDB\(|LocalDBGetKV\s*:\s*\{/.test(source);
 }
 
 describe('a module that reads LocalDB', () => {
