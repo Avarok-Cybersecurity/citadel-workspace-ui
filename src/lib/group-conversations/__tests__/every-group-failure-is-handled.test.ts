@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { GROUP_FAILURE_VARIANTS } from '../group-events';
+import { GROUP_FAILURE_VARIANTS } from '../group-failure-variants';
 
 /**
  * The failure arm's list must be exactly the failures the wire can carry.

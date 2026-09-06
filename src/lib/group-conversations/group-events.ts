@@ -16,6 +16,7 @@
  * emitting an empty username silently dropped every invite ever received.
  */
 
+import { GROUP_FAILURE_VARIANTS } from './group-failure-variants';
 import { groupKeyToId, parseGroupKey } from './group-key';
 import { variant, toCid, memberCids } from './group-wire-variants';
 import { peerGroupMessageEvent, type PeerGroupMessageSummary } from './peer-group-inbound';
@@ -66,23 +67,6 @@ export type PeerNameResolver = (cid: bigint) => string;
  * `selfCid` is needed because a create response names no owner other than the
  * caller; `peerName` because the wire identifies peers only by CID.
  */
-/**
- * Every `Group*Failure` the wire can carry, verified against the generated
- * types by the test named beside the loop that consumes it.
- */
-export const GROUP_FAILURE_VARIANTS: readonly string[] = [
-  'GroupBroadcastHandleFailure',
-  'GroupChannelCreateFailure',
-  'GroupCreateFailure',
-  'GroupEndFailure',
-  'GroupInviteFailure',
-  'GroupKickFailure',
-  'GroupLeaveFailure',
-  'GroupListGroupsFailure',
-  'GroupMessageFailure',
-  'GroupRequestJoinFailure',
-  'GroupRespondRequestFailure',
-];
 
 export function toGroupEvents(
   message: Record<string, unknown>,

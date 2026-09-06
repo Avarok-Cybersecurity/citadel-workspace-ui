@@ -10,7 +10,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { toGroupEvents, GROUP_FAILURE_VARIANTS } from '../group-events';
+import { toGroupEvents } from '../group-events';
+import { GROUP_FAILURE_VARIANTS } from '../group-failure-variants';
 
 const noName = (): string => 'peer';
 
