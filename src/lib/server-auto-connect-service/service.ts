@@ -13,7 +13,8 @@ import type { StoredSession } from '@/types/session-types';
 import { EventListenerPollingService } from '@/lib/utils/polling-service';
 import { getVariant } from '@/lib/ws-message-boundary';
 import type { WebSocketMessage } from '@/types/ws-message-types';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, errorLog } from '@/lib/debug-config';
+import { loadAutoConnectSettings, type AutoConnectSettings } from './init-settings';
 import { TIMEOUT } from '@/lib/timeout-constants';
 import { POLL_INTERVAL_MS , type ConnectionAttempt } from './types';
 import {
@@ -68,16 +69,23 @@ export class ServerAutoConnectService extends EventListenerPollingService {
   public async init(): Promise<void> {
     if (this.isInitialized) return;
 
-    try {
-      this.isEnabled = await loadEnabledSetting();
-      this.userDisconnectedSessions = await loadUserDisconnectedSessions();
-      this.isInitialized = true;
-      debugLog('ServerAutoConnectService', `Initialized (enabled: ${this.isEnabled}, userDisconnectedSessions: ${this.userDisconnectedSessions.size})`);
-    } catch (error) {
-      debugLog('ServerAutoConnectService', 'Failed to load settings, using defaults:', error);
-      this.isEnabled = true;
-      this.isInitialized = true;
-    }
+    const settings: AutoConnectSettings = await loadAutoConnectSettings(
+      { loadEnabled: loadEnabledSetting, loadUserDisconnected: loadUserDisconnectedSessions },
+      (error: unknown) =>
+        errorLog(
+          'ServerAutoConnectService',
+          'Could not read the auto-connect settings; staying off until they can be read:',
+          error,
+        ),
+    );
+    this.isEnabled = settings.enabled;
+    this.userDisconnectedSessions = settings.userDisconnectedSessions;
+    this.isInitialized = settings.initialized;
+    debugLog(
+      'ServerAutoConnectService',
+      `Initialized (enabled: ${this.isEnabled}, userDisconnectedSessions: ` +
+        `${this.userDisconnectedSessions.size}, initialized: ${this.isInitialized})`,
+    );
   }
 
   protected setupEventListeners(): void {
