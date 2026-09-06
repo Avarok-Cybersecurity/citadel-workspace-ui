@@ -109,6 +109,10 @@ export class ServerAutoConnectService extends EventListenerPollingService {
       if (connectFailure) {
         this.handleConnectionFailure(connectFailure as { message?: string });
       }
+      const alreadyActive: Record<string, unknown> | undefined = getVariant(message, 'SessionAlreadyActive');
+      if (alreadyActive) {
+        this.handleSessionAlreadyActive();
+      }
       const disconnectNotification: Record<string, unknown> | undefined = getVariant(message, 'DisconnectNotification');
       if (disconnectNotification) {
         this.handleDisconnect(disconnectNotification as { cid?: bigint });
@@ -198,8 +202,53 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     }), cid);
   }
 
+  /**
+   * A reconnect attempt that ended must stop blocking the next one.
+   *
+   * `reconnectAttempts` had exactly one delete path -- `cancelRetry`, reached
+   * only from `applyConnectionSuccess` on `ConnectSuccess`. So a scheduled
+   * attempt that came back `ConnectFailure` (or `SessionAlreadyActive`, which
+   * was not listened for at all) left its entry behind, and the poll's
+   * `if (reconnectAttempts.has(sessionKey)) continue` skipped that account for
+   * ever: nothing reconnected it until logout, a leader change, or the user
+   * toggling the setting.
+   *
+   * Clearing every pending attempt rather than the one this response belongs
+   * to: `ConnectFailure` carries no username, and the next poll re-derives
+   * what is genuinely inactive from `getActiveSessionsResult` before
+   * scheduling anything, so clearing is at worst one extra evaluation and
+   * never an extra connect.
+   */
   private handleConnectionFailure(connectFailure: { message?: string }): void {
     debugLog('ServerAutoConnectService', 'Connection failure:', connectFailure.message);
+    this.clearPendingAttempts('ConnectFailure');
+  }
+
+  /**
+   * The session is already up, which is the opposite of needing a reconnect.
+   *
+   * The agent answers this when a Connect names a username it already holds a
+   * live session for. It is the ordinary response to the storm that one failed
+   * GetSessions used to cause, and nothing listened for it.
+   */
+  private handleSessionAlreadyActive(): void {
+    this.clearPendingAttempts('SessionAlreadyActive');
+  }
+
+  /**
+   * Per-key `cancelRetry`, not `cancelAllRetries`.
+   *
+   * That helper also clears `activeSessionKeys`, which records which sessions
+   * are believed up. One connect failing says nothing about the others, and
+   * discarding that set would make the next poll re-derive it from scratch.
+   */
+  private clearPendingAttempts(reason: string): void {
+    if (this.reconnectAttempts.size === 0) return;
+    debugLog(
+      'ServerAutoConnectService',
+      `Clearing ${this.reconnectAttempts.size} pending reconnect attempt(s) after ${reason}`,
+    );
+    for (const key of [...this.reconnectAttempts.keys()]) this.cancelRetry(key);
   }
 
   private handleDisconnect(notification: { cid?: bigint }): void {
