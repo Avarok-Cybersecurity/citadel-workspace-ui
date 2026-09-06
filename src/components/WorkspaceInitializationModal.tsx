@@ -202,7 +202,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                         </div>
 
                         {error && (
-                            <div role="alert" className="text-destructive-emphasis text-sm p-2 bg-destructive/10 rounded border border-destructive/20 flex items-center gap-2">
+                            <div data-testid="init-modal-error" role="alert" className="text-destructive-emphasis text-sm p-2 bg-destructive/10 rounded border border-destructive/20 flex items-center gap-2">
                                 <AlertCircle className="h-4 w-4" />
                                 {error}
                             </div>

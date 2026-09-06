@@ -216,7 +216,30 @@ export async function createAccount(page: Page, username: string, options: Creat
   }
 
   if (outcome.kind !== 'loaded') {
-    console.log('  WARNING: Workspace may not have fully loaded');
+    // Report it, do not warn past it.
+    //
+    // This logged the warning and then `return true`. The comment forty lines
+    // up describes the same defect for the REJECTED case and says an
+    // unconditional `true` made every caller's
+    // `expect(await createAccount(...)).toBe(true)` an assertion on a constant.
+    // The not-loaded case kept doing exactly that.
+    //
+    // It matters beyond the assertion. The four reconnection specs call this and
+    // then begin P2P registration; if the invitee's workspace has not loaded,
+    // the incoming `PeerRegisterNotification` is dropped on the agent (no
+    // session in `server_connection_map` yet) or in the browser (no cid to
+    // filter on yet), and NOTHING re-queries it — the badge simply never
+    // appears. Saying "created" for a page that is not ready is what let those
+    // specs start racing.
+    //
+    // The wait it failed is 45 seconds, so this is a broken workspace rather
+    // than a slow one.
+    if (uxTracker) {
+      uxTracker.log('critical', 'functional', `Workspace never loaded for ${username}`);
+    }
+    await takeScreenshot(page, `${username}_workspace_never_loaded`);
+    console.log(`  Account ${username} registered but its workspace never loaded`);
+    return false;
   }
 
   await takeScreenshot(page, `${username}_created`);

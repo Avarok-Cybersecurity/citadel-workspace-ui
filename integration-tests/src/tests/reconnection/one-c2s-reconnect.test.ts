@@ -37,6 +37,7 @@ import {
   TestHarness,
   runTestMain,
   isVisibleWithin,
+  waitForWorkspaceLoaded,
 } from '../../lib/index.js';
 
 // Test configuration
@@ -146,7 +147,25 @@ async function runTest(): Promise<boolean> {
     });
 
     if (!user2Created) return false;
-    await sleep(2000);
+
+    // Both pages READY before any peer registration.
+    //
+    // This was a bare `sleep(2000)`. The incoming-registration handshake is
+    // one-shot: the agent stores the pending signal and pushes exactly one
+    // `PeerRegisterNotification`, and no request variant can ask for it again. If
+    // the invitee's session is not yet in `server_connection_map`, the push is
+    // skipped silently; if the invitee's page has no cid yet, the notification is
+    // filtered out on arrival. Either way the badge never appears and no amount
+    // of polling helps -- which is why these specs failed after ~40s of it while
+    // `test:p2p`, which DOES wait here, got past registration.
+    //
+    // 45s each, matching what createAccount itself waits for.
+    const bothReady =
+      (await waitForWorkspaceLoaded(page1, 45000)) && (await waitForWorkspaceLoaded(page2, 45000));
+    if (!bothReady) {
+      console.error('A workspace never loaded; not starting P2P registration into a page that is not ready');
+      return false;
+    }
 
     // ===== PHASE 2: P2P Registration =====
     console.log('\n=== Phase 2: P2P Registration ===');
