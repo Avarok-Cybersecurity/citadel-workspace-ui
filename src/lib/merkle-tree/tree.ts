@@ -27,22 +27,38 @@ export class MerkleTree<T, C = Uint8Array> {
   private strategy: ChunkingStrategy<T, C>;
   private metadata: {
     createdAt: number;
-    sourceDataHash: string;
     strategyType: string;
   };
 
+  /**
+   * No `sourceDataHash`.
+   *
+   * It used to be computed here and in `applyRemoteChunks`, as
+   *
+   *     sha256Sync(new Uint8Array(chunks.flatMap(c => Array.from(serialize(c.data)))))
+   *
+   * — the whole document flattened into a boxed `number[]`, copied
+   * element-by-element into a `Uint8Array`, then hashed a SECOND time (the
+   * per-chunk hashes above are the first). For a 200 KB Yjs state that is ~196
+   * intermediate arrays plus a 200,000-element array, and `sha256Sync` is a
+   * per-byte JS loop.
+   *
+   * It ran on every `updateFromDocument`, which the coalescer flushes every
+   * 300 ms of sustained typing, and on every remote sync message. Nothing read
+   * it: the field was returned only by `getMetadata()`, and `getMetadata()` has
+   * no callers anywhere in `src/`. The root hash and the per-chunk hashes are
+   * what the sync protocol actually compares.
+   */
   private constructor(
     root: MerkleNode,
     chunks: Chunk<C>[],
     strategy: ChunkingStrategy<T, C>,
-    sourceDataHash: string
   ) {
     this.root = root;
     this.chunks = chunks;
     this.strategy = strategy;
     this.metadata = {
       createdAt: Date.now(),
-      sourceDataHash,
       strategyType: strategy.getTypeId(),
     };
   }
@@ -65,11 +81,7 @@ export class MerkleTree<T, C = Uint8Array> {
 
     const root: MerkleNode = buildTree(chunks.map(c => c.hash));
 
-    const sourceDataHash: string = sha256Sync(
-      new Uint8Array(chunks.flatMap(c => Array.from(strategy.serialize(c.data))))
-    );
-
-    return new MerkleTree(root, chunks, strategy, sourceDataHash);
+    return new MerkleTree(root, chunks, strategy);
   }
 
   getRootHash(): string {
@@ -178,7 +190,7 @@ export class MerkleTree<T, C = Uint8Array> {
     return this.strategy.reconstruct(this.chunks.map(c => c.data));
   }
 
-  getMetadata(): { createdAt: number; sourceDataHash: string; strategyType: string; } {
+  getMetadata(): { createdAt: number; strategyType: string; } {
     return { ...this.metadata };
   }
 
@@ -201,10 +213,6 @@ export class MerkleTree<T, C = Uint8Array> {
     }
 
     const root: MerkleNode = buildTree(newChunks.map(c => c.hash));
-    const sourceDataHash: string = sha256Sync(
-      new Uint8Array(newChunks.flatMap(c => Array.from(this.strategy.serialize(c.data))))
-    );
-
-    return new MerkleTree(root, newChunks, this.strategy, sourceDataHash);
+    return new MerkleTree(root, newChunks, this.strategy);
   }
 }
