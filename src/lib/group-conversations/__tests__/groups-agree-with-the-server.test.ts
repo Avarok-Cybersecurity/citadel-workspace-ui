@@ -7,6 +7,11 @@
  * the client did not watch disappear — it survived every reload, because
  * restore read it back and merged it in again.
  */
+// The reconciliation only judges groups THIS account owns, so the store-level tests have to
+// say who that is. `null` here would be the "we cannot attribute ownership" path, which
+// correctly removes nothing — and would make the removal tests below pass for the wrong reason.
+vi.mock('@/lib/multi-instance/instance-manager', () => ({ instanceManager: { cid: 1n } }));
+
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // The wire is the only thing mocked: sendGroupListRequest reaches a WebSocket.
@@ -44,7 +49,7 @@ const key: (mgid: string) => { cid: bigint; mgid: bigint; } = (mgid: string): { 
 describe('reconcileGroups', () => {
   it('drops a group the server no longer lists', () => {
     const held: GroupConversation[] = [group('1:7'), group('1:9')];
-    const next: GroupConversation[] = reconcileGroups(held, ['1:7'], new Set(['1:7', '1:9']));
+    const next: GroupConversation[] = reconcileGroups(held, ['1:7'], new Set(['1:7', '1:9']), 1n);
     expect(next.map((g) => g.id)).toEqual(['1:7']);
   });
 
@@ -52,13 +57,13 @@ describe('reconcileGroups', () => {
     // The server's snapshot predates it, so its absence proves nothing. Judging
     // it by that answer deletes a group the user just made.
     const held: GroupConversation[] = [group('1:7'), group('1:99')];
-    const next: GroupConversation[] = reconcileGroups(held, ['1:7'], new Set(['1:7']));
+    const next: GroupConversation[] = reconcileGroups(held, ['1:7'], new Set(['1:7']), 1n);
     expect(next.map((g) => g.id)).toEqual(['1:7', '1:99']);
   });
 
   it('returns the same array when nothing changed, so no listener re-renders', () => {
     const held: GroupConversation[] = [group('1:7')];
-    expect(reconcileGroups(held, ['1:7'], new Set(['1:7']))).toBe(held);
+    expect(reconcileGroups(held, ['1:7'], new Set(['1:7']), 1n)).toBe(held);
   });
 });
 
@@ -127,5 +132,37 @@ describe('through the store', () => {
     applyGroupList(['1:7']);
     applyGroupList([]);
     expect(getGroups().map((g) => g.id)).toEqual(['1:7']);
+  });
+});
+
+/**
+ * A list of the groups you OWN says nothing about the groups you were invited to.
+ *
+ * The request behind it is `list_owned_groups`, and the SDK map is keyed by owner CID, so a
+ * group somebody else created is never in the answer — present or not. Judging those by
+ * absence deleted every group an invitee had been added to, from the sidebar and from storage,
+ * on every login and every reload.
+ */
+describe('a group you did not create is still yours', () => {
+  it("keeps a group owned by someone else, though the server did not list it", () => {
+    const held: GroupConversation[] = [group('9:42')]; // owner 9, we are 1
+    const next: GroupConversation[] = reconcileGroups(held, [], new Set(['9:42']), 1n);
+    expect(next, "an invitee's group was deleted by a list that never mentions it").toEqual(held);
+  });
+
+  it('still removes a group we own that the server no longer lists', () => {
+    const held: GroupConversation[] = [group('1:7'), group('9:42')];
+    const next: GroupConversation[] = reconcileGroups(held, [], new Set(['1:7', '9:42']), 1n);
+    expect(next.map((g) => g.id)).toEqual(['9:42']);
+  });
+
+  it('removes nothing when we cannot say who we are', () => {
+    const held: GroupConversation[] = [group('1:7')];
+    expect(reconcileGroups(held, [], new Set(['1:7']), null)).toBe(held);
+  });
+
+  it('does not judge an id it cannot parse', () => {
+    const held: GroupConversation[] = [group('not-an-id')];
+    expect(reconcileGroups(held, [], new Set(['not-an-id']), 1n)).toBe(held);
   });
 });

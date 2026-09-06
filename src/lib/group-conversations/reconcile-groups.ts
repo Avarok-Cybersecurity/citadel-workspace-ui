@@ -2,6 +2,8 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { getGroups, updateGroups, resetGroupsForSession } from './group-store';
 import type { GroupConversation } from '@/types/group';
 import { debugLog } from '@/lib/debug-config';
+import { groupIdToKey } from './group-key';
+import { instanceManager } from '@/lib/multi-instance/instance-manager';
 
 /**
  * Making the sidebar agree with the server about which groups still exist.
@@ -66,10 +68,36 @@ export function reconcileGroups(
   current: GroupConversation[],
   serverIds: readonly string[],
   knownWhenAsked: ReadonlySet<string>,
+  selfCid: bigint | null,
 ): GroupConversation[] {
   const live: Set<string> = new Set(serverIds);
-  const next: GroupConversation[] = current.filter((g) => live.has(g.id) || !knownWhenAsked.has(g.id));
+  const next: GroupConversation[] = current.filter(
+    (g) => live.has(g.id) || !knownWhenAsked.has(g.id) || !weOwn(g.id, selfCid),
+  );
   return next.length === current.length ? current : next;
+}
+
+/**
+ * Whether this account is the group's OWNER, which is the only thing the server's answer
+ * speaks about.
+ *
+ * The request behind `serverIds` is `list_owned_groups` — the SDK map is keyed by owner CID —
+ * so a group somebody else created is never in it, whether it exists or not. Judging those by
+ * absence deleted every group an invitee had been added to, from the sidebar AND from storage,
+ * on every login and every reload: the one place this reconciliation could do real damage, and
+ * the one case its evidence says nothing about.
+ *
+ * A group id is `<ownerCid>:<mgid>`. An id that will not parse is not judged either: it cannot
+ * be attributed to anyone, and destroying what we cannot identify is the opposite of what this
+ * function is for.
+ */
+function weOwn(groupId: string, selfCid: bigint | null): boolean {
+  if (selfCid === null) return false;
+  try {
+    return groupIdToKey(groupId).cid === selfCid;
+  } catch {
+    return false;
+  }
 }
 
 /** Apply a server list, if one was asked for. Idempotent; safe to call twice. */
@@ -77,7 +105,8 @@ export function applyGroupList(serverIds: readonly string[]): void {
   const asked: Set<string> | null = askedWith;
   if (!asked) return;
   askedWith = null;
-  updateGroups((prev) => reconcileGroups(prev, serverIds, asked));
+  const selfCid: bigint | null = instanceManager.cid;
+  updateGroups((prev) => reconcileGroups(prev, serverIds, asked, selfCid));
 }
 
 export function bindGroupListReconcile(): void {
