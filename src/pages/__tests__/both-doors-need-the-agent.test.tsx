@@ -41,22 +41,26 @@ function code(source: string): string {
 describe('the landing screen and the agent', () => {
   const body: string = code(LANDING);
 
-  it('reads the agent health signal', () => {
-    expect(body).toMatch(/useServiceHealth\s*\(/);
-    expect(body).toMatch(/isHealthy/);
+  it('reads the agent gate', () => {
+    expect(body).toMatch(/useAgentGatedStep/);
   });
 
-  it('refuses to open the sign-in flow while the agent is unreachable', () => {
-    const startLogin: RegExpMatchArray | null = body.match(
-      /const\s+startLogin[^=]*=\s*\([^)]*\)\s*(?::[^=]*)?=>\s*\{([\s\S]*?)\n\s{2}\}/,
+  it('routes the sign-in flow through the agent gate', () => {
+    expect(body).toMatch(/startLogin[\s\S]{0,40}?=\s*useAgentGatedStep\s*\(/);
+    expect(body).toMatch(/useAgentGatedStep\(setCurrentStep,\s*'login',\s*'none'\)/);
+  });
+
+  it('the gate itself both refuses to open and retreats once open', () => {
+    // Both halves, in the hook that owns them. They cover different moments --
+    // `useServiceHealth` starts optimistic, so a click in the first seconds
+    // still gets through and the retreat is what covers that window. Splitting
+    // them across call sites is how one gets applied and the other forgotten.
+    const gate: string = code(
+      readFileSync(join(process.cwd(), 'src', 'hooks', 'use-agent-gate.ts'), 'utf8'),
     );
-    expect(startLogin).not.toBeNull();
-    // The guard must be inside the handler, not merely somewhere in the file.
-    expect(startLogin![1]).toMatch(/!isHealthy/);
-  });
-
-  it('closes the sign-in flow if the agent goes away while it is open', () => {
-    expect(body).toMatch(/step === 'login'/);
+    expect(gate).toMatch(/if\s*\(!isHealthy\)\s*return;/);
+    expect(gate).toMatch(/if\s*\(!isHealthy\)\s*setStep/);
+    expect(gate).toMatch(/useServiceHealth\s*\(/);
   });
 
   it('routes account creation through the health-guarded hook', () => {

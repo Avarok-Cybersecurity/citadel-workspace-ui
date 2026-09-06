@@ -23,7 +23,7 @@ import type { NavigateFunction } from 'react-router';
 import type { ActiveSession } from '@/types/session-types';
 import { OnboardingIntent } from '@/components/onboarding/OnboardingIntent';
 import { useOnboardingIntent } from '@/hooks/useOnboardingIntent';
-import { useServiceHealth } from '@/hooks/use-service-health';
+import { useAgentGatedStep } from '@/hooks/use-agent-gate';
 import type { OnboardingIntentState } from '@/hooks/useOnboardingIntent';
 
 export const Landing: () => JSX.Element = (): JSX.Element => {
@@ -148,37 +148,8 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
   const intent: OnboardingIntentState = useOnboardingIntent(beginWizard);
   const startRegistration: () => void = intent.request;
 
-  // BOTH buttons on this screen need the agent, so both consult its health.
-  //
-  // Round 635 guarded "Create Account" -- through `useOnboardingIntent`, which
-  // refuses to open while the agent is unreachable -- and left "Sign In", the
-  // button immediately beside it, unguarded. The reasoning given there ("the
-  // retry dialog has to win: it alone carries the download links and the run
-  // command") applied to both, and was applied to one. A correct fix in one of
-  // the places its mechanism appears is this repository's most common defect,
-  // and this is an instance of it created by the fix for another instance.
-  //
-  // Without this, a visitor with no agent installed clicks Sign In, gets the
-  // sign-in card (`fixed inset-0 z-50`, its own focus trap), then
-  // ConnectionRetryModal on top of it, with OfflineBanner above -- and after
-  // typing credentials, "Connection timeout, check your network", which names
-  // neither the agent nor what to do about it.
-  const { isHealthy } = useServiceHealth();
-  const startLogin = (): void => {
-    // Nothing to sign in to: the retry dialog is already on screen with the
-    // agent download and the command to run it.
-    if (!isHealthy) return;
-    // Allow login flow - username-specific conflict check happens in Login.tsx
-    setCurrentStep('login');
-  };
-
-  // And close it if the agent goes away while it is open, for the same reason
-  // the intent dialog closes: two modal focus traps over one condition.
-  useEffect((): void => {
-    if (!isHealthy) {
-      setCurrentStep((step) => (step === 'login' ? 'none' : step));
-    }
-  }, [isHealthy]);
+  // Both buttons on this screen need the agent; see use-agent-gate.ts.
+  const startLogin: () => void = useAgentGatedStep(setCurrentStep, 'login', 'none');
   const handleLoginNext = async (cid: string): Promise<void> => {
     debugLog('Landing', `[Landing] handleLoginNext called with cid: ${cid}`);
     try {
