@@ -86,49 +86,51 @@ export class RevfsService {
   // ── Tree Access ───────────────────────────────────────────────────────
 
   async getTree(myCid: bigint, peerCid: bigint): Promise<RevfsNode> {
-    const key: string = peerPairKey(myCid, peerCid);
+    return this.loadTreeFor(peerPairKey(myCid, peerCid));
+  }
+
+
+  /**
+   * Load the tree for `key`, or a default, without ever destroying what is on
+   * disk.
+   *
+   * Shared by `getTree` and `getServerTree`, which differ only in how the key is
+   * built. They were near-identical copies, and the read-tracking this needed
+   * would otherwise have been a fourth thing to keep in step across two bodies
+   * -- which is how the guard came to be on `persistPendingOps` and not here.
+   *
+   * Three outcomes, and the distinction between the last two is the whole point:
+   *   - loaded: cache it, mark the key read, return it.
+   *   - genuinely absent: the read SUCCEEDED and found nothing, which is a safe
+   *     starting point, so mark it read, persist the default and return it.
+   *   - unreadable: return a default for the caller to RENDER, but neither
+   *     cache nor mark nor persist it. Writing it would replace a tree still on
+   *     disk, and the user's files would be gone.
+   */
+  private async loadTreeFor(key: string): Promise<RevfsNode> {
     const cached: RevfsNode | undefined = this.state.getTree(key);
     if (cached) return cached;
 
     const io: RevfsIO = this.ensureIO();
     const result: RevfsIntentResult = await io.execute({ type: 'load-tree', treeKey: key });
-    // Re-checked AFTER the await, before either branch below.
-    //
-    // Loading is async, and a remote op can be applied to this key while it is
-    // in flight — `handleRevfsOperation` writes through `setTree` with no
-    // coordination against a load. Without this check the loaded tree, or the
-    // default when nothing loaded, is written straight over that op: clobbered
-    // in memory, PERSISTED over on disk, and `setTree` fires notifyTreeChanged
-    // so the UI is actively repainted with the stale content.
-    //
-    // The default branch is the destructive one because its callers can be
-    // terminal — the SyncRequest handler calls getTree, replies, and returns
-    // without writing anything back, so nothing restores what it overwrote.
-    // The loaded-tree branch has the same defect with a stale snapshot, which
-    // is why the check sits above both rather than inside one.
+
+    // An op that landed while the load was in flight has already written
+    // through `setTree`; the default below would be written straight over it,
+    // clobbered in memory and persisted over on disk, with `setTree` firing
+    // `notifyTreeChanged` so the UI repaints the stale content.
     const appliedDuringLoad: RevfsNode | undefined = this.state.getTree(key);
     if (appliedDuringLoad) return appliedDuringLoad;
 
     if (result.type === 'load-tree' && result.tree) {
-      // The read succeeded, so writes for this key are safe from here on.
       markTreeRead(key);
       this.state.setTree(key, result.tree);
       return result.tree;
     }
 
-    // A tree we could not READ is not an empty tree.
-    //
-    // Below this line a default tree is built, cached and PERSISTED. Reaching
-    // it after a storage failure writes that default over a tree still on
-    // disk, and the user's files are gone. Storage now says which case it is;
-    // this returns the default for the caller to render but neither caches nor
-    // persists it, so nothing is destroyed and the next call retries the load.
     if (result.type === 'load-tree' && result.unreadable) {
       return createDefaultTree();
     }
 
-    // Genuinely absent -- the read succeeded and found nothing. That is a safe
-    // starting point, so this key is marked read and the default is persisted.
     markTreeRead(key);
     const defaultTree: RevfsNode = createDefaultTree();
     this.state.setTree(key, defaultTree);
@@ -137,42 +139,9 @@ export class RevfsService {
   }
 
   async getServerTree(myCid: bigint): Promise<RevfsNode> {
-    const key: string = serverTreeKey(myCid);
-    const cached: RevfsNode | undefined = this.state.getTree(key);
-    if (cached) return cached;
-
-    const io: RevfsIO = this.ensureIO();
-    const result: RevfsIntentResult = await io.execute({ type: 'load-tree', treeKey: key });
-    // Same race as getTree above; server-scoped ops write through setTree too.
-    const appliedDuringLoad: RevfsNode | undefined = this.state.getTree(key);
-    if (appliedDuringLoad) return appliedDuringLoad;
-
-    if (result.type === 'load-tree' && result.tree) {
-      // The read succeeded, so writes for this key are safe from here on.
-      markTreeRead(key);
-      this.state.setTree(key, result.tree);
-      return result.tree;
-    }
-
-    // A tree we could not READ is not an empty tree.
-    //
-    // Below this line a default tree is built, cached and PERSISTED. Reaching
-    // it after a storage failure writes that default over a tree still on
-    // disk, and the user's files are gone. Storage now says which case it is;
-    // this returns the default for the caller to render but neither caches nor
-    // persists it, so nothing is destroyed and the next call retries the load.
-    if (result.type === 'load-tree' && result.unreadable) {
-      return createDefaultTree();
-    }
-
-    // Genuinely absent -- the read succeeded and found nothing. That is a safe
-    // starting point, so this key is marked read and the default is persisted.
-    markTreeRead(key);
-    const defaultTree: RevfsNode = createDefaultTree();
-    this.state.setTree(key, defaultTree);
-    await persistTree(io, key, defaultTree);
-    return defaultTree;
+    return this.loadTreeFor(serverTreeKey(myCid));
   }
+
 
   // ── Peer-Scoped Operations (delegated) ────────────────────────────────
 
