@@ -33,7 +33,19 @@ adminMemberTest('an edit by the admin reaches a member without a reload', async 
     // what makes this about the broadcast rather than about what they fetch on
     // arrival.
     await expect(rendered(member.page)).toBeVisible({ timeout: 60_000 });
-    await expect(rendered(member.page)).not.toContainText(marker);
+
+    // No `not.toContainText(marker)` here.
+    //
+    // `marker` embeds `Date.now()`, so the document cannot contain it and that
+    // assertion could not fail for any input or any bug. It read as a control and
+    // was not one.
+    //
+    // The real control is below: after the admin saves, the member's view must
+    // CHANGE to contain the marker without a reload. What is worth pinning here
+    // is that the member is looking at rendered content at all -- asserted on the
+    // line above -- because an empty view would satisfy a later "contains" check
+    // only by never rendering, and that is caught by the visibility assertion
+    // rather than by comparing against a string nothing could match.
 
     // The Edit control is permission-gated and the grant arrives asynchronously,
     // so this waits for it to become usable rather than assuming it is.

@@ -463,6 +463,15 @@ jobs:
         run: npm run check:debug-args
         working-directory: parent/citadel-workspaces
 
+      - name: Assertions can fail
+        # An audit found three that could not: `toBeTruthy()` on a record (an
+        # object is always truthy), a URL assertion that held before the click,
+        # and `not.toContainText(marker)` where marker embeds `Date.now()`. Two of
+        # those shapes are decidable from the text; the third needs a control.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:assertions
+        working-directory: parent/citadel-workspaces
+
       - name: A captured console line is not automatically a failure
         # The reconnection specs capture `'ILM'` on purpose -- a delivery failure
         # with no ILM lines has nothing to diagnose from -- and four of the five

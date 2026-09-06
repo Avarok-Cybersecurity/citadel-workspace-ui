@@ -282,6 +282,25 @@ test.describe.serial('P2P Messaging', () => {
         // pages were deleted rather than the view merely re-rendered.
         await page.reload({ waitUntil: 'commit', timeout: 60_000 });
         await waitForAppReady(page, 60_000);
+
+        // A live message BEFORE asserting the dead one is absent.
+        //
+        // `toHaveCount(0)` immediately after a reload is true before anything has
+        // rendered, and this test clears the whole transcript, so there is no
+        // surviving message to wait for either. The absence assertion below was
+        // therefore satisfied by a conversation that had not loaded yet: delete
+        // the on-disk removal in `lib/p2p/message-page-delete.ts` and keep only
+        // the in-memory clear, and this still passed.
+        //
+        // Sending one and seeing it arrive proves the composer, the store and
+        // the list are all working again -- so `doomed` being absent afterwards
+        // is a statement about the data rather than about the timing.
+        const canary = `Still here [${Date.now()}]`;
+        await sendMessage(page, sessionA.username, canary);
+        await expect(page.getByText(canary, { exact: false }).first()).toBeVisible({
+            timeout: 30_000,
+        });
+
         await expect(page.getByText(doomed, { exact: false })).toHaveCount(0, { timeout: 30_000 });
     });
 });
