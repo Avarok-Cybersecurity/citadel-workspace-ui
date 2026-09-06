@@ -9,6 +9,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { serverRmdir, peerRmdir , type DirOpsContext } from '../revfs-dir-ops';
 import { collectFiles } from '../tree-queries';
+import { markTreeRead } from '../persist-tree';
 import { createDefaultTree, mkdir, placeFile, serverTreeKey } from '../tree-operations';
 import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
 
@@ -57,6 +58,15 @@ function setup(tree: RevfsNode): { ctx: DirOpsContext; executed: Record<string, 
     getServerTree: vi.fn(() => Promise.resolve(tree)),
     sendAndAwaitAck: vi.fn(),
   } as unknown as DirOpsContext;
+
+  // These stubs stand in for `getServerTree`, which in production marks the key
+  // read on a successful load. `persistTree` refuses to write a tree for a key
+  // that was never read -- the guard that stops a peer's operation replacing an
+  // unreadable index with an empty default -- so a stub that returns a tree
+  // must also say the read happened, or it is modelling a state that cannot
+  // occur.
+  markTreeRead(serverTreeKey(MY_CID));
+
   return { ctx, executed };
 }
 

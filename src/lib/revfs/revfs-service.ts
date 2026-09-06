@@ -32,7 +32,7 @@ import * as dirOps from './revfs-dir-ops';
 import type { FileOpsContext } from './revfs-file-ops';
 import * as fileOps from './revfs-file-ops';
 import * as serverFileOps from './revfs-server-file-ops';
-import { persistTree } from './persist-tree';
+import { persistTree, markTreeRead } from './persist-tree';
 import type { RevfsIntentResult } from '@/types/revfs-intents';
 
 export class RevfsService {
@@ -110,6 +110,8 @@ export class RevfsService {
     if (appliedDuringLoad) return appliedDuringLoad;
 
     if (result.type === 'load-tree' && result.tree) {
+      // The read succeeded, so writes for this key are safe from here on.
+      markTreeRead(key);
       this.state.setTree(key, result.tree);
       return result.tree;
     }
@@ -125,6 +127,9 @@ export class RevfsService {
       return createDefaultTree();
     }
 
+    // Genuinely absent -- the read succeeded and found nothing. That is a safe
+    // starting point, so this key is marked read and the default is persisted.
+    markTreeRead(key);
     const defaultTree: RevfsNode = createDefaultTree();
     this.state.setTree(key, defaultTree);
     await persistTree(io, key, defaultTree);
@@ -143,6 +148,8 @@ export class RevfsService {
     if (appliedDuringLoad) return appliedDuringLoad;
 
     if (result.type === 'load-tree' && result.tree) {
+      // The read succeeded, so writes for this key are safe from here on.
+      markTreeRead(key);
       this.state.setTree(key, result.tree);
       return result.tree;
     }
@@ -158,6 +165,9 @@ export class RevfsService {
       return createDefaultTree();
     }
 
+    // Genuinely absent -- the read succeeded and found nothing. That is a safe
+    // starting point, so this key is marked read and the default is persisted.
+    markTreeRead(key);
     const defaultTree: RevfsNode = createDefaultTree();
     this.state.setTree(key, defaultTree);
     await persistTree(io, key, defaultTree);
