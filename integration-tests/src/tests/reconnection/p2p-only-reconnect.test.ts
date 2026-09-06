@@ -78,6 +78,21 @@ async function runTest(): Promise<boolean> {
     // zero ILM lines in it and nothing to diagnose from.
     const errorPatterns = ['Session Already Connected', 'Ratchet does not exist', 'ratchet v', 'ILM'];
 
+    // What is CAPTURED and what counts as a FAILURE are different lists.
+    //
+    // `errorPatterns` above is the capture list, and it includes `'ILM'` on
+    // purpose: a delivery failure with no ILM lines in the log has nothing to
+    // diagnose from, which the comment above records. Reusing it here as the
+    // failure list made every informational router line -- `[ILM-Router]
+    // Registering CID <n> for self (leader's own connection)` -- a
+    // `critical/functional` UX failure and an entry in `consoleErrors`. A run
+    // reports errors it does not have, which is how the ones it does have stop
+    // being noticed.
+    //
+    // `c2s-reconnect.test.ts` in this directory already separates the two; the
+    // other four specs reused one list.
+    const failurePatterns = ['Session Already Connected', 'Ratchet does not exist', 'ratchet v'];
+
     setupConsoleCapture(page1, USER1_NAME, errorPatterns);
     setupConsoleCapture(page2, USER2_NAME, errorPatterns);
 
@@ -85,7 +100,7 @@ async function runTest(): Promise<boolean> {
     const trackErrors = (page: Page, username: string) => {
       page.on('console', (msg) => {
         const text = msg.text();
-        if (errorPatterns.some(pattern => text.includes(pattern))) {
+        if (failurePatterns.some((pattern) => text.includes(pattern))) {
           consoleErrors.push(`[${username}] ${text}`);
           console.log(`[CONSOLE ERROR] [${username}] ${text}`);
           uxTracker.log('critical', 'functional', text);

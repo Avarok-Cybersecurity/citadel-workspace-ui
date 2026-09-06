@@ -463,6 +463,15 @@ jobs:
         run: npm run check:debug-args
         working-directory: parent/citadel-workspaces
 
+      - name: A captured console line is not automatically a failure
+        # The reconnection specs capture `'ILM'` on purpose -- a delivery failure
+        # with no ILM lines has nothing to diagnose from -- and four of the five
+        # then reused that list to decide what was an error, so every
+        # informational router line became a critical UX failure.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:captured-vs-failed
+        working-directory: parent/citadel-workspaces
+
       - name: Parent checkouts all take the resolved ref
         # Five jobs check the parent out to run ITS gate scripts against this PR.
         # While that ref was hardcoded to the parent's default branch, a change
