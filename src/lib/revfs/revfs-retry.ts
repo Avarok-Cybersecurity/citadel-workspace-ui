@@ -13,6 +13,7 @@ import type { RevfsIntentResult } from '@/types/revfs-intents';
 import type { RevfsState } from './revfs-state';
 import type { RevfsIO } from './revfs-io';
 import { debugLog } from '@/lib/debug-config';
+import { persistPendingOps } from './persist-pending-ops';
 
 const ACK_TIMEOUT_MS: number = 15_000;
 
@@ -191,7 +192,7 @@ async function runRetryPass(
     }
   }
 
-    await deps.io.execute({ type: 'persist-pending-ops', treeKey: key, ops: deps.state.getPendingOps(key) });
+  await persistPendingOps(deps.io, key, deps.state.getPendingOps(key));
   return { stillPending: deps.state.getPendingOps(key).length, discarded };
 }
 
@@ -208,7 +209,7 @@ export async function sendAndAwaitAck(
     // withdrawn, not abandoned to reject unheard at its timeout.
     deps.state.cancelAck(op.op_id);
     deps.state.addPendingOp(key, { operation: op, retryCount: 0, createdAt: Date.now() });
-        await deps.io.execute({ type: 'persist-pending-ops', treeKey: key, ops: deps.state.getPendingOps(key) });
+    await persistPendingOps(deps.io, key, deps.state.getPendingOps(key));
     return false;
   }
   try {
@@ -218,7 +219,7 @@ export async function sendAndAwaitAck(
     const acked: boolean = await ackPromise;
     if (!acked) {
       deps.state.addPendingOp(key, { operation: op, retryCount: 0, createdAt: Date.now() });
-      await deps.io.execute({ type: 'persist-pending-ops', treeKey: key, ops: deps.state.getPendingOps(key) });
+      await persistPendingOps(deps.io, key, deps.state.getPendingOps(key));
       return false;
     }
     return true;
@@ -232,7 +233,7 @@ export async function sendAndAwaitAck(
     // The op is queued for retry here, which is the right behaviour. Saying it
     // succeeded is not.
     deps.state.addPendingOp(key, { operation: op, retryCount: 0, createdAt: Date.now() });
-        await deps.io.execute({ type: 'persist-pending-ops', treeKey: key, ops: deps.state.getPendingOps(key) });
+    await persistPendingOps(deps.io, key, deps.state.getPendingOps(key));
     return false;
   }
 }
