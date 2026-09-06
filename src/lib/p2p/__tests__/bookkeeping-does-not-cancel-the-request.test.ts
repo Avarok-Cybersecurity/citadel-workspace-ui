@@ -21,7 +21,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 const sent: Record<string, unknown>[] = [];
-const addOutgoing = vi.fn();
+const addOutgoing: ReturnType<typeof vi.fn> = vi.fn();
 
 vi.mock('@/lib/peer-registration-store', (): Record<string, unknown> => ({
   peerRegistrationStore: { addOutgoingRequest: (r: unknown): Promise<void> => addOutgoing(r) },
