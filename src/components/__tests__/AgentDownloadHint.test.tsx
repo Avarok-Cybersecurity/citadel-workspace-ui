@@ -35,10 +35,27 @@ describe('AgentDownloadHint', () => {
     expect(screen.getByText(/desktop or laptop/i)).toBeInTheDocument();
   });
 
-  it('always shows the run command, including both flags that have no safe default', () => {
+  it('always shows the run command: the packaged binary, both flags with no safe default, and this page as the allowed origin', () => {
     render(<AgentDownloadHint navigatorRef={MAC} />);
     const cmd: HTMLElement = screen.getByText(/--bind 127\.0\.0\.1:12345 --backend filesystem/);
     expect(cmd).toBeInTheDocument();
+    expect(cmd.textContent).toMatch(/^\.\/citadel-agent /);
+    expect(cmd.textContent).toContain(`--allowed-origins ${window.location.origin}`);
+    expect(cmd.textContent).not.toContain('--loopback');
+  });
+
+  it('on a page whose nginx published a loopback origin, the command carries the name and the certificate URL', () => {
+    const meta: HTMLMetaElement = document.createElement('meta');
+    meta.name = 'citadel-loopback-agent';
+    meta.content = 'wss://local.example.com:12345';
+    document.head.appendChild(meta);
+    try {
+      render(<AgentDownloadHint navigatorRef={MAC} />);
+      const cmd: HTMLElement = screen.getByText(/--loopback-host local\.example\.com/);
+      expect(cmd.textContent).toContain(`--loopback-cert-url ${window.location.origin}/agent`);
+    } finally {
+      meta.remove();
+    }
   });
 
   it('always links the releases page, so an unrecognised platform is not a dead end', () => {
