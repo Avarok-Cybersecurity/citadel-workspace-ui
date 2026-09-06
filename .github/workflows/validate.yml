@@ -92,6 +92,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          # Restore ~/.npm. Without it every job re-downloads the same 1154-package
+          # tree; `npm ci` at this size costs 1-2 min uncached against 20-40s warm,
+          # and this workflow runs it in dozens of jobs per push.
+          #
+          # The parent's lockfile, because that is what `npm ci` installs from here:
+          # every job checks the parent out into `parent/` and runs with
+          # `working-directory: parent`. All five setup-node steps run AFTER that
+          # checkout, so the path resolves.
+          cache: npm
+          cache-dependency-path: parent/package-lock.json
       - name: Install Workspace Dependencies
         run: npm ci
       - name: Build citadel-internal-service typescript-client
@@ -153,6 +163,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          # Restore ~/.npm. Without it every job re-downloads the same 1154-package
+          # tree; `npm ci` at this size costs 1-2 min uncached against 20-40s warm,
+          # and this workflow runs it in dozens of jobs per push.
+          #
+          # The parent's lockfile, because that is what `npm ci` installs from here:
+          # every job checks the parent out into `parent/` and runs with
+          # `working-directory: parent`. All five setup-node steps run AFTER that
+          # checkout, so the path resolves.
+          cache: npm
+          cache-dependency-path: parent/package-lock.json
       - name: Install Workspace Dependencies
         run: npm ci
       - name: Build citadel-internal-service typescript-client
@@ -398,6 +418,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          # Restore ~/.npm. Without it every job re-downloads the same 1154-package
+          # tree; `npm ci` at this size costs 1-2 min uncached against 20-40s warm,
+          # and this workflow runs it in dozens of jobs per push.
+          #
+          # The parent's lockfile, because that is what `npm ci` installs from here:
+          # every job checks the parent out into `parent/` and runs with
+          # `working-directory: parent`. All five setup-node steps run AFTER that
+          # checkout, so the path resolves.
+          cache: npm
+          cache-dependency-path: parent/package-lock.json
       - name: Install Workspace Dependencies
         run: npm ci
       - name: Build citadel-internal-service typescript-client
@@ -535,6 +565,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          # Restore ~/.npm. Without it every job re-downloads the same 1154-package
+          # tree; `npm ci` at this size costs 1-2 min uncached against 20-40s warm,
+          # and this workflow runs it in dozens of jobs per push.
+          #
+          # The parent's lockfile, because that is what `npm ci` installs from here:
+          # every job checks the parent out into `parent/` and runs with
+          # `working-directory: parent`. All five setup-node steps run AFTER that
+          # checkout, so the path resolves.
+          cache: npm
+          cache-dependency-path: parent/package-lock.json
       - name: Install Dependencies
         # Root install first, and before `playwright install` — see the long note
         # on the integration-tests job for why both orderings matter.
@@ -811,6 +851,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          # Restore ~/.npm. Without it every job re-downloads the same 1154-package
+          # tree; `npm ci` at this size costs 1-2 min uncached against 20-40s warm,
+          # and this workflow runs it in dozens of jobs per push.
+          #
+          # The parent's lockfile, because that is what `npm ci` installs from here:
+          # every job checks the parent out into `parent/` and runs with
+          # `working-directory: parent`. All five setup-node steps run AFTER that
+          # checkout, so the path resolves.
+          cache: npm
+          cache-dependency-path: parent/package-lock.json
       - name: Install Dependencies
         # `npm ci` at the workspace root hoists playwright once, instead
         # of installing it both at root AND in citadel-workspaces/. Two
