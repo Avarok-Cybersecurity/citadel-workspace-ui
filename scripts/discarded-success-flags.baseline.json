@@ -1,5 +1,4 @@
 {
-  "src/components/WorkspaceEventHandler.tsx::sessionSet": 1,
   "src/components/call/CallProvider.tsx::adoptPeerCodecs": 1,
   "src/components/useOrphanSessions.ts::startMessagingForSession": 1,
   "src/lib/call/websocket-call-transport.ts::requestResponse": 1,

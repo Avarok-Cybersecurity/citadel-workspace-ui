@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { isOnboardingEnabled } from '@/lib/debug-config';
 import { suppressInitPrompt } from '@/lib/workspace-init-prompt';
+import { debugLog } from '@/lib/debug-config';
 
 /** What the user said they were doing. `undefined` means they dismissed without saying. */
 export type OnboardingChoice = 'admin' | 'member' | undefined;
@@ -59,7 +60,16 @@ export function useOnboardingIntent(beginWizard: () => void): OnboardingIntentSt
     // Only `member` suppresses. `admin` has been told to have the password to
     // hand and SHOULD be prompted; dismissing without answering says nothing,
     // and is left exactly as it was.
-    if (choice === 'member') suppressInitPrompt();
+    if (choice === 'member' && !suppressInitPrompt()) {
+      // Storage refused (private mode, blocked site data). The prompt will still
+      // appear; say so, because the alternative is a member being asked for a
+      // secret they cannot have with nothing anywhere explaining why.
+      debugLog(
+        'OnboardingIntent',
+        'Could not record "joining a workspace": session storage is unavailable, so the ' +
+          'workspace-initialization prompt will still be shown.',
+      );
+    }
     beginWizard();
   }, [beginWizard]);
 

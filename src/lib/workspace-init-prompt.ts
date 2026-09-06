@@ -41,9 +41,15 @@ export function initPromptSuppressed(): boolean {
  *
  * Two callers, and they mean the same thing: dismissing the prompt, and telling
  * the onboarding dialog you are joining a workspace someone else set up.
+ *
+ * Returns whether it was actually recorded. `sessionSet` swallows the throw that
+ * sessionStorage raises under strict privacy settings, so it can answer false --
+ * and then the member who said "I am joining" is asked for the master password
+ * anyway. That is the whole failure this function exists to prevent, so its
+ * caller is given the chance to say so rather than the answer being dropped here.
  */
-export function suppressInitPrompt(): void {
-  sessionSet(INIT_PROMPT_SUPPRESSED_KEY, 'true');
+export function suppressInitPrompt(): boolean {
+  return sessionSet(INIT_PROMPT_SUPPRESSED_KEY, 'true');
 }
 
 /**

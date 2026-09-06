@@ -128,7 +128,16 @@ export const WorkspaceEventHandler: React.FC<{
   const handleInitCancelled = (): void => {
     setShowInitModal(false);
     setInitModalDismissed(true);
-    suppressInitPrompt();
+    // Less severe than the onboarding caller's version of this: `initModalDismissed`
+    // above already keeps the prompt closed for THIS mount, so a storage refusal
+    // only means it returns after a reload rather than immediately.
+    if (!suppressInitPrompt()) {
+      debugLog(
+        'WorkspaceEventHandler',
+        'Could not record the dismissal: session storage is unavailable, so the ' +
+          'initialization prompt will return after a reload.',
+      );
+    }
     // Deliberately no navigation.
     //
     // This used to `window.location.assign('/')`, throwing the user out of the

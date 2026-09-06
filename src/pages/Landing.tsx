@@ -230,14 +230,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
           </p>
 
           {/* CTA Buttons */}
-          {/* Dismissing passes no choice on purpose: saying nothing is not the
-              same as saying "I am joining", and only the latter stops the
-              master-password prompt. */}
-          <OnboardingIntent
-            open={intent.open}
-            onChoose={intent.resolve}
-            onDismiss={(): void => intent.resolve(undefined)}
-          />
+          <OnboardingIntent open={intent.open} onChoose={intent.resolve} onDismiss={intent.resolve} />
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Button
