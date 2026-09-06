@@ -41,6 +41,7 @@ import {
   acceptRegistrationRequest as doAcceptRegistration,
   declineRegistrationRequest as doDeclineRegistration,
 } from './connection';
+import { stableLists, type PeerLists } from './peers-snapshot';
 
 export class P2PRegistrationService {
   private static instance: P2PRegistrationService;
@@ -197,11 +198,16 @@ export class P2PRegistrationService {
     return doRegisterPeer(peerCid, options, this.pendingRequests);
   }
 
-  public getPeers(): { allPeers: Peer[]; registeredPeers: Peer[] } {
-    return {
+  /** See peers-snapshot.ts: the identity of this result is part of the contract. */
+  private peersSnapshot: PeerLists | null = null;
+
+  public getPeers(): PeerLists {
+    const next: PeerLists = {
       allPeers: Array.from(this.allPeers.values()),
       registeredPeers: Array.from(this.registeredPeers.values())
     };
+    this.peersSnapshot = stableLists(this.peersSnapshot, next);
+    return this.peersSnapshot;
   }
 
   public isPeerRegistered(peerCid: bigint): boolean {
