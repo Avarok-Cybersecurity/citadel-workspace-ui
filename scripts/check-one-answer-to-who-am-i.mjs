@@ -42,9 +42,40 @@ const MAY_IMPLEMENT = [AUTHORITY];
  */
 const MARKERS = [/instanceManager\.cid/, /selectedCid/, /getConnectionInfo\(\)/];
 
-/** The last resort, handed over as if it were the answer. */
+/**
+ * The last resort, handed over as if it were the answer.
+ *
+ * `[\s\S]` and not `[^\n]`: the first version was line-oriented, and prettier
+ * wraps a `getCurrentCid:` whose body needs a local. `useConnectionHandler.ts`
+ * spelled it across four lines —
+ *
+ *     getCurrentCid: async () => {
+ *       const info = connectionManager.getConnectionInfo();
+ *       return info?.cid ?? null;
+ *     },
+ *
+ * — and handed that to revfs, which uses it as the local CID for every P2P
+ * operation. The gate printed its constant success line over it. This is the
+ * same blindness the broadcast-audience gate had, found the same way: a control
+ * that reintroduced the defect in the shape the formatter actually produces.
+ *
+ * And `.cid` need not be ADJACENT to the lookup. Widening `[^\n]` to `[\s\S]`
+ * was not enough, and its control proved it: the wrapped form assigns the info
+ * to a local first —
+ *
+ *     const info = connectionManager.getConnectionInfo();
+ *     return info?.cid ?? null;
+ *
+ * — so `getConnectionInfo()` is followed by `;`, never by `?.cid`. Both the
+ * original detector and the first attempt at fixing it required that adjacency.
+ * The read of `.cid` is now looked for separately, within the same bounded
+ * window.
+ *
+ * Bounded to 300/200 characters so the match cannot run away across a file and
+ * pair a `getCurrentCid` in one function with a connection lookup in another.
+ */
 const BARE_CONNECTION_CID =
-  /getCurrentCid[^\n]*(?:=>|:)[^\n]*connectionManager\.getConnectionInfo\(\)\s*\??\.\s*cid/;
+  /getCurrentCid[\s\S]{0,300}?connectionManager\.getConnectionInfo\(\)[\s\S]{0,200}?\.\s*cid/;
 
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir)) {
@@ -87,11 +118,18 @@ for (const file of walk(SRC)) {
     }
   }
 
-  const bare = text.split('\n').findIndex((line) => BARE_CONNECTION_CID.test(line));
-  if (bare !== -1) {
+  // Against the WHOLE text, not line by line.
+  //
+  // This was `text.split('\n').findIndex(line => RE.test(line))`, so no
+  // multi-line pattern could ever match here however the regex was written --
+  // and the live offender spans four lines. Widening the pattern twice changed
+  // nothing, because the pattern was never the thing that was line-oriented.
+  // The line number is recovered from the match index instead.
+  const bareMatch = BARE_CONNECTION_CID.exec(text);
+  if (bareMatch !== null) {
     offences.push({
       file: rel,
-      line: bare + 1,
+      line: text.slice(0, bareMatch.index).split('\n').length,
       why: 'supplies the global connection CID as getCurrentCid. That is the LAST step of the chain used as the only step, and it is the connection\'s identity rather than this tab\'s',
     });
   }

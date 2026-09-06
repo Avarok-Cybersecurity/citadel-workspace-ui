@@ -25,9 +25,9 @@ import { startRevfs } from '@/lib/revfs/revfs-loader';
 import '@/lib/session-startup-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { postAuthSetup } from '@/lib/post-auth-setup';
+import { getCurrentCid } from '@/lib/p2p/current-cid';
 import { debugLog } from '@/lib/debug-config';
 import { makeSessionAlreadyConnectedHandler } from './session-already-connected';
-import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { StoredSession } from '@/types/session-types';
 import {
   NOT_FAILING, onFailure, onDismiss, onSuccess, isRetryDialogOpen,
@@ -82,10 +82,17 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
     void startRevfs({
       sendP2PMessageReliable: (localCid, peerCid, message) =>
         websocketService.sendP2PMessageReliable(localCid, peerCid, message),
-      getCurrentCid: async () => {
-        const info: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
-        return info?.cid ?? null;
-      },
+      // The authority, not the bare connection lookup.
+      //
+      // `connectionManager.getConnectionInfo().cid` belongs to the CONNECTION,
+      // not to this tab: it is the LAST resort in `lib/p2p/current-cid.ts`'s
+      // chain, and with two sessions in one browser -- the documented way to use
+      // and test this app -- it names whichever session the connection happens
+      // to hold. revfs consumes this as the local CID for every P2P operation,
+      // so the sync engine and the messenger beside it could answer "who am I"
+      // differently. `CallLayer` had exactly this bug and its comment says so;
+      // the fix was applied there and not here.
+      getCurrentCid,
       sendInternalServiceRequest: (request: unknown) =>
         websocketService.sendMessage(request as Record<string, unknown>),
     });
