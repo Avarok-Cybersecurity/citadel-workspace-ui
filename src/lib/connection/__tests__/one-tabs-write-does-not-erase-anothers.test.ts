@@ -104,16 +104,46 @@ describe('two tabs sharing one session key', () => {
     expect(names()).toEqual(['A']);
   });
 
-  it('falls back to this tab\'s list when the key cannot be read at all', async () => {
-    // A failed read must not be treated as an empty disk -- that would write one
-    // tab's view and be the clobbering this file exists to stop. But the session
-    // the user just authenticated must still be recorded, so the in-memory list
-    // is the fallback rather than nothing.
+  it('writes NOTHING when the key could not be read', async () => {
+    // The first version of this fell back to the tab's in-memory list, which is
+    // exactly the whole-list write this module removes -- a timeout would have
+    // clobbered the accounts it exists to protect, while reporting success.
+    //
+    // Not writing costs the ability to reconnect automatically next time, which
+    // `storeSession`'s own contract already says it may cost. Writing the wrong
+    // list costs somebody else's stored account, permanently and silently.
     disk = { sessions: [account('A')] };
     readFails = new Error('LocalDB request timed out after 5000ms');
 
-    await persistSessionUpsert(account('B'), { sessions: [account('A'), account('B')] }, io);
+    await expect(
+      persistSessionUpsert(account('B'), { sessions: [account('A'), account('B')] }, io),
+    ).rejects.toThrow(/timed out/);
+
+    expect(names()).toEqual(['A']);
+  });
+
+  it('removes nothing when the key could not be read', async () => {
+    // Same rule on the other operation: a failed read must not turn a removal
+    // into a whole-list write either.
+    disk = { sessions: [account('A'), account('B')] };
+    readFails = new Error('LocalDB request timed out after 5000ms');
+
+    await expect(persistSessionRemoval('A', 'srv', { sessions: [] }, io)).rejects.toThrow(
+      /timed out/,
+    );
 
     expect(names()).toEqual(['A', 'B']);
+  });
+
+  it('treats a genuinely absent key as an empty disk, so a first write works', async () => {
+    // The control for the two above. A module that refused on every read error
+    // would satisfy both and break the very first session ever stored, when the
+    // key legitimately does not exist.
+    disk = null;
+    readFails = new Error('Key not found');
+
+    await persistSessionUpsert(account('A'), { sessions: [account('A')] }, io);
+
+    expect(names()).toEqual(['A']);
   });
 });

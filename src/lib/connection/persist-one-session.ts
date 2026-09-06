@@ -34,17 +34,35 @@
 import type { StoredSession, StoredSessions } from '@/types/session-types';
 import type { ConnectionIO } from './io';
 import { debugLog } from '@/lib/debug-config';
+import { isGenuinelyAbsent } from '@/lib/storage/absence';
 
-/** Sessions currently on disk, or null when they could not be read. */
+/**
+ * Sessions currently on disk.
+ *
+ * `null` means the key is genuinely ABSENT -- nothing has been stored yet --
+ * which is a real answer and the base for a first write. A read that FAILED is
+ * rethrown, and the callers below do not write at all.
+ *
+ * That distinction is the whole point of this module, and the first version of
+ * it got it backwards: it caught every rejection and fell back to this tab's
+ * in-memory list, which is precisely the whole-list write the file exists to
+ * remove. A timeout would have clobbered the very accounts it is meant to
+ * protect, while reporting success.
+ *
+ * Not writing costs the ability to reconnect automatically next time, which is
+ * what `storeSession`'s own contract already says it may cost: "It does not
+ * cost the session that was just authenticated." Writing the wrong list costs
+ * somebody else's stored account, permanently, with no signal.
+ */
 async function onDisk(io: ConnectionIO): Promise<StoredSessions | null> {
   try {
     return await io.loadSessionsFromLocalDB();
   } catch (error) {
-    // A failed read is not an empty list. Returning `{ sessions: [] }` here
-    // would make the merge below write exactly the clobbering this file exists
-    // to stop, and would do it while reporting success.
-    debugLog('ConnectionIO', 'Could not read stored sessions before writing', error);
-    return null;
+    if (isGenuinelyAbsent(error)) {
+      debugLog('ConnectionIO', 'No sessions stored yet; this is the first write');
+      return null;
+    }
+    throw error;
   }
 }
 
@@ -62,6 +80,8 @@ export async function persistSessionUpsert(
   session: StoredSession, fallback: StoredSessions, io: ConnectionIO,
 ): Promise<void> {
   const current: StoredSessions | null = await onDisk(io);
+  // Absent means nothing is stored, so this tab's list is the whole truth.
+  // A FAILED read never reaches here -- `onDisk` rethrows it.
   const base: StoredSession[] = current ? [...current.sessions] : [...fallback.sessions];
 
   const index: number = base.findIndex((s) => sameAccount(s, session.username, session.serverAddress));

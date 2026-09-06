@@ -21,6 +21,8 @@ function setup(): { io: ConnectionIO; state: ConnectionState; written: StoredSes
   const stored: StoredSessions = { sessions: [] };
   const written: StoredSessions[] = [];
   const io: ConnectionIO = {
+    // The write reads the shared key first; `null` is "nothing stored yet".
+    loadSessionsFromLocalDB: vi.fn(async (): Promise<null> => null),
     storeSessionsToLocalDB: vi.fn((s: StoredSessions) => {
       written.push(structuredClone(s));
       return Promise.resolve();
