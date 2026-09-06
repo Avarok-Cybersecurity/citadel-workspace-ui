@@ -30,10 +30,17 @@ export async function loadEnabledSetting(): Promise<boolean> {
   } catch (error) {
     if (isGenuinelyAbsent(error)) {
       debugLog('ServerAutoConnectService', 'No stored preference; auto-connect defaults to on');
-    } else {
-      debugLog('ServerAutoConnectService', 'COULD NOT READ the auto-connect preference; ' +
-        'defaulting to on, which may not be what this user chose:', error);
+      return true;
     }
+    // Rethrown, not defaulted.
+    //
+    // The paragraph above this function already said what should happen here --
+    // "returning the default there is how a user who turned auto-connect off
+    // finds it back on after one timed-out request" -- and the code returned
+    // `true` anyway. The predicate was imported, the distinction was drawn in
+    // the log message, and the BEHAVIOUR was identical on both branches. That
+    // is the shape of a fix that was written down and never applied.
+    throw error;
   }
   return true;
 }
@@ -65,13 +72,12 @@ export async function loadUserDisconnectedSessions(): Promise<Set<string>> {
   } catch (error) {
     if (isGenuinelyAbsent(error)) {
       debugLog('ServerAutoConnectService', 'No user-disconnected sessions stored yet');
-    } else {
-      // An empty set here means "nobody signed out of anything", which is what
-      // makes the service reconnect them. Say so, rather than logging a generic
-      // failure beside the one that happens on every first boot.
-      debugLog('ServerAutoConnectService', 'COULD NOT READ user-disconnected sessions; ' +
-        'treating every session as reconnectable:', error);
+      return new Set<string>();
     }
+    // Rethrown for the reason the old comment gave: an empty set here means
+    // "nobody signed out of anything", which is exactly what makes the service
+    // reconnect a session the user deliberately signed out of.
+    throw error;
   }
   return new Set();
 }
