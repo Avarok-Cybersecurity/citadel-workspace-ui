@@ -40,6 +40,17 @@ const CREATED_BY_THE_TEST = new Map([
   ['Test Alert 1', 'a notification the notification-center spec raises itself'],
   ['Test Alert 2', 'as above'],
   ['Test Alert 3', 'as above'],
+  // Rendered from a server error message, not from a literal in this bundle.
+  // The UI shows `err.message`, and the text is built by the Rust kernel --
+  // `citadel-workspace-server-kernel/src/handlers/domain/core.rs:26` formats
+  // "Permission denied: {msg}", and workspace_errors.rs:10 pins one such
+  // constant. So this locator does match at runtime, and no amount of reading
+  // the client can show that.
+  //
+  // Recorded rather than deleted BECAUSE it is unverifiable here: this gate
+  // can prove a string is absent from the client, not that it is absent from
+  // the screen. Saying so is the honest limit of what it measures.
+  ['Permission denied', 'formatted by the server kernel, not present in the client bundle'],
 ]);
 
 function filesUnder(dir, extensions) {
@@ -56,9 +67,19 @@ function withoutComments(source) {
   return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
 }
 
+// Comments stripped from the APP corpus too, not only from the specs.
+//
+// Without this a locator was satisfied by a sentence ABOUT the copy rather
+// than the copy. Three passed that way, and one of them searched for text the
+// app had deliberately REMOVED -- the only remaining occurrence of
+// "Connected Peers" is a doc comment explaining that the label is gone.
+//
+// The whole point of this gate is that a locator matching nothing does not
+// fail; it waits and falls through. A gate that a comment can satisfy has the
+// same shape as the bug it is looking for.
 const appText = filesUnder(SRC, ['.ts', '.tsx'])
   .filter((f) => !f.includes('__tests__') && !f.includes('.test.'))
-  .map((f) => readFileSync(f, 'utf-8'))
+  .map((f) => withoutComments(readFileSync(f, 'utf-8')))
   .join('\n');
 
 const LITERAL = /(?:has-text|:text|getByText)\(\s*["'`]([^"'`]{3,40})["'`]|text=["']([^"']{3,40})["']/g;

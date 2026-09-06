@@ -76,8 +76,18 @@ describe('every wire HashMap read', () => {
 
   it('routes them through the shared normalizer instead', () => {
     for (const file of FILES) {
-      const src: string = readFileSync(join(process.cwd(), file), 'utf8');
-      expect(src, `${file} should use wireMap*`).toMatch(/wireMap(Entries|Values)/);
+      // Imports stripped as well as comments, and a CALL required.
+      //
+      // This asserted `toMatch(/wireMap(Entries|Values)/)` against raw source,
+      // and every one of these files opens with
+      // `import { wireMapEntries } from '@/lib/wire-map'`. The import line
+      // satisfied it. Replacing the call with a hand-rolled Object.entries
+      // loop left this green -- which is the one thing it exists to catch.
+      const src: string = strip(readFileSync(join(process.cwd(), file), 'utf8'))
+        .replace(/^\s*import[^;]*;/gm, '');
+
+      expect(src, `${file} should CALL wireMapEntries/wireMapValues, not merely import it`)
+        .toMatch(/\bwireMap(Entries|Values)\s*(?:<[^>]*>)?\(/);
     }
   });
 });
