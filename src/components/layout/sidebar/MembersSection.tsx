@@ -1,7 +1,7 @@
 /** Sidebar section displaying workspace members, P2P peers, and conversations. */
 
 import { Plus } from "lucide-react";
-import { MembersEmptyState } from './MembersEmptyState';
+import { MemberListBody } from './MemberListBody';
 import { PendingRequestsBadge } from './PendingRequestsBadge';
 import { membersSectionLabel } from './members-section-label';
 import { MembersHeaderActions } from './MembersHeaderActions';
@@ -21,7 +21,6 @@ import {
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
-import { MemberListItems } from './MemberListItems';
 import { getEntityMetadata, getEntityTypeString } from "@/lib/entity-type-registry";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { peerRegistrationStore } from "@/lib/peer-registration-store";
@@ -136,22 +135,18 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
         <SidebarGroupContent>
           <ScrollArea className="max-h-[30vh]">
             <SidebarMenu>
-              {isLoadingMembers ? (
-                <SidebarMenuItem className="px-3 py-2 text-sm text-muted-foreground">
-                  Loading members...
-                </SidebarMenuItem>
-              ) : members.length === 0 && filteredRegisteredPeers.length === 0 && registeredPeers.length === 0 ? (
-                <MembersEmptyState unavailable={membersUnavailable} />
-              ) : members.length > 0 && (
-                <MemberListItems
-                  members={members}
-                  currentUsername={state.currentUser?.username}
-                  onEditMember={handleEditMember}
-                  onRemoveMember={handleRemoveMember}
-                  onManagePermissions={handleManagePermissions}
-                  onShowAllMembers={() => setShowAllMembersDialog(true)}
-                />
-              )}
+              <MemberListBody
+                isLoading={isLoadingMembers}
+                activeDomainId={activeDomainId}
+                members={members}
+                peerCount={filteredRegisteredPeers.length + registeredPeers.length}
+                membersUnavailable={membersUnavailable}
+                currentUsername={state.currentUser?.username}
+                onEditMember={handleEditMember}
+                onRemoveMember={handleRemoveMember}
+                onManagePermissions={handleManagePermissions}
+                onShowAllMembers={() => setShowAllMembersDialog(true)}
+              />
             </SidebarMenu>
           </ScrollArea>
 
