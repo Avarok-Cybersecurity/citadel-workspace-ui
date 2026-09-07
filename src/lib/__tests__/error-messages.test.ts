@@ -388,3 +388,27 @@ describe('cleaning a raw error for display', () => {
     expect(shown).not.toBe('Something went wrong: Widget bolt missing');
   });
 });
+
+/**
+ * The address field's placeholder must show the port.
+ *
+ * The field takes `host:port`; the agent has nowhere to connect without one.
+ * The placeholder read `workspace.example.com`, teaching the exact mistake that
+ * costs a 30-second wait and — before round 713 — the advice "check your
+ * network". Asserted here, beside the message that has to clean up after it,
+ * so the example in the hint and the example in the error cannot drift apart.
+ */
+describe('the address example shown to a new user', () => {
+  it('matches the one the failure message gives', async () => {
+    const source: string = await import('node:fs').then((fs) =>
+      fs.readFileSync('src/components/ServerConnect.tsx', 'utf8'));
+    const placeholder: RegExpMatchArray | null = source.match(/placeholder="([^"]*example[^"]*)"/);
+    expect(placeholder, 'ServerConnect must still have an example address placeholder').not.toBeNull();
+    const shown: string = placeholder![1];
+    expect(shown, 'the placeholder must include a port').toMatch(/:\d+$/);
+    expect(
+      getUserFriendlyErrorMessage(new Error('Socket error: deadline has elapsed')),
+      'the error message must name the same example as the placeholder',
+    ).toContain(shown);
+  });
+});

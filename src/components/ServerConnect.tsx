@@ -88,7 +88,12 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
                     value={serverAddress}
                     onChange={(e) => setServerAddress(e.target.value)}
                     className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
-                    placeholder="workspace.example.com"
+                    // WITH the port. The address is host:port -- the agent needs
+                    // somewhere to connect, and there is no default. A placeholder
+                    // showing a bare hostname teaches the one mistake that costs a
+                    // 30-second timeout and, until recently, the advice "check your
+                    // network". See error-messages.ts and docs/ROBUSTNESS.md 713.
+                    placeholder="citadel.example.com:12400"
                   />
                 </div>
               </div>
