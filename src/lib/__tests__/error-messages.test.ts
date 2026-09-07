@@ -305,10 +305,10 @@ describe('an error that is neither a string nor an Error', () => {
  * real cause was a DNS lookup the page's own CSP refused.
  */
 describe('a registration that times out', () => {
-  const err = new Error('Registration timed out after 30 seconds');
+  const err: Error = new Error('Registration timed out after 30 seconds');
 
   it('names the server, not the user\'s network', () => {
-    const message = getUserFriendlyErrorMessage(err);
+    const message: string = getUserFriendlyErrorMessage(err);
     expect(message).toMatch(/workspace server did not answer/i);
     expect(message).not.toMatch(/your network/i);
   });
@@ -328,7 +328,7 @@ describe('a registration that times out', () => {
   it('leaves other timeouts on the generic branch', () => {
     // Narrow, deliberately: a rekey or a peer-connect timeout is NOT a wrong
     // server address, and must not be given advice about one.
-    const other = new Error('Peer connect timeout');
+    const other: Error = new Error('Peer connect timeout');
     expect(getUserFriendlyErrorMessage(other)).toMatch(/check your network/i);
     expect(getErrorTitle(other)).toBe('Request Timeout');
   });
@@ -342,10 +342,10 @@ describe('a registration that times out', () => {
  * the client-side timeout string, were green throughout.
  */
 describe('a server that accepts the connection and then says nothing', () => {
-  const err = new Error('Something went wrong: Socket deadline has elapsed');
+  const err: Error = new Error('Something went wrong: Socket deadline has elapsed');
 
   it('is explained rather than surfaced raw', () => {
-    const message = getUserFriendlyErrorMessage(err);
+    const message: string = getUserFriendlyErrorMessage(err);
     expect(message).not.toMatch(/socket deadline/i);
     expect(message).toMatch(/workspace server did not answer/i);
   });
