@@ -60,14 +60,27 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
   // Not-yet-loaded is not empty. The effect's own `!activeDomainId` branch
   // already sets this false, so starting from the prop agrees with it rather
   // than racing it.
-  const [isLoadingMembers, setIsLoadingMembers] = useState<boolean>(() => activeDomainId !== null);
+  // DERIVED, not stored: which domain the list in hand belongs to.
+  //
+  // A stored flag is one render behind on a domain CHANGE. `activeDomainId`
+  // becomes B while `isLoadingMembers` is still false from A's completed load,
+  // and the effect that sets it true does not run until after paint -- so for
+  // one frame the sidebar holds an empty list, believes nothing is loading, and
+  // says so. Initialising from the prop fixed the FIRST render and left this
+  // one; member-list-loading.spec.ts kept failing its first attempt and passing
+  // on retry, which is what a one-frame window looks like.
+  //
+  // Comparing instead of storing closes it by construction: the instant the
+  // domain changes, `isLoadingMembers` is true in the SAME render, with no
+  // effect involved.
+  const [loadedForDomain, setLoadedForDomain] = useState<string | null>(null);
+  const isLoadingMembers: boolean = activeDomainId !== null && loadedForDomain !== activeDomainId;
   const [membersUnavailable, setMembersUnavailable] = useState(false);
 
   useEffect(() => {
     const loadMembers = async (): Promise<void> => {
       if (!activeDomainId) {
         setMembers([]);
-        setIsLoadingMembers(false);
         setMembersUnavailable(false);
         return;
       }
@@ -75,12 +88,11 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
       // attributed to the node just opened.
       setMembers([]);
       setMembersUnavailable(false);
-      setIsLoadingMembers(true);
       try {
         await WorkspaceService.listMembers(activeDomainId);
       } catch (error) {
         debugLog('useDomainMembers', 'Error loading members:', error);
-        setIsLoadingMembers(false);
+        setLoadedForDomain(activeDomainId);
         setMembersUnavailable(true);
       }
       // Deliberately NOT cleared here — see the note at the top of this file.
@@ -100,8 +112,8 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
       // This hook backs the sidebar's per-domain member list.
       if (!isForDomain(payload.domainId, activeDomainId ?? undefined)) return;
       if (payload.members) setMembers(payload.members);
-      // The response is what ends the load.
-      setIsLoadingMembers(false);
+      // The response is what ends the load -- for THIS domain specifically.
+      setLoadedForDomain(activeDomainId);
       setMembersUnavailable(false);
     };
     // `onMemberEvent` returns its unsubscribe SYNCHRONOUSLY. It used to be
@@ -120,12 +132,12 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
   useEffect(() => {
     if (!isLoadingMembers) return;
     const timer: number = window.setTimeout((): void => {
-      setIsLoadingMembers(false);
+      setLoadedForDomain(activeDomainId);
       // Not silently empty. Nothing answered, and that is what to say.
       setMembersUnavailable(true);
     }, MEMBER_LOAD_TIMEOUT_MS);
     return (): void => window.clearTimeout(timer);
-  }, [isLoadingMembers]);
+  }, [isLoadingMembers, activeDomainId]);
 
   return { members, setMembers, isLoadingMembers, membersUnavailable };
 }
