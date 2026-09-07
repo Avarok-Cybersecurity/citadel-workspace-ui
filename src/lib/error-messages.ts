@@ -1,4 +1,5 @@
 import { describeError } from './describe-error';
+import { credentialErrorMessage } from './credential-error-messages';
 /**
  * Transforms technical error messages into user-friendly messages
  */
@@ -102,59 +103,11 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
   //
   // Exactly the bug documented above for 'User already exists', which was
   // fixed with a case-insensitive regex. Same remedy here.
-  // The SDK's actual wording, captured from the live server:
-  //
-  //   Authentication Error  Something went wrong: Invalid username or password
-  //
-  // "Invalid username or password" does not contain "invalid password", so the
-  // branch below never fired for the product's single most common failure. That
-  // branch already carries a comment about being unreachable once -- the needles
-  // were lowercase while the SDK emits a capital I -- and the fix corrected the
-  // CASE without checking the WORDING. Same bug, one layer along, and invisible
-  // for the same reason: the app still says something, so nothing looks broken.
-  //
-  // Deliberately does not claim it was the password. The SDK conflates the two
-  // on purpose -- telling an attacker which half was right is how you turn a
-  // login form into a username oracle -- so the message must not undo that.
-  if (/invalid username or password|invalid credentials/i.test(errorMessage)) {
-    return 'That username and password did not match. Check both and try again.';
-  }
-
-  if (/invalid password|wrong password|password mismatch|incorrect password/i.test(errorMessage)) {
-    return 'Incorrect password. Please check your password and try again.';
-  }
-
-  // "Client does not exist" is LOCAL, and saying otherwise sends people to
-  // create a second identity for an account that is perfectly intact.
-  //
-  // Measured: signing in as a real, registered account from a fresh agent
-  // (`--data-dir` pointed somewhere new, which is what a new machine or a
-  // reinstall looks like) answers
-  //
-  //   ConnectFailure { message: "Client does not exist" }
-  //
-  // ...from the SDK's own account manager, before the server is consulted at
-  // all. A Citadel account is not a row on a server: the client holds its CID
-  // and key material, and the agent keeps them under --data-dir. Lose that
-  // directory and the account cannot be signed into from that machine, however
-  // healthy it is on the server.
-  //
-  // The generic branch below claimed "No account found with that username on
-  // this server", which is false in the one place it matters and whose advice --
-  // "register a new account" -- is not reversible: the user gets a NEW CID, and
-  // their peers' registrations still point at the old one.
-  if (/client does not exist/i.test(errorMessage)) {
-    return (
-      'This machine has no account by that name. Citadel keeps your account in the agent\'s ' +
-      'data directory (--data-dir), not only on the server, so signing in needs the machine ' +
-      'you registered on. If you registered elsewhere, or started the agent with a different ' +
-      '--data-dir, use that one. Registering again would create a separate account.'
-    );
-  }
-
-  if (/does not exist|not registered|no user|account not found/i.test(errorMessage)) {
-    return 'No account found with that username on this server. Please check your username or register a new account.';
-  }
+  // The credential and account-existence branches, in the position they have
+  // always occupied. See credential-error-messages.ts -- they moved together
+  // because they fail together, not merely to satisfy a line limit.
+  const credentials: string | null = credentialErrorMessage(errorMessage);
+  if (credentials !== null) return credentials;
 
   // A mistyped server address, which is the likeliest mistake a new visitor
   // makes and the first thing they do.
