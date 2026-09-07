@@ -7,6 +7,7 @@
 
 import { eventEmitter } from '../event-emitter';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { isAlreadyRegistered } from './already-registered';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import type { KVPendingEntry } from './types';
@@ -118,7 +119,15 @@ function handlePeerRegistrationEvents(
     });
     // No id names no request. Clearing "the" outgoing request without knowing
     // which would drop somebody else's, which is worse than leaving this stuck.
-    if (requestId !== undefined) {
+    // See already-registered.ts. Clearing the outgoing record is right -- the
+    // request IS resolved -- but announcing a REFUSAL for it puts "your request
+    // was refused" on screen for a peer who is registered.
+    if (requestId !== undefined && isAlreadyRegistered(reason)) {
+      debugLog('PeerRegistrationStore', 'Already registered - clearing the outgoing request as resolved', { requestId });
+      callbacks.removeOutgoingRequest(requestId).catch(
+        (err: unknown) => debugLog('PeerRegistrationStore', 'removeOutgoingRequest failed:', err),
+      );
+    } else if (requestId !== undefined) {
       // Emitted rather than toasted: this is library code. The only other
       // handler lives in usePeerDiscovery, which can say nothing once the
       // discovery modal has closed -- and a refusal usually arrives long after.

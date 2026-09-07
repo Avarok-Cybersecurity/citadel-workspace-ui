@@ -142,11 +142,20 @@ export async function waitForWorkspaceLoaded(page: Page, timeout = 60000): Promi
         // the app has never rendered, so the line was inert among selectors
         // chosen for reliability.
         '[data-testid="workspace-switcher"]',
-        // Section headers — note that "Connected Peers" shows when there
-        // are P2P peers but no workspace members, "Workspace Members"
-        // shows otherwise.
-        'text="Workspace Members"',
-        'text="Connected Peers"',
+        // Section header. The sidebar list called itself three different
+        // things depending on state the user could not see -- "Workspace
+        // Members", "Connected Peers", or "<Entity> Members" -- and that was
+        // deliberately unified to `Members`, or `<Entity> Members` when it is
+        // genuinely scoped to an office or room (see membersSectionLabel).
+        //
+        // Both older spellings stayed here as indicators afterwards. Neither
+        // can match: "Connected Peers" is now only a doc comment explaining
+        // its own removal, and "Workspace Members" survives only in the user
+        // SEARCH results, which is a different component in a different part
+        // of the screen. A locator that matches nothing does not fail -- it
+        // waits and falls through -- so this helper was two indicators poorer
+        // than it read.
+        'text="Members"',
         'text="Direct Messages"',
         'text="FILES"',
         // Office/room navigation elements

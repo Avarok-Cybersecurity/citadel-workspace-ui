@@ -55,3 +55,54 @@ export function newChildOf(parentId: string | null, name: string) {
 export function aboutMember(userId: string) {
   return (payload: unknown): boolean => field(payload, 'user_id') === userId;
 }
+
+/**
+ * `Workspace(Workspace)` — the record itself, so its own `id`.
+ *
+ * The last variant to need one, and it needed one for two independent reasons.
+ * `GetWorkspace` answers `Workspace`, so a concurrent read in the SAME tab
+ * resolves a pending rename; and `UpdateWorkspace` / `UpdateWorkspaceTheme`
+ * broadcast `Workspace` to the other members, so a colleague's theme change
+ * resolves it too.
+ *
+ * The consequence is the one this file exists to stop, in the settings form:
+ * the admin renames the workspace, the server is about to refuse it — no
+ * permission, or a wrong master password — and something else's `Workspace`
+ * arrives first. The form toasts "updated successfully", clears its dirty flag
+ * and closes. The real `Error` arrives after the handler has unsubscribed, so
+ * it surfaces as a disjoint global toast if at all, and the name is unchanged.
+ *
+ * Matching on `id` does not separate two writes to the SAME workspace in
+ * flight at once; nothing can, without a request id. It does separate this
+ * workspace's answer from another's, and a write from a concurrent read of a
+ * different workspace, which is what the multi-workspace server made possible.
+ */
+export function workspaceWithId(workspaceId: string) {
+  return (payload: unknown): boolean => field(payload, 'id') === workspaceId;
+}
+
+/**
+ * The same idea where no id is available.
+ *
+ * `UpdateWorkspace` names no workspace — it acts on the current one — so there
+ * is no id to match. It does say what it is CHANGING, and that is a real
+ * discriminator: a concurrent `GetWorkspace` answers with the workspace as it
+ * is NOW, which is precisely the value the rename is replacing. So the answer
+ * carrying the new name is ours; the one carrying the old name is not.
+ *
+ * Same shape as `newChildOf`, for the same reason: match on what the caller
+ * knows. Returns `undefined` when the caller knows nothing to match on — a
+ * request that sets only `metadata`, say — so behaviour there is exactly what
+ * it was rather than a matcher that silently accepts everything.
+ */
+export function workspaceChangedTo(
+  fields: { name?: string; description?: string },
+): ((payload: unknown) => boolean) | undefined {
+  const checks: Array<(payload: unknown) => boolean> = [];
+  if (fields.name !== undefined) checks.push((p) => field(p, 'name') === fields.name);
+  if (fields.description !== undefined) {
+    checks.push((p) => field(p, 'description') === fields.description);
+  }
+  if (checks.length === 0) return undefined;
+  return (payload: unknown): boolean => checks.every((check) => check(payload));
+}

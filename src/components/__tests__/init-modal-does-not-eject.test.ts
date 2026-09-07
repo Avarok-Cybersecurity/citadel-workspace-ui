@@ -48,9 +48,41 @@ describe('dismissing the initialization prompt', () => {
   });
 
   it('still records the dismissal, so it does not reappear all session', () => {
-    // Through `sessionSet`, not `sessionStorage.setItem` -- the raw accessor
+    // Through `suppressInitPrompt`, which owns the key and reaches storage via
+    // `sessionSet` rather than `sessionStorage.setItem` -- the raw accessor
     // throws under strict privacy settings; see safe-session-storage.
-    expect(dismissBody).toMatch(/sessionSet\('workspace-init-modal-dismissed', 'true'\)/);
+    //
+    // This asserted the raw `sessionSet('workspace-init-modal-dismissed', …)`
+    // call while that literal appeared at three call sites. It now appears once,
+    // in lib/workspace-init-prompt.ts, because the onboarding dialog became a
+    // fourth writer of the same fact and four copies of a key is four chances
+    // for a rename to half-apply.
+    expect(dismissBody).toMatch(/suppressInitPrompt\(\)/);
+  });
+
+  it('and the key it writes is the one the prompt reads back', () => {
+    // The indirection above is only safe if both ends go through the same
+    // module: a suppressor writing one key while the reader checks another is
+    // exactly the half-applied rename this consolidation exists to prevent,
+    // and it would leave the prompt unsuppressible with every test still green.
+    const owner: string = readFileSync(
+      join(process.cwd(), 'src/lib/workspace-init-prompt.ts'),
+      'utf8'
+    );
+    const key: RegExpMatchArray | null = owner.match(
+      /INIT_PROMPT_SUPPRESSED_KEY: string = '([^']+)'/
+    );
+    expect(key, 'the key must be declared once, as a named constant').not.toBeNull();
+
+    // Writer, reader and clearer all name the constant, never the literal again.
+    const literalUses: number = (owner.match(new RegExp(`'${key?.[1]}'`, 'g')) ?? []).length;
+    expect(literalUses, 'the string itself appears once, at its declaration').toBe(1);
+    expect(owner).toMatch(/sessionGet\(INIT_PROMPT_SUPPRESSED_KEY\)/);
+    expect(owner).toMatch(/sessionSet\(INIT_PROMPT_SUPPRESSED_KEY, 'true'\)/);
+    expect(owner).toMatch(/sessionRemove\(INIT_PROMPT_SUPPRESSED_KEY\)/);
+
+    // And nothing outside that module still writes the raw key.
+    expect(handler).not.toContain(`'${key?.[1]}'`);
   });
 
   it('tells the user what the password is and that they can skip', () => {

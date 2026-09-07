@@ -30,10 +30,17 @@ export async function loadEnabledSetting(): Promise<boolean> {
   } catch (error) {
     if (isGenuinelyAbsent(error)) {
       debugLog('ServerAutoConnectService', 'No stored preference; auto-connect defaults to on');
-    } else {
-      debugLog('ServerAutoConnectService', 'COULD NOT READ the auto-connect preference; ' +
-        'defaulting to on, which may not be what this user chose:', error);
+      return true;
     }
+    // Rethrown, not defaulted.
+    //
+    // The paragraph above this function already said what should happen here --
+    // "returning the default there is how a user who turned auto-connect off
+    // finds it back on after one timed-out request" -- and the code returned
+    // `true` anyway. The predicate was imported, the distinction was drawn in
+    // the log message, and the BEHAVIOUR was identical on both branches. That
+    // is the shape of a fix that was written down and never applied.
+    throw error;
   }
   return true;
 }
@@ -51,9 +58,36 @@ export async function saveEnabledSetting(enabled: boolean): Promise<void> {
  * Load user-disconnected sessions from LocalDB.
  * These are sessions the user explicitly signed out from.
  */
+/**
+ * Whether the sign-out record has actually been read.
+ *
+ * `persistUserDisconnectedSessions` writes the WHOLE set. That is sound only
+ * when the set in memory came from the key -- and `loadAutoConnectSettings`
+ * returns an EMPTY set with `initialized: false` when the read fails, while
+ * the three writers never consult that flag. Only `getEnabled` did.
+ *
+ * So: boot, the LocalDB read times out, the set is empty. The user signs out
+ * of A. `{A@srv}` is written over the stored `{B@srv, C@srv}`. On the next
+ * boot B and C are auto-reconnected -- sessions the user deliberately signed
+ * out of, silently, which this module's own header calls "neither visible nor
+ * recoverable".
+ *
+ * Seventh site of this mechanism, and the guard is where the other six are:
+ * on the one function every write funnels through. Three callers across two
+ * modules reach it, so guarding the two in the service would have covered two
+ * of three -- which is the defect, not the fix.
+ */
+let disconnectedSetWasRead: boolean = false;
+
+/** For tests: forget the read, so a scenario starts cold. */
+export function resetDisconnectedReadTracking(): void {
+  disconnectedSetWasRead = false;
+}
+
 export async function loadUserDisconnectedSessions(): Promise<Set<string>> {
   try {
     const result: { value: number[]; } | null = await websocketService.sendLocalDBGet(GLOBAL_CID, USER_DISCONNECTED_KEY);
+    disconnectedSetWasRead = true;
     if (result?.value) {
       const decoded: string = bytesToString(result.value);
       const sessions: unknown = JSON.parse(decoded);
@@ -65,13 +99,15 @@ export async function loadUserDisconnectedSessions(): Promise<Set<string>> {
   } catch (error) {
     if (isGenuinelyAbsent(error)) {
       debugLog('ServerAutoConnectService', 'No user-disconnected sessions stored yet');
-    } else {
-      // An empty set here means "nobody signed out of anything", which is what
-      // makes the service reconnect them. Say so, rather than logging a generic
-      // failure beside the one that happens on every first boot.
-      debugLog('ServerAutoConnectService', 'COULD NOT READ user-disconnected sessions; ' +
-        'treating every session as reconnectable:', error);
+      // A key that holds nothing is a complete picture of nothing, so the
+      // first sign-out must still be recordable.
+      disconnectedSetWasRead = true;
+      return new Set<string>();
     }
+    // Rethrown for the reason the old comment gave: an empty set here means
+    // "nobody signed out of anything", which is exactly what makes the service
+    // reconnect a session the user deliberately signed out of.
+    throw error;
   }
   return new Set();
 }
@@ -80,6 +116,16 @@ export async function loadUserDisconnectedSessions(): Promise<Set<string>> {
  * Persist user-disconnected sessions to LocalDB.
  */
 export async function persistUserDisconnectedSessions(sessions: Set<string>): Promise<void> {
+  if (!disconnectedSetWasRead) {
+    // Refusing keeps the stored record intact for the next attempt. Writing
+    // an unread set would erase every other session's sign-out, and the user
+    // would discover it by being signed back in to an account they left.
+    debugLog(
+      'ServerAutoConnectService',
+      'Refusing to write the user-disconnected set: it was never successfully read',
+    );
+    return;
+  }
   try {
     const value: number[] = stringToBytes(JSON.stringify(Array.from(sessions)));
     await websocketService.sendLocalDBSet(GLOBAL_CID, USER_DISCONNECTED_KEY, value);

@@ -7,8 +7,10 @@ import type { AuthSuccessParams } from './types';
 import type { StoredSession, StoredSessions } from '@/types/session-types';
 import { selectUserWithoutBlocking } from './select-user';
 import { debugLog } from '@/lib/debug-config';
+import { persistSessionUpsert } from './persist-one-session';
 import { saveRecentServer } from '@/lib/server-utils';
 import { isGenuinelyAbsent } from '@/lib/storage/absence';
+import { markSessionsRead } from './sessions-read-state';
 
 /** Store a session to state and persist to LocalDB. */
 /**
@@ -29,7 +31,10 @@ export async function storeSession(
 ): Promise<boolean> {
   state.addOrUpdateSession(session);
   try {
-    await io.storeSessionsToLocalDB(state.storedSessions);
+    // One session, not this tab's whole list. See persist-one-session.ts: the
+    // key is shared and each tab's array is its own, so pushing the array
+    // erased accounts other tabs had stored.
+    await persistSessionUpsert(session, state.storedSessions, io);
     return true;
   } catch (error) {
     debugLog('ConnectionService', 'Failed to store session', error);
@@ -50,6 +55,10 @@ export async function loadStoredSessions(
   } catch (error) {
     if (isGenuinelyAbsent(error)) {
       debugLog('ConnectionService', 'No stored sessions yet');
+      // The key genuinely holds nothing, which is a complete picture of
+      // nothing. A first-run user's first write must land, so say so
+      // explicitly rather than leaving the write guard to infer it.
+      markSessionsRead();
       return;
     }
     // Not the same thing at all. An empty session list is what the reconnect

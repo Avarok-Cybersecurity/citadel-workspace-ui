@@ -31,14 +31,13 @@ let currentCid: bigint | null = null;
 const dispatched: Uint8Array[] = [];
 const broadcasts: unknown[] = [];
 
-vi.mock('@/lib/debug-config', () => ({ debugLog: (): void => {} }));
+vi.mock('@/lib/debug-config', () => ({ debugEnabled: false, debugLog: (): void => {} }));
 vi.mock('@/lib/p2p-registration-service', () => ({
   p2pRegistrationService: { isPeerRegistered: (): boolean => true },
 }));
 vi.mock('@/lib/broadcast-channel-service', () => ({
   BroadcastChannelService: {
     getInstance: (): unknown => ({
-      broadcastP2PRawMessage: (): void => {},
       broadcastP2PNotification: (data: unknown): void => { broadcasts.push(data); },
     }),
   },

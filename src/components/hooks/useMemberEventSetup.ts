@@ -10,6 +10,8 @@ import { debugLog } from '@/lib/debug-config';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 import type { User, UserRole } from '@/types/workspace-entities';
 import type { StoredSession } from '@/types/session-types';
+import { isForDomain } from '@/lib/workspace-events/is-for-domain';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
 interface UseMemberEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -56,6 +58,22 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       }));
 
       keep(workspaceEvents.onMemberEvent('members:loaded', async (payload) => {
+        // The FOURTH subscriber `is-for-domain` names, and the one that did not
+        // have this check. It writes the global `state.members`, which is what
+        // `UserSearch.tsx:99` and `UserDirectory.tsx:58` read as "everyone in
+        // this workspace" -- so a roster fetched for a ROOM replaced it, and
+        // searching for a real workspace member returned "No users found" until
+        // something re-fetched the workspace list.
+        //
+        // The omission survived because the comment on the wrong hook claimed
+        // the corpus: `use-domain-members.ts:79-81` says "this hook's members
+        // are the corpus the user search searches", and the user search does
+        // not read that hook. The guard went where the comment pointed.
+        //
+        // Compared against WORKSPACE_ROOT_ID rather than the active domain: this
+        // state is workspace-wide by definition, so a room's list is never the
+        // one it asked for, whatever the sidebar is showing.
+        if (!isForDomain(payload.domainId, WORKSPACE_ROOT_ID)) return;
         cancelLoadingDeadline('members');
         setState(prev => {
           // Try to find the current user in the members list and update their role

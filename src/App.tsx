@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import WorkspaceApp from "./components/WorkspaceApp";
 import { DocumentTitle } from './components/DocumentTitle';
+import { useSendFailureToasts } from '@/hooks/use-send-failure-toasts';
 import { WorkspaceLoader } from "./components/ui/workspace-loader";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { RouteFallback } from "./components/RouteFallback";
@@ -45,6 +46,12 @@ const NotFound: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pa
 const queryClient: QueryClient = new QueryClient();
 
 const App: () => JSX.Element = (): JSX.Element => {
+  // A message that did not go out has to reach the person who sent it.
+  // `lib/p2p/send-failure.ts` has always detected, explained and throttled
+  // these; nothing rendered them, so the message just sat in the thread
+  // looking sent.
+  useSendFailureToasts();
+
   return (
     <AppErrorBoundary>
       {/*

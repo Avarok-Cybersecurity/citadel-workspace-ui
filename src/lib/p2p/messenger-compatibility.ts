@@ -111,12 +111,36 @@ export async function markMessagesAsRead(
   // the part that tells the sender — is the user's to withhold.
   const sendReceipts: boolean = getPrivacySettings().sendReadReceipts;
 
+  // Mark everything locally FIRST, then send the acks.
+  //
+  // The ack used to be awaited inside this loop, which made the local marking
+  // depend on it in both of the ways that matter. One failing ack -- a peer
+  // that has gone away, a socket mid-reconnect -- threw out of the loop, and
+  // every message after it stayed `delivered`: unread badge intact, transcript
+  // wrong, for messages the user demonstrably read. That directly contradicts
+  // the comment three lines above, which says the local side ALWAYS happens.
+  //
+  // And it serialised the sends. Opening a conversation with 200 unread meant
+  // 200 sequential P2P round trips before this function returned, with the
+  // unread count updating only at the end.
   const markedMessageIds: string[] = [];
   for (const message of messagesToMark) {
     if (message.status === 'delivered') {
       message.status = 'read';
       markedMessageIds.push(message.id);
-      if (sendReceipts) await sendMessageAck(message.id, 'read', peerCid);
+    }
+  }
+
+  if (sendReceipts && markedMessageIds.length > 0) {
+    // allSettled, not all: one unreachable peer must not reject this call, and
+    // must not undo the marking above. A read receipt is advisory -- the sender
+    // learns later, or does not.
+    const outcomes: PromiseSettledResult<void>[] = await Promise.allSettled(
+      markedMessageIds.map((id) => sendMessageAck(id, 'read', peerCid)),
+    );
+    const failed: number = outcomes.filter((o) => o.status === 'rejected').length;
+    if (failed > 0) {
+      debugLog('P2P', `${failed}/${outcomes.length} read receipts could not be sent to ${peerCid}`);
     }
   }
 

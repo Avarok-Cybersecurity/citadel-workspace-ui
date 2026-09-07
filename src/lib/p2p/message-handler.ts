@@ -17,7 +17,7 @@ import { BroadcastChannelService } from '../broadcast-channel-service';
 import { p2pRegistrationService } from '../p2p-registration-service';
 import { ensureBigIntOrNull } from '../utils';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, debugEnabled } from '@/lib/debug-config';
 import { dispatchInboundCommand } from './inbound-command-dispatch';
 import { isCallSignalPayload } from '@/types/p2p-commands';
 import { eventEmitter } from '../event-emitter';
@@ -128,12 +128,25 @@ export class MessageHandler {
         return;
       }
 
-      // fp joins this to ILM's `[ILM-DELIVER] ... fp=`.
-      debugLog('MessageHandler', 'P2P message received:', contentBytes.length, 'bytes fp=' + fnv1a64(contentBytes));
+      // fp joins this to ILM's `[ILM-DELIVER] ... fp=`. Guarded at the CALL
+      // SITE: `debugLog` is a noop in production but its arguments are still
+      // evaluated, so this hashed every byte of every inbound message and
+      // handed the result to a function that discards it. `fnv1a64` is a
+      // BigInt loop -- three BigInt operations per byte -- and the inline
+      // transfer cap is 16 MiB, so a large file cost close to a second of
+      // main-thread time here for no output at all.
+      if (debugEnabled) {
+        debugLog('MessageHandler', 'P2P message received:', contentBytes.length, 'bytes fp=' + fnv1a64(contentBytes));
+      }
 
-      const rawMessageData: { peerCid: bigint; message: Uint8Array<ArrayBufferLike>; } = { peerCid: peerCidBigint, message: contentBytes };
-      eventEmitter.emit('p2p:raw-message', { peerCid: peerCidBigint.toString(), message: contentBytes });
-      BroadcastChannelService.getInstance().broadcastP2PRawMessage(rawMessageData);
+      // `p2p:raw-message` used to be emitted here and re-broadcast to every
+      // other tab. Nothing has listened to it for some time: useP2PTabs and
+      // the Yjs provider both say in their own comments that they moved off
+      // it. So every inbound P2P message was structured-cloned and posted on
+      // the BroadcastChannel, then deserialised by each follower tab and
+      // emitted to nobody. Yjs live-document sync rides the same
+      // notification, so with two remote editors and three tabs open that was
+      // several clones a second, for ever, for no effect.
 
       // The notification's `cid` names the session it is addressed to, and this
       // tab is very often not that session: the leader holds the WebSocket even

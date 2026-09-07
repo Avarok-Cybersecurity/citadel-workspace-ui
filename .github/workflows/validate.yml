@@ -3,7 +3,10 @@ name: Validate PR
 on:
   pull_request:
   push:
-    branches: ["main", "u64-to-bigint-optimization"]
+    # This repo's default branch is `master`. This said `main`, which does not exist
+    # here, alongside a feature branch that has since been deleted -- so a push to the
+    # default branch ran NOTHING, and only pull_request events were ever validated.
+    branches: ["master"]
 
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
@@ -11,17 +14,14 @@ concurrency:
 
 env:
   PARENT_REPO: Avarok-Cybersecurity/citadel-workspace
-  # `misc-fixes` is the parent's currently-active integration branch and
-  # the only one whose package-lock.json knows about every dep this
-  # submodule's package.json files declare (notably @playwright/test in
-  # integration-tests). The previous `u64-to-bigint-optimization`
-  # baseline pre-dated several workspace deps, which made `npm ci`
-  # fail at the parent root and cascaded into ~40 CI failures.
-  # Track the parent's default branch. This was pinned to a feature branch
-  # ('u64-to-bigint-optimization', later 'misc-fixes'), so this submodule's CI
-  # validated against whatever that branch happened to contain — which drifts,
-  # and eventually stops existing. Every check here is only meaningful against
-  # the parent revision this code will actually be integrated into.
+  # The FALLBACK parent revision, used only when the parent has no branch matching the
+  # one under test here — see the `parent-ref` job, which does the resolving.
+  #
+  # It tracks the parent's default branch. It was once pinned to a feature branch
+  # ('u64-to-bigint-optimization', later 'misc-fixes'), so this submodule's CI validated
+  # against whatever that branch happened to contain — which drifts, and eventually
+  # stops existing. A check here is only meaningful against the parent revision this
+  # code will actually be integrated into.
   PARENT_BRANCH: master
   SKIP_WASM_BUILD: "1"
   # Match parent repo's directory name so docker containers get expected names
@@ -29,7 +29,45 @@ env:
   COMPOSE_PROJECT_NAME: citadel-workspace
 
 jobs:
+  # Which revision of the parent supplies this repo's build layout and gate scripts.
+  #
+  # Pinning this to the parent's default branch makes a coordinated change across the
+  # two repos UNMERGEABLE. The parent's 250-line gate, for instance, carries an
+  # allowance table keyed to THIS repo's files, and that table cannot describe the old
+  # and the new file lengths at once. So this repo could not go green until the parent
+  # merged the new table, and the parent could not go green until it pinned the new
+  # files: each waiting on the other, with no merge order that works.
+  #
+  # Preferring a parent branch of the SAME NAME breaks the cycle -- the two halves of
+  # one change validate against each other -- and anything with no counterpart branch
+  # falls back to the default exactly as before.
+  parent-ref:
+    name: Resolve parent ref
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.pick.outputs.ref }}
+    steps:
+      - id: pick
+        env:
+          # Passed as environment, never interpolated into the script body: the branch
+          # name is attacker-controlled on a fork PR, and an expression expanded inside
+          # `run` is a shell-injection sink.
+          CANDIDATE: ${{ github.head_ref || github.ref_name }}
+          FALLBACK: ${{ env.PARENT_BRANCH }}
+          PARENT: ${{ env.PARENT_REPO }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ref="$FALLBACK"
+          if [ -n "${CANDIDATE:-}" ] && gh api "repos/$PARENT/branches/$CANDIDATE" >/dev/null 2>&1; then
+            ref="$CANDIDATE"
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "Parent $PARENT will be checked out at '$ref' (branch under test: '${CANDIDATE:-none}', fallback: '$FALLBACK')."
+
   unit-tests:
+    needs: parent-ref
     name: Unit Tests
     # Observed the same work as the parent job, 6m there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
@@ -43,7 +81,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.PARENT_REPO }}
-          ref: ${{ env.PARENT_BRANCH }}
+          ref: ${{ needs.parent-ref.outputs.ref }}
           path: parent
       - name: Checkout submodule code (this PR)
         uses: actions/checkout@v4
@@ -54,6 +92,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          # Restore ~/.npm. Without it every job re-downloads the same 1154-package
+          # tree; `npm ci` at this size costs 1-2 min uncached against 20-40s warm,
+          # and this workflow runs it in dozens of jobs per push.
+          #
+          # The parent's lockfile, because that is what `npm ci` installs from here:
+          # every job checks the parent out into `parent/` and runs with
+          # `working-directory: parent`. All five setup-node steps run AFTER that
+          # checkout, so the path resolves.
+          cache: npm
+          cache-dependency-path: parent/package-lock.json
       - name: Install Workspace Dependencies
         run: npm ci
       - name: Build citadel-internal-service typescript-client
@@ -62,13 +110,30 @@ jobs:
       - name: Build citadel-workspace-client-ts
         run: npm run build
         working-directory: parent/citadel-workspace-client-ts
-      - name: Install Vitest
-        run: npm install vitest@3.0.7 --save-dev
       - name: Run Unit Tests
+        # No `npm install vitest@...` before this. There used to be one, and it
+        # pinned 3.0.7 over the root lockfile's 3.2.7 -- so CI ran a different
+        # test runner from every developer and from the committed lock, while
+        # both logs say only "vitest". A behaviour difference between those
+        # versions reads as "passes locally, fails in CI" with the version never
+        # suspected.
+        #
+        # It is not needed: `npm ci` at the parent root hoists vitest to
+        # `node_modules/vitest`, and `npx vitest` resolves it from there. The two
+        # build steps above are bare `tsc` and touch no install, so nothing was
+        # being compensated for -- worth checking, because removing a redundant
+        # install in this repository previously broke three jobs with exit 127,
+        # and the thing it had been compensating for was a nested `npm ci`.
+        #
+        # The parent enforces this with scripts/check-ci-installs-match-the-lockfile.mjs.
         run: npx vitest run
         working-directory: parent/citadel-workspaces
 
   typecheck:
+    # This job brings the Docker stack up too (it needs the generated WASM
+    # bindings), so it is expensive by the same measure as the two below and
+    # must wait for the lint that can refute the PR in 60 seconds.
+    needs: [parent-ref, lint]
     name: TypeScript Type Check - ${{ matrix.project }}
     # Observed the same work as the parent job, under a minute there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
@@ -90,7 +155,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.PARENT_REPO }}
-          ref: ${{ env.PARENT_BRANCH }}
+          ref: ${{ needs.parent-ref.outputs.ref }}
           path: parent
       - name: Checkout submodule code (this PR)
         uses: actions/checkout@v4
@@ -101,6 +166,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          # Restore ~/.npm. Without it every job re-downloads the same 1154-package
+          # tree; `npm ci` at this size costs 1-2 min uncached against 20-40s warm,
+          # and this workflow runs it in dozens of jobs per push.
+          #
+          # The parent's lockfile, because that is what `npm ci` installs from here:
+          # every job checks the parent out into `parent/` and runs with
+          # `working-directory: parent`. All five setup-node steps run AFTER that
+          # checkout, so the path resolves.
+          cache: npm
+          cache-dependency-path: parent/package-lock.json
       - name: Install Workspace Dependencies
         run: npm ci
       - name: Build citadel-internal-service typescript-client
@@ -196,6 +271,14 @@ jobs:
       - name: Landing bundle budget
         if: matrix.project == 'citadel-workspaces'
         run: npm run build && npm run check:bundle
+        working-directory: parent/citadel-workspaces
+
+      - name: Source maps
+        # Runs here because it reads dist/, which the bundle-budget step above
+        # has just built. It had an npm script and no CI invocation, so it had
+        # never run anywhere.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:sourcemaps
         working-directory: parent/citadel-workspaces
 
       - name: PWA installability
@@ -304,7 +387,25 @@ jobs:
         if: matrix.project == 'citadel-workspaces'
         run: node scripts/check-file-length.mjs
 
+      # Also delegated to the parent. Half the contract this gate enforces --
+      # the Vite dev proxy's `target:` scheme -- lives in THIS repo, so a
+      # change here can break the agent handshake for every container path
+      # while the parent's own CI is not running. Enforcing it only there
+      # would be the usual mistake: one gate, reading one of the two repos
+      # that can violate it.
+      - name: The agent's TLS mode matches every proxy that fronts it
+        if: matrix.project == 'citadel-workspaces'
+        run: node scripts/check-agent-tls-matches-its-proxies.mjs
+
+      # index.html's meta tag is half of this contract and lives in THIS repo,
+      # so a change here can leave a hosted deployment dialling nothing while
+      # the parent's CI is not running.
+      - name: The loopback agent origin is wired end to end
+        if: matrix.project == 'citadel-workspaces'
+        run: node scripts/check-the-loopback-agent-origin-is-wired.mjs
+
   lint:
+    needs: parent-ref
     name: ESLint - ${{ matrix.project }}
     # Observed the same work as the parent job, 1m there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
@@ -326,7 +427,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.PARENT_REPO }}
-          ref: ${{ env.PARENT_BRANCH }}
+          ref: ${{ needs.parent-ref.outputs.ref }}
           path: parent
       - name: Checkout submodule code (this PR)
         uses: actions/checkout@v4
@@ -337,26 +438,121 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          # Restore ~/.npm. Without it every job re-downloads the same 1154-package
+          # tree; `npm ci` at this size costs 1-2 min uncached against 20-40s warm,
+          # and this workflow runs it in dozens of jobs per push.
+          #
+          # The parent's lockfile, because that is what `npm ci` installs from here:
+          # every job checks the parent out into `parent/` and runs with
+          # `working-directory: parent`. All five setup-node steps run AFTER that
+          # checkout, so the path resolves.
+          cache: npm
+          cache-dependency-path: parent/package-lock.json
       - name: Install Workspace Dependencies
         run: npm ci
       - name: Build citadel-internal-service typescript-client
-        run: npm ci && npm run build
+        # A bare build, matching the unit-tests and typecheck jobs above.
+        #
+        # This alone said `npm ci && npm run build`. `citadel-internal-service/
+        # typescript-client` is a member of the ROOT npm workspace, so that nested
+        # install re-resolved it from its own tracked lockfile -- which pins uuid
+        # 9.0.1 and ws 8.18.3 against the root's 13.0.2 and 8.21.3 -- and unhoisted
+        # the root's devDependencies on the way past.
+        #
+        # Everything below it existed to undo that: a pinned `npm install
+        # eslint@9.39.2` over the lockfile's version, and three `ln -sf` calls
+        # putting @eslint/js, globals and typescript-eslint back where node
+        # resolution would have found them anyway. All three are gone, because the
+        # thing they compensated for is gone. Verified rather than assumed: with a
+        # plain root `npm ci` and none of them, the member resolves all four
+        # packages from the root and `eslint . --max-warnings 0` exits 0.
+        #
+        # The parent forbids both patterns -- check-no-nested-npm-ci-in-workspaces
+        # and check-ci-runs-lockfile-versions -- but reads only its OWN workflows,
+        # so this file was never scanned. docs/ROBUSTNESS.md records deleting this
+        # exact `eslint@9.39.2` line from the parent; it survived here.
+        run: npm run build
         working-directory: parent/citadel-internal-service/typescript-client
       - name: Build citadel-workspace-client-ts
         run: npm run build
         working-directory: parent/citadel-workspace-client-ts
-      - name: Install ESLint at root (workspaces hoisting issue)
-        run: npm install eslint@9.39.2 --save-dev
       - name: Run ESLint
-        run: |
-          mkdir -p node_modules/@eslint
-          ln -sf ${{ github.workspace }}/parent/node_modules/@eslint/js node_modules/@eslint/js
-          ln -sf ${{ github.workspace }}/parent/node_modules/globals node_modules/globals
-          ln -sf ${{ github.workspace }}/parent/node_modules/typescript-eslint node_modules/typescript-eslint
-          ${{ github.workspace }}/parent/node_modules/.bin/eslint . --max-warnings 0
+        run: ${{ github.workspace }}/parent/node_modules/.bin/eslint . --max-warnings 0
         working-directory: parent/${{ matrix.path }}
 
+      # Static gates that need no build, no browser and no running stack.
+      #
+      # `check:spec-copy` had an npm script and NO CI invocation, so it had
+      # never run anywhere -- the parent repo has check-every-gate-is-invoked
+      # for its own gates and this submodule has no equivalent. Five more
+      # (check:event-pairs, :sourcemaps, :a11y, :agent-down, :types,
+      # :toast-header) are in the same position but need a build or a browser;
+      # they are recorded in docs rather than wired blindly here.
+      - name: Every gate is invoked by something
+        # check:spec-copy had an npm script, a careful header, and no CI
+        # invocation, so it had never run from the day it was written. The
+        # parent repo has had this check since the same thing happened there.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:gates-invoked
+        working-directory: parent/citadel-workspaces
+
+      - name: Every event has an emitter and a listener
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:event-pairs
+        working-directory: parent/citadel-workspaces
+
+      - name: Spec locators match real app copy
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:spec-copy
+        working-directory: parent/citadel-workspaces
+      - name: Debug log arguments are cheap
+        # debugLog is a noop in production but its ARGUMENTS are still
+        # evaluated: one site hashed every byte of every inbound P2P message
+        # for a logger that discards it.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:debug-args
+        working-directory: parent/citadel-workspaces
+
+      - name: Assertions can fail
+        # An audit found three that could not: `toBeTruthy()` on a record (an
+        # object is always truthy), a URL assertion that held before the click,
+        # and `not.toContainText(marker)` where marker embeds `Date.now()`. Two of
+        # those shapes are decidable from the text; the third needs a control.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:assertions
+        working-directory: parent/citadel-workspaces
+
+      - name: A captured console line is not automatically a failure
+        # The reconnection specs capture `'ILM'` on purpose -- a delivery failure
+        # with no ILM lines has nothing to diagnose from -- and four of the five
+        # then reused that list to decide what was an error, so every
+        # informational router line became a critical UX failure.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:captured-vs-failed
+        working-directory: parent/citadel-workspaces
+
+      - name: Parent checkouts all take the resolved ref
+        # Five jobs check the parent out to run ITS gate scripts against this PR.
+        # While that ref was hardcoded to the parent's default branch, a change
+        # spanning both repos could not be merged in either order. A sixth site
+        # added later with the old form would be silent: the job passes, against
+        # the wrong parent revision.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:parent-ref
+        working-directory: parent/citadel-workspaces
+
   playwright-tests:
+    # The cheap gates first. Both of these bring up the full Docker stack --
+    # a cold `cargo build --release` of the server kernel AND the internal
+    # service, per leg, across 47 integration legs and 3 Playwright shards.
+    # Gated only on `parent-ref`, a PR that fails ESLint in 60 seconds still
+    # paid for all fifty of them.
+    #
+    # The parent workflow has gated its equivalents this way for some time
+    # (`needs: [crate-coverage, lint, typecheck, …]`); this one did not, and
+    # `check-expensive-jobs-wait-for-cheap-ones` could not say so because it
+    # read the parent's workflow file alone.
+    needs: [parent-ref, lint, typecheck, unit-tests]
     # The @playwright/test suite under integration-tests/src/tests-pw, which ran in
     # no job at all — those specs were compiled by the typecheck job and then never
     # executed against a running stack. Sharded rather than one job per spec, so
@@ -378,7 +574,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.PARENT_REPO }}
-          ref: ${{ env.PARENT_BRANCH }}
+          ref: ${{ needs.parent-ref.outputs.ref }}
           path: parent
       - name: Checkout submodule code (this PR)
         uses: actions/checkout@v4
@@ -399,6 +595,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          # Restore ~/.npm. Without it every job re-downloads the same 1154-package
+          # tree; `npm ci` at this size costs 1-2 min uncached against 20-40s warm,
+          # and this workflow runs it in dozens of jobs per push.
+          #
+          # The parent's lockfile, because that is what `npm ci` installs from here:
+          # every job checks the parent out into `parent/` and runs with
+          # `working-directory: parent`. All five setup-node steps run AFTER that
+          # checkout, so the path resolves.
+          cache: npm
+          cache-dependency-path: parent/package-lock.json
       - name: Install Dependencies
         # Root install first, and before `playwright install` — see the long note
         # on the integration-tests job for why both orderings matter.
@@ -488,6 +694,45 @@ jobs:
           INTERNAL_SERVICE_PORT: '12345'
         run: npx playwright test --shard=${{ matrix.shard }}/3
         working-directory: parent/citadel-workspaces/integration-tests
+      # AFTER the test step, deliberately.
+      #
+      # `Dump Service Logs on Start Failure` above only ever fires for a stack
+      # that fails to START: steps run in order, so by the time a TEST fails
+      # that step has already been skipped. Six P2P specs failed in run
+      # 34050229807 -- registration, both call specs, screen share, member-list,
+      # and three reconnection legs -- and the jobs carried no backend log at
+      # all, so the one line that separates "the request never arrived" from
+      # "it arrived and was not answered" was not available. The parent
+      # workflow has had this step for some time; this repository did not.
+      - name: Dump Service Logs on Test Failure
+        if: failure()
+        run: |
+          echo "=== server: membership and refusal decisions ==="
+          docker compose logs -t server 2>&1 \
+            | grep -E "first workspace member|awaits initialization|promoted to Admin|Refusing" \
+            | tail -40 || true
+          echo "=== server (tail, ratchet noise dropped) ==="
+          docker compose logs -t server 2>&1 \
+            | grep -vE "ratchet_manager\.rs|endpoint_crypto_container" | tail -120
+          # The P2P causal chain, which a blind tail cannot show.
+          #
+          # Run 33347976897 (file-manager) needed exactly this and did not have
+          # it: Alice's service logged `sink.send() SUCCEEDED` for every message
+          # after a file transfer while the peer received none of them, and the
+          # one line that separates "the bytes never arrived" from "they arrived
+          # and were not delivered" -- `[PeerChannelCreated] Received P2P
+          # message!` -- was pushed out of the tail by ratchet_manager INFO
+          # spam, which fills all 120 lines on its own.
+          echo "=== internal-service: P2P send/receive chain ==="
+          docker compose logs -t internal-service 2>&1 \
+            | grep -E "\[P2P-[A-Z-]+\]|\[Peer[A-Za-z]+\]|\[PostRegister\]|\[UDP-NEGOTIATION\]|Refusing |Auto-accepted inbound REVFS|Failed to auto-accept" \
+            | tail -80 || true
+          echo "=== internal-service: warnings and errors ==="
+          docker compose logs -t internal-service 2>&1 \
+            | grep -E "WARN|ERROR" | grep -vE "ratchet_manager\.rs" | tail -60 || true
+          echo "=== internal-service (tail, ratchet noise dropped) ==="
+          docker compose logs -t internal-service 2>&1 \
+            | grep -vE "ratchet_manager\.rs|endpoint_crypto_container" | tail -120
       - name: Upload Playwright Report
         if: failure()
         uses: actions/upload-artifact@v4
@@ -498,6 +743,17 @@ jobs:
             parent/citadel-workspaces/integration-tests/test-results/
 
   integration-tests:
+    # The cheap gates first. Both of these bring up the full Docker stack --
+    # a cold `cargo build --release` of the server kernel AND the internal
+    # service, per leg, across 47 integration legs and 3 Playwright shards.
+    # Gated only on `parent-ref`, a PR that fails ESLint in 60 seconds still
+    # paid for all fifty of them.
+    #
+    # The parent workflow has gated its equivalents this way for some time
+    # (`needs: [crate-coverage, lint, typecheck, …]`); this one did not, and
+    # `check-expensive-jobs-wait-for-cheap-ones` could not say so because it
+    # read the parent's workflow file alone.
+    needs: [parent-ref, lint, typecheck, unit-tests]
     name: Integration Test - ${{ matrix.test }}
     # Observed the same work as the parent job, 26m there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
@@ -610,7 +866,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.PARENT_REPO }}
-          ref: ${{ env.PARENT_BRANCH }}
+          ref: ${{ needs.parent-ref.outputs.ref }}
           path: parent
       - name: Checkout submodule code (this PR)
         uses: actions/checkout@v4
@@ -635,6 +891,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          # Restore ~/.npm. Without it every job re-downloads the same 1154-package
+          # tree; `npm ci` at this size costs 1-2 min uncached against 20-40s warm,
+          # and this workflow runs it in dozens of jobs per push.
+          #
+          # The parent's lockfile, because that is what `npm ci` installs from here:
+          # every job checks the parent out into `parent/` and runs with
+          # `working-directory: parent`. All five setup-node steps run AFTER that
+          # checkout, so the path resolves.
+          cache: npm
+          cache-dependency-path: parent/package-lock.json
       - name: Install Dependencies
         # `npm ci` at the workspace root hoists playwright once, instead
         # of installing it both at root AND in citadel-workspaces/. Two
@@ -756,6 +1022,45 @@ jobs:
           INTERNAL_SERVICE_PORT: '12345'
         run: npm run ${{ matrix.test }}
         working-directory: parent/citadel-workspaces/integration-tests
+      # AFTER the test step, deliberately.
+      #
+      # `Dump Service Logs on Start Failure` above only ever fires for a stack
+      # that fails to START: steps run in order, so by the time a TEST fails
+      # that step has already been skipped. Six P2P specs failed in run
+      # 34050229807 -- registration, both call specs, screen share, member-list,
+      # and three reconnection legs -- and the jobs carried no backend log at
+      # all, so the one line that separates "the request never arrived" from
+      # "it arrived and was not answered" was not available. The parent
+      # workflow has had this step for some time; this repository did not.
+      - name: Dump Service Logs on Test Failure
+        if: failure()
+        run: |
+          echo "=== server: membership and refusal decisions ==="
+          docker compose logs -t server 2>&1 \
+            | grep -E "first workspace member|awaits initialization|promoted to Admin|Refusing" \
+            | tail -40 || true
+          echo "=== server (tail, ratchet noise dropped) ==="
+          docker compose logs -t server 2>&1 \
+            | grep -vE "ratchet_manager\.rs|endpoint_crypto_container" | tail -120
+          # The P2P causal chain, which a blind tail cannot show.
+          #
+          # Run 33347976897 (file-manager) needed exactly this and did not have
+          # it: Alice's service logged `sink.send() SUCCEEDED` for every message
+          # after a file transfer while the peer received none of them, and the
+          # one line that separates "the bytes never arrived" from "they arrived
+          # and were not delivered" -- `[PeerChannelCreated] Received P2P
+          # message!` -- was pushed out of the tail by ratchet_manager INFO
+          # spam, which fills all 120 lines on its own.
+          echo "=== internal-service: P2P send/receive chain ==="
+          docker compose logs -t internal-service 2>&1 \
+            | grep -E "\[P2P-[A-Z-]+\]|\[Peer[A-Za-z]+\]|\[PostRegister\]|\[UDP-NEGOTIATION\]|Refusing |Auto-accepted inbound REVFS|Failed to auto-accept" \
+            | tail -80 || true
+          echo "=== internal-service: warnings and errors ==="
+          docker compose logs -t internal-service 2>&1 \
+            | grep -E "WARN|ERROR" | grep -vE "ratchet_manager\.rs" | tail -60 || true
+          echo "=== internal-service (tail, ratchet noise dropped) ==="
+          docker compose logs -t internal-service 2>&1 \
+            | grep -vE "ratchet_manager\.rs|endpoint_crypto_container" | tail -120
       - name: Upload Screenshots on Failure
         if: failure()
         uses: actions/upload-artifact@v4

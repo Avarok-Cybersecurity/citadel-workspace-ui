@@ -165,33 +165,33 @@ async function main() {
       );
       record('the banner still explains the state afterwards', stillExplained);
 
+      // THE DISMISSED STATE, which is the one that was broken.
+      //
+      // This block used to assert that Sign In opens the login form. It does
+      // not, and that is deliberate: use-agent-gate.ts refuses every door on
+      // this screen while the agent is unreachable, because a login that cannot
+      // reach the agent can only fail, and the retry dialog is the surface
+      // carrying the download link and the command to run.
+      //
+      // The defect was what happened AFTER a dismissal. The dialog was gone,
+      // the refusal had nothing left to point at, and the button answered a
+      // click with nothing whatsoever -- no dialog, no message, no navigation.
+      // So the assertion is not "the form opens" and not "nothing happens"; it
+      // is that pressing the door leads somewhere that explains itself.
       await page.getByTestId('sign-in-button').click();
-      const form = await page.locator('#username')
+      const dialog = page.locator('[role="dialog"]');
+      const cameBack = await dialog
         .waitFor({ state: 'visible', timeout: 20_000 })
         .then(() => true)
         .catch(() => false);
-      record('the app is still usable — sign-in is reachable', form);
+      record('pressing Sign In with no agent leads somewhere', cameBack);
 
-      if (form) {
-        // Reaching the form is not the same as being told why it cannot work.
-        // A submit that hangs on a spinner, or fails with a protocol string,
-        // is the state this whole path exists to avoid.
-        await page.locator('#username').fill('someone');
-        await page.locator('#password').fill('password123');
-        await page.locator('button[type="submit"]').first().click();
-        const told = await page
-          .locator('[role="alert"]')
-          .filter({ hasText: /agent/i })
-          .first()
-          .waitFor({ state: 'visible', timeout: 15_000 })
-          .then(() => true)
-          .catch(() => false);
-        record('signing in says the agent is the problem', told);
-
-        const stuck = await page.evaluate(
-          () => [...document.querySelectorAll('button[type="submit"]')].some((b) => b.disabled),
-        );
-        record('the submit button is not left spinning', !stuck);
+      if (cameBack) {
+        // Reaching a dialog is not the same as being told what is wrong. The
+        // state this whole path exists to avoid is a modal that says the
+        // connection failed without naming the thing the user has to install.
+        const text = await dialog.first().innerText();
+        record('and it names the agent', /agent/i.test(text), text.replace(/\s+/g, ' ').slice(0, 90));
       }
 
       // The path a NEW user actually takes. They have no account, so they press
@@ -220,41 +220,34 @@ async function main() {
       await page.locator('[role="dialog"]').waitFor({ state: 'detached', timeout: 20_000 });
       await page.getByTestId('create-account-button').waitFor({ state: 'visible', timeout: 20_000 });
       await page.getByTestId('create-account-button').click();
-      await page.locator('#serverAddress').waitFor({ state: 'visible', timeout: 20_000 });
-      await page.locator('#serverAddress').fill('127.0.0.1:12349');
-      await page.locator('#password').fill('password123');
-      await page.locator('button[type="submit"]').first().click();
-      const next = page.locator('button').filter({ hasText: /^Next$/ }).last();
-      await next.waitFor({ state: 'visible', timeout: 20_000 });
-      await next.click();
-      const profile = await page.locator('#fullName')
+
+      // The OTHER door, asserted the same way, because it was broken the same
+      // way and the fix reached one of them first.
+      //
+      // This block used to walk the registration wizard to its profile step and
+      // check that submitting produced a toast naming the agent. That premise
+      // is wrong for this state: useOnboardingIntent refuses to open the wizard
+      // at all while the agent is unreachable, deliberately -- a wizard opened
+      // on a connection that cannot complete, stacked over the dialog saying
+      // so, was three notices for one condition and two of them modal.
+      //
+      // What the wizard does with a real registration failure is worth testing,
+      // but it is a test for a state where the agent is REACHABLE and the
+      // server is not, and asserting it here only ever measured how far a
+      // refused click could be dragged. Measured: with the agent down, pressing
+      // Create Account produced zero dialogs and no navigation -- the wizard was
+      // never opening, and the twenty-second wait for `#serverAddress` was
+      // reporting that as a product defect at the wrong step entirely.
+      const afterCreate = page.locator('[role="dialog"]');
+      const createLeadsSomewhere = await afterCreate
         .waitFor({ state: 'visible', timeout: 20_000 })
         .then(() => true)
         .catch(() => false);
-      record('the create-account wizard reaches the profile step', profile);
+      record('pressing Create Account with no agent leads somewhere', createLeadsSomewhere);
 
-      if (profile) {
-        await page.locator('#fullName').fill('Probe User');
-        await page.locator('#username').fill(`probe${Date.now() % 100000}`);
-        await page.locator('#password').fill('password123');
-        await page.locator('#confirmPassword').fill('password123');
-        await page.locator('button').filter({ hasText: /^Join$/ }).last().click();
-
-        // `[data-sonner-toast]`, NOT `[role="alert"]`.
-        //
-        // Sonner sets no `role="alert"` on its toasts, and this repository has
-        // already lost a whole suite's error detection to that assumption once.
-        // Written out here because the wrong selector reports "the app said
-        // nothing" about an app that said exactly the right thing -- which is
-        // what it did during this check's own development, twice.
-        const told = await page
-          .locator('[data-sonner-toast]')
-          .filter({ hasText: /agent/i })
-          .first()
-          .waitFor({ state: 'visible', timeout: 20_000 })
-          .then(() => true)
-          .catch(() => false);
-        record('registering says the agent is the problem', told);
+      if (createLeadsSomewhere) {
+        const text = await afterCreate.first().innerText();
+        record('and that one names the agent too', /agent/i.test(text), text.replace(/\s+/g, ' ').slice(0, 90));
       }
     }
 

@@ -309,8 +309,14 @@ async function submitInitialization(page: Page, password: string): Promise<boole
       console.log('  Initialization submitted successfully');
       return true;
     } else {
-      // Check for error message
-      const errorMsg = page.locator('.text-red-400');
+      // Check for error message.
+      //
+      // By testid. This was `.text-red-400`, a class that appears NOWHERE in the
+      // app -- WorkspaceInitializationModal renders its error with
+      // `role="alert"` and `text-destructive-emphasis`. So the locator matched
+      // nothing, this branch never ran, and an initialization failure was
+      // reported without the reason the modal was displaying at the time.
+      const errorMsg = page.getByTestId('init-modal-error');
       if (await isVisibleWithin(errorMsg, 2000)) {
         const errorText = await errorMsg.textContent();
         console.log(`  Initialization error: ${errorText}`);

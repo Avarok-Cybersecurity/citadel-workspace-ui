@@ -37,6 +37,10 @@ describe('group persistence', () => {
 
   it('round-trips a member CID as bigint, which JSON could never do', async () => {
     cidRef.current = 111n;
+    // Read first, exactly as the app does: restorePersistedGroups runs at
+    // startup and persistGroups refuses to write a key it has not read, since
+    // an empty list is otherwise indistinguishable from a lost one.
+    await loadPersistedGroups();
     await persistGroups(groupWithBigintMember);
 
     const back: GroupConversation[] = await loadPersistedGroups();
@@ -47,7 +51,9 @@ describe('group persistence', () => {
 
   it('keeps each account\'s groups separate', async () => {
     cidRef.current = 111n;
+    await loadPersistedGroups();
     await persistGroups(groupWithBigintMember);
+    expect(store.size, 'the write must have landed, or this asserts nothing').toBe(1);
 
     cidRef.current = 222n;
     expect(

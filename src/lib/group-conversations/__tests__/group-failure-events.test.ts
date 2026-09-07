@@ -11,6 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { toGroupEvents } from '../group-events';
+import { GROUP_FAILURE_VARIANTS } from '../group-failure-variants';
 
 const noName = (): string => 'peer';
 
@@ -29,20 +30,18 @@ describe('a refused group operation', () => {
   });
 
   it('covers every failure variant the group plane can produce', () => {
-    // Mapping them one at a time is how the next one comes to be forgotten,
-    // which is the state this replaced.
-    const variants: string[] = [
-      'GroupCreateFailure',
-      'GroupChannelCreateFailure',
-      'GroupInviteFailure',
-      'GroupJoinFailure',
-      'GroupLeaveFailure',
-      'GroupKickFailure',
-      'GroupDisconnectFailure',
-      'GroupEndFailure',
-    ];
-
-    for (const variant of variants) {
+    // Driven by the arm's own list, not a copy of it.
+    //
+    // This test used to hardcode the same eight names the arm did — including
+    // `GroupJoinFailure` and `GroupDisconnectFailure`, which exist in no
+    // generated type. So it asserted coverage of two events that can never
+    // arrive, and stayed green while five real failures went unhandled. A test
+    // that keeps its own copy of the thing under test confirms the copy.
+    //
+    // `every-group-failure-is-handled.test.ts` pins that list against the
+    // generated types, in both directions. This one pins that everything on it
+    // actually reaches the user.
+    for (const variant of GROUP_FAILURE_VARIANTS) {
       const [event] = toGroupEvents(
         { [variant]: { cid: 1n, message: 'refused', request_id: 'r' } },
         1n,

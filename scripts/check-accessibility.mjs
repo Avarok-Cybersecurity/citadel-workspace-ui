@@ -282,7 +282,14 @@ async function main() {
      */
     const EXPECTED_SCOPE = {
       landing: 'document',
-      'sign-in': 'Login to Workspace',
+      // Both doors are AGENT-GATED and this world has no agent, so neither
+      // dialog opens and the surface under scan is the landing document. That
+      // is asserted rather than assumed: `sign-in: stays shut while the agent
+      // is unreachable` below pins the gate itself, and this pins what is
+      // actually being scanned in its place, so neither reads as coverage of a
+      // dialog nobody opened. Their contents are covered by the authenticated
+      // Playwright specs, which have an agent.
+      'sign-in': 'document',
       'create-account': 'Create Account',
       'manage-accounts': 'Manage Accounts',
       'settings/General': 'Settings',
@@ -339,9 +346,54 @@ async function main() {
     // were. The other two dialogs on the same screen restored it. Nothing in a
     // static scan can see the difference -- the markup is identical either way,
     // and axe has no opinion about what happens after a dialog closes.
+    // Sign-in and create-account are AGENT-GATED and this world has no agent.
+    //
+    // Both doors wait for the agent before they open anything — a deliberate
+    // change, so that a first-run visitor is told to start the agent instead of
+    // being dropped into a form that cannot submit. Their dialogs therefore
+    // cannot open here, and this loop used to wait 30 seconds for one and fail
+    // the whole check with "the check ran to completion".
+    //
+    // The gated behaviour is asserted instead of skipped: with no agent, the
+    // door must not open the FORM. That is a real property — a regression that
+    // let a login form open on a connection that cannot complete would fail
+    // this. Focus management is then checked on the one dialog this world can
+    // actually open. `check-agent-down.mjs` owns the rest of the agent-down
+    // first run.
+    //
+    // This used to assert that NO dialog opened at all, which was true and is
+    // no longer. After a visitor dismisses the connection dialog, the door had
+    // nothing left to point at and answered a click with silence — no dialog,
+    // no message, no navigation. It now reopens the dialog that explains the
+    // state and carries the download link (round 678), so "no dialog" would
+    // now fail against the better behaviour.
+    //
+    // What replaces it is narrower AND stronger: the form must not open, and
+    // what opens instead must be the surface that says why. "Nothing happened"
+    // and "the right thing happened" are no longer indistinguishable.
+    for (const [name, testid] of [['sign-in', 'sign-in-button']]) {
+      await page.goto(APP, { waitUntil: 'domcontentloaded' });
+      await dismissConnectionFailure(page);
+      const trigger = page.getByTestId(testid);
+      await trigger.click();
+      // 30s, not a token wait: measured, the form stays shut for the full
+      // interval with no agent. A shorter timeout would assert the same thing
+      // about a form that merely opens slowly, which is a different claim.
+      const formOpened = await page
+        .locator('#username')
+        .waitFor({ state: 'visible', timeout: 30_000 })
+        .then(() => true)
+        .catch(() => false);
+      record(`${name}: the login form stays shut while the agent is unreachable`, !formOpened);
+      const explained = await page
+        .getByTestId('connection-retry-modal')
+        .waitFor({ state: 'visible', timeout: 15_000 })
+        .then(() => true)
+        .catch(() => false);
+      record(`${name}: pressing it explains why, instead of doing nothing`, explained);
+    }
+
     for (const [name, testid] of [
-      ['sign-in', 'sign-in-button'],
-      ['create-account', 'create-account-button'],
       ['manage-accounts', 'manage-accounts-button'],
     ]) {
       await page.goto(APP, { waitUntil: 'domcontentloaded' });

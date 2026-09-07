@@ -11,12 +11,13 @@
  * unmount of the old one.
  */
 import { useSyncExternalStore } from 'react';
+import { notifyEach } from '@/lib/notify-listeners';
 
 let mounted: number = 0;
 const listeners: Set<() => void> = new Set<() => void>();
 
 function emit(): void {
-  for (const listener of listeners) listener();
+  notifyEach(listeners, 'call-stage-presence');
 }
 
 export function registerCallStage(): () => void {

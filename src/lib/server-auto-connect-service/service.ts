@@ -1,19 +1,21 @@
 /**
- * Server Auto-Connect Service - Service Class
+ * Reconnects sessions the user did not sign out of.
  *
- * Singleton that automatically reconnects disconnected sessions to servers with:
- * - Exponential backoff: 5s -> 10s -> 20s -> ... -> 5min max
- * - Global settings stored via LocalDB with CID 0
- * - Centralized poll() method for on-demand triggering
- * - Event-driven lifecycle (startPolling/stopPolling)
+ * The backoff lives in reconnect-logic, the settings in init-settings and
+ * persistence, what ends an attempt in attempt-lifecycle, which responses are
+ * handled in websocket-responses, and the sign-out record in sign-out-record.
+ * What is left here is the singleton and its lifecycle.
  */
 
 import { instanceManager } from '@/lib/multi-instance';
 import type { StoredSession } from '@/types/session-types';
 import { EventListenerPollingService } from '@/lib/utils/polling-service';
-import { getVariant } from '@/lib/ws-message-boundary';
 import type { WebSocketMessage } from '@/types/ws-message-types';
-import { debugLog } from '@/lib/debug-config';
+import { clearPendingAttempts } from './attempt-lifecycle';
+import { signOutKey, forgetSignOut } from './sign-out-record';
+import { dispatchWebSocketResponse } from './websocket-responses';
+import { debugLog, errorLog } from '@/lib/debug-config';
+import { loadAutoConnectSettings, type AutoConnectSettings } from './init-settings';
 import { TIMEOUT } from '@/lib/timeout-constants';
 import { POLL_INTERVAL_MS , type ConnectionAttempt } from './types';
 import {
@@ -68,16 +70,23 @@ export class ServerAutoConnectService extends EventListenerPollingService {
   public async init(): Promise<void> {
     if (this.isInitialized) return;
 
-    try {
-      this.isEnabled = await loadEnabledSetting();
-      this.userDisconnectedSessions = await loadUserDisconnectedSessions();
-      this.isInitialized = true;
-      debugLog('ServerAutoConnectService', `Initialized (enabled: ${this.isEnabled}, userDisconnectedSessions: ${this.userDisconnectedSessions.size})`);
-    } catch (error) {
-      debugLog('ServerAutoConnectService', 'Failed to load settings, using defaults:', error);
-      this.isEnabled = true;
-      this.isInitialized = true;
-    }
+    const settings: AutoConnectSettings = await loadAutoConnectSettings(
+      { loadEnabled: loadEnabledSetting, loadUserDisconnected: loadUserDisconnectedSessions },
+      (error: unknown) =>
+        errorLog(
+          'ServerAutoConnectService',
+          'Could not read the auto-connect settings; staying off until they can be read:',
+          error,
+        ),
+    );
+    this.isEnabled = settings.enabled;
+    this.userDisconnectedSessions = settings.userDisconnectedSessions;
+    this.isInitialized = settings.initialized;
+    debugLog(
+      'ServerAutoConnectService',
+      `Initialized (enabled: ${this.isEnabled}, userDisconnectedSessions: ` +
+        `${this.userDisconnectedSessions.size}, initialized: ${this.isInitialized})`,
+    );
   }
 
   protected setupEventListeners(): void {
@@ -93,18 +102,12 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     });
 
     this.listen<WebSocketMessage>('websocket-message', async (message) => {
-      const connectSuccess: Record<string, unknown> | undefined = getVariant(message, 'ConnectSuccess');
-      if (connectSuccess) {
-        await this.handleConnectionSuccess(connectSuccess.cid as bigint | undefined);
-      }
-      const connectFailure: Record<string, unknown> | undefined = getVariant(message, 'ConnectFailure');
-      if (connectFailure) {
-        this.handleConnectionFailure(connectFailure as { message?: string });
-      }
-      const disconnectNotification: Record<string, unknown> | undefined = getVariant(message, 'DisconnectNotification');
-      if (disconnectNotification) {
-        this.handleDisconnect(disconnectNotification as { cid?: bigint });
-      }
+      await dispatchWebSocketResponse(message, {
+        onConnectSuccess: (cid) => this.handleConnectionSuccess(cid),
+        onConnectFailure: (failure) => this.handleConnectionFailure(failure),
+        onSessionAlreadyActive: () => this.handleSessionAlreadyActive(),
+        onDisconnect: (notification) => this.handleDisconnect(notification),
+      });
     });
 
     this.listen<{ isLeader: boolean; leaderId: string }>('instance:leader-changed', (data) => {
@@ -190,8 +193,21 @@ export class ServerAutoConnectService extends EventListenerPollingService {
     }), cid);
   }
 
+  /** A failed connect must stop blocking the next attempt — see attempt-lifecycle. */
   private handleConnectionFailure(connectFailure: { message?: string }): void {
     debugLog('ServerAutoConnectService', 'Connection failure:', connectFailure.message);
+    clearPendingAttempts(this.reconnectAttempts, (k) => this.cancelRetry(k), 'ConnectFailure');
+  }
+
+  /**
+   * The session is already up, which is the opposite of needing a reconnect.
+   *
+   * The agent answers this when a Connect names a username it already holds a
+   * live session for — the ordinary response to the storm one failed
+   * GetSessions used to cause, and nothing listened for it.
+   */
+  private handleSessionAlreadyActive(): void {
+    clearPendingAttempts(this.reconnectAttempts, (k) => this.cancelRetry(k), 'SessionAlreadyActive');
   }
 
   private handleDisconnect(notification: { cid?: bigint }): void {
@@ -207,9 +223,8 @@ export class ServerAutoConnectService extends EventListenerPollingService {
    * below: they have different deadlines — see lib/connection/lifecycle.ts.
    */
   public markUserDisconnectedNow(username: string, serverAddress: string): void {
-    const sessionKey: string = `${username}@${serverAddress}`;
-    this.userDisconnectedSessions.add(sessionKey);
-    this.cancelRetry(sessionKey);
+    this.userDisconnectedSessions.add(signOutKey(username, serverAddress));
+    this.cancelRetry(signOutKey(username, serverAddress));
   }
 
   /** Persist what `markUserDisconnectedNow` recorded. Best-effort. */
@@ -224,10 +239,7 @@ export class ServerAutoConnectService extends EventListenerPollingService {
   }
 
   public async clearUserDisconnected(username: string, serverAddress: string): Promise<void> {
-    const sessionKey: string = `${username}@${serverAddress}`;
-    this.userDisconnectedSessions.delete(sessionKey);
-    await persistUserDisconnectedSessions(this.userDisconnectedSessions);
-    debugLog('ServerAutoConnectService', `Cleared user-disconnected status for ${username} (persisted to LocalDB)`);
+    await forgetSignOut(this.userDisconnectedSessions, username, serverAddress);
   }
 
   public cancelRetry(sessionKey: string): void {

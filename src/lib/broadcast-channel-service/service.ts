@@ -14,12 +14,12 @@ import { getSelectedUser } from '@/lib/tab-context';
 import { debugLog } from '@/lib/debug-config';
 import type { BroadcastMessage, PendingRequest } from './types';
 import { CHANNEL_NAME, CLEANUP_INTERVAL_MS, REQUEST_EXPIRY_MS } from './types';
+import type { TabUserContext } from '@/lib/tab-context';
 import {
   handleWorkspaceResponse,
   handleRegisterRequest,
   handleStateSync,
   handleConnectionStatus,
-  handleP2PRawMessage,
   handleP2PNotification,
 } from './message-handlers';
 import {
@@ -27,7 +27,6 @@ import {
   broadcastWorkspaceResponse as doBroadcastWorkspaceResponse,
   broadcastStateSync as doBroadcastStateSync,
   broadcastConnectionStatus as doBroadcastConnectionStatus,
-  broadcastP2PRawMessage as doBroadcastP2PRawMessage,
   broadcastP2PNotification as doBroadcastP2PNotification,
 } from './broadcasting';
 
@@ -114,9 +113,6 @@ export class BroadcastChannelService extends PollingService {
           case 'register-request':
             handleRegisterRequest(message, this.pendingRequests);
             break;
-          case 'p2p-raw-message':
-            handleP2PRawMessage(message, this.isLeader);
-            break;
           case 'p2p-notification':
             await handleP2PNotification(message, this.isLeader);
             break;
@@ -160,17 +156,13 @@ export class BroadcastChannelService extends PollingService {
    */
   public broadcastStateSync(data: unknown): void {
     runAsyncSetup(async () => {
-      const selection = await getSelectedUser();
+      const selection: TabUserContext | null = await getSelectedUser();
       doBroadcastStateSync(this.channel, this.tabId, this.isLeader, data, selection?.selectedCid);
     });
   }
 
   public broadcastConnectionStatus(status: { isConnected: boolean; cid?: bigint }): void {
     doBroadcastConnectionStatus(this.channel, this.tabId, this.isLeader, status);
-  }
-
-  public broadcastP2PRawMessage(data: { peerCid: bigint; message: Uint8Array }): void {
-    doBroadcastP2PRawMessage(this.channel, this.tabId, this.isLeader, data);
   }
 
   public broadcastP2PNotification(data: { notification: P2PNotificationData; messageBytes: Uint8Array }): void {

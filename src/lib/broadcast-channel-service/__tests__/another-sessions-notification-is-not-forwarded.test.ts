@@ -34,7 +34,7 @@ vi.mock('@/lib/tab-context', () => ({
   getSelectedUser: async (): Promise<{ selectedCid: bigint } | null> => selected,
 }));
 vi.mock('@/lib/multi-instance', () => ({ instanceManager: { cid: SELF } }));
-vi.mock('@/lib/debug-config', () => ({ debugLog: (): void => {} }));
+vi.mock('@/lib/debug-config', () => ({ debugEnabled: false, debugLog: (): void => {} }));
 
 const { handleWorkspaceResponse } = await import('../message-handlers');
 const { eventEmitter } = await import('@/lib/event-emitter');

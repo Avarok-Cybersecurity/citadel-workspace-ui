@@ -16,6 +16,7 @@
  * emitting an empty username silently dropped every invite ever received.
  */
 
+import { GROUP_FAILURE_VARIANTS } from './group-failure-variants';
 import { groupKeyToId, parseGroupKey } from './group-key';
 import { variant, toCid, memberCids } from './group-wire-variants';
 import { peerGroupMessageEvent, type PeerGroupMessageSummary } from './peer-group-inbound';
@@ -66,6 +67,7 @@ export type PeerNameResolver = (cid: bigint) => string;
  * `selfCid` is needed because a create response names no owner other than the
  * caller; `peerName` because the wire identifies peers only by CID.
  */
+
 export function toGroupEvents(
   message: Record<string, unknown>,
   selfCid: bigint,
@@ -95,16 +97,22 @@ export function toGroupEvents(
   // Every failure variant the group plane can produce, in one arm. They share
   // a shape — cid, message, request_id — and mapping them individually is how
   // the next one comes to be forgotten.
-  for (const name of [
-    'GroupCreateFailure',
-    'GroupChannelCreateFailure',
-    'GroupInviteFailure',
-    'GroupJoinFailure',
-    'GroupLeaveFailure',
-    'GroupKickFailure',
-    'GroupDisconnectFailure',
-    'GroupEndFailure',
-  ]) {
+  //
+  // Which is what happened. This list held `GroupJoinFailure` and
+  // `GroupDisconnectFailure`, NEITHER OF WHICH EXISTS in the wire types, and
+  // omitted five that do. The costly omission was `GroupRespondRequestFailure`:
+  // accepting an invitation commits the group locally first
+  // (`use-group-state-invite.ts`), so when the server refused — stale key, group
+  // ended, not the owner — no arm matched, no `group:failed` fired, and the user
+  // kept a group in their sidebar that the server never counted them into,
+  // typing into a channel nobody would receive.
+  //
+  // The list is now checked against the generated types by
+  // `__tests__/every-group-failure-is-handled.test.ts`, in both directions: a
+  // name that does not exist fails, and a variant not listed here fails. A
+  // hand-maintained list is only as complete as its last edit, and this one had
+  // drifted in both directions at once.
+  for (const name of GROUP_FAILURE_VARIANTS) {
     const failed: Record<string, unknown> | undefined = variant(message, name);
     if (failed) {
       return [{

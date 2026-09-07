@@ -30,7 +30,12 @@
     "check:agent-down": "node scripts/check-agent-down.mjs",
     "check:types": "node scripts/check-explicit-types.mjs",
     "check:spec-copy": "node scripts/check-specs-search-for-real-copy.mjs",
-    "check:toast-header": "node scripts/check-toast-clears-header.mjs"
+    "check:debug-args": "node scripts/check-debug-args-are-cheap.mjs",
+    "check:gates-invoked": "node scripts/check-every-gate-is-invoked.mjs",
+    "check:parent-ref": "node scripts/check-parent-checkouts-agree-on-the-ref.mjs",
+    "check:toast-header": "node scripts/check-toast-clears-header.mjs",
+    "check:captured-vs-failed": "node scripts/check-captured-is-not-failed.mjs",
+    "check:assertions": "node scripts/check-assertions-can-fail.mjs"
   },
   "dependencies": {
     "@avarok/citadel-protocol-types": "^0.14.0",

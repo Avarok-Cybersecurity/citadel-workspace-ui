@@ -126,6 +126,22 @@ export async function getAutoAcceptSetting(cidOverride?: bigint): Promise<boolea
       return decoded === 'true';
     }
   } catch (error: unknown) {
+    // Both branches return false, and here that is DELIBERATE rather than the
+    // usual accident. Elsewhere in this codebase an unreadable preference
+    // defaulted to `enabled: true` and silently turned auto-connect back on
+    // for somebody who had turned it off; the fix there was to stop guessing.
+    //
+    // This one fails in the opposite direction. `false` means the incoming
+    // registration goes to the pending list, where the user sees it and
+    // decides — strictly MORE control, and nothing is lost. Failing open
+    // (auto-accepting a peer because a read timed out) is the outcome that
+    // could not be undone, so it must not be reachable by accident.
+    //
+    // The distinction is kept in the log because "your setting is missing" and
+    // "your setting could not be read" send a support conversation in
+    // different directions, and pinned in a test because a future edit that
+    // made a failed read fail OPEN would be a security change disguised as a
+    // refactor.
     if (isGenuinelyAbsent(error)) {
       debugLog('P2PRegistrationService', '[P2P] Auto-accept setting not found, using default: false');
     } else {

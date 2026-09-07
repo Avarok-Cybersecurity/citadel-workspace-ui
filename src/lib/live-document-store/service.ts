@@ -50,6 +50,23 @@ export class LiveDocumentStore {
     return this.initPromise;
   }
 
+  /**
+   * Whether `documentsCache` is a faithful picture of what is stored.
+   *
+   * `updateIndex` writes `Array.from(cache.keys())` -- the WHOLE index. That
+   * is only sound if the index was read. If the read failed, the cache is
+   * empty for a reason unrelated to what is stored, and writing it makes every
+   * other document permanently unlistable.
+   *
+   * The comment on `updateIndex`'s `await this.initialize()` says it is there
+   * so the index is never overwritten "with the one or zero entries in the
+   * cold cache". That covers the NOT-YET-initialised case. It did nothing for
+   * the FAILED-to-initialise case, because a failed load resolved like a
+   * successful one and `initPromise` memoised it, so the failure was permanent
+   * and invisible.
+   */
+  private indexIsTrustworthy: boolean = false;
+
   private async loadIndexIntoCache(): Promise<void> {
     try {
       const index: string[] = await loadIndexFromDB();
@@ -59,9 +76,17 @@ export class LiveDocumentStore {
           this.documentsCache.set(docId, doc);
         }
       }
+      this.indexIsTrustworthy = true;
     } catch (error) {
       debugLog('LiveDocumentStore', 'Failed to initialize:', error);
-      // Continue anyway — an unreadable index must not brick the store.
+      // Reading stays best-effort: an unreadable index must not brick the
+      // store, so listing and opening still work on whatever is cached.
+      // WRITING the index does not -- see `indexIsTrustworthy`.
+      //
+      // Clearing initPromise makes the next initialize() try again. It was
+      // memoised, so one transient failure disabled the index for the life of
+      // the page.
+      this.initPromise = null;
     }
   }
 
@@ -241,6 +266,13 @@ export class LiveDocumentStore {
    */
   private async updateIndex(): Promise<void> {
     await this.initialize();
+    if (!this.indexIsTrustworthy) {
+      throw new Error(
+        'Refusing to write the document index: it was never successfully read, ' +
+          'so writing the cache over it would make every document that is not ' +
+          'currently cached unlistable.',
+      );
+    }
     const docIds: string[] = Array.from(this.documentsCache.keys());
     await saveIndexToDB(docIds);
   }

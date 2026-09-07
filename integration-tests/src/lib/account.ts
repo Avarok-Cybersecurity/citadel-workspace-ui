@@ -198,8 +198,26 @@ export async function createAccount(page: Page, username: string, options: Creat
   await closeAnyModals(page);
 
   // Raced against the success signal so a working registration pays nothing.
+  //
+  // The rejection arm may only WIN when it is actually a rejection.
+  //
+  // `rejection` resolves to `{ kind: 'no-error' }` after 15 seconds whenever no
+  // error toast appears -- which is the ordinary SUCCESSFUL case. Raced bare, it
+  // therefore beat `waitForWorkspaceLoaded` on any machine where the workspace
+  // takes longer than ~15s to load, `outcome.kind` came back `no-error`, and the
+  // branch below reported "Workspace never loaded" for a workspace that loaded
+  // moments later. `Promise.race` does not cancel the loser, so the log shows
+  // both: the failure, and then "Workspace fully loaded" from the still-running
+  // waiter.
+  //
+  // That is every integration job on a loaded CI runner, and no local run,
+  // because locally the workspace loads in a second or two.
+  //
+  // The inner race above already does exactly this -- `r.kind === 'rejected' ?
+  // undefined : new Promise(() => {})` -- and the reasoning was not carried the
+  // seventy lines down to here.
   const outcome = await Promise.race([
-    rejection,
+    rejection.then((r) => (r.kind === 'rejected' ? r : new Promise<never>(() => {}))),
     waitForWorkspaceLoaded(page, 45000).then((ok) => ({
       kind: ok ? ('loaded' as const) : ('not-loaded' as const),
       detail: '',
@@ -216,7 +234,30 @@ export async function createAccount(page: Page, username: string, options: Creat
   }
 
   if (outcome.kind !== 'loaded') {
-    console.log('  WARNING: Workspace may not have fully loaded');
+    // Report it, do not warn past it.
+    //
+    // This logged the warning and then `return true`. The comment forty lines
+    // up describes the same defect for the REJECTED case and says an
+    // unconditional `true` made every caller's
+    // `expect(await createAccount(...)).toBe(true)` an assertion on a constant.
+    // The not-loaded case kept doing exactly that.
+    //
+    // It matters beyond the assertion. The four reconnection specs call this and
+    // then begin P2P registration; if the invitee's workspace has not loaded,
+    // the incoming `PeerRegisterNotification` is dropped on the agent (no
+    // session in `server_connection_map` yet) or in the browser (no cid to
+    // filter on yet), and NOTHING re-queries it — the badge simply never
+    // appears. Saying "created" for a page that is not ready is what let those
+    // specs start racing.
+    //
+    // The wait it failed is 45 seconds, so this is a broken workspace rather
+    // than a slow one.
+    if (uxTracker) {
+      uxTracker.log('critical', 'functional', `Workspace never loaded for ${username}`);
+    }
+    await takeScreenshot(page, `${username}_workspace_never_loaded`);
+    console.log(`  Account ${username} registered but its workspace never loaded`);
+    return false;
   }
 
   await takeScreenshot(page, `${username}_created`);

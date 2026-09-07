@@ -25,12 +25,12 @@ import { startRevfs } from '@/lib/revfs/revfs-loader';
 import '@/lib/session-startup-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { postAuthSetup } from '@/lib/post-auth-setup';
+import { getCurrentCid } from '@/lib/p2p/current-cid';
 import { debugLog } from '@/lib/debug-config';
 import { makeSessionAlreadyConnectedHandler } from './session-already-connected';
-import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { StoredSession } from '@/types/session-types';
 import {
-  NOT_FAILING, onFailure, onDismiss, onSuccess, isRetryDialogOpen,
+  NOT_FAILING, onFailure, onDismiss, onRequested, onSuccess, isRetryDialogOpen,
   type RetryVisibility,
 } from './connection-retry-visibility';
 
@@ -82,10 +82,17 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
     void startRevfs({
       sendP2PMessageReliable: (localCid, peerCid, message) =>
         websocketService.sendP2PMessageReliable(localCid, peerCid, message),
-      getCurrentCid: async () => {
-        const info: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
-        return info?.cid ?? null;
-      },
+      // The authority, not the bare connection lookup.
+      //
+      // `connectionManager.getConnectionInfo().cid` belongs to the CONNECTION,
+      // not to this tab: it is the LAST resort in `lib/p2p/current-cid.ts`'s
+      // chain, and with two sessions in one browser -- the documented way to use
+      // and test this app -- it names whichever session the connection happens
+      // to hold. revfs consumes this as the local CID for every P2P operation,
+      // so the sync engine and the messenger beside it could answer "who am I"
+      // differently. `CallLayer` had exactly this bug and its comment says so;
+      // the fix was applied there and not here.
+      getCurrentCid,
       sendInternalServiceRequest: (request: unknown) =>
         websocketService.sendMessage(request as Record<string, unknown>),
     });
@@ -187,9 +194,19 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
       setState(prev => (prev.retry === NOT_FAILING ? prev : { ...prev, retry: onSuccess() }));
     };
 
+    // The user pressed a door that needs the agent while the agent is down.
+    // `use-agent-gate.ts` will not open that door -- the retry dialog is the
+    // surface that explains why and offers the way forward -- so bring it back,
+    // even if they dismissed it earlier. This is the ONLY thing that
+    // un-dismisses; see onRequested for why it is not onFailure.
+    const handleRetryRequested = (): void => {
+      setState(prev => ({ ...prev, retry: onRequested(prev.retry) }));
+    };
+
     const handleSessionAlreadyConnected: (event: { cid: string; message: string; }) => Promise<void> = makeSessionAlreadyConnectedHandler({ toast, setState });
 
     eventEmitter.on('connection-failure', handleConnectionFailure);
+    eventEmitter.on('connection:retry-requested', handleRetryRequested);
     eventEmitter.on('on-ws-connection-success', handleConnectionSuccess);
     eventEmitter.on('session-already-connected', handleSessionAlreadyConnected);
 
@@ -206,6 +223,7 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
       runAsyncSetup(() => userService.cleanup());
       healthCheckService.stopHealthChecks();
       eventEmitter.off('connection-failure', handleConnectionFailure);
+      eventEmitter.off('connection:retry-requested', handleRetryRequested);
       eventEmitter.off('on-ws-connection-success', handleConnectionSuccess);
       eventEmitter.off('session-already-connected', handleSessionAlreadyConnected);
     };

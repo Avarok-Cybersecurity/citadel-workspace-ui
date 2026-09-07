@@ -17,6 +17,7 @@
  * reason service-worker registration lives there: nothing that must not be
  * missed should depend on a component being mounted at the right moment.
  */
+import { notifyEach } from '@/lib/notify-listeners';
 import { debugLog } from '@/lib/debug-config';
 
 export interface BeforeInstallPromptEvent extends Event {
@@ -30,7 +31,7 @@ let installed: boolean = false;
 const listeners: Set<() => void> = new Set<() => void>();
 
 function emit(): void {
-  for (const listener of listeners) listener();
+  notifyEach(listeners, 'install-prompt-store');
 }
 
 export function subscribeToInstallState(listener: () => void): () => void {

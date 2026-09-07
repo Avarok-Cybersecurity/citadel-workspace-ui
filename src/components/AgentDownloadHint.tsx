@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Copy, Download, ExternalLink } from 'lucide-react';
+import { Check, Copy, ExternalLink } from 'lucide-react';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { interactive } from '@/lib/a11y';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,10 @@ import {
   agentDownloadUrl,
   agentPlatformCandidates,
   type AgentPlatform,
+  agentRunCommand,
 } from '@/lib/agent-download';
+import { readLoopbackAgentOrigin } from '@/lib/websocket-service/resolve-url';
+import { OS_ICONS } from '@/components/icons/os-icons';
 
 const LABELS: Record<AgentPlatform, string> = {
   'macos-arm64': 'macOS (Apple Silicon)',
@@ -27,25 +30,21 @@ const LABELS: Record<AgentPlatform, string> = {
  * modal, where the question actually arises, rather than as a banner everyone
  * sees forever.
  */
-/**
- * Shown, copied, and asserted in tests from one place.
- *
- * Names the binary. This was the flags alone — `--bind … --backend …` — so a
- * first-run user who pressed Copy and pasted it got a shell error, and nothing
- * anywhere told them what the executable inside the archive is called. A copy
- * button that produces something unrunnable is worse than no copy button: it
- * looks like the instruction, so the reader stops looking for the real one.
- */
-const RUN_COMMAND: "./citadel-workspace-internal-service --bind 127.0.0.1:12345 --backend filesystem" =
-  './citadel-workspace-internal-service --bind 127.0.0.1:12345 --backend filesystem';
-
 export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navigatorRef }) => {
   const candidates: AgentPlatform[] = agentPlatformCandidates(navigatorRef ?? navigator);
+  // Derived from the page, so the command is right for THIS deployment: the origin that may
+  // drive the agent, and -- when the hosting nginx published one -- the loopback name and
+  // where its certificate is fetched from. See agentRunCommand.
+  const runCommand: string = agentRunCommand({
+    platform: candidates[0] ?? 'linux-x64',
+    pageOrigin: window.location.origin,
+    loopbackOrigin: readLoopbackAgentOrigin(document),
+  });
   const [copied, setCopied] = useState(false);
 
   const handleCopy = (): void => {
     runAsyncSetup(async () => {
-      await navigator.clipboard.writeText(RUN_COMMAND);
+      await navigator.clipboard.writeText(runCommand);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -60,14 +59,24 @@ export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navi
 
       {candidates.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-2">
-          {candidates.map((platform) => (
-            <Button key={platform} variant="secondary" size="sm" asChild>
-              <a href={agentDownloadUrl(platform)} download={AGENT_ASSETS[platform]}>
-                <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-                {LABELS[platform]}
-              </a>
-            </Button>
-          ))}
+          {candidates.map((platform) => {
+            // The platform's own mark, not a generic download arrow: with two
+            // macOS builds offered side by side, the icon is what tells the
+            // reader at a glance that the page identified their machine.
+            const OsIcon: React.FC<{ className?: string }> = OS_ICONS[platform];
+            return (
+              <Button key={platform} variant="secondary" size="sm" asChild>
+                <a
+                  href={agentDownloadUrl(platform)}
+                  download={AGENT_ASSETS[platform]}
+                  data-testid={`agent-download-${platform}`}
+                >
+                  <OsIcon className="mr-2 h-4 w-4" />
+                  {LABELS[platform]}
+                </a>
+              </Button>
+            );
+          })}
         </div>
       ) : (
         // No build fits this device — phones and tablets land here. Offering a
@@ -105,7 +114,7 @@ export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navi
           role="region"
           aria-label="Command to start the Citadel agent"
           className="bg-background min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded px-2 py-1 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
-          {RUN_COMMAND}
+          {runCommand}
         </code>
         <button
           type="button"

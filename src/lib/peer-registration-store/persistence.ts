@@ -5,8 +5,7 @@
  * Uses generic helpers to avoid duplication between pending/outgoing variants.
  */
 
-import { websocketService } from '../websocket-service';
-import { stringToBytes, bytesToString } from '../utils/encoding-utils';
+import { bytesToString } from '../utils/encoding-utils';
 import { parsePersistedJSON } from '../storage-utils';
 
 /**
@@ -18,8 +17,7 @@ import { debugLog } from '@/lib/debug-config';
 import type { PendingPeerRequest, OutgoingPeerRequest, KVPendingEntry } from './types';
 import {
   STORAGE_KEY,
-  OUTGOING_STORAGE_KEY,
-  REQUEST_TIMEOUT_MS
+  OUTGOING_STORAGE_KEY
 } from './constants';
 import {
   pendingKey,
@@ -30,90 +28,10 @@ import {
   ownOutgoing,
 } from './storage-keys';
 
-/** Generic LocalDB set operation */
-async function localDBSet(
-  key: string,
-  data: unknown[],
-  pendingKVRequests: Map<string, KVPendingEntry>,
-  label: string
-): Promise<void> {
-  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
-  const { persistJSON } = await import('../storage-utils');
-  const valueStr: string = persistJSON(data);
-
-  const request: { LocalDBSetKV: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: null; key: string; value: number[]; }; } = {
-    LocalDBSetKV: {
-      request_id: requestId, cid: 0n, peer_cid: null,
-      key, value: stringToBytes(valueStr)
-    }
-  };
-
-  return new Promise<void>((resolve, reject) => {
-    pendingKVRequests.set(requestId, { resolve: () => resolve(), reject });
-    // `sendMessage`, not `getClient()`. A follower tab owns no client by
-    // design, and the old branch RESOLVED SUCCESSFULLY on that path -- so an
-    // incoming contact request that landed in a follower (they are CID-routed
-    // to the tab owning the session, which is often not the leader) was never
-    // written to LocalDB, and vanished on reload. Nothing failed; the request
-    // simply ceased to exist.
-    websocketService.sendMessage(request as unknown as Record<string, unknown>).catch(error => {
-      debugLog('PeerRegistrationStore', `Failed to persist ${label}:`, error);
-      pendingKVRequests.delete(requestId);
-      reject(error);
-    });
-    setTimeout(() => {
-      if (pendingKVRequests.has(requestId)) {
-        pendingKVRequests.delete(requestId);
-        debugLog('PeerRegistrationStore', `${label} persist timed out`);
-        resolve(undefined);
-      }
-    }, REQUEST_TIMEOUT_MS);
-  });
-}
-
-/** Generic LocalDB get operation */
-async function localDBGet<T>(
-  key: string,
-  pendingKVRequests: Map<string, KVPendingEntry>,
-  onLoaded: (data: T[]) => Promise<void>,
-  label: string
-): Promise<void> {
-  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
-  const request: { LocalDBGetKV: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: null; key: string; }; } = {
-    LocalDBGetKV: {
-      request_id: requestId, cid: 0n, peer_cid: null, key
-    }
-  };
-
-  return new Promise((resolve) => {
-    pendingKVRequests.set(requestId, {
-      resolve: async (data: unknown) => {
-        if (data && Array.isArray(data)) {
-          await onLoaded(data as T[]);
-        }
-        resolve(undefined);
-      },
-      reject: () => {
-        debugLog('PeerRegistrationStore', `Failed to load ${label} from LocalDB`);
-        resolve(undefined);
-      }
-    });
-    // See the persist path above: skipping this in a follower silently loaded
-    // nothing, so a reload of the tab holding a pending request lost it.
-    websocketService.sendMessage(request as unknown as Record<string, unknown>).catch(error => {
-      debugLog('PeerRegistrationStore', `Failed to send ${label} load request:`, error);
-      pendingKVRequests.delete(requestId);
-      resolve(undefined);
-    });
-    setTimeout(() => {
-      if (pendingKVRequests.has(requestId)) {
-        pendingKVRequests.delete(requestId);
-        debugLog('PeerRegistrationStore', `${label} load timed out`);
-        resolve(undefined);
-      }
-    }, REQUEST_TIMEOUT_MS);
-  });
-}
+import { localDBGet, localDBSet } from './local-db-client';
+import type { LoadOutcome } from './local-db-client';
+export { resetReadTracking } from './local-db-client';
+export type { LoadOutcome } from './local-db-client';
 
 // -- Public API --
 
@@ -136,16 +54,16 @@ export function persistPendingToLocalDB(
 export function loadPendingFromLocalDB(
   kv: Map<string, KVPendingEntry>,
   onLoaded: (requests: PendingPeerRequest[]) => Promise<void>
-): Promise<void> {
+): Promise<LoadOutcome> {
   return localDBGet<PendingPeerRequest>(
     pendingKey(), kv,
     async (data) => {
       await onLoaded(ownPending(data));
     },
     'pending',
-  ).then(() => {
-    if (!hasLegacyPending()) return;
-    return localDBGet<PendingPeerRequest>(
+  ).then(async (outcome) => {
+    if (!hasLegacyPending()) return outcome;
+    const legacy: LoadOutcome = await localDBGet<PendingPeerRequest>(
       STORAGE_KEY, kv,
       async (data) => {
         const mine: PendingPeerRequest[] = ownPending(data);
@@ -153,6 +71,10 @@ export function loadPendingFromLocalDB(
       },
       'pending (legacy)',
     );
+    // Either read failing means the in-memory list is incomplete, and it is
+    // completeness that licenses a whole-list write. The scoped read
+    // succeeding does not make up for the legacy one failing.
+    return outcome === 'failed' || legacy === 'failed' ? 'failed' : outcome;
   });
 }
 
@@ -166,7 +88,7 @@ export function persistOutgoingToLocalDB(
 export function loadOutgoingFromLocalDB(
   kv: Map<string, KVPendingEntry>,
   onLoaded: (requests: OutgoingPeerRequest[]) => Promise<void>
-): Promise<void> {
+): Promise<LoadOutcome> {
   const accept = async (data: OutgoingPeerRequest[]): Promise<void> => {
     const valid: OutgoingPeerRequest[] = data.filter(r => r.toCid && r.fromCid);
     const invalidCount: number = data.length - valid.length;
@@ -176,17 +98,20 @@ export function loadOutgoingFromLocalDB(
     await onLoaded(ownOutgoing(valid));
   };
 
-  return localDBGet<OutgoingPeerRequest>(outgoingKey(), kv, accept, 'outgoing').then(() => {
-    if (!hasLegacyOutgoing()) return;
-    return localDBGet<OutgoingPeerRequest>(
-      OUTGOING_STORAGE_KEY, kv,
-      async (data) => {
-        const mine: OutgoingPeerRequest[] = ownOutgoing(data.filter(r => r.toCid && r.fromCid));
-        if (mine.length > 0) await onLoaded(mine);
-      },
-      'outgoing (legacy)',
-    );
-  });
+  return localDBGet<OutgoingPeerRequest>(outgoingKey(), kv, accept, 'outgoing').then(
+    async (outcome) => {
+      if (!hasLegacyOutgoing()) return outcome;
+      const legacy: LoadOutcome = await localDBGet<OutgoingPeerRequest>(
+        OUTGOING_STORAGE_KEY, kv,
+        async (data) => {
+          const mine: OutgoingPeerRequest[] = ownOutgoing(data.filter(r => r.toCid && r.fromCid));
+          if (mine.length > 0) await onLoaded(mine);
+        },
+        'outgoing (legacy)',
+      );
+      return outcome === 'failed' || legacy === 'failed' ? 'failed' : outcome;
+    },
+  );
 }
 
 /** Resolve a LocalDB get KV response */

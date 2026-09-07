@@ -11,6 +11,7 @@ import { instanceManager } from '@/lib/multi-instance';
 import type { StoredSession, ActiveSession, StoredSessions } from '@/types/session-types';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import type { ActiveSessionsResult } from '@/lib/connection/queries';
 import { BASE_DELAY, MAX_DELAY , type ConnectionAttempt } from './types';
 
 /**
@@ -36,13 +37,26 @@ export async function reconnectToDisconnectedSessions(
   const storedSessions: StoredSessions = connectionManager.getStoredSessions();
   if (!storedSessions.sessions || storedSessions.sessions.length === 0) return;
 
-  let activeSessions: ActiveSession[] = [];
-  try {
-    connectionManager.invalidateSessionCache();
-    activeSessions = await connectionManager.getActiveSessions();
-  } catch (error) {
-    debugLog('ServerAutoConnectService', 'Failed to get active sessions:', error);
+  // The STRICT query. `getActiveSessions()` returns `[]` when the request
+  // fails, and its own contract says so: "failure does NOT mean there are no
+  // sessions". Here that empty list means every stored session looks inactive,
+  // so ONE GetSessions timeout schedules a reconnect for all of them -- each
+  // answered `SessionAlreadyActive` by the agent, which nothing clears, after
+  // which `reconnectAttempts.has(...)` skips them for ever.
+  //
+  // Four other call sites already adopted the strict variant; this one, where
+  // the empty list is acted on destructively, did not.
+  connectionManager.invalidateSessionCache();
+  const result: ActiveSessionsResult = await connectionManager.getActiveSessionsResult();
+  if (!result.ok) {
+    debugLog(
+      'ServerAutoConnectService',
+      'Could not read the active sessions; scheduling nothing this pass rather ' +
+        'than treating the failure as "nothing is connected"',
+    );
+    return;
   }
+  const activeSessions: ActiveSession[] = result.sessions;
 
   const activeKeys: Set<string> = new Set<string>();
   debugLog('ServerAutoConnectService', `Active sessions count: ${activeSessions.length}`);

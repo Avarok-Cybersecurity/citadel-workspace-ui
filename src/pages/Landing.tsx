@@ -7,7 +7,6 @@ import { useState, useEffect, useCallback } from "react";
 import type { SecuritySettingsValues } from "@/components/SecuritySettings";
 import { DEFAULT_SECURITY_SETTINGS } from "@/components/security-settings-defaults";
 import { postAuthSetup } from '@/lib/post-auth-setup';
-import { listKnownServers } from "@/lib/server-utils";
 import { ManageAccountsButton } from "@/components/ManageAccountsButton";
 import { ConnectionManager } from "@/lib/connection";
 import { OrphanSessionsNavbar } from "@/components/OrphanSessionsNavbar";
@@ -23,6 +22,8 @@ import type { NavigateFunction } from 'react-router';
 import type { ActiveSession } from '@/types/session-types';
 import { OnboardingIntent } from '@/components/onboarding/OnboardingIntent';
 import { useOnboardingIntent } from '@/hooks/useOnboardingIntent';
+import { useAgentGatedStep } from '@/hooks/use-agent-gate';
+import type { OnboardingIntentState } from '@/hooks/useOnboardingIntent';
 
 export const Landing: () => JSX.Element = (): JSX.Element => {
   const navigate: NavigateFunction = useNavigate();
@@ -87,28 +88,19 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
     }
   }, [searchParams, setSearchParams]);
 
-  // Memoize the checkForServers function to prevent it from being recreated on each render
-  const checkForServers: () => Promise<void> = useCallback(async (): Promise<void> => {
-    try {
-      // Using "0" as a valid u64 string representation for the landing page
-      await listKnownServers({ cid: "0" });
-    } catch (error: unknown) {
-      // Silently ignore initialization errors on the landing page
-      // The WebSocket service will be initialized when needed
-      const errorMessage: string = error instanceof Error ? error.message : String(error);
-      if (errorMessage?.includes('WASM client not initialized')) {
-        debugLog('Landing', 'WebSocket not yet initialized, skipping known servers check');
-      } else {
-        debugLog('Landing', 'Error checking for known servers:', error);
-        debugLog('Landing', 'Error details:', errorMessage);
-      }
-    }
-  }, []);
-
-  // Run the effect only once when the component mounts
-  useEffect(() => {
-    runAsyncSetup(checkForServers);
-  }, [checkForServers]);
+  // The landing page used to call `listKnownServers({ cid: "0" })` here on
+  // mount and DISCARD the result. `checkForServers` checked nothing: nothing
+  // read what it returned, and nothing rendered from it.
+  //
+  // It was not free. That request is `LocalDBGetAllKV`, which has no
+  // key-listing form -- it returns every key's VALUE in bucket 0, shared across
+  // every account on the device: every message page, every document snapshot,
+  // the session list. On a few accounts with some history that is megabytes,
+  // materialised at the WASM boundary as one boxed JS array element per byte,
+  // on first paint, before the user has done anything.
+  //
+  // `Connect.tsx` is where the known-server list is actually read, and it asks
+  // for it there.
 
   const handleServerNext = (address: string, password: string): void => {
     setServerAddress(address);
@@ -135,7 +127,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
     }
   };
   const handleJoinBack = (): void => setCurrentStep('security');
-  const beginWizard = useCallback((): void => {
+  const beginWizard: () => void = useCallback((): void => {
     clearProfileDraft();
     // Allow joining new workspaces regardless of existing sessions (Slack-like multi-workspace)
     setCurrentStep('server');
@@ -143,12 +135,11 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
 
   // Production only: ask which job the user is here to do before the wizard,
   // so the master password is named before it is needed rather than after.
-  const intent = useOnboardingIntent(beginWizard);
-  const startRegistration = intent.request;
-  const startLogin = (): void => {
-    // Allow login flow - username-specific conflict check happens in Login.tsx
-    setCurrentStep('login');
-  };
+  const intent: OnboardingIntentState = useOnboardingIntent(beginWizard);
+  const startRegistration: () => void = intent.request;
+
+  // Both buttons on this screen need the agent; see use-agent-gate.ts.
+  const startLogin: () => void = useAgentGatedStep(setCurrentStep, 'login', 'none');
   const handleLoginNext = async (cid: string): Promise<void> => {
     debugLog('Landing', `[Landing] handleLoginNext called with cid: ${cid}`);
     try {

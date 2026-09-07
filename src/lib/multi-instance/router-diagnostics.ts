@@ -6,7 +6,7 @@
  * being visible — and that question is not part of the routing rules.
  */
 
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, debugEnabled } from '@/lib/debug-config';
 import { describeForwarded } from '@/lib/p2p/message-fingerprint';
 import { holdUntilP2PHandlerAttached } from '@/lib/p2p/p2p-handler-ready';
 
@@ -23,6 +23,14 @@ import { holdUntilP2PHandlerAttached } from '@/lib/p2p/p2p-handler-ready';
  * fingerprinted so it joins to the sending tab's `forward ->` line.
  */
 export function logEmit(listeners: number, message: unknown): void {
+  // Guarded as one block. `describeForwarded` copies the payload into a
+  // Uint8Array and hashes it with three BigInt operations per byte, and this
+  // runs for EVERY message processed locally -- the leader's own, every
+  // broadcast, and every forward -- in every tab. At the 16 MiB inline
+  // transfer cap that is close to a second of main-thread time per tab, for a
+  // logger production compiles away.
+  if (!debugEnabled) return;
+
   if (listeners === 0) {
     debugLog(
       'InstanceInboundRouter',

@@ -64,3 +64,61 @@ export function agentPlatformCandidates(nav: Navigator = navigator): AgentPlatfo
 export function agentDownloadUrl(platform: AgentPlatform): string {
   return `https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest/download/${AGENT_ASSETS[platform]}`;
 }
+
+/** What the hosted page knows that the command needs. */
+export interface RunCommandInputs {
+  platform: AgentPlatform;
+  /** The page's own origin: the one page this agent should let drive it. */
+  pageOrigin: string;
+  /** The published loopback origin (`wss://local.example.com:12345`), or none. */
+  loopbackOrigin: string | undefined;
+}
+
+/**
+ * The exact command to start the agent for THIS page.
+ *
+ * Two things a visitor could not have guessed: the binary in the archive is `citadel-agent`
+ * (the release workflow names it so; a test here checks that against the workflow), and the
+ * agent refuses to start without `--allowed-origins`. Both are derivable from the page, so
+ * the page says them. A copy button that yields something unrunnable is worse than none: it
+ * looks like the instruction, so the reader stops looking for the real one -- which is what
+ * this function did for every hosted visitor until the two invented `--loopback-*` flags
+ * below were removed.
+ *
+ * Every flag emitted here is checked against the agent's own CLI by
+ * scripts/check-the-run-command-uses-real-flags.mjs.
+ */
+export function agentRunCommand({ platform, pageOrigin, loopbackOrigin }: RunCommandInputs): string {
+  const binary: string = platform === 'windows-x64' ? '.\\citadel-agent.exe' : './citadel-agent';
+  const parts: string[] = [
+    binary,
+    '--bind 127.0.0.1:12345',
+    '--backend filesystem',
+    `--allowed-origins ${pageOrigin}`,
+  ];
+  // NO loopback flags. This used to append `--loopback-host` and
+  // `--loopback-cert-url`, and the agent has never had either:
+  //
+  //   error: Found argument '--loopback-host' which wasn't expected
+  //
+  // Its whole CLI is --bind, --backend, --data-dir, --allowed-origins,
+  // --tls-cert, --tls-key, --no-tls and --dangerous. Worse, the two were
+  // appended only when `loopbackOrigin` is set -- which is exactly the hosted
+  // deployment, and nowhere else. So the one place this command matters, every
+  // visitor was handed something the agent refuses to start with, and the
+  // comment above this function names that failure precisely: a copy button
+  // that yields something unrunnable is worse than none, because it looks like
+  // the instruction and the reader stops looking for the real one.
+  //
+  // Nothing is needed in their place. The agent serves TLS by default and
+  // carries the certificate for the published loopback name compiled into it
+  // (see BUILTIN_TLS_CERT), so a visitor configures nothing. An operator
+  // publishing a DIFFERENT loopback name supplies --tls-cert/--tls-key when
+  // they start their own agent; that is an operator's decision and not
+  // something this page can know or should guess.
+  //
+  // `loopbackOrigin` is still taken, and still meaningful: it is what tells the
+  // page it is hosted rather than local. It simply does not change the command.
+  void loopbackOrigin;
+  return parts.join(' ');
+}

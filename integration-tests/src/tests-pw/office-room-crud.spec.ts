@@ -21,7 +21,7 @@ import {
     adminCredentials,
     loginAfterDisconnect,
     navigateToOfficeViaUI,
-    sleep, isHeaded,} from '../lib/index.js';
+    isHeaded,} from '../lib/index.js';
 import { config, isCI } from '../lib/config.js';
 
 /* ── Shared state ── */
@@ -118,12 +118,20 @@ test.describe.serial('Office & Room CRUD', () => {
     });
 
     test('Navigate to the office', async () => {
-        await navigateToOfficeViaUI(page, OFFICE_NAME);
-        await sleep(1000);
+        // The helper's answer, and then the office itself.
+        //
+        // This discarded the boolean and asserted `url.includes('/workspace')`,
+        // which was ALREADY TRUE before the click: login waits for `/workspace`,
+        // and the office view lives under that same route. Deleting the sidebar
+        // node's onClick left this green.
+        const navigated = await navigateToOfficeViaUI(page, OFFICE_NAME);
+        expect(navigated, `navigateToOfficeViaUI could not reach ${OFFICE_NAME}`).toBe(true);
 
-        // Verify we're viewing the office content area
-        const url = page.url();
-        expect(url).toContain('/workspace');
+        // What actually distinguishes "the office is open" from "we are still
+        // wherever login left us": its name on the page.
+        await expect(page.getByText(OFFICE_NAME, { exact: false }).first()).toBeVisible({
+            timeout: 30_000,
+        });
     });
 
     test('Create a room inside the office', async () => {
@@ -131,7 +139,12 @@ test.describe.serial('Office & Room CRUD', () => {
         // helper falls back to the FIRST node in the sidebar — the workspace root —
         // and creates the room there instead of inside the office under test.
         const created = await createRoomViaUI(page, ROOM_NAME, '', OFFICE_NAME);
-        expect(created).toBeTruthy();
+        // `.success`, not the object. `createRoomViaUI` returns
+        // `{ success, name }`, and an object is always truthy -- so
+        // `expect(created).toBeTruthy()` held even when the helper reported
+        // failure. The comment twelve lines up documents this exact trap for the
+        // sibling call; it had not been applied here.
+        expect(created.success, `createRoomViaUI failed for ${ROOM_NAME}`).toBe(true);
 
         const exists = await nodeExistsInUI(page, ROOM_NAME);
         expect(exists).toBe(true);

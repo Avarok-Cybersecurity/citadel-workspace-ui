@@ -17,7 +17,7 @@ import { routeRevfsOperation } from './revfs-layer-routing';
 import { eventEmitter } from '../event-emitter';
 import { applyEdit, applyDelete } from './message-revision';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, debugEnabled } from '@/lib/debug-config';
 import { deliverToConversation, shouldAck } from './inbound-message-delivery';
 import type { P2PMessage, PeerPresence } from './p2p-types';
 import type { MessageHandlerConfig } from './message-handler-types';
@@ -185,12 +185,14 @@ async function handleIncomingMessage(
 
   // Logs the CONTENT, which the other lines do not, so a failing run says which
   // message was dropped and whether the store accepted it.
-  debugLog(
-    'P2PMessageHandler',
-    `[LOSS-DIAG] id=${message.id} added=${wasAdded} index=${message.index} text=${JSON.stringify(
-      String(message.content ?? '').slice(0, 60),
-    )}`,
-  );
+  if (debugEnabled) {
+    debugLog(
+      'P2PMessageHandler',
+      `[LOSS-DIAG] id=${message.id} added=${wasAdded} index=${message.index} text=${JSON.stringify(
+        String(message.content ?? '').slice(0, 60),
+      )}`,
+    );
+  }
 
   if (wasAdded) {
     if (shouldAck(outcome)) {

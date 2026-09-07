@@ -46,7 +46,21 @@ export interface DomainMembers {
 
 export function useDomainMembers(activeDomainId: string | null): DomainMembers {
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
-  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  // TRUE when there is a domain to load, from the very first render.
+  //
+  // `false` meant that on the first render -- before the effect below has run --
+  // `isLoadingMembers` was false and `members` was empty, which is exactly the
+  // condition `MembersSection` renders "Nobody else is here yet" for. React runs
+  // effects after paint, so that sentence was on screen for at least one frame
+  // every time the sidebar mounted or the domain changed, and longer whenever
+  // the effect was deferred. `member-list-loading.spec.ts` catches it across
+  // three retries: "the sidebar said 'No members yet' while the member list was
+  // still loading".
+  //
+  // Not-yet-loaded is not empty. The effect's own `!activeDomainId` branch
+  // already sets this false, so starting from the prop agrees with it rather
+  // than racing it.
+  const [isLoadingMembers, setIsLoadingMembers] = useState<boolean>(() => activeDomainId !== null);
   const [membersUnavailable, setMembersUnavailable] = useState(false);
 
   useEffect(() => {
@@ -77,8 +91,13 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
   useEffect(() => {
     const handleMembersLoaded = (payload: MembersPayload): void => {
       // See is-for-domain: a list fetched for another domain used to replace
-      // this one, and this hook's members are the corpus the user search
-      // searches.
+      // this one.
+      //
+      // NOT the user-search corpus, though this comment said so for a while.
+      // `UserSearch.tsx:99` reads the global `state.members`, written by
+      // `useMemberEventSetup` -- which is where that guard was missing, because
+      // this comment claimed the role and the guard went where it pointed.
+      // This hook backs the sidebar's per-domain member list.
       if (!isForDomain(payload.domainId, activeDomainId ?? undefined)) return;
       if (payload.members) setMembers(payload.members);
       // The response is what ends the load.

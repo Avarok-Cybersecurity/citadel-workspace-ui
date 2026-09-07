@@ -93,7 +93,22 @@ class InstanceInboundRouter {
         // picked up (instance map now has the entry). The recursion
         // is safe: the cid is now known, so we won't re-enter the
         // orphan branch.
-        routeByCid(this.cidRouteDeps(), entry.message, entry.messageType);
+        //
+        // Its boolean IS that claim, tested. `false` means no instance owned
+        // the cid after all -- the message is not lost (routeByCid hands it to
+        // the leader), but a CID-routed notification processed by the leader
+        // instead of the session it names is the wrong session, which is the
+        // failure CID_ROUTED_NOTIFICATIONS exists to prevent. This drain is the
+        // message's last chance to reach its owner: the fallback timer has
+        // already been cleared and the entry is out of the buffer, so if
+        // nothing says so here, nothing ever does.
+        if (!routeByCid(this.cidRouteDeps(), entry.message, entry.messageType)) {
+          console.warn(
+            `[ILM-Router] Drained ${entry.messageType} for CID ${data.cid?.toString() ?? 'unknown'} ` +
+              'after its owner registered, but no instance claimed it; the leader processed it ' +
+              'instead of the addressed session.',
+          );
+        }
       });
     });
   }

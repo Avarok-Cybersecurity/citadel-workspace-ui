@@ -4,6 +4,7 @@ import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
+import { applyPeerRegisterFailure } from './peer-register-failure';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { peerRegistrationStore, OutgoingPeerRequest, PendingPeerRequest } from '@/lib/peer-registration-store';
 import { getSelectedUser , type TabUserContext } from '@/lib/tab-context';
@@ -27,8 +28,7 @@ export interface Peer {
 export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; registeredPeers: Set<string>; outgoingRequests: Set<string>; incomingRequests: Map<string, PendingPeerRequest>; loading: boolean; acceptingPeerCid: string | null; currentCid: bigint | null; currentUsername: string; discoverPeers: (announce?: boolean) => Promise<void>; acceptIncomingRequest: (request: PendingPeerRequest) => Promise<void>; registerWithPeer: (peerCid: string, peerUsername: string) => Promise<void>; } {
   /** `null` until discovery succeeds — see PeerDiscoveryModal's empty states. */
   const [peers, setPeers] = useState<Peer[] | null>(null);
-  // requestId -> peer name, so a PeerRegisterFailure — which carries a
-  // request_id but no peer_cid — can say who it was for.
+  // requestId -> peer name; see peer-register-failure.ts.
   const sentRequests: MutableRefObject<Map<string, string>> = useRef(new Map<string, string>());
   const [registeredPeers, setRegisteredPeers] = useState<Set<string>>(new Set());
   const [outgoingRequests, setOutgoingRequests] = useState<Set<string>>(new Set());
@@ -82,23 +82,23 @@ export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; regis
     const handleRegistrationSuccess = (raw: unknown): void => {
       const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
       if (!message) return;
-      // A refusal used to reach only `debugLog`, compiled out in production, so
-      // the user was told "Request Sent" and then nothing. Correlated by
-      // request_id: the failure carries no peer_cid.
+      // See peer-register-failure.ts. Correlated by request_id: no peer_cid.
       if (hasVariant(message, 'PeerRegisterFailure')) {
         const failure: Record<string, unknown> = getVariant(message, 'PeerRegisterFailure')!;
         const requestId: string | undefined = failure.request_id as string | undefined;
         const peerName: string | undefined = requestId ? sentRequests.current.get(requestId) : undefined;
         if (requestId && peerName) {
           sentRequests.current.delete(requestId);
-          const reason: string | undefined = typeof failure.message === 'string' ? failure.message : undefined;
-          toastError(
-            toast,
-            'Request Failed',
-            reason
-              ? `Your request to ${peerName} was not accepted: ${reason}`
-              : `Your request to ${peerName} could not be delivered.`,
-          );
+          applyPeerRegisterFailure(failure, {
+            markRegistered: (cid: string): void =>
+              setRegisteredPeers(prev => new Set([...prev, cid])),
+            reportRefusal: (reason: string | undefined): void => toastError(
+              toast, 'Request Failed',
+              reason
+                ? `Your request to ${peerName} was not accepted: ${reason}`
+                : `Your request to ${peerName} could not be delivered.`,
+            ),
+          });
         }
       }
       if (hasVariant(message, 'PeerRegisterSuccess')) {

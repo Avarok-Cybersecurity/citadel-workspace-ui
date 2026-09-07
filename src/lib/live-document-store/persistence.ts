@@ -39,12 +39,24 @@ export async function loadDocumentFromDB(docId: string): Promise<StoredDocument 
   } catch (error) {
     if (isGenuinelyAbsent(error)) {
       debugLog('LiveDocumentStore', 'No stored document', docId);
-    } else {
-      // `null` is read upstream as "this document does not exist", which is a
-      // fine answer for an absent key and a wrong one for a read that failed.
-      debugLog('LiveDocumentStore', 'COULD NOT READ document; reporting it as ' +
-        'missing, which it may not be:', docId, error);
+      return null;
     }
+    // Rethrown, not reported as absence.
+    //
+    // `null` is read upstream as "this document does not exist", which is a
+    // fine answer for an absent key and a wrong one for a read that failed --
+    // and the previous comment here said exactly that while returning null
+    // anyway. `adoptDocument` acts on the difference: it treats null as "not
+    // stored yet" and writes a FRESH EMPTY document over the key, so one timed
+    // out LocalDB read on reopening a document replaced its content and its
+    // whole revision chain. With a peer online the CRDT refills the text and
+    // the history is still gone; alone or offline, the document is blank.
+    //
+    // `deleteDocumentFromDB` below already draws this distinction, in the same
+    // file, for the same store: "A key already absent is a deletion already
+    // done ... Real failures must surface." The fix existed twenty lines away
+    // and had not been applied here.
+    throw error;
   }
 
   return null;
@@ -65,7 +77,22 @@ export async function saveDocumentToDB(docId: string, doc: StoredDocument): Prom
  * Load the document index (list of document IDs) from LocalDB.
  */
 export async function loadIndexFromDB(): Promise<string[]> {
-  const response: { value: number[]; } | null = await websocketService.sendLocalDBGet(0n, DOCUMENTS_INDEX_KEY);
+  let response: { value: number[] } | null;
+  try {
+    response = await websocketService.sendLocalDBGet(0n, DOCUMENTS_INDEX_KEY);
+  } catch (error) {
+    // `loadDocumentFromDB` and `deleteDocumentFromDB` both draw this
+    // distinction already, in this same file, for this same store. This
+    // function did not -- and it is the one whose result decides what the
+    // index gets OVERWRITTEN with, so it is the one where confusing "there is
+    // no index" with "I could not read the index" costs every document.
+    //
+    // An empty return here means the caller's cache stays empty, and the next
+    // createDocument writes an index of exactly one id over the real one.
+    if (isGenuinelyAbsent(error)) return [];
+    throw error;
+  }
+
   if (response?.value) {
     const indexData: string = decodeValue(response.value);
     return JSON.parse(indexData) as string[];

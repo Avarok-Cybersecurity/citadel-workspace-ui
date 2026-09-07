@@ -19,6 +19,13 @@ export interface UseP2PMessagesReturn {
   isConnected: boolean;
   isRegistered: boolean;
   isLoadingMore: boolean;
+  /**
+   * True until this conversation's stored history has been read.
+   *
+   * Distinct from `isLoadingMore`, which is pagination: without it the empty state rendered
+   * from the moment a conversation opened, so "No messages yet" printed over real history.
+   */
+  isLoadingHistory: boolean;
   hasMorePages: boolean;
   handleScroll: (event: React.UIEvent<HTMLDivElement>) => void;
   handleRetryMessage: (message: P2PMessage) => Promise<void>;

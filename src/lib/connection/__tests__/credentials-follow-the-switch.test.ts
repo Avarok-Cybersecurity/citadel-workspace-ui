@@ -28,7 +28,11 @@ function capture(): { stored: StoredSession[]; state: { addOrUpdateSession: (ses
     updateCurrentConnectionInfo: vi.fn(),
     invalidateCache: vi.fn(),
   };
-  const io: { storeSessionsToLocalDB: ReturnType<typeof vi.fn>; setSelectedUser: ReturnType<typeof vi.fn>; setWorkspaceConnectionId: ReturnType<typeof vi.fn>; updateConnectionService: ReturnType<typeof vi.fn>; saveRecentServer: ReturnType<typeof vi.fn> } = {
+  const io: { storeSessionsToLocalDB: ReturnType<typeof vi.fn>; loadSessionsFromLocalDB: ReturnType<typeof vi.fn>; setSelectedUser: ReturnType<typeof vi.fn>; setWorkspaceConnectionId: ReturnType<typeof vi.fn>; updateConnectionService: ReturnType<typeof vi.fn>; saveRecentServer: ReturnType<typeof vi.fn> } = {
+    // The write is now a read-modify-write on the shared key, so the double has
+    // to answer the read. `null` is "nothing stored yet", which is what these
+    // cases assume.
+    loadSessionsFromLocalDB: vi.fn(async (): Promise<null> => null),
     storeSessionsToLocalDB: vi.fn().mockResolvedValue(undefined),
     setSelectedUser: vi.fn().mockResolvedValue(undefined),
     setWorkspaceConnectionId: vi.fn(),

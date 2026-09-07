@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { isMemberOnline } from '@/lib/presence';
-import { matchesSearch } from '@/lib/fold-for-search';
+import { searchMatcher } from '@/lib/fold-for-search';
 import { debugLog } from '@/lib/debug-config';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -97,14 +97,17 @@ export const UserSearch: React.FC<UserSearchProps> = ({
 
       try {
         const members: User[] = Object.values(state.members || {});
+        // Folded ONCE. `matchesSearch` folds both arguments per call, and this
+        // runs over every member on every keystroke -- two normalisations of the
+        // same query per member. `exclude` becomes a Set for the same reason:
+        // `Array.includes` is a scan per member.
+        const matches: (haystack: string) => boolean = searchMatcher(searchTerm);
+        const excluded: Set<string> = new Set(exclude);
 
         const filteredMembers: { id: string; displayName: string; avatarUrl: string | undefined; email: string | undefined; role: UserRole | undefined; isOnline: boolean | null; lastActive: undefined; }[] = members
           .filter(member =>
-            !exclude.includes(member.id) &&
-            (
-              matchesSearch(member.displayName, searchTerm) ||
-              (member.email ? matchesSearch(member.email, searchTerm) : false)
-            )
+            !excluded.has(member.id) &&
+            (matches(member.displayName) || (member.email ? matches(member.email) : false))
           )
           .map(member => ({
             id: member.id,

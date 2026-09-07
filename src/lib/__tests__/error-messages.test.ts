@@ -1,6 +1,81 @@
 import { describe, it, expect } from 'vitest';
 import { getUserFriendlyErrorMessage, getErrorTitle } from '../error-messages';
 
+describe('a mistyped server address is explained, not dumped', () => {
+  /**
+   * The agent resolves the server address and answers a failure with one of two
+   * strings (register.rs). Measured against the live deployment, a name that
+   * does not resolve reached the screen as:
+   *
+   *   Something went wrong: could not resolve no-such-host.avarok.net:12400:
+   *   failed to lookup address information: nodename nor servname provided, or
+   *   not known
+   *
+   * ...on a visitor's first attempt to join. Its two neighbours -- a host with
+   * nothing listening, and a missing port -- already produced a sentence a
+   * person can act on, which is what made this one stand out.
+   */
+  for (const raw of [
+    'could not resolve no-such-host.example.com:12400: failed to lookup address information: nodename nor servname provided, or not known',
+    'no-such-host.example.com:12400 resolved to no addresses',
+  ]) {
+    it(`explains ${raw.slice(0, 28)}...`, () => {
+      const msg: string = getUserFriendlyErrorMessage(raw);
+      expect(msg).toMatch(/typo/i);
+      expect(msg).toMatch(/citadel\.example\.com:12400/);
+      // The raw system text must not survive into it.
+      expect(msg).not.toMatch(/lookup address information|nodename|Something went wrong/i);
+    });
+  }
+
+  it('leaves a reachable-but-dead host on its own message', () => {
+    // The neighbouring case must keep its own wording; this branch is about
+    // an address that does not resolve, not one that refuses.
+    const msg: string = getUserFriendlyErrorMessage('Connection refused');
+    expect(msg).toMatch(/ensure the server is running/i);
+  });
+});
+
+describe('a missing LOCAL account is not reported as a missing server account', () => {
+  /**
+   * `ConnectFailure { message: "Client does not exist" }` is what the SDK's own
+   * account manager answers when this machine holds no account by that name. It
+   * is decided before the server is consulted, and it says nothing whatever
+   * about the server.
+   *
+   * Measured against the live deployment: a real, registered account signed in
+   * from a fresh agent `--data-dir` -- a new machine, or a reinstall -- got
+   * exactly that, and the UI told the user "No account found with that username
+   * on this server. Please check your username or register a new account."
+   *
+   * Both halves of that are wrong in the way that matters. The account is
+   * intact on the server, and registering again is not a retry: it mints a NEW
+   * CID while every peer's registration still points at the old one. The user
+   * would follow the instruction and quietly split their identity in two.
+   */
+  it('names the machine, not the server', () => {
+    const msg: string = getUserFriendlyErrorMessage('Client does not exist');
+    expect(msg).toMatch(/machine/i);
+    expect(msg).toMatch(/data.directory|--data-dir/i);
+    // The claim that must not be made.
+    expect(msg).not.toMatch(/on this server/i);
+  });
+
+  it('does not tell them to register, which would split their identity', () => {
+    const msg: string = getUserFriendlyErrorMessage('Client does not exist');
+    expect(msg).not.toMatch(/register a new account/i);
+    // ...while still saying what registering again would COST, so the option is
+    // informed rather than hidden.
+    expect(msg).toMatch(/separate account/i);
+  });
+
+  it('still reports a genuinely unknown username the old way', () => {
+    // The generic branch must survive: this one is about a different failure.
+    const msg: string = getUserFriendlyErrorMessage('User is not registered');
+    expect(msg).toMatch(/on this server/i);
+  });
+});
+
 describe('getUserFriendlyErrorMessage', () => {
   it('handles WebSocket connection failures', () => {
     const msg: string = getUserFriendlyErrorMessage('WebSocket connection failed');

@@ -121,18 +121,6 @@ export function handleConnectionStatus(message: BroadcastMessage): void {
   eventEmitter.emit('broadcast-connection-status', message.data);
 }
 
-/**
- * Handle P2P raw messages for Yjs sync forwarding to non-leader tabs.
- */
-export function handleP2PRawMessage(
-  message: BroadcastMessage,
-  isLeader: boolean
-): void {
-  if (!isLeader && message.data) {
-    debugLog('BroadcastChannelService', 'Forwarding P2P raw message to event system');
-    eventEmitter.emit('p2p:raw-message', message.data);
-  }
-}
 
 /**
  * Handle P2P notification messages for chat processing on follower tabs.

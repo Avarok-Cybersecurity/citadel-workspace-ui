@@ -1,5 +1,6 @@
 // Workspace events for WebSocket integration
 import { User } from '../types/workspace-entities';
+import { notifyEach } from '@/lib/notify-listeners';
 import type { WorkspaceMetadataTS } from '../types/workspace-protocol';
 import type { DomainNode, TreeNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
 import { eventEmitter } from './event-emitter';
@@ -208,9 +209,7 @@ export class WorkspaceEvents {
    */
   public cleanupAllListeners(): void {
     for (const [, listeners] of this.listeners.entries()) {
-      for (const unlisten of listeners) {
-        unlisten();
-      }
+      notifyEach(listeners, 'workspace-events cleanup');
     }
     this.listeners.clear();
   }

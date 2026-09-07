@@ -14,33 +14,103 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import fg from 'fast-glob';
 import { stripComments } from '@/test-utils/strip-comments';
 
 /**
- * Request types whose success variant the server broadcasts. Kept here rather
- * than derived, because the fact lives in the Rust command processor and a
- * derived list would silently shrink if the grep stopped matching.
+ * Request types known to have a broadcast answer. A FLOOR, not the list.
+ *
+ * This was the whole list, hand-maintained, and its own comment said so: "making
+ * a variant a broadcast on the Rust side does not add it here". That is exactly
+ * what happened. `UpdateWorkspace`, `UpdateWorkspaceTheme` and `CreateWorkspace`
+ * all answer `Workspace`, which the server broadcasts to the other members AND
+ * which `GetWorkspace` answers — so a concurrent read in the same tab, or a
+ * colleague's theme save, resolved a pending rename. None was in this set, so
+ * this test was green over all three.
+ *
+ * It is now DERIVED from the Rust command processor, with these kept as a floor
+ * that may only grow — the same shape as `wire-maps-are-not-objects`, and the
+ * answer to the original comment's worry: a derivation that silently shrinks is
+ * caught by the floor rather than trusted.
  */
-const BROADCAST_WRITES: Set<string> = new Set([
+const KNOWN_BROADCAST_WRITES: Set<string> = new Set([
   'CreateNode',
   'UpdateNode',
   'DeleteNode',
   'MoveNode',
-  // Added when demotions were made to reach the demoted user's client. Note
-  // that this list is hand-maintained: making a variant a broadcast on the Rust
-  // side does not add it here, so the guard protects what it is told about and
-  // nothing else. Adding a `kernel.broadcast` without adding a line here is the
-  // way back to the round-117 defect.
   'UpdateMemberRole',
+  'CreateWorkspace',
+  'UpdateWorkspace',
+  'UpdateWorkspaceTheme',
 ]);
+
+/** Where the Rust command processor is, from wherever the tests run. */
+const RUST_CANDIDATES: readonly string[] = [
+  join('..', 'citadel-workspace-server-kernel', 'src', 'kernel', 'command_processor', 'async_process_command.rs'),
+  join('..', '..', 'citadel-workspace-server-kernel', 'src', 'kernel', 'command_processor', 'async_process_command.rs'),
+];
+
+/** Response variants the server hands to `broadcast*`. */
+function broadcastVariants(): Set<string> | null {
+  for (const candidate of RUST_CANDIDATES) {
+    const full: string = join(process.cwd(), candidate);
+    if (!existsSync(full)) continue;
+    const rust: string = readFileSync(full, 'utf-8');
+    const found: Set<string> = new Set<string>();
+    for (const m of rust.matchAll(
+      /broadcast(?:_to_\w+)?\s*\(\s*(?:\n\s*)?WorkspaceProtocolResponse::(\w+)/g,
+    )) {
+      found.add(m[1]);
+    }
+    return found;
+  }
+  return null;
+}
+
+/** Request types whose expected answer includes a broadcast variant. */
+function derivedBroadcastWrites(gate: string, variants: Set<string>): Set<string> {
+  const writes: Set<string> = new Set<string>();
+  for (const m of gate.matchAll(/^\s*(\w+):\s*\[([^\]]*)\]/gm)) {
+    const [, requestType, listed] = m;
+    for (const v of listed.matchAll(/'(\w+)'/g)) {
+      if (variants.has(v[1])) writes.add(requestType);
+    }
+  }
+  return writes;
+}
 
 const DIR: string = join(process.cwd(), 'src/lib/workspace-service');
 
 describe('writes whose answer is also broadcast', () => {
   it('all narrow on the payload', async () => {
+    const gate: string = readFileSync(join(DIR, 'await-write-response.ts'), 'utf-8');
+    const variants: Set<string> | null = broadcastVariants();
+    const derived: Set<string> = variants === null
+      ? new Set<string>()
+      : derivedBroadcastWrites(gate, variants);
+
+    // The derivation SUPPLEMENTS the floor; it does not replace it.
+    //
+    // It cannot replace it: `DeleteNode` and `MoveNode` are broadcast as
+    // `kernel.broadcast(response.clone(), ..)`, through a variable rather than a
+    // literal variant, so no reasonable regex sees them. Asserting the floor was
+    // a subset of the derivation failed on exactly those two — which is the
+    // derivation being honest about its reach, not the code being wrong.
+    //
+    // What IS asserted is that the derivation found something. A grep that
+    // matches nothing would otherwise leave this silently back on the
+    // hand-maintained list the whole change was about.
+    if (variants !== null) {
+      expect(
+        variants.size,
+        'no broadcast variant was found in the Rust command processor — the call shape moved, ' +
+          'so this test is back to a hand-maintained list without saying so',
+      ).toBeGreaterThan(0);
+    }
+
+    const broadcastWrites: Set<string> = new Set([...KNOWN_BROADCAST_WRITES, ...derived]);
     const files: string[] = await fg(['**/*.ts'], { cwd: DIR, ignore: ['__tests__/**'] });
 
     const offenders: string[] = [];
@@ -48,7 +118,7 @@ describe('writes whose answer is also broadcast', () => {
       const source: string = stripComments(readFileSync(join(DIR, rel), 'utf-8'));
       for (const match of source.matchAll(/awaitWriteResponse\(\s*'(\w+)'([\s\S]*?)\)\s*;/g)) {
         const [, requestType, rest] = match;
-        if (!BROADCAST_WRITES.has(requestType)) continue;
+        if (!broadcastWrites.has(requestType)) continue;
         // Two commas after the type means a third argument was passed.
         if ((rest.match(/,/g) ?? []).length < 2) {
           offenders.push(`${rel}: awaitWriteResponse('${requestType}', …) has no matcher`);
@@ -66,7 +136,7 @@ describe('writes whose answer is also broadcast', () => {
 
   it('names request types that actually exist', async () => {
     const gate: string = readFileSync(join(DIR, 'await-write-response.ts'), 'utf-8');
-    for (const requestType of BROADCAST_WRITES) {
+    for (const requestType of KNOWN_BROADCAST_WRITES) {
       expect(gate, `${requestType} is not a mapped write`).toContain(`${requestType}:`);
     }
   });

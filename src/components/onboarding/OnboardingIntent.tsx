@@ -24,6 +24,13 @@ import type { JSX } from 'react';
  * This does NOT branch the registration flow: both paths run the same three
  * steps. It sets expectations, and tells an administrator to have the master
  * password to hand BEFORE they need it rather than after.
+ *
+ * The answer is not merely informational, though. Answering "joining" suppresses
+ * the initialization prompt for this tab — the same suppression dismissing that
+ * prompt already performs — so the promise made below, that a member "should not
+ * be asked for it", is kept rather than only stated. See
+ * `lib/workspace-init-prompt.ts`. Answering "setting up" suppresses nothing:
+ * that user has been told to have the password ready and should be prompted.
  */
 export interface OnboardingIntentProps {
   open: boolean;

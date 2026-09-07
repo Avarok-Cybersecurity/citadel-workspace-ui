@@ -28,18 +28,34 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';
 import { sendAndAwaitAck } from '../revfs-retry';
-import { persistPendingOps } from '../persist-pending-ops';
+import {
+  persistPendingOps,
+  markPendingOpsRead,
+  resetPendingOpsReadTracking,
+} from '../persist-pending-ops';
 import type { RevfsOperation } from '@/types/revfs-types';
+import type { RevfsIntent, RevfsIntentResult } from '@/types/revfs-intents';
 import type { RevfsIO } from '../revfs-io';
 
 const OP: RevfsOperation = {
   op_id: 'op-1', op_type: 'Rmdir', path: '/x', timestamp: 1,
 } as unknown as RevfsOperation;
 
-/** An io whose every intent resolves with the given success flag. */
+/**
+ * An io whose every intent resolves with the given success flag.
+ *
+ * `load-pending-ops` answers with an `ops` array rather than a bare success
+ * flag, because that is the shape the real intent returns — and
+ * `sendAndAwaitAck` now restores before it writes, so a load that answers
+ * nothing leaves the queue unread and the write is refused. A mock that
+ * answers the wrong shape would make these tests pass for the wrong reason.
+ */
 function io(success: boolean): RevfsIO {
   return {
-    execute: async (intent: { type: string }): Promise<unknown> => ({ type: intent.type, success }),
+    execute: async (intent: { type: string }): Promise<unknown> =>
+      intent.type === 'load-pending-ops'
+        ? { type: 'load-pending-ops', ops: [] }
+        : { type: intent.type, success },
   } as unknown as RevfsIO;
 }
 
@@ -61,6 +77,7 @@ describe('a pending-op write that failed', () => {
   const onFailed = (payload: { treeKey: string }): void => { failures.push(payload); };
 
   beforeEach(() => {
+    resetPendingOpsReadTracking();
     failures = [];
     eventEmitter.on('revfs:persist-failed', onFailed);
     // The helper logs the loss on the error channel, which is the only channel
@@ -73,13 +90,35 @@ describe('a pending-op write that failed', () => {
   });
 
   it('raises revfs:persist-failed directly', async () => {
+    // Read first, as every production caller now does: the helper refuses to
+    // write a queue for a key it has never read, because an unread queue is
+    // empty for reasons that have nothing to do with what is stored.
+    markPendingOpsRead('tree-1' as never);
     await persistPendingOps(io(false), 'tree-1' as never, []);
     expect(failures).toEqual([{ treeKey: 'tree-1' }]);
+  });
+
+  it('writes nothing at all for a key it has never read', async () => {
+    // The guard itself. Without this the two tests either side of it pass
+    // whether or not the write was attempted.
+    const attempted: string[] = [];
+    const recordingIo: RevfsIO = {
+      execute: async (intent: { type: string }): Promise<unknown> => {
+        attempted.push(intent.type);
+        return { type: intent.type, success: true };
+      },
+    } as unknown as RevfsIO;
+
+    await persistPendingOps(recordingIo, 'never-read' as never, []);
+
+    expect(attempted, 'an unread key must not be written').toEqual([]);
+    expect(failures, 'refusing is not a persist FAILURE, it is a refusal').toEqual([]);
   });
 
   it('says nothing when the write succeeded', async () => {
     // The control. A helper that emits unconditionally passes the test above
     // and shows a data-loss warning on every successful write.
+    markPendingOpsRead('tree-1' as never);
     await persistPendingOps(io(true), 'tree-1' as never, []);
     expect(failures).toEqual([]);
   });
@@ -94,7 +133,20 @@ describe('a pending-op write that failed', () => {
   });
 
   it('says nothing from the send path when the queue was written', async () => {
-    await sendAndAwaitAck(deps(true, false), 9n, OP, 'send-key' as never);
+    // Asserts the write HAPPENED as well as that nothing complained. Without
+    // the first assertion this passes when the write is refused outright,
+    // which is the same green for the opposite reason.
+    const seen: string[] = [];
+    const recording: Parameters<typeof sendAndAwaitAck>[0] = deps(true, false);
+    const inner: RevfsIO['execute'] = recording.io.execute;
+    recording.io.execute = async (intent: RevfsIntent): Promise<RevfsIntentResult> => {
+      seen.push(intent.type);
+      return inner(intent);
+    };
+
+    await sendAndAwaitAck(recording, 9n, OP, 'send-key' as never);
+
+    expect(seen, 'the queue must actually have been written').toContain('persist-pending-ops');
     expect(failures).toEqual([]);
   });
 });

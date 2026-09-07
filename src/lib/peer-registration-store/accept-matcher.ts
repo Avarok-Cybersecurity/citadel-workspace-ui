@@ -8,6 +8,7 @@
 import { eventEmitter } from '../event-emitter';
 import { failOnSocketLoss } from '../websocket/request-response';
 import { debugLog } from '@/lib/debug-config';
+import { isAlreadyRegistered } from './already-registered';
 import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
 import { TIMEOUT } from '../timeout-constants';
 import { toCidKey, type CidLike } from '@/lib/utils/cid-utils';
@@ -73,6 +74,30 @@ export function waitForAcceptResponse(
         eventEmitter.off('websocket-message', handleMessage);
         const errorMsg: string = (msg.PeerRegisterFailure?.message as string) ||
                         (msg.PeerConnectFailure?.message as string) || 'Registration failed';
+        // "Already registered" is a SUCCESS, and CLAUDE.md says so outright:
+        // "attempting to register an already-registered peer is normal. Treat
+        // this as success, not failure."
+        //
+        // The agent answers PeerRegisterFailure for it
+        // (requests/peer/register.rs), and three other places in this codebase
+        // already special-case it -- p2p-registration-service/registration.ts,
+        // lifecycle.ts's stale-request sweep, and the auto-connect service.
+        // This accept path did not, so the promise REJECTED, and the caller
+        // (lifecycle.ts) awaits it immediately before `connectToPeer`: the
+        // rejection skipped the connect entirely.
+        //
+        // That is the shape of the CI failure. Registrations survive on the
+        // backend across reconnects because the CID never changes, so on any
+        // re-run, and on all three reconnection legs, Accept met this branch
+        // and no P2P channel was ever opened -- which is exactly what the agent
+        // log shows: every send `to SERVER (no peer_cid)` and not one
+        // `[PeerChannelCreated]`.
+        if (isAlreadyRegistered(errorMsg)) {
+          debugLog('PeerRegistrationStore',
+            'Peer already registered - treating as success', { targetPeerCid });
+          resolve();
+          return;
+        }
         reject(new Error(errorMsg));
       }
     };

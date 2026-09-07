@@ -34,6 +34,7 @@ import {
   TestHarness,
   runTestMain,
   isVisibleWithin,
+  waitForWorkspaceLoaded,
 } from '../../lib/index.js';
 
 // Test configuration
@@ -78,13 +79,28 @@ async function runTest(): Promise<boolean> {
     // zero ILM lines in it and nothing to diagnose from.
     const errorPatterns = ['Session Already Connected', 'Ratchet does not exist', 'ratchet v', 'ILM'];
 
+    // What is CAPTURED and what counts as a FAILURE are different lists.
+    //
+    // `errorPatterns` above is the capture list, and it includes `'ILM'` on
+    // purpose: a delivery failure with no ILM lines in the log has nothing to
+    // diagnose from, which the comment above records. Reusing it here as the
+    // failure list made every informational router line -- `[ILM-Router]
+    // Registering CID <n> for self (leader's own connection)` -- a
+    // `critical/functional` UX failure and an entry in `consoleErrors`. A run
+    // reports errors it does not have, which is how the ones it does have stop
+    // being noticed.
+    //
+    // `c2s-reconnect.test.ts` in this directory already separates the two; the
+    // other four specs reused one list.
+    const failurePatterns = ['Session Already Connected', 'Ratchet does not exist', 'ratchet v'];
+
     setupConsoleCapture(page1, USER1_NAME, errorPatterns);
     setupConsoleCapture(page2, USER2_NAME, errorPatterns);
 
     const trackErrors = (page: Page, username: string) => {
       page.on('console', (msg) => {
         const text = msg.text();
-        if (errorPatterns.some(pattern => text.includes(pattern))) {
+        if (failurePatterns.some((pattern) => text.includes(pattern))) {
           consoleErrors.push(`[${username}] ${text}`);
           console.log(`[CONSOLE ERROR] [${username}] ${text}`);
           uxTracker.log('critical', 'functional', text);
@@ -126,7 +142,25 @@ async function runTest(): Promise<boolean> {
     });
 
     if (!user2Created) return false;
-    await sleep(2000);
+
+    // Both pages READY before any peer registration.
+    //
+    // This was a bare `sleep(2000)`. The incoming-registration handshake is
+    // one-shot: the agent stores the pending signal and pushes exactly one
+    // `PeerRegisterNotification`, and no request variant can ask for it again. If
+    // the invitee's session is not yet in `server_connection_map`, the push is
+    // skipped silently; if the invitee's page has no cid yet, the notification is
+    // filtered out on arrival. Either way the badge never appears and no amount
+    // of polling helps -- which is why these specs failed after ~40s of it while
+    // `test:p2p`, which DOES wait here, got past registration.
+    //
+    // 45s each, matching what createAccount itself waits for.
+    const bothReady =
+      (await waitForWorkspaceLoaded(page1, 45000)) && (await waitForWorkspaceLoaded(page2, 45000));
+    if (!bothReady) {
+      console.error('A workspace never loaded; not starting P2P registration into a page that is not ready');
+      return false;
+    }
 
     // ===== PHASE 2: Initial P2P Registration =====
     console.log('\n=== Phase 2: Initial P2P Registration ===');

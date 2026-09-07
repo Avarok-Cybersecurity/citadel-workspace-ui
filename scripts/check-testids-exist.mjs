@@ -28,6 +28,31 @@ import { join, resolve, dirname, relative } from 'node:path';
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '..');
 const SRC = join(ROOT, 'src');
 const SPECS = join(ROOT, 'integration-tests', 'src');
+/**
+ * The parent repository's browser-driving scripts address testids too, and
+ * nothing was checking them.
+ *
+ * `scripts/check-production-image.mjs` presses `create-account-button` and
+ * `onboarding-intent-admin`; `scripts/prove-users-can-talk.mjs` is the proof
+ * run before telling somebody a deployment is ready, and it presses eight of
+ * them. A rename in this repo silently breaks either one, and both fail in the
+ * way that is hardest to read: a lookup that matches nothing looks exactly
+ * like a product that is broken.
+ *
+ * That is the same rule enforced in one of the two places its mechanism
+ * appears -- the most common defect class in this tree. The parent is at
+ * `../` from here in both topologies that matter: the submodule checkout, and
+ * this repo's own CI, which clones the parent to `parent/` and this repo to
+ * `parent/citadel-workspaces`. A standalone clone of this repo alone has no
+ * parent, which is legitimate, so a missing directory narrows the scan instead
+ * of failing -- and the success line below REPORTS how many roots were read,
+ * so the narrowing cannot happen quietly.
+ */
+const PARENT_SCRIPTS = join(ROOT, '..', 'scripts');
+const REFERENCE_ROOTS = [
+  { dir: SPECS, pattern: /\.ts$/ },
+  { dir: PARENT_SCRIPTS, pattern: /\.mjs$/ },
+].filter((root) => existsSync(root.dir));
 
 /**
  * Testids specs address that the app does not render.
@@ -76,7 +101,8 @@ for (const file of files(SRC, /\.tsx?$/)) {
 const referenced = new Map();
 /** `tree-item-${name}` in a spec: the PREFIX must be something the app renders. */
 const referencedPrefixes = new Map();
-for (const file of files(SPECS, /\.ts$/)) {
+for (const { dir, pattern } of REFERENCE_ROOTS)
+for (const file of files(dir, pattern)) {
   const s = readFileSync(file, 'utf8');
   for (const m of s.matchAll(/getByTestId\(\s*["'`]([^"'`]+)["'`]|data-testid="([^"]+)"/g)) {
     const id = m[1] ?? m[2];
@@ -137,4 +163,8 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
-console.log(`  Test ids: ${referenced.size} addressed by specs, all rendered  ok`);
+// Name the roots that were read. If a checkout has no parent beside it the
+// scan narrows silently otherwise, and a gate that quietly stops reading half
+// its input reports safety it did not measure.
+const roots = REFERENCE_ROOTS.map((r) => relative(ROOT, r.dir)).join(', ');
+console.log(`  Test ids: ${referenced.size} addressed across ${REFERENCE_ROOTS.length} root(s) (${roots}), all rendered  ok`);

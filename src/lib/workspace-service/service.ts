@@ -17,7 +17,7 @@ import { failOnSocketLoss } from '../websocket/request-response';
 import { websocketService } from '@/lib/websocket-service';
 import { isVariant , type WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, debugEnabled } from '@/lib/debug-config';
 
 import { toWasmWorkspaceRequest } from './types';
 import type { ProtocolSender } from './workspace-operations';
@@ -155,7 +155,11 @@ export class WorkspaceService implements ProtocolSender {
     if (!this._currentCid) {
       throw new Error('No active connection available. Please connect first.');
     }
+  // Guarded: stringifies the entire request and then keeps 200 chars of it,
+  // on every workspace request, for a logger production compiles away.
+  if (debugEnabled) {
     debugLog('WorkspaceService', '[WorkspaceService] sendRequest (raw):', JSON.stringify(request).substring(0, 200));
+  }
     const requestType: string = typeof request === 'string' ? request : Object.keys(request)[0];
     const expectedResponseTypes: string[] = this.getExpectedResponseTypes(requestType);
 

@@ -56,9 +56,19 @@ describe('a hand-rolled wait for a response', () => {
     for (const file of files) {
       const relative: string = file.slice(LIB.length + 1);
       if (EXEMPT.includes(relative)) continue;
-      const source: string = readFileSync(file, 'utf-8');
+      // Comments and imports stripped, and a CALL required.
+      //
+      // This was `source.includes('failOnSocketLoss')` against raw source, so
+      // a file counted as guarded when the WORD appeared anywhere in it --
+      // including in a comment explaining why the guard matters.
+      // peer-registration-store/persistence.ts already carries such a comment,
+      // so deleting its actual call would have left this green.
+      const source: string = readFileSync(file, 'utf-8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\/\/[^\n]*/g, '')
+        .replace(/^\s*import[^;]*;/gm, '');
       if (!/reject\(\s*new Error\([^)]*timed out/.test(source)) continue;
-      if (source.includes('failOnSocketLoss') || source.includes('requestResponse')) continue;
+      if (/\b(failOnSocketLoss|requestResponse)\s*(?:<[^>]*>)?\(/.test(source)) continue;
       unguarded.push(relative);
     }
     expect(unguarded).toEqual([]);

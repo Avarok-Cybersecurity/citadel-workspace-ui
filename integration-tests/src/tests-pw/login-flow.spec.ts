@@ -88,8 +88,19 @@ async function loginWithCredentials(
     await page.getByTestId('login-submit').click();
     await sleep(3000);
 
-    // Check for errors
-    const errorEl = page.locator('.text-red-400');
+    // Check for errors.
+    //
+    // By ID, not by colour class. This was `.text-red-400`, which appears NOWHERE
+    // in the app: `components/Login.tsx:176-183` renders the inline error as
+    // `id="login-error"` with `role="alert"` and `text-destructive-emphasis`. So
+    // the locator matched nothing, the whole branch below was unreachable, and
+    // the `return true` at the end of this function was unconditional -- a failed
+    // login reported success, and the session-claim recovery inside the branch
+    // never ran either.
+    //
+    // A colour class is the worst thing to pin a test to: it changes for visual
+    // reasons, with no behaviour change to notice, and the failure is silent.
+    const errorEl = page.locator('#login-error');
     if (await isVisibleWithin(errorEl, 2000)) {
         const errorText = await errorEl.textContent();
         if (errorText?.includes('already exists') || errorText?.includes('Session')) {

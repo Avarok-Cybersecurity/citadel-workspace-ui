@@ -5,10 +5,15 @@ import {
   AGENT_ASSETS,
   agentDownloadUrl,
   agentPlatformCandidates,
+  agentRunCommand,
   type AgentPlatform,
 } from '../agent-download';
 
 const WORKFLOW: string = join(process.cwd(), '..', '.github', 'workflows', 'release-agent.yml');
+/** The agent's CLI, as the agent itself declares it. */
+const AGENT_MAIN: string = join(
+  process.cwd(), '..', 'citadel-workspace-internal-service', 'src', 'main.rs',
+);
 
 const nav: (platform: string, userAgent: string, maxTouchPoints?: number) => Navigator = (platform: string, userAgent: string, maxTouchPoints = 0): Navigator =>
   ({ platform, userAgent, maxTouchPoints }) as unknown as Navigator;
@@ -51,6 +56,62 @@ describe('agent asset names match the release workflow', () => {
   });
 });
 
+describe('the run command only uses flags the agent has', () => {
+  /**
+   * Every `--flag` this page tells a stranger to paste must exist.
+   *
+   * It did not. `agentRunCommand` appended `--loopback-host` and
+   * `--loopback-cert-url`, and the agent has never had either:
+   *
+   *   error: Found argument '--loopback-host' which wasn't expected
+   *
+   * and it refuses to start. Both were appended ONLY when a loopback origin is
+   * published -- which is the hosted deployment and nowhere else -- so the
+   * command was unrunnable in the one place it is the instruction a stranger
+   * follows, and runnable everywhere it is not.
+   *
+   * The tests in this file pinned those flags, so the broken command was
+   * correct according to its own suite. Read from the agent's own `main.rs`
+   * rather than a list kept here, because a list kept here is the thing that
+   * drifted.
+   */
+  const cliFlags = (): Set<string> => {
+    const source: string = readFileSync(AGENT_MAIN, 'utf8');
+    const struct: string = source.slice(source.indexOf('#[structopt('));
+    return new Set(
+      [...struct.matchAll(/^\s{4}([a-z][a-z0-9_]*)\s*:/gm)].map((m) => m[1].replace(/_/g, '-')),
+    );
+  };
+
+  it('finds the agent CLI', () => {
+    // A floor. Without it every assertion below passes by matching nothing.
+    expect(existsSync(AGENT_MAIN)).toBe(true);
+    const flags: Set<string> = cliFlags();
+    expect(flags.has('bind')).toBe(true);
+    expect(flags.has('allowed-origins')).toBe(true);
+    expect(flags.size).toBeGreaterThan(4);
+  });
+
+  it('every flag in every command it can produce is a real one', () => {
+    const flags: Set<string> = cliFlags();
+    const platforms: AgentPlatform[] = ['macos-arm64', 'macos-x64', 'linux-x64', 'windows-x64'];
+    for (const platform of platforms) {
+      for (const loopbackOrigin of [undefined, 'wss://local.example.com:12345']) {
+        const command: string = agentRunCommand({
+          platform,
+          pageOrigin: 'https://work.example.com',
+          loopbackOrigin,
+        });
+        const used: string[] = [...command.matchAll(/--([a-z][a-z0-9-]*)/g)].map((m) => m[1]);
+        expect(used.length).toBeGreaterThan(0);
+        for (const flag of used) {
+          expect(flags, `${platform} / loopback=${String(loopbackOrigin)}: --${flag}`).toContain(flag);
+        }
+      }
+    }
+  });
+});
+
 describe('platform candidates', () => {
   it('offers a single build for Windows and Linux', () => {
     expect(agentPlatformCandidates(nav('Win32', 'Mozilla/5.0 (Windows NT 10.0)'))).toEqual(['windows-x64']);
@@ -84,5 +145,53 @@ describe('download URLs', () => {
       expect(url.endsWith(AGENT_ASSETS[platform])).toBe(true);
       expect(url.startsWith('https://')).toBe(true);
     }
+  });
+});
+
+describe('the run command the hint shows', () => {
+  const page: string = 'https://work.example.com';
+  const loopback: string = 'wss://local.example.com:12345';
+
+  it('names the binary the release workflow packages, not the crate', () => {
+    // release-agent.yml copies the built binary to "$staging/citadel-agent"; the archive a
+    // visitor unpacks contains THAT name. A command naming anything else is unrunnable.
+    const yaml: string = readFileSync(WORKFLOW, 'utf8');
+    const packaged: string | undefined = /\$staging\/(citadel-agent)"/.exec(yaml)?.[1];
+    expect(packaged, 'release-agent.yml no longer packages the binary as citadel-agent').toBe('citadel-agent');
+    expect(agentRunCommand({ platform: 'linux-x64', pageOrigin: page, loopbackOrigin: undefined })).toMatch(/^\.\/citadel-agent /);
+    expect(agentRunCommand({ platform: 'windows-x64', pageOrigin: page, loopbackOrigin: undefined })).toMatch(/^\.\\citadel-agent\.exe /);
+  });
+
+  it('allows exactly the page that shows it, and carries both flags that have no safe default', () => {
+    const cmd: string = agentRunCommand({ platform: 'macos-arm64', pageOrigin: page, loopbackOrigin: undefined });
+    expect(cmd).toContain('--bind 127.0.0.1:12345');
+    expect(cmd).toContain('--backend filesystem');
+    expect(cmd).toContain(`--allowed-origins ${page}`);
+    expect(cmd).not.toContain('--loopback');
+  });
+
+  it('adds the loopback name and the certificate URL when the page published a loopback origin', () => {
+    const cmd: string = agentRunCommand({ platform: 'linux-x64', pageOrigin: page, loopbackOrigin: loopback });
+    // These flags do not exist. The agent's entire CLI is --bind, --backend,
+    // --data-dir, --allowed-origins, --tls-cert, --tls-key, --no-tls and
+    // --dangerous; it answers either of these with "Found argument
+    // '--loopback-host' which wasn't expected" and refuses to start. They were
+    // emitted ONLY when a loopback origin is published -- the hosted
+    // deployment, and nowhere else -- so the command was unrunnable in the one
+    // place it is the instruction a stranger follows.
+    //
+    // This test asserted them, which is how a broken command stayed correct
+    // according to its own suite.
+    expect(cmd).not.toContain('--loopback-host');
+    expect(cmd).not.toContain('--loopback-cert-url');
+    // The command is still the hosted one and still complete: TLS needs no
+    // configuration because the agent carries the certificate for the published
+    // loopback name compiled into it.
+    expect(cmd).toContain(`--allowed-origins ${page}`);
+  });
+
+  it('ignores a loopback origin that is not a URL rather than emitting a broken flag', () => {
+    const cmd: string = agentRunCommand({ platform: 'linux-x64', pageOrigin: page, loopbackOrigin: 'not a url' });
+    expect(cmd).not.toContain('--loopback');
   });
 });

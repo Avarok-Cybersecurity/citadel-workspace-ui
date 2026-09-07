@@ -91,7 +91,6 @@ const RECORDED_UNCONSUMED = new Map([
   ['p2p:peer-registered-with-us', 'the peer list refreshes on its own poll'],
   ['p2p:presence-updated', 'presence renders from the messenger callback registry'],
   ['p2p:registration-declined', 'no consumer — a decline is not surfaced anywhere'],
-  ['p2p:raw-message', 'consumed by the Yjs provider through its own subscription path'],
   ['broadcast-workspace-response', 'internal to the broadcast-channel service'],
   ['yjs:document-update', 'the provider wires its own document listeners'],
 ]);

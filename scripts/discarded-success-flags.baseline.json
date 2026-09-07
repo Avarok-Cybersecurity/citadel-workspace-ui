@@ -1,5 +1,4 @@
 {
-  "src/components/WorkspaceEventHandler.tsx::sessionSet": 1,
   "src/components/call/CallProvider.tsx::adoptPeerCodecs": 1,
   "src/components/useOrphanSessions.ts::startMessagingForSession": 1,
   "src/lib/call/websocket-call-transport.ts::requestResponse": 1,
@@ -17,6 +16,7 @@
   "src/lib/p2p/message-sender.ts::addMessageToConversation": 1,
   "src/lib/p2p/messenger-revision.ts::removeMessageFromPages": 1,
   "src/lib/p2p/messenger-revision.ts::updateMessageInPages": 1,
+  "src/lib/p2p/send-failure.ts::reportSendFailure": 1,
   "src/lib/pwa/apply-waiting-update.ts::applyWaitingUpdate": 1,
   "src/lib/revfs/revfs-file-ops.ts::sendOp": 1,
   "src/lib/revfs/revfs-inbound.ts::sendOp": 3,

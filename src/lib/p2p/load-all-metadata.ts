@@ -29,7 +29,7 @@ import { debugLog } from '@/lib/debug-config';
  * that latency stops dominating boot, low enough that a device with hundreds of conversations
  * does not hand the agent a burst it will serialise anyway.
  */
-const METADATA_READ_CONCURRENCY = 8;
+const METADATA_READ_CONCURRENCY: number = 8;
 
 /** Map with a bounded number of concurrent workers, preserving input order in the output. */
 async function mapWithConcurrency<In, Out>(
@@ -38,9 +38,9 @@ async function mapWithConcurrency<In, Out>(
   work: (item: In) => Promise<Out>,
 ): Promise<Out[]> {
   const out: Out[] = new Array<Out>(items.length);
-  let next = 0;
+  let next: number = 0;
   const workers: Array<Promise<void>> = [];
-  for (let w = 0; w < Math.min(limit, items.length); w++) {
+  for (let w: number = 0; w < Math.min(limit, items.length); w++) {
     workers.push(
       (async (): Promise<void> => {
         while (next < items.length) {

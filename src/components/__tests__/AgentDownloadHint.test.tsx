@@ -35,10 +35,33 @@ describe('AgentDownloadHint', () => {
     expect(screen.getByText(/desktop or laptop/i)).toBeInTheDocument();
   });
 
-  it('always shows the run command, including both flags that have no safe default', () => {
+  it('always shows the run command: the packaged binary, both flags with no safe default, and this page as the allowed origin', () => {
     render(<AgentDownloadHint navigatorRef={MAC} />);
     const cmd: HTMLElement = screen.getByText(/--bind 127\.0\.0\.1:12345 --backend filesystem/);
     expect(cmd).toBeInTheDocument();
+    expect(cmd.textContent).toMatch(/^\.\/citadel-agent /);
+    expect(cmd.textContent).toContain(`--allowed-origins ${window.location.origin}`);
+    expect(cmd.textContent).not.toContain('--loopback');
+  });
+
+  it('on a page whose nginx published a loopback origin, the command carries the name and the certificate URL', () => {
+    const meta: HTMLMetaElement = document.createElement('meta');
+    meta.name = 'citadel-loopback-agent';
+    meta.content = 'wss://local.example.com:12345';
+    document.head.appendChild(meta);
+    try {
+      render(<AgentDownloadHint navigatorRef={MAC} />);
+      // Addressed by a flag the agent HAS. This looked up the command by
+      // `--loopback-host`, a flag it has never had, so the component's rendered
+      // instruction was pinned to something that cannot run -- and only in the
+      // hosted case, which is the only case where a stranger reads it.
+      const cmd: HTMLElement = screen.getByText(/--allowed-origins/);
+      expect(cmd.textContent).toContain(`--allowed-origins ${window.location.origin}`);
+      expect(cmd.textContent).not.toContain('--loopback-host');
+      expect(cmd.textContent).not.toContain('--loopback-cert-url');
+    } finally {
+      meta.remove();
+    }
   });
 
   it('always links the releases page, so an unrecognised platform is not a dead end', () => {

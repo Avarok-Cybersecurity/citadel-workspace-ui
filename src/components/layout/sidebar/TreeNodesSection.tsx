@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { matchesSearch } from '@/lib/fold-for-search';
+import { searchMatcher } from '@/lib/fold-for-search';
 import { debugLog } from '@/lib/debug-config';
 import { useLocation, useNavigate } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
@@ -93,13 +93,12 @@ export function TreeNodesSection({
   // Filter tree based on search query
   const filteredTreeData: TreeNode | null = useMemo((): TreeNode | null => {
     if (!treeData || !searchQuery.trim()) return treeData;
-    // Folded, not merely lower-cased: "jose" has to find "José". The sort
-    // beside this already uses localeCompare, so without folding a list could
-    // show two neighbours one of which the obvious query could not reach.
-    const query: string = searchQuery;
+    // Folded, and folded ONCE — see fold-for-search.ts. `filterNode` recurses
+    // over the whole tree, so a per-node fold is a per-node normalisation.
+    const matches: (haystack: string) => boolean = searchMatcher(searchQuery);
 
     function filterNode(tn: TreeNode): TreeNode | null {
-      const nameMatches: boolean = matchesSearch(tn.node.name, query);
+      const nameMatches: boolean = matches(tn.node.name);
       const filteredChildren: TreeNode[] = tn.children
         .map(filterNode)
         .filter((c): c is TreeNode => c !== null);

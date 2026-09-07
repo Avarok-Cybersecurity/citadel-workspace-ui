@@ -32,18 +32,75 @@ import fg from 'fast-glob';
 
 const SRC: string = join(process.cwd(), 'src');
 
-/** Reads LocalDB, catches, and does not classify — with the reason why. */
+/**
+ * Reads LocalDB, catches, and does not classify — with the reason why.
+ *
+ * `peer-registration-store/persistence.ts` was on this list with the reason
+ * "its catches wrap sendMessage rejections on the WRITE path, where absence is
+ * not a state". That was simply false: the catch and the reject callback it
+ * named are both on the READ path, and both resolved as though the key held
+ * nothing. Two pending contact requests could be erased by one timeout. An
+ * exemption is a claim about the code, and this one was never true.
+ *
+ * Known limit, stated here rather than discovered later: `classifies` below is
+ * a whole-FILE test. A module where one function classifies and another does
+ * not passes. `live-document-store/persistence.ts` is exactly that shape today.
+ */
 const EXEMPT: Record<string, string> = {
+  'lib/live-document-store/service.ts':
+    'its catch does not decide absence — it records that the index is untrustworthy, ' +
+    'so the write is refused; the classification is in persistence.loadIndexFromDB',
+  // The reads moved to local-db-client.ts when this file passed the 250-line
+  // cap; that module classifies. What is left here is `resolveKVResponse`,
+  // whose catch wraps parsePersistedJSON on bytes already returned — a decode
+  // failure, not an absent key. Same reason as io-websocket.ts below.
+  'lib/peer-registration-store/persistence.ts':
+    'its remaining catch is around JSON decoding of a value already read; the reads live in local-db-client.ts',
   'lib/connection/io-websocket.ts':
     'its one catch is around JSON decoding of a value already read, not the read',
-  'lib/peer-registration-store/persistence.ts':
-    'its catches wrap sendMessage rejections on the WRITE path, where absence is not a state',
   'lib/peer-registration-store/service.ts':
     'catches around accept/decline requests, not around a read',
 };
 
+/**
+ * Source with comments removed.
+ *
+ * `classifies` below is a substring test, so a file that merely NAMES
+ * `isGenuinelyAbsent` in a comment counted as classifying. `io-websocket.ts`
+ * tripped exactly that: a comment explaining that its CALLER does the
+ * classification made the file look like it classified, and its exemption was
+ * reported as stale.
+ *
+ * This repository has found the same shape before, in a gate that matched the
+ * example string quoted in its own header. A check a comment can satisfy is a
+ * check prose can pass.
+ */
+function withoutComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+}
+
 function readsLocalDb(source: string): boolean {
-  return /sendLocalDBGet|localDBGet\(|FromLocalDB\(/.test(source);
+  // `FromDB(` as well as `FromLocalDB(`. `live-document-store` names its
+  // readers `loadIndexFromDB` / `loadDocumentFromDB`, which matched none of
+  // the original three patterns -- so the module holding the index read, the
+  // one whose result decides what the index is OVERWRITTEN with, was outside
+  // this rule entirely.
+  // `LocalDBGetKV` — the request literal — as well as the helper names.
+  //
+  // Splitting peer-registration-store's client into its own module put the
+  // reads in a file this rule could not see: the helper is DEFINED there as
+  // `localDBGet<T>(`, and `localDBGet\(` needs the paren directly after the
+  // name. The module issuing the raw request is exactly the module that must
+  // classify, so match on the request it builds rather than on the name a
+  // caller happens to use.
+  // `LocalDBGetKV: {` — the request being BUILT, not a response variant.
+  //
+  // A bare `LocalDBGetKV` also matches `LocalDBGetKVSuccess` and
+  // `LocalDBGetKVFailure`, which is what event-handlers.ts reads: it handles
+  // answers, it does not issue reads, and it has no absence decision to make.
+  // The colon-brace is what distinguishes constructing the request from
+  // recognising its reply.
+  return /sendLocalDBGet|localDBGet\s*[<(]|FromLocalDB\(|FromDB\(|LocalDBGetKV\s*:\s*\{/.test(source);
 }
 
 describe('a module that reads LocalDB', () => {
@@ -58,10 +115,18 @@ describe('a module that reads LocalDB', () => {
 
     for (const rel of files) {
       const source: string = readFileSync(join(SRC, rel), 'utf-8');
-      if (!readsLocalDb(source)) continue;
-      if (!/catch\s*\(/.test(source)) continue;
+      const code: string = withoutComments(source);
+      if (!readsLocalDb(code)) continue;
+      if (!/catch\s*\(/.test(code)) continue;
 
-      const classifies: boolean = source.includes('isGenuinelyAbsent');
+      // A CALL, not a mention. `includes('isGenuinelyAbsent')` was satisfied by
+      // the import line alone, so a file could import the classifier, never
+      // call it, and pass. Verified: stubbing out every real call in
+      // live-document-store/persistence.ts while leaving the import left this
+      // test green.
+      const classifies: boolean = /isGenuinelyAbsent\s*\(/.test(
+        code.replace(/^\s*import[^;]*;/gm, ''),
+      );
       if (classifies && rel in EXEMPT) staleExemptions.push(rel);
       if (!classifies && !(rel in EXEMPT)) offenders.push(rel);
     }

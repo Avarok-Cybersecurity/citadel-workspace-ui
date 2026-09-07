@@ -22,11 +22,16 @@ function operationVerb(operation: string): string {
     Create: 'create the group',
     ChannelCreate: 'create the group',
     Invite: 'send the invitation',
-    Join: 'join the group',
     Leave: 'leave the group',
     Kick: 'remove that member',
-    Disconnect: 'leave the group',
     End: 'delete the group',
+    // `Join` and `Disconnect` were here for variants that do not exist. These
+    // five do, and had no verb, so they fell to the generic fallback.
+    RequestJoin: 'ask to join the group',
+    RespondRequest: 'answer that invitation',
+    Message: 'send that message',
+    ListGroups: 'load your groups',
+    BroadcastHandle: 'reach the group',
   };
   return verbs[operation] ?? 'complete that group action';
 }

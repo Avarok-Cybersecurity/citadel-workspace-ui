@@ -449,7 +449,12 @@ export async function loadOlderMessages(
   console.log(`\n=== ${username}: Loading older messages ===`);
 
   try {
-    const loadMoreBtn = page.locator('button:has-text("Load older"), button:has-text("Load more")').first();
+    // `has-text` is a substring match, so this covers the button's full copy,
+    // "Load older messages". The dead alternative that used to sit beside it
+    // searched for "Load more", which the app has never rendered -- it was
+    // carried along harmlessly because the working half of the selector
+    // matched first, which is exactly how a dead locator survives review.
+    const loadMoreBtn = page.locator('button:has-text("Load older")').first();
 
     if (await isVisibleWithin(loadMoreBtn, 3000)) {
       await loadMoreBtn.click();
