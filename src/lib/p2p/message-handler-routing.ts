@@ -15,15 +15,15 @@ import {
 } from '@/types/messaging-layer';
 import { routeRevfsOperation } from './revfs-layer-routing';
 import { eventEmitter } from '../event-emitter';
-import { applyEdit, applyDelete } from './message-revision';
+import { applyIncomingEdit, applyIncomingDelete } from './inbound-revision';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
-import { debugLog, debugEnabled, errorLog } from '@/lib/debug-config';
+import { debugLog, debugEnabled } from '@/lib/debug-config';
 import { deliverToConversation, shouldAck } from './inbound-message-delivery';
 import type { P2PMessage, PeerPresence } from './p2p-types';
 import type { MessageHandlerConfig } from './message-handler-types';
 import type { FileTransferMessageHandler } from './file-transfer-message-handler';
 import type { P2PConversation } from '@/lib/p2p/p2p-types';
-import type { RevisionOutcome } from '@/lib/p2p/message-revision';
+import type {  } from '@/lib/p2p/message-revision';
 import type { MessagingLayer } from '@/types/messaging-layer';
 import type { DeliveryOutcome } from '@/lib/p2p/inbound-message-delivery';
 
@@ -47,50 +47,13 @@ export async function handleMessagingLayerCommand(
       await handleIncomingMessage(config, payload, peerCid, recipientCid);
       break;
 
-    case MessagingLayerType.MessageEdit: {
-      const conversation: P2PConversation = config.getOrCreateConversation(peerCid);
-      const outcome: RevisionOutcome = applyEdit(conversation, layer.message_id, layer.contents, layer.edited_at, peerCid);
-      if (!outcome.applied) {
-        // Do not swallow this. An edit for a message we do not have, or one the
-        // peer did not send, means our view and theirs have diverged.
-        debugLog('P2PMessageHandler', `Ignored edit of ${layer.message_id}: ${outcome.reason}`);
-        break;
-      }
-      // The peer's revision is authoritative, so this still emits -- but the
-      // boolean is READ and a failure is reported through errorLog, which
-      // emits in production. Discarded, a storage failure left the screen
-      // edited and the stored page unchanged: the old text returned on reload,
-      // disagreeing with the peer, and the only trace was a debugLog compiled
-      // out of the build the user is running.
-      if (!(await config.updateMessageInPages(peerCid, layer.message_id, {
-        content: layer.contents,
-        edited_at: layer.edited_at,
-      }))) {
-        errorLog('P2PMessageHandler',
-          `Edit of ${layer.message_id} from ${peerCid} was not written to the stored transcript; ` +
-          'a reload will show the pre-edit text, which the peer no longer has.');
-      }
-      eventEmitter.emit('p2p:message-updated', outcome.message);
+    case MessagingLayerType.MessageEdit:
+      await applyIncomingEdit(config, peerCid, layer.message_id, layer.contents, layer.edited_at);
       break;
-    }
 
-    case MessagingLayerType.MessageDelete: {
-      const conversation: P2PConversation = config.getOrCreateConversation(peerCid);
-      const outcome: RevisionOutcome = applyDelete(conversation, layer.message_id, peerCid);
-      if (!outcome.applied) {
-        debugLog('P2PMessageHandler', `Ignored delete of ${layer.message_id}: ${outcome.reason}`);
-        break;
-      }
-      // Same as the edit branch above: the page a reload reads must agree, and
-      // the boolean that says whether it does is read rather than dropped.
-      if (!(await config.removeMessageFromPages(peerCid, layer.message_id))) {
-        errorLog('P2PMessageHandler',
-          `Delete of ${layer.message_id} from ${peerCid} was not applied to the stored transcript; ` +
-          'the retracted message will return on reload.');
-      }
-      eventEmitter.emit('p2p:message-deleted', { peerCid, messageId: layer.message_id });
+    case MessagingLayerType.MessageDelete:
+      await applyIncomingDelete(config, peerCid, layer.message_id);
       break;
-    }
 
     case MessagingLayerType.Typing:
       handleTypingIndicator(config, peerCid);
