@@ -47,6 +47,17 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
     return 'You are already connected in another window or tab. Would you like to take over this session?';
   }
   
+  // Registration specifically. The generic branch below says "check your
+  // network", which is wrong for almost every real instance of this: the agent
+  // runs on this machine and the page reached it fine, so what timed out is the
+  // agent's attempt to reach the WORKSPACE SERVER at the address just typed.
+  // Telling someone to check their network sends them to the one place the
+  // fault is not. work.avarok.net showed this exact message to every new user
+  // for weeks while the real cause was a refused DNS lookup in the page.
+  if (/registration timed out|socket deadline has elapsed/i.test(errorMessage)) {
+    return 'The workspace server did not answer within 30 seconds. Check the address you entered — it should be a host name or IP address, then a colon and the port, like citadel.example.com:12400. If that is right, the server may be down or unreachable from this machine.';
+  }
+
   if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
     return 'The connection request timed out. Please check your network and try again.';
   }
@@ -199,6 +210,12 @@ export function getErrorTitle(error: unknown): string {
     return 'Network Error';
   }
   
+  // Before the generic timeout title: "Request Timeout" describes the client's
+  // clock, not what happened. The server is the thing that did not answer.
+  if (/registration timed out|socket deadline has elapsed/i.test(errorMessage)) {
+    return 'Server Did Not Answer';
+  }
+
   if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
     return 'Request Timeout';
   }

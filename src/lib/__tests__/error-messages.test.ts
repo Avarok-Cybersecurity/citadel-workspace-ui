@@ -289,3 +289,72 @@ describe('an error that is neither a string nor an Error', () => {
     expect(getErrorTitle({ code: 5 })).not.toContain('[object Object]');
   });
 });
+
+/**
+ * The registration timeout.
+ *
+ * `useJoinRegistration.ts` rejects with "Registration timed out after 30
+ * seconds" and surfaces it at line ~214 as
+ * `toast({ title: getErrorTitle(e), description: getUserFriendlyErrorMessage(e) })`.
+ * Both mappers fell through to the generic timeout branch, whose advice is
+ * "check your network" — and the network is the one place the fault is not.
+ * The page reached the agent on this machine; what timed out is the agent's
+ * attempt to reach the workspace server at the address the user just typed.
+ *
+ * work.avarok.net showed exactly this to every new user for weeks while the
+ * real cause was a DNS lookup the page's own CSP refused.
+ */
+describe('a registration that times out', () => {
+  const err = new Error('Registration timed out after 30 seconds');
+
+  it('names the server, not the user\'s network', () => {
+    const message = getUserFriendlyErrorMessage(err);
+    expect(message).toMatch(/workspace server did not answer/i);
+    expect(message).not.toMatch(/your network/i);
+  });
+
+  it('says what a valid address looks like, since that is what to check', () => {
+    expect(getUserFriendlyErrorMessage(err)).toMatch(/citadel\.example\.com:12400/);
+  });
+
+  it('allows that the address may be right and the server down', () => {
+    expect(getUserFriendlyErrorMessage(err)).toMatch(/may be down or unreachable/i);
+  });
+
+  it('titles it by what happened, not by whose clock ran out', () => {
+    expect(getErrorTitle(err)).toBe('Server Did Not Answer');
+  });
+
+  it('leaves other timeouts on the generic branch', () => {
+    // Narrow, deliberately: a rekey or a peer-connect timeout is NOT a wrong
+    // server address, and must not be given advice about one.
+    const other = new Error('Peer connect timeout');
+    expect(getUserFriendlyErrorMessage(other)).toMatch(/check your network/i);
+    expect(getErrorTitle(other)).toBe('Request Timeout');
+  });
+});
+
+/**
+ * The string users ACTUALLY get when the address is live but not a workspace
+ * server. Found by pointing a real browser at a TCP listener that accepts and
+ * never speaks: the SDK surfaces "Socket deadline has elapsed", and it reached
+ * the user raw, under a bare "Error" title. The unit tests above, written from
+ * the client-side timeout string, were green throughout.
+ */
+describe('a server that accepts the connection and then says nothing', () => {
+  const err = new Error('Something went wrong: Socket deadline has elapsed');
+
+  it('is explained rather than surfaced raw', () => {
+    const message = getUserFriendlyErrorMessage(err);
+    expect(message).not.toMatch(/socket deadline/i);
+    expect(message).toMatch(/workspace server did not answer/i);
+  });
+
+  it('points at the address, which is the thing to check', () => {
+    expect(getUserFriendlyErrorMessage(err)).toMatch(/citadel\.example\.com:12400/);
+  });
+
+  it('gets a title that says what happened, not a bare "Error"', () => {
+    expect(getErrorTitle(err)).toBe('Server Did Not Answer');
+  });
+});
