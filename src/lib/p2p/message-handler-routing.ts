@@ -17,7 +17,7 @@ import { routeRevfsOperation } from './revfs-layer-routing';
 import { eventEmitter } from '../event-emitter';
 import { applyEdit, applyDelete } from './message-revision';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
-import { debugLog, debugEnabled } from '@/lib/debug-config';
+import { debugLog, debugEnabled, errorLog } from '@/lib/debug-config';
 import { deliverToConversation, shouldAck } from './inbound-message-delivery';
 import type { P2PMessage, PeerPresence } from './p2p-types';
 import type { MessageHandlerConfig } from './message-handler-types';
@@ -56,10 +56,20 @@ export async function handleMessagingLayerCommand(
         debugLog('P2PMessageHandler', `Ignored edit of ${layer.message_id}: ${outcome.reason}`);
         break;
       }
-      await config.updateMessageInPages(peerCid, layer.message_id, {
+      // The peer's revision is authoritative, so this still emits -- but the
+      // boolean is READ and a failure is reported through errorLog, which
+      // emits in production. Discarded, a storage failure left the screen
+      // edited and the stored page unchanged: the old text returned on reload,
+      // disagreeing with the peer, and the only trace was a debugLog compiled
+      // out of the build the user is running.
+      if (!(await config.updateMessageInPages(peerCid, layer.message_id, {
         content: layer.contents,
         edited_at: layer.edited_at,
-      });
+      }))) {
+        errorLog('P2PMessageHandler',
+          `Edit of ${layer.message_id} from ${peerCid} was not written to the stored transcript; ` +
+          'a reload will show the pre-edit text, which the peer no longer has.');
+      }
       eventEmitter.emit('p2p:message-updated', outcome.message);
       break;
     }
@@ -71,8 +81,13 @@ export async function handleMessagingLayerCommand(
         debugLog('P2PMessageHandler', `Ignored delete of ${layer.message_id}: ${outcome.reason}`);
         break;
       }
-      // Same as the edit branch above: the page a reload reads must agree.
-      await config.removeMessageFromPages(peerCid, layer.message_id);
+      // Same as the edit branch above: the page a reload reads must agree, and
+      // the boolean that says whether it does is read rather than dropped.
+      if (!(await config.removeMessageFromPages(peerCid, layer.message_id))) {
+        errorLog('P2PMessageHandler',
+          `Delete of ${layer.message_id} from ${peerCid} was not applied to the stored transcript; ` +
+          'the retracted message will return on reload.');
+      }
       eventEmitter.emit('p2p:message-deleted', { peerCid, messageId: layer.message_id });
       break;
     }

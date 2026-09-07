@@ -10,8 +10,6 @@
   "src/lib/connection/service.ts::storeSession": 1,
   "src/lib/connection/session-management.ts::selectUserWithoutBlocking": 1,
   "src/lib/file-transfer/service.ts::noteMessageOffer": 1,
-  "src/lib/p2p/message-handler-routing.ts::removeMessageFromPages": 1,
-  "src/lib/p2p/message-handler-routing.ts::updateMessageInPages": 1,
   "src/lib/p2p/message-send-operations.ts::ensureMessengerOpen": 2,
   "src/lib/p2p/message-sender.ts::addMessageToConversation": 1,
   "src/lib/p2p/send-failure.ts::reportSendFailure": 1,
