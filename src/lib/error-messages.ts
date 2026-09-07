@@ -138,6 +138,34 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
     return 'No account found with that username on this server. Please check your username or register a new account.';
   }
 
+  // A mistyped server address, which is the likeliest mistake a new visitor
+  // makes and the first thing they do.
+  //
+  // The agent resolves the address itself (the browser has no DNS API, and the
+  // page's CSP forbids the DNS-over-HTTPS call the UI once used), and answers a
+  // failure with one of two strings from
+  // citadel-internal-service/src/kernel/requests/register.rs:
+  //
+  //   could not resolve {server_addr}: {err}
+  //   {server_addr} resolved to no addresses
+  //
+  // Neither had a branch here, so the raw one reached the screen:
+  //
+  //   Something went wrong: could not resolve no-such-host.avarok.net:12400:
+  //   failed to lookup address information: nodename nor servname provided, or
+  //   not known
+  //
+  // That is a getaddrinfo string shown to somebody on their first attempt to
+  // join. The two neighbouring mistakes -- a host with nothing listening, and a
+  // missing port -- both already produce a sentence a person can act on; this
+  // one did not, and it is the one they are most likely to hit.
+  if (/could not resolve|resolved to no addresses/i.test(errorMessage)) {
+    return (
+      'No server was found at that address. Check it for typos — it should be a host name or ' +
+      'IP address, then a colon and the port, like citadel.example.com:12400.'
+    );
+  }
+
   if (errorMessage.includes('Connection refused') || 
       errorMessage.includes('ECONNREFUSED')) {
     return 'Could not reach the server. Please check the server address and ensure the server is running.';

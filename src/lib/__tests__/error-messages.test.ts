@@ -1,6 +1,41 @@
 import { describe, it, expect } from 'vitest';
 import { getUserFriendlyErrorMessage, getErrorTitle } from '../error-messages';
 
+describe('a mistyped server address is explained, not dumped', () => {
+  /**
+   * The agent resolves the server address and answers a failure with one of two
+   * strings (register.rs). Measured against the live deployment, a name that
+   * does not resolve reached the screen as:
+   *
+   *   Something went wrong: could not resolve no-such-host.avarok.net:12400:
+   *   failed to lookup address information: nodename nor servname provided, or
+   *   not known
+   *
+   * ...on a visitor's first attempt to join. Its two neighbours -- a host with
+   * nothing listening, and a missing port -- already produced a sentence a
+   * person can act on, which is what made this one stand out.
+   */
+  for (const raw of [
+    'could not resolve no-such-host.example.com:12400: failed to lookup address information: nodename nor servname provided, or not known',
+    'no-such-host.example.com:12400 resolved to no addresses',
+  ]) {
+    it(`explains ${raw.slice(0, 28)}...`, () => {
+      const msg: string = getUserFriendlyErrorMessage(raw);
+      expect(msg).toMatch(/typo/i);
+      expect(msg).toMatch(/citadel\.example\.com:12400/);
+      // The raw system text must not survive into it.
+      expect(msg).not.toMatch(/lookup address information|nodename|Something went wrong/i);
+    });
+  }
+
+  it('leaves a reachable-but-dead host on its own message', () => {
+    // The neighbouring case must keep its own wording; this branch is about
+    // an address that does not resolve, not one that refuses.
+    const msg: string = getUserFriendlyErrorMessage('Connection refused');
+    expect(msg).toMatch(/ensure the server is running/i);
+  });
+});
+
 describe('a missing LOCAL account is not reported as a missing server account', () => {
   /**
    * `ConnectFailure { message: "Client does not exist" }` is what the SDK's own
