@@ -397,6 +397,13 @@ jobs:
         if: matrix.project == 'citadel-workspaces'
         run: node scripts/check-agent-tls-matches-its-proxies.mjs
 
+      # index.html's meta tag is half of this contract and lives in THIS repo,
+      # so a change here can leave a hosted deployment dialling nothing while
+      # the parent's CI is not running.
+      - name: The loopback agent origin is wired end to end
+        if: matrix.project == 'citadel-workspaces'
+        run: node scripts/check-the-loopback-agent-origin-is-wired.mjs
+
   lint:
     needs: parent-ref
     name: ESLint - ${{ matrix.project }}
