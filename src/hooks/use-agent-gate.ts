@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { useServiceHealth } from '@/hooks/use-service-health';
+import { askWhyTheAgentIsUnreachable } from '@/lib/agent-attention';
 
 /**
  * Nothing on the landing screen works without the agent, so nothing on it opens
@@ -56,9 +57,25 @@ export function useAgentGatedStep<T extends string>(
 
   return useCallback((): void => {
     // Deliberately not a fallthrough to some other flow: everything behind this
-    // screen needs the agent, and the retry dialog is already on screen saying
-    // so, with the download link and the command to run it.
-    if (!isHealthy) return;
+    // screen needs the agent, and the retry dialog is the surface that says so,
+    // with the download link and the command to run it.
+    //
+    // But "already on screen" was an assumption, and it is false exactly when
+    // it matters. The dialog is dismissible and a dismissal STICKS -- see
+    // connection-retry-visibility, where that is deliberate, because retries
+    // failing again are not new information. After the user puts it away, this
+    // `return` left two buttons on the landing screen that did nothing at all:
+    // no dialog, no message, no navigation. The banner across the top still
+    // named the state, but a control that answers a click with silence reads as
+    // broken software, and this repository has met that failure under several
+    // other names.
+    //
+    // So the refusal now points somewhere. Asking for a door that needs the
+    // agent is a request to see what is wrong.
+    if (!isHealthy) {
+      askWhyTheAgentIsUnreachable();
+      return;
+    }
     setStep((): T => step);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHealthy]);

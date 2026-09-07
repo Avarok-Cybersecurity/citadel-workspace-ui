@@ -3,6 +3,7 @@ import { isOnboardingEnabled } from '@/lib/debug-config';
 import { suppressInitPrompt } from '@/lib/workspace-init-prompt';
 import { debugLog } from '@/lib/debug-config';
 import { useServiceHealth } from '@/hooks/use-service-health';
+import { askWhyTheAgentIsUnreachable } from '@/lib/agent-attention';
 
 /** What the user said they were doing. `undefined` means they dismissed without saying. */
 export type OnboardingChoice = 'admin' | 'member' | undefined;
@@ -66,7 +67,16 @@ export function useOnboardingIntent(beginWizard: () => void): OnboardingIntentSt
     }
     // Unreachable agent: do NOT fall through to the wizard. It would open on a
     // connection that cannot complete, on top of the dialog explaining why.
-    if (!isHealthy) return;
+    //
+    // Bring that dialog back rather than returning in silence. "On top of the
+    // dialog explaining why" assumed the dialog is on screen, and once the user
+    // dismisses it -- which sticks, by design -- this `return` left Create
+    // Account doing nothing whatsoever. Same rule, same answer, same helper as
+    // Sign In beside it.
+    if (!isHealthy) {
+      askWhyTheAgentIsUnreachable();
+      return;
+    }
     beginWizard();
   }, [beginWizard, isHealthy]);
 

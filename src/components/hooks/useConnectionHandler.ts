@@ -30,7 +30,7 @@ import { debugLog } from '@/lib/debug-config';
 import { makeSessionAlreadyConnectedHandler } from './session-already-connected';
 import type { StoredSession } from '@/types/session-types';
 import {
-  NOT_FAILING, onFailure, onDismiss, onSuccess, isRetryDialogOpen,
+  NOT_FAILING, onFailure, onDismiss, onRequested, onSuccess, isRetryDialogOpen,
   type RetryVisibility,
 } from './connection-retry-visibility';
 
@@ -194,9 +194,19 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
       setState(prev => (prev.retry === NOT_FAILING ? prev : { ...prev, retry: onSuccess() }));
     };
 
+    // The user pressed a door that needs the agent while the agent is down.
+    // `use-agent-gate.ts` will not open that door -- the retry dialog is the
+    // surface that explains why and offers the way forward -- so bring it back,
+    // even if they dismissed it earlier. This is the ONLY thing that
+    // un-dismisses; see onRequested for why it is not onFailure.
+    const handleRetryRequested = (): void => {
+      setState(prev => ({ ...prev, retry: onRequested(prev.retry) }));
+    };
+
     const handleSessionAlreadyConnected: (event: { cid: string; message: string; }) => Promise<void> = makeSessionAlreadyConnectedHandler({ toast, setState });
 
     eventEmitter.on('connection-failure', handleConnectionFailure);
+    eventEmitter.on('connection:retry-requested', handleRetryRequested);
     eventEmitter.on('on-ws-connection-success', handleConnectionSuccess);
     eventEmitter.on('session-already-connected', handleSessionAlreadyConnected);
 
@@ -213,6 +223,7 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
       runAsyncSetup(() => userService.cleanup());
       healthCheckService.stopHealthChecks();
       eventEmitter.off('connection-failure', handleConnectionFailure);
+      eventEmitter.off('connection:retry-requested', handleRetryRequested);
       eventEmitter.off('on-ws-connection-success', handleConnectionSuccess);
       eventEmitter.off('session-already-connected', handleSessionAlreadyConnected);
     };

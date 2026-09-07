@@ -58,9 +58,33 @@ describe('the landing screen and the agent', () => {
     const gate: string = code(
       readFileSync(join(process.cwd(), 'src', 'hooks', 'use-agent-gate.ts'), 'utf8'),
     );
-    expect(gate).toMatch(/if\s*\(!isHealthy\)\s*return;/);
+    expect(gate).toMatch(/if\s*\(!isHealthy\)\s*\{[\s\S]*?return;/);
     expect(gate).toMatch(/if\s*\(!isHealthy\)\s*setStep/);
     expect(gate).toMatch(/useServiceHealth\s*\(/);
+  });
+
+  it('and the refusal leads somewhere, on BOTH doors', () => {
+    // Refusing is only half of it. `ConnectionRetryModal` is the surface that
+    // explains the state and carries the download link, and a dismissal of it
+    // sticks by design -- so after a dismissal both doors answered a click with
+    // nothing at all: no dialog, no message, no navigation. Measured on a
+    // production bundle with the agent down: zero dialogs after pressing
+    // Create Account.
+    //
+    // Pinned on BOTH files in one test, because this rule has now reached one
+    // door and not the other TWICE -- round 635 guarded Create Account and not
+    // Sign In, and the first fix for the silence went to Sign In and not back
+    // to Create Account.
+    const gate: string = code(
+      readFileSync(join(process.cwd(), 'src', 'hooks', 'use-agent-gate.ts'), 'utf8'),
+    );
+    const intent: string = code(
+      readFileSync(join(process.cwd(), 'src', 'hooks', 'useOnboardingIntent.ts'), 'utf8'),
+    );
+    for (const [name, source] of [['use-agent-gate', gate], ['useOnboardingIntent', intent]] as const) {
+      expect(source, `${name} must ask for the retry dialog before refusing`)
+        .toMatch(/askWhyTheAgentIsUnreachable\(\)/);
+    }
   });
 
   it('routes account creation through the health-guarded hook', () => {
