@@ -51,7 +51,11 @@ export function MemberListBody({
 }: MemberListBodyProps): JSX.Element | null {
   if (isLoading) {
     return (
-      <SidebarMenuItem className="px-3 py-2 text-sm text-muted-foreground">
+      // Named, so a failure can say WHICH of the three branches was on screen.
+      // member-list-loading.spec.ts reports the DOM at the moment it sees the
+      // empty state, and "loading was absent" and "loading has no testid" are
+      // otherwise the same observation.
+      <SidebarMenuItem className="px-3 py-2 text-sm text-muted-foreground" data-testid="members-loading">
         Loading members...
       </SidebarMenuItem>
     );

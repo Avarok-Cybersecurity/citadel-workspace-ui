@@ -66,8 +66,35 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
         await targets.nth(1).click({ force: true });
     }
 
+    // What the DOM held at the moment the empty state was seen.
+    //
+    // Two fixes have been aimed at this spec on the strength of reading the
+    // code -- initialising the loading flag from the prop, then deriving it from
+    // the domain instead of storing it -- and it still fails its first attempt
+    // and passes on retry. Neither reproduces locally without the compose stack,
+    // so the next CI failure has to carry its own diagnosis rather than inviting
+    // a third guess.
+    let atFirstSighting = '';
     for (let i = 0; i < 100; i++) {
-        if (await emptyState.isVisible().catch(() => false)) sawEmptyState = true;
+        if (await emptyState.isVisible().catch(() => false)) {
+            if (!sawEmptyState) {
+                atFirstSighting = await page.evaluate(() => {
+                    const text = (sel: string): string =>
+                        document.querySelector(sel)?.textContent?.trim().slice(0, 60) ?? '(absent)';
+                    return JSON.stringify({
+                        url: window.location.href,
+                        // The three surfaces the branch chooses between, so the
+                        // report says which one was on screen and which were not.
+                        loading: text('[data-testid="members-loading"]'),
+                        empty: text('[data-testid="members-empty"]'),
+                        unavailable: text('[data-testid="members-unavailable"]'),
+                        memberRows: document.querySelectorAll('[data-testid^="member-row-"]').length,
+                        peerRows: document.querySelectorAll('[data-testid^="peer-row-"]').length,
+                    });
+                });
+            }
+            sawEmptyState = true;
+        }
         if (await memberEntry.first().isVisible().catch(() => false)) {
             sawMembers = true;
             break;
@@ -81,7 +108,7 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
     ).toBe(true);
     expect(
         sawEmptyState,
-        'the sidebar said "No members yet" while the member list was still loading — ' +
-        'the loading flag is being cleared when the request is sent rather than when it is answered',
+        'the sidebar said "No members yet" while the member list was still loading. ' +
+        `At the first sighting the DOM held: ${atFirstSighting}`,
     ).toBe(false);
 });
