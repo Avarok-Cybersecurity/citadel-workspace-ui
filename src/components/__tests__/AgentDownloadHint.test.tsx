@@ -51,8 +51,14 @@ describe('AgentDownloadHint', () => {
     document.head.appendChild(meta);
     try {
       render(<AgentDownloadHint navigatorRef={MAC} />);
-      const cmd: HTMLElement = screen.getByText(/--loopback-host local\.example\.com/);
-      expect(cmd.textContent).toContain(`--loopback-cert-url ${window.location.origin}/agent`);
+      // Addressed by a flag the agent HAS. This looked up the command by
+      // `--loopback-host`, a flag it has never had, so the component's rendered
+      // instruction was pinned to something that cannot run -- and only in the
+      // hosted case, which is the only case where a stranger reads it.
+      const cmd: HTMLElement = screen.getByText(/--allowed-origins/);
+      expect(cmd.textContent).toContain(`--allowed-origins ${window.location.origin}`);
+      expect(cmd.textContent).not.toContain('--loopback-host');
+      expect(cmd.textContent).not.toContain('--loopback-cert-url');
     } finally {
       meta.remove();
     }
