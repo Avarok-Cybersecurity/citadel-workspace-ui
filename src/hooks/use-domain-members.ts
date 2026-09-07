@@ -102,6 +102,18 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
 
   useEffect(() => {
     const handleMembersLoaded = (payload: MembersPayload): void => {
+      // Logged BEFORE the domain filter, so an event that is discarded is as
+      // visible as one that is accepted. Three code paths can end a load and
+      // two of them set `membersUnavailable`; when neither flag is set and the
+      // list is empty, THIS is the path that ran, and the only open question is
+      // which event did it. See docs/ROBUSTNESS.md round 724 -- the DOM capture
+      // narrowed it to here and could go no further, because the DOM cannot
+      // show a payload.
+      debugLog('useDomainMembers', 'members:loaded', {
+        payloadDomainId: payload.domainId ?? '(none)',
+        activeDomainId: activeDomainId ?? '(none)',
+        count: payload.members?.length ?? -1,
+      });
       // See is-for-domain: a list fetched for another domain used to replace
       // this one.
       //

@@ -44,6 +44,19 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
     adminMemberTest.setTimeout(300_000);
     const page = admin.page;
 
+    // Every members:loaded event, in order, as the app saw it.
+    //
+    // Round 724 captured the DOM at first sighting and got as far as "a
+    // members:loaded event arrived carrying an empty list and ended the load" —
+    // and no further, because the DOM cannot show a payload. The hook now logs
+    // each event BEFORE its domain filter, so a discarded event is as visible as
+    // an accepted one. Which of these ended the load is the whole question.
+    const memberEvents: string[] = [];
+    page.on('console', (m): void => {
+        const t: string = m.text();
+        if (t.includes('members:loaded')) memberEvents.push(t.slice(0, 240));
+    });
+
     // Switching nodes re-runs the load, which is what makes this reproducible
     // rather than dependent on catching the initial render.
     const nodes = page.locator('[data-testid^="tree-node-menu-"]');
@@ -109,6 +122,9 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
     expect(
         sawEmptyState,
         'the sidebar said "No members yet" while the member list was still loading. ' +
-        `At the first sighting the DOM held: ${atFirstSighting}`,
+        `At the first sighting the DOM held: ${atFirstSighting}` +
+        `\nmembers:loaded events, in order: ${
+            memberEvents.length ? memberEvents.join('\n  ') : '(none — so NO event ended the load, and the path is elsewhere)'
+        }`,
     ).toBe(false);
 });
