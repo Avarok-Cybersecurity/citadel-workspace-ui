@@ -11,6 +11,20 @@
  * user was told "Request Sent" and then nothing. It is correlated by
  * `request_id`, because `PeerRegisterFailure` carries no `peer_cid`.
  *
+ * WHICH PEER IS NOT IN THE RESPONSE, AND MUST NOT BE READ FROM IT. The variant
+ * carries `cid`, and that is the LOCAL SESSION's id -- the peer appears only
+ * inside the message text. This branch read `failure.cid` and put it in a Set
+ * keyed by PEER cid, so the user's own id was marked registered and the peer's
+ * row stayed unmarked. Since CIDs are permanent, every reconnect re-registers,
+ * gets "already registered" back, and lands here: the row never marks, the
+ * branch says nothing by design, and pressing Connect again is a silent no-op
+ * for as long as the user keeps trying. The sibling `PeerRegisterSuccess`
+ * branch reads `peer_cid` and is correct.
+ *
+ * So the outcome no longer carries a cid at all. The caller correlated the
+ * request and knows the peer; it passes it in. A value that cannot be right
+ * should not be available to read.
+ *
  * Extracted because `usePeerDiscovery` crossed the 250-line limit, and because
  * the decision is worth reading on its own: telling the user "your request was
  * not accepted" about a peer who IS registered is the opposite of what happened,
@@ -19,7 +33,7 @@
 import { isAlreadyRegistered } from '@/lib/peer-registration-store/already-registered';
 
 export type PeerRegisterFailureOutcome =
-  | { kind: 'already-registered'; cid: string | undefined }
+  | { kind: 'already-registered' }
   | { kind: 'refused'; reason: string | undefined };
 
 /** Classify the failure. Pure, so the rule is testable without a modal. */
@@ -29,14 +43,16 @@ export function classifyPeerRegisterFailure(
   const reason: string | undefined =
     typeof failure.message === 'string' ? failure.message : undefined;
   if (isAlreadyRegistered(reason)) {
-    return { kind: 'already-registered', cid: (failure.cid as bigint | undefined)?.toString() };
+    // Deliberately no cid: see the header. `failure.cid` is this session's.
+    return { kind: 'already-registered' };
   }
   return { kind: 'refused', reason };
 }
 
 /** What the modal needs in order to act on the outcome. */
 export interface PeerRegisterFailureDeps {
-  readonly markRegistered: (cid: string) => void;
+  /** Takes no cid: the caller knows the peer, the response does not. */
+  readonly markRegistered: () => void;
   readonly reportRefusal: (reason: string | undefined) => void;
 }
 
@@ -50,7 +66,7 @@ export function applyPeerRegisterFailure(
 ): void {
   const outcome: PeerRegisterFailureOutcome = classifyPeerRegisterFailure(failure);
   if (outcome.kind === 'already-registered') {
-    if (outcome.cid) deps.markRegistered(outcome.cid);
+    deps.markRegistered();
     return;
   }
   deps.reportRefusal(outcome.reason);
