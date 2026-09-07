@@ -1,5 +1,12 @@
 # Robustness audit — findings, fixes, and what is still open
 
+> **Note: there are TWO files named `ROBUSTNESS.md`, and their round numbers
+> overlap.** This one is the UI submodule's own record, **rounds 136–550**. The
+> parent repo's is `docs/ROBUSTNESS.md` at the repository root, **rounds
+> 477–730**, covering deploy, the agent, gates, CI and the live site. Rounds
+> 477–550 exist in both with different content, so a round number alone does not
+> identify a finding — say which record.
+
 Five parallel read-only audits (tests, P2P/ILM, frontend error handling, Rust
 backend, deploy/upgrade/PWA), 2026-08-26. Every claim below was re-verified
 against source before being recorded — several entries in the old
