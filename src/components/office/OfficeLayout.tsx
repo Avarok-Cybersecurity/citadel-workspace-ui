@@ -13,7 +13,7 @@ interface OfficeLayoutProps {
   onEditToggle: () => void;
   onSave?: () => void;
   children: React.ReactNode;
-  canEdit?: boolean;
+  canEdit: boolean;
   editDeniedReason?: string;
 }
 
@@ -23,7 +23,11 @@ export const OfficeLayout = ({
   onEditToggle,
   onSave,
   children,
-  canEdit = true,
+  // No default. A permission prop that defaults to GRANTED hands the action to
+  // anyone whose caller forgets to pass it, and the omission looks like nothing
+  // at all at the call site. Both callers pass it explicitly (BaseOffice, twice);
+  // required here so a third cannot arrive without deciding.
+  canEdit,
   editDeniedReason,
 }: OfficeLayoutProps): JSX.Element => {
   const location: ReturnType<typeof useLocation> = useLocation();

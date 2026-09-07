@@ -59,8 +59,11 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     isEditing || isNewContent ? undefined : entityData?.mdx_content_hash,
   );
 
-  // Determine the domain ID for permission checks
-  const domainId: string | undefined = nodeId;
+  // "No node" is the workspace ROOT, a real permission domain -- the same
+  // fallback the unsaved guard below and OfficeChatTabs already use. The check
+  // read `!domainId || permits(...)`, so a missing domain skipped it entirely
+  // and offered the action. See docs/ROBUSTNESS.md round 693.
+  const domainId: string = nodeId ?? WORKSPACE_ROOT_ID;
 
   // Check if user can edit the MDX content using the permissions system
   const edit: ReturnType<typeof usePermission> = usePermission(
@@ -158,7 +161,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   // docstring carries both halves of the reasoning: why an unanswered question
   // must not read as a refusal, and why being offered without an answer is
   // worth a line in the log.
-  const hasEditPermission: boolean = !domainId || permitsAndReport('BaseOffice', 'edit offered without an answer', domainId, edit);
+  const hasEditPermission: boolean = permitsAndReport('BaseOffice', 'edit offered without an answer', domainId, edit);
   const editDeniedReason: string | null = edit.reason;
 
   // Get current user info from workspace state OR connection manager
