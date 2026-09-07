@@ -54,7 +54,7 @@ describe('a mistyped server address is explained, not dumped', () => {
     it(`explains ${raw.slice(0, 28)}...`, () => {
       const msg: string = getUserFriendlyErrorMessage(raw);
       expect(msg).toMatch(/typo/i);
-      expect(msg).toMatch(/citadel\.example\.com:12400/);
+      expect(msg).toMatch(/citadel\.example\.com/);
       // The raw system text must not survive into it.
       expect(msg).not.toMatch(/lookup address information|nodename|Something went wrong/i);
     });
@@ -314,7 +314,7 @@ describe('a registration that times out', () => {
   });
 
   it('says what a valid address looks like, since that is what to check', () => {
-    expect(getUserFriendlyErrorMessage(err)).toMatch(/citadel\.example\.com:12400/);
+    expect(getUserFriendlyErrorMessage(err)).toMatch(/citadel\.example\.com/);
   });
 
   it('allows that the address may be right and the server down', () => {
@@ -356,7 +356,7 @@ describe('a server that accepts the connection and then says nothing', () => {
   });
 
   it('points at the address, which is the thing to check', () => {
-    expect(getUserFriendlyErrorMessage(err)).toMatch(/citadel\.example\.com:12400/);
+    expect(getUserFriendlyErrorMessage(err)).toMatch(/citadel\.example\.com/);
   });
 
   it('gets a title that says what happened, not a bare "Error"', () => {
@@ -405,7 +405,11 @@ describe('the address example shown to a new user', () => {
     const placeholder: RegExpMatchArray | null = source.match(/placeholder="([^"]*example[^"]*)"/);
     expect(placeholder, 'ServerConnect must still have an example address placeholder').not.toBeNull();
     const shown: string = placeholder![1];
-    expect(shown, 'the placeholder must include a port').toMatch(/:\d+$/);
+    // No longer "must include a port": the port is assumed when absent, so the
+    // placeholder shows the simplest thing that works. What still matters is
+    // that the hint and the failure message name the SAME example -- a user
+    // who copies one and is corrected by the other has been told two things.
+    expect(shown, 'the placeholder must not be empty').not.toBe('');
     expect(
       getUserFriendlyErrorMessage(new Error('Socket error: deadline has elapsed')),
       'the error message must name the same example as the placeholder',

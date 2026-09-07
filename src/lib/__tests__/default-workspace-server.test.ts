@@ -16,6 +16,13 @@ describe('the workspace server a deployment publishes', () => {
     expect(readDefaultWorkspaceServer(pageWith('citadel.avarok.net:12400'))).toBe('citadel.avarok.net:12400');
   });
 
+  it('accepts a bare hostname and hands back the address with its assumed port', () => {
+    // An operator publishing `citadel.avarok.net` means the default port, the
+    // same as a user typing it. The field is pre-filled with what will be
+    // dialled, so what they see is what happens.
+    expect(readDefaultWorkspaceServer(pageWith('citadel.avarok.net'))).toBe('citadel.avarok.net:12400');
+  });
+
   it('is undefined when the operator published nothing', () => {
     // The local-build case, and any deployment whose operator has not set it:
     // the wizard must then ask, exactly as it always did.
@@ -33,7 +40,9 @@ describe('the workspace server a deployment publishes', () => {
     // than pre-filling something the user has to notice is wrong and delete.
     // Every one of these is a plausible operator typo.
     for (const bad of [
-      'citadel.avarok.net',                 // the whole point: no port
+      // NOT a bare hostname: that is now legitimate. The port is assumed when
+      // absent (see workspace-address.ts), so an operator may publish
+      // `citadel.avarok.net` and mean `citadel.avarok.net:12400`.
       'wss://citadel.avarok.net:12400',     // a scheme, copied from the agent origin
       'https://citadel.avarok.net:12400',
       'citadel.avarok.net:12400/',          // a path

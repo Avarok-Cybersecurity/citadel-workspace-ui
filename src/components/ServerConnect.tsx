@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { StepIndicator } from "@/components/ui/step-indicator";
 import { readDefaultWorkspaceServer } from "@/lib/default-workspace-server";
+import { normalizeWorkspaceAddress } from "@/lib/workspace-address";
 
 interface ServerConnectProps {
   onNext: (address: string, password: string) => void;
@@ -66,7 +67,10 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
       return;
     }
 
-    onNext(serverAddress, password);
+    // The port is assumed here, once, so every consumer downstream -- register,
+    // login, the stored session list -- sees the same `host:port` the agent
+    // dials. Doing it further down would leave each of them to remember.
+    onNext(normalizeWorkspaceAddress(serverAddress), password);
   };
 
   const { ref: dialogRef, dialogProps } = useDialogOverlay({ label: 'Connect to a server', onDismiss: onCancel });
@@ -102,12 +106,11 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
                     value={serverAddress}
                     onChange={(e) => setServerAddress(e.target.value)}
                     className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
-                    // WITH the port. The address is host:port -- the agent needs
-                    // somewhere to connect, and there is no default. A placeholder
-                    // showing a bare hostname teaches the one mistake that costs a
-                    // 30-second timeout and, until recently, the advice "check your
-                    // network". See error-messages.ts and docs/ROBUSTNESS.md 713.
-                    placeholder="citadel.example.com:12400"
+                    // Without a port, because one is no longer required: see
+                    // lib/workspace-address.ts, which assumes DEFAULT_WORKSPACE_PORT
+                    // when none is typed. The placeholder shows the simplest thing
+                    // that works, and a user who needs another port still types it.
+                    placeholder="citadel.example.com"
                   />
                 </div>
               </div>

@@ -23,11 +23,15 @@
  * reach somebody else's server.
  */
 
+import { normalizeWorkspaceAddress } from '@/lib/workspace-address';
+
 /** The `<meta name>` the hosting nginx fills in. */
 export const DEFAULT_SERVER_META: string = 'citadel-default-server';
 
 /**
- * `host:port` -- a hostname or IPv4 address, then a colon and a port.
+ * `host` or `host:port`. The port is OPTIONAL: `normalizeWorkspaceAddress`
+ * assumes DEFAULT_WORKSPACE_PORT when none is given, so an operator publishing
+ * `citadel.example.com` means the same thing as `citadel.example.com:12400`.
  *
  * Deliberately the same shape the address field accepts and the error message
  * describes. A value that would not be accepted if typed must not be offered
@@ -35,7 +39,7 @@ export const DEFAULT_SERVER_META: string = 'citadel-default-server';
  * field empty, rather than pre-filling something the user must first notice is
  * wrong and then delete.
  */
-const SERVER_SHAPE: RegExp = /^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?:[0-9]{1,5}$/;
+const SERVER_SHAPE: RegExp = /^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?(:[0-9]{1,5})?$/;
 
 /** Read the published default workspace server, or `undefined` when none is set. */
 export function readDefaultWorkspaceServer(
@@ -47,5 +51,6 @@ export function readDefaultWorkspaceServer(
   const trimmed: string = (content ?? '').trim();
   if (trimmed.length === 0) return undefined;
   if (!SERVER_SHAPE.test(trimmed)) return undefined;
-  return trimmed;
+  // Hand back what the field should contain, port included.
+  return normalizeWorkspaceAddress(trimmed);
 }

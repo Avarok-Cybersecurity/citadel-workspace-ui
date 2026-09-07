@@ -55,7 +55,7 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
   // fault is not. work.avarok.net showed this exact message to every new user
   // for weeks while the real cause was a refused DNS lookup in the page.
   if (/registration timed out|deadline has elapsed/i.test(errorMessage)) {
-    return 'The workspace server did not answer within 30 seconds. Check the address you entered — it should be a host name or IP address, then a colon and the port, like citadel.example.com:12400. If that is right, the server may be down or unreachable from this machine.';
+    return 'The workspace server did not answer within 30 seconds. Check the address you entered — a host name or IP address, like citadel.example.com, optionally followed by a colon and a port. If that is right, the server may be down or unreachable from this machine.';
   }
 
   if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
@@ -143,8 +143,8 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
   // one did not, and it is the one they are most likely to hit.
   if (/could not resolve|resolved to no addresses/i.test(errorMessage)) {
     return (
-      'No server was found at that address. Check it for typos — it should be a host name or ' +
-      'IP address, then a colon and the port, like citadel.example.com:12400.'
+      'No server was found at that address. Check it for typos — a host name or IP ' +
+      'address, like citadel.example.com, optionally followed by a colon and a port.'
     );
   }
 
