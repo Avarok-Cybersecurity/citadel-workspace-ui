@@ -355,26 +355,42 @@ async function main() {
     // the whole check with "the check ran to completion".
     //
     // The gated behaviour is asserted instead of skipped: with no agent, the
-    // door must NOT open a dialog. That is a real property — a regression that
-    // let the form open without an agent would fail this — and it is measured
-    // where it can be. Focus management is then checked on the one dialog this
-    // world can actually open. `check-agent-down.mjs` owns the rest of the
-    // agent-down first run.
+    // door must not open the FORM. That is a real property — a regression that
+    // let a login form open on a connection that cannot complete would fail
+    // this. Focus management is then checked on the one dialog this world can
+    // actually open. `check-agent-down.mjs` owns the rest of the agent-down
+    // first run.
+    //
+    // This used to assert that NO dialog opened at all, which was true and is
+    // no longer. After a visitor dismisses the connection dialog, the door had
+    // nothing left to point at and answered a click with silence — no dialog,
+    // no message, no navigation. It now reopens the dialog that explains the
+    // state and carries the download link (round 678), so "no dialog" would
+    // now fail against the better behaviour.
+    //
+    // What replaces it is narrower AND stronger: the form must not open, and
+    // what opens instead must be the surface that says why. "Nothing happened"
+    // and "the right thing happened" are no longer indistinguishable.
     for (const [name, testid] of [['sign-in', 'sign-in-button']]) {
       await page.goto(APP, { waitUntil: 'domcontentloaded' });
       await dismissConnectionFailure(page);
       const trigger = page.getByTestId(testid);
       await trigger.click();
-      // 30s, not a token wait: measured, this door stays shut for the full
+      // 30s, not a token wait: measured, the form stays shut for the full
       // interval with no agent. A shorter timeout would assert the same thing
-      // about a door that merely opens slowly, which is a different claim.
-      const opened = await page
-        .locator('[role="dialog"]')
-        .first()
+      // about a form that merely opens slowly, which is a different claim.
+      const formOpened = await page
+        .locator('#username')
         .waitFor({ state: 'visible', timeout: 30_000 })
         .then(() => true)
         .catch(() => false);
-      record(`${name}: stays shut while the agent is unreachable`, !opened);
+      record(`${name}: the login form stays shut while the agent is unreachable`, !formOpened);
+      const explained = await page
+        .getByTestId('connection-retry-modal')
+        .waitFor({ state: 'visible', timeout: 15_000 })
+        .then(() => true)
+        .catch(() => false);
+      record(`${name}: pressing it explains why, instead of doing nothing`, explained);
     }
 
     for (const [name, testid] of [
