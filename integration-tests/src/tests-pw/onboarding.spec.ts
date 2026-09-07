@@ -246,17 +246,31 @@ test.describe('a deployment that publishes its workspace address', () => {
 
   async function openWizardWithMeta(page: Page, content: string): Promise<void> {
     const metaName: string = metaNameFromSource();
-    await page.addInitScript(
+    await openLanding(page, '?onboarding=1');
+
+    // Set the tag AFTER the document exists, and BEFORE ServerConnect mounts.
+    //
+    // Not `addInitScript`: that runs before the HTML is parsed, so the meta
+    // index.html ships is not there yet, and a script that "sets the existing
+    // tag" silently creates a second one instead. The reader uses
+    // querySelector, which returns the FIRST match -- the empty one -- so the
+    // field stayed blank on every retry.
+    //
+    // Not appended either, for the same reason. nginx rewrites the content
+    // attribute of the single tag `index.html` ships (`sub_filter`), so the
+    // production page has exactly one. This does what nginx does.
+    //
+    // Timing is safe: ServerConnect is not mounted until Create Account is
+    // clicked, which is the next line.
+    await page.evaluate(
       ({ name, value }: { name: string; value: string }): void => {
-        // Runs before any app code, the way a server-injected tag would exist.
-        const tag: HTMLMetaElement = document.createElement('meta');
-        tag.setAttribute('name', name);
-        tag.setAttribute('content', value);
-        document.head.appendChild(tag);
+        const existing: HTMLMetaElement | null = document.querySelector(`meta[name="${name}"]`);
+        if (!existing) throw new Error(`index.html no longer ships <meta name="${name}">`);
+        existing.setAttribute('content', value);
       },
       { name: metaName, value: content },
     );
-    await openLanding(page, '?onboarding=1');
+
     await clickCreateAccount(page);
     await page.getByTestId('onboarding-intent-member').click({ timeout: 30_000 });
   }
