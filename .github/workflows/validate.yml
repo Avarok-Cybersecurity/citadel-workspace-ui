@@ -404,6 +404,12 @@ jobs:
         if: matrix.project == 'citadel-workspaces'
         run: node scripts/check-the-loopback-agent-origin-is-wired.mjs
 
+      # AGENT_ASSETS lives in this repo and names the files the release builds.
+      # A rename here 404s the download every new user starts with.
+      - name: Every agent download the UI offers is built
+        if: matrix.project == 'citadel-workspaces'
+        run: node scripts/check-agent-downloads-exist.mjs
+
   lint:
     needs: parent-ref
     name: ESLint - ${{ matrix.project }}
