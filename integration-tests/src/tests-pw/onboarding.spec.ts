@@ -211,3 +211,82 @@ test.describe('First-run onboarding', () => {
     });
   });
 });
+
+/**
+ * The workspace address a hosted deployment publishes.
+ *
+ * In production the hosting nginx fills `<meta name="citadel-default-server">`
+ * from DEFAULT_WORKSPACE_SERVER. The dev server this suite runs against ships
+ * that meta EMPTY, which is correct — so the injection is simulated here with
+ * an init script, exactly the value nginx would write, before the app boots.
+ *
+ * What this covers that the unit tests do not: that the value survives the real
+ * React render and reaches the rendered input. The unit test asserts the reader
+ * and, separately, that ServerConnect's initialiser mentions it — neither can
+ * see a value that is read, passed, and then overwritten on mount.
+ *
+ * The meta NAME is derived from the module that declares it, for the same
+ * reason as OWNER above: a spec holding its own copy of a key keeps asserting
+ * on something nothing writes any more.
+ */
+const DEFAULT_SERVER_OWNER: string = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../src/lib/default-workspace-server.ts',
+);
+
+function metaNameFromSource(): string {
+  const source: string = readFileSync(DEFAULT_SERVER_OWNER, 'utf8');
+  const m: RegExpMatchArray | null = source.match(/DEFAULT_SERVER_META: string = '([^']+)'/);
+  if (!m) throw new Error(`Could not read DEFAULT_SERVER_META from ${DEFAULT_SERVER_OWNER}`);
+  return m[1];
+}
+
+test.describe('a deployment that publishes its workspace address', () => {
+  const PUBLISHED: string = 'citadel.example.com:12400';
+
+  async function openWizardWithMeta(page: Page, content: string): Promise<void> {
+    const metaName: string = metaNameFromSource();
+    await page.addInitScript(
+      ({ name, value }: { name: string; value: string }): void => {
+        // Runs before any app code, the way a server-injected tag would exist.
+        const tag: HTMLMetaElement = document.createElement('meta');
+        tag.setAttribute('name', name);
+        tag.setAttribute('content', value);
+        document.head.appendChild(tag);
+      },
+      { name: metaName, value: content },
+    );
+    await openLanding(page, '?onboarding=1');
+    await clickCreateAccount(page);
+    await page.getByTestId('onboarding-intent-member').click({ timeout: 30_000 });
+  }
+
+  test('pre-fills the address so a newcomer is not asked for one nobody told them', async ({ page }) => {
+    await openWizardWithMeta(page, PUBLISHED);
+    await expect(
+      page.getByRole('textbox', { name: 'Workspace Address' }),
+      'the published address must reach the rendered field',
+    ).toHaveValue(PUBLISHED, { timeout: 30_000 });
+  });
+
+  test('leaves it editable — a pre-fill, not a lock', async ({ page }) => {
+    // Reaching somebody else's server from this page is legitimate, so the
+    // field must still accept typing. A read-only pre-fill would strand anyone
+    // whose workspace is not the one this deployment happens to serve.
+    await openWizardWithMeta(page, PUBLISHED);
+    const field = page.getByRole('textbox', { name: 'Workspace Address' });
+    await expect(field).toHaveValue(PUBLISHED, { timeout: 30_000 });
+    await field.fill('elsewhere.example.org:12500');
+    await expect(field).toHaveValue('elsewhere.example.org:12500');
+  });
+
+  test('asks, as before, when the deployment published nothing', async ({ page }) => {
+    // The control. Without it, a field that pre-filled unconditionally — from a
+    // hard-coded constant, say — would satisfy both tests above.
+    await openWizardWithMeta(page, '');
+    await expect(
+      page.getByRole('textbox', { name: 'Workspace Address' }),
+      'an unpublished address must leave the field empty',
+    ).toHaveValue('', { timeout: 30_000 });
+  });
+});
