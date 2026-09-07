@@ -1,6 +1,46 @@
 import { describe, it, expect } from 'vitest';
 import { getUserFriendlyErrorMessage, getErrorTitle } from '../error-messages';
 
+describe('a missing LOCAL account is not reported as a missing server account', () => {
+  /**
+   * `ConnectFailure { message: "Client does not exist" }` is what the SDK's own
+   * account manager answers when this machine holds no account by that name. It
+   * is decided before the server is consulted, and it says nothing whatever
+   * about the server.
+   *
+   * Measured against the live deployment: a real, registered account signed in
+   * from a fresh agent `--data-dir` -- a new machine, or a reinstall -- got
+   * exactly that, and the UI told the user "No account found with that username
+   * on this server. Please check your username or register a new account."
+   *
+   * Both halves of that are wrong in the way that matters. The account is
+   * intact on the server, and registering again is not a retry: it mints a NEW
+   * CID while every peer's registration still points at the old one. The user
+   * would follow the instruction and quietly split their identity in two.
+   */
+  it('names the machine, not the server', () => {
+    const msg: string = getUserFriendlyErrorMessage('Client does not exist');
+    expect(msg).toMatch(/machine/i);
+    expect(msg).toMatch(/data.directory|--data-dir/i);
+    // The claim that must not be made.
+    expect(msg).not.toMatch(/on this server/i);
+  });
+
+  it('does not tell them to register, which would split their identity', () => {
+    const msg: string = getUserFriendlyErrorMessage('Client does not exist');
+    expect(msg).not.toMatch(/register a new account/i);
+    // ...while still saying what registering again would COST, so the option is
+    // informed rather than hidden.
+    expect(msg).toMatch(/separate account/i);
+  });
+
+  it('still reports a genuinely unknown username the old way', () => {
+    // The generic branch must survive: this one is about a different failure.
+    const msg: string = getUserFriendlyErrorMessage('User is not registered');
+    expect(msg).toMatch(/on this server/i);
+  });
+});
+
 describe('getUserFriendlyErrorMessage', () => {
   it('handles WebSocket connection failures', () => {
     const msg: string = getUserFriendlyErrorMessage('WebSocket connection failed');

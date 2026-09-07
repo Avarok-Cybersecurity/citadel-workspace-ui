@@ -106,6 +106,34 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
     return 'Incorrect password. Please check your password and try again.';
   }
 
+  // "Client does not exist" is LOCAL, and saying otherwise sends people to
+  // create a second identity for an account that is perfectly intact.
+  //
+  // Measured: signing in as a real, registered account from a fresh agent
+  // (`--data-dir` pointed somewhere new, which is what a new machine or a
+  // reinstall looks like) answers
+  //
+  //   ConnectFailure { message: "Client does not exist" }
+  //
+  // ...from the SDK's own account manager, before the server is consulted at
+  // all. A Citadel account is not a row on a server: the client holds its CID
+  // and key material, and the agent keeps them under --data-dir. Lose that
+  // directory and the account cannot be signed into from that machine, however
+  // healthy it is on the server.
+  //
+  // The generic branch below claimed "No account found with that username on
+  // this server", which is false in the one place it matters and whose advice --
+  // "register a new account" -- is not reversible: the user gets a NEW CID, and
+  // their peers' registrations still point at the old one.
+  if (/client does not exist/i.test(errorMessage)) {
+    return (
+      'This machine has no account by that name. Citadel keeps your account in the agent\'s ' +
+      'data directory (--data-dir), not only on the server, so signing in needs the machine ' +
+      'you registered on. If you registered elsewhere, or started the agent with a different ' +
+      '--data-dir, use that one. Registering again would create a separate account.'
+    );
+  }
+
   if (/does not exist|not registered|no user|account not found/i.test(errorMessage)) {
     return 'No account found with that username on this server. Please check your username or register a new account.';
   }
