@@ -6,6 +6,7 @@
  */
 
 import type { ConnectionState } from './state';
+import { isConnectAlreadyInProgress } from '@/lib/connection/is-connect-in-progress';
 import { failOnSocketLoss } from '../websocket/request-response';
 import type { ConnectionIO } from './io';
 import type { ActiveSession, StoredSession } from '@/types/session-types';
@@ -156,7 +157,7 @@ export async function handleConnectFailure(
   debugLog('ConnectionService', 'ConnectionManager: Received ConnectFailure:', failure);
   const errorMessage: string = failure.message || '';
 
-  if (!errorMessage.toLowerCase().includes('session already connected')) {
+  if (!isConnectAlreadyInProgress(errorMessage)) {
     return;
   }
 

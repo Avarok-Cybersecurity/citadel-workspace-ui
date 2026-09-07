@@ -6,6 +6,7 @@
  */
 
 import type { ConnectionState } from './state';
+import { isConnectAlreadyInProgress } from '@/lib/connection/is-connect-in-progress';
 import type { ConnectionIO } from './io';
 import type { StoredSession, ActiveSession } from '@/types/session-types';
 import { storeSession } from './session-management';
@@ -169,10 +170,7 @@ async function handleAutoReconnectError(
   io.broadcastConnectionStatus({ isConnected: false });
 
   const errorMessage: string = (error instanceof Error ? error.message : String(error)).toLowerCase();
-  if (
-    errorMessage.includes('session already connected') ||
-    errorMessage.includes('localhost is already trying to connect')
-  ) {
+  if (isConnectAlreadyInProgress(errorMessage)) {
     await handleSessionAlreadyConnectedError(error, session, state, io, getActiveSessions);
     state.resetReconnectAttempts();
     return;

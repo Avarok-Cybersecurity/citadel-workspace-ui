@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isConnectAlreadyInProgress } from '@/lib/connection/is-connect-in-progress';
 import { firstFieldToFix } from '@/lib/first-field-to-fix';
 
 /** The login form's fields, in the order they are rendered. */
@@ -157,7 +158,7 @@ export function useLoginHandler({ onNext }: UseLoginHandlerParams): LoginHandler
           } else if (isResponseType(response, 'ConnectFailure') && response.ConnectFailure.request_id === requestId) {
             responseReceived = true; clearTimeout(timeout); eventEmitter.off('websocket-message', handler);
             const errorMessage: string = response.ConnectFailure.message || 'Connection failed';
-            if (errorMessage.toLowerCase().includes('already connected')) {
+            if (isConnectAlreadyInProgress(errorMessage)) {
               const errorCid: bigint = response.ConnectFailure.cid;
               if (errorCid && errorCid !== 0n && errorCid !== BigInt(0)) {
                 runAsyncSetup(async () => {
