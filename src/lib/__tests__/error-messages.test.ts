@@ -1,6 +1,38 @@
 import { describe, it, expect } from 'vitest';
 import { getUserFriendlyErrorMessage, getErrorTitle } from '../error-messages';
 
+describe('the most common failure of all: a bad username or password', () => {
+  /**
+   * Captured from the live server, signing in with the wrong password:
+   *
+   *   Authentication Error  Something went wrong: Invalid username or password
+   *
+   * "Invalid username or password" contains none of the needles the password
+   * branch used, so the product's most common error reached the user with a
+   * "Something went wrong:" prefix. That branch already carried a note about
+   * having been unreachable once -- lowercase needles against a capitalised SDK
+   * string -- and the fix corrected the case without checking the wording.
+   */
+  it('is a sentence, not a "Something went wrong" dump', () => {
+    const msg: string = getUserFriendlyErrorMessage('Invalid username or password');
+    expect(msg).not.toMatch(/something went wrong/i);
+    expect(msg).toMatch(/username and password/i);
+  });
+
+  it('does not say WHICH half was wrong', () => {
+    // The SDK conflates them deliberately. Naming the wrong half turns a login
+    // form into a username oracle, so a "friendlier" message here would be a
+    // security regression.
+    const msg: string = getUserFriendlyErrorMessage('Invalid username or password');
+    expect(msg).not.toMatch(/incorrect password|wrong password|no account/i);
+  });
+
+  it('still says "password" for an error that really is only the password', () => {
+    const msg: string = getUserFriendlyErrorMessage('Invalid password');
+    expect(msg).toMatch(/incorrect password/i);
+  });
+});
+
 describe('a mistyped server address is explained, not dumped', () => {
   /**
    * The agent resolves the server address and answers a failure with one of two

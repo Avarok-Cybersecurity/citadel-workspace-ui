@@ -102,6 +102,24 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
   //
   // Exactly the bug documented above for 'User already exists', which was
   // fixed with a case-insensitive regex. Same remedy here.
+  // The SDK's actual wording, captured from the live server:
+  //
+  //   Authentication Error  Something went wrong: Invalid username or password
+  //
+  // "Invalid username or password" does not contain "invalid password", so the
+  // branch below never fired for the product's single most common failure. That
+  // branch already carries a comment about being unreachable once -- the needles
+  // were lowercase while the SDK emits a capital I -- and the fix corrected the
+  // CASE without checking the WORDING. Same bug, one layer along, and invisible
+  // for the same reason: the app still says something, so nothing looks broken.
+  //
+  // Deliberately does not claim it was the password. The SDK conflates the two
+  // on purpose -- telling an attacker which half was right is how you turn a
+  // login form into a username oracle -- so the message must not undo that.
+  if (/invalid username or password|invalid credentials/i.test(errorMessage)) {
+    return 'That username and password did not match. Check both and try again.';
+  }
+
   if (/invalid password|wrong password|password mismatch|incorrect password/i.test(errorMessage)) {
     return 'Incorrect password. Please check your password and try again.';
   }
