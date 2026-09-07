@@ -31,7 +31,13 @@ export const AppLayout = ({ children }: AppLayoutProps): JSX.Element => {
           the status bar for us but not the bottom inset, and the value is 0
           everywhere else. */}
       <AppHeaderHeightVar />
-      <div className="h-[var(--app-height,100dvh)] pb-[env(safe-area-inset-bottom)] flex w-full bg-background text-foreground overflow-hidden">
+      {/* The shell states that it mounted. scripts/lib/app-mounted.mjs asks for
+          `sign-in-button`, `create-account-button` or this -- the first two exist
+          only on the landing page, so before this testid existed the third arm of
+          that union could never match and the helper could not recognise a mounted
+          app anywhere past login. The two live arms hid it: the union kept working
+          on the one page it was used on. */}
+      <div data-testid="app-shell" className="h-[var(--app-height,100dvh)] pb-[env(safe-area-inset-bottom)] flex w-full bg-background text-foreground overflow-hidden">
         {/*
           First tab stop, visible only once focused. The workspace renders 43
           tabbable controls and had NO landmarks at all, so reaching the content
