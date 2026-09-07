@@ -48,7 +48,18 @@ export async function editMessage(
     throw new Error(`Cannot edit message ${messageId}: ${outcome.reason}`);
   }
 
-  await messagePaginationStore.updateMessageInPages(peerCid, messageId, { content: contents, edited_at: editedAt });
+  // Same reasoning as the delete below: read the boolean, and fail before the
+  // edit is announced or sent, so a storage failure cannot leave the peer with
+  // a revision the local transcript does not have.
+  const updated: boolean = await messagePaginationStore.updateMessageInPages(
+    peerCid, messageId, { content: contents, edited_at: editedAt },
+  );
+  if (!updated) {
+    throw new Error(
+      `Cannot edit message ${messageId}: it could not be written to the stored transcript, ` +
+      'so the edit would be lost on reload. Nothing was sent to the peer.',
+    );
+  }
   emit('p2p:message-updated', outcome.message);
 
   await sendRawMessage(peerCid, createMessageEdit(messageId, contents, editedAt));
@@ -79,7 +90,21 @@ export async function deleteMessage(
 
   // Persisted, not just emitted. The page a reload reads is the transcript;
   // without this the retraction lasted only while the component stayed mounted.
-  await messagePaginationStore.removeMessageFromPages(peerCid, messageId);
+  //
+  // And the boolean is READ. It was discarded, so a LocalDB timeout removed the
+  // message from both screens and from the peer's store while leaving it in the
+  // local page -- it came back on reload, permanently out of step with the peer,
+  // and nothing was said. Throwing here is what the rest of this function
+  // already does for a refusal, and it happens BEFORE the retraction is sent,
+  // so a failure leaves both sides holding the same message rather than
+  // different ones.
+  const removed: boolean = await messagePaginationStore.removeMessageFromPages(peerCid, messageId);
+  if (!removed) {
+    throw new Error(
+      `Cannot delete message ${messageId}: it could not be removed from the stored transcript, ` +
+      'so it would return on reload. Nothing was sent to the peer.',
+    );
+  }
   emit('p2p:message-deleted', { peerCid, messageId });
 
   await sendRawMessage(peerCid, createMessageDelete(messageId, deletedAt));

@@ -14,8 +14,6 @@
   "src/lib/p2p/message-handler-routing.ts::updateMessageInPages": 1,
   "src/lib/p2p/message-send-operations.ts::ensureMessengerOpen": 2,
   "src/lib/p2p/message-sender.ts::addMessageToConversation": 1,
-  "src/lib/p2p/messenger-revision.ts::removeMessageFromPages": 1,
-  "src/lib/p2p/messenger-revision.ts::updateMessageInPages": 1,
   "src/lib/p2p/send-failure.ts::reportSendFailure": 1,
   "src/lib/pwa/apply-waiting-update.ts::applyWaitingUpdate": 1,
   "src/lib/revfs/revfs-file-ops.ts::sendOp": 1,
