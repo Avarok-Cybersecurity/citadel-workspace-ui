@@ -29,7 +29,6 @@ const MEMBER_LOAD_TIMEOUT_MS: number = 15_000;
 
 export interface DomainMembers {
   members: WorkspaceMember[];
-  setMembers: React.Dispatch<React.SetStateAction<WorkspaceMember[]>>;
   isLoadingMembers: boolean;
   /**
    * The list was asked for and did not arrive — the send failed, or nothing
@@ -44,56 +43,63 @@ export interface DomainMembers {
   membersUnavailable: boolean;
 }
 
+/**
+ * The list in hand, and WHICH domain it belongs to -- one value, not two.
+ *
+ * They were separate: `members` and a `loadedForDomain` flag. Nothing ever
+ * unset the flag, while the domain-change effect cleared the list, so on
+ * A -> B -> A the hook said "loaded, for A" while holding nothing. That pair is
+ * exactly what renders "Nobody else is here yet".
+ *
+ * Keeping them in ONE value makes that state unrepresentable: a list is always
+ * accompanied by the domain it is a list OF, so the two cannot drift apart.
+ */
+interface LoadedMembers {
+  readonly domain: string;
+  readonly members: WorkspaceMember[];
+}
+
+/**
+ * Returned when the loaded domain is not the active one. Module-level and
+ * frozen so the identity is stable -- a fresh `[]` each render would make
+ * `members` a new reference every time and re-fire every dependent effect.
+ */
+const NO_MEMBERS: WorkspaceMember[] = [];
+// Frozen as a statement, not an expression: `Object.freeze([]) as WorkspaceMember[]`
+// is a cast from `readonly never[]` that tsc rejects outright. This gets the
+// runtime guarantee without weakening the declared type the consumers use.
+Object.freeze(NO_MEMBERS);
+
 export function useDomainMembers(activeDomainId: string | null): DomainMembers {
-  const [members, setMembers] = useState<WorkspaceMember[]>([]);
-  // TRUE when there is a domain to load, from the very first render.
-  //
-  // `false` meant that on the first render -- before the effect below has run --
-  // `isLoadingMembers` was false and `members` was empty, which is exactly the
-  // condition `MembersSection` renders "Nobody else is here yet" for. React runs
-  // effects after paint, so that sentence was on screen for at least one frame
-  // every time the sidebar mounted or the domain changed, and longer whenever
-  // the effect was deferred. `member-list-loading.spec.ts` catches it across
-  // three retries: "the sidebar said 'No members yet' while the member list was
-  // still loading".
-  //
-  // Not-yet-loaded is not empty. The effect's own `!activeDomainId` branch
-  // already sets this false, so starting from the prop agrees with it rather
-  // than racing it.
-  // DERIVED, not stored: which domain the list in hand belongs to.
-  //
-  // A stored flag is one render behind on a domain CHANGE. `activeDomainId`
-  // becomes B while `isLoadingMembers` is still false from A's completed load,
-  // and the effect that sets it true does not run until after paint -- so for
-  // one frame the sidebar holds an empty list, believes nothing is loading, and
-  // says so. Initialising from the prop fixed the FIRST render and left this
-  // one; member-list-loading.spec.ts kept failing its first attempt and passing
-  // on retry, which is what a one-frame window looks like.
-  //
-  // Comparing instead of storing closes it by construction: the instant the
-  // domain changes, `isLoadingMembers` is true in the SAME render, with no
-  // effect involved.
-  const [loadedForDomain, setLoadedForDomain] = useState<string | null>(null);
-  const isLoadingMembers: boolean = activeDomainId !== null && loadedForDomain !== activeDomainId;
-  const [membersUnavailable, setMembersUnavailable] = useState(false);
+  const [loaded, setLoaded] = useState<LoadedMembers | null>(null);
+  /**
+   * The domain whose load FAILED, not a bare boolean, for the same reason.
+   * A stale `true` would report the previous node's failure against this one.
+   */
+  const [unavailableFor, setUnavailableFor] = useState<string | null>(null);
+
+  // Both DERIVED, in the same render as the domain change -- no effect involved,
+  // so there is no frame in which they disagree with `activeDomainId`.
+  const isLoadingMembers: boolean = activeDomainId !== null && loaded?.domain !== activeDomainId;
+  const members: WorkspaceMember[] =
+    loaded !== null && loaded.domain === activeDomainId ? loaded.members : NO_MEMBERS;
+  const membersUnavailable: boolean = unavailableFor !== null && unavailableFor === activeDomainId;
 
   useEffect(() => {
+    const domain: string | null = activeDomainId;
     const loadMembers = async (): Promise<void> => {
-      if (!activeDomainId) {
-        setMembers([]);
-        setMembersUnavailable(false);
-        return;
-      }
-      // Clear first: the previous node's members would otherwise stay on screen,
-      // attributed to the node just opened.
-      setMembers([]);
-      setMembersUnavailable(false);
+      if (!domain) return;
+      // Nothing is cleared here any more. The previous node's members cannot
+      // leak onto this one because `members` is derived from the loaded
+      // domain -- clearing was a stored-state workaround for a stored-state
+      // problem, and it was the half that ran while the flag stayed behind.
       try {
-        await WorkspaceService.listMembers(activeDomainId);
+        await WorkspaceService.listMembers(domain);
       } catch (error) {
         debugLog('useDomainMembers', 'Error loading members:', error);
-        setLoadedForDomain(activeDomainId);
-        setMembersUnavailable(true);
+        // Ends the load for THIS domain with nothing, and says why.
+        setLoaded({ domain, members: [] });
+        setUnavailableFor(domain);
       }
       // Deliberately NOT cleared here — see the note at the top of this file.
     };
@@ -123,10 +129,11 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
       // this comment claimed the role and the guard went where it pointed.
       // This hook backs the sidebar's per-domain member list.
       if (!isForDomain(payload.domainId, activeDomainId ?? undefined)) return;
-      if (payload.members) setMembers(payload.members);
-      // The response is what ends the load -- for THIS domain specifically.
-      setLoadedForDomain(activeDomainId);
-      setMembersUnavailable(false);
+      if (activeDomainId === null) return;
+      // The list and the domain it is for, set together -- the response is what
+      // ends the load, for THIS domain specifically.
+      setLoaded({ domain: activeDomainId, members: payload.members ?? [] });
+      setUnavailableFor(null);
     };
     // `onMemberEvent` returns its unsubscribe SYNCHRONOUSLY. It used to be
     // wrapped in `runAsyncSetup(async () => await ...)`, which threw the return
@@ -143,13 +150,15 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
 
   useEffect(() => {
     if (!isLoadingMembers) return;
+    const domain: string | null = activeDomainId;
     const timer: number = window.setTimeout((): void => {
-      setLoadedForDomain(activeDomainId);
+      if (domain === null) return;
       // Not silently empty. Nothing answered, and that is what to say.
-      setMembersUnavailable(true);
+      setLoaded({ domain, members: [] });
+      setUnavailableFor(domain);
     }, MEMBER_LOAD_TIMEOUT_MS);
     return (): void => window.clearTimeout(timer);
   }, [isLoadingMembers, activeDomainId]);
 
-  return { members, setMembers, isLoadingMembers, membersUnavailable };
+  return { members, isLoadingMembers, membersUnavailable };
 }
