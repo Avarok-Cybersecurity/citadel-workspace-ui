@@ -4,7 +4,7 @@ import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
-import { applyPeerRegisterFailure, correlateFailure } from './peer-register-failure';
+import { applyPeerRegisterFailure, correlateFailure, type SentRequest } from './peer-register-failure';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { peerRegistrationStore, OutgoingPeerRequest, PendingPeerRequest } from '@/lib/peer-registration-store';
 import { getSelectedUser , type TabUserContext } from '@/lib/tab-context';
@@ -82,12 +82,11 @@ export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; regis
     const handleRegistrationSuccess = (raw: unknown): void => {
       const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
       if (!message) return;
-      // See peer-register-failure.ts. Correlated by request_id: no peer_cid.
       if (hasVariant(message, 'PeerRegisterFailure')) {
         const failure: Record<string, unknown> = getVariant(message, 'PeerRegisterFailure')!;
-        const correlated = correlateFailure(failure, sentRequests.current);
-        const peerName: string | undefined = correlated?.peer.username;
+        const correlated: ReturnType<typeof correlateFailure> = correlateFailure(failure, sentRequests.current);
         if (correlated) {
+          const peerName: string = correlated.peer.username;
           sentRequests.current.delete(correlated.requestId);
           applyPeerRegisterFailure(failure, {
             // The peer WE sent to, not whatever the response names.
