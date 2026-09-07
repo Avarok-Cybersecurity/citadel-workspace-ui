@@ -4,7 +4,7 @@ import { readDefaultWorkspaceServer, DEFAULT_SERVER_META } from '@/lib/default-w
 /** A stand-in for `document` that answers one meta query. */
 function pageWith(content: string | null): { querySelector(s: string): { getAttribute(n: string): string | null } | null } {
   return {
-    querySelector(selector: string) {
+    querySelector(selector: string): { getAttribute(n: string): string | null } | null {
       if (selector !== `meta[name="${DEFAULT_SERVER_META}"]`) return null;
       return content === null ? null : { getAttribute: (): string | null => content };
     },
@@ -63,7 +63,7 @@ describe('the workspace server a deployment publishes', () => {
  */
 describe('ServerConnect consults it', () => {
   it('imports the reader and uses it after the explicit sources', async () => {
-    const fs = await import('node:fs');
+    const fs: typeof import('node:fs') = await import('node:fs');
     const source: string = fs.readFileSync('src/components/ServerConnect.tsx', 'utf8');
     expect(source, 'ServerConnect must import the reader').toContain('readDefaultWorkspaceServer');
 
