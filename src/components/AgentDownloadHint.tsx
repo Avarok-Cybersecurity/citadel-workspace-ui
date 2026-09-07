@@ -118,7 +118,10 @@ export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navi
         </code>
         <button
           type="button"
-          className="text-muted-foreground hover:text-foreground shrink-0 rounded p-1"
+          // 24px minimum, the WCAG 2.2 target-size floor. A 16px icon with
+          // `p-1` measures 21x21 -- under it, on the screen a first-time
+          // visitor uses to copy the command that starts their agent.
+          className="text-muted-foreground hover:text-foreground shrink-0 rounded p-1 inline-flex items-center justify-center min-h-[24px] min-w-[24px]"
           aria-label={copied ? 'Command copied' : 'Copy the run command'}
           {...interactive(handleCopy)}
         >
@@ -137,7 +140,9 @@ export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navi
         href={RELEASES_PAGE}
         target="_blank"
         rel="noreferrer"
-        className="text-foreground mt-2 inline-flex items-center gap-1 underline underline-offset-4 hover:text-muted-foreground"
+        // `py-1` for the same floor: the text alone is 18px tall, and a link is
+        // a target like any other.
+        className="text-foreground mt-2 inline-flex items-center gap-1 py-1 min-h-[24px] underline underline-offset-4 hover:text-muted-foreground"
       >
         All releases and checksums
         <ExternalLink className="h-3 w-3" aria-hidden="true" />
