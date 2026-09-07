@@ -75,7 +75,7 @@ test.describe('First-run onboarding', () => {
     // Straight to the wizard. If this ever fails, every other spec in the
     // suite just became two interactions more expensive.
     await expect(
-      page.getByRole('textbox', { name: 'Workspace Address' }),
+      page.getByTestId('server-address-input'),
       'dev must go straight to the wizard — onboarding is production-only',
     ).toBeVisible({ timeout: 30_000 });
 
@@ -103,7 +103,7 @@ test.describe('First-run onboarding', () => {
 
     await expect(dialog).toHaveCount(0);
     await expect(
-      page.getByRole('textbox', { name: 'Workspace Address' }),
+      page.getByTestId('server-address-input'),
       'choosing a path must not change the wizard that follows',
     ).toBeVisible({ timeout: 30_000 });
   });
@@ -125,7 +125,7 @@ test.describe('First-run onboarding', () => {
 
     await memberChoice.click();
     await expect(page.getByTestId('onboarding-intent')).toHaveCount(0);
-    await expect(page.getByRole('textbox', { name: 'Workspace Address' })).toBeVisible({
+    await expect(page.getByTestId('server-address-input')).toBeVisible({
       timeout: 30_000,
     });
   });
@@ -136,7 +136,7 @@ test.describe('First-run onboarding', () => {
 
     await page.getByTestId('onboarding-intent-skip').click();
     await expect(page.getByTestId('onboarding-intent')).toHaveCount(0);
-    await expect(page.getByRole('textbox', { name: 'Workspace Address' })).toBeVisible({
+    await expect(page.getByTestId('server-address-input')).toBeVisible({
       timeout: 30_000,
     });
   });
@@ -206,7 +206,7 @@ test.describe('First-run onboarding', () => {
       page.getByTestId('onboarding-intent'),
       'the explicit off-switch must win',
     ).toHaveCount(0);
-    await expect(page.getByRole('textbox', { name: 'Workspace Address' })).toBeVisible({
+    await expect(page.getByTestId('server-address-input')).toBeVisible({
       timeout: 30_000,
     });
   });
@@ -264,7 +264,7 @@ test.describe('a deployment that publishes its workspace address', () => {
   test('pre-fills the address so a newcomer is not asked for one nobody told them', async ({ page }) => {
     await openWizardWithMeta(page, PUBLISHED);
     await expect(
-      page.getByRole('textbox', { name: 'Workspace Address' }),
+      page.getByTestId('server-address-input'),
       'the published address must reach the rendered field',
     ).toHaveValue(PUBLISHED, { timeout: 30_000 });
   });
@@ -274,7 +274,7 @@ test.describe('a deployment that publishes its workspace address', () => {
     // field must still accept typing. A read-only pre-fill would strand anyone
     // whose workspace is not the one this deployment happens to serve.
     await openWizardWithMeta(page, PUBLISHED);
-    const field = page.getByRole('textbox', { name: 'Workspace Address' });
+    const field = page.getByTestId('server-address-input');
     await expect(field).toHaveValue(PUBLISHED, { timeout: 30_000 });
     await field.fill('elsewhere.example.org:12500');
     await expect(field).toHaveValue('elsewhere.example.org:12500');
@@ -285,7 +285,7 @@ test.describe('a deployment that publishes its workspace address', () => {
     // hard-coded constant, say — would satisfy both tests above.
     await openWizardWithMeta(page, '');
     await expect(
-      page.getByRole('textbox', { name: 'Workspace Address' }),
+      page.getByTestId('server-address-input'),
       'an unpublished address must leave the field empty',
     ).toHaveValue('', { timeout: 30_000 });
   });

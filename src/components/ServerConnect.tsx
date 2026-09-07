@@ -98,6 +98,7 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
                   <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="serverAddress"
+                    data-testid="server-address-input"
                     value={serverAddress}
                     onChange={(e) => setServerAddress(e.target.value)}
                     className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
