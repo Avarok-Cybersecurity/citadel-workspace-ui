@@ -32,6 +32,27 @@
  */
 import { isAlreadyRegistered } from '@/lib/peer-registration-store/already-registered';
 
+/**
+ * Who a sent registration was for. Held by the CALLER, keyed by request id,
+ * because the response carries neither the peer's cid nor its name. `cid` stays
+ * bigint per CLAUDE.md; it is stringified only at the display boundary.
+ */
+export interface SentRequest {
+  readonly cid: bigint;
+  readonly username: string;
+}
+
+/** The peer a failure is about, or undefined when the request is not ours. */
+export function correlateFailure(
+  failure: Record<string, unknown>,
+  sent: Map<string, SentRequest>,
+): { requestId: string; peer: SentRequest } | undefined {
+  const requestId: string | undefined = failure.request_id as string | undefined;
+  if (!requestId) return undefined;
+  const peer: SentRequest | undefined = sent.get(requestId);
+  return peer ? { requestId, peer } : undefined;
+}
+
 export type PeerRegisterFailureOutcome =
   | { kind: 'already-registered' }
   | { kind: 'refused'; reason: string | undefined };

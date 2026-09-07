@@ -4,7 +4,7 @@ import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
-import { applyPeerRegisterFailure } from './peer-register-failure';
+import { applyPeerRegisterFailure, correlateFailure } from './peer-register-failure';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { peerRegistrationStore, OutgoingPeerRequest, PendingPeerRequest } from '@/lib/peer-registration-store';
 import { getSelectedUser , type TabUserContext } from '@/lib/tab-context';
@@ -29,11 +29,7 @@ export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; regis
   /** `null` until discovery succeeds — see PeerDiscoveryModal's empty states. */
   const [peers, setPeers] = useState<Peer[] | null>(null);
   // requestId -> peer name; see peer-register-failure.ts.
-  // requestId -> the peer this request was FOR. Both fields, because the
-  // response names neither: PeerRegisterFailure carries only the local
-  // session's cid, and the row is keyed by the peer's.
-  const sentRequests: MutableRefObject<Map<string, { cid: string; username: string }>> =
-    useRef(new Map<string, { cid: string; username: string }>());
+  const sentRequests: MutableRefObject<Map<string, SentRequest>> = useRef(new Map<string, SentRequest>());
   const [registeredPeers, setRegisteredPeers] = useState<Set<string>>(new Set());
   const [outgoingRequests, setOutgoingRequests] = useState<Set<string>>(new Set());
   const [incomingRequests, setIncomingRequests] = useState<Map<string, PendingPeerRequest>>(new Map());
@@ -89,16 +85,14 @@ export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; regis
       // See peer-register-failure.ts. Correlated by request_id: no peer_cid.
       if (hasVariant(message, 'PeerRegisterFailure')) {
         const failure: Record<string, unknown> = getVariant(message, 'PeerRegisterFailure')!;
-        const requestId: string | undefined = failure.request_id as string | undefined;
-        const sent: { cid: string; username: string } | undefined =
-          requestId ? sentRequests.current.get(requestId) : undefined;
-        const peerName: string | undefined = sent?.username;
-        if (requestId && sent) {
-          sentRequests.current.delete(requestId);
+        const correlated = correlateFailure(failure, sentRequests.current);
+        const peerName: string | undefined = correlated?.peer.username;
+        if (correlated) {
+          sentRequests.current.delete(correlated.requestId);
           applyPeerRegisterFailure(failure, {
             // The peer WE sent to, not whatever the response names.
             markRegistered: (): void =>
-              setRegisteredPeers(prev => new Set([...prev, sent.cid])),
+              setRegisteredPeers(prev => new Set([...prev, correlated.peer.cid.toString()])),
             reportRefusal: (reason: string | undefined): void => toastError(
               toast, 'Request Failed',
               reason
@@ -236,7 +230,7 @@ export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; regis
       const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
       broadcastChannelService.registerRequest(requestId, currentCid);
       // Before the send: a failure can arrive before the await resolves.
-      sentRequests.current.set(requestId, { cid: peerCid, username: peerUsername });
+      sentRequests.current.set(requestId, { cid: BigInt(peerCid), username: peerUsername });
       await sendPeerRegistration(currentCid, BigInt(peerCid), peerUsername, requestId);
       toast({
         title: "Request Sent",
