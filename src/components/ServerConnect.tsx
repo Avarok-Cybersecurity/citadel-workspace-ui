@@ -6,6 +6,7 @@ import { Globe, Lock, Shield, ArrowRight } from "lucide-react";
 import { useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { StepIndicator } from "@/components/ui/step-indicator";
+import { readDefaultWorkspaceServer } from "@/lib/default-workspace-server";
 
 interface ServerConnectProps {
   onNext: (address: string, password: string) => void;
@@ -28,7 +29,19 @@ interface ServerConnectProps {
 export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialAddress, initialPassword }: ServerConnectProps): JSX.Element => {
   const { toast } = useToast();
 
-  const [serverAddress, setServerAddress] = useState(defaultServer || initialAddress || '');
+  // Precedence: an address this flow was given, then whatever the user already
+  // typed, then the server THIS deployment publishes. The last one is why a
+  // visitor arriving at a hosted page cold is not asked for an address nobody
+  // ever told them -- the page and the server are different hosts, so it cannot
+  // be derived from window.location. Empty stays empty for a local build.
+  //
+  // A pre-fill, never a lock: the field remains editable, because reaching
+  // someone else's server from this page is a legitimate thing to do.
+  const publishedDefault: string | undefined =
+    typeof document === 'undefined' ? undefined : readDefaultWorkspaceServer(document);
+  const [serverAddress, setServerAddress] = useState(
+    defaultServer || initialAddress || publishedDefault || '',
+  );
   const [password, setPassword] = useState(initialPassword || '');
 
   const handleConnect = (e: React.FormEvent): void => {

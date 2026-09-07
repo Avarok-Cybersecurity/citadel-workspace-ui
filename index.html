@@ -103,6 +103,12 @@
     <!-- Filled in by the hosting nginx when the operator publishes a loopback agent origin
          (LOOPBACK_AGENT_ORIGIN); empty means "reach the agent through same-origin /ws". -->
     <meta name="citadel-loopback-agent" content="" />
+    <!-- The workspace server THIS deployment belongs to (DEFAULT_WORKSPACE_SERVER),
+         filled in by the hosting nginx. A visitor arriving at a hosted page has no
+         other way to learn it: the address is host:port and is NOT derivable from
+         window.location, because the UI and the server are different hosts. Empty
+         means "ask the user", which is correct for a local build. -->
+    <meta name="citadel-default-server" content="" />
   </head>
 
   <body>
