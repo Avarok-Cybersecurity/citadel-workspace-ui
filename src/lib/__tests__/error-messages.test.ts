@@ -342,7 +342,12 @@ describe('a registration that times out', () => {
  * the client-side timeout string, were green throughout.
  */
 describe('a server that accepts the connection and then says nothing', () => {
-  const err: Error = new Error('Something went wrong: Socket deadline has elapsed');
+  // The string the SDK ACTUALLY sends. What users saw was
+  // "Socket deadline has elapsed" -- the cleaner below had stripped the
+  // embedded "error:" out of the middle of it, inventing a sentence that
+  // exists nowhere in the system. Matchers written from the rendered text
+  // could therefore never match the real input.
+  const err: Error = new Error('Socket error: deadline has elapsed');
 
   it('is explained rather than surfaced raw', () => {
     const message: string = getUserFriendlyErrorMessage(err);
@@ -356,5 +361,30 @@ describe('a server that accepts the connection and then says nothing', () => {
 
   it('gets a title that says what happened, not a bare "Error"', () => {
     expect(getErrorTitle(err)).toBe('Server Did Not Answer');
+  });
+});
+
+
+/**
+ * The cleaner must not edit the middle of a message.
+ *
+ * The strip was unanchored, so "Socket error: deadline has
+ * elapsed" reached the screen as "Socket deadline has elapsed". Nobody can
+ * search the codebase, or the SDK, for a sentence the UI invented -- and a
+ * matcher written from it cannot fire, because the value being tested still
+ * has the words the display removed.
+ */
+describe('cleaning a raw error for display', () => {
+  it('strips only a LEADING "Error:" prefix', () => {
+    expect(getUserFriendlyErrorMessage(new Error('Error: something odd happened')))
+      .toBe('Something went wrong: something odd happened');
+  });
+
+  it('leaves "error:" inside the sentence alone', () => {
+    // Deliberately a string with no other branch match, so this measures the
+    // cleaner and not some earlier rule.
+    const shown: string = getUserFriendlyErrorMessage(new Error('Widget error: bolt missing'));
+    expect(shown).toBe('Something went wrong: Widget error: bolt missing');
+    expect(shown).not.toBe('Something went wrong: Widget bolt missing');
   });
 });

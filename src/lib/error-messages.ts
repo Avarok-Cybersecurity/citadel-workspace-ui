@@ -54,7 +54,7 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
   // Telling someone to check their network sends them to the one place the
   // fault is not. work.avarok.net showed this exact message to every new user
   // for weeks while the real cause was a refused DNS lookup in the page.
-  if (/registration timed out|socket deadline has elapsed/i.test(errorMessage)) {
+  if (/registration timed out|deadline has elapsed/i.test(errorMessage)) {
     return 'The workspace server did not answer within 30 seconds. Check the address you entered — it should be a host name or IP address, then a colon and the port, like citadel.example.com:12400. If that is right, the server may be down or unreachable from this machine.';
   }
 
@@ -171,8 +171,15 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
   // clue anybody has. What it must NOT pass through is protocol vocabulary: the
   // words below are the transport's, and to a user they read as the app
   // speaking a language it never taught them.
+  // ANCHORED. Unanchored, this stripped "error:" from the MIDDLE of a message:
+  // the SDK's "Socket error: deadline has elapsed" was shown to users as
+  // "Socket deadline has elapsed" -- a sentence that never existed anywhere.
+  // That cost real time: matchers written from the rendered text could never
+  // match the input, because the rendered text was already mangled. Only the
+  // leading "Error:" of a stringified Error is noise; an "error:" inside the
+  // sentence is the message.
   const cleanedMessage: string = errorMessage
-    .replace(/Error:\s*/i, '')
+    .replace(/^Error:\s*/i, '')
     .replace(/^\s+|\s+$/g, '');
 
   const isProtocolJargon: boolean =
@@ -212,7 +219,7 @@ export function getErrorTitle(error: unknown): string {
   
   // Before the generic timeout title: "Request Timeout" describes the client's
   // clock, not what happened. The server is the thing that did not answer.
-  if (/registration timed out|socket deadline has elapsed/i.test(errorMessage)) {
+  if (/registration timed out|deadline has elapsed/i.test(errorMessage)) {
     return 'Server Did Not Answer';
   }
 
