@@ -27,7 +27,7 @@ import {
 } from '@/test-utils/token-contrast';
 
 /** Comments are stripped: they necessarily quote the class each fix replaced. */
-const src = (p: string): string => stripComments(readFileSync(join(process.cwd(), 'src', p), 'utf8'));
+const src: (p: string) => string = (p: string): string => stripComments(readFileSync(join(process.cwd(), 'src', p), 'utf8'));
 
 /**
  * The `-foreground` tokens are pair colours, not general text colours.
@@ -83,7 +83,7 @@ describe('a tinted fill does not wear the solid fill\'s foreground', () => {
         expect(match, `no tinted selected state found in ${site.file}`).not.toBeNull();
         const [, fill, alpha, text] = match as RegExpMatchArray;
 
-        const tokens = readThemeTokens(theme);
+        const tokens: ReturnType<typeof readThemeTokens> = readThemeTokens(theme);
         const ratio: number = tintedContrast(tokens, fill, Number(alpha), site.backdrop, text);
         expect(
           ratio,
@@ -115,7 +115,7 @@ describe('the selected-quality tick sits on the fill its colour is paired with',
       const tick: RegExpMatchArray | null = source.match(/<Check className="[^"]*text-([\w-]+)"/);
       expect(tick, 'the tick moved').not.toBeNull();
 
-      const tokens = readThemeTokens(theme);
+      const tokens: ReturnType<typeof readThemeTokens> = readThemeTokens(theme);
       const ratio: number = contrastRatio(token(tokens, fill![1]), token(tokens, tick![1]));
       expect(ratio, `text-${tick![1]} on bg-${fill![1]} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_NON_TEXT);
     });
@@ -140,12 +140,12 @@ describe('the selected-quality tick sits on the fill its colour is paired with',
  */
 describe('no `-foreground` token is painted on a tinted fill', () => {
   /** `data-[state=active]:bg-primary/10` -> variant `data-[state=active]:`, utility `bg-primary/10`. */
-  const UTILITY = /^(.*:)?((?:bg|text)-[a-z][\w-]*(?:\/\d{1,3})?)$/;
-  const TINT = /^bg-([a-z][\w-]*)\/(\d{1,3})$/;
-  const SOLID = /^bg-([a-z][\w-]*)$/;
+  const UTILITY: RegExp = /^(.*:)?((?:bg|text)-[a-z][\w-]*(?:\/\d{1,3})?)$/;
+  const TINT: RegExp = /^bg-([a-z][\w-]*)\/(\d{1,3})$/;
+  const SOLID: RegExp = /^bg-([a-z][\w-]*)$/;
   /** Deliberately not `text-foreground`: that is the general text token, and it
       is the correct answer here. Only the PAIR tokens are misused this way. */
-  const PAIR_TEXT = /^text-([a-z][\w-]*-foreground)$/;
+  const PAIR_TEXT: RegExp = /^text-([a-z][\w-]*-foreground)$/;
 
   interface Finding { readonly file: string; readonly fill: string; readonly alpha: number; readonly text: string }
 
@@ -157,12 +157,12 @@ describe('no `-foreground` token is painted on a tinted fill', () => {
    * contrast no user can be shown.
    */
   function scan(line: string, file: string): Finding[] {
-    const byVariant = new Map<string, { fill?: [string, number]; solid?: boolean; text?: string }>();
+    const byVariant: Map<string, { fill?: [string, number]; solid?: boolean; text?: string }> = new Map<string, { fill?: [string, number]; solid?: boolean; text?: string }>();
     for (const raw of line.split(/[\s"'`{}(),]+/)) {
       const utility: RegExpMatchArray | null = UTILITY.exec(raw);
       if (!utility) continue;
       const scope: string = utility[1] ?? '';
-      const entry = byVariant.get(scope) ?? {};
+      const entry: { fill?: [string, number]; solid?: boolean; text?: string } = byVariant.get(scope) ?? {};
       const tint: RegExpMatchArray | null = TINT.exec(utility[2]);
       const solid: RegExpMatchArray | null = SOLID.exec(utility[2]);
       const text: RegExpMatchArray | null = PAIR_TEXT.exec(utility[2]);
@@ -180,7 +180,7 @@ describe('no `-foreground` token is painted on a tinted fill', () => {
   }
 
   const findings: Finding[] = [];
-  const walk = (dir: string): void => {
+  const walk: (dir: string) => void = (dir: string): void => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full: string = join(dir, entry.name);
       if (entry.isDirectory()) { walk(full); continue; }
@@ -208,7 +208,7 @@ describe('no `-foreground` token is painted on a tinted fill', () => {
 
   for (const theme of ['light', 'dark'] as const) {
     it(`every such pairing that ships clears AA in ${theme} mode`, () => {
-      const tokens = readThemeTokens(theme);
+      const tokens: ReturnType<typeof readThemeTokens> = readThemeTokens(theme);
       const failures: string[] = findings.flatMap((f): string[] => {
         const ratio: number = tintedContrast(tokens, f.fill, f.alpha, 'background', f.text);
         return ratio >= AA_TEXT

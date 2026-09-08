@@ -85,10 +85,8 @@ function SidebarNode({
       <div
         className={cn(
           "flex items-center py-1 px-1 cursor-pointer rounded text-sm text-foreground/80 hover:bg-card",
-          // Full-strength text-foreground on the active row (twMerge drops the
-          // /80 above it). It was text-primary-foreground -- white -- which is
-          // the foreground for a SOLID --primary fill, not for this 50% tint:
-          // over the panel's bg-surface that measured 2.59:1 in light mode.
+          // Not text-primary-foreground: white pairs with a SOLID --primary
+          // fill, and over this 50% tint on bg-surface it measured 2.59:1.
           isActive && "bg-primary/50 text-foreground",
           dragOver && "bg-success/15 ring-1 ring-success",
         )}
