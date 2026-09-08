@@ -1,5 +1,6 @@
 import { describeError } from './describe-error';
 import { credentialErrorMessage } from './credential-error-messages';
+import { workspaceMasterPasswordError, isWrongMasterPassword, WRONG_MASTER_PASSWORD_TITLE } from './workspace-master-password-error';
 /**
  * Transforms technical error messages into user-friendly messages
  */
@@ -90,9 +91,11 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
     return 'Failed to initialize the workspace. Please check your workspace password.';
   }
   
-  if (/invalid workspace password|workspace master password/i.test(errorMessage)) {
-    return 'Incorrect workspace password. Please try again.';
-  }
+  // The master password the first administrator is asked for, in the position
+  // its predecessor occupied -- which matched a wording the server never sends.
+  // See workspace-master-password-error.ts for the two it does.
+  const masterPassword: string | null = workspaceMasterPasswordError(errorMessage);
+  if (masterPassword !== null) return masterPassword;
   
   // Network errors
   if (errorMessage.includes('NetworkError') || 
@@ -198,7 +201,12 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
  */
 export function getErrorTitle(error: unknown): string {
   const errorMessage: string = describeError(error);
-  
+
+  // First, because two later branches would each claim it: the string holds
+  // "password" (Authentication Error) and "workspace" (Workspace Error), and
+  // "Authentication" points at the account they just created successfully.
+  if (isWrongMasterPassword(errorMessage)) return WRONG_MASTER_PASSWORD_TITLE;
+
   if (errorMessage.includes('connection') || errorMessage.includes('WebSocket') ||
       errorMessage.includes('Connection') || errorMessage.includes('ECONNREFUSED')) {
     return 'Connection Error';

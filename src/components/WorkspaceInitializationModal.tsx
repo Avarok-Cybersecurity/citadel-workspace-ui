@@ -1,6 +1,7 @@
 import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
 import React, { useState } from "react";
 import { WorkspaceInitializationDetails } from './WorkspaceInitializationDetails';
+import { WorkspaceInitializationGuidance } from './WorkspaceInitializationGuidance';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +39,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
 
     const validateForm = (): boolean => {
         if (!masterPassword) {
-            setError("Workspace password is required");
+            setError("Enter the workspace master password, or choose Not now.");
             return false;
         }
         return true;
@@ -154,7 +155,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                         <div>
                             <CardTitle className="text-foreground text-xl">Initialize Workspace</CardTitle>
                             <CardDescription className="text-foreground/80">
-                                Enter the workspace password to initialize
+                                Claim it as its first administrator
                             </CardDescription>
                         </div>
                     </div>
@@ -162,17 +163,11 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
 
                 <form onSubmit={handleSubmit}>
                     <CardContent className="space-y-4 max-h-[calc(100dvh-16rem)] overflow-y-auto">
-                        {/* Says what to do when you cannot complete this. The
-                            password is the operator's WORKSPACE_MASTER_PASSWORD,
-                            which an ordinary member has no way to obtain — and
-                            this used to offer only a "Cancel" that threw them out
-                            of the workspace. */}
-                        <p className="text-sm text-muted-foreground">
-                            This is the <span className="font-medium text-foreground">workspace master password</span>{' '}
-                            from the server operator&rsquo;s configuration — not your account password. If you
-                            do not have it, choose <span className="font-medium text-foreground">Not now</span>:
-                            the workspace is already usable, and an administrator can complete this later.
-                        </p>
+                        {/* Names the secret, says where an operator keeps
+                            it, and says what happens to somebody who does not
+                            have it. WorkspaceInitializationGuidance carries the
+                            reasoning: for this dialog the copy IS the fix. */}
+                        <WorkspaceInitializationGuidance />
                         <WorkspaceInitializationDetails
                             workspaceName={workspaceName}
                             workspaceId={workspaceId}
@@ -183,7 +178,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
 
                         <div className="space-y-2">
                             <Label htmlFor="masterPassword" className="text-foreground/80">
-                                Workspace Password
+                                Workspace master password
                             </Label>
                             <Input
                                 id="masterPassword"
@@ -193,11 +188,15 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                                 value={masterPassword}
                                 onChange={handleInputChange}
                                 className="bg-surface border-border text-foreground"
-                                placeholder="Enter the workspace password"
+                                placeholder="The server's WORKSPACE_MASTER_PASSWORD"
                                 disabled={isSubmitting}
                             />
+                            {/* NOT "contact your workspace administrator", which
+                                is what this said. On a server nobody has claimed
+                                there is no administrator to contact — this prompt is
+                                how the first one comes to exist. */}
                             <p className="text-xs text-muted-foreground">
-                                Contact your workspace administrator if you don't have the password.
+                                Not the password you chose when you created your account.
                             </p>
                         </div>
 

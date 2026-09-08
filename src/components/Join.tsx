@@ -35,7 +35,37 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
     handleReturnToLogin,
   } = useJoinRegistration(onBack, serverAddress, serverPassword, securitySettings, profileDraft);
 
-  const { ref: dialogRef, dialogProps } = useDialogOverlay({ label: 'Create your profile', onDismiss: onBack });
+  /**
+   * Delegated while a nested dialog is up, exactly as Login already does for
+   * SecuritySettings ("SecuritySettings brings its own dialog treatment when
+   * shown", Login.tsx:49). Join nests TWO dialogs inside its own scrim -- the
+   * connect progress modal and the not-initialized notice -- and delegated to
+   * neither, so each of them arrived alongside a SECOND live focus trap and a
+   * second document-level Escape handler, with `role="dialog" aria-modal="true"`
+   * asserted twice at once. The fix existed; it was never carried here.
+   */
+  const nestedDialogOpen: boolean = showNotInitializedModal || showConnectModal;
+  const { ref: dialogRef, dialogProps } = useDialogOverlay({
+    label: 'Create your profile',
+    onDismiss: onBack,
+    enabled: !nestedDialogOpen,
+  });
+
+  /**
+   * The wizard is finished when this notice appears, so the wizard stops being
+   * drawn.
+   *
+   * Registration was refused because the workspace has no administrator yet;
+   * the only action left is the notice's own "Return to Login". Rendering the
+   * form behind it stacked two scrims and left a second dialog card
+   * visible-but-blurred underneath the one being read -- which is alarming on
+   * its own, and makes the message on top easy to take for a glitch.
+   */
+  if (showNotInitializedModal) {
+    return (
+      <WorkspaceNotInitializedModal isOpen onReturnToLogin={handleReturnToLogin} />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto" ref={dialogRef} {...dialogProps}>
@@ -91,11 +121,6 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
           </form>
         </Card>
       </div>
-
-      <WorkspaceNotInitializedModal
-        isOpen={showNotInitializedModal}
-        onReturnToLogin={handleReturnToLogin}
-      />
 
       <ConnectLoadingModal
         open={showConnectModal}
