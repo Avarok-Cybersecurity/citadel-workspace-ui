@@ -6,6 +6,7 @@ import { connectionManager } from '@/lib/connection';
 import WorkspaceService from '@/lib/workspace-service';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
+import { avatarUrlFromMetadata } from '@/lib/avatar-url';
 import { debugLog } from '@/lib/debug-config';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 import type { User, UserRole } from '@/types/workspace-entities';
@@ -83,16 +84,18 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
               (m: { username?: string; role?: string; displayName?: string }) =>
                 m.username === prev.currentUser?.username
             );
-            if (currentUserMember && currentUserMember.role) {
-              debugLog('UseMemberEventSetup', `Updating current user role to: ${currentUserMember.role}`);
+            // Not gated on `role` any more: this record is also where a stored
+            // avatar arrives, and nothing else in the app loads one.
+            if (currentUserMember) {
               updatedCurrentUser = {
                 ...prev.currentUser,
-                role: currentUserMember.role,
-                displayName: currentUserMember.displayName || prev.currentUser.name
+                role: currentUserMember.role ?? prev.currentUser.role,
+                displayName: currentUserMember.displayName || prev.currentUser.name,
+                avatarUrl: avatarUrlFromMetadata((currentUserMember as unknown as { metadata?: unknown }).metadata) ?? prev.currentUser.avatarUrl,
               };
 
               // Persist role to stored session for WorkspaceSwitcher (async)
-              const roleToSave: UserRole = currentUserMember.role;
+              const roleToSave: UserRole | undefined = currentUserMember.role;
               if (roleToSave) {
                 runAsyncSetup(async () => {
                   const session: StoredSession | null = await connectionManager.getTabSelectedSession();

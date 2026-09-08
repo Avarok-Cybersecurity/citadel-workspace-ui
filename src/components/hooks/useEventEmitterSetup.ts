@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import type { DomainNode } from '@/components/layout/sidebar/TreeNodesSection';
+import { avatarUrlFromMetadata } from '@/lib/avatar-url';
 import { debugLog } from '@/lib/debug-config';
 
 interface UseEventEmitterSetupProps {
@@ -22,18 +23,8 @@ export function useEventEmitterSetup({ setState }: UseEventEmitterSetupProps): v
       debugLog('UseEventEmitterSetup', 'WorkspaceEventHandler: Received user profile update', data);
 
       const user: { name?: string; metadata?: { avatar?: { content?: string; String?: string; } | string; }; } = data.user;
-      let avatarUrl: string | undefined;
-      if (user.metadata?.avatar) {
-        const avatar: string | { content?: string; String?: string; } = user.metadata.avatar;
-        const avatarData: string | undefined = typeof avatar === 'string'
-          ? avatar
-          : avatar?.content || avatar?.String;
-        if (avatarData) {
-          avatarUrl = avatarData.startsWith('data:')
-            ? avatarData
-            : `data:image/webp;base64,${avatarData}`;
-        }
-      }
+      // One reader of the wire shape, shared with the members path. See avatar-url.ts.
+      const avatarUrl: string | undefined = avatarUrlFromMetadata(user.metadata);
 
       setState(prev => ({
         ...prev,

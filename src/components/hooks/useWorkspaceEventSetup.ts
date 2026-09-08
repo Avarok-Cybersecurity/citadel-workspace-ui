@@ -7,6 +7,7 @@ import UserService from '@/lib/user-service';
 import { bytesToString } from '@/lib/utils/encoding-utils';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
+import { mergeCurrentUser } from './merge-current-user';
 import { debugLog } from '@/lib/debug-config';
 import type { UserRegistrationInfo } from '@/lib/user-service';
 import type { StoredSession } from '@/types/session-types';
@@ -115,14 +116,18 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
           const storedSession: StoredSession | null = await connectionManager.getTabSelectedSession();
           const role: string | undefined = storedSession?.role;
 
+          // Merged, not assigned. `UserRegistrationInfo` has no avatar in it, so
+          // building a fresh object here dropped `avatarUrl` on every workspace
+          // load -- and the profile-update event is its only writer, so a photo
+          // a user had just set vanished at the next workspace event and never
+          // survived a reload. See merge-current-user.ts.
           setState(prev => ({
             ...prev,
-            currentUser: {
-              id: currentUser.username,
+            currentUser: mergeCurrentUser(prev.currentUser, {
               username: currentUser.username,
-              name: currentUser.fullName || currentUser.username,
-              role: role
-            }
+              fullName: currentUser.fullName,
+              role,
+            }),
           }));
         }
 
