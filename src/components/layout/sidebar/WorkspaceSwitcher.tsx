@@ -1,10 +1,11 @@
+import { useRef } from 'react';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { AccountManagementDialog } from "@/components/AccountManagementDialog";
 import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";
 import { Join } from "@/components/Join";
@@ -24,6 +25,8 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
     setIsOpen,
     isAddingWorkspace,
     setIsAddingWorkspace,
+    isManagingAccounts,
+    setIsManagingAccounts,
     currentStep,
     workspaceLogo,
     isInitials,
@@ -40,11 +43,33 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
     handleBack,
   } = useWorkspaceSwitcher(workspaceName);
 
+  /**
+   * The switcher button, so closing the account manager can put focus back on
+   * it. Radix hands the dropdown's focus back to this button when the menu
+   * closes, but the dialog opens after that and has no trigger of its own to
+   * return to -- the same gap ManageAccountsButton documents on the Landing
+   * page, where closing with Escape otherwise dropped focus onto `<body>`.
+   */
+  const triggerRef: React.RefObject<HTMLButtonElement> = useRef<HTMLButtonElement>(null);
+
+  /**
+   * One place to end the join flow.
+   *
+   * Dismissing at any step must also forget which workspace "Add another
+   * account" was aimed at, or the next "Join New Workspace" would silently
+   * pre-fill that server. This lived in the removed <Dialog>'s onOpenChange.
+   */
+  const closeAddWorkspace = (): void => {
+    setIsAddingWorkspace(false);
+    setTargetWorkspaceForNewAccount(null);
+  };
+
   return (
     <>
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild>
           <button
+            ref={triggerRef}
             // flex-1 min-w-0, not w-full. This button has a sibling — the sidebar
             // toggle — so `w-full` resolved to 100% of the WHOLE header group
             // while the button still started after that toggle, overhanging its
@@ -112,38 +137,53 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
         />
       </DropdownMenu>
 
-      <Dialog open={isAddingWorkspace} onOpenChange={(open) => {
-        setIsAddingWorkspace(open);
-        if (!open) {
-          setTargetWorkspaceForNewAccount(null);
-        }
-      }}>
-        <DialogContent aria-label="Switch workspace" className="p-0 bg-transparent border-none max-w-xl">
-          {currentStep === "connect" && (
-            <ServerConnect
-              onNext={handleNext}
-              onCancel={() => setIsAddingWorkspace(false)}
-              defaultServer={targetWorkspaceForNewAccount?.serverAddress}
-              title={targetWorkspaceForNewAccount ?
-                `Connect to ${targetWorkspaceForNewAccount.workspaceName}` :
-                undefined
-              }
-            />
-          )}
-          {currentStep === "security" && (
-            <SecuritySettings onNext={handleNext} onBack={handleBack} />
-          )}
-          {currentStep === "join" && (
-            <Join
-              onNext={handleNext}
-              onBack={handleBack}
-              defaultWorkspace={targetWorkspaceForNewAccount?.workspaceName}
-              serverAddress={targetWorkspaceForNewAccount?.serverAddress ?? serverAddress}
-              serverPassword={serverPassword}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Rendered directly, NOT inside a Radix <Dialog>. LandingSteps.tsx
+          renders the same three components the same way, and that is the
+          version that works.
+
+          Each step is already a full-screen `fixed inset-0` overlay carrying
+          its own scrim, role="dialog", focus trap and Escape handling (see
+          use-dialog-overlay), so the wrapper was a second modal around a modal.
+          It did not merely duplicate — it erased them. A transformed ancestor
+          becomes the containing block for a `position: fixed` descendant, and
+          DialogContent is `translate-x-[-50%] translate-y-[-50%]`, so `inset-0`
+          resolved to that panel rather than the viewport. The panel is a grid
+          whose only children are out of flow, so it measured 0px tall, and its
+          `overflow-y-auto` clipped what remained.
+
+          Measured in Chromium on the exact class-derived CSS: DialogContent
+          576x0, the step's own scrim 576x32, the card 448x420 with ZERO visible
+          pixels, and elementFromPoint at the screen centre returning the
+          black/80 backdrop. A dimmed screen and nothing on it. */}
+      {isAddingWorkspace && currentStep === "connect" && (
+        <ServerConnect
+          onNext={handleNext}
+          onCancel={closeAddWorkspace}
+          defaultServer={targetWorkspaceForNewAccount?.serverAddress}
+          title={targetWorkspaceForNewAccount ?
+            `Connect to ${targetWorkspaceForNewAccount.workspaceName}` :
+            undefined
+          }
+        />
+      )}
+      {isAddingWorkspace && currentStep === "security" && (
+        <SecuritySettings onNext={handleNext} onBack={handleBack} />
+      )}
+      {isAddingWorkspace && currentStep === "join" && (
+        <Join
+          onNext={handleNext}
+          onBack={handleBack}
+          defaultWorkspace={targetWorkspaceForNewAccount?.workspaceName}
+          serverAddress={targetWorkspaceForNewAccount?.serverAddress ?? serverAddress}
+          serverPassword={serverPassword}
+        />
+      )}
+
+      <AccountManagementDialog
+        isOpen={isManagingAccounts}
+        onClose={() => setIsManagingAccounts(false)}
+        onRestoreFocus={() => triggerRef.current?.focus()}
+      />
     </>
   );
 };

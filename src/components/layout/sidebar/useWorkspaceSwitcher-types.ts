@@ -14,6 +14,8 @@ export interface UseWorkspaceSwitcherResult {
   setIsOpen: Dispatch<SetStateAction<boolean>>;
   isAddingWorkspace: boolean;
   setIsAddingWorkspace: Dispatch<SetStateAction<boolean>>;
+  isManagingAccounts: boolean;
+  setIsManagingAccounts: Dispatch<SetStateAction<boolean>>;
   currentStep: WorkflowStep;
   workspaceLogo: string | null;
   isInitials: boolean;

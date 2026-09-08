@@ -32,6 +32,7 @@ export function useWorkspaceSwitcher(workspaceName?: string): UseWorkspaceSwitch
   const [isOpen, setIsOpen] = useState(false);
   const [workspaceRoutes, setWorkspaceRoutes] = useState<Record<string, string>>({});
   const [isAddingWorkspace, setIsAddingWorkspace] = useState(false);
+  const [isManagingAccounts, setIsManagingAccounts] = useState(false);
   const [currentStep, setCurrentStep] = useState<WorkflowStep>("connect");
   const [workspaceLogo, setWorkspaceLogo] = useState<string | null>(null);
   const [isInitials, setIsInitials] = useState(false);
@@ -183,7 +184,12 @@ export function useWorkspaceSwitcher(workspaceName?: string): UseWorkspaceSwitch
   };
 
   const handleManageAccounts = (): void => {
+    // Closing the menu WAS the entire handler. `AccountManagementDialog` had
+    // exactly one mount in the app -- ManageAccountsButton, on the Landing page
+    // -- so from inside a workspace this item closed the dropdown over an
+    // unchanged screen and that was all it did.
     setIsOpen(false);
+    setIsManagingAccounts(true);
   };
 
   // ServerConnect calls `onNext(address, password)`; SecuritySettings and
@@ -222,6 +228,8 @@ export function useWorkspaceSwitcher(workspaceName?: string): UseWorkspaceSwitch
     setIsOpen,
     isAddingWorkspace,
     setIsAddingWorkspace,
+    isManagingAccounts,
+    setIsManagingAccounts,
     currentStep,
     workspaceLogo,
     isInitials,
