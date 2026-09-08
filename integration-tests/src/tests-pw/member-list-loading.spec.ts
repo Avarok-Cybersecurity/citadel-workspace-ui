@@ -62,12 +62,18 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
     const nodes = page.locator('[data-testid^="tree-node-menu-"]');
     await expect(nodes.first(), 'the node tree should render').toBeAttached({ timeout: 60_000 });
 
-    // That this testid is one the app actually renders is enforced statically by
-    // check-specs-search-for-real-copy.mjs, which now resolves every getByTestId
-    // in a spec against src/. A runtime check here could only run once the element
-    // is on screen, which is precisely the state this spec asserts never happens.
-    const emptyState = page.getByTestId(EMPTY_STATE_TESTID);
-    const memberEntry = page.getByText(admin.username, { exact: false });
+    // NOTE: an earlier revision claimed `check-specs-search-for-real-copy.mjs`
+    // resolves every spec testid against src/. NO SUCH SCRIPT EXISTS -- a repo-wide
+    // search for a gate reading `getByTestId` finds none. The claim asserted a
+    // guarantee nothing provided, which matters here more than most places,
+    // because this spec's central assertion is a NEGATIVE: if the testid were
+    // wrong, `sawEmptyState` would be false forever and the spec would pass
+    // vacuously. It already did exactly that once, against `/No members yet/i`,
+    // a sentence the sidebar has never rendered.
+    //
+    // The floor is therefore in the spec itself: `members-empty` must be a
+    // testid `MembersEmptyState.tsx` really defines, and that component is its
+    // only renderer.
 
     let sawEmptyState = false;
     let sawMembers = false;
@@ -79,41 +85,92 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
         await targets.nth(1).click({ force: true });
     }
 
-    // What the DOM held at the moment the empty state was seen.
+    // ONE sample per tick, taken inside a single `evaluate`.
     //
-    // Two fixes have been aimed at this spec on the strength of reading the
-    // code -- initialising the loading flag from the prop, then deriving it from
-    // the domain instead of storing it -- and it still fails its first attempt
-    // and passes on retry. Neither reproduces locally without the compose stack,
-    // so the next CI failure has to carry its own diagnosis rather than inviting
-    // a third guess.
+    // The previous shape asked `emptyState.isVisible()` and then, in a SEPARATE
+    // round trip, captured the DOM. Those are different moments. It reported
+    //   {"loading":"Loading members...","empty":"(absent)"}
+    // for a frame it had just seen the empty state in -- describing the state
+    // that REPLACED the defect, not the defect. That reading cost a wrong
+    // inference (two component instances) and it is why three fixes have been
+    // aimed at this spec on the strength of code-reading rather than evidence.
+    //
+    // Sampling in one synchronous turn removes the race from the MEASUREMENT,
+    // which has to happen before any further claim about the CODE.
+    //
+    // `matchCount` is the discriminator. MemberListBody renders exactly one of
+    // its four branches, so "loading present AND empty present" is impossible
+    // for a single instance. If it is ever > 1, two MembersSections are mounted
+    // and the bug is in the layout, not the hook. Playwright's own
+    // `getByTestId(...).isVisible()` cannot answer this: it throws on a
+    // multi-element match, and the throw was being swallowed by `.catch(() => false)`.
+    interface Sample {
+        readonly emptyVisible: boolean;
+        readonly matchCount: number;
+        readonly loading: string;
+        readonly empty: string;
+        readonly unavailable: string;
+        readonly memberRows: number;
+        readonly peerRows: number;
+        readonly usernameVisible: boolean;
+        readonly url: string;
+    }
+
+    const sampleOnce = async (): Promise<Sample> => page.evaluate(
+        ({ name, testid }: { name: string; testid: string }): Sample => {
+        const visible = (el: Element | null): boolean =>
+            el instanceof HTMLElement
+            && el.getClientRects().length > 0
+            && getComputedStyle(el).visibility !== 'hidden';
+        const text = (sel: string): string =>
+            document.querySelector(sel)?.textContent?.trim().slice(0, 60) ?? '(absent)';
+        const empties = document.querySelectorAll(`[data-testid="${testid}"]`);
+        return {
+            emptyVisible: Array.from(empties).some(visible),
+            matchCount: empties.length,
+            loading: text('[data-testid="members-loading"]'),
+            empty: text(`[data-testid="${testid}"]`),
+            unavailable: text('[data-testid="members-unavailable"]'),
+            memberRows: document.querySelectorAll('[data-testid^="member-row-"]').length,
+            peerRows: document.querySelectorAll('[data-testid^="peer-row-"]').length,
+            usernameVisible: Array.from(document.querySelectorAll('body *'))
+                .some((e: Element): boolean => e.children.length === 0
+                    && (e.textContent ?? '').includes(name) && visible(e)),
+            url: window.location.href,
+        };
+    }, { name: admin.username, testid: EMPTY_STATE_TESTID });
+
     let atFirstSighting = '';
     for (let i = 0; i < 100; i++) {
-        if (await emptyState.isVisible().catch(() => false)) {
-            if (!sawEmptyState) {
-                atFirstSighting = await page.evaluate(() => {
-                    const text = (sel: string): string =>
-                        document.querySelector(sel)?.textContent?.trim().slice(0, 60) ?? '(absent)';
-                    return JSON.stringify({
-                        url: window.location.href,
-                        // The three surfaces the branch chooses between, so the
-                        // report says which one was on screen and which were not.
-                        loading: text('[data-testid="members-loading"]'),
-                        empty: text('[data-testid="members-empty"]'),
-                        unavailable: text('[data-testid="members-unavailable"]'),
-                        memberRows: document.querySelectorAll('[data-testid^="member-row-"]').length,
-                        peerRows: document.querySelectorAll('[data-testid^="peer-row-"]').length,
-                    });
-                });
-            }
+        const s: Sample = await sampleOnce();
+        if (s.emptyVisible) {
+            if (!sawEmptyState) atFirstSighting = JSON.stringify(s);
             sawEmptyState = true;
         }
-        if (await memberEntry.first().isVisible().catch(() => false)) {
+        if (s.usernameVisible) {
             sawMembers = true;
             break;
         }
         await page.waitForTimeout(100);
     }
+
+    // The discriminator, asserted rather than merely reported.
+    //
+    // MemberListBody returns exactly ONE of its four branches, so a single
+    // mounted instance can never show "loading" and "empty" at the same time.
+    // The old diagnostic appeared to show precisely that, and the reason could
+    // be either (a) the two-round-trip race above, or (b) two MembersSections
+    // mounted at once. Counting the matches settles it, and Playwright's
+    // `getByTestId(...).isVisible()` could not: it THROWS on a multi-element
+    // match, and that throw was swallowed by `.catch(() => false)` -- so the
+    // two-instance case was being silently reported as "no empty state".
+    const finalSample: Sample = await sampleOnce();
+    expect(
+        finalSample.matchCount,
+        `${finalSample.matchCount} elements carry data-testid="${EMPTY_STATE_TESTID}". ` +
+        'More than one means two member lists are mounted, and the defect is in the ' +
+        'layout rather than in use-domain-members.',
+    ).toBeLessThanOrEqual(1);
 
     expect(
         sawMembers,
