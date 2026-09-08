@@ -184,7 +184,14 @@ export function EntityManagementModal<TMode extends string>({
               className={
                 modeConfig.submitVariant === 'destructive'
                   ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  : "bg-primary-accent/20 text-primary-accent hover:bg-primary-accent/25 hover:text-primary-foreground"
+                  // hover:text-foreground, not hover:text-primary-foreground.
+                  // Hovering only deepened the tint 20% -> 25%; it never became
+                  // a solid fill, so the white the old class named landed on a
+                  // near-white surface at 1.52:1. The submit label vanished
+                  // under the pointer, in light mode, on every entity modal.
+                  // `hover:text-foreground` is what the sidebar's rowClass
+                  // already uses for a hovered tint.
+                  : "bg-primary-accent/20 text-primary-accent hover:bg-primary-accent/25 hover:text-foreground"
               }
             >
               {isSubmitting ? modeConfig.submittingLabel : modeConfig.submitLabel}

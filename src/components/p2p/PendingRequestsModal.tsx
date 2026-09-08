@@ -148,7 +148,8 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-success text-success-emphasis hover:bg-success/90 hover:text-success-foreground"
+                      // Solid on hover, for the reason PeerListItem's accept records.
+                      className="border-success text-success-emphasis hover:bg-success hover:text-success-foreground"
                       onClick={() => handleAccept(request)}
                       disabled={processingId === request.id}
                       // The same handle the peer list's accept button carries.

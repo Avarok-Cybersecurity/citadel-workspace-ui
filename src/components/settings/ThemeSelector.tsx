@@ -52,8 +52,18 @@ export function ThemeSelector(): JSX.Element {
               className={[
                 'flex flex-1 flex-col items-center gap-1.5 rounded-lg border px-3 py-3 text-xs font-medium transition-colors',
                 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                // text-foreground, not text-primary-foreground. The latter is
+                // WHITE -- it is the foreground that belongs on the SOLID
+                // --primary fill, and it is only ever correct there. Here the
+                // fill is `bg-primary/10`, a 10% tint, so on the settings
+                // dialog's `bg-background` it composites to near-white and the
+                // label and sun icon measured 1.17:1. Dark mode hid it, because
+                // there the page text is already near-white -- the same reason
+                // the sidebar tree carried this bug until TreeNodeItem was fixed.
+                // The tint and the border carry "selected"; the text just has to
+                // be readable, which at 13.08:1 it now is in both themes.
                 selected
-                  ? 'border-primary bg-primary/10 text-primary-foreground'
+                  ? 'border-primary bg-primary/10 text-foreground'
                   : 'border-border text-muted-foreground hover:bg-surface hover:text-foreground',
               ].join(' ')}
             >

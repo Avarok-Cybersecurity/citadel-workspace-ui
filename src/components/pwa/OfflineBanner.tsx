@@ -101,7 +101,13 @@ export function OfflineBanner(): JSX.Element | null {
         // the user caused or can fix by retrying.
         shutdown || offline || agentDown
           ? 'bg-muted text-foreground border-b border-surface'
-          : 'bg-primary/15 text-primary-foreground border-b border-primary/30',
+          // text-foreground for the same reason the muted branch above uses it:
+          // `bg-primary/15` is a tint over the page, not the solid --primary
+          // fill that --primary-foreground (white) is defined against. As white
+          // this strip measured 1.27:1 in light mode -- an invisible banner, on
+          // the one control whose entire job is to tell the user why nothing
+          // works.
+          : 'bg-primary/15 text-foreground border-b border-primary/30',
       ].join(' ')}
     >
       {shutdown ? (
