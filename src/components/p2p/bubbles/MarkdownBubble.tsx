@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { getBubbleStyles, BUBBLE_MAX_WIDTH , type BaseBubbleProps } from './types';
 import { BubbleFooter } from './BubbleFooter';
 import { getInitials } from '@/components/chat/shared';
+import { documentAnchor } from '@/components/shared/DocumentLink';
 
 /**
  * The markdown parse, memoized on the text alone.
@@ -30,7 +31,6 @@ const RenderedMarkdown: NamedExoticComponent<{ content: string; }> = memo(functi
 });
 
 type ChildrenProps = { children?: ReactNode };
-type LinkProps = { href?: string; children?: ReactNode };
 type CodeProps = { inline?: boolean; children?: ReactNode };
 
 // Custom components for markdown rendering in chat bubbles
@@ -48,12 +48,12 @@ const markdownComponents: Components = {
   ol: ({ children }: ChildrenProps): JSX.Element => <ol className="list-decimal list-inside text-sm mb-2 pl-2">{children}</ol>,
   li: ({ children }: ChildrenProps): JSX.Element => <li className="mb-0.5">{children}</li>,
 
-  // Links
-  a: ({ href, children }: LinkProps): JSX.Element => (
-    <a href={href} className="text-primary-accent hover:text-primary-accent underline" target="_blank" rel="noopener noreferrer">
-      {children}
-    </a>
-  ),
+  // Links. This used to force target="_blank" on everything, which meant a peer
+  // linking you to a page in your own workspace opened a SECOND copy of the app
+  // in a new tab — a fresh WASM client and a fresh agent connection — rather
+  // than moving you there. DocumentLink sends internal links to the router and
+  // keeps the new tab (and its noopener) for links that really do leave.
+  a: documentAnchor,
 
   // Code
   code: ({ inline, children }: CodeProps): JSX.Element =>

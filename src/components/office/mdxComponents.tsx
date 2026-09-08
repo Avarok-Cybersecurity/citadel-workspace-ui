@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CheckCircle2, AlertCircle } from "lucide-react";
+import { documentAnchor } from "@/components/shared/DocumentLink";
 
 export const components: MDXComponents = {
   // Document headings render ONE LEVEL DOWN from their markdown level, because
@@ -43,11 +44,12 @@ export const components: MDXComponents = {
   li: ({ children }: { children?: React.ReactNode }) => (
     <li className="mb-2">{children}</li>
   ),
-  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
-    <a href={href} className="text-primary-accent hover:text-primary-accent underline">
-      {children}
-    </a>
-  ),
+  // Document hrefs are written by whoever authored the node, so they go through
+  // DocumentLink: internal ones navigate in the SPA instead of reloading the
+  // page out from under the WASM client, and `javascript:` never becomes a link.
+  // This path has no other sanitisation — `@mdx-js` evaluate() has no
+  // urlTransform, unlike react-markdown — so DocumentLink is the only guard.
+  a: documentAnchor,
   del: ({ children }: { children?: React.ReactNode }) => (
     <del className="text-muted-foreground line-through">{children}</del>
   ),

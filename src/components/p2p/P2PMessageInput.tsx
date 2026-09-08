@@ -12,8 +12,17 @@ import { Button } from '@/components/ui/button';
 import { Send, Paperclip } from 'lucide-react';
 import { MarkdownToolbar } from './MarkdownToolbar';
 import { TypeSelectorBar } from './TypeSelectorBar';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
+import { documentAnchor } from '@/components/shared/DocumentLink';
 import type { MessageType } from '@/types/message-protocol';
+
+/**
+ * The preview had NO component map, so its links fell through to
+ * react-markdown's built-in anchor: no router, no `rel`. Previewing your own
+ * message and clicking a link to another workspace page reloaded the whole app
+ * — the one place the author is most likely to click a link to check it works.
+ */
+const previewComponents: Components = { a: documentAnchor };
 
 interface P2PMessageInputProps {
   inputMessage: string;
@@ -78,7 +87,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
           <div className="p-4 border-b border-surface/50 bg-background">
             <p className="text-xs text-muted-foreground mb-2">Preview:</p>
             <div className="prose prose-sm dark:prose-invert max-w-none bg-surface rounded-lg p-3 max-h-32 overflow-y-auto">
-              <ReactMarkdown>{inputMessage}</ReactMarkdown>
+              <ReactMarkdown components={previewComponents}>{inputMessage}</ReactMarkdown>
             </div>
           </div>
         )}
