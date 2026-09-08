@@ -1,3 +1,4 @@
+import { CitadelLogo } from '@/components/brand/CitadelLogo';
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { debugLog } from '@/lib/debug-config';
@@ -21,6 +22,7 @@ const NotFound: () => JSX.Element = (): JSX.Element => {
     // exactly the wrong place to make someone hunt.
     <main className="min-h-dvh flex items-center justify-center bg-background">
       <div className="text-center">
+        <CitadelLogo variant="horizontal" height={34} className="mb-8" />
         <h1 className="text-6xl font-bold text-primary-accent mb-4">404</h1>
         <p className="text-xl text-foreground/80 mb-6">Oops! Page not found</p>
         <Button

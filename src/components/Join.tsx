@@ -1,3 +1,4 @@
+import { CitadelLogo } from '@/components/brand/CitadelLogo';
 import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle } from "lucide-react";
@@ -72,6 +73,7 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
       <div className="w-full max-w-md">
         <Card className="bg-background border-border shadow-2xl shadow-black/40">
           <CardHeader className="pb-4">
+            <CitadelLogo variant="mark" height={34} className="mb-4" />
             <StepIndicator currentStep={3} totalSteps={3} labels={["Server", "Security", "Profile"]} />
             <h2 className="text-xl font-bold text-foreground mt-5">Create Your Profile</h2>
             <p className="text-sm text-muted-foreground mt-1">

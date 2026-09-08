@@ -3,6 +3,7 @@ import { isPrivilegedRole } from '@/lib/role-predicate';
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { CitadelLogo } from '@/components/brand/CitadelLogo';
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { useInstallAction } from "@/components/pwa/use-install-action";
 import {
@@ -119,6 +120,10 @@ export const TopBar = ({ currentWorkspace }: TopBarProps): JSX.Element => {
         >
           <Menu className="h-5 w-5" />
         </Button>
+        {/* The PRODUCT mark; the switcher beside it names the WORKSPACE, which an
+            admin can call anything. Mark alone: at 56px tall a wordmark would fall
+            under its 130px legibility floor. Hidden below `sm` for width. */}
+        <CitadelLogo variant="mark" height={26} className="mr-3 hidden shrink-0 sm:block" />
         <WorkspaceSwitcher workspaceName={workspaceName} />
       </div>
       {/* shrink-0: these controls are the way out of the app and must never be

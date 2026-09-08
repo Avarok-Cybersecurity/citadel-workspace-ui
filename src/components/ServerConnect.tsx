@@ -1,3 +1,4 @@
+import { CitadelLogo } from '@/components/brand/CitadelLogo';
 import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,6 +85,8 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
                 Workspace Address, and a step indicator that names a different
                 thing from the field it introduces makes the user wonder which
                 one they are being asked for. */}
+            {/* Mark only: the card is narrow and the wordmark has a 130px floor. */}
+            <CitadelLogo variant="mark" height={34} className="mb-4" />
             <StepIndicator currentStep={1} totalSteps={3} labels={["Workspace", "Security", "Profile"]} />
             <h2 className="text-xl font-bold text-foreground mt-5">{title || "Create Account"}</h2>
             <p className="text-sm text-muted-foreground mt-1">

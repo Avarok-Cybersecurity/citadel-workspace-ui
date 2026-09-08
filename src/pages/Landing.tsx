@@ -20,6 +20,7 @@ import { toastError } from '@/lib/toast-helpers';
 import { InstallAppButton } from "@/components/pwa/InstallAppButton";
 import type { NavigateFunction } from 'react-router';
 import type { ActiveSession } from '@/types/session-types';
+import { CitadelLogo } from '@/components/brand/CitadelLogo';
 import { OnboardingIntent } from '@/components/onboarding/OnboardingIntent';
 import { useOnboardingIntent } from '@/hooks/useOnboardingIntent';
 import { useAgentGatedStep } from '@/hooks/use-agent-gate';
@@ -202,10 +203,8 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
       )}>
         <div className="max-w-xl lg:max-w-2xl animate-fade-in">
           {/* Brand tag */}
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-[2px] bg-primary rounded-full" />
-            <p className="text-xs font-semibold tracking-[0.25em] text-primary-accent uppercase">Citadel</p>
-          </div>
+          {/* Full lockup, the default where the tagline has room to be read. */}
+          <CitadelLogo variant="full" height={44} className="mb-6" />
 
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-foreground mb-6 leading-[1.1] tracking-tight">
             The World's First

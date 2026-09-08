@@ -1,3 +1,5 @@
+import { CitadelLogo } from '@/components/brand/CitadelLogo';
+
 /**
  * Shown while a lazily-loaded route chunk is in flight.
  *
@@ -15,7 +17,9 @@ export function RouteFallback(): JSX.Element {
       aria-busy="true"
       className="flex min-h-dvh items-center justify-center bg-background"
     >
-      <div className="flex flex-col items-center gap-3 opacity-0 animate-in fade-in duration-300 delay-300 fill-mode-forwards">
+      <div className="flex flex-col items-center gap-4 opacity-0 animate-in fade-in duration-300 delay-300 fill-mode-forwards">
+        {/* Decorative: the live region below already announces "Loading". */}
+        <CitadelLogo variant="mark" height={40} />
         <div
           className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary"
           aria-hidden="true"

@@ -29,7 +29,12 @@
     />
     <meta property="og:url" content="https://citadel.avarok.net/" />
     <meta property="og:image" content="/og-image.png" />
-    <meta property="og:image:alt" content="The Citadel Workspace landing page" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <!-- Describes what the card actually shows. It previously claimed to be the
+         landing page while pointing at a 220x154 Avarok wordmark. -->
+    <meta property="og:image:alt" content="Citadel Workspace" />
     <meta property="og:locale" content="en_US" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Citadel Workspace — Post-Quantum Secure Collaboration" />
@@ -38,6 +43,7 @@
       content="A post-quantum secure, peer-to-peer collaborative workspace. End-to-end encrypted chat, file sharing and live documents."
     />
     <meta name="twitter:image" content="/og-image.png" />
+    <meta name="twitter:image:alt" content="Citadel Workspace" />
 
     <!--
       The landing hero is a CSS background, so the browser cannot discover it until
@@ -55,6 +61,11 @@
          the active theme. A brand-coloured value here would flash purple and
          resolve to the surface colour on every single launch. -->
     <meta name="theme-color" content="#1B1C27" />
+    <!-- The SVG carries its own prefers-color-scheme block, so the mark takes the
+         white-and-lavender cut on a dark tab strip and the ink-and-purple cut on a
+         light one. The two purples are different values: neither clears 3:1 on both
+         grounds, so one cannot simply be recoloured into the other. -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="mobile-web-app-capable" content="yes" />

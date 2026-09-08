@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 -16 874 814" role="img" aria-label="Citadel Workspace">
+  <title>Citadel Workspace</title>
+  <!--
+    The COMPACT cut (stroke 92, barbs at 577,122 / 811,193), not the production
+    cut. A favicon is drawn at 16-32px, and the brand guidelines put the
+    production stroke's floor at 48px: "Below 48 px the production stroke
+    renders as a smear, which is what mark-compact exists for". The viewBox is
+    expanded by 16 on every side to give the heavier stroke room to breathe.
+
+    The two purples are different values on purpose. #6E59A5 is 5.8:1 on white
+    but only 2.9:1 on the dark ground; #9B87F5 is the inverse. So the fill
+    flips with the browser's own theme rather than one being recoloured into
+    the other -- a browser in dark mode paints the tab strip dark, and the
+    light-ground cut would sit on it at 2.9:1.
+
+    No background rect: the mark sits on whatever the browser paints, which is
+    what every other adaptive favicon does and what keeps it legible in both.
+  -->
+  <style>
+    .ink { stroke: #1C1D28; }
+    .arrow { stroke: #6E59A5; }
+    @media (prefers-color-scheme: dark) {
+      .ink { stroke: #FFFFFF; }
+      .arrow { stroke: #9B87F5; }
+    }
+  </style>
+  <g fill="none" stroke-width="92" stroke-linecap="round" stroke-linejoin="round">
+    <path class="ink" d="M31 175L200 735L360 275L520 735" />
+    <path class="arrow" d="M520 735L732 31" />
+    <path class="arrow" d="M577 122L732 31L811 193" />
+  </g>
+</svg>

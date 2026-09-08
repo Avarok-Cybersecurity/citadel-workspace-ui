@@ -2,6 +2,9 @@ import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import App from './App.tsx'
 import './index.css'
+// Logo colours. Separate from the design tokens on purpose -- see the header
+// of the file: the mark must not inherit a workspace's palette.
+import './styles/brand-tokens.css'
 
 // Initialize WASM peer bridge (provides peer connection state to WASM ILM via JS callback)
 import { initWasmPeerBridge } from './lib/wasm-peer-bridge'

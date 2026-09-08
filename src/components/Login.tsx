@@ -1,3 +1,4 @@
+import { CitadelLogo } from '@/components/brand/CitadelLogo';
 import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
 import { LoginAdvancedOptions } from "./LoginAdvancedOptions";
 import React, { useState } from "react";
@@ -82,6 +83,7 @@ export function Login({ onNext, onCancel }: LoginProps): JSX.Element {
                 <ChevronLeft className="h-4 w-4" aria-hidden="true" />
               </Button>
               <div>
+                <CitadelLogo variant="mark" height={30} className="mb-3" />
                 <h2 className="text-xl font-bold text-foreground">Login to Workspace</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   Enter your credentials to connect
