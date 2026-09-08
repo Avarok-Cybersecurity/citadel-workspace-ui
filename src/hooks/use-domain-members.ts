@@ -85,6 +85,30 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
     loaded !== null && loaded.domain === activeDomainId ? loaded.members : NO_MEMBERS;
   const membersUnavailable: boolean = unavailableFor !== null && unavailableFor === activeDomainId;
 
+  // The four values `MemberListBody` branches on, logged whenever they settle.
+  //
+  // member-list-loading.spec.ts still fails its first attempt, and round 747's
+  // atomic DOM sample proved the reading trustworthy without explaining it: ONE
+  // element carries the testid, the empty state really is on screen, and loading
+  // really is absent -- while the only `members:loaded` seen carries three
+  // members for the active domain. After round 742 `isLoading === false` should
+  // imply `members === loaded.members`, so that combination should be
+  // unreachable, and the DOM cannot say which of these actually held.
+  //
+  // Four hypotheses have been spent on this spec and refuted. This is the datum
+  // none of them had. `debugLog` is a no-op in production, so it costs a
+  // dev-server render and nothing in a shipped build -- the same channel this
+  // hook already uses for `members:loaded`.
+  useEffect((): void => {
+    debugLog('useDomainMembers', 'state:settled', {
+      activeDomainId: activeDomainId ?? '(none)',
+      loadedForDomain: loaded?.domain ?? '(none)',
+      isLoadingMembers,
+      memberCount: members.length,
+      membersUnavailable,
+    });
+  }, [activeDomainId, loaded, isLoadingMembers, members, membersUnavailable]);
+
   useEffect(() => {
     const domain: string | null = activeDomainId;
     const loadMembers = async (): Promise<void> => {

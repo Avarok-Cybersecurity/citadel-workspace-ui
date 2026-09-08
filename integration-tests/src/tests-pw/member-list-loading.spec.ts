@@ -54,7 +54,14 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
     const memberEvents: string[] = [];
     page.on('console', (m): void => {
         const t: string = m.text();
-        if (t.includes('members:loaded')) memberEvents.push(t.slice(0, 240));
+        // `state:settled` reports the four values MemberListBody branches on,
+        // straight from the hook. Round 747's DOM sample was trustworthy and
+        // still could not say WHICH state produced the empty branch: after
+        // round 742, `isLoading === false` should imply the list is the loaded
+        // domain's, and the only `members:loaded` carried three members. One of
+        // those two things is not what it appears, and only the hook can say
+        // which.
+        if (t.includes('members:loaded') || t.includes('state:settled')) memberEvents.push(t.slice(0, 240));
     });
 
     // Switching nodes re-runs the load, which is what makes this reproducible
@@ -180,7 +187,7 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
         sawEmptyState,
         'the sidebar said "No members yet" while the member list was still loading. ' +
         `At the first sighting the DOM held: ${atFirstSighting}` +
-        `\nmembers:loaded events, in order: ${
+        `\nhook events, in order (members:loaded and state:settled): ${
             memberEvents.length ? memberEvents.join('\n  ') : '(none — so NO event ended the load, and the path is elsewhere)'
         }`,
     ).toBe(false);
