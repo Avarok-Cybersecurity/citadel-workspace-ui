@@ -85,7 +85,11 @@ function SidebarNode({
       <div
         className={cn(
           "flex items-center py-1 px-1 cursor-pointer rounded text-sm text-foreground/80 hover:bg-card",
-          isActive && "bg-primary/50 text-primary-foreground",
+          // Full-strength text-foreground on the active row (twMerge drops the
+          // /80 above it). It was text-primary-foreground -- white -- which is
+          // the foreground for a SOLID --primary fill, not for this 50% tint:
+          // over the panel's bg-surface that measured 2.59:1 in light mode.
+          isActive && "bg-primary/50 text-foreground",
           dragOver && "bg-success/15 ring-1 ring-success",
         )}
         style={{ paddingLeft: `${depth * 16 + 4}px` }}
@@ -220,7 +224,8 @@ export function VFSTreeView({
         <div
           className={cn(
             "flex items-center py-1 px-2 cursor-pointer rounded text-xs text-muted-foreground hover:bg-card mx-1 mb-0.5",
-            currentPath === '/' && "bg-primary/50 text-primary-foreground",
+            // Same tint, same correction as the node rows above.
+            currentPath === '/' && "bg-primary/50 text-foreground",
           )}
           onClick={() => onNavigate('/')}
           role="button"

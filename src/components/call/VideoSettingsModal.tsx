@@ -76,7 +76,15 @@ export function VideoSettingsModal({
                 <span
                   className={cn(
                     'mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2',
-                    selected ? 'border-primary-accent bg-primary-accent' : 'border-border',
+                    // bg-primary, not bg-primary-accent, because the tick
+                    // inside is text-primary-foreground -- and --primary-
+                    // foreground is defined as the foreground for --primary.
+                    // On --primary-accent the pairing is only accidentally
+                    // right: that token is DARK in light mode but LIGHT in dark
+                    // mode, where a white tick on it measured 2.86:1, under the
+                    // 3:1 WCAG asks of a non-text indicator. On --primary it is
+                    // 7.70:1 light and 5.74:1 dark.
+                    selected ? 'border-primary bg-primary' : 'border-border',
                   )}
                   aria-hidden="true"
                 >

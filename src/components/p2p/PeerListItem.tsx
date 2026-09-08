@@ -72,7 +72,13 @@ export const PeerListItem: React.FC<PeerListItemProps> = ({
             onClick={() => onAccept(incomingRequest)}
             disabled={acceptingPeerCid === peer.cid}
             data-testid="peer-accept"
-            className="border-success text-success-emphasis hover:bg-success/90 hover:text-success-foreground"
+            // hover:bg-success, not hover:bg-success/90. The `/90` hover is
+            // borrowed from the solid primary buttons, where it darkens a fill
+            // that is ALREADY there. This is an outline button: nothing is
+            // underneath but the page, so at 90% the fill composited towards
+            // white and the white hover label fell to 3.99:1 in light mode.
+            // --success-foreground is defined against solid --success: 4.74:1.
+            className="border-success text-success-emphasis hover:bg-success hover:text-success-foreground"
           >
             {acceptingPeerCid === peer.cid ? (
               <Loader2 className="h-3 w-3 mr-1 animate-spin" />
