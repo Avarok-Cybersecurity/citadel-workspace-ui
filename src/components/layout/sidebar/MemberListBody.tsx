@@ -63,7 +63,7 @@ export function MemberListBody({
   // Nothing has been asked. Say nothing, rather than something false.
   if (activeDomainId === null) return null;
   if (members.length === 0 && peerCount === 0) {
-    return <MembersEmptyState unavailable={membersUnavailable} />;
+    return <MembersEmptyState unavailable={membersUnavailable} domainId={activeDomainId} />;
   }
   if (members.length === 0) return null;
   return (
