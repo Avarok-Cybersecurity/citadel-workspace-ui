@@ -121,6 +121,12 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
         readonly peerRows: number;
         readonly usernameVisible: boolean;
         readonly url: string;
+        // WHOSE list the empty state belongs to (MembersEmptyState stamps it),
+        // and the node the URL names. Equal: a real false "empty". Different:
+        // a stale frame from the node being left. Round 749's evidence pointed
+        // at the second; this records it instead of inferring it.
+        readonly emptyDomain: string;
+        readonly urlNodeId: string;
     }
 
     const sampleOnce = async (): Promise<Sample> => page.evaluate(
@@ -144,14 +150,18 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
                 .some((e: Element): boolean => e.children.length === 0
                     && (e.textContent ?? '').includes(name) && visible(e)),
             url: window.location.href,
+            emptyDomain: document.querySelector(`[data-testid="${testid}"]`)
+                ?.getAttribute('data-domain-id') ?? '(absent)',
+            urlNodeId: new URL(window.location.href).searchParams.get('nodeId') ?? '(none)',
         };
     }, { name: admin.username, testid: EMPTY_STATE_TESTID });
 
     let atFirstSighting = '';
+    let firstSighting: Sample | null = null;
     for (let i = 0; i < 100; i++) {
         const s: Sample = await sampleOnce();
         if (s.emptyVisible) {
-            if (!sawEmptyState) atFirstSighting = JSON.stringify(s);
+            if (!sawEmptyState) { atFirstSighting = JSON.stringify(s); firstSighting = s; }
             sawEmptyState = true;
         }
         if (s.usernameVisible) {
@@ -185,6 +195,7 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
     ).toBe(true);
     expect(
         sawEmptyState,
+        `${verdictOf(firstSighting)}\n` +
         'the sidebar said "No members yet" while the member list was still loading. ' +
         `At the first sighting the DOM held: ${atFirstSighting}` +
         `\nhook events, in order (members:loaded and state:settled): ${
@@ -192,3 +203,19 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
         }`,
     ).toBe(false);
 });
+
+/** One line a CI log reader can act on without reinterpreting the sample. */
+// Structural rather than `Sample`: that interface is declared inside the test
+// body, and this needs only the two fields that decide the verdict.
+function verdictOf(
+    first: { readonly emptyDomain: string; readonly urlNodeId: string } | null,
+): string {
+    if (first === null) return 'VERDICT: no empty state was sampled';
+    if (first.emptyDomain === '(absent)') {
+        return 'VERDICT: unknown -- the empty state carried no data-domain-id';
+    }
+    return first.emptyDomain === first.urlNodeId
+        ? `VERDICT: REAL -- the empty list belonged to ${first.urlNodeId}, the node the URL names`
+        : `VERDICT: STALE FRAME -- the empty list belonged to ${first.emptyDomain} while the URL `
+          + `already named ${first.urlNodeId}; the list lags the navigation by a render`;
+}
