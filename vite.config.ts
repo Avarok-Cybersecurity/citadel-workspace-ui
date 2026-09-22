@@ -18,12 +18,16 @@ import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
  * to catch the very class of bug it exists to catch. The gpteng/unsplash origins were
  * scaffold residue: nothing in the app loads from either.
  *
+ * https://challenges.cloudflare.com (script-src, frame-src) is Cloudflare Turnstile, which the
+ * "Create new workspace" flow loads and renders in an iframe; the hosted Worker serves the same
+ * policy (deploy/tenant-worker/control/ui.mjs in the parent repo).
+ *
  * `connect-src 'self'` is the load-bearing part: the agent socket is same-origin (`/ws`),
  * so 'self' covers it and no `ws:`/`wss:` wildcard is needed. A bare scheme source would
  * match ANY host, which would let an XSS payload exfiltrate to an attacker's socket.
  */
 const PRODUCTION_CSP =
-  "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+  "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
 
 /**
  * Identical to production except for the two script-src sources Vite's dev transform
@@ -33,7 +37,7 @@ const PRODUCTION_CSP =
  * so a violation fails in dev, where someone will notice.
  */
 const DEV_CSP =
-  "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+  "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
 
 /**
  * Proxy the agent's WebSocket so a locally-served app reaches it at the same same-origin `/ws`
