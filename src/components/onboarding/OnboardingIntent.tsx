@@ -21,9 +21,10 @@ import type { JSX } from 'react';
  * src/components/__tests__/init-modal-does-not-eject.test.ts. Naming the two
  * paths before the wizard is what removes that surprise.
  *
- * This does NOT branch the registration flow: both paths run the same three
- * steps. It sets expectations, and tells an administrator to have the master
- * password to hand BEFORE they need it rather than after.
+ * "Setting up" now opens the hosted create-workspace flow (`/create`), which
+ * issues the claim code that stands in for the master password on a hosted
+ * workspace, and then runs the same three wizard steps with the new address
+ * filled in. "Joining" runs the wizard directly, as before.
  *
  * The answer is not merely informational, though. Answering "joining" suppresses
  * the initialization prompt for this tab — the same suppression dismissing that
@@ -62,8 +63,8 @@ export const OnboardingIntent = ({ open, onChoose, onDismiss }: OnboardingIntent
           </span>
           <span className="mt-2 flex items-start gap-2 text-sm text-muted-foreground">
             <KeyRound className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
-            You will need the workspace master password from the server
-            configuration to become the administrator.
+            You get a one-time claim code that makes you its owner. Running
+            your own server? Use its master password instead.
           </span>
         </button>
 

@@ -42,6 +42,9 @@ const GroupChatPage: LazyExoticComponent<() => JSX.Element> = lazy((): Promise<{
   import("./pages/GroupChatPage").then(m => ({ default: m.GroupChatPage }))
 );
 const NotFound: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pages/NotFound"));
+// Split like the rest: the landing page must not pay for the create-workspace
+// flow, and nothing on it is needed until someone chooses to set one up.
+const CreateWorkspace: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pages/CreateWorkspace"));
 
 const queryClient: QueryClient = new QueryClient();
 
@@ -119,6 +122,7 @@ const App: () => JSX.Element = (): JSX.Element => {
                   {/* Public routes that don't require workspace data */}
                   <Route path="/" element={<Landing />} />
                   <Route path="/connect" element={<Connect />} />
+                  <Route path="/create" element={<CreateWorkspace />} />
 
                   {/* Protected routes that require workspace data to be loaded */}
                   <Route

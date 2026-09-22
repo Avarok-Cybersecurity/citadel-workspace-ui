@@ -25,6 +25,7 @@ import { OnboardingIntent } from '@/components/onboarding/OnboardingIntent';
 import { useOnboardingIntent } from '@/hooks/useOnboardingIntent';
 import { useAgentGatedStep } from '@/hooks/use-agent-gate';
 import type { OnboardingIntentState } from '@/hooks/useOnboardingIntent';
+import { CreateWorkspaceCta } from '@/components/create-workspace/CreateWorkspaceCta';
 
 export const Landing: () => JSX.Element = (): JSX.Element => {
   const navigate: NavigateFunction = useNavigate();
@@ -136,7 +137,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
 
   // Production only: ask which job the user is here to do before the wizard,
   // so the master password is named before it is needed rather than after.
-  const intent: OnboardingIntentState = useOnboardingIntent(beginWizard);
+  const intent: OnboardingIntentState = useOnboardingIntent(beginWizard, navigate);
   const startRegistration: () => void = intent.request;
 
   // Both buttons on this screen need the agent; see use-agent-gate.ts.
@@ -152,7 +153,6 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
       toastError(toast, "Login Setup Failed", error instanceof Error ? error.message : "Failed to load workspace after login");
     }
   };
-
 
   return (
     <div className="h-dvh flex items-center relative overflow-hidden bg-background">
@@ -244,7 +244,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
             </Button>
           </div>
 
-          {/* Secondary actions */}
+          <CreateWorkspaceCta />
           <div className="mt-6 flex items-center gap-4">
             <ManageAccountsButton />
             <div className="w-[1px] h-4 bg-border" />

@@ -20,6 +20,7 @@ const SUFFIX: "Citadel Workspace" = 'Citadel Workspace';
 const ROUTE_TITLES: ReadonlyArray<readonly [RegExp, string]> = [
   [/^\/$/, 'Citadel Workspace — Post-Quantum Secure Collaboration'],
   [/^\/connect(\/|$)/, `Connect · ${SUFFIX}`],
+  [/^\/create(\/|$)/, `Create a workspace · ${SUFFIX}`],
   [/^\/workspace(\/|$)/, `Workspace · ${SUFFIX}`],
   [/^\/messages(\/|$)/, `Messages · ${SUFFIX}`],
   [/^\/directory(\/|$)/, `Directory · ${SUFFIX}`],

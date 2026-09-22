@@ -4,6 +4,7 @@ import { suppressInitPrompt } from '@/lib/workspace-init-prompt';
 import { debugLog } from '@/lib/debug-config';
 import { useServiceHealth } from '@/hooks/use-service-health';
 import { askWhyTheAgentIsUnreachable } from '@/lib/agent-attention';
+import { canCreateWorkspaces } from '@/lib/onboarding/control-plane-config';
 
 /** What the user said they were doing. `undefined` means they dismissed without saying. */
 export type OnboardingChoice = 'admin' | 'member' | undefined;
@@ -33,7 +34,20 @@ export interface OnboardingIntentState {
   resolve: (choice?: OnboardingChoice) => void;
 }
 
-export function useOnboardingIntent(beginWizard: () => void): OnboardingIntentState {
+/**
+ * The onboarding answer "Setting up a new workspace". Named, not compared as a
+ * literal: it is an answer to a question, not a workspace role, and a bare
+ * `=== 'admin'` reads as (and is flagged as) a role check.
+ */
+const SETTING_UP: OnboardingChoice = 'admin';
+
+/** Where "Setting up a new workspace" goes: the hosted create-workspace flow. */
+export const CREATE_WORKSPACE_PATH: string = '/create';
+
+export function useOnboardingIntent(
+  beginWizard: () => void,
+  openCreateWorkspace: (path: string) => void,
+): OnboardingIntentState {
   const [open, setOpen] = useState(false);
   const { isHealthy } = useServiceHealth();
 
@@ -98,6 +112,16 @@ export function useOnboardingIntent(beginWizard: () => void): OnboardingIntentSt
     // Only `member` suppresses. `admin` has been told to have the password to
     // hand and SHOULD be prompted; dismissing without answering says nothing,
     // and is left exactly as it was.
+    // "Setting up a new workspace" is a different job from joining one, and now
+    // a different flow: the hosted create-workspace pages, which issue the claim
+    // code that makes this person the owner. The wizard is where that flow ends
+    // up, with the new address filled in. Only where the deployment publishes a
+    // control plane: everywhere else -- a local build, a self-hosted server --
+    // setting up still means the wizard and the server's master password.
+    if (choice === SETTING_UP && canCreateWorkspaces(typeof document === 'undefined' ? undefined : document)) {
+      openCreateWorkspace(CREATE_WORKSPACE_PATH);
+      return;
+    }
     if (choice === 'member' && !suppressInitPrompt()) {
       // Storage refused (private mode, blocked site data). The prompt will still
       // appear; say so, because the alternative is a member being asked for a
@@ -109,7 +133,7 @@ export function useOnboardingIntent(beginWizard: () => void): OnboardingIntentSt
       );
     }
     beginWizard();
-  }, [beginWizard]);
+  }, [beginWizard, openCreateWorkspace]);
 
   return { open, request, resolve };
 }
