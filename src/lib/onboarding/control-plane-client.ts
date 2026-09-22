@@ -29,11 +29,12 @@ export interface CreateTenantRequest {
   readonly seats?: number;
   readonly storage_blocks?: number;
   readonly turnstile_token: string;
+  readonly reservation_token?: string;
 }
 
 export type CreateTenantResult =
   | { readonly kind: 'created'; readonly claimCode: string; readonly workspaceHost: string }
-  | { readonly kind: 'checkout'; readonly checkoutUrl: string };
+  | { readonly kind: 'checkout'; readonly checkoutUrl: string; readonly reservationToken: string | undefined };
 
 export type TenantStatus =
   | { readonly status: 'pending' }
@@ -110,7 +111,11 @@ async function send(fetchFn: FetchLike, url: string, init: RequestInit): Promise
   const body: unknown = await readJson(response);
   if (!response.ok) {
     if (response.status === 503) throw new ControlPlaneError(503, NOT_CONFIGURED);
-    const stated: string | undefined = isRecord(body) ? optionalString(body, 'error') : undefined;
+    // The control plane answers `{ error: <code>, detail: <sentence> }`: the
+    // sentence is for the visitor, the code for logs.
+    const stated: string | undefined = isRecord(body)
+      ? optionalString(body, 'detail') ?? optionalString(body, 'error')
+      : undefined;
     throw new ControlPlaneError(response.status, stated ?? `Request failed (${response.status}).`);
   }
   if (!isRecord(body)) throw malformed('not an object');
@@ -139,7 +144,7 @@ function parseCreated(body: Record<string, unknown>): CreateTenantResult {
   const checkoutUrl: string | undefined = optionalString(body, 'checkout_url');
   if (checkoutUrl !== undefined) {
     if (!isCheckoutUrl(checkoutUrl)) throw malformed('checkout address');
-    return { kind: 'checkout', checkoutUrl };
+    return { kind: 'checkout', checkoutUrl, reservationToken: optionalString(body, 'reservation_token') };
   }
   const claimCode: string | undefined = optionalString(body, 'claim_code');
   const workspaceHost: string | undefined = optionalString(body, 'workspace_host');

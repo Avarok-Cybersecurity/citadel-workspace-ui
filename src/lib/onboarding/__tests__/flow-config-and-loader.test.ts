@@ -11,10 +11,15 @@ import { TURNSTILE_SCRIPT_URL, type TurnstileApi } from '../turnstile';
 describe('the step Stripe sends the visitor back to', () => {
   it.each([
     ['', 'name'],
-    ['?slug=acme&session_id=cs_1', 'provisioning'],
-    ['?slug=acme&cancelled=1', 'cancelled'],
+    // The control plane's own return URLs (control/tenants.mjs).
+    ['?tenant=acme&session_id=cs_1', 'provisioning'],
+    ['?tenant=acme&canceled=1', 'cancelled'],
     ['?session_id=cs_1', 'name'],
-    ['?slug=acme', 'name'],
+    ['?tenant=acme', 'name'],
+    // The shape the UI first guessed. Nothing sends it, so nothing may act on it:
+    // accepting it would let the two halves drift apart again unnoticed.
+    ['?slug=acme&session_id=cs_1', 'name'],
+    ['?tenant=acme&cancelled=1', 'name'],
   ])('%s -> %s', (query: string, step: string) => {
     expect(stepFromUrl(new URLSearchParams(query)).step).toBe(step);
   });
@@ -22,6 +27,11 @@ describe('the step Stripe sends the visitor back to', () => {
 
 describe('the draft kept across Checkout', () => {
   beforeEach(() => clearDraft());
+
+  it('keeps the reservation token for the retry after a cancelled Checkout', () => {
+    saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0 }, reservationToken: 'rt_1' });
+    expect(loadDraft('acme')?.reservationToken).toBe('rt_1');
+  });
 
   it('comes back for the same slug and not another', () => {
     saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'year', seats: 4, storageBlocks: 2 } });

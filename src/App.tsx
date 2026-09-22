@@ -123,6 +123,7 @@ const App: () => JSX.Element = (): JSX.Element => {
                   <Route path="/" element={<Landing />} />
                   <Route path="/connect" element={<Connect />} />
                   <Route path="/create" element={<CreateWorkspace />} />
+                  <Route path="/create/done" element={<CreateWorkspace />} />
 
                   {/* Protected routes that require workspace data to be loaded */}
                   <Route

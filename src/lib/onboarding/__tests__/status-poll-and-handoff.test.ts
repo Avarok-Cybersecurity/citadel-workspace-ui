@@ -114,10 +114,13 @@ describe('the claim code', () => {
   it('still pre-fills the initialization step for that workspace, and only that one', () => {
     recordIssuedClaim('acme.work.avarok.net', 'CLAIM-XYZ');
     revealClaimCode();
-    expect(createdWorkspaceAddress()).toBe('acme.work.avarok.net:12400');
-    expect(claimCodeFor('acme.work.avarok.net:12400')).toBe('CLAIM-XYZ');
+    // A hosted tenant is dialled at its bare host over wss -- no port is appended
+    // (workspace-address.ts isTenantHost). `:12400` names a different endpoint, which
+    // this workspace does not answer on, so it must not receive the claim code.
+    expect(createdWorkspaceAddress()).toBe('acme.work.avarok.net');
     expect(claimCodeFor('acme.work.avarok.net')).toBe('CLAIM-XYZ');
-    expect(claimCodeFor('other.work.avarok.net:12400')).toBeUndefined();
+    expect(claimCodeFor('acme.work.avarok.net:12400')).toBeUndefined();
+    expect(claimCodeFor('other.work.avarok.net')).toBeUndefined();
     expect(claimCodeFor(undefined)).toBeUndefined();
   });
 

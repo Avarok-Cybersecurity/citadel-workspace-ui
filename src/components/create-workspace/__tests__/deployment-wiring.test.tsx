@@ -98,12 +98,14 @@ describe('the claim-code pre-fill', () => {
   }
 
   it('fills the code in for the workspace it was issued for', () => {
-    expect(run(true, 'acme.work.avarok.net:12400')).toEqual({ value: 'CLAIM-ABC', prefilled: true });
+    // A hosted tenant is joined at its bare host (no port; see workspace-address.ts).
+    expect(run(true, 'acme.work.avarok.net')).toEqual({ value: 'CLAIM-ABC', prefilled: true });
+    expect(run(true, 'acme.work.avarok.net:12400')).toEqual({ value: '', prefilled: false });
   });
 
   it('does nothing for another workspace, or while closed', () => {
     expect(run(true, 'other.example.com:12400')).toEqual({ value: '', prefilled: false });
-    expect(run(false, 'acme.work.avarok.net:12400')).toEqual({ value: '', prefilled: false });
+    expect(run(false, 'acme.work.avarok.net')).toEqual({ value: '', prefilled: false });
   });
 
   it('never overwrites what the user typed', () => {

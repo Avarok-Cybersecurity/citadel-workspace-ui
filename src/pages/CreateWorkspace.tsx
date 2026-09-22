@@ -46,6 +46,7 @@ function requestFor(draft: FlowDraft, turnstileToken: string): CreateTenantReque
     display_name: draft.displayName.trim(),
     tier: draft.plan.tier,
     turnstile_token: turnstileToken,
+    ...(draft.reservationToken ? { reservation_token: draft.reservationToken } : {}),
   };
   if (!isPaid(draft.plan.tier)) return base;
   return {
@@ -98,13 +99,13 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
   };
 
   const submit = async (turnstileToken: string): Promise<string | undefined> => {
-    const draft: FlowDraft = { displayName, slug, plan };
+    const draft: FlowDraft = { displayName, slug, plan, reservationToken: initial.draft?.reservationToken };
     try {
       const result: CreateTenantResult = await api.createTenant(requestFor(draft, turnstileToken));
       if (result.kind === 'created') {
         toClaim(result.workspaceHost, result.claimCode);
       } else {
-        const kept: boolean = saveDraft(draft);
+        const kept: boolean = saveDraft({ ...draft, reservationToken: result.reservationToken });
         if (!kept) debugLog('CreateWorkspace', 'Draft not kept across Checkout: session storage refused the write.');
         redirect(result.checkoutUrl);
       }

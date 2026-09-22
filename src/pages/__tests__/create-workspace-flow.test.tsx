@@ -48,6 +48,7 @@ function renderFlow(fake: ContractFake, at: string = '/create', redirect: (url: 
     <MemoryRouter initialEntries={[at]}>
       <Routes>
         <Route path="/create" element={<CreateWorkspaceFlow api={api} redirect={redirect} />} />
+        <Route path="/create/done" element={<CreateWorkspaceFlow api={api} redirect={redirect} />} />
         <Route path="/" element={<p>landing</p>} />
       </Routes>
     </MemoryRouter>,
@@ -151,7 +152,7 @@ describe('a free workspace', () => {
 describe('a paid workspace', () => {
   it('prices seats and storage, then leaves for Checkout with the draft kept', async () => {
     const fake: ContractFake = contractFake();
-    fake.createReplies.push({ status: 200, body: { checkout_url: 'https://checkout.stripe.com/c/pay/cs_test_9' } });
+    fake.createReplies.push({ status: 200, body: { checkout_url: 'https://checkout.stripe.com/c/pay/cs_test_9', reservation_token: 'rt_first' } });
     const redirect: ReturnType<typeof vi.fn> = vi.fn();
     renderFlow(fake, '/create', redirect);
     await throughToReview(() => {
@@ -169,6 +170,32 @@ describe('a paid workspace', () => {
       slug: 'acme', display_name: 'Acme', tier: 'team', interval: 'year', seats: 4, storage_blocks: 1, turnstile_token: 'token-1',
     });
     expect(loadDraft('acme')?.plan.seats).toBe(4);
+    expect(loadDraft('acme')?.reservationToken).toBe('rt_first');
+  });
+
+  it('retries a cancelled Checkout under the same name, proving the reservation is its own', async () => {
+    saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0 }, reservationToken: 'rt_first' });
+    const fake: ContractFake = contractFake();
+    fake.createReplies.push({ status: 200, body: { checkout_url: 'https://checkout.stripe.com/c/pay/cs_test_10', reservation_token: 'rt_second' } });
+    const redirect: ReturnType<typeof vi.fn> = vi.fn();
+    renderFlow(fake, '/create?tenant=acme&canceled=1', redirect);
+    fireEvent.click(screen.getByTestId('cancelled-back-to-plans'));
+    fireEvent.click(screen.getByTestId('create-plan-continue'));
+    await waitFor(() => expect(screen.getByTestId('create-submit')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('create-submit'));
+    await waitFor(() => expect(redirect).toHaveBeenCalledWith('https://checkout.stripe.com/c/pay/cs_test_10'));
+    expect((fake.requests.at(-1)?.body as { reservation_token?: string }).reservation_token).toBe('rt_first');
+    expect(loadDraft('acme')?.reservationToken).toBe('rt_second');
+  });
+
+  it('shows the sentence the control plane gives, not its error code', async () => {
+    const fake: ContractFake = contractFake();
+    fake.createReplies.push({ status: 409, body: { error: 'slug-taken', detail: 'Someone has just taken acme.work.avarok.net.' } });
+    renderFlow(fake);
+    await throughToReview(() => {});
+    fireEvent.click(screen.getByTestId('create-submit'));
+    await waitFor(() => expect(screen.getByTestId('create-error')).toHaveTextContent('Someone has just taken acme.work.avarok.net.'));
+    expect(screen.getByTestId('create-error')).not.toHaveTextContent('slug-taken');
   });
 
   it('on return, waits for the workspace and then shows its code', async () => {
@@ -177,7 +204,7 @@ describe('a paid workspace', () => {
     fake.statusReplies.push({ status: 200, body: { status: 'active', claim_code: 'PAID-CODE', workspace_host: 'acme.work.avarok.net' } });
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
-      renderFlow(fake, '/create?slug=acme&session_id=cs_test_9');
+      renderFlow(fake, '/create/done?tenant=acme&session_id=cs_test_9');
       expect(screen.getByTestId('provisioning')).toHaveTextContent('acme.work.avarok.net');
       await vi.advanceTimersByTimeAsync(2500);
       await waitFor(() => expect(screen.getByTestId('claim-code')).toHaveTextContent('PAID-CODE'));
@@ -192,7 +219,7 @@ describe('a paid workspace', () => {
 
   it('says so, and offers the plan back, when Checkout was cancelled', async () => {
     saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'business', interval: 'month', seats: 5, storageBlocks: 0 } });
-    renderFlow(contractFake(), '/create?slug=acme&cancelled=1');
+    renderFlow(contractFake(), '/create?tenant=acme&canceled=1');
     expect(screen.getByTestId('checkout-cancelled')).toHaveTextContent('Nothing was charged');
     fireEvent.click(screen.getByTestId('cancelled-back-to-plans'));
     expect(screen.getByTestId('plan-seats')).toHaveValue('5');

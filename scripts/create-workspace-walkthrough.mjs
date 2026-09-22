@@ -112,12 +112,13 @@ const TURNSTILE_STUB = `
 
 function stripeStub(route) {
   const slug = new URL(route.request().url()).pathname.split('cs_test_')[1];
-  const back = `${ORIGIN}/create?slug=${slug}`;
+  const done = `${ORIGIN}/create/done?tenant=${slug}`;
+  const back = `${ORIGIN}/create?tenant=${slug}`;
   return route.fulfill({
     contentType: 'text/html',
     body: `<!doctype html><title>Stripe Checkout (stub)</title><body style="font:16px sans-serif;padding:40px">
       <h1>Stripe Checkout (stub)</h1><p>No Stripe call is made. Choose an outcome.</p>
-      <a id="pay" href="${back}&session_id=cs_test_${slug}">Pay</a> &nbsp; <a id="cancel" href="${back}&cancelled=1">Cancel</a></body>`,
+      <a id="pay" href="${done}&session_id=cs_test_${slug}">Pay</a> &nbsp; <a id="cancel" href="${back}&canceled=1">Cancel</a></body>`,
   });
 }
 
@@ -244,7 +245,7 @@ async function walk(page, tag, variant) {
   await inspect(page, tag('09-claim-paid'));
 
   // Return with a session the control plane does not know.
-  await page.goto(`${ORIGIN}/create?slug=nobody-here&session_id=cs_test_unknown`);
+  await page.goto(`${ORIGIN}/create/done?tenant=nobody-here&session_id=cs_test_unknown`);
   await page.getByTestId('provisioning-failed').waitFor({ timeout: 20_000 });
   await inspect(page, tag('10-provisioning-failed'));
 

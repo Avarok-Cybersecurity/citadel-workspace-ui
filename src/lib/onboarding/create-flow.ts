@@ -2,7 +2,7 @@
  * Where the create-workspace flow is, and what it has been told so far.
  *
  * The paid path leaves the page: the visitor goes to Stripe Checkout and comes
- * back to `/create?slug=…&session_id=…` (paid) or `/create?slug=…&cancelled=1`
+ * back to `/create/done?tenant=…&session_id=…` (paid) or `/create?tenant=…&canceled=1`
  * (they backed out). So the step is read from the URL on arrival, and the
  * choices made before the redirect -- the name and the plan, nothing secret --
  * are kept in sessionStorage for the length of that round trip, so that
@@ -32,11 +32,13 @@ export function formStepNumber(step: FlowStep['step']): number {
 
 /** The step to open on, from the query string Stripe sends the visitor back with. */
 export function stepFromUrl(params: URLSearchParams): FlowStep {
-  const slug: string | null = params.get('slug');
+  // The control plane's Checkout return URLs (control/tenants.mjs success_url and
+  // cancel_url): `tenant`, and Stripe's own spelling `canceled`.
+  const slug: string | null = params.get('tenant');
   if (slug) {
     const sessionId: string | null = params.get('session_id');
     if (sessionId) return { step: 'provisioning', slug, sessionId };
-    if (params.get('cancelled') === '1') return { step: 'cancelled', slug };
+    if (params.get('canceled') === '1') return { step: 'cancelled', slug };
   }
   return { step: 'name' };
 }
@@ -45,6 +47,12 @@ export interface FlowDraft {
   readonly displayName: string;
   readonly slug: string;
   readonly plan: PlanSelection;
+  /**
+   * Proof that a pending reservation of `slug` is this visitor's, returned with the
+   * Checkout URL. Sent back on a retry after a cancelled Checkout so the control
+   * plane replaces the reservation instead of answering "taken" for their own name.
+   */
+  readonly reservationToken?: string;
 }
 
 export const DRAFT_KEY: string = 'citadel:create-workspace-draft';
@@ -63,7 +71,8 @@ function isDraft(value: unknown): value is FlowDraft {
     TIER_IDS.includes(p.tier as TierId) &&
     INTERVALS.includes(p.interval as BillingInterval) &&
     typeof p.seats === 'number' &&
-    typeof p.storageBlocks === 'number'
+    typeof p.storageBlocks === 'number' &&
+    (draft.reservationToken === undefined || typeof draft.reservationToken === 'string')
   );
 }
 
