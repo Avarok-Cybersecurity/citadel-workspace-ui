@@ -228,6 +228,16 @@ describe('a paid workspace', () => {
 });
 
 describe('the claim screen', () => {
+  it('shows the real 64-hex code in readable groups, and copies it raw', async () => {
+    const code: string = `${'0123abcd'.repeat(8)}`;
+    const writeText: ReturnType<typeof vi.fn> = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(<MemoryRouter><ClaimStep workspaceHost="acme.work.avarok.net" claimCode={code} onOpenWorkspace={() => {}} /></MemoryRouter>);
+    expect(screen.getByTestId('claim-code').textContent).toBe(Array(8).fill('0123abcd').join(' '));
+    fireEvent.click(screen.getByTestId('claim-code-copy'));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(code));
+  });
+
   it('does not show the code a second time when it is opened again', () => {
     recordIssuedClaim('acme.work.avarok.net', 'ONCE-ONLY');
     const first: RenderResult = render(

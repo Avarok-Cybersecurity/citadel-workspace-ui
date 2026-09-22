@@ -14,6 +14,14 @@ export interface ClaimStepProps {
 
 type CopyState = 'idle' | 'copied' | 'failed';
 
+/**
+ * The control plane issues a 64-hex-character code. Shown in groups of eight so it
+ * can be read back and checked by eye; the Copy button always copies it raw.
+ */
+function groupClaimCode(code: string): string {
+  return /^[0-9a-f]{64}$/.test(code) ? (code.match(/.{8}/g) ?? [code]).join(' ') : code;
+}
+
 function ClaimCodePanel({ claimCode, onStored }: { readonly claimCode: string; readonly onStored: () => void }): JSX.Element {
   const [copy, setCopy] = useState<CopyState>('idle');
   const [stored, setStored] = useState<boolean>(false);
@@ -46,7 +54,7 @@ function ClaimCodePanel({ claimCode, onStored }: { readonly claimCode: string; r
           aria-label="Claim code"
           className="min-w-0 flex-1 select-all break-all rounded-lg border border-border bg-background px-4 py-3 font-mono text-lg tracking-wider text-foreground"
         >
-          {claimCode}
+          {groupClaimCode(claimCode)}
         </code>
         <Button type="button" variant="outline" size="lg" onClick={() => { void copyCode(); }} className="h-11 gap-2" data-testid="claim-code-copy">
           {copy === 'copied' ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}

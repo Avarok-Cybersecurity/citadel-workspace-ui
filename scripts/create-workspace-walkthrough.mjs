@@ -73,7 +73,8 @@ function mockControlPlane() {
       // A reservation left by a cancelled Checkout is the same visitor's to
       // retry (an ASSUMED contract point -- see the report); a live one is not.
       if (taken.has(body.slug) || tenants.get(body.slug)?.issued) return json(409, { error: 'That address was just taken.' });
-      const code = `CLM-${String(++codes).padStart(4, '0')}-7QX9-K2WD`;
+      // The real shape: 32 random bytes as hex (control/secrets.mjs).
+      const code = `${String(++codes).padStart(8, '0')}${'7c9a2e4f'.repeat(7)}`;
       tenants.set(body.slug, { ...body, code, polls: 0, issued: false });
       if (body.tier === 'free') {
         tenants.get(body.slug).issued = true;
@@ -200,7 +201,7 @@ async function walk(page, tag, variant) {
   await inspect(page, tag('03-review-free'));
   await page.getByTestId('create-submit').click();
   const code = await page.getByTestId('claim-code').innerText();
-  record(tag('claim code shown'), /^CLM-\d{4}-/.test(code), code);
+  record(tag('claim code shown'), /^[0-9a-f]{8}( [0-9a-f]{8}){7}$/.test(code), code);
   await inspect(page, tag('04a-claim-code'));
   await page.getByTestId('claim-stored').click();
   await page.getByTestId('claim-continue').click();
