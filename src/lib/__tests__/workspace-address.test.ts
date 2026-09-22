@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   normalizeWorkspaceAddress,
   hasExplicitPort,
+  isTenantHost,
   DEFAULT_WORKSPACE_PORT,
 } from '@/lib/workspace-address';
 
@@ -53,6 +54,50 @@ describe('assuming a port', () => {
     expect(normalizeWorkspaceAddress('::1')).toBe('::1');
     expect(normalizeWorkspaceAddress('host:notaport')).toBe('host:notaport');
     expect(normalizeWorkspaceAddress('a:1:2')).toBe('a:1:2');
+  });
+});
+
+/**
+ * Hosted workspaces have no port to add.
+ *
+ * `acme.work.avarok.net` is a Cloudflare Worker reached over wss on 443; the
+ * agent turns the bare host into `wss://acme.work.avarok.net/`. Appending
+ * 12400 sent it to a port nothing listens on.
+ */
+describe('hosted workspaces and WebSocket URLs', () => {
+  it('leaves a hosted workspace host without a port', () => {
+    expect(normalizeWorkspaceAddress('acme.work.avarok.net')).toBe('acme.work.avarok.net');
+    expect(normalizeWorkspaceAddress('  Acme-Corp.work.avarok.net ')).toBe('Acme-Corp.work.avarok.net');
+  });
+
+  it('leaves ws:// and wss:// URLs exactly as typed', () => {
+    expect(normalizeWorkspaceAddress('wss://acme.work.avarok.net/')).toBe('wss://acme.work.avarok.net/');
+    expect(normalizeWorkspaceAddress('ws://localhost:8787/acme')).toBe('ws://localhost:8787/acme');
+    expect(normalizeWorkspaceAddress(' WSS://acme.work.avarok.net ')).toBe('WSS://acme.work.avarok.net');
+  });
+
+  it('still adds the port to hosts that only look similar', () => {
+    // Not one label under the tenant suffix: the apex, a deeper name, a
+    // lookalike suffix, and a host that merely contains the suffix.
+    for (const host of [
+      'work.avarok.net',
+      'a.b.work.avarok.net',
+      'acme.work.avarok.net.evil.com',
+      'acmework.avarok.net',
+      '-acme.work.avarok.net',
+    ]) {
+      expect(normalizeWorkspaceAddress(host), host).toBe(`${host}:${DEFAULT_WORKSPACE_PORT}`);
+    }
+  });
+
+  it('keeps an explicit port on a hosted host as typed', () => {
+    expect(normalizeWorkspaceAddress('acme.work.avarok.net:9000')).toBe('acme.work.avarok.net:9000');
+  });
+
+  it('isTenantHost agrees with the normaliser', () => {
+    expect(isTenantHost('acme.work.avarok.net')).toBe(true);
+    expect(isTenantHost('acme.work.avarok.net:443')).toBe(false);
+    expect(isTenantHost('citadel.example.com')).toBe(false);
   });
 });
 

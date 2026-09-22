@@ -28,6 +28,24 @@
  */
 export const DEFAULT_WORKSPACE_PORT: number = 12400;
 
+/**
+ * Hosted workspaces: `<org>.work.avarok.net`, one label before the suffix.
+ *
+ * These are served by a Cloudflare Worker over `wss://` on 443, not by a
+ * server listening on a port of its own, so appending DEFAULT_WORKSPACE_PORT
+ * would send the agent to a port nothing answers on. The agent maps a bare
+ * host of this shape to `wss://<host>/`.
+ */
+const TENANT_HOST: RegExp = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.work\.avarok\.net$/i;
+
+/** `ws://...` or `wss://...` -- a full URL the agent dials as given. */
+const WEBSOCKET_URL: RegExp = /^wss?:\/\//i;
+
+/** True for a hosted workspace host (`acme.work.avarok.net`), port-less by design. */
+export function isTenantHost(address: string): boolean {
+  return TENANT_HOST.test(address.trim());
+}
+
 /** `[::1]:443` or `host:443` -- a port is already present. */
 const HAS_PORT: RegExp = /^(\[[^\]]+\]|[^:]+):[0-9]{1,5}$/;
 
@@ -43,11 +61,15 @@ export function hasExplicitPort(address: string): boolean {
  * Add the assumed port when the address does not name one.
  *
  * Returns the input trimmed and otherwise unchanged when it already has a
- * port, or when it is ambiguous -- see the note on IPv6 above.
+ * port, when it is ambiguous -- see the note on IPv6 above -- when it is a
+ * `ws://`/`wss://` URL, or when it is a hosted workspace host, which has no
+ * port to add.
  */
 export function normalizeWorkspaceAddress(input: string): string {
   const trimmed: string = input.trim();
   if (trimmed.length === 0) return trimmed;
+  if (WEBSOCKET_URL.test(trimmed)) return trimmed;
+  if (TENANT_HOST.test(trimmed)) return trimmed;
   if (HAS_PORT.test(trimmed)) return trimmed;
   if (NEEDS_PORT.test(trimmed)) return `${trimmed}:${DEFAULT_WORKSPACE_PORT}`;
   return trimmed;
