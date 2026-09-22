@@ -26,6 +26,7 @@ import { useOnboardingIntent } from '@/hooks/useOnboardingIntent';
 import { useAgentGatedStep } from '@/hooks/use-agent-gate';
 import type { OnboardingIntentState } from '@/hooks/useOnboardingIntent';
 import { CreateWorkspaceCta } from '@/components/create-workspace/CreateWorkspaceCta';
+import { useAccountLink } from './use-account-link';
 
 export const Landing: () => JSX.Element = (): JSX.Element => {
   const navigate: NavigateFunction = useNavigate();
@@ -142,6 +143,10 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
 
   // Both buttons on this screen need the agent; see use-agent-gate.ts.
   const startLogin: () => void = useAgentGatedStep(setCurrentStep, 'login', 'none');
+  // The username an account link named, for the sign-in form to start with.
+  const [linkedUsername, setLinkedUsername] = useState<string | undefined>(undefined);
+  useAccountLink((username: string): void => { setLinkedUsername(username); startLogin(); });
+  const startPlainLogin = (): void => { setLinkedUsername(undefined); startLogin(); };
   const handleLoginNext = async (cid: string): Promise<void> => {
     debugLog('Landing', `[Landing] handleLoginNext called with cid: ${cid}`);
     try {
@@ -223,7 +228,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Button
-              onClick={startLogin}
+              onClick={startPlainLogin}
               data-testid="sign-in-button"
               className="bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg shadow-lg shadow-primary-accent/20 hover:shadow-primary-accent/30"
               size="lg"
@@ -290,6 +295,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
         handleJoinNext={handleJoinNext}
         handleJoinBack={handleJoinBack}
         handleLoginNext={handleLoginNext}
+        loginUsername={linkedUsername}
       />
 
       {/* Settings modal */}

@@ -38,6 +38,8 @@ export interface SecuritySettingsState {
 
 interface UseLoginHandlerParams {
   onNext: (connectionId: string) => void;
+  /** The username the form starts with; undefined starts it empty. */
+  initialUsername: string | undefined;
 }
 
 /** Everything the sign-in form renders and submits with. */
@@ -60,8 +62,8 @@ export interface LoginHandler {
   invalidField: LoginField | null;
 }
 
-export function useLoginHandler({ onNext }: UseLoginHandlerParams): LoginHandler {
-  const [username, setUsername] = useState("");
+export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerParams): LoginHandler {
+  const [username, setUsername] = useState(initialUsername ?? "");
   const [password, setPassword] = useState("");
   // Registration still needs one; signing in does not. Kept so the hook's
   // shape is unchanged for the join flow that shares it.

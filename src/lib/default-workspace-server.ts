@@ -41,6 +41,11 @@ export const DEFAULT_SERVER_META: string = 'citadel-default-server';
  */
 const SERVER_SHAPE: RegExp = /^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?(:[0-9]{1,5})?$/;
 
+/** True for a `host` or `host:port` the address field would accept as typed. */
+export function isWorkspaceServerShape(value: string): boolean {
+  return SERVER_SHAPE.test(value);
+}
+
 /** Read the published default workspace server, or `undefined` when none is set. */
 export function readDefaultWorkspaceServer(
   doc: { querySelector(selector: string): { getAttribute(name: string): string | null } | null },
@@ -50,7 +55,7 @@ export function readDefaultWorkspaceServer(
     ?.getAttribute('content');
   const trimmed: string = (content ?? '').trim();
   if (trimmed.length === 0) return undefined;
-  if (!SERVER_SHAPE.test(trimmed)) return undefined;
+  if (!isWorkspaceServerShape(trimmed)) return undefined;
   // Hand back what the field should contain, port included.
   return normalizeWorkspaceAddress(trimmed);
 }
