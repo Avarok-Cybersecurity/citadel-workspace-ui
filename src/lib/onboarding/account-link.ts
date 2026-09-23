@@ -21,7 +21,6 @@
  * Anything that is not exactly one of those shapes is refused whole rather than
  * partly honoured: a link with an extra parameter is not a link we understand.
  */
-import { ACCOUNT_LINK_PARAMS } from './account-link-params';
 import { validateUsername } from '@/lib/credential-rules';
 import { isWorkspaceServerShape } from '@/lib/default-workspace-server';
 
