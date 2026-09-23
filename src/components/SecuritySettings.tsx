@@ -26,7 +26,8 @@ export interface SecuritySettingsValues {
   kemAlgorithm: KemAlgorithm;
   sigAlgorithm: SigAlgorithm;
   headerObfuscatorSettings: Record<string, string>;
-  storeCredentials?: boolean;
+  /** Login only: offer passkey enrolment after sign-in. */
+  enrolPasskey?: boolean;
 }
 
 interface SecuritySettingsProps {

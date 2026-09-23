@@ -1,11 +1,12 @@
 /**
- * "Remember Credentials" has to actually decide whether the password is kept.
+ * No credential is kept in the stored session, whatever the caller hands over.
  *
- * The switch existed on the login form and was read into component state, and
- * that is where it stopped: `handleAuthSuccess` wrote `password` into the stored
- * session unconditionally. On a product whose pitch is that the user controls
- * their own data, declining credential storage still wrote the password to
- * LocalDB — where auto-reconnect then silently reused it to re-authenticate.
+ * "Remember Credentials" used to write the account password -- and, until it
+ * was gated, the workspace PSK -- into `citadel_sessions` in plaintext, on the
+ * agent's CID-0 store where any local process can read it. Passkey unlock
+ * replaced it (src/lib/passkey), so the record is built from an allow-list and
+ * a secret that reaches `handleAuthSuccess` anyway, through a cast or a stale
+ * caller, must still not be written.
  *
  * The storage layer is injected, so these drive the real function and assert on
  * what it hands the IO router.
@@ -46,44 +47,29 @@ function setup(): { io: ConnectionIO; state: ConnectionState; written: StoredSes
   return { io, state, written };
 }
 
-function params(storeCredentials: boolean): AuthSuccessParams {
+/** A caller that still passes secrets, as the pre-passkey login form did. */
+function params(): AuthSuccessParams {
   return {
     username: 'alice',
-    password: 'hunter2',
     fullName: 'Alice',
     serverAddress: '127.0.0.1:12349',
-    serverPassword: '',
     securitySettings: {} as AuthSuccessParams['securitySettings'],
     cid: 1n,
-    storeCredentials,
+    ...({ password: 'hunter2', serverPassword: 'the-workspace-psk', storeCredentials: true } as object),
   };
 }
 
 describe('handleAuthSuccess credential storage', () => {
-  it('keeps the password when the user asked it to', async () => {
+  it('writes neither the password nor the PSK, anywhere in the record', async () => {
     const { io, state, written } = setup();
-    await handleAuthSuccess(params(true), state, io);
+    await handleAuthSuccess(params(), state, io);
 
     const session: StoredSession | undefined = written.at(-1)?.sessions.find(s => s.username === 'alice');
     expect(session).toBeDefined();
-    expect(session!.password).toBe('hunter2');
-  });
-
-  it('does not write the password when the user declined', async () => {
-    const { io, state, written } = setup();
-    await handleAuthSuccess(params(false), state, io);
-
-    const session: StoredSession | undefined = written.at(-1)?.sessions.find(s => s.username === 'alice');
-    expect(session).toBeDefined();
-    // The session itself is still stored — the user is signed in, and orphan
-    // reclaim and the server list both need the record. Only the secret is
-    // withheld.
-    expect(session!.username).toBe('alice');
     expect(session!.password).toBeUndefined();
+    expect(session!.serverPassword).toBeUndefined();
 
-    // And it is nowhere else in the record either: a password copied into
-    // another field would defeat the whole thing. Walked rather than
-    // JSON.stringify'd, which throws on the bigint cid.
+    // Walked rather than JSON.stringify'd, which throws on the bigint cid.
     const values: unknown[] = [];
     const walk = (v: unknown): void => {
       if (v && typeof v === 'object') Object.values(v).forEach(walk);
@@ -91,5 +77,16 @@ describe('handleAuthSuccess credential storage', () => {
     };
     walk(written.at(-1));
     expect(values).not.toContain('hunter2');
+    expect(values).not.toContain('the-workspace-psk');
+  });
+
+  it('still records the session itself, so it stays reclaimable', async () => {
+    // CIDs are permanent and the navbar claims by CID, not by password.
+    const { io, state, written } = setup();
+    await handleAuthSuccess(params(), state, io);
+    const session: StoredSession | undefined = written.at(-1)?.sessions.find(s => s.username === 'alice');
+    expect(session!.username).toBe('alice');
+    expect(session!.cid).toBe(1n);
+    expect(session!.serverAddress).toBe('127.0.0.1:12349');
   });
 });

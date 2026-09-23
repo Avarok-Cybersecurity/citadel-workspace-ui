@@ -344,7 +344,9 @@ test.describe('Responsive layout at 375px', () => {
     const advanced = page.getByRole('button', { name: /Advanced Options/i });
     if (await advanced.isVisible().catch(() => false)) {
       await advanced.click({ force: true });
-      await expect(page.getByText(/Remember Credentials/i)).toBeVisible({ timeout: 15_000 });
+      // The passkey-enrol switch, or -- where WebAuthn cannot run on this page --
+      // the sentence saying so. Plaintext "Remember Credentials" is gone.
+      await expect(page.getByText(/Unlock with a passkey or security key next time|Passkeys need a secure/i)).toBeVisible({ timeout: 15_000 });
       await expectNoHorizontalOverflow(page, 'login/advanced');
     }
   });

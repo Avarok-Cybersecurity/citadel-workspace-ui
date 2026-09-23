@@ -150,7 +150,7 @@ const KNOWN_DEAD_SELECTORS = new Map([
   [
     '#server',
     'a fallback for a server-address input on the LOGIN form. That form has none — ' +
-      'LoginAdvancedOptions holds only security settings and Remember Credentials, and the ' +
+      'LoginAdvancedOptions holds only security settings and the passkey-enrol switch, and the ' +
       'address is chosen on Landing\'s server step. Its primary selector, ' +
       'input[placeholder*="127.0.0.1:12349"], is dead for the same reason. The surrounding ' +
       'code already degrades and logs, so this is obsolete rather than broken; removing it ' +
