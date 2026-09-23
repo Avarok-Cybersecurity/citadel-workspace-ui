@@ -110,6 +110,13 @@ export default defineConfig(({ mode }) => {
           scope: '/',
           display: 'standalone',
           orientation: 'any',
+          // The native menu-bar app opens the installed app AT an account. A
+          // PWA shim drops https URLs handed to it by another app; a registered
+          // scheme is what gets through, and arrives as `/?link=<the URL>`,
+          // read by src/lib/onboarding/account-link.ts. `navigate-existing`
+          // reuses the open window instead of stacking a second one.
+          protocol_handlers: [{ protocol: 'web+citadel', url: '/?link=%s' }],
+          launch_handler: { client_mode: 'navigate-existing' },
           // #1B1C27 is what `--background: 235 18% 13%` actually resolves to.
           // The old #1C1D28 was the pre-token hex and is a rounding step away;
           // keeping all three declarations byte-identical means the splash, the

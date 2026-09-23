@@ -3,11 +3,9 @@ import { syncSelectedSessionToWasm } from './sync-selected-session-to-wasm';
 import { useState, useCallback } from "react";
 import type { UseOrphanSessionsResult } from './useOrphanSessions-types';
 import { useAttentionGlow } from './use-attention-glow';
-import { readLastLocation } from '@/lib/sessions/last-location';
-import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
-import { describeFailure } from '@/lib/failure-message';
 import { withWorkspaceNames } from '@/lib/sessions/with-workspace';
-import { markLastAccessed, readLastAccessed } from '@/lib/sessions/last-accessed';
+import { readLastAccessed } from '@/lib/sessions/last-accessed';
+import { switchToSession } from '@/lib/sessions/switch-to-session';
 import { useNavigate } from "react-router-dom";
 import { connectionManager } from "@/lib/connection";
 import { websocketService } from "@/lib/websocket-service";
@@ -15,15 +13,9 @@ import type { ActiveSession, StoredSessions } from "@/types/session-types";
 import type { DisconnectAction } from "./DisconnectConfirmModal";
 import type { DisconnectStatus } from "./LoadingModal";
 import { useToast, useEventListener } from "@/hooks";
-import { setSelectedUser } from "@/lib/tab-context";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
-import { startMessagingForSession } from "@/lib/start-messaging";
-import { instanceManager, instanceChannel } from "@/lib/multi-instance";
 import { notificationService, type UnreadCountChange } from "@/lib/notification-service";
-import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { serverAutoConnectService } from "@/lib/server-auto-connect-service";
-import { eventEmitter } from "@/lib/event-emitter";
-import { postAuthSetup } from "@/lib/post-auth-setup";
 import { debugLog } from '@/lib/debug-config';
 import type { NavigateFunction } from 'react-router';
 import { signOutSession, type SignOutResult, type SignOutTarget } from './sign-out-session';
@@ -85,71 +77,8 @@ export function useOrphanSessions(): UseOrphanSessionsResult {
     }
   }, []);
 
-  const handleNavigate = async (session: OrphanSessionWithWorkspace): Promise<void> => {
-    try {
-      debugLog('OrphanSessionsNavbar', 'Navigating to workspace:', session.workspaceName);
-
-      markLastAccessed(session.cid);
-
-      toast({
-        title: "Reconnecting...",
-        description: `Loading ${session.workspaceName}`,
-        variant: 'success',
-      });
-
-      const outcome: ClaimOutcome = await claimSessionForThisTab(session.cid);
-      if (outcome.status === 'owned-by-another-tab') {
-        toast(SESSION_OWNED_ELSEWHERE);
-        return;
-      }
-
-      if (session.storedSessionIndex >= 0) await connectionManager.setActiveSessionIndex(session.storedSessionIndex);
-      await setSelectedUser({
-        selectedUsername: session.username, selectedServerAddress: session.server_address, selectedCid: session.cid
-      });
-
-      instanceManager.setCid(session.cid);
-      instanceChannel.announcePresence();
-
-      // Single source of truth for post-auth setup. Previously this branch
-      // hand-rolled `setConnectionId → loadWorkspace → listNodes` and
-      // missed `getTreeSchema`, leaving the orphan-claim path divergent
-      // from the login path. Using postAuthSetup keeps the two paths
-      // aligned and ensures any future steps added to postAuthSetup are
-      // applied uniformly.
-      await postAuthSetup(session.cid);
-
-      // Was `catch (_) { }`. Best-effort is fine; invisible is not -- a claim
-      // that brought back a session with dead messaging looked exactly like one
-      // that worked.
-      await startMessagingForSession(session.cid.toString());
-
-      eventEmitter.emit('session:activated', {
-        cid: session.cid.toString(), username: session.username,
-        serverAddress: session.server_address, activationType: 'claim' as const
-      });
-
-      // Back where they were, when there is a where. An in-tab refresh keeps
-      // its place because the URL is the state; this path -- the actual second
-      // session, from the landing page -- navigated to the workspace root with
-      // no params, so a user who closed the browser mid-conversation landed on
-      // the default office and re-found it by hand, every day.
-      navigate(readLastLocation(session.cid) ?? getWorkspacePath());
-
-      toast({
-        title: "Connected!",
-        description: `Now viewing ${session.workspaceName}`,
-        variant: 'success',
-      });
-    } catch (error) {
-      debugLog('OrphanSessionsNavbar', 'Failed to navigate to workspace:', error);
-      toast({
-        title: "Connection Failed",
-        description: describeFailure(error, "Could not reconnect to workspace. Please try logging in again."),
-        variant: "destructive",
-      });
-    }
-  };
+  const handleNavigate = (session: OrphanSessionWithWorkspace): Promise<void> =>
+    switchToSession(session, { navigate, toast });
 
   const handleDisconnect = (session: OrphanSessionWithWorkspace): void => {
     setDisconnectTarget({ session, workspaceName: session.workspaceName });

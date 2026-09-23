@@ -3,14 +3,13 @@ import { useProfileDraft } from "./use-profile-draft";
 import { LandingSteps } from "./LandingSteps";
 import { Button } from "@/components/ui/button";
 import { LogIn, Settings, Shield, ArrowRight } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import type { SecuritySettingsValues } from "@/components/SecuritySettings";
 import { DEFAULT_SECURITY_SETTINGS } from "@/components/security-settings-defaults";
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { ManageAccountsButton } from "@/components/ManageAccountsButton";
 import { ConnectionManager } from "@/lib/connection";
 import { OrphanSessionsNavbar } from "@/components/OrphanSessionsNavbar";
-import { SettingsModal } from "@/components/SettingsModal";
 import { cn } from "@/lib/utils";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
@@ -26,6 +25,12 @@ import { useOnboardingIntent } from '@/hooks/useOnboardingIntent';
 import { useAgentGatedStep } from '@/hooks/use-agent-gate';
 import type { OnboardingIntentState } from '@/hooks/useOnboardingIntent';
 import { CreateWorkspaceCta } from '@/components/create-workspace/CreateWorkspaceCta';
+import { useAccountLink } from './use-account-link';
+
+// Loaded when Settings is first opened: every settings tab comes with it, and a
+// landing visit that never opens it should not download them before rendering
+// (scripts/check-bundle-budget.mjs).
+const SettingsModal = lazy(() => import("@/components/SettingsModal").then((m) => ({ default: m.SettingsModal })));
 
 export const Landing: () => JSX.Element = (): JSX.Element => {
   const navigate: NavigateFunction = useNavigate();
@@ -34,7 +39,13 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
   const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');
   const { draft: profileDraft, setDraft: setProfileDraft, clear: clearProfileDraft } = useProfileDraft();
   const [hasOrphanSessions, setHasOrphanSessions] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpenState] = useState(false);
+  // Mounted from the first open on, so closing keeps its exit animation.
+  const [settingsEverOpened, setSettingsEverOpened] = useState(false);
+  const setSettingsOpen = useCallback((open: boolean): void => {
+    if (open) setSettingsEverOpened(true);
+    setSettingsOpenState(open);
+  }, []);
 
   // Server connection data lifted to Landing state to avoid React Query GC eviction
   const [serverAddress, setServerAddress] = useState('');
@@ -142,6 +153,10 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
 
   // Both buttons on this screen need the agent; see use-agent-gate.ts.
   const startLogin: () => void = useAgentGatedStep(setCurrentStep, 'login', 'none');
+  // The username an account link named, for the sign-in form to start with.
+  const [linkedUsername, setLinkedUsername] = useState<string | undefined>(undefined);
+  useAccountLink((username: string): void => { setLinkedUsername(username); startLogin(); });
+  const startPlainLogin = (): void => { setLinkedUsername(undefined); startLogin(); };
   const handleLoginNext = async (cid: string): Promise<void> => {
     debugLog('Landing', `[Landing] handleLoginNext called with cid: ${cid}`);
     try {
@@ -223,7 +238,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Button
-              onClick={startLogin}
+              onClick={startPlainLogin}
               data-testid="sign-in-button"
               className="bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg shadow-lg shadow-primary-accent/20 hover:shadow-primary-accent/30"
               size="lg"
@@ -290,10 +305,15 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
         handleJoinNext={handleJoinNext}
         handleJoinBack={handleJoinBack}
         handleLoginNext={handleLoginNext}
+        loginUsername={linkedUsername}
       />
 
       {/* Settings modal */}
-      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+      {settingsEverOpened && (
+        <Suspense fallback={null}>
+          <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+        </Suspense>
+      )}
     </div>
   );
 };
