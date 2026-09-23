@@ -44,9 +44,9 @@ vi.mock('@/lib/p2p-auto-connect-service', () => ({
     isPeerConnected: async (): Promise<boolean> => {
       throw new Error('the per-conversation async path is back');
     },
+    // Read through connectionPathFor, synchronously, for the session resolved once per load.
+    getPeerConnectionInfo: (): null => null,
   },
-  // Synchronous by design: it reads the session resolved once per load.
-  connectionPathFor: (): null => null,
 }));
 vi.mock('@/lib/debug-config', () => ({ debugEnabled: false, debugLog: (): void => {} }));
 

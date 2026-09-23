@@ -9,13 +9,16 @@
  * here is mocked: the service singleton (whose constructor installs the
  * listeners), the store and the row are the production ones.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach, type MockInstance } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { PeerListRow } from '../PeerListRow';
 import { eventEmitter } from '@/lib/event-emitter';
-import { p2pAutoConnectService, connectionPathFor } from '@/lib/p2p-auto-connect-service';
+import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
+import { connectionPathFor } from '@/lib/p2p-auto-connect-service/connection-path';
 import { CONNECTION_PATH_COPY } from '@/lib/ice-servers/path-copy';
+import { broadcastChannelService } from '@/lib/broadcast-channel-service';
+import { instanceManager } from '@/lib/multi-instance';
 import type { PeerConnectPath } from '@/types/ice-servers';
 
 const OURS: bigint = 9001n;
@@ -30,7 +33,28 @@ function renderRow(isConnected: boolean | null, connectionPath: PeerConnectPath 
   return screen.getByTestId('peer-row-ada');
 }
 
+afterEach((): void => { vi.restoreAllMocks(); });
+
 describe('the reported connection path', () => {
+  it('reaches a follower tab through the leader’s connected-peers broadcast', () => {
+    // The BroadcastChannel is the only fake: the leader's send is captured and
+    // replayed into this tab as a follower would receive it.
+    const LEADS: bigint = 9301n;
+    const OTHER: bigint = 9302n;
+    const leader: MockInstance<() => boolean> = vi.spyOn(instanceManager, 'isLeader', 'get').mockReturnValue(true);
+    const sent: MockInstance<(data: unknown) => void> = vi.spyOn(broadcastChannelService, 'broadcastStateSync').mockImplementation((): void => {});
+
+    eventEmitter.emit('websocket-message', { PeerConnectSuccess: { cid: LEADS, peer_cid: OTHER, request_id: null, path: 'turn' } });
+    const payload: unknown = sent.mock.calls.at(-1)?.[0];
+    expect(payload).toMatchObject({ type: 'connected-peers-update', path: 'turn' });
+
+    leader.mockReturnValue(false);
+    p2pAutoConnectService.setPeerDisconnected(LEADS, OTHER);
+    expect(connectionPathFor(LEADS, OTHER)).toBeNull();
+    eventEmitter.emit('broadcast-state-sync', payload);
+    expect(connectionPathFor(LEADS, OTHER)).toBe('turn');
+  });
+
   it('is stored for both ends, survives a re-confirmation, and goes with the connection', () => {
     const service: typeof p2pAutoConnectService = p2pAutoConnectService;
     service.setPeerConnected(OURS, PEER);

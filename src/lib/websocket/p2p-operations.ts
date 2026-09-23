@@ -18,7 +18,7 @@ export interface P2PConfig {
   init: () => Promise<void>;
   sendMessage: (message: unknown) => Promise<void>;
   isLeader: () => boolean;
-  /** Relay servers for the INITIATING session; null when it has none. */
+  /** Relay servers for the session that sends PeerConnect or PeerConnectAccept; null when none. */
   turnFor: TurnSource;
 }
 
@@ -127,8 +127,11 @@ export class P2POperations {
     debugLog('P2POperations', 'Accepting P2P connection', { cid: cid.toString(), peerCid: peerCid.toString() });
 
     const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
-    const acceptRequest: { PeerConnectAccept: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: bigint; accept: boolean; udp_mode: string; session_security_settings: {}; peer_session_password: null; }; } = {
-      PeerConnectAccept: {
+    type AcceptBody = { request_id: string; cid: bigint; peer_cid: bigint; accept: boolean; udp_mode: string; session_security_settings: {}; peer_session_password: null; };
+    // Fetched for `cid`, the ACCEPTING session: its own workspace server and agent.
+    const turn: TurnConfig | null = await this.config.turnFor(cid);
+    const acceptRequest: { PeerConnectAccept: AcceptBody | (AcceptBody & { turn: TurnConfig }) } = {
+      PeerConnectAccept: withTurn<AcceptBody>({
         request_id: requestId,
         cid: cid,
         peer_cid: peerCid,
@@ -139,7 +142,7 @@ export class P2POperations {
         udp_mode: (notification?.udp_mode as string) || 'Enabled',
         session_security_settings: notification?.session_security_settings || getDefaultSecuritySettings(),
         peer_session_password: null
-      }
+      }, turn),
     };
 
     await requestResponseSoft({

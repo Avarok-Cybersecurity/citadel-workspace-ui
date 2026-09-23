@@ -3,7 +3,9 @@
  * workspace server has granted some, and carries no `turn` field when it has
  * not.
  *
- * `openP2PConnection` is the only place a PeerConnect is built. Auto-connect
+ * `openP2PConnection` is the only place a PeerConnect is built, and
+ * `acceptPeerConnect` the only place a PeerConnectAccept is; both attach it
+ * through the same helper, each for its OWN session. Auto-connect
  * calls it in two orientations — `(ours, peer)` when this session initiates,
  * and `(peer, ours)` when the leader initiates on behalf of the other session
  * in the same browser — so both are pinned, each fetching for its own `cid`.
@@ -49,6 +51,12 @@ function rig(answer: (cid: bigint) => unknown): Rig {
     sendMessage: async (message: unknown): Promise<void> => {
       const body: Sent = message as Sent;
       sent.push(body);
+      const accept: Record<string, unknown> | undefined = body.PeerConnectAccept;
+      if (accept) {
+        queueMicrotask((): void => {
+          eventEmitter.emit('websocket-message', { PeerConnectAcceptSuccess: { request_id: accept.request_id, accept: true } });
+        });
+      }
       const req: Record<string, unknown> | undefined = body.PeerConnect;
       if (req) {
         queueMicrotask((): void => {
@@ -64,10 +72,14 @@ function rig(answer: (cid: bigint) => unknown): Rig {
   return { ops, sent, asked };
 }
 
-function peerConnectOf(r: Rig): Record<string, unknown> {
-  const body: Record<string, unknown> | undefined = r.sent.find((s: Sent): boolean => 'PeerConnect' in s)?.PeerConnect;
-  if (!body) throw new Error('no PeerConnect was sent');
+function sentBody(r: Rig, variant: 'PeerConnect' | 'PeerConnectAccept'): Record<string, unknown> {
+  const body: Record<string, unknown> | undefined = r.sent.find((s: Sent): boolean => variant in s)?.[variant];
+  if (!body) throw new Error(`no ${variant} was sent`);
   return body;
+}
+
+function peerConnectOf(r: Rig): Record<string, unknown> {
+  return sentBody(r, 'PeerConnect');
 }
 
 describe('PeerConnect and the relay', () => {
@@ -96,5 +108,28 @@ describe('PeerConnect and the relay', () => {
     const body: Record<string, unknown> = peerConnectOf(r);
     expect('turn' in body).toBe(false);
     expect(body.peer_cid).toBe(PEER);
+  });
+
+  it.each([
+    ['accepting from the peer', OURS, PEER],
+    ['accepting for the other session', PEER, OURS],
+  ])('includes turn on PeerConnectAccept when %s, fetched for the accepting session', async (_label: string, acceptor: bigint, initiator: bigint) => {
+    const r: Rig = rig(grant);
+    await r.ops.acceptPeerConnect(acceptor, initiator, null);
+
+    expect(r.asked).toEqual([acceptor]);
+    const body: Record<string, unknown> = sentBody(r, 'PeerConnectAccept');
+    expect(body.accept).toBe(true);
+    expect(body.turn).toEqual({
+      policy: 'fallback',
+      ice_servers: [{ urls: ['turn:turn.example:3478'], username: `u-${acceptor}`, credential: 'pw' }],
+      expires_at: BigInt(EXPIRES_AT_S),
+    });
+  });
+
+  it('has no turn field on PeerConnectAccept when the server has no relay', async () => {
+    const r: Rig = rig((): unknown => ({ IceServersUnavailable: { reason: 'no relay configured' } }));
+    await r.ops.acceptPeerConnect(OURS, PEER, null);
+    expect('turn' in sentBody(r, 'PeerConnectAccept')).toBe(false);
   });
 });

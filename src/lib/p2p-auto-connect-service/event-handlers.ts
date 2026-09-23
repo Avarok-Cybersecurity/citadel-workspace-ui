@@ -81,6 +81,10 @@ export function setupEventListeners(
         const peerCidBigInt: bigint = BigInt(peerCid);
         debugLog('P2PAutoConnectService', `Follower received connectedPeers update: ${localCidBigInt.toString().slice(0, 8)}... <-> ${peerCidBigInt.toString().slice(0, 8)}...`);
         state.setPeerConnectedLocal(localCidBigInt, peerCidBigInt);
+        // Followers never see the PeerConnectSuccess (it is routed to the
+        // leader, which issued the request), so the path rides along here.
+        const path: PeerConnectPath | null = parsePeerConnectPath(data.path);
+        if (path !== null) state.core.setConnectionPath(localCidBigInt, peerCidBigInt, path);
         // `{ peerCid }` alone, as the other three emitters of this event
         // already send: every consumer destructures only peerCid.
         eventEmitter.emit('p2p-connection-established', { peerCid: peerCidBigInt });
@@ -182,15 +186,16 @@ async function handlePeerConnectSuccess(
   const messageCid: bigint | undefined = v.cid as bigint | undefined;
   const peerCid: bigint | undefined = v.peer_cid as bigint | undefined;
 
-  if (instanceManager.isLeader && messageCid !== undefined && peerCid !== undefined) {
-    debugLog('P2PAutoConnectService', `Leader updating connectedPeers for initiator CID ${messageCid.toString().slice(0, 8)}... -> peer ${peerCid.toString().slice(0, 8)}...`);
-    broadcastPeerConnected(messageCid, peerCid);
-  }
   // The agent reports the path on both the connecting and the accepting side;
-  // an older agent omits it, which reads as null and records nothing.
+  // an older agent omits it, which reads as null and records nothing. Recorded
+  // BEFORE the broadcast below, which carries it to the follower tabs.
   const path: PeerConnectPath | null = parsePeerConnectPath(v.path);
   if (path !== null && messageCid !== undefined && peerCid !== undefined) {
     state.core.setConnectionPath(messageCid, peerCid, path);
+  }
+  if (instanceManager.isLeader && messageCid !== undefined && peerCid !== undefined) {
+    debugLog('P2PAutoConnectService', `Leader updating connectedPeers for initiator CID ${messageCid.toString().slice(0, 8)}... -> peer ${peerCid.toString().slice(0, 8)}...`);
+    broadcastPeerConnected(messageCid, peerCid);
   }
 
   const currentCid: bigint | null = await getCurrentCid();

@@ -19,7 +19,7 @@ export function lazyTurnSource(load: () => Promise<TurnSource>): TurnSource {
       source = await loading;
     } catch (error: unknown) {
       loading = null;
-      warnLog('IceServers', 'relay lookup failed to load; connecting without a relay', error);
+      warnLog('IceServers', 'relay lookup did not load', error);
       return null;
     }
     return source(cid);
