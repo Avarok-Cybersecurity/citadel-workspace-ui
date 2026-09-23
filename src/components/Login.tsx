@@ -8,6 +8,8 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { ChevronLeft, Loader2, Eye, EyeOff, User, Lock, LogIn } from "lucide-react";
 import { SecuritySettings, SecuritySettingsValues } from "./SecuritySettings";
 import { useLoginHandler } from "./useLoginHandler";
+import { PasskeySignIn } from "./passkey/PasskeySignIn";
+import { PasskeyEnrolCard } from "./passkey/PasskeyEnrolCard";
 
 interface LoginProps {
   onNext: (connectionId: string) => void;
@@ -32,6 +34,9 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
     securitySettings,
     setSecuritySettings,
     handleLogin,
+    passkey,
+    handlePasskeyLogin,
+    enrolPrompt,
   } = useLoginHandler({ onNext, initialUsername });
 
   const handleSecuritySettingsComplete = (values: SecuritySettingsValues): void => {
@@ -42,7 +47,7 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
       kemAlgorithm: values.kemAlgorithm,
       sigAlgorithm: values.sigAlgorithm,
       headerObfuscatorSettings: values.headerObfuscatorSettings,
-      storeCredentials: values.storeCredentials ?? false,
+      enrolPasskey: values.enrolPasskey ?? false,
     });
   };
 
@@ -61,7 +66,9 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4" ref={dialogRef} {...dialogProps}>
-      {showSecuritySettings ? (
+      {enrolPrompt ? (
+        <PasskeyEnrolCard prompt={enrolPrompt} />
+      ) : showSecuritySettings ? (
         <SecuritySettings
           onNext={() => setShowSecuritySettings(false)}
           onBack={() => setShowSecuritySettings(false)}
@@ -73,7 +80,7 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
             kemAlgorithm: securitySettings.kemAlgorithm,
             sigAlgorithm: securitySettings.sigAlgorithm,
             headerObfuscatorSettings: securitySettings.headerObfuscatorSettings,
-            storeCredentials: securitySettings.storeCredentials,
+            enrolPasskey: securitySettings.enrolPasskey,
           }}
           isFromLogin={true}
         />
@@ -121,6 +128,10 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
                   />
                 </div>
               </div>
+
+              {passkey.hasKeys && (
+                <PasskeySignIn onUse={() => { void handlePasskeyLogin(); }} disabled={loading} />
+              )}
 
               {/* Password */}
               <div className="space-y-1.5">
@@ -179,6 +190,7 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
                 onConfigureSecurity={() => setShowSecuritySettings(true)}
                 securitySettings={securitySettings}
                 setSecuritySettings={setSecuritySettings}
+                passkey={passkey}
               />
 
               {/* Error */}

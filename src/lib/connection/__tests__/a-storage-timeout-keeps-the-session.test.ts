@@ -48,15 +48,12 @@ function harness(storeFails: boolean): { state: { storedSessions: { sessions: St
   return { state, io };
 }
 
-const params: { username: string; password: string; serverAddress: string; fullName: string; cid: bigint; storeCredentials: boolean; securitySettings: undefined; serverPassword: undefined; } = {
+const params: { username: string; serverAddress: string; fullName: string; cid: bigint; securitySettings: undefined; } = {
   username: 'alice',
-  password: 'pw',
   serverAddress: '127.0.0.1:12349',
   fullName: 'Alice',
   cid: 42n,
-  storeCredentials: false,
   securitySettings: undefined,
-  serverPassword: undefined,
 };
 
 describe('when the session cannot be written to LocalDB', () => {

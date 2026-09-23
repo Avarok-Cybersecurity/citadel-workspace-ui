@@ -79,17 +79,12 @@ export async function handleAuthSuccess(
 
   const session: StoredSession = {
     username: params.username,
-    // Honor the "Remember Credentials" switch. It reached component state and
-    // stopped there, so this line stored the password unconditionally.
-    password: params.storeCredentials ? params.password : undefined,
+    // No password and no server PSK, ever. Plaintext "Remember credentials"
+    // is retired: a password kept for next time is sealed under the user's
+    // passkey (src/lib/passkey) and never enters this record, which lives in
+    // the agent's CID-0 store where any local process can read it. Entries
+    // written by older builds are scrubbed on read (scrub-legacy-credentials).
     serverAddress: params.serverAddress,
-    // The server PSK is a credential too, and it was stored unconditionally
-    // while the account password beside it was gated. A user who declined to
-    // have their credentials remembered still had the workspace's pre-shared
-    // key written to disk in cleartext -- and the PSK is the one that admits
-    // ANY account to that server, so it is the worse of the two to leave
-    // behind.
-    serverPassword: params.storeCredentials ? params.serverPassword : undefined,
     fullName: params.fullName,
     lastConnected: Date.now(),
     cid: params.cid,

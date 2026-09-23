@@ -102,7 +102,7 @@ export function useJoinRegistration(
   // the defaults instead, permanently, with nothing said. Landing already
   // lifted the server address out of the cache for exactly this reason and did
   // not carry the fix here.
-  const securitySettings: SecuritySettingsValues | { readonly securityLevel: "Standard"; readonly secrecyMode: "BestEffort"; readonly encryptionAlgorithm: "AES_GCM_256"; readonly kemAlgorithm: "MlKem"; readonly sigAlgorithm: "None"; readonly headerObfuscatorSettings: {}; readonly storeCredentials: false; } = providedSecuritySettings ?? DEFAULT_SECURITY_SETTINGS;
+  const securitySettings: SecuritySettingsValues | { readonly securityLevel: "Standard"; readonly secrecyMode: "BestEffort"; readonly encryptionAlgorithm: "AES_GCM_256"; readonly kemAlgorithm: "MlKem"; readonly sigAlgorithm: "None"; readonly headerObfuscatorSettings: {}; readonly enrolPasskey: false; } = providedSecuritySettings ?? DEFAULT_SECURITY_SETTINGS;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const { name, value } = e.target;
@@ -122,12 +122,10 @@ export function useJoinRegistration(
     debugLog('Join', 'ConnectSuccess CID:', (data.cid as bigint | undefined)?.toString());
     try {
       await ConnectionManager.getInstance().handleAuthSuccess({
-        username: formData.username, password: formData.password,
+        username: formData.username,
         fullName: formData.fullName, serverAddress: serverAddress,
-        serverPassword: serverPassword || "",
         securitySettings: mapSecuritySettings(securitySettings),
         cid: data.cid as bigint,
-        storeCredentials: securitySettings.storeCredentials ?? false,
       });
       resolve({ cid: String(data.cid) });
     } catch (err) {
