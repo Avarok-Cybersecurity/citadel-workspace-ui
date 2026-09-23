@@ -31,8 +31,29 @@ export const AGENT_ASSETS: Record<AgentPlatform, string> = {
  */
 export const MAC_APP_ASSET: 'Citadel-Agent.dmg' = 'Citadel-Agent.dmg';
 
-export const RELEASES_PAGE: "https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest" =
-  'https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest';
+/** Windows: an installer that registers the agent to start now and at login. */
+export const WINDOWS_INSTALLER_ASSET: 'Citadel-Agent-x64.msi' = 'Citadel-Agent-x64.msi';
+
+/** Ubuntu and Debian: a package that installs the agent and starts it at login. */
+export const LINUX_DEB_ASSET: 'citadel-agent-linux-x64.deb' = 'citadel-agent-linux-x64.deb';
+
+/** Every other Linux distribution: one self-contained executable. */
+export const LINUX_APPIMAGE_ASSET: 'Citadel-Agent-x86_64.AppImage' = 'Citadel-Agent-x86_64.AppImage';
+
+/** The operating systems that get a one-click installer. */
+export type InstallerFamily = 'mac' | 'windows' | 'linux';
+
+/** The one-click downloads for each family, most widely applicable first. */
+export const INSTALLER_ASSETS: Readonly<Record<InstallerFamily, readonly string[]>> = {
+  mac: [MAC_APP_ASSET],
+  windows: [WINDOWS_INSTALLER_ASSET],
+  linux: [LINUX_DEB_ASSET, LINUX_APPIMAGE_ASSET],
+};
+
+/** The repository whose release workflow builds, publishes and attests every asset above. */
+export const RELEASE_REPO: 'Avarok-Cybersecurity/citadel-workspace' = 'Avarok-Cybersecurity/citadel-workspace';
+
+export const RELEASES_PAGE: string = `https://github.com/${RELEASE_REPO}/releases/latest`;
 
 /**
  * Which agent builds could run on this visitor's machine.
@@ -68,18 +89,23 @@ export function agentPlatformCandidates(nav: Navigator = navigator): AgentPlatfo
   return [];
 }
 
-/** Download URL for an asset, resolved by GitHub to the newest release. */
+/** Download URL for any published asset, resolved by GitHub to the newest release. */
+export function releaseAssetUrl(asset: string): string {
+  return `https://github.com/${RELEASE_REPO}/releases/latest/download/${asset}`;
+}
+
+/** Download URL for a platform's raw archive. */
 export function agentDownloadUrl(platform: AgentPlatform): string {
-  return `https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest/download/${AGENT_ASSETS[platform]}`;
+  return releaseAssetUrl(AGENT_ASSETS[platform]);
 }
 
-export function macAppDownloadUrl(): string {
-  return `https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest/download/${MAC_APP_ASSET}`;
-}
-
-/** Whether the visitor gets the Mac app rather than an archive and a command. */
-export function offersMacApp(candidates: readonly AgentPlatform[]): boolean {
-  return candidates.length > 0 && candidates.every((c) => c === 'macos-arm64' || c === 'macos-x64');
+/** Which one-click installer fits these candidates; undefined when none does (phones, unknown). */
+export function installerFamily(candidates: readonly AgentPlatform[]): InstallerFamily | undefined {
+  if (candidates.length === 0) return undefined;
+  if (candidates.every((c) => c === 'macos-arm64' || c === 'macos-x64')) return 'mac';
+  if (candidates.every((c) => c === 'windows-x64')) return 'windows';
+  if (candidates.every((c) => c === 'linux-x64')) return 'linux';
+  return undefined;
 }
 
 /**
