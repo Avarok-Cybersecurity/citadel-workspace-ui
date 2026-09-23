@@ -21,6 +21,7 @@
  * Anything that is not exactly one of those shapes is refused whole rather than
  * partly honoured: a link with an extra parameter is not a link we understand.
  */
+import { ACCOUNT_LINK_PARAMS } from './account-link-params';
 import { validateUsername } from '@/lib/credential-rules';
 import { isWorkspaceServerShape } from '@/lib/default-workspace-server';
 
@@ -30,7 +31,6 @@ export interface AccountLink {
 }
 
 /** Every query key this module owns, so the page can clear them after reading. */
-export const ACCOUNT_LINK_PARAMS: readonly ['account', 'server', 'link'] = ['account', 'server', 'link'];
 
 export const ACCOUNT_LINK_SCHEME: string = 'web+citadel:';
 
@@ -108,7 +108,4 @@ export function parseAccountLink(params: URLSearchParams): AccountLink | null {
   return parseAccountParams(params);
 }
 
-/** True when the URL carries any of the link's parameters, valid or not. */
-export function hasAccountLinkParams(params: URLSearchParams): boolean {
-  return ACCOUNT_LINK_PARAMS.some((key: string) => params.has(key));
-}
+export { ACCOUNT_LINK_PARAMS, hasAccountLinkParams } from './account-link-params';
