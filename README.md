@@ -76,3 +76,10 @@ but only 2.9:1 on the dark ground, and `#9B87F5` is the inverse.
 
 The masters, the raster exports and the written guidelines are in
 `assets/brand/` in the parent repository.
+
+## License
+
+The Citadel Workspace UI is licensed under the GNU Affero General Public
+License v3.0 or later (AGPL-3.0-or-later). See [LICENSE](LICENSE).
+
+The Citadel Protocol and the Citadel agent are licensed separately.

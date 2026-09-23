@@ -1,6 +1,7 @@
 {
   "name": "cw-integration-tests",
   "version": "1.0.0",
+  "license": "AGPL-3.0-or-later",
   "description": "Integration tests for Citadel Workspace",
   "type": "module",
   "scripts": {
