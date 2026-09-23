@@ -6,12 +6,13 @@
  */
 
 import { eventEmitter } from '@/lib/event-emitter';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, debugEnabled } from '@/lib/debug-config';
 import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 
 import { extractWorkspaceResponse } from './message-extraction';
 import { handleWorkspaceVariants, buildConnectionInfo } from './workspace-handlers';
 import { handleGroupVariants } from './group-handlers';
+import { formatForDebug } from '@/lib/debug-formatter';
 
 /**
  * Handles workspace protocol responses and emits appropriate events.
@@ -40,7 +41,9 @@ export class WorkspaceResponseHandler {
   }
 
   private processWorkspaceResponse(response: WorkspaceProtocolResponse): void {
-    debugLog('WorkspaceResponseHandler', 'Processing workspace response', response);
+    // Through formatForDebug, which redacts secret-named fields: an IceServers
+    // answer carries a TURN `credential`. Guarded: the walk is not free.
+    if (debugEnabled) debugLog('WorkspaceResponseHandler', 'Processing workspace response', formatForDebug(response));
     const connectionInfo: ReturnType<typeof buildConnectionInfo> = buildConnectionInfo();
 
     // Try workspace/member/node/permission handlers
@@ -50,7 +53,7 @@ export class WorkspaceResponseHandler {
     if (handleGroupVariants(response, connectionInfo)) return;
 
     // Unhandled
-    debugLog('WorkspaceResponseHandler', 'Unhandled response type:', response);
+    if (debugEnabled) debugLog('WorkspaceResponseHandler', 'Unhandled response type:', formatForDebug(response));
     eventEmitter.emit('workspace:raw-response', response);
   }
 

@@ -75,6 +75,7 @@ describe('a peer row that is the open conversation', () => {
           username="bob"
           isOnline
           isConnected
+          connectionPath={null}
           isActive={isActive}
           onClick={(): void => {}}
         />

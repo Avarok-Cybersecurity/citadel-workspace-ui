@@ -8,7 +8,8 @@ import { peerDisplayName } from '@/lib/peer-display';
 import { useState, useEffect, useCallback } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { getCurrentCid } from '@/lib/p2p/current-cid';
-import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
+import { p2pAutoConnectService, connectionPathFor } from '@/lib/p2p-auto-connect-service';
+import type { PeerConnectPath } from '@/types/ice-servers';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { connectionManager } from '@/lib/connection';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
@@ -22,6 +23,8 @@ export interface ConversationPeer {
   isOnline: boolean | null;
   /** True, false, or null when the check did not answer. */
   isConnected: boolean | null;
+  /** How the connection travels, when the agent has said. */
+  connectionPath: PeerConnectPath | null;
   unreadCount: number;
   lastMessageTime?: number;
 }
@@ -64,7 +67,7 @@ export function useConversationPeers({
       registeredPeers.map((p: RegisteredPeer) => [p.cid, p]),
     );
 
-    const convPeers: { peerCid: string; peerUsername: string; isOnline: boolean | null; isConnected: boolean | null; unreadCount: number; lastMessageTime: number; }[] = filteredConversations.map(c => {
+    const convPeers: ConversationPeer[] = filteredConversations.map(c => {
       const peerCidStr: string = c.peerCid.toString();
       // Find the username from registered peers
       const registeredPeer: RegisteredPeer | undefined = peerByCid.get(peerCidStr);
@@ -80,6 +83,7 @@ export function useConversationPeers({
         // `null` when we cannot name our own session, exactly as isPeerConnected answers:
         // connections are keyed by session, so `false` there answers a question nobody asked.
         isConnected: sessionCid === null ? null : p2pAutoConnectService.isPeerConnectedForSession(sessionCid, c.peerCid),
+        connectionPath: connectionPathFor(sessionCid, c.peerCid),
         unreadCount: c.unreadCount,
         lastMessageTime: c.messages[c.messages.length - 1]?.timestamp
       };

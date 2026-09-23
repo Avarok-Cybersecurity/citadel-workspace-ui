@@ -4,6 +4,8 @@
  * Type definitions for P2P auto-connect functionality.
  */
 
+import type { PeerConnectPath } from '@/types/ice-servers';
+
 export interface ConnectionAttempt {
   attempts: number;
   timeout: NodeJS.Timeout | null;
@@ -30,6 +32,8 @@ export interface PeerConnectionInfo {
   peerCid: bigint;
   connectedAt: number;
   lastVerified: number;
+  /** How the agent reported reaching the peer; null until a PeerConnectSuccess says. */
+  path: PeerConnectPath | null;
 }
 
 /**

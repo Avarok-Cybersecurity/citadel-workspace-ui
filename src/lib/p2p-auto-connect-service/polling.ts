@@ -93,6 +93,7 @@ export async function refreshFromBackend(state: AutoConnectState, localCid: bigi
         peerCid: peerCidBigInt,
         connectedAt: existingInfo?.connectedAt || now,
         lastVerified: now,
+        path: existingInfo?.path ?? null,
       });
     }
   } catch (error) {

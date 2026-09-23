@@ -11,11 +11,23 @@ import { getDefaultSecuritySettings } from '../security-utils';
 import { sendP2PMessage, sendP2PMessageBytes } from './p2p-message-dispatch';
 import { TIMEOUT } from '../timeout-constants';
 import type { SessionSecuritySettings } from '@/lib/security-utils';
+import { withTurn, type TurnSource } from '../ice-servers/peer-connect-turn';
+import type { TurnConfig } from '@/types/ice-servers';
 
 export interface P2PConfig {
   init: () => Promise<void>;
   sendMessage: (message: unknown) => Promise<void>;
   isLeader: () => boolean;
+  /** Relay servers for the INITIATING session; null when it has none. */
+  turnFor: TurnSource;
+}
+
+interface PeerConnectBody {
+  request_id: string;
+  cid: bigint;
+  peer_cid: bigint;
+  udp_mode: string;
+  session_security_settings: SessionSecuritySettings;
 }
 
 export class P2POperations {
@@ -52,22 +64,26 @@ export class P2POperations {
     debugLog('P2POperations', 'Opening P2P connection', { cid: cid.toString(), targetCid: targetCid.toString() });
 
     const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
-    const peerConnectRequest: { PeerConnect: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: bigint; udp_mode: string; session_security_settings: SessionSecuritySettings; }; } = {
-      PeerConnect: {
-        request_id: requestId,
-        cid: cid,
-        peer_cid: targetCid,
-        // Enabled so a call has a datagram path. Media cannot ride the reliable
-        // channel: there is no such thing as a lost packet there, so congestion
-        // becomes unbounded latency instead of loss, and a call three seconds
-        // behind is worse than one that dropped a frame.
-        //
-        // Messaging is unaffected — it keeps using the reliable channel. If UDP
-        // negotiation fails the connection still comes up; only calling is lost,
-        // and the media layer reports that explicitly rather than hanging.
-        udp_mode: 'Enabled',
-        session_security_settings: getDefaultSecuritySettings()
-      }
+    const base: PeerConnectBody = {
+      request_id: requestId,
+      cid: cid,
+      peer_cid: targetCid,
+      // Enabled so a call has a datagram path. Media cannot ride the reliable
+      // channel: there is no such thing as a lost packet there, so congestion
+      // becomes unbounded latency instead of loss, and a call three seconds
+      // behind is worse than one that dropped a frame.
+      //
+      // Messaging is unaffected — it keeps using the reliable channel. If UDP
+      // negotiation fails the connection still comes up; only calling is lost,
+      // and the media layer reports that explicitly rather than hanging.
+      udp_mode: 'Enabled',
+      session_security_settings: getDefaultSecuritySettings()
+    };
+    // Fetched for `cid`, the session that initiates: its workspace server mints
+    // the credentials, and its agent is the one that will use them.
+    const turn: TurnConfig | null = await this.config.turnFor(cid);
+    const peerConnectRequest: { PeerConnect: PeerConnectBody | (PeerConnectBody & { turn: TurnConfig }) } = {
+      PeerConnect: withTurn(base, turn),
     };
 
     await requestResponse<true>({

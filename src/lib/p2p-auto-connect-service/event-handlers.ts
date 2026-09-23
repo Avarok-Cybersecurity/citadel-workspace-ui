@@ -16,6 +16,8 @@ import { getCurrentCid } from './cid-resolver';
 import { connectToPeer, handleConnectionSuccess, handlePeerDisconnect } from './connection-logic';
 import { handleIncomingPeerConnect } from './incoming-connect';
 import { startPolling, stopPolling, startBackendPolling, stopBackendPolling } from './polling';
+import { parsePeerConnectPath } from '@/lib/ice-servers/path';
+import type { PeerConnectPath } from '@/types/ice-servers';
 
 /** Callback type for setPeerConnected (broadcasts to followers) */
 type BroadcastPeerConnected = (localCid: bigint, peerCid: bigint) => void;
@@ -183,6 +185,12 @@ async function handlePeerConnectSuccess(
   if (instanceManager.isLeader && messageCid !== undefined && peerCid !== undefined) {
     debugLog('P2PAutoConnectService', `Leader updating connectedPeers for initiator CID ${messageCid.toString().slice(0, 8)}... -> peer ${peerCid.toString().slice(0, 8)}...`);
     broadcastPeerConnected(messageCid, peerCid);
+  }
+  // The agent reports the path on both the connecting and the accepting side;
+  // an older agent omits it, which reads as null and records nothing.
+  const path: PeerConnectPath | null = parsePeerConnectPath(v.path);
+  if (path !== null && messageCid !== undefined && peerCid !== undefined) {
+    state.core.setConnectionPath(messageCid, peerCid, path);
   }
 
   const currentCid: bigint | null = await getCurrentCid();
