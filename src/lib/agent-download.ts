@@ -82,6 +82,14 @@ export function offersMacApp(candidates: readonly AgentPlatform[]): boolean {
   return candidates.length > 0 && candidates.every((c) => c === 'macos-arm64' || c === 'macos-x64');
 }
 
+/**
+ * The three STUN servers the agent requires (--stun-servers; it will not start without them),
+ * the same list the Mac app's Info.plist passes: Cloudflare's, and two of Google's, since the
+ * agent classifies its NAT by comparing three independent answers.
+ */
+export const AGENT_STUN_SERVERS: string =
+  'stun.cloudflare.com:3478,stun1.l.google.com:19302,stun4.l.google.com:19302';
+
 /** What the hosted page knows that the command needs. */
 export interface RunCommandInputs {
   platform: AgentPlatform;
@@ -112,6 +120,7 @@ export function agentRunCommand({ platform, pageOrigin, loopbackOrigin }: RunCom
     '--bind 127.0.0.1:12345',
     '--backend filesystem',
     `--allowed-origins ${pageOrigin}`,
+    `--stun-servers ${AGENT_STUN_SERVERS}`,
   ];
   // NO loopback flags. This used to append `--loopback-host` and
   // `--loopback-cert-url`, and the agent has never had either:
