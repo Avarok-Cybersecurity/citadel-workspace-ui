@@ -44,11 +44,10 @@ describe('agent download buttons', () => {
     expect(container.querySelector('[data-testid="agent-download-macos-arm64"]')).toBeNull();
   });
 
-  it('offers both Apple builds on a Mac, because the arch cannot be told apart', () => {
+  it('offers a Mac the one universal app, since the arch cannot be told apart and no longer has to be', () => {
     const { container } = render(<AgentDownloadHint navigatorRef={MAC} />);
-    expect(container.querySelector('[data-testid="agent-download-macos-arm64"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="agent-download-macos-x64"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="agent-download-windows-x64"]')).toBeNull();
+    expect(container.querySelectorAll('[data-testid^="agent-download-"]')).toHaveLength(1);
+    expect(container.querySelector('[data-testid="agent-download-macos-app"]')).not.toBeNull();
   });
 
   it('offers nothing runnable on an iPad, and says so', () => {
@@ -68,7 +67,7 @@ describe('agent download buttons', () => {
     );
     const mac: string[] = pathsOf(
       render(<AgentDownloadHint navigatorRef={MAC} />).container,
-      'agent-download-macos-arm64',
+      'agent-download-macos-app',
     );
 
     for (const paths of [win, lin, mac]) {

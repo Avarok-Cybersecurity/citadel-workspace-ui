@@ -3,6 +3,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   AGENT_ASSETS,
+  MAC_APP_ASSET,
   agentDownloadUrl,
   agentPlatformCandidates,
   agentRunCommand,
@@ -40,6 +41,17 @@ describe('agent asset names match the release workflow', () => {
           `A user clicking that link gets a 404 from GitHub. Published: ${[...published].join(', ')}`,
       ).toBe(true);
     }
+  });
+
+  it('the Mac app the UI links to is built, uploaded and published by the workflow', () => {
+    const yaml: string = readFileSync(WORKFLOW, 'utf8');
+    // Built by the macos-app job, uploaded under a citadel-agent-* artifact (the pattern the
+    // publish job downloads), and named exactly as the link says.
+    const job: string = yaml.slice(yaml.indexOf('\n  macos-app:'), yaml.indexOf('\n  publish:'));
+    expect(job.length, 'release-agent.yml has no macos-app job before publish').toBeGreaterThan(0);
+    expect(job).toContain(`package-macos-dmg.sh "$RUNNER_TEMP/app/Citadel Agent.app" ${MAC_APP_ASSET}`);
+    expect(job).toMatch(new RegExp(`name: citadel-agent-[\\w-]+\\s+path: \\|\\s+${MAC_APP_ASSET.replace('.', '\\.')}`));
+    expect(yaml).toContain('pattern: citadel-agent-*');
   });
 
   it('the workflow publishes nothing the UI cannot offer', () => {

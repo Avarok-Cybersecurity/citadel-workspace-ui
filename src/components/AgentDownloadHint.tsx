@@ -8,11 +8,13 @@ import {
   RELEASES_PAGE,
   agentDownloadUrl,
   agentPlatformCandidates,
+  offersMacApp,
   type AgentPlatform,
   agentRunCommand,
 } from '@/lib/agent-download';
 import { readLoopbackAgentOrigin } from '@/lib/websocket-service/resolve-url';
 import { OS_ICONS } from '@/components/icons/os-icons';
+import { MacAppDownload } from '@/components/MacAppDownload';
 
 const LABELS: Record<AgentPlatform, string> = {
   'macos-arm64': 'macOS (Apple Silicon)',
@@ -57,6 +59,21 @@ export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navi
         Citadel needs a small program on this machine to hold your connections.
       </p>
 
+      {offersMacApp(candidates) ? (
+        <MacAppDownload />
+      ) : (
+        <ArchiveDownload candidates={candidates} runCommand={runCommand} copied={copied} onCopy={handleCopy} />
+      )}
+    </div>
+  );
+};
+
+/** Linux and Windows: the archive for this platform and the command that starts it. */
+const ArchiveDownload: React.FC<{ candidates: AgentPlatform[]; runCommand: string; copied: boolean; onCopy: () => void }> = ({
+  candidates, runCommand, copied, onCopy: handleCopy,
+}) => {
+  return (
+    <>
       {candidates.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {candidates.map((platform) => {
@@ -147,6 +164,6 @@ export const AgentDownloadHint: React.FC<{ navigatorRef?: Navigator }> = ({ navi
         All releases and checksums
         <ExternalLink className="h-3 w-3" aria-hidden="true" />
       </a>
-    </div>
+    </>
   );
 };

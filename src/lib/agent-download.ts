@@ -23,6 +23,14 @@ export const AGENT_ASSETS: Record<AgentPlatform, string> = {
   'windows-x64': 'citadel-agent-windows-x64.zip',
 };
 
+/**
+ * The Mac download: one universal app (Apple Silicon and Intel) in a notarised, stapled disk
+ * image, built by release-agent.yml's macos-app job. It runs the agent with the right settings
+ * itself, so a Mac visitor downloads, drags it into Applications and opens it: no archive, no
+ * command, and no processor to pick. Same contract as AGENT_ASSETS: the test reads the workflow.
+ */
+export const MAC_APP_ASSET: 'Citadel-Agent.dmg' = 'Citadel-Agent.dmg';
+
 export const RELEASES_PAGE: "https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest" =
   'https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest';
 
@@ -63,6 +71,15 @@ export function agentPlatformCandidates(nav: Navigator = navigator): AgentPlatfo
 /** Download URL for an asset, resolved by GitHub to the newest release. */
 export function agentDownloadUrl(platform: AgentPlatform): string {
   return `https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest/download/${AGENT_ASSETS[platform]}`;
+}
+
+export function macAppDownloadUrl(): string {
+  return `https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest/download/${MAC_APP_ASSET}`;
+}
+
+/** Whether the visitor gets the Mac app rather than an archive and a command. */
+export function offersMacApp(candidates: readonly AgentPlatform[]): boolean {
+  return candidates.length > 0 && candidates.every((c) => c === 'macos-arm64' || c === 'macos-x64');
 }
 
 /** What the hosted page knows that the command needs. */

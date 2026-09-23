@@ -2,22 +2,26 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AgentDownloadHint } from '../AgentDownloadHint';
-import { AGENT_ASSETS } from '@/lib/agent-download';
+import { AGENT_ASSETS, MAC_APP_ASSET } from '@/lib/agent-download';
 
 const nav: (platform: string, userAgent: string, maxTouchPoints?: number) => Navigator = (platform: string, userAgent: string, maxTouchPoints = 0): Navigator =>
   ({ platform, userAgent, maxTouchPoints }) as unknown as Navigator;
 
 const MAC: Navigator = nav('MacIntel', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)');
 const WIN: Navigator = nav('Win32', 'Mozilla/5.0 (Windows NT 10.0)');
+const LINUX: Navigator = nav('Linux x86_64', 'Mozilla/5.0 (X11; Linux x86_64)');
 const IPHONE: Navigator = nav('iPhone', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)');
 
 describe('AgentDownloadHint', () => {
-  it('offers both mac builds, since the architecture cannot be told apart', () => {
+  it('offers a Mac the app: one universal download, three steps, and no command to type', () => {
     render(<AgentDownloadHint navigatorRef={MAC} />);
-    const arm: HTMLElement = screen.getByRole('link', { name: /Apple Silicon/i });
-    const intel: HTMLElement = screen.getByRole('link', { name: /Intel/i });
-    expect(arm).toHaveAttribute('href', expect.stringContaining(AGENT_ASSETS['macos-arm64']));
-    expect(intel).toHaveAttribute('href', expect.stringContaining(AGENT_ASSETS['macos-x64']));
+    expect(screen.getByRole('link', { name: /Download Citadel for Mac/i }))
+      .toHaveAttribute('href', expect.stringMatching(new RegExp(`/releases/latest/download/${MAC_APP_ASSET}$`)));
+    // Neither archive: the architecture no longer has to be chosen.
+    expect(screen.queryByRole('link', { name: /Apple Silicon|Intel\)/i })).toBeNull();
+    expect(screen.getByText(/Drag Citadel Agent into Applications/)).toBeInTheDocument();
+    expect(screen.queryByText(/--bind/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /copy the run command/i })).toBeNull();
   });
 
   it('offers exactly one build on Windows', () => {
@@ -35,8 +39,8 @@ describe('AgentDownloadHint', () => {
     expect(screen.getByText(/desktop or laptop/i)).toBeInTheDocument();
   });
 
-  it('always shows the run command: the packaged binary, both flags with no safe default, and this page as the allowed origin', () => {
-    render(<AgentDownloadHint navigatorRef={MAC} />);
+  it('shows Linux and Windows the run command: the packaged binary, both flags with no safe default, and this page as the allowed origin', () => {
+    render(<AgentDownloadHint navigatorRef={LINUX} />);
     const cmd: HTMLElement = screen.getByText(/--bind 127\.0\.0\.1:12345 --backend filesystem/);
     expect(cmd).toBeInTheDocument();
     expect(cmd.textContent).toMatch(/^\.\/citadel-agent /);
@@ -50,7 +54,7 @@ describe('AgentDownloadHint', () => {
     meta.content = 'wss://local.example.com:12345';
     document.head.appendChild(meta);
     try {
-      render(<AgentDownloadHint navigatorRef={MAC} />);
+      render(<AgentDownloadHint navigatorRef={LINUX} />);
       // Addressed by a flag the agent HAS. This looked up the command by
       // `--loopback-host`, a flag it has never had, so the component's rendered
       // instruction was pinned to something that cannot run -- and only in the
@@ -83,7 +87,7 @@ describe('copy control', () => {
     Object.assign(navigator, {
       clipboard: { writeText: (t: string) => { writes.push(t); return Promise.resolve(); } },
     });
-    const { getByRole } = render(<AgentDownloadHint navigatorRef={MAC} />);
+    const { getByRole } = render(<AgentDownloadHint navigatorRef={LINUX} />);
     const btn: HTMLElement = getByRole('button', { name: /copy the run command/i });
     btn.focus();
     await userEvent.keyboard('{Enter}');
