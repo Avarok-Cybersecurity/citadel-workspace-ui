@@ -23,6 +23,14 @@ export const AGENT_ASSETS: Record<AgentPlatform, string> = {
   'windows-x64': 'citadel-agent-windows-x64.zip',
 };
 
+/**
+ * The Mac download: one universal app (Apple Silicon and Intel) in a notarised, stapled disk
+ * image, built by release-agent.yml's macos-app job. It runs the agent with the right settings
+ * itself, so a Mac visitor downloads, drags it into Applications and opens it: no archive, no
+ * command, and no processor to pick. Same contract as AGENT_ASSETS: the test reads the workflow.
+ */
+export const MAC_APP_ASSET: 'Citadel-Agent.dmg' = 'Citadel-Agent.dmg';
+
 export const RELEASES_PAGE: "https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest" =
   'https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest';
 
@@ -65,6 +73,23 @@ export function agentDownloadUrl(platform: AgentPlatform): string {
   return `https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest/download/${AGENT_ASSETS[platform]}`;
 }
 
+export function macAppDownloadUrl(): string {
+  return `https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest/download/${MAC_APP_ASSET}`;
+}
+
+/** Whether the visitor gets the Mac app rather than an archive and a command. */
+export function offersMacApp(candidates: readonly AgentPlatform[]): boolean {
+  return candidates.length > 0 && candidates.every((c) => c === 'macos-arm64' || c === 'macos-x64');
+}
+
+/**
+ * The three STUN servers the agent requires (--stun-servers; it will not start without them),
+ * the same list the Mac app's Info.plist passes: Cloudflare's, and two of Google's, since the
+ * agent classifies its NAT by comparing three independent answers.
+ */
+export const AGENT_STUN_SERVERS: string =
+  'stun.cloudflare.com:3478,stun1.l.google.com:19302,stun4.l.google.com:19302';
+
 /** What the hosted page knows that the command needs. */
 export interface RunCommandInputs {
   platform: AgentPlatform;
@@ -95,6 +120,7 @@ export function agentRunCommand({ platform, pageOrigin, loopbackOrigin }: RunCom
     '--bind 127.0.0.1:12345',
     '--backend filesystem',
     `--allowed-origins ${pageOrigin}`,
+    `--stun-servers ${AGENT_STUN_SERVERS}`,
   ];
   // NO loopback flags. This used to append `--loopback-host` and
   // `--loopback-cert-url`, and the agent has never had either:
