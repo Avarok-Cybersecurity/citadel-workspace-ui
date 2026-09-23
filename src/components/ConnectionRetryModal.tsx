@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getUserFriendlyErrorMessage } from "@/lib/error-messages";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
-import { AgentDownloadHint } from './AgentDownloadHint';
+import { AgentSetup } from './agent-setup/AgentSetup';
 import { type ConnectionRetryModalProps } from './connection-retry-types';
 
 export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
@@ -144,7 +144,7 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <AgentDownloadHint />
+        <AgentSetup layout="compact" navigatorRef={navigator} />
 
         <div className="space-y-4 py-4">
           {/* Radix announces title+description once and nothing after, so

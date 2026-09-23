@@ -2,7 +2,8 @@ import { useState, type JSX } from 'react';
 import { AlertTriangle, ArrowRight, Check, CheckCircle2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AgentDownloadHint } from '@/components/AgentDownloadHint';
+import { AgentSetup } from '@/components/agent-setup/AgentSetup';
+import { AGENT_SETUP_COPY } from '@/lib/agent-setup-copy';
 import { StepHeading } from './StepHeading';
 
 export interface ClaimStepProps {
@@ -112,8 +113,8 @@ export function ClaimStep({ workspaceHost, claimCode, onOpenWorkspace }: ClaimSt
             </p>
           )}
           <div>
-            <h2 className="mb-2 text-base font-semibold text-foreground">1. Download the agent</h2>
-            <AgentDownloadHint />
+            <h2 className="mb-2 text-base font-semibold text-foreground">1. {AGENT_SETUP_COPY.downloadHeading}</h2>
+            <AgentSetup layout="full" navigatorRef={navigator} />
           </div>
           <div>
             <h2 className="mb-2 text-base font-semibold text-foreground">2. Open your workspace</h2>
