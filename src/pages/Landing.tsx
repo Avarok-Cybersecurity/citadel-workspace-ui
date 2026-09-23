@@ -30,7 +30,10 @@ import { useAccountLink } from './use-account-link';
 // Loaded when Settings is first opened: every settings tab comes with it, and a
 // landing visit that never opens it should not download them before rendering
 // (scripts/check-bundle-budget.mjs).
-const SettingsModal = lazy(() => import("@/components/SettingsModal").then((m) => ({ default: m.SettingsModal })));
+const SettingsModal: React.LazyExoticComponent<typeof import("@/components/SettingsModal").SettingsModal> = lazy(
+  (): Promise<{ default: typeof import("@/components/SettingsModal").SettingsModal }> =>
+    import("@/components/SettingsModal").then((m: typeof import("@/components/SettingsModal")) => ({ default: m.SettingsModal })),
+);
 
 export const Landing: () => JSX.Element = (): JSX.Element => {
   const navigate: NavigateFunction = useNavigate();
@@ -42,7 +45,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
   const [settingsOpen, setSettingsOpenState] = useState(false);
   // Mounted from the first open on, so closing keeps its exit animation.
   const [settingsEverOpened, setSettingsEverOpened] = useState(false);
-  const setSettingsOpen = useCallback((open: boolean): void => {
+  const setSettingsOpen: (open: boolean) => void = useCallback((open: boolean): void => {
     if (open) setSettingsEverOpened(true);
     setSettingsOpenState(open);
   }, []);

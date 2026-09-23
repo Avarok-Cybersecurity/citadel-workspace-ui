@@ -33,7 +33,9 @@ export function SignInKeysSection(): JSX.Element | null {
       if (passwordRef.current) passwordRef.current.value = '';
       return value;
     };
-    await k.add(label.trim(), read);
+    // A refusal is shown by the hook's own message; on success the field resets for the next key.
+    const added: boolean = await k.add(label.trim(), read);
+    if (added) setLabel(defaultPasskeyLabel(navigator.userAgent));
   };
 
   return (
