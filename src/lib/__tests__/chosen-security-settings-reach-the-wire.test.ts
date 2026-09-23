@@ -61,7 +61,7 @@ describe('mapSecuritySettings', () => {
 
 describe('the login flow uses it', () => {
   const source: string = stripComments(
-    readFileSync(join(process.cwd(), 'src/components/useLoginHandler.ts'), 'utf8'),
+    readFileSync(join(process.cwd(), 'src/components/login-with-password.ts'), 'utf8'),
   );
 
   it('sends the chosen settings rather than undefined', () => {

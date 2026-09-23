@@ -363,7 +363,7 @@ test.describe(`Accessibility (first-run surfaces, ${scheme})`, () => {
     await expect(page.getByRole('heading', { name: 'Login to Workspace' })).toBeVisible({ timeout: 30_000 });
 
     // Expand Advanced Options too: the controls it hides (server address,
-    // Configure, Remember Credentials) are part of this screen and would
+    // Configure, the passkey-enrol switch) are part of this screen and would
     // otherwise never be scanned.
     const advanced = page.getByRole('button', { name: /Advanced Options/i });
     if (await advanced.isVisible().catch(() => false)) {

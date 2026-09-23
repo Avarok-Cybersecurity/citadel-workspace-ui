@@ -51,13 +51,10 @@ function harness(storeFails: boolean): Harness {
 
 const params: Record<string, unknown> = {
   username: 'alice',
-  password: 'pw',
   serverAddress: '127.0.0.1:12349',
   fullName: 'Alice',
   cid: 42n,
-  storeCredentials: true,
   securitySettings: undefined,
-  serverPassword: undefined,
 };
 
 describe('a session the device could not remember', () => {
