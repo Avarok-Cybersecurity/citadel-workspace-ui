@@ -33,17 +33,23 @@ describe('reading profile text out of metadata', () => {
 });
 
 describe('where they surface', () => {
-  it('a member record carries them to the member list', () => {
+  it('a member record carries them, and the avatar, to the member list', () => {
     const member: ReturnType<typeof mapWasmMember> = mapWasmMember({
       id: 'alice', name: 'Alice', role: 'Member',
-      metadata: { email: { type: 'String', content: 'a@b' }, title: { type: 'String', content: 'Engineer' } },
+      metadata: {
+        avatar: { type: 'String', content: 'UklGR' },
+        email: { type: 'String', content: 'a@b' },
+        title: { type: 'String', content: 'Engineer' },
+      },
     });
+    expect(member.avatarUrl).toBe('data:image/webp;base64,UklGR');
     expect(member.email).toBe('a@b');
     expect(member.title).toBe('Engineer');
   });
 
   it('a redacted record shows none', () => {
     const member: ReturnType<typeof mapWasmMember> = mapWasmMember({ id: 'bob', name: 'Bob', metadata: {} });
+    expect(member.avatarUrl).toBeUndefined();
     expect(member.email).toBeUndefined();
     expect(member.title).toBeUndefined();
   });

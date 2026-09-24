@@ -1,5 +1,5 @@
 /**
- * Settings > General edits email and job title alongside name and avatar,
+ * Settings > General edits email, job title and avatar alongside the name,
  * starting from what the server already holds, and sends only what changed.
  *
  * Mocked, and why: `WorkspaceService` is the socket (the send is what is
@@ -22,13 +22,18 @@ vi.mock('@/lib/user-service', () => ({
 
 function renderTab(): void {
   const state: WorkspaceState = {
-    currentUser: { id: 'ada', username: 'ada', name: 'Ada Lovelace', email: 'ada@example.com', title: 'Engineer' },
+    currentUser: {
+      id: 'ada', username: 'ada', name: 'Ada Lovelace', email: 'ada@example.com', title: 'Engineer',
+      avatarUrl: STORED_AVATAR,
+    },
     members: {}, nodes: {}, nodesUnavailable: false, treeSchema: null,
     loading: { workspace: false, members: false, nodes: false },
     messages: { byPeer: {} }, typing: { peerIds: [], lastUpdated: 0 },
   } as WorkspaceState;
   render(<WorkspaceProvider state={state}><GeneralSettingsTab /></WorkspaceProvider>);
 }
+
+const STORED_AVATAR: string = 'data:image/webp;base64,UklGRhoAAABXRUJQ';
 
 const save = (): HTMLButtonElement => screen.getByRole('button', { name: /Save Changes/ }) as HTMLButtonElement;
 
@@ -50,6 +55,24 @@ describe('Settings > General profile details', () => {
     await waitFor(() => expect(updateUserProfile).toHaveBeenCalledTimes(1));
     expect(updateUserProfile).toHaveBeenCalledWith({
       name: undefined, avatarData: undefined, email: '', title: undefined,
+    });
+  });
+
+  it('shows the stored avatar when first opened, as a working image', async () => {
+    renderTab();
+    const img: HTMLImageElement = (await screen.findByAltText('Avatar preview')) as HTMLImageElement;
+    // Once, not twice: a data URL given the prefix again is a broken image.
+    expect(img.getAttribute('src')).toBe(STORED_AVATAR);
+    expect(save().disabled).toBe(true);
+  });
+
+  it('sends a removed avatar as "" so the server clears it', async () => {
+    renderTab();
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove avatar' }));
+    fireEvent.click(save());
+    await waitFor(() => expect(updateUserProfile).toHaveBeenCalledTimes(1));
+    expect(updateUserProfile).toHaveBeenCalledWith({
+      name: undefined, avatarData: '', email: undefined, title: undefined,
     });
   });
 

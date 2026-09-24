@@ -20,11 +20,13 @@ import type { UserRegistrationInfo } from '@/lib/user-service';
 export function GeneralSettingsTab(): JSX.Element {
   const { toast } = useToast();
   const [displayName, setDisplayName] = useState('');
-  const [avatarData, setAvatarData] = useState<string | null>(null);
-  const [originalDisplayName, setOriginalDisplayName] = useState('');
-  const [originalAvatarData, setOriginalAvatarData] = useState<string | null>(null);
   // Seeded from the member record the workspace already loaded for this user.
+  // The avatar is held as the data URL it arrives as; it is only sent if replaced.
   const { state: workspaceState } = useWorkspace();
+  const storedAvatar: string | null = workspaceState.currentUser?.avatarUrl ?? null;
+  const [avatarData, setAvatarData] = useState<string | null>(storedAvatar);
+  const [originalDisplayName, setOriginalDisplayName] = useState('');
+  const [originalAvatarData, setOriginalAvatarData] = useState<string | null>(storedAvatar);
   const storedDetails: ProfileDetailsValues = {
     email: workspaceState.currentUser?.email ?? '',
     title: workspaceState.currentUser?.title ?? '',
@@ -58,11 +60,10 @@ export function GeneralSettingsTab(): JSX.Element {
   // Handle profile updates
   // MetadataValue is a tagged enum: { type: "String", content: "..." }
   const handleProfileUpdate: (data: { user: User; }) => void = useCallback((data: { user: User }): void => {
-    const avatar: string | undefined = metadataText(data.user.metadata, PROFILE_METADATA_KEYS.avatar);
-    if (avatar) {
-      setAvatarData(avatar);
-      setOriginalAvatarData(avatar);
-    }
+    // The whole record arrives, so no avatar means it was removed.
+    const avatar: string | null = metadataText(data.user.metadata, PROFILE_METADATA_KEYS.avatar) ?? null;
+    setAvatarData(avatar);
+    setOriginalAvatarData(avatar);
     // The whole record arrives, so an absent field was cleared, not left out.
     const saved: { email?: string; title?: string } = profileFieldsFromMetadata(data.user.metadata);
     const savedDetails: ProfileDetailsValues = { email: saved.email ?? '', title: saved.title ?? '' };
@@ -92,10 +93,10 @@ export function GeneralSettingsTab(): JSX.Element {
 
     setIsSaving(true);
     try {
-      // An emptied email or title is sent as '' — the server's "clear it".
+      // A removed avatar or emptied email/title is sent as '' — the server's "clear it".
       await WorkspaceService.updateUserProfile({
         name: displayName !== originalDisplayName ? displayName : undefined,
-        avatarData: avatarData !== originalAvatarData ? avatarData || undefined : undefined,
+        avatarData: avatarData !== originalAvatarData ? (avatarData ?? '') : undefined,
         email: detailsChanged('email') ? details.email.trim() : undefined,
         title: detailsChanged('title') ? details.title.trim() : undefined,
       });
@@ -167,7 +168,7 @@ export function GeneralSettingsTab(): JSX.Element {
               disabled={isSaving}
             />
             <p className="text-xs text-muted-foreground">
-              Your email and job title are visible to members of this workspace. Clear a field to remove it.
+              Your picture, email and job title are visible to members of this workspace. Clear a field to remove it.
             </p>
           </div>
         </div>

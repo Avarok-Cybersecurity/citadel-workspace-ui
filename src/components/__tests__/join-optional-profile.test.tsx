@@ -48,7 +48,7 @@ describe('the Profile step’s optional details', () => {
     expect(screen.getByRole('button', { name: 'Upload profile picture' })).toBeTruthy();
     expect(screen.getByLabelText('Email')).toBeTruthy();
     expect(screen.getByLabelText('Job title')).toBeTruthy();
-    expect(screen.getByText(/visible to members of this workspace/)).toBeTruthy();
+    expect(screen.getByText(/picture, email and job title are visible to members of this workspace/)).toBeTruthy();
   });
 
   it('reports what is typed to the registration state', () => {

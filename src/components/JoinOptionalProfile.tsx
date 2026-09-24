@@ -19,7 +19,7 @@ export function JoinOptionalProfile({ values, onChange, disabled }: JoinOptional
       <div>
         <h3 id="join-optional-heading" className="text-sm font-semibold text-foreground">Optional details</h3>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Your email and job title are visible to members of this workspace. You can change them later in Settings.
+          Your picture, email and job title are visible to members of this workspace. You can change them later in Settings.
         </p>
       </div>
       <AvatarUpload

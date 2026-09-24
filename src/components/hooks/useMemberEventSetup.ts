@@ -7,6 +7,7 @@ import WorkspaceService from '@/lib/workspace-service';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
 import { currentUserProfileFromMetadata } from '@/lib/current-user-profile';
+import type { MappedMember } from '@/lib/workspace-response-handler/member-mapping';
 import { debugLog } from '@/lib/debug-config';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 import type { User, UserRole } from '@/types/workspace-entities';
@@ -115,13 +116,12 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
           // consume what the handler produced. That keeps the two layers
           // from drifting apart.
           //
-          // Members without any stable identifier are skipped (rather than
-          // keyed under Math.random()) so that repeated `members:loaded`
-          // events cannot accumulate phantom duplicates.
+          // Members with no stable identifier are skipped (not keyed under
+          // Math.random()), so repeated `members:loaded` cannot add phantoms.
           const membersRecord: Record<string, import('@/types/workspace-entities').User> = {};
           if (payload.members) {
             for (const m of payload.members) {
-              const member: { id?: string; username?: string; displayName?: string; role?: string; } = m as { id?: string; username?: string; displayName?: string; role?: string };
+              const member: MappedMember = m as unknown as MappedMember;
               const id: string | undefined = member.id || member.username;
               if (!id) {
                 debugLog('UseMemberEventSetup', 'Dropping member with no stable id/username', member);
@@ -132,6 +132,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
                 username: member.username || id,
                 displayName: member.displayName || member.username || id,
                 role: member.role as import('@/types/workspace-entities').UserRole | undefined,
+                avatarUrl: member.avatarUrl, email: member.email, title: member.title,
                 // Real presence rather than a constant. A member arriving from
                 // a member event was recorded as offline whatever the registry
                 // said, so anyone rendering this record showed a grey dot for a
