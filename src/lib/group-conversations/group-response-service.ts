@@ -18,7 +18,7 @@ import { getSelectedUser } from '../tab-context';
 import { isForThisSession, notificationCid } from '@/lib/sessions/notification-ownership';
 import { debugLog } from '@/lib/debug-config';
 import { toGroupEvents } from './group-events';
-import { p2pRegistrationService } from '../p2p-registration-service';
+import { rosterPeerName } from '@/lib/roster-peer-name';
 import type { TabUserContext } from '@/lib/tab-context';
 
 let started: boolean = false;
@@ -108,14 +108,13 @@ export function startGroupResponseService(): void {
       }
 
       // The wire names peers only by CID; the registration roster is the one
-      // authority for their usernames. The cid string is the explicit fallback
-      // for a peer the roster has not seen — non-empty on purpose, because an
-      // invite whose inviter has no name at all is dropped as malformed.
-      const { registeredPeers } = p2pRegistrationService.getPeers();
-      const peerName = (cid: bigint): string =>
-        registeredPeers.find((p) => p.cid === cid)?.username ?? cid.toString();
-
-      for (const event of toGroupEvents(message, self.cid, self.username, peerName)) {
+      // authority for their names, asked the same way calls ask it. The
+      // fallback for a peer the roster has not loaded is a short handle --
+      // non-empty on purpose, because an invite whose inviter has no name at
+      // all is dropped as malformed. It used to be `cid.toString()`, which is
+      // how an invitee's group came to be titled "<twenty digits>'s Group" and
+      // every member's message signed with the same twenty digits.
+      for (const event of toGroupEvents(message, self.cid, self.username, rosterPeerName)) {
         debugLog('GroupResponseService', `${event.name}`, event.payload);
         eventEmitter.emit(event.name, event.payload);
       }
