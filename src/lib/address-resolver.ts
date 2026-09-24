@@ -1,5 +1,6 @@
 import { debugLog } from '@/lib/debug-config';
 import { NETWORK } from './timeout-constants';
+import { isTenantHost, isWebSocketUrl } from './workspace-address';
 /**
  * Address Resolver
  *
@@ -141,6 +142,15 @@ export async function resolveServerAddress(serverAddr: string): Promise<string> 
 
   if (!trimmed) {
     throw new Error('Server address cannot be empty');
+  }
+
+  // Named by the agent itself, so passed through untouched: a WebSocket URL is dialled as
+  // given, and a bare hosted-workspace host becomes `wss://<host>/` there
+  // (server_address.rs). Appending the socket port made the agent dial the Cloudflare edge
+  // over raw TCP on 12349, so joining a hosted workspace by its address never connected.
+  if (isWebSocketUrl(trimmed) || isTenantHost(trimmed)) {
+    debugLog('AddressResolver', `Address resolver: ${serverAddr} -> ${trimmed} (the agent dials it as named)`);
+    return trimmed;
   }
 
   const { host, port } = parseAddress(trimmed);

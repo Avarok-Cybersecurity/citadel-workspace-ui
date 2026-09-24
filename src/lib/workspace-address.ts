@@ -41,6 +41,11 @@ const TENANT_HOST: RegExp = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.work\.avarok
 /** `ws://...` or `wss://...` -- a full URL the agent dials as given. */
 const WEBSOCKET_URL: RegExp = /^wss?:\/\//i;
 
+/** True for a `ws://` or `wss://` URL, which the agent dials exactly as given. */
+export function isWebSocketUrl(address: string): boolean {
+  return WEBSOCKET_URL.test(address.trim());
+}
+
 /** True for a hosted workspace host (`acme.work.avarok.net`), port-less by design. */
 export function isTenantHost(address: string): boolean {
   return TENANT_HOST.test(address.trim());
