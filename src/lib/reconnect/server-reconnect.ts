@@ -38,8 +38,22 @@ export function reconnectingMessage(server: string): string {
   return `Reconnecting to ${server}…`;
 }
 
+/**
+ * The agent's reason in the user's words, for the refusals it stops on at once; anything
+ * else as the agent put it. Seen live: the toast read "(CID not registered to this node:
+ * CID 1305… is not registered to this node)" for an account the server no longer had.
+ */
+function plainReason(reason: string | null): string | null {
+  const text: string = reason?.trim() ?? '';
+  if (text === '') return null;
+  if (/is not registered to this node|account does not exist/i.test(text)) return 'the workspace no longer has this account';
+  if (/invalid password/i.test(text)) return 'the password was not accepted';
+  return text;
+}
+
 function signInMessage(server: string, reason: string | null): string {
-  const why: string = reason === null || reason.trim() === '' ? '' : ` (${reason.trim()})`;
+  const plain: string | null = plainReason(reason);
+  const why: string = plain === null ? '' : ` (${plain})`;
   return `Couldn't reconnect to ${server}${why}. Sign in again to continue.`;
 }
 

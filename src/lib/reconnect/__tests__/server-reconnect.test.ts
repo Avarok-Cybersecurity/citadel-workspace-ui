@@ -58,6 +58,16 @@ describe('the agent reports on this tab session', () => {
     expect(parseAccountLink(new URLSearchParams(path.slice(2)))).toEqual({ username: 'alice', server: 'bench.work.avarok.net' });
   });
 
+  it('says why in the user\'s words when the server no longer has the account', async () => {
+    const r: Recorder = recorder();
+    // The reason exactly as the agent reported it after a server restart lost its accounts.
+    const reason: string = 'CID not registered to this node: CID 13052272920576059510 is not registered to this node';
+    await handleServerReconnectEvent({ kind: 'failed', cid: 42n, reason }, r.io);
+    const [, message]: [string, string] = r.signIns[0];
+    expect(message).toContain('the workspace no longer has this account');
+    expect(message).not.toContain('CID');
+  });
+
   it('treats a drop the agent is not retrying as a failure', async () => {
     const r: Recorder = recorder();
     await handleServerReconnectEvent({ kind: 'lost', cid: 42n, reconnecting: false }, r.io);
