@@ -51,7 +51,10 @@ function bodyOf(message: unknown, name: AgentReconnectNotification): (Record<str
   const body: unknown = unwrapped[name];
   if (!isRecord(body)) return null;
   const cid: unknown = body.cid;
-  const requestId: unknown = body.request_id;
+  // The agent sends `null`, but the WASM client hands JavaScript `undefined` for a Rust
+  // `None` (serde-wasm-bindgen), so both mean "no request". Accepting only null dropped
+  // every real notification: measured end to end, the banner never appeared.
+  const requestId: unknown = body.request_id ?? null;
   const requestIdOk: boolean = requestId === null || typeof requestId === 'string';
   return typeof cid === 'bigint' && requestIdOk ? { ...body, cid, request_id: requestId as string | null } : null;
 }

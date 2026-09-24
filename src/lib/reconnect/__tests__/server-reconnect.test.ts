@@ -94,14 +94,20 @@ describe('reading the notifications off the wire', () => {
     expect(readAgentReconnectEvent({ ServerReconnectFailed: { cid: 1n, reason: 'r', request_id: null } })).toEqual({ kind: 'failed', cid: 1n, reason: 'r' });
   });
 
+  // What the WASM client actually delivers (captured in the browser): serde-wasm-bindgen
+  // turns the agent's `None` into `undefined`, not `null`.
+  it('reads them as the WASM client delivers them, request_id undefined', () => {
+    expect(readAgentReconnectEvent({ ServerConnectionLost: { cid: 1n, reconnecting: true, request_id: undefined } })).toEqual({ kind: 'lost', cid: 1n, reconnecting: true });
+    expect(readAgentReconnectEvent({ ServerReconnected: { cid: 1n } })).toEqual({ kind: 'reconnected', cid: 1n });
+    expect(readAgentReconnectEvent({ ServerReconnectFailed: { cid: 1n, reason: 'r', request_id: undefined } })).toEqual({ kind: 'failed', cid: 1n, reason: 'r' });
+  });
+
   it('refuses a body with the wrong field types', () => {
     const wrong: unknown[] = [
       { ServerConnectionLost: { cid: '1', reconnecting: true, request_id: null } },
       { ServerConnectionLost: { cid: 1n, request_id: null } },
       { ServerReconnected: { cid: 1, request_id: null } },
       { ServerReconnectFailed: { cid: 1n, reason: 5, request_id: null } },
-      // request_id is always on the wire (null); absent or not a string is not this notification.
-      { ServerReconnected: { cid: 1n } },
       { ServerReconnected: { cid: 1n, request_id: 3 } },
       { MessageNotification: { cid: 1n } },
       null,
