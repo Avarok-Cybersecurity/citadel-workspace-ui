@@ -64,3 +64,29 @@ export interface UsePermissionResult {
 export function permits(result: UsePermissionResult): boolean {
   return result.allowed || result.loading || result.unanswered || !result.answered;
 }
+
+/** An action's enabled state and, when it is off, the reason to show. */
+export interface ActionGate {
+  enabled: boolean;
+  reason: string | null;
+}
+
+/**
+ * For an action the server refuses when the answer is no -- Edit, whose Save
+ * then fails -- enabled only on a KNOWN yes.
+ *
+ * `permits` is right for what HIDES: an unanswered question must not read as a
+ * refusal. An action offered on that basis is different: a member whose Edit
+ * Content is Denied got an enabled Edit after a reload, typed, and could never
+ * save. So this disables while unknown too, and says which it is: still
+ * checking, could not check, or no. None of the three claims a denial it has
+ * not heard.
+ */
+export function gateOnKnownAnswer(result: UsePermissionResult): ActionGate {
+  if (result.allowed) return { enabled: true, reason: null };
+  if (result.unanswered) {
+    return { enabled: false, reason: result.reason ?? 'Your permissions here could not be checked. Reconnect and try again.' };
+  }
+  if (result.loading || !result.answered) return { enabled: false, reason: 'Checking your permissions…' };
+  return { enabled: false, reason: result.reason ?? "You don't have permission to edit this content" };
+}

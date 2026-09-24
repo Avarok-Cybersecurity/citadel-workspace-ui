@@ -15,7 +15,8 @@ import { saveOfficeContent } from "./save-office-content";
 import { useCompiledMdx } from "./use-compiled-mdx";
 import { useUnsavedMdxGuard, DISCARD_EDIT_PROMPT } from "./use-unsaved-mdx-guard";
 import { useConfirm } from "@/components/shared/confirm-dialog";
-import { permitsAndReport } from "@/lib/permission-diagnostics";
+import { editGate, noPageReason } from "./edit-gate";
+import type { ActionGate } from '@/hooks/use-permission-result';
 import WorkspaceService from "@/lib/workspace-service";
 import { OfficeChatTabs } from "./OfficeChatTabs";
 import { usePermission } from '@/hooks/use-permission';
@@ -88,6 +89,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
       nodeId,
       content,
       displayName: entityData?.name || title,
+      noPageReason: noPageReason(state.loading.nodes),
       write: (id, mdxContent) => WorkspaceService.updateNode(id, { mdxContent }),
       notify: ({ kind, title: noticeTitle, description }) =>
         toast({
@@ -157,12 +159,8 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     return <OfficeSkeletonLoader />;
   }
 
-  // True with no domain ID (demo mode). Otherwise `permitsAndReport`, whose
-  // docstring carries both halves of the reasoning: why an unanswered question
-  // must not read as a refusal, and why being offered without an answer is
-  // worth a line in the log.
-  const hasEditPermission: boolean = permitsAndReport('BaseOffice', 'edit offered without an answer', domainId, edit);
-  const editDeniedReason: string | null = edit.reason;
+  // Enabled on a known yes only; see edit-gate.ts for why "not answered" is not yes here.
+  const gate: ActionGate = editGate(nodeId, state.loading.nodes, edit);
 
   // Get current user info from workspace state OR connection manager
   // State first, tab identity second — see `readerIdentity`.
@@ -218,8 +216,8 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
         isEditing={isEditing}
         onEditToggle={() => { void handleEditToggle(); }}
         onSave={handleSave}
-        canEdit={hasEditPermission}
-        editDeniedReason={editDeniedReason || undefined}
+        canEdit={gate.enabled}
+        editDeniedReason={gate.reason ?? undefined}
       >
         {contentView}
       </OfficeLayout>
@@ -233,8 +231,8 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
       isEditing={isEditing}
       onEditToggle={() => { void handleEditToggle(); }}
       onSave={handleSave}
-      canEdit={hasEditPermission}
-      editDeniedReason={editDeniedReason || undefined}
+      canEdit={gate.enabled}
+      editDeniedReason={gate.reason ?? undefined}
     >
       <OfficeChatTabs
         contentView={contentView}
