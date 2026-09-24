@@ -11,12 +11,17 @@
  * 250-line CI cap.
  */
 
+import { profileFieldsFromMetadata } from '@/lib/profile-metadata';
+
 /** Shape emitted on `members:loaded` / `member:loaded`. */
 export interface MappedMember {
   id?: string;
   username: string;
   displayName: string;
   role?: string;
+  /** Visible to other members; see lib/profile-metadata.ts. */
+  email?: string;
+  title?: string;
   [k: string]: unknown;
 }
 
@@ -48,5 +53,6 @@ export function mapWasmMember(raw: Record<string, unknown>): MappedMember {
     username: username ?? name ?? id ?? '',
     displayName: displayName ?? name ?? username ?? id ?? '',
     role,
+    ...profileFieldsFromMetadata(raw.metadata),
   };
 }

@@ -6,7 +6,7 @@ import { connectionManager } from '@/lib/connection';
 import WorkspaceService from '@/lib/workspace-service';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
-import { avatarUrlFromMetadata } from '@/lib/avatar-url';
+import { currentUserProfileFromMetadata } from '@/lib/current-user-profile';
 import { debugLog } from '@/lib/debug-config';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 import type { User, UserRole } from '@/types/workspace-entities';
@@ -78,7 +78,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
         cancelLoadingDeadline('members');
         setState(prev => {
           // Try to find the current user in the members list and update their role
-          let updatedCurrentUser: { id: string; username: string; name: string; role?: string; displayName?: string; avatarUrl?: string; } | undefined = prev.currentUser;
+          let updatedCurrentUser: WorkspaceEventState['currentUser'] = prev.currentUser;
           if (prev.currentUser && payload.members) {
             const currentUserMember: User | undefined = payload.members.find(
               (m: { username?: string; role?: string; displayName?: string }) =>
@@ -91,7 +91,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
                 ...prev.currentUser,
                 role: currentUserMember.role ?? prev.currentUser.role,
                 displayName: currentUserMember.displayName || prev.currentUser.name,
-                avatarUrl: avatarUrlFromMetadata((currentUserMember as unknown as { metadata?: unknown }).metadata) ?? prev.currentUser.avatarUrl,
+                ...currentUserProfileFromMetadata((currentUserMember as unknown as { metadata?: unknown }).metadata, prev.currentUser.avatarUrl),
               };
 
               // Persist role to stored session for WorkspaceSwitcher (async)

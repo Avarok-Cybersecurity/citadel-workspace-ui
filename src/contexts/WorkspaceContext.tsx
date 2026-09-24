@@ -19,6 +19,9 @@ export interface WorkspaceState {
     role?: string;
     displayName?: string;
     avatarUrl?: string; // Base64 data URL for avatar image
+    /** From the member record's metadata; see lib/profile-metadata.ts. */
+    email?: string;
+    title?: string;
   };
   members: Record<string, User>;
   nodes: Record<string, DomainNode>;
