@@ -21,7 +21,7 @@ interface ToastCall { title?: string; action?: { onClick: () => void } }
 describe('Use That Session', () => {
   it('says the session is elsewhere rather than restored', async () => {
     const toasts: ToastCall[] = [];
-    const handler = makeSessionAlreadyConnectedHandler({
+    const handler: ReturnType<typeof makeSessionAlreadyConnectedHandler> = makeSessionAlreadyConnectedHandler({
       toast: (o: Record<string, unknown>): void => { toasts.push(o as ToastCall); },
       setState: vi.fn(),
     });

@@ -62,8 +62,8 @@ describe('switching to it', () => {
 
   it('asks, and on yes starts the sign-in that moves it', async () => {
     h.holder = 'another-connection';
-    const confirm = vi.fn(async (): Promise<boolean> => true);
-    const signInAs = vi.fn();
+    const confirm: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<boolean> => true);
+    const signInAs: ReturnType<typeof vi.fn> = vi.fn();
     await switchToSession(target, { navigate: vi.fn(), toast: vi.fn(), confirm, signInAs });
 
     expect(confirm).toHaveBeenCalledWith(takeoverPrompt('alice0924'));
@@ -74,7 +74,7 @@ describe('switching to it', () => {
 
   it('does nothing further on no', async () => {
     h.holder = 'another-connection';
-    const signInAs = vi.fn();
+    const signInAs: ReturnType<typeof vi.fn> = vi.fn();
     await switchToSession(target, { navigate: vi.fn(), toast: vi.fn(), confirm: async (): Promise<boolean> => false, signInAs });
     expect(signInAs).not.toHaveBeenCalled();
     expect(h.selected).toBe(0);
