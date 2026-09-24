@@ -43,7 +43,8 @@ interface UseRegisteredPeersReturn {
 
 export function useRegisteredPeers(): UseRegisteredPeersReturn {
   const [registeredPeers, setRegisteredPeers] = useState<RegisteredPeer[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  // True from the start: the mount effect loads at once, and "not loading, empty" reads as "no peers".
+  const [isLoading, setIsLoading] = useState(true);
   const [startupComplete, setStartupComplete] = useState(true);
   const startupCompleteRef: MutableRefObject<boolean> = useRef(startupComplete);
 
