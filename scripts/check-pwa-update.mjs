@@ -185,15 +185,14 @@ async function main() {
     // copy-under-test: the sentence IS what this check verifies reaches the
     // user. Addressing it by testid would test that a container exists while
     // saying nothing about whether it says anything.
-    const prompt = page.getByText(/A new version of Citadel is ready/i);
+    const prompt = page.getByText(/Update available\W+reload to continue/i);
     const shown = await prompt
       .waitFor({ state: 'visible', timeout: 30_000 })
       .then(() => true)
       .catch(() => false);
     record('the user is offered the update', shown);
 
-    // copy-under-test: a Sonner toast action, rendered by the toast library
-    // from a label we pass. There is no testid to address it by, and the label
+    // copy-under-test: the deploy banner's button (DeployBanner.tsx). The label
     // is part of the offer being verified -- "the offer carries a Reload
     // action" is a claim about what the user is shown.
     const reload = page.getByRole('button', { name: /^reload$/i });

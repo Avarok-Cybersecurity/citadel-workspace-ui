@@ -43,7 +43,7 @@ import { instanceInboundRouter } from './lib/multi-instance';
 import { startInstallPromptCapture } from '@/components/pwa/install-prompt-store';
 import { showStorageVersionRecovery } from './storage-version-recovery';
 import { startKeyboardInsetTracking } from '@/lib/pwa/keyboard-inset';
-import { watchDeployedVersion } from '@/lib/pwa/version-watch';
+import { watchDeployedVersion } from '@/lib/pwa/watch-deployed-version';
 import { browserSessionStorage, reloadKeepingDrafts, restoreHandedOffDrafts } from '@/lib/chat/draft-handoff';
 import { applyAppearanceSettings, loadAppearanceSettings } from './lib/appearance-settings';
 import { initPrivacySettingsSync } from './lib/privacy-settings';
