@@ -7,7 +7,15 @@ import {
 } from '@/lib/workspace-init-prompt';
 import { WorkspaceProvider, WorkspaceState } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '../lib/workspace-service';
-import { WorkspaceInitializationModal } from './WorkspaceInitializationModal';
+import { lazyDialog } from './lazy-dialog';
+import type { WorkspaceInitializationModalProps } from './workspace-init-types';
+
+/** Fetched only when a workspace needs initialising, which a seeded server never does. */
+const WorkspaceInitializationModal: (props: WorkspaceInitializationModalProps) => JSX.Element | null = lazyDialog(
+  (): Promise<React.ComponentType<WorkspaceInitializationModalProps>> =>
+    import('./WorkspaceInitializationModal').then((m) => m.WorkspaceInitializationModal),
+  (props: WorkspaceInitializationModalProps): boolean => props.isOpen,
+);
 import { connectionManager } from '../lib/connection';
 
 import {

@@ -1,7 +1,16 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users } from 'lucide-react';
-import { AccountManagementDialog } from './AccountManagementDialog';
+import { lazyDialog } from './lazy-dialog';
+import type { AccountManagementDialog as Dialog } from './AccountManagementDialog';
+
+type DialogProps = React.ComponentProps<typeof Dialog>;
+
+/** Off the landing critical path: most landing visits never open it. */
+const AccountManagementDialog: (props: DialogProps) => JSX.Element | null = lazyDialog(
+  (): Promise<React.ComponentType<DialogProps>> => import('./AccountManagementDialog').then((m) => m.AccountManagementDialog),
+  (props: DialogProps): boolean => props.isOpen,
+);
 
 export function ManageAccountsButton(): JSX.Element {
   const [dialogOpen, setDialogOpen] = useState(false);
