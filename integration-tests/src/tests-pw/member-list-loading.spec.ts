@@ -160,7 +160,13 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
     let firstSighting: Sample | null = null;
     for (let i = 0; i < 100; i++) {
         const s: Sample = await sampleOnce();
-        if (s.emptyVisible) {
+        // A stale frame -- the empty state stamped with the node being LEFT while the URL
+        // already names the next -- is that node's own, correct state, still on screen
+        // because the router runs navigations as transitions (`v7_startTransition`) and
+        // keeps the old view until the new one commits. Rounds 747-762 recorded it every
+        // time this failed; it is not the defect. The defect is an empty state for the
+        // node the URL names, while its list is still loading.
+        if (s.emptyVisible && (s.emptyDomain === s.urlNodeId || s.emptyDomain === '(absent)')) {
             if (!sawEmptyState) { atFirstSighting = JSON.stringify(s); firstSighting = s; }
             sawEmptyState = true;
         }
