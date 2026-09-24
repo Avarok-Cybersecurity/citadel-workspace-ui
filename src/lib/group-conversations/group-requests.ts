@@ -128,14 +128,15 @@ export async function sendGroupLeave(groupId: string): Promise<void> {
   await sendGroupRequest(request);
 }
 
-export async function sendGroupKick(groupId: string, memberCid: string): Promise<void> {
+/** The caller mints `requestId`: the answer names no member, only this id. See kick-group-member.ts. */
+export async function sendGroupKick(groupId: string, memberCid: bigint, requestId: string): Promise<void> {
   const cid: bigint = await requireCid();
-  const request: { GroupKick: { cid: bigint; peer_cid: bigint; group_key: MessageGroupKey; request_id: `${string}-${string}-${string}-${string}-${string}`; }; } = {
+  const request: { GroupKick: { cid: bigint; peer_cid: bigint; group_key: MessageGroupKey; request_id: string; }; } = {
     GroupKick: {
       cid,
-      peer_cid: BigInt(memberCid),
+      peer_cid: memberCid,
       group_key: groupIdToKey(groupId),
-      request_id: crypto.randomUUID(),
+      request_id: requestId,
     },
   };
   await sendGroupRequest(request);

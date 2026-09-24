@@ -42,6 +42,8 @@ export interface GroupEvent {
      * offline is in the sidebar forever. See reconcile-groups.ts.
      */
     | 'group:list-received'
+    /** The server removed the member a `GroupKick` named; see await-group-kicked.ts. */
+    | 'group:kick-succeeded'
     /**
      * The server refused a group operation.
      *
@@ -208,10 +210,18 @@ export function toGroupEvents(
   // it was equally unhandled.
   const disconnected: Record<string, unknown> | undefined = variant(message, 'GroupDisconnectNotification');
   if (disconnected) {
+    // `byOthers`: someone else ended the group or removed you, so this person
+    // is told; the owner's own delete (above) needs no announcement.
     return [{
       name: 'group:deleted',
-      payload: { groupId: groupKeyToId(parseGroupKey(disconnected.group_key)) },
+      payload: { groupId: groupKeyToId(parseGroupKey(disconnected.group_key)), byOthers: true },
     }];
+  }
+
+  // Names no member: the kicker learns WHO only from its own request id.
+  const kicked: Record<string, unknown> | undefined = variant(message, 'GroupKickSuccess');
+  if (kicked && typeof kicked.request_id === 'string') {
+    return [{ name: 'group:kick-succeeded', payload: { requestId: kicked.request_id } }];
   }
 
   // Both spellings: the internal service declares GroupListGroupsSuccess and

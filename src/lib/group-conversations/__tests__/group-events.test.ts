@@ -130,7 +130,7 @@ describe('being removed from a group', () => {
       SELF, 'alice', peerName,
     );
 
-    expect(events).toEqual([{ name: 'group:deleted', payload: { groupId: '7:42' } }]);
+    expect(events).toEqual([{ name: 'group:deleted', payload: { groupId: '7:42', byOthers: true } }]);
   });
 
   it('still removes it for the owner on a successful end', () => {
