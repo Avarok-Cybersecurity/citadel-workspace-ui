@@ -26,7 +26,7 @@ vi.mock('../instance-channel', () => ({
 import { eventEmitter } from '@/lib/event-emitter';
 import { instanceManager } from '../instance-manager';
 import { instanceInboundRouter } from '../instance-inbound-router';
-import { makeForwardFallback } from '../router-forwarding';
+import { makeForwardFallback, type ForwardFallback } from '../router-forwarding';
 
 const ERIN: bigint = 14741090851496596846n;
 
@@ -72,7 +72,7 @@ describe('a forward nobody acknowledged', () => {
     const local: string[] = [];
     const rerouted: string[] = [];
     instanceManager.registerInstance('silent-tab', ERIN);
-    const fallback = makeForwardFallback((m) => { local.push(Object.keys(m)[0]); }, (_m, type) => { rerouted.push(type); });
+    const fallback: ForwardFallback = makeForwardFallback((m) => { local.push(Object.keys(m)[0]); }, (_m, type): boolean => { rerouted.push(type); return true; });
     fallback({ MessageNotification: {} }, 'MessageNotification', 'silent-tab');
     expect(rerouted).toEqual(['MessageNotification']);
     expect(local).toEqual([]);
@@ -81,7 +81,7 @@ describe('a forward nobody acknowledged', () => {
 
   it('processes an unowned message locally, as before', () => {
     const local: string[] = [];
-    const fallback = makeForwardFallback((m) => { local.push(Object.keys(m)[0]); }, () => { throw new Error('no reroute without a target'); });
+    const fallback: ForwardFallback = makeForwardFallback((m) => { local.push(Object.keys(m)[0]); }, (): boolean => { throw new Error('no reroute without a target'); });
     fallback({ GroupInviteNotification: {} }, 'GroupInviteNotification', undefined);
     expect(local).toEqual(['GroupInviteNotification']);
   });

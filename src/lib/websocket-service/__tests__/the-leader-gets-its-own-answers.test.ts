@@ -30,7 +30,7 @@ import { sendRequest } from '../send-request';
 import type { WebSocketServiceCore } from '../core';
 
 const sent: unknown[] = [];
-const service = {
+const service: WebSocketServiceCore = {
   init: async (): Promise<void> => {},
   client: { sendDirectToInternalService: async (r: unknown): Promise<void> => { sent.push(r); } },
 } as unknown as WebSocketServiceCore;

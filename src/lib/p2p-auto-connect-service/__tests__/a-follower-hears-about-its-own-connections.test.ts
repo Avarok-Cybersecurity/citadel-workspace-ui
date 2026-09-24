@@ -31,7 +31,7 @@ describe('a state-sync about a follower session', () => {
 
   it('goes out with that session on the envelope', () => {
     const posted: Array<{ targetCid?: bigint }> = [];
-    const channel = { postMessage: (m: { targetCid?: bigint }): void => { posted.push(m); } } as unknown as BroadcastChannel;
+    const channel: BroadcastChannel = { postMessage: (m: { targetCid?: bigint }): void => { posted.push(m); } } as unknown as BroadcastChannel;
     broadcastStateSync(channel, 'leader-tab', true, { type: 'connected-peers-update', localCid: FOLLOWER_SESSION.toString(), peerCid: LEADER_SESSION.toString() },
       stateSyncTarget(FOLLOWER_SESSION, LEADER_SESSION));
     expect(posted).toHaveLength(1);

@@ -33,10 +33,12 @@ import { isP2PMessageHandlerAttached } from '@/lib/p2p/p2p-handler-ready';
  * every subsequent message to that CID pays the full timeout again before
  * being delivered.
  */
+export type ForwardFallback = (message: Record<string, unknown>, messageType: string, targetInstanceId?: string) => void;
+
 export function makeForwardFallback(
   processLocally: (message: Record<string, unknown>) => void,
-  reroute: (message: Record<string, unknown>, messageType: string) => void,
-) {
+  reroute: (message: Record<string, unknown>, messageType: string) => boolean,
+): ForwardFallback {
   return (message: Record<string, unknown>, messageType: string, targetInstanceId?: string): void => {
     if (targetInstanceId) {
       debugLog('InstanceInboundRouter',
@@ -46,7 +48,11 @@ export function makeForwardFallback(
       // Another tab may hold the CID now (the session reopened elsewhere). Processing on
       // the leader would hand that tab's answer to the wrong session; re-routing finds
       // the live owner, or buffers it as unowned, whose own fallback is local processing.
-      reroute(message, messageType);
+      // Not delivered means no tab owns the CID yet: the re-route already processed it
+      // here or buffered it as unowned, so this only records which path it took.
+      if (!reroute(message, messageType)) {
+        debugLog('InstanceInboundRouter', `[ILM-Router] re-routed ${messageType} has no owner; handled on the leader`);
+      }
       return;
     }
     processLocally(message);

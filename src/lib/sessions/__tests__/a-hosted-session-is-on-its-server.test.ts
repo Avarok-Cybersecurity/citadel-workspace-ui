@@ -6,9 +6,9 @@
  * with `===` they never matched, in eight places.
  */
 import { describe, it, expect } from 'vitest';
-import { sessionIsOnServer } from '../same-server';
+import { sessionIsOnServer, type SessionServer } from '../same-server';
 
-const hosted = { server_address: 'wss://bench.work.avarok.net/', server_host: 'bench.work.avarok.net' };
+const hosted: SessionServer = { server_address: 'wss://bench.work.avarok.net/', server_host: 'bench.work.avarok.net' };
 
 describe('sessionIsOnServer', () => {
   it('matches a hosted session by the host it was typed as', () => {
@@ -21,7 +21,7 @@ describe('sessionIsOnServer', () => {
   });
 
   it('matches a self-hosted server with or without the assumed port', () => {
-    const selfHosted = { server_address: '10.0.0.5:12400', server_host: 'citadel.example.com:12400' };
+    const selfHosted: SessionServer = { server_address: '10.0.0.5:12400', server_host: 'citadel.example.com:12400' };
     expect(sessionIsOnServer(selfHosted, 'citadel.example.com')).toBe(true);
     expect(sessionIsOnServer(selfHosted, 'citadel.example.com:12400')).toBe(true);
   });

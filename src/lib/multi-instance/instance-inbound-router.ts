@@ -41,7 +41,7 @@ class InstanceInboundRouter {
   private readonly orphanBuffer: OrphanBuffer = new OrphanBuffer(
     makeForwardFallback(
       (message) => this.processLocalMessage(message),
-      (message, messageType) => { routeByCid(this.cidRouteDeps(), message, messageType); },
+      (message, messageType): boolean => routeByCid(this.cidRouteDeps(), message, messageType),
     ),
   );
 

@@ -14,13 +14,19 @@ import type { InstanceInfo } from '../instance-manager-types';
 import { isOwnedByALiveConnection } from '@/lib/sessions/claim-session';
 
 type Handler = (payload: unknown) => void;
+interface World {
+  claims: bigint[];
+  failures: bigint[];
+  emit: (event: string, payload?: unknown) => Promise<void>;
+  becomeLeader: () => void;
+}
 
-function world(instances: InstanceInfo[], opts: { leader: boolean; ownedByThisConnection?: bigint[]; failing?: bigint[] }) {
+function world(instances: InstanceInfo[], opts: { leader: boolean; ownedByThisConnection?: bigint[]; failing?: bigint[] }): World {
   const handlers: Map<string, Handler[]> = new Map();
   const claims: bigint[] = [];
   const failures: bigint[] = [];
   let leader: boolean = opts.leader;
-  const claimer = installFollowerSessionClaims({
+  const claimer: { settle: () => Promise<void> } = installFollowerSessionClaims({
     on: (event: string, handler: Handler): void => { handlers.set(event, [...(handlers.get(event) ?? []), handler]); },
     isLeader: (): boolean => leader,
     selfInstanceId: (): string => 'me',
@@ -66,27 +72,27 @@ describe('which sessions the leader claims', () => {
 
 describe('when the leader connection is replaced', () => {
   it('claims every follower session on the new connection', async () => {
-    const w = world(TABS, { leader: true });
+    const w: World = world(TABS, { leader: true });
     await w.emit('on-ws-connection-success');
     expect(w.claims).toEqual([2n, 3n]);
   });
 
   it('a follower tab claims nothing, since it has no connection', async () => {
-    const w = world(TABS, { leader: false });
+    const w: World = world(TABS, { leader: false });
     await w.emit('on-ws-connection-success');
     await w.emit('instance:registered', { instanceId: 'bob-tab', cid: 2n });
     expect(w.claims).toEqual([]);
   });
 
   it('a follower promoted to leader claims the others', async () => {
-    const w = world(TABS, { leader: false });
+    const w: World = world(TABS, { leader: false });
     w.becomeLeader();
     await w.emit('instance:leader-changed', { isLeader: true, leaderId: 'me' });
     expect(w.claims).toEqual([2n, 3n]);
   });
 
   it('claims once per connection, and again after the connection is replaced', async () => {
-    const w = world(TABS, { leader: true, ownedByThisConnection: [2n, 3n] });
+    const w: World = world(TABS, { leader: true, ownedByThisConnection: [2n, 3n] });
     await w.emit('on-ws-connection-success');
     await w.emit('instance:registered', { instanceId: 'bob-tab', cid: 2n });
     expect(w.claims).toEqual([2n, 3n]);
@@ -96,7 +102,7 @@ describe('when the leader connection is replaced', () => {
   });
 
   it('reports a failed claim and retries it on the next trigger', async () => {
-    const w = world(TABS, { leader: true, failing: [3n] });
+    const w: World = world(TABS, { leader: true, failing: [3n] });
     await w.emit('on-ws-connection-success');
     expect(w.failures).toEqual([3n]);
     await w.emit('instance:registered', { instanceId: 'carol-tab', cid: 3n });

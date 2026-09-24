@@ -13,6 +13,8 @@ import { describe, it, expect } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';
 import { LEADER_WIRE_EVENT } from '@/lib/websocket/leader-inbound-handler';
 import { workspaceIceServersPort } from '../workspace-port';
+import type { IceServersPort } from '../cache';
+import type { IceServersAnswer } from '@/types/ice-servers';
 import { parseIceServersAnswer } from '../parse';
 
 const FOLLOWER_CID: bigint = 14741090851496596846n;
@@ -24,16 +26,16 @@ function answerFor(cid: bigint): Record<string, unknown> {
 
 describe('the relay lookup, asked by the leader for a follower tab session', () => {
   it('resolves from the leader wire, where the answer is seen before routing', async () => {
-    const port = workspaceIceServersPort({
+    const port: IceServersPort = workspaceIceServersPort({
       send: async (): Promise<void> => { queueMicrotask(() => eventEmitter.emit(LEADER_WIRE_EVENT, answerFor(FOLLOWER_CID))); },
       timeoutMs: 1000,
     });
-    const answer = parseIceServersAnswer(await port.request(FOLLOWER_CID));
+    const answer: IceServersAnswer | null = parseIceServersAnswer(await port.request(FOLLOWER_CID));
     expect(answer?.kind).toBe('granted');
   });
 
   it('still ignores an answer for a different session', async () => {
-    const port = workspaceIceServersPort({
+    const port: IceServersPort = workspaceIceServersPort({
       send: async (): Promise<void> => { queueMicrotask(() => eventEmitter.emit(LEADER_WIRE_EVENT, answerFor(FOLLOWER_CID + 1n))); },
       timeoutMs: 200,
     });

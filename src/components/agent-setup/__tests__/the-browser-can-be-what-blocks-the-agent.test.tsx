@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest';
 import { act, render, renderHook, screen } from '@testing-library/react';
 import { AgentSetup } from '../AgentSetup';
 import { AGENT_SETUP_COPY } from '@/lib/agent-setup-copy';
-import { readLoopbackAccess } from '@/lib/loopback-permission';
+import { readLoopbackAccess, type LoopbackAccessReading } from '@/lib/loopback-permission';
 import { useLoopbackAccess } from '@/hooks/use-loopback-access';
 
 class Status extends EventTarget {
@@ -37,7 +37,7 @@ function navigatorWith(permissions: Permissions | undefined): Navigator {
 
 describe('the loopback permission, read', () => {
   it('prefers Chrome 153 name, loopback-network', async () => {
-    const reading = await readLoopbackAccess(browserKnowing({ 'loopback-network': new Status('denied'), 'local-network-access': new Status('granted') }));
+    const reading: LoopbackAccessReading = await readLoopbackAccess(browserKnowing({ 'loopback-network': new Status('denied'), 'local-network-access': new Status('granted') }));
     expect(reading.state).toBe('denied');
   });
 
