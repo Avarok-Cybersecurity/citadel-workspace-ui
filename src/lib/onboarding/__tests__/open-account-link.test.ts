@@ -79,4 +79,16 @@ describe('opening an account link', () => {
     expect(rec.switched).toEqual([]);
     expect(rec.loginFor).toEqual(['alice']);
   });
+
+  // As the agent actually reports a hosted session: the RESOLVED edge address, which every
+  // hosted workspace shares, plus the host as typed. Seen live: the link to carol's workspace
+  // opened sign-in although her session was up, because only server_address was compared.
+  it('matches a hosted workspace by the host the agent recorded, not the edge it resolved to', async () => {
+    const carolHosted: Session = { cid: 31n, username: 'carol', server_address: '104.21.48.73:443', server_host: 'bench.work.avarok.net' };
+    const carolElsewhere: Session = { cid: 32n, username: 'carol', server_address: '104.21.48.73:443', server_host: 'acme.work.avarok.net' };
+    const rec: Recorder = record(true, [carolElsewhere, carolHosted]);
+    await open({ username: 'carol', server: 'bench.work.avarok.net' }, rec);
+    expect(rec.switched).toEqual([carolHosted]);
+    expect(rec.loginFor).toEqual([]);
+  });
 });

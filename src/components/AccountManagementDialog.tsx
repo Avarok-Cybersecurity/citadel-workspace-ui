@@ -20,6 +20,7 @@ import { DeleteConfirmDialog, ClearAllConfirmDialog } from './AccountConfirmDial
 import { shortPeerHandle } from '@/lib/peer-display';
 import type { NavigateFunction } from 'react-router';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import { sessionIsOnServer } from '@/lib/sessions/same-server';
 
 interface AccountManagementDialogProps {
   isOpen: boolean;
@@ -170,7 +171,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
                 {storedSessions.map((session) => {
                   const isConnected: boolean = currentConnection?.serverAddress === session.serverAddress && currentConnection?.username === session.username;
                   const hasActiveSession: boolean =
-                    activeSessions?.some(a => a.username === session.username && a.server_address === session.serverAddress) ?? false;
+                    activeSessions?.some(a => a.username === session.username && sessionIsOnServer(a, session.serverAddress)) ?? false;
                   return (
                     <div key={`${session.username}-${session.serverAddress}`} className={`flex items-center justify-between p-4 rounded-lg bg-background border ${hasActiveSession ? 'border-success/30' : 'border-surface/50'}`}>
                       <div className="flex items-center gap-3">

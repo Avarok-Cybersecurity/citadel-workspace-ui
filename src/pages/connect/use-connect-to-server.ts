@@ -26,6 +26,7 @@ import { setSelectedUser } from '@/lib/tab-context';
 import { instanceManager, instanceChannel } from '@/lib/multi-instance';
 import { debugLog } from '@/lib/debug-config';
 import type { ActiveSession, StoredSession } from '@/types/session-types';
+import { sessionIsOnServer } from '@/lib/sessions/same-server';
 
 /** How long to wait for auto-connect to produce a session before giving up. */
 const RECONNECT_WAIT_MS: number = 8000;
@@ -38,7 +39,7 @@ export type ConnectOutcome =
 async function findSessionForServer(serverAddress: string): Promise<ActiveSession | null> {
   connectionManager.invalidateSessionCache();
   const sessions: ActiveSession[] = await connectionManager.getActiveSessions();
-  return sessions.find((s) => s.server_address === serverAddress) ?? null;
+  return sessions.find((s) => sessionIsOnServer(s, serverAddress)) ?? null;
 }
 
 async function waitForSession(serverAddress: string): Promise<ActiveSession | null> {
@@ -68,7 +69,7 @@ async function adoptSession(session: ActiveSession): Promise<void> {
 
   const stored: StoredSession[] = connectionManager.getStoredSessionsArray();
   const index: number = stored.findIndex(
-    (s) => s.username === session.username && s.serverAddress === session.server_address,
+    (s) => s.username === session.username && sessionIsOnServer(session, s.serverAddress),
   );
   if (index >= 0) await connectionManager.setActiveSessionIndex(index);
 
