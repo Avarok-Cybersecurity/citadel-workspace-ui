@@ -3,37 +3,28 @@ import { useProfileDraft } from "./use-profile-draft";
 import { LandingSteps } from "./LandingSteps";
 import { Button } from "@/components/ui/button";
 import { LogIn, Settings, Shield, ArrowRight } from "lucide-react";
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { SecuritySettingsValues } from "@/components/SecuritySettings";
 import { DEFAULT_SECURITY_SETTINGS } from "@/components/security-settings-defaults";
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { ManageAccountsButton } from "@/components/ManageAccountsButton";
-import { ConnectionManager } from "@/lib/connection";
 import { OrphanSessionsNavbar } from "@/components/OrphanSessionsNavbar";
 import { cn } from "@/lib/utils";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
-import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { useToast } from '@/hooks/use-toast';
 import { toastError } from '@/lib/toast-helpers';
 import { InstallAppButton } from "@/components/pwa/InstallAppButton";
 import type { NavigateFunction } from 'react-router';
-import type { ActiveSession } from '@/types/session-types';
 import { CitadelLogo } from '@/components/brand/CitadelLogo';
 import { OnboardingIntent } from '@/components/onboarding/OnboardingIntent';
 import { useOnboardingIntent } from '@/hooks/useOnboardingIntent';
 import { useAgentGatedStep } from '@/hooks/use-agent-gate';
 import type { OnboardingIntentState } from '@/hooks/useOnboardingIntent';
 import { CreateWorkspaceCta } from '@/components/create-workspace/CreateWorkspaceCta';
-import { useAccountLink } from './use-account-link';
-
-// Loaded when Settings is first opened: every settings tab comes with it, and a
-// landing visit that never opens it should not download them before rendering
-// (scripts/check-bundle-budget.mjs).
-const SettingsModal: React.LazyExoticComponent<typeof import("@/components/SettingsModal").SettingsModal> = lazy(
-  (): Promise<{ default: typeof import("@/components/SettingsModal").SettingsModal }> =>
-    import("@/components/SettingsModal").then((m: typeof import("@/components/SettingsModal")) => ({ default: m.SettingsModal })),
-);
+import { useLinkedLogin } from './use-account-link';
+import { useHasOrphanSessions } from './use-orphan-sessions';
+import { LazySettingsModal } from '@/components/LazySettingsModal';
 
 export const Landing: () => JSX.Element = (): JSX.Element => {
   const navigate: NavigateFunction = useNavigate();
@@ -41,14 +32,8 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');
   const { draft: profileDraft, setDraft: setProfileDraft, clear: clearProfileDraft } = useProfileDraft();
-  const [hasOrphanSessions, setHasOrphanSessions] = useState(false);
-  const [settingsOpen, setSettingsOpenState] = useState(false);
-  // Mounted from the first open on, so closing keeps its exit animation.
-  const [settingsEverOpened, setSettingsEverOpened] = useState(false);
-  const setSettingsOpen: (open: boolean) => void = useCallback((open: boolean): void => {
-    if (open) setSettingsEverOpened(true);
-    setSettingsOpenState(open);
-  }, []);
+  const hasOrphanSessions: boolean = useHasOrphanSessions();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Server connection data lifted to Landing state to avoid React Query GC eviction
   const [serverAddress, setServerAddress] = useState('');
@@ -60,37 +45,6 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
   const [securitySettings, setSecuritySettings] = useState<SecuritySettingsValues>(
     DEFAULT_SECURITY_SETTINGS,
   );
-
-  // Check for orphan sessions (don't auto-navigate, just detect)
-  useEffect(() => {
-    const checkOrphanSessions = async (): Promise<void> => {
-      try {
-        // Get the connection manager instance
-        const connectionManager: ConnectionManager = ConnectionManager.getInstance();
-
-        // Wait for connection manager to be ready before getting sessions
-        // This prevents race conditions during component initialization
-        await connectionManager.waitForReady();
-
-        // Get active sessions from internal service
-        const activeSessions: ActiveSession[] = await connectionManager.getActiveSessions();
-
-        if (activeSessions && activeSessions.length > 0) {
-          debugLog('Landing', 'Landing: Found orphan sessions:', activeSessions.length);
-          setHasOrphanSessions(true);
-          // Note: Don't auto-navigate - let user choose from the navbar
-        } else {
-          debugLog('Landing', 'Landing: No orphan sessions found');
-          setHasOrphanSessions(false);
-        }
-      } catch (error) {
-        debugLog('Landing', 'Landing: Error checking orphan sessions:', error);
-        setHasOrphanSessions(false);
-      }
-    };
-
-    runAsyncSetup(checkOrphanSessions);
-  }, [navigate]);
 
   // Open the join flow when navigated here with ?join=1 (e.g. from the
   // Manage Accounts empty state on any route). Clears the param after
@@ -156,10 +110,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
 
   // Both buttons on this screen need the agent; see use-agent-gate.ts.
   const startLogin: () => void = useAgentGatedStep(setCurrentStep, 'login', 'none');
-  // The username an account link named, for the sign-in form to start with.
-  const [linkedUsername, setLinkedUsername] = useState<string | undefined>(undefined);
-  useAccountLink((username: string): void => { setLinkedUsername(username); startLogin(); });
-  const startPlainLogin = (): void => { setLinkedUsername(undefined); startLogin(); };
+  const { linkedUsername, startPlainLogin } = useLinkedLogin(startLogin);
   const handleLoginNext = async (cid: string): Promise<void> => {
     debugLog('Landing', `[Landing] handleLoginNext called with cid: ${cid}`);
     try {
@@ -312,11 +263,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
       />
 
       {/* Settings modal */}
-      {settingsEverOpened && (
-        <Suspense fallback={null}>
-          <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
-        </Suspense>
-      )}
+      <LazySettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 };

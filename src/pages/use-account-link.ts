@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { NavigateFunction } from 'react-router';
 import { useToast } from '@/hooks/use-toast';
@@ -37,4 +37,16 @@ export function useAccountLink(onLogin: (username: string) => void): void {
       await runAccountLink(linkParams, { navigate, toast, login: (username: string) => latestOnLogin.current(username) });
     });
   }, [searchParams, setSearchParams, navigate, toast]);
+}
+
+/**
+ * Sign-in that an account link can start: `linkedUsername` is the name the link
+ * carried, for the form to start with; `startPlainLogin` is the ordinary button,
+ * which clears it.
+ */
+export function useLinkedLogin(startLogin: () => void): { linkedUsername: string | undefined; startPlainLogin: () => void } {
+  const [linkedUsername, setLinkedUsername] = useState<string | undefined>(undefined);
+  useAccountLink((username: string): void => { setLinkedUsername(username); startLogin(); });
+  const startPlainLogin = (): void => { setLinkedUsername(undefined); startLogin(); };
+  return { linkedUsername, startPlainLogin };
 }
