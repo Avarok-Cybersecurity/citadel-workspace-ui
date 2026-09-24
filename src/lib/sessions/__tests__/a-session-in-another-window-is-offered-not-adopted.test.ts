@@ -31,9 +31,17 @@ vi.mock('@/lib/websocket-service', () => ({
 vi.mock('@/lib/tab-context', () => ({
   setSelectedUser: vi.fn(async (): Promise<void> => { h.selected += 1; }),
 }));
+// What a successful switch goes on to do: load the workspace and start messaging.
+vi.mock('@/lib/post-auth-setup', () => ({ postAuthSetup: vi.fn(async (): Promise<void> => {}) }));
+vi.mock('@/lib/start-messaging', () => ({ startMessagingForSession: vi.fn(async (): Promise<void> => {}) }));
+vi.mock('@/lib/multi-instance', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
+  ...(await importOriginal()),
+  instanceChannel: { announcePresence: (): void => {} },
+}));
 
 import { claimSessionForThisTab, takeoverPrompt } from '../claim-session';
 import { switchToSession } from '../switch-to-session';
+import { instanceManager } from '@/lib/multi-instance';
 
 beforeEach(() => { h.claims = []; h.selected = 0; });
 
@@ -78,5 +86,38 @@ describe('switching to it', () => {
     await switchToSession(target, { navigate: vi.fn(), toast: vi.fn(), confirm: async (): Promise<boolean> => false, signInAs });
     expect(signInAs).not.toHaveBeenCalled();
     expect(h.selected).toBe(0);
+  });
+});
+
+describe('switching between two accounts in this browser', () => {
+  it('switches at once to a session this connection already holds', async () => {
+    // mia0924 registered first, then nia0924 was added in the same tab: mia's
+    // session is live on THIS browser's connection, so "not orphaned" is the
+    // agent's answer and the switch must go ahead rather than stop there.
+    h.holder = 'this-connection';
+    instanceManager.setCid(8n);
+    const navigate: ReturnType<typeof vi.fn> = vi.fn();
+    const signInAs: ReturnType<typeof vi.fn> = vi.fn();
+    await switchToSession(
+      { cid: 7n, username: 'mia0924', server_address: 'bench.work.avarok.net', workspaceName: 'Bench', storedSessionIndex: -1 },
+      { navigate, toast: vi.fn(), confirm: async (): Promise<boolean> => false, signInAs },
+    );
+
+    expect(signInAs).not.toHaveBeenCalled();
+    expect(h.selected).toBe(1);
+    expect(instanceManager.cid).toBe(7n);
+    expect(navigate).toHaveBeenCalled();
+  });
+
+  it('is the sequence the workspace switcher runs', async () => {
+    // The switcher carried its own copy of the switch, which never set the
+    // instance CID, so the tab kept reading the account it had left.
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const { stripComments } = await import('@/test-utils/strip-comments');
+    const source: string = stripComments(readFileSync(
+      join(process.cwd(), 'src/components/layout/sidebar/useWorkspaceSwitcher.tsx'), 'utf8'));
+    expect(source).toMatch(/\bswitchToSession\s*\(/);
+    expect(source).not.toMatch(/\bclaimSessionForThisTab\s*\(/);
   });
 });
