@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { rosterDisplayName, selfDisplayName } from '@/lib/roster-display-name';
 import { useLocation } from 'react-router-dom';
 import { BaseOffice } from '../office/BaseOffice';
 import { P2PChat } from '../p2p/P2PChat';
@@ -75,7 +76,9 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
     const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
     const rawCid: bigint | undefined = tabSelection?.selectedCid ?? tabSession?.cid ?? connectionInfo?.cid;
     const currentUserCid: string | undefined = rawCid !== undefined ? String(rawCid) : undefined;
-    const currentUserName: string = tabSession?.fullName || connectionInfo?.fullName || 'You';
+    const currentUserName: string = selfDisplayName(state.members, {
+      username: tabSelection?.selectedUsername ?? tabSession?.username, fullName: tabSession?.fullName,
+    }) || 'You';
 
     // Both `BigInt(...)` calls below are funnelled through
     // `tryParseCid` so the parsing contract (and its boundary cases:
@@ -103,7 +106,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
         <P2PChat
           key={parsedPeerCid.toString()}
           peerCid={parsedPeerCid}
-          peerName={peerName || undefined}
+          peerName={rosterDisplayName(state.members, peerName ?? undefined) ?? (peerName || undefined)}
           currentUserCid={parsedCurrentUserCid}
           currentUserName={currentUserName}
         />
