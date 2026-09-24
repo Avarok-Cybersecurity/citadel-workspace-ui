@@ -70,7 +70,7 @@ export async function connectToPeer(
   let targetCid: bigint = peerCid;
   if (shouldForceInitiator) {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: FORCE INITIATOR MODE - Client ${currentCid.toString().slice(0, 8)}... forcing PeerConnect to ${peerCid.toString().slice(0, 8)}... (ClaimSession reconnection)`);
-  } else if (currentCid < peerCid && (await ownsSession(peerCid))) {
+  } else if (currentCid < peerCid && ownsSession(peerCid)) {
     // Reverse ONLY when this browser owns the peer's session. The old
     // condition was CID ordering alone, which sent requests naming another
     // connection's session and relied on being refused to learn the peer was
