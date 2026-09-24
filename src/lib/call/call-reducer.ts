@@ -109,6 +109,12 @@ export function reduce(state: CallState | null, event: CallEvent): CallState | n
   }
 
   if (!state) return null;
+  // Terminal is terminal. The reason on an ended or failed call is what the
+  // caller is told ("bob declined the call."), and the first one is the true
+  // one: a CallEnd arriving after a CallDecline, or a hang-up of a call that is
+  // already over, re-ran "everyone gone" below and replaced 'rejected' with a
+  // silent 'hangup' -- the call vanished without a word.
+  if (state.status === 'ended' || state.status === 'failed') return state;
 
   switch (event.type) {
     case 'accepted-locally':
@@ -170,13 +176,9 @@ export function reduce(state: CallState | null, event: CallEvent): CallState | n
       return { ...state, selfMedia: event.media };
 
     case 'ended':
-      // Terminal: a late 'ended' for an already-failed call must not overwrite
-      // the reason the user is being shown.
-      if (state.status === 'failed') return state;
       return { ...state, status: 'ended', reason: event.reason };
 
     case 'failed':
-      if (state.status === 'ended') return state;
       return { ...state, status: 'failed', reason: event.reason };
 
     default:
