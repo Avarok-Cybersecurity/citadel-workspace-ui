@@ -1,4 +1,5 @@
-import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
+import { claimSessionForThisTab, type ClaimOutcome } from '@/lib/sessions/claim-session';
+import { sessionSwitchToasts, type SessionSwitchToasts } from '@/lib/sessions/session-switch-toasts';
 import { markLastAccessed } from '@/lib/sessions/last-accessed';
 import { connectionManager } from "@/lib/connection";
 import { eventEmitter } from "@/lib/event-emitter";
@@ -32,21 +33,18 @@ export async function redirectToExistingSession(
   callbacks: SessionRedirectCallbacks,
 ): Promise<void> {
   const { navigate, toast, onNext } = callbacks;
+  const notices: SessionSwitchToasts = sessionSwitchToasts(session.cid, `${session.username}'s workspace`);
 
   try {
     debugLog('Login', 'Redirecting to existing session seamlessly:', session.username);
 
-    toast({
-      title: "Reconnecting...",
-      description: `Loading ${session.username}'s workspace`,
-      variant: 'success',
-    });
+    toast(notices.progress);
 
     markLastAccessed(session.cid);
 
     const outcome: ClaimOutcome = await claimSessionForThisTab(session.cid);
     if (outcome.status === 'owned-by-another-tab') {
-      toast(SESSION_OWNED_ELSEWHERE);
+      toast(notices.ownedElsewhere);
       return;
     }
 
@@ -79,19 +77,11 @@ export async function redirectToExistingSession(
 
     navigate(getWorkspacePath());
 
-    toast({
-      title: "Connected!",
-      description: `Now viewing ${session.username}'s workspace`,
-      variant: 'success',
-    });
+    toast(notices.connected);
 
     onNext(session.cid.toString());
   } catch (error) {
     debugLog('Login', 'Failed to redirect to existing session:', error);
-    toast({
-      title: "Connection Failed",
-      description: "Could not reconnect to workspace. Please try again.",
-      variant: "destructive",
-    });
+    toast(notices.failed("Could not reconnect to workspace. Please try again."));
   }
 }
