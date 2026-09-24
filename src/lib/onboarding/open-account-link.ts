@@ -11,13 +11,14 @@
  * I/O arrives through `AccountLinkIO` so the decision can be tested without a
  * connection manager.
  */
-import { normalizeWorkspaceAddress } from '@/lib/workspace-address';
+import { sessionIsOnServer } from '@/lib/sessions/same-server';
 import type { AccountLink } from './account-link';
 
 /** The fields of a live session the decision reads. */
 export interface LinkableSession {
   username: string;
   server_address: string;
+  server_host?: string | null;
 }
 
 export type AccountLinkDecision<T extends LinkableSession> =
@@ -31,9 +32,6 @@ export interface AccountLinkIO<T extends LinkableSession> {
   login: (username: string) => void;
 }
 
-function sameServer(a: string, b: string): boolean {
-  return normalizeWorkspaceAddress(a).toLowerCase() === normalizeWorkspaceAddress(b).toLowerCase();
-}
 
 /**
  * The one session the link names, or sign-in.
@@ -49,7 +47,7 @@ export function decideAccountLink<T extends LinkableSession>(
   const matches: T[] = sessions.filter(
     (session: T) =>
       session.username === link.username &&
-      (link.server === undefined || sameServer(link.server, session.server_address)),
+      (link.server === undefined || sessionIsOnServer(session, link.server)),
   );
   const only: T | undefined = matches.length === 1 ? matches[0] : undefined;
   return only ? { kind: 'switch', session: only } : { kind: 'login', username: link.username };

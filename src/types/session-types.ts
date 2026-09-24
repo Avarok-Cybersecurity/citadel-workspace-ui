@@ -123,6 +123,13 @@ export interface ActiveSession {
   cid: bigint;
   username: string;
   server_address: string;
+  /**
+   * The address as the user typed it (`acme.work.avarok.net`), from the agent. Behind the
+   * Cloudflare edge `server_address` is the RESOLVED address, shared by every hosted
+   * workspace, so it cannot say which workspace a session belongs to. Absent from agents
+   * older than the field.
+   */
+  server_host?: string | null;
   full_name?: string;
   /** Peers this session is connected to (peer_cid as string key -> PeerSessionInformation) */
   peer_connections?: Record<string, PeerSessionInformation>;

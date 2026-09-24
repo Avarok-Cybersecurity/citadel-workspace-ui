@@ -16,6 +16,7 @@ import {
 } from './constants';
 import { debugLog } from '@/lib/debug-config';
 import type { TabSelectionContext } from '@/lib/connection/types';
+import { sessionIsOnServer } from '@/lib/sessions/same-server';
 
 /**
  * Attempt leader connection if conditions are met.
@@ -78,7 +79,7 @@ export async function autoReconnect(
   // Check if session is already active
   const freshActiveSessions: ActiveSession[] = await getActiveSessions();
   const alreadyActive: ActiveSession | undefined = freshActiveSessions.find(
-    (s) => s.username === session!.username && s.server_address === session!.serverAddress
+    (s) => s.username === session!.username && sessionIsOnServer(s, session!.serverAddress)
   );
 
   if (alreadyActive) {
@@ -208,7 +209,7 @@ async function handleSessionAlreadyConnectedError(
   try {
     const sessions: ActiveSession[] = await getActiveSessions();
     const match: ActiveSession | undefined = sessions.find(
-      (s) => s.username === session.username && s.server_address === session.serverAddress
+      (s) => s.username === session.username && sessionIsOnServer(s, session.serverAddress)
     );
     if (match) {
       io.emitEvent('session-already-connected', {

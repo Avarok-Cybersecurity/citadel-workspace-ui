@@ -29,6 +29,18 @@ import { debugLog } from '../debug-config';
 import { broadcastChannelService } from '../broadcast-channel-service';
 import { instanceManager, instanceInboundRouter } from '../multi-instance';
 import type { InternalServiceResponse, ResponseType } from 'citadel-workspace-client-ts';
+import { eventEmitter } from '../event-emitter';
+
+/**
+ * Every message off the wire, on the leader, BEFORE routing.
+ *
+ * For exchanges the leader runs on another tab's behalf: it looks up relay servers for a
+ * follower's session, and the answer names that session, so the router hands it to the
+ * follower and the leader's own bus never sees it. Seen live: every such lookup timed out
+ * at 5 s with its answer already delivered at 222 ms, and the connection went ahead
+ * without a relay. Routing is unchanged; this only lets the asker observe.
+ */
+export const LEADER_WIRE_EVENT: 'leader:wire-message' = 'leader:wire-message';
 
 /**
  * Build the `messageHandler` the leader hands to its WorkspaceClient.
@@ -44,6 +56,7 @@ export function leaderInboundHandler(
 
     let deliveredByRouter: boolean = false;
     if (instanceManager.isLeader) {
+      eventEmitter.emit(LEADER_WIRE_EVENT, message);
       deliveredByRouter = instanceInboundRouter.routeMessage(message);
     } else {
       // Drop, do not emit: emitting bypasses the router's CID filtering, so

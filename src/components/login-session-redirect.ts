@@ -8,6 +8,7 @@ import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { debugLog } from '@/lib/debug-config';
 import type { ToastOptions } from '@/hooks/use-toast';
 import type { StoredSessions } from '@/types/session-types';
+import { sessionIsOnServer } from '@/lib/sessions/same-server';
 
 interface SessionRedirectTarget {
   cid: bigint;
@@ -53,7 +54,7 @@ export async function redirectToExistingSession(
     const storedIndex: number = storedSessions.sessions.findIndex(
       (stored) =>
         stored.username === session.username &&
-        stored.serverAddress === session.server_address
+        sessionIsOnServer(session, stored.serverAddress)
     );
 
     if (storedIndex >= 0) {

@@ -1,0 +1,111 @@
+/**
+ * After the leader tab's connection is replaced, every follower tab's session is claimed on
+ * the new one.
+ *
+ * Measured on the live site: the leader tab reloaded, its new connection claimed only its own
+ * session, and the agent refused every request for the follower's ("the connection does not
+ * own it"). These drive the real installer through a real event bus; `claim` stands in for
+ * the agent's ClaimSession and answers as it does — "not orphaned" when a live connection
+ * already owns the session.
+ */
+import { describe, it, expect } from 'vitest';
+import { cidsToClaim, installFollowerSessionClaims, readClaimOutcome } from '../follower-session-claims';
+import type { InstanceInfo } from '../instance-manager-types';
+import { isOwnedByALiveConnection } from '@/lib/sessions/claim-session';
+
+type Handler = (payload: unknown) => void;
+interface World {
+  claims: bigint[];
+  failures: bigint[];
+  emit: (event: string, payload?: unknown) => Promise<void>;
+  becomeLeader: () => void;
+}
+
+function world(instances: InstanceInfo[], opts: { leader: boolean; ownedByThisConnection?: bigint[]; failing?: bigint[] }): World {
+  const handlers: Map<string, Handler[]> = new Map();
+  const claims: bigint[] = [];
+  const failures: bigint[] = [];
+  let leader: boolean = opts.leader;
+  const claimer: { settle: () => Promise<void> } = installFollowerSessionClaims({
+    on: (event: string, handler: Handler): void => { handlers.set(event, [...(handlers.get(event) ?? []), handler]); },
+    isLeader: (): boolean => leader,
+    selfInstanceId: (): string => 'me',
+    instances: (): InstanceInfo[] => instances,
+    claim: async (cid: bigint): Promise<unknown> => {
+      claims.push(cid);
+      if (opts.failing?.includes(cid)) throw new Error('ClaimSession request timed out');
+      if (opts.ownedByThisConnection?.includes(cid)) throw new Error(`Session ${cid} is not orphaned`);
+      return {};
+    },
+    isOwnedByALiveConnection,
+    reportFailure: (cid: bigint): void => { failures.push(cid); },
+  });
+  const emit = async (event: string, payload?: unknown): Promise<void> => {
+    for (const h of handlers.get(event) ?? []) h(payload);
+    await claimer.settle();
+  };
+  return { claims, failures, emit, becomeLeader: (): void => { leader = true; } };
+}
+
+const TABS: InstanceInfo[] = [
+  { instanceId: 'me', cid: 1n },
+  { instanceId: 'bob-tab', cid: 2n },
+  { instanceId: 'carol-tab', cid: 3n },
+  { instanceId: 'fresh-tab', cid: null },
+];
+
+describe('which sessions the leader claims', () => {
+  it('every other tab CID, not its own, and nothing for a tab with no session yet', () => {
+    expect(cidsToClaim(TABS, 'me', new Set())).toEqual([2n, 3n]);
+  });
+
+  it('skips what this connection already claimed', () => {
+    expect(cidsToClaim(TABS, 'me', new Set([2n]))).toEqual([3n]);
+  });
+
+  it('treats "not orphaned" as already held here, and anything else as a failure', () => {
+    expect(readClaimOutcome(null, isOwnedByALiveConnection)).toBe('settled');
+    expect(readClaimOutcome(new Error('Session 2 is not orphaned'), isOwnedByALiveConnection)).toBe('settled');
+    expect(readClaimOutcome(new Error('ClaimSession request timed out'), isOwnedByALiveConnection)).toBe('failed');
+  });
+});
+
+describe('when the leader connection is replaced', () => {
+  it('claims every follower session on the new connection', async () => {
+    const w: World = world(TABS, { leader: true });
+    await w.emit('on-ws-connection-success');
+    expect(w.claims).toEqual([2n, 3n]);
+  });
+
+  it('a follower tab claims nothing, since it has no connection', async () => {
+    const w: World = world(TABS, { leader: false });
+    await w.emit('on-ws-connection-success');
+    await w.emit('instance:registered', { instanceId: 'bob-tab', cid: 2n });
+    expect(w.claims).toEqual([]);
+  });
+
+  it('a follower promoted to leader claims the others', async () => {
+    const w: World = world(TABS, { leader: false });
+    w.becomeLeader();
+    await w.emit('instance:leader-changed', { isLeader: true, leaderId: 'me' });
+    expect(w.claims).toEqual([2n, 3n]);
+  });
+
+  it('claims once per connection, and again after the connection is replaced', async () => {
+    const w: World = world(TABS, { leader: true, ownedByThisConnection: [2n, 3n] });
+    await w.emit('on-ws-connection-success');
+    await w.emit('instance:registered', { instanceId: 'bob-tab', cid: 2n });
+    expect(w.claims).toEqual([2n, 3n]);
+    await w.emit('websocket-disconnected');
+    await w.emit('on-ws-connection-success');
+    expect(w.claims).toEqual([2n, 3n, 2n, 3n]);
+  });
+
+  it('reports a failed claim and retries it on the next trigger', async () => {
+    const w: World = world(TABS, { leader: true, failing: [3n] });
+    await w.emit('on-ws-connection-success');
+    expect(w.failures).toEqual([3n]);
+    await w.emit('instance:registered', { instanceId: 'carol-tab', cid: 3n });
+    expect(w.claims).toEqual([2n, 3n, 3n]);
+  });
+});

@@ -45,6 +45,11 @@ export async function sendRequest(
       throw new Error('WebSocket client not available (leader without client)');
     }
     debugLog('WebSocketService', `[Leader] Sending ${messageType} directly`);
+    // The answer comes back to THIS tab, whatever session it names. Untracked, it fell to
+    // CID routing: a claim the leader made for a follower's session was answered to the
+    // follower, and the leader timed out on a claim that had succeeded (seen live).
+    const ownId: string | undefined = requestId ?? embeddedRequestId(request);
+    if (ownId !== undefined) instanceInboundRouter.registerPendingRequest(ownId, instanceManager.instanceId);
     await service.client.sendDirectToInternalService(request as InternalServiceRequest);
   } else {
     debugLog('WebSocketService', `[Follower] Proxying ${messageType} through leader ${instanceManager.leaderId}`);

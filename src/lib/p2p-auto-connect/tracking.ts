@@ -138,6 +138,12 @@ export class P2PConnectionState extends ConnectedPeersState {
     this.onlinePeers.add(peerCid);
   }
 
+  /** Back to "not asked yet": empty, and no poll on record. */
+  forgetOnlineStatus(): void {
+    this.onlinePeers.clear();
+    this.lastOnlineStatusRefresh = 0;
+  }
+
   getOnlinePeers(): bigint[] {
     return Array.from(this.onlinePeers);
   }

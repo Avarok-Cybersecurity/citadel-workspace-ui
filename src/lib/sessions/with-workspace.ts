@@ -1,5 +1,6 @@
 import type { ActiveSession, PeerSessionInformation } from '@/types/session-types';
 import type { OrphanSessionWithWorkspace } from '@/components/useOrphanSessions';
+import { sessionIsOnServer } from '@/lib/sessions/same-server';
 
 /** One live session paired with the stored record that names its workspace. */
 interface Paired {
@@ -52,7 +53,7 @@ export function withWorkspaceNames(
     const storedIndex: number = storedSessions.findIndex(
       (stored) =>
         stored.username === activeSession.username &&
-        stored.serverAddress === activeSession.server_address,
+        sessionIsOnServer(activeSession, stored.serverAddress),
     );
     const storedSession: StoredLike = storedSessions[storedIndex];
 

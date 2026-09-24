@@ -27,6 +27,11 @@ export type ClaimOutcome =
   /** Live, and another tab in this browser is using it. Do not adopt. */
   | { status: 'owned-by-another-tab'; instanceId: string };
 
+/** The agent's refusal meaning a live connection already owns the session. Read here, once. */
+export function isOwnedByALiveConnection(error: unknown): boolean {
+  return error instanceof Error && Boolean(error.message?.includes('not orphaned'));
+}
+
 /** Does another instance already own this CID? */
 function otherTabOwns(cid: bigint): string | null {
   const owner: string | null = instanceManager.findInstanceByCid(cid);
@@ -45,7 +50,7 @@ export async function claimSessionForThisTab(cid: bigint): Promise<ClaimOutcome>
     debugLog('ClaimSession', `Claimed ${cid} (was orphaned)`);
     return { status: 'claimed' };
   } catch (error: unknown) {
-    if (!(error instanceof Error) || !error.message?.includes('not orphaned')) {
+    if (!isOwnedByALiveConnection(error)) {
       throw error;
     }
 

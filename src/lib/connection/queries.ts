@@ -16,6 +16,7 @@ import {
 } from './constants';
 import { debugLog } from '@/lib/debug-config';
 import type { TabSelectionContext } from '@/lib/connection/types';
+import { sessionIsOnServer } from '@/lib/sessions/same-server';
 
 /**
  * The outcome of asking the internal service which sessions exist.
@@ -182,7 +183,7 @@ export async function handleConnectFailure(
       (s) =>
         currentSession &&
         s.username === currentSession.username &&
-        s.server_address === currentSession.serverAddress
+        sessionIsOnServer(s, currentSession.serverAddress)
     );
 
     if (matchingSession) {

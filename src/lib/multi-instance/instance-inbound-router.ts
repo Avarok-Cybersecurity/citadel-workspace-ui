@@ -39,7 +39,10 @@ class InstanceInboundRouter {
    * `router-forwarding.ts` for what a timeout does.
    */
   private readonly orphanBuffer: OrphanBuffer = new OrphanBuffer(
-    makeForwardFallback((message) => this.processLocalMessage(message)),
+    makeForwardFallback(
+      (message) => this.processLocalMessage(message),
+      (message, messageType): boolean => routeByCid(this.cidRouteDeps(), message, messageType),
+    ),
   );
 
   private constructor() {

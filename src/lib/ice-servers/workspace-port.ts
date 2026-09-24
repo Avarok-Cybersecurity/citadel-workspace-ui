@@ -16,6 +16,7 @@ import type { WebSocketMessage } from '@/types/ws-message-types';
 import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 import type { IceServersPort } from './cache';
 import { parseIceServersAnswer } from './parse';
+import { LEADER_WIRE_EVENT } from '@/lib/websocket/leader-inbound-handler';
 
 export interface WorkspaceIcePortDeps {
   /** `websocketService.sendWorkspaceRequest`, or its leader/follower equivalent. */
@@ -37,6 +38,7 @@ export function workspaceIceServersPort(deps: WorkspaceIcePortDeps): IceServersP
         const cleanup = (): void => {
           clearTimeout(timer);
           eventEmitter.off('websocket-message', onMessage);
+          eventEmitter.off(LEADER_WIRE_EVENT, onMessage);
           eventEmitter.off('websocket-disconnected', onDisconnected);
         };
         const onMessage = (raw: unknown): void => {
@@ -56,7 +58,10 @@ export function workspaceIceServersPort(deps: WorkspaceIcePortDeps): IceServersP
         }, deps.timeoutMs);
 
         // Subscribed before sending: a warm local socket can answer in the same tick.
+        // Both: the answer reaches this tab's bus when the session is this tab's, and only
+        // the leader's wire when the leader asked for a follower's session.
         eventEmitter.on('websocket-message', onMessage);
+        eventEmitter.on(LEADER_WIRE_EVENT, onMessage);
         eventEmitter.on('websocket-disconnected', onDisconnected);
         deps.send(cid, 'GetIceServers').catch((error: unknown): void => {
           cleanup();

@@ -11,7 +11,7 @@
  * Never persisted and never logged: the grant lives in this Map and nowhere
  * else. Logs name the session and the reason, not the answer.
  */
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, warnLog } from '@/lib/debug-config';
 import type { IceServersAnswer, IceServersGrant } from '@/types/ice-servers';
 import { parseIceServersAnswer } from './parse';
 
@@ -66,10 +66,10 @@ export class IceServersCache {
       answer = parseIceServersAnswer(await this.port.request(cid));
     } catch (error: unknown) {
       const reason: string = error instanceof Error ? error.message : String(error);
-      return this.refuse(cid, fetchedAtMs, `request failed: ${reason}`);
+      return this.fail(cid, fetchedAtMs, `request failed: ${reason}`);
     }
 
-    if (answer === null) return this.refuse(cid, fetchedAtMs, 'unrecognised answer');
+    if (answer === null) return this.fail(cid, fetchedAtMs, 'unrecognised answer');
     if (answer.kind === 'unavailable') return this.refuse(cid, fetchedAtMs, answer.reason);
     if (answer.kind === 'refused') return this.refuse(cid, fetchedAtMs, answer.message);
 
@@ -87,6 +87,16 @@ export class IceServersCache {
       expiresAt: answer.grant.expires_at,
     });
     return answer.grant;
+  }
+
+  /**
+   * A lookup that broke, as opposed to a tenant that said no: the connection goes ahead
+   * without a relay, so it is reported where production can see it. Found live: every
+   * lookup timed out and nothing said so, because this was a debug-only log.
+   */
+  private fail(cid: bigint, atMs: number, reason: string): null {
+    warnLog('IceServers', 'relay lookup failed; connecting without a relay', { cid, reason });
+    return this.refuse(cid, atMs, reason);
   }
 
   private refuse(cid: bigint, atMs: number, reason: string): null {
