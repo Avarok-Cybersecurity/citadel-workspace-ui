@@ -5,7 +5,7 @@
  */
 
 import React, { forwardRef, useMemo } from 'react';
-import { groupMessagesByDate } from '@/components/chat/shared';
+import { groupMessagesByDate, quoteP2PReply } from '@/components/chat/shared';
 import { DateSeparator } from '@/components/chat/shared/DateSeparator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageBubble } from './bubbles';
@@ -72,6 +72,13 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
       [messages],
     );
 
+    // What each reply quotes, looked up among the messages already loaded.
+    const byId: Map<string, P2PMessage> = useMemo(
+      () => new Map(messages.map((m: P2PMessage): [string, P2PMessage] => [m.id, m])),
+      [messages],
+    );
+    const authorOf: (m: P2PMessage) => string = (m: P2PMessage): string => (m.senderCid === currentUserCid ? currentUserName : peerName);
+
     return (
       <ScrollArea className="flex-1 p-4" ref={ref} onScroll={onScroll}>
         {/*
@@ -118,6 +125,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
                 key={message.id}
                 message={message}
                 isOwn={isOwn}
+                quoted={message.replyTo ? quoteP2PReply(message.replyTo, byId, authorOf) : null}
                 onRetry={() => onRetryMessage(message)}
                 onOpenDocument={onOpenDocument}
                 onAcceptTransfer={onAcceptTransfer}

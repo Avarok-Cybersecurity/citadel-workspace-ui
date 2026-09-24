@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { MoreVertical, Edit2, Trash2, Reply } from 'lucide-react';
 import type { GroupMessage } from '@/types/workspace-entities';
 import { cn } from '@/lib/utils';
-import { getInitials } from './shared';
+import { getInitials, ReplyQuote, MESSAGE_ANCHOR_ATTRIBUTE, JUMP_TARGET_CLASSES, type QuotedMessage } from './shared';
 import { GroupMessageFooter } from './GroupMessageFooter';
 import { BUBBLE_MAX_WIDTH } from '@/components/p2p/bubbles/types';
 
@@ -36,6 +36,8 @@ interface GroupMessageItemProps {
    */
   canRevise: boolean;
   onReply: (messageId: string) => void;
+  /** What `reply_to` names, or `null` when this is not a reply or it is not loaded. */
+  quoted: QuotedMessage | null;
 }
 
 export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
@@ -46,6 +48,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
   onDelete,
   canRevise,
   onReply,
+  quoted,
 }) => {
   // Compared against the USERNAME, not the CID.
   //
@@ -68,8 +71,9 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
   const initials: string = getInitials(message.sender_name);
 
   return (
-    <div data-testid="message-item" className={cn(
+    <div data-testid="message-item" {...{ [MESSAGE_ANCHOR_ATTRIBUTE]: message.id }} className={cn(
       'group flex gap-3 px-4 py-2 hover:bg-accent/50 transition-colors',
+      JUMP_TARGET_CLASSES,
       isOwnMessage && 'flex-row-reverse'
     )}>
       <Avatar className="h-8 w-8 flex-shrink-0">
@@ -99,11 +103,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
             ? 'bg-primary text-primary-foreground'
             : 'bg-surface text-foreground'
         )}>
-          {message.reply_to && (
-            <div className="text-xs text-muted-foreground mb-1 border-l-2 border-border pl-2">
-              Replying to a message
-            </div>
-          )}
+          {message.reply_to && <ReplyQuote quoted={quoted} isOwn={isOwnMessage} />}
           <p className="whitespace-pre-wrap break-words">{message.content}</p>
         </div>
 

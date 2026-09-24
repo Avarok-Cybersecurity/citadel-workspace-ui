@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback , type RefObject  } from 'react';
+import { preferredScrollBehavior } from '@/lib/motion';
 import { groupSendTransport } from '@/lib/group-conversations/group-send-transport';
 import { sendGroupMessageAnywhere } from '@/lib/group-conversations/send-group-message';
 import { useConfirm } from '@/components/shared/confirm-dialog';
@@ -94,11 +95,9 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
               return [...prev, newMsg];
             });
             setTimeout(() => {
-              // An explicit `behavior` in ScrollIntoViewOptions beats the
-              // `scroll-behavior: auto !important` that index.css sets under
-              // prefers-reduced-motion, so the media query has to be read here.
-              const reduced: boolean = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-              messagesEndRef.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' });
+              // See preferredScrollBehavior: an explicit behaviour overrides the
+              // reduced-motion CSS, so the preference is read there.
+              messagesEndRef.current?.scrollIntoView({ behavior: preferredScrollBehavior() });
             }, 100);
           }
           break;
