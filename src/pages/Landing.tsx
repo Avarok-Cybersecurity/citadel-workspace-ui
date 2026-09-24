@@ -172,8 +172,8 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
       )}>
         <div className="max-w-xl lg:max-w-2xl animate-fade-in">
           {/* Brand tag */}
-          {/* Full lockup, the default where the tagline has room to be read. */}
-          <CitadelLogo variant="full" height={44} className="mb-6" />
+          {/* The horizontal lockup, the kit's default: 248px wide, over its 120px floor. */}
+          <CitadelLogo variant="horizontal" height={36} className="mb-3" />
 
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-foreground mb-6 leading-[1.1] tracking-tight">
             The World's First

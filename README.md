@@ -68,11 +68,17 @@ node scripts/check-lighthouse.mjs
 
 ## Branding
 
-The logo lives in `src/components/brand/` and draws itself from
-`src/styles/brand-tokens.css`, deliberately separate from the design tokens in
-`src/index.css`. The mark must not inherit a workspace's palette, and its two
-purples are different values rather than tints: `#6E59A5` clears 5.8:1 on white
-but only 2.9:1 on the dark ground, and `#9B87F5` is the inverse.
+The brand kit is `assets/brand/` in the parent repository, and it is the only
+source: everything the UI takes from it is written by the parent's
+`scripts/sync-brand-kit.mjs` and checked byte for byte by
+`scripts/check-brand-kit-is-synced.mjs`. That covers the `public/` icons,
+favicon and social card, the manifest's kit fields
+(`src/pwa/kit-manifest.generated.ts`) and the lockups' outlined paths
+(`src/components/brand/artwork/*.generated.ts`). Never edit those by hand.
 
-The masters, the raster exports and the written guidelines are in
-`assets/brand/` in the parent repository.
+`CitadelLogo` draws a lockup (`horizontal`, `stacked`, `wordmark`, `mark`)
+with its clear space, and refuses a size under the guidelines' floors; the
+mark switches to the compact cut under 32 px. Colours come from
+`src/styles/brand-tokens.css`, deliberately separate from the design tokens
+in `src/index.css`: the logo must not inherit a workspace's palette, and it
+takes the `-ondark` values exactly when `.dark` is on the root.
