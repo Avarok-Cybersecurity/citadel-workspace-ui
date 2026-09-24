@@ -12,6 +12,15 @@ import { LINUX_APPIMAGE_ASSET, RELEASE_REPO, type AgentPlatform } from '@/lib/ag
 export const AGENT_SETUP_COPY = {
   question: "Don't have the agent running?",
   intro: 'Citadel needs a small program on this machine to hold your connections.',
+  /** When the browser, not the agent, is what stands between this page and the agent. */
+  loopback: {
+    deniedHeading: 'Your browser is blocking Citadel from reaching the agent',
+    deniedBody:
+      'Chrome asks before a website may connect to apps on this device, and it was told no. To allow it, open the site settings from the icon at the left of the address bar, set local network access (apps on this device) to Allow, and reload.',
+    promptHeading: 'Your browser will ask first',
+    promptBody:
+      'Chrome asks before a website may connect to apps on this device. When it asks, choose Allow: the Citadel agent is the app on this device it connects to.',
+  },
   downloadHeading: 'Download the agent',
   noDevice: 'The agent runs on a desktop or laptop; this device cannot host one.',
   mac: {

@@ -9,6 +9,8 @@ import { AGENT_SETUP_COPY } from '@/lib/agent-setup-copy';
 import { readLoopbackAgentOrigin } from '@/lib/websocket-service/resolve-url';
 import { OneClickInstall } from './OneClickInstall';
 import { AgentSetupAdvanced } from './AgentSetupAdvanced';
+import { useLoopbackAccess } from '@/hooks/use-loopback-access';
+import type { LoopbackAccess } from '@/lib/loopback-permission';
 
 /**
  * - `compact`: inside a dialog that has already said the agent cannot be reached; leads with
@@ -41,12 +43,28 @@ export const AgentSetup: React.FC<AgentSetupProps> = ({ layout, navigatorRef }) 
     loopbackOrigin: readLoopbackAgentOrigin(document),
   });
 
+  // Before the install steps: when the browser is what blocks the page, reinstalling fixes
+  // nothing. Granting reloads, since a connection stuck on the prompt never recovers.
+  const loopback: LoopbackAccess = useLoopbackAccess(navigatorRef.permissions, () => window.location.reload());
+  const blockedBy: { heading: string; body: string } | null =
+    loopback === 'denied'
+      ? { heading: AGENT_SETUP_COPY.loopback.deniedHeading, body: AGENT_SETUP_COPY.loopback.deniedBody }
+      : loopback === 'prompt'
+        ? { heading: AGENT_SETUP_COPY.loopback.promptHeading, body: AGENT_SETUP_COPY.loopback.promptBody }
+        : null;
+
   return (
     <div
       className={`min-w-0 text-sm ${layout === 'compact' ? 'rounded-md border border-border bg-muted/40 p-3' : ''}`}
       data-testid="agent-setup"
       data-layout={layout}
     >
+      {blockedBy && (
+        <div className="mb-3 rounded-md border border-warning/50 bg-warning/10 p-3" role="note" data-testid="agent-setup-loopback" data-state={loopback}>
+          <p className="text-foreground font-medium">{blockedBy.heading}</p>
+          <p className="mt-1 text-muted-foreground">{blockedBy.body}</p>
+        </div>
+      )}
       {layout === 'compact' && <p className="text-foreground font-medium">{AGENT_SETUP_COPY.question}</p>}
       <p className={`text-muted-foreground ${layout === 'compact' ? 'mt-1' : ''}`}>{AGENT_SETUP_COPY.intro}</p>
       <OneClickInstall family={installerFamily(candidates)} />
