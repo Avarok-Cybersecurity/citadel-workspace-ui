@@ -44,5 +44,8 @@ import { SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
  * worth attempting, and the service answers for itself if it disagrees.
  */
 export function signOutRefusal(claim: ClaimOutcome): string | null {
-  return claim.status === 'owned-by-another-tab' ? SESSION_OWNED_ELSEWHERE.description : null;
+  if (claim.status === 'owned-by-another-tab') return SESSION_OWNED_ELSEWHERE.description;
+  // The agent refuses a sign-out from any connection but the holder's.
+  if (claim.status === 'held-by-another-connection') return 'This account is open in another browser window. Sign out there, or use it here first.';
+  return null;
 }

@@ -25,4 +25,7 @@ export interface UseOrphanSessionsResult {
   handleConfirmDisconnect: (action: DisconnectAction) => Promise<void>;
   handleLoadingComplete: () => void;
   notificationService: typeof notificationService;
+  /** The account whose session another browser window holds, being signed in to move it here. */
+  takeoverUsername: string | null;
+  clearTakeover: () => void;
 }

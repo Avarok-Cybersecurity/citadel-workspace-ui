@@ -4,7 +4,7 @@ import { connectionManager } from '@/lib/connection';
 import { withoutForgotten } from '@/lib/sessions/forgotten-sessions';
 import { withWorkspaceNames } from '@/lib/sessions/with-workspace';
 import { readLastAccessed } from '@/lib/sessions/last-accessed';
-import { switchToSession } from '@/lib/sessions/switch-to-session';
+import { switchToSession, type SwitchCallbacks } from '@/lib/sessions/switch-to-session';
 import { debugLog } from '@/lib/debug-config';
 import { parseAccountLink, type AccountLink } from '@/lib/onboarding/account-link';
 import { openAccountLink } from '@/lib/onboarding/open-account-link';
@@ -19,7 +19,7 @@ type Toast = ReturnType<typeof useToast>['toast'];
  */
 export async function runAccountLink(
   params: URLSearchParams,
-  deps: { navigate: NavigateFunction; toast: Toast; login: (username: string) => void },
+  deps: { navigate: NavigateFunction; toast: Toast; login: (username: string) => void; confirm: SwitchCallbacks['confirm'] },
 ): Promise<void> {
   const link: AccountLink | null = parseAccountLink(params);
   if (!link) {
@@ -39,7 +39,8 @@ export async function runAccountLink(
         ),
       };
     },
-    switchTo: (session: OrphanSessionWithWorkspace) => switchToSession(session, { navigate: deps.navigate, toast: deps.toast }),
+    switchTo: (session: OrphanSessionWithWorkspace) =>
+      switchToSession(session, { navigate: deps.navigate, toast: deps.toast, confirm: deps.confirm, signInAs: deps.login }),
     login: deps.login,
   });
 }

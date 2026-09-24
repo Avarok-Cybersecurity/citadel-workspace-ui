@@ -4,6 +4,7 @@ import { OrphanSessionIcon } from "./OrphanSessionIcon";
 import { DisconnectConfirmModal } from "./DisconnectConfirmModal";
 import { DisconnectLoadingModal } from "./LoadingModal";
 import { useOrphanSessions } from "./useOrphanSessions";
+import { TakeoverSignIn } from "./TakeoverSignIn";
 
 export const OrphanSessionsNavbar: () => JSX.Element | null = (): JSX.Element | null => {
   const {
@@ -18,6 +19,8 @@ export const OrphanSessionsNavbar: () => JSX.Element | null = (): JSX.Element | 
     handleDisconnect,
     handleConfirmDisconnect,
     handleLoadingComplete,
+    takeoverUsername,
+    clearTakeover,
   } = useOrphanSessions();
 
   // Load sessions, and keep asking while the answer is still "none".
@@ -102,6 +105,8 @@ export const OrphanSessionsNavbar: () => JSX.Element | null = (): JSX.Element | 
           </div>
         </div>
       </div>
+
+      <TakeoverSignIn username={takeoverUsername} onClose={clearTakeover} />
 
       <DisconnectConfirmModal
         open={disconnectTarget !== null}

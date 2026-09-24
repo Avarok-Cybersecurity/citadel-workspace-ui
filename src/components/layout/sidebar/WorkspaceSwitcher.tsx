@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import {
@@ -6,6 +6,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AccountManagementDialog } from "@/components/AccountManagementDialog";
+import { TakeoverSignIn } from "@/components/TakeoverSignIn";
 import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";
 import { Join } from "@/components/Join";
@@ -18,6 +19,8 @@ interface WorkspaceSwitcherProps {
 }
 
 export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JSX.Element => {
+  // Set when the user chose to move a session another browser window holds.
+  const [takeoverUsername, setTakeoverUsername] = useState<string | null>(null);
   const {
     availableWorkspaces,
     currentWorkspace,
@@ -41,7 +44,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
     handleManageAccounts,
     handleNext,
     handleBack,
-  } = useWorkspaceSwitcher(workspaceName);
+  } = useWorkspaceSwitcher(workspaceName, setTakeoverUsername);
 
   /**
    * The switcher button, so closing the account manager can put focus back on
@@ -178,6 +181,8 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
           serverPassword={serverPassword}
         />
       )}
+
+      <TakeoverSignIn username={takeoverUsername} onClose={() => setTakeoverUsername(null)} />
 
       <AccountManagementDialog
         isOpen={isManagingAccounts}

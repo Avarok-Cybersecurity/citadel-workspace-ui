@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import type { UseWorkspaceSwitcherResult } from './useWorkspaceSwitcher-types';
 import { mayLeaveEditor } from '@/lib/leave-editor';
 import { useConfirm } from '@/components/shared/confirm-dialog';
-import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
+import { claimSessionForThisTab, offerTakeover, SESSION_OWNED_ELSEWHERE, type ClaimOutcome } from '@/lib/sessions/claim-session';
 import { toStoredWorkspaces, pickCurrentWorkspace , type StoredWorkspace } from './stored-workspace-list';
 import { describeFailure } from '@/lib/failure-message';
 import { useLocation, useNavigate } from "react-router-dom";
@@ -26,7 +26,7 @@ import type { StoredSessions, StoredSession } from '@/types/session-types';
 
 export type WorkflowStep = "connect" | "security" | "join";
 
-export function useWorkspaceSwitcher(workspaceName?: string): UseWorkspaceSwitcherResult {
+export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs: (username: string) => void): UseWorkspaceSwitcherResult {
   const [availableWorkspaces, setAvailableWorkspaces] = useState<StoredWorkspace[]>([]);
   const [currentWorkspace, setCurrentWorkspace] = useState<StoredWorkspace | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -131,9 +131,9 @@ export function useWorkspaceSwitcher(workspaceName?: string): UseWorkspaceSwitch
       const outcome: ClaimOutcome = await claimSessionForThisTab(targetSession.cid);
       if (outcome.status === 'owned-by-another-tab') {
         toast({ ...SESSION_OWNED_ELSEWHERE, variant: 'default' });
-        setIsSwitching(false);
         return;
       }
+      if (outcome.status === 'held-by-another-connection') return await offerTakeover(workspace.username, { confirm, signInAs });
 
       const index: number = storedSessions.sessions.indexOf(targetSession);
       if (index >= 0) {
