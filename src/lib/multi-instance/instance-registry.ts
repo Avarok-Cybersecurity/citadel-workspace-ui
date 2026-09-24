@@ -19,6 +19,9 @@ export function registerInstance(
   instanceId: string,
   cid: bigint | null,
 ): void {
+  // Delete first so a re-registration moves to the end: registration order is what
+  // findInstanceByCid breaks ties with.
+  registry.delete(instanceId);
   registry.set(instanceId, cid);
   debugLog('InstanceManager', `[InstanceManager] Registered instance: ${instanceId} -> ${cid?.toString()}`);
   // Emit so the inbound router can drain its CID-keyed orphan-message
@@ -41,13 +44,21 @@ export function unregisterInstance(registry: InstanceRegistry, instanceId: strin
   debugLog('InstanceManager', `[InstanceManager] Unregistered instance: ${instanceId}`);
 }
 
+/**
+ * The tab holding `cid`: the one that registered it MOST RECENTLY.
+ *
+ * A tab that closes without its goodbye (a crash, a discard, or a close that skips
+ * beforeunload) stays in the map. When the session is reopened in a new tab, both entries
+ * name the CID; the first-registered one used to win, so the new tab's answers were
+ * forwarded to the dead tab, timed out and were processed on the leader instead. Seen
+ * live: an account link reopened a closed tab's session and its workspace never loaded.
+ */
 export function findInstanceByCid(registry: InstanceRegistry, cid: bigint): string | null {
+  let latest: string | null = null;
   for (const [instanceId, instanceCid] of registry) {
-    if (instanceCid === cid) {
-      return instanceId;
-    }
+    if (instanceCid === cid) latest = instanceId;
   }
-  return null;
+  return latest;
 }
 
 export function getAllInstances(registry: InstanceRegistry): InstanceInfo[] {
