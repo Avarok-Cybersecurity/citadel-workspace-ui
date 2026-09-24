@@ -9,18 +9,24 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { connectionManager } from '@/lib/connection';
-import { Trash2, UserCheck, Clock, Wifi } from 'lucide-react';
+import { Clock, Wifi } from 'lucide-react';
 import type { ActiveSession } from '@/types/session-types';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { DeleteConfirmDialog, ClearAllConfirmDialog } from './AccountConfirmDialogs';
-import { shortPeerHandle } from '@/lib/peer-display';
 import type { NavigateFunction } from 'react-router';
-import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import { sessionIsOnServer } from '@/lib/sessions/same-server';
+import { accountHost, isCurrentAccount } from '@/lib/sessions/account-display';
+import { switchToSession } from '@/lib/sessions/switch-to-session';
+import { withWorkspaceNames } from '@/lib/sessions/with-workspace';
+import { readLastAccessed } from '@/lib/sessions/last-accessed';
+import { useTabIdentity } from '@/hooks/use-tab-identity';
+import type { TabIdentity } from '@/lib/tab-identity';
+import { useConfirm } from './shared/confirm-dialog';
+import { TakeoverSignIn } from './TakeoverSignIn';
+import { AccountRow } from './AccountRows';
 
 interface AccountManagementDialogProps {
   isOpen: boolean;
@@ -40,7 +46,10 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
   const [sessionToDelete, setSessionToDelete] = useState<{ username: string; serverAddress: string } | null>(null);
   const [clearAllConfirmOpen, setClearAllConfirmOpen] = useState(false);
 
-  const currentConnection: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
+  // This tab's account, not the global connection's, which names nobody in a resumed tab.
+  const me: TabIdentity | null = useTabIdentity();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
+  const [signInAs, setSignInAs] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -81,14 +90,17 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
     }
   };
 
-  const handleSwitchAccount = async (username: string, serverAddress: string): Promise<void> => {
-    try {
-      await connectionManager.switchAccount(username, serverAddress);
-      toast({ title: 'Account switched', description: `Switched to ${username}` });
-      onClose();
-    } catch (error) {
-      toast({ title: 'Failed to switch account', description: error instanceof Error ? error.message : 'Unknown error', variant: 'destructive' });
-    }
+  const startSignIn = (username: string): void => { onClose(); setSignInAs(username); };
+
+  // The same claim sequence as the navbar and the switcher. This called
+  // connectionManager.switchAccount, which reconnects with a SAVED password --
+  // and passwords are no longer saved -- and never claimed anything, so a
+  // session open in another browser window could not be switched to at all.
+  const switchToLive = async (session: ActiveSession): Promise<void> => {
+    const [target] = withWorkspaceNames([session], storedSessions, readLastAccessed);
+    if (!target) return;
+    onClose();
+    await switchToSession(target, { navigate, toast, confirm, signInAs: setSignInAs });
   };
 
   const formatLastConnected = (timestamp?: number): string => {
@@ -136,30 +148,18 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
                 <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <Wifi className="h-4 w-4 text-success-emphasis" />Active Sessions ({activeSessions?.length ?? 0})
                 </h3>
-                {(activeSessions ?? []).map((session) => {
-                  const isCurrentSession: boolean = currentConnection?.cid === session.cid;
-                  return (
-                    <div key={session.cid} className="flex items-center justify-between p-4 rounded-lg bg-background border border-success/30">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10"><AvatarFallback className="bg-success">{session.username[0].toUpperCase()}</AvatarFallback></Avatar>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-foreground font-medium">{session.username}</h4>
-                            {isCurrentSession && <UserCheck className="h-4 w-4 text-success-emphasis" />}
-                            <span className="text-xs text-success-emphasis bg-success/20 px-2 py-0.5 rounded">Active</span>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{session.server_address}</p>
-                          <p className="text-xs text-muted-foreground">Session {shortPeerHandle(session.cid)}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {!isCurrentSession && (
-                          <Button variant="outline" size="sm" className="border-success text-success-emphasis hover:bg-success/20" onClick={() => handleSwitchAccount(session.username, session.server_address)}>Switch</Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                {(activeSessions ?? []).map((session) => (
+                  <AccountRow
+                    key={session.cid.toString()}
+                    username={session.username}
+                    host={accountHost(session, storedSessions)}
+                    current={isCurrentAccount(me, session)}
+                    live
+                    lastConnected={null}
+                    onSwitch={() => { void switchToLive(session); }}
+                    onDelete={null}
+                  />
+                ))}
               </div>
             )}
 
@@ -169,34 +169,19 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
                   <Clock className="h-4 w-4" />Saved Accounts ({storedSessions.length})
                 </h3>
                 {storedSessions.map((session) => {
-                  const isConnected: boolean = currentConnection?.serverAddress === session.serverAddress && currentConnection?.username === session.username;
-                  const hasActiveSession: boolean =
-                    activeSessions?.some(a => a.username === session.username && sessionIsOnServer(a, session.serverAddress)) ?? false;
+                  const liveSession: ActiveSession | undefined =
+                    activeSessions?.find(a => a.username === session.username && sessionIsOnServer(a, session.serverAddress));
                   return (
-                    <div key={`${session.username}-${session.serverAddress}`} className={`flex items-center justify-between p-4 rounded-lg bg-background border ${hasActiveSession ? 'border-success/30' : 'border-surface/50'}`}>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10"><AvatarFallback className="bg-primary">{session.username[0].toUpperCase()}</AvatarFallback></Avatar>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-foreground font-medium">{session.username}</h4>
-                            {isConnected && <UserCheck className="h-4 w-4 text-success-emphasis" />}
-                            {hasActiveSession && <span className="text-xs text-success-emphasis bg-success/20 px-2 py-0.5 rounded">Active</span>}
-                          </div>
-                          <p className="text-sm text-muted-foreground">{session.serverAddress}</p>
-                          {session.lastConnected && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1"><Clock className="h-3 w-3" />{formatLastConnected(session.lastConnected)}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {!isConnected && (
-                          <Button variant="outline" size="sm" className="border-primary-accent text-primary-accent hover:bg-primary-accent/20" onClick={() => handleSwitchAccount(session.username, session.serverAddress)}>Switch</Button>
-                        )}
-                        <Button variant="ghost" size="icon" aria-label={`Delete saved account ${session.username} on ${session.serverAddress}`} className="text-destructive hover:bg-destructive/20" onClick={() => { setSessionToDelete({ username: session.username, serverAddress: session.serverAddress }); setDeleteConfirmOpen(true); }}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
+                    <AccountRow
+                      key={`${session.username}-${session.serverAddress}`}
+                      username={session.username}
+                      host={session.serverAddress}
+                      current={isCurrentAccount(me, { cid: session.cid, username: session.username })}
+                      live={liveSession !== undefined}
+                      lastConnected={session.lastConnected ? formatLastConnected(session.lastConnected) : null}
+                      onSwitch={() => { if (liveSession) void switchToLive(liveSession); else startSignIn(session.username); }}
+                      onDelete={() => { setSessionToDelete({ username: session.username, serverAddress: session.serverAddress }); setDeleteConfirmOpen(true); }}
+                    />
                   );
                 })}
               </div>
@@ -231,6 +216,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
         </DialogContent>
       </Dialog>
 
+      <TakeoverSignIn username={signInAs} onClose={() => setSignInAs(null)} />
       <DeleteConfirmDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen} username={sessionToDelete?.username} onConfirm={handleRemoveSession} />
       <ClearAllConfirmDialog open={clearAllConfirmOpen} onOpenChange={setClearAllConfirmOpen} onConfirm={handleClearAll} />
     </>
