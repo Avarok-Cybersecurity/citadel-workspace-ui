@@ -10,6 +10,7 @@ import { startGroupResponseService } from '@/lib/group-conversations/group-respo
 import { useConnectionHandler } from './hooks';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { debugLog } from '@/lib/debug-config';
+import { useAgentRequired } from '@/lib/onboarding/agent-optional';
 
 /**
  * WorkspaceApp is the main container component that provides:
@@ -27,6 +28,10 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
   } = useConnectionHandler();
 
   const { isOnline } = useOnlineStatus();
+  // False on the create-workspace flow, which talks only to the control plane
+  // and is where a visitor without the agent is expected to be. See
+  // lib/onboarding/agent-optional.ts.
+  const agentRequired: boolean = useAgentRequired();
 
   // The translator from group responses to group:* events, started when the
   // workspace mounts. It used to be called ONLY inside the retry modal's
@@ -55,7 +60,7 @@ export const WorkspaceApp: React.FC<{ children: React.ReactNode }> = ({ children
             untouched, so when connectivity returns the dialog reappears if the
             connection genuinely has not come back. */}
         <ConnectionRetryModal
-          isOpen={showConnectionRetry && isOnline}
+          isOpen={showConnectionRetry && isOnline && agentRequired}
           onClose={() => setShowConnectionRetry(false)}
           errorMessage={connectionError || undefined}
           onRetry={async () => {

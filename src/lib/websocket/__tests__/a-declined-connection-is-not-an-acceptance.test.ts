@@ -33,6 +33,8 @@ function opsThatCapture(): {
       if (body.PeerConnectAccept) seen = body.PeerConnectAccept.request_id;
     },
     isLeader: (): boolean => true,
+    // Accepting never fetches relay servers; a PeerConnect-only port.
+    turnFor: async (): Promise<null> => null,
   });
   return { ops, requestId: (): string | undefined => seen };
 }

@@ -5,11 +5,16 @@
  * MessageNotification, MessageDelivered, and direct Response messages.
  */
 
-import { debugLog, errorLog } from '@/lib/debug-config';
+import { debugLog, debugEnabled, errorLog } from '@/lib/debug-config';
 import { bytesToString } from '@/lib/utils/encoding-utils';
 import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
+import { formatForDebug } from '@/lib/debug-formatter';
+
+// The envelope logs below go through formatForDebug, which prints a payload's
+// ends rather than its bytes and redacts secret-named fields: the payload is an
+// encoded response, and an IceServers response carries a TURN `credential`.
 
 /**
  * Attempt to extract a WorkspaceProtocolResponse from a raw WebSocket event.
@@ -41,7 +46,7 @@ function extractFromMessage(message: WebSocketMessage): WorkspaceProtocolRespons
 
   // --- Direct Response ---
   if (msg.Response) {
-    debugLog('WorkspaceResponseHandler', 'Processing direct response', msg.Response);
+    if (debugEnabled) debugLog('WorkspaceResponseHandler', 'Processing direct response', formatForDebug(msg.Response));
     return msg.Response as unknown as WorkspaceProtocolResponse;
   }
 
@@ -55,7 +60,7 @@ function extractFromMessage(message: WebSocketMessage): WorkspaceProtocolRespons
 function extractFromNotification(
   notification: Record<string, unknown>,
 ): WorkspaceProtocolResponse | null {
-  debugLog('WorkspaceResponseHandler', 'Received MessageNotification', notification);
+  if (debugEnabled) debugLog('WorkspaceResponseHandler', 'Received MessageNotification', formatForDebug(notification));
 
   // P2P guard: peer_cid !== 0 && peer_cid !== cid => let p2p-messenger-manager handle it
   if (notification.peer_cid && notification.cid) {
@@ -80,7 +85,7 @@ function extractFromNotification(
 function extractFromDelivered(
   delivered: Record<string, unknown>,
 ): WorkspaceProtocolResponse | null {
-  debugLog('WorkspaceResponseHandler', 'Received MessageDelivered', delivered);
+  if (debugEnabled) debugLog('WorkspaceResponseHandler', 'Received MessageDelivered', formatForDebug(delivered));
   return decodeByteArrayPayload(delivered.contents, 'MessageDelivered');
 }
 

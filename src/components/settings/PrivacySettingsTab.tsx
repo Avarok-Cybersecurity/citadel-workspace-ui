@@ -1,4 +1,5 @@
 import { NotEnforcedNote } from './not-enforced-note';
+import { SignInKeysSection } from '@/components/passkey/SignInKeysSection';
 import { useState, useEffect } from 'react';
 import { Eye, MessageSquare, Users } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
@@ -31,6 +32,8 @@ export function PrivacySettingsTab(): JSX.Element {
 
   return (
     <div className="space-y-5">
+      <SignInKeysSection />
+
       {/* Visibility */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground/80">

@@ -1,20 +1,24 @@
 import { CitadelLogo } from '@/components/brand/CitadelLogo';
 import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
 import { LoginAdvancedOptions } from "./LoginAdvancedOptions";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { ChevronLeft, Loader2, Eye, EyeOff, User, Lock, LogIn } from "lucide-react";
 import { SecuritySettings, SecuritySettingsValues } from "./SecuritySettings";
 import { useLoginHandler } from "./useLoginHandler";
+import { PasskeySignIn } from "./passkey/PasskeySignIn";
+import { PasskeyEnrolCard } from "./passkey/PasskeyEnrolCard";
 
 interface LoginProps {
   onNext: (connectionId: string) => void;
   onCancel: () => void;
+  /** A username to start with (from an account link); the password is still typed. */
+  initialUsername: string | undefined;
 }
 
-export function Login({ onNext, onCancel }: LoginProps): JSX.Element {
+export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.Element {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [showSecuritySettings, setShowSecuritySettings] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -30,7 +34,10 @@ export function Login({ onNext, onCancel }: LoginProps): JSX.Element {
     securitySettings,
     setSecuritySettings,
     handleLogin,
-  } = useLoginHandler({ onNext });
+    passkey,
+    handlePasskeyLogin,
+    enrolPrompt,
+  } = useLoginHandler({ onNext, initialUsername });
 
   const handleSecuritySettingsComplete = (values: SecuritySettingsValues): void => {
     setSecuritySettings({
@@ -40,7 +47,7 @@ export function Login({ onNext, onCancel }: LoginProps): JSX.Element {
       kemAlgorithm: values.kemAlgorithm,
       sigAlgorithm: values.sigAlgorithm,
       headerObfuscatorSettings: values.headerObfuscatorSettings,
-      storeCredentials: values.storeCredentials ?? false,
+      enrolPasskey: values.enrolPasskey ?? false,
     });
   };
 
@@ -51,9 +58,17 @@ export function Login({ onNext, onCancel }: LoginProps): JSX.Element {
     enabled: !showSecuritySettings,
   });
 
+  // Declared after the overlay's own first-field focus so it runs later: with
+  // the username already known, the field left to fill is the password.
+  useEffect((): void => {
+    if (initialUsername) document.getElementById('password')?.focus();
+  }, [initialUsername]);
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4" ref={dialogRef} {...dialogProps}>
-      {showSecuritySettings ? (
+      {enrolPrompt ? (
+        <PasskeyEnrolCard prompt={enrolPrompt} />
+      ) : showSecuritySettings ? (
         <SecuritySettings
           onNext={() => setShowSecuritySettings(false)}
           onBack={() => setShowSecuritySettings(false)}
@@ -65,7 +80,7 @@ export function Login({ onNext, onCancel }: LoginProps): JSX.Element {
             kemAlgorithm: securitySettings.kemAlgorithm,
             sigAlgorithm: securitySettings.sigAlgorithm,
             headerObfuscatorSettings: securitySettings.headerObfuscatorSettings,
-            storeCredentials: securitySettings.storeCredentials,
+            enrolPasskey: securitySettings.enrolPasskey,
           }}
           isFromLogin={true}
         />
@@ -113,6 +128,10 @@ export function Login({ onNext, onCancel }: LoginProps): JSX.Element {
                   />
                 </div>
               </div>
+
+              {passkey.hasKeys && (
+                <PasskeySignIn onUse={() => { void handlePasskeyLogin(); }} disabled={loading} />
+              )}
 
               {/* Password */}
               <div className="space-y-1.5">
@@ -171,6 +190,7 @@ export function Login({ onNext, onCancel }: LoginProps): JSX.Element {
                 onConfigureSecurity={() => setShowSecuritySettings(true)}
                 securitySettings={securitySettings}
                 setSecuritySettings={setSecuritySettings}
+                passkey={passkey}
               />
 
               {/* Error */}

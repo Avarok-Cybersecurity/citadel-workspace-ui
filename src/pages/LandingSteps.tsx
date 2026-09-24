@@ -26,6 +26,8 @@ export interface LandingStepsProps {
   handleJoinNext: (cid: string) => void;
   handleJoinBack: () => void;
   handleLoginNext: (cid: string) => void;
+  /** Pre-filled by an account link; undefined for an ordinary sign-in. */
+  loginUsername: string | undefined;
 }
 
 export function LandingSteps({
@@ -42,6 +44,7 @@ export function LandingSteps({
   handleJoinNext,
   handleJoinBack,
   handleLoginNext,
+  loginUsername,
 }: LandingStepsProps): JSX.Element {
   return (
     <>
@@ -72,7 +75,7 @@ export function LandingSteps({
         />
       )}
       {currentStep === 'login' && (
-        <Login onNext={handleLoginNext} onCancel={() => setCurrentStep('none')} />
+        <Login onNext={handleLoginNext} onCancel={() => setCurrentStep('none')} initialUsername={loginUsername} />
       )}
 
     </>

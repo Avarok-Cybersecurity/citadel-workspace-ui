@@ -9,6 +9,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { StepIndicator } from "@/components/ui/step-indicator";
 import { readDefaultWorkspaceServer } from "@/lib/default-workspace-server";
 import { normalizeWorkspaceAddress } from "@/lib/workspace-address";
+import { createdWorkspaceAddress } from "@/lib/onboarding/claim-handoff";
 
 interface ServerConnectProps {
   onNext: (address: string, password: string) => void;
@@ -37,12 +38,16 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
   // ever told them -- the page and the server are different hosts, so it cannot
   // be derived from window.location. Empty stays empty for a local build.
   //
+  // A workspace this page has just created comes before the published default:
+  // the visitor pressed "Open your workspace" on it, and it is the one they mean.
+  //
   // A pre-fill, never a lock: the field remains editable, because reaching
   // someone else's server from this page is a legitimate thing to do.
   const publishedDefault: string | undefined =
     typeof document === 'undefined' ? undefined : readDefaultWorkspaceServer(document);
+  const justCreated: string | undefined = createdWorkspaceAddress();
   const [serverAddress, setServerAddress] = useState(
-    defaultServer || initialAddress || publishedDefault || '',
+    defaultServer || initialAddress || justCreated || publishedDefault || '',
   );
   const [password, setPassword] = useState(initialPassword || '');
 

@@ -12,6 +12,7 @@
 // by which point the cycle has fully resolved and the singleton is initialized.
 import * as wsModule from '../websocket-service';
 import { markSessionsRead, sessionsHaveBeenRead } from './sessions-read-state';
+import { scrubLegacyCredentials, type ScrubResult } from './scrub-legacy-credentials';
 import { failOnSocketLoss } from '../websocket/request-response';
 import { persistJSON, parsePersistedJSON } from '../storage-utils';
 import { formatForDebug } from '../debug-formatter';
@@ -161,13 +162,33 @@ export class ConnectionIOWebSocket {
         const jsonStr: string = bytesToString(result.value);
         // StoredSession.cid is a bigint and exists specifically so an orphaned
         // session can be reclaimed; a bare JSON.parse gave it back as a string.
-        return parsePersistedJSON<StoredSessions>(jsonStr, ['cid']);
+        const parsed: StoredSessions = parsePersistedJSON<StoredSessions>(jsonStr, ['cid']);
+        return await this.withoutPlaintextCredentials(parsed);
       } catch (decodeError) {
         debugLog('ConnectionIO', 'Failed to decode stored sessions:', decodeError);
         return null;
       }
     }
     return null;
+  }
+
+  /**
+   * Every read path passes through here, so no in-memory copy -- and no
+   * read-modify-write built on one -- carries a plaintext password onward. The
+   * write-back removes it from the agent's store; if that write fails, the next
+   * read tries again.
+   */
+  private async withoutPlaintextCredentials(parsed: StoredSessions): Promise<StoredSessions> {
+    const result: ScrubResult = scrubLegacyCredentials(parsed);
+    if (result.scrubbed > 0) {
+      try {
+        await this.storeSessionsToLocalDB(result.sessions);
+        debugLog('ConnectionIO', 'Removed plaintext credentials from', result.scrubbed, 'stored sessions');
+      } catch (error) {
+        debugLog('ConnectionIO', 'Could not write back scrubbed sessions; will retry on next read', error);
+      }
+    }
+    return result.sessions;
   }
 
   // ============================================================================

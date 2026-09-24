@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { rowClass } from "./selected-row";
+import { connectionPathLabel } from "@/lib/ice-servers/path-copy";
+import type { PeerConnectPath } from "@/types/ice-servers";
 
 interface PeerListRowProps {
   cid: string;
@@ -23,6 +25,8 @@ interface PeerListRowProps {
   isOnline: boolean | null;
   /** True, false, or null when the check did not answer in time. */
   isConnected: boolean | null;
+  /** How the connection travels, as the agent reported it; null when it has not. */
+  connectionPath: PeerConnectPath | null;
   unreadCount?: number;
   /** Whether this is the conversation currently on screen. See active-conversation. */
   isActive?: boolean;
@@ -34,6 +38,7 @@ export function PeerListRow({
   username,
   isOnline,
   isConnected,
+  connectionPath,
   unreadCount,
   isActive = false,
   onClick,
@@ -54,6 +59,9 @@ export function PeerListRow({
     : isOnline === false
     ? 'Offline'
     : 'Presence not known yet';
+
+  // Only a live connection has a path worth naming; a stale one would mislead.
+  const pathLabel: string | null = isConnected === true ? connectionPathLabel(connectionPath) : null;
 
   return (
     <SidebarMenuItem key={cid}>
@@ -80,11 +88,15 @@ export function PeerListRow({
               {username[0]?.toUpperCase() || '?'}
             </div>
             {/* Status indicator - top-right corner */}
-            <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface ${statusColor}`} />
+            <div
+              className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface ${statusColor}`}
+              title={pathLabel === null ? statusLabel : `${statusLabel} · ${pathLabel}`}
+              data-connection-path={isConnected === true ? connectionPath ?? undefined : undefined}
+            />
             {/* Colour alone would carry the meaning, which fails WCAG 1.4.1 —
                 same pairing as ParticipantTile's speaking indicator. */}
             <span className="sr-only">
-              {statusLabel}
+              {pathLabel === null ? statusLabel : `${statusLabel}, ${pathLabel}`}
             </span>
           </div>
           {/* Username */}

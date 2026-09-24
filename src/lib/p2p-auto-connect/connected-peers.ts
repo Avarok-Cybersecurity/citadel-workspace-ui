@@ -14,6 +14,7 @@
 
 import { ensureBigInt, ensureBigIntPair } from '../utils';
 import type { PeerConnectionInfo } from './types';
+import type { PeerConnectPath } from '@/types/ice-servers';
 import { debugLog } from '@/lib/debug-config';
 
 export class ConnectedPeersState {
@@ -44,10 +45,12 @@ export class ConnectedPeersState {
       this.connectedPeers.set(localCidBigInt, new Map());
     }
     const localPeerMap: Map<bigint, PeerConnectionInfo> = this.connectedPeers.get(localCidBigInt)!;
+    // A re-confirmation of the same connection keeps the path it reported.
     localPeerMap.set(peerCidBigInt, {
       peerCid: peerCidBigInt,
       connectedAt: now,
       lastVerified: now,
+      path: localPeerMap.get(peerCidBigInt)?.path ?? null,
     });
 
     // Store reverse direction: peerCid -> localCid (BIDIRECTIONAL)
@@ -59,6 +62,7 @@ export class ConnectedPeersState {
       peerCid: localCidBigInt,
       connectedAt: now,
       lastVerified: now,
+      path: peerPeerMap.get(localCidBigInt)?.path ?? null,
     });
 
     const allKeys: bigint[] = Array.from(this.connectedPeers.keys());
@@ -68,6 +72,21 @@ export class ConnectedPeersState {
     debugLog('P2PAutoConnectState',
       `[ILM-DIAG] setPeerConnectedLocal: ALL MAP KEYS (${allKeys.length}): ${allKeys.map((k) => `${k.toString().slice(0, 8)}...(type=${typeof k})`).join(', ')}`
     );
+  }
+
+  /**
+   * Record how the connection reached the peer (bidirectional). The report comes
+   * with PeerConnectSuccess, so the pair is connected; a missing record is created.
+   * Dropped with the connection by setPeerDisconnected.
+   */
+  setConnectionPath(localCid: bigint, peerCid: bigint, path: PeerConnectPath): void {
+    const [a, b] = ensureBigIntPair(localCid, peerCid);
+    const now: number = Date.now();
+    for (const [from, to] of [[a, b], [b, a]] as const) {
+      const peers: Map<bigint, PeerConnectionInfo> = this.getPeerMapForSession(from);
+      const existing: PeerConnectionInfo | undefined = peers.get(to);
+      peers.set(to, { peerCid: to, connectedAt: existing?.connectedAt ?? now, lastVerified: now, path });
+    }
   }
 
   /**

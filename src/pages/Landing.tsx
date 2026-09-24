@@ -8,23 +8,23 @@ import type { SecuritySettingsValues } from "@/components/SecuritySettings";
 import { DEFAULT_SECURITY_SETTINGS } from "@/components/security-settings-defaults";
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { ManageAccountsButton } from "@/components/ManageAccountsButton";
-import { ConnectionManager } from "@/lib/connection";
 import { OrphanSessionsNavbar } from "@/components/OrphanSessionsNavbar";
-import { SettingsModal } from "@/components/SettingsModal";
 import { cn } from "@/lib/utils";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
-import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { useToast } from '@/hooks/use-toast';
 import { toastError } from '@/lib/toast-helpers';
 import { InstallAppButton } from "@/components/pwa/InstallAppButton";
 import type { NavigateFunction } from 'react-router';
-import type { ActiveSession } from '@/types/session-types';
 import { CitadelLogo } from '@/components/brand/CitadelLogo';
 import { OnboardingIntent } from '@/components/onboarding/OnboardingIntent';
 import { useOnboardingIntent } from '@/hooks/useOnboardingIntent';
 import { useAgentGatedStep } from '@/hooks/use-agent-gate';
 import type { OnboardingIntentState } from '@/hooks/useOnboardingIntent';
+import { CreateWorkspaceCta } from '@/components/create-workspace/CreateWorkspaceCta';
+import { useLinkedLogin } from './use-account-link';
+import { useHasOrphanSessions } from './use-orphan-sessions';
+import { LazySettingsModal } from '@/components/LazySettingsModal';
 
 export const Landing: () => JSX.Element = (): JSX.Element => {
   const navigate: NavigateFunction = useNavigate();
@@ -32,7 +32,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');
   const { draft: profileDraft, setDraft: setProfileDraft, clear: clearProfileDraft } = useProfileDraft();
-  const [hasOrphanSessions, setHasOrphanSessions] = useState(false);
+  const hasOrphanSessions: boolean = useHasOrphanSessions();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Server connection data lifted to Landing state to avoid React Query GC eviction
@@ -45,37 +45,6 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
   const [securitySettings, setSecuritySettings] = useState<SecuritySettingsValues>(
     DEFAULT_SECURITY_SETTINGS,
   );
-
-  // Check for orphan sessions (don't auto-navigate, just detect)
-  useEffect(() => {
-    const checkOrphanSessions = async (): Promise<void> => {
-      try {
-        // Get the connection manager instance
-        const connectionManager: ConnectionManager = ConnectionManager.getInstance();
-
-        // Wait for connection manager to be ready before getting sessions
-        // This prevents race conditions during component initialization
-        await connectionManager.waitForReady();
-
-        // Get active sessions from internal service
-        const activeSessions: ActiveSession[] = await connectionManager.getActiveSessions();
-
-        if (activeSessions && activeSessions.length > 0) {
-          debugLog('Landing', 'Landing: Found orphan sessions:', activeSessions.length);
-          setHasOrphanSessions(true);
-          // Note: Don't auto-navigate - let user choose from the navbar
-        } else {
-          debugLog('Landing', 'Landing: No orphan sessions found');
-          setHasOrphanSessions(false);
-        }
-      } catch (error) {
-        debugLog('Landing', 'Landing: Error checking orphan sessions:', error);
-        setHasOrphanSessions(false);
-      }
-    };
-
-    runAsyncSetup(checkOrphanSessions);
-  }, [navigate]);
 
   // Open the join flow when navigated here with ?join=1 (e.g. from the
   // Manage Accounts empty state on any route). Clears the param after
@@ -136,11 +105,12 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
 
   // Production only: ask which job the user is here to do before the wizard,
   // so the master password is named before it is needed rather than after.
-  const intent: OnboardingIntentState = useOnboardingIntent(beginWizard);
+  const intent: OnboardingIntentState = useOnboardingIntent(beginWizard, navigate);
   const startRegistration: () => void = intent.request;
 
   // Both buttons on this screen need the agent; see use-agent-gate.ts.
   const startLogin: () => void = useAgentGatedStep(setCurrentStep, 'login', 'none');
+  const { linkedUsername, startPlainLogin } = useLinkedLogin(startLogin);
   const handleLoginNext = async (cid: string): Promise<void> => {
     debugLog('Landing', `[Landing] handleLoginNext called with cid: ${cid}`);
     try {
@@ -152,7 +122,6 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
       toastError(toast, "Login Setup Failed", error instanceof Error ? error.message : "Failed to load workspace after login");
     }
   };
-
 
   return (
     <div className="h-dvh flex items-center relative overflow-hidden bg-background">
@@ -223,7 +192,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Button
-              onClick={startLogin}
+              onClick={startPlainLogin}
               data-testid="sign-in-button"
               className="bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium px-6 h-11 transition-all duration-200 w-full sm:w-auto flex items-center gap-2 rounded-lg shadow-lg shadow-primary-accent/20 hover:shadow-primary-accent/30"
               size="lg"
@@ -244,7 +213,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
             </Button>
           </div>
 
-          {/* Secondary actions */}
+          <CreateWorkspaceCta />
           <div className="mt-6 flex items-center gap-4">
             <ManageAccountsButton />
             <div className="w-[1px] h-4 bg-border" />
@@ -290,10 +259,11 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
         handleJoinNext={handleJoinNext}
         handleJoinBack={handleJoinBack}
         handleLoginNext={handleLoginNext}
+        loginUsername={linkedUsername}
       />
 
       {/* Settings modal */}
-      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <LazySettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 };

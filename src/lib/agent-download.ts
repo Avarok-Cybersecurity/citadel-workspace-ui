@@ -23,8 +23,37 @@ export const AGENT_ASSETS: Record<AgentPlatform, string> = {
   'windows-x64': 'citadel-agent-windows-x64.zip',
 };
 
-export const RELEASES_PAGE: "https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest" =
-  'https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest';
+/**
+ * The Mac download: one universal app (Apple Silicon and Intel) in a notarised, stapled disk
+ * image, built by release-agent.yml's macos-app job. It runs the agent with the right settings
+ * itself, so a Mac visitor downloads, drags it into Applications and opens it: no archive, no
+ * command, and no processor to pick. Same contract as AGENT_ASSETS: the test reads the workflow.
+ */
+export const MAC_APP_ASSET: 'Citadel-Agent.dmg' = 'Citadel-Agent.dmg';
+
+/** Windows: an installer that registers the agent to start now and at login. */
+export const WINDOWS_INSTALLER_ASSET: 'Citadel-Agent-x64.msi' = 'Citadel-Agent-x64.msi';
+
+/** Ubuntu and Debian: a package that installs the agent and starts it at login. */
+export const LINUX_DEB_ASSET: 'citadel-agent-linux-x64.deb' = 'citadel-agent-linux-x64.deb';
+
+/** Every other Linux distribution: one self-contained executable. */
+export const LINUX_APPIMAGE_ASSET: 'Citadel-Agent-x86_64.AppImage' = 'Citadel-Agent-x86_64.AppImage';
+
+/** The operating systems that get a one-click installer. */
+export type InstallerFamily = 'mac' | 'windows' | 'linux';
+
+/** The one-click downloads for each family, most widely applicable first. */
+export const INSTALLER_ASSETS: Readonly<Record<InstallerFamily, readonly string[]>> = {
+  mac: [MAC_APP_ASSET],
+  windows: [WINDOWS_INSTALLER_ASSET],
+  linux: [LINUX_DEB_ASSET, LINUX_APPIMAGE_ASSET],
+};
+
+/** The repository whose release workflow builds, publishes and attests every asset above. */
+export const RELEASE_REPO: 'Avarok-Cybersecurity/citadel-workspace' = 'Avarok-Cybersecurity/citadel-workspace';
+
+export const RELEASES_PAGE: string = `https://github.com/${RELEASE_REPO}/releases/latest`;
 
 /**
  * Which agent builds could run on this visitor's machine.
@@ -60,10 +89,32 @@ export function agentPlatformCandidates(nav: Navigator = navigator): AgentPlatfo
   return [];
 }
 
-/** Download URL for an asset, resolved by GitHub to the newest release. */
-export function agentDownloadUrl(platform: AgentPlatform): string {
-  return `https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/latest/download/${AGENT_ASSETS[platform]}`;
+/** Download URL for any published asset, resolved by GitHub to the newest release. */
+export function releaseAssetUrl(asset: string): string {
+  return `https://github.com/${RELEASE_REPO}/releases/latest/download/${asset}`;
 }
+
+/** Download URL for a platform's raw archive. */
+export function agentDownloadUrl(platform: AgentPlatform): string {
+  return releaseAssetUrl(AGENT_ASSETS[platform]);
+}
+
+/** Which one-click installer fits these candidates; undefined when none does (phones, unknown). */
+export function installerFamily(candidates: readonly AgentPlatform[]): InstallerFamily | undefined {
+  if (candidates.length === 0) return undefined;
+  if (candidates.every((c) => c === 'macos-arm64' || c === 'macos-x64')) return 'mac';
+  if (candidates.every((c) => c === 'windows-x64')) return 'windows';
+  if (candidates.every((c) => c === 'linux-x64')) return 'linux';
+  return undefined;
+}
+
+/**
+ * The three STUN servers the agent requires (--stun-servers; it will not start without them),
+ * the same list the Mac app's Info.plist passes: Cloudflare's, and two of Google's, since the
+ * agent classifies its NAT by comparing three independent answers.
+ */
+export const AGENT_STUN_SERVERS: string =
+  'stun.cloudflare.com:3478,stun1.l.google.com:19302,stun4.l.google.com:19302';
 
 /** What the hosted page knows that the command needs. */
 export interface RunCommandInputs {
@@ -95,6 +146,7 @@ export function agentRunCommand({ platform, pageOrigin, loopbackOrigin }: RunCom
     '--bind 127.0.0.1:12345',
     '--backend filesystem',
     `--allowed-origins ${pageOrigin}`,
+    `--stun-servers ${AGENT_STUN_SERVERS}`,
   ];
   // NO loopback flags. This used to append `--loopback-host` and
   // `--loopback-cert-url`, and the agent has never had either:

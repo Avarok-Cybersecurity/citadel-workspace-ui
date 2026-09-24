@@ -37,6 +37,7 @@ function renderRow(isConnected: boolean | null, isOnline: boolean | null): void 
         username="ada"
         isOnline={isOnline}
         isConnected={isConnected}
+        connectionPath={null}
         onClick={vi.fn()}
       />
     </SidebarProvider>,

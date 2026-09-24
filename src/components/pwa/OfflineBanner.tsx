@@ -3,6 +3,7 @@ import { useLayoutEffect, useRef , type RefObject } from 'react';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { useServiceHealth } from '@/hooks/use-service-health';
 import { useServerShutdown } from '@/hooks/use-server-shutdown';
+import { useAgentRequired } from '@/lib/onboarding/agent-optional';
 
 /**
  * Tell the user when the device has lost connectivity.
@@ -28,7 +29,10 @@ export function OfflineBanner(): JSX.Element | null {
   // restarting" is a better thing to read than "you appear to be offline".
   const shutdown: string | null = useServerShutdown();
   const ref: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
-  const agentDown: boolean = isOnline && !isHealthy;
+  // Not on a page that works without the agent (creating a workspace), where
+  // "can't reach the agent" describes nothing the visitor is trying to do.
+  const agentRequired: boolean = useAgentRequired();
+  const agentDown: boolean = isOnline && !isHealthy && agentRequired;
   const showing: boolean = Boolean(shutdown) || !isOnline || justReconnected || agentDown;
 
   // Publish the banner's real height so the layout can make room for it. It is

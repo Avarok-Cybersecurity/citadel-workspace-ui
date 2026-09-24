@@ -18,6 +18,8 @@ import {
   WebSocketInitialization,
   WorkspaceOperations,
 } from '../websocket';
+import { lazyTurnSource } from '../ice-servers/lazy-turn-source';
+import { TIMEOUT } from '../timeout-constants';
 
 export interface ServiceModules {
   localDB: LocalDBOperations;
@@ -59,10 +61,19 @@ export function createServiceModules(
   const sessionMgmt: SessionManagement = new SessionManagement(moduleConfig);
   const filePicker: FilePicker = new FilePicker(moduleConfig);
 
+  const workspaceOps: WorkspaceOperations = new WorkspaceOperations({
+    init: callbacks.init,
+    getClient: callbacks.getClient,
+  });
+
   const p2pOps: P2POperations = new P2POperations({
     init: callbacks.init,
     sendMessage: (msg: unknown) => callbacks.sendMessage(msg as Record<string, unknown>),
     isLeader: () => instanceManager.isLeader,
+    turnFor: lazyTurnSource(async () => (await import('../ice-servers/workspace-turn-source')).createWorkspaceTurnSource({
+      send: (cid: bigint, request: 'GetIceServers'): Promise<void> => workspaceOps.sendWorkspaceRequest(cid, request),
+      timeoutMs: TIMEOUT.SERVER_REQUEST_MS,
+    })),
   });
 
   const messengerOps: MessengerOperations = new MessengerOperations({
@@ -89,11 +100,6 @@ export function createServiceModules(
     onClientCreated: callbacks.onClientCreated,
     onClientReset: callbacks.onClientReset,
     releaseSession: callbacks.releaseSession,
-  });
-
-  const workspaceOps: WorkspaceOperations = new WorkspaceOperations({
-    init: callbacks.init,
-    getClient: callbacks.getClient,
   });
 
   return {

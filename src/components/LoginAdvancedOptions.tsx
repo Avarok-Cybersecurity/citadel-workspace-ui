@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import type { SecuritySettingsState } from "./useLoginHandler";
+import type { PasskeyAccount } from "./passkey/usePasskeyAccount";
+import { PASSKEY_COPY } from "@/lib/passkey/copy";
 
 /**
  * The login form's Advanced Options section.
@@ -11,6 +13,11 @@ import type { SecuritySettingsState } from "./useLoginHandler";
  * Split out of `Login.tsx` when that file crossed the 250-line ceiling. An exact
  * piecewise move: the markup is unchanged, the two pieces of state it reads are
  * props, and the toggle is a callback. Nothing here decides anything.
+ *
+ * The switch that was "Remember Credentials" -- a plaintext password on the
+ * agent -- now asks to enrol a passkey after sign-in instead. It is not shown
+ * for an account that already has one here (Settings adds more), and where
+ * WebAuthn cannot run the reason is said rather than a dead switch shown.
  */
 export interface LoginAdvancedOptionsProps {
   isOpen: boolean;
@@ -18,6 +25,7 @@ export interface LoginAdvancedOptionsProps {
   onConfigureSecurity: () => void;
   securitySettings: SecuritySettingsState;
   setSecuritySettings: React.Dispatch<React.SetStateAction<SecuritySettingsState>>;
+  passkey: PasskeyAccount;
 }
 
 export function LoginAdvancedOptions({
@@ -26,6 +34,7 @@ export function LoginAdvancedOptions({
   onConfigureSecurity,
   securitySettings,
   setSecuritySettings,
+  passkey,
 }: LoginAdvancedOptionsProps): JSX.Element {
   return (
     <>
@@ -58,22 +67,26 @@ export function LoginAdvancedOptions({
             </Button>
           </div>
 
-          <div className="flex items-center justify-between">
-            <label
-              htmlFor="remember"
-              className="text-xs font-semibold tracking-wider uppercase text-muted-foreground cursor-pointer"
-            >
-              Remember Credentials
-            </label>
-            <Switch
-              id="remember"
-              checked={securitySettings.storeCredentials}
-              onCheckedChange={(checked) => setSecuritySettings({
-                ...securitySettings,
-                storeCredentials: checked
-              })}
-            />
-          </div>
+          {!passkey.available ? (
+            <p className="text-xs text-muted-foreground">{PASSKEY_COPY.unavailableHere}</p>
+          ) : !passkey.hasKeys && (
+            <div className="flex items-center justify-between gap-3">
+              <label
+                htmlFor="enrol-passkey"
+                className="text-xs font-semibold tracking-wider uppercase text-muted-foreground cursor-pointer"
+              >
+                {PASSKEY_COPY.enrolSwitch}
+              </label>
+              <Switch
+                id="enrol-passkey"
+                checked={securitySettings.enrolPasskey}
+                onCheckedChange={(checked) => setSecuritySettings({
+                  ...securitySettings,
+                  enrolPasskey: checked
+                })}
+              />
+            </div>
+          )}
         </div>
       )}
     </>

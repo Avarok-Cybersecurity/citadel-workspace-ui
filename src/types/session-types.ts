@@ -10,22 +10,14 @@ import { SessionSecuritySettings } from "@/lib/p2p-registration-service";
 export interface StoredSession {
   username: string;
   /**
-   * Absent when the user declined "Remember Credentials".
-   *
-   * This was required, and every login wrote it regardless of the toggle — the
-   * switch was read into component state and never reached the storage path, so
-   * a user on a security product who declined credential storage had their
-   * password written to LocalDB anyway and silently reused to re-authenticate.
-   * Auto-reconnect already skips sessions with no password; the two direct
-   * reconnect paths now refuse rather than sending undefined.
+   * LEGACY, never written. Builds before passkey unlock stored the account
+   * password here in plaintext; every read now removes it (see
+   * connection/scrub-legacy-credentials.ts). Still declared so that scrub, and
+   * the reconnect paths that refuse a session without one, type-check.
    */
   password?: string;
   serverAddress: string;
-  /**
-   * The workspace's pre-shared key. Optional because it is only kept when the
-   * user asked for their credentials to be remembered -- it used to be stored
-   * unconditionally, beside an account password that was correctly gated.
-   */
+  /** LEGACY, never written: the workspace PSK, scrubbed on read like `password`. */
   serverPassword?: string;
   fullName: string;
   lastConnected: number;

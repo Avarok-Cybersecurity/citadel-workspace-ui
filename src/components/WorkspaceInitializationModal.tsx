@@ -16,6 +16,8 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import type { WorkspaceInitializationModalProps } from './workspace-init-types';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import { forgetIssuedClaim } from '@/lib/onboarding/claim-handoff';
+import { useClaimCodePrefill } from '@/lib/onboarding/use-claim-code-prefill';
 
 export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModalProps> = ({
     isOpen,
@@ -31,6 +33,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
+    const prefilled: boolean = useClaimCodePrefill(isOpen, serverAddress, setMasterPassword);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
         setMasterPassword(e.target.value);
@@ -122,6 +125,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
             });
 
             setMasterPassword("");
+            forgetIssuedClaim();
             onSuccess();
         } catch (err: unknown) {
             debugLog('WorkspaceInitializationModal', 'Failed to initialize workspace:', err);
@@ -196,7 +200,9 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                                 there is no administrator to contact — this prompt is
                                 how the first one comes to exist. */}
                             <p className="text-xs text-muted-foreground">
-                                Not the password you chose when you created your account.
+                                {prefilled
+                                    ? "Filled in with this workspace's claim code."
+                                    : "Not the password you chose when you created your account."}
                             </p>
                         </div>
 

@@ -5,7 +5,7 @@
  * 1. AccountManagementDialog (from WorkspaceSwitcher or landing)
  * 2. LoginConflictModal
  * 3. /connect saved workspaces page
- * 4. Login "Remember credentials" switch
+ * 4. Login passkey-enrol switch (replaced "Remember credentials")
  */
 
 import { Page } from 'playwright';
@@ -36,7 +36,7 @@ interface TestResults {
 
   // Login page features
   loginPageRenders: boolean;
-  rememberCredentialsVisible: boolean;
+  passkeyEnrolVisible: boolean;
 
   // Saved workspaces
 
@@ -106,11 +106,11 @@ async function testAccountManagementDialog(page: Page): Promise<{
 
 async function testLoginPage(page: Page): Promise<{
   renders: boolean;
-  rememberCredentials: boolean;
+  passkeyEnrol: boolean;
 }> {
   console.log('\n=== Testing Login Page Features ===');
 
-  const results = { renders: false, rememberCredentials: false };
+  const results = { renders: false, passkeyEnrol: false };
 
   await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60_000 });
   await waitForAppReady(page, 60_000);
@@ -134,7 +134,8 @@ async function testLoginPage(page: Page): Promise<{
 
   if (!results.renders) return results;
 
-  // Remember Credentials sits inside the collapsed "Advanced Options" section,
+  // The passkey-enrol switch (it replaced plaintext "Remember Credentials")
+  // sits inside the collapsed "Advanced Options" section,
   // beside Configure. Without expanding it the control is genuinely not on
   // screen — the same omission that hid the Configure button in
   // security-settings.
@@ -143,8 +144,8 @@ async function testLoginPage(page: Page): Promise<{
     await advancedOptions.click();
   }
 
-  results.rememberCredentials = await isVisibleWithin(page.getByText(/Remember Credentials/i), 5000);
-  console.log(`  Remember credentials visible: ${results.rememberCredentials}`);
+  results.passkeyEnrol = await isVisibleWithin(page.getByText(/Unlock with a passkey or security key next time|Passkeys need a secure/i), 5000);
+  console.log(`  Passkey enrol switch visible: ${results.passkeyEnrol}`);
 
   await page.keyboard.press('Escape');
 
@@ -171,7 +172,7 @@ async function runTest(): Promise<boolean> {
     accountMgmtOpens: false,
     sessionListVisible: false,
     loginPageRenders: false,
-    rememberCredentialsVisible: false,
+    passkeyEnrolVisible: false,
     loginConflictDetected: false,
   };
 
@@ -213,7 +214,7 @@ async function runTest(): Promise<boolean> {
 
     const loginResult = await testLoginPage(page);
     results.loginPageRenders = loginResult.renders;
-    results.rememberCredentialsVisible = loginResult.rememberCredentials;
+    results.passkeyEnrolVisible = loginResult.passkeyEnrol;
     await takeScreenshot(page, '03_login_page');
 
     // ========== STEP 4: Check Saved Workspaces ==========
@@ -248,14 +249,14 @@ async function runTest(): Promise<boolean> {
       results.accountMgmtOpens,
       results.sessionListVisible,
       results.loginPageRenders,
-      results.rememberCredentialsVisible,
+      results.passkeyEnrolVisible,
     ].every(Boolean);
 
     console.log(`\n  Account Created:           ${results.accountCreated ? 'PASS' : 'FAIL'}`);
     console.log(`  Acct Mgmt Dialog Opens:    ${results.accountMgmtOpens ? 'PASS' : 'CHECK'}`);
     console.log(`  Session List:              ${results.sessionListVisible ? 'PASS' : 'CHECK'}`);
     console.log(`  Login Page Renders:        ${results.loginPageRenders ? 'PASS' : 'CHECK'}`);
-    console.log(`  Remember Credentials:      ${results.rememberCredentialsVisible ? 'PASS' : 'CHECK'}`);
+    console.log(`  Passkey enrol switch:     ${results.passkeyEnrolVisible ? 'PASS' : 'CHECK'}`);
     console.log(`  Login Conflict:            ${results.loginConflictDetected ? 'PASS' : 'SKIP'}`);
 
     harness.finalize(corePassed, results);

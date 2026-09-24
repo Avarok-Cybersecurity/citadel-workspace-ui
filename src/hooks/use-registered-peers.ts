@@ -10,6 +10,9 @@ import { useState, useEffect, useRef, useCallback , type MutableRefObject } from
 import { eventEmitter } from '@/lib/event-emitter';
 import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
+import { connectionPathFor } from '@/lib/p2p-auto-connect-service/connection-path';
+import { getCurrentCid } from '@/lib/p2p/current-cid';
+import type { PeerConnectPath } from '@/types/ice-servers';
 import { sessionStartupService } from '@/lib/session-startup-service';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
@@ -28,6 +31,8 @@ export interface RegisteredPeer {
    * as `isOnline` above.
    */
   isConnected: boolean | null;
+  /** How the connection travels, when the agent has said. */
+  connectionPath: PeerConnectPath | null;
 }
 
 interface UseRegisteredPeersReturn {
@@ -91,6 +96,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
 
       let peerList: RegisteredPeer[] = [];
       try {
+        const sessionCid: bigint | null = await getCurrentCid();
         peerList = await Promise.all(peersToUse.map(async p => {
           const cidStr: string = p.cid?.toString() || '';
           const displayName: string = peerDisplayName({ cid: p.cid, username: p.username });
@@ -108,7 +114,8 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
           } catch {
             isConnected = null;
           }
-          return { cid: cidStr, username: displayName, isOnline, isConnected };
+          const connectionPath: PeerConnectPath | null = connectionPathFor(sessionCid, peerCidBigInt);
+          return { cid: cidStr, username: displayName, isOnline, isConnected, connectionPath };
         }));
       } catch (mapError) {
         debugLog('UseRegisteredPeers', 'Promise.all mapping failed:', mapError);
@@ -116,7 +123,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
           const cidStr: string = p.cid?.toString() || '';
           const displayName: string = peerDisplayName({ cid: p.cid, username: p.username });
           // The listing failed; nobody has said whether these peers are online.
-          return { cid: cidStr, username: displayName, isOnline: null, isConnected: null };
+          return { cid: cidStr, username: displayName, isOnline: null, isConnected: null, connectionPath: null };
         });
       }
 

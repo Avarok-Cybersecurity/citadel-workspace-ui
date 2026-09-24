@@ -44,7 +44,7 @@ describe('the onboarding answer', () => {
 
   it('stops the master-password prompt when the user says they are joining', () => {
     const begin: ReturnType<typeof vi.fn> = vi.fn();
-    const { result } = renderHook(() => useOnboardingIntent(begin));
+    const { result } = renderHook(() => useOnboardingIntent(begin, vi.fn()));
 
     act(() => { result.current.request(); });
     expect(result.current.open, 'the dialog must actually be showing').toBe(true);
@@ -60,7 +60,7 @@ describe('the onboarding answer', () => {
 
   it('leaves the prompt in place for someone setting a workspace up', () => {
     const begin: ReturnType<typeof vi.fn> = vi.fn();
-    const { result } = renderHook(() => useOnboardingIntent(begin));
+    const { result } = renderHook(() => useOnboardingIntent(begin, vi.fn()));
 
     act(() => { result.current.request(); });
     act(() => { result.current.resolve('admin'); });
@@ -71,12 +71,60 @@ describe('the onboarding answer', () => {
 
   it('leaves the prompt in place when the user closes the dialog without answering', () => {
     const begin: ReturnType<typeof vi.fn> = vi.fn();
-    const { result } = renderHook(() => useOnboardingIntent(begin));
+    const { result } = renderHook(() => useOnboardingIntent(begin, vi.fn()));
 
     act(() => { result.current.request(); });
     act(() => { result.current.resolve(); });
 
     expect(initPromptSuppressed(), 'saying nothing is not saying "I am joining"').toBe(false);
     expect(begin).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * "Setting up a new workspace" opens the hosted create-workspace flow -- but
+ * only where the deployment publishes a control plane. Everywhere else it is
+ * the wizard and the master password, exactly as before, which the case above
+ * ("leaves the prompt in place for someone setting a workspace up") pins with
+ * no meta present.
+ */
+describe('setting up, where this deployment creates workspaces', () => {
+  function publishControlPlane(content: string): () => void {
+    const meta: HTMLMetaElement = document.createElement('meta');
+    meta.name = 'citadel-control-plane';
+    meta.content = content;
+    document.head.appendChild(meta);
+    return () => meta.remove();
+  }
+
+  it('goes to /create instead of the wizard', () => {
+    const unpublish: () => void = publishControlPlane('/api');
+    try {
+      const begin: ReturnType<typeof vi.fn> = vi.fn();
+      const create: ReturnType<typeof vi.fn> = vi.fn();
+      const { result } = renderHook(() => useOnboardingIntent(begin, create));
+      act(() => { result.current.request(); });
+      act(() => { result.current.resolve('admin'); });
+      expect(create).toHaveBeenCalledWith('/create');
+      expect(begin).not.toHaveBeenCalled();
+      expect(result.current.open).toBe(false);
+    } finally {
+      unpublish();
+    }
+  });
+
+  it('still runs the wizard for someone joining', () => {
+    const unpublish: () => void = publishControlPlane('/api');
+    try {
+      const begin: ReturnType<typeof vi.fn> = vi.fn();
+      const create: ReturnType<typeof vi.fn> = vi.fn();
+      const { result } = renderHook(() => useOnboardingIntent(begin, create));
+      act(() => { result.current.request(); });
+      act(() => { result.current.resolve('member'); });
+      expect(begin).toHaveBeenCalledTimes(1);
+      expect(create).not.toHaveBeenCalled();
+    } finally {
+      unpublish();
+    }
   });
 });

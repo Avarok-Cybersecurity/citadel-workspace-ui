@@ -3,11 +3,14 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   AGENT_ASSETS,
+  INSTALLER_ASSETS,
+  MAC_APP_ASSET,
   agentDownloadUrl,
   agentPlatformCandidates,
   agentRunCommand,
   type AgentPlatform,
 } from '../agent-download';
+import { filesThePublishJobCollects } from './release-workflow';
 
 const WORKFLOW: string = join(process.cwd(), '..', '.github', 'workflows', 'release-agent.yml');
 /** The agent's CLI, as the agent itself declares it. */
@@ -38,6 +41,31 @@ describe('agent asset names match the release workflow', () => {
         published.has(asset),
         `The UI offers "${asset}" for ${platform}, but release-agent.yml builds no such asset. ` +
           `A user clicking that link gets a 404 from GitHub. Published: ${[...published].join(', ')}`,
+      ).toBe(true);
+    }
+  });
+
+  it('the Mac app is built by the macos-app job', () => {
+    const yaml: string = readFileSync(WORKFLOW, 'utf8');
+    const job: string = yaml.slice(yaml.indexOf('\n  macos-app:'), yaml.indexOf('\n  publish:'));
+    expect(job.length, 'release-agent.yml has no macos-app job before publish').toBeGreaterThan(0);
+    expect(job).toContain(`package-macos-dmg.sh "$RUNNER_TEMP/app/Citadel Agent.app" ${MAC_APP_ASSET}`);
+  });
+
+  it('every one-click installer the UI links to is uploaded where the publish job collects it', () => {
+    // Needs the pipeline change that builds the .msi, .deb and AppImage: until it lands in
+    // release-agent.yml, the three are linked from the page and 404 on click.
+    const yaml: string = readFileSync(WORKFLOW, 'utf8');
+    const published: Set<string> = filesThePublishJobCollects(yaml);
+    // A floor: the parse finding nothing would make every assertion below fail for the
+    // wrong reason, and a parse finding only the .sha256 files would too.
+    expect(published.has(MAC_APP_ASSET), `parsed: ${[...published].join(', ')}`).toBe(true);
+    expect(published.has(AGENT_ASSETS['linux-x64']), `matrix not expanded: ${[...published].join(', ')}`).toBe(true);
+    for (const asset of Object.values(INSTALLER_ASSETS).flat()) {
+      expect(
+        published.has(asset),
+        `The UI offers "${asset}", but no upload-artifact step the publish job collects carries it. ` +
+          `Collected: ${[...published].join(', ')}`,
       ).toBe(true);
     }
   });

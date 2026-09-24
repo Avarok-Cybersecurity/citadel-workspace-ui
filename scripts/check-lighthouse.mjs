@@ -151,6 +151,11 @@ async function main() {
         break;
       } catch (error) {
         launchError = error;
+        // A launch that throws leaves its Chrome running — chrome-launcher only
+        // kills instances it returned — and that live child keeps node from
+        // exiting: the gate printed "baselines met" and then hung until the job
+        // timeout cancelled it.
+        chromeLauncher.killAll();
         console.log(
           `  Chrome did not come up (attempt ${attempt}/${LAUNCH_ATTEMPTS}): ${error?.message ?? error}`,
         );
@@ -316,6 +321,7 @@ async function main() {
     // .catch() on it threw and turned a passing run into exit 1.
     try {
       chrome?.kill();
+      chromeLauncher.killAll();
     } catch {
       // Cleanup only. A browser we could not kill must not fail the gate.
     }

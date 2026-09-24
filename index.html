@@ -120,6 +120,11 @@
          window.location, because the UI and the server are different hosts. Empty
          means "ask the user", which is correct for a local build. -->
     <meta name="citadel-default-server" content="" />
+    <!-- The tenant control plane's same-origin base path (e.g. /api), filled in by the
+         hosted deployment only. It switches on "Create new workspace"; empty means this
+         deployment cannot create workspaces, which is correct for a local build and a
+         self-hosted server. See src/lib/onboarding/control-plane-config.ts. -->
+    <meta name="citadel-control-plane" content="" />
   </head>
 
   <body>

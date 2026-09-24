@@ -15,7 +15,7 @@ import type { AgentPlatform } from '@/lib/agent-download';
  * (they were removed upstream over trademark ambiguity), and a remote sprite is
  * a network request on a screen that is displayed *because* the network failed.
  *
- * Their own module rather than in AgentDownloadHint, which sits at 136 of the
+ * Their own module rather than in the agent-setup components, which sat at 136 of the
  * 250 lines `scripts/check-file-length.mjs` allows it; three glyphs would eat
  * most of what is left for reasons unrelated to what that file does.
  *
