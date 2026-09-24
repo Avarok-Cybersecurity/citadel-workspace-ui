@@ -17,7 +17,7 @@
   "src/components/p2p/usePeerDiscovery.ts": 2,
   "src/components/registration-response-handler.ts": 2,
   "src/components/useJoinRegistration.ts": 3,
-  "src/hooks/use-conversation-peers.ts": 2,
+  "src/hooks/use-conversation-peers.ts": 1,
   "src/hooks/use-group-conversations.ts": 2,
   "src/hooks/use-group-conversations.types.ts": 1,
   "src/hooks/use-registered-peers.ts": 1,
