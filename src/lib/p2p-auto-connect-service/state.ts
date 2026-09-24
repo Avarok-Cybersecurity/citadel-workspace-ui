@@ -142,7 +142,9 @@ export class AutoConnectState {
   }
 
   clearOnlineStatus(): void {
-    this.core.setOnlinePeers([]);
+    // Forgotten, not answered: an empty setOnlinePeers is dated as a completed poll, and a
+    // follower never polls again, so every peer read "Offline" for the life of the tab.
+    this.core.forgetOnlineStatus();
   }
 
   getPeerMapForSession(localCid: bigint): Map<bigint, PeerConnectionInfo> {

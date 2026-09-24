@@ -60,7 +60,7 @@ export class P2PAutoConnectService {
         localCid: localCid.toString(),
         peerCid: peerCid.toString(),
         path: this.state.getPeerConnectionInfo(localCid, peerCid)?.path ?? null,
-      });
+      }, localCid);
     }
   }
 

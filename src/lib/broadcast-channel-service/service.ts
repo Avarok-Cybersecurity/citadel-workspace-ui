@@ -26,6 +26,7 @@ import {
   broadcast as doBroadcast,
   broadcastWorkspaceResponse as doBroadcastWorkspaceResponse,
   broadcastStateSync as doBroadcastStateSync,
+  stateSyncTarget,
   broadcastConnectionStatus as doBroadcastConnectionStatus,
   broadcastP2PNotification as doBroadcastP2PNotification,
 } from './broadcasting';
@@ -148,16 +149,16 @@ export class BroadcastChannelService extends PollingService {
   }
 
   /**
-   * Broadcast state for THIS tab's session.
+   * Broadcast state for THIS tab's session, or for `about` when the state concerns another.
    *
    * The cid is resolved here rather than asked of every caller: the senders are hooks and
    * services that already know which session they belong to implicitly, and a stamp that
    * depends on remembering to pass it is a stamp that will be missed.
    */
-  public broadcastStateSync(data: unknown): void {
+  public broadcastStateSync(data: unknown, about?: bigint): void {
     runAsyncSetup(async () => {
       const selection: TabUserContext | null = await getSelectedUser();
-      doBroadcastStateSync(this.channel, this.tabId, this.isLeader, data, selection?.selectedCid);
+      doBroadcastStateSync(this.channel, this.tabId, this.isLeader, data, stateSyncTarget(about, selection?.selectedCid));
     });
   }
 
