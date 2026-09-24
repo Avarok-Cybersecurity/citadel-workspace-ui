@@ -10,6 +10,7 @@ import { eventEmitter } from '../event-emitter';
 import type { P2PMessage, P2PConversation } from './p2p-types';
 import { debugLog } from '@/lib/debug-config';
 import { deliverToConversation, shouldAck, type DeliveryOutcome } from './inbound-message-delivery';
+import { fileTransferMessage } from './file-transfer-message';
 
 export interface FileTransferMessageHandlerConfig {
   /** Get or create conversation */
@@ -47,30 +48,13 @@ export class FileTransferMessageHandler {
       return;
     }
 
-    const message: P2PMessage = {
-      id: payload.message_id,
-      content: `File transfer: ${layer.file_name}`,
-      // Transport peer, not `payload.sender_cid` — the same fix as
-      // message-handler-routing, which was never carried to this sibling.
-      // Both handle the same wire envelope from the same dispatcher; this one
-      // kept trusting the field the sender chooses, so any registered peer
-      // could attribute a file-transfer message to a third party in the
-      // victim's conversation. `peerCid` is already a parameter here.
-      senderCid: peerCid,
-      recipientCid: BigInt(payload.recipient_cid),
-      timestamp: layer.timestamp,
-      index: payload.index,
-      status: 'delivered',
-      message_type: 'file_transfer',
-      transfer_id: layer.transfer_id,
-      file_name: layer.file_name,
-      file_size: layer.file_size,
-      file_type: layer.file_type,
-      file_thumbnail: layer.thumbnail,
-      transfer_mode: layer.transfer_mode,
-      transfer_state: 'pending',
-      virtual_path: layer.virtual_path
-    };
+    // Transport peer as the sender, not `payload.sender_cid` — the same fix as
+    // message-handler-routing, which was never carried to this sibling. Both
+    // handle the same wire envelope from the same dispatcher; this one kept
+    // trusting the field the sender chooses, so any registered peer could
+    // attribute a file-transfer message to a third party in the victim's
+    // conversation. `peerCid` is already a parameter here.
+    const message: P2PMessage = fileTransferMessage(payload, layer, peerCid, 'delivered', 'pending');
 
     // Through the shared delivery path, not around it. `deliverToConversation`
     // separates "arrived" from "stored" so a LocalDB failure still shows the
