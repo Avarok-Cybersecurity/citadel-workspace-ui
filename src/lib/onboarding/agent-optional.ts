@@ -16,12 +16,13 @@
  * such components mounted at once cannot un-declare each other.
  */
 import { useEffect, useSyncExternalStore } from 'react';
+import { notifyEach } from '@/lib/notify-listeners';
 
 let holders: number = 0;
 const listeners: Set<() => void> = new Set();
 
 function notify(): void {
-  for (const listener of listeners) listener();
+  notifyEach(listeners, 'agent-optional');
 }
 
 function subscribe(listener: () => void): () => void {
