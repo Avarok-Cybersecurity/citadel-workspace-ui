@@ -5,6 +5,7 @@ import type { StoredSession } from '@/types/session-types';
 export interface TabIdentity {
   username?: string;
   fullName?: string;
+  cid?: bigint;
 }
 
 /**
@@ -36,6 +37,7 @@ export function tabIdentity(
   return {
     username: selection?.selectedUsername ?? session?.username,
     fullName: session?.fullName,
+    cid: selection?.selectedCid ?? session?.cid,
   };
 }
 
