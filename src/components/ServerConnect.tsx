@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Globe, Lock, Shield, ArrowRight } from "lucide-react";
 import { useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { StepIndicator } from "@/components/ui/step-indicator";
+import { RegistrationStepIndicator } from "./RegistrationStepIndicator";
 import { readDefaultWorkspaceServer } from "@/lib/default-workspace-server";
 import { normalizeWorkspaceAddress } from "@/lib/workspace-address";
 import { createdWorkspaceAddress } from "@/lib/onboarding/claim-handoff";
@@ -86,13 +86,9 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
       <div className="w-full max-w-md">
         <Card className="bg-background border-border shadow-2xl shadow-black/40">
           <CardHeader className="pb-4">
-            {/* "Workspace", not "Server": the field below is labelled
-                Workspace Address, and a step indicator that names a different
-                thing from the field it introduces makes the user wonder which
-                one they are being asked for. */}
             {/* Mark only: the card is narrow and the wordmark has a 130px floor. */}
             <CitadelLogo variant="mark" height={34} className="mb-4" />
-            <StepIndicator currentStep={1} totalSteps={3} labels={["Workspace", "Security", "Profile"]} />
+            <RegistrationStepIndicator currentStep={1} />
             <h2 className="text-xl font-bold text-foreground mt-5">{title || "Create Account"}</h2>
             <p className="text-sm text-muted-foreground mt-1">
               {defaultServer ? "Connect with a different account" : "Enter workspace details to get started"}
