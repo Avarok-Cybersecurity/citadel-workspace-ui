@@ -11,6 +11,7 @@ import { debugLog } from '@/lib/debug-config';
 import { isVariant , type WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 import type { ConnectionInfo } from './workspace-handlers';
 import { mapWasmMember } from './member-mapping';
+import { recordMemberNames } from '@/lib/member-names';
 import type { MappedMember } from '@/lib/workspace-response-handler/member-mapping';
 
 export function handleGeneratedVariants(
@@ -66,8 +67,10 @@ export function handleGeneratedVariants(
     const rawMembers: Record<string, unknown>[] = Array.isArray(payload) ? payload : payload.members;
     const domainId: string | undefined = Array.isArray(payload) ? undefined : payload.domain_id ?? undefined;
 
+    const mappedMembers: MappedMember[] = rawMembers.map((m) => mapWasmMember(m));
+    recordMemberNames(mappedMembers);
     eventEmitter.emit('members:loaded', {
-      members: rawMembers.map((m) => mapWasmMember(m)),
+      members: mappedMembers,
       domainId,
       connection: connectionInfo,
     });

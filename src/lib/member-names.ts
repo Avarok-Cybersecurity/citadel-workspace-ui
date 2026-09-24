@@ -1,0 +1,38 @@
+/**
+ * What workspace members are called, by username, for surfaces that only know
+ * a username.
+ *
+ * P2P surfaces -- the chat header, pending requests, the peer list -- get a
+ * peer's username from the agent (`peer_username`) and nothing else, so a peer
+ * who registered as "Bob Brown" was shown as `bob0924` there even once the
+ * member list said "Bob Brown". The member list is where the display name
+ * lives; this remembers it, fed from every `Members` response, and
+ * `peerDisplayName` consults it when it was given no full name.
+ *
+ * Merged, never replaced: a room's roster is a subset of the workspace's, and
+ * a name learnt from one is still true. Per tab, like the session it serves;
+ * a later roster overwrites any name it disagrees with.
+ */
+
+const displayNames: Map<string, string> = new Map();
+
+/**
+ * A mapped member. Its `id` is the account's username -- the server keys
+ * users by it -- and is what the agent reports as `peer_username`.
+ */
+export interface NamedMember {
+  id?: string;
+  displayName: string;
+}
+
+export function recordMemberNames(members: readonly NamedMember[]): void {
+  for (const { id, displayName } of members) {
+    const name: string = displayName.trim();
+    if (id && name && name !== id) displayNames.set(id, name);
+  }
+}
+
+/** The member's display name, when it is something other than the username. */
+export function memberDisplayName(username: string | null | undefined): string | undefined {
+  return username ? displayNames.get(username.trim()) : undefined;
+}
