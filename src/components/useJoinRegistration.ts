@@ -16,8 +16,12 @@ import type { ConnectStatus } from "./LoadingModal";
 import { debugLog } from '@/lib/debug-config';
 import { createRegistrationResponseHandler } from './registration-response-handler';
 import type { NavigateFunction } from 'react-router';
+import { startSignupProfile } from '@/lib/signup-profile-io';
+import type { SignupProfileFields } from '@/lib/signup-profile';
+import { BLANK_JOIN_FORM } from './join-form-blank';
 
-export interface JoinFormData {
+/** The required credentials plus the optional profile fields sent after registration. */
+export interface JoinFormData extends SignupProfileFields {
   fullName: string;
   username: string;
   password: string;
@@ -49,12 +53,7 @@ export function useJoinRegistration(
   const [connectStatus, setConnectStatus] = useState<ConnectStatus>("connecting");
 
   const [formData, setFormData] = useState<JoinFormData>(
-    draft?.initial ?? {
-      fullName: "",
-      username: "",
-      password: "",
-      confirmPassword: "",
-    },
+    draft?.initial ?? BLANK_JOIN_FORM,
   );
 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -104,15 +103,16 @@ export function useJoinRegistration(
   // not carry the fix here.
   const securitySettings: SecuritySettingsValues | { readonly securityLevel: "Standard"; readonly secrecyMode: "BestEffort"; readonly encryptionAlgorithm: "AES_GCM_256"; readonly kemAlgorithm: "MlKem"; readonly sigAlgorithm: "None"; readonly headerObfuscatorSettings: {}; readonly enrolPasskey: false; } = providedSecuritySettings ?? DEFAULT_SECURITY_SETTINGS;
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    const { name, value } = e.target;
+  const setField = <K extends keyof JoinFormData>(name: K, value: JoinFormData[K]): void => {
     setFormData(prev => {
-      const next: { fullName: string; username: string; password: string; confirmPassword: string; } = { ...prev, [name]: value };
+      const next: JoinFormData = { ...prev, [name]: value };
       // Reported up as it is typed, so a step back does not take it with it.
       draft?.onChange(next);
       return next;
     });
   };
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void =>
+    setField(e.target.name as Exclude<keyof JoinFormData, 'avatarData'>, e.target.value);
 
   const handleConnectSuccess = async (
     data: Record<string, unknown>,
@@ -203,6 +203,8 @@ export function useJoinRegistration(
       // so the "Fetching your workspace data..." bar described work that had
       // already finished and was visible for a single frame.
       debugLog('Join', "Register Response:", response);
+      // After, never instead: the account exists whatever happens to these.
+      startSignupProfile({ avatarData: formData.avatarData, email: formData.email, title: formData.title });
 
       toast({ title: "Registration Successful", description: "Your account has been registered. Connecting to workspace...", variant: "default" });
       setConnectStatus("ready");
@@ -233,6 +235,8 @@ export function useJoinRegistration(
     showConnectModal,
     connectStatus,
     handleInputChange,
+    // Sound: JoinFormData extends SignupProfileFields, so the keys agree; tsc cannot see it through the generic.
+    handleOptionalChange: setField as JoinRegistration['handleOptionalChange'],
     handleBlur,
     fieldErrors,
     handleSubmit,
