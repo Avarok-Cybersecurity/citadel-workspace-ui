@@ -14,12 +14,15 @@ const ROSTER_CHANGED: readonly string[] = ['p2p:peers-updated', 'p2p:peer-regist
  * just reloaded has not loaded its roster by then, so a caller was frozen as
  * "Peer 6W1TP1" for the whole call while the sidebar beside it learned "alice".
  * Held per cid, so a tile reused for someone else does not keep the old name.
+ * Asked by the participant tile and by the screen-share label, which both
+ * show a name the call froze at signal time.
  */
-export function useRosterName(cid: bigint, known: string): string {
+export function useRosterName(cid: bigint | null, known: string): string {
   const [learned, setLearned] = useState<{ cid: bigint; name: string } | null>(null);
 
   useEffect(() => {
-    if (!isPlaceholderName(known)) return;
+    // Null is "nobody to look up" -- this tab's own share, or no share at all.
+    if (cid === null || !isPlaceholderName(known)) return;
     const refresh = (): void => {
       const name: string = rosterPeerName(cid);
       if (!isPlaceholderName(name)) setLearned({ cid, name });

@@ -8,6 +8,7 @@ import { registerCallStage } from './call-stage-presence';
 import { ScreenShareView } from './ScreenShareView';
 import { useAnnotations } from './use-annotations';
 import { useStageShare } from './use-stage-share';
+import { useRosterName } from './use-roster-name';
 import { cameraControlUsable, mediaControlsUsable, type ControlAvailability } from './call-control-availability';
 import { VideoSettingsModal } from './VideoSettingsModal';
 import { canShareScreen } from '@/lib/call/screen-capability';
@@ -86,6 +87,9 @@ export function CallStage({
     selfUsername,
   });
 
+  // The share's name was frozen with the participant's; see use-roster-name.
+  const sharerName: string = useRosterName(share?.cid ?? null, share?.name ?? '');
+
   const { strokes, beginStroke, addPoint, endStroke } = useAnnotations({
     callId: share ? call.callId : null,
     author: selfUsername,
@@ -121,7 +125,7 @@ export function CallStage({
           {share && (
             <ScreenShareView
               stream={share.stream}
-              sharerName={share.name}
+              sharerName={sharerName}
               isSelf={share.isSelf}
               strokes={strokes}
               onPoint={addPoint}
@@ -192,7 +196,7 @@ export function CallStage({
           canShareScreen={(controls.usable || call.selfMedia.screen) && canShareScreen() && !someoneElseIsSharing}
           shareBlockedReason={
             someoneElseIsSharing && share
-              ? `${share.name} is sharing — one screen at a time`
+              ? `${sharerName} is sharing — one screen at a time`
               : !canShareScreen()
                 ? 'This browser cannot share a screen'
                 : controls.reason
