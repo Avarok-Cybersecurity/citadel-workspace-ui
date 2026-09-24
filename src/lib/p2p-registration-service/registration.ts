@@ -9,7 +9,6 @@ import { isPlaceholderName, peerDisplayName } from '@/lib/peer-display';
 import { websocketService } from '../websocket-service';
 import { failOnSocketLoss } from '../websocket/request-response';
 import { broadcastChannelService } from '../broadcast-channel-service';
-import { instanceManager } from '../multi-instance';
 import { debugLog } from '@/lib/debug-config';
 import { isForThisSession } from '@/lib/sessions/notification-ownership';
 import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
@@ -22,6 +21,7 @@ import {
 } from './constants';
 import { getCurrentCid } from './discovery';
 import { consumeWasDecline } from './decline-correlation';
+import { broadcastPeerUpdate } from './broadcast-peer-update';
 
 /** Context passed from the service so the message handler can read/write shared state. */
 export interface RegistrationContext {
@@ -83,15 +83,6 @@ function ensurePeerRegistered(ctx: RegistrationContext, peerCid: bigint, peerUse
   return peer;
 }
 
-/** Broadcast peer update to follower tabs if we are the leader. */
-function broadcastPeerUpdate(peerCid: bigint, username: string, flags: { isOutgoing?: boolean; isIncoming?: boolean }): void {
-  if (!instanceManager.isLeader) return;
-  debugLog('P2PRegistrationService', `[P2P-SYNC] Leader broadcasting registeredPeers update: ${peerCid.toString().slice(0, 8)}...`);
-  broadcastChannelService.broadcastStateSync({
-    type: 'registered-peer-update', peerCid: peerCid.toString(), peerUsername: username, ...flags,
-  });
-}
-
 function handlePeerRegisterSuccess(data: Record<string, unknown>, ctx: RegistrationContext): void {
   resolveRequest(ctx.pendingRequests, data.request_id as string, data);
 
@@ -110,7 +101,7 @@ function handlePeerRegisterSuccess(data: Record<string, unknown>, ctx: Registrat
     ctx.outgoingRegistrations.add(peerCid);
     const peer: Peer = ensurePeerRegistered(ctx, peerCid, peerUsername);
     eventEmitter.emit('p2p:peer-registered', { peer, isOutgoing: true });
-    broadcastPeerUpdate(peerCid, peer.username, { isOutgoing: true });
+    broadcastPeerUpdate(data.cid, peerCid, peer.username, { isOutgoing: true });
   }
 }
 
@@ -125,7 +116,7 @@ function handlePeerRegisterFailure(data: Record<string, unknown>, ctx: Registrat
       ctx.outgoingRegistrations.add(peerCid);
       const peer: Peer = ensurePeerRegistered(ctx, peerCid);
       eventEmitter.emit('p2p:peer-registered', { peer, isOutgoing: true, wasAlreadyRegistered: true });
-      broadcastPeerUpdate(peerCid, peer.username, { isOutgoing: true });
+      broadcastPeerUpdate(data.cid, peerCid, peer.username, { isOutgoing: true });
     }
     resolveRequest(ctx.pendingRequests, requestId, { peer_cid: peerCid, already_registered: true });
   } else {
@@ -167,7 +158,7 @@ function handlePeerRegisterNotification(data: Record<string, unknown>, ctx: Regi
     // `hasOutgoingRegistration`, not this map, so it is unaffected.
     ctx.allPeers.set(peerCid, peer);
     eventEmitter.emit('p2p:peer-registered', { peer, isIncoming: true });
-    broadcastPeerUpdate(peerCid, peer.username, { isIncoming: true });
+    broadcastPeerUpdate(notificationCid, peerCid, peer.username, { isIncoming: true });
     // Addressed to THIS tab's session, or not ours to act on.
     //
     // The router has three documented paths that deliver a notification to a
