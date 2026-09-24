@@ -81,7 +81,8 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
 
   useEventListener('open-pending-requests-modal', () => { setShowPendingRequests(true); });
 
-  const activeDomainId: string | null = currentNodeId;
+  // No node selected is the workspace view, whose members are the root's.
+  const activeDomainId: string = currentNodeId ?? WORKSPACE_ROOT_ID;
   const { members, isLoadingMembers, membersUnavailable } = useDomainMembers(activeDomainId);
 
   const handleEditMember = (m: WorkspaceMember): void => { setSelectedMember(m); setShowEditModal(true); };
