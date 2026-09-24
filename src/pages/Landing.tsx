@@ -1,6 +1,6 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useProfileDraft } from "./use-profile-draft";
-import { LandingSteps } from "./LandingSteps";
+import { LazyLandingSteps as LandingSteps } from "./lazy-landing-steps";
 import { Button } from "@/components/ui/button";
 import { LogIn, Settings, Shield, ArrowRight } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
