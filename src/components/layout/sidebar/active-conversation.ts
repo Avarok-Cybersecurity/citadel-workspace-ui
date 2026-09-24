@@ -14,6 +14,8 @@
  * router and so the two row types cannot come to disagree about it.
  */
 
+import { buildWorkspacePath, getWorkspacePath } from '@/lib/workspace-navigation';
+
 const GROUPS_PREFIX: '/groups/' = '/groups/';
 
 /** The query parameters a peer conversation lives in. Spelled once. */
@@ -58,9 +60,13 @@ export function conversationHref(
   search: string,
   peer: { cid: string; username: string },
 ): string {
-  const params: URLSearchParams = new URLSearchParams(search);
+  // Only the workspace route renders a peer conversation. Written onto any
+  // other path -- a group page, the directory -- these parameters changed the
+  // address and opened nothing, so from there the link goes to the workspace,
+  // without the other page's parameters, which mean something else there.
+  const params: URLSearchParams = new URLSearchParams(pathname === getWorkspacePath() ? search : '');
   params.set(SHOWING, 'true');
   params.set(PEER, peer.username);
   params.set(CHANNEL, peer.cid);
-  return `${pathname}?${params.toString()}`;
+  return buildWorkspacePath(params);
 }
