@@ -3,7 +3,7 @@
  * Extracted from magic numbers scattered across the codebase.
  */
 
-export const TIMEOUT: { readonly SERVER_REQUEST_MS: 5000; readonly DISCONNECT_REQUEST_MS: 30000; readonly FILE_PICKER_MS: 120000; readonly LOCALDB_REQUEST_MS: 5000; readonly GET_SELECTED_USER_MS: 2000; readonly P2P_CONNECT_REQUEST_MS: 30000; readonly P2P_ACCEPT_REQUEST_MS: 10000; readonly P2P_DISCONNECT_MS: 10000; readonly P2P_MESSAGE_MS: 500; readonly SEARCH_DEBOUNCE_MS: 300; readonly SESSION_MANAGEMENT_MS: 3000; readonly CLAIM_SESSION_MS: 10000; readonly PEER_REGISTER_MS: 10000; readonly PERMISSION_FETCH_MS: 10000; readonly PEER_LIST_MS: 35000; readonly FILE_SEND_MS: 30000; readonly FILE_DOWNLOAD_MS: 60000; readonly OUTBOUND_ACK_MS: 30000; readonly CHECKSTATE_MS: 3000; readonly SW_ACTIVATION_MS: 3000; } = {
+export const TIMEOUT: { readonly SERVER_REQUEST_MS: 5000; readonly DISCONNECT_REQUEST_MS: 30000; readonly FILE_PICKER_MS: 120000; readonly LOCALDB_REQUEST_MS: 5000; readonly GET_SELECTED_USER_MS: 2000; readonly P2P_CONNECT_REQUEST_MS: 30000; readonly P2P_ACCEPT_REQUEST_MS: 10000; readonly P2P_DISCONNECT_MS: 10000; readonly P2P_MESSAGE_MS: 500; readonly SEARCH_DEBOUNCE_MS: 300; readonly SESSION_MANAGEMENT_MS: 3000; readonly CLAIM_SESSION_MS: 10000; readonly PEER_REGISTER_MS: 10000; readonly PERMISSION_FETCH_MS: 10000; readonly PEER_LIST_MS: 35000; readonly FILE_SEND_MS: 30000; readonly FILE_DOWNLOAD_MS: 60000; readonly OUTBOUND_ACK_MS: 30000; readonly CHECKSTATE_MS: 3000; readonly SW_ACTIVATION_MS: 3000; readonly CID_REPORT_WINDOW_MS: 5000; } = {
   /** Default timeout for server requests (WebSocket round-trip) */
   SERVER_REQUEST_MS: 5000,
   /** Timeout for disconnect requests (may involve cleanup) */
@@ -61,6 +61,13 @@ export const TIMEOUT: { readonly SERVER_REQUEST_MS: 5000; readonly DISCONNECT_RE
    * update beats a button that appears to hang.
    */
   SW_ACTIVATION_MS: 3000,
+  /**
+   * How long the leader waits for every tab to answer a cid-report request
+   * before treating a silent one as gone (follower-session-claims). A live
+   * tab answers in milliseconds; one dropped by mistake re-registers on its
+   * next cid-update or report.
+   */
+  CID_REPORT_WINDOW_MS: 5000,
 } as const;
 
 export const INTERVAL: { readonly HEALTH_CHECK_MS: 30000; readonly HEARTBEAT_MS: 2000; readonly LEADER_ELECTION_MS: 3000; readonly LEADER_TIMEOUT_MS: 5000; readonly CLEANUP_MS: 60000; readonly REQUEST_TRACKING_MS: 300000; readonly PERMISSION_CACHE_MS: 60000; readonly DEPLOYED_VERSION_MS: 600000; } = {
