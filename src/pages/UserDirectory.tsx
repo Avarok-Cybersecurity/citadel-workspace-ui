@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { reachablePeer } from './reachable-peer';
+import { connectionRequestSentCopy } from '@/components/p2p/connection-request-copy';
 import { DirectoryTabContent } from './DirectoryTabContent';
 import { describeFailure } from '@/lib/failure-message';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -147,7 +148,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
 
       toast({
         title: 'Request Sent',
-        description: `Connection request sent to ${selectedUser.displayName}. They will receive it when online.`,
+        description: connectionRequestSentCopy(selectedUser.displayName, peer.is_online),
         variant: 'success',
       });
 
