@@ -57,9 +57,11 @@ describe('the build names its entry', () => {
   const chunk: (fileName: string, facadeModuleId: string, isEntry: boolean) => OutputChunk = (fileName: string, facadeModuleId: string, isEntry: boolean): OutputChunk =>
     ({ type: 'chunk', fileName, facadeModuleId, isEntry }) as OutputChunk;
 
-  it('writes the main.tsx entry under the base', () => {
+  // The facade is index.html, as Rollup reports it for a real `vite build` (measured):
+  // an earlier fixture used src/main.tsx, which no build produces, and the real build failed.
+  it('writes the entry index.html loads, under the base', () => {
     const bundle: Record<string, OutputChunk | OutputAsset> = {
-      a: chunk('assets/index-bbbb2222.js', '/app/src/main.tsx', true),
+      a: chunk('assets/index-bbbb2222.js', '/app/index.html', true),
       b: chunk('assets/Landing-cccc.js', '/app/src/pages/Landing.tsx', false),
     };
     expect(JSON.parse(manifestForBuild(bundle, '/'))).toEqual({ entry: '/assets/index-bbbb2222.js' });
