@@ -61,6 +61,19 @@ export function broadcastWorkspaceResponse(
 }
 
 /**
+ * The session a state-sync is addressed to: the one the state is ABOUT when the sender
+ * names it, else the sender tab's own.
+ *
+ * The leader broadcasts connection state for every tab's session, and followers drop
+ * state-sync addressed to another session. Stamped with the leader's own session, a
+ * follower signed in as somebody else discarded every update about its own connections
+ * (seen live: its peer read "Offline" while the P2P link was up and a file crossed it).
+ */
+export function stateSyncTarget(about: bigint | undefined, senderSelected: bigint | undefined): bigint | undefined {
+  return about ?? senderSelected;
+}
+
+/**
  * Build and broadcast a state-sync message.
  */
 export function broadcastStateSync(
