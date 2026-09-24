@@ -15,10 +15,10 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const sent: Array<{ groupId: string; content: string }> = [];
+const sent: Array<{ groupId: string; content: string; groupName?: string }> = [];
 vi.mock('../group-requests', () => ({
-  sendPeerGroupMessage: async (groupId: string, content: string): Promise<string> => {
-    sent.push({ groupId, content });
+  sendPeerGroupMessage: async (groupId: string, content: string, _replyTo?: string, groupName?: string): Promise<string> => {
+    sent.push({ groupId, content, groupName });
     return 'msg-1';
   },
 }));
@@ -75,5 +75,20 @@ describe('sending into a peer group', () => {
     await sendGroupMessageAnywhere('group-1', 'hello');
 
     expect(sent).toEqual([{ groupId: 'group-1', content: 'hello' }]);
+  });
+
+  it("tells the members the group's name when this session owns it", async (): Promise<void> => {
+    // GroupCreate and GroupInvite carry no name, so the owner's messages are
+    // how members learn it. A member's own local name is not announced.
+    const { updateGroups }: typeof import('../group-store') = await import('../group-store');
+    const group = (id: string): import('@/types/group').GroupConversation => ({
+      id, name: 'Team 0924', ownerId: 0n, members: [], settings: { roles: [], defaultRoleId: '' }, unreadCount: 0,
+    });
+    updateGroups((): import('@/types/group').GroupConversation[] => [group('111:5'), group('222:5')]);
+
+    await sendGroupMessageAnywhere('111:5', 'hello');
+    await sendGroupMessageAnywhere('222:5', 'hello');
+
+    expect(sent.map((m) => m.groupName)).toEqual(['Team 0924', undefined]);
   });
 });

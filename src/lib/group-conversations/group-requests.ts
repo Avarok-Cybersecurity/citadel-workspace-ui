@@ -199,6 +199,8 @@ export async function sendPeerGroupMessage(
   groupId: string,
   content: string,
   replyTo?: string,
+  /** The group's name, for the owner to tell members; see ownerAnnouncedName. */
+  groupName?: string,
 ): Promise<string> {
   const cid: bigint = await requireCid();
   const groupKey: MessageGroupKey = groupIdToKey(groupId);
@@ -212,6 +214,7 @@ export async function sendPeerGroupMessage(
     content,
     timestamp: Date.now(),
     reply_to: replyTo,
+    group_name: groupName,
   });
 
   const request: { GroupMessage: { cid: bigint; message: number[]; group_key: MessageGroupKey; request_id: `${string}-${string}-${string}-${string}-${string}`; }; } = {

@@ -1,3 +1,6 @@
+import { groupIdToKey, isValidGroupId } from './group-key';
+import type { GroupConversation } from '@/types/group';
+
 /**
  * The name the creator typed, kept where the protocol cannot keep it.
  *
@@ -11,9 +14,9 @@
  * something else -- and `peer-group`'s fallback, which looks for a row reading
  * the name it typed, could never match.
  *
- * This is local and honest about it. Peers cannot be told a name the wire has
- * no field for; the creator can at least see the one they chose, and it
- * persists with the rest of the group record.
+ * The creator's own record keeps it here. Members learn it from the owner's
+ * messages instead: the peer-group envelope is the one payload the two ends
+ * define themselves, so it carries the name -- see `ownerAnnouncedName`.
  */
 const chosen: Map<string, string> = new Map<string, string>();
 
@@ -37,4 +40,19 @@ export function chosenGroupName(groupId: string): string | null {
 /** Test seam: the map outlives a component, so a test has to be able to clear it. */
 export function forgetChosenNames(): void {
   chosen.clear();
+}
+
+/**
+ * The name an outgoing peer-group message tells the members, if any.
+ *
+ * Only the owner announces: the receiver honours a name only from the cid the
+ * group key names as owner, and a member's local rename is theirs alone.
+ * Decided by the key rather than `ownerId`, because the key is what the
+ * receiving side checks.
+ */
+export function ownerAnnouncedName(group: GroupConversation | undefined, selfCid: bigint): string | undefined {
+  if (!group || !isValidGroupId(group.id)) return undefined;
+  if (groupIdToKey(group.id).cid !== selfCid) return undefined;
+  const name: string = group.name.trim();
+  return name.length > 0 ? name : undefined;
 }

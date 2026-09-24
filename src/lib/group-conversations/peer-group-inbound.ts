@@ -20,6 +20,7 @@
  */
 import { decodeGroupMessage, type PeerGroupMessage } from './group-message-codec';
 import { groupKeyToId, type MessageGroupKey } from './group-key';
+import { toCid } from './group-wire-variants';
 import { debugLog } from '@/lib/debug-config';
 
 export interface PeerGroupMessageSummary {
@@ -31,6 +32,26 @@ export interface PeerGroupMessageSummary {
   content: string;
   timestamp: number;
   replyTo?: string;
+  /** The group's name, present only when its owner sent this. */
+  groupName?: string;
+}
+
+/**
+ * The name to adopt from this message, if its sender may give the group one.
+ *
+ * The group key names the owner and `peer_cid` is the protocol's word for who
+ * sent the message; the envelope's `sender_cid` is the sender's own claim, so
+ * it is not what decides. A member cannot rename the group for everyone.
+ */
+function ownerGivenName(
+  notification: Record<string, unknown>,
+  key: MessageGroupKey,
+  decoded: PeerGroupMessage,
+): string | undefined {
+  const name: string | undefined = decoded.group_name?.trim();
+  if (!name) return undefined;
+  const sender: bigint | null = toCid(notification.peer_cid);
+  return sender !== null && sender === toCid(key.cid) ? name : undefined;
 }
 
 /** The `group:message-received` payload for this notification, or null. */
@@ -50,13 +71,15 @@ export function peerGroupMessageEvent(
   // String only here, at the event boundary: `group:message-received` has
   // always carried senderId as a string and group-store compares it against
   // String(own). The wire and this module keep the bigint.
+  const key: MessageGroupKey = notification.group_key as MessageGroupKey;
   return {
-    groupId: groupKeyToId(notification.group_key as MessageGroupKey),
+    groupId: groupKeyToId(key),
     messageId: decoded.message_id,
     senderId: decoded.sender_cid.toString(),
     senderName: peerName(decoded.sender_cid),
     content: decoded.content,
     timestamp: decoded.timestamp,
     replyTo: decoded.reply_to,
+    groupName: ownerGivenName(notification, key, decoded),
   };
 }

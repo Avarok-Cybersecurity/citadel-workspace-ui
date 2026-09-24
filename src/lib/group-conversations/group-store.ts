@@ -216,6 +216,7 @@ export function startGroupEventBindings(): void {
     messageId?: string;
     senderId: string;
     content: string;
+    groupName?: string;
   }) => {
     updateGroups((prev) => applyGroupMessage(prev, data, Date.now()));
   });

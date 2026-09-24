@@ -26,7 +26,7 @@ const PREVIEW_CHARS: number = 50;
  */
 export function applyGroupMessage(
   groups: GroupConversation[],
-  data: { groupId: string; senderId: string; content: string; messageId?: string },
+  data: { groupId: string; senderId: string; content: string; messageId?: string; groupName?: string },
   now: number,
 ): GroupConversation[] {
   // Nothing to fold into. Returning `prev` is the store's no-op contract.
@@ -52,6 +52,10 @@ export function applyGroupMessage(
     if (group.id !== data.groupId) return group;
     return {
       ...group,
+      // Present only when the group's owner sent this message (see
+      // peer-group-inbound): the wire's one way of telling members the name
+      // the owner chose, which GroupCreate and GroupInvite cannot carry.
+      name: data.groupName ?? group.name,
       unreadCount: fromSelf ? group.unreadCount : group.unreadCount + 1,
       lastMessageTime: now,
       lastMessagePreview:
