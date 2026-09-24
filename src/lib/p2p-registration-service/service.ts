@@ -14,14 +14,13 @@ import { peerRecord } from './peer-record';
 import { isPlaceholderName } from '@/lib/peer-display';
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from '../multi-instance';
-import { connectionManager } from '../connection';
+import { getCurrentCid } from '../p2p/current-cid';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
 import type { BroadcastStateSyncData, WebSocketMessage } from '@/types/ws-message-types';
 import { debugLog } from '@/lib/debug-config';
 import type { Peer, PeerInfoResponse, PeerRegistrationOptions, PendingRequestEntry } from './types';
 import { POLLING_INTERVAL } from './constants';
-import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import {
   listAllPeers as doListAllPeers,
   listRegisteredPeers as doListRegisteredPeers,
@@ -131,11 +130,15 @@ export class P2PRegistrationService {
       debugLog('P2PRegistrationService', 'P2P Registration Service already running');
       return;
     }
-    const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
-    if (!connectionInfo?.cid) {
+    // The session from the resolver every P2P path uses, not connectionManager's record,
+    // which only a login writes: a reopened or claimed tab had none, startup threw here and
+    // the page said "Messaging may be unavailable" over a working session. Marked running
+    // before the await so an activation arriving meanwhile cannot start a second poll.
+    this.isRunning = true;
+    if (!(await getCurrentCid())) {
+      this.isRunning = false;
       throw new Error('No active connection. Please connect first.');
     }
-    this.isRunning = true;
     this.startOptions = options;
     debugLog('P2PRegistrationService', 'Starting P2P Registration Service');
     await this.checkAndRegisterPeers(options);
