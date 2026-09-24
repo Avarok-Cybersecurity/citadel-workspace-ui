@@ -51,6 +51,11 @@ return async (event: { cid: string; message: string }): Promise<void> => {
               toast(SESSION_OWNED_ELSEWHERE);
               return;
             }
+            // Nothing moved: the agent will not hand over a session another connection holds.
+            if (outcome.status === 'held-by-another-connection') {
+              toast({ title: 'Open in another browser window', description: 'Sign in with your password to move it here.', variant: 'destructive' });
+              return;
+            }
             toast({
               title: "Session restored",
               description: "You are now using the session that was already open.",

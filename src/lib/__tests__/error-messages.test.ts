@@ -130,8 +130,14 @@ describe('getUserFriendlyErrorMessage', () => {
   });
 
   it('handles session already connected', () => {
-    const msg: string = getUserFriendlyErrorMessage('Session Already Connected');
-    expect(msg).toContain('already connected');
+    // The workspace server's own refusal. It means the SERVER still holds a
+    // session for the account, not that another window here has it, and the
+    // copy used to claim the latter and offer a takeover nothing performed.
+    const msg: string = getUserFriendlyErrorMessage(
+      'Session Already Connected, or, is in the process of disconnection and an earlier connection attempt beat this connection. Not allowing this connection',
+    );
+    expect(msg).toContain('workspace server still has this account signed in');
+    expect(msg).not.toMatch(/another window or tab|take over/);
   });
 
   it('handles timeout', () => {
