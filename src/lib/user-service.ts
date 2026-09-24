@@ -5,6 +5,9 @@ import { getTabData, setTabData, removeTabData } from './tab-context';
 import { connectionManager } from './connection';
 import { debugLog } from '@/lib/debug-config';
 import type { StoredSession } from '@/types/session-types';
+import { requestResponse } from './websocket/request-response';
+import { TIMEOUT } from './timeout-constants';
+import { readAccountIdentity, type AccountIdentity } from './account-identity';
 
 // Interface for user registration information
 export interface UserRegistrationInfo {
@@ -73,28 +76,33 @@ export class UserService {
       // "User Profile Error" notification -- an alarming, permanent-looking
       // failure produced entirely by asking the wrong question. Nothing about
       // GetAccountInformation needs the raw client.
-      await websocketService.sendMessage({
-        GetAccountInformation: {
-          request_id: crypto.randomUUID(),
-          cid: BigInt(cid),
+      // Asked AND answered: this used to send the request, set a "Loading..." placeholder
+      // and rely on a response handler that did not exist, so the placeholder stayed.
+      const requestId: string = crypto.randomUUID();
+      const identity: AccountIdentity = await requestResponse<AccountIdentity>({
+        request: { GetAccountInformation: { request_id: requestId, cid: BigInt(cid) } },
+        requestId,
+        sendRequest: (request: unknown): Promise<void> => websocketService.sendMessage(request as Record<string, unknown>),
+        timeoutMs: TIMEOUT.SERVER_REQUEST_MS,
+        operationName: 'GetAccountInformation',
+        matcher: {
+          matchSuccess: (message: Record<string, unknown>): AccountIdentity | undefined => readAccountIdentity(message, requestId, BigInt(cid)),
+          matchFailure: (): string | undefined => undefined,
         },
-      } as unknown as Record<string, unknown>);
-
-      // For now, return a placeholder until we get the response
-      // The actual user info will be updated when we receive the response
-      const placeholderUser: { username: string; fullName: string; serverAddress: string; serverPassword: undefined; } = {
-        username: 'Loading...',
-        fullName: 'Loading...',
+      });
+      const userInfo: UserRegistrationInfo = {
+        username: identity.username,
+        fullName: identity.fullName,
         serverAddress,
         serverPassword: undefined,
       };
 
-      await this.setCurrentUser(placeholderUser);
+      await this.setCurrentUser(userInfo);
 
       // Notify all handlers of the user change
       await this.notifyUserChange();
 
-      return placeholderUser;
+      return userInfo;
     } catch (error) {
       debugLog('UserService', 'Error loading user registration:', error);
       this.notificationService.addSystemNotification(
