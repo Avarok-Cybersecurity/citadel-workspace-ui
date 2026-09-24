@@ -1,10 +1,13 @@
-import type { ViteDevServer } from 'vite';
+import type { Plugin, ViteDevServer } from 'vite';
+import type { OutputAsset, OutputChunk } from 'rollup';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { defineConfig } from 'vite';
 import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from 'vite-plugin-pwa';
 import path from "path";
 import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
+import { manifestForBuild } from "./src/lib/pwa/version-manifest";
+import { VERSION_MANIFEST_PATH } from "./src/lib/pwa/deployed-version";
 
 /**
  * The Content-Security-Policy the app ships under.
@@ -82,11 +85,36 @@ const agentProxy = {
   },
 };
 
+/**
+ * Emit `/version.json` so an open page can tell that a newer build is deployed
+ * without a service worker (see src/lib/pwa/deployed-version.ts for why, and why the entry
+ * chunk is the id).
+ */
+function versionManifestPlugin(): Plugin {
+  let base: string | null = null;
+  return {
+    name: 'citadel-version-manifest',
+    apply: 'build',
+    configResolved(config: { base: string }): void {
+      base = config.base;
+    },
+    generateBundle(_options: unknown, bundle: Record<string, OutputAsset | OutputChunk>): void {
+      if (base === null) this.error('version.json: the config was never resolved');
+      try {
+        this.emitFile({ type: 'asset', fileName: VERSION_MANIFEST_PATH.slice(1), source: manifestForBuild(bundle, base) });
+      } catch (error: unknown) {
+        this.error(error instanceof Error ? error.message : String(error));
+      }
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
+      versionManifestPlugin(),
       /**
        * Installable PWA + offline app shell.
        *

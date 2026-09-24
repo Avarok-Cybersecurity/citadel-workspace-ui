@@ -7,6 +7,7 @@
 
 import { INTERVAL } from '../timeout-constants';
 import type { ResponseType } from 'citadel-workspace-client-ts';
+import { AGENT_RECONNECT_NOTIFICATIONS, type AgentReconnectNotification } from '@/types/agent-reconnect';
 
 // Message types that should be broadcast to all instances.
 //
@@ -32,7 +33,7 @@ export const REQUEST_TRACKING_TIMEOUT_MS: number = INTERVAL.REQUEST_TRACKING_MS;
  * These messages have a request_id that belongs to the SENDER, but the message
  * should be delivered to the RECIPIENT (identified by the 'cid' field).
  */
-export const CID_ROUTED_NOTIFICATIONS: Set<ResponseType> = new Set<ResponseType>([
+export const CID_ROUTED_NOTIFICATIONS: Set<ResponseType | AgentReconnectNotification> = new Set<ResponseType | AgentReconnectNotification>([
   'PeerRegisterNotification',         // cid = recipient, request_id = sender's
   'PeerConnectNotification',          // cid = recipient, request_id = sender's
   'MessageNotification',              // cid = recipient, request_id = sender's (from SendMessage)
@@ -55,6 +56,11 @@ export const CID_ROUTED_NOTIFICATIONS: Set<ResponseType> = new Set<ResponseType>
   // frame, not to the request any tab issued, so request_id routing drops it --
   // which is how the UI came to ignore send failures entirely.
   'MessageSendFailure',
+  // cid = the session whose server link dropped, came back, or could not. They
+  // answer no request, so without cid routing the leader tab would show another
+  // tab's "Reconnecting…" and send the wrong account to sign-in. Not generated
+  // variants yet; see types/agent-reconnect.ts.
+  ...AGENT_RECONNECT_NOTIFICATIONS,
 ]);
 
 /**

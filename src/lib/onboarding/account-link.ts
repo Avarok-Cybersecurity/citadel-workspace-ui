@@ -107,4 +107,17 @@ export function parseAccountLink(params: URLSearchParams): AccountLink | null {
   return parseAccountParams(params);
 }
 
+/**
+ * The landing-page path that opens `link`, the inverse of `parseAccountLink`.
+ * A server this parser would refuse is left out rather than sent, so the link
+ * still opens sign-in for the account instead of being refused whole.
+ */
+export function accountLinkPath(link: AccountLink): string {
+  const params: URLSearchParams = new URLSearchParams({ account: link.username });
+  if (link.server !== undefined && link.server.length <= MAX_SERVER_LENGTH && isWorkspaceServerShape(link.server)) {
+    params.set('server', link.server);
+  }
+  return `/?${params.toString()}`;
+}
+
 export { ACCOUNT_LINK_PARAMS, hasAccountLinkParams } from './account-link-params';

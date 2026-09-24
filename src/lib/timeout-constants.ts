@@ -63,7 +63,7 @@ export const TIMEOUT: { readonly SERVER_REQUEST_MS: 5000; readonly DISCONNECT_RE
   SW_ACTIVATION_MS: 3000,
 } as const;
 
-export const INTERVAL: { readonly HEALTH_CHECK_MS: 30000; readonly HEARTBEAT_MS: 2000; readonly LEADER_ELECTION_MS: 3000; readonly LEADER_TIMEOUT_MS: 5000; readonly CLEANUP_MS: 60000; readonly REQUEST_TRACKING_MS: 300000; readonly PERMISSION_CACHE_MS: 60000; } = {
+export const INTERVAL: { readonly HEALTH_CHECK_MS: 30000; readonly HEARTBEAT_MS: 2000; readonly LEADER_ELECTION_MS: 3000; readonly LEADER_TIMEOUT_MS: 5000; readonly CLEANUP_MS: 60000; readonly REQUEST_TRACKING_MS: 300000; readonly PERMISSION_CACHE_MS: 60000; readonly DEPLOYED_VERSION_MS: 600000; } = {
   /** Health check polling interval */
   HEALTH_CHECK_MS: 30000,
   /** WebSocket heartbeat/keep-alive interval */
@@ -78,6 +78,13 @@ export const INTERVAL: { readonly HEALTH_CHECK_MS: 30000; readonly HEARTBEAT_MS:
   REQUEST_TRACKING_MS: 300000,
   /** Permission cache TTL */
   PERMISSION_CACHE_MS: 60000,
+  /**
+   * How often an open page asks `/version.json` whether a new build is out.
+   * Tab focus and coming online also check, so this only bounds how long a page
+   * left in the foreground can run a superseded build: ten minutes of a
+   * ~50-byte, uncached request per open tab.
+   */
+  DEPLOYED_VERSION_MS: 600000,
 } as const;
 
 export const POLLING: { readonly P2P_REGISTRATION_INTERVAL_MS: 30000; readonly SERVER_POLL_INTERVAL_MS: 60000; readonly OUTGOING_REQUESTS_INTERVAL_MS: 300000; readonly GET_SESSIONS_POLL_INTERVAL_MS: 5000; } = {

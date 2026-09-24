@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import WorkspaceApp from "./components/WorkspaceApp";
 import { DocumentTitle } from './components/DocumentTitle';
+import { ServerReconnectWatcher } from './components/ServerReconnectWatcher';
 import { useSendFailureToasts } from '@/hooks/use-send-failure-toasts';
 import { WorkspaceLoader } from "./components/ui/workspace-loader";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
@@ -111,6 +112,7 @@ const App: () => JSX.Element = (): JSX.Element => {
               future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
             >
               <DocumentTitle />
+              <ServerReconnectWatcher />
               {/* Inside the router because its Return button navigates, above
                   the routes because a running call has to stay visible on all
                   of them. It lived in CallLayer, which is above the router --

@@ -13,6 +13,10 @@
  * draft is a thought in progress, and persisting it to disk on a product whose
  * subject is privacy is a decision to make deliberately rather than as a side
  * effect of fixing this.
+ *
+ * The one exception is a reload the app itself asks for (a new deploy, a
+ * superseded chunk): `exportDrafts` hands the entries to draft-handoff for that
+ * single reload, and the next load takes them back and deletes them.
  */
 
 import { instanceManager } from '@/lib/multi-instance';
@@ -54,6 +58,18 @@ export function clearDraft(conversationKey: string): void {
 }
 
 /** Test-only. */
+/** Every draft, keyed exactly as stored, for carrying across one reload. */
+export function exportDrafts(): Array<[string, string]> {
+  return [...drafts.entries()];
+}
+
+/** Put carried drafts back. One typed since the reload is newer, so it wins. */
+export function importDrafts(entries: ReadonlyArray<readonly [string, string]>): void {
+  for (const [key, text] of entries) {
+    if (text !== '' && !drafts.has(key)) drafts.set(key, text);
+  }
+}
+
 export function clearAllDraftsForTests(): void {
   drafts.clear();
 }

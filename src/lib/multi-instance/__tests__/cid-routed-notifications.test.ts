@@ -53,6 +53,11 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     // No peer_cid on this one: the agent's failure answer carries the sender's
     // own cid, a reason, and a transport-frame request_id.
     MessageSendFailure: { cid: targetCid, message: 'Peer connection for 42 not found', request_id: 'r9' },
+    // The agent's server-link notifications (types/agent-reconnect.ts): no
+    // request_id and no peer, so `cid` is the only way to the owning tab.
+    ServerConnectionLost: { cid: targetCid, reconnecting: true, request_id: null },
+    ServerReconnected: { cid: targetCid, request_id: null },
+    ServerReconnectFailed: { cid: targetCid, reason: 'The server did not accept the session', request_id: null },
   };
 
   it('has a test fixture for every CID-routed notification type', () => {
@@ -85,6 +90,9 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
         'MessageSendFailure',
         'PeerConnectNotification',
         'PeerRegisterNotification',
+        'ServerConnectionLost',
+        'ServerReconnectFailed',
+        'ServerReconnected',
       ].sort(),
     );
   });

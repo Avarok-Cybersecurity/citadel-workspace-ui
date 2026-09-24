@@ -43,6 +43,8 @@ import { instanceInboundRouter } from './lib/multi-instance';
 import { startInstallPromptCapture } from '@/components/pwa/install-prompt-store';
 import { showStorageVersionRecovery } from './storage-version-recovery';
 import { startKeyboardInsetTracking } from '@/lib/pwa/keyboard-inset';
+import { watchDeployedVersion } from '@/lib/pwa/version-watch';
+import { browserSessionStorage, reloadKeepingDrafts, restoreHandedOffDrafts } from '@/lib/chat/draft-handoff';
 import { applyAppearanceSettings, loadAppearanceSettings } from './lib/appearance-settings';
 import { initPrivacySettingsSync } from './lib/privacy-settings';
 
@@ -172,7 +174,7 @@ try {
   window.addEventListener('vite:preloadError', (event) => {
     event.preventDefault();
     console.warn('A chunk went missing, which means this window is running a superseded build. Reloading.');
-    window.location.reload();
+    reloadKeepingDrafts(browserSessionStorage(), () => window.location.reload());
   });
 
   // And keep checking, whatever the app is doing. PwaUpdatePrompt polls hourly
@@ -191,6 +193,11 @@ try {
   // registration above.
   startInstallPromptCapture();
   startKeyboardInsetTracking();
+  // Drafts carried across a reload the app asked for, back before any composer
+  // mounts; and the SW-independent deploy check. `import.meta.url` here is the
+  // entry chunk's URL, which is what /version.json names (deployed-version.ts).
+  restoreHandedOffDrafts(browserSessionStorage());
+  watchDeployedVersion(import.meta.url);
 
   const root: ReturnType<typeof createRoot> = createRoot(rootElement);
   root.render(<App />);
