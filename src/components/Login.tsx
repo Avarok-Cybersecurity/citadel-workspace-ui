@@ -10,6 +10,7 @@ import { SecuritySettings, SecuritySettingsValues } from "./SecuritySettings";
 import { useLoginHandler } from "./useLoginHandler";
 import { PasskeySignIn } from "./passkey/PasskeySignIn";
 import { PasskeyEnrolCard } from "./passkey/PasskeyEnrolCard";
+import { passkeyChoices, usePasskeyAccounts } from "./passkey/usePasskeyAccounts";
 
 interface LoginProps {
   onNext: (connectionId: string) => void;
@@ -38,6 +39,8 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
     handlePasskeyLogin,
     enrolPrompt,
   } = useLoginHandler({ onNext, initialUsername });
+
+  const passkeyAccounts: string[] = passkeyChoices(username, passkey.hasKeys, usePasskeyAccounts());
 
   const handleSecuritySettingsComplete = (values: SecuritySettingsValues): void => {
     setSecuritySettings({
@@ -129,8 +132,8 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
                 </div>
               </div>
 
-              {passkey.hasKeys && (
-                <PasskeySignIn onUse={() => { void handlePasskeyLogin(); }} disabled={loading} />
+              {passkeyAccounts.length > 0 && (
+                <PasskeySignIn accounts={passkeyAccounts} onUse={(account: string) => { void handlePasskeyLogin(account); }} disabled={loading} />
               )}
 
               {/* Password */}

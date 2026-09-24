@@ -74,3 +74,19 @@ export async function hasPasskeyLogin(store: PasskeyStore, rpId: string, usernam
   if (!(await loadAccount(store, rpId, username))) return false;
   return (await listCredentials(store, rpId, username)).length > 0;
 }
+
+/**
+ * Every account with a working passkey here, for this page's RP ID, so the
+ * sign-in form can offer one before a username is typed.
+ */
+export async function listPasskeyAccounts(store: PasskeyStore, rpId: string): Promise<string[]> {
+  const keys: string[] = await store.listKeys(`${ROOT}/${rpId}/account/`);
+  const names: string[] = [];
+  for (const key of keys) {
+    const bytes: Bytes | null = await store.get(key);
+    const record: AccountRecord | null = bytes ? decodeAccountRecord(bytes) : null;
+    if (!record || record.rpId !== rpId || key !== accountKey(rpId, record.username)) continue;
+    if ((await listCredentials(store, rpId, record.username)).length > 0) names.push(record.username);
+  }
+  return names.sort((a, b) => a.localeCompare(b));
+}

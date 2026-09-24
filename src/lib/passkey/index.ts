@@ -21,5 +21,5 @@ export function browserPasskeyDeps(): PasskeyDeps {
 export { PasskeyError, failureOf, type PasskeyFailure } from './authenticator';
 export { enrolCredential } from './enrol';
 export { signInWithPasskey, type PasskeyDeps } from './unlock';
-export { hasPasskeyLogin, listCredentials, removeCredential } from './repository';
+export { hasPasskeyLogin, listCredentials, listPasskeyAccounts, removeCredential } from './repository';
 export type { CredentialRecord } from './records';

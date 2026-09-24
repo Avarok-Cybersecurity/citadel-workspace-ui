@@ -56,8 +56,8 @@ export interface LoginHandler {
   invalidField: LoginField | null;
   /** Whether passkeys work in this browser, and whether this username has one here. */
   passkey: PasskeyAccount;
-  /** Sign in with the username's passkey; falls back to the password form on failure. */
-  handlePasskeyLogin: () => Promise<void>;
+  /** Sign in as `account` with its passkey; falls back to the password form on failure. */
+  handlePasskeyLogin: (account: string) => Promise<void>;
   /** Set while the form is asking whether to enrol a passkey after sign-in. */
   enrolPrompt: EnrolPrompt | null;
 }
@@ -107,8 +107,9 @@ export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerPara
     );
   };
 
-  const handlePasskeyLogin = async (): Promise<void> => {
-    if (!username.trim()) {
+  const handlePasskeyLogin = async (account: string): Promise<void> => {
+    const name: string = account.trim();
+    if (!name) {
       setInvalidField('username');
       setError('Enter your username first');
       return;
@@ -118,7 +119,7 @@ export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerPara
     setInvalidField(null);
     let unlocked: boolean = false;
     try {
-      await signInWithPasskey(browserPasskeyDeps(), username.trim(), async (user: string, secret: string): Promise<void> => {
+      await signInWithPasskey(browserPasskeyDeps(), name, async (user: string, secret: string): Promise<void> => {
         unlocked = true;
         await completeLogin(user, secret, false);
       });
@@ -126,6 +127,8 @@ export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerPara
       // Before the unlock: the passkey copy, and the password field is right
       // there. After it: the ordinary login failed, reported as the form does.
       if (!unlocked) {
+        // The password is the fallback, so the form names the account it is for.
+        setUsername(name);
         setError(failureCopy(failureOf(err)));
         document.getElementById('password')?.focus();
       } else {
