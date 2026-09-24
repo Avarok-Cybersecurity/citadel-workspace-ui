@@ -82,6 +82,11 @@ export function handleInstanceAnnounce(state: LeaderElectionState, message: Chan
   const cid: bigint | null = (announcePayload?.cid as bigint | null) || null;
   debugLog('InstanceChannel', `handleInstanceAnnounce: from=${message.senderInstanceId}, cid=${cid?.toString()}`);
 
+  // An announce is a document starting up (or rejoining after the bfcache): whatever
+  // this instance id held before belongs to a page that is gone. Forgetting it first
+  // makes the registration read as new, which is what prompts the leader to send the
+  // tab the state it missed while it was not listening (follower-snapshot.ts).
+  instanceManager.unregisterInstance(message.senderInstanceId);
   instanceManager.registerInstance(message.senderInstanceId, cid);
 
   if (instanceManager.isLeader) {

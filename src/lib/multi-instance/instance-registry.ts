@@ -19,6 +19,9 @@ export function registerInstance(
   instanceId: string,
   cid: bigint | null,
 ): void {
+  // What this tab held before, so a listener can tell a tab newly holding a session
+  // from one repeating what it already said (undefined: not registered at all).
+  const previous: bigint | null | undefined = registry.get(instanceId);
   // Delete first so a re-registration moves to the end: registration order is what
   // findInstanceByCid breaks ties with.
   registry.delete(instanceId);
@@ -36,7 +39,7 @@ export function registerInstance(
   // Subscribers MUST guard `if (cid === null) return;` — the orphan
   // buffer drain at `instance-inbound-router.ts` is the canonical
   // pattern.
-  eventEmitter.emit('instance:registered', { instanceId, cid });
+  eventEmitter.emit('instance:registered', { instanceId, cid, previous });
 }
 
 export function unregisterInstance(registry: InstanceRegistry, instanceId: string): void {

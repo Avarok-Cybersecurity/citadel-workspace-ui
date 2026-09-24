@@ -18,6 +18,7 @@ import { handleIncomingPeerConnect } from './incoming-connect';
 import { startPolling, stopPolling, startBackendPolling, stopBackendPolling } from './polling';
 import { parsePeerConnectPath } from '@/lib/ice-servers/path';
 import type { PeerConnectPath } from '@/types/ice-servers';
+import { installFollowerSnapshots } from './follower-snapshot';
 
 /** Callback type for setPeerConnected (broadcasts to followers) */
 type BroadcastPeerConnected = (localCid: bigint, peerCid: bigint) => void;
@@ -68,6 +69,14 @@ export function setupEventListeners(
       stopBackendPolling(state);
       state.cancelAllRetries();
     }
+  });
+
+  installFollowerSnapshots({
+    on: (event: string, handler: (payload: unknown) => void): void => { eventEmitter.on(event, handler); },
+    isLeader: (): boolean => instanceManager.isLeader,
+    selfInstanceId: (): string => instanceManager.instanceId,
+    peersFor: (localCid: bigint): bigint[] => state.getPeersForSession(localCid),
+    announce: broadcastPeerConnected,
   });
 
   // Follower tab connectedPeers sync
