@@ -9,6 +9,7 @@ import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
 import { manifestForBuild } from "./src/lib/pwa/version-manifest";
 import { VERSION_MANIFEST_PATH } from "./src/lib/pwa/deployed-version";
 import { KIT_MANIFEST } from "./src/pwa/kit-manifest.generated";
+import { serviceChunkFor, sharedServiceDependencyChunkFor } from "./scripts/lib/service-chunks";
 
 /**
  * The Content-Security-Policy the app ships under.
@@ -295,16 +296,18 @@ export default defineConfig(({ mode }) => {
         external: ['events', 'fs', 'path', 'crypto', 'os', 'util'],
         output: {
           // Split vendor dependencies into separate chunks for better caching
-          manualChunks(id) {
+          manualChunks(id, meta) {
             // Keep each of these service directories whole. Their barrel (index.ts)
             // re-exports a module that transitively depends on the barrel again, so
             // if the two land in different route chunks Rollup emits a circular-chunk
             // warning and, in its own words, "will likely lead to broken execution
             // order". Co-locating them removes the cycle at the chunk level and also
             // caches better: these services change far less often than the pages that
-            // use them.
-            if (/[\\/]src[\\/]lib[\\/](p2p|connection-service|peer-registration-store)[\\/]/.test(id)) {
-              return 'app-services';
+            // use them. "Whole" is two halves -- what the landing page statically
+            // reaches, and what it does not -- see scripts/lib/service-chunks.ts.
+            const serviceChunk: string | undefined = serviceChunkFor(id, meta);
+            if (serviceChunk) {
+              return serviceChunk;
             }
 
             if (id.includes('node_modules')) {
@@ -352,6 +355,7 @@ export default defineConfig(({ mode }) => {
                 return 'vendor-zod';
               }
             }
+            return sharedServiceDependencyChunkFor(id, meta);
           },
         },
         onwarn(warning, warn) {

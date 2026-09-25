@@ -10,7 +10,6 @@
 
 import { useEffect, useState } from 'react';
 import NotificationService, { NotificationPriority } from '@/lib/notification-service';
-import { MessagingService } from '@/lib/messaging-service';
 import { ConnectionService } from '@/lib/connection-service';
 import WorkspaceService from '@/lib/workspace-service';
 import UserService from '@/lib/user-service';
@@ -80,7 +79,6 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
     runAsyncSetup(initializeServices);
 
     const notificationService: NotificationService = NotificationService.getInstance();
-    const messagingService: MessagingService = MessagingService.getInstance();
     const connectionService: ConnectionService = ConnectionService.getInstance();
     const userService: typeof UserService = UserService;
 
@@ -224,7 +222,6 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
       // above the router and unmounts last. Owning our own teardown means that
       // stops being load-bearing.
       unsubscribeConnection();
-      messagingService.cleanup();
       connectionService.cleanup();
       WorkspaceService.cleanup();
       runAsyncSetup(() => userService.cleanup());
