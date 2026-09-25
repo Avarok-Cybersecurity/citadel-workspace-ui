@@ -1,9 +1,9 @@
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useProfileDraft } from "./use-profile-draft";
 import { LazyLandingSteps as LandingSteps } from "./lazy-landing-steps";
 import { Button } from "@/components/ui/button";
 import { LogIn, Settings, Shield, ArrowRight } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import type { SecuritySettingsValues } from "@/components/SecuritySettings";
 import { DEFAULT_SECURITY_SETTINGS } from "@/components/security-settings-defaults";
 import { postAuthSetup } from '@/lib/post-auth-setup';
@@ -23,12 +23,12 @@ import { useAgentGatedStep } from '@/hooks/use-agent-gate';
 import type { OnboardingIntentState } from '@/hooks/useOnboardingIntent';
 import { CreateWorkspaceCta } from '@/components/create-workspace/CreateWorkspaceCta';
 import { useLinkedLogin } from './use-account-link';
+import { useJoinLink } from './use-join-link';
 import { useHasOrphanSessions } from './use-orphan-sessions';
 import { LazySettingsModal } from '@/components/LazySettingsModal';
 
 export const Landing: () => JSX.Element = (): JSX.Element => {
   const navigate: NavigateFunction = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');
   const { draft: profileDraft, setDraft: setProfileDraft, clear: clearProfileDraft } = useProfileDraft();
@@ -46,17 +46,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
     DEFAULT_SECURITY_SETTINGS,
   );
 
-  // Open the join flow when navigated here with ?join=1 (e.g. from the
-  // Manage Accounts empty state on any route). Clears the param after
-  // consuming it so back/forward stays clean.
-  useEffect(() => {
-    if (searchParams.get('join') === '1') {
-      setCurrentStep('server');
-      const next: URLSearchParams = new URLSearchParams(searchParams);
-      next.delete('join');
-      setSearchParams(next, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
+  useJoinLink(useCallback((): void => setCurrentStep('server'), []), setServerAddress);
 
   // The landing page used to call `listKnownServers({ cid: "0" })` here on
   // mount and DISCARD the result. `checkForServers` checked nothing: nothing

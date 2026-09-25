@@ -15,6 +15,9 @@ import { NodeManagementModal } from '@/components/node/NodeManagementModal';
 import { AdminModal } from '@/components/admin';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import { usePermission } from '@/hooks/use-permission';
+import { Permission } from '@/contexts/PermissionsContext';
+import { createBlockedReason } from './AddNodeButton';
 import type { NavigateFunction } from 'react-router';
 
 /**
@@ -38,6 +41,8 @@ export function HierarchySidebar(): JSX.Element {
   // The app's dialog, not window.confirm — which is what `confirm` resolves to
   // if this line is missing, silently, with a `string` parameter.
   const confirm: ReturnType<typeof useConfirm> = useConfirm();
+  // What the server checks for every CreateNode; see createBlockedReason.
+  const treeEdit: ReturnType<typeof usePermission> = usePermission(WORKSPACE_ROOT_ID, Permission.EditTreeStructure);
 
   // Build flat node list from state
   const nodes: DomainNode[] = useMemo(() => Object.values(state.nodes), [state.nodes]);
@@ -187,9 +192,7 @@ export function HierarchySidebar(): JSX.Element {
   return (
     <>
       <TreeNodesSection
-      // The create button needs the tree schema to know what child types are
-      // allowed; until it arrives, clicking it can only produce an error toast.
-      canCreate={Boolean(state.treeSchema)}
+        createBlockedReason={createBlockedReason(Boolean(state.treeSchema), treeEdit)}
         nodes={nodes.length > 0 ? nodes : undefined}
         selectedNodeId={selectedNodeId ?? undefined}
         onNodeSelect={handleNodeSelect}

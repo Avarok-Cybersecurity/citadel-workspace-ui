@@ -93,6 +93,7 @@ describe('a peer row that is the open conversation', () => {
         <PeerListRow
           cid="42"
           username="bob"
+          displayName="bob"
           isOnline
           isConnected
           connectionPath={null}

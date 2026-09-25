@@ -2,6 +2,8 @@ import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import { isNewId } from '@/lib/seen-ids';
 import { debugLog } from '@/lib/debug-config';
 import type { GroupConversation } from '@/types/group';
+import { isValidGroupId } from './group-key';
+import { memberGroupRecord } from './member-group-record';
 
 /** How much of a message the sidebar previews before eliding. */
 const PREVIEW_CHARS: number = 50;
@@ -18,19 +20,28 @@ const PREVIEW_CHARS: number = 50;
  * Two guards its siblings carry and this did not (`apply-group-settings`,
  * `rename-group`, `mark-group-read`):
  *
- *   - A message for a group the store does not have must return `prev`. `map`
- *     always allocates, so an unknown group produced a fresh array, a store
- *     notification and an IndexedDB write for a change nobody made.
+ *   - A message for a group the store does not have must return `prev` -- unless
+ *     it is a peer-group key, below. `map` always allocates, so an unknown group
+ *     produced a fresh array, a store notification and an IndexedDB write for a
+ *     change nobody made.
+ *
+ * A peer-group message for a group the store lacks CREATES it: the server
+ * broadcasts only to members, so it is proof of membership, and it was the only
+ * way a member's new browser could learn a group (reconcile-groups only
+ * removes, from the OWNED list).
  *   - A message id is applied once. The transport redelivers, and a second
  *     arrival added another to the unread badge for a message already counted.
  */
 export function applyGroupMessage(
   groups: GroupConversation[],
-  data: { groupId: string; senderId: string; content: string; messageId?: string; groupName?: string },
+  data: { groupId: string; senderId: string; content: string; messageId?: string; groupName?: string; selfUsername?: string },
   now: number,
+  /** What the roster addresses a CID by; names the members of a group learnt here. */
+  usernameFor: (cid: bigint) => string,
 ): GroupConversation[] {
-  // Nothing to fold into. Returning `prev` is the store's no-op contract.
-  if (!groups.some((group) => group.id === data.groupId)) {
+  const known: boolean = groups.some((group) => group.id === data.groupId);
+  // Nothing to fold into, and nothing that could be one. Returning `prev` is the store's no-op contract.
+  if (!known && !isValidGroupId(data.groupId)) {
     debugLog('GroupStore', `Message for a group the store does not have: ${data.groupId}`);
     return groups;
   }
@@ -47,8 +58,11 @@ export function applyGroupMessage(
 
   const own: bigint | null = instanceManager.cid;
   const fromSelf: boolean = own !== null && data.senderId === String(own);
+  const withGroup: GroupConversation[] = known ? groups : [...groups, memberGroupRecord({
+    groupId: data.groupId, groupName: data.groupName, senderId: data.senderId, self: own, selfUsername: data.selfUsername, usernameFor,
+  })];
 
-  return groups.map((group) => {
+  return withGroup.map((group) => {
     if (group.id !== data.groupId) return group;
     return {
       ...group,

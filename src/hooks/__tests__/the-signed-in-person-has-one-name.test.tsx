@@ -30,8 +30,11 @@ function member(username: string, displayName: string): User {
   return { id: username, username, displayName, isOnline: true } as User;
 }
 
-function withRoster(members: Record<string, User>): (p: { children: ReactNode }) => JSX.Element {
-  const state: WorkspaceState = { members, nodes: {}, loading: { workspace: false, members: false, nodes: false } } as unknown as WorkspaceState;
+function withRoster(
+  members: Record<string, User>,
+  currentUser?: { id: string; username: string; name: string },
+): (p: { children: ReactNode }) => JSX.Element {
+  const state: WorkspaceState = { members, currentUser, nodes: {}, loading: { workspace: false, members: false, nodes: false } } as unknown as WorkspaceState;
   return ({ children }: { children: ReactNode }): JSX.Element => <WorkspaceProvider state={state}>{children}</WorkspaceProvider>;
 }
 
@@ -42,6 +45,29 @@ describe('the signed-in person', () => {
     });
     await waitFor(() => expect(result.current.name).toBe('Alice Chen'));
     expect(result.current.username).toBe('alice0924');
+  });
+
+  // The live defect: a workspace load writes `name: fullName || username`, so
+  // after a password sign-in `currentUser.name` IS the username -- and it was
+  // read first, so the roster's "Alice Anders" never got a look in.
+  it('is called what the roster calls them when the loaded user is named by username', async () => {
+    const { result } = renderHook(() => useSelfName(), {
+      wrapper: withRoster(
+        { alice0924: member('alice0924', 'Alice Anders') },
+        { id: 'alice0924', username: 'alice0924', name: 'alice0924' },
+      ),
+    });
+    await waitFor(() => expect(result.current.name).toBe('Alice Anders'));
+  });
+
+  it('keeps a name the loaded user carries that is not the username', async () => {
+    const { result } = renderHook(() => useSelfName(), {
+      wrapper: withRoster(
+        { alice0924: member('alice0924', 'Alice Anders') },
+        { id: 'alice0924', username: 'alice0924', name: 'Alice Renamed' },
+      ),
+    });
+    await waitFor(() => expect(result.current.name).toBe('Alice Renamed'));
   });
 
   it('falls back to the username when the roster has not loaded', async () => {

@@ -84,12 +84,12 @@ describe('applying it', () => {
   });
 
   it("renames the member's copy of the group", () => {
-    const [after] = applyGroupMessage([group("alice's Group")], arrival('Team 0924'), 1);
+    const [after] = applyGroupMessage([group("alice's Group")], arrival('Team 0924'), 1, (cid: bigint): string => cid.toString());
     expect(after.name).toBe('Team 0924');
   });
 
   it('leaves the name alone when the message carries none', () => {
-    const [after] = applyGroupMessage([group("alice's Group")], arrival(), 1);
+    const [after] = applyGroupMessage([group("alice's Group")], arrival(), 1, (cid: bigint): string => cid.toString());
     expect(after.name).toBe("alice's Group");
   });
 });

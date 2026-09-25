@@ -225,7 +225,7 @@ export function ChatSettingsPanel({
                 </div>
 
                 <div className="space-y-2">
-                  <ConnectionFacts peerCid={peerCid} revfsQuota={settings.revfsQuota} />
+                  <ConnectionFacts peerCid={peerCid} firstContact={stats.firstContact} transferredBytes={stats.transferredBytes} />
                 </div>
               </div>
             </TabsContent>

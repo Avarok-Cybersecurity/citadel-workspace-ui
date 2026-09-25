@@ -5,7 +5,7 @@
  * status tracking, and stale conversation cleanup.
  */
 
-import { isPlaceholderName, peerDisplayName } from '@/lib/peer-display';
+import { isPlaceholderName, peerDisplayName, peerHandleName } from '@/lib/peer-display';
 import { useState, useEffect, useRef, useCallback , type MutableRefObject } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { p2pRegistrationService } from '@/lib/p2p-registration-service';
@@ -17,10 +17,14 @@ import { sessionStartupService } from '@/lib/session-startup-service';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { recordPeerUsernames } from '@/lib/member-names';
 
 export interface RegisteredPeer {
   cid: string;
+  /** What the peer is addressed by (test ids, routes, lookups). See peerHandleName. */
   username: string;
+  /** What the peer is shown as: the roster's name when it has one. */
+  displayName: string;
   /** True, false, or null when no poll has landed. See lib/presence.ts. */
   isOnline: boolean | null;
   /**
@@ -94,6 +98,10 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
       }
 
       const peersToUse: { cid?: bigint; username?: string; }[] = Array.from(mergedPeersMap.values());
+      // So a call, a group or a transfer that names this peer by CID alone names them as this list does.
+      recordPeerUsernames(peersToUse.flatMap((p): { cid: bigint; username: string }[] =>
+        p.cid !== undefined && p.username && !isPlaceholderName(p.username) ? [{ cid: p.cid, username: p.username }] : []));
+      eventEmitter.emit('p2p:peer-names-learned', {});
 
       let peerList: RegisteredPeer[] = [];
       try {
@@ -101,6 +109,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
         peerList = await Promise.all(peersToUse.map(async p => {
           const cidStr: string = p.cid?.toString() || '';
           const displayName: string = peerDisplayName({ cid: p.cid, username: p.username });
+          const username: string = peerHandleName({ cid: p.cid, username: p.username });
           const peerCidBigInt: bigint = p.cid ?? BigInt(0);
           const isOnline: boolean | null = p2pAutoConnectService.peerOnlineStatus(peerCidBigInt);
           let isConnected: boolean | null = null;
@@ -116,15 +125,16 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
             isConnected = null;
           }
           const connectionPath: PeerConnectPath | null = connectionPathFor(sessionCid, peerCidBigInt);
-          return { cid: cidStr, username: displayName, isOnline, isConnected, connectionPath };
+          return { cid: cidStr, username, displayName, isOnline, isConnected, connectionPath };
         }));
       } catch (mapError) {
         debugLog('UseRegisteredPeers', 'Promise.all mapping failed:', mapError);
         peerList = peersToUse.map(p => {
           const cidStr: string = p.cid?.toString() || '';
           const displayName: string = peerDisplayName({ cid: p.cid, username: p.username });
+          const username: string = peerHandleName({ cid: p.cid, username: p.username });
           // The listing failed; nobody has said whether these peers are online.
-          return { cid: cidStr, username: displayName, isOnline: null, isConnected: null, connectionPath: null };
+          return { cid: cidStr, username, displayName, isOnline: null, isConnected: null, connectionPath: null };
         });
       }
 

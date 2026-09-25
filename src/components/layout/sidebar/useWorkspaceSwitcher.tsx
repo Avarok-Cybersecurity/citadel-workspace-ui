@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { UseWorkspaceSwitcherResult } from './useWorkspaceSwitcher-types';
 import { mayLeaveEditor } from '@/lib/leave-editor';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { switchToSession } from '@/lib/sessions/switch-to-session';
+import { liveSessionCid } from '@/lib/sessions/live-session-cid';
 import { toStoredWorkspaces, pickCurrentWorkspace , type StoredWorkspace } from './stored-workspace-list';
 import { describeFailure } from '@/lib/failure-message';
 import { useNavigate } from "react-router-dom";
@@ -52,20 +53,21 @@ export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs
   const { theme } = useWorkspaceTheme();
   const { toast } = useToast();
 
+  const loadStoredWorkspaces: () => Promise<void> = useCallback(async (): Promise<void> => {
+    const storedSessions: StoredSessions = connectionManager.getStoredSessions();
+    const tabSelectedUser: TabUserContext | null = await getSelectedUser();
+    const connInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
+    const currentCid: bigint | null = connInfo?.cid ?? null;
+    if (!storedSessions?.sessions?.length) { setAvailableWorkspaces([]); return; }
+
+    const workspaces: StoredWorkspace[] = toStoredWorkspaces(storedSessions.sessions, state.workspace?.name, currentCid);
+    setAvailableWorkspaces(workspaces);
+
+    const active: StoredWorkspace | undefined = pickCurrentWorkspace(workspaces, tabSelectedUser);
+    if (active) setCurrentWorkspace(active);
+  }, [state.workspace?.name]);
+
   useEffect(() => {
-    const loadStoredWorkspaces = async (): Promise<void> => {
-      const storedSessions: StoredSessions = connectionManager.getStoredSessions();
-      const tabSelectedUser: TabUserContext | null = await getSelectedUser();
-      const connInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
-      const currentCid: bigint | null = connInfo?.cid ?? null;
-      if (!storedSessions?.sessions?.length) { setAvailableWorkspaces([]); return; }
-
-      const workspaces: StoredWorkspace[] = toStoredWorkspaces(storedSessions.sessions, state.workspace?.name, currentCid);
-      setAvailableWorkspaces(workspaces);
-
-      const active: StoredWorkspace | undefined = pickCurrentWorkspace(workspaces, tabSelectedUser);
-      if (active) setCurrentWorkspace(active);
-    };
     runAsyncSetup(loadStoredWorkspaces);
     // Returning the unsubscribe drops the previous handler: it fixes the
     // per-remount leak (see onConnectionChange) and a stale `state.workspace`
@@ -73,7 +75,16 @@ export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs
     return ConnectionService.getInstance().onConnectionChange(() => {
       void loadStoredWorkspaces();
     });
-  }, [state.workspace]);
+  }, [loadStoredWorkspaces]);
+
+  // Opening the menu re-reads the stored list, so an account added in another tab is there without a reload.
+  useEffect(() => {
+    if (!isOpen) return;
+    runAsyncSetup(async (): Promise<void> => {
+      await connectionManager.reloadStoredSessions();
+      await loadStoredWorkspaces();
+    });
+  }, [isOpen, loadStoredWorkspaces]);
 
   useEffect(() => {
     // The icon comes from the workspace theme, which is where it is edited and
@@ -107,7 +118,10 @@ export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs
       );
 
       if (!targetSession) throw new Error('Session not found');
-      if (!targetSession.cid) throw new Error('Session CID not available');
+      // The agent's live list first, as the landing page resumes: the stored copy can be stale or empty.
+      const { ok, sessions: live } = await connectionManager.getActiveSessionsResult();
+      const cid: bigint | undefined = (ok ? liveSessionCid(live, workspace) : undefined) ?? targetSession.cid;
+      if (!cid) throw new Error('Session CID not available');
 
       // The one switch sequence (lib/sessions/switch-to-session.ts). This hook
       // carried its own copy, which never set the instance CID nor announced
@@ -115,7 +129,7 @@ export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs
       // browser claimed it ("not orphaned", so already ours), selected it, and
       // left every surface reading the old account -- nothing visibly happened.
       await switchToSession({
-        cid: targetSession.cid,
+        cid,
         username: workspace.username,
         server_address: workspace.serverAddress,
         workspaceName: workspace.workspaceName ?? workspace.username,

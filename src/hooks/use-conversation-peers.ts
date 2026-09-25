@@ -4,7 +4,7 @@
  * Manages peers with active P2P conversations, sorted by last message time.
  */
 
-import { peerDisplayName } from '@/lib/peer-display';
+import { peerDisplayName, peerHandleName } from '@/lib/peer-display';
 import { useState, useEffect, useCallback } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { getCurrentCid } from '@/lib/p2p/current-cid';
@@ -19,7 +19,10 @@ import type { P2PConversation } from '@/lib/p2p/p2p-types';
 
 export interface ConversationPeer {
   peerCid: string;
+  /** What the peer is addressed by; see peerHandleName. */
   peerUsername: string;
+  /** What the peer is shown as. */
+  peerDisplayName: string;
   /** True, false, or null when no poll has landed. See lib/presence.ts. */
   isOnline: boolean | null;
   /** True, false, or null when the check did not answer. */
@@ -76,10 +79,11 @@ export function useConversationPeers({
       // handle from the LAST six decimal digits, which differs from every other
       // surface, so one peer appeared under two names depending on where you
       // looked.
-      const displayName: string = peerDisplayName({ cid: c.peerCid, username: registeredPeer?.username });
+      const identity: { cid: bigint; username: string | undefined } = { cid: c.peerCid, username: registeredPeer?.username };
       return {
         peerCid: peerCidStr,
-        peerUsername: displayName,
+        peerUsername: peerHandleName(identity),
+        peerDisplayName: peerDisplayName(identity),
         isOnline: p2pAutoConnectService.peerOnlineStatus(c.peerCid),
         // `null` when we cannot name our own session, exactly as isPeerConnected answers:
         // connections are keyed by session, so `false` there answers a question nobody asked.

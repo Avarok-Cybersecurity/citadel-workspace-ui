@@ -6,13 +6,14 @@ import { p2pMessengerManager } from '@/lib/p2p';
 import { fileTransferService, type FileTransferSettings, type TransferModePreference } from '@/lib/file-transfer';
 import type { ConversationMetadata } from '@/lib/p2p/p2p-types';
 import type { FileTransfer } from '@/lib/file-transfer/types';
+import { conversationFacts, type ConversationFacts } from './connection-facts';
 import type { Dispatch, SetStateAction } from 'react';
 import {
   FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES,
   REVFS_DEFAULT_QUOTA_BYTES
 } from '@/types/messaging-layer';
 
-export function useChatSettings(isOpen: boolean, peerCid: string): { stats: { messages: number; files: number; }; activeOuterTab: string; setActiveOuterTab: Dispatch<SetStateAction<string>>; activeFileTab: string; setActiveFileTab: Dispatch<SetStateAction<string>>; settings: FileTransferSettings; maxFileSizeMb: number; revfsQuotaMb: number; defaultMaxMb: number; formatSizeLimit: (bytes: number) => string; handleAutoAcceptChange: (enabled: boolean) => Promise<void>; handleMaxFileSizeChange: (values: number[]) => Promise<void>; handleTransferModeChange: (mode: TransferModePreference) => Promise<void>; handleAllowRevfsChange: (allowed: boolean) => Promise<void>; handleRevfsQuotaChange: (values: number[]) => Promise<void>; } {
+export function useChatSettings(isOpen: boolean, peerCid: string): { stats: { messages: number; files: number } & ConversationFacts; activeOuterTab: string; setActiveOuterTab: Dispatch<SetStateAction<string>>; activeFileTab: string; setActiveFileTab: Dispatch<SetStateAction<string>>; settings: FileTransferSettings; maxFileSizeMb: number; revfsQuotaMb: number; defaultMaxMb: number; formatSizeLimit: (bytes: number) => string; handleAutoAcceptChange: (enabled: boolean) => Promise<void>; handleMaxFileSizeChange: (values: number[]) => Promise<void>; handleTransferModeChange: (mode: TransferModePreference) => Promise<void>; handleAllowRevfsChange: (allowed: boolean) => Promise<void>; handleRevfsQuotaChange: (values: number[]) => Promise<void>; } {
   const [activeOuterTab, setActiveOuterTab] = useState('general');
   const [activeFileTab, setActiveFileTab] = useState('standard');
   const [settings, setSettings] = useState<FileTransferSettings>({
@@ -39,11 +40,11 @@ export function useChatSettings(isOpen: boolean, peerCid: string): { stats: { me
   const [messages, setMessages] = useState<number>(0);
   // Finished transfers only, recounted as they change: the count was every
   // record of any state, taken once when the panel opened.
-  const [files, setFiles] = useState<number>(0);
+  const [transfers, setTransfers] = useState<FileTransfer[]>([]);
+  const [oldestMessage, setOldestMessage] = useState<number | null>(null);
   const recountFiles: () => void = useCallback((): void => {
     if (!isOpen || !peerCid) return;
-    const transfers: FileTransfer[] = fileTransferService.getTransfersForPeer(peerCid);
-    setFiles(completedTransferCount(transfers));
+    setTransfers(fileTransferService.getTransfersForPeer(peerCid));
   }, [isOpen, peerCid]);
   useEffect(recountFiles, [recountFiles]);
   useEventListener(FILE_TRANSFER_EVENTS.STATE_CHANGED, recountFiles);
@@ -54,7 +55,7 @@ export function useChatSettings(isOpen: boolean, peerCid: string): { stats: { me
     void (async (): Promise<void> => {
       try {
         const metadata: ConversationMetadata | null = await p2pMessengerManager.getConversationMetadata(BigInt(peerCid));
-        if (!cancelled) setMessages(metadata?.totalMessageCount ?? 0);
+        if (!cancelled) { setMessages(metadata?.totalMessageCount ?? 0); setOldestMessage(metadata?.oldestMessageTimestamp ?? null); }
       } catch {
         // A conversation with no stored history has no metadata; 0 is correct.
         if (!cancelled) setMessages(0);
@@ -62,7 +63,9 @@ export function useChatSettings(isOpen: boolean, peerCid: string): { stats: { me
     })();
     return (): void => { cancelled = true; };
   }, [isOpen, peerCid]);
-  const stats: { messages: number; files: number } = { messages, files };
+  const stats: { messages: number; files: number } & ConversationFacts = {
+    messages, files: completedTransferCount(transfers), ...conversationFacts(oldestMessage, transfers),
+  };
 
   useEffect(() => {
     if (isOpen && peerCid) {

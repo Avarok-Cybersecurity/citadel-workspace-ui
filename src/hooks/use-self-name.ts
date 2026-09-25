@@ -13,13 +13,19 @@ import type { TabIdentity } from '@/lib/tab-identity';
 export interface SelfName {
   username: string | undefined;
   name: string | undefined;
+  /** This tab's session, when the tab identity has loaded. */
+  cid: bigint | undefined;
 }
 
 export function useSelfName(): SelfName {
   const { state } = useWorkspace();
   const me: TabIdentity | null = useTabIdentity();
   const username: string | undefined = state.currentUser?.username || me?.username;
-  const name: string | undefined = state.currentUser?.name
+  // A workspace load writes `name: fullName || username`, so after a password
+  // sign-in the loaded name IS the username. That is no name at all, and read
+  // first it hid the roster's; only a name that says more is kept ahead of it.
+  const loaded: string | undefined = state.currentUser?.name?.trim();
+  const name: string | undefined = (loaded && loaded !== username ? loaded : undefined)
     || selfDisplayName(state.members, { username, fullName: me?.fullName });
-  return { username, name };
+  return { username, name, cid: me?.cid };
 }

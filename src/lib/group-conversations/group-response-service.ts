@@ -18,7 +18,8 @@ import { getSelectedUser } from '../tab-context';
 import { isForThisSession, notificationCid } from '@/lib/sessions/notification-ownership';
 import { debugLog } from '@/lib/debug-config';
 import { toGroupEvents } from './group-events';
-import { rosterPeerName } from '@/lib/roster-peer-name';
+import { rosterPeerName, rosterPeerUsername } from '@/lib/roster-peer-name';
+import { memberUsernamesFor } from './member-group-record';
 import type { TabUserContext } from '@/lib/tab-context';
 
 let started: boolean = false;
@@ -115,8 +116,12 @@ export function startGroupResponseService(): void {
       // how an invitee's group came to be titled "<twenty digits>'s Group" and
       // every member's message signed with the same twenty digits.
       for (const event of toGroupEvents(message, self.cid, self.username, rosterPeerName)) {
-        debugLog('GroupResponseService', `${event.name}`, event.payload);
-        eventEmitter.emit(event.name, event.payload);
+        // A message can bring a group this browser has never seen; see member-group-record.
+        const payload: Record<string, unknown> = event.name === 'group:message-received'
+          ? { ...event.payload, memberUsernames: memberUsernamesFor(event.payload, rosterPeerUsername) }
+          : event.payload;
+        debugLog('GroupResponseService', `${event.name}`, payload);
+        eventEmitter.emit(event.name, payload);
       }
     })().catch((error) => {
       // `void` alone marks the promise handled for lint but does NOT catch —

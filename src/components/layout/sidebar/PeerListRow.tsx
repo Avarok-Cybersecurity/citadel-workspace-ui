@@ -16,7 +16,10 @@ import type { PeerConnectPath } from "@/types/ice-servers";
 
 interface PeerListRowProps {
   cid: string;
+  /** The key: test id and every caller address the row by username. */
   username: string;
+  /** What the row shows. */
+  displayName: string;
   /**
    * True, false, or null when no poll has landed yet. Null is a real answer
    * here: this row used to write "Offline" beside every peer until the first
@@ -36,6 +39,7 @@ interface PeerListRowProps {
 export function PeerListRow({
   cid,
   username,
+  displayName,
   isOnline,
   isConnected,
   connectionPath,
@@ -85,7 +89,7 @@ export function PeerListRow({
           {/* Avatar with status indicator */}
           <div className="relative w-6 h-6 flex-shrink-0">
             <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-xs font-medium">
-              {username[0]?.toUpperCase() || '?'}
+              {displayName[0]?.toUpperCase() || '?'}
             </div>
             {/* Status indicator - top-right corner */}
             <div
@@ -99,8 +103,7 @@ export function PeerListRow({
               {pathLabel === null ? statusLabel : `${statusLabel}, ${pathLabel}`}
             </span>
           </div>
-          {/* Username */}
-          <span className="flex-1 truncate text-sm">{username}</span>
+          <span className="min-w-0 flex-1 truncate text-sm">{displayName}</span>
           {/* Unread count badge */}
           {unreadCount !== undefined && unreadCount > 0 && (
             <Badge className="h-5 min-w-[20px] px-1.5 bg-primary text-primary-foreground">

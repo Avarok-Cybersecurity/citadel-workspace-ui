@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useCall } from '@/lib/call/call-context';
 import { useCallStageVisible } from './call-stage-presence';
 import { useCallDuration } from './use-call-duration';
+import { useRosterName } from './use-roster-name';
 import type { NavigateFunction } from 'react-router';
 import type { CallParticipant } from '@/lib/call/call-state';
 
@@ -21,6 +22,8 @@ export function OngoingCallBar(): JSX.Element | null {
   const stageVisible: boolean = useCallStageVisible();
   const navigate: NavigateFunction = useNavigate();
   const duration: string = useCallDuration(call?.status === 'active');
+  const others: CallParticipant[] = call ? [...call.participants.values()].filter(stillInCall) : [];
+  const onlyOther: string = useRosterName(others.length === 1 ? others[0].cid : null, others[0]?.username ?? '');
 
   if (!call) return null;
   if (stageVisible) return null;
@@ -30,8 +33,7 @@ export function OngoingCallBar(): JSX.Element | null {
   // `participants` holds the other side only — self is rendered separately by
   // the stage. Filtered the same way the stage filters, so the count the bar
   // reports and the tiles the user would see on Return agree.
-  const others: CallParticipant[] = [...call.participants.values()].filter(stillInCall);
-  const who: string = others.length === 1 ? others[0].username : `${others.length} people`;
+  const who: string = others.length === 1 ? onlyOther : `${others.length} people`;
 
   // "In call with alice" was said while alice's phone was still ringing.
   // `stillInCall` is the right filter for "do not tear this down yet" and the

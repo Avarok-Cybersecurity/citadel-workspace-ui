@@ -115,7 +115,7 @@ export function useFileManagerContent(): UseFileManagerContentResult {
 
   const storageLabel: string = storageMode === TreeScope.Server
     ? 'Server'
-    : registeredPeers.find(p => p.cid === selectedPeerCid)?.username ?? 'Peer';
+    : listed.find(p => p.cid === selectedPeerCid?.toString())?.displayName ?? 'Peer';
 
   const [currentPath, setCurrentPath] = useState('/');
   const fileInputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);

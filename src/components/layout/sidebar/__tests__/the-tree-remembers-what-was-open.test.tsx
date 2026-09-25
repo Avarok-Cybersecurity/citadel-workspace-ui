@@ -55,7 +55,7 @@ function Sidebar({ selectedNodeId }: { selectedNodeId?: string } = {}): JSX.Elem
         <TreeNodesSection
           title="Hierarchy"
           tree={TREE}
-          canCreate
+          createBlockedReason={null}
           selectedNodeId={selectedNodeId}
         />
       </SidebarProvider>

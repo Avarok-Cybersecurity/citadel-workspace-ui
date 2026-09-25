@@ -40,14 +40,14 @@ describe('a group message', () => {
   beforeEach((): void => { currentCid = 111n; forgetSeenIds(); });
 
   it('counts a new message once', () => {
-    const next: GroupConversation[] = applyGroupMessage(groups(), message(), 5);
+    const next: GroupConversation[] = applyGroupMessage(groups(), message(), 5, (cid: bigint): string => cid.toString());
     expect(next[0].unreadCount).toBe(1);
     expect(next[0].lastMessagePreview).toBe('hello');
   });
 
   it('does not count a redelivery again', () => {
-    const first: GroupConversation[] = applyGroupMessage(groups(), message(), 5);
-    const second: GroupConversation[] = applyGroupMessage(first, message(), 6);
+    const first: GroupConversation[] = applyGroupMessage(groups(), message(), 5, (cid: bigint): string => cid.toString());
+    const second: GroupConversation[] = applyGroupMessage(first, message(), 6, (cid: bigint): string => cid.toString());
 
     expect(second[0].unreadCount, 'the badge counted the same message twice').toBe(1);
     // And no new array, so nothing notifies or writes.
@@ -57,15 +57,15 @@ describe('a group message', () => {
   it('counts two genuinely different messages', () => {
     // The opposite failure: a dedupe keyed too broadly would swallow real
     // messages, and the assertion above cannot tell the two apart.
-    const first: GroupConversation[] = applyGroupMessage(groups(), message({ messageId: 'm1' }), 5);
-    const second: GroupConversation[] = applyGroupMessage(first, message({ messageId: 'm2' }), 6);
+    const first: GroupConversation[] = applyGroupMessage(groups(), message({ messageId: 'm1' }), 5, (cid: bigint): string => cid.toString());
+    const second: GroupConversation[] = applyGroupMessage(first, message({ messageId: 'm2' }), 6, (cid: bigint): string => cid.toString());
 
     expect(second[0].unreadCount).toBe(2);
   });
 
   it('returns the same list for a group it does not have', () => {
     const before: GroupConversation[] = groups();
-    const after: GroupConversation[] = applyGroupMessage(before, message({ groupId: 'nope' }), 5);
+    const after: GroupConversation[] = applyGroupMessage(before, message({ groupId: 'nope' }), 5, (cid: bigint): string => cid.toString());
 
     expect(after, 'an unknown group still allocated, notified and wrote').toBe(before);
   });
@@ -73,8 +73,8 @@ describe('a group message', () => {
   it('still ignores an id it has never seen when none is supplied', () => {
     // The emitter may not carry one. Refusing to count then would silently drop
     // real messages, which is worse than counting a rare duplicate.
-    const first: GroupConversation[] = applyGroupMessage(groups(), message({ messageId: undefined }), 5);
-    const second: GroupConversation[] = applyGroupMessage(first, message({ messageId: undefined }), 6);
+    const first: GroupConversation[] = applyGroupMessage(groups(), message({ messageId: undefined }), 5, (cid: bigint): string => cid.toString());
+    const second: GroupConversation[] = applyGroupMessage(first, message({ messageId: undefined }), 6, (cid: bigint): string => cid.toString());
 
     expect(second[0].unreadCount).toBe(2);
   });
@@ -82,7 +82,7 @@ describe('a group message', () => {
   it('does not count your own echo', () => {
     // Pre-existing and preserved: the server answers the sender with the same
     // notification it broadcasts, and that echo is what confirms the send.
-    const next: GroupConversation[] = applyGroupMessage(groups(), message({ senderId: '111' }), 5);
+    const next: GroupConversation[] = applyGroupMessage(groups(), message({ senderId: '111' }), 5, (cid: bigint): string => cid.toString());
     expect(next[0].unreadCount).toBe(0);
   });
 });

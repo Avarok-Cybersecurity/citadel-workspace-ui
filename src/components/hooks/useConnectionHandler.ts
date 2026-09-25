@@ -70,6 +70,11 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
       }
     };
 
+    // A first attempt that failed is exactly when the agent-down banner is due;
+    // start-up goes on retrying for tens of seconds, and waiting for it to give
+    // up left the banner (and every agent gate) silent the whole time.
+    const startHealthChecksNow = (): void => { healthCheckService.startHealthChecks(10000); };
+    const stopEarlyHealthChecks: () => void = eventEmitter.once('connection:start-retrying', startHealthChecksNow);
     runAsyncSetup(initializeServices);
 
     const notificationService: NotificationService = NotificationService.getInstance();
@@ -226,6 +231,7 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
       eventEmitter.off('connection:retry-requested', handleRetryRequested);
       eventEmitter.off('on-ws-connection-success', handleConnectionSuccess);
       eventEmitter.off('session-already-connected', handleSessionAlreadyConnected);
+      stopEarlyHealthChecks();
     };
   }, [toast]);
 

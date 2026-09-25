@@ -25,7 +25,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { SidebarProvider } from '@/components/ui/sidebar';
 
-const peers: { current: { cid: string; username: string; isOnline: boolean; isConnected: boolean }[] } = {
+const peers: { current: { cid: string; username: string; displayName: string; isOnline: boolean; isConnected: boolean }[] } = {
   current: [],
 };
 const conversations: { current: unknown[] } = { current: [] };
@@ -73,7 +73,7 @@ beforeEach((): void => {
 
 describe('the new-group-chat control', () => {
   it('is there for somebody with peers and no conversations yet', async (): Promise<void> => {
-    peers.current = [{ cid: '42', username: 'bob', isOnline: true, isConnected: true }];
+    peers.current = [{ cid: '42', username: 'bob', displayName: 'bob', isOnline: true, isConnected: true }];
     await renderSection();
 
     expect(screen.getByTestId('new-group-chat-button')).toBeInTheDocument();
@@ -82,9 +82,9 @@ describe('the new-group-chat control', () => {
   it('is still there once conversations exist', async (): Promise<void> => {
     // The positive control: the case that always worked must keep working, or
     // the assertion above could be satisfied by a button that is now always on.
-    peers.current = [{ cid: '42', username: 'bob', isOnline: true, isConnected: true }];
+    peers.current = [{ cid: '42', username: 'bob', displayName: 'bob', isOnline: true, isConnected: true }];
     conversations.current = [
-      { peerCid: '42', peerUsername: 'bob', isOnline: true, isConnected: true, unreadCount: 0 },
+      { peerCid: '42', peerUsername: 'bob', peerDisplayName: 'bob', isOnline: true, isConnected: true, unreadCount: 0 },
     ];
     await renderSection();
 

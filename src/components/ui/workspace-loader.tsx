@@ -8,6 +8,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { debugLog } from '@/lib/debug-config';
 import { useToast } from '@/hooks/use-toast';
 import { WorkspaceLoaderSpinner } from './workspace-loader-ui';
+import { useHeldElsewhere } from './use-held-elsewhere';
 import type { NavigateFunction } from 'react-router';
 
 interface WorkspaceLoaderProps {
@@ -27,6 +28,8 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const [isAutoClaimingSession, setIsAutoClaimingSession] = useState(false);
   const autoClaimAttempted: React.MutableRefObject<boolean> = useRef(false);
+  // Another browser holds this tab's session: the switcher's takeover, not a hang. See use-held-elsewhere.
+  const heldElsewhere: ReturnType<typeof useHeldElsewhere> = useHeldElsewhere();
 
   // Check for dev mode
   const urlParams: URLSearchParams = new URLSearchParams(window.location.search);
@@ -44,6 +47,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
     setHasConnection,
     setIsAutoClaimingSession,
     autoClaimAttempted,
+    onHeldElsewhere: heldElsewhere.offer,
   });
 
   useEffect(() => {
@@ -75,11 +79,11 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   useEffect(() => {
     if (isDevMode) return;
 
-    if (loadingTimeout && !hasConnection && isLoading && !isAutoClaimingSession) {
+    if (loadingTimeout && !hasConnection && isLoading && !isAutoClaimingSession && heldElsewhere.username === null) {
       debugLog('WorkspaceLoader', ' No connection detected after timeout, redirecting to connect');
       navigate('/connect');
     }
-  }, [loadingTimeout, hasConnection, isLoading, navigate, isDevMode, isAutoClaimingSession]);
+  }, [loadingTimeout, hasConnection, isLoading, navigate, isDevMode, isAutoClaimingSession, heldElsewhere.username]);
 
   // Secondary safety net: workspace data loading timeout
   const workspaceDataTimeout: boolean = useWorkspaceDataTimeout(hasConnection, isLoading, isDevMode);
@@ -88,6 +92,8 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
     debugLog('WorkspaceLoader', 'Dev mode: Bypassing workspace loader');
     return <>{children}</>;
   }
+
+  if (isLoading && heldElsewhere.username !== null) return heldElsewhere.notice;
 
   if (isLoading || isAutoClaimingSession) {
     const loadingMessage: "Connecting to session..." | "Workspace data is taking longer than expected..." | "Checking connection..." | "Loading workspace..." = isAutoClaimingSession

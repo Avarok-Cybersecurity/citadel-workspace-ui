@@ -182,7 +182,8 @@ export function toGroupEvents(
   if (groupMessage) {
     const summary: PeerGroupMessageSummary | null = peerGroupMessageEvent(groupMessage, peerName);
     if (!summary) return [];
-    return [{ name: 'group:message-received' as const, payload: { ...summary } }];
+    // With who THIS member is, so a group learnt from this message names them. See member-group-record.
+    return [{ name: 'group:message-received' as const, payload: { ...summary, selfUsername } }];
   }
 
   const ended: Record<string, unknown> | undefined = variant(message, 'GroupEndNotification');

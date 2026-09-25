@@ -111,7 +111,15 @@ export function shortPeerHandle(cid: CidLike): string | null {
 export function peerDisplayName(peer: PeerIdentity): string {
   const fullName: string | undefined = peer.fullName?.trim() || memberDisplayName(peer.username);
   if (fullName && !isPlaceholderName(fullName)) return fullName;
+  return peerHandleName(peer);
+}
 
+/**
+ * What a peer is ADDRESSED by: the username when it is real, else the derived
+ * handle -- never the display name. Test ids, routes and username lookups key
+ * on this; a row keyed by "Bob Brown" is a row no caller can find.
+ */
+export function peerHandleName(peer: PeerIdentity): string {
   const username: string | undefined = peer.username?.trim();
   if (username && !isPlaceholderName(username)) return username;
 

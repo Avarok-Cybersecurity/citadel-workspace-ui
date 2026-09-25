@@ -76,7 +76,7 @@ describe('a node that has just arrived', () => {
     const view: ReturnType<typeof render> = render(
       <MemoryRouter>
         <SidebarProvider>
-          <TreeNodesSection tree={treeFor(false)} nodes={[ROOT, OFFICE]} canCreate />
+          <TreeNodesSection tree={treeFor(false)} nodes={[ROOT, OFFICE]} createBlockedReason={null} />
         </SidebarProvider>
       </MemoryRouter>,
     );
@@ -87,7 +87,7 @@ describe('a node that has just arrived', () => {
     view.rerender(
       <MemoryRouter>
         <SidebarProvider>
-          <TreeNodesSection tree={treeFor(true)} nodes={[ROOT, OFFICE, ROOM]} canCreate />
+          <TreeNodesSection tree={treeFor(true)} nodes={[ROOT, OFFICE, ROOM]} createBlockedReason={null} />
         </SidebarProvider>
       </MemoryRouter>,
     );
@@ -133,7 +133,7 @@ describe('a node that has just arrived', () => {
     const view: ReturnType<typeof render> = render(
       <MemoryRouter>
         <SidebarProvider>
-          <TreeNodesSection tree={chain(false)} nodes={[deepRoot, l1, l2, l3]} canCreate />
+          <TreeNodesSection tree={chain(false)} nodes={[deepRoot, l1, l2, l3]} createBlockedReason={null} />
         </SidebarProvider>
       </MemoryRouter>,
     );
@@ -142,7 +142,7 @@ describe('a node that has just arrived', () => {
     view.rerender(
       <MemoryRouter>
         <SidebarProvider>
-          <TreeNodesSection tree={chain(true)} nodes={[deepRoot, l1, l2, l3, l4]} canCreate />
+          <TreeNodesSection tree={chain(true)} nodes={[deepRoot, l1, l2, l3, l4]} createBlockedReason={null} />
         </SidebarProvider>
       </MemoryRouter>,
     );
@@ -169,7 +169,7 @@ describe('a node that has just arrived', () => {
     render(
       <MemoryRouter>
         <SidebarProvider>
-          <TreeNodesSection tree={full} nodes={[full.node, office, room]} canCreate />
+          <TreeNodesSection tree={full} nodes={[full.node, office, room]} createBlockedReason={null} />
         </SidebarProvider>
       </MemoryRouter>,
     );

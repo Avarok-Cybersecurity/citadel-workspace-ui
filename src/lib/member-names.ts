@@ -36,3 +36,23 @@ export function recordMemberNames(members: readonly NamedMember[]): void {
 export function memberDisplayName(username: string | null | undefined): string | undefined {
   return username ? displayNames.get(username.trim()) : undefined;
 }
+
+/**
+ * Usernames the agent listed for peers, by CID.
+ *
+ * The registration service's cache is filled only by registrations THIS tab
+ * saw, so in a fresh browser a registered peer the sidebar lists (from the
+ * agent) was unknown to every CID-only surface -- a call from alice rang as
+ * "Peer 6W1TP1" beside a sidebar row reading "Alice Anders". The sidebar's
+ * listing is recorded here (use-registered-peers) and roster-peer-name falls
+ * back to it. Callers record real usernames only, never placeholders.
+ */
+const peerUsernames: Map<bigint, string> = new Map();
+
+export function recordPeerUsernames(peers: readonly { cid: bigint; username: string }[]): void {
+  for (const { cid, username } of peers) peerUsernames.set(cid, username);
+}
+
+export function listedPeerUsername(cid: bigint): string | undefined {
+  return peerUsernames.get(cid);
+}

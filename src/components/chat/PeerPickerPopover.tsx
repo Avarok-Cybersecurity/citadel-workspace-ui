@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { avatarColor, AVATAR_COLORS } from '@/lib/avatar-color';
+import { peerDisplayName } from '@/lib/peer-display';
 
 /** Kept beside the picker so both call sites index the same palette. */
 
@@ -40,7 +41,7 @@ export function PeerPickerPopover({
         <Button
           variant="outline"
           size="sm"
-          disabled={peers.length === 0}
+          // Never disabled for an empty list: the popover's emptyMessage is the explanation.
           data-testid={`${testId}-trigger`}
           className="h-8 bg-surface border-border text-foreground hover:bg-border"
         >
@@ -72,9 +73,9 @@ export function PeerPickerPopover({
                     style={{ backgroundColor: avatarColor(parseInt(peer.cid) % AVATAR_COLORS.length) }}
                     aria-hidden="true"
                   >
-                    {peer.username[0]?.toUpperCase() || '?'}
+                    {peerDisplayName(peer)[0]?.toUpperCase() || '?'}
                   </div>
-                  <span className="text-sm text-foreground flex-1 truncate">{peer.username}</span>
+                  <span className="text-sm text-foreground flex-1 truncate">{peerDisplayName(peer)}</span>
                   {peer.isOnline && (
                     <span className="w-2 h-2 rounded-full bg-success" aria-label="Online" />
                   )}

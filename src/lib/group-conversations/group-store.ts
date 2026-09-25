@@ -33,6 +33,7 @@ import { applyGroupInvite } from '@/hooks/use-group-state-invite';
 import { toast } from '@/hooks/use-toast';
 import { loadPersistedGroups, persistGroups } from './group-persistence';
 import { applyGroupMessage } from './apply-group-message';
+import { peerHandleName } from '@/lib/peer-display';
 import { debugLog } from '@/lib/debug-config';
 import type { GroupRole } from '@/types/group-permissions';
 
@@ -219,8 +220,11 @@ export function startGroupEventBindings(): void {
     senderId: string;
     content: string;
     groupName?: string;
+    selfUsername?: string;
+    memberUsernames?: Record<string, string>;
   }) => {
-    updateGroups((prev) => applyGroupMessage(prev, data, Date.now()));
+    const usernameFor = (cid: bigint): string => data.memberUsernames?.[cid.toString()] ?? peerHandleName({ cid });
+    updateGroups((prev) => applyGroupMessage(prev, data, Date.now(), usernameFor));
   });
 
   eventEmitter.on('group:deleted', (data: { groupId: string }) => {

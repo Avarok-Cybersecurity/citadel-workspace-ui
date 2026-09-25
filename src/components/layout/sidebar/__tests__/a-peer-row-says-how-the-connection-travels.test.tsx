@@ -27,7 +27,7 @@ const PEER: bigint = 9002n;
 function renderRow(isConnected: boolean | null, connectionPath: PeerConnectPath | null): HTMLElement {
   render(
     <SidebarProvider>
-      <PeerListRow cid="9002" username="ada" isOnline isConnected={isConnected} connectionPath={connectionPath} onClick={vi.fn()} />
+      <PeerListRow cid="9002" username="ada" displayName="ada" isOnline isConnected={isConnected} connectionPath={connectionPath} onClick={vi.fn()} />
     </SidebarProvider>,
   );
   return screen.getByTestId('peer-row-ada');
