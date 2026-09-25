@@ -5,7 +5,7 @@
  * Supports real-time updates, pagination, threading, and message actions.
  */
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import type { GroupMessage } from '@/types/workspace-entities';
 import { quoteGroupReply } from './shared/reply-quote';
 import { groupMessageActions, type GroupMessageActions } from '@/lib/group-conversations/group-message-actions';
@@ -51,6 +51,15 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   sendRestriction,
 }) => {
   const chat: ReturnType<typeof useGroupChat> = useGroupChat(groupId);
+  // Choosing Edit or Reply from a message's menu left focus on that menu's button, so the
+  // next keystroke went nowhere (measured live). The composer takes it, a frame later so the
+  // closing menu's own focus return does not win.
+  const composerRef: React.RefObject<HTMLTextAreaElement> = useRef<HTMLTextAreaElement>(null);
+  useEffect((): (() => void) | void => {
+    if (!chat.editingId && !chat.replyToId) return;
+    const frame: number = requestAnimationFrame((): void => { composerRef.current?.focus(); });
+    return (): void => cancelAnimationFrame(frame);
+  }, [chat.editingId, chat.replyToId]);
   // A peer group has no edit or delete on the wire; see group-message-actions.
   const actions: GroupMessageActions = groupMessageActions(groupId);
   // What each reply quotes, looked up among the messages already loaded.
@@ -179,6 +188,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
           {/* Peer groups only: a node-backed channel's server has no file path. */}
           {groupSendTransport(groupId) === 'peer' && !chat.editingId && <GroupAttachButton groupId={groupId} />}
           <Textarea
+            ref={composerRef}
             value={chat.editingId ? chat.editContent : chat.inputValue}
             onChange={(e) =>
               chat.editingId
