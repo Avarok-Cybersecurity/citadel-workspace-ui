@@ -10,6 +10,7 @@ function deps(overrides: Partial<Parameters<typeof saveOfficeContent>[0]> = {}):
     nodeId: 'node-1',
     content: '# hello',
     displayName: 'Engineering',
+    noPageReason: 'There is no page to save to.',
     write: vi.fn().mockResolvedValue(undefined),
     notify: vi.fn(),
     log: vi.fn(),
@@ -39,6 +40,8 @@ describe('saveOfficeContent', () => {
     expect(d.write).not.toHaveBeenCalled();
     expect(d.notify).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
     expect(d.notify).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'success' }));
+    // Says why, rather than "still loading" about a page that had finished.
+    expect(d.notify).toHaveBeenCalledWith(expect.objectContaining({ description: 'There is no page to save to.' }));
   });
 
   it('reports a failed write as a failure', async () => {

@@ -37,12 +37,12 @@ import {
   sendGroupCreate,
   sendGroupInvite,
   sendGroupLeave,
-  sendGroupKick,
   sendGroupListRequest,
 } from '@/lib/group-conversations/group-requests';
 import { rememberGroupName } from '@/lib/group-conversations/group-names';
 import { awaitGroupCreated } from '@/lib/group-conversations/await-group-created';
 import { updateGroups } from '@/lib/group-conversations/group-store';
+import { kickGroupMember } from '@/lib/group-conversations/kick-group-member';
 
 // ============================================================================
 // Hook Implementation
@@ -112,7 +112,7 @@ export function useGroupConversations(): UseGroupConversationsResult {
   const kickMember: (groupId: string, memberCid: string) => Promise<void> = useCallback(
     async (groupId: string, memberCid: string): Promise<void> => {
       try {
-        await sendGroupKick(groupId, memberCid);
+        await kickGroupMember(groupId, BigInt(memberCid));
       } catch (e) {
         const errorMsg: string = e instanceof Error ? e.message : 'Failed to kick member';
         setError(errorMsg);

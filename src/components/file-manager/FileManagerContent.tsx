@@ -3,6 +3,7 @@ import { TreeScope  } from "@/types/revfs-types";
 import { useFileManagerContent } from "./useFileManagerContent";
 import { ConnectingScreen, NoPeersScreen, LoadingScreen, ErrorScreen } from "./FileManagerStatusScreens";
 import { FileManagerStorageBar } from "./FileManagerStorageBar";
+import { fileManagerScreen, type FileManagerScreen } from "./file-manager-screen";
 import { VFSTreeView } from "./VFSTreeView";
 import { VFSContentGrid } from "./VFSContentGrid";
 import { VFSToolbar } from "./VFSToolbar";
@@ -16,19 +17,16 @@ export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
 
   // ── Early returns ──────────────────────────────────────────────────────
 
-  if (!fm.myCid) {
-    return <ConnectingScreen />;
-  }
-
-  if (fm.storageMode === TreeScope.Peer && (fm.registeredPeers.length === 0 || !fm.selectedPeerCid)) {
-    return <NoPeersScreen onSwitchToServer={() => fm.setStorageMode(TreeScope.Server)} />;
-  }
-
-  if (fm.loading) {
-    return <LoadingScreen />;
-  }
-
-  if (fm.error || !fm.tree) {
+  const shown: FileManagerScreen = fileManagerScreen({
+    myCid: fm.myCid, storageMode: fm.storageMode, peersLoading: fm.peersLoading,
+    peerCount: fm.registeredPeers.length, selectedPeerCid: fm.selectedPeerCid,
+    treeLoading: fm.loading, hasError: Boolean(fm.error), hasTree: Boolean(fm.tree),
+  });
+  if (shown === 'connecting') return <ConnectingScreen />;
+  if (shown === 'finding-peers') return <LoadingScreen label="Finding your peers..." />;
+  if (shown === 'no-peers') return <NoPeersScreen onSwitchToServer={() => fm.setStorageMode(TreeScope.Server)} />;
+  if (shown === 'loading') return <LoadingScreen label="Loading file system..." />;
+  if (shown === 'error' || !fm.tree) {
     return <ErrorScreen error={fm.error ?? null} onRetry={() => { void fm.refresh(); }} />;
   }
 

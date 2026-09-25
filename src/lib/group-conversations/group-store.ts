@@ -23,6 +23,7 @@ import { notifyEach } from '@/lib/notify-listeners';
 import { bindMembershipEvents } from './group-membership-events';
 import { chosenGroupName } from './group-names';
 import { bindGroupFailureToasts } from './group-failure-toasts';
+import { bindGroupRemovalNotice } from './group-removal-notice';
 import { bindGroupListReconcile } from './reconcile-groups';
 import { bindEndedGroups } from './ended-groups';
 import { bindPeerGroupDelivery } from './bind-peer-group-delivery';
@@ -150,6 +151,7 @@ export function startGroupEventBindings(): void {
   bindingsStarted = true;
 
   bindGroupFailureToasts();
+  bindGroupRemovalNotice((id: string): string | undefined => groups.find(g => g.id === id)?.name);
   bindMembershipEvents();
 
   eventEmitter.on('group:created', (data: {

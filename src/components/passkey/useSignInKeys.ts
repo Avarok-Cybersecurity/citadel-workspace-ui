@@ -7,9 +7,9 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { debugLog } from '@/lib/debug-config';
-import { connectionManager } from '@/lib/connection';
+import { useTabIdentity } from '@/hooks/use-tab-identity';
+import type { TabIdentity } from '@/lib/tab-identity';
 import { verifyAccountPassword } from '@/lib/connection/verify-password';
-import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import {
   browserPasskeyDeps, enrolCredential, failureOf, listCredentials, passkeysAvailableHere, removeCredential,
   type CredentialRecord, type PasskeyDeps,
@@ -28,9 +28,11 @@ export interface SignInKeys {
 
 export function useSignInKeys(): SignInKeys {
   const available: boolean = passkeysAvailableHere();
-  const info: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
-  const username: string | undefined = info?.username;
-  const cid: bigint | undefined = info?.cid;
+  // This tab's account. The global connection info has no username or cid in
+  // a tab that resumed its session, which hid the whole section there.
+  const me: TabIdentity | null = useTabIdentity();
+  const username: string | undefined = me?.username;
+  const cid: bigint | undefined = me?.cid;
   const [keys, setKeys] = useState<CredentialRecord[]>([]);
   const [busy, setBusy] = useState<boolean>(false);
   const [message, setMessage] = useState<string | null>(null);

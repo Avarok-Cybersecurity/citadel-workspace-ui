@@ -7,7 +7,7 @@
  * added. A second copy is how the orphan path once came to skip
  * `getTreeSchema` while the login path ran it.
  */
-import { claimSessionForThisTab, type ClaimOutcome } from './claim-session';
+import { claimSessionForThisTab, offerTakeover, type ClaimOutcome, type TakeoverCallbacks } from './claim-session';
 import { sessionSwitchToasts, type SessionSwitchToasts } from './session-switch-toasts';
 import { readLastLocation } from './last-location';
 import { markLastAccessed } from './last-accessed';
@@ -31,13 +31,14 @@ export interface SwitchTarget {
   storedSessionIndex: number;
 }
 
-export interface SwitchCallbacks {
+export interface SwitchCallbacks extends TakeoverCallbacks {
   navigate: (path: string) => void;
   /** The `toast` from useToast(); typed from its own options so the two cannot drift. */
   toast: (opts: ToastOptions) => unknown;
 }
 
-export async function switchToSession(session: SwitchTarget, { navigate, toast }: SwitchCallbacks): Promise<void> {
+export async function switchToSession(session: SwitchTarget, callbacks: SwitchCallbacks): Promise<void> {
+  const { navigate, toast } = callbacks;
   const notices: SessionSwitchToasts = sessionSwitchToasts(session.cid, session.workspaceName);
   try {
     debugLog('OrphanSessionsNavbar', 'Navigating to workspace:', session.workspaceName);
@@ -49,6 +50,10 @@ export async function switchToSession(session: SwitchTarget, { navigate, toast }
     const outcome: ClaimOutcome = await claimSessionForThisTab(session.cid);
     if (outcome.status === 'owned-by-another-tab') {
       toast(notices.ownedElsewhere);
+      return;
+    }
+    if (outcome.status === 'held-by-another-connection') {
+      await offerTakeover(session.username, callbacks);
       return;
     }
 

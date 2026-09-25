@@ -2,17 +2,16 @@ import { useState, useEffect } from "react";
 import type { UseWorkspaceSwitcherResult } from './useWorkspaceSwitcher-types';
 import { mayLeaveEditor } from '@/lib/leave-editor';
 import { useConfirm } from '@/components/shared/confirm-dialog';
-import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
+import { switchToSession } from '@/lib/sessions/switch-to-session';
 import { toStoredWorkspaces, pickCurrentWorkspace , type StoredWorkspace } from './stored-workspace-list';
 import { describeFailure } from '@/lib/failure-message';
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { connectionManager } from "@/lib/connection";
 import { ConnectionService } from "@/lib/connection-service";
-import { postAuthSetup } from '@/lib/post-auth-setup';
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess, toastError } from "@/lib/toast-helpers";
-import { getSelectedUser, setSelectedUser , type TabUserContext } from "@/lib/tab-context";
+import { getSelectedUser, type TabUserContext } from "@/lib/tab-context";
 import { getWorkspaceLogo , type WorkspaceLogo } from "@/lib/workspace-metadata-service";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
@@ -26,11 +25,10 @@ import type { StoredSessions, StoredSession } from '@/types/session-types';
 
 export type WorkflowStep = "connect" | "security" | "join";
 
-export function useWorkspaceSwitcher(workspaceName?: string): UseWorkspaceSwitcherResult {
+export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs: (username: string) => void): UseWorkspaceSwitcherResult {
   const [availableWorkspaces, setAvailableWorkspaces] = useState<StoredWorkspace[]>([]);
   const [currentWorkspace, setCurrentWorkspace] = useState<StoredWorkspace | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [workspaceRoutes, setWorkspaceRoutes] = useState<Record<string, string>>({});
   const [isAddingWorkspace, setIsAddingWorkspace] = useState(false);
   const [isManagingAccounts, setIsManagingAccounts] = useState(false);
   const [currentStep, setCurrentStep] = useState<WorkflowStep>("connect");
@@ -48,7 +46,6 @@ export function useWorkspaceSwitcher(workspaceName?: string): UseWorkspaceSwitch
   // pattern in src/pages/Landing.tsx.
   const [serverAddress, setServerAddress] = useState<string>("");
   const [serverPassword, setServerPassword] = useState<string>("");
-  const location: ReturnType<typeof useLocation> = useLocation();
   const confirm: ReturnType<typeof useConfirm> = useConfirm();
   const navigate: NavigateFunction = useNavigate();
   const { state } = useWorkspace();
@@ -91,15 +88,6 @@ export function useWorkspaceSwitcher(workspaceName?: string): UseWorkspaceSwitch
     setIsInitials(logo.type === 'initials');
   }, [state.workspace, workspaceName, theme.icon]);
 
-  useEffect(() => {
-    if (currentWorkspace) {
-      setWorkspaceRoutes(prev => ({
-        ...prev,
-        [currentWorkspace.id]: location.pathname + location.search
-      }));
-    }
-  }, [location.pathname, location.search, currentWorkspace]);
-
   const handleWorkspaceChange = async (workspace: StoredWorkspace): Promise<void> => {
     // Switching session tears the whole workspace down, editor included.
     if (!(await mayLeaveEditor(confirm))) return;
@@ -110,14 +98,7 @@ export function useWorkspaceSwitcher(workspaceName?: string): UseWorkspaceSwitch
     setIsSwitching(true);
 
     try {
-      toastSuccess(toast, "Switching workspace...", `Connecting as ${workspace.fullName || workspace.username}`);
-
-      // Hand control back so the toast above actually paints before the work
-      // below starts. This was a flat 100ms guess: too short on a loaded machine
-      // (the toast never appeared), and 100ms of dead time on every switch
-      // otherwise. A macrotask yield returns the moment the browser has had its
-      // chance to render — awaiting alone would not, since that only queues a
-      // microtask, which runs before paint.
+      // Hand control back so the dropdown's spinner paints before the work below.
       await yieldToEventLoop();
 
       const storedSessions: StoredSessions = connectionManager.getStoredSessions();
@@ -128,38 +109,18 @@ export function useWorkspaceSwitcher(workspaceName?: string): UseWorkspaceSwitch
       if (!targetSession) throw new Error('Session not found');
       if (!targetSession.cid) throw new Error('Session CID not available');
 
-      const outcome: ClaimOutcome = await claimSessionForThisTab(targetSession.cid);
-      if (outcome.status === 'owned-by-another-tab') {
-        toast({ ...SESSION_OWNED_ELSEWHERE, variant: 'default' });
-        setIsSwitching(false);
-        return;
-      }
-
-      const index: number = storedSessions.sessions.indexOf(targetSession);
-      if (index >= 0) {
-        await connectionManager.setActiveSessionIndex(index);
-      }
-
-      await setSelectedUser({
-        selectedUsername: workspace.username,
-        selectedServerAddress: workspace.serverAddress,
-        selectedCid: targetSession.cid
-      });
-
-      await postAuthSetup(targetSession.cid);
-
-      toastSuccess(toast, "Connected!", (
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
-          <span>{workspace.fullName || workspace.username} · {workspace.workspaceName}</span>
-        </div>
-      ));
-
-      const savedRoute: string = workspaceRoutes[workspace.id];
-      if (savedRoute && savedRoute !== location.pathname + location.search) {
-        navigate(savedRoute);
-      }
-
+      // The one switch sequence (lib/sessions/switch-to-session.ts). This hook
+      // carried its own copy, which never set the instance CID nor announced
+      // the activation: switching to a second account held by this very
+      // browser claimed it ("not orphaned", so already ours), selected it, and
+      // left every surface reading the old account -- nothing visibly happened.
+      await switchToSession({
+        cid: targetSession.cid,
+        username: workspace.username,
+        server_address: workspace.serverAddress,
+        workspaceName: workspace.workspaceName ?? workspace.username,
+        storedSessionIndex: storedSessions.sessions.indexOf(targetSession),
+      }, { navigate, toast, confirm, signInAs });
     } catch (error) {
       debugLog('WorkspaceSwitcher', 'Failed to switch workspace:', error);
       toastError(toast, "Switch Failed", describeFailure(error, "Could not switch to the selected workspace"));

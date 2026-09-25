@@ -7,6 +7,7 @@
 
 import { scopedSettingsKey } from './settings-key';
 import { startExpirySweep } from './expiry-sweep';
+import { bindAccountHistory } from './account-history';
 import { loadPersistedTransfers, persistTransfer, persistSettings } from './transfer-persistence';
 import { eventEmitter } from '../event-emitter';
 import {
@@ -75,6 +76,7 @@ export class FileTransferService {
     if (this.initialized) return;
     this.setupMessageHandlers();
     await this.loadFromStorage();
+    bindAccountHistory(this.state);
     startExpirySweep(this.state, this.emitStateChange.bind(this), this.saveTransfer.bind(this));
     this.initialized = true;
     debugLog('FileTransferService', 'Initialized');

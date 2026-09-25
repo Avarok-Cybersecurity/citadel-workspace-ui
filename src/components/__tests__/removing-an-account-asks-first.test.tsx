@@ -46,9 +46,12 @@ vi.mock('@/hooks/use-toast', () => ({
 
 async function open(): Promise<void> {
   const { AccountManagementDialog } = await import('../AccountManagementDialog');
+  const { ConfirmDialogProvider } = await import('../shared/confirm-dialog');
   render(
     <MemoryRouter>
-      <AccountManagementDialog isOpen onClose={(): void => {}} />
+      <ConfirmDialogProvider>
+        <AccountManagementDialog isOpen onClose={(): void => {}} />
+      </ConfirmDialogProvider>
     </MemoryRouter>,
   );
 }
