@@ -193,7 +193,9 @@ export function TreeNodesSection({
               </span>
             ) : (
               <span data-testid="tree-empty">
-                Your workspace is empty. Click the + button to create your first space.
+                {createBlockedReason === null
+                  ? 'Your workspace is empty. Click the + button to create your first space.'
+                  : 'No spaces yet. An administrator adds the first one.'}
               </span>
             )}
           </div>
