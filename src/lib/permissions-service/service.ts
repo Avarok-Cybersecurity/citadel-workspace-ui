@@ -230,6 +230,10 @@ export class PermissionsService extends EventListenerManager {
   public clearCache(): void {
     this.cache.clear();
     debugLog('PermissionsService', 'Cache cleared');
+    // Announced, so the provider's copy is dropped too. A session change cleared this and
+    // told nobody: the provider still held the domain, usePermission never asked again,
+    // and the empty cache's "no answer" permitted a Member the tree's "+" (measured live).
+    this.emit('permissions:cleared', {});
   }
 
   public cleanup(): void {
