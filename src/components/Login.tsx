@@ -52,6 +52,9 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
       headerObfuscatorSettings: values.headerObfuscatorSettings,
       enrolPasskey: values.enrolPasskey ?? false,
     });
+    // SecuritySettings calls onComplete INSTEAD of onNext, so this is where Save closes the
+    // panel; without it Save stored the values and left the user stranded on it.
+    setShowSecuritySettings(false);
   };
 
   const { ref: dialogRef, dialogProps } = useDialogOverlay({
