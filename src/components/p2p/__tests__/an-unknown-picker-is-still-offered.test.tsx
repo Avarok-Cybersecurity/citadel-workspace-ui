@@ -26,6 +26,7 @@ function zone(nativePickerAvailable: false | null): void {
       isSending={false}
       isPickingFile={false}
       nativePickerAvailable={nativePickerAvailable}
+      nativePickerBlockedReason={null}
       maxFileSizeBytes={1024}
       formatBytes={(b: number): string => `${b} B`}
       onDrop={noop}

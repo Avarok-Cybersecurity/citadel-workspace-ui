@@ -12,6 +12,7 @@ import type { FileTransferMode } from '@/types/messaging-layer';
 import { useFileTransfer } from './useFileTransfer';
 import { FileDropZone } from './FileDropZone';
 import { TRANSFER_METHOD_COPY } from './transfer-method-copy';
+import { nativePickerBlockedReason } from './native-picker-reason';
 
 interface FileTransferModalProps {
   isOpen: boolean;
@@ -77,6 +78,7 @@ export function FileTransferModal({
             isSending={isSending}
             isPickingFile={isPickingFile}
             nativePickerAvailable={nativePickerAvailable}
+            nativePickerBlockedReason={nativePickerBlockedReason(transferMode)}
             maxFileSizeBytes={maxFileSizeBytes}
             formatBytes={formatBytes}
             onDrop={handleDrop}
