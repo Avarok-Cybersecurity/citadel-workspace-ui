@@ -30,6 +30,21 @@ export class FileTransferState {
   // Transfer Operations
   // ============================================================================
 
+  /**
+   * Offers announced during this page's life. Their record is written after an
+   * await (the session lookup), so a bubble can render in between; without this
+   * it would read "no record" as "a restored offer nothing can answer".
+   */
+  private arrivingOffers: Set<string> = new Set();
+
+  noteOfferArriving(transferId: string): void {
+    this.arrivingOffers.add(transferId);
+  }
+
+  isOfferArriving(transferId: string): boolean {
+    return this.arrivingOffers.has(transferId);
+  }
+
   getTransfer(transferId: string): FileTransfer | undefined {
     return this.transfers.get(transferId);
   }
