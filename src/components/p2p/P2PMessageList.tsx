@@ -10,6 +10,8 @@ import { DateSeparator } from '@/components/chat/shared/DateSeparator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageBubble } from './bubbles';
 import type { P2PMessage } from '@/lib/p2p';
+import { reactionChips } from '@/lib/reactions/reaction-state';
+import type { ReactionBinding } from '@/components/chat/shared/reactions/reaction-binding';
 
 interface P2PMessageListProps {
   messages: P2PMessage[];
@@ -33,6 +35,7 @@ interface P2PMessageListProps {
   onEditMessage?: (messageId: string, content: string) => void;
   onDeleteMessage?: (messageId: string) => void;
   onReplyMessage?: (messageId: string) => void;
+  onReactMessage?: (messageId: string, emoji: string) => void;
 }
 
 export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps & React.RefAttributes<HTMLDivElement>> = forwardRef<HTMLDivElement, P2PMessageListProps>(
@@ -58,6 +61,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
       onEditMessage,
       onDeleteMessage,
       onReplyMessage,
+      onReactMessage,
     }: P2PMessageListProps,
     ref: React.ForwardedRef<HTMLDivElement>
   ) {
@@ -78,6 +82,13 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
       [messages],
     );
     const authorOf: (m: P2PMessage) => string = (m: P2PMessage): string => (m.senderCid === currentUserCid ? currentUserName : peerName);
+    // Two parties, so a reactor is either the viewer or the peer.
+    const reactorName: (cid: bigint) => string = (cid: bigint): string => (cid === currentUserCid ? 'You' : peerName);
+    const reactionsFor: (m: P2PMessage) => ReactionBinding | undefined = (m: P2PMessage): ReactionBinding | undefined => (
+      onReactMessage
+        ? { chips: reactionChips(m.reactions, currentUserCid ?? null), nameFor: reactorName, onReact: (emoji: string): void => onReactMessage(m.id, emoji) }
+        : undefined
+    );
 
     return (
       <ScrollArea className="flex-1 p-4" ref={ref} onScroll={onScroll}>
@@ -138,6 +149,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
                 onEdit={onEditMessage ? (): void => onEditMessage(message.id, message.content) : undefined}
                 onDelete={onDeleteMessage ? (): void => onDeleteMessage(message.id) : undefined}
                 onReply={onReplyMessage ? (): void => onReplyMessage(message.id) : undefined}
+                reactions={reactionsFor(message)}
               />
             );
           })}

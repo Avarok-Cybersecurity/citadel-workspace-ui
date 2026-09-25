@@ -13,6 +13,9 @@ import { cn } from '@/lib/utils';
 import { getInitials, ReplyQuote, MESSAGE_ANCHOR_ATTRIBUTE, JUMP_TARGET_CLASSES, type QuotedMessage } from './shared';
 import { GroupMessageFooter } from './GroupMessageFooter';
 import { BUBBLE_MAX_WIDTH } from '@/components/p2p/bubbles/types';
+import { ReactionChips } from './shared/reactions/ReactionChips';
+import { ReactionMenuItems } from './shared/reactions/ReactionMenuItems';
+import type { ReactionBinding } from './shared/reactions/reaction-binding';
 
 interface GroupMessageItemProps {
   message: GroupMessage;
@@ -38,6 +41,8 @@ interface GroupMessageItemProps {
   onReply: (messageId: string) => void;
   /** What `reply_to` names, or `null` when this is not a reply or it is not loaded. */
   quoted: QuotedMessage | null;
+  /** Absent where the group cannot carry reactions (a node-backed channel). */
+  reactions?: ReactionBinding;
 }
 
 export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
@@ -49,6 +54,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
   canRevise,
   onReply,
   quoted,
+  reactions,
 }) => {
   // Compared against the USERNAME, not the CID.
   //
@@ -106,6 +112,8 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
           {message.reply_to && <ReplyQuote quoted={quoted} isOwn={isOwnMessage} />}
           <p className="whitespace-pre-wrap break-words">{message.content}</p>
         </div>
+
+        {reactions && <ReactionChips binding={reactions} isOwn={isOwnMessage} />}
 
         <GroupMessageFooter
           message={message}
@@ -165,6 +173,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
                 </DropdownMenuItem>
               </>
             )}
+            {reactions && <ReactionMenuItems onReact={reactions.onReact} />}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

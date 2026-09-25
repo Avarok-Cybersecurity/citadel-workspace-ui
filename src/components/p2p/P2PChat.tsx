@@ -79,7 +79,7 @@ export function P2PChat({
   const {
     messages, peerTyping, peerPresence, isConnected, isRegistered,
     isLoadingMore, isLoadingHistory, hasMorePages, handleScroll, handleRetryMessage,
-    handleEditMessage, handleDeleteMessage,
+    handleEditMessage, handleDeleteMessage, handleReactMessage,
   } = useP2PMessages({
     peerCid, activeTabIdRef, scrollRef,
     onUnreadMessage: useCallback(() => setMessagesHasUnread(true), [setMessagesHasUnread]),
@@ -220,6 +220,7 @@ export function P2PChat({
               onEditMessage={onEditMessage ?? handleStartEdit}
               onDeleteMessage={onDeleteMessage ?? handleDeleteMessage}
               onReplyMessage={onReplyMessage ?? handleReplyMessage}
+              onReactMessage={handleReactMessage}
             />
             <ComposeContextBanner
               replyingTo={replyingTo}

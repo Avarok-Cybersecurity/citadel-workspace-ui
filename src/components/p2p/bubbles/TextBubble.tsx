@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { getBubbleStyles, BUBBLE_MAX_WIDTH , type ReplyableBubbleProps } from './types';
 import { ReplyQuote } from '@/components/chat/shared/ReplyQuote';
 import { BubbleFooter } from './BubbleFooter';
+import { ReactionChips } from '@/components/chat/shared/reactions/ReactionChips';
+import { ReactionMenuItems } from '@/components/chat/shared/reactions/ReactionMenuItems';
 import { getInitials } from '@/components/chat/shared';
 
 export function TextBubble({
@@ -23,11 +25,12 @@ export function TextBubble({
   onDelete,
   onReply,
   quoted,
+  reactions,
 }: ReplyableBubbleProps): JSX.Element {
   const isFailed: boolean = message.status === 'failed';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
   const displayName: string = senderName || 'Unknown';
-  const hasActions: (() => void) | undefined = onEdit || onDelete || onReply;
+  const hasActions: boolean = Boolean(onEdit || onDelete || onReply || reactions);
 
   // Show avatar only for non-own messages in group mode
   const shouldShowAvatar: boolean | undefined = showSenderAvatar && !isOwn;
@@ -82,6 +85,7 @@ export function TextBubble({
           )}
           <BubbleFooter message={message} isOwn={isOwn} onRetry={onRetry} />
         </div>
+        {reactions && <ReactionChips binding={reactions} isOwn={isOwn} />}
       </div>
 
       {/* Message Actions Dropdown */}
@@ -115,6 +119,7 @@ export function TextBubble({
                   Delete
                 </DropdownMenuItem>
               )}
+              {reactions && <ReactionMenuItems onReact={reactions.onReact} />}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

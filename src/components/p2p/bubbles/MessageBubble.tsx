@@ -6,6 +6,7 @@ import { getBubbleContainerStyles } from './types';
 import { MESSAGE_ANCHOR_ATTRIBUTE, JUMP_TARGET_CLASSES } from '@/components/chat/shared/jump-to-message';
 import type { QuotedMessage } from '@/components/chat/shared/reply-quote';
 import type { P2PMessage } from '@/lib/p2p';
+import type { ReactionBinding } from '@/components/chat/shared/reactions/reaction-binding';
 
 interface MessageBubbleProps {
   message: P2PMessage;
@@ -28,6 +29,7 @@ interface MessageBubbleProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onReply?: () => void;
+  reactions?: ReactionBinding;
 }
 
 export function MessageBubble({
@@ -46,11 +48,12 @@ export function MessageBubble({
   onEdit,
   onDelete,
   onReply,
+  reactions,
 }: MessageBubbleProps): JSX.Element {
   const containerStyles: string = getBubbleContainerStyles(isOwn);
 
   // Common props for all bubble types
-  const commonProps: { message: P2PMessage; isOwn: boolean; onRetry: (() => void) | undefined; showSenderName: boolean | undefined; showSenderAvatar: boolean | undefined; senderName: string | undefined; onEdit: (() => void) | undefined; onDelete: (() => void) | undefined; onReply: (() => void) | undefined; } = {
+  const commonProps: { message: P2PMessage; isOwn: boolean; onRetry: (() => void) | undefined; showSenderName: boolean | undefined; showSenderAvatar: boolean | undefined; senderName: string | undefined; onEdit: (() => void) | undefined; onDelete: (() => void) | undefined; onReply: (() => void) | undefined; reactions: ReactionBinding | undefined; } = {
     message,
     isOwn,
     onRetry,
@@ -60,6 +63,7 @@ export function MessageBubble({
     onEdit,
     onDelete,
     onReply,
+    reactions,
   };
 
   const renderBubble: () => JSX.Element = (): JSX.Element => {

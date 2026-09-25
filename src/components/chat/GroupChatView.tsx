@@ -17,6 +17,7 @@ import { Send, Loader2 } from 'lucide-react';
 import { useGroupChat } from './useGroupChat';
 import { restrictionText, type GroupRestriction } from './group-restriction';
 import { GroupMessageItem } from './GroupMessageItem';
+import { groupReactionBinding } from './group-reaction-binding';
 
 interface GroupChatViewProps {
   groupId: string;
@@ -115,6 +116,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
                     onReply={(id) => chat.setReplyToId(id)}
                     canRevise={actions.canRevise}
                     quoted={message.reply_to ? quoteGroupReply(message.reply_to, byId) : null}
+                    reactions={actions.canReact ? groupReactionBinding(groupId, message) : undefined}
                   />
                 ))}
               </div>

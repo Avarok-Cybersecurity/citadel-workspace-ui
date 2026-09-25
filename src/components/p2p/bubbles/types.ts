@@ -1,5 +1,6 @@
 import type { P2PMessage } from '@/lib/p2p';
 import type { QuotedMessage } from '@/components/chat/shared/reply-quote';
+import type { ReactionBinding } from '@/components/chat/shared/reactions/reaction-binding';
 
 export interface BaseBubbleProps {
   message: P2PMessage;
@@ -15,6 +16,8 @@ export interface BaseBubbleProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onReply?: () => void;
+  /** Absent where reactions are not offered; see ReactionChips. */
+  reactions?: ReactionBinding;
 }
 
 /** Text and markdown bubbles, the two a reply can be composed as. */

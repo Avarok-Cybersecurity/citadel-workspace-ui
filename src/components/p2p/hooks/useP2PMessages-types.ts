@@ -31,6 +31,8 @@ export interface UseP2PMessagesReturn {
   handleRetryMessage: (message: P2PMessage) => Promise<void>;
   handleEditMessage: (messageId: string, content: string) => Promise<void>;
   handleDeleteMessage: (messageId: string) => Promise<void>;
+  /** Toggle the viewer's own reaction; failures are reported, not thrown. */
+  handleReactMessage: (messageId: string, emoji: string) => void;
 }
 
 /**
