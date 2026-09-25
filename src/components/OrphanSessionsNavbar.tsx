@@ -4,7 +4,7 @@ import { OrphanSessionIcon } from "./OrphanSessionIcon";
 import { DisconnectConfirmModal } from "./DisconnectConfirmModal";
 import { DisconnectLoadingModal } from "./LoadingModal";
 import { useOrphanSessions } from "./useOrphanSessions";
-import { TakeoverSignIn } from "./TakeoverSignIn";
+import { LazyTakeoverSignIn as TakeoverSignIn } from "./LazyTakeoverSignIn";
 
 export const OrphanSessionsNavbar: () => JSX.Element | null = (): JSX.Element | null => {
   const {

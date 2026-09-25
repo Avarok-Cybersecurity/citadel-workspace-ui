@@ -6,7 +6,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AccountManagementDialog } from "@/components/AccountManagementDialog";
-import { TakeoverSignIn } from "@/components/TakeoverSignIn";
+import { LazyTakeoverSignIn as TakeoverSignIn } from "@/components/LazyTakeoverSignIn";
 import { useSelfName } from "@/hooks/use-self-name";
 import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";

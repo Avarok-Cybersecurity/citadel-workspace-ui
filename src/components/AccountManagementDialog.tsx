@@ -25,7 +25,7 @@ import { readLastAccessed } from '@/lib/sessions/last-accessed';
 import { useTabIdentity } from '@/hooks/use-tab-identity';
 import type { TabIdentity } from '@/lib/tab-identity';
 import { useConfirm } from './shared/confirm-dialog';
-import { TakeoverSignIn } from './TakeoverSignIn';
+import { LazyTakeoverSignIn as TakeoverSignIn } from './LazyTakeoverSignIn';
 import { AccountRow } from './AccountRows';
 
 interface AccountManagementDialogProps {

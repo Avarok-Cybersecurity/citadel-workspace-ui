@@ -15,7 +15,7 @@ import { getWorkspacePath } from '@/lib/workspace-navigation';
 import { toastError } from '@/lib/toast-helpers';
 import { describeFailure } from '@/lib/failure-message';
 
-interface TakeoverSignInProps {
+export interface TakeoverSignInProps {
   /** The account to sign in as, or null when nothing is being taken over. */
   username: string | null;
   onClose: () => void;
