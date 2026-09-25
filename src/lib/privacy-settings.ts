@@ -8,7 +8,7 @@
  * receipts: off" still sent receipts and "Show typing indicators: off" still
  * showed them.
  *
- * Four settings are honoured from here. The rest live elsewhere, and saying
+ * Five settings are honoured from here. The rest live elsewhere, and saying
  * where is part of the fix:
  *
  * - `acceptRequestsFromStrangers` is enforced where the decision is made: this
@@ -19,7 +19,9 @@
  * - Profile visibility is NOT here. The avatar, email and title are served by
  *   the workspace server, so only the server can withhold them; the choice is
  *   stored on the user's record there (lib/profile-privacy.ts).
- * - `notifyOnScreenshot` is not observable from a web page at all.
+ * - `notifyOnScreenshot` is best effort and says so: a page sees only the
+ *   PrintScreen key on Windows/Linux (lib/p2p/screenshot-detection.ts). The
+ *   setting governs whether THIS user is shown the peer's notice.
  *
  * `acceptRequestsFromStrangers` replaced `allowDirectMessages`, a three-way
  * select that could not be changed (it was disabled) but was saved on every
@@ -56,7 +58,7 @@ export const PRIVACY_ENFORCEMENT: Record<keyof PrivacySettings, boolean> = {
   showTypingIndicators: true,
   sendReadReceipts: true,
   acceptRequestsFromStrangers: true,
-  notifyOnScreenshot: false,
+  notifyOnScreenshot: true,
 };
 
 /**

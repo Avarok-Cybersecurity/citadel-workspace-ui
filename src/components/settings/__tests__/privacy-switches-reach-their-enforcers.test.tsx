@@ -65,10 +65,15 @@ describe('requests from people you are not connected with', () => {
 });
 
 describe('what the tab claims', () => {
-  it('no longer calls these two unenforced', () => {
+  it('calls nothing unenforced any more', () => {
     render(<WithUser show={true} />);
-    const notes: HTMLElement[] = screen.queryAllByText(/Not enforced yet/);
-    // One left: screenshot alerts, which a web page cannot observe.
-    expect(notes).toHaveLength(1);
+    expect(screen.queryAllByText(/Not enforced yet/)).toHaveLength(0);
+  });
+
+  it('states the screenshot limit plainly, and lets it be switched', () => {
+    render(<WithUser show={true} />);
+    expect(screen.getByText(/Best effort: only catches the PrintScreen key on Windows and Linux/)).toBeTruthy();
+    expect(screen.getByText(/macOS and phone screenshots/)).toBeTruthy();
+    expect(screen.getByRole('switch', { name: 'Screenshot Alerts' })).toHaveProperty('disabled', false);
   });
 });

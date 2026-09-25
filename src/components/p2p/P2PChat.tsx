@@ -21,6 +21,7 @@ import { P2PMessageList } from './P2PMessageList';
 import { P2PMessageInput } from './P2PMessageInput';
 import { useP2PMessages, useP2PFileTransfer, useP2PTabs } from './hooks';
 import { useP2PCompose } from './hooks/useP2PCompose';
+import { useScreenshotNotice, sendScreenshotNotice } from './hooks/useScreenshotNotice';
 import type { DirectCallBinding } from '@/components/p2p/hooks/use-direct-call';
 
 export type ChatMode = 'p2p' | 'group';
@@ -60,6 +61,7 @@ export function P2PChat({
   const callBinding: DirectCallBinding = useDirectCall(peerCid, peerName);
 
   const isGroupMode: boolean = mode === 'group';
+  useScreenshotNotice(isGroupMode ? null : peerCid, sendScreenshotNotice); // best effort: see screenshot-detection.ts
   const displaySenderName: boolean = showSenderName ?? isGroupMode;
   const displaySenderAvatar: boolean = showSenderAvatar ?? isGroupMode;
 
@@ -67,7 +69,6 @@ export function P2PChat({
 
   const [showFileModal, setShowFileModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-
   // Tabs hook
   const {
     activeTabId, activeTabIdRef, tabsWithUnread, activeTab,
@@ -85,7 +86,6 @@ export function P2PChat({
     onUnreadMessage: useCallback(() => setMessagesHasUnread(true), [setMessagesHasUnread]),
   });
 
-  // File transfer hook
   const fileTransfer: ReturnType<typeof useP2PFileTransfer> = useP2PFileTransfer({ peerCid, peerName });
 
   // Composition hook (input, reply/edit context, send, live-doc flow)

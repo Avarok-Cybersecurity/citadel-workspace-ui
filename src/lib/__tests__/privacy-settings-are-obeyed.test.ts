@@ -70,7 +70,8 @@ describe('privacy settings storage', () => {
     // Profile visibility is not a local setting at all: the server enforces it
     // (lib/profile-privacy.ts), so it has no entry here to claim anything.
     expect(Object.keys(PRIVACY_ENFORCEMENT)).not.toContain('showProfileToStrangers');
-    expect(PRIVACY_ENFORCEMENT.notifyOnScreenshot).toBe(false);
+    // Best effort (PrintScreen on Windows/Linux only); the tab says so.
+    expect(PRIVACY_ENFORCEMENT.notifyOnScreenshot).toBe(true);
   });
 });
 

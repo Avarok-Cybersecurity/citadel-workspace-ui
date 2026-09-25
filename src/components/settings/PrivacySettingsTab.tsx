@@ -1,4 +1,4 @@
-import { NotEnforcedNote } from './not-enforced-note';
+import { SCREENSHOT_ALERT_LIMITS } from '@/lib/p2p/screenshot-detection';
 import { SignInKeysSection } from '@/components/passkey/SignInKeysSection';
 import { useState, useEffect } from 'react';
 import { Eye, MessageSquare, Users } from 'lucide-react';
@@ -8,7 +8,6 @@ import { ProfileVisibilityRow, StrangerRequestsRow } from './PrivacyServerRows';
 import {
   getPrivacySettings,
   savePrivacySettings,
-  PRIVACY_ENFORCEMENT,
   type PrivacySettings,
 } from '@/lib/privacy-settings';
 
@@ -100,13 +99,10 @@ export function PrivacySettingsTab(): JSX.Element {
         <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
             <Label htmlFor="screenshot-alerts" className="text-sm font-medium">Screenshot Alerts</Label>
-            <p className="text-xs text-muted-foreground">Get notified if someone takes a screenshot</p>
-            {/* A web page cannot observe a screenshot at all, so this one is not
-                waiting on a server — it is waiting on a platform that can. */}
-            {!PRIVACY_ENFORCEMENT.notifyOnScreenshot && <NotEnforcedNote />}
+            <p className="text-xs text-muted-foreground">Get notified in a chat when the other person may have taken a screenshot.</p>
+            <p className="text-xs text-warning-emphasis mt-1">{SCREENSHOT_ALERT_LIMITS}</p>
           </div>
           <Switch id="screenshot-alerts"
-            disabled={!PRIVACY_ENFORCEMENT.notifyOnScreenshot}
             checked={settings.notifyOnScreenshot}
             onCheckedChange={(v) => update('notifyOnScreenshot', v)}
           />
