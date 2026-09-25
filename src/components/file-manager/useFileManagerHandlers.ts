@@ -13,6 +13,7 @@ import type { RevfsDownloadHistory } from '@/lib/revfs/download-history';
 import type { FileDetails } from '@/components/layout/sidebar/file-details';
 import { usePrompt } from "@/components/shared/prompt-dialog";
 import { reportDelivery } from './report-delivery';
+import { entryNameError } from './vfs-content-helpers';
 
 interface HandlerDeps {
   mkdir: (path: string) => Promise<boolean>;
@@ -77,6 +78,8 @@ export function useFileManagerHandlers({
     // usePrompt resolves null on cancel or an empty name, exactly as the native
     // prompt did, so this guard is unchanged.
     if (!name?.trim()) return;
+    const invalid: string | null = entryNameError(name.trim());
+    if (invalid) { toast.error(`Cannot create folder: ${invalid}`); return; }
     const path: string = parentPath === '/' ? `/${name.trim()}` : `${parentPath}/${name.trim()}`;
     mkdir(path)
       .then(acknowledged => reportDelivery(acknowledged, `Created "${name.trim()}"`))

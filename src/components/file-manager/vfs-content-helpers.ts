@@ -47,3 +47,16 @@ export const stateConfig: Record<RevfsFileState, FileStateStyle> = {
   [RevfsFileState.Received]: { icon: Download, color: 'text-primary-accent', title: 'Received' },
   [RevfsFileState.ServerStored]: { icon: Cloud, color: 'text-muted-foreground', title: 'Server stored (downloadable)' },
 };
+
+/**
+ * Why a file or folder name is unusable, or null. Shared by rename and New
+ * folder: New folder never checked, so "a/b" was read as a path and refused as
+ * "Parent directory not found: /a", about a folder nobody asked for.
+ */
+export function entryNameError(name: string): string | null {
+  if (!name.trim()) return 'Name cannot be empty';
+  if (name.includes('/') || name.includes('\\')) return 'Name cannot contain slashes';
+  if (name === '.' || name === '..') return 'Invalid name';
+  if (name.length > 255) return 'Name too long';
+  return null;
+}

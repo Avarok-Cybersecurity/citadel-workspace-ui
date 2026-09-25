@@ -8,6 +8,7 @@
 import { useState, useRef, useEffect, useCallback , type RefObject , type ChangeEvent } from 'react';
 import { Input } from '@/components/ui/input';
 import { isEnterCommit } from '@/lib/keyboard-commit';
+import { entryNameError } from './vfs-content-helpers';
 
 interface VFSRenameInputProps {
   currentName: string;
@@ -38,21 +39,7 @@ export function VFSRenameInput({
     }
   }, [currentName, isDirectory]);
 
-  const validate: (name: string) => string | null = useCallback((name: string): string | null => {
-    if (!name.trim()) {
-      return 'Name cannot be empty';
-    }
-    if (name.includes('/') || name.includes('\\')) {
-      return 'Name cannot contain slashes';
-    }
-    if (name === '.' || name === '..') {
-      return 'Invalid name';
-    }
-    if (name.length > 255) {
-      return 'Name too long';
-    }
-    return null;
-  }, []);
+  const validate: (name: string) => string | null = entryNameError;
 
   const handleConfirm: () => void = useCallback((): void => {
     const trimmed: string = value.trim();
