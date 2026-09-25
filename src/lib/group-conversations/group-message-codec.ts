@@ -52,6 +52,8 @@ export function decodeGroupMessage(bytes: Uint8Array): PeerGroupMessage | null {
   try {
     const decoded: unknown = cborDecode(bytes);
     if (!decoded || typeof decoded !== 'object') return null;
+    // A control envelope is never chat, even one that also carries text; see group-control-codec.
+    if ('control' in decoded) return null;
     const candidate: Partial<PeerGroupMessage> = decoded as Partial<PeerGroupMessage>;
     if (typeof candidate.group_id !== 'string') return null;
     if (typeof candidate.message_id !== 'string') return null;

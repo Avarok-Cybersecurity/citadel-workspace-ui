@@ -30,8 +30,9 @@ import { bindPeerGroupDelivery } from './bind-peer-group-delivery';
 import { bindGroupTranscript } from './bind-group-transcript';
 import type { GroupConversation } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
-import { applyGroupInvite } from '@/hooks/use-group-state-invite';
-import { toast } from '@/hooks/use-toast';
+import { bindGroupInvites } from './bind-group-invites';
+import { bindGroupControl } from './bind-group-control';
+import { forgetPendingInvites, restorePendingInvites } from './group-invites';
 import { loadPersistedGroups, persistGroups } from './group-persistence';
 import { applyGroupMessage } from './apply-group-message';
 import { peerHandleName } from '@/lib/peer-display';
@@ -79,6 +80,7 @@ export function updateGroups(
  * the read must not be overwritten by a snapshot taken before it.
  */
 export async function restorePersistedGroups(): Promise<void> {
+  void restorePendingInvites();
   try {
     const stored: GroupConversation[] = await loadPersistedGroups();
     if (stored.length > 0) {
@@ -121,6 +123,7 @@ export async function restorePersistedGroups(): Promise<void> {
  */
 export async function resetGroupsForSession(): Promise<void> {
   groups = [];
+  forgetPendingInvites();
   hydrated = false;
   notifyEach(listeners, 'group-store');
   await restorePersistedGroups();
@@ -195,25 +198,8 @@ export function startGroupEventBindings(): void {
     updateGroups(prev => (prev.some(g => g.id === newGroup.id) ? prev : [...prev, newGroup]));
   });
 
-  eventEmitter.on('group:invite-received', (data: {
-    groupId: string;
-    groupName: string;
-    inviterId: string;
-    inviterUsername: string;
-  }) => {
-    debugLog('GroupStore', 'Invite received:', data);
-    // Auto-accept, locally and at the backend; applyGroupInvite owns both and
-    // reports its own failures. This catch covers a rejection that escapes it.
-    applyGroupInvite(data, updateGroups).catch((err) => {
-      debugLog('GroupStore', 'applyGroupInvite leaked a rejection:', err);
-      toast({
-        title: 'Group Invitation Failed',
-        description: 'Could not process the group invitation. Please try again.',
-        variant: 'destructive',
-      });
-    });
-  });
-
+  // Held for an answer, not accepted; see bind-group-invites.
+  bindGroupInvites((id: string): boolean => groups.some(g => g.id === id));
 
   eventEmitter.on('group:message-received', (data: {
     groupId: string;
@@ -235,6 +221,8 @@ export function startGroupEventBindings(): void {
 
   bindGroupListReconcile();
   bindEndedGroups();
+  // After bindMembershipEvents, so an owner's snapshot lists the member who just joined.
+  bindGroupControl();
   // A peer-group message reaches the sidebar through the event above; this is
   // what puts it in the conversation you are looking at. See the module header
   // for why it is bound here rather than for every group.

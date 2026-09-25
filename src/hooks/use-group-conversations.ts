@@ -43,6 +43,7 @@ import { rememberGroupName } from '@/lib/group-conversations/group-names';
 import { awaitGroupCreated } from '@/lib/group-conversations/await-group-created';
 import { updateGroups } from '@/lib/group-conversations/group-store';
 import { kickGroupMember } from '@/lib/group-conversations/kick-group-member';
+import { assignGroupRole } from '@/lib/group-conversations/assign-group-role';
 
 // ============================================================================
 // Hook Implementation
@@ -122,23 +123,12 @@ export function useGroupConversations(): UseGroupConversationsResult {
     [setError]
   );
 
-  // Update a member's role (local only for now - role data is stored locally)
+  // The store and the other members; see assign-group-role.
   const updateMemberRole: (groupId: string, memberCid: string, roleId: string) => Promise<void> = useCallback(
     async (groupId: string, memberCid: string, roleId: string): Promise<void> => {
-      const memberCidBigint: bigint = BigInt(memberCid);
-      setGroups(prev =>
-        prev.map(group => {
-          if (group.id !== groupId) return group;
-          return {
-            ...group,
-            members: group.members.map(m =>
-              m.cid === memberCidBigint ? { ...m, roleId } : m
-            ),
-          };
-        })
-      );
+      assignGroupRole(groupId, BigInt(memberCid), roleId);
     },
-    [setGroups]
+    []
   );
 
   // Get a specific group by ID
