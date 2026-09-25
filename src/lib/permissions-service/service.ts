@@ -5,10 +5,9 @@
  * Extends EventListenerManager for automatic event listener cleanup.
  */
 
-import { awaitPermissionsLoaded } from './await-permissions-loaded';
+import { requestPermissions } from './request-permissions';
 import { currentUserIdSync, resolveCurrentUserId as resolveUserId } from './current-user';
 import { isAdminRole, isOwnerRole, isPrivilegedRole } from '@/lib/role-predicate';
-import WorkspaceService from '@/lib/workspace-service';
 import { EventListenerManager } from '@/lib/utils/event-listener-manager';
 import { debugLog } from '@/lib/debug-config';
 import { INTERVAL } from '@/lib/timeout-constants';
@@ -150,27 +149,9 @@ export class PermissionsService extends EventListenerManager {
       return null;
     }
 
-    const requestPromise: Promise<DomainPermissions> = (async (): Promise<DomainPermissions> => {
-      try {
-        const askedAt: number = Date.now();
-        await WorkspaceService.getUserPermissions(userId, domainId);
-
-        const loaded: DomainPermissions = await awaitPermissionsLoaded(domainId, () =>
-          this.cache.get(domainId),
-        askedAt);
-        this.lastFailure.delete(domainId);
-        return loaded;
-      } catch (error: unknown) {
-        // The message, and who it was asked for. A permissions answer that
-        // never arrives and one that arrives for somebody else are the same
-        // silence here, and only the user id tells them apart.
-        const reason: string = error instanceof Error ? error.message : 'the request failed';
-        this.lastFailure.set(domainId, `${reason} (asked as ${userId})`);
-        throw error;
-      } finally {
-        this.pendingRequests.delete(domainId);
-      }
-    })();
+    const requestPromise: Promise<DomainPermissions> = requestPermissions(
+      domainId, userId, this.cache, this.lastFailure, this.pendingRequests,
+    );
 
     this.pendingRequests.set(domainId, requestPromise);
     return requestPromise;

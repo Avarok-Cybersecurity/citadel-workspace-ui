@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { RevfsFileState, PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
 import type { ReactNode } from "react";
-import { isDeletableState, isDownloadableState } from "@/lib/revfs/tree-queries";
+import { isDeletableState, isDownloadableState } from "@/lib/revfs/file-states";
 
 interface VFSContextMenuProps {
   node: RevfsNode | null;

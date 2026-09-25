@@ -4,6 +4,7 @@
  * Consumers import from this module to access all tree functions.
  * Implementation is split across:
  *   - tree-queries.ts: lookups, path utilities, storage calculations
+ *   - file-states.ts: file-state predicates and flips
  *   - tree-mutations.ts: mkdir, rmdir, placeFile, removeFile
  *   - tree-transforms.ts: rename, move
  *   - tree-copy-merge.ts: copy, merge
@@ -26,9 +27,8 @@ export {
   findNode,
   pathExists,
   collectFiles,
-  flipFileState,
-  flipNodeStates,
 } from './tree-queries';
+export { flipFileState, flipNodeStates } from './file-states';
 export { findNodeByPath } from './find-node-by-path';
 
 // Mutations

@@ -19,7 +19,7 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { describeError } from '@/lib/describe-error';
-import { isDownloadableState } from '@/lib/revfs/tree-queries';
+import { isDownloadableState } from '@/lib/revfs/file-states';
 import { RevfsFileState, type RevfsNode } from '@/types/revfs-types';
 import type { RevfsDownloadHistory, RevfsDownloadRecord } from '@/lib/revfs/download-history';
 import { revfsDownloadDetails, type FileDetails } from '@/components/layout/sidebar/file-details';

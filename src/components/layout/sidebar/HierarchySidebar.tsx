@@ -11,8 +11,7 @@ import { buildWorkspacePath, getWorkspacePath } from '@/lib/workspace-navigation
 import { getEntityTypeString } from '@/lib/entity-type-registry';
 import { MoveNodeDialog } from './MoveNodeDialog';
 import { TreeNodesSection, type DomainNode } from './TreeNodesSection';
-import { NodeManagementModal } from '@/components/node/NodeManagementModal';
-import { AdminModal } from '@/components/admin';
+import { HierarchySidebarModals } from './HierarchySidebarModals';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { usePermission } from '@/hooks/use-permission';
@@ -185,10 +184,6 @@ export function HierarchySidebar(): JSX.Element {
     }
   }, [toast]);
 
-  const adminEntityType: string = adminNode
-    ? getEntityTypeString(adminNode.entity_type).toLowerCase()
-    : 'workspace';
-
   return (
     <>
       <TreeNodesSection
@@ -216,37 +211,14 @@ export function HierarchySidebar(): JSX.Element {
         onClose={() => setMoveNode(null)}
       />
 
-      {/* Create Node Modal */}
-      {createModal && (
-        <NodeManagementModal
-          isOpen={true}
-          onClose={() => setCreateModal(null)}
-          mode="create"
-          entityType={createModal.entityType}
-          parentId={createModal.parentId}
-        />
-      )}
-
-      {/* Edit Node Modal */}
-      {editNode && (
-        <NodeManagementModal
-          isOpen={true}
-          onClose={() => setEditNode(null)}
-          mode="edit"
-          entityType={getEntityTypeString(editNode.entity_type)}
-          node={editNode}
-        />
-      )}
-
-      {/* Admin Settings Modal */}
-      {adminNode && (
-        <AdminModal
-          isOpen={true}
-          onClose={() => setAdminNode(null)}
-          entityType={adminEntityType}
-          entityId={adminNode.id}
-        />
-      )}
+      <HierarchySidebarModals
+        createModal={createModal}
+        editNode={editNode}
+        adminNode={adminNode}
+        onCloseCreate={() => setCreateModal(null)}
+        onCloseEdit={() => setEditNode(null)}
+        onCloseAdmin={() => setAdminNode(null)}
+      />
     </>
   );
 }

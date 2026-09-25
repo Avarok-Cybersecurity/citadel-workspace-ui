@@ -22,7 +22,7 @@ import {
   placeFile,
   applyRemoteOp,
 } from '../tree-operations';
-import { isDownloadableState } from '../tree-queries';
+import { isDownloadableState } from '../file-states';
 import { calculateStorageUsage } from '../quota-check';
 import { RevfsOpType, TreeScope , type RevfsFileMetadata , type RevfsNode } from '@/types/revfs-types';
 
