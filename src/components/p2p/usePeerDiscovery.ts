@@ -26,7 +26,7 @@ export interface Peer {
   is_registered?: boolean;
 }
 
-export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; registeredPeers: Set<string>; outgoingRequests: Set<string>; incomingRequests: Map<string, PendingPeerRequest>; loading: boolean; acceptingPeerCid: string | null; currentCid: bigint | null; currentUsername: string; discoverPeers: (announce?: boolean) => Promise<void>; acceptIncomingRequest: (request: PendingPeerRequest) => Promise<void>; registerWithPeer: (peerCid: string, peerUsername: string) => Promise<void>; } {
+export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; registeredPeers: Set<string>; outgoingRequests: Set<string>; incomingRequests: Map<string, PendingPeerRequest>; loading: boolean; acceptingPeerCid: string | null; currentCid: bigint | null; currentUsername: string; discoverPeers: (announce?: boolean) => Promise<void>; acceptIncomingRequest: (request: PendingPeerRequest) => Promise<void>; registerWithPeer: (peerCid: string, peerUsername: string) => Promise<boolean>; } {
   /** `null` until discovery succeeds — see PeerDiscoveryModal's empty states. */
   const [peers, setPeers] = useState<Peer[] | null>(null);
   // requestId -> peer name; see peer-register-failure.ts.
@@ -41,7 +41,6 @@ export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; regis
   const { toast } = useToast();
   const { state } = useWorkspace();
 
-  // Load current connection info asynchronously
   useEffect(() => {
     const loadConnectionInfo = async (): Promise<void> => {
       const tabSelection: TabUserContext | null = await getSelectedUser();
@@ -193,7 +192,6 @@ export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; regis
     }
   }, [currentCid, toast, loadRegisteredPeers]);
 
-  // Trigger discovery when modal opens
   useEffect(() => {
     if (isOpen) {
       runAsyncSetup(() => discoverPeers(false));
@@ -219,10 +217,11 @@ export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; regis
     }
   };
 
-  const registerWithPeer = async (peerCid: string, peerUsername: string): Promise<void> => {
+  /** Resolves true once the request is on the wire; false when it was not sent (already toasted). */
+  const registerWithPeer = async (peerCid: string, peerUsername: string): Promise<boolean> => {
     if (!currentCid) {
       toastError(toast, "Not Connected", "Please connect to a workspace first");
-      return;
+      return false;
     }
     try {
       const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
@@ -235,9 +234,11 @@ export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; regis
         description: connectionRequestSentCopy(peerUsername, peers?.find((p: Peer): boolean => p.cid === peerCid)?.is_online ?? null),
         variant: 'success',
       });
+      return true;
     } catch (error) {
       debugLog('PeerDiscoveryModal', 'Failed to send registration request:', error);
       toastError(toast, "Request Failed", describeFailure(error, "Could not send registration request"));
+      return false;
     }
   };
 

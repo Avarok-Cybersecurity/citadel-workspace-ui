@@ -232,10 +232,9 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       keep(workspaceEvents.onWorkspaceEvent('members:reload', async () => {
         debugLog('UseMemberEventSetup', 'Reloading members list...');
         const params: URLSearchParams = new URLSearchParams(window.location.search);
-        const domainId: string | null = params.get("nodeId");
-        if (domainId) {
-          await WorkspaceService.listMembers(domainId);
-        }
+        // No nodeId is the workspace view, whose roster is the root's. This
+        // skipped it, so a member added at the root never appeared.
+        await WorkspaceService.listMembers(params.get("nodeId") ?? WORKSPACE_ROOT_ID);
       }));
     };
 

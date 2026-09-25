@@ -42,7 +42,7 @@ describe('the peer discovery modal', () => {
     state.peers = null;
     state.loading = false;
 
-    render(<PeerDiscoveryModal isOpen onClose={() => {}} />);
+    render(<PeerDiscoveryModal isOpen onClose={() => {}} onOpenDirectory={() => {}} />);
 
     expect(screen.queryByText(/No other users in this workspace yet/i)).toBeNull();
     expect(screen.getByText(/Could not load the people in this workspace/i)).toBeInTheDocument();
@@ -55,7 +55,7 @@ describe('the peer discovery modal', () => {
     state.peers = [];
     state.loading = false;
 
-    render(<PeerDiscoveryModal isOpen onClose={() => {}} />);
+    render(<PeerDiscoveryModal isOpen onClose={() => {}} onOpenDirectory={() => {}} />);
 
     expect(screen.getByText(/No other users in this workspace yet/i)).toBeInTheDocument();
     expect(screen.queryByText(/Could not load the people in this workspace/i)).toBeNull();

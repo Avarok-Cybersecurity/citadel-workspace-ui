@@ -11,9 +11,17 @@ import { shortPeerHandle } from '@/lib/peer-display';
 interface PeerDiscoveryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /**
+   * The way to /directory. The page was routed and linked from nowhere, so
+   * roles, search and profiles existed for nobody who did not type the URL.
+   * Linked from here because this is the "find people" surface and the
+   * directory is its full-page form -- a second sidebar button would be a
+   * near-duplicate of the one that opens this dialog.
+   */
+  onOpenDirectory: () => void;
 }
 
-export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, onClose }) => {
+export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, onClose, onOpenDirectory }) => {
   const {
     peers,
     registeredPeers,
@@ -117,6 +125,12 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
               </div>
             )}
           </ScrollArea>
+
+          <div className="mt-4 flex justify-end">
+            <Button variant="link" size="sm" onClick={onOpenDirectory} data-testid="open-directory-button" className="text-primary-accent">
+              Browse the member directory — roles, profiles and search
+            </Button>
+          </div>
 
           {(peers?.length ?? 0) > 0 && (
             <div className="mt-4 p-3 bg-surface rounded-lg">
