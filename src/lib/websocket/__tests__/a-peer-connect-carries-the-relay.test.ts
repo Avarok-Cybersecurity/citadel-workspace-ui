@@ -68,6 +68,8 @@ function rig(answer: (cid: bigint) => unknown): Rig {
     },
     isLeader: (): boolean => true,
     turnFor: turnSourceFrom(new IceServersCache(port, Date.now)),
+    // Not what this test is about: every chat at the default level.
+    securityFor: async (): Promise<'Standard'> => 'Standard',
   });
   return { ops, sent, asked };
 }

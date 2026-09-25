@@ -11,6 +11,7 @@
  * acceptance must not.
  */
 import { describe, it, expect, vi } from 'vitest';
+import type { ChatSecurityLevel } from '@/lib/p2p/chat-advanced-settings';
 import { P2POperations } from '../p2p-operations';
 import { eventEmitter } from '@/lib/event-emitter';
 
@@ -28,6 +29,8 @@ function opsThatCapture(): { ops: P2POperations; sent: () => SentAccept | undefi
       if (body.PeerConnectAccept) seen = body.PeerConnectAccept;
     },
     isLeader: (): boolean => true,
+    // Not under test here: the chat level only shapes the offer, not whether a pause declines it.
+    securityFor: async (): Promise<ChatSecurityLevel> => 'Standard',
     turnFor: async (): Promise<null> => null,
   });
   return { ops, sent: (): SentAccept | undefined => seen };

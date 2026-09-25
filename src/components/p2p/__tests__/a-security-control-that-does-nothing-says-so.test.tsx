@@ -23,13 +23,13 @@
  * cannot act on: disable it and say so. That note is now shared.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('@/lib/p2p/p2p-messenger-manager', () => ({ p2pMessengerManager: {} }));
-
 const { ChatSettingsPanel } = await import('../ChatSettingsPanel');
 const { ConfirmDialogProvider } = await import('@/components/shared/confirm-dialog');
+const { instanceManager } = await import('@/lib/multi-instance/instance-manager');
 
 /** The three live in the Advanced tab, and an inactive tab panel does not mount. */
 async function openAdvanced(): Promise<void> {
@@ -37,6 +37,8 @@ async function openAdvanced(): Promise<void> {
 }
 
 function panel(): void {
+  // The signed-in session the per-chat settings belong to.
+  instanceManager.setCid(41n);
   render(
     <ConfirmDialogProvider>
     <ChatSettingsPanel
@@ -49,8 +51,24 @@ function panel(): void {
   );
 }
 
-/** The three controls that have no store behind them. */
-const INERT: readonly string[] = ['encryption-level', 'connection-priority', 'message-retention'];
+/**
+ * The controls that still have nothing behind them. Message Retention is now
+ * enforced (see the retention tests). Encryption Level is not: the pinned SDK
+ * ends the server session when a P2P level exceeds the login's (see
+ * ChatSettingsAdvanced). Connection Priority cannot be from this client -- the
+ * relay policy must match on both peers and the offer does not carry it.
+ */
+const INERT: readonly string[] = ['encryption-level', 'connection-priority'];
+const ENFORCED: readonly string[] = ['message-retention'];
+
+/** The row a control sits in: the nearest ancestor that also holds its label. */
+function rowOf(id: string): HTMLElement {
+  const label: HTMLElement = document.querySelector(`label[for="${id}"]`) as HTMLElement;
+  let node: HTMLElement | null = label;
+  while (node && !node.contains(document.getElementById(id))) node = node.parentElement;
+  if (!node) throw new Error(`no row holds ${id}`);
+  return node;
+}
 
 describe('a settings control with nothing behind it', () => {
   it('is disabled rather than pretending to work', async () => {
@@ -60,15 +78,22 @@ describe('a settings control with nothing behind it', () => {
       const control: HTMLElement = document.getElementById(id) as HTMLElement;
       expect(control, id).toBeTruthy();
       expect((control as HTMLInputElement).disabled, id).toBe(true);
+      expect(rowOf(id).textContent, id).toMatch(/not enforced yet/i);
     }
   });
 
-  it('says why, in as many places as there are controls', async () => {
+  it('is the only one that says so', async () => {
     panel();
     await openAdvanced();
-    // One note per inert control: a single note somewhere on the page does not
-    // tell you WHICH switch is theatre.
-    expect(screen.getAllByText(/not enforced yet/i).length).toBeGreaterThanOrEqual(INERT.length);
+    // The note beside an enforced control would be the opposite lie.
+    expect(screen.getAllByText(/not enforced yet/i)).toHaveLength(INERT.length);
+    for (const id of ENFORCED) {
+      const control: HTMLElement = document.getElementById(id) as HTMLElement;
+      expect(control, id).toBeTruthy();
+      // Disabled only until this chat's saved settings have been read.
+      await waitFor((): void => { expect((control as HTMLInputElement).disabled, id).toBe(false); });
+      expect(rowOf(id).textContent, id).not.toMatch(/not enforced yet/i);
+    }
   });
 
   it('leaves the controls that do work alone', async () => {
