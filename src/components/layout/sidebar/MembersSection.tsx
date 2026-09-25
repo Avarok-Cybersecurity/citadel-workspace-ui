@@ -25,6 +25,7 @@ import { getEntityMetadata, getEntityTypeString } from "@/lib/entity-type-regist
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { peerRegistrationStore } from "@/lib/peer-registration-store";
 import { GroupConversationRow } from "./GroupConversationRow";
+import { GroupInviteList } from "./GroupInviteList";
 import { PeerListRow } from "./PeerListRow";
 import { useGroupConversations, useRegisteredPeers, useConversationPeers, useEventListener } from '@/hooks';
 import { useDomainMembers } from '@/hooks/use-domain-members';
@@ -169,6 +170,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
           group: you needed a conversation to get the button that starts one.
           Still hidden with no peers at all -- a create-group dialog with nobody
           to add is a dead end, and offering it is worse than not. */}
+      <GroupInviteList />
       {(registeredPeers.length > 0 || groupConversations.length > 0) && (
         <SidebarGroup className="flex-shrink-0 min-h-[2rem] mb-4">
           <div className="flex items-center justify-between px-3">

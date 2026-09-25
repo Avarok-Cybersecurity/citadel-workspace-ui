@@ -31,6 +31,11 @@ export interface GroupInvitePayload {
   inviterUsername: string;
 }
 
+/** What an invitation calls its group: the wire names none, so the inviter stands in. */
+export function inviteGroupLabel(data: GroupInvitePayload): string {
+  return data.groupName || `${data.inviterUsername}'s Group`;
+}
+
 /**
  * Parse a CID from the invite payload. Returns `null` if the input
  * is not a syntactically valid BigInt — this lets callers reject the
@@ -132,7 +137,7 @@ export async function buildGroupFromInvite(
 
   return {
     id: data.groupId,
-    name: data.groupName || `${data.inviterUsername}'s Group`,
+    name: inviteGroupLabel(data),
     ownerId: inviterCid,
     members,
     settings: {
@@ -210,10 +215,8 @@ export async function applyGroupInvite(
       // path can re-establish. Losing the whole invite over it would be worse.
       debugLog('UseGroupConversations', 'Backend group acceptance failed:', e);
     }
-    toast({
-      title: 'Group Invitation',
-      description: `${data.inviterUsername} invited you to "${data.groupName || 'a group'}"`,
-    });
+    // The invitation itself was announced when it arrived; see bind-group-invites.
+    toast({ title: 'Joined group', description: `You joined "${inviteGroupLabel(data)}"` });
   } catch (e) {
     // The inviter / inviteUsername fields come straight from the
     // network event, so an unexpected throw most often means the
