@@ -15,7 +15,7 @@ import type { AutoConnectState } from './state';
 import { getCurrentCid } from './cid-resolver';
 import { connectToPeer, handleConnectionSuccess, handlePeerDisconnect } from './connection-logic';
 import { handleIncomingPeerConnect } from './incoming-connect';
-import { incomingAnswer } from './pause-gate';
+import { incomingAnswer, linkAdmitted } from './pause-gate';
 import { startPolling, stopPolling, startBackendPolling, stopBackendPolling } from './polling';
 import { parsePeerConnectPath } from '@/lib/ice-servers/path';
 import type { PeerConnectPath } from '@/types/ice-servers';
@@ -204,6 +204,8 @@ async function handlePeerConnectSuccess(
   if (path !== null && messageCid !== undefined && peerCid !== undefined) {
     state.core.setConnectionPath(messageCid, peerCid, path);
   }
+  // A paused pair is neither marked connected nor left up; see pause-gate.
+  if (messageCid !== undefined && peerCid !== undefined && !(await linkAdmitted(messageCid, peerCid))) return;
   if (instanceManager.isLeader && messageCid !== undefined && peerCid !== undefined) {
     debugLog('P2PAutoConnectService', `Leader updating connectedPeers for initiator CID ${messageCid.toString().slice(0, 8)}... -> peer ${peerCid.toString().slice(0, 8)}...`);
     broadcastPeerConnected(messageCid, peerCid);

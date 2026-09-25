@@ -17,6 +17,8 @@ import { resolveWebsocketUrl, readLoopbackAgentOrigin } from './resolve-url';
 import { createServiceModules, type ServiceModules } from './module-init';
 import { initService, waitForInit as waitForInitFn, resetService } from './initialization';
 import { sendRequest as sendRequestFn } from './send-request';
+import { pausedOutboxOver } from './paused-outbox';
+import type { PausedOutbox } from '@/lib/p2p-pause/outbox';
 
 export class WebSocketServiceCore {
   client: WorkspaceClient | null = null;
@@ -24,6 +26,7 @@ export class WebSocketServiceCore {
   initializationPromise: Promise<void> | null = null;
 
   private readonly modules: ServiceModules;
+  private readonly outbox: PausedOutbox = pausedOutboxOver(this);
 
   // Exposed for initialization.ts
   get initOps(): ServiceModules['initOps'] { return this.modules.initOps; }
@@ -98,7 +101,8 @@ export class WebSocketServiceCore {
 
   // ============== P2P ==============
 
-  async sendP2PMessage(cid: bigint, targetCid: bigint, message: string): Promise<void> { return this.modules.p2pOps.sendP2PMessage(cid, targetCid, message) }
+  // Direct sends have no queue behind them, so a paused contact's are refused.
+  async sendP2PMessage(cid: bigint, targetCid: bigint, message: string): Promise<void> { await this.outbox.refuseIfPaused(cid, targetCid); return this.modules.p2pOps.sendP2PMessage(cid, targetCid, message) }
 
   /**
    * Send a raw `Uint8Array` over the P2P channel without `stringToBytes`-
@@ -107,7 +111,7 @@ export class WebSocketServiceCore {
    * `sendP2PMessage` above would otherwise round-trip the bytes through
    * `stringToBytes` which assumes UTF-8 and corrupts binary payloads.
    */
-  async sendP2PMessageBytes(cid: bigint, targetCid: bigint, message: Uint8Array): Promise<void> { return this.modules.p2pOps.sendP2PMessageBytes(cid, targetCid, message) }
+  async sendP2PMessageBytes(cid: bigint, targetCid: bigint, message: Uint8Array): Promise<void> { await this.outbox.refuseIfPaused(cid, targetCid); return this.modules.p2pOps.sendP2PMessageBytes(cid, targetCid, message) }
 
   async openP2PConnection(cid: bigint, targetCid: bigint): Promise<void> { return this.modules.p2pOps.openP2PConnection(cid, targetCid) }
 
@@ -126,7 +130,18 @@ export class WebSocketServiceCore {
   async sendP2PMessageReliable(
     localCid: bigint, peerCid: bigint, message: Uint8Array,
     securityLevel?: 'Standard' | 'Reinforced' | 'High' | 'Extreme'
-  ): Promise<void> { return this.modules.messengerOps.sendP2PMessageReliable(localCid, peerCid, message, securityLevel) }
+  ): Promise<void> {
+    // The one road into the ILM. A paused contact's messages, edits, reactions
+    // and receipts wait in the outbox instead; see p2p-pause/outbox.ts.
+    await this.outbox.sendOrHold(localCid, peerCid, message,
+      () => this.modules.messengerOps.sendP2PMessageReliable(localCid, peerCid, message, securityLevel));
+  }
+
+  /** Resume's half: hand what the pause held to the ILM, in order. */
+  async flushPausedOutbox(localCid: bigint, peerCid: bigint): Promise<number> {
+    return this.outbox.flush(localCid, peerCid,
+      (held: Uint8Array) => this.modules.messengerOps.sendP2PMessageReliable(localCid, peerCid, held));
+  }
 
   // ============== Disconnect ==============
 

@@ -23,6 +23,8 @@ export const peerPauseStore: PeerPauseStore = new PeerPauseStore({
       p2pAutoConnectService.handlePeerDisconnect(localCid, peerCid);
     },
     reconnect: (peerCid: bigint): Promise<void> => p2pAutoConnectService.connectToPeer(peerCid),
+    flushHeld: (localCid: bigint, peerCid: bigint): Promise<number> =>
+      websocketService.flushPausedOutbox(localCid, peerCid),
   },
 });
 
