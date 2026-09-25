@@ -31,4 +31,10 @@ describe('liveSessionCid', () => {
     const live: ActiveSession[] = [session('sam', 1n, 'wss://acme.work.avarok.net/', 'acme.work.avarok.net')];
     expect(liveSessionCid(live, { username: 'sam', serverAddress: 'bench.work.avarok.net' })).toBeUndefined();
   });
+
+  it('takes the only live session with the username when the agent reports an address the UI cannot read', () => {
+    // Measured live: the switcher could not find a held account the landing page resumed by CID.
+    const live: ActiveSession[] = [session('bob0924', 9n, '104.18.2.3:443', null)];
+    expect(liveSessionCid(live, { username: 'bob0924', serverAddress: 'bench.work.avarok.net' })).toBe(9n);
+  });
 });
