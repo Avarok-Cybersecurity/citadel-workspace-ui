@@ -5,4 +5,4 @@
  */
 
 export { getDefaultNodeContent, getDefaultChildNodeContent } from './node-content';
-export { getDefaultMDXShowcase } from './showcase-content';
+export { getWorkspaceHomeContent } from './workspace-home-content';
