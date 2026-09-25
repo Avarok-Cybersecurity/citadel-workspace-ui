@@ -7,10 +7,12 @@ import { fileManagerScreen, type FileManagerScreen } from "./file-manager-screen
 import { VFSTreeView } from "./VFSTreeView";
 import { VFSContentGrid } from "./VFSContentGrid";
 import { VFSToolbar } from "./VFSToolbar";
+import { uploadRefusal } from "./upload-refusal";
 import { VFSPathBar } from "./VFSPathBar";
 import { StorageLimitModal } from "./StorageLimitModal";
 import { RevfsDisabledModal } from "./RevfsDisabledModal";
 import { VFSPropertiesDialog } from "./VFSPropertiesDialog";
+import { FilePreviewDialog } from "@/components/layout/sidebar/FilePreviewDialog";
 
 export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
   const fm: ReturnType<typeof useFileManagerContent> = useFileManagerContent();
@@ -53,6 +55,7 @@ export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
         onNavigate={fm.setCurrentPath}
         onNewFolder={() => fm.handleNewFolder(fm.currentPath)}
         onUploadFile={() => fm.handleUploadFile(fm.currentPath)}
+        uploadDisabledReason={uploadRefusal(fm.currentPath)}
         onSync={fm.handleSync}
         filterText={fm.filterText}
         onFilterChange={fm.setFilterText}
@@ -112,7 +115,7 @@ export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
         multiple
         onChange={(e) => {
           if (e.target.files?.length) {
-            void fm.handleDrop(fm.uploadTargetDir, e.target.files);
+            void fm.handleDrop(fm.takeUploadTarget(), e.target.files);
             e.target.value = '';
           }
         }}
@@ -147,6 +150,12 @@ export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
         node={fm.propertiesNode}
         isOpen={fm.propertiesNode !== null}
         onClose={() => fm.setPropertiesNode(null)}
+      />
+
+      <FilePreviewDialog
+        file={fm.shownFile}
+        isOpen={fm.shownFile !== null}
+        onClose={() => fm.setShownFile(null)}
       />
     </div>
   );

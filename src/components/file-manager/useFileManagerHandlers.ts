@@ -5,9 +5,12 @@ import { useFileManagerSelectionHandlers } from './useFileManagerSelectionHandle
 import { useFileManagerDeleteHandlers } from './useFileManagerDeleteHandlers';
 import { toast } from "sonner";
 import type { RevfsNode, TreeKey, RevfsFileMetadata } from "@/types/revfs-types";
-import { RevfsFileState, TreeScope } from "@/types/revfs-types";
+import { TreeScope } from "@/types/revfs-types";
 import { revfsService } from "@/lib/revfs";
-import { peerPairKey, isDownloadableState } from "@/lib/revfs/tree-queries";
+import { peerPairKey } from "@/lib/revfs/tree-queries";
+import { useFileManagerDownload } from './useFileManagerDownload';
+import type { RevfsDownloadHistory } from '@/lib/revfs/download-history';
+import type { FileDetails } from '@/components/layout/sidebar/file-details';
 import { usePrompt } from "@/components/shared/prompt-dialog";
 import { reportDelivery } from './report-delivery';
 
@@ -40,12 +43,16 @@ interface HandlerDeps {
   tree: RevfsNode | null;
   currentPath: string;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
-  setUploadTargetDir: (dir: string) => void;
+  chooseUploadTarget: (dir: string) => void;
   setRevfsDisabledReason: (reason: 'peer_disabled' | 'server_disabled') => void;
   setRevfsDisabledModalOpen: (open: boolean) => void;
   setAttemptedFileSize: (size: number) => void;
   setStorageLimitModalOpen: (open: boolean) => void;
   setPropertiesNode: (node: RevfsNode | null) => void;
+  /** Named in the download toasts and the FILES list: whose storage it came from. */
+  storageLabel: string;
+  downloadHistory: RevfsDownloadHistory;
+  showFile: (details: FileDetails) => void;
 }
 
 export function useFileManagerHandlers({
@@ -54,8 +61,9 @@ export function useFileManagerHandlers({
   currentTreeKey, hasPasteItems, clipboard, isCut,
   myCid, storageUsed, storageQuota, revfsEnabled, storageMode, selectedPeerCid,
   tree, currentPath, filterText, fileInputRef,
-  setUploadTargetDir, setRevfsDisabledReason, setRevfsDisabledModalOpen,
+  chooseUploadTarget, setRevfsDisabledReason, setRevfsDisabledModalOpen,
   setAttemptedFileSize, setStorageLimitModalOpen, setPropertiesNode,
+  storageLabel, downloadHistory, showFile,
 }: HandlerDeps): { handleNewFolder: (parentPath: string) => Promise<void>; handleDelete: (node: RevfsNode) => Promise<void>; handleDownload: (node: RevfsNode) => void; handleUploadFile: (dirPath: string) => void; handleInfo: (node: RevfsNode) => void; handleRename: (path: string, newName: string) => Promise<void>; handleCut: (node: RevfsNode) => void; handleCopy: (node: RevfsNode) => void; handlePaste: (destPath: string) => Promise<void>; handleDeleteMultiple: (nodes: RevfsNode[]) => Promise<void>; handleCutMultiple: (nodes: RevfsNode[]) => void; handleCopyMultiple: (nodes: RevfsNode[]) => void; handleSelectAll: () => void; handleDrop: (targetPath: string, files: FileList) => Promise<void>; handleSync: () => Promise<void>; } {
   const prompt: ReturnType<typeof usePrompt> = usePrompt();
 
@@ -75,25 +83,15 @@ export function useFileManagerHandlers({
       .catch(err => toast.error(`Failed to create folder: ${describeError(err)}`));
   }, [mkdir, prompt]);
 
-  const handleDownload: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => {
-    if (isDownloadableState(node.fileState)) {
-      // No "initiated" branch: downloadFile now throws rather than resolving
-      // undefined on failure, so there is no longer a state where we know the
-      // download did not happen and say something encouraging about it.
-      downloadFile(node.path)
-        .then(() => toast.success(`Downloaded: ${node.name}`))
-        .catch(err =>
-          toast.error(`Download failed: ${describeError(err)}`)
-        );
-    } else {
-      toast.info(`${node.name} — ${node.fileState === RevfsFileState.Hosted ? 'Hosted for peer (encrypted, cannot open)' : 'Info only'}`);
-    }
-  }, [downloadFile]);
+  const handleDownload: (node: RevfsNode) => void = useFileManagerDownload({
+    downloadFile, myCid, sourceCid: storageMode === TreeScope.Peer ? selectedPeerCid : null,
+    sourceLabel: storageLabel, history: downloadHistory, showFile, now: Date.now,
+  });
 
   const handleUploadFile: (dirPath: string) => void = useCallback((dirPath: string): void => {
-    setUploadTargetDir(dirPath);
+    chooseUploadTarget(dirPath);
     fileInputRef.current?.click();
-  }, [setUploadTargetDir, fileInputRef]);
+  }, [chooseUploadTarget, fileInputRef]);
 
   const handleInfo: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => {
     setPropertiesNode(node);

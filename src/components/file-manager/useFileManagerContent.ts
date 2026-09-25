@@ -10,6 +10,9 @@ import type { RevfsNode, TreeKey } from "@/types/revfs-types";
 import { TreeScope } from "@/types/revfs-types";
 import { INTERVAL } from "@/lib/timeout-constants";
 import { useFileManagerHandlers } from "./useFileManagerHandlers";
+import { useUploadTarget, type UploadTarget } from './useUploadTarget';
+import { revfsDownloadHistory } from '@/lib/revfs/download-history';
+import type { FileDetails } from '@/components/layout/sidebar/file-details';
 import type { UseRevfsTreeResult, UseServerRevfsTreeResult } from '@/hooks/useRevfsTree-types';
 
 export { findNodeByPath } from '@/lib/revfs/tree-operations';
@@ -38,7 +41,8 @@ export type UseFileManagerContentResult = ReturnType<typeof useFileManagerHandle
   currentPath: string;
   setCurrentPath: Dispatch<SetStateAction<string>>;
   fileInputRef: RefObject<HTMLInputElement>;
-  uploadTargetDir: string;
+  /** The folder a picked file lands in; see useUploadTarget. */
+  takeUploadTarget: UploadTarget['take'];
   storageLimitModalOpen: boolean;
   setStorageLimitModalOpen: Dispatch<SetStateAction<boolean>>;
   attemptedFileSize: number;
@@ -46,6 +50,9 @@ export type UseFileManagerContentResult = ReturnType<typeof useFileManagerHandle
   setRevfsDisabledModalOpen: Dispatch<SetStateAction<boolean>>;
   revfsDisabledReason: 'peer_disabled' | 'server_disabled';
   propertiesNode: RevfsNode | null;
+  /** The file a "Show" asked for, in the FILES list's own dialog. */
+  shownFile: FileDetails | null;
+  setShownFile: Dispatch<SetStateAction<FileDetails | null>>;
   setPropertiesNode: Dispatch<SetStateAction<RevfsNode | null>>;
   sortField: 'name' | 'date' | 'size' | 'type';
   sortDirection: 'asc' | 'desc';
@@ -119,13 +126,14 @@ export function useFileManagerContent(): UseFileManagerContentResult {
 
   const [currentPath, setCurrentPath] = useState('/');
   const fileInputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
-  const [uploadTargetDir, setUploadTargetDir] = useState('/');
+  const uploadTarget: UploadTarget = useUploadTarget(currentPath);
 
   const [storageLimitModalOpen, setStorageLimitModalOpen] = useState(false);
   const [attemptedFileSize, setAttemptedFileSize] = useState(0);
   const [revfsDisabledModalOpen, setRevfsDisabledModalOpen] = useState(false);
   const [revfsDisabledReason, setRevfsDisabledReason] = useState<'peer_disabled' | 'server_disabled'>('peer_disabled');
   const [propertiesNode, setPropertiesNode] = useState<RevfsNode | null>(null);
+  const [shownFile, setShownFile] = useState<FileDetails | null>(null);
 
   const [sortField, setSortField] = useState<'name' | 'date' | 'size' | 'type'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -175,8 +183,9 @@ export function useFileManagerContent(): UseFileManagerContentResult {
     currentTreeKey, hasPasteItems, clipboard, isCut,
     myCid, storageUsed, storageQuota, revfsEnabled, storageMode, selectedPeerCid,
     tree, currentPath, filterText, fileInputRef,
-    setUploadTargetDir, setRevfsDisabledReason, setRevfsDisabledModalOpen,
+    chooseUploadTarget: uploadTarget.choose, setRevfsDisabledReason, setRevfsDisabledModalOpen,
     setAttemptedFileSize, setStorageLimitModalOpen, setPropertiesNode,
+    storageLabel, downloadHistory: revfsDownloadHistory, showFile: setShownFile,
   });
 
   return {
@@ -188,10 +197,10 @@ export function useFileManagerContent(): UseFileManagerContentResult {
     refresh,
     storageUsed, storageQuota, storageLabel,
     currentPath, setCurrentPath,
-    fileInputRef, uploadTargetDir,
+    fileInputRef, takeUploadTarget: uploadTarget.take,
     storageLimitModalOpen, setStorageLimitModalOpen, attemptedFileSize,
     revfsDisabledModalOpen, setRevfsDisabledModalOpen, revfsDisabledReason,
-    propertiesNode, setPropertiesNode,
+    propertiesNode, setPropertiesNode, shownFile, setShownFile,
     sortField, sortDirection, filterText, setFilterText,
     handleSortChange,
     cutItemPaths, hasPasteItems, selectedPaths, selectItem, clearSelection,

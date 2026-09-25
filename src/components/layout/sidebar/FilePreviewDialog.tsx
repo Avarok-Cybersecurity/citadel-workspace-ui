@@ -26,20 +26,7 @@ import { Calendar, Check, Copy, FileSpreadsheet, FileText, FileType, FileCode, H
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatFileSize } from '@/lib/utils';
 import { useState } from 'react';
-
-interface FileDetails {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  sender: {
-    name: string;
-    avatar: string;
-  };
-  createdAt: string;
-  /** Where the agent saved it, on the agent's filesystem. Not a URL. */
-  savedTo: string;
-}
+import type { FileDetails } from './file-details';
 
 interface FilePreviewDialogProps {
   file: FileDetails | null;
@@ -133,7 +120,7 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
               <AvatarImage src={file.sender.avatar} alt="" />
               <AvatarFallback>{file.sender.name.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
-            <span>Sent by {file.sender.name}</span>
+            <span>{file.provenance}</span>
           </div>
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
