@@ -102,6 +102,7 @@ export function createServiceModules(
     onClientReset: callbacks.onClientReset,
     releaseSession: callbacks.releaseSession,
     reconnectBackoff: new ReconnectBackoff(AGENT_RECONNECT_BACKOFF, systemClock),
+    reopen: callbacks.init,
   });
 
   return {

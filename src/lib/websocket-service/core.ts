@@ -6,6 +6,7 @@
 
 import type { WorkspaceClient } from 'citadel-workspace-client-ts';
 import { instanceManager } from '../multi-instance/instance-manager';
+import { isLeaderSocketUp } from '../multi-instance/agent-socket-state';
 // Namespace import to break circular dependency:
 // THIS FILE → connection/index.ts → io.ts → io-websocket.ts → websocket-service (cycle)
 // Property access on the namespace object is a live binding, deferred to call time.
@@ -190,7 +191,7 @@ export class WebSocketServiceCore {
    * whether a client exists, which is a different and still-valid question.
    */
   canSendRequests(): boolean {
-    return this.isInitialized && (this.client !== null || !instanceManager.isLeader);
+    return this.isInitialized && (this.client !== null || (!instanceManager.isLeader && isLeaderSocketUp()));
   }
   getClient(): WorkspaceClient | null { return this.client; }
 

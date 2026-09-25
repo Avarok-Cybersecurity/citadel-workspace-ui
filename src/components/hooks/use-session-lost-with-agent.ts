@@ -4,6 +4,7 @@ import { connectionManager } from '@/lib/connection';
 import { getCurrentCid } from '@/lib/p2p/current-cid';
 import { watchForSessionLostWithAgent } from '@/lib/connection/sessions-lost-with-agent';
 import type { ToastOptions } from '@/hooks/use-toast';
+import type { AgentSocketState } from '@/lib/multi-instance/agent-socket-state';
 
 /** Long enough for an automatic sign-in with saved credentials to land first. */
 const SESSION_LOST_GRACE_MS: number = 5000;
@@ -14,7 +15,7 @@ const SESSION_LOST_GRACE_MS: number = 5000;
  */
 export function useSessionLostWithAgent(toast: (options: ToastOptions) => unknown): void {
   useEffect(() => watchForSessionLostWithAgent({
-    on: (event, handler) => eventEmitter.on(event, handler),
+    onAgentSocket: (handler) => eventEmitter.on<AgentSocketState>('agent-socket-state', handler),
     currentCid: getCurrentCid,
     activeSessions: () => {
       connectionManager.invalidateSessionCache();
