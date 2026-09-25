@@ -43,22 +43,28 @@ export type TenantStatus =
 /** The only place a paid signup may be sent. Anything else in `checkout_url` is refused. */
 export const CHECKOUT_ORIGIN: string = 'https://checkout.stripe.com';
 
+/** The only place "Manage subscription" may send an owner. Anything else in `portal_url` is refused. */
+export const PORTAL_ORIGIN: string = 'https://billing.stripe.com';
+
 /**
  * A request the control plane refused, or could not be asked.
  *
  * `status` is the HTTP status, or 0 when no response arrived at all (offline,
  * DNS, CSP). 503 is the control plane saying it is not configured yet, which is
  * a state of the deployment rather than of the request, so it gets its own flag
- * and its own wording.
+ * and its own wording. `code` is the control plane's machine-readable reason
+ * (`not-owner`, `no-subscription`, ...), or undefined when it gave none.
  */
 export class ControlPlaneError extends Error {
   readonly status: number;
   readonly notConfigured: boolean;
+  readonly code: string | undefined;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code: string | undefined) {
     super(message);
     this.name = 'ControlPlaneError';
     this.status = status;
+    this.code = code;
     this.notConfigured = status === 503;
   }
 
@@ -72,6 +78,8 @@ export interface ControlPlane {
   checkSlug(slug: string, signal?: AbortSignal): Promise<SlugAvailability>;
   createTenant(request: CreateTenantRequest): Promise<CreateTenantResult>;
   tenantStatus(slug: string, sessionId: string, signal?: AbortSignal): Promise<TenantStatus>;
+  /** A Stripe Billing Portal address for `slug`, for the holder of its claim code. */
+  openPortal(slug: string, claimCode: string): Promise<string>;
 }
 
 const NOT_CONFIGURED: string =
@@ -89,7 +97,7 @@ function optionalString(record: Record<string, unknown>, key: string): string | 
 }
 
 function malformed(what: string): ControlPlaneError {
-  return new ControlPlaneError(502, `Citadel sent an unexpected reply (${what}). Please try again.`);
+  return new ControlPlaneError(502, `Citadel sent an unexpected reply (${what}). Please try again.`, undefined);
 }
 
 async function readJson(response: Response): Promise<unknown> {
@@ -106,17 +114,17 @@ async function send(fetchFn: FetchLike, url: string, init: RequestInit): Promise
     response = await fetchFn(url, { ...init, headers: { Accept: 'application/json', ...init.headers } });
   } catch (error: unknown) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;
-    throw new ControlPlaneError(0, UNREACHABLE);
+    throw new ControlPlaneError(0, UNREACHABLE, undefined);
   }
   const body: unknown = await readJson(response);
   if (!response.ok) {
-    if (response.status === 503) throw new ControlPlaneError(503, NOT_CONFIGURED);
     // The control plane answers `{ error: <code>, detail: <sentence> }`: the
-    // sentence is for the visitor, the code for logs.
-    const stated: string | undefined = isRecord(body)
-      ? optionalString(body, 'detail') ?? optionalString(body, 'error')
-      : undefined;
-    throw new ControlPlaneError(response.status, stated ?? `Request failed (${response.status}).`);
+    // sentence is for the visitor, the code for logs and for callers that word
+    // a refusal themselves.
+    const code: string | undefined = isRecord(body) ? optionalString(body, 'error') : undefined;
+    if (response.status === 503) throw new ControlPlaneError(503, NOT_CONFIGURED, code);
+    const stated: string | undefined = isRecord(body) ? optionalString(body, 'detail') ?? code : undefined;
+    throw new ControlPlaneError(response.status, stated ?? `Request failed (${response.status}).`, code);
   }
   if (!isRecord(body)) throw malformed('not an object');
   return body;
@@ -131,13 +139,22 @@ function parseAvailability(body: Record<string, unknown>): SlugAvailability {
   return { available: false, reason: known };
 }
 
-export function isCheckoutUrl(candidate: string): boolean {
+function hasOrigin(candidate: string, origin: string): boolean {
   try {
-    const url: URL = new URL(candidate);
-    return url.origin === CHECKOUT_ORIGIN;
+    return new URL(candidate).origin === origin;
   } catch {
     return false;
   }
+}
+
+export function isCheckoutUrl(candidate: string): boolean {
+  return hasOrigin(candidate, CHECKOUT_ORIGIN);
+}
+
+function parsePortal(body: Record<string, unknown>): string {
+  const portalUrl: string | undefined = optionalString(body, 'portal_url');
+  if (portalUrl === undefined || !hasOrigin(portalUrl, PORTAL_ORIGIN)) throw malformed('billing portal address');
+  return portalUrl;
 }
 
 function parseCreated(body: Record<string, unknown>): CreateTenantResult {
@@ -187,6 +204,16 @@ export function createControlPlane(fetchFn: FetchLike, base: string): ControlPla
         { method: 'GET', signal },
       );
       return parseStatus(body);
+    },
+    async openPortal(slug: string, claimCode: string): Promise<string> {
+      // The code is the owner's proof: in the body, never the URL, where it
+      // would reach logs, history and referrers.
+      const body: Record<string, unknown> = await send(fetchFn, `${base}/tenants/${encodeURIComponent(slug)}/portal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claim_code: claimCode }),
+      });
+      return parsePortal(body);
     },
   };
 }
