@@ -74,4 +74,6 @@ export interface GroupMessageReadBy {
 import type { GroupMessage as GeneratedGroupMessage } from 'citadel-workspace-client-ts';
 export interface GroupMessage extends GeneratedGroupMessage {
   read_by?: GroupMessageReadBy[];
+  /** Peer groups only: kept in the stored transcript; see lib/reactions. */
+  reactions?: import('@/lib/reactions/reaction-state').MessageReaction[];
 }

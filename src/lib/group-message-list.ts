@@ -3,6 +3,7 @@
  * own — the manager holds the state and the events, these hold the arithmetic.
  */
 import type { GroupMessage } from '@/types/workspace-entities';
+import { foldReaction, type MessageReaction, type ReactionChange } from '@/lib/reactions/reaction-state';
 
 export function sortByTime(messages: GroupMessage[]): GroupMessage[] {
   // Number() because Array.sort needs a number and timestamps are bigint.
@@ -35,4 +36,20 @@ export function applyEdit(
 
 export function removeMessage(messages: GroupMessage[], messageId: string): GroupMessage[] {
   return messages.filter((msg) => msg.id !== messageId);
+}
+
+/**
+ * The list with one message's reactions changed, or null when nothing changed:
+ * the message is not in this list, or the change is a redelivery or stale.
+ */
+export function reactToGroupMessage(
+  messages: GroupMessage[],
+  messageId: string,
+  change: ReactionChange,
+): GroupMessage[] | null {
+  const target: GroupMessage | undefined = messages.find((msg) => msg.id === messageId);
+  if (!target) return null;
+  const reactions: MessageReaction[] | null = foldReaction(target.reactions, change);
+  if (!reactions) return null;
+  return messages.map((msg) => (msg === target ? { ...msg, reactions } : msg));
 }

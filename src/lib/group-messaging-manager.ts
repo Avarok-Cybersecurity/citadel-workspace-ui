@@ -8,10 +8,11 @@
 import type { GroupMessage } from '@/types/workspace-entities';
 import { TypedEventEmitter } from './event-emitter';
 import { debugLog } from '@/lib/debug-config';
-import { sortByTime, mergeOlder, applyEdit, removeMessage } from './group-message-list';
+import { sortByTime, mergeOlder, applyEdit, removeMessage, reactToGroupMessage } from './group-message-list';
+import type { ReactionChange } from './reactions/reaction-state';
 
 export interface GroupMessageEvent {
-  type: 'new_message' | 'message_edited' | 'message_deleted' | 'messages_loaded';
+  type: 'new_message' | 'message_edited' | 'message_deleted' | 'message_reacted' | 'messages_loaded';
   groupId: string;
   message?: GroupMessage;
   messages?: GroupMessage[];
@@ -59,22 +60,6 @@ class GroupMessagingManagerClass {
   }
 
   /**
-   * Set loading state for a group
-   */
-  public setLoading(groupId: string, loading: boolean): void {
-    const current: GroupMessagesState = this.getMessages(groupId);
-    this.groupMessages.set(groupId, { ...current, loading });
-  }
-
-  /**
-   * Set error state for a group
-   */
-  public setError(groupId: string, error: string): void {
-    const current: GroupMessagesState = this.getMessages(groupId);
-    this.groupMessages.set(groupId, { ...current, error, loading: false });
-  }
-
-  /**
    * Handle new message notification from server
    */
   public handleNewMessage(groupId: string, message: GroupMessage): void {
@@ -101,9 +86,6 @@ class GroupMessagingManagerClass {
     });
   }
 
-  /**
-   * Handle messages loaded from server (pagination)
-   */
   /**
    * Groups with a "load older" request in flight, so the response that comes
    * back is merged into the thread instead of replacing it.
@@ -199,6 +181,15 @@ class GroupMessagingManagerClass {
       groupId,
       messageId
     });
+  }
+
+  /** A reaction changed; a no-op when the message is not held here or the change is a redelivery. */
+  public handleReactionChanged(groupId: string, messageId: string, change: ReactionChange): void {
+    const current: GroupMessagesState = this.getMessages(groupId);
+    const messages: GroupMessage[] | null = reactToGroupMessage(current.messages, messageId, change);
+    if (!messages) return;
+    this.groupMessages.set(groupId, { ...current, messages });
+    this.eventEmitter.emit({ type: 'message_reacted', groupId, messageId, message: messages.find((m) => m.id === messageId) });
   }
 
   /**

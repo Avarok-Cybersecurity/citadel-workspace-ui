@@ -8,7 +8,8 @@
  * showed "No messages yet" in a group you had just been talking in.
  */
 import type { GroupMessage } from '@/types/workspace-entities';
-import { sortByTime, removeMessage } from '@/lib/group-message-list';
+import { sortByTime, removeMessage, reactToGroupMessage } from '@/lib/group-message-list';
+import type { ReactionChange } from '@/lib/reactions/reaction-state';
 
 /**
  * Messages kept per group, newest first to survive.
@@ -30,7 +31,13 @@ export type TranscriptChange =
   | { kind: 'add'; message: GroupMessage }
   /** The message as the manager holds it after the edit, not a diff to re-apply. */
   | { kind: 'edit'; message: GroupMessage }
-  | { kind: 'delete'; messageId: string };
+  | { kind: 'delete'; messageId: string }
+  /**
+   * Folded into the STORED message rather than carrying the manager's copy: a
+   * reaction can arrive while the group is not open, when the manager holds no
+   * messages for it, and must still be on disk for the next time it is.
+   */
+  | { kind: 'react'; messageId: string; change: ReactionChange };
 
 /**
  * Apply one change. Returns `transcript` itself when nothing changed, which is
@@ -43,6 +50,7 @@ export function foldTranscript(transcript: GroupMessage[], change: TranscriptCha
     const sorted: GroupMessage[] = sortByTime([...transcript, change.message]);
     return sorted.length > TRANSCRIPT_CAP ? sorted.slice(sorted.length - TRANSCRIPT_CAP) : sorted;
   }
+  if (change.kind === 'react') return reactToGroupMessage(transcript, change.messageId, change.change) ?? transcript;
   const id: string = change.kind === 'edit' ? change.message.id : change.messageId;
   if (!transcript.some((m: GroupMessage): boolean => m.id === id)) return transcript;
   return change.kind === 'edit'
