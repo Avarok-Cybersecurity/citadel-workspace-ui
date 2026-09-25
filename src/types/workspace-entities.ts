@@ -72,6 +72,9 @@ export interface GroupMessageReadBy {
 
 // Extend generated GroupMessage with local-only fields
 import type { GroupMessage as GeneratedGroupMessage } from 'citadel-workspace-client-ts';
+import type { GroupFileShare } from './group-file-share';
 export interface GroupMessage extends GeneratedGroupMessage {
   read_by?: GroupMessageReadBy[];
+  /** A file shared into a peer group; local-only, see types/group-file-share. */
+  file_share?: GroupFileShare;
 }

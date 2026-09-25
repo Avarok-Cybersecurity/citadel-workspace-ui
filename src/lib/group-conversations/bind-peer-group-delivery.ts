@@ -13,6 +13,7 @@
 import { eventEmitter } from '@/lib/event-emitter';
 import { groupSendTransport } from './group-send-transport';
 import { deliverPeerGroupMessage } from './peer-group-delivery';
+import type { GroupFileShare } from '@/types/group-file-share';
 
 export function bindPeerGroupDelivery(): () => void {
   const onReceived = (data: {
@@ -23,6 +24,7 @@ export function bindPeerGroupDelivery(): () => void {
     content: string;
     timestamp?: number;
     replyTo?: string;
+    fileShare?: GroupFileShare;
   }): void => {
     if (groupSendTransport(data.groupId) !== 'peer') return;
     // No id means this did not come through the peer envelope, and delivering
@@ -38,6 +40,7 @@ export function bindPeerGroupDelivery(): () => void {
       content: data.content,
       timestamp: data.timestamp ?? Date.now(),
       replyTo: data.replyTo,
+      fileShare: data.fileShare,
     });
   };
 

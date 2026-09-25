@@ -17,6 +17,8 @@ import { Send, Loader2 } from 'lucide-react';
 import { useGroupChat } from './useGroupChat';
 import { restrictionText, type GroupRestriction } from './group-restriction';
 import { GroupMessageItem } from './GroupMessageItem';
+import { GroupAttachButton } from './GroupAttachButton';
+import { groupSendTransport } from '@/lib/group-conversations/group-send-transport';
 
 interface GroupChatViewProps {
   groupId: string;
@@ -172,6 +174,8 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
       ) : (
       <div className="p-4 border-t border-surface/50">
         <div className="flex gap-2">
+          {/* Peer groups only: a node-backed channel's server has no file path. */}
+          {groupSendTransport(groupId) === 'peer' && !chat.editingId && <GroupAttachButton groupId={groupId} />}
           <Textarea
             value={chat.editingId ? chat.editContent : chat.inputValue}
             onChange={(e) =>
