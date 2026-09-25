@@ -26,6 +26,8 @@ vi.mock('@/lib/group-messaging-manager', () => ({
     handleNewMessage: (groupId: string, message: { id: string; content: string; sender_id: string }): void => {
       delivered.push({ groupId, id: message.id, content: message.content, sender: message.sender_id });
     },
+    // startGroupEventBindings also binds the transcript recorder to the manager.
+    subscribe: (): (() => void) => (): void => {},
   },
 }));
 

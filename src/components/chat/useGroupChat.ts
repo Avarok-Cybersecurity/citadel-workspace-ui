@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback , type RefObject  } f
 import { preferredScrollBehavior } from '@/lib/motion';
 import { groupSendTransport } from '@/lib/group-conversations/group-send-transport';
 import { sendGroupMessageAnywhere } from '@/lib/group-conversations/send-group-message';
+import { restoreGroupTranscript } from '@/lib/group-conversations/group-transcript-store';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { DELETE_MESSAGE_PROMPT } from '@/lib/chat/delete-message-prompt';
 import { describeFailure } from '@/lib/failure-message';
@@ -46,11 +47,12 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
       // least a statement the user can act on, where an unresolvable spinner is
       // not.
       // A peer group has no server history to ask for. It is owned by no node,
-      // so the workspace server refuses the request outright, and nothing else
-      // holds a transcript: group-persistence stores the group LIST, not
-      // messages. Asking anyway raised a destructive toast for a request that
-      // could only fail, then fell through to the empty state on the deadline.
+      // so the workspace server refuses the request outright; asking anyway
+      // raised a destructive toast for a request that could only fail. Its
+      // history is the local transcript (group-transcript-store), and without
+      // reading it back every reload showed "No messages yet".
       if (groupSendTransport(groupId) === 'peer') {
+        await restoreGroupTranscript(groupId);
         setLoading(false);
         return;
       }
