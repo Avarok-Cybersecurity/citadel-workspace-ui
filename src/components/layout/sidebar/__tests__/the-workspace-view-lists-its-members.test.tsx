@@ -104,3 +104,21 @@ describe('the sidebar member list with no node selected', () => {
     expect(listMembers).not.toHaveBeenCalledWith(WORKSPACE_ROOT_ID);
   });
 });
+
+describe('the all-members dialog', () => {
+  it('shows the job title and email a member set, not only the hover card', async () => {
+    // Seen live: bob saved "QA Lead" / bob@example.com and the dialog showed neither.
+    renderAt('/workspace');
+    await waitFor((): void => { expect(listMembers).toHaveBeenCalled(); });
+    const bob: WorkspaceMember = { ...member('bob'), title: 'QA Lead', email: 'bob@example.com' } as unknown as WorkspaceMember;
+    act((): void => {
+      deliver?.({ members: [member('a1'), member('a2'), member('a3'), member('a4'), member('a5'), bob], domainId: WORKSPACE_ROOT_ID } as MembersPayload);
+    });
+    const viewAll: HTMLElement = await screen.findByText(/View all 6 members/);
+    act((): void => { viewAll.click(); });
+    const dialog: HTMLElement = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('QA Lead');
+    expect(dialog).toHaveTextContent('bob@example.com');
+  });
+});
+

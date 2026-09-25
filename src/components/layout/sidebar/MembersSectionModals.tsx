@@ -134,6 +134,8 @@ export function MembersSectionModals({
                     <div className="flex-1">
                       <p className="text-foreground font-medium">{member.displayName || member.username}</p>
                       {member.username && <p className="text-sm text-muted-foreground">@{member.username}</p>}
+                      {member.title && <p className="text-xs text-foreground/80" data-testid="member-title">{member.title}</p>}
+                      {member.email && <p className="text-xs text-muted-foreground" data-testid="member-email">{member.email}</p>}
                     </div>
                     <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
                   </div>
