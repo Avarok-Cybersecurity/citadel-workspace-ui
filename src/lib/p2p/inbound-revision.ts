@@ -6,10 +6,14 @@
  * two branches belong together because they answer the same question in the
  * same way, and the answer is not obvious.
  *
- * The peer's revision is AUTHORITATIVE. Our in-memory conversation is already
- * mutated by `applyEdit`/`applyDelete` before we get here, so the event is
- * emitted whether or not the write succeeds -- refusing to emit would leave the
- * screen disagreeing with memory, which is worse than either alternative.
+ * The peer's revision is AUTHORITATIVE. When the store cannot take it, memory
+ * is still revised and the event still emitted -- refusing to emit would leave
+ * the screen disagreeing with memory, which is worse than either alternative.
+ *
+ * Revised on the STORED page first (record-revision). After a reload the
+ * in-memory conversation is empty and the window only ever holds the latest
+ * 100, so a revision that looked only there was dropped as "unknown-message"
+ * and the receiver kept the old text, or the retracted message, for good.
  *
  * What must not happen is silence. Both writes return a boolean, and both were
  * discarded: a storage failure removed a message from the screen while leaving
@@ -18,9 +22,8 @@
  * build the user is running. `errorLog` emits in production, which is the point.
  */
 import { eventEmitter } from '../event-emitter';
-import { applyEdit, applyDelete, type RevisionOutcome } from './message-revision';
 import { debugLog, errorLog } from '@/lib/debug-config';
-import type { P2PConversation } from './p2p-types';
+import { recordRevision, type RecordedRevision } from './record-revision';
 import type { MessageHandlerConfig } from './message-handler-types';
 
 /** Apply a peer's edit. */
@@ -31,15 +34,16 @@ export async function applyIncomingEdit(
   contents: string,
   editedAt: number,
 ): Promise<void> {
-  const conversation: P2PConversation = config.getOrCreateConversation(peerCid);
-  const outcome: RevisionOutcome = applyEdit(conversation, messageId, contents, editedAt, peerCid);
+  const outcome: RecordedRevision = await recordRevision(
+    config.getOrCreateConversation(peerCid), peerCid, messageId, peerCid, { kind: 'edit', contents, editedAt },
+  );
   if (!outcome.applied) {
     // Do not swallow this. An edit for a message we do not have, or one the
     // peer did not send, means our view and theirs have diverged.
     debugLog('P2PMessageHandler', `Ignored edit of ${messageId}: ${outcome.reason}`);
     return;
   }
-  if (!(await config.updateMessageInPages(peerCid, messageId, { content: contents, edited_at: editedAt }))) {
+  if (!outcome.persisted) {
     errorLog('P2PMessageHandler',
       `Edit of ${messageId} from ${peerCid} was not written to the stored transcript; ` +
       'a reload will show the pre-edit text, which the peer no longer has.');
@@ -53,13 +57,14 @@ export async function applyIncomingDelete(
   peerCid: bigint,
   messageId: string,
 ): Promise<void> {
-  const conversation: P2PConversation = config.getOrCreateConversation(peerCid);
-  const outcome: RevisionOutcome = applyDelete(conversation, messageId, peerCid);
+  const outcome: RecordedRevision = await recordRevision(
+    config.getOrCreateConversation(peerCid), peerCid, messageId, peerCid, { kind: 'delete' },
+  );
   if (!outcome.applied) {
     debugLog('P2PMessageHandler', `Ignored delete of ${messageId}: ${outcome.reason}`);
     return;
   }
-  if (!(await config.removeMessageFromPages(peerCid, messageId))) {
+  if (!outcome.persisted) {
     errorLog('P2PMessageHandler',
       `Delete of ${messageId} from ${peerCid} was not applied to the stored transcript; ` +
       'the retracted message will return on reload.');
