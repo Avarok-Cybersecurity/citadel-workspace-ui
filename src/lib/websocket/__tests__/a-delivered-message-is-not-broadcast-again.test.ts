@@ -73,6 +73,7 @@ vi.mock('../leader-socket-teardown', () => ({
 }));
 
 import { WebSocketInitialization } from '../initialization';
+import { ReconnectBackoff, AGENT_RECONNECT_BACKOFF, systemClock } from '../reconnect-backoff';
 
 /** A group invite for a follower's session — the shape that was duplicated. */
 const GROUP_INVITE: Record<string, unknown> = {
@@ -86,6 +87,8 @@ async function handlerForALeader(): Promise<(m: unknown) => void> {
     onClientCreated: vi.fn(),
     onClientReset: vi.fn(),
     releaseSession: vi.fn(),
+    // Every socket here is a first open, so spacing never applies.
+    reconnectBackoff: new ReconnectBackoff(AGENT_RECONNECT_BACKOFF, systemClock),
   });
   await init.createWebSocketAsLeader();
   const handler: ((m: unknown) => void) | undefined = captured()?.messageHandler;
