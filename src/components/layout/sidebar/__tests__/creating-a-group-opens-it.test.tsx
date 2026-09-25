@@ -12,9 +12,19 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import type { UsePermissionResult } from '@/hooks/use-permission-result';
 
 const navigated: string[] = [];
 const createGroup: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<string> => 'group-77');
+
+// The members header asks AddUsers through `usePermission`, whose fetch is agent
+// I/O and not what this file is about; answered "yes" so the header renders.
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: (): UsePermissionResult => ({
+    allowed: true, loading: false, reason: null, unanswered: false, answered: true,
+    refresh: async (): Promise<void> => {},
+  }),
+}));
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual: Record<string, unknown> = await importOriginal();

@@ -26,9 +26,19 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import type { UsePermissionResult } from '@/hooks/use-permission-result';
 
 const { listMembers } = vi.hoisted(() => ({ listMembers: vi.fn(async (): Promise<void> => {}) }));
 let deliver: ((payload: MembersPayload) => void) | null = null;
+
+// The members header asks AddUsers through `usePermission`, whose fetch is agent
+// I/O and not what this file is about; answered "yes" so the header renders.
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: (): UsePermissionResult => ({
+    allowed: true, loading: false, reason: null, unanswered: false, answered: true,
+    refresh: async (): Promise<void> => {},
+  }),
+}));
 
 vi.mock('@/lib/workspace-service', () => ({ default: { listMembers } }));
 vi.mock('@/lib/workspace-events', () => ({

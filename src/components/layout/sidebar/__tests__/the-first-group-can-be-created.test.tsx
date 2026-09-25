@@ -24,12 +24,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import type { UsePermissionResult } from '@/hooks/use-permission-result';
 
 const peers: { current: { cid: string; username: string; displayName: string; isOnline: boolean; isConnected: boolean }[] } = {
   current: [],
 };
 const conversations: { current: unknown[] } = { current: [] };
 const groups: { current: unknown[] } = { current: [] };
+
+// The members header asks AddUsers through `usePermission`, whose fetch is agent
+// I/O and not what this file is about; answered "yes" so the header renders.
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: (): UsePermissionResult => ({
+    allowed: true, loading: false, reason: null, unanswered: false, answered: true,
+    refresh: async (): Promise<void> => {},
+  }),
+}));
 
 vi.mock('@/hooks', async (importOriginal) => {
   const actual: Record<string, unknown> = await importOriginal();

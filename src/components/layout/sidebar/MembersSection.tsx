@@ -132,6 +132,8 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
           <MembersHeaderActions
             onDiscover={() => setShowPeerDiscovery(true)}
             onInvite={() => setShowInvite(true)}
+            onAddMember={() => setShowAddModal(true)}
+            domainId={activeDomainId}
           />
         </div>
         <SidebarGroupContent>
