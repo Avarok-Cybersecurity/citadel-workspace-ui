@@ -14,10 +14,16 @@ describe('office call members', () => {
 
   it('maps member usernames to their CIDs and leaves out the caller', () => {
     const members: RosterMember[] = [{ id: 'lara.lab', username: 'lara.lab', displayName: 'Lara Lead' }, { id: 'max.lab', username: 'max.lab', displayName: 'Max Member' }];
-    expect(callableMembers(members, peers, 10n)).toEqual([{ cid: 11n, username: 'max.lab' }]);
+    expect(callableMembers(members, peers, 10n, new Set([11n]))).toEqual({ callable: [{ cid: 11n, username: 'max.lab' }], notConnected: [] });
   });
 
   it('leaves out a member the directory does not know rather than guessing', () => {
-    expect(callableMembers([{ id: 'ghost', username: 'ghost', displayName: 'Ghost' }], peers, 10n)).toEqual([]);
+    expect(callableMembers([{ id: 'ghost', username: 'ghost', displayName: 'Ghost' }], peers, 10n, new Set([11n]))).toEqual({ callable: [], notConnected: [] });
+  });
+
+  it('names a member you are not connected with instead of ringing them into silence', () => {
+    // Calls signal and stream peer to peer: an unconnected member can never ring.
+    const members: RosterMember[] = [{ id: 'max.lab', username: 'max.lab', displayName: 'Max Member' }];
+    expect(callableMembers(members, peers, 10n, new Set())).toEqual({ callable: [], notConnected: ['Max Member'] });
   });
 });

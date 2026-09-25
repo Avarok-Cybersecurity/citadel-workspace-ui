@@ -55,7 +55,7 @@ describe('whether a new call can start', () => {
       'ringing-in', 'ringing-out', 'connecting', 'active', 'ended', 'failed',
     ] as const) {
       const call: CallState = state(status, 'other-room');
-      const mode: GroupCallEntryMode = groupCallEntryMode(call, 'this-room', 3);
+      const mode: GroupCallEntryMode = groupCallEntryMode(call, 'this-room', 3, []);
       const busy: string | null = callBusyReason(call);
 
       expect(

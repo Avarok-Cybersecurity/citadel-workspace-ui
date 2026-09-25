@@ -29,6 +29,8 @@ export function groupCallEntryMode(
   call: CallState | null,
   roomId: string,
   otherMemberCount: number,
+  /** Members who cannot be rung because they are not connected with you; see callable-members. */
+  notConnected: readonly string[],
 ): GroupCallEntryMode {
   if (call && call.status !== 'ended') {
     if (call.roomId === roomId) {
@@ -59,17 +61,21 @@ export function groupCallEntryMode(
   // answering — refusing up front beats a call that collapses as it fills.
   return {
     kind: 'start',
-    audioReason: startReason(otherMemberCount, MAX_AUDIO_PARTICIPANTS, 'audio'),
-    videoReason: startReason(otherMemberCount, MAX_VIDEO_PARTICIPANTS, 'video'),
+    audioReason: startReason(otherMemberCount, notConnected, MAX_AUDIO_PARTICIPANTS, 'audio'),
+    videoReason: startReason(otherMemberCount, notConnected, MAX_VIDEO_PARTICIPANTS, 'video'),
   };
 }
 
-function startReason(others: number, cap: number, kind: 'audio' | 'video'): string | null {
+function startReason(others: number, notConnected: readonly string[], cap: number, kind: 'audio' | 'video'): string | null {
   // Says what to DO, not just what is wrong. The roster comes from the room's
   // members, and joining a workspace does not make you a member of every room
   // in it — so this is the state a brand-new room is always in, and "no one
   // else is here" alone leaves the user with no idea that membership is the
   // lever.
+  if (others === 0 && notConnected.length > 0) {
+    const who: string = notConnected.length === 1 ? `${notConnected[0]} isn’t` : `${notConnected.join(', ')} aren’t`;
+    return `${who} connected with you yet. Calls go directly between people — connect with them from Members first.`;
+  }
   if (others === 0) {
     return 'No one else is in this conversation yet — add members to this room to call them.';
   }

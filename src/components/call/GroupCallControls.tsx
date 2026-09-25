@@ -16,6 +16,8 @@ interface GroupCallControlsProps {
   roomName: string;
   /** Everyone in the room except the current user. */
   members: GroupCallMember[];
+  /** Members who cannot be rung because they are not connected with you (office rooms). */
+  notConnected: readonly string[];
 }
 
 /**
@@ -26,9 +28,9 @@ interface GroupCallControlsProps {
  * per-media cap refusals, and "Join call" when this room's call is already
  * ringing so two people cannot end up in two rival calls in one room.
  */
-export function GroupCallControls({ roomId, roomName, members }: GroupCallControlsProps): JSX.Element {
+export function GroupCallControls({ roomId, roomName, members, notConnected }: GroupCallControlsProps): JSX.Element {
   const { call, capability, startCall, accept, leave } = useCall();
-  const mode: GroupCallEntryMode = groupCallEntryMode(call, roomId, members.length);
+  const mode: GroupCallEntryMode = groupCallEntryMode(call, roomId, members.length, notConnected);
 
   if (mode.kind === 'in-call') {
     return (

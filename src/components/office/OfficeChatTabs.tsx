@@ -2,7 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { FileText, MessageSquare } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import GroupChatView from '@/components/chat/GroupChatView';
-import { GroupCallControls , type GroupCallMember } from '@/components/call/GroupCallControls';
+import { GroupCallControls } from '@/components/call/GroupCallControls';
+import type { RoomCallRoster } from '@/lib/call/callable-members';
 import { usePermission } from '@/hooks/use-permission';
 import { permits } from '@/hooks/use-permission-result';
 import { permissionsService } from '@/lib/permissions-service';
@@ -41,7 +42,7 @@ export function OfficeChatTabs({
   currentUserName,
   rules,
 }: OfficeChatTabsProps): JSX.Element {
-  const callMembers: GroupCallMember[] = useDomainCallMembers(nodeId);
+  const callRoster: RoomCallRoster = useDomainCallMembers(nodeId);
   const [tab, setTab] = useState<OfficeTab>((): OfficeTab => rememberedTab(chatChannelId));
   // Office chat is governed by the workspace permission system, not by group
   // roles, so its only two answers are the permission's.
@@ -106,7 +107,8 @@ export function OfficeChatTabs({
           <GroupCallControls
             roomId={chatChannelId}
             roomName={roomName}
-            members={callMembers}
+            members={callRoster.callable}
+            notConnected={callRoster.notConnected}
           />
         </div>
 

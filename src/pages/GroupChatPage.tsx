@@ -182,7 +182,7 @@ export function GroupChatPage(): JSX.Element {
         // the chat below no longer waits for.
         callControls={
           currentUserId ? (
-            <GroupCallControls roomId={group.id} roomName={group.name} members={members} />
+            <GroupCallControls roomId={group.id} roomName={group.name} members={members} notConnected={[]} />
           ) : null
         }
       />
