@@ -15,6 +15,7 @@ import { tryParseCid } from '@/lib/utils/cid-utils';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
+import { useP2PChannelParam } from './use-p2p-channel-param';
 
 interface WorkspaceViewProps {
   nodeId?: string | null;
@@ -40,8 +41,8 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   // Parse query parameters for P2P chat
   const params: URLSearchParams = new URLSearchParams(location.search);
   const showP2P: boolean = params.get('showP2P') === 'true';
-  const peerCid: string | null = params.get('channel');
   const peerName: string | null = params.get('p2pUser');
+  const peerCid: string | null = useP2PChannelParam(params.get('channel'), peerName);
 
   // Get entity data from unified node hierarchy
   const node: DomainNode | null = nodeId ? state.nodes[nodeId] : null;
