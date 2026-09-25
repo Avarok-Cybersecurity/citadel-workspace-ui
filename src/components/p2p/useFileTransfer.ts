@@ -4,6 +4,7 @@ import type { FileTransferMode } from '@/types/messaging-layer';
 import { fileTransferService } from '@/lib/file-transfer';
 import { MAX_BYTE_CONTENTS_SIZE_BYTES } from '@/lib/file-transfer/send-operations';
 import { debugLog } from '@/lib/debug-config';
+import { failureDescription } from '@/lib/p2p/peer-failure-detail';
 
 interface UseFileTransferOptions {
   onClose: () => void;
@@ -169,7 +170,9 @@ export function useFileTransfer({
       handleRemoveFile();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send file');
+      // Measured live: the WASM client rejected with a non-Error, and the dialog said only
+      // "Failed to send file". The same translation the toast uses, so both say why.
+      setError(failureDescription(err, 'Failed to send file. Check your connection and try again.'));
     } finally {
       setIsSending(false);
     }

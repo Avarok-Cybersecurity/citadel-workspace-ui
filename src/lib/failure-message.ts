@@ -17,5 +17,10 @@
 export function describeFailure(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message.trim()) return error.message;
   if (typeof error === 'string' && error.trim()) return error;
+  // The WASM client rejects with plain objects as well as strings.
+  if (error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string') {
+    const message: string = (error as { message: string }).message;
+    if (message.trim()) return message;
+  }
   return fallback;
 }
