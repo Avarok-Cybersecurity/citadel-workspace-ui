@@ -118,24 +118,33 @@ export class P2POperations {
    * Resolves on both success AND failure (warn-and-continue pattern).
    */
   async acceptPeerConnect(cid: bigint, peerCid: bigint, notification: Record<string, unknown> | null): Promise<void> {
+    return this.answerPeerConnect(cid, peerCid, notification, true);
+  }
+
+  /** Refuse it (a paused contact): ends their attempt instead of letting it time out. */
+  async declinePeerConnect(cid: bigint, peerCid: bigint, notification: Record<string, unknown> | null): Promise<void> {
+    return this.answerPeerConnect(cid, peerCid, notification, false);
+  }
+
+  private async answerPeerConnect(cid: bigint, peerCid: bigint, notification: Record<string, unknown> | null, accept: boolean): Promise<void> {
     await this.config.init();
 
     if (cid === undefined || cid === null || peerCid === undefined || peerCid === null) {
       throw new Error('CID and peerCid are required to accept P2P connection');
     }
 
-    debugLog('P2POperations', 'Accepting P2P connection', { cid: cid.toString(), peerCid: peerCid.toString() });
+    debugLog('P2POperations', accept ? 'Accepting P2P connection' : 'Declining P2P connection', { cid: cid.toString(), peerCid: peerCid.toString() });
 
     const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
     type AcceptBody = { request_id: string; cid: bigint; peer_cid: bigint; accept: boolean; udp_mode: string; session_security_settings: {}; peer_session_password: null; };
-    // Fetched for `cid`, the ACCEPTING session: its own workspace server and agent.
-    const turn: TurnConfig | null = await this.config.turnFor(cid);
+    // For `cid`, the ACCEPTING session's own server and agent; a refusal opens no path.
+    const turn: TurnConfig | null = accept ? await this.config.turnFor(cid) : null;
     const acceptRequest: { PeerConnectAccept: AcceptBody | (AcceptBody & { turn: TurnConfig }) } = {
       PeerConnectAccept: withTurn<AcceptBody>({
         request_id: requestId,
         cid: cid,
         peer_cid: peerCid,
-        accept: true,
+        accept,
         // Mirrors the initiator, defaulting to Enabled: a call needs BOTH ends
         // to have negotiated a datagram path, so an acceptor that quietly
         // dropped to Disabled would make every call it answered media-less.
@@ -158,12 +167,13 @@ export class P2POperations {
         const r: { PeerConnectAcceptSuccess?: { request_id: string; accept?: boolean; }; } =
           msg as { PeerConnectAcceptSuccess?: { request_id: string; accept?: boolean } };
         const answer: { request_id: string; accept?: boolean } | undefined = r.PeerConnectAcceptSuccess;
+        // A decline is settled by exactly the refusal, and never by an acceptance.
         if (answer?.request_id === requestId) {
-          if (answer.accept === false) {
-            debugLog('P2POperations', 'P2P connection was DECLINED, not accepted', { peerCid });
+          if ((answer.accept !== false) !== accept) {
+            debugLog('P2POperations', `P2P answer came back ${answer.accept === false ? 'DECLINED' : 'accepted'}, not what was sent`, { peerCid });
             return false;
           }
-          debugLog('P2POperations', 'P2P connection accept sent', { peerCid });
+          debugLog('P2POperations', accept ? 'P2P connection accept sent' : 'P2P connection decline sent', { peerCid });
           return true;
         }
         return false;

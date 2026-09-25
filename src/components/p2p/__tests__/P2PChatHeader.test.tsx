@@ -30,6 +30,7 @@ function renderHeader(): RenderResult {
       peerName="Alice Chen"
       peerPresence={ONLINE}
       peerTyping={false}
+      paused={false}
       isConnected
       isRegistered
       onSettingsClick={vi.fn()}

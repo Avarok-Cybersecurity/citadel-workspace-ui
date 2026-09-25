@@ -15,6 +15,7 @@ import type { AutoConnectState } from './state';
 import { getCurrentCid } from './cid-resolver';
 import { connectToPeer, handleConnectionSuccess, handlePeerDisconnect } from './connection-logic';
 import { handleIncomingPeerConnect } from './incoming-connect';
+import { incomingAnswer } from './pause-gate';
 import { startPolling, stopPolling, startBackendPolling, stopBackendPolling } from './polling';
 import { parsePeerConnectPath } from '@/lib/ice-servers/path';
 import type { PeerConnectPath } from '@/types/ice-servers';
@@ -159,7 +160,8 @@ function setupWebSocketMessageHandler(
       if (instanceManager.isLeader) {
         const targetCid: bigint | undefined = notification.cid as bigint | undefined;
         const initiatorCid: bigint | undefined = notification.peer_cid as bigint | undefined;
-        if (targetCid !== undefined && initiatorCid !== undefined) {
+        // Not for a paused contact: the owning tab declines it.
+        if (targetCid !== undefined && initiatorCid !== undefined && await incomingAnswer(targetCid, initiatorCid) === 'accept') {
           debugLog('P2PAutoConnectService', `Leader updating connectedPeers for target CID ${targetCid.toString().slice(0, 8)}... -> peer ${initiatorCid.toString().slice(0, 8)}...`);
           broadcastPeerConnected(targetCid, initiatorCid);
         }

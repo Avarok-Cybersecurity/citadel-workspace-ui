@@ -21,6 +21,10 @@ import { P2PMessageList } from './P2PMessageList';
 import { P2PMessageInput } from './P2PMessageInput';
 import { useP2PMessages, useP2PFileTransfer, useP2PTabs } from './hooks';
 import { useP2PCompose } from './hooks/useP2PCompose';
+import { useFollowLatest } from './hooks/use-follow-latest';
+import { usePeerPause, type PeerPauseBinding } from './hooks/use-peer-pause';
+import { PausedBanner } from './PausedBanner';
+import { callCapabilityWhile } from '@/lib/p2p-pause/pause-copy';
 import type { DirectCallBinding } from '@/components/p2p/hooks/use-direct-call';
 
 export type ChatMode = 'p2p' | 'group';
@@ -104,37 +108,12 @@ export function P2PChat({
     createDocument: handleCreateDocument,
   });
 
-  // Follow the conversation only when the reader is already at the bottom.
-  //
-  // This used to pin unconditionally on every change of `messages`, so someone
-  // scrolled up reading yesterday's thread was yanked back down by any new
-  // message — and, because the status subscription allocated a new array
-  // regardless of whether the id was in THIS conversation, by any
-  // sent/delivered/read transition anywhere in the messenger.
-  //
-  // It also fought the pagination anchoring in useP2PMessages, which goes to
-  // real trouble to preserve scroll position across a prepend.
-  const FOLLOW_THRESHOLD_PX: number = 80;
-  const hasJumpedToLatest: React.MutableRefObject<boolean> = useRef(false);
-  useEffect(() => {
-    const el: HTMLDivElement | null = scrollRef.current;
-    if (!el || messages.length === 0) return;
+  useFollowLatest(scrollRef, messages);
 
-    // The first paint of a conversation must land on the newest message —
-    // scrollTop is 0 there, so a pure "am I near the bottom" test would open
-    // every conversation at the top of its history. P2PChat is keyed by peer,
-    // so this ref resets when the conversation changes.
-    if (!hasJumpedToLatest.current) {
-      hasJumpedToLatest.current = true;
-      el.scrollTop = el.scrollHeight;
-      return;
-    }
-
-    const distanceFromBottom: number = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (distanceFromBottom <= FOLLOW_THRESHOLD_PX) {
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [messages]);
+  // Paused: the link is down on purpose. Messages still send and queue; calls
+  // and files need the live link, so those say why they are unavailable.
+  const pause: PeerPauseBinding = usePeerPause(peerCid);
+  const paused: boolean = pause.status === 'paused';
 
   // Mark notifications as read when viewing conversation
   useEffect(() => {
@@ -163,15 +142,17 @@ export function P2PChat({
         peerTyping={peerTyping}
         isConnected={isConnected}
         isRegistered={isRegistered}
+        paused={paused}
         onSettingsClick={() => setShowSettingsModal(true)}
         call={{
           canCall: isConnected,
           inCall: callBinding.active,
-          capability: callBinding.capability,
+          capability: callCapabilityWhile(pause.status, callBinding.capability),
           onStartCall: callBinding.startCall,
           onLeave: callBinding.leave,
         }}
       />
+      {paused && <PausedBanner busy={pause.busy} onResume={pause.resume} />}
 
       {/* Docked above the messages, so the conversation stays usable during a
           call — which is the entire reason to put calling inside a messenger. */}
@@ -230,7 +211,7 @@ export function P2PChat({
             />
             <P2PMessageInput
               ref={inputRef} inputMessage={inputMessage} messageType={messageType}
-              showMarkdownPreview={showMarkdownPreview} canSendMessages={true} isSending={isSending}
+              showMarkdownPreview={showMarkdownPreview} canSendMessages={true} paused={paused} isSending={isSending}
               onInputChange={setInputMessage} onInputFocus={handleInputFocus}
               onInputBlur={handleInputBlur} onSubmit={handleSendMessage}
               onFileClick={() => setShowFileModal(true)} onFormat={applyFormat}

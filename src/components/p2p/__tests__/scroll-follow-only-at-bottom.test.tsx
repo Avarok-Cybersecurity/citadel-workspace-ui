@@ -18,9 +18,18 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+// The effect moved into its own hook when P2PChat reached its length ceiling;
+// the chat is checked for calling it, so the move cannot drop the behaviour.
+const HOOK: string = 'src/components/p2p/hooks/use-follow-latest.ts';
+
 describe('the chat scroll', () => {
+  it('is the chat’s own: P2PChat runs the follow hook', () => {
+    const chat: string = readFileSync(join(process.cwd(), 'src/components/p2p/P2PChat.tsx'), 'utf8');
+    expect(chat).toMatch(/useFollowLatest\(scrollRef,\s*messages\)/);
+  });
+
   it('measures distance from the bottom before following', () => {
-    const src: string = readFileSync(join(process.cwd(), 'src/components/p2p/P2PChat.tsx'), 'utf8');
+    const src: string = readFileSync(join(process.cwd(), HOOK), 'utf8');
 
     // The unconditional form was:
     //   scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -29,7 +38,7 @@ describe('the chat scroll', () => {
   });
 
   it('still lands on the newest message when a conversation is first opened', () => {
-    const src: string = readFileSync(join(process.cwd(), 'src/components/p2p/P2PChat.tsx'), 'utf8');
+    const src: string = readFileSync(join(process.cwd(), HOOK), 'utf8');
 
     // scrollTop is 0 on first paint, so a pure near-the-bottom test would open
     // every conversation at the TOP of its history — a worse bug than the one

@@ -11,6 +11,8 @@ import { debugLog } from '@/lib/debug-config';
 import type { AutoConnectState } from './state';
 import { FRESH_CONNECTION_THRESHOLD_MS } from './types';
 import { getCurrentCid } from './cid-resolver';
+import { incomingAnswer } from './pause-gate';
+import type { IncomingAnswer } from '@/lib/p2p-pause/pause-rules';
 import type { PeerConnectionInfo } from '@/lib/p2p-auto-connect/types';
 
 /**
@@ -47,6 +49,15 @@ export async function handleIncomingPeerConnect(
   // Only process if WE are the target
   if (targetCid !== currentCid) {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Ignoring PeerConnectNotification - target is ${targetCid.toString().slice(0, 8)}... (we are ${currentCid.toString().slice(0, 8)}...)`);
+    return;
+  }
+
+  // A paused contact is refused before anything marks it connected; when the
+  // record is unreadable it gets no answer and retries.
+  const answer: IncomingAnswer = await incomingAnswer(currentCid, initiatorCid);
+  if (answer !== 'accept') {
+    debugLog('P2PAutoConnectService', `P2PAutoConnect: ${answer} incoming connection from paused ${initiatorCid.toString().slice(0, 8)}...`);
+    if (answer === 'decline') await websocketService.declinePeerConnect(currentCid, initiatorCid, notification);
     return;
   }
 

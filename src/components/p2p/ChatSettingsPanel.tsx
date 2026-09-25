@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClearHistoryButton } from './ClearHistoryButton';
+import { PauseConnectionControl } from './PauseConnectionControl';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ChatSettingsAdvanced } from './ChatSettingsAdvanced';
@@ -130,6 +131,7 @@ export function ChatSettingsPanel({
           <div className="flex-1 overflow-y-auto mt-4">
             {/* General Tab */}
             <TabsContent value="general" className="space-y-6 m-0" data-testid="content-general">
+              <PauseConnectionControl peerCid={BigInt(peerCid)} peerName={peerName} />
               <div className="space-y-4">
                 {/* These are the workspace-wide privacy settings, not
                     per-conversation ones — they were uncontrolled `Switch

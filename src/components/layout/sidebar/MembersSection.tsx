@@ -26,7 +26,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { peerRegistrationStore } from "@/lib/peer-registration-store";
 import { GroupConversationRow } from "./GroupConversationRow";
 import { GroupInviteList } from "./GroupInviteList";
-import { PeerListRow } from "./PeerListRow";
+import { PausablePeerRow } from "./PausablePeerRow";
 import { useGroupConversations, useRegisteredPeers, useConversationPeers, useEventListener } from '@/hooks';
 import { useDomainMembers } from '@/hooks/use-domain-members';
 import { debugLog } from '@/lib/debug-config';
@@ -158,7 +158,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
             <div className="mt-2 border-t border-card pt-2">
               <SidebarMenu>
                 {filteredRegisteredPeers.map((peer) => (
-                  <PeerListRow key={peer.cid} cid={peer.cid} username={peer.username} displayName={peer.displayName} isOnline={peer.isOnline} isConnected={peer.isConnected} connectionPath={peer.connectionPath} isActive={peer.cid === active.peerCid} onClick={() => void handlePeerClick(peer.cid, peer.username)} />
+                  <PausablePeerRow key={peer.cid} cid={peer.cid} username={peer.username} displayName={peer.displayName} isOnline={peer.isOnline} isConnected={peer.isConnected} connectionPath={peer.connectionPath} isActive={peer.cid === active.peerCid} onClick={() => void handlePeerClick(peer.cid, peer.username)} />
                 ))}
               </SidebarMenu>
             </div>
@@ -189,7 +189,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
           <SidebarGroupContent>
             <SidebarMenu>
               {peersWithConversations.map((conv) => (
-                <PeerListRow key={conv.peerCid} cid={conv.peerCid} username={conv.peerUsername} displayName={conv.peerDisplayName} isOnline={conv.isOnline} isConnected={conv.isConnected} connectionPath={conv.connectionPath} unreadCount={conv.unreadCount} isActive={conv.peerCid === active.peerCid} onClick={() => void handlePeerClick(conv.peerCid, conv.peerUsername)} />
+                <PausablePeerRow key={conv.peerCid} cid={conv.peerCid} username={conv.peerUsername} displayName={conv.peerDisplayName} isOnline={conv.isOnline} isConnected={conv.isConnected} connectionPath={conv.connectionPath} unreadCount={conv.unreadCount} isActive={conv.peerCid === active.peerCid} onClick={() => void handlePeerClick(conv.peerCid, conv.peerUsername)} />
               ))}
               {groupConversations.map((group) => (
                 <GroupConversationRow key={group.id} group={group} isActive={group.id === active.groupId} onClick={(g) => navigate(`/groups/${g.id}`)} />
