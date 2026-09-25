@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Folder, FolderLock, type LucideIcon } from "lucide-react";
-import { RevfsFileState, PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
+import { PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
+import { isDownloadableState } from "@/lib/revfs/tree-queries";
 import type { SelectMode } from "@/hooks/useVFSSelection";
 import { VFSContextMenu } from "./VFSContextMenu";
 import { VFSRenameInput } from "./VFSRenameInput";
@@ -61,8 +62,13 @@ export function GridItem({
     ? (isProtected ? FolderLock : Folder)
     : getFileIcon(node.name);
 
+  // Opening is an explicit act: double-click, Enter, or a tap where there is no
+  // hover. A single click on a file used to START A DOWNLOAD as well as select
+  // it, so selecting a file to cut, copy or inspect pulled it from the peer.
+  const opensOnActivate: boolean = !isDir && isDownloadableState(node.fileState);
   const handleDoubleClick = (): void => {
     if (isDir) onNavigate(node.path);
+    else if (opensOnActivate) onDownload(node);
   };
 
   /**
@@ -77,10 +83,10 @@ export function GridItem({
    * Enter opens, Space selects — the convention every file manager uses.
    */
   const handleKeyDown = (e: React.KeyboardEvent): void => {
-    if (isDir && e.key === 'Enter') {
+    if ((isDir || opensOnActivate) && e.key === 'Enter') {
       e.preventDefault();
       e.stopPropagation();
-      onNavigate(node.path);
+      handleDoubleClick();
       return;
     }
     activateOnKey(handleClick)(e);
@@ -95,7 +101,7 @@ export function GridItem({
     window.matchMedia('(hover: none)').matches;
 
   const handleClickOrOpen = (e: React.MouseEvent): void => {
-    if (isDir && isCoarsePointer) {
+    if ((isDir || opensOnActivate) && isCoarsePointer) {
       handleDoubleClick();
       return;
     }
@@ -114,10 +120,6 @@ export function GridItem({
       mode = 'range';
     }
     onSelect(node.path, mode);
-
-    if (mode === 'replace' && !isDir && (node.fileState === RevfsFileState.Remote || node.fileState === RevfsFileState.Received)) {
-      onDownload(node);
-    }
   };
 
   const handleDragOver = (e: React.DragEvent): void => {
@@ -165,6 +167,7 @@ export function GridItem({
           isSelected && "bg-primary/40 ring-1 ring-ring",
         )}
         onClick={handleClickOrOpen}
+        title={opensOnActivate ? `${node.name} (double-click or Enter to open)` : undefined}
         role="button"
         tabIndex={0}
         onKeyDown={handleKeyDown}
