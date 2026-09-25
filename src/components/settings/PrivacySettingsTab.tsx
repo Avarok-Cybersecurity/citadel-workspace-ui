@@ -44,7 +44,7 @@ export function PrivacySettingsTab(): JSX.Element {
         <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
             <Label htmlFor="online-status" className="text-sm font-medium">Online Status</Label>
-            <p className="text-xs text-muted-foreground">Let others see when you're online</p>
+            <p className="text-xs text-muted-foreground">Tell your contacts when you come online or go away. Someone you are connected to directly can still see that connection.</p>
           </div>
           <Switch id="online-status"
             checked={settings.showOnlineStatus}
