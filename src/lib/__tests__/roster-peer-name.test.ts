@@ -9,7 +9,7 @@ vi.mock('@/lib/p2p-registration-service', () => ({
   p2pRegistrationService: { getPeers: (): unknown => getPeers() },
 }));
 
-const { callPeerName } = await import('../peer-name');
+const { rosterPeerName } = await import('../roster-peer-name');
 
 const peer: (cid: bigint, username: string, fullName?: string) => { cid: bigint; username: string; fullName: string; isOnline: boolean; isRegistered: boolean; } = (cid: bigint, username: string, fullName = ''): { cid: bigint; username: string; fullName: string; isOnline: boolean; isRegistered: boolean; } => ({
   cid,
@@ -19,22 +19,22 @@ const peer: (cid: bigint, username: string, fullName?: string) => { cid: bigint;
   isRegistered: true,
 });
 
-describe('callPeerName', () => {
+describe('rosterPeerName', () => {
   beforeEach(() => getPeers.mockReset());
 
   it('names a registered peer', () => {
     getPeers.mockReturnValue({ registeredPeers: [peer(7n, 'alice')], allPeers: [] });
-    expect(callPeerName(7n)).toBe('alice');
+    expect(rosterPeerName(7n)).toBe('alice');
   });
 
   it('prefers a full name when the roster has one', () => {
     getPeers.mockReturnValue({ registeredPeers: [peer(7n, 'alice', 'Alice Ng')], allPeers: [] });
-    expect(callPeerName(7n)).toBe('Alice Ng');
+    expect(rosterPeerName(7n)).toBe('Alice Ng');
   });
 
   it('falls back to a discovered peer that is not yet registered', () => {
     getPeers.mockReturnValue({ registeredPeers: [], allPeers: [peer(7n, 'alice')] });
-    expect(callPeerName(7n)).toBe('alice');
+    expect(rosterPeerName(7n)).toBe('alice');
   });
 
   it('prefers the registered record when a peer appears in both', () => {
@@ -42,7 +42,7 @@ describe('callPeerName', () => {
       registeredPeers: [peer(7n, 'alice')],
       allPeers: [peer(7n, 'stale-alice')],
     });
-    expect(callPeerName(7n)).toBe('alice');
+    expect(rosterPeerName(7n)).toBe('alice');
   });
 
   it('gives an unknown peer a short handle, never the raw cid', () => {
@@ -51,7 +51,7 @@ describe('callPeerName', () => {
     getPeers.mockReturnValue({ registeredPeers: [], allPeers: [] });
     const cid: bigint = 13961676296247425873n;
 
-    const name: string = callPeerName(cid);
+    const name: string = rosterPeerName(cid);
     expect(name).not.toBe(cid.toString());
     expect(name).toMatch(/^Peer /);
   });

@@ -4,6 +4,8 @@ import type { CallParticipant } from '@/lib/call/call-state';
 export interface StageShare {
   stream: MediaStream;
   name: string;
+  /** Whose share it is, for re-asking the roster; null for this tab's own. */
+  cid: bigint | null;
   isSelf: boolean;
 }
 
@@ -37,14 +39,14 @@ export function useStageShare({
       const stream: MediaStream | undefined = remoteScreenStreams?.get(participant.cid);
       if (stream && participant.media.screen) {
         return {
-          share: { stream, name: participant.username, isSelf: false },
+          share: { stream, name: participant.username, cid: participant.cid, isSelf: false },
           someoneElseIsSharing: true,
         };
       }
     }
     if (screenStream && selfSharing) {
       return {
-        share: { stream: screenStream, name: selfUsername, isSelf: true },
+        share: { stream: screenStream, name: selfUsername, cid: null, isSelf: true },
         someoneElseIsSharing: false,
       };
     }

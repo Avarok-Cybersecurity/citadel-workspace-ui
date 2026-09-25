@@ -58,6 +58,26 @@ describe('the link a peer row navigates to', () => {
     expect(activeConversation(pathname, `?${search}`).peerCid).toBe('42');
   });
 
+  it('opens the conversation from a page that cannot show it', () => {
+    // The DM renders only on /workspace. From /groups/<id> the row used to
+    // append ?showP2P=true to the GROUP's URL -- the address changed and the
+    // conversation never opened.
+    const href: string = conversationHref('/groups/7:42', '', { cid: '42', username: 'bob' });
+    const url: URL = new URL(href, 'http://x');
+    expect(url.pathname).toBe('/workspace');
+    expect(activeConversation(url.pathname, url.search).peerCid).toBe('42');
+    expect(url.searchParams.get('p2pUser')).toBe('bob');
+  });
+
+  it("does not carry another page's parameters into the workspace", () => {
+    // `section` on /directory means something else there; on /workspace it
+    // would select a pane nobody asked for.
+    const href: string = conversationHref('/directory', '?section=people', { cid: '42', username: 'bob' });
+    const url: URL = new URL(href, 'http://x');
+    expect(url.pathname).toBe('/workspace');
+    expect(url.searchParams.has('section')).toBe(false);
+  });
+
   it('keeps the parameters that were already there', () => {
     expect(conversationHref('/workspace', '?nodeId=n1', { cid: '42', username: 'bob' })).toContain(
       'nodeId=n1',

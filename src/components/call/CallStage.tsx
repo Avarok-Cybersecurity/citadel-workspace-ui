@@ -8,7 +8,8 @@ import { registerCallStage } from './call-stage-presence';
 import { ScreenShareView } from './ScreenShareView';
 import { useAnnotations } from './use-annotations';
 import { useStageShare } from './use-stage-share';
-import { mediaControlsUsable, type ControlAvailability } from './call-control-availability';
+import { useRosterName } from './use-roster-name';
+import { cameraControlUsable, mediaControlsUsable, type ControlAvailability } from './call-control-availability';
 import { VideoSettingsModal } from './VideoSettingsModal';
 import { canShareScreen } from '@/lib/call/screen-capability';
 import type { VideoQuality } from '@/lib/call/video-quality';
@@ -77,6 +78,7 @@ export function CallStage({
   const tileCount: number = visible.length + 1;
 
   const controls: ControlAvailability = mediaControlsUsable(call.status);
+  const camera: ControlAvailability = cameraControlUsable(call.status, localStream);
   const { share, someoneElseIsSharing } = useStageShare({
     visible,
     remoteScreenStreams,
@@ -84,6 +86,9 @@ export function CallStage({
     selfSharing: call.selfMedia.screen,
     selfUsername,
   });
+
+  // The share's name was frozen with the participant's; see use-roster-name.
+  const sharerName: string = useRosterName(share?.cid ?? null, share?.name ?? '');
 
   const { strokes, beginStroke, addPoint, endStroke } = useAnnotations({
     callId: share ? call.callId : null,
@@ -120,7 +125,7 @@ export function CallStage({
           {share && (
             <ScreenShareView
               stream={share.stream}
-              sharerName={share.name}
+              sharerName={sharerName}
               isSelf={share.isSelf}
               strokes={strokes}
               onPoint={addPoint}
@@ -172,7 +177,7 @@ export function CallStage({
       <div className="mt-3">
         <CallControls
           media={call.selfMedia}
-          canToggleVideo={controls.usable}
+          canToggleVideo={camera.usable}
           canToggleMic={controls.usable}
           micBlockedReason={controls.reason}
           onToggleMic={onToggleMic}
@@ -191,12 +196,12 @@ export function CallStage({
           canShareScreen={(controls.usable || call.selfMedia.screen) && canShareScreen() && !someoneElseIsSharing}
           shareBlockedReason={
             someoneElseIsSharing && share
-              ? `${share.name} is sharing — one screen at a time`
+              ? `${sharerName} is sharing — one screen at a time`
               : !canShareScreen()
                 ? 'This browser cannot share a screen'
                 : controls.reason
           }
-          videoBlockedReason={controls.reason}
+          videoBlockedReason={camera.reason}
           onOpenVideoSettings={onVideoQualityChange ? (): void => setVideoSettingsOpen(true) : undefined}
           onLeave={onLeave}
           running={call.status === 'active'}

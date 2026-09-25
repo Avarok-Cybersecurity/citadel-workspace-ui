@@ -24,6 +24,8 @@ import { groupSendTransport } from './group-send-transport';
 import { sendPeerGroupMessage } from './group-requests';
 import { eventEmitter } from '@/lib/event-emitter';
 import { deliverPeerGroupMessage } from './peer-group-delivery';
+import { ownerAnnouncedName } from './group-names';
+import { getGroups } from './group-store';
 
 export async function sendGroupMessageAnywhere(
   groupId: string,
@@ -35,7 +37,11 @@ export async function sendGroupMessageAnywhere(
     return;
   }
 
-  const messageId: string = await sendPeerGroupMessage(groupId, content, replyTo);
+  const self: bigint | null = instanceManager.cid;
+  const groupName: string | undefined = self === null
+    ? undefined
+    : ownerAnnouncedName(getGroups().find((group) => group.id === groupId), self);
+  const messageId: string = await sendPeerGroupMessage(groupId, content, replyTo, groupName);
 
   const delivery: Parameters<typeof deliverPeerGroupMessage>[0] = {
     groupId,

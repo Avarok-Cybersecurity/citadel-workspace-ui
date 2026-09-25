@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction , type MutableRefObject } from 'react';
-import { callPeerName } from '@/lib/call/peer-name';
+import { rosterPeerName } from '@/lib/roster-peer-name';
 import { debugLog } from '@/lib/debug-config';
 import { CallManager } from '@/lib/call/call-manager';
 import { verdictFromLink } from '@/lib/call/congestion';
@@ -135,7 +135,7 @@ export function useCallRuntime({
             });
           }
         },
-        resolvePeerName: callPeerName,
+        resolvePeerName: rosterPeerName,
       onKeyframeRequested: () => sessionRef.current?.requestKeyframe(),
         // The two ends of quality adaptation. The receiver already judged every
         // peer's link for the participant tiles; these carry that judgement to

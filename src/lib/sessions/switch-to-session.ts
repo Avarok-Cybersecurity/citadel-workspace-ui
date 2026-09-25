@@ -7,7 +7,8 @@
  * added. A second copy is how the orphan path once came to skip
  * `getTreeSchema` while the login path ran it.
  */
-import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE, type ClaimOutcome } from './claim-session';
+import { claimSessionForThisTab, type ClaimOutcome } from './claim-session';
+import { sessionSwitchToasts, type SessionSwitchToasts } from './session-switch-toasts';
 import { readLastLocation } from './last-location';
 import { markLastAccessed } from './last-accessed';
 import { describeFailure } from '@/lib/failure-message';
@@ -37,20 +38,17 @@ export interface SwitchCallbacks {
 }
 
 export async function switchToSession(session: SwitchTarget, { navigate, toast }: SwitchCallbacks): Promise<void> {
+  const notices: SessionSwitchToasts = sessionSwitchToasts(session.cid, session.workspaceName);
   try {
     debugLog('OrphanSessionsNavbar', 'Navigating to workspace:', session.workspaceName);
 
     markLastAccessed(session.cid);
 
-    toast({
-      title: "Reconnecting...",
-      description: `Loading ${session.workspaceName}`,
-      variant: 'success',
-    });
+    toast(notices.progress);
 
     const outcome: ClaimOutcome = await claimSessionForThisTab(session.cid);
     if (outcome.status === 'owned-by-another-tab') {
-      toast(SESSION_OWNED_ELSEWHERE);
+      toast(notices.ownedElsewhere);
       return;
     }
 
@@ -87,17 +85,9 @@ export async function switchToSession(session: SwitchTarget, { navigate, toast }
     // the default office and re-found it by hand, every day.
     navigate(readLastLocation(session.cid) ?? getWorkspacePath());
 
-    toast({
-      title: "Connected!",
-      description: `Now viewing ${session.workspaceName}`,
-      variant: 'success',
-    });
+    toast(notices.connected);
   } catch (error) {
     debugLog('OrphanSessionsNavbar', 'Failed to navigate to workspace:', error);
-    toast({
-      title: "Connection Failed",
-      description: describeFailure(error, "Could not reconnect to workspace. Please try logging in again."),
-      variant: "destructive",
-    });
+    toast(notices.failed(describeFailure(error, "Could not reconnect to workspace. Please try logging in again.")));
   }
 }

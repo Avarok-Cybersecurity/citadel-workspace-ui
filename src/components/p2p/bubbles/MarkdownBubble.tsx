@@ -32,7 +32,6 @@ const RenderedMarkdown: NamedExoticComponent<{ content: string; }> = memo(functi
 });
 
 type ChildrenProps = { children?: ReactNode };
-type CodeProps = { inline?: boolean; children?: ReactNode };
 
 // Custom components for markdown rendering in chat bubbles
 const markdownComponents: Components = {
@@ -56,17 +55,17 @@ const markdownComponents: Components = {
   // keeps the new tab (and its noopener) for links that really do leave.
   a: documentAnchor,
 
-  // Code
-  code: ({ inline, children }: CodeProps): JSX.Element =>
-    inline ? (
-      <code className="bg-black/30 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
-    ) : (
-      <code className="block bg-black/30 p-2 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap mb-2">
-        {children}
-      </code>
-    ),
+  // Code. Every `code` is styled as a span, and the <pre> of a fenced block
+  // undoes that for the code inside it. This branched on an `inline` prop,
+  // which react-markdown 9 no longer passes -- so every inline span took the
+  // block branch and sat on a line of its own.
+  code: ({ children }: ChildrenProps): JSX.Element => (
+    <code className="bg-black/30 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
+  ),
   pre: ({ children }: ChildrenProps): JSX.Element => (
-    <pre className="bg-black/30 p-2 rounded text-xs font-mono overflow-x-auto mb-2">{children}</pre>
+    <pre className="bg-black/30 p-2 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap mb-2 [&>code]:bg-transparent [&>code]:p-0">
+      {children}
+    </pre>
   ),
 
   // Block quotes
@@ -141,9 +140,12 @@ export function MarkdownBubble({
               purple, and links got `hsl(var(--primary))`, i.e. the bubble's own
               colour. Your own markdown messages were barely legible and their
               links were invisible, on the light theme only. Peer bubbles sit on
-              `bg-surface` and correctly follow the theme. */}
+              `bg-surface` and correctly follow the theme.
+              The typography plugin also paints a literal backtick either side
+              of every `code`; in a chat bubble that is the markup showing, so
+              it is switched off for both. */}
           <div
-            className={`prose prose-sm max-w-none ${isOwn ? 'prose-invert' : 'dark:prose-invert'}`}
+            className={`prose prose-sm max-w-none prose-code:before:content-none prose-code:after:content-none ${isOwn ? 'prose-invert' : 'dark:prose-invert'}`}
           >
             <RenderedMarkdown content={message.content} />
           </div>
