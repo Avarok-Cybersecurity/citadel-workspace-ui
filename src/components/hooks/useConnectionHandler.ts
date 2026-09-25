@@ -25,6 +25,7 @@ import '@/lib/session-startup-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { getCurrentCid } from '@/lib/p2p/current-cid';
+import { openPeerChannelViaAutoConnect } from '@/lib/file-transfer/open-peer-channel';
 import { debugLog } from '@/lib/debug-config';
 import { makeSessionAlreadyConnectedHandler } from './session-already-connected';
 import { useSessionLostWithAgent } from './use-session-lost-with-agent';
@@ -100,6 +101,7 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
       getCurrentCid,
       sendInternalServiceRequest: (request: unknown) =>
         websocketService.sendMessage(request as Record<string, unknown>),
+      openPeerChannel: openPeerChannelViaAutoConnect,
     });
 
     let lastProcessedCid: string | null = null;

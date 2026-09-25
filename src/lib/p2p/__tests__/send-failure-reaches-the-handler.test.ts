@@ -30,6 +30,6 @@ describe('the WebSocket handler consumes send failures', () => {
     const seen: Array<{ reason?: string }> = [];
     eventEmitter.on('p2p:send-failed', (e: unknown) => seen.push(e as { reason?: string }));
     reportSendFailure({ cid: 1n, message: 'Peer connection for 42 not found' });
-    expect(seen[0]?.reason).toContain('not found');
+    expect(seen[0]?.reason).toMatch(/not open/i);
   });
 });

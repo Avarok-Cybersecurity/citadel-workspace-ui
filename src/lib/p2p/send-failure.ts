@@ -45,8 +45,15 @@ export function readSendFailure(response: unknown): SendFailure | null {
  */
 export function failureReason(failure: SendFailure): string {
   const raw: string = (failure.message ?? '').trim();
+  // Except the missing-channel reason, whose only detail is the peer's CID -- a routing
+  // number, never something a person can use (see peer-display). The channel reopens
+  // on the next send, so that is what the person is told.
+  if (NO_CHANNEL.test(raw)) return 'The connection to this contact is not open yet. It reopens on its own; try again in a moment.';
   return raw.length > 0 ? raw : 'The connection service could not send the message.';
 }
+
+/** `requests/message.rs`: "Peer connection for {peer_cid} not found". */
+const NO_CHANNEL: RegExp = /^Peer connection for \d+ not found$/;
 
 /**
  * How long the same session's failures stay quiet after one is reported.

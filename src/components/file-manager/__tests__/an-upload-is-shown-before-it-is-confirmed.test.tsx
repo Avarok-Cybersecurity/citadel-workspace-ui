@@ -47,6 +47,8 @@ async function fileManager(treeEvents: boolean): Promise<{ current: UseFileManag
     sendP2PMessageReliable: async (): Promise<void> => { throw new Error('no P2P channel'); },
     getCurrentCid: async (): Promise<bigint> => 300n,
     sendInternalServiceRequest: async (): Promise<void> => {},
+    // The channel is up: these tests are about what travels over it.
+    openPeerChannel: async (): Promise<boolean> => true,
   });
   const root: ReturnType<typeof installFakeOpfs> = installFakeOpfs();
   const io: { storage: RevfsOpfsStorage; execute: (i: RevfsIntent) => Promise<RevfsIntentResult> } =

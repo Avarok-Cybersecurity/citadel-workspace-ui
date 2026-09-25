@@ -49,6 +49,8 @@ function deps(me: bigint, deliver: () => Deliver): RevfsIODeps {
     },
     getCurrentCid: async (): Promise<bigint> => me,
     sendInternalServiceRequest: vi.fn(async (): Promise<void> => {}),
+    // The channel is up: these tests are about what travels over it.
+    openPeerChannel: async (): Promise<boolean> => true,
   };
 }
 

@@ -30,6 +30,8 @@ function freshPage(me: bigint = ALICE): RevfsService {
     sendP2PMessageReliable: vi.fn(async (): Promise<void> => {}),
     getCurrentCid: async (): Promise<bigint> => me,
     sendInternalServiceRequest: vi.fn(async (): Promise<void> => {}),
+    // The channel is up: these tests are about what travels over it.
+    openPeerChannel: async (): Promise<boolean> => true,
   });
   const internals: { io: { execute: (i: RevfsIntent) => Promise<RevfsIntentResult> }; state: RevfsState } =
     service as unknown as { io: { execute: (i: RevfsIntent) => Promise<RevfsIntentResult> }; state: RevfsState };
