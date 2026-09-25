@@ -37,5 +37,9 @@ export function pickSessionToClaim(
     return { session: undefined, staleSelection: true };
   }
 
-  return { session: activeSessions[0], staleSelection: false };
+  // Nothing remembered: resume only when there is no choice to make. The agent can hold
+  // several people's accounts; with more than one live, the landing page lets the person
+  // pick (measured live: a tab with no selection offered alice0924's session to whoever
+  // opened it).
+  return { session: activeSessions.length === 1 ? activeSessions[0] : undefined, staleSelection: false };
 }

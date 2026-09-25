@@ -123,4 +123,10 @@ describe('choosing a session to claim', () => {
     // The empty list is what a failed query used to produce.
     expect(pickSessionToClaim([], 99n).staleSelection).toBe(false);
   });
+
+  it('resumes the only live session when nothing is remembered, and picks none among several', () => {
+    expect(pickSessionToClaim([{ cid: 5n }] as never, undefined).session).toEqual({ cid: 5n });
+    expect(pickSessionToClaim([{ cid: 1n }, { cid: 2n }] as never, undefined).session).toBeUndefined();
+  });
 });
+
