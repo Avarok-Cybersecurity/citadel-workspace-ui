@@ -19,8 +19,7 @@
 import { GROUP_FAILURE_VARIANTS } from './group-failure-variants';
 import { groupKeyToId, parseGroupKey } from './group-key';
 import { variant, toCid, memberCids } from './group-wire-variants';
-import { peerGroupMessageEvent, type PeerGroupMessageSummary } from './peer-group-inbound';
-import { peerGroupControlEvent, type GroupControlEvent } from './peer-group-control-inbound';
+import { peerGroupBodyEvents } from './peer-group-body-events';
 
 export interface GroupEvent {
   name:
@@ -38,6 +37,8 @@ export interface GroupEvent {
     | 'group:message-received'
     /** A rename or role change from a member; never a chat bubble. See apply-group-control. */
     | 'group:control-received'
+    /** A member's reaction on a message; never a chat bubble. See peer-group-reaction-inbound. */
+    | 'group:reaction-received'
     /**
      * The server's answer to `GroupListGroupsFor` — the only message that can
      * establish a group is GONE. Every other event is additive or arrives only
@@ -181,15 +182,8 @@ export function toGroupEvents(
   // A peer-group message; not the WORKSPACE notification of the same name,
   // which `workspace-response-handler/group-handlers.ts` owns.
   const groupMessage: Record<string, unknown> | undefined = variant(message, 'GroupMessageNotification');
-  if (groupMessage) {
-    // Control first: it must never reach the chat path, whatever else it carries.
-    const control: GroupControlEvent | null = peerGroupControlEvent(groupMessage);
-    if (control) return [{ name: 'group:control-received' as const, payload: { ...control } }];
-    const summary: PeerGroupMessageSummary | null = peerGroupMessageEvent(groupMessage, peerName);
-    if (!summary) return [];
-    // With who THIS member is, so a group learnt from this message names them. See member-group-record.
-    return [{ name: 'group:message-received' as const, payload: { ...summary, selfUsername } }];
-  }
+  // Control, reaction or chat; see peer-group-body-events for the order.
+  if (groupMessage) return peerGroupBodyEvents(groupMessage, peerName, selfUsername);
 
   const ended: Record<string, unknown> | undefined = variant(message, 'GroupEndNotification');
   if (ended) {

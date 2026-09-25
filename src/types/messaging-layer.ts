@@ -40,7 +40,9 @@ export enum MessagingLayerType {
   // Message revision. Carried in-band like everything else here, so both
   // peers agree without any backend involvement.
   MessageEdit = 'MessageEdit',
-  MessageDelete = 'MessageDelete'
+  MessageDelete = 'MessageDelete',
+  // A reaction added or retracted; see message-reaction-layer.ts.
+  MessageReaction = 'MessageReaction'
 }
 
 /**
@@ -162,6 +164,7 @@ export type MessagingLayer =
   | { type: MessagingLayerType.CheckStateResponse; ready: true }
   | { type: MessagingLayerType.MessageEdit; message_id: string; contents: string; edited_at: number }
   | { type: MessagingLayerType.MessageDelete; message_id: string; deleted_at: number }
+  | import('./message-reaction-layer').MessageReactionLayer
   // File Transfer variants
   | { type: MessagingLayerType.FileTransferRequest } & FileTransferRequestData
   | { type: MessagingLayerType.FileTransferResponse } & FileTransferResponseData

@@ -16,6 +16,7 @@ import { conversationPrefix, legacyConversationPrefix, hasLegacyFallback } from 
 import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import { debugLog } from '@/lib/debug-config';
 import { isGenuinelyAbsent } from '@/lib/storage/absence';
+import { encodeStoredReactions, decodeStoredReactions } from '@/lib/reactions/stored-reactions';
 
 /**
  * Load metadata by full key.
@@ -131,7 +132,8 @@ async function loadMessagePageByKey(key: string): Promise<MessagePage | null> {
         messages: parsed.messages.map((m) => ({
           ...m,
           senderCid: typeof m.senderCid === 'string' ? BigInt(m.senderCid) : m.senderCid,
-          recipientCid: typeof m.recipientCid === 'string' ? BigInt(m.recipientCid) : m.recipientCid
+          recipientCid: typeof m.recipientCid === 'string' ? BigInt(m.recipientCid) : m.recipientCid,
+          reactions: decodeStoredReactions(m.reactions),
         }))
       } as MessagePage;
     }
@@ -151,14 +153,15 @@ export async function saveMessagePage(peerCid: bigint, pageNumber: number, page:
   const key: string = `${conversationPrefix(peerCid)}_${pageNumber}`;
   const serializablePage: Omit<MessagePage, 'peerCid' | 'messages'> & {
     peerCid: string;
-    messages: (Omit<P2PMessage, 'senderCid' | 'recipientCid'> & { senderCid: string; recipientCid: string })[];
+    messages: (Omit<P2PMessage, 'senderCid' | 'recipientCid' | 'reactions'> & { senderCid: string; recipientCid: string; reactions?: number[] })[];
   } = {
     ...page,
     peerCid: page.peerCid.toString(),
     messages: page.messages.map(m => ({
       ...m,
       senderCid: m.senderCid.toString(),
-      recipientCid: m.recipientCid.toString()
+      recipientCid: m.recipientCid.toString(),
+      reactions: encodeStoredReactions(m.reactions),
     }))
   };
   const valueStr: string = JSON.stringify(serializablePage);

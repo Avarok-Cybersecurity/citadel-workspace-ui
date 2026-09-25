@@ -28,6 +28,7 @@ import { bindGroupListReconcile } from './reconcile-groups';
 import { bindEndedGroups } from './ended-groups';
 import { bindPeerGroupDelivery } from './bind-peer-group-delivery';
 import { bindGroupTranscript } from './bind-group-transcript';
+import { bindGroupReactions } from './group-reactions';
 import type { GroupConversation } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { bindGroupInvites } from './bind-group-invites';
@@ -229,6 +230,7 @@ export function startGroupEventBindings(): void {
   bindPeerGroupDelivery();
   // And what keeps it there across a reload; see bind-group-transcript.
   bindGroupTranscript();
+  bindGroupReactions();
 
   debugLog('GroupStore', 'Group event bindings started');
 }

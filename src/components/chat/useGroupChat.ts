@@ -116,6 +116,9 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
         case 'message_deleted':
           setMessages((prev) => prev.filter((m) => m.id !== event.messageId));
           break;
+        case 'message_reacted':
+          setMessages((prev) => prev.map((m) => (m.id === event.messageId ? { ...m, reactions: event.message?.reactions } : m)));
+          break;
       }
     });
 

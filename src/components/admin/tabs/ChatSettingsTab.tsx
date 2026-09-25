@@ -181,8 +181,8 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
               File sharing
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="w-2 h-2 rounded-full bg-warning" />
-              Message reactions (planned)
+              <div className="w-2 h-2 rounded-full bg-success" />
+              Message reactions
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <div className="w-2 h-2 rounded-full bg-warning" />

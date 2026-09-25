@@ -77,4 +77,6 @@ export interface GroupMessage extends GeneratedGroupMessage {
   read_by?: GroupMessageReadBy[];
   /** A file shared into a peer group; local-only, see types/group-file-share. */
   file_share?: GroupFileShare;
+  /** Peer groups only: kept in the stored transcript; see lib/reactions. */
+  reactions?: import('@/lib/reactions/reaction-state').MessageReaction[];
 }

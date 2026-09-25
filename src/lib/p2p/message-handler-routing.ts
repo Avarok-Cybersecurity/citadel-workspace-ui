@@ -16,6 +16,7 @@ import {
 import { routeRevfsOperation } from './revfs-layer-routing';
 import { eventEmitter } from '../event-emitter';
 import { applyIncomingEdit, applyIncomingDelete } from './inbound-revision';
+import { applyIncomingReaction } from './inbound-reaction';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import { debugLog, debugEnabled } from '@/lib/debug-config';
 import { deliverToConversation, shouldAck } from './inbound-message-delivery';
@@ -53,6 +54,10 @@ export async function handleMessagingLayerCommand(
 
     case MessagingLayerType.MessageDelete:
       await applyIncomingDelete(config, peerCid, layer.message_id);
+      break;
+
+    case MessagingLayerType.MessageReaction:
+      await applyIncomingReaction(config, peerCid, layer);
       break;
 
     case MessagingLayerType.Typing:
