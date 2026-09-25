@@ -4,8 +4,9 @@
  *
  * Mocked, because neither exists in jsdom: the tab's own session record (kept in
  * IndexedDB, which jsdom lacks) and the P2P auto-connect service (it needs the
- * WASM client and an agent). The banner, the stores, the reader and the handler
- * are the real ones.
+ * WASM client and an agent), and the workspace reload after a reconnect (it
+ * sends workspace-protocol requests over that same agent socket). The banner,
+ * the stores, the reader and the handler are the real ones.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
@@ -14,6 +15,8 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 const resetConnectionState: ReturnType<typeof vi.fn> = vi.fn(async () => undefined);
 const connectToAllRegisteredPeers: ReturnType<typeof vi.fn> = vi.fn(async () => undefined);
+const postAuthSetup: ReturnType<typeof vi.fn> = vi.fn(async () => undefined);
+vi.mock('@/lib/post-auth-setup', () => ({ postAuthSetup: (cid: bigint): Promise<void> => postAuthSetup(cid) }));
 vi.mock('@/lib/p2p-auto-connect-service', () => ({
   p2pAutoConnectService: {
     resetConnectionState: (): Promise<void> => resetConnectionState(),
@@ -91,6 +94,7 @@ describe('the agent reconnecting to the server', () => {
     expect(screen.queryByTestId('server-reconnecting-banner')).toBeNull();
     expect(resetConnectionState).toHaveBeenCalledOnce();
     expect(connectToAllRegisteredPeers).toHaveBeenCalledOnce();
+    expect(postAuthSetup).toHaveBeenCalledWith(42n);
   });
 
   it('keeps the order it was told things in, even when a read is slow', async () => {

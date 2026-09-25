@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef, useSyncExternalStore } from 'react';
 import { useWorkspaceDataTimeout } from './use-workspace-data-timeout';
 import { ConnectionService } from '@/lib/connection-service';
 import { TIMEOUT } from '@/lib/timeout-constants';
@@ -10,6 +10,9 @@ import { useToast } from '@/hooks/use-toast';
 import { WorkspaceLoaderSpinner } from './workspace-loader-ui';
 import { useHeldElsewhere } from './use-held-elsewhere';
 import type { NavigateFunction } from 'react-router';
+import { reconnectingTo, signInAfterLoss, type SignInAfterLoss } from '@/lib/reconnect/server-reconnect';
+import { loaderView, shouldLeaveForConnect, type LoaderInputs, type LoaderView } from './workspace-loader-state';
+
 
 interface WorkspaceLoaderProps {
   children: React.ReactNode;
@@ -30,6 +33,16 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   const autoClaimAttempted: React.MutableRefObject<boolean> = useRef(false);
   // Another browser holds this tab's session: the switcher's takeover, not a hang. See use-held-elsewhere.
   const heldElsewhere: ReturnType<typeof useHeldElsewhere> = useHeldElsewhere();
+  // The agent's own word that it is bringing this session's server link back.
+  const reconnectingServer: string | null = useSyncExternalStore(reconnectingTo.subscribe, reconnectingTo.get);
+
+  // Sign-in for that account, not /connect's server picker: the session is gone and
+  // nothing else here can bring it back.
+  const onSessionEnded: (username: string, server: string, reason: string) => void = useCallback((username: string, server: string, reason: string): void => {
+    const signIn: SignInAfterLoss = signInAfterLoss(username, server, reason);
+    toast({ title: 'Signed out', description: signIn.message, variant: 'destructive' });
+    navigate(signIn.path);
+  }, [navigate, toast]);
 
   // Check for dev mode
   const urlParams: URLSearchParams = new URLSearchParams(window.location.search);
@@ -48,6 +61,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
     setIsAutoClaimingSession,
     autoClaimAttempted,
     onHeldElsewhere: heldElsewhere.offer,
+    onSessionEnded,
   });
 
   useEffect(() => {
@@ -76,40 +90,35 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
     };
   }, [isLoading, hasConnection, isDevMode]);
 
-  useEffect(() => {
-    if (isDevMode) return;
-
-    if (loadingTimeout && !hasConnection && isLoading && !isAutoClaimingSession && heldElsewhere.username === null) {
-      debugLog('WorkspaceLoader', ' No connection detected after timeout, redirecting to connect');
-      navigate('/connect');
-    }
-  }, [loadingTimeout, hasConnection, isLoading, navigate, isDevMode, isAutoClaimingSession, heldElsewhere.username]);
-
   // Secondary safety net: workspace data loading timeout
   const workspaceDataTimeout: boolean = useWorkspaceDataTimeout(hasConnection, isLoading, isDevMode);
+
+  const inputs: LoaderInputs = {
+    isLoading,
+    isAutoClaiming: isAutoClaimingSession,
+    loadingTimeout,
+    hasConnection,
+    workspaceDataTimeout,
+    heldElsewhere: heldElsewhere.username !== null,
+    reconnectingTo: reconnectingServer,
+  };
+  const leaveForConnect: boolean = shouldLeaveForConnect(inputs);
+
+  useEffect(() => {
+    if (isDevMode || !leaveForConnect) return;
+    debugLog('WorkspaceLoader', ' No connection detected after timeout, redirecting to connect');
+    navigate('/connect');
+  }, [leaveForConnect, navigate, isDevMode]);
 
   if (isDevMode) {
     debugLog('WorkspaceLoader', 'Dev mode: Bypassing workspace loader');
     return <>{children}</>;
   }
 
-  if (isLoading && heldElsewhere.username !== null) return heldElsewhere.notice;
-
-  if (isLoading || isAutoClaimingSession) {
-    const loadingMessage: "Connecting to session..." | "Workspace data is taking longer than expected..." | "Checking connection..." | "Loading workspace..." = isAutoClaimingSession
-      ? 'Connecting to session...'
-      : workspaceDataTimeout
-        ? 'Workspace data is taking longer than expected...'
-        : loadingTimeout
-          ? 'Checking connection...'
-          : 'Loading workspace...';
-
-    return (
-      <WorkspaceLoaderSpinner
-        loadingMessage={loadingMessage}
-        showConnectButton={(loadingTimeout && !isAutoClaimingSession) || workspaceDataTimeout}
-      />
-    );
+  const view: LoaderView = loaderView(inputs);
+  if (view.kind === 'held-elsewhere') return heldElsewhere.notice;
+  if (view.kind === 'spinner') {
+    return <WorkspaceLoaderSpinner loadingMessage={view.message} showConnectButton={view.showConnectButton} />;
   }
 
   return <>{children}</>;

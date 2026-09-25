@@ -40,6 +40,15 @@ export function isOwnedByALiveConnection(error: unknown): boolean {
   return error instanceof Error && Boolean(error.message?.includes('not orphaned'));
 }
 
+/**
+ * The agent's refusal meaning it no longer has the session: it found no SDK session for
+ * it and removed it before answering. Seen live for a session it was still reconnecting
+ * after a server drop -- the claim itself ended it -- so only signing in brings it back.
+ */
+export function isEndedByTheAgent(error: unknown): error is Error {
+  return error instanceof Error && Boolean(error.message?.includes('is not claimable'));
+}
+
 /** The agent's refusal meaning a DIFFERENT localhost connection holds the session. */
 function isHeldByAnotherConnection(error: unknown): boolean {
   return error instanceof Error && Boolean(error.message?.includes('in use by another connection'));

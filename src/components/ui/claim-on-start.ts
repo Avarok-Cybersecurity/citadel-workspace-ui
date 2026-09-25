@@ -12,10 +12,14 @@
  *   - A session held by ANOTHER browser was adopted anyway: the agent refused
  *     the claim, the tab selected it, and the workspace it asked for never came.
  *     That is now its own answer, for the loader to offer the takeover.
+ *   - A session the agent listed and then ended when claimed (it was reconnecting
+ *     to a server that still held the old link) threw into a generic toast, and
+ *     the loader timed out to /connect: a server picker, for an account whose
+ *     sign-in form was the one thing that could help. That is its own answer too.
  */
 import { pickSessionToClaim, type SessionChoice } from '@/lib/sessions/pick-session-to-claim';
 import { calculateBackoffDelay } from '@/lib/utils/retry-utils';
-import type { ClaimOutcome } from '@/lib/sessions/claim-session';
+import { isEndedByTheAgent, type ClaimOutcome } from '@/lib/sessions/claim-session';
 import type { TabUserContext } from '@/lib/tab-context';
 import type { ActiveSession } from '@/types/session-types';
 
@@ -25,7 +29,9 @@ export type StartClaim =
   /** Every attempt went unanswered; nothing about the sessions is known. */
   | { kind: 'agent-unreachable' }
   | { kind: 'owned-by-another-tab' }
-  | { kind: 'held-by-another-connection'; username: string };
+  | { kind: 'held-by-another-connection'; username: string }
+  /** The agent had the session listed, then ended it: signing in to it is the way back. */
+  | { kind: 'session-ended'; username: string; server: string; reason: string };
 
 export interface StartClaimIO {
   /** True once the connection manager is up; false when it is not (yet). */
@@ -35,6 +41,8 @@ export interface StartClaimIO {
   clearSelection: () => Promise<void>;
   select: (session: ActiveSession) => Promise<void>;
   claim: (cid: bigint) => Promise<ClaimOutcome>;
+  /** Drop any cached session list: it still names the session the agent just ended. */
+  forgetSessions: () => void;
   sleep: (ms: number) => Promise<void>;
 }
 
@@ -66,7 +74,15 @@ export async function claimOnStart(io: StartClaimIO, retry: StartRetry): Promise
   if (staleSelection) await io.clearSelection();
   if (!session) return { kind: 'nothing-to-claim' };
 
-  const outcome: ClaimOutcome = await io.claim(session.cid);
+  let outcome: ClaimOutcome;
+  try {
+    outcome = await io.claim(session.cid);
+  } catch (error: unknown) {
+    if (!isEndedByTheAgent(error)) throw error;
+    io.forgetSessions();
+    const server: string = session.server_host ?? session.server_address;
+    return { kind: 'session-ended', username: session.username, server, reason: error.message };
+  }
   if (outcome.status === 'owned-by-another-tab') return { kind: 'owned-by-another-tab' };
   if (outcome.status === 'held-by-another-connection') {
     return { kind: 'held-by-another-connection', username: session.username };

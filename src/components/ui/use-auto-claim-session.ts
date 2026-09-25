@@ -33,6 +33,8 @@ interface AutoClaimOptions {
   autoClaimAttempted: MutableRefObject<boolean>;
   /** The session is live in another browser: the agent will not hand it over without the password. */
   onHeldElsewhere: (username: string) => void;
+  /** The agent ended the session it listed: only signing in to that account brings it back. */
+  onSessionEnded: (username: string, server: string, reason: string) => void;
 }
 
 export function useAutoClaimSession({
@@ -42,6 +44,7 @@ export function useAutoClaimSession({
   setIsAutoClaimingSession,
   autoClaimAttempted,
   onHeldElsewhere,
+  onSessionEnded,
 }: AutoClaimOptions): void {
 // Auto-claim an available session on mount if no connection exists
 useEffect(() => {
@@ -155,12 +158,14 @@ useEffect(() => {
           selectedCid: session.cid,
         }),
         claim: claimSessionForThisTab,
+        forgetSessions: (): void => connectionManager.invalidateSessionCache(),
         sleep: (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
       }, AGENT_START_RETRY);
       debugLog('WorkspaceLoader', ' Start-up claim:', result.kind);
 
       if (result.kind === 'owned-by-another-tab') toast(SESSION_OWNED_ELSEWHERE);
       if (result.kind === 'held-by-another-connection') onHeldElsewhere(result.username);
+      if (result.kind === 'session-ended') onSessionEnded(result.username, result.server, result.reason);
       if (result.kind !== 'claimed') return;
 
       await postAuthSetup(result.cid);
@@ -184,5 +189,5 @@ useEffect(() => {
   };
 
   runAsyncSetup(autoClaimSession);
-}, [isDevMode, toast, setHasConnection, setIsAutoClaimingSession, autoClaimAttempted, onHeldElsewhere]);
+}, [isDevMode, toast, setHasConnection, setIsAutoClaimingSession, autoClaimAttempted, onHeldElsewhere, onSessionEnded]);
 }

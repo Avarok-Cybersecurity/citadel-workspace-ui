@@ -30,6 +30,11 @@ export interface ServerReconnectIO {
   setReconnecting: (server: string | null) => void;
   /** Bring this session's P2P links back up after the server link returned. */
   resumePeers: () => Promise<void>;
+  /**
+   * Ask for this session's workspace again. Whatever was requested while the link was
+   * down went nowhere: a page loaded during the drop never got its workspace at all.
+   */
+  reloadWorkspace: (cid: bigint) => Promise<void>;
   /** Leave for sign-in at `path`, telling the user why in `message`. */
   signInAgain: (path: string, message: string) => void;
 }
@@ -48,6 +53,7 @@ function plainReason(reason: string | null): string | null {
   if (text === '') return null;
   if (/is not registered to this node|account does not exist/i.test(text)) return 'the workspace no longer has this account';
   if (/invalid password/i.test(text)) return 'the password was not accepted';
+  if (/is not claimable/i.test(text)) return 'the session ended while its link to the workspace was down';
   return text;
 }
 
@@ -55,6 +61,13 @@ function signInMessage(server: string, reason: string | null): string {
   const plain: string | null = plainReason(reason);
   const why: string = plain === null ? '' : ` (${plain})`;
   return `Couldn't reconnect to ${server}${why}. Sign in again to continue.`;
+}
+
+/** Where to send the user, and what to tell them, for a session that cannot come back. */
+export interface SignInAfterLoss { path: string; message: string }
+
+export function signInAfterLoss(username: string, server: string, reason: string | null): SignInAfterLoss {
+  return { path: accountLinkPath({ username, server }), message: signInMessage(server, reason) };
 }
 
 export async function handleServerReconnectEvent(event: AgentReconnectEvent, io: ServerReconnectIO): Promise<void> {
@@ -68,12 +81,15 @@ export async function handleServerReconnectEvent(event: AgentReconnectEvent, io:
 
   io.setReconnecting(null);
   if (event.kind === 'reconnected') {
-    await io.resumePeers();
+    // Side by side: neither waits on the other, and a failure of either reaches the caller.
+    const settled: PromiseSettledResult<void>[] = await Promise.allSettled([io.reloadWorkspace(own.cid), io.resumePeers()]);
+    for (const outcome of settled) if (outcome.status === 'rejected') throw outcome.reason;
     return;
   }
 
   // Failed, or lost with the agent not retrying at all: either way this
   // session is gone and only signing in again brings it back.
   const reason: string | null = event.kind === 'failed' ? event.reason : null;
-  io.signInAgain(accountLinkPath({ username: own.username, server: own.server }), signInMessage(own.server, reason));
+  const signIn: SignInAfterLoss = signInAfterLoss(own.username, own.server, reason);
+  io.signInAgain(signIn.path, signIn.message);
 }

@@ -13,6 +13,7 @@ import {
   type ServerReconnectIO,
 } from '@/lib/reconnect/server-reconnect';
 import { debugLog } from '@/lib/debug-config';
+import { postAuthSetup } from '@/lib/post-auth-setup';
 
 /**
  * Connects the agent's server-link notifications to this tab (server-reconnect.ts).
@@ -36,6 +37,9 @@ export function ServerReconnectWatcher(): null {
         await p2pAutoConnectService.resetConnectionState();
         await p2pAutoConnectService.connectToAllRegisteredPeers();
       },
+      // The same sequence sign-in and the start-up claim run, so a page that loaded
+      // during the drop ends up exactly where a fresh sign-in would.
+      reloadWorkspace: (cid: bigint): Promise<void> => postAuthSetup(cid),
       signInAgain: (path: string, message: string): void => {
         toast({ title: 'Signed out', description: message, variant: 'destructive' });
         navigate(path);
