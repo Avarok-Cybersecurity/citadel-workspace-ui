@@ -37,6 +37,8 @@ vi.mock('@/lib/websocket-service', () => ({
   websocketService: {
     sendRequest: (r: unknown): Promise<void> => sendRequest(r),
     sendP2PMessageReliable: (): Promise<void> => sendP2PMessageReliable(),
+    // In-band signals open this session's messenger first; see in-band-signals.
+    ensureMessengerOpen: async (): Promise<boolean> => false,
   },
 }));
 

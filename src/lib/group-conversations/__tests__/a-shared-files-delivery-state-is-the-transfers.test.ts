@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import type { FileTransfer } from '@/lib/file-transfer/types';
 import type { FileTransferState } from '@/types/messaging-layer';
 import type { MemberDelivery } from '@/types/group-file-share';
+import { peerFailureDetail } from '@/lib/p2p/peer-failure-detail';
 import { summariseDeliveries, MISSING_RECORD_REASON, type DeliverySummary } from '../group-file-delivery-state';
 
 function record(id: string, state: FileTransferState, errorMessage?: string): FileTransfer {
@@ -61,6 +62,20 @@ describe('a shared file\'s delivery state', () => {
     const after: DeliverySummary = summariseDeliveries(deliveries.slice(0, 1), (id: string): FileTransfer | undefined => records.get(id));
     expect(after.rows[0].status).toBe('declined');
     expect(after.text).toBe('Sent to 1 member: 1 declined');
+  });
+
+  it('translates a transport failure, and leaves a member\'s own decline reason alone', () => {
+    const raw: string = 'No messaging handle found for local CID: 13069842581551822719. Call open_p2p_connection first.';
+    const translated: DeliverySummary = summariseDeliveries([
+      { kind: 'failed', cid: 2n, username: 'bob', reason: raw },
+      offered(3n, 'cy', 't-raw'),
+      offered(4n, 'dee', 't-no'),
+    ], (id: string): FileTransfer | undefined => (id === 't-raw' ? record(id, 'error', raw) : record(id, 'declined', 'No messaging handle found, lol')));
+    for (const row of translated.rows.slice(0, 2)) {
+      expect(row.reason).toBe(peerFailureDetail(raw).detail);
+      expect(row.reason, 'a CID reached the card').not.toMatch(/\d{6,}|open_p2p_connection/);
+    }
+    expect(translated.rows[2].reason).toBe('No messaging handle found, lol');
   });
 
   it('says so when there was nobody else to send to', () => {

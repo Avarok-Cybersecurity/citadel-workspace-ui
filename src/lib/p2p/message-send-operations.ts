@@ -85,7 +85,7 @@ export async function sendMessageAck(
 const MESSENGER_STILL_OPENING: RegExp = /no messaging handle found/i;
 const RETRY_AFTER_MS: number = 250;
 
-async function sendAllowingForAConcurrentOpen(
+export async function sendAllowingForAConcurrentOpen(
   currentCid: bigint,
   peerCid: bigint,
   bytes: Uint8Array

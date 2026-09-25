@@ -26,6 +26,7 @@ import { debugLog } from '@/lib/debug-config';
 import { handleAsyncSend, handleTransferRequest, handleTransferResponse } from './async-transfers';
 import { ProtocolOfferCorrelator } from './protocol-offer-correlation';
 import { handleTransferCancel } from './p2p-transfers';
+import { openPeerChannelViaAutoConnect } from './open-peer-channel';
 import {
   handleProtocolProgress, handleProtocolComplete, handleProtocolStatus,
 } from './protocol-transfer-events';
@@ -90,6 +91,7 @@ export class FileTransferService {
       saveTransfer: this.saveTransfer.bind(this),
       saveSettings: this.saveSettings.bind(this),
       handleAsyncSend: (t: FileTransfer, f: File): Promise<void> => handleAsyncSend(this.deps, t, f),
+      openPeerChannel: openPeerChannelViaAutoConnect,
     };
   }
 

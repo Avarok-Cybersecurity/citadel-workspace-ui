@@ -36,6 +36,8 @@ vi.mock('@/lib/websocket-service', () => ({
   websocketService: {
     sendRequest: (r: unknown): Promise<void> => sendRequest(r),
     sendP2PMessageReliable: (): Promise<void> => sendP2PMessageReliable(),
+    // In-band signals open this session's messenger first; see in-band-signals.
+    ensureMessengerOpen: async (): Promise<boolean> => false,
     // Read by the messenger the bubble updates go through; no socket here.
     canSendRequests: (): boolean => false,
   },
@@ -141,6 +143,8 @@ describe('a send that completes during the cancel signal', () => {
       saveTransfer: async (): Promise<void> => undefined,
       saveSettings: async (): Promise<void> => undefined,
       handleAsyncSend: async (): Promise<void> => undefined,
+      // Cancel never opens a channel; present because the port requires it.
+      openPeerChannel: async (): Promise<boolean> => true,
     };
 
     await cancelTransfer(deps, 'out-1');

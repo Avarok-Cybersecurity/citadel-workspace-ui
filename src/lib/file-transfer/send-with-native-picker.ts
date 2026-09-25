@@ -13,6 +13,7 @@ import { FILE_TRANSFER_REQUEST_TTL_MS } from '@/types/messaging-layer';
 import { FILE_TRANSFER_EVENTS } from './events';
 import type { FileTransfer } from './types';
 import { debugLog } from '@/lib/debug-config';
+import { openChannelBeforeSending } from './open-peer-channel';
 import type { LifecycleDeps } from './transfer-lifecycle';
 
 export async function sendFileWithNativePicker(
@@ -26,6 +27,7 @@ export async function sendFileWithNativePicker(
     throw new Error('No active session');
   }
 
+  await openChannelBeforeSending(deps, recipientCid);
   debugLog('transfer-lifecycle', 'Starting native file picker flow');
 
   const fileInfo: { file_path: string; file_name: string; file_size: bigint; } = (await deps.io.executeIntent({

@@ -8,6 +8,7 @@
  */
 import type { FileTransfer } from '@/lib/file-transfer/types';
 import type { MemberDelivery } from '@/types/group-file-share';
+import { peerFailureDetail } from '@/lib/p2p/peer-failure-detail';
 
 export type MemberDeliveryStatus = 'sent' | 'accepted' | 'received' | 'declined' | 'failed' | 'not-delivered';
 
@@ -49,10 +50,23 @@ function offeredRow(delivery: Extract<MemberDelivery, { kind: 'offered' }>, reco
   }
 }
 
-export function memberDeliveryRow(delivery: MemberDelivery, lookup: (transferId: string) => FileTransfer | undefined): MemberDeliveryRow {
+function rawRow(delivery: MemberDelivery, lookup: (transferId: string) => FileTransfer | undefined): MemberDeliveryRow {
   if (delivery.kind === 'offered') return offeredRow(delivery, lookup(delivery.transferId));
   const status: MemberDeliveryStatus = delivery.kind === 'skipped' ? 'not-delivered' : 'failed';
   return { cid: delivery.cid, username: delivery.username, status, reason: delivery.reason };
+}
+
+/**
+ * A failure's reason is the transport's own words until translated -- measured
+ * live as "failed — No messaging handle found for l…", a CID and a WASM
+ * function name. Translated here, on read, so a ledger stored before this
+ * existed reads the same way. A decline's reason is the member's own text and
+ * a skip's is ours, so neither is touched.
+ */
+export function memberDeliveryRow(delivery: MemberDelivery, lookup: (transferId: string) => FileTransfer | undefined): MemberDeliveryRow {
+  const row: MemberDeliveryRow = rawRow(delivery, lookup);
+  if (row.status !== 'failed' || row.reason === undefined) return row;
+  return { ...row, reason: peerFailureDetail(row.reason).detail };
 }
 
 const ORDER: ReadonlyArray<[MemberDeliveryStatus, string]> = [
