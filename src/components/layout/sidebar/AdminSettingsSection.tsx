@@ -1,6 +1,6 @@
-import { Settings, Shield, Users, Key } from "lucide-react";
+import { Settings, Shield, Users, Key, CreditCard } from "lucide-react";
 import { isPrivilegedRole } from '@/lib/role-predicate';
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -20,6 +20,12 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import { connectionManager } from '@/lib/connection';
+import { readControlPlaneBase } from '@/lib/onboarding/control-plane-config';
+import { createControlPlane, type ControlPlane } from '@/lib/onboarding/control-plane-client';
+import { planAndBillingSlug } from '@/lib/onboarding/billing-portal';
+import { openBrowserPortalTab } from '@/lib/onboarding/browser-portal-tab';
+import { ManageSubscriptionDialog } from './ManageSubscriptionDialog';
 
 /**
  * Admin Settings Section
@@ -33,6 +39,19 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
   const { state } = useWorkspace();
   const [showPermissionManager, setShowPermissionManager] = useState(false);
   const [showAdminInfo, setShowAdminInfo] = useState(false);
+  const [showBilling, setShowBilling] = useState(false);
+  const controlPlaneBase: string | undefined = readControlPlaneBase(document);
+  const api: ControlPlane | undefined = useMemo((): ControlPlane | undefined => controlPlaneBase === undefined
+    ? undefined
+    : createControlPlane((input: string, init?: RequestInit): Promise<Response> => fetch(input, init), controlPlaneBase),
+  [controlPlaneBase]);
+  // Hosted workspaces only: a self-hosted server has no plan, and a page with no
+  // control plane has nobody to ask.
+  const billingSlug: string | undefined = planAndBillingSlug({
+    role: state.currentUser?.role,
+    serverAddress: connectionManager.getConnectionInfo()?.serverAddress,
+    controlPlaneBase,
+  });
 
   // An Owner counts. This check used to accept Admin only, so an Owner saw the
   // admin ring in TopBar and the shield in the workspace switcher and then got
@@ -74,6 +93,17 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
                 Admin Privileges
               </SidebarMenuButton>
             </SidebarMenuItem>
+            {billingSlug !== undefined && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setShowBilling(true)}
+                  className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors"
+                >
+                  <CreditCard className="h-4 w-4 mr-2 text-warning-emphasis" />
+                  Plan & billing
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -86,6 +116,16 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
           userId={state.currentUser.id || state.currentUser.username}
           domainId={WORKSPACE_ROOT_ID}
           domainType="workspace"
+        />
+      )}
+
+      {billingSlug !== undefined && api !== undefined && (
+        <ManageSubscriptionDialog
+          open={showBilling}
+          onOpenChange={setShowBilling}
+          slug={billingSlug}
+          api={api}
+          openTab={openBrowserPortalTab}
         />
       )}
 
