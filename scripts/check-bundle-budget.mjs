@@ -16,7 +16,7 @@
  * importing them eagerly.
  */
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -126,8 +126,28 @@ const dist = join(root, 'dist');
  * delay the landing page it is meant to speed up. Deferring the service
  * initialisation until after auth is, and that returns the whole 87 KB rather
  * than arguing about eight.
+ *
+ * ## 322.6 -> 309.6 without raising it
+ *
+ * Most of that 87 KB was never needed on the landing page at all; it was pulled
+ * there by three things that did nothing. `MessagingService` was constructed and
+ * cleaned up by `useConnectionHandler` and held by `ConnectionService` behind a
+ * getter nobody called, and it imported the whole P2P barrel. Two landing
+ * modules imported `useRetry`/`useToast`/`useEventListener` through the
+ * `@/hooks` barrel, whose side-effect imports reach the messenger and the group
+ * stores. And `manualChunks` put every P2P module in `app-services` whatever
+ * reached it, so even an unreachable messenger was preloaded. The messenger is
+ * still constructed at boot, by main.tsx's dynamic import, after first paint.
+ * DEFERRED_MODULES below fails if any of it comes back.
  */
 const BUDGET_KB = 322;
+
+/**
+ * Modules that must stay OFF the critical path, checked against the source
+ * maps of the assets index.html loads. Each must also appear in SOME map, so a
+ * rename cannot turn this into a check of nothing.
+ */
+const DEFERRED_MODULES = ['src/lib/p2p/p2p-messenger-manager.ts'];
 
 const html = readFileSync(join(dist, 'index.html'), 'utf8');
 
@@ -167,6 +187,34 @@ const lazy = readdirSync(join(dist, 'assets'))
 if (lazy.length) {
   console.log('\n  Largest chunks kept OFF the critical path:');
   for (const l of lazy) console.log(`  ${l.kb.toFixed(1).padStart(7)} KB  ${l.f}`);
+}
+
+const sourcesOf = (file) => {
+  const map = join(dist, 'assets', `${file}.map`);
+  return existsSync(map) ? JSON.parse(readFileSync(map, 'utf8')).sources : [];
+};
+const holds = (sources, mod) => sources.some((src) => src.replace(/\\/g, '/').endsWith(mod));
+const critical = assets.map((href) => href.split('/').pop()).filter((f) => f.endsWith('.js'));
+const everywhere = readdirSync(join(dist, 'assets')).filter((f) => f.endsWith('.js'));
+let deferralBroken = false;
+for (const mod of DEFERRED_MODULES) {
+  const eagerIn = critical.filter((f) => holds(sourcesOf(f), mod));
+  if (eagerIn.length > 0) {
+    console.error(`\n${mod} is on the landing critical path again (in ${eagerIn.join(', ')}).`);
+    deferralBroken = true;
+  } else if (!everywhere.some((f) => holds(sourcesOf(f), mod))) {
+    console.error(`\n${mod} is in no chunk's source map, so this check examined nothing. Update DEFERRED_MODULES.`);
+    deferralBroken = true;
+  } else {
+    console.log(`\n  off the critical path, as intended: ${mod}`);
+  }
+}
+if (deferralBroken) {
+  console.error(
+    'Something the landing page imports statically reaches it. Trace the import chain from\n' +
+    'src/main.tsx -- a barrel re-export is the usual cause -- and cut it; do not raise BUDGET_KB.'
+  );
+  process.exit(1);
 }
 
 if (totalKb > BUDGET_KB) {
