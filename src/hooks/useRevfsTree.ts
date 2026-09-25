@@ -11,7 +11,7 @@ import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
 import { TreeScope } from '@/types/revfs-types';
 import { revfsService } from '@/lib/revfs';
 import { fileTransferService } from '@/lib/file-transfer';
-import { peerPairKey, calculateStorageUsage } from '@/lib/revfs/tree-operations';
+import { peerTreeKey, calculateStorageUsage } from '@/lib/revfs/tree-operations';
 import { DEFAULT_QUOTA_BYTES , type UseRevfsTreeResult } from './useRevfsTree-types';
 import type { FileTransferSettings } from '@/lib/file-transfer/types';
 
@@ -23,7 +23,7 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const key: string | null = myCid && peerCid ? peerPairKey(myCid, peerCid) : null;
+  const key: string | null = myCid && peerCid ? peerTreeKey(myCid, peerCid) : null;
 
   const storageUsed: number = useMemo(() => {
     if (!tree) return 0;
@@ -68,7 +68,7 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
       // reports the folder removed, persisted AND acknowledged by the peer,
       // and the row stays on screen. Every link between the two checks out by
       // reading -- setTree notifies, this is subscribed, the view renders
-      // `activeTree.tree`, and `peerPairKey` sorts its cids so both sides
+      // `activeTree.tree`, and `peerTreeKey` sorts its cids so both sides
       // agree -- so the thing to find out is which link does not fire.
       debugLog('UseRevfsTree', 'tree changed', {
         changedKey,

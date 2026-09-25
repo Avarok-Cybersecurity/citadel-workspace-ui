@@ -31,7 +31,7 @@ import type { RevfsNode, RevfsOperation } from '@/types/revfs-types';
 import { createTestService, defaultIntentHandler, getState, ALICE, BOB } from './revfs-service-test-helpers';
 import { RevfsService } from '../revfs-service';
 import { RevfsState } from '../revfs-state';
-import { createDefaultTree, peerPairKey } from '../tree-queries';
+import { createDefaultTree, peerTreeKey } from '../tree-queries';
 
 function treeWith(names: string[]): RevfsNode {
   const base: RevfsNode = createDefaultTree();
@@ -60,7 +60,7 @@ describe('a remote operation arriving mid-write', () => {
       defaultIntentHandler()(intent),
     );
     const state: RevfsState = getState(service);
-    const key: ReturnType<typeof peerPairKey> = peerPairKey(ALICE, BOB);
+    const key: ReturnType<typeof peerTreeKey> = peerTreeKey(ALICE, BOB);
     state.setTree(key, treeWith([]));
 
     const handle: (sender: bigint, mine: bigint, o: RevfsOperation) => Promise<void> = (
@@ -103,7 +103,7 @@ describe('the same remote operation arriving twice', () => {
       return defaultIntentHandler()(intent);
     });
     const state: RevfsState = getState(service);
-    const key: ReturnType<typeof peerPairKey> = peerPairKey(ALICE, BOB);
+    const key: ReturnType<typeof peerTreeKey> = peerTreeKey(ALICE, BOB);
     state.setTree(key, treeWith([]));
 
     const handle: (sender: bigint, mine: bigint, o: RevfsOperation) => Promise<void> = (
@@ -134,7 +134,7 @@ describe('the same remote operation arriving twice', () => {
       return defaultIntentHandler()(intent);
     });
     const state: RevfsState = getState(service);
-    state.setTree(peerPairKey(ALICE, BOB), treeWith([]));
+    state.setTree(peerTreeKey(ALICE, BOB), treeWith([]));
 
     const handle: (sender: bigint, mine: bigint, o: RevfsOperation) => Promise<void> = (
       service as unknown as {
@@ -167,7 +167,7 @@ describe('an operation the sender retried', () => {
       return defaultIntentHandler()(intent);
     });
     const state: RevfsState = getState(service);
-    state.setTree(peerPairKey(ALICE, BOB), treeWith([]));
+    state.setTree(peerTreeKey(ALICE, BOB), treeWith([]));
 
     const handle: (sender: bigint, mine: bigint, o: RevfsOperation) => Promise<void> = (
       service as unknown as {
@@ -180,7 +180,7 @@ describe('an operation the sender retried', () => {
     await handle(BOB, ALICE, made);
 
     // Applied once, acknowledged twice.
-    expect(pathsIn(state.getTree(peerPairKey(ALICE, BOB)))).toEqual(expect.arrayContaining(['/again']));
+    expect(pathsIn(state.getTree(peerTreeKey(ALICE, BOB)))).toEqual(expect.arrayContaining(['/again']));
     expect(sent.filter((t: string): boolean => t === RevfsOpType.Ack)).toHaveLength(2);
   });
 });

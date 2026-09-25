@@ -149,7 +149,7 @@ import { createTestService, defaultIntentHandler, getState, ALICE, BOB } from '.
 import type { RevfsService } from '../revfs-service';
 import type { RevfsState } from '../revfs-state';
 import type { RevfsIntent, RevfsIntentResult } from '@/types/revfs-intents';
-import { peerPairKey } from '../tree-queries';
+import { peerTreeKey } from '../tree-queries';
 import { forgetSeenOperations } from '../seen-operations';
 
 function sentAcks(sent: RevfsOperation[]): RevfsOperation[] {
@@ -168,7 +168,7 @@ describe('acknowledging an operation the receiver could not apply', () => {
       return defaultIntentHandler()(intent);
     });
     const state: RevfsState = getState(service);
-    state.setTree(peerPairKey(ALICE, BOB), createDefaultTree());
+    state.setTree(peerTreeKey(ALICE, BOB), createDefaultTree());
 
     // A parent that does not exist: applyRemoteOp declines.
     await service.handleRevfsOperation(BOB, ALICE, op({
@@ -198,7 +198,7 @@ describe('acknowledging an operation the receiver could not apply', () => {
       return defaultIntentHandler()(intent);
     });
     const state: RevfsState = getState(service);
-    const key: string = peerPairKey(ALICE, BOB);
+    const key: string = peerTreeKey(ALICE, BOB);
     state.setTree(key, createDefaultTree());
 
     await service.handleRevfsOperation(BOB, ALICE, op({ op_id: 'refused-2', path: '/nowhere/x' }));

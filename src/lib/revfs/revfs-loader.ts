@@ -20,6 +20,8 @@ import type { RevfsIODeps } from './revfs-io';
 type RevfsModule = typeof import('./index');
 
 let loading: Promise<RevfsModule> | null = null;
+/** Callers waiting for `startRevfs`; see `revfsWhenStarted`. */
+let waiters: ((module: Promise<RevfsModule>) => void)[] = [];
 
 /**
  * Begins loading the engine and initializes it with its transport.
@@ -33,6 +35,9 @@ export function startRevfs(deps: RevfsIODeps): Promise<RevfsModule> {
       module.revfsService.initialize(deps);
       return module;
     });
+    const started: Promise<RevfsModule> = loading;
+    for (const wake of waiters) wake(started);
+    waiters = [];
   }
   return loading;
 }
@@ -49,7 +54,28 @@ export function revfsWhenReady(): Promise<RevfsModule> | null {
   return loading;
 }
 
+/**
+ * The engine once `startRevfs` has been called, waiting up to `timeoutMs` for
+ * that; null if it never was.
+ *
+ * For an operation that arrives first. It used to be dropped "to be retried",
+ * but only mutations are retried: a SyncRequest dropped here is simply never
+ * answered, and the asker is told the peer did not answer.
+ */
+export function revfsWhenStarted(timeoutMs: number): Promise<RevfsModule | null> {
+  if (loading !== null) return loading;
+  return new Promise<RevfsModule | null>((resolve): void => {
+    const wake = (module: Promise<RevfsModule>): void => { clearTimeout(timer); resolve(module); };
+    const timer: ReturnType<typeof setTimeout> = setTimeout((): void => {
+      waiters = waiters.filter((w) => w !== wake);
+      resolve(null);
+    }, timeoutMs);
+    waiters.push(wake);
+  });
+}
+
 /** Test seam: the module-level promise outlives an import. */
 export function forgetRevfsLoad(): void {
   loading = null;
+  waiters = [];
 }

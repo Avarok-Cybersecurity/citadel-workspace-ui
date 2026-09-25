@@ -77,7 +77,7 @@ import { RevfsOpType } from '@/types/revfs-types';
 import type { RevfsOperation } from '@/types/revfs-types';
 import type { RevfsIntent, RevfsIntentResult } from '@/types/revfs-intents';
 import type { RevfsService } from '../revfs-service';
-import { createDefaultTree, peerPairKey } from '../tree-queries';
+import { createDefaultTree, peerTreeKey } from '../tree-queries';
 import { forgetSeenOperations } from '../seen-operations';
 
 function serviceRecording(sent: RevfsOperation[]): RevfsService {
@@ -108,7 +108,7 @@ describe('a SyncRequest arriving twice', () => {
   it('answers a repeat that arrives after the interval', async (): Promise<void> => {
     const sent: RevfsOperation[] = [];
     const service: RevfsService = serviceRecording(sent);
-    getState(service).setTree(peerPairKey(ALICE, BOB), createDefaultTree());
+    getState(service).setTree(peerTreeKey(ALICE, BOB), createDefaultTree());
     const responses: () => number = (): number =>
       sent.filter((o: RevfsOperation): boolean => o.op_type === RevfsOpType.SyncResponse).length;
 
@@ -131,7 +131,7 @@ asks for ever and never sees the file',
     // handled, each answered with a fresh tree on the reliable channel.
     const sent: RevfsOperation[] = [];
     const service: RevfsService = serviceRecording(sent);
-    getState(service).setTree(peerPairKey(ALICE, BOB), createDefaultTree());
+    getState(service).setTree(peerTreeKey(ALICE, BOB), createDefaultTree());
 
     atTime(10_000);
     await service.handleRevfsOperation(BOB, ALICE, SYNC);

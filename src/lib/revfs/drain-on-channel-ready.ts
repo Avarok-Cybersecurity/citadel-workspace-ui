@@ -16,7 +16,7 @@
  * `initialize`, so a drain can never run against an engine with no transport.
  */
 import { eventEmitter } from '@/lib/event-emitter';
-import { peerPairKey } from './tree-queries';
+import { peerTreeKey } from './tree-queries';
 import { debugLog } from '@/lib/debug-config';
 import type { TreeKey } from '@/types/revfs-types';
 import type { RetryOutcome } from './revfs-retry';
@@ -34,7 +34,7 @@ async function drainForPeer(deps: DrainDeps, peerCid: bigint): Promise<void> {
     debugLog('RevfsService', 'channel-ready drain skipped: no current CID');
     return;
   }
-  const outcome: RetryOutcome = await deps.retryPendingOps(peerPairKey(myCid, peerCid), peerCid);
+  const outcome: RetryOutcome = await deps.retryPendingOps(peerTreeKey(myCid, peerCid), peerCid);
   if (outcome.stillPending > 0 || outcome.discarded > 0) {
     debugLog('RevfsService', `channel-ready drain for ${peerCid}: ${outcome.stillPending} still pending, ${outcome.discarded} discarded`);
   }

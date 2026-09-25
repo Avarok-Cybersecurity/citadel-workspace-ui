@@ -14,8 +14,8 @@
 // ============================================================================
 
 /**
- * Canonical key for a peer pair: `${min(cidA,cidB)}_${max(cidA,cidB)}`
- * Ensures both peers generate the same key regardless of order.
+ * Key for one account's tree of its storage with a peer: `${mine}_${peer}`.
+ * Directional on purpose; see `peerTreeKey`.
  */
 export type PeerPairKey = string;
 

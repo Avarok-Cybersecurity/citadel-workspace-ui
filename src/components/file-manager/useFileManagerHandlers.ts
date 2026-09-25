@@ -7,12 +7,14 @@ import { toast } from "sonner";
 import type { RevfsNode, TreeKey, RevfsFileMetadata } from "@/types/revfs-types";
 import { TreeScope } from "@/types/revfs-types";
 import { revfsService } from "@/lib/revfs";
-import { peerPairKey } from "@/lib/revfs/tree-queries";
+import { peerTreeKey } from "@/lib/revfs/tree-queries";
 import { useFileManagerDownload } from './useFileManagerDownload';
 import type { RevfsDownloadHistory } from '@/lib/revfs/download-history';
 import type { FileDetails } from '@/components/layout/sidebar/file-details';
 import { usePrompt } from "@/components/shared/prompt-dialog";
 import { reportDelivery } from './report-delivery';
+import { syncNotice, type SyncNotice } from './sync-notice';
+import type { SyncOutcome } from '@/lib/revfs/revfs-service';
 import { entryNameError } from './vfs-content-helpers';
 
 interface HandlerDeps {
@@ -168,11 +170,12 @@ export function useFileManagerHandlers({
           });
           return;
         }
-        const answered: boolean = await revfsService.requestSync(myCid, selectedPeerCid);
+        const outcome: SyncOutcome = await revfsService.requestSync(myCid, selectedPeerCid);
 
         // Flush the queue before claiming a sync; see lib/revfs/revfs-retry.ts.
-        const { stillPending, discarded } = await revfsService.retryPendingOps(peerPairKey(myCid, selectedPeerCid), selectedPeerCid);
+        const { stillPending, discarded } = await revfsService.retryPendingOps(peerTreeKey(myCid, selectedPeerCid), selectedPeerCid);
         await refresh();
+        const notice: SyncNotice | null = syncNotice(outcome, storageLabel);
         // Discarded first: unrecoverable, and it used to read as a successful sync.
         if (discarded > 0) {
           toast.error('Some changes were not delivered', {
@@ -182,13 +185,8 @@ export function useFileManagerHandlers({
           toast.error('Some changes could not be sent', {
             description: `${stillPending} operation(s) still queued; they will be retried.`,
           });
-        } else if (!answered) {
-          // The request went out and no tree came back. Saying "synced" here
-          // is a claim about an answer nobody waited for -- and the peer's
-          // answer is exactly what often does not arrive.
-          toast.error('The peer did not answer', {
-            description: 'Your changes were sent. Their file list has not arrived yet; try again in a moment.',
-          });
+        } else if (notice) {
+          toast.error(notice.title, { description: notice.description });
         } else { toast.success('Tree synced with peer'); }
         return;
       }
@@ -196,7 +194,7 @@ export function useFileManagerHandlers({
       await refresh();
       toast.success('Tree refreshed');
     } catch (err) { toast.error(`Sync failed: ${describeError(err)}`); }
-  }, [storageMode, myCid, selectedPeerCid, refresh]);
+  }, [storageMode, myCid, selectedPeerCid, refresh, storageLabel]);
 
   return {
     handleNewFolder, handleDelete, handleDownload, handleUploadFile, handleInfo,

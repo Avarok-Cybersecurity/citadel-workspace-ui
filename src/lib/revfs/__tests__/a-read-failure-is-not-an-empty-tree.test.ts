@@ -44,7 +44,9 @@ describe('a read failure is not an empty tree', () => {
     const io: ReturnType<typeof ioReturning> = ioReturning({ type: 'load-tree', tree: null, unreadable: true });
     const service: ReturnType<typeof createTestService> = createTestService(io.execute);
 
-    await service.getTree(ALICE, BOB);
+    // An error, not an empty default to render: the empty screen is what a
+    // user reads as "my files are gone". See tree-load.ts.
+    await expect(service.getTree(ALICE, BOB)).rejects.toThrow(/could not read/);
 
     expect(
       io.persisted.filter((i) => i.type === 'persist-tree'),
@@ -58,7 +60,7 @@ describe('a read failure is not an empty tree', () => {
     const io: ReturnType<typeof ioReturning> = ioReturning({ type: 'load-tree', tree: null });
     const service: ReturnType<typeof createTestService> = createTestService(io.execute);
 
-    await service.getTree(ALICE, BOB);
+    await service.getTree(BOB, ALICE);
 
     expect(
       io.persisted.filter((i) => i.type === 'persist-tree'),
@@ -72,8 +74,8 @@ describe('a read failure is not an empty tree', () => {
     const io: ReturnType<typeof ioReturning> = ioReturning({ type: 'load-tree', tree: null, unreadable: true });
     const service: ReturnType<typeof createTestService> = createTestService(io.execute);
 
-    await service.getTree(ALICE, BOB);
-    await service.getTree(ALICE, BOB);
+    await expect(service.getTree(ALICE, BOB)).rejects.toThrow();
+    await expect(service.getTree(ALICE, BOB)).rejects.toThrow();
 
     const loads: [RevfsIntent][] = io.execute.mock.calls.filter(
       ([intent]): boolean => (intent as RevfsIntent).type === 'load-tree',
