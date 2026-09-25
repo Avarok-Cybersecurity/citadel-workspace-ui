@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Eye, MessageSquare, Users } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ProfileVisibilityRow, StrangerRequestsRow } from './PrivacyServerRows';
 import {
   getPrivacySettings,
   savePrivacySettings,
@@ -52,18 +52,7 @@ export function PrivacySettingsTab(): JSX.Element {
           />
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-          <div>
-            <Label htmlFor="profile-visibility" className="text-sm font-medium">Profile Visibility</Label>
-            <p className="text-xs text-muted-foreground">Show your profile to non-connected peers</p>
-            {!PRIVACY_ENFORCEMENT.showProfileToStrangers && <NotEnforcedNote />}
-          </div>
-          <Switch id="profile-visibility"
-            disabled={!PRIVACY_ENFORCEMENT.showProfileToStrangers}
-            checked={settings.showProfileToStrangers}
-            onCheckedChange={(v) => update('showProfileToStrangers', v)}
-          />
-        </div>
+        <ProfileVisibilityRow />
       </div>
 
       {/* Messaging Privacy */}
@@ -103,29 +92,10 @@ export function PrivacySettingsTab(): JSX.Element {
           Access Control
         </div>
 
-        <div className="p-3 rounded-lg bg-background/50">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label htmlFor="who-can-message-you" className="text-sm font-medium">Who Can Message You</Label>
-              <p className="text-xs text-muted-foreground">Control who can send you direct messages</p>
-              {!PRIVACY_ENFORCEMENT.allowDirectMessages && <NotEnforcedNote />}
-            </div>
-            <Select
-              disabled={!PRIVACY_ENFORCEMENT.allowDirectMessages}
-              value={settings.allowDirectMessages}
-              onValueChange={(v) => update('allowDirectMessages', v as PrivacySettings['allowDirectMessages'])}
-            >
-              <SelectTrigger id="who-can-message-you" className="w-32 h-8 bg-surface border-surface text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="everyone">Everyone</SelectItem>
-                <SelectItem value="connections">Connections</SelectItem>
-                <SelectItem value="nobody">Nobody</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <StrangerRequestsRow
+          accepts={settings.acceptRequestsFromStrangers}
+          onLocalChange={(v: boolean) => update('acceptRequestsFromStrangers', v)}
+        />
 
         <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>

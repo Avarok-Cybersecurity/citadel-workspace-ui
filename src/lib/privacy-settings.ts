@@ -8,18 +8,23 @@
  * receipts: off" still sent receipts and "Show typing indicators: off" still
  * showed them.
  *
- * Three of the six settings have a real enforcement point in the client and are
- * honoured from here. The other three do not, and saying so is part of the fix:
+ * Four settings are honoured from here. The rest live elsewhere, and saying
+ * where is part of the fix:
  *
- * - `allowDirectMessages` and `showProfileToStrangers` need the SERVER to
- *   refuse, since a client that declines to display something has not stopped
- *   anyone from sending it. Enforcing them here would be theatre with a
- *   reassuring switch on top.
+ * - `acceptRequestsFromStrangers` is enforced where the decision is made: this
+ *   client answers an incoming P2P registration request, and a stranger's is
+ *   declined (p2p-registration-service/incoming-request-policy.ts). A copy is
+ *   published on the member record only so the refused requester can be told
+ *   why; the decision never reads that copy.
+ * - Profile visibility is NOT here. The avatar, email and title are served by
+ *   the workspace server, so only the server can withhold them; the choice is
+ *   stored on the user's record there (lib/profile-privacy.ts).
  * - `notifyOnScreenshot` is not observable from a web page at all.
  *
- * They are marked `enforced: false` in `PRIVACY_ENFORCEMENT` so the UI can say
- * which promises it can actually keep, and so a future server-side gate has one
- * place to flip.
+ * `acceptRequestsFromStrangers` replaced `allowDirectMessages`, a three-way
+ * select that could not be changed (it was disabled) but was saved on every
+ * visit to the tab. A new name, so a stored value nobody chose cannot start
+ * refusing requests.
  */
 
 const STORAGE_KEY: "citadel:privacy-settings" = 'citadel:privacy-settings';
@@ -29,8 +34,8 @@ export interface PrivacySettings {
   showOnlineStatus: boolean;
   showTypingIndicators: boolean;
   sendReadReceipts: boolean;
-  allowDirectMessages: 'everyone' | 'connections' | 'nobody';
-  showProfileToStrangers: boolean;
+  /** Off: a P2P registration request from someone not already a contact is declined. */
+  acceptRequestsFromStrangers: boolean;
   notifyOnScreenshot: boolean;
 }
 
@@ -38,8 +43,10 @@ export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
   showOnlineStatus: true,
   showTypingIndicators: true,
   sendReadReceipts: true,
-  allowDirectMessages: 'connections',
-  showProfileToStrangers: false,
+  // On: a contact can only be made by one side accepting the other's request,
+  // so refusing strangers by default would leave two default users unable to
+  // connect at all. It is also what every user has had until now.
+  acceptRequestsFromStrangers: true,
   notifyOnScreenshot: false,
 };
 
@@ -48,8 +55,7 @@ export const PRIVACY_ENFORCEMENT: Record<keyof PrivacySettings, boolean> = {
   showOnlineStatus: true,
   showTypingIndicators: true,
   sendReadReceipts: true,
-  allowDirectMessages: false,
-  showProfileToStrangers: false,
+  acceptRequestsFromStrangers: true,
   notifyOnScreenshot: false,
 };
 

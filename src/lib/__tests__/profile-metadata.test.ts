@@ -57,6 +57,7 @@ describe('where they surface', () => {
   it('the own record clears a removed field and keeps a previous avatar', () => {
     expect(currentUserProfileFromMetadata({}, 'data:image/webp;base64,AA')).toEqual({
       avatarUrl: 'data:image/webp;base64,AA', email: undefined, title: undefined,
+      showProfileToStrangers: true,
     });
   });
 });

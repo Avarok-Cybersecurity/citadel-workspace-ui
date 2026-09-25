@@ -18,6 +18,8 @@ export interface User extends Entity {
   avatarUrl?: string; // URL to user's avatar image
   email?: string; // User's email address
   title?: string; // Job title, shown to other members
+  /** Their published request policy; undefined when unpublished. See lib/profile-privacy.ts. */
+  acceptsRequestsFromStrangers?: boolean;
   /** True, false, or null when nobody has said. See lib/presence.ts. */
   isOnline: boolean | null;
   role?: UserRole;

@@ -132,7 +132,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
                 username: member.username || id,
                 displayName: member.displayName || member.username || id,
                 role: member.role as import('@/types/workspace-entities').UserRole | undefined,
-                avatarUrl: member.avatarUrl, email: member.email, title: member.title,
+                avatarUrl: member.avatarUrl, email: member.email, title: member.title, acceptsRequestsFromStrangers: member.acceptsRequestsFromStrangers,
                 // Real presence rather than a constant. A member arriving from
                 // a member event was recorded as offline whatever the registry
                 // said, so anyone rendering this record showed a grey dot for a

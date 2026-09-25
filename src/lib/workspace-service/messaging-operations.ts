@@ -144,6 +144,10 @@ export interface ProfileUpdate {
   avatarData?: string;
   email?: string;
   title?: string;
+  /** Server-enforced; see lib/profile-privacy.ts. */
+  showProfileToStrangers?: boolean;
+  /** Published copy of the local setting, for refused requesters. */
+  acceptsRequestsFromStrangers?: boolean;
 }
 
 /**
@@ -159,6 +163,8 @@ export async function updateUserProfile(
       avatar_data: update.avatarData,
       email: update.email,
       title: update.title,
+      show_profile_to_strangers: update.showProfileToStrangers,
+      accepts_requests_from_strangers: update.acceptsRequestsFromStrangers,
     }
   };
   // The settings form disables every input on `isSaving` and cleared it only on

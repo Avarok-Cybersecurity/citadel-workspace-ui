@@ -169,35 +169,6 @@ export async function setAutoAcceptSetting(autoAccept: boolean): Promise<void> {
 }
 
 /**
- * Handle incoming registration - uses notification's cid (recipient) instead of getCurrentCid().
- */
-export async function handleIncomingRegistrationWithCid(
-  notificationCid: bigint,
-  peerCid: bigint,
-  peerUsername: string | undefined,
-  pendingRequests: Map<string, PendingRequestEntry>
-): Promise<void> {
-  const autoAccept: boolean = await getAutoAcceptSetting(notificationCid);
-
-  if (autoAccept) {
-    debugLog('P2PRegistrationService', `[P2P] Auto-accepting registration from ${peerUsername || peerCid.toString()}`);
-    await acceptRegistrationRequest(peerCid, peerUsername, pendingRequests);
-  } else {
-    debugLog('P2PRegistrationService', `[P2P] Adding registration from ${peerUsername || peerCid.toString()} to pending requests (recipient: ${notificationCid.toString()})`);
-    try {
-      await peerRegistrationStore.handleIncomingRequest({
-        cid: notificationCid,
-        peer_cid: peerCid,
-        peer_username: peerUsername
-      });
-    } catch (error) {
-      debugLog('P2PRegistrationService', 'handleIncomingRequest threw error:', error);
-      throw error;
-    }
-  }
-}
-
-/**
  * Accept a registration request - registers back with the peer.
  */
 export async function acceptRegistrationRequest(
