@@ -35,7 +35,7 @@ function message(): P2PMessage {
 function renderMarkdown(isOwn: boolean): HTMLElement {
   const { container } = render(
     <MemoryRouter>
-      <MarkdownBubble message={message()} isOwn={isOwn} />
+      <MarkdownBubble message={message()} isOwn={isOwn} quoted={null} />
     </MemoryRouter>,
   );
   const prose: Element | null = container.querySelector('.prose');
