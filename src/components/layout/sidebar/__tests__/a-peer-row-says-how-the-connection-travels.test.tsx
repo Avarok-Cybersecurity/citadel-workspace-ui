@@ -5,9 +5,9 @@
  * The agent reports it on PeerConnectSuccess, on both the connecting and the
  * accepting side; the auto-connect listener writes it into the connected-peers
  * store, the peer hooks read it back through `connectionPathFor`, and the row
- * names it. Nothing
- * here is mocked: the service singleton (whose constructor installs the
- * listeners), the store and the row are the production ones.
+ * names it. The service singleton (whose constructor installs the listeners),
+ * the store and the row are the production ones; the only stand-in is the
+ * agent's LocalDB answer "nothing paused" where the broadcast needs it.
  */
 import { describe, it, expect, vi, afterEach, type MockInstance } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
@@ -19,6 +19,7 @@ import { connectionPathFor } from '@/lib/p2p-auto-connect-service/connection-pat
 import { CONNECTION_PATH_COPY } from '@/lib/ice-servers/path-copy';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 import { instanceManager } from '@/lib/multi-instance';
+import { websocketService } from '@/lib/websocket-service';
 import type { PeerConnectPath } from '@/types/ice-servers';
 
 const OURS: bigint = 9001n;
@@ -36,15 +37,19 @@ function renderRow(isConnected: boolean | null, connectionPath: PeerConnectPath 
 afterEach((): void => { vi.restoreAllMocks(); });
 
 describe('the reported connection path', () => {
-  it('reaches a follower tab through the leader’s connected-peers broadcast', () => {
+  it('reaches a follower tab through the leader’s connected-peers broadcast', async (): Promise<void> => {
     // The BroadcastChannel is the only fake: the leader's send is captured and
-    // replayed into this tab as a follower would receive it.
+    // replayed into this tab as a follower would receive it. The agent's
+    // LocalDB answers as it does when nobody has paused anyone -- a link is
+    // admitted only after that read (see pause-gate), and there is no agent here.
     const LEADS: bigint = 9301n;
     const OTHER: bigint = 9302n;
     const leader: MockInstance<() => boolean> = vi.spyOn(instanceManager, 'isLeader', 'get').mockReturnValue(true);
     const sent: MockInstance<(data: unknown) => void> = vi.spyOn(broadcastChannelService, 'broadcastStateSync').mockImplementation((): void => {});
+    vi.spyOn(websocketService, 'sendLocalDBGet').mockRejectedValue(new Error('Key not found: p2p_paused_peer_9302'));
 
     eventEmitter.emit('websocket-message', { PeerConnectSuccess: { cid: LEADS, peer_cid: OTHER, request_id: null, path: 'turn' } });
+    await vi.waitFor((): void => { expect(sent).toHaveBeenCalled(); });
     const payload: unknown = sent.mock.calls.at(-1)?.[0];
     expect(payload).toMatchObject({ type: 'connected-peers-update', path: 'turn' });
 

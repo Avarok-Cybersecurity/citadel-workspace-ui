@@ -60,7 +60,10 @@ class LinkRecorder implements PauseLink {
     this.dropped.push([localCid, peerCid]);
   }
 
-  async reconnect(peerCid: bigint): Promise<void> { this.reconnected.push(peerCid); }
+  async reconnect(peerCid: bigint): Promise<void> { this.reconnected.push(peerCid); this.order.push('reconnect'); }
+
+  readonly order: string[] = [];
+  async flushHeld(_localCid: bigint, _peerCid: bigint): Promise<number> { this.order.push('flush'); return 0; }
 }
 
 describe('pausing a contact', () => {
@@ -109,6 +112,12 @@ describe('pausing a contact', () => {
     await store.resume(ALICE, BOB);
     expect(await store.status(ALICE, BOB)).toBe('active');
     expect(link.reconnected).toEqual([BOB]);
+  });
+
+  it('resume hands on what the pause held, then reconnects', async (): Promise<void> => {
+    await store.pause(ALICE, BOB);
+    await store.resume(ALICE, BOB);
+    expect(link.order).toEqual(['flush', 'reconnect']);
   });
 
   it('does not drop the link when the pause could not be recorded', async (): Promise<void> => {

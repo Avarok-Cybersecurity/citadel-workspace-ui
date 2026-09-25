@@ -30,6 +30,8 @@ export interface PauseLink {
   isConnected(localCid: bigint, peerCid: bigint): boolean;
   drop(localCid: bigint, peerCid: bigint): Promise<void>;
   reconnect(peerCid: bigint): Promise<void>;
+  /** Hand the paused-contact outbox to the ILM; returns how many went. */
+  flushHeld(localCid: bigint, peerCid: bigint): Promise<number>;
 }
 
 export interface PauseChange {
@@ -73,10 +75,15 @@ export class PeerPauseStore {
     }
   }
 
-  /** Cleared BEFORE the dial, or the dial would be refused by the pause gate. */
+  /**
+   * Cleared BEFORE the dial, or the dial would be refused by the pause gate.
+   * The held messages go to the ILM before the dial too: it queues them until
+   * the link is up, so they leave in order ahead of anything sent after.
+   */
   async resume(localCid: bigint, peerCid: bigint): Promise<void> {
     await this.storage.remove(localCid, pauseKey(peerCid));
     this.changes.emit({ localCid, peerCid, status: 'active' });
+    await this.link.flushHeld(localCid, peerCid);
     await this.link.reconnect(peerCid);
   }
 
