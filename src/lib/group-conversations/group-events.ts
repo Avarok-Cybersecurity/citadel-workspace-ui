@@ -20,6 +20,7 @@ import { GROUP_FAILURE_VARIANTS } from './group-failure-variants';
 import { groupKeyToId, parseGroupKey } from './group-key';
 import { variant, toCid, memberCids } from './group-wire-variants';
 import { peerGroupMessageEvent, type PeerGroupMessageSummary } from './peer-group-inbound';
+import { peerGroupControlEvent, type GroupControlEvent } from './peer-group-control-inbound';
 
 export interface GroupEvent {
   name:
@@ -35,6 +36,8 @@ export interface GroupEvent {
      * sidebar's badge, preview and recency sort work for both.
      */
     | 'group:message-received'
+    /** A rename or role change from a member; never a chat bubble. See apply-group-control. */
+    | 'group:control-received'
     /**
      * The server's answer to `GroupListGroupsFor` — the only message that can
      * establish a group is GONE. Every other event is additive or arrives only
@@ -175,11 +178,13 @@ export function toGroupEvents(
     }];
   }
 
-  // A peer-group message. Distinct from the WORKSPACE protocol notification of
-  // the same name, which `workspace-response-handler/group-handlers.ts` owns
-  // and which carries an already-formed GroupMessage rather than bytes.
+  // A peer-group message; not the WORKSPACE notification of the same name,
+  // which `workspace-response-handler/group-handlers.ts` owns.
   const groupMessage: Record<string, unknown> | undefined = variant(message, 'GroupMessageNotification');
   if (groupMessage) {
+    // Control first: it must never reach the chat path, whatever else it carries.
+    const control: GroupControlEvent | null = peerGroupControlEvent(groupMessage);
+    if (control) return [{ name: 'group:control-received' as const, payload: { ...control } }];
     const summary: PeerGroupMessageSummary | null = peerGroupMessageEvent(groupMessage, peerName);
     if (!summary) return [];
     // With who THIS member is, so a group learnt from this message names them. See member-group-record.
@@ -211,8 +216,7 @@ export function toGroupEvents(
   // it was equally unhandled.
   const disconnected: Record<string, unknown> | undefined = variant(message, 'GroupDisconnectNotification');
   if (disconnected) {
-    // `byOthers`: someone else ended the group or removed you, so this person
-    // is told; the owner's own delete (above) needs no announcement.
+    // `byOthers`: someone else ended it or removed you; the owner's own delete needs no notice.
     return [{
       name: 'group:deleted',
       payload: { groupId: groupKeyToId(parseGroupKey(disconnected.group_key)), byOthers: true },

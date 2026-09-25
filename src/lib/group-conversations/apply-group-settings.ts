@@ -15,11 +15,13 @@
  * Sibling of `rename-group.ts`, and the same argument: the page's own state is
  * not where a group's record lives.
  */
-import { updateGroups } from './group-store';
+import { getGroups, updateGroups } from './group-store';
+import { announceGroupState } from './announce-group-state';
 import { debugLog } from '@/lib/debug-config';
 import type { GroupConversation, GroupSettings } from '@/types/group';
 
 export function applyGroupSettings(groupId: string, settings: GroupSettings): void {
+  let changed: boolean = false;
   updateGroups((prev: GroupConversation[]) => {
     // A settings change for a group that is no longer in the store -- ended
     // elsewhere, or never restored -- must not resurrect it as a partial
@@ -37,6 +39,9 @@ export function applyGroupSettings(groupId: string, settings: GroupSettings): vo
     // callers in use-group-roles build a new settings object for every real
     // edit, so an identical reference means nothing was edited.
     if (prev.some((group) => group.id === groupId && group.settings === settings)) return prev;
+    changed = true;
     return prev.map((group) => (group.id === groupId ? { ...group, settings } : group));
   });
+  // Roles are permissions; a copy only this device holds grants nothing to anyone else.
+  if (changed) announceGroupState(getGroups().find((group) => group.id === groupId));
 }

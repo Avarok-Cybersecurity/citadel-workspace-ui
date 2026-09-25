@@ -203,12 +203,7 @@ export async function sendPeerGroupMessage(
   /** The group's name, for the owner to tell members; see ownerAnnouncedName. */
   groupName?: string,
 ): Promise<string> {
-  const cid: bigint = await requireCid();
-  const groupKey: MessageGroupKey = groupIdToKey(groupId);
-  // Minted here so a redelivery is the same message on the far side, and so the
-  // sender's own copy carries the identity the peers will see.
-  const messageId: string = crypto.randomUUID();
-  const body: Uint8Array = encodeGroupMessage({
+  return sendPeerGroupBody(groupId, (cid: bigint, messageId: string): Uint8Array => encodeGroupMessage({
     group_id: groupId,
     message_id: messageId,
     sender_cid: cid,
@@ -216,7 +211,20 @@ export async function sendPeerGroupMessage(
     timestamp: Date.now(),
     reply_to: replyTo,
     group_name: groupName,
-  });
+  }));
+}
+
+/** One `GroupMessage` send for any body the peers agree on -- chat or control. */
+export async function sendPeerGroupBody(
+  groupId: string,
+  encode: (senderCid: bigint, messageId: string) => Uint8Array,
+): Promise<string> {
+  const cid: bigint = await requireCid();
+  const groupKey: MessageGroupKey = groupIdToKey(groupId);
+  // Minted here so a redelivery is the same message on the far side, and so the
+  // sender's own copy carries the identity the peers will see.
+  const messageId: string = crypto.randomUUID();
+  const body: Uint8Array = encode(cid, messageId);
 
   const request: { GroupMessage: { cid: bigint; message: number[]; group_key: MessageGroupKey; request_id: `${string}-${string}-${string}-${string}-${string}`; }; } = {
     GroupMessage: {

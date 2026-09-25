@@ -31,6 +31,7 @@ import { bindGroupTranscript } from './bind-group-transcript';
 import type { GroupConversation } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { bindGroupInvites } from './bind-group-invites';
+import { bindGroupControl } from './bind-group-control';
 import { forgetPendingInvites, restorePendingInvites } from './group-invites';
 import { loadPersistedGroups, persistGroups } from './group-persistence';
 import { applyGroupMessage } from './apply-group-message';
@@ -220,6 +221,8 @@ export function startGroupEventBindings(): void {
 
   bindGroupListReconcile();
   bindEndedGroups();
+  // After bindMembershipEvents, so an owner's snapshot lists the member who just joined.
+  bindGroupControl();
   // A peer-group message reaches the sidebar through the event above; this is
   // what puts it in the conversation you are looking at. See the module header
   // for why it is bound here rather than for every group.
