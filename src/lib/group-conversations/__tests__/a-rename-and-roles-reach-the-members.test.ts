@@ -53,10 +53,14 @@ function controlsSent(): PeerGroupControl[] {
     .filter((c): c is PeerGroupControl => c !== null);
 }
 
-beforeEach(() => {
-  h.sent.length = 0;
+beforeEach(async () => {
   h.cid = 11n;
   startGroupEventBindings();
+  // The session is live before the bindings start, so binding reconciles it: a
+  // GroupListGroupsFor goes out (see reconcile-groups). Let it leave first --
+  // these tests are about the control envelopes, not that request.
+  await flush();
+  h.sent.length = 0;
 });
 
 describe('a local change is announced', () => {
