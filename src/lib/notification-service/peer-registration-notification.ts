@@ -20,9 +20,9 @@ export function peerRegistrationNotification(params: {
   return {
     type: NotificationType.PEER_REGISTRATION,
     title: `${params.peerUsername} wants to connect`,
-    // Truncated: a CID is 20 digits of noise, and the username above is what
-    // the reader actually identifies the person by.
-    content: `CID: ${params.peerCid.slice(0, 12)}...`,
+    // The handle, not the CID: a truncated CID ("CID: 165819323455...") is
+    // noise to the reader, who identifies people by name and handle.
+    content: `@${params.peerUsername}`,
     senderId: params.peerCid,
     sourceId: params.requestId,
     recipientCid: params.recipientCid,
