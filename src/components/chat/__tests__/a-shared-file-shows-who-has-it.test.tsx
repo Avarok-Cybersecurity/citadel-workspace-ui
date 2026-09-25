@@ -39,8 +39,8 @@ function message(share: GroupFileShare): GroupMessage {
   } as GroupMessage;
 }
 
-const props: { currentUserName: string; totalMembers: number; onEdit: () => void; onDelete: () => void; onReply: () => void; canRevise: boolean; quoted: null } = {
-  currentUserName: 'me', totalMembers: 4, onEdit: (): void => {}, onDelete: (): void => {}, onReply: (): void => {}, canRevise: false, quoted: null,
+const props: { currentUserName: string; totalMembers: number; onEdit: () => void; onDelete: () => void; onReply: () => void; focusComposer: () => void; canRevise: boolean; quoted: null } = {
+  currentUserName: 'me', totalMembers: 4, onEdit: (): void => {}, onDelete: (): void => {}, onReply: (): void => {}, focusComposer: (): void => {}, canRevise: false, quoted: null,
 };
 
 const senderShare: GroupFileShare = {

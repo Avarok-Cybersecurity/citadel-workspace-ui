@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -40,6 +40,11 @@ interface GroupMessageItemProps {
    */
   canRevise: boolean;
   onReply: (messageId: string) => void;
+  /**
+   * Gives the composer focus after Edit or Reply. The menu returned focus to its own button
+   * when it closed -- after the choice, so typing went nowhere (measured live).
+   */
+  focusComposer: () => void;
   /** What `reply_to` names, or `null` when this is not a reply or it is not loaded. */
   quoted: QuotedMessage | null;
   /** Absent where the group cannot carry reactions (a node-backed channel). */
@@ -54,9 +59,12 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
   onDelete,
   canRevise,
   onReply,
+  focusComposer,
   quoted,
   reactions,
 }) => {
+  // Set by Edit and Reply, read when the menu closes: the composer, not the menu button, is next.
+  const toComposer: React.MutableRefObject<boolean> = useRef<boolean>(false);
   // Compared against the USERNAME, not the CID.
   //
   // The server sets `sender_id` from `get_username_by_cid`, so it is a workspace
@@ -156,14 +164,22 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
               <MoreVertical className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align={isOwnMessage ? 'start' : 'end'}>
-            <DropdownMenuItem onClick={() => onReply(message.id)}>
+          <DropdownMenuContent
+            align={isOwnMessage ? 'start' : 'end'}
+            onCloseAutoFocus={(event: Event): void => {
+              if (!toComposer.current) return;
+              toComposer.current = false;
+              event.preventDefault();
+              focusComposer();
+            }}
+          >
+            <DropdownMenuItem onClick={() => { toComposer.current = true; onReply(message.id); }}>
               <Reply className="h-4 w-4 mr-2" />
               Reply
             </DropdownMenuItem>
             {isOwnMessage && canRevise && (
               <>
-                <DropdownMenuItem onClick={() => onEdit(message.id, message.content)}>
+                <DropdownMenuItem onClick={() => { toComposer.current = true; onEdit(message.id, message.content); }}>
                   <Edit2 className="h-4 w-4 mr-2" />
                   Edit
                 </DropdownMenuItem>

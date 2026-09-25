@@ -33,10 +33,10 @@ function message(senderId: string): never {
 }
 
 /** The handlers the item needs; none is exercised by these assertions. */
-const props: { onEdit: () => void; onDelete: () => void; onReply: () => void; onOpenThread: () => void; totalMembers: number; canRevise: boolean; quoted: null; } = {
+const props: { onEdit: () => void; onDelete: () => void; onReply: () => void; focusComposer: () => void; onOpenThread: () => void; totalMembers: number; canRevise: boolean; quoted: null; } = {
   onEdit: (): void => {},
   onDelete: (): void => {},
-  onReply: (): void => {},
+  onReply: (): void => {}, focusComposer: (): void => {},
   onOpenThread: (): void => {},
   totalMembers: 3,
   // A node-backed chat channel, which is what these fixtures model. A peer
