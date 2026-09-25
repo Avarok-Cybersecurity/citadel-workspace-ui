@@ -15,6 +15,7 @@ import { buildTransferAnnouncement, buildLayerPayload } from '@/lib/file-transfe
 import { createFileTransferResponse } from '@/types/messaging-layer';
 import type { FileTransfer } from '@/lib/file-transfer/types';
 import type { P2PMessage } from '../p2p-types';
+import type { P2PMessagingLayerPayload } from '@/types/p2p-commands';
 
 const ME: bigint = 100n;
 const PEER: bigint = 900n;
@@ -61,7 +62,7 @@ function harness(alreadyPresent: boolean = false): { recorded: Recorded; deps: P
 describe("the sender's own file offer", () => {
   it('is added to the conversation with the recipient, as the sender\'s message', async (): Promise<void> => {
     const { recorded, deps } = harness();
-    const announcement = buildTransferAnnouncement(transfer());
+    const announcement: P2PMessagingLayerPayload = buildTransferAnnouncement(transfer());
 
     await recordOutgoingFileTransfer(deps, announcement, 'pending');
 
@@ -98,7 +99,7 @@ describe("the sender's own file offer", () => {
 
   it('refuses a payload that is not an offer', async (): Promise<void> => {
     const { recorded, deps } = harness();
-    const response = buildLayerPayload(createFileTransferResponse('t-1', true), ME, PEER);
+    const response: P2PMessagingLayerPayload = buildLayerPayload(createFileTransferResponse('t-1', true), ME, PEER);
 
     await expect(recordOutgoingFileTransfer(deps, response, 'pending')).rejects.toThrow(/not a file-transfer offer/);
     expect(recorded.added).toEqual([]);

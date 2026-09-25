@@ -58,7 +58,7 @@ describe('announcing an offer', () => {
     }
 
     expect(sent, 'the offer never went to the recipient').toHaveLength(1);
-    const wire = sent[0] as { message_id: string };
+    const wire: { message_id: string } = sent[0] as { message_id: string };
     expect(added[0].peer).toBe(42n);
     expect(added[0].message.id, 'the recorded entry is not the offer that was sent').toBe(wire.message_id);
     expect(added[0].message.senderCid).toBe(7n);
