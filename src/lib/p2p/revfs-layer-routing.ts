@@ -6,7 +6,7 @@
  * 250-line limit.
  */
 import { revfsWhenReady, revfsWhenStarted } from '@/lib/revfs/revfs-loader';
-import { debugLog } from '@/lib/debug-config';
+import { errorLog } from '@/lib/debug-config';
 import type { RevfsOperation } from '@/types/revfs-types';
 
 /** How long an operation that beat the engine's start waits for it. */
@@ -23,9 +23,11 @@ type RevfsModule = NonNullable<Awaited<ReturnType<typeof revfsWhenStarted>>>;
 
 function hand(engine: RevfsModule, peerCid: bigint, myCid: bigint, operation: RevfsOperation): void {
   // Caught, not voided: a tree that cannot be read now throws (tree-load.ts),
-  // and an unhandled rejection here would be the only trace of it.
+  // and an unhandled rejection here would be the only trace of it. Printed
+  // even in production: this is the one place that knows why a peer's change
+  // was never acknowledged, and debugLog is silent there.
   engine.revfsService.handleRevfsOperation(peerCid, myCid, operation).catch((error: unknown): void => {
-    debugLog('P2PMessageHandler', `REVFS ${operation.op_type} from ${peerCid} failed`, error);
+    errorLog('P2PMessageHandler', `REVFS ${operation.op_type} from ${peerCid} failed`, error);
   });
 }
 
@@ -43,11 +45,11 @@ export async function routeRevfsOperation(
   revfsWhenStarted(ENGINE_START_WAIT_MS).then(
     (engine: RevfsModule | null): void => {
       if (engine === null) {
-        debugLog('P2PMessageHandler', `REVFS ${operation.op_type} dropped: the engine was not started within ${ENGINE_START_WAIT_MS}ms`);
+        errorLog('P2PMessageHandler', `REVFS ${operation.op_type} dropped: the engine was not started within ${ENGINE_START_WAIT_MS}ms`);
         return;
       }
       hand(engine, peerCid, myCid, operation);
     },
-    (error: unknown): void => { debugLog('P2PMessageHandler', 'REVFS engine failed to load', error); },
+    (error: unknown): void => { errorLog('P2PMessageHandler', 'REVFS engine failed to load', error); },
   );
 }

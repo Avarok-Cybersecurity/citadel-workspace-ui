@@ -56,14 +56,14 @@ const props: { currentPath: string; onNavigate: () => void; onNewFolder: () => v
 
 describe('the file grid with nothing to show', () => {
   it('says the folder is empty only when it IS empty', () => {
-    render(<VFSContentGrid {...props} tree={treeWith([])} />);
+    render(<VFSContentGrid {...props} pendingPaths={new Set<string>()} peerLabel="Bob" tree={treeWith([])} />);
 
     expect(screen.getByText(/this folder is empty/i)).toBeInTheDocument();
   });
 
   it('says the FILTER matched nothing when a filter is active', () => {
     render(
-      <VFSContentGrid
+      <VFSContentGrid pendingPaths={new Set<string>()} peerLabel="Bob"
         {...props}
         tree={treeWith([file('invoice.pdf'), file('notes.md')])}
         filterText="zzz-no-such-file"

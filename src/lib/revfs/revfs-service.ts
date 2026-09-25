@@ -174,6 +174,20 @@ export class RevfsService {
     return (await answered) ? { kind: 'answered' } : { kind: 'unanswered', waitedMs: timeoutMs };
   }
 
+  /**
+   * Paths whose change has not been acknowledged by the peer yet: queued for
+   * retry, or still waiting. The file manager marks them "pending
+   * confirmation" instead of either hiding them or implying the peer has them.
+   */
+  pendingPaths(myCid: bigint, peerCid: bigint): ReadonlySet<string> {
+    const paths: Set<string> = new Set<string>();
+    for (const entry of this.state.getPendingOps(peerTreeKey(myCid, peerCid))) {
+      paths.add(entry.operation.path);
+      if (entry.operation.destPath) paths.add(entry.operation.destPath);
+    }
+    return paths;
+  }
+
   // ── Event Subscription ────────────────────────────────────────────────
 
   onTreeChanged(callback: TreeChangedCallback): () => void {
