@@ -4,7 +4,7 @@ import { mayLeaveEditor } from '@/lib/leave-editor';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { switchToSession } from '@/lib/sessions/switch-to-session';
 import { liveSessionCid } from '@/lib/sessions/live-session-cid';
-import { toStoredWorkspaces, pickCurrentWorkspace , type StoredWorkspace } from './stored-workspace-list';
+import { switcherWorkspaces, pickCurrentWorkspace , type StoredWorkspace } from './stored-workspace-list';
 import { describeFailure } from '@/lib/failure-message';
 import { useNavigate } from "react-router-dom";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -58,9 +58,13 @@ export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs
     const tabSelectedUser: TabUserContext | null = await getSelectedUser();
     const connInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
     const currentCid: bigint | null = connInfo?.cid ?? null;
-    if (!storedSessions?.sessions?.length) { setAvailableWorkspaces([]); return; }
-
-    const workspaces: StoredWorkspace[] = toStoredWorkspaces(storedSessions.sessions, state.workspace?.name, currentCid);
+    // The agent's live sessions too: a session resumed by claim is never saved, and the
+    // switcher is how you reach another org (see switcherWorkspaces).
+    const { ok, sessions: live } = await connectionManager.getActiveSessionsResult();
+    const workspaces: StoredWorkspace[] = switcherWorkspaces(
+      storedSessions?.sessions ?? [], ok ? live : [], state.workspace?.name, currentCid,
+    );
+    if (workspaces.length === 0) { setAvailableWorkspaces([]); return; }
     setAvailableWorkspaces(workspaces);
 
     const active: StoredWorkspace | undefined = pickCurrentWorkspace(workspaces, tabSelectedUser);
@@ -117,10 +121,10 @@ export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs
         (s) => s.username === workspace.username && s.serverAddress === workspace.serverAddress
       );
 
-      if (!targetSession) throw new Error('Session not found');
+      // No saved copy is fine: live-only rows come from the agent and carry their CID.
       // The agent's live list first, as the landing page resumes: the stored copy can be stale or empty.
       const { ok, sessions: live } = await connectionManager.getActiveSessionsResult();
-      const cid: bigint | undefined = (ok ? liveSessionCid(live, workspace) : undefined) ?? targetSession.cid;
+      const cid: bigint | undefined = (ok ? liveSessionCid(live, workspace) : undefined) ?? targetSession?.cid ?? workspace.cid;
       if (!cid) throw new Error('Session CID not available');
 
       // The one switch sequence (lib/sessions/switch-to-session.ts). This hook
@@ -133,7 +137,7 @@ export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs
         username: workspace.username,
         server_address: workspace.serverAddress,
         workspaceName: workspace.workspaceName ?? workspace.username,
-        storedSessionIndex: storedSessions.sessions.indexOf(targetSession),
+        storedSessionIndex: targetSession ? storedSessions.sessions.indexOf(targetSession) : -1,
       }, { navigate, toast, confirm, signInAs });
     } catch (error) {
       debugLog('WorkspaceSwitcher', 'Failed to switch workspace:', error);

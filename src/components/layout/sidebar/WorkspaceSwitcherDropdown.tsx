@@ -29,7 +29,8 @@ export function WorkspaceSwitcherDropdown({
     availableWorkspaces
       .filter(workspace => workspace.id !== currentWorkspace?.id)
       .reduce((acc, workspace) => {
-        const key: string = `${workspace.workspaceName || workspace.serverAddress}`;
+        // By server, not by name: two orgs can share a name (every hosted org was "Root Workspace").
+        const key: string = workspace.serverAddress;
         if (!acc[key]) acc[key] = [];
         acc[key].push(workspace);
         return acc;
@@ -46,7 +47,7 @@ export function WorkspaceSwitcherDropdown({
       {groupedWorkspaces.map(([workspaceKey, workspaces]) => (
         <div key={workspaceKey} className="mb-1">
           <div className="px-3 py-1.5 text-xs text-muted-foreground font-semibold tracking-wider uppercase flex items-center justify-between">
-            <span>{workspaceKey}</span>
+            <span>{workspaces[0].workspaceName ?? workspaceKey}</span>
             <span className="text-muted-foreground normal-case tracking-normal font-normal">{workspaces[0].serverAddress}</span>
           </div>
           {workspaces.map((workspace) => (
@@ -76,7 +77,7 @@ export function WorkspaceSwitcherDropdown({
             </DropdownMenuItem>
           ))}
           <DropdownMenuItem
-            onClick={() => onAddAccountToWorkspace(workspaceKey, workspaces[0].serverAddress)}
+            onClick={() => onAddAccountToWorkspace(workspaces[0].workspaceName ?? workspaceKey, workspaces[0].serverAddress)}
             className="flex items-center gap-3 py-2 cursor-pointer text-muted-foreground w-full pl-8 group bg-transparent focus:bg-primary-accent/15 focus:text-foreground/80"
           >
             <Plus className="w-4 h-4" />
