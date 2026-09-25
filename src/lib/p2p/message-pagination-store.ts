@@ -39,6 +39,8 @@ import {
 import { deleteConversationPages, type DeleteScope } from './message-page-delete';
 import { debugLog } from '@/lib/debug-config';
 import { withPeerLock } from './peer-write-lock';
+import { reactToMessageInPages, type StoredReactionOutcome } from './message-page-reaction';
+import type { ReactionChange } from '@/lib/reactions/reaction-state';
 import { placeInPage, recordAppend } from './message-page-append';
 import { isGenuinelyAbsent } from '@/lib/storage/absence';
 
@@ -216,6 +218,10 @@ export class MessagePaginationStore {
 
   public async updateMessageInPages(peerCid: bigint, messageId: string, updates: Partial<P2PMessage>): Promise<boolean> {
     return withPeerLock(peerCid, () => updateMessageInPages(peerCid, messageId, updates));
+  }
+
+  public async reactToMessageInPages(peerCid: bigint, messageId: string, change: ReactionChange): Promise<StoredReactionOutcome> {
+    return withPeerLock(peerCid, () => reactToMessageInPages(peerCid, messageId, change));
   }
 
   public async removeMessageFromPages(peerCid: bigint, messageId: string): Promise<boolean> {

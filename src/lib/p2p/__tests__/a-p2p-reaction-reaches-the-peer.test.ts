@@ -19,6 +19,8 @@ vi.mock('@/lib/p2p-auto-connect-service', () => ({
 }));
 
 const stored: Map<string, string> = new Map<string, string>();
+/** Writes of a message PAGE -- where a reaction is stored -- whoever makes them. */
+let pageWrites: number = 0;
 vi.mock('../../websocket-service', () => ({
   websocketService: {
     sendLocalDBGet: async (_cid: bigint, key: string): Promise<{ value: string }> => {
@@ -27,6 +29,7 @@ vi.mock('../../websocket-service', () => ({
       return { value };
     },
     sendLocalDBSet: async (_cid: bigint, key: string, value: number[]): Promise<void> => {
+      if (/_\d+$/.test(key)) pageWrites += 1;
       stored.set(key, String.fromCharCode(...value));
     },
     sendLocalDBDelete: async (_cid: bigint, key: string): Promise<void> => { stored.delete(key); },
@@ -112,9 +115,10 @@ describe("a peer's reaction", () => {
   });
 
   it('is written once however often it is redelivered', async () => {
+    pageWrites = 0;
     await receive(reaction('👍', true, 5));
     await receive(reaction('👍', true, 5));
-    expect(writes).toBe(1);
+    expect(pageWrites).toBe(1);
   });
 
   it('can be retracted, and the retraction is what a reload shows', async () => {
@@ -138,8 +142,10 @@ describe("a peer's reaction", () => {
  */
 describe('a layer type the receiver does not know', () => {
   it('is dropped without producing a message or a write', async () => {
+    pageWrites = 0;
     await receive({ type: 'SomethingFromANewerBuild', message_id: 'm1', emoji: '👍' });
     expect(added).toBe(0);
     expect(writes).toBe(0);
+    expect(pageWrites).toBe(0);
   });
 });

@@ -14,12 +14,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { GroupMessage } from '@/types/workspace-entities';
 import type { GroupReactionEvent } from '../peer-group-reaction-inbound';
 
-const world: { store: Map<string, unknown>; cid: bigint | null } = vi.hoisted(() => ({
-  store: new Map<string, unknown>(), cid: null as bigint | null,
+const world: { store: Map<string, unknown>; cid: bigint | null; sent: Uint8Array[] } = vi.hoisted(() => ({
+  store: new Map<string, unknown>(), cid: null as bigint | null, sent: [] as Uint8Array[],
 }));
 vi.mock('@/lib/storage-utils', () => ({
   dbGet: async (_s: string, k: string): Promise<unknown> => (world.store.has(k) ? structuredClone(world.store.get(k)) : undefined),
   dbPut: async (_s: string, k: string, v: unknown): Promise<void> => { world.store.set(k, structuredClone(v)); },
+}));
+// The wire, captured: a reaction envelope's `active` is what the members receive.
+vi.mock('../group-requests', () => ({
+  sendPeerGroupBody: async (_g: string, encode: (cid: bigint, id: string) => Uint8Array): Promise<string> => {
+    world.sent.push(encode(99n, 'env'));
+    return 'env';
+  },
 }));
 vi.mock('@/lib/multi-instance/instance-manager', () => ({
   instanceManager: { get cid(): bigint | null { return world.cid; } },
@@ -128,5 +135,58 @@ describe('a peer-group reaction', () => {
     expect(s.thread()[0].reactions?.map((r) => r.emoji)).toEqual(['👍']);
     unbind();
     s.stop();
+  });
+});
+
+/**
+ * The live P2P defect, replayed for groups: add, the receiver reloads, then the
+ * reactor removes it. Groups fold into the stored transcript directly, so the
+ * removal must land whether or not the group has been opened since the reload.
+ */
+describe('a removal after the receiver reloads', () => {
+  async function addedThenReloaded(): Promise<Awaited<ReturnType<typeof boot>>> {
+    const before: Awaited<ReturnType<typeof boot>> = await boot();
+    before.deliver();
+    await settle();
+    await before.receive(thumbs(5));
+    before.stop();
+    return boot();
+  }
+
+  it('lands when the group is open again', async () => {
+    const after: Awaited<ReturnType<typeof boot>> = await addedThenReloaded();
+    await after.restore();
+    await after.receive(thumbs(6, false));
+    expect(after.thread()[0].reactions?.filter((r) => r.active)).toEqual([]);
+    after.stop();
+    const again: Awaited<ReturnType<typeof boot>> = await boot();
+    await again.restore();
+    expect(again.thread()[0].reactions?.filter((r) => r.active)).toEqual([]);
+    again.stop();
+  });
+
+  it('lands when the group has not been opened since', async () => {
+    const after: Awaited<ReturnType<typeof boot>> = await addedThenReloaded();
+    await after.receive(thumbs(6, false));
+    await after.restore();
+    expect(after.thread()[0].reactions?.filter((r) => r.active)).toEqual([]);
+    after.stop();
+  });
+
+  it('is what my own chip sends after I reload', async () => {
+    const { decodeGroupReaction } = await import('../group-reaction-codec');
+    world.sent.length = 0;
+    const before: Awaited<ReturnType<typeof boot>> = await boot();
+    before.deliver();
+    await settle();
+    await (await import('../group-reactions')).reactInGroup(GROUP, 'm1', '👍');
+    before.stop();
+
+    const after: Awaited<ReturnType<typeof boot>> = await boot();
+    await after.restore();
+    await (await import('../group-reactions')).reactInGroup(GROUP, 'm1', '👍');
+    expect(world.sent.map((b) => decodeGroupReaction(b)?.reaction.active)).toEqual([true, false]);
+    expect(after.thread()[0].reactions?.filter((r) => r.active)).toEqual([]);
+    after.stop();
   });
 });
