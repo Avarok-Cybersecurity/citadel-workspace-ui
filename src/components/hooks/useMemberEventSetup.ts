@@ -6,7 +6,7 @@ import { connectionManager } from '@/lib/connection';
 import WorkspaceService from '@/lib/workspace-service';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
-import { currentUserProfileFromMetadata } from '@/lib/current-user-profile';
+import { applyOwnMemberRecord } from './merge-current-user';
 import type { MappedMember } from '@/lib/workspace-response-handler/member-mapping';
 import { debugLog } from '@/lib/debug-config';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
@@ -78,36 +78,6 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
         if (!isForDomain(payload.domainId, WORKSPACE_ROOT_ID)) return;
         cancelLoadingDeadline('members');
         setState(prev => {
-          // Try to find the current user in the members list and update their role
-          let updatedCurrentUser: WorkspaceEventState['currentUser'] = prev.currentUser;
-          if (prev.currentUser && payload.members) {
-            const currentUserMember: User | undefined = payload.members.find(
-              (m: { username?: string; role?: string; displayName?: string }) =>
-                m.username === prev.currentUser?.username
-            );
-            // Not gated on `role` any more: this record is also where a stored
-            // avatar arrives, and nothing else in the app loads one.
-            if (currentUserMember) {
-              updatedCurrentUser = {
-                ...prev.currentUser,
-                role: currentUserMember.role ?? prev.currentUser.role,
-                displayName: currentUserMember.displayName || prev.currentUser.name,
-                ...currentUserProfileFromMetadata((currentUserMember as unknown as { metadata?: unknown }).metadata, prev.currentUser.avatarUrl),
-              };
-
-              // Persist role to stored session for WorkspaceSwitcher (async)
-              const roleToSave: UserRole | undefined = currentUserMember.role;
-              if (roleToSave) {
-                runAsyncSetup(async () => {
-                  const session: StoredSession | null = await connectionManager.getTabSelectedSession();
-                  if (session) {
-                    await connectionManager.updateSessionRole(session.username, session.serverAddress, roleToSave);
-                  }
-                });
-              }
-            }
-          }
-
           // Build members record from the already-mapped array.
           //
           // The workspace-handlers layer (mapWasmMember) is SSOT for
@@ -133,6 +103,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
                 displayName: member.displayName || member.username || id,
                 role: member.role as import('@/types/workspace-entities').UserRole | undefined,
                 avatarUrl: member.avatarUrl, email: member.email, title: member.title, acceptsRequestsFromStrangers: member.acceptsRequestsFromStrangers,
+                showProfileToStrangers: member.showProfileToStrangers,
                 // Real presence rather than a constant. A member arriving from
                 // a member event was recorded as offline whatever the registry
                 // said, so anyone rendering this record showed a grey dot for a
@@ -144,9 +115,25 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
             }
           }
 
+          const ownRecord: User | undefined = prev.currentUser
+            ? Object.values(membersRecord).find((m: User): boolean => m.username === prev.currentUser?.username)
+            : undefined;
+          if (ownRecord) {
+            // Persist role to stored session for WorkspaceSwitcher (async)
+            const roleToSave: UserRole | undefined = ownRecord.role;
+            if (roleToSave) {
+              runAsyncSetup(async () => {
+                const session: StoredSession | null = await connectionManager.getTabSelectedSession();
+                if (session) {
+                  await connectionManager.updateSessionRole(session.username, session.serverAddress, roleToSave);
+                }
+              });
+            }
+          }
+
           return {
             ...prev,
-            currentUser: updatedCurrentUser,
+            currentUser: prev.currentUser && applyOwnMemberRecord(prev.currentUser, ownRecord),
             members: membersRecord,
             loading: { ...prev.loading, members: false },
           };

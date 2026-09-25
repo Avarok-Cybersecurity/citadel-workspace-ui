@@ -52,3 +52,37 @@ export function mergeCurrentUser(
     role: identity.role ?? previous?.role,
   };
 }
+
+/** The fields the signed-in user's own member record supplies. */
+export interface OwnMemberFields {
+  readonly role?: string;
+  readonly displayName?: string;
+  readonly avatarUrl?: string;
+  readonly email?: string;
+  readonly title?: string;
+  readonly showProfileToStrangers?: boolean;
+}
+
+/**
+ * `user` with what their own member record says, when the record is known.
+ *
+ * Called from both the members path and the workspace path, because either can
+ * arrive first. Only the members path applied it, and only when `currentUser`
+ * already existed -- so on a tab where the member list won the race, the
+ * record's privacy choice never reached Settings and its switch stayed disabled.
+ *
+ * Email and title are taken as they are (absent means cleared); the avatar and
+ * role keep the previous value when the record has none.
+ */
+export function applyOwnMemberRecord<T extends CurrentUser & OwnMemberFields>(user: T, member: OwnMemberFields | undefined): T {
+  if (!member) return user;
+  return {
+    ...user,
+    role: member.role ?? user.role,
+    displayName: member.displayName || user.name,
+    avatarUrl: member.avatarUrl ?? user.avatarUrl,
+    email: member.email,
+    title: member.title,
+    showProfileToStrangers: member.showProfileToStrangers,
+  };
+}

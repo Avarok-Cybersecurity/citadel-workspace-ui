@@ -20,6 +20,8 @@ export interface User extends Entity {
   title?: string; // Job title, shown to other members
   /** Their published request policy; undefined when unpublished. See lib/profile-privacy.ts. */
   acceptsRequestsFromStrangers?: boolean;
+  /** Whether the server sends their picture, email and title to non-contacts. See lib/profile-privacy.ts. */
+  showProfileToStrangers?: boolean;
   /** True, false, or null when nobody has said. See lib/presence.ts. */
   isOnline: boolean | null;
   role?: UserRole;

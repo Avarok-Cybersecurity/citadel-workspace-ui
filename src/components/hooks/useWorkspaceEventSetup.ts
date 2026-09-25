@@ -3,14 +3,15 @@ import { useEffect } from 'react';
 import { workspaceEvents } from '@/lib/workspace-events';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 import { connectionManager } from '@/lib/connection';
-import UserService from '@/lib/user-service';
+import { getSelectedUser } from '@/lib/tab-context';
+import { tabIdentity, type TabIdentity } from '@/lib/tab-identity';
 import { bytesToString } from '@/lib/utils/encoding-utils';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
-import { mergeCurrentUser } from './merge-current-user';
+import { applyOwnMemberRecord, mergeCurrentUser } from './merge-current-user';
 import { debugLog } from '@/lib/debug-config';
-import type { UserRegistrationInfo } from '@/lib/user-service';
 import type { StoredSession } from '@/types/session-types';
+import type { User } from '@/types/workspace-entities';
 
 interface UseWorkspaceEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -108,14 +109,16 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
           }
         });
 
-        // Try to load user information if not already loaded
-        const userService: typeof UserService = UserService;
-        const currentUser: UserRegistrationInfo | null = await userService.getCurrentUser();
+        // Who this tab is: the tab's selection, then its saved account. This read
+        // `UserService`'s per-tab record, which only registration writes -- so a
+        // tab that resumed a session or signed in with a password never had a
+        // `currentUser` at all, and everything reading it fell back or went dark
+        // (the Profile Visibility switch stayed disabled). See tab-identity.ts.
+        const storedSession: StoredSession | null = await connectionManager.getTabSelectedSession();
+        const identity: TabIdentity = tabIdentity(await getSelectedUser(), storedSession);
+        const username: string | undefined = identity.username;
 
-        if (currentUser) {
-          const storedSession: StoredSession | null = await connectionManager.getTabSelectedSession();
-          const role: string | undefined = storedSession?.role;
-
+        if (username) {
           // Merged, not assigned. `UserRegistrationInfo` has no avatar in it, so
           // building a fresh object here dropped `avatarUrl` on every workspace
           // load -- and the profile-update event is its only writer, so a photo
@@ -123,11 +126,10 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
           // survived a reload. See merge-current-user.ts.
           setState(prev => ({
             ...prev,
-            currentUser: mergeCurrentUser(prev.currentUser, {
-              username: currentUser.username,
-              fullName: currentUser.fullName,
-              role,
-            }),
+            currentUser: applyOwnMemberRecord(
+              mergeCurrentUser(prev.currentUser, { username, fullName: identity.fullName, role: storedSession?.role }),
+              Object.values(prev.members).find((m: User): boolean => m.username === username),
+            ),
           }));
         }
 
