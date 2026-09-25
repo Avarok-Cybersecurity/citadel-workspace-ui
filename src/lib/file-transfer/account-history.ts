@@ -11,6 +11,7 @@
  * snapshot and must not be overwritten by it.
  */
 import { eventEmitter } from '../event-emitter';
+import { FILE_TRANSFER_EVENTS } from './events';
 import { loadPersistedTransfers } from './transfer-persistence';
 import type { FileTransfer, FileTransferSettings } from './types';
 
@@ -22,7 +23,13 @@ export interface TransferHistoryState {
 
 export function loadMissingTransfers(state: TransferHistoryState): Promise<void> {
   return loadPersistedTransfers({
-    setTransfer: (t: FileTransfer): void => { if (!state.getTransfer(t.id)) state.setTransfer(t); },
+    // Announced, because bubbles have usually rendered by now: without the
+    // event they keep showing what they decided while the record was absent.
+    setTransfer: (t: FileTransfer): void => {
+      if (state.getTransfer(t.id)) return;
+      state.setTransfer(t);
+      eventEmitter.emit(FILE_TRANSFER_EVENTS.STATE_CHANGED, t);
+    },
     setSettings: (peerCid: string, s: FileTransferSettings): void => state.setSettings(peerCid, s),
   });
 }

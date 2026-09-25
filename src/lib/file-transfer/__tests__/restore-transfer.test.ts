@@ -40,11 +40,24 @@ describe('restoring a transfer after a reload', () => {
     // the Blob went with the tab. Restoring `transferring` gives a progress bar
     // that never moves again — the "Downloading… 40%" forever this same store
     // produced elsewhere.
-    for (const state of ['pending', 'uploading', 'staged', 'transferring']) {
+    for (const state of ['uploading', 'staged', 'transferring']) {
       const restored: FileTransfer | null = restoreTransfer(persisted({ state, progress: 40 }));
       expect(restored?.state, state).toBe('error');
       expect(restored?.progress, state).toBe(0);
     }
+  });
+
+  it('ends an offer we never answered as expired, not failed, and says what to do', () => {
+    // Nothing was moving, so "interrupted" and a red failure would be false.
+    // What is true is that it can no longer be answered: accepting names the
+    // protocol object_id, whose join was in memory. The sender's own pending
+    // offer is not ours to expire and keeps the interrupted treatment.
+    const offer: FileTransfer | null = restoreTransfer(persisted({ state: 'pending', progress: 0 }));
+    expect(offer?.state).toBe('expired');
+    expect(offer?.errorMessage).toMatch(/ask the sender to send it again/i);
+
+    const ours: FileTransfer | null = restoreTransfer(persisted({ state: 'pending', isIncoming: false }));
+    expect(ours?.state).toBe('error');
   });
 
   it('says why an interrupted transfer failed', () => {

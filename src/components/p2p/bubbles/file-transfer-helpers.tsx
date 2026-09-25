@@ -1,5 +1,4 @@
 import { File, FileImage, FileText, FileVideo, FileAudio, Download, X, Check, Clock, AlertCircle, Ban } from 'lucide-react';
-import type { P2PMessage } from '@/lib/p2p';
 
 export interface StatusContent {
   icon: React.ReactNode;
@@ -25,7 +24,7 @@ export function getFileIcon(fileType: string): React.ReactNode {
 export { formatBytes } from '@/lib/format-bytes';
 
 /** Returns the status icon, text, and action flags for a given transfer state. */
-export function getStatusContent(state: string, isOwn: boolean, message: P2PMessage): StatusContent {
+export function getStatusContent(state: string, isOwn: boolean, reason: string | undefined): StatusContent {
   switch (state) {
     case 'pending':
       if (isOwn) {
@@ -109,13 +108,13 @@ export function getStatusContent(state: string, isOwn: boolean, message: P2PMess
     case 'expired':
       return {
         icon: <Clock className="h-4 w-4 text-warning-emphasis" />,
-        text: 'Request expired'
+        text: reason || 'Request expired'
       };
 
     case 'error':
       return {
         icon: <AlertCircle className="h-4 w-4 text-destructive" />,
-        text: message.error || 'Transfer failed'
+        text: reason ? `Transfer failed: ${reason}` : 'Transfer failed'
       };
 
     default:

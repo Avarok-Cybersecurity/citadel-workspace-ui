@@ -160,6 +160,11 @@ export class FileTransferService {
     return this.state.getTransfer(transferId);
   }
 
+  /** See `FileTransferState.noteOfferArriving`. */
+  isOfferArriving(transferId: string): boolean {
+    return this.state.isOfferArriving(transferId);
+  }
+
   getTransfersForPeer(peerCid: string): FileTransfer[] {
     return this.state.getTransfersForPeer(peerCid);
   }
@@ -236,6 +241,7 @@ export class FileTransferService {
       // Join the two halves BEFORE handleTransferRequest, because auto-accept
       // fires from inside it — and an accept that cannot name the object_id is
       // exactly the failure this correlation exists to prevent.
+      this.state.noteOfferArriving(layer.transfer_id);
       this.correlator.noteMessageOffer(
         layer.transfer_id,
         senderCid,

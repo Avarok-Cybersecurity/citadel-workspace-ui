@@ -5,6 +5,8 @@ import { debugLog } from '@/lib/debug-config';
 import { getFileIcon, formatBytes, getStatusContent } from './file-transfer-helpers';
 import { activateOnKey } from '@/lib/a11y';
 import type { StatusContent } from '@/components/p2p/bubbles/file-transfer-helpers';
+import { useTransferView } from '../hooks/useTransferView';
+import type { TransferView } from '@/lib/file-transfer/transfer-view';
 
 /**
  * FileTransferBubble - Displays file transfer messages with state-dependent UI
@@ -36,10 +38,10 @@ export function FileTransferBubble({
   onCancel,
   onOpen
 }: FileTransferBubbleProps): JSX.Element {
-  const isFailed: boolean = message.status === 'failed' || message.transfer_state === 'error';
+  const view: TransferView = useTransferView(message);
+  const state: string = view.state;
+  const isFailed: boolean = message.status === 'failed' || state === 'error';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
-
-  const state: string = message.transfer_state || 'pending';
 
   // DEBUG: Log to understand why Accept/Decline may not show
   debugLog('FileTransferBubble', '[FileTransferBubble] Debug:', {
@@ -50,13 +52,13 @@ export function FileTransferBubble({
     transfer_id: message.transfer_id,
     fileName: message.file_name
   });
-  const progress: number = message.transfer_progress || 0;
+  const progress: number = view.progress;
   const fileName: string = message.file_name || 'Unknown file';
   const fileSize: number = message.file_size || 0;
   const fileType: string = message.file_type || 'application/octet-stream';
   const transferMode: "async" | "p2p" = message.transfer_mode || 'async';
 
-  const status: StatusContent = getStatusContent(state, isOwn, message);
+  const status: StatusContent = getStatusContent(state, isOwn, view.reason);
 
   const handleClick = (): void => {
     if (status.clickable && onOpen && message.virtual_path) {
