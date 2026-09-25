@@ -9,6 +9,9 @@ import { Switch } from '@/components/ui/switch';
 import { loadCallSoundSettings, saveCallSoundSettings } from '@/lib/call/call-sound-preferences';
 import { useToast, useEventListener } from '@/hooks';
 import { AvatarUpload } from './AvatarUpload';
+import { ProfileDetailsFields, profileDetailsAreValid, type ProfileDetailsValues } from './ProfileDetailsFields';
+import { metadataText, profileFieldsFromMetadata, PROFILE_METADATA_KEYS } from '@/lib/profile-metadata';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '@/lib/workspace-service';
 import userService from '@/lib/user-service';
 import type { User } from 'citadel-workspace-client-ts';
@@ -17,9 +20,19 @@ import type { UserRegistrationInfo } from '@/lib/user-service';
 export function GeneralSettingsTab(): JSX.Element {
   const { toast } = useToast();
   const [displayName, setDisplayName] = useState('');
-  const [avatarData, setAvatarData] = useState<string | null>(null);
+  // Seeded from the member record the workspace already loaded for this user.
+  // The avatar is held as the data URL it arrives as; it is only sent if replaced.
+  const { state: workspaceState } = useWorkspace();
+  const storedAvatar: string | null = workspaceState.currentUser?.avatarUrl ?? null;
+  const [avatarData, setAvatarData] = useState<string | null>(storedAvatar);
   const [originalDisplayName, setOriginalDisplayName] = useState('');
-  const [originalAvatarData, setOriginalAvatarData] = useState<string | null>(null);
+  const [originalAvatarData, setOriginalAvatarData] = useState<string | null>(storedAvatar);
+  const storedDetails: ProfileDetailsValues = {
+    email: workspaceState.currentUser?.email ?? '',
+    title: workspaceState.currentUser?.title ?? '',
+  };
+  const [details, setDetails] = useState<ProfileDetailsValues>(storedDetails);
+  const [originalDetails, setOriginalDetails] = useState<ProfileDetailsValues>(storedDetails);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [callSoundsEnabled, setCallSoundsEnabled] = useState(() => loadCallSoundSettings().enabled);
@@ -47,12 +60,15 @@ export function GeneralSettingsTab(): JSX.Element {
   // Handle profile updates
   // MetadataValue is a tagged enum: { type: "String", content: "..." }
   const handleProfileUpdate: (data: { user: User; }) => void = useCallback((data: { user: User }): void => {
-    const avatarMeta: NonNullable<User['metadata']>[string] | undefined = data.user.metadata?.avatar;
-    const avatar: string | undefined = (avatarMeta && 'content' in avatarMeta && typeof avatarMeta.content === 'string') ? avatarMeta.content : undefined;
-    if (avatar) {
-      setAvatarData(avatar);
-      setOriginalAvatarData(avatar);
-    }
+    // The whole record arrives, so no avatar means it was removed.
+    const avatar: string | null = metadataText(data.user.metadata, PROFILE_METADATA_KEYS.avatar) ?? null;
+    setAvatarData(avatar);
+    setOriginalAvatarData(avatar);
+    // The whole record arrives, so an absent field was cleared, not left out.
+    const saved: { email?: string; title?: string } = profileFieldsFromMetadata(data.user.metadata);
+    const savedDetails: ProfileDetailsValues = { email: saved.email ?? '', title: saved.title ?? '' };
+    setDetails(savedDetails);
+    setOriginalDetails(savedDetails);
     if (data.user.name) {
       setDisplayName(data.user.name);
       setOriginalDisplayName(data.user.name);
@@ -67,17 +83,23 @@ export function GeneralSettingsTab(): JSX.Element {
   // Listen for profile updates
   useEventListener<{ user: User }>('user:profile-updated', handleProfileUpdate);
 
-  const hasChanges: boolean = displayName !== originalDisplayName || avatarData !== originalAvatarData;
+  const detailsChanged = (field: keyof ProfileDetailsValues): boolean => details[field].trim() !== originalDetails[field];
+  const hasChanges: boolean = displayName !== originalDisplayName || avatarData !== originalAvatarData
+    || detailsChanged('email') || detailsChanged('title');
+  const canSave: boolean = hasChanges && profileDetailsAreValid(details);
 
   const handleSave = async (): Promise<void> => {
-    if (!hasChanges) return;
+    if (!canSave) return;
 
     setIsSaving(true);
     try {
-      await WorkspaceService.updateUserProfile(
-        displayName !== originalDisplayName ? displayName : undefined,
-        avatarData !== originalAvatarData ? avatarData || undefined : undefined
-      );
+      // A removed avatar or emptied email/title is sent as '' — the server's "clear it".
+      await WorkspaceService.updateUserProfile({
+        name: displayName !== originalDisplayName ? displayName : undefined,
+        avatarData: avatarData !== originalAvatarData ? (avatarData ?? '') : undefined,
+        email: detailsChanged('email') ? details.email.trim() : undefined,
+        title: detailsChanged('title') ? details.title.trim() : undefined,
+      });
       // The response handler will emit 'user:profile-updated' which updates state
     } catch (error) {
       debugLog('GeneralSettingsTab', 'Failed to update profile:', error);
@@ -139,6 +161,15 @@ export function GeneralSettingsTab(): JSX.Element {
                 This is how your name appears to other workspace members.
               </p>
             </div>
+            <ProfileDetailsFields
+              idPrefix="settings"
+              values={details}
+              onChange={(field, value) => setDetails((prev) => ({ ...prev, [field]: value }))}
+              disabled={isSaving}
+            />
+            <p className="text-xs text-muted-foreground">
+              Your picture, email and job title are visible to members of this workspace. Clear a field to remove it.
+            </p>
           </div>
         </div>
       </div>
@@ -177,7 +208,7 @@ export function GeneralSettingsTab(): JSX.Element {
       <div className="flex justify-end pt-4 border-t border-border">
         <Button
           onClick={handleSave}
-          disabled={!hasChanges || isSaving}
+          disabled={!canSave || isSaving}
           className="bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-lg shadow-lg shadow-primary-accent/20 gap-2"
         >
           {isSaving ? (

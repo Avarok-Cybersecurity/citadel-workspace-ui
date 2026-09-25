@@ -67,6 +67,8 @@ export function MemberListItems({
               <TooltipContent>
                 <p>{member.displayName || member.username}</p>
                 {member.username && <p className="text-xs text-muted-foreground">@{member.username}</p>}
+                {member.title && <p className="text-xs">{member.title}</p>}
+                {member.email && <p className="text-xs text-muted-foreground">{member.email}</p>}
               </TooltipContent>
             </Tooltip>
             {currentUsername !== member.username && (

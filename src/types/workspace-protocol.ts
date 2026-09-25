@@ -122,8 +122,8 @@ export interface WorkspaceProtocolRequestTS {
 
   // User profile operations
   UpdateUserProfile?: {
-    name?: string;
-    avatar_data?: string; // Base64-encoded WebP image
+    name?: string; avatar_data?: string; // avatar: base64-encoded WebP image
+    email?: string; title?: string; // '' clears either
   };
 
   // Server capabilities query

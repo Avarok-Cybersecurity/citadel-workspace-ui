@@ -24,8 +24,15 @@ describe('mapWasmMember', () => {
     expect(out.role).toBe('admin');
   });
 
-  it('falls back to `name` for both username and displayName when those are missing', () => {
-    const out: MappedMember = mapWasmMember({ id: 'u', name: 'bob' });
+  it('takes the username from `id` and the display name from `name`', () => {
+    // The wire User: `id` is the account username, `name` the registered full name.
+    const out: MappedMember = mapWasmMember({ id: 'bob0924', name: 'Bob Brown' });
+    expect(out.username).toBe('bob0924');
+    expect(out.displayName).toBe('Bob Brown');
+  });
+
+  it('falls back to `name` when there is no id', () => {
+    const out: MappedMember = mapWasmMember({ name: 'bob' });
     expect(out.username).toBe('bob');
     expect(out.displayName).toBe('bob');
   });

@@ -135,7 +135,7 @@ export class WorkspaceService implements ProtocolSender {
   public deleteGroupMessage(gId: string, mId: string): Promise<void> { return messaging.deleteGroupMessage(this, gId, mId); }
   public getGroupMessages(gId: string, before?: number | bigint, limit?: number): Promise<void> { return messaging.getGroupMessages(this, gId, before, limit); }
   public getThreadMessages(gId: string, parentId: string): Promise<void> { return messaging.getThreadMessages(this, gId, parentId); }
-  public updateUserProfile(name?: string, avatarData?: string): Promise<void> { return messaging.updateUserProfile(this, name, avatarData); }
+  public updateUserProfile(update: messaging.ProfileUpdate): Promise<void> { return messaging.updateUserProfile(this, update); }
 
   // Node operations
   public createNode(parentId: string | null, entityType: { Child: string } | 'Workspace', name: string, desc: string, opts?: { mdxContent?: string; metadata?: Uint8Array; isDefault?: boolean }): Promise<void> { return nodes.createNode(this, parentId, entityType, name, desc, opts); }

@@ -9,6 +9,7 @@
 import type { JoinFormData } from './useJoinRegistration';
 import type { ConnectStatus } from './LoadingModalConfigs';
 import type { JoinFieldErrorsResult } from './join-field-errors';
+import type { SignupProfileFields } from '@/lib/signup-profile';
 
 export interface JoinRegistration {
   formData: JoinFormData;
@@ -17,6 +18,8 @@ export interface JoinRegistration {
   showConnectModal: boolean;
   connectStatus: ConnectStatus;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** The optional fields: picture (base64, or null when removed), email, title. */
+  handleOptionalChange: <K extends keyof SignupProfileFields>(field: K, value: SignupProfileFields[K]) => void;
   handleBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
   /** Per-field messages, shown only once a field has been touched or submitted. */
   fieldErrors: JoinFieldErrorsResult['fieldErrors'];

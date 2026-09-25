@@ -9,7 +9,7 @@ import { useEffect } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import type { DomainNode } from '@/components/layout/sidebar/TreeNodesSection';
-import { avatarUrlFromMetadata } from '@/lib/avatar-url';
+import { currentUserProfileFromMetadata, type CurrentUserProfile } from '@/lib/current-user-profile';
 import { debugLog } from '@/lib/debug-config';
 
 interface UseEventEmitterSetupProps {
@@ -23,8 +23,8 @@ export function useEventEmitterSetup({ setState }: UseEventEmitterSetupProps): v
       debugLog('UseEventEmitterSetup', 'WorkspaceEventHandler: Received user profile update', data);
 
       const user: { name?: string; metadata?: { avatar?: { content?: string; String?: string; } | string; }; } = data.user;
-      // One reader of the wire shape, shared with the members path. See avatar-url.ts.
-      const avatarUrl: string | undefined = avatarUrlFromMetadata(user.metadata);
+      // One reader of the wire shape, shared with the members path. See current-user-profile.ts.
+      const profile: CurrentUserProfile = currentUserProfileFromMetadata(user.metadata, undefined);
 
       setState(prev => ({
         ...prev,
@@ -32,7 +32,9 @@ export function useEventEmitterSetup({ setState }: UseEventEmitterSetupProps): v
           ...prev.currentUser,
           displayName: user.name || prev.currentUser.displayName,
           name: user.name || prev.currentUser.name,
-          avatarUrl: avatarUrl || prev.currentUser.avatarUrl
+          avatarUrl: profile.avatarUrl || prev.currentUser.avatarUrl,
+          email: profile.email,
+          title: profile.title,
         } : prev.currentUser
       }));
     };

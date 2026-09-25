@@ -136,17 +136,29 @@ export async function getThreadMessages(
 }
 
 /**
+ * What a profile update may change. An absent field is left as it is; an empty
+ * `email` or `title` clears it.
+ */
+export interface ProfileUpdate {
+  name?: string;
+  avatarData?: string;
+  email?: string;
+  title?: string;
+}
+
+/**
  * Update the current user's profile
  */
 export async function updateUserProfile(
   sender: ProtocolSender,
-  name?: string,
-  avatarData?: string
+  update: ProfileUpdate,
 ): Promise<void> {
   const requestPart: WorkspaceProtocolRequestTS = {
     UpdateUserProfile: {
-      name,
-      avatar_data: avatarData
+      name: update.name,
+      avatar_data: update.avatarData,
+      email: update.email,
+      title: update.title,
     }
   };
   // The settings form disables every input on `isSaving` and cleared it only on

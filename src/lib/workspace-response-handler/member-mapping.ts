@@ -11,12 +11,19 @@
  * 250-line CI cap.
  */
 
+import { profileFieldsFromMetadata } from '@/lib/profile-metadata';
+import { avatarUrlFromMetadata } from '@/lib/avatar-url';
+
 /** Shape emitted on `members:loaded` / `member:loaded`. */
 export interface MappedMember {
   id?: string;
   username: string;
   displayName: string;
   role?: string;
+  /** Visible to other members; see lib/profile-metadata.ts. */
+  avatarUrl?: string;
+  email?: string;
+  title?: string;
   [k: string]: unknown;
 }
 
@@ -45,8 +52,14 @@ export function mapWasmMember(raw: Record<string, unknown>): MappedMember {
   return {
     ...raw,
     id,
-    username: username ?? name ?? id ?? '',
+    // The server keys a User by its account username (`id`); `name` is the
+    // display name, which is the registered full name and not a login handle.
+    // Falling back to `name` first made "Bob Brown" the username once the two
+    // differed, and every self-match and P2P lookup by username then missed.
+    username: username ?? id ?? name ?? '',
     displayName: displayName ?? name ?? username ?? id ?? '',
     role,
+    avatarUrl: avatarUrlFromMetadata(raw.metadata),
+    ...profileFieldsFromMetadata(raw.metadata),
   };
 }

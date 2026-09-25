@@ -9,6 +9,7 @@ import { ConnectLoadingModal } from "./LoadingModal";
 import { useJoinRegistration, type JoinFormData } from "./useJoinRegistration";
 import type { SecuritySettingsValues } from "./SecuritySettings";
 import { JoinFormFields } from "./JoinFormFields";
+import { JoinOptionalProfile } from "./JoinOptionalProfile";
 
 interface JoinProps {
   onNext: (cid: string) => void;
@@ -29,6 +30,7 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
     showConnectModal,
     connectStatus,
     handleInputChange,
+    handleOptionalChange,
     handleBlur,
     fieldErrors,
     handleSubmit,
@@ -88,6 +90,11 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
                 onChange={handleInputChange}
                 onBlur={handleBlur}
                 fieldErrors={fieldErrors}
+              />
+              <JoinOptionalProfile
+                values={formData}
+                onChange={handleOptionalChange}
+                disabled={isRegistering}
               />
             </CardContent>
 

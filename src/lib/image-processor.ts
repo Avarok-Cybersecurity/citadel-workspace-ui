@@ -111,6 +111,8 @@ export async function processAvatarImage(
  * @returns Data URL suitable for img src
  */
 export function avatarToDataUrl(base64: string): string {
+  // A stored avatar can already be a data URL (avatar-url.ts); prefixing it again breaks the image.
+  if (base64.startsWith('data:')) return base64;
   // Detect format from base64 header if possible, default to webp
   if (base64.startsWith('iVBOR')) {
     return `data:image/png;base64,${base64}`;
