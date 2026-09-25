@@ -23,5 +23,25 @@ export function sessionIsOnServer(session: SessionServer, address: string): bool
 }
 
 function sameAddress(a: string, b: string): boolean {
-  return normalizeWorkspaceAddress(a).toLowerCase() === normalizeWorkspaceAddress(b).toLowerCase();
+  return canonical(a) === canonical(b);
+}
+
+/**
+ * A dialled `ws(s)://` URL reduced to the host it names, so it compares equal to the typed
+ * host. Without this, a session reported with no `server_host` (one the agent re-created)
+ * matched nothing: measured live as "Session CID not available" for a held account.
+ * The scheme's own port is dropped; any other port stays significant.
+ */
+function canonical(address: string): string {
+  const trimmed: string = address.trim();
+  let host: string = trimmed;
+  if (/^wss?:\/\//i.test(trimmed)) {
+    try {
+      const url: URL = new URL(trimmed);
+      host = url.port ? `${url.hostname}:${url.port}` : url.hostname;
+    } catch {
+      host = trimmed;
+    }
+  }
+  return normalizeWorkspaceAddress(host).toLowerCase();
 }

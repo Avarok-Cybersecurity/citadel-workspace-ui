@@ -30,4 +30,18 @@ describe('sessionIsOnServer', () => {
     expect(sessionIsOnServer({ server_address: 'citadel.example.com:12400' }, 'citadel.example.com')).toBe(true);
     expect(sessionIsOnServer({ server_address: 'citadel.example.com:12400', server_host: null }, 'other.example.com')).toBe(false);
   });
+
+  it('matches a hosted session whose agent sent no server_host, by the host it dialled', () => {
+    // Measured live: a session the agent re-created carried only the dialled URL, and the
+    // switcher reported "Session CID not available" for an account the agent was holding.
+    const dialledOnly: SessionServer = { server_address: 'wss://bench.work.avarok.net/', server_host: null };
+    expect(sessionIsOnServer(dialledOnly, 'bench.work.avarok.net')).toBe(true);
+    expect(sessionIsOnServer(dialledOnly, 'acme.work.avarok.net')).toBe(false);
+  });
+
+  it('keeps a non-default port in a dialled URL significant', () => {
+    const dialled: SessionServer = { server_address: 'wss://citadel.example.com:8443/', server_host: null };
+    expect(sessionIsOnServer(dialled, 'citadel.example.com:8443')).toBe(true);
+    expect(sessionIsOnServer(dialled, 'citadel.example.com:9443')).toBe(false);
+  });
 });
