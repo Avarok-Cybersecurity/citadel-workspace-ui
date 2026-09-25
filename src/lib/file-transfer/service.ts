@@ -97,11 +97,7 @@ export class FileTransferService {
     return sendFile(this.deps, recipientCid, file, mode);
   }
 
-  async sendFileWithNativePicker(
-    recipientCid: string,
-    title?: string,
-    allowedExtensions?: string[]
-  ): Promise<string> {
+  async sendFileWithNativePicker(recipientCid: string, title?: string, allowedExtensions?: string[]): Promise<string> {
     return sendFileWithNativePicker(this.deps, recipientCid, title, allowedExtensions);
   }
 

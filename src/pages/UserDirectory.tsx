@@ -138,9 +138,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
       // simulation — nothing touched the socket, and the user was told "Request
       // Sent" for a request that did not exist.
       const ownCid: bigint | undefined = connectionManager.getConnectionInfo()?.cid;
-      if (ownCid === undefined || ownCid === null) {
-        throw new Error('Not connected to a workspace.');
-      }
+      if (ownCid === undefined) throw new Error('Not connected to a workspace.');
 
       const peer: Peer = reachablePeer(discoveredPeers, selectedUser);
 
