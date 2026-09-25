@@ -14,6 +14,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import { discoverPeersViaGetSessions, fetchRegisteredPeers, fetchAllPeers } from './peer-discovery-requests';
+import { connectionRequestSentCopy } from './connection-request-copy';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 import type { StoredSession } from '@/types/session-types';
 
@@ -158,9 +159,7 @@ export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; regis
     try {
       const processedPeers: Peer[] = await fetchAllPeers(currentCid);
       setPeers(processedPeers);
-      loadRegisteredPeers().catch(err => {
-        debugLog('PeerDiscoveryModal', 'Could not load registered peers:', err);
-      });
+      loadRegisteredPeers().catch(err => { debugLog('PeerDiscoveryModal', 'Could not load registered peers:', err); });
 
       if (processedPeers.length === 0) {
         debugLog('PeerDiscoveryModal', 'ListAllPeers returned empty, trying GetSessions fallback...');
@@ -233,7 +232,7 @@ export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; regis
       await sendPeerRegistration(currentCid, BigInt(peerCid), peerUsername, requestId);
       toast({
         title: "Request Sent",
-        description: `Connection request sent to ${peerUsername}. They will receive it when online.`,
+        description: connectionRequestSentCopy(peerUsername, peers?.find((p: Peer): boolean => p.cid === peerCid)?.is_online ?? null),
         variant: 'success',
       });
     } catch (error) {

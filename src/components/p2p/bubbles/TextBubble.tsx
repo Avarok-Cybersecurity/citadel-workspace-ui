@@ -7,7 +7,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { getBubbleStyles, BUBBLE_MAX_WIDTH , type BaseBubbleProps } from './types';
+import { getBubbleStyles, BUBBLE_MAX_WIDTH , type ReplyableBubbleProps } from './types';
+import { ReplyQuote } from '@/components/chat/shared/ReplyQuote';
 import { BubbleFooter } from './BubbleFooter';
 import { getInitials } from '@/components/chat/shared';
 
@@ -21,7 +22,8 @@ export function TextBubble({
   onEdit,
   onDelete,
   onReply,
-}: BaseBubbleProps): JSX.Element {
+  quoted,
+}: ReplyableBubbleProps): JSX.Element {
   const isFailed: boolean = message.status === 'failed';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
   const displayName: string = senderName || 'Unknown';
@@ -56,6 +58,7 @@ export function TextBubble({
         )}
 
         <div className={`min-w-0 rounded-lg px-3 py-2 ${bubbleStyles}`}>
+          {message.replyTo && <ReplyQuote quoted={quoted} isOwn={isOwn} />}
           {/* break-words, like the group bubble beside it. `pre-wrap` only
               wraps at EXISTING opportunities, and a pasted URL or path has
               none — so it painted outside the bubble and was cut at the panel

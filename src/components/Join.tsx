@@ -3,7 +3,7 @@ import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { StepIndicator } from "@/components/ui/step-indicator";
+import { RegistrationStepIndicator } from "./RegistrationStepIndicator";
 import { WorkspaceNotInitializedModal } from "./WorkspaceNotInitializedModal";
 import { ConnectLoadingModal } from "./LoadingModal";
 import { useJoinRegistration, type JoinFormData } from "./useJoinRegistration";
@@ -76,7 +76,7 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
         <Card className="bg-background border-border shadow-2xl shadow-black/40">
           <CardHeader className="pb-4">
             <CitadelLogo variant="mark" height={34} className="mb-4" />
-            <StepIndicator currentStep={3} totalSteps={3} labels={["Server", "Security", "Profile"]} />
+            <RegistrationStepIndicator currentStep={3} />
             <h2 className="text-xl font-bold text-foreground mt-5">Create Your Profile</h2>
             <p className="text-sm text-muted-foreground mt-1">
               {defaultWorkspace ? `Join ${defaultWorkspace} with a new account` : "Set up your identity for this workspace"}

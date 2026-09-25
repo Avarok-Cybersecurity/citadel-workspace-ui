@@ -3,11 +3,15 @@ import { MarkdownBubble } from './MarkdownBubble';
 import { LiveDocumentBubble } from './LiveDocumentBubble';
 import { FileTransferBubble } from './FileTransferBubble';
 import { getBubbleContainerStyles } from './types';
+import { MESSAGE_ANCHOR_ATTRIBUTE, JUMP_TARGET_CLASSES } from '@/components/chat/shared/jump-to-message';
+import type { QuotedMessage } from '@/components/chat/shared/reply-quote';
 import type { P2PMessage } from '@/lib/p2p';
 
 interface MessageBubbleProps {
   message: P2PMessage;
   isOwn: boolean;
+  /** What a reply quotes; `null` when this is not a reply or the original is not loaded. */
+  quoted: QuotedMessage | null;
   onRetry?: () => void;
   onOpenDocument?: (documentId: string, documentTitle: string) => void;
   onAcceptTransfer?: (transferId: string) => void;
@@ -29,6 +33,7 @@ interface MessageBubbleProps {
 export function MessageBubble({
   message,
   isOwn,
+  quoted,
   onRetry,
   onOpenDocument,
   onAcceptTransfer,
@@ -60,7 +65,7 @@ export function MessageBubble({
   const renderBubble: () => JSX.Element = (): JSX.Element => {
     switch (message.message_type) {
       case 'markdown':
-        return <MarkdownBubble {...commonProps} />;
+        return <MarkdownBubble {...commonProps} quoted={quoted} />;
 
       case 'live_document':
         return (
@@ -83,12 +88,12 @@ export function MessageBubble({
 
       case 'text':
       default:
-        return <TextBubble {...commonProps} />;
+        return <TextBubble {...commonProps} quoted={quoted} />;
     }
   };
 
   return (
-    <div className={containerStyles}>
+    <div className={`${containerStyles} ${JUMP_TARGET_CLASSES}`} {...{ [MESSAGE_ANCHOR_ATTRIBUTE]: message.id }}>
       {renderBubble()}
     </div>
   );

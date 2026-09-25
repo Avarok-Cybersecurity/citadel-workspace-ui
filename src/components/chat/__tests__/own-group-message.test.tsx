@@ -33,7 +33,7 @@ function message(senderId: string): never {
 }
 
 /** The handlers the item needs; none is exercised by these assertions. */
-const props: { onEdit: () => void; onDelete: () => void; onReply: () => void; onOpenThread: () => void; totalMembers: number; canRevise: boolean; } = {
+const props: { onEdit: () => void; onDelete: () => void; onReply: () => void; onOpenThread: () => void; totalMembers: number; canRevise: boolean; quoted: null; } = {
   onEdit: (): void => {},
   onDelete: (): void => {},
   onReply: (): void => {},
@@ -42,6 +42,8 @@ const props: { onEdit: () => void; onDelete: () => void; onReply: () => void; on
   // A node-backed chat channel, which is what these fixtures model. A peer
   // group cannot revise -- see a-peer-group-offers-only-what-works.
   canRevise: true,
+  // None of these fixtures is a reply.
+  quoted: null,
 };
 
 describe('a group message', () => {

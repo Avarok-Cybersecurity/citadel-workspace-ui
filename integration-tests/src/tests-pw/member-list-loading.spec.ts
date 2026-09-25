@@ -152,7 +152,10 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
             url: window.location.href,
             emptyDomain: document.querySelector(`[data-testid="${testid}"]`)
                 ?.getAttribute('data-domain-id') ?? '(absent)',
-            urlNodeId: new URL(window.location.href).searchParams.get('nodeId') ?? '(none)',
+            // No nodeId is the workspace view, whose list the sidebar loads for
+            // the root (MembersSection); '(none)' would read a root empty state
+            // as a STALE FRAME.
+            urlNodeId: new URL(window.location.href).searchParams.get('nodeId') ?? 'workspace-root',
         };
     }, { name: admin.username, testid: EMPTY_STATE_TESTID });
 
