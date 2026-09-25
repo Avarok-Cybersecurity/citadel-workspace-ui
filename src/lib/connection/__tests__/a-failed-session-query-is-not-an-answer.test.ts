@@ -113,7 +113,10 @@ describe('choosing a session to claim', () => {
     const choice: SessionChoice = pickSessionToClaim(live, 99n);
 
     expect(choice.staleSelection).toBe(true);
-    expect(choice.session).toEqual({ cid: 1n });
+    // Never someone else's session in its place. Measured live: bob's tab, whose
+    // session the agent had dropped, offered "alice0924 is open in another browser
+    // window — Use it here instead?" because this fell back to the first live one.
+    expect(choice.session).toBeUndefined();
   });
 
   it('never calls a selection stale when there is nothing to compare against', () => {
