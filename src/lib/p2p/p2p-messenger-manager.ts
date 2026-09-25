@@ -14,11 +14,11 @@ import type { MessagingLayer } from '@/types/messaging-layer';
 import { notifyEach } from '@/lib/notify-listeners';
 import { markP2PMessageHandlerAttached } from './p2p-handler-ready';
 import { editMessage, deleteMessage } from './messenger-revision';
+import { reactToMessage } from './messenger-reaction';
 import { websocketService } from '../websocket-service';
 import { notificationService, type Notification as AppNotification } from '../notification-service';
 import { EventListenerManager } from '../utils/event-listener-manager';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
-
 import type { P2PMessage, P2PConversation, PeerPresence } from './p2p-types';
 import { messagePaginationStore } from './message-pagination-store';
 import { eventEmitter } from '@/lib/event-emitter';
@@ -161,6 +161,7 @@ export class P2PMessengerManager extends EventListenerManager {
   public async sendRawMessage(recipientCid: bigint, layer: MessagingLayer): Promise<void> { return this.messageSender.sendRawMessage(recipientCid, layer); }
   public async editMessage(peerCid: bigint, messageId: string, contents: string): Promise<void> { return editMessage(this.conversationManager, (e, d) => this.emit(e, d), (p, l) => this.sendRawMessage(p, l), peerCid, messageId, contents); }
   public async deleteMessage(peerCid: bigint, messageId: string): Promise<void> { return deleteMessage(this.conversationManager, (e, d) => this.emit(e, d), (p, l) => this.sendRawMessage(p, l), peerCid, messageId); }
+  public async reactToMessage(peerCid: bigint, messageId: string, emoji: string): Promise<void> { return reactToMessage(this.conversationManager, (e, d) => this.emit(e, d), (p, l) => this.sendRawMessage(p, l), peerCid, messageId, emoji); }
   public async markMessagesAsRead(peerCid: bigint, messageIds?: string[]): Promise<void> { return markMessagesAsRead(this.conversationManager, (msgId, ackType, peer) => this.messageSender.sendMessageAck(msgId, ackType, peer), (e, d) => this.emit(e, d), peerCid, messageIds); }
 
   // ===== Public API: Presence =====
