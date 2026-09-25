@@ -27,6 +27,7 @@ import { bindGroupRemovalNotice } from './group-removal-notice';
 import { bindGroupListReconcile } from './reconcile-groups';
 import { bindEndedGroups } from './ended-groups';
 import { bindPeerGroupDelivery } from './bind-peer-group-delivery';
+import { bindGroupTranscript } from './bind-group-transcript';
 import type { GroupConversation } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { applyGroupInvite } from '@/hooks/use-group-state-invite';
@@ -234,6 +235,8 @@ export function startGroupEventBindings(): void {
   // what puts it in the conversation you are looking at. See the module header
   // for why it is bound here rather than for every group.
   bindPeerGroupDelivery();
+  // And what keeps it there across a reload; see bind-group-transcript.
+  bindGroupTranscript();
 
   debugLog('GroupStore', 'Group event bindings started');
 }

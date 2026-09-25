@@ -18,12 +18,12 @@ describe('what a group can do to a message', () => {
   it('lets a peer group reply, and not revise', () => {
     // No GroupEdit or GroupDelete exists on the peer wire. Offering them shows
     // a control whose only outcome is "Permission denied".
-    expect(groupMessageActions('7:42')).toEqual({ canReply: true, canRevise: false });
+    expect(groupMessageActions('7:42')).toEqual({ canReply: true, canRevise: false, canPageOlder: false });
   });
 
   it('lets a node-backed channel do both', () => {
     expect(groupMessageActions('9f3c1e2a-0000-4000-8000-000000000001')).toEqual({
-      canReply: true, canRevise: true,
+      canReply: true, canRevise: true, canPageOlder: true,
     });
   });
 });

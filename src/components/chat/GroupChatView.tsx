@@ -81,7 +81,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
           ) : (
             <>
             {/* Load more button */}
-            {chat.hasMore && (
+            {chat.hasMore && actions.canPageOlder && (
               <div className="flex justify-center mb-4">
                 <Button
                   variant="ghost"

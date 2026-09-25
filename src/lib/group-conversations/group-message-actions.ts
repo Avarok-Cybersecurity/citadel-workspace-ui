@@ -20,9 +20,11 @@ import { groupSendTransport } from './group-send-transport';
 export interface GroupMessageActions {
   canReply: boolean;
   canRevise: boolean;
+  /** Older pages come from the workspace server, which holds none for a peer group. */
+  canPageOlder: boolean;
 }
 
 export function groupMessageActions(groupId: string): GroupMessageActions {
   const peer: boolean = groupSendTransport(groupId) === 'peer';
-  return { canReply: true, canRevise: !peer };
+  return { canReply: true, canRevise: !peer, canPageOlder: !peer };
 }
