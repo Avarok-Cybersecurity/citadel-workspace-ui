@@ -10,12 +10,10 @@
  */
 
 import { createMessageEdit, createMessageDelete , type MessagingLayer } from '@/types/messaging-layer';
-import { applyEdit, applyDelete } from './message-revision';
-import { messagePaginationStore } from './message-pagination-store';
+import { recordRevision, type RecordedRevision } from './record-revision';
 import { resolveCurrentCid } from './messenger-cid-resolver';
 import type { ConversationManager } from './conversation-manager';
 import type { P2PConversation } from '@/lib/p2p/p2p-types';
-import type { RevisionOutcome } from '@/lib/p2p/message-revision';
 
 type EmitFn = (event: string, data?: unknown) => void;
 type SendRawFn = (recipientCid: bigint, layer: MessagingLayer) => Promise<void>;
@@ -38,23 +36,19 @@ export async function editMessage(
   const ownCid: bigint | null = await resolveCurrentCid();
   if (!ownCid) throw new Error('Not connected to server');
 
+  // Optional: after a reload the conversation exists with an empty window, and
+  // the message being edited is found on its page (record-revision).
   const conversation: P2PConversation | undefined = conversationManager.getConversation(peerCid);
-  if (!conversation) throw new Error(`Conversation with ${peerCid} not found`);
 
   const editedAt: number = Date.now();
-  const outcome: RevisionOutcome = applyEdit(conversation, messageId, contents, editedAt, ownCid);
+  const outcome: RecordedRevision = await recordRevision(conversation, peerCid, messageId, ownCid, { kind: 'edit', contents, editedAt });
   if (!outcome.applied) {
     // 'not-sender' here means the UI offered edit on someone else's message.
     throw new Error(`Cannot edit message ${messageId}: ${outcome.reason}`);
   }
-
-  // Same reasoning as the delete below: read the boolean, and fail before the
-  // edit is announced or sent, so a storage failure cannot leave the peer with
-  // a revision the local transcript does not have.
-  const updated: boolean = await messagePaginationStore.updateMessageInPages(
-    peerCid, messageId, { content: contents, edited_at: editedAt },
-  );
-  if (!updated) {
+  // Fail before the edit is announced or sent, so a storage failure cannot
+  // leave the peer with a revision the local transcript does not have.
+  if (!outcome.persisted) {
     throw new Error(
       `Cannot edit message ${messageId}: it could not be written to the stored transcript, ` +
       'so the edit would be lost on reload. Nothing was sent to the peer.',
@@ -80,26 +74,16 @@ export async function deleteMessage(
   if (!ownCid) throw new Error('Not connected to server');
 
   const conversation: P2PConversation | undefined = conversationManager.getConversation(peerCid);
-  if (!conversation) throw new Error(`Conversation with ${peerCid} not found`);
 
   const deletedAt: number = Date.now();
-  const outcome: RevisionOutcome = applyDelete(conversation, messageId, ownCid);
+  const outcome: RecordedRevision = await recordRevision(conversation, peerCid, messageId, ownCid, { kind: 'delete' });
   if (!outcome.applied) {
     throw new Error(`Cannot delete message ${messageId}: ${outcome.reason}`);
   }
-
-  // Persisted, not just emitted. The page a reload reads is the transcript;
-  // without this the retraction lasted only while the component stayed mounted.
-  //
-  // And the boolean is READ. It was discarded, so a LocalDB timeout removed the
-  // message from both screens and from the peer's store while leaving it in the
-  // local page -- it came back on reload, permanently out of step with the peer,
-  // and nothing was said. Throwing here is what the rest of this function
-  // already does for a refusal, and it happens BEFORE the retraction is sent,
-  // so a failure leaves both sides holding the same message rather than
-  // different ones.
-  const removed: boolean = await messagePaginationStore.removeMessageFromPages(peerCid, messageId);
-  if (!removed) {
+  // Persisted, not just emitted: the page a reload reads is the transcript. A
+  // retraction the store did not take would return on reload, out of step with
+  // the peer, so it throws BEFORE the retraction is sent.
+  if (!outcome.persisted) {
     throw new Error(
       `Cannot delete message ${messageId}: it could not be removed from the stored transcript, ` +
       'so it would return on reload. Nothing was sent to the peer.',
