@@ -28,7 +28,6 @@ import { postAuthSetup } from '@/lib/post-auth-setup';
 import { getCurrentCid } from '@/lib/p2p/current-cid';
 import { debugLog } from '@/lib/debug-config';
 import { makeSessionAlreadyConnectedHandler } from './session-already-connected';
-import { useSessionLostWithAgent } from './use-session-lost-with-agent';
 import type { StoredSession } from '@/types/session-types';
 import {
   NOT_FAILING, onFailure, onDismiss, onRequested, onSuccess, isRetryDialogOpen,
@@ -49,7 +48,6 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
     orphanSessionCid: null,
   });
   const { toast } = useToast();
-  useSessionLostWithAgent(toast);
 
   useEffect(() => {
     const initializeServices = async (): Promise<void> => {

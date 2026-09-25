@@ -20,7 +20,6 @@ import {
 } from '../websocket';
 import { lazyTurnSource } from '../ice-servers/lazy-turn-source';
 import { TIMEOUT } from '../timeout-constants';
-import { ReconnectBackoff, AGENT_RECONNECT_BACKOFF, systemClock } from '../websocket/reconnect-backoff';
 
 export interface ServiceModules {
   localDB: LocalDBOperations;
@@ -101,7 +100,6 @@ export function createServiceModules(
     onClientCreated: callbacks.onClientCreated,
     onClientReset: callbacks.onClientReset,
     releaseSession: callbacks.releaseSession,
-    reconnectBackoff: new ReconnectBackoff(AGENT_RECONNECT_BACKOFF, systemClock),
   });
 
   return {
