@@ -22,24 +22,32 @@ describe('a group that is not in the list', () => {
   it('is reported as ended when this session watched it end', () => {
     eventEmitter.emit('group:deleted', { groupId: '1:7' });
     expect(wasEnded('1:7')).toBe(true);
-    expect(groupGoneMessage('1:7').title).toBe('Group ended');
+    expect(groupGoneMessage('1:7')?.title).toBe('Group ended');
   });
 
   it('is reported as not found when this session never saw it', () => {
     // The positive control for the test above: same call, opposite outcome, so
     // "ended" is a decision rather than the only branch anyone reaches.
-    expect(groupGoneMessage('1:9').title).toBe('Group not found');
+    expect(groupGoneMessage('1:9')?.title).toBe('Group not found');
   });
 
   it('does not confuse one group with another', () => {
     eventEmitter.emit('group:deleted', { groupId: '1:7' });
-    expect(groupGoneMessage('1:9').title).toBe('Group not found');
+    expect(groupGoneMessage('1:9')?.title).toBe('Group not found');
   });
 
   it('says removal is possible, because the wire cannot tell them apart', () => {
     // Deletion and being kicked both arrive as GroupDisconnectNotification and
     // the mapping collapses them. Claiming "deleted" outright would be a guess.
     eventEmitter.emit('group:deleted', { groupId: '1:7' });
-    expect(groupGoneMessage('1:7').description).toMatch(/removed from it/);
+    expect(groupGoneMessage('1:7')?.description).toMatch(/removed from it/);
+  });
+
+  it('stays quiet when the member was removed by someone else, which the removal notice already said', () => {
+    // Measured live: a kicked member with the group open got "Group ended" AND
+    // "You're no longer in Kick Probe 4" for one kick.
+    eventEmitter.emit('group:deleted', { groupId: '1:8', byOthers: true });
+    expect(groupGoneMessage('1:8')).toBeNull();
   });
 });
+

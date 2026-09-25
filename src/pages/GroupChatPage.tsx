@@ -32,7 +32,7 @@ import { useGroupConversations } from '@/hooks/use-group-conversations';
 import type { GroupConversation } from '@/types/group';
 import { connectionManager } from '@/lib/connection';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { groupGoneMessage } from '@/lib/group-conversations/group-gone-message';
+import { groupGoneMessage, type GoneMessage } from '@/lib/group-conversations/group-gone-message';
 import type { NavigateFunction } from 'react-router';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
@@ -89,7 +89,8 @@ export function GroupChatPage(): JSX.Element {
 
     const loadedGroup: GroupConversation | undefined = getGroup(groupId);
     if (!loadedGroup) {
-      toast({ ...groupGoneMessage(groupId), variant: 'destructive' });
+      const gone: GoneMessage | null = groupGoneMessage(groupId);
+      if (gone) toast({ ...gone, variant: 'destructive' });
       navigate('/workspace');
       return;
     }
