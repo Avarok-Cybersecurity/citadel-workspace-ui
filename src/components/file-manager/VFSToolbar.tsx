@@ -16,6 +16,8 @@ interface VFSToolbarProps {
   onNavigate: (path: string) => void;
   onNewFolder: () => void;
   onUploadFile: () => void;
+  /** Why the open folder cannot take an upload; null when it can. */
+  uploadDisabledReason: string | null;
   onSync: () => void;
   filterText?: string;
   onFilterChange?: (text: string) => void;
@@ -37,6 +39,7 @@ export function VFSToolbar({
   onNavigate,
   onNewFolder,
   onUploadFile,
+  uploadDisabledReason,
   onSync,
   filterText = '',
   onFilterChange,
@@ -156,9 +159,13 @@ export function VFSToolbar({
         <Button variant="ghost" size="sm" aria-label="New folder" onClick={onNewFolder} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
           <FolderPlus className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" aria-label="Upload file" onClick={onUploadFile} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
-          <Upload className="h-4 w-4" />
-        </Button>
+        {/* The span carries the reason: a disabled button gets no pointer
+            events, so its own title would never show. */}
+        <span title={uploadDisabledReason ?? 'Upload into this folder'}>
+          <Button variant="ghost" size="sm" aria-label="Upload file" onClick={onUploadFile} disabled={uploadDisabledReason !== null} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
+            <Upload className="h-4 w-4" />
+          </Button>
+        </span>
         <Button variant="ghost" size="sm" aria-label="Sync with peer" onClick={onSync} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
           <RefreshCw className="h-4 w-4" />
         </Button>

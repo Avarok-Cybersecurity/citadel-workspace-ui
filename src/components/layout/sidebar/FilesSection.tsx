@@ -2,9 +2,8 @@ import { FileSpreadsheet, FileText, FileType, FileCode, Folder, FileX } from "lu
 import { mayLeaveEditor } from '@/lib/leave-editor';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { formatBytes } from '@/lib/format-bytes';
-import { peerDisplayName } from '@/lib/peer-display';
 import { useRegisteredPeers } from '@/hooks';
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   SidebarGroup,
@@ -19,55 +18,11 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 import { fileTransferService, FILE_TRANSFER_EVENTS, type FileTransfer } from "@/lib/file-transfer";
 import { useEventListeners } from "@/hooks";
-import { formatDateTime } from '@/lib/format-time';
+import { transferDetails, revfsDownloadDetails, newestFirst, type FileDetails } from './file-details';
+import { revfsDownloadHistory, REVFS_DOWNLOAD_EVENTS, type RevfsDownloadRecord } from '@/lib/revfs/download-history';
+import { getCurrentCid } from '@/lib/p2p/current-cid';
+import { debugLog } from '@/lib/debug-config';
 import type { NavigateFunction } from 'react-router';
-
-/**
- * File display type for sidebar rendering
- */
-interface FileDisplay {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  sender: {
-    name: string;
-    avatar: string;
-  };
-  createdAt: string;
-  /** Where the agent saved it, on the agent's filesystem. Not a URL. */
-  savedTo: string;
-}
-
-/**
- * Format bytes to human readable size
- */
-
-
-/**
- * Convert FileTransfer to FileDisplay for sidebar
- */
-function mapTransferToDisplay(
-  transfer: FileTransfer,
-  usernameForCid: (cid: string) => string | undefined,
-): FileDisplay {
-  return {
-    id: transfer.id,
-    name: transfer.fileName,
-    type: transfer.fileType || 'Unknown',
-    size: transfer.fileSize,
-    sender: {
-      // A raw decimal CID, truncated, was shown as the sender's identity -- in
-      // the one dialog whose job is to say who sent the file. peerDisplayName
-      // is what every other surface uses; it falls back to a short handle
-      // rather than thirteen digits.
-      name: peerDisplayName({ cid: transfer.senderCid, username: usernameForCid(transfer.senderCid) }),
-      avatar: '',
-    },
-    createdAt: formatDateTime(transfer.updatedAt),
-    savedTo: transfer.downloadPath ?? '',
-  };
-}
 
 const getFileIcon: (fileName: string) => JSX.Element = (fileName: string): JSX.Element => {
   const extension: string | undefined = fileName.split('.').pop()?.toLowerCase();
@@ -91,8 +46,8 @@ const getFileIcon: (fileName: string) => JSX.Element = (fileName: string): JSX.E
 };
 
 export const FilesSection: () => JSX.Element = (): JSX.Element => {
-  const [files, setFiles] = useState<FileDisplay[]>([]);
-  const [selectedFile, setSelectedFile] = useState<FileDisplay | null>(null);
+  const [files, setFiles] = useState<FileDetails[]>([]);
+  const [selectedFile, setSelectedFile] = useState<FileDetails | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const { registeredPeers } = useRegisteredPeers();
   const confirm: ReturnType<typeof useConfirm> = useConfirm();
@@ -100,35 +55,53 @@ export const FilesSection: () => JSX.Element = (): JSX.Element => {
   const location: ReturnType<typeof useLocation> = useLocation();
 
   /**
-   * Load completed incoming transfers from FileTransferService
+   * What reached this agent: completed incoming transfers, and files this
+   * account pulled back out of RE-VFS storage. The second source was missing,
+   * so a pull that landed on disk left this list saying "No downloaded files
+   * yet".
+   *
+   * `latest` drops an answer overtaken by a newer load, so a slow history read
+   * cannot write a stale list over a fresh one.
    */
-  const loadFiles: () => void = useCallback((): void => {
-    const downloads: FileTransfer[] = fileTransferService.getAllTransfers()
-      .filter(t => t.state === 'complete' && t.isIncoming)
-      .sort((a, b) => b.updatedAt - a.updatedAt); // Most recent first
-
+  const latest: React.MutableRefObject<number> = useRef<number>(0);
+  const loadFiles: () => Promise<void> = useCallback(async (): Promise<void> => {
+    const ticket: number = ++latest.current;
     const usernameForCid = (cid: string): string | undefined =>
       registeredPeers.find(peer => peer.cid.toString() === cid)?.username;
+    const transfers: FileTransfer[] = fileTransferService.getAllTransfers()
+      .filter(t => t.state === 'complete' && t.isIncoming);
 
-    setFiles(downloads.map(transfer => mapTransferToDisplay(transfer, usernameForCid)));
+    let pulls: RevfsDownloadRecord[] = [];
+    try {
+      const owner: bigint | null = await getCurrentCid();
+      if (owner !== null) pulls = await revfsDownloadHistory.list(owner);
+    } catch (error: unknown) {
+      // The transfers are still worth showing when the history cannot be read.
+      debugLog('FilesSection', 'RE-VFS download history unreadable:', error);
+    }
+    if (ticket !== latest.current) return;
+    setFiles(newestFirst([
+      ...transfers.map(t => transferDetails(t, usernameForCid)),
+      ...pulls.map(revfsDownloadDetails),
+    ]));
   }, [registeredPeers]);
 
   // Initial load
   useEffect(() => {
-    loadFiles();
+    void loadFiles();
   }, [loadFiles]);
 
   // Subscribe to file transfer completion and state change events
   useEventListeners(
-    [FILE_TRANSFER_EVENTS.COMPLETED, FILE_TRANSFER_EVENTS.STATE_CHANGED],
-    loadFiles
+    [FILE_TRANSFER_EVENTS.COMPLETED, FILE_TRANSFER_EVENTS.STATE_CHANGED, REVFS_DOWNLOAD_EVENTS.RECORDED],
+    (): void => { void loadFiles(); }
   );
 
   // Also refresh on window focus in case events were missed while tab was inactive
   useEffect(() => {
     const handleVisibilityChange = (): void => {
       if (document.visibilityState === 'visible') {
-        loadFiles();
+        void loadFiles();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -137,7 +110,7 @@ export const FilesSection: () => JSX.Element = (): JSX.Element => {
     };
   }, [loadFiles]);
 
-  const handleFileClick = (file: FileDisplay): void => {
+  const handleFileClick = (file: FileDetails): void => {
     setSelectedFile(file);
     setIsPreviewOpen(true);
   };

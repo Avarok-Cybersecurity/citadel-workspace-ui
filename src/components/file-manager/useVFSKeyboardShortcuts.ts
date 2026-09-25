@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from "react";
 import { PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
 import { findNodeByPath } from "./vfs-content-helpers";
+import { VFS_SHORTCUTS, matchesShortcut, isForeignKeyTarget, type VfsShortcut } from "./vfs-shortcuts";
 
 interface KeyboardShortcutsDeps {
   tree: RevfsNode;
@@ -33,53 +34,41 @@ export function useVFSKeyboardShortcuts({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
-      if (renamingPath || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (renamingPath || isForeignKeyTarget(e.target)) return;
 
-      const isMod: boolean = e.ctrlKey || e.metaKey;
       const selected: RevfsNode[] = getSelectedNodes();
+      const modifiable: RevfsNode[] = selected.filter(n => !PROTECTED_DIRS.has(n.path) && n.path !== '/');
+      const on = (s: VfsShortcut): boolean => matchesShortcut(e, s);
 
-      switch (e.key) {
-        case 'F2':
-          if (selected.length === 1 && !PROTECTED_DIRS.has(selected[0].path) && selected[0].path !== '/') {
-            e.preventDefault();
-            setRenamingPath(selected[0].path);
-          }
-          break;
-        case 'Delete':
-        case 'Backspace': {
-          if (selected.length > 0) {
-            e.preventDefault();
-            const deletable: RevfsNode[] = selected.filter(n => !PROTECTED_DIRS.has(n.path) && n.path !== '/');
-            if (deletable.length > 1 && onDeleteMultiple) onDeleteMultiple(deletable);
-            else if (deletable.length === 1) onDelete(deletable[0]);
-          }
-          break;
+      if (on(VFS_SHORTCUTS.rename)) {
+        if (selected.length === 1 && modifiable.length === 1) {
+          e.preventDefault();
+          setRenamingPath(modifiable[0].path);
         }
-        case 'c':
-          if (isMod && selected.length > 0) {
-            e.preventDefault();
-            const copyable: RevfsNode[] = selected.filter(n => !PROTECTED_DIRS.has(n.path) && n.path !== '/');
-            if (copyable.length > 1 && onCopyMultiple) onCopyMultiple(copyable);
-            else if (copyable.length === 1) onCopy(copyable[0]);
-          }
-          break;
-        case 'x':
-          if (isMod && selected.length > 0) {
-            e.preventDefault();
-            const cutable: RevfsNode[] = selected.filter(n => !PROTECTED_DIRS.has(n.path) && n.path !== '/');
-            if (cutable.length > 1 && onCutMultiple) onCutMultiple(cutable);
-            else if (cutable.length === 1) onCut(cutable[0]);
-          }
-          break;
-        case 'v':
-          if (isMod && hasPasteItems) { e.preventDefault(); void onPaste(currentPath); }
-          break;
-        case 'a':
-          if (isMod) { e.preventDefault(); onSelectAll?.(); }
-          break;
-        case 'Escape':
-          e.preventDefault(); onClearSelection?.();
-          break;
+      } else if (on(VFS_SHORTCUTS.remove)) {
+        if (selected.length > 0) {
+          e.preventDefault();
+          if (modifiable.length > 1 && onDeleteMultiple) onDeleteMultiple(modifiable);
+          else if (modifiable.length === 1) onDelete(modifiable[0]);
+        }
+      } else if (on(VFS_SHORTCUTS.copy)) {
+        if (selected.length > 0) {
+          e.preventDefault();
+          if (modifiable.length > 1 && onCopyMultiple) onCopyMultiple(modifiable);
+          else if (modifiable.length === 1) onCopy(modifiable[0]);
+        }
+      } else if (on(VFS_SHORTCUTS.cut)) {
+        if (selected.length > 0) {
+          e.preventDefault();
+          if (modifiable.length > 1 && onCutMultiple) onCutMultiple(modifiable);
+          else if (modifiable.length === 1) onCut(modifiable[0]);
+        }
+      } else if (on(VFS_SHORTCUTS.paste)) {
+        if (hasPasteItems) { e.preventDefault(); void onPaste(currentPath); }
+      } else if (on(VFS_SHORTCUTS.selectAll)) {
+        e.preventDefault(); onSelectAll?.();
+      } else if (on(VFS_SHORTCUTS.clear)) {
+        e.preventDefault(); onClearSelection?.();
       }
     };
 
