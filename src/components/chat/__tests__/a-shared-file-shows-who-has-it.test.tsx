@@ -48,7 +48,7 @@ const senderShare: GroupFileShare = {
   deliveries: [
     { kind: 'offered', cid: 2n, username: 'bob', transferId: 't-bob' },
     { kind: 'skipped', cid: 3n, username: 'cy', reason: 'offline' },
-    { kind: 'skipped', cid: 4n, username: 'dee', reason: 'not connected with you over P2P' },
+    { kind: 'skipped', cid: 4n, username: 'dee', reason: 'not P2P-registered with you' },
   ],
 };
 
@@ -67,7 +67,7 @@ describe('a file shared into a group', () => {
     expect(rows()).toEqual([
       'bob: sent, awaiting an answer',
       'cy: not delivered — offline',
-      'dee: not delivered — not connected with you over P2P',
+      'dee: not delivered — not P2P-registered with you',
     ]);
     expect(screen.getByTestId('group-file-summary').textContent).toBe('Sent to 3 members: 1 awaiting an answer, 2 not delivered');
   });

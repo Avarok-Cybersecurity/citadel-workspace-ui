@@ -24,7 +24,7 @@ export interface GroupFileInfo {
  */
 export type MemberDelivery =
   | { kind: 'offered'; cid: bigint; username: string; transferId: string }
-  /** Never attempted: offline, or not P2P-registered with the sender. */
+  /** Never attempted: not P2P-registered with the sender. */
   | { kind: 'skipped'; cid: bigint; username: string; reason: string }
   /** Attempted, and the send itself was refused. */
   | { kind: 'failed'; cid: bigint; username: string; reason: string };

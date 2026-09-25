@@ -19,7 +19,6 @@
  */
 import { fileTransferService } from '@/lib/file-transfer';
 import { p2pRegistrationService } from '@/lib/p2p-registration-service';
-import { isPeerOnline } from '@/lib/presence';
 import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import { eventEmitter } from '@/lib/event-emitter';
 import type { GroupConversation } from '@/types/group';
@@ -29,6 +28,7 @@ import { sendPeerGroupBody } from './group-requests';
 import { encodeGroupFileShare } from './group-file-codec';
 import { deliverPeerGroupMessage, type PeerGroupDelivery } from './peer-group-delivery';
 import { shareFileWithGroup, type ShareFileResult } from './share-file-with-group';
+import { registrationLookup, type RegistrationLookup } from './group-file-registration';
 
 function announce(groupId: string, info: GroupFileInfo): Promise<string> {
   return sendPeerGroupBody(groupId, (senderCid: bigint, messageId: string): Uint8Array => encodeGroupFileShare({
@@ -52,10 +52,13 @@ export async function sendGroupFile(groupId: string, file: File): Promise<ShareF
   const group: GroupConversation | undefined = getGroups().find((g: GroupConversation): boolean => g.id === groupId);
   if (!group) throw new Error('This group is not loaded yet; try again in a moment.');
 
+  const isRegistered: RegistrationLookup = await registrationLookup(
+    p2pRegistrationService.getPeers().registeredPeers.map((p: { cid: bigint }): bigint => p.cid),
+    () => p2pRegistrationService.listRegisteredPeersWithRetry(),
+  );
   return shareFileWithGroup(groupId, group.members, file, {
     selfCid: self,
-    isRegistered: (cid: bigint): boolean => p2pRegistrationService.isPeerRegistered(cid),
-    isOnline: isPeerOnline,
+    isRegistered,
     sendFile: (recipientCid: string, f: File): Promise<string> => fileTransferService.sendFile(recipientCid, f, 'p2p'),
     announce,
     deliverOwn,

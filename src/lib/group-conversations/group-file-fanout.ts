@@ -10,27 +10,32 @@
 import type { GroupMember } from '@/types/group';
 import type { MemberDelivery } from '@/types/group-file-share';
 import { describeError } from '@/lib/describe-error';
+import type { RegistrationLookup } from './group-file-registration';
 
 export interface FanOutDeps {
   selfCid: bigint;
-  /** Whether this member is P2P-registered with the sender; the offer travels that channel. */
-  isRegistered: (cid: bigint) => boolean;
-  /** True, false, or null when nobody has said -- see lib/presence. */
-  isOnline: (cid: bigint) => boolean | null;
+  /**
+   * Whether this member is P2P-registered with the sender: true, false, or null
+   * when that could not be established. See group-file-registration.
+   */
+  isRegistered: RegistrationLookup;
   /** The existing transfer service's send; resolves to the transfer id. */
   sendFile: (recipientCid: string, file: File) => Promise<string>;
 }
 
-export const NOT_REGISTERED_REASON: string = 'not connected with you over P2P';
-export const OFFLINE_REASON: string = 'offline';
+export const NOT_REGISTERED_REASON: string = 'not P2P-registered with you';
 
-/** Why this member cannot be offered the file, or null when they can. */
-export function skipReason(member: GroupMember, deps: Pick<FanOutDeps, 'isRegistered' | 'isOnline'>): string | null {
-  if (!deps.isRegistered(member.cid)) return NOT_REGISTERED_REASON;
-  // Only a definite `false` skips. Unknown presence is attempted: the send
-  // either reaches them or fails with its own reason, and both are reported.
-  if (deps.isOnline(member.cid) === false) return OFFLINE_REASON;
-  return null;
+/**
+ * Why this member cannot be offered the file, or null when they can.
+ *
+ * Only a definite "not registered" skips. Presence and an open P2P channel are
+ * NOT reasons: presence was "not known yet" for a peer who was online, and the
+ * send path opens a channel to a registered peer on demand, so skipping on
+ * either reported "not delivered" for someone the send would have reached.
+ * An attempted send reports its own real outcome.
+ */
+export function skipReason(member: GroupMember, deps: Pick<FanOutDeps, 'isRegistered'>): string | null {
+  return deps.isRegistered(member.cid) === false ? NOT_REGISTERED_REASON : null;
 }
 
 /**

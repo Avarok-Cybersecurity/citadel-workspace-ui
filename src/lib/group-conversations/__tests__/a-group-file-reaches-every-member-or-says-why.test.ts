@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import type { GroupMember } from '@/types/group';
 import type { GroupFileInfo, MemberDelivery } from '@/types/group-file-share';
-import { fanOutFile, NOT_REGISTERED_REASON, OFFLINE_REASON, type FanOutDeps } from '../group-file-fanout';
+import { fanOutFile, NOT_REGISTERED_REASON, type FanOutDeps } from '../group-file-fanout';
 import { shareFileWithGroup, type ShareFileDeps } from '../share-file-with-group';
 import type { PeerGroupDelivery } from '../peer-group-delivery';
 import { MAX_BYTE_CONTENTS_BYTES } from '@/lib/file-transfer/server-upload';
@@ -28,9 +28,8 @@ function world(overrides: Partial<ShareFileDeps> = {}): World {
   const own: PeerGroupDelivery[] = [];
   const deps: ShareFileDeps = {
     selfCid: SELF,
-    // bob (3) never registered with us; cy (4) is known offline; dee (5) unknown presence.
-    isRegistered: (cid: bigint): boolean => cid !== 3n,
-    isOnline: (cid: bigint): boolean | null => (cid === 4n ? false : cid === 5n ? null : true),
+    // bob (3) never registered with us; dee (5) could not be established either way.
+    isRegistered: (cid: bigint): boolean | null => (cid === 3n ? false : cid === 5n ? null : true),
     sendFile: async (recipient: string): Promise<string> => {
       sent.push(recipient);
       if (recipient === '6') throw new Error('agent refused the send');
@@ -51,11 +50,11 @@ describe('offering a file to every member', () => {
     expect(deliveries).toEqual([
       { kind: 'offered', cid: 2n, username: 'ada', transferId: 't-2' },
       { kind: 'skipped', cid: 3n, username: 'bob', reason: NOT_REGISTERED_REASON },
-      { kind: 'skipped', cid: 4n, username: 'cy', reason: OFFLINE_REASON },
+      { kind: 'offered', cid: 4n, username: 'cy', transferId: 't-4' },
       { kind: 'offered', cid: 5n, username: 'dee', transferId: 't-5' },
       { kind: 'failed', cid: 6n, username: 'eve', reason: 'agent refused the send' },
     ]);
-    expect(sent, 'never to self, never to a skipped member; unknown presence is attempted').toEqual(['2', '5', '6']);
+    expect(sent, 'never to self or an unregistered member; unknown registration is attempted').toEqual(['2', '4', '5', '6']);
   });
 
   it('keeps going after one member fails, and offers each member once', async () => {
@@ -64,8 +63,8 @@ describe('offering a file to every member', () => {
     });
     const deliveries: MemberDelivery[] = await fanOutFile([...MEMBERS, member(5n, 'dee')], file, deps);
     expect(deliveries.map((d: MemberDelivery): string => `${d.username}:${d.kind}`))
-      .toEqual(['ada:failed', 'bob:skipped', 'cy:skipped', 'dee:offered', 'eve:offered']);
-    expect(sent).toEqual(['2', '5', '6']);
+      .toEqual(['ada:failed', 'bob:skipped', 'cy:offered', 'dee:offered', 'eve:offered']);
+    expect(sent).toEqual(['2', '4', '5', '6']);
   });
 
   it('sends one member at a time', async () => {
