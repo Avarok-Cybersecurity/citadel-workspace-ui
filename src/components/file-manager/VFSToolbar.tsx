@@ -18,7 +18,8 @@ interface VFSToolbarProps {
   onUploadFile: () => void;
   /** Why the open folder cannot take an upload; null when it can. */
   uploadDisabledReason: string | null;
-  onSync: () => void;
+  /** Null where there is no peer to sync with (Server Storage): the button is not shown. */
+  onSync: (() => void) | null;
   filterText?: string;
   onFilterChange?: (text: string) => void;
   sortField?: SortField;
@@ -166,9 +167,11 @@ export function VFSToolbar({
             <Upload className="h-4 w-4" />
           </Button>
         </span>
-        <Button variant="ghost" size="sm" aria-label="Sync with peer" onClick={onSync} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
-          <RefreshCw className="h-4 w-4" />
-        </Button>
+        {onSync && (
+          <Button variant="ghost" size="sm" aria-label="Sync with peer" onClick={onSync} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     </div>
   );

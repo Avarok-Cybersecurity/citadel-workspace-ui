@@ -56,7 +56,7 @@ export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
         onNewFolder={() => fm.handleNewFolder(fm.currentPath)}
         onUploadFile={() => fm.handleUploadFile(fm.currentPath)}
         uploadDisabledReason={uploadRefusal(fm.currentPath)}
-        onSync={fm.handleSync}
+        onSync={fm.storageMode === TreeScope.Peer ? fm.handleSync : null}
         filterText={fm.filterText}
         onFilterChange={fm.setFilterText}
         sortField={fm.sortField}

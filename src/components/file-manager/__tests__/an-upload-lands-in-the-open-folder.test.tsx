@@ -69,3 +69,12 @@ describe('the toolbar upload button', () => {
     expect(screen.getByRole('button', { name: 'Upload file' })).toBeEnabled();
   });
 });
+
+describe('the toolbar sync button', () => {
+  // Measured live: "Sync with peer" sat in the Server Storage toolbar, where there is no peer.
+  it('is absent when there is no peer to sync with', () => {
+    const noop = (): void => {};
+    render(<VFSToolbar currentPath="/" onNavigate={noop} onNewFolder={noop} onUploadFile={noop} uploadDisabledReason={null} onSync={null} />);
+    expect(screen.queryByRole('button', { name: 'Sync with peer' })).toBeNull();
+  });
+});

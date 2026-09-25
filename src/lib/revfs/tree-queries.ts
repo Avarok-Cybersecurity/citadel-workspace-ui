@@ -221,6 +221,20 @@ export function isDownloadableState(state: RevfsFileState | undefined): boolean 
   );
 }
 
+/**
+ * Can the viewer delete this file's stored bytes? Everything that is stored somewhere
+ * -- for them by a peer or the server, or by them for a peer. Sent and Received are
+ * local records of a transfer, not stored objects. Beside isDownloadableState for the
+ * same reason: the menu's hand-written list left ServerStored out of both.
+ */
+export function isDeletableState(state: RevfsFileState | undefined): boolean {
+  return (
+    state === RevfsFileState.Remote ||
+    state === RevfsFileState.Hosted ||
+    state === RevfsFileState.ServerStored
+  );
+}
+
 export function flipFileState(state: RevfsFileState): RevfsFileState {
   switch (state) {
     case RevfsFileState.Hosted: return RevfsFileState.Remote;

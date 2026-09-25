@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { RevfsFileState, PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
 import type { ReactNode } from "react";
+import { isDeletableState, isDownloadableState } from "@/lib/revfs/tree-queries";
 
 interface VFSContextMenuProps {
   node: RevfsNode | null;
@@ -127,7 +128,7 @@ export function VFSContextMenu({
         {/* File actions by state */}
         {!isDir && (
           <>
-            {fileState === RevfsFileState.Remote && (
+            {isDownloadableState(fileState) && fileState !== RevfsFileState.Received && (
               <ContextMenuItem onClick={onDownload} className="hover:bg-card cursor-pointer">
                 <Download className="mr-2 h-4 w-4" />
                 Download
@@ -169,7 +170,7 @@ export function VFSContextMenu({
                 )}
               </>
             )}
-            {(fileState === RevfsFileState.Remote || fileState === RevfsFileState.Hosted) && (
+            {isDeletableState(fileState) && (
               <>
                 <ContextMenuSeparator className="bg-border" />
                 <ContextMenuItem onClick={onDelete} data-testid="vfs-delete" {...keys(VFS_SHORTCUTS.remove)} className="hover:bg-destructive/25 text-destructive cursor-pointer">
