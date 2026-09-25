@@ -21,6 +21,7 @@ export {
 
 // Storage
 export { MessagePaginationStore, messagePaginationStore } from './message-pagination-store';
+export { startRetentionSweeper } from './retention-sweep';
 
 // Conversation
 export { ConversationManager } from './conversation-manager';

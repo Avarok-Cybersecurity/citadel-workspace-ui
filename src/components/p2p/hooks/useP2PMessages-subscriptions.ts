@@ -14,6 +14,7 @@ import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
 import type { P2PConversation } from '@/lib/p2p/p2p-types';
+import { retained, MESSAGES_EXPIRED_EVENT, type MessagesExpired } from '@/lib/p2p/retention';
 
 export interface ConversationSubscriptionParams {
   messenger: P2PMessengerManager;
@@ -93,6 +94,19 @@ export function subscribeToConversationEvents({
     },
   );
 
+  // Retention removed this chat's messages older than the cutoff from storage
+  // and the cache; the open view drops them too, or they stay until a reload.
+  const unsubscribeExpired: () => void = eventEmitter.on(
+    MESSAGES_EXPIRED_EVENT,
+    ({ peerCid: expiredCid, cutoff }: MessagesExpired) => {
+      if (expiredCid !== peerCid) return;
+      setMessages(prev => {
+        const kept: P2PMessage[] = retained(prev, cutoff);
+        return kept.length === prev.length ? prev : kept;
+      });
+    },
+  );
+
   const unsubscribeTyping: () => void = messenger.onTyping((cid, isTyping): void => {
     if (cid === peerCid) setPeerTyping(isTyping);
   });
@@ -133,6 +147,7 @@ export function subscribeToConversationEvents({
 
   return () => {
     unsubscribeCleared();
+    unsubscribeExpired();
     unsubscribeMessage();
     unsubscribeStatusChange();
     unsubscribeMessageUpdate();

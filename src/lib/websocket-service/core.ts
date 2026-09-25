@@ -112,6 +112,7 @@ export class WebSocketServiceCore {
   async openP2PConnection(cid: bigint, targetCid: bigint): Promise<void> { return this.modules.p2pOps.openP2PConnection(cid, targetCid) }
 
   async acceptPeerConnect(cid: bigint, peerCid: bigint, notification: Record<string, unknown> | null): Promise<void> { return this.modules.p2pOps.acceptPeerConnect(cid, peerCid, notification) }
+  async declinePeerConnect(cid: bigint, peerCid: bigint): Promise<void> { return this.modules.p2pOps.declinePeerConnect(cid, peerCid) }
 
   async disconnectP2P(localCid: bigint, peerCid: bigint): Promise<void> { return this.modules.p2pOps.disconnectP2P(localCid, peerCid) }
 

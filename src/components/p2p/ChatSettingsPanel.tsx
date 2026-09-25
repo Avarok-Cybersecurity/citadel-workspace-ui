@@ -198,7 +198,7 @@ export function ChatSettingsPanel({
             {/* Advanced Tab */}
             <TabsContent value="advanced" className="space-y-4 m-0" data-testid="content-advanced">
               <div className="space-y-4">
-                <ChatSettingsAdvanced />
+                <ChatSettingsAdvanced isOpen={isOpen} peerCid={BigInt(peerCid)} peerName={peerName} />
 
                 <ClearHistoryButton peerCid={BigInt(peerCid)} peerName={peerName} />
               </div>

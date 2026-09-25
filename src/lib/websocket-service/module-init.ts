@@ -5,6 +5,7 @@
  * for the WebSocketServiceCore class.
  */
 
+import type { ChatSecurityLevel } from '@/lib/p2p/chat-advanced-settings';
 import type { WorkspaceClient } from 'citadel-workspace-client-ts';
 import { instanceManager } from '../multi-instance';
 import {
@@ -75,6 +76,10 @@ export function createServiceModules(
       send: (cid: bigint, request: 'GetIceServers'): Promise<void> => workspaceOps.sendWorkspaceRequest(cid, request),
       timeoutMs: TIMEOUT.SERVER_REQUEST_MS,
     })),
+    // Loaded on the first PeerConnect, like the relay lookup: this module is on
+    // the landing page's critical path and the chat settings are not.
+    securityFor: async (cid: bigint, peerCid: bigint): Promise<ChatSecurityLevel> =>
+      (await import('@/lib/p2p/chat-advanced-settings')).chatAdvancedSettings.openingLevel(cid, peerCid),
   });
 
   const messengerOps: MessengerOperations = new MessengerOperations({

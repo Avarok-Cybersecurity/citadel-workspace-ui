@@ -12,6 +12,17 @@ import type { AutoConnectState } from './state';
 import { FRESH_CONNECTION_THRESHOLD_MS } from './types';
 import { getCurrentCid } from './cid-resolver';
 import type { PeerConnectionInfo } from '@/lib/p2p-auto-connect/types';
+import { chatAdvancedSettings, type ChatSecurityLevel } from '@/lib/p2p/chat-advanced-settings';
+import { offerMeetsMinimum } from '@/lib/p2p/security-level-rank';
+
+/** A PeerConnectNotification as read here; the level is the one the initiator asked for. */
+export type IncomingOffer = { cid?: bigint; peer_cid?: bigint; session_security_settings?: { security_level?: unknown } };
+
+/** Whether `targetCid`'s chat with `initiatorCid` admits an offer at the level it names. */
+export async function offerAdmitted(targetCid: bigint, initiatorCid: bigint, offer: IncomingOffer): Promise<boolean> {
+  const minimum: ChatSecurityLevel = (await chatAdvancedSettings.get(targetCid, initiatorCid)).securityLevel;
+  return offerMeetsMinimum(offer.session_security_settings?.security_level, minimum);
+}
 
 /**
  * Handle incoming PeerConnect request (when other peer initiates).
@@ -27,7 +38,7 @@ export async function handleIncomingPeerConnect(
   state: AutoConnectState,
   // No `peer_username`: PeerConnectNotification does not declare one, and the
   // read that used to be here produced '' every time. See PeerConnectionInfo.
-  notification: { cid?: bigint; peer_cid?: bigint },
+  notification: IncomingOffer,
   broadcastPeerConnected: (localCid: bigint, peerCid: bigint) => void
 ): Promise<void> {
   const targetCid: bigint | undefined = notification.cid;
@@ -47,6 +58,15 @@ export async function handleIncomingPeerConnect(
   // Only process if WE are the target
   if (targetCid !== currentCid) {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Ignoring PeerConnectNotification - target is ${targetCid.toString().slice(0, 8)}... (we are ${currentCid.toString().slice(0, 8)}...)`);
+    return;
+  }
+
+  // Below this chat's level: refuse it, and leave this side's own attempt --
+  // which asks for the chat's level -- to open the channel. Nothing here is
+  // marked connected, and a pending attempt of ours is not cancelled.
+  if (!(await offerAdmitted(currentCid, initiatorCid, notification))) {
+    debugLog('P2PAutoConnectService', `P2PAutoConnect: Declining ${initiatorCid.toString().slice(0, 8)}...: offered below this chat's level`);
+    await websocketService.declinePeerConnect(currentCid, initiatorCid);
     return;
   }
 

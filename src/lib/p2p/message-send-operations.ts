@@ -16,6 +16,7 @@ import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import type { MessageSenderConfig } from './message-sender-types';
 import { debugLog } from '@/lib/debug-config';
 import type { P2PConversation } from '@/lib/p2p/p2p-types';
+import { chatAdvancedSettings, type ChatSecurityLevel } from './chat-advanced-settings';
 
 /**
  * Send a raw MessagingLayer message to a peer (used by FileTransferService)
@@ -90,15 +91,20 @@ export async function sendAllowingForAConcurrentOpen(
   peerCid: bigint,
   bytes: Uint8Array
 ): Promise<void> {
+  // The chat's level, on every send, rather than leaving it unset (which the
+  // WASM binding reads as Standard). Dormant today: no control sets a level
+  // above Standard, because the pinned SDK does not honour one -- see
+  // ChatSettingsAdvanced.
+  const level: ChatSecurityLevel = (await chatAdvancedSettings.get(currentCid, peerCid)).securityLevel;
   await websocketService.ensureMessengerOpen(currentCid);
   try {
-    await websocketService.sendP2PMessageReliable(currentCid, peerCid, bytes);
+    await websocketService.sendP2PMessageReliable(currentCid, peerCid, bytes, level);
   } catch (error: unknown) {
     if (!MESSENGER_STILL_OPENING.test(String(error))) throw error;
     debugLog('MessageSendOperations', '[P2P] messenger was still opening; retrying once');
     await new Promise<void>((resolve) => setTimeout(resolve, RETRY_AFTER_MS));
     await websocketService.ensureMessengerOpen(currentCid);
-    await websocketService.sendP2PMessageReliable(currentCid, peerCid, bytes);
+    await websocketService.sendP2PMessageReliable(currentCid, peerCid, bytes, level);
   }
 }
 

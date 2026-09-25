@@ -8,13 +8,13 @@
 import { eventEmitter } from '../event-emitter';
 import { p2pRegistrationService } from '../p2p-registration-service';
 import { instanceManager } from '../multi-instance';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, warnLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import type { BroadcastStateSyncData, WebSocketMessage } from '@/types/ws-message-types';
 import type { AutoConnectState } from './state';
 import { getCurrentCid } from './cid-resolver';
 import { connectToPeer, handleConnectionSuccess, handlePeerDisconnect } from './connection-logic';
-import { handleIncomingPeerConnect } from './incoming-connect';
+import { handleIncomingPeerConnect, offerAdmitted, type IncomingOffer } from './incoming-connect';
 import { startPolling, stopPolling, startBackendPolling, stopBackendPolling } from './polling';
 import { parsePeerConnectPath } from '@/lib/ice-servers/path';
 import type { PeerConnectPath } from '@/types/ice-servers';
@@ -160,13 +160,18 @@ function setupWebSocketMessageHandler(
         const targetCid: bigint | undefined = notification.cid as bigint | undefined;
         const initiatorCid: bigint | undefined = notification.peer_cid as bigint | undefined;
         if (targetCid !== undefined && initiatorCid !== undefined) {
-          debugLog('P2PAutoConnectService', `Leader updating connectedPeers for target CID ${targetCid.toString().slice(0, 8)}... -> peer ${initiatorCid.toString().slice(0, 8)}...`);
-          broadcastPeerConnected(targetCid, initiatorCid);
+          // Not for an offer the target session's chat level refuses: that
+          // session declines it (incoming-connect), so it will not connect.
+          void offerAdmitted(targetCid, initiatorCid, notification as IncomingOffer).then((admitted: boolean): void => {
+            if (!admitted) return;
+            debugLog('P2PAutoConnectService', `Leader updating connectedPeers for target CID ${targetCid.toString().slice(0, 8)}... -> peer ${initiatorCid.toString().slice(0, 8)}...`);
+            broadcastPeerConnected(targetCid, initiatorCid);
+          }, (err: unknown): void => warnLog('P2PAutoConnectService', 'offer level check failed:', err));
         }
       }
       handleIncomingPeerConnect(
         state,
-        notification as { cid?: bigint; peer_cid?: bigint; peer_username?: string },
+        notification as IncomingOffer,
         broadcastPeerConnected
       ).catch((err) => {
         debugLog('P2PAutoConnectService', 'handleIncomingPeerConnect failed:', err);

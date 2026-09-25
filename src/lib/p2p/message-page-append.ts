@@ -24,7 +24,9 @@ export function recordAppend(
 ): void {
   metadata.totalMessageCount++;
   metadata.newestMessageTimestamp = message.timestamp;
-  if (isNewConversation || message.timestamp < metadata.oldestMessageTimestamp) {
+  // The only message stored is the oldest one, also in a conversation that
+  // retention or deletion emptied (its oldest is then 0, which nothing is below).
+  if (isNewConversation || metadata.totalMessageCount === 1 || message.timestamp < metadata.oldestMessageTimestamp) {
     metadata.oldestMessageTimestamp = message.timestamp;
   }
   metadata.lastMessageIndex = Math.max(metadata.lastMessageIndex, message.index);

@@ -80,7 +80,9 @@ void instanceInboundRouter.isRouterActive();
 // critical path, which has ~11KB of headroom against its budget. This keeps
 // the eager construction without paying for it before first paint.
 void import('./lib/p2p').then((m) => {
-  void m.p2pMessengerManager.waitForReady();
+  // Message Retention for chats nobody opens: swept once the messenger is up,
+  // then hourly. See lib/p2p/retention-sweep.
+  void m.p2pMessengerManager.waitForReady().then((): void => m.startRetentionSweeper());
 });
 
 // Global error handlers
