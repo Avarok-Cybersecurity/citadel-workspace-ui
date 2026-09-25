@@ -12,6 +12,7 @@ import type { GroupMessage } from '@/types/workspace-entities';
 import { cn } from '@/lib/utils';
 import { getInitials, ReplyQuote, MESSAGE_ANCHOR_ATTRIBUTE, JUMP_TARGET_CLASSES, type QuotedMessage } from './shared';
 import { GroupMessageFooter } from './GroupMessageFooter';
+import { GroupFileShareCard } from './GroupFileShareCard';
 import { BUBBLE_MAX_WIDTH } from '@/components/p2p/bubbles/types';
 
 interface GroupMessageItemProps {
@@ -104,7 +105,9 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
             : 'bg-surface text-foreground'
         )}>
           {message.reply_to && <ReplyQuote quoted={quoted} isOwn={isOwnMessage} />}
-          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          {message.file_share
+            ? <GroupFileShareCard share={message.file_share} senderName={message.sender_name} />
+            : <p className="whitespace-pre-wrap break-words">{message.content}</p>}
         </div>
 
         <GroupMessageFooter

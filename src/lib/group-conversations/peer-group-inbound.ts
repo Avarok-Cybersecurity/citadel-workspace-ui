@@ -22,6 +22,9 @@ import { decodeGroupMessage, type PeerGroupMessage } from './group-message-codec
 import { groupKeyToId, type MessageGroupKey } from './group-key';
 import { toCid } from './group-wire-variants';
 import { debugLog } from '@/lib/debug-config';
+import { decodeGroupFileShare, fileInfoOf, type PeerGroupFileShare } from './group-file-codec';
+import { sharedFileText } from './group-file-preview';
+import type { GroupFileShare } from '@/types/group-file-share';
 
 export interface PeerGroupMessageSummary {
   groupId: string;
@@ -34,6 +37,8 @@ export interface PeerGroupMessageSummary {
   replyTo?: string;
   /** The group's name, present only when its owner sent this. */
   groupName?: string;
+  /** Present when this message announces a shared file; `content` then previews it. */
+  fileShare?: GroupFileShare;
 }
 
 /**
@@ -62,7 +67,10 @@ export function peerGroupMessageEvent(
   const raw: unknown = notification.message;
   if (!Array.isArray(raw)) return null;
 
-  const decoded: PeerGroupMessage | null = decodeGroupMessage(new Uint8Array(raw as number[]));
+  const bytes: Uint8Array = new Uint8Array(raw as number[]);
+  const file: PeerGroupFileShare | null = decodeGroupFileShare(bytes);
+  if (file) return fileShareEvent(notification, file, peerName);
+  const decoded: PeerGroupMessage | null = decodeGroupMessage(bytes);
   if (!decoded) {
     debugLog('PeerGroupInbound', 'Dropped a group message body that did not decode');
     return null;
@@ -81,5 +89,28 @@ export function peerGroupMessageEvent(
     timestamp: decoded.timestamp,
     replyTo: decoded.reply_to,
     groupName: ownerGivenName(notification, key, decoded),
+  };
+}
+
+/**
+ * A file announcement, filed like chat so the sidebar, unread badge, thread and
+ * transcript all treat it as a message. The group key decides the group, as
+ * above; the offer to accept arrives separately, over the sender's P2P channel.
+ */
+function fileShareEvent(
+  notification: Record<string, unknown>,
+  envelope: PeerGroupFileShare,
+  peerName: (cid: bigint) => string,
+): PeerGroupMessageSummary {
+  const key: MessageGroupKey = notification.group_key as MessageGroupKey;
+  const fileShare: GroupFileShare = { ...fileInfoOf(envelope), senderCid: envelope.sender_cid };
+  return {
+    groupId: groupKeyToId(key),
+    messageId: envelope.message_id,
+    senderId: envelope.sender_cid.toString(),
+    senderName: peerName(envelope.sender_cid),
+    content: sharedFileText(fileShare),
+    timestamp: envelope.timestamp,
+    fileShare,
   };
 }
