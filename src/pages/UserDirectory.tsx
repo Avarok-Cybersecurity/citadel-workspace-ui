@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { reachablePeer } from './reachable-peer';
-import { connectionRequestSentCopy } from '@/components/p2p/connection-request-copy';
 import { DirectoryTabContent } from './DirectoryTabContent';
 import { describeFailure } from '@/lib/failure-message';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -17,8 +16,6 @@ import WorkspaceService from '@/lib/workspace-service';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useRegisteredPeers } from '@/hooks';
 import { usePeerDiscovery  , type Peer } from '@/components/p2p/usePeerDiscovery';
-import { sendPeerRegistration } from '@/lib/p2p/send-peer-registration';
-import { connectionManager } from '@/lib/connection';
 import type { NavigateFunction } from 'react-router';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 
@@ -28,9 +25,9 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
   const [tab, setTab] = useState('all');
   const [sendingRequest, setSendingRequest] = useState(false);
   const { registeredPeers } = useRegisteredPeers();
-  // The only source that carries a username AND a cid, which registration needs.
-  const { peers: discoveredPeers } = usePeerDiscovery(true);
-  const [requestMessage, setRequestMessage] = useState('');
+  // The only source that carries a username AND a cid, which registration needs --
+  // and the discovery dialog's own send, so both surfaces share one request path.
+  const { peers: discoveredPeers, registerWithPeer } = usePeerDiscovery(true);
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const navigate: NavigateFunction = useNavigate();
 
@@ -124,7 +121,6 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
 
   const handleInviteUser = (userId: string): void => {
     setSelectedUser(allMembers.find(member => member.id === userId) || null);
-    setRequestMessage(`I'd like to connect with you on Citadel Workspaces.`);
     setRequestDialogOpen(true);
   };
 
@@ -133,24 +129,13 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
 
     setSendingRequest(true);
     try {
-      // The real wire path. This called `connectionService.sendRegistrationRequest`,
-      // which pushed the request into an in-memory array and scheduled a demo
-      // simulation — nothing touched the socket, and the user was told "Request
-      // Sent" for a request that did not exist.
-      const ownCid: bigint | undefined = connectionManager.getConnectionInfo()?.cid;
-      if (ownCid === undefined) throw new Error('Not connected to a workspace.');
-
+      // `registerWithPeer`, the discovery dialog's send. This called
+      // `sendPeerRegistration` itself, with `getConnectionInfo()`'s CID rather
+      // than the tab's selected session that the hook resolves, and without
+      // registering the request id, so a PeerRegisterFailure for it matched
+      // nothing and the user kept a green "Request Sent" for a refused request.
       const peer: Peer = reachablePeer(discoveredPeers, selectedUser);
-
-      await sendPeerRegistration(BigInt(ownCid), BigInt(peer.cid), selectedUser.id);
-
-      toast({
-        title: 'Request Sent',
-        description: connectionRequestSentCopy(selectedUser.displayName, peer.is_online),
-        variant: 'success',
-      });
-
-      setRequestDialogOpen(false);
+      if (await registerWithPeer(peer.cid, selectedUser.id)) setRequestDialogOpen(false);
     } catch (error) {
       debugLog('UserDirectory', 'Failed to send connection request:', error);
       toast({
@@ -243,8 +228,6 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
         open={requestDialogOpen}
         onOpenChange={setRequestDialogOpen}
         selectedUser={selectedUser}
-        requestMessage={requestMessage}
-        onRequestMessageChange={setRequestMessage}
         sendingRequest={sendingRequest}
         onSend={sendConnectionRequest}
       />
