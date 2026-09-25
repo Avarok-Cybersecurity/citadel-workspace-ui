@@ -33,6 +33,7 @@ const broadcastWorkspaceResponse: ReturnType<typeof vi.fn> = vi.hoisted(() => vi
 vi.mock('../../multi-instance', () => ({
   instanceManager: { isLeader: true, leaderId: 'leader', instanceId: 'leader' },
   instanceInboundRouter: { routeMessage },
+  instanceChannel: { send: vi.fn() },
   leaderOutboundHandler: { setWebSocketSendFunction: vi.fn(), setClient: vi.fn(), start: vi.fn(), stop: vi.fn() },
 }));
 
@@ -89,6 +90,7 @@ async function handlerForALeader(): Promise<(m: unknown) => void> {
     releaseSession: vi.fn(),
     // Every socket here is a first open, so spacing never applies.
     reconnectBackoff: new ReconnectBackoff(AGENT_RECONNECT_BACKOFF, systemClock),
+    reopen: vi.fn(async () => undefined),
   });
   await init.createWebSocketAsLeader();
   const handler: ((m: unknown) => void) | undefined = captured()?.messageHandler;
