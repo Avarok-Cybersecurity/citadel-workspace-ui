@@ -79,16 +79,6 @@ export function isMemberOnline(memberId: string): boolean | null {
     return null;
   }
 
-  return presenceOf(peer);
-}
-
-/** Presence for a peer already known by CID, e.g. a group member; null when nobody has said. */
-export function isPeerOnline(cid: bigint): boolean | null {
-  const peer: Peer | undefined = p2pRegistrationService.getPeers().allPeers.find((p: Peer): boolean => p.cid === cid);
-  return peer ? presenceOf(peer) : null;
-}
-
-function presenceOf(peer: Peer): boolean | null {
   // The polled set is the live answer where it HAS one. Before the first poll
   // it is empty, and reading "absent from an empty set" as offline is what put
   // the word beside people who were sitting right there.

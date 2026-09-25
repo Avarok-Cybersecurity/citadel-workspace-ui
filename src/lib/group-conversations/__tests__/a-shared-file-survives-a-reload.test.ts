@@ -50,7 +50,6 @@ describe('a shared file after a reload', () => {
     await shareFileWithGroup(GROUP, members, new File(['abc'], 'a.txt', { type: 'text/plain' }), {
       selfCid: 111n,
       isRegistered: (cid: bigint): boolean => cid !== 3n,
-      isOnline: (): boolean => true,
       sendFile: async (r: string): Promise<string> => `t-${r}`,
       announce: async (): Promise<string> => 'f-1',
       deliverOwn: deliverPeerGroupMessage,
@@ -64,7 +63,7 @@ describe('a shared file after a reload', () => {
     expect(thread.map((m: GroupMessage): string => m.id)).toEqual(['f-1']);
     expect(thread[0].file_share?.deliveries).toEqual([
       { kind: 'offered', cid: 13069842581551822719n, username: 'ada', transferId: 't-13069842581551822719' },
-      { kind: 'skipped', cid: 3n, username: 'bob', reason: 'not connected with you over P2P' },
+      { kind: 'skipped', cid: 3n, username: 'bob', reason: 'not P2P-registered with you' },
     ]);
     expect(thread[0].file_share?.name).toBe('a.txt');
   });
