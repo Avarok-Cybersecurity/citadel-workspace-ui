@@ -8,7 +8,7 @@
 import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
 import { RevfsFileState } from '@/types/revfs-types';
 import {
-  peerPairKey,
+  peerTreeKey,
   placeFile as treePlaceFile,
   removeFile as treeRemoveFile,
 } from './tree-operations';
@@ -40,7 +40,7 @@ export async function uploadFileToPeer(
   metadata: RevfsFileMetadata,
   content: Uint8Array,
 ): Promise<boolean> {
-  const key: string = peerPairKey(myCid, peerCid);
+  const key: string = peerTreeKey(myCid, peerCid);
   const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
   const filePath: string = dirPath.endsWith('/') ? `${dirPath}${fileName}` : `${dirPath}/${fileName}`;
   // Not always `filePath`: see byteKeyFor.
@@ -85,7 +85,7 @@ export async function removeFileFromPeer(
   peerCid: bigint,
   filePath: string,
 ): Promise<boolean> {
-  const key: string = peerPairKey(myCid, peerCid);
+  const key: string = peerTreeKey(myCid, peerCid);
   const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
   const io: RevfsIO = ctx.ensureIO();
 
@@ -164,7 +164,7 @@ export async function addSentFile(
   peerCid: bigint,
   transfer: { fileName: string; fileSize: number; fileType: string; transferId: string },
 ): Promise<void> {
-  const key: string = peerPairKey(myCid, peerCid);
+  const key: string = peerTreeKey(myCid, peerCid);
   const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
   const filePath: string = `/Sent Files/${transfer.fileName}`;
   const metadata: RevfsFileMetadata = {
@@ -192,7 +192,7 @@ export async function addReceivedFile(
   peerCid: bigint,
   transfer: { fileName: string; fileSize: number; fileType: string; transferId: string; downloadPath?: string },
 ): Promise<void> {
-  const key: string = peerPairKey(myCid, peerCid);
+  const key: string = peerTreeKey(myCid, peerCid);
   const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
   const filePath: string = `/Received Files/${transfer.fileName}`;
   const metadata: RevfsFileMetadata = {

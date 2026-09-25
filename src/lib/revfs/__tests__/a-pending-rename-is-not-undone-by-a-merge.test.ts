@@ -20,13 +20,13 @@ import {
   BOB,
 } from './revfs-service-test-helpers';
 import { forgetSeenOperations } from '../seen-operations';
-import { createDefaultTree, peerPairKey } from '../tree-queries';
+import { createDefaultTree, peerTreeKey } from '../tree-queries';
 import { RevfsOpType } from '@/types/revfs-types';
 import type { RevfsNode, RevfsOperation } from '@/types/revfs-types';
 import type { RevfsService } from '../revfs-service';
 import type { RevfsState } from '../revfs-state';
 
-const KEY: string = peerPairKey(ALICE, BOB);
+const KEY: string = peerTreeKey(ALICE, BOB);
 
 function file(path: string): RevfsNode {
   return { name: path.split('/').pop() ?? path, type: 'file', path, createdAt: 1, updatedAt: 1 } as RevfsNode;

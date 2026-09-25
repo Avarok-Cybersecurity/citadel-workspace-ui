@@ -5,31 +5,49 @@
  * in one place, and because inlining it there pushed that file over the
  * 250-line limit.
  */
-import { revfsWhenReady } from '@/lib/revfs/revfs-loader';
+import { revfsWhenReady, revfsWhenStarted } from '@/lib/revfs/revfs-loader';
 import { debugLog } from '@/lib/debug-config';
 import type { RevfsOperation } from '@/types/revfs-types';
+
+/** How long an operation that beat the engine's start waits for it. */
+export const ENGINE_START_WAIT_MS: number = 30_000;
 
 /**
  * The engine is loaded on demand -- a static import of it from `lib/p2p` put
  * the whole thing on the landing page's critical path. Awaiting the SAME
  * promise `useConnectionHandler` started is what guarantees the service has its
- * transport before it is handed an operation.
+ * transport before it is handed an operation; one that arrives before the start
+ * waits for it rather than being dropped (see `revfsWhenStarted`).
  */
+type RevfsModule = NonNullable<Awaited<ReturnType<typeof revfsWhenStarted>>>;
+
+function hand(engine: RevfsModule, peerCid: bigint, myCid: bigint, operation: RevfsOperation): void {
+  // Caught, not voided: a tree that cannot be read now throws (tree-load.ts),
+  // and an unhandled rejection here would be the only trace of it.
+  engine.revfsService.handleRevfsOperation(peerCid, myCid, operation).catch((error: unknown): void => {
+    debugLog('P2PMessageHandler', `REVFS ${operation.op_type} from ${peerCid} failed`, error);
+  });
+}
+
 export async function routeRevfsOperation(
   peerCid: bigint,
   myCid: bigint,
   operation: RevfsOperation,
 ): Promise<void> {
-  const pending: ReturnType<typeof revfsWhenReady> = revfsWhenReady();
-  if (pending === null) {
-    // Not a silent drop: the sender's ack never arrives and it retries, by
-    // which time the connection handler has started the engine.
-    debugLog(
-      'P2PMessageHandler',
-      'REVFS operation arrived before the engine was initialized; leaving it unacked to be retried',
-    );
+  const ready: ReturnType<typeof revfsWhenReady> = revfsWhenReady();
+  if (ready !== null) {
+    hand(await ready, peerCid, myCid, operation);
     return;
   }
-  const { revfsService } = await pending;
-  void revfsService.handleRevfsOperation(peerCid, myCid, operation);
+  // Waited for in the background: the message pipeline is not held for it.
+  revfsWhenStarted(ENGINE_START_WAIT_MS).then(
+    (engine: RevfsModule | null): void => {
+      if (engine === null) {
+        debugLog('P2PMessageHandler', `REVFS ${operation.op_type} dropped: the engine was not started within ${ENGINE_START_WAIT_MS}ms`);
+        return;
+      }
+      hand(engine, peerCid, myCid, operation);
+    },
+    (error: unknown): void => { debugLog('P2PMessageHandler', 'REVFS engine failed to load', error); },
+  );
 }

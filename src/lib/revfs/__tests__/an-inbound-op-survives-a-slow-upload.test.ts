@@ -27,7 +27,7 @@ import type { RevfsNode, RevfsOperation, RevfsFileMetadata } from '@/types/revfs
 import { createTestService, defaultIntentHandler, getState, ALICE, BOB } from './revfs-service-test-helpers';
 import type { RevfsService } from '../revfs-service';
 import type { RevfsState } from '../revfs-state';
-import { createDefaultTree, peerPairKey } from '../tree-queries';
+import { createDefaultTree, peerTreeKey } from '../tree-queries';
 
 function pathsIn(tree: RevfsNode | undefined): string[] {
   return (tree?.children ?? []).map((child) => child.path).sort();
@@ -59,7 +59,7 @@ describe('a peer operation arriving during a slow upload', () => {
     };
 
     const state: RevfsState = getState(service);
-    const key: string = peerPairKey(ALICE, BOB);
+    const key: string = peerTreeKey(ALICE, BOB);
     state.setTree(key, createDefaultTree());
 
     // 1. The upload starts and blocks on the send, holding its snapshot.
@@ -93,7 +93,7 @@ describe('a peer operation arriving during a slow upload', () => {
       (intent: RevfsIntent): RevfsIntentResult => defaultIntentHandler()(intent),
     );
     const state: RevfsState = getState(service);
-    const key: string = peerPairKey(ALICE, BOB);
+    const key: string = peerTreeKey(ALICE, BOB);
     state.setTree(key, createDefaultTree());
 
     await service.handleRevfsOperation(BOB, ALICE, {
@@ -111,7 +111,7 @@ describe('a peer operation arriving during a slow upload', () => {
     // Every peer operation would then fail on its ack timeout.
     const service: RevfsService = createTestService(defaultIntentHandler(), { autoAck: false });
     const state: RevfsState = getState(service);
-    state.setTree(peerPairKey(ALICE, BOB), createDefaultTree());
+    state.setTree(peerTreeKey(ALICE, BOB), createDefaultTree());
 
     const mkdir: Promise<boolean> = service.mkdir(ALICE, BOB, '/docs');
 

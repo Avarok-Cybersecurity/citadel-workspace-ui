@@ -12,7 +12,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { wireDrainOnChannelReady, type DrainDeps } from '../drain-on-channel-ready';
 import { eventEmitter } from '@/lib/event-emitter';
-import { peerPairKey } from '../tree-queries';
+import { peerTreeKey } from '../tree-queries';
 import { forgetSeenOperations } from '../seen-operations';
 import {
   createTestService,
@@ -45,7 +45,7 @@ describe('wireDrainOnChannelReady', () => {
     eventEmitter.emit('p2p:channel-ready', { peerCid: BOB });
     await flush();
 
-    expect(calls).toEqual([[peerPairKey(ALICE, BOB), BOB]]);
+    expect(calls).toEqual([[peerTreeKey(ALICE, BOB), BOB]]);
     unwire();
   });
 
@@ -92,7 +92,7 @@ describe('RevfsService', () => {
   it('installs the drain, so channel-ready re-sends what was queued', async () => {
     const service: RevfsService = createTestService(defaultIntentHandler());
     const state: RevfsState = getState(service);
-    const key: TreeKey = peerPairKey(ALICE, BOB);
+    const key: TreeKey = peerTreeKey(ALICE, BOB);
 
     const queued: RevfsOperation = { op_id: 'queued-1', op_type: RevfsOpType.Mkdir, path: '/late', timestamp: 0 };
     state.addPendingOp(key, { operation: queued, retryCount: 0, createdAt: 0 });

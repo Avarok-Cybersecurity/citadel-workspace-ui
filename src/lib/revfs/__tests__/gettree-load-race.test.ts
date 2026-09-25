@@ -14,7 +14,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { createTestService, defaultIntentHandler, getState, ALICE, BOB } from './revfs-service-test-helpers';
-import { peerPairKey, serverTreeKey } from '../tree-queries';
+import { peerTreeKey, serverTreeKey } from '../tree-queries';
 import type { RevfsNode } from '@/types/revfs-types';
 import type { RevfsState } from '../revfs-state';
 import type { RevfsService } from '@/lib/revfs/revfs-service';
@@ -27,7 +27,7 @@ const names = (tree: RevfsNode | null | undefined): string[] =>
 
 describe('getTree racing an applied op', () => {
   it('keeps a folder applied during the load instead of writing the default over it', async () => {
-    const key: string = peerPairKey(ALICE, BOB);
+    const key: string = peerTreeKey(ALICE, BOB);
     // The handler needs the service's state, but runs only once getTree is
     // called — well after construction — so a ref filled in afterwards is
     // enough and avoids a forward reference.

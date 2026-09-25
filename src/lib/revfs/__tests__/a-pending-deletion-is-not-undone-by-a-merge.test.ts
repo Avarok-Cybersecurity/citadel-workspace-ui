@@ -94,7 +94,7 @@ import { RevfsOpType } from '@/types/revfs-types';
 import type { RevfsOperation } from '@/types/revfs-types';
 import type { RevfsService } from '../revfs-service';
 import type { RevfsState } from '../revfs-state';
-import { peerPairKey } from '../tree-queries';
+import { peerTreeKey } from '../tree-queries';
 import { forgetSeenOperations } from '../seen-operations';
 
 describe('a SyncResponse arriving with a removal still queued', () => {
@@ -102,7 +102,7 @@ describe('a SyncResponse arriving with a removal still queued', () => {
     forgetSeenOperations();
     const service: RevfsService = createTestService(defaultIntentHandler());
     const state: RevfsState = getState(service);
-    const key: string = peerPairKey(ALICE, BOB);
+    const key: string = peerTreeKey(ALICE, BOB);
 
     // We deleted it: the node is gone here and the op is queued for the peer.
     state.setTree(key, createDefaultTree());
@@ -133,7 +133,7 @@ describe('a SyncResponse arriving with a removal still queued', () => {
     forgetSeenOperations();
     const service: RevfsService = createTestService(defaultIntentHandler());
     const state: RevfsState = getState(service);
-    const key: string = peerPairKey(ALICE, BOB);
+    const key: string = peerTreeKey(ALICE, BOB);
     state.setTree(key, createDefaultTree());
     state.addPendingOp(key, {
       operation: {

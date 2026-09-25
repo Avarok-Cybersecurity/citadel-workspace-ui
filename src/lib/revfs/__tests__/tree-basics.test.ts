@@ -1,12 +1,12 @@
 /**
  * Tree Operations Tests: Basics
  *
- * Tests for peerPairKey, normalizePath, createDefaultTree, findNode.
+ * Tests for peerTreeKey, normalizePath, createDefaultTree, findNode.
  */
 
 import { describe, it, expect } from 'vitest';
 import {
-  peerPairKey,
+  peerTreeKey,
   createDefaultTree,
   findNode,
   normalizePath,
@@ -19,16 +19,18 @@ import { CID_A, CID_B } from './tree-test-helpers';
 import type { RevfsNode } from '@/types/revfs-types';
 
 // ============================================================================
-// peerPairKey
+// peerTreeKey
 // ============================================================================
 
-describe('peerPairKey', () => {
-  it('produces canonical key regardless of order', () => {
-    expect(peerPairKey(CID_A, CID_B)).toBe(peerPairKey(CID_B, CID_A));
+describe('peerTreeKey', () => {
+  // Directional: two accounts in one browser share OPFS, and a shared key made
+  // their two views one file. See the-tree-survives-a-reload.test.ts.
+  it('gives each side of a pair its own key', () => {
+    expect(peerTreeKey(CID_A, CID_B)).not.toBe(peerTreeKey(CID_B, CID_A));
   });
 
-  it('puts smaller CID first', () => {
-    expect(peerPairKey(CID_A, CID_B)).toBe('100_200');
+  it('puts the viewing account first', () => {
+    expect(peerTreeKey(CID_B, CID_A)).toBe('200_100');
   });
 });
 

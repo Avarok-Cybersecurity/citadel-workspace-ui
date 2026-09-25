@@ -5,7 +5,7 @@ import { useVFSSelection  } from "@/hooks/useVFSSelection";
 import { getCurrentCid } from "@/lib/p2p/current-cid";
 import { useRegisteredPeers } from "@/hooks/use-registered-peers";
 import { storagePeersFrom, type StoragePeer } from "./storage-peers";
-import { peerPairKey, serverTreeKey } from "@/lib/revfs/tree-operations";
+import { peerTreeKey, serverTreeKey } from "@/lib/revfs/tree-operations";
 import type { RevfsNode, TreeKey } from "@/types/revfs-types";
 import { TreeScope } from "@/types/revfs-types";
 import { INTERVAL } from "@/lib/timeout-constants";
@@ -111,7 +111,7 @@ export function useFileManagerContent(): UseFileManagerContentResult {
 
   const currentTreeKey: TreeKey | null = useMemo(() => {
     if (storageMode === TreeScope.Server && myCid) return serverTreeKey(myCid);
-    if (storageMode === TreeScope.Peer && myCid && selectedPeerCid) return peerPairKey(myCid, selectedPeerCid);
+    if (storageMode === TreeScope.Peer && myCid && selectedPeerCid) return peerTreeKey(myCid, selectedPeerCid);
     return null;
   }, [storageMode, myCid, selectedPeerCid]);
 

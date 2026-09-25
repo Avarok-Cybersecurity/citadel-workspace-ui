@@ -13,7 +13,7 @@
  * reliable channel, and the `PlaceFile` and `Rmdir` the user asked for queue
  * behind that flood and never arrive.
  */
-import { peerPairKey } from './tree-queries';
+import { peerTreeKey } from './tree-queries';
 import { withSerialLock } from '@/lib/serial-queue';
 import { persistTree } from './persist-tree';
 import { applyRemoteOp, mergeTrees } from './tree-operations';
@@ -41,7 +41,7 @@ export async function applyInboundOperation(
   op: RevfsOperation,
 ): Promise<void> {
     debugLog('RevfsService', `[revfs] handleRevfsOperation: sender=${senderCid} myCid=${myCid} op=${op.op_type} path=${op.path}`);
-    const key: string = peerPairKey(myCid, senderCid);
+    const key: string = peerTreeKey(myCid, senderCid);
 
     // The one place a SyncResponse is produced, so the rate limit cannot be
     // bypassed by whichever branch happens to reach it first.
@@ -236,7 +236,7 @@ export function applyInboundOperationSerially(
   if (op.op_type === RevfsOpType.Ack) {
     return applyInboundOperation(ctx, senderCid, myCid, op);
   }
-  return withSerialLock(peerPairKey(myCid, senderCid), () =>
+  return withSerialLock(peerTreeKey(myCid, senderCid), () =>
     applyInboundOperation(ctx, senderCid, myCid, op),
   );
 }

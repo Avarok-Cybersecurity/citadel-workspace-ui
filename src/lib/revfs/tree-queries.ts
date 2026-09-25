@@ -17,7 +17,23 @@ import {
 // Key Generators
 // ============================================================================
 
-export function peerPairKey(cidA: bigint, cidB: bigint): PeerPairKey {
+/**
+ * The key THIS account's tree of its shared storage with `peer` lives under:
+ * `${mine}_${peer}`.
+ *
+ * It was the sorted pair, "so both peers generate the same key". Nothing
+ * needs them to: the key never crosses the wire, and each side's tree is its
+ * own view (the same file is Remote to its uploader and Hosted to the holder).
+ * What the shared key did do was put both views in ONE file on disk whenever
+ * both accounts use the same browser, since OPFS is per origin: whichever tab
+ * wrote last replaced the other's tree, and a reload showed that one.
+ */
+export function peerTreeKey(mine: bigint, peer: bigint): PeerPairKey {
+  return `${mine}_${peer}`;
+}
+
+/** Where both accounts' trees were stored before `peerTreeKey` was directional. */
+export function legacyPairKey(cidA: bigint, cidB: bigint): PeerPairKey {
   const a: bigint = cidA < cidB ? cidA : cidB;
   const b: bigint = cidA < cidB ? cidB : cidA;
   return `${a}_${b}`;

@@ -7,7 +7,7 @@
 
 import type { RevfsNode, TreeKey } from '@/types/revfs-types';
 import {
-  peerPairKey,
+  peerTreeKey,
   serverTreeKey,
   mkdir as treeMkdir,
   rmdir as treeRmdir,
@@ -34,7 +34,7 @@ export interface DirOpsContext {
 // ── Peer-Scoped Directory Operations ──────────────────────────────────────
 
 export async function peerMkdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigint, path: string): Promise<boolean> {
-  const key: string = peerPairKey(myCid, peerCid);
+  const key: string = peerTreeKey(myCid, peerCid);
   const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
   const [newTree, op] = treeMkdir(tree, path);
 
@@ -45,7 +45,7 @@ export async function peerMkdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigi
 }
 
 export async function peerRmdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigint, path: string): Promise<boolean> {
-  const key: string = peerPairKey(myCid, peerCid);
+  const key: string = peerTreeKey(myCid, peerCid);
   const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
 
   // Collect BEFORE the removal — rmdir takes the list of what was inside with
@@ -81,7 +81,7 @@ export async function peerRmdir(ctx: DirOpsContext, myCid: bigint, peerCid: bigi
 }
 
 export async function peerRename(ctx: DirOpsContext, myCid: bigint, peerCid: bigint, path: string, newName: string): Promise<boolean> {
-  const key: string = peerPairKey(myCid, peerCid);
+  const key: string = peerTreeKey(myCid, peerCid);
   const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
   const [newTree, op] = treeRename(tree, path, newName);
 
@@ -92,7 +92,7 @@ export async function peerRename(ctx: DirOpsContext, myCid: bigint, peerCid: big
 }
 
 export async function peerMove(ctx: DirOpsContext, myCid: bigint, peerCid: bigint, sourcePath: string, destParentPath: string): Promise<boolean> {
-  const key: string = peerPairKey(myCid, peerCid);
+  const key: string = peerTreeKey(myCid, peerCid);
   const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
   const [newTree, op] = treeMove(tree, sourcePath, destParentPath);
 
@@ -103,7 +103,7 @@ export async function peerMove(ctx: DirOpsContext, myCid: bigint, peerCid: bigin
 }
 
 export async function peerCopy(ctx: DirOpsContext, myCid: bigint, peerCid: bigint, sourcePath: string, destParentPath: string): Promise<boolean> {
-  const key: string = peerPairKey(myCid, peerCid);
+  const key: string = peerTreeKey(myCid, peerCid);
   const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
   const [newTree, op] = treeCopy(tree, sourcePath, destParentPath, () => crypto.randomUUID());
 
