@@ -107,6 +107,12 @@ export async function handleMessagingLayerCommand(
     case MessagingLayerType.FileTransferChunk: {
       debugLog('P2PMessageHandler', 'Received file transfer message:', layer.type, 'from:', peerCid?.toString().slice(0, 8));
       const effectiveRecipientCid: bigint | null = recipientCid || (await config.getCurrentCid());
+      // Its only listener is FileTransferService, whose module the build puts in
+      // a chunk the page components load; this router is in one index loads on
+      // its own. Emitted before that chunk had run, an offer reached nobody: no
+      // record and no "arriving" mark, so its bubble read "Offer expired" the
+      // moment it appeared. Loading the module registers the listener.
+      await import('../file-transfer/service');
       eventEmitter.emit('p2p:file-transfer-message', {
         layer,
         senderCid: peerCid.toString(),
