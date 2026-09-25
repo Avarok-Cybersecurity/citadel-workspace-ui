@@ -1,4 +1,5 @@
 import { NotificationType, NotificationPriority , type Notification } from './types';
+import { memberDisplayName } from '@/lib/member-names';
 
 /**
  * The shape of a "someone wants to connect" notification.
@@ -19,7 +20,8 @@ export function peerRegistrationNotification(params: {
 }): Omit<Notification, 'id' | 'timestamp' | 'read'> {
   return {
     type: NotificationType.PEER_REGISTRATION,
-    title: `${params.peerUsername} wants to connect`,
+    // The roster's name where it knows one, as every other surface shows them.
+    title: `${memberDisplayName(params.peerUsername) ?? params.peerUsername} wants to connect`,
     // The handle, not the CID: a truncated CID ("CID: 165819323455...") is
     // noise to the reader, who identifies people by name and handle.
     content: `@${params.peerUsername}`,
