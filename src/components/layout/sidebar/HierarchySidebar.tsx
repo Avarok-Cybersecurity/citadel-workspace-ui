@@ -192,6 +192,8 @@ export function HierarchySidebar(): JSX.Element {
   return (
     <>
       <TreeNodesSection
+        // Until the workspace record arrives there is no name to give the parent.
+        workspaceName={state.workspace?.name || 'Workspace'}
         createBlockedReason={createBlockedReason(Boolean(state.treeSchema), treeEdit)}
         nodes={nodes.length > 0 ? nodes : undefined}
         selectedNodeId={selectedNodeId ?? undefined}

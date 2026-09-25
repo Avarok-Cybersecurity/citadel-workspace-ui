@@ -22,7 +22,7 @@ function tree(props: { isLoading: boolean; unavailable: boolean }): void {
   render(
     <MemoryRouter>
       <SidebarProvider>
-      <TreeNodesSection
+      <TreeNodesSection workspaceName="Test Workspace"
         title="Spaces"
         nodes={undefined}
         isLoading={props.isLoading}

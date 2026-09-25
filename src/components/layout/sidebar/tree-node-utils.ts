@@ -7,7 +7,11 @@ import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
  * Builds a tree structure from a flat list of DomainNodes.
  * Groups nodes by parent_id and creates a recursive TreeNode structure.
  */
-export function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
+/**
+ * `rootName` names the synthetic parent made when there are several top-level spaces:
+ * the workspace's own name. It said "Workspace", measured live.
+ */
+export function buildTreeFromNodes(nodes: DomainNode[], rootName: string): TreeNode | null {
   if (nodes.length === 0) return null;
 
   // Build lookup maps
@@ -66,7 +70,7 @@ export function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
     parent_id: null,
     entity_type: 'Workspace',
     depth: 0,
-    name: 'Workspace',
+    name: rootName,
     description: '',
     owner_id: '',
     members: [],
@@ -93,4 +97,25 @@ export function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
     node: syntheticRoot,
     children: roots.map(buildNode),
   };
+}
+
+/**
+ * How many spaces sit inside `nodeId`, at any depth, by `parent_id` -- the relation the
+ * tree is drawn from. A node's own `children` list can lag it: after a room was moved in,
+ * deleting its new office warned about nothing (measured live).
+ */
+export function descendantCount(nodes: readonly DomainNode[], nodeId: string): number {
+  const byParent: Map<string, string[]> = new Map();
+  for (const node of nodes) {
+    if (node.parent_id === null) continue;
+    byParent.set(node.parent_id, [...(byParent.get(node.parent_id) ?? []), node.id]);
+  }
+  let count: number = 0;
+  const pending: string[] = [...(byParent.get(nodeId) ?? [])];
+  while (pending.length > 0) {
+    const next: string = pending.pop() as string;
+    count++;
+    pending.push(...(byParent.get(next) ?? []));
+  }
+  return count;
 }

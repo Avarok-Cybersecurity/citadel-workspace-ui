@@ -52,7 +52,7 @@ function Sidebar({ selectedNodeId }: { selectedNodeId?: string } = {}): JSX.Elem
   return (
     <MemoryRouter>
       <SidebarProvider>
-        <TreeNodesSection
+        <TreeNodesSection workspaceName="Test Workspace"
           title="Hierarchy"
           tree={TREE}
           createBlockedReason={null}

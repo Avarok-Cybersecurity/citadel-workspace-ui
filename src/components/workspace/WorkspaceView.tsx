@@ -148,7 +148,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
 
 /** The spaces directly under the workspace, by the sidebar's own rule (buildTreeFromNodes). */
 function topLevelSpaces(nodes: Record<string, DomainNode>): DomainNode[] {
-  const tree: TreeNode | null = buildTreeFromNodes(Object.values(nodes));
+  const tree: TreeNode | null = buildTreeFromNodes(Object.values(nodes), '');
   if (!tree) return [];
   return tree.node.id === WORKSPACE_ROOT_ID ? tree.children.map((child: TreeNode): DomainNode => child.node) : [tree.node];
 }

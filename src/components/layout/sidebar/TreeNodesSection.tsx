@@ -18,7 +18,7 @@ import { AddNodeButton } from "./AddNodeButton";
 import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 import { TreeNodeItem } from "./TreeNodeItem";
-import { buildTreeFromNodes } from "./tree-node-utils";
+import { buildTreeFromNodes, descendantCount } from "./tree-node-utils";
 
 // Re-export all types for backward compatibility
 export type { NodeEntityType, DomainPermissions, DomainNode, TreeNode, TreeSchema, NestingRule, EntityTypeConfig } from "./tree-node-types";
@@ -29,6 +29,8 @@ import type { NavigateFunction } from 'react-router';
 export interface TreeNodesSectionProps {
   tree?: TreeNode;
   nodes?: DomainNode[];
+  /** The workspace's name, for the parent shown above several top-level spaces. */
+  workspaceName: string;
   selectedNodeId?: string;
   onNodeSelect?: (nodeId: string) => void;
   onNodeEdit?: (node: DomainNode) => void;
@@ -74,6 +76,7 @@ export function TreeNodesSection({
   createBlockedReason = null,
   initialExpandedIds = [],
   maxHeight = "50vh",
+  workspaceName,
 }: TreeNodesSectionProps): JSX.Element {
   const location: ReturnType<typeof useLocation> = useLocation();
   const navigate: NavigateFunction = useNavigate();
@@ -81,9 +84,9 @@ export function TreeNodesSection({
 
   const treeData: TreeNode | null = useMemo((): TreeNode | null => {
     if (tree) return tree;
-    if (nodes) return buildTreeFromNodes(nodes);
+    if (nodes) return buildTreeFromNodes(nodes, workspaceName);
     return null;
-  }, [tree, nodes]);
+  }, [tree, nodes, workspaceName]);
 
   // Search filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -274,10 +277,10 @@ export function TreeNodesSection({
           <>
             Are you sure you want to delete &quot;{nodeToDelete?.name}&quot;? This
             action cannot be undone.
-            {nodeToDelete?.children && nodeToDelete.children.length > 0 && (
+            {nodeToDelete && nodes && descendantCount(nodes, nodeToDelete.id) > 0 && (
               <span className="block mt-2 text-warning-emphasis">
-                Warning: This will also delete {nodeToDelete.children.length}{" "}
-                child node(s) and all their content.
+                Warning: This will also delete {descendantCount(nodes, nodeToDelete.id)}{" "}
+                space(s) inside it and all their content.
               </span>
             )}
             {deleteError && (
