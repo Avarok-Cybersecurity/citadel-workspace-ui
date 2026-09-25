@@ -25,6 +25,7 @@ import { useFollowLatest } from './hooks/use-follow-latest';
 import { usePeerPause, type PeerPauseBinding } from './hooks/use-peer-pause';
 import { PausedBanner } from './PausedBanner';
 import { callCapabilityWhile } from '@/lib/p2p-pause/pause-copy';
+import { useScreenshotNotice, sendScreenshotNotice } from './hooks/useScreenshotNotice';
 import type { DirectCallBinding } from '@/components/p2p/hooks/use-direct-call';
 
 export type ChatMode = 'p2p' | 'group';
@@ -64,6 +65,7 @@ export function P2PChat({
   const callBinding: DirectCallBinding = useDirectCall(peerCid, peerName);
 
   const isGroupMode: boolean = mode === 'group';
+  useScreenshotNotice(isGroupMode ? null : peerCid, sendScreenshotNotice); // best effort: see screenshot-detection.ts
   const displaySenderName: boolean = showSenderName ?? isGroupMode;
   const displaySenderAvatar: boolean = showSenderAvatar ?? isGroupMode;
 
@@ -71,7 +73,6 @@ export function P2PChat({
 
   const [showFileModal, setShowFileModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-
   // Tabs hook
   const {
     activeTabId, activeTabIdRef, tabsWithUnread, activeTab,
@@ -89,7 +90,6 @@ export function P2PChat({
     onUnreadMessage: useCallback(() => setMessagesHasUnread(true), [setMessagesHasUnread]),
   });
 
-  // File transfer hook
   const fileTransfer: ReturnType<typeof useP2PFileTransfer> = useP2PFileTransfer({ peerCid, peerName });
 
   // Composition hook (input, reply/edit context, send, live-doc flow)

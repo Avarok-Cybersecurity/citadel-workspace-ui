@@ -1,14 +1,13 @@
-import { NotEnforcedNote } from './not-enforced-note';
+import { SCREENSHOT_ALERT_LIMITS } from '@/lib/p2p/screenshot-detection';
 import { SignInKeysSection } from '@/components/passkey/SignInKeysSection';
 import { useState, useEffect } from 'react';
 import { Eye, MessageSquare, Users } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ProfileVisibilityRow, StrangerRequestsRow } from './PrivacyServerRows';
 import {
   getPrivacySettings,
   savePrivacySettings,
-  PRIVACY_ENFORCEMENT,
   type PrivacySettings,
 } from '@/lib/privacy-settings';
 
@@ -52,18 +51,7 @@ export function PrivacySettingsTab(): JSX.Element {
           />
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-          <div>
-            <Label htmlFor="profile-visibility" className="text-sm font-medium">Profile Visibility</Label>
-            <p className="text-xs text-muted-foreground">Show your profile to non-connected peers</p>
-            {!PRIVACY_ENFORCEMENT.showProfileToStrangers && <NotEnforcedNote />}
-          </div>
-          <Switch id="profile-visibility"
-            disabled={!PRIVACY_ENFORCEMENT.showProfileToStrangers}
-            checked={settings.showProfileToStrangers}
-            onCheckedChange={(v) => update('showProfileToStrangers', v)}
-          />
-        </div>
+        <ProfileVisibilityRow />
       </div>
 
       {/* Messaging Privacy */}
@@ -103,40 +91,18 @@ export function PrivacySettingsTab(): JSX.Element {
           Access Control
         </div>
 
-        <div className="p-3 rounded-lg bg-background/50">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label htmlFor="who-can-message-you" className="text-sm font-medium">Who Can Message You</Label>
-              <p className="text-xs text-muted-foreground">Control who can send you direct messages</p>
-              {!PRIVACY_ENFORCEMENT.allowDirectMessages && <NotEnforcedNote />}
-            </div>
-            <Select
-              disabled={!PRIVACY_ENFORCEMENT.allowDirectMessages}
-              value={settings.allowDirectMessages}
-              onValueChange={(v) => update('allowDirectMessages', v as PrivacySettings['allowDirectMessages'])}
-            >
-              <SelectTrigger id="who-can-message-you" className="w-32 h-8 bg-surface border-surface text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="everyone">Everyone</SelectItem>
-                <SelectItem value="connections">Connections</SelectItem>
-                <SelectItem value="nobody">Nobody</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <StrangerRequestsRow
+          accepts={settings.acceptRequestsFromStrangers}
+          onLocalChange={(v: boolean) => update('acceptRequestsFromStrangers', v)}
+        />
 
         <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
           <div>
             <Label htmlFor="screenshot-alerts" className="text-sm font-medium">Screenshot Alerts</Label>
-            <p className="text-xs text-muted-foreground">Get notified if someone takes a screenshot</p>
-            {/* A web page cannot observe a screenshot at all, so this one is not
-                waiting on a server — it is waiting on a platform that can. */}
-            {!PRIVACY_ENFORCEMENT.notifyOnScreenshot && <NotEnforcedNote />}
+            <p className="text-xs text-muted-foreground">Get notified in a chat when the other person may have taken a screenshot.</p>
+            <p className="text-xs text-warning-emphasis mt-1">{SCREENSHOT_ALERT_LIMITS}</p>
           </div>
           <Switch id="screenshot-alerts"
-            disabled={!PRIVACY_ENFORCEMENT.notifyOnScreenshot}
             checked={settings.notifyOnScreenshot}
             onCheckedChange={(v) => update('notifyOnScreenshot', v)}
           />

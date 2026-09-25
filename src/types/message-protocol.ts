@@ -7,7 +7,8 @@
  */
 
 // Message content types - determines how the message is rendered
-export type MessageType = 'text' | 'markdown' | 'live_document' | 'file_transfer';
+// 'system_notice': a line the app writes into the thread (e.g. a screenshot notice), not a bubble anyone typed.
+export type MessageType = 'text' | 'markdown' | 'live_document' | 'file_transfer' | 'system_notice';
 
 // Message event types that can be sent between peers
 export type MessageEventType = 

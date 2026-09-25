@@ -35,6 +35,7 @@ export function useEventEmitterSetup({ setState }: UseEventEmitterSetupProps): v
           avatarUrl: profile.avatarUrl || prev.currentUser.avatarUrl,
           email: profile.email,
           title: profile.title,
+          showProfileToStrangers: profile.showProfileToStrangers,
         } : prev.currentUser
       }));
     };

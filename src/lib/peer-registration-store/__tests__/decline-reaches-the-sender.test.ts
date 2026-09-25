@@ -94,3 +94,18 @@ describe('declineRequest calls it', () => {
     expect(sendAt).toBeLessThan(removeAt);
   });
 });
+
+describe('sendRegistrationDecline, which a privacy setting also uses', () => {
+  it('sends the refusal and marks it, so its answer does not register the peer', async () => {
+    const { sendRegistrationDecline } = await import('../lifecycle');
+    const { consumeWasDecline } = await import('@/lib/p2p-registration-service/decline-correlation');
+
+    await sendRegistrationDecline(7n, 42n);
+
+    const payload: Record<string, unknown> = h.sent[0].PeerRegisterRespond as Record<string, unknown>;
+    expect(payload).toMatchObject({ cid: 7n, peer_cid: 42n, accept: false });
+    // The service answers a decline with PeerRegisterSuccess; unmarked, that
+    // answer would add the refused stranger as a contact.
+    expect(consumeWasDecline(payload.request_id as string)).toBe(true);
+  });
+});

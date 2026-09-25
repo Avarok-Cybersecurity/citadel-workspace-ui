@@ -45,7 +45,19 @@ describe('privacy settings storage', () => {
     const read: PrivacySettings = fresh.getPrivacySettings();
     expect(read.showOnlineStatus).toBe(false);
     expect(read.sendReadReceipts).toBe(DEFAULT_PRIVACY_SETTINGS.sendReadReceipts);
-    expect(read.allowDirectMessages).toBe(DEFAULT_PRIVACY_SETTINGS.allowDirectMessages);
+    expect(read.acceptRequestsFromStrangers).toBe(DEFAULT_PRIVACY_SETTINGS.acceptRequestsFromStrangers);
+  });
+
+  it('does not start refusing strangers from a value nobody chose', async () => {
+    // The old three-way select was disabled but saved on every visit to the
+    // tab, so 'connections' sits in storage for users who never picked it.
+    localStorage.setItem(
+      'citadel:privacy-settings',
+      JSON.stringify({ allowDirectMessages: 'connections', showProfileToStrangers: false }),
+    );
+    vi.resetModules();
+    const fresh: typeof import('../privacy-settings') = await import('../privacy-settings');
+    expect(fresh.getPrivacySettings().acceptRequestsFromStrangers).toBe(true);
   });
 
   it('is honest about which settings this build can act on', () => {
@@ -53,12 +65,13 @@ describe('privacy settings storage', () => {
     expect(PRIVACY_ENFORCEMENT.showOnlineStatus).toBe(true);
     expect(PRIVACY_ENFORCEMENT.showTypingIndicators).toBe(true);
     expect(PRIVACY_ENFORCEMENT.sendReadReceipts).toBe(true);
-    // The three that need the server to refuse, or a platform that can observe
-    // a screenshot. A client that declines to display something has not stopped
-    // anyone from sending it, so claiming enforcement here would be theatre.
-    expect(PRIVACY_ENFORCEMENT.allowDirectMessages).toBe(false);
-    expect(PRIVACY_ENFORCEMENT.showProfileToStrangers).toBe(false);
-    expect(PRIVACY_ENFORCEMENT.notifyOnScreenshot).toBe(false);
+    // Refused where the registration request is answered: this client.
+    expect(PRIVACY_ENFORCEMENT.acceptRequestsFromStrangers).toBe(true);
+    // Profile visibility is not a local setting at all: the server enforces it
+    // (lib/profile-privacy.ts), so it has no entry here to claim anything.
+    expect(Object.keys(PRIVACY_ENFORCEMENT)).not.toContain('showProfileToStrangers');
+    // Best effort (PrintScreen on Windows/Linux only); the tab says so.
+    expect(PRIVACY_ENFORCEMENT.notifyOnScreenshot).toBe(true);
   });
 });
 

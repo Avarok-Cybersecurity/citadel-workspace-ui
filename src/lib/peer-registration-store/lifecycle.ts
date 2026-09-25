@@ -106,12 +106,18 @@ export function processIncomingNotification(
  * has not yet heard about. The sender's own resend is the backstop.
  */
 export async function executeDeclineRequest(request: PendingPeerRequest): Promise<void> {
-  const currentCid: bigint = request.cid;
-  if (!currentCid) {
+  if (!request.cid) {
     debugLog('PeerRegistrationStore', 'No active session; declining locally only');
     return;
   }
+  await sendRegistrationDecline(request.cid, request.peer_cid);
+}
 
+/**
+ * Send `PeerRegisterRespond { accept: false }` from session `cid` to `peerCid`.
+ * Shared by a decline the user clicks and one their privacy setting makes.
+ */
+export async function sendRegistrationDecline(cid: bigint, peerCid: bigint): Promise<void> {
   // The service answers a decline with PeerRegisterSuccess, which the
   // registration handler cannot otherwise tell from an acceptance.
   const requestId: string = crypto.randomUUID();
@@ -119,14 +125,9 @@ export async function executeDeclineRequest(request: PendingPeerRequest): Promis
 
   try {
     await websocketService.sendMessage({
-      PeerRegisterRespond: {
-        request_id: requestId,
-        cid: currentCid,
-        peer_cid: request.peer_cid,
-        accept: false,
-      },
+      PeerRegisterRespond: { request_id: requestId, cid, peer_cid: peerCid, accept: false },
     });
-    debugLog('PeerRegistrationStore', 'Declined registration from', request.peer_cid);
+    debugLog('PeerRegistrationStore', 'Declined registration from', peerCid);
   } catch (error) {
     debugLog('PeerRegistrationStore', 'Could not send the decline; removing locally anyway', error);
   }

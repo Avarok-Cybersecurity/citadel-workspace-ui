@@ -36,10 +36,10 @@ import {
   syncPeerConnectionsFromSession as doSyncPeerConnections,
   getAutoAcceptSetting as doGetAutoAcceptSetting,
   setAutoAcceptSetting as doSetAutoAcceptSetting,
-  handleIncomingRegistrationWithCid as doHandleIncomingRegistration,
   acceptRegistrationRequest as doAcceptRegistration,
   declineRegistrationRequest as doDeclineRegistration,
 } from './connection';
+import { handleIncomingRegistrationWithCid as doHandleIncomingRegistration } from './incoming-registration';
 import { stableLists, type PeerLists } from './peers-snapshot';
 
 export class P2PRegistrationService {
@@ -77,7 +77,7 @@ export class P2PRegistrationService {
         outgoingRegistrations: this.outgoingRegistrations,
         incomingRegistrations: this.incomingRegistrations,
         handleIncomingRegistration: (notificationCid, peerCid, peerUsername) =>
-          doHandleIncomingRegistration(notificationCid, peerCid, peerUsername, this.pendingRequests),
+          doHandleIncomingRegistration(notificationCid, peerCid, peerUsername, this.pendingRequests, this.registeredPeers),
       });
     });
 

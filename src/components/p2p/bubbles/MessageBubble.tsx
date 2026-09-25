@@ -2,6 +2,7 @@ import { TextBubble } from './TextBubble';
 import { MarkdownBubble } from './MarkdownBubble';
 import { LiveDocumentBubble } from './LiveDocumentBubble';
 import { FileTransferBubble } from './FileTransferBubble';
+import { SystemNoticeLine } from './SystemNoticeLine';
 import { getBubbleContainerStyles } from './types';
 import { MESSAGE_ANCHOR_ATTRIBUTE, JUMP_TARGET_CLASSES } from '@/components/chat/shared/jump-to-message';
 import type { QuotedMessage } from '@/components/chat/shared/reply-quote';
@@ -71,6 +72,9 @@ export function MessageBubble({
 
   const renderBubble: () => JSX.Element = (): JSX.Element => {
     switch (message.message_type) {
+      case 'system_notice':
+        return <SystemNoticeLine message={message} />;
+
       case 'markdown':
         return <MarkdownBubble {...commonProps} quoted={quoted} />;
 

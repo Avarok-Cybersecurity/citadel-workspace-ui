@@ -42,7 +42,8 @@ export enum MessagingLayerType {
   MessageEdit = 'MessageEdit',
   MessageDelete = 'MessageDelete',
   // A reaction added or retracted; see message-reaction-layer.ts.
-  MessageReaction = 'MessageReaction'
+  MessageReaction = 'MessageReaction',
+  ScreenshotNotice = 'ScreenshotNotice' // see screenshot-notice-layer.ts
 }
 
 /**
@@ -165,6 +166,7 @@ export type MessagingLayer =
   | { type: MessagingLayerType.MessageEdit; message_id: string; contents: string; edited_at: number }
   | { type: MessagingLayerType.MessageDelete; message_id: string; deleted_at: number }
   | import('./message-reaction-layer').MessageReactionLayer
+  | import('./screenshot-notice-layer').ScreenshotNoticeLayer
   // File Transfer variants
   | { type: MessagingLayerType.FileTransferRequest } & FileTransferRequestData
   | { type: MessagingLayerType.FileTransferResponse } & FileTransferResponseData

@@ -14,7 +14,6 @@ import {
   isYjsSyncPayload,
 } from '@/types/p2p-types';
 import { BroadcastChannelService } from '../broadcast-channel-service';
-import { p2pRegistrationService } from '../p2p-registration-service';
 import { ensureBigIntOrNull } from '../utils';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { debugLog, debugEnabled } from '@/lib/debug-config';
@@ -22,6 +21,7 @@ import { dispatchInboundCommand } from './inbound-command-dispatch';
 import { isCallSignalPayload } from '@/types/p2p-commands';
 import { eventEmitter } from '../event-emitter';
 import { consumeSendFailure } from './send-failure';
+import { isHiddenAsStranger, productionStrangerGate } from './stranger-message-gate';
 import { peerMessageBytes } from './peer-message-bytes';
 
 import { isForThisSession } from '../sessions/notification-ownership';
@@ -168,13 +168,10 @@ export class MessageHandler {
 
       debugLog('MessageHandler', 'P2P MessageNotification received from peer:', peerCidBigint.toString());
 
-      const isAlreadyConnected: boolean = this.config.isConnected(peerCidBigint);
-      const isAlreadyRegistered: boolean = p2pRegistrationService.isPeerRegistered(peerCidBigint);
-
-      if (!isAlreadyRegistered && !isAlreadyConnected) {
-        debugLog('P2PMessageHandler', `Received message from unregistered peer ${peerCidBigint.toString()} - protocol violation`);
+      if (await isHiddenAsStranger(peerCidBigint, productionStrangerGate(this.config.isConnected))) {
+        debugLog('P2PMessageHandler', `Not showing a message from ${peerCidBigint.toString()}: not a contact, and strangers are refused`);
+        return;
       }
-
       await dispatchInboundCommand(contentBytes, (command) =>
         this.handleP2PCommand(command, peerCidBigint, notificationCidBigint)
       );

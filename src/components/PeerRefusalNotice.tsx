@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import type { User } from '@/types/workspace-entities';
 
 /**
  * Tell somebody their peer registration request was refused.
@@ -24,6 +26,7 @@ import { useToast } from '@/hooks/use-toast';
  */
 export function PeerRefusalNotice(): null {
   const { toast } = useToast();
+  const members: Record<string, User> = useWorkspace().state.members;
 
   useEffect(() => {
     const onRefused = (payload: { peerUsername?: string; reason?: string }): void => {
@@ -31,6 +34,17 @@ export function PeerRefusalNotice(): null {
       // record it removed, and a missing one means the refusal was for another
       // session's request, already-cleared, or arrived twice.
       if (!payload.peerUsername) return;
+      // The SDK's decline carries no reason, so a refusal made by the other
+      // person's "strangers" setting is told apart by the policy they publish.
+      const peer: User | undefined = Object.values(members).find((m: User) => m.username === payload.peerUsername);
+      if (peer?.acceptsRequestsFromStrangers === false) {
+        toast({
+          variant: 'destructive',
+          title: `${peer.displayName || peer.username} isn't accepting messages from people they aren't connected with`,
+          description: 'Your request was declined automatically. It has been withdrawn.',
+        });
+        return;
+      }
       toast({
         variant: 'destructive',
         title: `${payload.peerUsername} did not accept your request`,
@@ -42,7 +56,7 @@ export function PeerRefusalNotice(): null {
 
     eventEmitter.on('peer-registration:refused', onRefused);
     return (): void => { eventEmitter.off('peer-registration:refused', onRefused); };
-  }, [toast]);
+  }, [toast, members]);
 
   return null;
 }

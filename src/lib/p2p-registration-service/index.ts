@@ -51,10 +51,10 @@ export {
   syncPeerConnectionsFromSession,
   getAutoAcceptSetting,
   setAutoAcceptSetting,
-  handleIncomingRegistrationWithCid,
   acceptRegistrationRequest,
   declineRegistrationRequest,
 } from './connection';
+export { handleIncomingRegistrationWithCid } from './incoming-registration';
 
 // Main service class & singleton
 export { P2PRegistrationService } from './service';

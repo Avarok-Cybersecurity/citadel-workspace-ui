@@ -14,6 +14,10 @@ import {
   TYPING_DISPLAY_DURATION_MS,
 } from '@/types/messaging-layer';
 import { routeRevfsOperation } from './revfs-layer-routing';
+import { applyScreenshotNotice } from './inbound-screenshot-notice';
+import { getPrivacySettings } from '@/lib/privacy-settings';
+import { peerDisplayName } from '@/lib/peer-display';
+import { p2pRegistrationService } from '../p2p-registration-service';
 import { eventEmitter } from '../event-emitter';
 import { applyIncomingEdit, applyIncomingDelete } from './inbound-revision';
 import { applyIncomingReaction } from './inbound-reaction';
@@ -79,6 +83,13 @@ export async function handleMessagingLayerCommand(
         customText: layer.text,
         customColor: layer.indicator_icon_color,
         lastUpdate: Date.now(),
+      });
+      break;
+
+    case MessagingLayerType.ScreenshotNotice:
+      await applyScreenshotNotice(config, payload, peerCid, {
+        notify: getPrivacySettings().notifyOnScreenshot,
+        peerName: peerDisplayName(p2pRegistrationService.getPeerInfo(peerCid) ?? { cid: peerCid }),
       });
       break;
 

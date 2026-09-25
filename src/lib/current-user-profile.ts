@@ -9,16 +9,19 @@
  */
 import { avatarUrlFromMetadata } from './avatar-url';
 import { profileFieldsFromMetadata } from './profile-metadata';
+import { showsProfileToStrangers } from './profile-privacy';
 
 export interface CurrentUserProfile {
   avatarUrl?: string;
   email?: string;
   title?: string;
+  showProfileToStrangers: boolean;
 }
 
 export function currentUserProfileFromMetadata(metadata: unknown, previousAvatarUrl: string | undefined): CurrentUserProfile {
   return {
     avatarUrl: avatarUrlFromMetadata(metadata) ?? previousAvatarUrl,
     ...profileFieldsFromMetadata(metadata),
+    showProfileToStrangers: showsProfileToStrangers(metadata),
   };
 }
