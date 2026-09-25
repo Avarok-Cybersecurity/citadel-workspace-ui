@@ -241,7 +241,16 @@ export default defineConfig(({ mode }) => {
           globIgnores: ['assets/*.wasm', '**/screenshots/*'],
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
           // SPA fallback, minus the endpoints that must always hit the network.
-          navigateFallback: '/index.html',
+          // `/`, never `/index.html`: the Worker's asset handler answers /index.html with a
+          // 307 to `/`. Workbox's precache normally hides that, but when the cached copy is
+          // missing it falls back to the network, and a redirected response to a navigation
+          // is a network error -- every page failed with ERR_FAILED until site data was
+          // cleared. Precaching the shell under `/` means both paths get a plain 200.
+          navigateFallback: '/',
+          manifestTransforms: [(entries) => ({
+            manifest: entries.map((entry) => (entry.url === 'index.html' ? { ...entry, url: '/' } : entry)),
+            warnings: [],
+          })],
           navigateFallbackDenylist: [/^\/ws$/, /^\/api/],
           cleanupOutdatedCaches: true,
           runtimeCaching: [

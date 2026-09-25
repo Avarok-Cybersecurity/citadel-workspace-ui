@@ -150,13 +150,13 @@ async function main() {
 
     const swSource = await readFile(swPath, 'utf8');
     const bumped = swSource.replace(
-      /(\{url:"index\.html",revision:")([^"]+)(")/,
+      /(\{url:"\/",revision:")([^"]+)(")/,
       (_m, head, rev, tail) => `${head}${'d'.repeat(rev.length)}${tail}`,
     );
     if (bumped === swSource) {
       // Fail loudly rather than silently testing a deployment that changed nothing:
       // workbox's minified manifest shape is what this pattern depends on.
-      throw new Error('could not bump the index.html precache revision in sw.js - the manifest shape changed, so this check is no longer simulating a real deployment');
+      throw new Error('could not bump the shell ("/") precache revision in sw.js - the manifest shape changed, so this check is no longer simulating a real deployment');
     }
     await writeFile(swPath, bumped + '\n// deployed\n');
 
