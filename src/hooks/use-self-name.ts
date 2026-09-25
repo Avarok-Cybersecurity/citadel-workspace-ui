@@ -20,11 +20,16 @@ export interface SelfName {
 export function useSelfName(): SelfName {
   const { state } = useWorkspace();
   const me: TabIdentity | null = useTabIdentity();
-  const username: string | undefined = state.currentUser?.username || me?.username;
+  // The tab's identity first. The loaded user is not reset when this tab switches to an
+  // account on another workspace, so read first it kept naming the previous one (measured
+  // live); it counts only when it IS this tab's account.
+  const current: typeof state.currentUser = state.currentUser && (!me?.username || state.currentUser.username === me.username)
+    ? state.currentUser : undefined;
+  const username: string | undefined = me?.username || current?.username;
   // A workspace load writes `name: fullName || username`, so after a password
   // sign-in the loaded name IS the username. That is no name at all, and read
   // first it hid the roster's; only a name that says more is kept ahead of it.
-  const loaded: string | undefined = state.currentUser?.name?.trim();
+  const loaded: string | undefined = current?.name?.trim();
   const name: string | undefined = (loaded && loaded !== username ? loaded : undefined)
     || selfDisplayName(state.members, { username, fullName: me?.fullName });
   return { username, name, cid: me?.cid };

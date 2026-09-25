@@ -3,7 +3,7 @@ import { workspaceEvents, type ConnectionInfo } from '@/lib/workspace-events';
 import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 import type { DomainNode, TreeNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
-import { runAsyncSetup, upsertNode, removeNode } from './event-setup-utils';
+import { runAsyncSetup, upsertNode, removeNode, nodesFromList } from './event-setup-utils';
 import { setTreeSchema } from '@/lib/entity-type-registry';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 
@@ -56,10 +56,7 @@ export function useNodeEventSetup({ setState }: UseNodeEventSetupProps): void {
       keep(workspaceEvents.onNodeEvent('nodes:loaded', (payload: { nodes: DomainNode[]; connection: ConnectionInfo }) => {
         cancelLoadingDeadline('nodes');
         setState(prev => {
-          const updatedNodes: { [x: string]: DomainNode; } = { ...prev.nodes };
-          for (const node of payload.nodes) {
-            updatedNodes[node.id] = node;
-          }
+          const updatedNodes: { [x: string]: DomainNode; } = nodesFromList(payload.nodes);
 
           broadcastChannelService.broadcastStateSync({
             type: 'nodes',

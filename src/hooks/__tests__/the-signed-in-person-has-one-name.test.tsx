@@ -83,4 +83,17 @@ describe('a peer', () => {
     expect(rosterDisplayName(roster, 'carol')).toBeUndefined();
     expect(rosterDisplayName(roster, 'dave')).toBeUndefined();
   });
+
+  // Measured live, switching orgs: the account button kept the previous org's user
+  // ("alice.lab") because the loaded currentUser was read before this tab's identity.
+  it('is the tab\'s own account, not a loaded user left over from another workspace', async () => {
+    const { result } = renderHook(() => useSelfName(), {
+      wrapper: withRoster(
+        { alice0924: member('alice0924', 'Alice Anders') },
+        { id: 'alice.lab', username: 'alice.lab', name: 'Lab Alice' },
+      ),
+    });
+    await waitFor(() => expect(result.current.username).toBe('alice0924'));
+    expect(result.current.name).toBe('Alice Anders');
+  });
 });

@@ -77,3 +77,14 @@ export function removeNode(
     };
   });
 }
+
+/**
+ * The node set a full `Nodes` answer describes. It replaced nothing -- it was merged into
+ * the previous set -- so a workspace switch kept the last workspace's offices (measured
+ * live). The only request answered with `Nodes` is post-auth setup's unfiltered ListNodes.
+ */
+export function nodesFromList(nodes: readonly DomainNode[]): Record<string, DomainNode> {
+  const byId: Record<string, DomainNode> = {};
+  for (const node of nodes) byId[node.id] = node;
+  return byId;
+}
