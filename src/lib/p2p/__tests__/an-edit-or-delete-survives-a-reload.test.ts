@@ -42,6 +42,13 @@ vi.mock('../../websocket-service', () => ({
   },
 }));
 vi.mock('@/lib/multi-instance/instance-manager', () => ({ instanceManager: { cid: 4242n } }));
+// Each `vi.resetModules()` "reload" would open another real BroadcastChannel
+// while the earlier one still listens -- two tabs to the channel, whose twin-tab
+// repair then calls into the instanceManager stub above. Tabs are not what this
+// file measures, so the channel is inert.
+vi.mock('@/lib/multi-instance/instance-channel', () => ({
+  instanceChannel: new Proxy({}, { get: (): (() => undefined) => (): undefined => undefined }),
+}));
 vi.mock('../current-cid', () => ({ getCurrentCid: async (): Promise<bigint> => 4242n }));
 
 const ME: bigint = 4242n;
