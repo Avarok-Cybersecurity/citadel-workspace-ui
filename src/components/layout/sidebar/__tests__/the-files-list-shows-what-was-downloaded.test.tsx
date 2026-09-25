@@ -23,7 +23,7 @@ vi.mock('@/lib/p2p/current-cid', () => ({ getCurrentCid: async (): Promise<bigin
 // One stable answer, as the real hook gives between fetches: a fresh [] per
 // render re-creates the section's loader every render.
 const noPeers: { registeredPeers: never[]; isLoading: boolean } = { registeredPeers: [], isLoading: false };
-vi.mock('@/hooks/use-registered-peers', () => ({ useRegisteredPeers: () => noPeers }));
+vi.mock('@/hooks/use-registered-peers', () => ({ useRegisteredPeers: (): typeof noPeers => noPeers }));
 vi.mock('@/components/shared/confirm-dialog', () => ({ useConfirm: () => async (): Promise<boolean> => true }));
 vi.mock('@/components/ui/sidebar', () => {
   const Pass = ({ children }: { children?: ReactNode }): JSX.Element => <div>{children}</div>;
