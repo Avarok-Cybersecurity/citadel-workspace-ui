@@ -5,16 +5,17 @@
  * The server's rule, in its order:
  *
  *   1. Both roles built in: allowed when the caller's `command_authority` is at
- *      least the granted role's, or when no workspace member holds the granted
- *      role yet (a vacant seat may be filled; it is how a workspace, which
- *      starts with an Admin and no Owner, ever gains an Owner).
+ *      least the granted role's, or when the caller is an Admin and no
+ *      workspace member holds the granted role yet (a vacant seat may be filled
+ *      by an Admin; it is how a workspace, which starts with an Admin and no
+ *      Owner, ever gains an Owner).
  *   2. Otherwise: allowed when every permission the granted role carries is one
  *      the caller's role holds, `All` covering everything.
  *
  * A mirror, not a gate: the server still decides. What this changes is that the
  * dialog stops offering what the server will refuse.
  */
-import { normalizeRole } from './role-predicate';
+import { isAdminRole, normalizeRole } from './role-predicate';
 import { Permission, ROLE_DEFAULT_PERMISSIONS, type UserRole } from './permissions-service/types';
 
 /** `UserRole::command_authority` in citadel-workspace-types. Custom roles have none. */
@@ -54,6 +55,9 @@ export function mayGrantRole(role: string, context: GrantContext): boolean {
   const granting: number | null = commandAuthority(role);
   if (mine !== null && granting !== null) {
     if (mine >= granting) return true;
+    // Only an Admin fills a vacant seat: a Member holding AddUsers could
+    // otherwise make anyone, themselves included, the first Owner.
+    if (!isAdminRole(context.actorRole)) return false;
     const seat: string | null = normalizeRole(role);
     return seat !== null && context.occupiedRoles !== null && !context.occupiedRoles.has(seat);
   }
