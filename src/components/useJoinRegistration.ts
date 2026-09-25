@@ -19,6 +19,8 @@ import type { NavigateFunction } from 'react-router';
 import { startSignupProfile } from '@/lib/signup-profile-io';
 import type { SignupProfileFields } from '@/lib/signup-profile';
 import { BLANK_JOIN_FORM } from './join-form-blank';
+import { serverPasswordMismatchMessage } from '@/lib/server-password-error';
+import { describeFailure } from '@/lib/failure-message';
 
 /** The required credentials plus the optional profile fields sent after registration. */
 export interface JoinFormData extends SignupProfileFields {
@@ -211,7 +213,8 @@ export function useJoinRegistration(
     } catch (error: unknown) {
       debugLog('Join', 'Registration Error:', error);
       setShowConnectModal(false);
-      toast({ title: getErrorTitle(error), description: getUserFriendlyErrorMessage(error), variant: "destructive" });
+      const wrongServerPassword: string | null = serverPasswordMismatchMessage(describeFailure(error, ''), Boolean(serverPassword));
+      toast({ title: wrongServerPassword ? 'Wrong server password' : getErrorTitle(error), description: wrongServerPassword ?? getUserFriendlyErrorMessage(error), variant: "destructive" });
     } finally {
       debugLog('Join', "Setting isRegistering to false in finally block.");
       setIsRegistering(false);

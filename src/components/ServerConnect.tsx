@@ -119,10 +119,11 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
                 </div>
               </div>
 
-              {/* Workspace Password */}
+              {/* The connection's pre-shared key. Not the claim code or master password, which
+                  new owners were told they would need and pasted here: see server-password-error. */}
               <div className="space-y-2">
                 <label htmlFor="password" className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                  Workspace Password (Optional)
+                  Server Password (Optional)
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -134,8 +135,12 @@ export const ServerConnect = ({ onNext, onCancel, defaultServer, title, initialA
                     onChange={(e) => setPassword(e.target.value)}
                     className="bg-input border-border text-foreground pl-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
                     placeholder="••••••••••••"
+                    aria-describedby="server-password-hint"
                   />
                 </div>
+                <p id="server-password-hint" className="text-xs text-muted-foreground">
+                  Leave blank unless the server&rsquo;s operator gave you one. A claim code or master password is asked for after you join.
+                </p>
               </div>
 
               {/* Security info banner */}

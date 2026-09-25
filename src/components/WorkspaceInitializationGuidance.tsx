@@ -12,8 +12,8 @@ import type { JSX } from 'react';
  *     workspace password". The product has THREE different passwords in the
  *     first five minutes -- the account password the user picks in the join
  *     wizard, the optional server password on the connect step (ServerConnect
- *     labels that one "Workspace Password (Optional)", which is the same two
- *     words), and this one. Nothing anywhere said which.
+ *     labelled that one "Workspace Password (Optional)", the same two words;
+ *     it is now "Server Password"), and this one. Nothing anywhere said which.
  *   - The helper text said "Contact your workspace administrator if you don't
  *     have the password", and on a brand-new deployment there IS no
  *     administrator. This prompt is how the first one comes to exist. It sent
