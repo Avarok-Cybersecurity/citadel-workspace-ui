@@ -57,7 +57,9 @@ export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs
     const storedSessions: StoredSessions = connectionManager.getStoredSessions();
     const tabSelectedUser: TabUserContext | null = await getSelectedUser();
     const connInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
-    const currentCid: bigint | null = connInfo?.cid ?? null;
+    // This tab's selection first: the connection's CID is whichever session connected last,
+    // so after a switch it named the other org's account as current (measured live).
+    const currentCid: bigint | null = tabSelectedUser?.selectedCid ?? connInfo?.cid ?? null;
     // The agent's live sessions too: a session resumed by claim is never saved, and the
     // switcher is how you reach another org (see switcherWorkspaces).
     const { ok, sessions: live } = await connectionManager.getActiveSessionsResult();
