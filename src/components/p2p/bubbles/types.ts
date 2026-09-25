@@ -16,6 +16,8 @@ export interface BaseBubbleProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onReply?: () => void;
+  /** Focus the composer after Edit or Reply; see chat/shared/menu-focus-handoff. */
+  focusComposer?: () => void;
   /** Absent where reactions are not offered; see ReactionChips. */
   reactions?: ReactionBinding;
 }

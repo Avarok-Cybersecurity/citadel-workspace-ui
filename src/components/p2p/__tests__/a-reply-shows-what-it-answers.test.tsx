@@ -50,6 +50,7 @@ const base: Omit<ComponentProps<typeof P2PMessageList>, 'ref'> = {
   onDeclineTransfer: vi.fn(),
   onCancelTransfer: vi.fn(),
   onOpenFile: vi.fn(),
+  focusComposer: vi.fn(),
 };
 
 describe('a P2P reply', () => {

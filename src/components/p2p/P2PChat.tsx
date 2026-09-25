@@ -220,6 +220,7 @@ export function P2PChat({
               onEditMessage={onEditMessage ?? handleStartEdit}
               onDeleteMessage={onDeleteMessage ?? handleDeleteMessage}
               onReplyMessage={onReplyMessage ?? handleReplyMessage}
+              focusComposer={(): void => { inputRef.current?.focus(); }}
               onReactMessage={handleReactMessage}
             />
             <ComposeContextBanner

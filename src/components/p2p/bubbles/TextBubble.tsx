@@ -13,6 +13,7 @@ import { BubbleFooter } from './BubbleFooter';
 import { ReactionChips } from '@/components/chat/shared/reactions/ReactionChips';
 import { ReactionMenuItems } from '@/components/chat/shared/reactions/ReactionMenuItems';
 import { getInitials } from '@/components/chat/shared';
+import { useMenuFocusHandoff, type MenuFocusHandoff } from '@/components/chat/shared/menu-focus-handoff';
 
 export function TextBubble({
   message,
@@ -24,9 +25,11 @@ export function TextBubble({
   onEdit,
   onDelete,
   onReply,
+  focusComposer,
   quoted,
   reactions,
 }: ReplyableBubbleProps): JSX.Element {
+  const handoff: MenuFocusHandoff = useMenuFocusHandoff(focusComposer);
   const isFailed: boolean = message.status === 'failed';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
   const displayName: string = senderName || 'Unknown';
@@ -97,15 +100,15 @@ export function TextBubble({
                 <MoreVertical className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align={isOwn ? 'start' : 'end'}>
+            <DropdownMenuContent align={isOwn ? 'start' : 'end'} onCloseAutoFocus={handoff.onCloseAutoFocus}>
               {onReply && (
-                <DropdownMenuItem onClick={onReply}>
+                <DropdownMenuItem onClick={handoff.toComposer(onReply)}>
                   <Reply className="h-4 w-4 mr-2" />
                   Reply
                 </DropdownMenuItem>
               )}
               {isOwn && onEdit && (
-                <DropdownMenuItem onClick={onEdit}>
+                <DropdownMenuItem onClick={handoff.toComposer(onEdit)}>
                   <Edit2 className="h-4 w-4 mr-2" />
                   Edit
                 </DropdownMenuItem>

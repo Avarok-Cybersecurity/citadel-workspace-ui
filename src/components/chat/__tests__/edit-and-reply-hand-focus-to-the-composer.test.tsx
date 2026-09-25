@@ -10,6 +10,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { GroupMessageItem } from '../GroupMessageItem';
+import { TextBubble } from '@/components/p2p/bubbles/TextBubble';
 
 const own: never = { id: 'm1', group_id: 'g1', sender_id: 'lara', sender_name: 'lara', content: 'hello', timestamp: 1, edited: false, reply_to: null, reply_count: 0 } as never;
 
@@ -33,5 +34,17 @@ describe('choosing from a message menu', () => {
     const { focusComposer } = await choose('Delete');
     await new Promise((r) => setTimeout(r, 50));
     expect(focusComposer).not.toHaveBeenCalled();
+  });
+});
+
+describe('a P2P bubble menu', () => {
+  // The same flaw in the P2P chat's own menus, measured live; one hook serves both.
+  it.each(['Edit', 'Reply'])('%s gives the composer focus as the menu closes', async (item: string) => {
+    const focusComposer: ReturnType<typeof vi.fn> = vi.fn();
+    const message: never = { id: 'p1', content: 'hi', senderCid: 1n, timestamp: 1, status: 'delivered' } as never;
+    render(<TextBubble message={message} isOwn quoted={null} onEdit={(): void => {}} onReply={(): void => {}} focusComposer={focusComposer} />);
+    await userEvent.click(screen.getByRole('button', { name: /message actions/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: item }));
+    await waitFor((): void => { expect(focusComposer).toHaveBeenCalledTimes(1); });
   });
 });

@@ -35,6 +35,8 @@ interface P2PMessageListProps {
   onEditMessage?: (messageId: string, content: string) => void;
   onDeleteMessage?: (messageId: string) => void;
   onReplyMessage?: (messageId: string) => void;
+  /** Focus the composer after a bubble's Edit or Reply; see chat/shared/menu-focus-handoff. */
+  focusComposer: () => void;
   onReactMessage?: (messageId: string, emoji: string) => void;
 }
 
@@ -61,6 +63,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
       onEditMessage,
       onDeleteMessage,
       onReplyMessage,
+      focusComposer,
       onReactMessage,
     }: P2PMessageListProps,
     ref: React.ForwardedRef<HTMLDivElement>
@@ -149,6 +152,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
                 onEdit={onEditMessage ? (): void => onEditMessage(message.id, message.content) : undefined}
                 onDelete={onDeleteMessage ? (): void => onDeleteMessage(message.id) : undefined}
                 onReply={onReplyMessage ? (): void => onReplyMessage(message.id) : undefined}
+                focusComposer={focusComposer}
                 reactions={reactionsFor(message)}
               />
             );

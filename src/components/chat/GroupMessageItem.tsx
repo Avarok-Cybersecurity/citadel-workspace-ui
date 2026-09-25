@@ -1,4 +1,5 @@
-import React, { useRef } from 'react';
+import React from 'react';
+import { useMenuFocusHandoff, type MenuFocusHandoff } from './shared/menu-focus-handoff';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -63,8 +64,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
   quoted,
   reactions,
 }) => {
-  // Set by Edit and Reply, read when the menu closes: the composer, not the menu button, is next.
-  const toComposer: React.MutableRefObject<boolean> = useRef<boolean>(false);
+  const handoff: MenuFocusHandoff = useMenuFocusHandoff(focusComposer);
   // Compared against the USERNAME, not the CID.
   //
   // The server sets `sender_id` from `get_username_by_cid`, so it is a workspace
@@ -166,20 +166,15 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align={isOwnMessage ? 'start' : 'end'}
-            onCloseAutoFocus={(event: Event): void => {
-              if (!toComposer.current) return;
-              toComposer.current = false;
-              event.preventDefault();
-              focusComposer();
-            }}
+            onCloseAutoFocus={handoff.onCloseAutoFocus}
           >
-            <DropdownMenuItem onClick={() => { toComposer.current = true; onReply(message.id); }}>
+            <DropdownMenuItem onClick={handoff.toComposer(() => onReply(message.id))}>
               <Reply className="h-4 w-4 mr-2" />
               Reply
             </DropdownMenuItem>
             {isOwnMessage && canRevise && (
               <>
-                <DropdownMenuItem onClick={() => { toComposer.current = true; onEdit(message.id, message.content); }}>
+                <DropdownMenuItem onClick={handoff.toComposer(() => onEdit(message.id, message.content))}>
                   <Edit2 className="h-4 w-4 mr-2" />
                   Edit
                 </DropdownMenuItem>

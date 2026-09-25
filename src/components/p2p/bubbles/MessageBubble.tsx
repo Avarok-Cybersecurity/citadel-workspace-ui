@@ -29,6 +29,7 @@ interface MessageBubbleProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onReply?: () => void;
+  focusComposer?: () => void;
   reactions?: ReactionBinding;
 }
 
@@ -48,12 +49,13 @@ export function MessageBubble({
   onEdit,
   onDelete,
   onReply,
+  focusComposer,
   reactions,
 }: MessageBubbleProps): JSX.Element {
   const containerStyles: string = getBubbleContainerStyles(isOwn);
 
   // Common props for all bubble types
-  const commonProps: { message: P2PMessage; isOwn: boolean; onRetry: (() => void) | undefined; showSenderName: boolean | undefined; showSenderAvatar: boolean | undefined; senderName: string | undefined; onEdit: (() => void) | undefined; onDelete: (() => void) | undefined; onReply: (() => void) | undefined; reactions: ReactionBinding | undefined; } = {
+  const commonProps: { message: P2PMessage; isOwn: boolean; onRetry: (() => void) | undefined; showSenderName: boolean | undefined; showSenderAvatar: boolean | undefined; senderName: string | undefined; onEdit: (() => void) | undefined; onDelete: (() => void) | undefined; onReply: (() => void) | undefined; focusComposer: (() => void) | undefined; reactions: ReactionBinding | undefined; } = {
     message,
     isOwn,
     onRetry,
@@ -63,6 +65,7 @@ export function MessageBubble({
     onEdit,
     onDelete,
     onReply,
+    focusComposer,
     reactions,
   };
 
