@@ -82,7 +82,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
     try {
       await connectionManager.removeAllSessions();
       setStoredSessions([]);
-      toast({ title: 'All accounts cleared', description: 'All saved accounts have been removed.' });
+      toast({ title: 'Saved accounts cleared', description: 'The saved list is empty. Accounts signed in now stay signed in.' });
       setClearAllConfirmOpen(false);
       onClose();
     } catch (error) {
