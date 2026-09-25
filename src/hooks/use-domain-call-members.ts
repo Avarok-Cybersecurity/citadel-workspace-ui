@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react';
 import { isForDomain } from '@/lib/workspace-events/is-for-domain';
 import WorkspaceService from '@/lib/workspace-service';
 import { workspaceEvents, type MembersPayload } from '@/lib/workspace-events';
-import { connectionManager } from '@/lib/connection';
-import { tryParseCid } from '@/lib/utils/cid-utils';
+import { p2pRegistrationService } from '@/lib/p2p-registration-service';
+import type { PeerInfoResponse } from '@/lib/p2p-registration-service/types';
+import { getCurrentCid } from '@/lib/p2p/current-cid';
+import { callableMembers } from '@/lib/call/callable-members';
+import type { User } from '@/types/workspace-entities';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import type { GroupCallMember } from '@/components/call/GroupCallControls';
 
@@ -32,19 +35,23 @@ export function useDomainCallMembers(domainId: string | undefined): GroupCallMem
       return;
     }
 
+    let cancelled: boolean = false;
     const unsubscribe: () => void = workspaceEvents.onMemberEvent(
       'members:loaded',
       (payload: MembersPayload) => {
         if (!isForDomain(payload.domainId, domainId)) return;
 
-        const selfCid: bigint | undefined = connectionManager.getConnectionInfo()?.cid ?? undefined;
-        const callable: GroupCallMember[] = [];
-        for (const user of payload.members) {
-          const cid: bigint | undefined = tryParseCid(user.id);
-          if (cid === undefined || cid === selfCid) continue;
-          callable.push({ cid, username: user.username || user.displayName || user.id });
-        }
-        setMembers(callable);
+        // Member ids are usernames; the CIDs come from the peer directory. See callable-members.
+        const roster: User[] = payload.members;
+        runAsyncSetup(async () => {
+          const [directory, selfCid] = await Promise.all([p2pRegistrationService.listAllPeers(), getCurrentCid()]);
+          if (cancelled) return;
+          setMembers(callableMembers(
+            roster.map((user: User) => ({ id: user.id, username: user.username, displayName: user.displayName })),
+            directory.map((peer: PeerInfoResponse) => ({ cid: peer.cid, username: peer.username ?? peer.peer_username })),
+            selfCid ?? undefined,
+          ));
+        });
       },
     );
 
@@ -52,7 +59,10 @@ export function useDomainCallMembers(domainId: string | undefined): GroupCallMem
       await WorkspaceService.listMembers(domainId);
     });
 
-    return unsubscribe;
+    return (): void => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [domainId]);
 
   return members;
