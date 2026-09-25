@@ -28,7 +28,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { toastError, toastSuccess } from '@/lib/toast-helpers';
 import { inviteLink } from '@/lib/invite-link';
-import { useInviteAddress } from './use-invite-address';
+import { useWorkspaceAddress } from '@/hooks/use-workspace-address';
 
 interface InviteToWorkspaceDialogProps {
   open: boolean;
@@ -45,7 +45,7 @@ export function InviteToWorkspaceDialog({
   serverAddress: connectionAddress,
 }: InviteToWorkspaceDialogProps): JSX.Element {
   const { toast } = useToast();
-  const serverAddress: string | undefined = useInviteAddress(open, connectionAddress);
+  const serverAddress: string | undefined = useWorkspaceAddress(open, connectionAddress);
 
   const copy = (text: string, done: string): void => {
     void navigator.clipboard.writeText(text).then(

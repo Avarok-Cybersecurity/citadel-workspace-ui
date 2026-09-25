@@ -26,6 +26,7 @@ import { createControlPlane, type ControlPlane } from '@/lib/onboarding/control-
 import { planAndBillingSlug } from '@/lib/onboarding/billing-portal';
 import { openBrowserPortalTab } from '@/lib/onboarding/browser-portal-tab';
 import { ManageSubscriptionDialog } from './ManageSubscriptionDialog';
+import { useWorkspaceAddress } from '@/hooks/use-workspace-address';
 
 /**
  * Admin Settings Section
@@ -45,11 +46,15 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
     ? undefined
     : createControlPlane((input: string, init?: RequestInit): Promise<Response> => fetch(input, init), controlPlaneBase),
   [controlPlaneBase]);
+  const serverAddress: string | undefined = useWorkspaceAddress(
+    isPrivilegedRole(state.currentUser?.role) && controlPlaneBase !== undefined,
+    connectionManager.getConnectionInfo()?.serverAddress,
+  );
   // Hosted workspaces only: a self-hosted server has no plan, and a page with no
   // control plane has nobody to ask.
   const billingSlug: string | undefined = planAndBillingSlug({
     role: state.currentUser?.role,
-    serverAddress: connectionManager.getConnectionInfo()?.serverAddress,
+    serverAddress,
     controlPlaneBase,
   });
 
