@@ -16,7 +16,7 @@
  * importing them eagerly.
  */
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -148,6 +148,28 @@ const BUDGET_KB = 322;
  * rename cannot turn this into a check of nothing.
  */
 const DEFERRED_MODULES = ['src/lib/p2p/p2p-messenger-manager.ts'];
+
+/**
+ * This measures dist/ and does not build it, so a dist/ older than the source
+ * measures some other commit. That happened on the first merge of the
+ * deferred-messenger change: a build from before the merge, checked by the
+ * script from after it, reported the pre-fix 322.6 KB and the messenger "on
+ * the critical path again" for a tree where neither was true.
+ */
+const newestSource = (path) => {
+  const info = statSync(path);
+  if (!info.isDirectory()) return /[\\/]__tests__[\\/]|\.test\.tsx?$/.test(path) ? 0 : info.mtimeMs;
+  return Math.max(0, ...readdirSync(path).map((name) => newestSource(join(path, name))));
+};
+const builtAt = statSync(join(dist, 'index.html')).mtimeMs;
+const sourceAt = Math.max(...['src', 'index.html', 'vite.config.ts', 'scripts/lib'].map((p) => newestSource(join(root, p))));
+if (sourceAt > builtAt) {
+  console.error(
+    `dist/ was built ${((sourceAt - builtAt) / 1000).toFixed(0)}s before the newest source change, so it measures\n` +
+    'a different tree. Run `npx vite build` first; nothing below would be about this checkout.'
+  );
+  process.exit(1);
+}
 
 const html = readFileSync(join(dist, 'index.html'), 'utf8');
 
