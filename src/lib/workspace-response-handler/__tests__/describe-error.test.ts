@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { describeWorkspaceError } from '../describe-error';
+import { describeRefusal, describeWorkspaceError, PERMISSION_SENTENCE } from '../describe-error';
 
 describe('a workspace error', () => {
   it('turns a permission denial into a sentence with a next step', () => {
@@ -57,5 +57,46 @@ describe('a workspace error', () => {
   it('does not render an object as [object Object]', () => {
     expect(describeWorkspaceError({ SomeVariant: { nested: true } })).toBe('SomeVariant');
     expect(describeWorkspaceError(null)).toBe('The server rejected the request.');
+  });
+});
+
+/**
+ * The same refusals when they arrive as the server's `Error(String)` response,
+ * which is how every member write answers. The strings are the kernel's own
+ * (async_domain_server_ops.rs, async_process_command.rs), verbatim.
+ */
+describe('a refusal string', () => {
+  it('turns the AddUsers denial into the sentence the Add button already uses', () => {
+    expect(
+      describeRefusal('Failed to add member: Permission denied: AddUsers is required to manage members'),
+    ).toBe(PERMISSION_SENTENCE.AddUsers);
+  });
+
+  it('says a role above your own cannot be given, without the enum names', () => {
+    for (const refusal of [
+      'Failed to add member: Permission denied: Admin cannot grant Owner, which is above them',
+      'Failed to add member: Permission denied: Custom("helper", 21) cannot grant Admin, which carries authority it does not hold',
+    ]) {
+      const message: string = describeRefusal(refusal);
+      expect(message, refusal).toBe('You cannot give someone a role above your own.');
+    }
+  });
+
+  it('says a higher-ranked member cannot be changed', () => {
+    expect(
+      describeRefusal('Failed to add member: Permission denied: Owner cannot change the role of alice, who is above them'),
+    ).toBe('You cannot change the role of someone who outranks you.');
+  });
+
+  it('keeps a refusal that is already a sentence, minus the handler prefix', () => {
+    expect(
+      describeRefusal("Failed to add member: No account named 'bobb' exists on this workspace"),
+    ).toBe("No account named 'bobb' exists on this workspace");
+  });
+
+  it('never shows "Permission denied:" for a denial it has no sentence for', () => {
+    const message: string = describeRefusal('Failed to add member: Permission denied: unknown actor');
+    expect(message).not.toMatch(/Permission denied/);
+    expect(message).toMatch(/permission/i);
   });
 });
