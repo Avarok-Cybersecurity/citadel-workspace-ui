@@ -33,6 +33,7 @@ import { bindVisibilityFlush } from './visibility-flush';
 import { resolveCurrentCid, updatePeerPresenceOnConnect } from './messenger-cid-resolver';
 import { bindPeerConnectionState } from './bind-peer-connection-state';
 import { syncConnectionsFromBackend, updateFileTransferState, markMessagesAsRead, updateUnreadCount, autoRegisterPeer } from './messenger-compatibility';
+import { bindOutgoingFileOffers } from './record-outgoing-file-transfer';
 import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
 import type { MessagePage, ConversationMetadata } from '@/lib/p2p/p2p-types';
@@ -114,9 +115,7 @@ export class P2PMessengerManager extends EventListenerManager {
     if (!P2PMessengerManager.instance) { P2PMessengerManager.instance = new P2PMessengerManager(); }
     return P2PMessengerManager.instance;
   }
-
   public async waitForReady(): Promise<void> { if (this.isReady) return; if (this.initPromise) await this.initPromise; }
-
   protected setupEventListeners(): void {
     bindCachedMessageLoad(
       (event, handler) => this.listen(event, handler),
@@ -125,6 +124,7 @@ export class P2PMessengerManager extends EventListenerManager {
       () => { this.isReady = true; this.emit('p2p:messages-loaded'); },
     );
     bindVisibilityFlush(() => this.checkStateManager.flushPendingCheckStateResponses());
+    bindOutgoingFileOffers((event, handler) => this.listen(event, handler), { addMessageToConversation: (p, m) => this.conversationManager.addMessageToConversation(p, m), notifyMessageListeners: (m) => notifyEach(this.messageListeners, 'p2p message', m), emitEvent: (e, d) => this.emit(e, d) });
     // See reset-conversations.ts.
     bindConversationSessionReset(
       (event, handler) => this.listen(event, handler),
@@ -155,7 +155,6 @@ export class P2PMessengerManager extends EventListenerManager {
   }
 
   private async loadCachedMessages(): Promise<void> { await this.conversationManager.loadFromStorage(); this.cachedMessagesLoaded = true; }
-
   // ===== Public API: Messaging =====
   public async sendMessage(recipientCid: bigint, content: string, options?: SendMessageOptions): Promise<P2PMessage> { return this.messageSender.sendMessage(recipientCid, content, options); }
   public async resendMessage(peerCid: bigint, messageId: string): Promise<void> { const c: P2PConversation | undefined = this.conversationManager.getConversation(peerCid); if (!c) throw new Error(`Conversation with ${peerCid} not found`); return this.messageSender.resendMessage(peerCid, messageId, c); }
