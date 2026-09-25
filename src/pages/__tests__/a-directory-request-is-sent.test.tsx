@@ -20,7 +20,7 @@ import type { ReactNode } from 'react';
 import type { Peer } from '@/components/p2p/usePeerDiscovery';
 
 const { send, discovered, toast } = vi.hoisted(() => ({
-  send: vi.fn(async (): Promise<string> => 'request-1'),
+  send: vi.fn(async (): Promise<{ requestId: string; recorded: boolean }> => ({ requestId: 'request-1', recorded: true })),
   toast: vi.fn(),
   discovered: { current: [] as Array<{ cid: string; username: string; is_online: boolean }> },
 }));
@@ -60,6 +60,7 @@ vi.mock('@/components/p2p/peer-discovery-requests', () => ({
 }));
 
 import { UserDirectory } from '../UserDirectory';
+import { eventEmitter } from '@/lib/event-emitter';
 
 function titles(): string[] {
   return toast.mock.calls.map((call: unknown[]): string => (call[0] as { title: string }).title);
@@ -76,7 +77,7 @@ async function requestBob(): Promise<void> {
 
 beforeEach((): void => {
   send.mockClear();
-  send.mockImplementation(async (): Promise<string> => 'request-1');
+  send.mockImplementation(async (): Promise<{ requestId: string; recorded: boolean }> => ({ requestId: 'request-1', recorded: true }));
   toast.mockClear();
   discovered.current = [{ cid: '2', username: 'bob', is_online: true }];
 });
@@ -106,6 +107,24 @@ describe('a connection request from the directory', () => {
     await requestBob();
     await waitFor((): void => { expect(titles()).toContain('Error'); });
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it('leaves a recorded request\'s refusal to PeerRefusalNotice: one toast per decline', async () => {
+    await requestBob();
+    await waitFor((): void => { expect(titles()).toContain('Request Sent'); });
+    const requestId: string = (send.mock.calls[0] as unknown as [bigint, bigint, string, string])[3];
+    eventEmitter.emit('websocket-message', { PeerRegisterFailure: { request_id: requestId, cid: 1n, message: 'The peer declined the request' } });
+    await new Promise((r: (v: void) => void): void => { setTimeout(r, 20); });
+    expect(titles()).not.toContain('Request Failed');
+  });
+
+  it('still says so itself when the store could not record the request', async () => {
+    send.mockImplementation(async (): Promise<{ requestId: string; recorded: boolean }> => ({ requestId: 'request-1', recorded: false }));
+    await requestBob();
+    await waitFor((): void => { expect(titles()).toContain('Request Sent'); });
+    const requestId: string = (send.mock.calls[0] as unknown as [bigint, bigint, string, string])[3];
+    eventEmitter.emit('websocket-message', { PeerRegisterFailure: { request_id: requestId, cid: 1n, message: 'The peer declined the request' } });
+    await waitFor((): void => { expect(titles()).toContain('Request Failed'); });
   });
 
   it('offers no message box the wire cannot carry', async () => {

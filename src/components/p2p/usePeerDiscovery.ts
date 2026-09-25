@@ -4,7 +4,8 @@ import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
-import { applyPeerRegisterFailure, correlateFailure, type SentRequest } from './peer-register-failure';
+import { applyPeerRegisterFailure, correlateFailure, discoveryRefusalCopy, noteRecorded, type SentRequest } from './peer-register-failure';
+import type { SentPeerRegistration } from '@/lib/p2p/send-peer-registration';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { peerRegistrationStore, OutgoingPeerRequest, PendingPeerRequest } from '@/lib/peer-registration-store';
 import { getSelectedUser , type TabUserContext } from '@/lib/tab-context';
@@ -86,18 +87,15 @@ export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; regis
         const failure: Record<string, unknown> = getVariant(message, 'PeerRegisterFailure')!;
         const correlated: ReturnType<typeof correlateFailure> = correlateFailure(failure, sentRequests.current);
         if (correlated) {
-          const peerName: string = correlated.peer.username;
           sentRequests.current.delete(correlated.requestId);
           applyPeerRegisterFailure(failure, {
             // The peer WE sent to, not whatever the response names.
             markRegistered: (): void =>
               setRegisteredPeers(prev => new Set([...prev, correlated.peer.cid.toString()])),
-            reportRefusal: (reason: string | undefined): void => toastError(
-              toast, 'Request Failed',
-              reason
-                ? `Your request to ${peerName} was not accepted: ${reason}`
-                : `Your request to ${peerName} could not be delivered.`,
-            ),
+            reportRefusal: (reason: string | undefined): void => {
+              const copy: string | null = discoveryRefusalCopy(correlated.peer, reason);
+              if (copy) toastError(toast, 'Request Failed', copy);
+            },
           });
         }
       }
@@ -228,7 +226,8 @@ export function usePeerDiscovery(isOpen: boolean): { peers: Peer[] | null; regis
       broadcastChannelService.registerRequest(requestId, currentCid);
       // Before the send: a failure can arrive before the await resolves.
       sentRequests.current.set(requestId, { cid: BigInt(peerCid), username: peerUsername });
-      await sendPeerRegistration(currentCid, BigInt(peerCid), peerUsername, requestId);
+      const sent: SentPeerRegistration = await sendPeerRegistration(currentCid, BigInt(peerCid), peerUsername, requestId);
+      noteRecorded(sentRequests.current, requestId, sent.recorded);
       toast({
         title: "Request Sent",
         description: connectionRequestSentCopy(peerUsername, peers?.find((p: Peer): boolean => p.cid === peerCid)?.is_online ?? null),

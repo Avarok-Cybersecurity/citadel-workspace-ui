@@ -31,7 +31,7 @@ vi.mock('@/lib/connection', () => ({
   connectionManager: { getTabSelectedSession: async (): Promise<null> => null, getConnectionInfo: (): null => null },
 }));
 vi.mock('@/lib/broadcast-channel-service', () => ({ broadcastChannelService: { registerRequest: vi.fn() } }));
-vi.mock('@/lib/p2p/send-peer-registration', () => ({ sendPeerRegistration: vi.fn(async (): Promise<void> => {}) }));
+vi.mock('@/lib/p2p/send-peer-registration', () => ({ sendPeerRegistration: vi.fn(async (): Promise<{ requestId: string; recorded: boolean }> => ({ requestId: 'r', recorded: true })) }));
 vi.mock('@/lib/peer-registration-store', () => ({
   peerRegistrationStore: {
     getOutgoingRequestCids: async (): Promise<Set<bigint>> => new Set<bigint>(),
