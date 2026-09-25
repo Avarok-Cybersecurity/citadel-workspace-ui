@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CitadelLogo } from '@/components/brand/CitadelLogo';
+import { BRAND_NAME } from '@/components/brand/artwork/brand-rules.generated';
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { useInstallAction } from "@/components/pwa/use-install-action";
 import {
@@ -55,7 +56,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps): JSX.Element => {
   } = useSessionExit();
 
   // Get workspace name from context or fallback to prop
-  const workspaceName: string = state.workspace?.name || currentWorkspace || "Citadel Workspace";
+  const workspaceName: string = state.workspace?.name || currentWorkspace || BRAND_NAME;
 
   // Fallback identity from tab-context — the orphan-claim path doesn't
   // persist a stored-session row, so without this fallback the TopBar
@@ -121,9 +122,9 @@ export const TopBar = ({ currentWorkspace }: TopBarProps): JSX.Element => {
           <Menu className="h-5 w-5" />
         </Button>
         {/* The PRODUCT mark; the switcher beside it names the WORKSPACE, which an
-            admin can call anything. Mark alone: at 56px tall a wordmark would fall
-            under its 130px legibility floor. Hidden below `sm` for width. */}
-        <CitadelLogo variant="mark" height={26} className="mr-3 hidden shrink-0 sm:block" />
+            admin can call anything. Mark alone, at 26px (so the compact cut): the bar
+            has no room for a lockup beside the switcher. Hidden below `sm` for width. */}
+        <CitadelLogo variant="mark" height={26} className="mr-1 hidden shrink-0 sm:inline-flex" />
         <WorkspaceSwitcher workspaceName={workspaceName} />
       </div>
       {/* shrink-0: these controls are the way out of the app and must never be

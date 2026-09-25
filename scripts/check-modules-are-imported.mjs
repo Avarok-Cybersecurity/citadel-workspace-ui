@@ -52,8 +52,13 @@ function* files(dir) {
 
 const all = [...files(SRC)];
 const imported = new Set();
+/**
+ * The build config imports from src too (the PWA manifest's kit fields, the /ws proxy path), and
+ * a module only it imports is reached by every build. Scanned as an importer, never as a module.
+ */
+const CONFIG_IMPORTERS = [join(ROOT, 'vite.config.ts')];
 
-for (const file of all) {
+for (const file of [...all, ...CONFIG_IMPORTERS]) {
   const source = readFileSync(file, 'utf8');
   // Static imports/re-exports, dynamic `import()`, and SIDE-EFFECT imports
   // (`import './x';`) alike. The last was missing from the first draft, which

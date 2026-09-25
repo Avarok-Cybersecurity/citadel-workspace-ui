@@ -123,7 +123,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
 
   const handleInviteUser = (userId: string): void => {
     setSelectedUser(allMembers.find(member => member.id === userId) || null);
-    setRequestMessage(`I'd like to connect with you on Citadel Workspace.`);
+    setRequestMessage(`I'd like to connect with you on Citadel Workspaces.`);
     setRequestDialogOpen(true);
   };
 

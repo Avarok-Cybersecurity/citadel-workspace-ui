@@ -171,7 +171,7 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
 
         setTimeout(() => {
           notificationService.addSystemNotification(
-            'Welcome to Citadel Workspace',
+            'Welcome to Citadel Workspaces',
             'Your secure workspace is ready. Explore the features and connect with your team.',
             NotificationPriority.NORMAL,
             cidString

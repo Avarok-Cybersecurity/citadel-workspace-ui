@@ -42,7 +42,7 @@ describe('titleForPath', () => {
 
   it('ends every non-landing title with the product name', () => {
     for (const p of ['/connect', '/workspace', '/messages', '/directory', '/groups/x', '/nope']) {
-      expect(titleForPath(p)).toMatch(/· Citadel Workspace$/);
+      expect(titleForPath(p)).toMatch(/· Citadel Workspaces$/);
     }
   });
 });

@@ -1,3 +1,5 @@
+import { BRAND_NAME } from '@/components/brand/artwork/brand-rules.generated';
+
 /**
  * The WebAuthn relying-party ID.
  *
@@ -7,7 +9,7 @@
  * credentials a separate set by construction.
  */
 export const PRODUCTION_RP_ID: 'work.avarok.net' = 'work.avarok.net';
-export const RP_NAME: 'Citadel Workspace' = 'Citadel Workspace';
+export const RP_NAME: typeof BRAND_NAME = BRAND_NAME;
 
 export function resolveRpId(hostname: string): string {
   const host: string = hostname.toLowerCase();

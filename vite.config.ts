@@ -8,6 +8,7 @@ import path from "path";
 import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
 import { manifestForBuild } from "./src/lib/pwa/version-manifest";
 import { VERSION_MANIFEST_PATH } from "./src/lib/pwa/deployed-version";
+import { KIT_MANIFEST } from "./src/pwa/kit-manifest.generated";
 
 /**
  * The Content-Security-Policy the app ships under.
@@ -130,15 +131,14 @@ export default defineConfig(({ mode }) => {
        */
       VitePWA({
         registerType: 'prompt',
-        includeAssets: ['favicon.ico', 'icons/apple-touch-icon.png'],
+        includeAssets: ['favicon.ico', 'favicon.svg', 'mask-icon.svg', 'icons/apple-touch-icon-180.png'],
+        // The brand kit's site.webmanifest is the base -- name, short_name, display,
+        // scope and icons come from it, generated into KIT_MANIFEST -- and only what
+        // the kit does not know about is added here. One manifest ships, not two.
         manifest: {
-          name: 'Citadel Workspace',
-          short_name: 'Citadel',
+          ...KIT_MANIFEST,
           description: 'Post-quantum secure, peer-to-peer collaborative workspace.',
           id: '/',
-          start_url: '/',
-          scope: '/',
-          display: 'standalone',
           orientation: 'any',
           // The native menu-bar app opens the installed app AT an account. A
           // PWA shim drops https URLs handed to it by another app; a registered
@@ -147,8 +147,8 @@ export default defineConfig(({ mode }) => {
           // reuses the open window instead of stacking a second one.
           protocol_handlers: [{ protocol: 'web+citadel', url: '/?link=%s' }],
           launch_handler: { client_mode: 'navigate-existing' },
-          // #1B1C27 is what `--background: 235 18% 13%` actually resolves to.
-          // The old #1C1D28 was the pre-token hex and is a rounding step away;
+          // #1B1C27, NOT the kit's #1C1D28: it is what `--background: 235 18% 13%`
+          // actually resolves to, and #1C1D28 (the brand ground) is a rounding step away;
           // keeping all three declarations byte-identical means the splash, the
           // titlebar and the painted page cannot disagree even slightly.
           background_color: '#1B1C27',
@@ -157,12 +157,6 @@ export default defineConfig(({ mode }) => {
           // titlebar changing colour a moment after the app appears.
           theme_color: '#1B1C27',
           categories: ['productivity', 'business', 'security'],
-          icons: [
-            { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-            { src: '/icons/icon-192-maskable.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-            { src: '/icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-          ],
           // Jump straight to the two places people actually open the app for,
           // from the installed icon's context menu (right-click on desktop,
           // long-press on Android). An installed app that can only ever open on
@@ -203,14 +197,14 @@ export default defineConfig(({ mode }) => {
               sizes: '1280x800',
               type: 'image/png',
               form_factor: 'wide',
-              label: 'The Citadel Workspace landing page on a desktop',
+              label: 'The Citadel Workspaces landing page on a desktop',
             },
             {
               src: '/screenshots/narrow.png',
               sizes: '412x915',
               type: 'image/png',
               form_factor: 'narrow',
-              label: 'The Citadel Workspace landing page on a phone',
+              label: 'The Citadel Workspaces landing page on a phone',
             },
           ],
         },
