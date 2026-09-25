@@ -21,7 +21,6 @@ import { toast } from '@/hooks/use-toast';
 import type { GroupConversation } from '@/types/group';
 import { encodeGroupControl, type GroupControlBody } from './group-control-codec';
 import { groupSendTransport } from './group-send-transport';
-import { sendPeerGroupBody } from './group-requests';
 
 export function groupControlSnapshot(group: GroupConversation): GroupControlBody {
   return {
@@ -31,7 +30,14 @@ export function groupControlSnapshot(group: GroupConversation): GroupControlBody
   };
 }
 
+/**
+ * The request module is imported lazily, as in reconcile-groups: it reaches the
+ * WebSocket service, and the group store binds this module at startup, so a
+ * static import put the socket stack in the store's import graph and a unit
+ * test of an unread badge constructed a real BroadcastChannel.
+ */
 export async function sendGroupControl(groupId: string, control: GroupControlBody): Promise<string> {
+  const { sendPeerGroupBody } = await import('./group-requests');
   return sendPeerGroupBody(groupId, (senderCid: bigint, messageId: string): Uint8Array => encodeGroupControl({
     group_id: groupId,
     message_id: messageId,
