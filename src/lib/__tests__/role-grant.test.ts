@@ -43,6 +43,12 @@ describe('which roles a caller may grant', () => {
     expect(grantable('Member', ['owner', 'admin'])).toEqual(['Member', 'Guest']);
   });
 
+  it('never lets a Member fill a vacant seat, which only an Admin may', () => {
+    // bench.work.avarok.net: an Admin and no Owner. The Member was offered Owner.
+    expect(grantable('Member', ['admin', 'member'])).toEqual(['Member', 'Guest']);
+    expect(grantable('Guest', ['admin'])).toEqual(['Guest']);
+  });
+
   it('reads the role in any casing the wire produces', () => {
     expect(grantable({ Custom: ['x', 1] }, [], [])).toEqual([]);
     expect(grantable('admin' as UserRole, ['owner'])).toEqual(['Admin', 'Member', 'Guest']);

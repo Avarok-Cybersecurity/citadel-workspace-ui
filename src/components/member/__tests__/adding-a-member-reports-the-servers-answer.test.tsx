@@ -15,7 +15,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { WorkspaceProtocolRequestTS } from '@/types/workspace-protocol';
 
-const { toast, sent, answer, caller, roster } = vi.hoisted(() => ({
+const { toast, sent, answer, caller, roster, listed } = vi.hoisted(() => ({
+  listed: [] as string[],
   toast: vi.fn(),
   sent: [] as unknown[],
   answer: { current: {} as Record<string, unknown> },
@@ -50,6 +51,7 @@ vi.mock('@/lib/workspace-service', async () => {
   return {
     default: {
       listMembers: async (domainId: string): Promise<void> => {
+        listed.push(domainId);
         queueMicrotask((): void => {
           eventEmitter.emit('members:loaded', { members: roster.current, domainId });
         });
@@ -83,6 +85,7 @@ beforeEach((): void => {
   toast.mockClear();
   caller.role = 'Admin';
   roster.current = [];
+  listed.length = 0;
 });
 
 /** The roles the dialog's select carries, read from the native select Radix mirrors them into. */
@@ -150,6 +153,17 @@ describe('the role list', () => {
     render(<MemberManagementModal isOpen onClose={vi.fn()} mode="add" />);
 
     await waitFor((): void => { expect(offeredRoles()).toEqual(['Admin', 'Guest', 'Member', 'Owner']); });
+  });
+
+  it('does not offer a Member the vacant Owner seat', async () => {
+    caller.role = 'Member';
+    roster.current = [{ id: 'ada', username: 'ada', role: 'Admin' }, { id: 'alice', username: 'alice', role: 'Member' }];
+    render(<MemberManagementModal isOpen onClose={vi.fn()} mode="add" />);
+
+    // Wait for the roster, so a pass is not the unknown-roster answer.
+    await waitFor((): void => { expect(listed).toContain('workspace-root'); });
+    await new Promise<void>((resolve: () => void): void => { setTimeout(resolve, 0); });
+    expect(offeredRoles()).toEqual(['Guest', 'Member']);
   });
 
   it('offers an Owner every role', async () => {
