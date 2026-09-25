@@ -1,3 +1,4 @@
+import { searchMatcher } from '@/lib/fold-for-search';
 import { isVariant } from 'citadel-workspace-client-ts';
 import { getEntityTypeString } from '@/lib/entity-type-registry';
 import type { DomainNode, TreeNode } from './tree-node-types';
@@ -118,4 +119,22 @@ export function descendantCount(nodes: readonly DomainNode[], nodeId: string): n
     pending.push(...(byParent.get(next) ?? []));
   }
   return count;
+}
+
+/**
+ * The tree cut down to the nodes whose name matches `query`, plus their
+ * ancestors; the tree itself when the query is blank, null when nothing matches.
+ * Folded, and folded ONCE -- see fold-for-search.ts. The walk recurses over the
+ * whole tree, so a per-node fold is a per-node normalisation.
+ */
+export function filterTree(tree: TreeNode | null, query: string): TreeNode | null {
+  if (!tree || !query.trim()) return tree;
+  const matches: (haystack: string) => boolean = searchMatcher(query);
+  function filterNode(tn: TreeNode): TreeNode | null {
+    const children: TreeNode[] = tn.children
+      .map(filterNode)
+      .filter((c: TreeNode | null): c is TreeNode => c !== null);
+    return matches(tn.node.name) || children.length > 0 ? { ...tn, children } : null;
+  }
+  return filterNode(tree);
 }

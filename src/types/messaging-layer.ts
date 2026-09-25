@@ -451,8 +451,3 @@ export const FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES: number = 100 * 1024 * 1024;
 
 /** Default RE-VFS storage quota per peer (100 MB) */
 export const REVFS_DEFAULT_QUOTA_BYTES: number = 100 * 1024 * 1024;
-
-// The P2P chunk-streaming constants that used to sit here (chunk size,
-// max size, per-chunk timeout, retries) were tuning for the abandoned
-// message-plane transfer implementation and were deleted with it — the SDK
-// chunks the real transfer itself, server-side.

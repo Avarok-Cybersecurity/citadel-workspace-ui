@@ -115,31 +115,15 @@ export class FileTransferService {
     return declineTransfer(this.deps, transferId, reason);
   }
 
-  // Settings
-  /**
-   * Per-peer settings are scoped to the ACCOUNT that set them.
-   *
-   * They were keyed by peer CID alone, and this browser holds several sessions
-   * at once — so one account enabling "auto-accept files from X" made every
-   * other account in the same browser auto-accept from X too. A security
-   * setting inherited by an account that never agreed to it.
-   *
-   * A missing own-CID falls back to the bare peer key rather than inventing a
-   * scope: settings written before a session is established belong to no
-   * account, and silently filing them under one would be worse.
-   */
-  private scopedKey(peerCid: string): string {
-    return scopedSettingsKey(peerCid);
-  }
-
-  getSettings(peerCid: string): FileTransferSettings { return this.state.getSettings(this.scopedKey(peerCid)); }
-  getAutoAccept(peerCid: string): boolean { return this.state.getSettings(this.scopedKey(peerCid)).autoAccept; }
-  getTransferMode(peerCid: string): TransferModePreference { return this.state.getSettings(this.scopedKey(peerCid)).transferMode; }
+  // Settings -- scoped per account; see settings-key.ts.
+  getSettings(peerCid: string): FileTransferSettings { return this.state.getSettings(scopedSettingsKey(peerCid)); }
+  getAutoAccept(peerCid: string): boolean { return this.state.getSettings(scopedSettingsKey(peerCid)).autoAccept; }
+  getTransferMode(peerCid: string): TransferModePreference { return this.state.getSettings(scopedSettingsKey(peerCid)).transferMode; }
 
   private async updateSetting<K extends keyof FileTransferSettings>(
     peerCid: string, key: K, value: FileTransferSettings[K]
   ): Promise<void> {
-    const key_: string = this.scopedKey(peerCid);
+    const key_: string = scopedSettingsKey(peerCid);
     const settings: FileTransferSettings = this.state.getSettings(key_);
     settings[key] = value;
     this.state.setSettings(key_, settings);

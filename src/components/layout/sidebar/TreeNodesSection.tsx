@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo } from "react";
-import { searchMatcher } from '@/lib/fold-for-search';
 import { debugLog } from '@/lib/debug-config';
 import { useLocation, useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
@@ -18,7 +17,7 @@ import { AddNodeButton } from "./AddNodeButton";
 import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 import { TreeNodeItem } from "./TreeNodeItem";
-import { buildTreeFromNodes, descendantCount } from "./tree-node-utils";
+import { buildTreeFromNodes, descendantCount, filterTree } from "./tree-node-utils";
 
 // Re-export all types for backward compatibility
 export type { NodeEntityType, DomainPermissions, DomainNode, TreeNode, TreeSchema, NestingRule, EntityTypeConfig } from "./tree-node-types";
@@ -91,27 +90,8 @@ export function TreeNodesSection({
   // Search filter state
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter tree based on search query
-  const filteredTreeData: TreeNode | null = useMemo((): TreeNode | null => {
-    if (!treeData || !searchQuery.trim()) return treeData;
-    // Folded, and folded ONCE — see fold-for-search.ts. `filterNode` recurses
-    // over the whole tree, so a per-node fold is a per-node normalisation.
-    const matches: (haystack: string) => boolean = searchMatcher(searchQuery);
-
-    function filterNode(tn: TreeNode): TreeNode | null {
-      const nameMatches: boolean = matches(tn.node.name);
-      const filteredChildren: TreeNode[] = tn.children
-        .map(filterNode)
-        .filter((c): c is TreeNode => c !== null);
-
-      if (nameMatches || filteredChildren.length > 0) {
-        return { ...tn, children: filteredChildren };
-      }
-      return null;
-    }
-
-    return filterNode(treeData);
-  }, [treeData, searchQuery]);
+  const filteredTreeData: TreeNode | null = useMemo(
+    (): TreeNode | null => filterTree(treeData, searchQuery), [treeData, searchQuery]);
 
   const { effectiveExpanded, toggleExpand } = useTreeExpansion({
     treeData,

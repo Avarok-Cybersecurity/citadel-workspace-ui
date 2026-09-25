@@ -121,12 +121,7 @@ export interface WorkspaceProtocolRequestTS {
   };
 
   // User profile operations
-  UpdateUserProfile?: {
-    name?: string; avatar_data?: string; // avatar: base64-encoded WebP image
-    email?: string; title?: string; // '' clears either
-    // Absent leaves the stored choice alone. See lib/profile-privacy.ts.
-    show_profile_to_strangers?: boolean; accepts_requests_from_strangers?: boolean;
-  };
+  UpdateUserProfile?: import('./user-profile-request').UpdateUserProfileRequest;
 
   // Server capabilities query
   GetServerCapabilities?: null;
