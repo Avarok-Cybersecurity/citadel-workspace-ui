@@ -1,6 +1,7 @@
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess } from "@/lib/toast-helpers";
 import WorkspaceService from "@/lib/workspace-service";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { UserRoleTS } from "@/types/workspace-protocol";
 import { describeFailure } from "@/lib/failure-message";
 import { describeRefusal } from "@/lib/workspace-response-handler/describe-error";
@@ -69,18 +70,21 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
 }) => {
   const { toast } = useToast();
   const roleOptions: RoleOption[] = useGrantableRoles(ROLE_OPTIONS, isOpen && mode !== "remove");
-  const location: "domain" | "workspace" = domainId ? "domain" : "workspace";
+  const { state } = useWorkspace();
+  // The place by its name. This said "the domain", the protocol's word, to people who
+  // see "Engineering" in the sidebar (measured live).
+  const place: string = domainId ? (state.nodes[domainId]?.name ?? "this space") : "the workspace";
 
   const modes: Record<"add" | "edit" | "remove", ModeConfig> = {
-    add: { ...BASE_MODES.add, description: `Add a new member to this ${location}` },
-    edit: { ...BASE_MODES.edit, description: `Update member's role in this ${location}` },
-    remove: { ...BASE_MODES.remove, description: `Remove member from this ${location}` },
+    add: { ...BASE_MODES.add, description: `Add a new member to ${place}` },
+    edit: { ...BASE_MODES.edit, description: `Update a member's role in ${place}` },
+    remove: { ...BASE_MODES.remove, description: `Remove a member from ${place}` },
   };
 
   const handleSubmit = async (formData: Record<string, string>): Promise<void> => {
     if (mode === "add") {
       await inPlainWords(WorkspaceService.addMember(formData.username, formData.role as UserRoleTS, domainId));
-      toastSuccess(toast, "Member Added", `${formData.username} has been added to the ${location} as ${formData.role}`);
+      toastSuccess(toast, "Member Added", `${formData.username} has been added to ${place} as ${formData.role}`);
     } else if (mode === "edit" && member) {
       await inPlainWords(WorkspaceService.updateMemberRole(member.id, formData.role));
       toastSuccess(toast, "Member Updated", `${member.username}'s role has been updated to ${formData.role}`);
@@ -92,7 +96,7 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
 
   const customContent: JSX.Element | undefined = mode === "remove" && member ? (
     <div className="text-foreground">
-      Are you sure you want to remove <strong>{member.username}</strong> from this {location}?
+      Are you sure you want to remove <strong>{member.username}</strong> from {place}?
     </div>
   ) : undefined;
 
