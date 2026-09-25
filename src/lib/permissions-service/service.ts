@@ -152,11 +152,12 @@ export class PermissionsService extends EventListenerManager {
 
     const requestPromise: Promise<DomainPermissions> = (async (): Promise<DomainPermissions> => {
       try {
+        const askedAt: number = Date.now();
         await WorkspaceService.getUserPermissions(userId, domainId);
 
         const loaded: DomainPermissions = await awaitPermissionsLoaded(domainId, () =>
           this.cache.get(domainId),
-        );
+        askedAt);
         this.lastFailure.delete(domainId);
         return loaded;
       } catch (error: unknown) {
