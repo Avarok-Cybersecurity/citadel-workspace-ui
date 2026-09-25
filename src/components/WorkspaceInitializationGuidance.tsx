@@ -32,7 +32,12 @@ export function WorkspaceInitializationGuidance(): JSX.Element {
   return (
     <div className="space-y-2 text-sm text-muted-foreground">
       <p>
-        This asks for the{' '}
+        <span className="font-medium text-foreground">Created this workspace at work.avarok.net?</span>{' '}
+        Enter the <span className="font-medium text-foreground">claim code</span> you were shown
+        when you created it. It makes you the workspace&rsquo;s owner.
+      </p>
+      <p>
+        Running your own server? This asks for the{' '}
         <span className="font-medium text-foreground">workspace master password</span> — not
         the account password you chose when you registered. It is a separate secret, set by
         whoever deployed this server as{' '}

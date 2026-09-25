@@ -182,7 +182,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
 
                         <div className="space-y-2">
                             <Label htmlFor="masterPassword" className="text-foreground/80">
-                                Workspace master password
+                                Claim code or workspace master password
                             </Label>
                             <Input
                                 id="masterPassword"
