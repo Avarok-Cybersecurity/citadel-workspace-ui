@@ -5,27 +5,30 @@
  * the banner, the P2P resume and the sign-in redirect are the three outcomes.
  */
 import { describe, it, expect } from 'vitest';
-import { handleServerReconnectEvent, type OwnSession, type ServerReconnectIO } from '../server-reconnect';
+import { handleServerReconnectEvent, signInAfterLoss, type OwnSession, type ServerReconnectIO } from '../server-reconnect';
 import { readAgentReconnectEvent, type AgentReconnectEvent } from '@/types/agent-reconnect';
 import { parseAccountLink } from '@/lib/onboarding/account-link';
 
 const OWN: OwnSession = { cid: 42n, username: 'alice', server: 'bench.work.avarok.net' };
 
-interface Recorder { io: ServerReconnectIO; banner: Array<string | null>; resumed: () => number; signIns: Array<[string, string]> }
+interface Recorder { io: ServerReconnectIO; banner: Array<string | null>; resumed: () => number; reloaded: bigint[]; signIns: Array<[string, string]> }
 
 function recorder(own: OwnSession | null = OWN): Recorder {
   const banner: Array<string | null> = [];
   const signIns: Array<[string, string]> = [];
+  const reloaded: bigint[] = [];
   let resumed: number = 0;
   return {
     io: {
       ownSession: async (): Promise<OwnSession | null> => own,
       setReconnecting: (server: string | null): void => { banner.push(server); },
       resumePeers: async (): Promise<void> => { resumed += 1; },
+      reloadWorkspace: async (cid: bigint): Promise<void> => { reloaded.push(cid); },
       signInAgain: (path: string, message: string): void => { signIns.push([path, message]); },
     },
     banner,
     resumed: (): number => resumed,
+    reloaded,
     signIns,
   };
 }
@@ -43,6 +46,21 @@ describe('the agent reports on this tab session', () => {
     await handleServerReconnectEvent({ kind: 'reconnected', cid: 42n }, r.io);
     expect(r.banner).toEqual([null]);
     expect(r.resumed()).toBe(1);
+  });
+
+  // Live: a page reloaded while the link was down asked for its workspace into the dead
+  // link, and after "reconnected" nothing asked again -- it stayed on "Workspace data is
+  // taking longer than expected" with the session back.
+  it('asks for the workspace again once reconnected, since requests sent into the drop were lost', async () => {
+    const r: Recorder = recorder();
+    await handleServerReconnectEvent({ kind: 'reconnected', cid: 42n }, r.io);
+    expect(r.reloaded).toEqual([42n]);
+  });
+
+  it('does not reload anything while the agent is still retrying', async () => {
+    const r: Recorder = recorder();
+    await handleServerReconnectEvent({ kind: 'lost', cid: 42n, reconnecting: true }, r.io);
+    expect(r.reloaded).toEqual([]);
   });
 
   it('sends the user to sign in to the same account when the agent gives up', async () => {
@@ -86,6 +104,7 @@ describe('a report about some other session', () => {
       await handleServerReconnectEvent(event, r.io);
       expect(r.banner).toEqual([]);
       expect(r.resumed()).toBe(0);
+      expect(r.reloaded).toEqual([]);
       expect(r.signIns).toEqual([]);
     }
   });
@@ -132,5 +151,13 @@ describe('the account link it builds', () => {
     const r: Recorder = recorder({ ...OWN, server: 'not a server' });
     await handleServerReconnectEvent({ kind: 'failed', cid: 42n, reason: '' }, r.io);
     expect(parseAccountLink(new URLSearchParams(r.signIns[0][0].slice(2)))).toEqual({ username: 'alice' });
+  });
+});
+
+describe('signing in after a session the agent could not keep', () => {
+  it('opens sign-in for that account and says the session ended while its link was down', () => {
+    const { path, message } = signInAfterLoss('alice', 'bench.work.avarok.net', 'Session 42 is not claimable: SDK session is disconnected');
+    expect(parseAccountLink(new URLSearchParams(path.slice(2)))).toEqual({ username: 'alice', server: 'bench.work.avarok.net' });
+    expect(message).toBe("Couldn't reconnect to bench.work.avarok.net (the session ended while its link to the workspace was down). Sign in again to continue.");
   });
 });
