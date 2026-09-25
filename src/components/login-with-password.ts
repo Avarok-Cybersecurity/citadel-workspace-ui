@@ -17,6 +17,7 @@ import { debugLog } from '@/lib/debug-config';
 import { awaitConnectOutcome, type ConnectOutcome } from '@/lib/connection/await-connect-outcome';
 import { mapSecuritySettings, type SessionSecuritySettings } from '@/lib/security-utils';
 import type { StoredSessions, StoredSession, ActiveSession } from '@/types/session-types';
+import { sessionLabel, type SessionLabel } from '@/lib/sessions/session-label';
 import type { SecuritySettingsState } from './useLoginHandler';
 
 export type LoginResult =
@@ -35,10 +36,15 @@ export async function loginWithPassword(
 ): Promise<LoginResult> {
   // Metadata only. `connect` takes no server address -- the SDK pinned the
   // account's server in its CNAC at registration and dials that -- so this
-  // exists to label the stored session, not to reach anything.
+  // exists to label the stored session, not to reach anything. The label comes
+  // from the agent once it has answered (see session-label).
   const storedSessions: StoredSessions = connectionManager.getStoredSessions();
   const storedSession: StoredSession | undefined = storedSessions.sessions.find(s => s.username === username.trim());
-  const serverAddress: string = storedSession?.serverAddress ?? '';
+  const labelFor = async (cid: bigint): Promise<SessionLabel> => {
+    connectionManager.invalidateSessionCache();
+    const live: ActiveSession[] = await connectionManager.getActiveSessions();
+    return sessionLabel(cid, username.trim(), live, storedSession);
+  };
 
   const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   const outcomePromise: Promise<ConnectOutcome> = awaitConnectOutcome(requestId, CONNECT_TIMEOUT_MS);
@@ -60,12 +66,14 @@ export async function loginWithPassword(
   if (outcome.kind === 'already-active') {
     // The agent verified the password against the live session: claim it.
     debugLog('Login', `SessionAlreadyActive - ${outcome.message}`);
+    const { serverAddress } = await labelFor(outcome.cid);
     await ctx.redirect({ cid: outcome.cid, username: outcome.username || username.trim(), server_address: serverAddress });
     return { kind: 'redirected' };
   }
   if (outcome.kind === 'failed') {
     if (!isConnectAlreadyInProgress(outcome.message)) throw new Error(outcome.message);
     if (outcome.cid && outcome.cid !== 0n) {
+      const { serverAddress } = await labelFor(outcome.cid);
       await ctx.redirect({ cid: outcome.cid, username: username.trim(), server_address: serverAddress });
       return { kind: 'redirected' };
     }
@@ -78,8 +86,9 @@ export async function loginWithPassword(
   }
 
   const cid: bigint = outcome.cid;
+  const { serverAddress, fullName } = await labelFor(cid);
   await connectionManager.handleAuthSuccess({
-    username, fullName: username, serverAddress,
+    username, fullName, serverAddress,
     // Stored as chosen too. Persisting the defaults here meant every
     // reconnect silently downgraded to them as well.
     securitySettings: chosenSettings, cid,

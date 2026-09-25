@@ -13,6 +13,8 @@ import type { ActiveSession } from '@/types/session-types';
  * a bare IP for `server_address`) cannot be judged by server. It is taken only
  * when it is the one live session with that username; a readable, different
  * host stays a mismatch, because taking it would switch to another account.
+ * The same holds for a stored record with no server at all, which older sign-ins
+ * wrote (see session-label): measured live as an unreachable held account.
  */
 export function liveSessionCid(
   live: readonly ActiveSession[],
@@ -21,7 +23,8 @@ export function liveSessionCid(
   const named: ActiveSession[] = live.filter((s: ActiveSession) => s.username === account.username);
   const onServer: ActiveSession | undefined = named.find((s: ActiveSession) => sessionIsOnServer(s, account.serverAddress));
   if (onServer) return onServer.cid;
-  return named.length === 1 && addressIsOpaque(named[0]) ? named[0].cid : undefined;
+  const unknowable: boolean = account.serverAddress.trim() === '' || (named.length === 1 && addressIsOpaque(named[0]));
+  return named.length === 1 && unknowable ? named[0].cid : undefined;
 }
 
 const IP_LITERAL: RegExp = /^(\d{1,3}(\.\d{1,3}){3}|\[[0-9a-f:]+\])(:\d+)?$/i;

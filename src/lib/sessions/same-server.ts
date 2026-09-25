@@ -29,19 +29,25 @@ function sameAddress(a: string, b: string): boolean {
 /**
  * A dialled `ws(s)://` URL reduced to the host it names, so it compares equal to the typed
  * host. Without this, a session reported with no `server_host` (one the agent re-created)
- * matched nothing: measured live as "Session CID not available" for a held account.
- * The scheme's own port is dropped; any other port stays significant.
+ * matched nothing. The scheme's own port is dropped; any other port stays significant.
+ * Anything that is not such a URL is returned trimmed.
  */
-function canonical(address: string): string {
+export function dialledHost(address: string): string {
   const trimmed: string = address.trim();
-  let host: string = trimmed;
-  if (/^wss?:\/\//i.test(trimmed)) {
-    try {
-      const url: URL = new URL(trimmed);
-      host = url.port ? `${url.hostname}:${url.port}` : url.hostname;
-    } catch {
-      host = trimmed;
-    }
+  if (!/^wss?:\/\//i.test(trimmed)) return trimmed;
+  try {
+    const url: URL = new URL(trimmed);
+    return url.port ? `${url.hostname}:${url.port}` : url.hostname;
+  } catch {
+    return trimmed;
   }
-  return normalizeWorkspaceAddress(host).toLowerCase();
+}
+
+/** The host the agent says a session is on: what was typed, else the dialled URL's host. */
+export function sessionHost(session: SessionServer): string {
+  return session.server_host?.trim() || dialledHost(session.server_address);
+}
+
+function canonical(address: string): string {
+  return normalizeWorkspaceAddress(dialledHost(address)).toLowerCase();
 }

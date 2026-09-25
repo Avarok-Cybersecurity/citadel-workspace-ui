@@ -37,4 +37,17 @@ describe('liveSessionCid', () => {
     const live: ActiveSession[] = [session('bob0924', 9n, '104.18.2.3:443', null)];
     expect(liveSessionCid(live, { username: 'bob0924', serverAddress: 'bench.work.avarok.net' })).toBe(9n);
   });
+
+  it('takes the only live session with the username when the stored record names no server', () => {
+    const live: ActiveSession[] = [session('bob0924', 9n, 'wss://bench.work.avarok.net/', 'bench.work.avarok.net')];
+    expect(liveSessionCid(live, { username: 'bob0924', serverAddress: '' })).toBe(9n);
+  });
+
+  it('refuses to guess between two same-named sessions when the stored record names no server', () => {
+    const live: ActiveSession[] = [
+      session('sam', 1n, 'wss://acme.work.avarok.net/', 'acme.work.avarok.net'),
+      session('sam', 2n, 'wss://bench.work.avarok.net/', 'bench.work.avarok.net'),
+    ];
+    expect(liveSessionCid(live, { username: 'sam', serverAddress: '' })).toBeUndefined();
+  });
 });
