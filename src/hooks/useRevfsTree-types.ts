@@ -40,6 +40,8 @@ export interface UseRevfsTreeResult {
   /** Copy a file or directory to a new parent directory */
   copy: (sourcePath: string, destParentPath: string) => Promise<boolean>;
   refresh: () => Promise<void>;
+  /** Paths whose change the peer has not acknowledged yet (never any for the server). */
+  pendingPaths: ReadonlySet<string>;
 }
 
 export interface UseServerRevfsTreeResult {
@@ -64,6 +66,8 @@ export interface UseServerRevfsTreeResult {
   /** Copy a file or directory to a new parent directory */
   copy: (sourcePath: string, destParentPath: string) => Promise<boolean>;
   refresh: () => Promise<void>;
+  /** Paths whose change the peer has not acknowledged yet (never any for the server). */
+  pendingPaths: ReadonlySet<string>;
 }
 
 /** Server capabilities state */
@@ -81,3 +85,6 @@ export const DEFAULT_SERVER_CAPABILITIES: ServerCapabilities = {
   maxFileTransferSizeMb: 100,
   revfsStorageQuotaMb: 100,
 };
+
+/** The server acknowledges by answering the request itself; nothing is left pending. */
+export const NOTHING_PENDING: ReadonlySet<string> = new Set<string>();

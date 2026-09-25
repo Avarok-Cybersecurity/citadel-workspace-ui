@@ -28,7 +28,7 @@ const anoop = async (): Promise<void> => {};
 function grid(handlers: { onDelete?: (n: RevfsNode) => void; onDownload?: (n: RevfsNode) => void; onSelect?: () => void }, selected: Set<string>): void {
   render(
     <>
-      <VFSContentGrid
+      <VFSContentGrid pendingPaths={new Set<string>()} peerLabel="Bob"
         tree={tree} currentPath="/" onNavigate={noop} onNewFolder={noop}
         onDelete={handlers.onDelete ?? noop} onDownload={handlers.onDownload ?? noop}
         onUploadFile={noop} onInfo={noop} onRename={anoop} onCut={noop} onCopy={noop}
@@ -80,7 +80,7 @@ describe('every shortcut the menu names', () => {
       copy: vi.fn(), cut: vi.fn(), paste: vi.fn(async (): Promise<void> => {}), all: vi.fn(), clear: vi.fn(),
     };
     render(
-      <VFSContentGrid
+      <VFSContentGrid pendingPaths={new Set<string>()} peerLabel="Bob"
         tree={tree} currentPath="/" onNavigate={noop} onNewFolder={noop} onDelete={noop} onDownload={noop}
         onUploadFile={noop} onInfo={noop} onRename={anoop} onCut={on.cut} onCopy={on.copy}
         onPaste={on.paste} onDrop={noop} selectedPaths={new Set(['/a.txt'])} hasPasteItems

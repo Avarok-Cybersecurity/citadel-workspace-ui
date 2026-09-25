@@ -37,6 +37,7 @@ export type UseFileManagerContentResult = ReturnType<typeof useFileManagerHandle
   storageUsed: UseServerRevfsTreeResult['storageUsed'];
   storageQuota: UseServerRevfsTreeResult['storageQuota'];
   revfsEnabled: UseServerRevfsTreeResult['revfsEnabled'];
+  pendingPaths: UseServerRevfsTreeResult['pendingPaths'];
   storageLabel: string;
   currentPath: string;
   setCurrentPath: Dispatch<SetStateAction<string>>;
@@ -104,7 +105,7 @@ export function useFileManagerContent(): UseFileManagerContentResult {
   );
   const serverTree: UseServerRevfsTreeResult = useServerRevfsTree(storageMode === TreeScope.Server ? myCid : null);
   const activeTree: UseServerRevfsTreeResult = storageMode === TreeScope.Server ? serverTree : peerTree;
-  const { tree, loading, error, mkdir, rmdir, uploadFile, downloadFile, removeFile, rename, move, copy, refresh, storageUsed, storageQuota, revfsEnabled } = activeTree;
+  const { tree, loading, error, mkdir, rmdir, uploadFile, downloadFile, removeFile, rename, move, copy, refresh, storageUsed, storageQuota, revfsEnabled, pendingPaths } = activeTree;
 
   const { clipboard, cut, copy: copyToClipboard, clear: clearClipboard, hasItems: hasPasteItems, isCut } = useVFSClipboard();
   const { selectedPaths, select: selectItem, selectAll, clearSelection } = useVFSSelection();
@@ -204,7 +205,7 @@ export function useFileManagerContent(): UseFileManagerContentResult {
     sortField, sortDirection, filterText, setFilterText,
     handleSortChange,
     cutItemPaths, hasPasteItems, selectedPaths, selectItem, clearSelection,
-    revfsEnabled,
+    revfsEnabled, pendingPaths,
     ...handlers,
   };
 }

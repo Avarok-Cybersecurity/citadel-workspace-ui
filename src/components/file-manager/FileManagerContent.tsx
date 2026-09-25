@@ -96,6 +96,8 @@ export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
           onPaste={fm.handlePaste}
           onDrop={fm.handleDrop}
           cutItemPaths={fm.cutItemPaths}
+          pendingPaths={fm.pendingPaths}
+          peerLabel={fm.storageLabel}
           hasPasteItems={fm.hasPasteItems}
           selectedPaths={fm.selectedPaths}
           onSelect={fm.selectItem}

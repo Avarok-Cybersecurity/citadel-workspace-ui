@@ -13,6 +13,8 @@ export interface GridItemProps {
   node: RevfsNode;
   isRenaming: boolean;
   isCutItem: boolean;
+  /** The peer whose confirmation this item awaits, or null. */
+  pendingPeer: string | null;
   isSelected: boolean;
   onNavigate: (path: string) => void;
   onNewFolder: (parentPath: string) => void;
@@ -35,6 +37,7 @@ export function GridItem({
   node,
   isRenaming,
   isCutItem,
+  pendingPeer,
   isSelected,
   onNavigate,
   onNewFolder,
@@ -200,6 +203,12 @@ export function GridItem({
 
         {node.fileMetadata && !isRenaming && (
           <span className="text-xs text-muted-foreground">{formatSize(node.fileMetadata.fileSize)}</span>
+        )}
+
+        {pendingPeer !== null && (
+          <span className="text-xs text-warning-emphasis" data-testid="vfs-pending" title={`${pendingPeer} has not confirmed this yet; it is retried automatically.`}>
+            Pending confirmation
+          </span>
         )}
       </div>
     </VFSContextMenu>
