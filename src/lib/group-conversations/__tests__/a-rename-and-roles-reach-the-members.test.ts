@@ -53,12 +53,21 @@ function controlsSent(): PeerGroupControl[] {
     .filter((c): c is PeerGroupControl => c !== null);
 }
 
+let reconciled: boolean = false;
+
 beforeEach(async () => {
   h.cid = 11n;
   startGroupEventBindings();
   // The session is live before the bindings start, so binding reconciles it: a
-  // GroupListGroupsFor goes out (see reconcile-groups). Let it leave first --
-  // these tests are about the control envelopes, not that request.
+  // GroupListGroupsFor goes out (see reconcile-groups), then GroupListJoined. Wait for the LAST of
+  // them rather than a fixed delay: the reconcile first resets the session's groups, and a reset
+  // that lands after `seed` wipes the seeded group, so a rename finds nothing to announce -- the
+  // first test in this file failed that way in CI once the store's startup grew by a step.
+  // The bindings start once per module, so only the first test has that chain to wait for.
+  if (!reconciled) {
+    await vi.waitFor(() => { expect(h.sent.some((r) => 'GroupListJoined' in r)).toBe(true); });
+    reconciled = true;
+  }
   await flush();
   h.sent.length = 0;
 });
