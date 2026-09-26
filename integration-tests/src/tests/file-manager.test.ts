@@ -230,16 +230,26 @@ async function navigateIntoFolder(page: Page, label: string, folderName: string)
 /**
  * Navigate back to root via breadcrumb
  */
+// The breadcrumb's Root by test id. `button:has-text("Root")` is a substring
+// match, and the first button on the page containing "Root" is the workspace
+// switcher ("Root Workspace"): the helpers opened its dropdown, which then
+// covered the file list, so the file-delete right-click never reached the file.
+// "Breadcrumb Navigation" still passed: it looked for "Sent Files", which the
+// folder tree shows at any depth.
 async function navigateViaBreadcrumb(page: Page, label: string): Promise<boolean> {
   console.log(`\n=== ${label}: Navigating via breadcrumb to Root ===`);
   try {
-    const rootBtn = page.locator('button:has-text("Root")').first();
+    const rootBtn = page.getByTestId('vfs-breadcrumb-root');
     if (await rootBtn.isVisible().catch(() => false)) {
+      // Back at root means the breadcrumb lost its folder segments. Counted first,
+      // so a breadcrumb that never had one cannot pass by already being empty.
+      const segments = rootBtn.locator('xpath=following-sibling::span');
+      const wasDeeper: boolean = (await segments.count()) > 0;
       await rootBtn.click();
-      await sleep(1000);
-      const sentFiles = await isVisibleWithin(page.getByText('Sent Files', { exact: true }).first(), 3000);
-      console.log(`  Back at root: ${sentFiles}`);
-      return sentFiles;
+      const atRoot: boolean = wasDeeper && await segments.first()
+        .waitFor({ state: 'detached', timeout: 3000 }).then(() => true, () => false);
+      console.log(`  Back at root: ${atRoot} (was in a folder: ${wasDeeper})`);
+      return atRoot;
     }
     return false;
   } catch (error) {
@@ -502,7 +512,7 @@ async function uploadFileViaToolbar(
     // Ensure we're at the correct directory
     if (targetDir === '/') {
       // Explicitly navigate to root to ensure currentPath state is reset
-      const rootBtn = page.locator('button:has-text("Root")').first();
+      const rootBtn = page.getByTestId('vfs-breadcrumb-root');
       if (await rootBtn.isVisible().catch(() => false)) {
         await rootBtn.click();
         // Wait longer for React state to propagate
@@ -564,7 +574,7 @@ async function uploadFileViaToolbar(
 
     // Navigate back to root if we navigated away
     if (targetDir !== '/') {
-      const rootBtn = page.locator('button:has-text("Root")').first();
+      const rootBtn = page.getByTestId('vfs-breadcrumb-root');
       if (await rootBtn.isVisible().catch(() => false)) {
         await rootBtn.click();
         await sleep(1000);

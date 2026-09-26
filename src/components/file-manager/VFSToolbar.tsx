@@ -67,6 +67,7 @@ export function VFSToolbar({
         <button
           onClick={() => onNavigate('/')}
           className="hover:text-foreground flex items-center gap-1 shrink-0"
+          data-testid="vfs-breadcrumb-root"
         >
           <Home className="h-4 w-4" />
           <span>Root</span>
