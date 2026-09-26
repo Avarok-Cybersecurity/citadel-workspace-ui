@@ -6,6 +6,11 @@
  * Connect a typed password does: the password comes from the envelope instead
  * of the keyboard, and nothing past this point can tell the difference.
  */
+// Imported for its side effect: it is the listener for the 'session:activated' this
+// module emits. Signed in from a freshly loaded landing page, nothing else had loaded
+// it yet, the event reached nobody, and the P2P registry never started (live: presence
+// unknown for everyone, peer lists empty, on every password sign-in).
+import '@/lib/session-startup-service';
 import { isConnectAlreadyInProgress } from '@/lib/connection/is-connect-in-progress';
 import { websocketService } from "@/lib/websocket-service";
 import { connectionManager } from "@/lib/connection";

@@ -7,6 +7,9 @@
  * added. A second copy is how the orphan path once came to skip
  * `getTreeSchema` while the login path ran it.
  */
+// Imported for its side effect: the listener for the 'session:activated' emitted below.
+// See __tests__/every-session-activation-has-a-listener.test.ts.
+import '@/lib/session-startup-service';
 import { claimSessionForThisTab, offerTakeover, type ClaimOutcome, type TakeoverCallbacks } from './claim-session';
 import { sessionSwitchToasts, type SessionSwitchToasts } from './session-switch-toasts';
 import { readLastLocation } from './last-location';

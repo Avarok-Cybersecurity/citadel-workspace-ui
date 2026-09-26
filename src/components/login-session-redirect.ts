@@ -1,3 +1,8 @@
+// Imported for its side effect: it is the listener for the 'session:activated' this
+// module emits. Signed in from a freshly loaded landing page, nothing else had loaded
+// it yet, the event reached nobody, and the P2P registry never started (live: presence
+// unknown for everyone, peer lists empty, on every password sign-in).
+import '@/lib/session-startup-service';
 import { claimSessionForThisTab, type ClaimOutcome } from '@/lib/sessions/claim-session';
 import { sessionSwitchToasts, type SessionSwitchToasts } from '@/lib/sessions/session-switch-toasts';
 import { markLastAccessed } from '@/lib/sessions/last-accessed';
