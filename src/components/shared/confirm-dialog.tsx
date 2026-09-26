@@ -25,13 +25,16 @@ const ConfirmContext: Context<((request: ConfirmRequest) => Promise<boolean>) | 
 
 export function ConfirmDialogProvider({ children }: { children: ReactNode }): JSX.Element {
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
+  // Separate from `request`: answering closes the dialog but keeps its words, so
+  // the exit animation does not play out as two buttons in an empty box.
+  const [open, setOpen] = useState(false);
   // The pending promise's resolve, so answering the dialog settles the caller.
   const resolveRef: MutableRefObject<((confirmed: boolean) => void) | null> = useRef<((confirmed: boolean) => void) | null>(null);
 
   const settle: (confirmed: boolean) => void = useCallback((confirmed: boolean): void => {
     resolveRef.current?.(confirmed);
     resolveRef.current = null;
-    setRequest(null);
+    setOpen(false);
   }, []);
 
   const confirm: (next: ConfirmRequest) => Promise<boolean> = useCallback((next: ConfirmRequest): Promise<boolean> => {
@@ -39,6 +42,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }): JS
     // promise for ever; answer it as declined rather than leaking it.
     resolveRef.current?.(false);
     setRequest(next);
+    setOpen(true);
     return new Promise<boolean>((resolve) => {
       resolveRef.current = resolve;
     });
@@ -48,7 +52,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }): JS
     <ConfirmContext.Provider value={confirm}>
       {children}
       <ConfirmDeleteDialog
-        open={request !== null}
+        open={open}
         // Covers Escape, the backdrop and Cancel — every dismissal is a "no".
         onOpenChange={(open) => { if (!open) settle(false); }}
         title={request?.title ?? ''}
