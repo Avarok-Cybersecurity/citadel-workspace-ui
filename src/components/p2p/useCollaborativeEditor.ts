@@ -3,6 +3,7 @@ import * as Y from 'yjs';
 import { YjsP2PProvider, createYjsP2PProvider } from '@/lib/yjs-p2p-provider';
 import { eventEmitter } from '@/lib/event-emitter';
 import type { FlashComment } from './CollaboratorCursor';
+import { flashCommentsFrom } from './collaborator-cursor-helpers';
 import { useDocumentPersistence } from './useDocumentPersistence';
 
 /** Shape of awareness state entries set via provider.setLocalState() */
@@ -157,19 +158,7 @@ export function useCollaborativeEditor({
     const handleAwarenessChange = (): void => {
       if (!provider) return;
 
-      const states: ReturnType<typeof provider.getStates> = provider.getStates();
-      const newComments: FlashComment[] = [];
-
-      states.forEach((rawState, _clientId) => {
-        const state: AwarenessState = rawState as AwarenessState;
-        if (state.flashComment && state.user?.name !== currentUserName) {
-          newComments.push({
-            ...state.flashComment,
-            userName: state.user?.name || 'Unknown',
-            userColor: state.user?.color || '#6E59A5',
-          });
-        }
-      });
+      const newComments: FlashComment[] = flashCommentsFrom(provider.getStates());
 
       const newCommentsKey: string = newComments.map(c => c.id).join('|');
       if (newCommentsKey !== prevCommentsKey) {
@@ -193,7 +182,7 @@ export function useCollaborativeEditor({
         provider.awareness.off('change', handleAwarenessChange);
       }
     };
-  }, [provider, currentUserName, userColor]);
+  }, [provider]);
 
   const handleContextMenu: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
     e.preventDefault();
