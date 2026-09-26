@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { debugLog } from '@/lib/debug-config';
+import { eventEmitter } from '@/lib/event-emitter';
+import { isMemberOnline } from '@/lib/presence';
 import { type MemberDisplay } from './MemberListItem';
 import { UserProfileCard } from './UserProfileCard';
 import { ConnectionRequestDialog } from './ConnectionRequestDialog';
@@ -42,16 +44,14 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
 
   const currentUserId: string = state.currentUser?.id || state.currentUser?.username || '';
 
-  // Index the peers ONCE per change, not once per member.
-  //
-  // The map below ran `registeredPeers.find(...)` for every member, so the directory cost
-  // O(members × peers) — and it sat in the render body with no memo, so it was paid again on
-  // every render of a page whose state comes from `useWorkspace()`, which changes on every
-  // received message.
-  const peerByUsername: Map<string, RegisteredPeer> = useMemo(
-    () => new Map(registeredPeers.map((peer: RegisteredPeer) => [peer.username, peer])),
-    [registeredPeers],
-  );
+  // Re-read presence whenever the registry's poll lands; the answer itself
+  // comes from isMemberOnline, as UserSearch's does.
+  const [presenceVersion, setPresenceVersion] = useState<number>(0);
+  useEffect(() => {
+    const bump: () => void = (): void => setPresenceVersion((v: number): number => v + 1);
+    eventEmitter.on('p2p:peers-updated', bump);
+    return (): void => { eventEmitter.off('p2p:peers-updated', bump); };
+  }, []);
 
   const allMembers: MemberDisplay[] = useMemo(() => Object.values(state.members || {}).map(member => ({
     id: member.id,
@@ -59,22 +59,15 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
     avatarUrl: member.avatarUrl,
     email: member.email,
     role: member.role,
-    // Whether we can actually message them, from the store that knows.
-    //
-    // This read `connectionService.canMessageUser`, which can never return true
-    // in production: the map it consults is written only by the demo
-    // simulation's accept path, and real P2P registration goes through
-    // peerRegistrationStore and never touches it. So every dot was off, the
-    // Online tab was permanently empty, and the "Send Message" branch below was
-    // unreachable code. A previous fix had already replaced Math.random() here
-    // with something that looked authoritative and was constant false.
-    // `.some(...)` answered "is this person registered with me", which is not
-    // presence: a registered peer who is offline showed a green dot under a tab
-    // labelled Online. The registry already carries the real flag.
-    isOnline: peerByUsername.get(member.id)?.isOnline ?? false,
+    // Presence from the one reader of it (lib/presence.ts), which knows every
+    // workspace peer the agent lists. This read the REGISTERED peers only, so
+    // for anyone without a contact list the Online tab said "Everyone in this
+    // workspace is currently offline" while they were online (live, admin-lab).
+    isOnline: isMemberOnline(member.id),
     // Undefined, not 0: nothing tracks last-seen, and 0 rendered as 1970.
     lastActive: undefined,
-  })), [state.members, peerByUsername]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- presenceVersion is the re-read trigger
+  })), [state.members, registeredPeers, presenceVersion]);
 
   const filteredMembers: MemberDisplay[] = allMembers.filter(member => {
     // `=== true`: a member whose presence nobody has reported is not evidence
@@ -202,6 +195,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
                     tab={tabValue as 'all' | 'online'}
                     members={filteredMembers}
                     totalMembers={allMembers.length}
+                    presenceUnknown={allMembers.filter((m: MemberDisplay): boolean => m.isOnline === null).length}
                     onSendMessage={handleSendMessage}
                     onInvite={handleInviteUser}
                     onSelect={(userId) => setSelectedUser(allMembers.find((m) => m.id === userId) ?? null)}

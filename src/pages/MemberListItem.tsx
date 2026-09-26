@@ -12,7 +12,8 @@ export interface MemberDisplay {
   avatarUrl?: string;
   email?: string;
   role?: UserRole;
-  isOnline: boolean;
+  /** Null: nobody has said. See lib/presence.ts. */
+  isOnline: boolean | null;
   lastActive?: number;
 }
 

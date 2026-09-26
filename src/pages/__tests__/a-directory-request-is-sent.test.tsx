@@ -46,6 +46,9 @@ vi.mock('@/lib/tab-context', () => ({
 vi.mock('@/lib/connection', () => ({
   connectionManager: { getTabSelectedSession: async (): Promise<null> => null, getConnectionInfo: (): null => null },
 }));
+// Presence is read from lib/presence (the registry of every workspace peer); Bob is
+// reported online there although he is not a registered contact.
+vi.mock('@/lib/presence', () => ({ isMemberOnline: (id: string): boolean | null => (id === 'bob' ? true : null) }));
 vi.mock('@/lib/broadcast-channel-service', () => ({ broadcastChannelService: { registerRequest: vi.fn() } }));
 vi.mock('@/lib/peer-registration-store', () => ({
   peerRegistrationStore: {
@@ -125,6 +128,13 @@ describe('a connection request from the directory', () => {
     const requestId: string = (send.mock.calls[0] as unknown as [bigint, bigint, string, string])[3];
     eventEmitter.emit('websocket-message', { PeerRegisterFailure: { request_id: requestId, cid: 1n, message: 'The peer declined the request' } });
     await waitFor((): void => { expect(titles()).toContain('Request Failed'); });
+  });
+
+  it('lists a non-contact the registry reports online under Online', async () => {
+    render(<MemoryRouter><UserDirectory /></MemoryRouter>);
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Online' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Online' }));
+    await waitFor((): void => { expect(screen.getByText(/1 online members/i)).toBeInTheDocument(); });
   });
 
   it('offers no message box the wire cannot carry', async () => {
