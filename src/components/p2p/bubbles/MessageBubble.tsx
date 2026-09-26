@@ -19,7 +19,7 @@ interface MessageBubbleProps {
   onAcceptTransfer?: (transferId: string) => void;
   onDeclineTransfer?: (transferId: string) => void;
   onCancelTransfer?: (transferId: string) => void;
-  onOpenFile?: (downloadPath: string) => void;
+  onOpenFile?: (transferId: string) => void;
 
   // Group mode display options
   showSenderName?: boolean;

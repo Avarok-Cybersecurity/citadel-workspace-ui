@@ -5,6 +5,7 @@
  * Uses extracted hooks and components for message handling, input, and display.
  */
 
+import { FilePreviewDialog } from '@/components/layout/sidebar/FilePreviewDialog';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { notificationService } from '@/lib/notification-service';
 import { MessageCircle } from 'lucide-react';
@@ -224,6 +225,7 @@ export function P2PChat({
 
       <LiveDocumentModal isOpen={showDocModal} onClose={() => setShowDocModal(false)} onCreateDocument={handleDocCreate} initialContent={inputMessage} />
       <FileTransferModal isOpen={showFileModal} onClose={() => setShowFileModal(false)} onSendFile={fileTransfer.handleSendFile} peerCid={peerCid.toString()} />
+      <FilePreviewDialog file={fileTransfer.openedFile} isOpen={fileTransfer.openedFile !== null} onClose={fileTransfer.closeOpenedFile} />
       <ChatSettingsPanel isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} peerCid={peerCid.toString()} peerName={peerName} />
     </div>
   );

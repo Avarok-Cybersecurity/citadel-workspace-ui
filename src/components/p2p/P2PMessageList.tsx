@@ -31,7 +31,7 @@ interface P2PMessageListProps {
   onAcceptTransfer: (transferId: string) => Promise<void>;
   onDeclineTransfer: (transferId: string) => Promise<void>;
   onCancelTransfer: (transferId: string) => Promise<void>;
-  onOpenFile: (downloadPath: string) => void;
+  onOpenFile: (transferId: string) => void;
   onEditMessage?: (messageId: string, content: string) => void;
   onDeleteMessage?: (messageId: string) => void;
   onReplyMessage?: (messageId: string) => void;

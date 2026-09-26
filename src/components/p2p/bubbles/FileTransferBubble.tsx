@@ -61,8 +61,10 @@ export function FileTransferBubble({
   const status: StatusContent = getStatusContent(state, isOwn, view.reason);
 
   const handleClick = (): void => {
-    if (status.clickable && onOpen && message.virtual_path) {
-      onOpen(message.virtual_path);
+    // By transfer, not by path: a direct P2P transfer has no virtual_path, so the
+    // click required one and did nothing while the hint said it would open.
+    if (status.clickable && onOpen && message.transfer_id) {
+      onOpen(message.transfer_id);
     }
   };
 
@@ -195,7 +197,7 @@ export function FileTransferBubble({
 
         {/* Click hint for completed downloads */}
         {status.clickable && (
-          <p className="text-xs opacity-60 mt-1">Click to open file</p>
+          <p className="text-xs opacity-60 mt-1">Click to see where it was saved</p>
         )}
       </div>
 
