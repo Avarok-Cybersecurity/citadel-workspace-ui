@@ -53,6 +53,16 @@ describe('the invite dialog', () => {
     expect(toasts.map((t) => t.title)).toContain('Invite link copied');
   });
 
+  it('shows and shares a hosted workspace by its host, not the URL the agent dialled', async () => {
+    render(<InviteToWorkspaceDialog open onOpenChange={vi.fn()} workspaceName="Acme" serverAddress="wss://acme.work.avarok.net/" />);
+    expect(screen.getByText('acme.work.avarok.net')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /copy address/i }));
+    fireEvent.click(screen.getByRole('button', { name: /copy invite link/i }));
+    await waitFor(() => expect(writes).toHaveLength(2));
+    expect(writes[0]).toBe('acme.work.avarok.net');
+    expect(new URL(writes[1]).searchParams.get('server')).toBe('acme.work.avarok.net');
+  });
+
   it('finds the address from the tab when the connection record has none', async () => {
     render(<InviteToWorkspaceDialog open onOpenChange={vi.fn()} workspaceName="Acme" serverAddress={undefined} />);
     expect(await screen.findByText('work.example.net:12349')).toBeInTheDocument();

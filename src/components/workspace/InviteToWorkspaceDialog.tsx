@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { toastError, toastSuccess } from '@/lib/toast-helpers';
 import { inviteLink } from '@/lib/invite-link';
+import { dialledHost } from '@/lib/sessions/same-server';
 import { useWorkspaceAddress } from '@/hooks/use-workspace-address';
 
 interface InviteToWorkspaceDialogProps {
@@ -45,7 +46,9 @@ export function InviteToWorkspaceDialog({
   serverAddress: connectionAddress,
 }: InviteToWorkspaceDialogProps): JSX.Element {
   const { toast } = useToast();
-  const serverAddress: string | undefined = useWorkspaceAddress(open, connectionAddress);
+  // What a person types and reads: a hosted workspace's host, not the `wss://…/` URL the agent dialled.
+  const found: string | undefined = useWorkspaceAddress(open, connectionAddress);
+  const serverAddress: string | undefined = found === undefined ? undefined : dialledHost(found);
 
   const copy = (text: string, done: string): void => {
     void navigator.clipboard.writeText(text).then(
