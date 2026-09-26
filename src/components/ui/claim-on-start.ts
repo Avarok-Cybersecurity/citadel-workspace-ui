@@ -24,7 +24,8 @@ import type { TabUserContext } from '@/lib/tab-context';
 import type { ActiveSession } from '@/types/session-types';
 
 export type StartClaim =
-  | { kind: 'claimed'; cid: bigint }
+  /** Username and server too: the claimant activates the session, and the activation names them. */
+  | { kind: 'claimed'; cid: bigint; username: string; server: string }
   | { kind: 'nothing-to-claim' }
   /** Every attempt went unanswered; nothing about the sessions is known. */
   | { kind: 'agent-unreachable' }
@@ -88,5 +89,5 @@ export async function claimOnStart(io: StartClaimIO, retry: StartRetry): Promise
     return { kind: 'held-by-another-connection', username: session.username };
   }
   await io.select(session);
-  return { kind: 'claimed', cid: session.cid };
+  return { kind: 'claimed', cid: session.cid, username: session.username, server: session.server_address };
 }

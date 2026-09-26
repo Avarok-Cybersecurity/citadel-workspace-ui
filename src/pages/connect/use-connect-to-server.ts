@@ -19,6 +19,9 @@
  * this give up, and then it says so and routes to sign-in rather than into a
  * workspace that will bounce them straight back.
  */
+// Imported for its side effect: the listener for the 'session:activated' emitted below.
+import '@/lib/session-startup-service';
+import { eventEmitter } from '@/lib/event-emitter';
 import { connectionManager } from '@/lib/connection';
 import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
 import { postAuthSetup } from '@/lib/post-auth-setup';
@@ -83,6 +86,10 @@ async function adoptSession(session: ActiveSession): Promise<void> {
   instanceChannel.announcePresence();
 
   await postAuthSetup(session.cid);
+  eventEmitter.emit('session:activated', {
+    cid: session.cid.toString(), username: session.username,
+    serverAddress: session.server_address, activationType: 'claim',
+  });
 }
 
 export async function connectToServer(serverAddress: string): Promise<ConnectOutcome> {

@@ -9,6 +9,9 @@
  * since it was written.
  */
 
+// Imported for its side effect: the listener for the 'session:activated' emitted below.
+import '@/lib/session-startup-service';
+import { eventEmitter } from '@/lib/event-emitter';
 import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
 import { claimOnStart, type StartClaim } from './claim-on-start';
@@ -169,6 +172,12 @@ useEffect(() => {
       if (result.kind !== 'claimed') return;
 
       await postAuthSetup(result.cid);
+      // A reload is a claim. Without the activation nothing ran the startup
+      // sequence, so after any page reload the P2P registry stayed stopped.
+      eventEmitter.emit('session:activated', {
+        cid: result.cid.toString(), username: result.username,
+        serverAddress: result.server, activationType: 'claim',
+      });
       setHasConnection(true);
       debugLog('WorkspaceLoader', ' Auto-claim complete, workspace loading initiated');
     } catch (error) {

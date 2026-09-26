@@ -51,14 +51,14 @@ describe('resuming at page start', () => {
   it('retries, with backoff, an agent whose socket failed on the first try', async () => {
     const a: Recorded = agent({ readyAfter: 2 });
     const result: StartClaim = await claimOnStart(a.io, RETRY);
-    expect(result).toEqual({ kind: 'claimed', cid: 7n });
+    expect(result).toEqual({ kind: 'claimed', cid: 7n, username: 'alice0924', server: 'work.example.net:12349' });
     expect(a.sleeps).toEqual([1000, 2000]);
     expect(a.selected).toEqual([ALICE]);
   });
 
   it('retries a session query that went unanswered instead of concluding "no sessions"', async () => {
     const a: Recorded = agent({ answeredAfter: 1 });
-    expect(await claimOnStart(a.io, RETRY)).toEqual({ kind: 'claimed', cid: 7n });
+    expect(await claimOnStart(a.io, RETRY)).toEqual({ kind: 'claimed', cid: 7n, username: 'alice0924', server: 'work.example.net:12349' });
   });
 
   it('says the agent was unreachable only after every attempt', async () => {

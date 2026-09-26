@@ -35,3 +35,28 @@ describe("the 'session:activated' listener", () => {
     expect(missing).toEqual([]);
   });
 });
+
+/**
+ * A module that finishes a sign-in or claim with postAuthSetup must also
+ * activate the session -- postAuthSetup loads the workspace, and only the
+ * activation starts the P2P registry and the peer connections. The page-load
+ * claim and the /connect adoption both skipped it, so after any reload the
+ * registry stayed stopped.
+ */
+const FOLLOWS_AN_ACTIVATING_PATH: Record<string, string> = {
+  'lib/post-auth-setup.ts': 'the function itself',
+  'pages/Landing.tsx': 'the join step runs after the register path (useConnectionHandler), which activates',
+  'components/TakeoverSignIn.tsx': 'finishes a <Login>, whose password sign-in (login-with-password.ts) activates',
+  'components/ServerReconnectWatcher.tsx': 'the session was already active; it resumes peers itself (server-reconnect.ts)',
+};
+
+describe('a sign-in or claim', () => {
+  it('activates the session wherever it runs postAuthSetup', () => {
+    const callers: string[] = fg.sync('**/*.{ts,tsx}', { cwd: SRC, ignore: ['**/__tests__/**', '**/*.test.*'] })
+      .filter((file: string): boolean => /postAuthSetup\(/.test(stripComments(readFileSync(join(SRC, file), 'utf8'))));
+    const silent: string[] = callers.filter((file: string): boolean =>
+      !(file in FOLLOWS_AN_ACTIVATING_PATH) && !EMITS.test(stripComments(readFileSync(join(SRC, file), 'utf8'))));
+    expect(callers.length).toBeGreaterThan(3);
+    expect(silent).toEqual([]);
+  });
+});
