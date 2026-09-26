@@ -707,6 +707,13 @@ jobs:
       - name: Dump Service Logs on Test Failure
         if: failure()
         run: |
+          # The UI is a service too. Run 36246578839 died on "Services did not become alive":
+          # server and internal-service healthy, the UI's port closed -- and neither step logged
+          # the UI, so its OOM, crash or compile error was invisible.
+          echo "=== ui: state (OOMKilled, exit code, restarts) ==="
+          docker inspect --format 'status={{.State.Status}} oom={{.State.OOMKilled}} exit={{.State.ExitCode}} restarts={{.RestartCount}}' "$(docker compose ps -aq ui)" 2>&1 || true
+          echo "=== ui (tail) ==="
+          docker compose logs -t ui 2>&1 | tail -120 || true
           echo "=== server: membership and refusal decisions ==="
           docker compose logs -t server 2>&1 \
             | grep -E "first workspace member|awaits initialization|promoted to Admin|Refusing" \
@@ -1035,6 +1042,13 @@ jobs:
       - name: Dump Service Logs on Test Failure
         if: failure()
         run: |
+          # The UI is a service too. Run 36246578839 died on "Services did not become alive":
+          # server and internal-service healthy, the UI's port closed -- and neither step logged
+          # the UI, so its OOM, crash or compile error was invisible.
+          echo "=== ui: state (OOMKilled, exit code, restarts) ==="
+          docker inspect --format 'status={{.State.Status}} oom={{.State.OOMKilled}} exit={{.State.ExitCode}} restarts={{.RestartCount}}' "$(docker compose ps -aq ui)" 2>&1 || true
+          echo "=== ui (tail) ==="
+          docker compose logs -t ui 2>&1 | tail -120 || true
           echo "=== server: membership and refusal decisions ==="
           docker compose logs -t server 2>&1 \
             | grep -E "first workspace member|awaits initialization|promoted to Admin|Refusing" \

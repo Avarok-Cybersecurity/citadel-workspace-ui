@@ -40,6 +40,12 @@ export interface GroupConversation {
   unreadCount: number;
   lastMessageTime?: number;
   lastMessagePreview?: string;
+  /**
+   * Learnt from the agent's list of this session's groups, so only its key is
+   * known: the name, roles and roster arrive with the first member's answer to
+   * a state request (see learn-joined-groups.ts).
+   */
+  awaitingState?: boolean;
 }
 
 // ============================================================================

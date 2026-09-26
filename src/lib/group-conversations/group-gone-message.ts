@@ -1,4 +1,4 @@
-import { wasEnded } from './ended-groups';
+import { wasAnnounced, wasEnded } from './ended-groups';
 
 export interface GoneMessage {
   title: string;
@@ -19,7 +19,10 @@ export interface GoneMessage {
  * genuinely not distinguishable: deletion and being kicked arrive as the same
  * `GroupDisconnectNotification` and the mapping collapses them.
  */
-export function groupGoneMessage(groupId: string): GoneMessage {
+export function groupGoneMessage(groupId: string): GoneMessage | null {
+  // Removed or ended by someone else: group-removal-notice has just said so, by name.
+  // A second toast for the same event was measured live.
+  if (wasAnnounced(groupId)) return null;
   return wasEnded(groupId)
     ? {
         title: 'Group ended',

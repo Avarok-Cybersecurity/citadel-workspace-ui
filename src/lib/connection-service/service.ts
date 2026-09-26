@@ -5,7 +5,6 @@
  * preferences, and event-driven lifecycle.
  */
 
-import { MessagingService } from '@/lib/messaging-service';
 import NotificationService from '@/lib/notification-service';
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
@@ -44,7 +43,6 @@ import {
 
 export class ConnectionService {
   private static instance: ConnectionService;
-  private messagingService: MessagingService | null = null;
   private notificationService: NotificationService;
   private connectionRequests: ConnectionRequest[] = [];
   private userConnections: Map<string, UserConnection[]> = new Map();
@@ -65,13 +63,6 @@ export class ConnectionService {
       ConnectionService.instance = new ConnectionService();
     }
     return ConnectionService.instance;
-  }
-
-  private getMessagingService(): MessagingService {
-    if (!this.messagingService) {
-      this.messagingService = MessagingService.getInstance();
-    }
-    return this.messagingService;
   }
 
   private setupEventListeners(): void {

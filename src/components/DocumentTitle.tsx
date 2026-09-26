@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { BRAND_NAME } from '@/components/brand/artwork/brand-rules.generated';
 
 /**
  * Keeps the browser tab title in step with the route.
  *
  * index.html sets one title and nothing ever changed it, so all seven routes
- * rendered as "Citadel Workspace — Post-Quantum Secure Collaboration". axe
+ * rendered as one "— Post-Quantum Secure Collaboration" title. axe
  * cannot report that: a title IS present, and each scan only ever sees one
  * route. What it costs is real — a screen reader announces the same page name
  * wherever you navigate (WCAG 2.4.2), every history entry looks identical, and
@@ -14,11 +15,11 @@ import { useLocation } from 'react-router-dom';
  * One map rather than a hook call in each page: the pages are lazily loaded and
  * a missed one fails silently, leaving the previous route's title in place.
  */
-const SUFFIX: "Citadel Workspace" = 'Citadel Workspace';
+const SUFFIX: typeof BRAND_NAME = BRAND_NAME;
 
 /** First match wins, so put specific paths before their prefixes. */
 const ROUTE_TITLES: ReadonlyArray<readonly [RegExp, string]> = [
-  [/^\/$/, 'Citadel Workspace — Post-Quantum Secure Collaboration'],
+  [/^\/$/, `${BRAND_NAME} — Post-Quantum Secure Collaboration`],
   [/^\/connect(\/|$)/, `Connect · ${SUFFIX}`],
   [/^\/create(\/|$)/, `Create a workspace · ${SUFFIX}`],
   [/^\/workspace(\/|$)/, `Workspace · ${SUFFIX}`],

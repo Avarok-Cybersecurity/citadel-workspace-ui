@@ -30,7 +30,10 @@ export function PendingRequestsBadge({ count, onOpen }: PendingRequestsBadgeProp
         onOpen();
       }}
       aria-label={`Review ${count} pending connection request${count > 1 ? 's' : ''}`}
-      className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      // shrink-0, with MembersSection's label truncating instead: "OFFICE MEMBERS" alone filled the
+      // header row, so this badge slid under the "Find people" button and could not be clicked
+      // (CI test:chat-settings on PR #60).
+      className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Badge
         variant="destructive"

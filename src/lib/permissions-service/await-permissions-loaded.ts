@@ -34,10 +34,19 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { TIMEOUT } from '@/lib/timeout-constants';
 import type { DomainPermissions } from './types';
 
+/**
+ * `askedAt` is when the request went out. An answer that landed before this was called
+ * -- the response can beat the caller here, measured live -- is already in the cache and
+ * is taken at once, provided it is at least that fresh; an older entry is what the
+ * request was sent to replace, so it is not an answer.
+ */
 export function awaitPermissionsLoaded(
   domainId: string,
   readCache: () => DomainPermissions | undefined,
+  askedAt: number,
 ): Promise<DomainPermissions> {
+  const landed: DomainPermissions | undefined = readCache();
+  if (landed && landed.lastUpdated >= askedAt) return Promise.resolve(landed);
   return new Promise<DomainPermissions>((resolve, reject) => {
     // The timeout closes over `handler`, which is declared below it. That is
     // safe and not a hoisting trick: the callback body does not evaluate the

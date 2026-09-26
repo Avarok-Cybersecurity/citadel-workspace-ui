@@ -26,6 +26,7 @@ export const GROUP_FAILURE_VARIANTS: readonly string[] = [
   'GroupKickFailure',
   'GroupLeaveFailure',
   'GroupListGroupsFailure',
+  'GroupListJoinedFailure',
   'GroupMessageFailure',
   'GroupRequestJoinFailure',
   'GroupRespondRequestFailure',

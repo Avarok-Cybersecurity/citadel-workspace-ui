@@ -15,6 +15,9 @@ import { debugLog } from '@/lib/debug-config';
 import { buildTransferAnnouncement } from './transfer-announcement';
 import { sendLayerPayload } from './in-band-signals';
 import { assertInlineSendable } from './send-operations';
+import type { P2PMessagingLayerPayload } from '@/types/p2p-commands';
+import { eventEmitter } from '../event-emitter';
+import { FILE_TRANSFER_EVENTS, type OfferAnnounced } from './events';
 
 export async function executeSendTransferRequest(
   router: RealProtocolIORouter,
@@ -104,11 +107,19 @@ export async function executeSendTransferRequest(
 /**
  * Send the in-band message that makes a transfer appear in the recipient's
  * conversation. Without it they receive bytes with nothing to show for them.
+ *
+ * Then say so, so the SENDER's conversation shows the same offer (see
+ * p2p/record-outgoing-file-transfer.ts). Every send path -- inline, staged and
+ * native-picker -- announces through here, which is why the event is raised
+ * here and not in one of them.
  */
 export async function announceTransfer(transfer: FileTransfer): Promise<void> {
   debugLog('FileTransferIO', `announceTransfer: ${transfer.fileName} -> ${transfer.recipientCid}`, {
     transferId: transfer.id,
     mode: transfer.mode,
   });
-  await sendLayerPayload(buildTransferAnnouncement(transfer));
+  const announcement: P2PMessagingLayerPayload = buildTransferAnnouncement(transfer);
+  await sendLayerPayload(announcement);
+  const announced: OfferAnnounced = { announcement, transferState: transfer.state };
+  eventEmitter.emit(FILE_TRANSFER_EVENTS.OFFER_ANNOUNCED, announced);
 }

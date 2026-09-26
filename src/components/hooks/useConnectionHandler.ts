@@ -10,7 +10,6 @@
 
 import { useEffect, useState } from 'react';
 import NotificationService, { NotificationPriority } from '@/lib/notification-service';
-import { MessagingService } from '@/lib/messaging-service';
 import { ConnectionService } from '@/lib/connection-service';
 import WorkspaceService from '@/lib/workspace-service';
 import UserService from '@/lib/user-service';
@@ -26,8 +25,10 @@ import '@/lib/session-startup-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { getCurrentCid } from '@/lib/p2p/current-cid';
+import { openPeerChannelViaAutoConnect } from '@/lib/file-transfer/open-peer-channel';
 import { debugLog } from '@/lib/debug-config';
 import { makeSessionAlreadyConnectedHandler } from './session-already-connected';
+import { useSessionLostWithAgent } from './use-session-lost-with-agent';
 import type { StoredSession } from '@/types/session-types';
 import {
   NOT_FAILING, onFailure, onDismiss, onRequested, onSuccess, isRetryDialogOpen,
@@ -48,6 +49,7 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
     orphanSessionCid: null,
   });
   const { toast } = useToast();
+  useSessionLostWithAgent(toast);
 
   useEffect(() => {
     const initializeServices = async (): Promise<void> => {
@@ -70,10 +72,14 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
       }
     };
 
+    // A first attempt that failed is exactly when the agent-down banner is due;
+    // start-up goes on retrying for tens of seconds, and waiting for it to give
+    // up left the banner (and every agent gate) silent the whole time.
+    const startHealthChecksNow = (): void => { healthCheckService.startHealthChecks(10000); };
+    const stopEarlyHealthChecks: () => void = eventEmitter.once('connection:start-retrying', startHealthChecksNow);
     runAsyncSetup(initializeServices);
 
     const notificationService: NotificationService = NotificationService.getInstance();
-    const messagingService: MessagingService = MessagingService.getInstance();
     const connectionService: ConnectionService = ConnectionService.getInstance();
     const userService: typeof UserService = UserService;
 
@@ -95,6 +101,7 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
       getCurrentCid,
       sendInternalServiceRequest: (request: unknown) =>
         websocketService.sendMessage(request as Record<string, unknown>),
+      openPeerChannel: openPeerChannelViaAutoConnect,
     });
 
     let lastProcessedCid: string | null = null;
@@ -171,7 +178,7 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
 
         setTimeout(() => {
           notificationService.addSystemNotification(
-            'Welcome to Citadel Workspace',
+            'Welcome to Citadel Workspaces',
             'Your secure workspace is ready. Explore the features and connect with your team.',
             NotificationPriority.NORMAL,
             cidString
@@ -217,7 +224,6 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
       // above the router and unmounts last. Owning our own teardown means that
       // stops being load-bearing.
       unsubscribeConnection();
-      messagingService.cleanup();
       connectionService.cleanup();
       WorkspaceService.cleanup();
       runAsyncSetup(() => userService.cleanup());
@@ -226,6 +232,7 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
       eventEmitter.off('connection:retry-requested', handleRetryRequested);
       eventEmitter.off('on-ws-connection-success', handleConnectionSuccess);
       eventEmitter.off('session-already-connected', handleSessionAlreadyConnected);
+      stopEarlyHealthChecks();
     };
   }, [toast]);
 

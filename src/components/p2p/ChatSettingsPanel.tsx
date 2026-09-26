@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClearHistoryButton } from './ClearHistoryButton';
+import { PauseConnectionControl } from './PauseConnectionControl';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ChatSettingsAdvanced } from './ChatSettingsAdvanced';
@@ -47,7 +48,7 @@ export function ChatSettingsPanel({
   const [privacy, setPrivacy] = useState<PrivacySettings>(getPrivacySettings);
   const updatePrivacy = <K extends keyof PrivacySettings>(key: K, value: PrivacySettings[K]): void => {
     setPrivacy((prev) => {
-      const next: { showOnlineStatus: boolean; showTypingIndicators: boolean; sendReadReceipts: boolean; allowDirectMessages: "everyone" | "connections" | "nobody"; showProfileToStrangers: boolean; notifyOnScreenshot: boolean; } = { ...prev, [key]: value };
+      const next: PrivacySettings = { ...prev, [key]: value };
       savePrivacySettings(next);
       return next;
     });
@@ -130,6 +131,7 @@ export function ChatSettingsPanel({
           <div className="flex-1 overflow-y-auto mt-4">
             {/* General Tab */}
             <TabsContent value="general" className="space-y-6 m-0" data-testid="content-general">
+              <PauseConnectionControl peerCid={BigInt(peerCid)} peerName={peerName} />
               <div className="space-y-4">
                 {/* These are the workspace-wide privacy settings, not
                     per-conversation ones — they were uncontrolled `Switch
@@ -198,7 +200,7 @@ export function ChatSettingsPanel({
             {/* Advanced Tab */}
             <TabsContent value="advanced" className="space-y-4 m-0" data-testid="content-advanced">
               <div className="space-y-4">
-                <ChatSettingsAdvanced />
+                <ChatSettingsAdvanced isOpen={isOpen} peerCid={BigInt(peerCid)} peerName={peerName} />
 
                 <ClearHistoryButton peerCid={BigInt(peerCid)} peerName={peerName} />
               </div>
@@ -225,7 +227,7 @@ export function ChatSettingsPanel({
                 </div>
 
                 <div className="space-y-2">
-                  <ConnectionFacts peerCid={peerCid} revfsQuota={settings.revfsQuota} />
+                  <ConnectionFacts peerCid={peerCid} firstContact={stats.firstContact} transferredBytes={stats.transferredBytes} />
                 </div>
               </div>
             </TabsContent>

@@ -43,6 +43,8 @@ export function createTestService(
     sendP2PMessageReliable: vi.fn(),
     getCurrentCid: vi.fn().mockResolvedValue(ALICE),
     sendInternalServiceRequest: vi.fn(),
+    // The channel is up: these tests are about what travels over it.
+    openPeerChannel: async (): Promise<boolean> => true,
   });
 
   const io: { execute: (i: RevfsIntent) => Promise<RevfsIntentResult>; } = (service as unknown as { io: { execute: (i: RevfsIntent) => Promise<RevfsIntentResult> } }).io;

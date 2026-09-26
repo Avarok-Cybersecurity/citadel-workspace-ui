@@ -7,6 +7,7 @@
 import type { MessagingLayerType } from '@/types/messaging-layer';
 import type { MessageType } from '@/types/message-protocol';
 import type { P2PAttachment } from '@/types/p2p-types';
+import type { MessageReaction } from '@/lib/reactions/reaction-state';
 
 // ============================================================================
 // PAGINATED MESSAGE PERSISTENCE
@@ -79,6 +80,8 @@ export interface P2PMessage {
   replyTo?: string;
   /** Set when the sender revised this message; the bubble shows an (edited) marker. */
   edited_at?: number;
+  /** Stored with the message, so reactions survive a reload the way edits do. */
+  reactions?: MessageReaction[];
   mentions?: string[];
   attachments?: P2PAttachment[];
   // Message type support (text, markdown, live_document, file_transfer)

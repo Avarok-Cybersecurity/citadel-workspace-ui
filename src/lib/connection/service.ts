@@ -4,10 +4,10 @@ import { ConnectionState } from './state';
 import { ConnectionIO, connectionIO } from './io';
 import type { CurrentConnectionInfo, AuthSuccessParams } from './types';
 import type { StoredSession, ActiveSession, StoredSessions } from '@/types/session-types';
-import { POST_DISCONNECT_DELAY_MS } from './constants';
+import { POST_DISCONNECT_DELAY_MS, AGENT_START_RETRY } from './constants';
+import { retryWithBackoff } from '@/lib/utils/retry-utils';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
-
 import { handleWebSocketMessage } from './message-handling';
 import {
   storeSession, loadStoredSessions, handleAuthSuccess,
@@ -51,7 +51,7 @@ export class ConnectionManager {
 
     try {
       debugLog('ConnectionService', 'ConnectionManager: Initializing...');
-      await this.io.initWebSocket();
+      await retryWithBackoff(() => this.io.initWebSocket(), { ...AGENT_START_RETRY, onRetry: () => this.io.emitEvent('connection:start-retrying', {}) });
 
       debugLog('ConnectionService', 'ConnectionManager: Enabling orphan mode (non-blocking)...');
       this.io.setOrphanMode(true);
@@ -63,12 +63,6 @@ export class ConnectionManager {
           debugLog('ConnectionService', 'Failed to initialize peer registration store', error);
         }),
       ]);
-
-      if (this.state.storedSessions.sessions.length > 0) {
-        debugLog('ConnectionService', 'ConnectionManager: Clearing stored CIDs to force fresh connection');
-        this.state.clearSessionCids();
-        await this.io.storeSessionsToLocalDB(this.state.storedSessions);
-      }
 
       this.state.setInitialized(true);
       debugLog('ConnectionService', 'ConnectionManager: Initialized successfully');
@@ -85,10 +79,9 @@ export class ConnectionManager {
     }
   }
 
-  public async waitForReady(): Promise<void> {
-    if (this.state.isInitialized) return Promise.resolve();
-    return this.state.readyPromise;
-  }
+  public async waitForReady(): Promise<void> { if (!this.state.isInitialized) await this.state.readyPromise; }
+  /** Whether initialization succeeded; after waitForReady, false means it failed. */
+  public get initialized(): boolean { return this.state.isInitialized; }
 
   // ============================================================================
   // Event Listeners
@@ -189,6 +182,12 @@ export class ConnectionManager {
   }
 
   public getStoredSessions(): StoredSessions { return this.state.storedSessions; }
+
+  /** Re-read the stored list: another tab of this browser may have added an account since boot. */
+  public async reloadStoredSessions(): Promise<StoredSessions> {
+    await loadStoredSessions(this.state, this.io);
+    return this.state.storedSessions;
+  }
 
   public async handleAuthSuccess(params: AuthSuccessParams): Promise<void> {
     await handleAuthSuccess(params, this.state, this.io);

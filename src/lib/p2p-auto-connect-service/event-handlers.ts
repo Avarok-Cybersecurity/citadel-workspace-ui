@@ -8,16 +8,18 @@
 import { eventEmitter } from '../event-emitter';
 import { p2pRegistrationService } from '../p2p-registration-service';
 import { instanceManager } from '../multi-instance';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, warnLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import type { BroadcastStateSyncData, WebSocketMessage } from '@/types/ws-message-types';
 import type { AutoConnectState } from './state';
 import { getCurrentCid } from './cid-resolver';
 import { connectToPeer, handleConnectionSuccess, handlePeerDisconnect } from './connection-logic';
-import { handleIncomingPeerConnect } from './incoming-connect';
+import { handleIncomingPeerConnect, offerAdmitted, type IncomingOffer } from './incoming-connect';
+import { incomingAnswer, linkAdmitted } from './pause-gate';
 import { startPolling, stopPolling, startBackendPolling, stopBackendPolling } from './polling';
 import { parsePeerConnectPath } from '@/lib/ice-servers/path';
 import type { PeerConnectPath } from '@/types/ice-servers';
+import { installFollowerSnapshots } from './follower-snapshot';
 
 /** Callback type for setPeerConnected (broadcasts to followers) */
 type BroadcastPeerConnected = (localCid: bigint, peerCid: bigint) => void;
@@ -68,6 +70,14 @@ export function setupEventListeners(
       stopBackendPolling(state);
       state.cancelAllRetries();
     }
+  });
+
+  installFollowerSnapshots({
+    on: (event: string, handler: (payload: unknown) => void): void => { eventEmitter.on(event, handler); },
+    isLeader: (): boolean => instanceManager.isLeader,
+    selfInstanceId: (): string => instanceManager.instanceId,
+    peersFor: (localCid: bigint): bigint[] => state.getPeersForSession(localCid),
+    announce: broadcastPeerConnected,
   });
 
   // Follower tab connectedPeers sync
@@ -150,14 +160,20 @@ function setupWebSocketMessageHandler(
       if (instanceManager.isLeader) {
         const targetCid: bigint | undefined = notification.cid as bigint | undefined;
         const initiatorCid: bigint | undefined = notification.peer_cid as bigint | undefined;
+        // Not for a paused contact, nor an offer below the target chat's level: the owning
+        // tab declines those (incoming-connect), so they will not connect.
         if (targetCid !== undefined && initiatorCid !== undefined) {
-          debugLog('P2PAutoConnectService', `Leader updating connectedPeers for target CID ${targetCid.toString().slice(0, 8)}... -> peer ${initiatorCid.toString().slice(0, 8)}...`);
-          broadcastPeerConnected(targetCid, initiatorCid);
+          void Promise.all([incomingAnswer(targetCid, initiatorCid), offerAdmitted(targetCid, initiatorCid, notification as IncomingOffer)])
+            .then(([answer, admitted]: [Awaited<ReturnType<typeof incomingAnswer>>, boolean]): void => {
+              if (answer !== 'accept' || !admitted) return;
+              debugLog('P2PAutoConnectService', `Leader updating connectedPeers for target CID ${targetCid.toString().slice(0, 8)}... -> peer ${initiatorCid.toString().slice(0, 8)}...`);
+              broadcastPeerConnected(targetCid, initiatorCid);
+            }, (err: unknown): void => warnLog('P2PAutoConnectService', 'offer admission check failed:', err));
         }
       }
       handleIncomingPeerConnect(
         state,
-        notification as { cid?: bigint; peer_cid?: bigint; peer_username?: string },
+        notification as IncomingOffer,
         broadcastPeerConnected
       ).catch((err) => {
         debugLog('P2PAutoConnectService', 'handleIncomingPeerConnect failed:', err);
@@ -193,6 +209,8 @@ async function handlePeerConnectSuccess(
   if (path !== null && messageCid !== undefined && peerCid !== undefined) {
     state.core.setConnectionPath(messageCid, peerCid, path);
   }
+  // A paused pair is neither marked connected nor left up; see pause-gate.
+  if (messageCid !== undefined && peerCid !== undefined && !(await linkAdmitted(messageCid, peerCid))) return;
   if (instanceManager.isLeader && messageCid !== undefined && peerCid !== undefined) {
     debugLog('P2PAutoConnectService', `Leader updating connectedPeers for initiator CID ${messageCid.toString().slice(0, 8)}... -> peer ${peerCid.toString().slice(0, 8)}...`);
     broadcastPeerConnected(messageCid, peerCid);

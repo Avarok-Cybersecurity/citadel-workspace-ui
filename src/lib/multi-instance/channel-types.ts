@@ -23,7 +23,9 @@ export type ChannelMessageType =
   // A leader claiming execution of one outbound request id, broadcast the
   // moment the work starts so a transient leader promoted mid-flap does not
   // execute the same id again. See executed-requests.ts.
-  | 'request-executed';
+  | 'request-executed'
+  // The leader's socket to the agent went down or came back; see agent-socket-state.ts.
+  | 'agent-socket';
 
 export interface ChannelMessage {
   type: ChannelMessageType;

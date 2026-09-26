@@ -28,6 +28,9 @@ import { awaitPermissionsLoaded } from '../await-permissions-loaded';
 import type { DomainPermissions } from '../types';
 
 const DOMAIN: string = 'office-1';
+// After the fixtures' lastUpdated (0), so these entries are never taken as already-landed
+// answers and each test exercises the wait itself.
+const ASKED_AT: number = 1;
 
 function permissions(): DomainPermissions {
   return {
@@ -45,7 +48,7 @@ describe('awaiting a permissions load', () => {
     // A holder rather than a reassigned `let`: the point is that the cache is
     // read LATER, by the awaiter, not captured now.
     const cache: { value?: DomainPermissions } = {};
-    const pending: Promise<DomainPermissions> = awaitPermissionsLoaded(DOMAIN, () => cache.value);
+    const pending: Promise<DomainPermissions> = awaitPermissionsLoaded(DOMAIN, () => cache.value, ASKED_AT);
 
     // Exactly the async path: the load lands, and the cache is filled later.
     eventEmitter.emit('user:permissions:loaded', { domainId: DOMAIN });
@@ -60,7 +63,7 @@ describe('awaiting a permissions load', () => {
     // A holder rather than a reassigned `let`: the point is that the cache is
     // read LATER, by the awaiter, not captured now.
     const cache: { value?: DomainPermissions } = {};
-    const pending: Promise<DomainPermissions> = awaitPermissionsLoaded(DOMAIN, () => cache.value);
+    const pending: Promise<DomainPermissions> = awaitPermissionsLoaded(DOMAIN, () => cache.value, ASKED_AT);
 
     eventEmitter.emit('permissions:updated', { domainId: 'somewhere-else' });
     cache.value = permissions();
@@ -73,7 +76,7 @@ describe('awaiting a permissions load', () => {
     // Without this, the timeout test compares 0 to 0 and passes for a function
     // that never listened at all.
     const before: number = eventEmitter.listenerCount('permissions:updated');
-    const pending: Promise<DomainPermissions> = awaitPermissionsLoaded(DOMAIN, () => permissions());
+    const pending: Promise<DomainPermissions> = awaitPermissionsLoaded(DOMAIN, () => permissions(), ASKED_AT);
     expect(eventEmitter.listenerCount('permissions:updated')).toBe(before + 1);
     eventEmitter.emit('permissions:updated', { domainId: DOMAIN });
     await pending;
@@ -83,7 +86,7 @@ describe('awaiting a permissions load', () => {
   it('does not leave a listener behind when it times out', async (): Promise<void> => {
     vi.useFakeTimers();
     const before: number = eventEmitter.listenerCount('permissions:updated');
-    const pending: Promise<DomainPermissions> = awaitPermissionsLoaded(DOMAIN, () => undefined);
+    const pending: Promise<DomainPermissions> = awaitPermissionsLoaded(DOMAIN, () => undefined, ASKED_AT);
     const settled: Promise<unknown> = pending.catch((error: unknown) => error);
 
     await vi.advanceTimersByTimeAsync(60_000);

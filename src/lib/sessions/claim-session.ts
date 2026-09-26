@@ -25,11 +25,48 @@ export type ClaimOutcome =
   /** Live, and no other tab in this browser holds it — safe to select. */
   | { status: 'already-active' }
   /** Live, and another tab in this browser is using it. Do not adopt. */
-  | { status: 'owned-by-another-tab'; instanceId: string };
+  | { status: 'owned-by-another-tab'; instanceId: string }
+  /**
+   * Live on ANOTHER localhost connection: another browser window, or one the
+   * agent still holds after it dropped. This tab's socket does not carry it, so
+   * selecting it here showed a workspace that never answered. The agent refuses
+   * an unauthenticated takeover (`ClaimSession { only_if_orphaned: false }` is
+   * "in use by another connection"); signing in with the password moves it.
+   */
+  | { status: 'held-by-another-connection' };
 
 /** The agent's refusal meaning a live connection already owns the session. Read here, once. */
 export function isOwnedByALiveConnection(error: unknown): boolean {
   return error instanceof Error && Boolean(error.message?.includes('not orphaned'));
+}
+
+/**
+ * The agent's refusal meaning it no longer has the session: it found no SDK session for
+ * it and removed it before answering. Seen live for a session it was still reconnecting
+ * after a server drop -- the claim itself ended it -- so only signing in brings it back.
+ */
+export function isEndedByTheAgent(error: unknown): error is Error {
+  return error instanceof Error && Boolean(error.message?.includes('is not claimable'));
+}
+
+/** The agent's refusal meaning a DIFFERENT localhost connection holds the session. */
+function isHeldByAnotherConnection(error: unknown): boolean {
+  return error instanceof Error && Boolean(error.message?.includes('in use by another connection'));
+}
+
+/**
+ * Whether the live connection holding `cid` is this socket or another one.
+ * Re-asserting a session this connection already holds is allowed and changes
+ * nothing; for any other holder the agent refuses and nothing moves.
+ */
+async function heldHere(cid: bigint): Promise<boolean> {
+  try {
+    await websocketService.claimSession(cid, false);
+    return true;
+  } catch (error: unknown) {
+    if (isHeldByAnotherConnection(error)) return false;
+    throw error;
+  }
 }
 
 /** Does another instance already own this CID? */
@@ -60,7 +97,11 @@ export async function claimSessionForThisTab(cid: bigint): Promise<ClaimOutcome>
       return { status: 'owned-by-another-tab', instanceId: owner };
     }
 
-    debugLog('ClaimSession', `${cid} is live and unowned here; selecting it`);
+    if (!(await heldHere(cid))) {
+      debugLog('ClaimSession', `${cid} is live on another connection; not adopting`);
+      return { status: 'held-by-another-connection' };
+    }
+    debugLog('ClaimSession', `${cid} is live on this connection and unowned by a tab; selecting it`);
     return { status: 'already-active' };
   }
 }
@@ -71,3 +112,30 @@ export const SESSION_OWNED_ELSEWHERE: { readonly title: "Already Open Elsewhere"
   description:
     'This session is open in another tab. Switch to it, or pick a different session here.',
 } as const;
+
+/** What to ask before moving a session another browser window holds. */
+export function takeoverPrompt(username: string): { title: string; description: string; confirmLabel: string } {
+  return {
+    title: `${username} is open in another browser window`,
+    description:
+      'Use it here instead? You will sign in with your password to move it to this window, ' +
+      'and the other window will stop receiving updates for this account.',
+    confirmLabel: 'Use it here',
+  };
+}
+
+export interface TakeoverCallbacks {
+  /** Ask before moving a session another browser window holds. */
+  confirm: (request: { title: string; description: string; confirmLabel: string }) => Promise<boolean>;
+  /** Open sign-in for this username: the password is the agent's only takeover door. */
+  signInAs: (username: string) => void;
+}
+
+/**
+ * A session live on another connection cannot be claimed: the agent refuses
+ * `only_if_orphaned: false` for it. Switching to one used to do nothing at all;
+ * this asks, and on yes starts the password sign-in that moves it.
+ */
+export async function offerTakeover(username: string, callbacks: TakeoverCallbacks): Promise<void> {
+  if (await callbacks.confirm(takeoverPrompt(username))) callbacks.signInAs(username);
+}

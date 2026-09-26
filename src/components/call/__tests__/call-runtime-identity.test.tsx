@@ -38,7 +38,7 @@ vi.mock('@/lib/call/codec-support', () => ({
   localCapabilities: (): Promise<{}> => Promise.resolve({}),
   probeMediaCapabilities: (): Promise<{ supported: boolean; }> => Promise.resolve({ supported: true }),
 }));
-vi.mock('@/lib/call/peer-name', () => ({ callPeerName: (): string => 'Peer' }));
+vi.mock('@/lib/roster-peer-name', () => ({ rosterPeerName: (): string => 'Peer' }));
 
 import { useCallRuntime } from '../use-call-runtime';
 import type { CallManager } from '@/lib/call/call-manager';

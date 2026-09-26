@@ -16,7 +16,7 @@
  * state.
  */
 
-import { websocketService } from '../websocket-service';
+import { sendAllowingForAConcurrentOpen } from '../p2p/message-send-operations';
 import {
   createFileTransferResponse,
   createFileTransferCancel,
@@ -26,17 +26,22 @@ import { P2PCommandType, serializeP2PCommand } from '@/types/p2p-types';
 import { buildLayerPayload } from './transfer-announcement';
 import { debugLog } from '@/lib/debug-config';
 
-/** Serialize a layer payload and send it over the reliable P2P channel. */
+/**
+ * Serialize a layer payload and send it over the reliable P2P channel.
+ *
+ * Through the message path's own send, which opens this session's messenger
+ * first. Sending straight to `sendP2PMessageReliable` skipped that, so once
+ * an agent reconnect or server restart had dropped the handle, every file
+ * offer, accept, decline and cancel failed with "No messaging handle found
+ * for local CID" -- while a text message to the same peer reopened it and
+ * went through.
+ */
 export async function sendLayerPayload(payload: P2PMessagingLayerPayload): Promise<void> {
   const bytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand({
     type: P2PCommandType.MessagingLayerCommand,
     payload,
   });
-  await websocketService.sendP2PMessageReliable(
-    payload.sender_cid,
-    payload.recipient_cid,
-    bytes
-  );
+  await sendAllowingForAConcurrentOpen(payload.sender_cid, payload.recipient_cid, bytes);
 }
 
 /** Tell the sender we accepted or declined their offer. */

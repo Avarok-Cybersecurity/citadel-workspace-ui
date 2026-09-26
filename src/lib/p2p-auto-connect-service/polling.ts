@@ -14,6 +14,7 @@ import { debugLog } from '@/lib/debug-config';
 import type { AutoConnectState } from './state';
 import { ONLINE_STATUS_CACHE_TTL_MS, POLL_INTERVAL_MS } from './constants';
 import { getCurrentCid } from './cid-resolver';
+import { linkAdmitted } from './pause-gate';
 import type { PeerConnectionInfo } from '@/lib/p2p-auto-connect/types';
 import type { PeerInfoResponse } from '@/lib/p2p-registration-service/types';
 import type { ActiveSession } from '@/types/session-types';
@@ -87,6 +88,8 @@ export async function refreshFromBackend(state: AutoConnectState, localCid: bigi
       'peer_connections',
     )) {
       const peerCidBigInt: bigint = BigInt(peerCidStr);
+      // The agent listing a paused pair does not make it connected here.
+      if (!(await linkAdmitted(localCidBigInt, peerCidBigInt))) continue;
       const existingInfo: PeerConnectionInfo | undefined = existingPeerMap.get(peerCidBigInt);
 
       existingPeerMap.set(peerCidBigInt, {

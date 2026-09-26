@@ -35,6 +35,10 @@ import { CreateGroupDialog } from "@/components/chat/CreateGroupDialog";
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 import { roleBadgeClass } from '@/lib/role-badge';
+import { useNavigate } from 'react-router-dom';
+import { useConfirm } from '@/components/shared/confirm-dialog';
+import { mayLeaveEditor } from '@/lib/leave-editor';
+import type { NavigateFunction } from 'react-router';
 import { isPrivilegedRole } from '@/lib/role-predicate';
 
 export function getRoleIcon(role: string): JSX.Element {
@@ -115,6 +119,15 @@ export function MembersSectionModals({
   onEditMember, onRemoveMember, onManagePermissions,
   onCreateGroup,
 }: MembersSectionModalsProps): JSX.Element {
+  const navigate: NavigateFunction = useNavigate();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
+  // Leaving the workspace view unmounts the editor, so ask first -- as every
+  // other navigation out of the sidebar does.
+  const openDirectory = async (): Promise<void> => {
+    if (!(await mayLeaveEditor(confirm))) return;
+    onSetShowPeerDiscovery(false);
+    navigate('/directory');
+  };
   return (
     <>
       <MemberManagementModal isOpen={showAddModal} onClose={() => onSetShowAddModal(false)} mode="add" domainId={currentNodeId ?? undefined} />
@@ -134,6 +147,8 @@ export function MembersSectionModals({
                     <div className="flex-1">
                       <p className="text-foreground font-medium">{member.displayName || member.username}</p>
                       {member.username && <p className="text-sm text-muted-foreground">@{member.username}</p>}
+                      {member.title && <p className="text-xs text-foreground/80" data-testid="member-title">{member.title}</p>}
+                      {member.email && <p className="text-xs text-muted-foreground" data-testid="member-email">{member.email}</p>}
                     </div>
                     <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
                   </div>
@@ -155,7 +170,7 @@ export function MembersSectionModals({
       </Dialog>
 
       {permissionModalData && <PermissionManagerModal isOpen={showPermissionModal} onClose={() => { onSetShowPermissionModal(false); onClearPermissionModalData(); }} userId={permissionModalData.userId} domainId={permissionModalData.domainId} domainType={permissionModalData.domainType} />}
-      <PeerDiscoveryModal isOpen={showPeerDiscovery} onClose={() => onSetShowPeerDiscovery(false)} />
+      <PeerDiscoveryModal isOpen={showPeerDiscovery} onClose={() => onSetShowPeerDiscovery(false)} onOpenDirectory={() => void openDirectory()} />
       <PendingRequestsModal isOpen={showPendingRequests} onClose={() => onSetShowPendingRequests(false)} />
       <CreateGroupDialog open={showCreateGroupDialog} onOpenChange={onSetShowCreateGroupDialog} availablePeers={registeredPeers.map(p => ({ cid: p.cid, username: p.username, isOnline: p.isOnline }))} currentUsername={currentUsername || 'User'} onCreateGroup={onCreateGroup} />
       <InviteToWorkspaceDialog

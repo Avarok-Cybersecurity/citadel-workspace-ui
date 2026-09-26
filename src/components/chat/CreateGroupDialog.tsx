@@ -24,6 +24,7 @@ import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { debugLog } from '@/lib/debug-config';
 import { MembersTable } from './CreateGroupMembersTable';
 import { avatarColor } from '@/lib/avatar-color';
+import { peerDisplayName } from '@/lib/peer-display';
 import type { AvailablePeer, SelectedMember, CreateGroupDialogProps } from './create-group-types';
 import type { GroupRole } from '@/types/group-permissions';
 
@@ -190,10 +191,10 @@ export function CreateGroupDialog({
                                 ),
                               }}
                             >
-                              {peer.username[0]?.toUpperCase() || '?'}
+                              {peerDisplayName(peer)[0]?.toUpperCase() || '?'}
                             </div>
                             <span className="text-sm text-foreground flex-1 truncate">
-                              {peer.username}
+                              {peerDisplayName(peer)}
                             </span>
                             {peer.isOnline && (
                               <span className="w-2 h-2 rounded-full bg-success" />

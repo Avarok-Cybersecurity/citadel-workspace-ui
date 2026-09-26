@@ -14,14 +14,15 @@ import { eventEmitter } from '@/lib/event-emitter';
  * what it says.
  */
 const MAX_REMEMBERED: number = 50;
-const ended: Set<string> = new Set<string>();
+/** groupId → whether someone else ended it (so group-removal-notice already told the user). */
+const ended: Map<string, boolean> = new Map<string, boolean>();
 
 export function bindEndedGroups(): void {
-  eventEmitter.on('group:deleted', (data: { groupId: string }) => {
-    ended.add(data.groupId);
+  eventEmitter.on('group:deleted', (data: { groupId: string; byOthers?: boolean }) => {
+    ended.set(data.groupId, data.byOthers === true);
     // Insertion order, so the oldest goes first.
     while (ended.size > MAX_REMEMBERED) {
-      const oldest: string | undefined = ended.values().next().value;
+      const oldest: string | undefined = ended.keys().next().value;
       if (oldest === undefined) break;
       ended.delete(oldest);
     }
@@ -31,6 +32,11 @@ export function bindEndedGroups(): void {
 /** Whether this session saw that group end. */
 export function wasEnded(groupId: string): boolean {
   return ended.has(groupId);
+}
+
+/** Whether someone else ended it, which the removal notice has already announced. */
+export function wasAnnounced(groupId: string): boolean {
+  return ended.get(groupId) === true;
 }
 
 /** Test seam. */

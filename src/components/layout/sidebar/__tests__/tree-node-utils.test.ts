@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildTreeFromNodes } from '../tree-node-utils';
+import { buildTreeFromNodes, descendantCount } from '../tree-node-utils';
 import type { DomainNode } from '../tree-node-types';
 import type { TreeNode } from '@/components/layout/sidebar/tree-node-types';
 
@@ -45,7 +45,7 @@ describe('buildTreeFromNodes', () => {
       node('workspace-root', null, 'Root Workspace'),
       node('office-a', 'workspace-root', 'General'),
       node('office-b', 'workspace-root', 'Engineering'),
-    ]);
+    ], 'Harbor');
 
     const ids: string[] = idsInTree(tree);
     expect(ids).toHaveLength(new Set(ids).size);
@@ -58,7 +58,7 @@ describe('buildTreeFromNodes', () => {
       node('workspace-root', null, 'Root'),
       node('office-a', 'workspace-root', 'General'),
       node('room-a', 'office-a', 'Random'),
-    ]);
+    ], 'Harbor');
 
     expect(tree?.children[0].node.id).toBe('office-a');
     expect(tree?.children[0].children[0].node.id).toBe('room-a');
@@ -70,7 +70,7 @@ describe('buildTreeFromNodes', () => {
     const tree: TreeNode | null = buildTreeFromNodes([
       node('office-a', 'workspace-root', 'General'),
       node('office-b', 'workspace-root', 'Engineering'),
-    ]);
+    ], 'Harbor');
 
     expect(tree?.node.id).toBe('workspace-root');
     const ids: string[] = idsInTree(tree);
@@ -79,6 +79,25 @@ describe('buildTreeFromNodes', () => {
   });
 
   it('returns null for an empty set', () => {
-    expect(buildTreeFromNodes([])).toBeNull();
+    expect(buildTreeFromNodes([], 'Harbor')).toBeNull();
+  });
+});
+
+describe('the tree around several top-level spaces', () => {
+  it('names the synthetic parent after the workspace, not "Workspace"', () => {
+    // Measured live: two offices appeared under a parent labelled "Workspace".
+    const tree: TreeNode | null = buildTreeFromNodes([node('a', 'workspace-root'), node('b', 'workspace-root')], 'Harbor');
+    expect(tree?.node.name).toBe('Harbor');
+  });
+});
+
+describe('descendantCount', () => {
+  it('counts everything inside a node by parent, whatever its children list says', () => {
+    // Measured live: after a room was moved into an office, deleting the office warned
+    // about nothing -- the warning read the office's stale `children` list.
+    const office: DomainNode = { ...node('o', 'workspace-root'), children: [] } as DomainNode;
+    const nodes: DomainNode[] = [office, node('r1', 'o'), node('r2', 'o'), node('d', 'r1'), node('x', 'workspace-root')];
+    expect(descendantCount(nodes, 'o')).toBe(3);
+    expect(descendantCount(nodes, 'x')).toBe(0);
   });
 });

@@ -16,9 +16,9 @@ import {
   baseName,
   cloneTree,
   findNode,
-  flipNodeStates,
   rebasePath,
 } from './tree-queries';
+import { flipNodeStates } from './file-states';
 import { applied, refused, type RemoteOpOutcome } from './remote-op-outcome';
 import { applyRelocation } from './tree-relocation';
 

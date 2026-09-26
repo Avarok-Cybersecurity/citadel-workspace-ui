@@ -28,12 +28,13 @@ vi.mock('@/lib/sessions/switch-to-session', () => ({
 }));
 
 import { useAccountLink } from '../use-account-link';
+import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 
 function run(url: string): { login: string[]; location: () => string } {
   const login: string[] = [];
   let search: string = '';
   const wrapper = ({ children }: { children: ReactNode }): JSX.Element => (
-    <MemoryRouter initialEntries={[url]}>{children}</MemoryRouter>
+    <MemoryRouter initialEntries={[url]}><ConfirmDialogProvider>{children}</ConfirmDialogProvider></MemoryRouter>
   );
   renderHook(() => {
     useAccountLink((username: string) => { login.push(username); });

@@ -64,3 +64,24 @@ export function buildContextMenuFlashComment(
     timestamp: Date.now(),
   };
 }
+
+/**
+ * Every live flash comment in the document's awareness states -- the reader's
+ * own included, since the dialog promises "shown to everyone" and the sender
+ * is the one who most needs to see it land. Each is labelled with its author's
+ * current awareness name and colour.
+ */
+export function flashCommentsFrom(states: ReadonlyMap<number, unknown>): FlashComment[] {
+  const comments: FlashComment[] = [];
+  states.forEach((raw: unknown) => {
+    const state: { user?: CursorUser; flashComment?: FlashComment | null } =
+      (raw ?? {}) as { user?: CursorUser; flashComment?: FlashComment | null };
+    if (!state.flashComment) return;
+    comments.push({
+      ...state.flashComment,
+      userName: state.user?.name || 'Unknown',
+      userColor: state.user?.color || '#6E59A5',
+    });
+  });
+  return comments;
+}

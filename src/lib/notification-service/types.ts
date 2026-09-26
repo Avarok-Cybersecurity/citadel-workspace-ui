@@ -31,6 +31,7 @@ export interface Notification {
   content: string;
   sourceId?: string; // ID of the message, connection request, etc.
   senderId?: string; // User ID who triggered this notification
+  senderName?: string; // What to call them; the card's avatar initials come from this, never from the id
   recipientCid?: string; // CID of the session this notification belongs to
   priority: NotificationPriority;
   read: boolean;

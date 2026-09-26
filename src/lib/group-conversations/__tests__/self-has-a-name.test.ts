@@ -25,16 +25,22 @@ vi.mock('@/lib/tab-context', async (importOriginal) => {
   const actual: Record<string, unknown> = await importOriginal();
   return { ...actual, getSelectedUser: async (): Promise<unknown> => selection.current };
 });
-vi.mock('@/lib/connection', async (importOriginal) => {
-  const actual: Record<string, unknown> = await importOriginal();
-  return {
-    ...actual,
-    connectionManager: {
-      getConnectionInfo: (): { cid: bigint } => ({ cid: 7n }),
-      getTabSelectedSession: async (): Promise<unknown> => { sessionReads += 1; return storedSession.current; },
+// Bare, unlike tab-context above: spreading the real connection module constructed its
+// ConnectionManager singleton during import ("Cannot read properties of undefined (reading
+// 'onEvent')"), and re-importing it for every test ran past the 5 s budget in a loaded run. The
+// response service needs these two and nothing else from it.
+vi.mock('@/lib/connection', () => ({
+  connectionManager: {
+    getConnectionInfo: (): { cid: bigint } => ({ cid: 7n }),
+    // Counted only when the response service is the caller: the multi-tab channel's announce timer
+    // reads the tab session too (lib/p2p/current-cid), and those reads made the count depend on
+    // scheduling -- 7 instead of 1 in a loaded run.
+    getTabSelectedSession: async (): Promise<unknown> => {
+      if (new Error().stack?.includes('group-response-service')) sessionReads += 1;
+      return storedSession.current;
     },
-  };
-});
+  },
+}));
 
 describe('who the creator is', () => {
   beforeEach(() => {

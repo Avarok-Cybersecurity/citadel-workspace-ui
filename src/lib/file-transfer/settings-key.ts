@@ -5,6 +5,9 @@ import { instanceManager } from '@/lib/multi-instance';
  *
  * Settings are per-account AND per-peer: two accounts in one browser talking to
  * the same peer must not share a max-file-size or an auto-accept switch.
+ * Keyed by peer alone, one account enabling "auto-accept files from X" made
+ * every other account in the browser auto-accept from X: a security setting
+ * inherited by an account that never agreed to it.
  *
  * It lives here rather than as a private method on the service because the
  * lifecycle module also reads these settings, and it was reading them under the

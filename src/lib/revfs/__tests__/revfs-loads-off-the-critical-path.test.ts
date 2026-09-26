@@ -21,6 +21,8 @@ function deps(): RevfsIODeps {
     sendP2PMessageReliable: vi.fn(async () => true),
     getCurrentCid: vi.fn(async () => 1n),
     sendInternalServiceRequest: vi.fn(async () => undefined),
+    // The channel is up: these tests are about what travels over it.
+    openPeerChannel: async (): Promise<boolean> => true,
   } as unknown as RevfsIODeps;
 }
 

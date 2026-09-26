@@ -8,12 +8,13 @@
 import { describe, it, expect } from 'vitest';
 import { RevfsOpType, RevfsFileState , type RevfsNode } from '@/types/revfs-types';
 import type { RevfsOperation, RevfsFileMetadata } from '@/types/revfs-types';
-import { peerPairKey } from '../tree-operations';
+import { peerTreeKey } from '../tree-operations';
 import { ALICE, BOB, createTestService, defaultIntentHandler, getExecuteCalls } from './revfs-service-test-helpers';
 import type { RevfsService } from '@/lib/revfs/revfs-service';
 import type { RevfsIntent } from '@/types/revfs-intents';
+import type { SyncOutcome } from '../revfs-service';
 
-const KEY: string = peerPairKey(ALICE, BOB);
+const KEY: string = peerTreeKey(ALICE, BOB);
 
 // ── Tests ───────────────────────────────────────────────────────────────
 
@@ -182,8 +183,8 @@ describe('RevfsService (events & sync)', () => {
       // ANSWER as well as the send, because the caller toasts "Tree synced with
       // peer" on the strength of it.
       const service: RevfsService = createTestService(defaultIntentHandler());
-      const answered: boolean = await service.requestSync(ALICE, BOB, 10);
-      expect(answered, 'no tree came back in this harness').toBe(false);
+      const outcome: SyncOutcome = await service.requestSync(ALICE, BOB, 10);
+      expect(outcome, 'no tree came back in this harness').toEqual({ kind: 'unanswered', waitedMs: 10 });
 
       const intents: RevfsIntent[] = getExecuteCalls(service);
       const syncCalls: RevfsIntent[] = intents.filter(i => {

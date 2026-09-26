@@ -22,8 +22,10 @@ export interface SaveOfficeNotice {
 }
 
 export interface SaveOfficeContentDeps {
-  /** Absent while the page is still loading — there is nothing to write to. */
+  /** Absent when this page is no node -- there is nothing to write to. */
   nodeId?: string;
+  /** Why, when there is no node: see edit-gate.ts. */
+  noPageReason: string;
   content: string;
   /** Name to use in the confirmation; falls back to the page title. */
   displayName: string;
@@ -43,11 +45,9 @@ export async function saveOfficeContent(deps: SaveOfficeContentDeps): Promise<bo
 
   if (!nodeId) {
     log('Refusing to save: no nodeId');
-    notify({
-      kind: 'error',
-      title: 'Cannot save yet',
-      description: 'This page is still loading. Try again in a moment.',
-    });
+    // Said as it is. "This page is still loading" was the only answer, and it
+    // was false on a page that had finished loading with no node behind it.
+    notify({ kind: 'error', title: "Can't save this page", description: deps.noPageReason });
     return false;
   }
 

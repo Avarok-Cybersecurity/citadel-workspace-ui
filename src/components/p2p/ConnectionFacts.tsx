@@ -12,15 +12,14 @@
  */
 
 import { formatBytes } from '@/lib/format-bytes';
+import type { ConversationFacts } from './connection-facts';
 
-interface ConnectionFactsProps {
+interface ConnectionFactsProps extends ConversationFacts {
   peerCid: string;
-  revfsQuota: number;
 }
 
-export function ConnectionFacts({ peerCid, revfsQuota }: ConnectionFactsProps): JSX.Element {
-  const settings: { revfsQuota: number; } = { revfsQuota };
-
+/** A row is shown only when the conversation's records can back it; see connection-facts. */
+export function ConnectionFacts({ peerCid, firstContact, transferredBytes }: ConnectionFactsProps): JSX.Element {
   return (
     <>
   <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50">
@@ -35,27 +34,18 @@ export function ConnectionFacts({ peerCid, revfsQuota }: ConnectionFactsProps): 
     <span className="text-sm text-muted-foreground">Encryption</span>
     <span className="text-sm text-foreground/80">End-to-end</span>
   </div>
-  <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50">
-    <span className="text-sm text-muted-foreground">First Connected</span>
-    <span className="text-sm text-foreground/80">
-      {((): string => {
-        try {
-          const ts: string | null = localStorage.getItem(`peer-first-seen:${peerCid}`);
-          if (!ts) {
-            localStorage.setItem(`peer-first-seen:${peerCid}`, Date.now().toString());
-            return 'Just now';
-          }
-          return new Date(parseInt(ts)).toLocaleDateString();
-        } catch { return 'Unknown'; }
-      })()}
-    </span>
-  </div>
-  <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50">
-    <span className="text-sm text-muted-foreground">Storage Used</span>
-    <span className="text-sm text-foreground/80">
-      {formatBytes(settings.revfsQuota - (settings.revfsQuota * 0.85))}
-    </span>
-      </div>
+  {firstContact !== null && (
+    <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50" data-testid="fact-first-contact">
+      <span className="text-sm text-muted-foreground">First Contact</span>
+      <span className="text-sm text-foreground/80">{new Date(firstContact).toLocaleDateString()}</span>
+    </div>
+  )}
+  {transferredBytes !== null && (
+    <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50" data-testid="fact-transferred">
+      <span className="text-sm text-muted-foreground">Files Transferred (size)</span>
+      <span className="text-sm text-foreground/80">{formatBytes(transferredBytes)}</span>
+    </div>
+  )}
     </>
   );
 }

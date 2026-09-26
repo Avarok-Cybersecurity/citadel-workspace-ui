@@ -53,3 +53,27 @@ export async function applyTransferOutcome(
   deps.emitStateChange(transfer);
   eventEmitter.emit(FILE_TRANSFER_EVENTS.COMPLETED, transfer);
 }
+
+/**
+ * Whether a caller resuming from an await may still write a NON-terminal state
+ * to `transfer`. The protocol plane can finish a transfer while the caller is
+ * suspended — a one-group file lands inside the accept signal's P2P round trip —
+ * and the expiry sweep replaces a record rather than mutating it. Writing
+ * 'transferring' over either left a finished download on "Downloading… 100%"
+ * for good, because 'complete' is terminal and nothing corrects it.
+ */
+export function isStillOpen(
+  state: { getTransfer(transferId: string): FileTransfer | undefined },
+  transfer: FileTransfer
+): boolean {
+  return state.getTransfer(transfer.id) === transfer && !isTerminalTransferState(transfer.state);
+}
+
+/**
+ * Whether a transfer can still be accepted. An unknown one counts: an offer's
+ * message half is noted before its transfer is recorded (see the service), so
+ * absent means "arriving", and only a recorded outcome closes it.
+ */
+export function isOpenTransfer(transfer: FileTransfer | undefined): boolean {
+  return transfer === undefined || !isTerminalTransferState(transfer.state);
+}

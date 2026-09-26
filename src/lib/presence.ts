@@ -36,6 +36,38 @@
 import { p2pRegistrationService, type Peer } from './p2p-registration-service';
 import { p2pAutoConnectService } from './p2p-auto-connect-service';
 import { debugLog } from './debug-config';
+import { instanceManager } from './multi-instance';
+import { publishedPresenceChoice } from './published-presence';
+import { listedPeerUsername } from './member-names';
+import { SHOWS_ONLINE_STATUS_WHEN_UNSET } from './profile-privacy';
+
+/**
+ * Presence as this viewer may show it. THE rule for a member's Online Status
+ * choice; every presence surface routes through `shownPresence` below.
+ *
+ * The Citadel server's peer list tells every member who is connected, and it
+ * knows nothing of the setting. So a member who turned it off is shown as not
+ * known -- neither online nor offline, since "offline" would be a claim too --
+ * unless this session holds a live P2P connection with them, which they
+ * cannot hide from us and the setting's own copy says so.
+ */
+export function presenceAsShown(
+  presence: boolean | null,
+  published: boolean | undefined,
+  directlyConnected: () => boolean,
+): boolean | null {
+  if (published ?? SHOWS_ONLINE_STATUS_WHEN_UNSET) return presence;
+  return directlyConnected() ? presence : null;
+}
+
+/** `presenceAsShown` for a member known by username, CID, or both. */
+export function shownPresence(username: string | undefined, peerCid: bigint | null, presence: boolean | null): boolean | null {
+  const name: string | undefined = username ?? (peerCid === null ? undefined : listedPeerUsername(peerCid));
+  return presenceAsShown(presence, publishedPresenceChoice(name), (): boolean => {
+    const sessionCid: bigint | null = instanceManager.cid;
+    return sessionCid !== null && peerCid !== null && p2pAutoConnectService.isPeerConnectedForSession(sessionCid, peerCid);
+  });
+}
 
 /** A member id as a CID, when it is one. Usernames are not. */
 export function memberIdToCid(memberId: string): bigint | null {
@@ -71,9 +103,15 @@ function findPeer(memberId: string): Peer | undefined {
  * renders that as the word "Offline", which is an assertion about somebody who
  * might be sitting right there. An unregistered member's presence is unknown to
  * this client, and now the type can say so.
+ *
+ * And null for a member who turned Online Status off (`shownPresence`).
  */
 export function isMemberOnline(memberId: string): boolean | null {
   const peer: ReturnType<typeof findPeer> = findPeer(memberId);
+  return shownPresence(memberId, peer?.cid ?? null, registryPresence(memberId, peer));
+}
+
+function registryPresence(memberId: string, peer: Peer | undefined): boolean | null {
   if (!peer) {
     debugLog('Presence', 'no registered peer for member, presence unknown:', memberId);
     return null;

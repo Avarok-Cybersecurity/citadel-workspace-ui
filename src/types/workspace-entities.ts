@@ -17,6 +17,13 @@ export interface User extends Entity {
   profileImage?: string;
   avatarUrl?: string; // URL to user's avatar image
   email?: string; // User's email address
+  title?: string; // Job title, shown to other members
+  /** Their published request policy; undefined when unpublished. See lib/profile-privacy.ts. */
+  acceptsRequestsFromStrangers?: boolean;
+  /** Their published Online Status choice; undefined when unpublished. See lib/presence.ts. */
+  showsOnlineStatus?: boolean;
+  /** Whether the server sends their picture, email and title to non-contacts. See lib/profile-privacy.ts. */
+  showProfileToStrangers?: boolean;
   /** True, false, or null when nobody has said. See lib/presence.ts. */
   isOnline: boolean | null;
   role?: UserRole;
@@ -71,6 +78,11 @@ export interface GroupMessageReadBy {
 
 // Extend generated GroupMessage with local-only fields
 import type { GroupMessage as GeneratedGroupMessage } from 'citadel-workspace-client-ts';
+import type { GroupFileShare } from './group-file-share';
 export interface GroupMessage extends GeneratedGroupMessage {
   read_by?: GroupMessageReadBy[];
+  /** A file shared into a peer group; local-only, see types/group-file-share. */
+  file_share?: GroupFileShare;
+  /** Peer groups only: kept in the stored transcript; see lib/reactions. */
+  reactions?: import('@/lib/reactions/reaction-state').MessageReaction[];
 }

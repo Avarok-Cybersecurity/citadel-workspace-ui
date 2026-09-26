@@ -25,6 +25,7 @@ import {
 import type { GroupRole } from '@/types/group';
 import type { SelectedMember } from './create-group-types';
 import { avatarColor } from '@/lib/avatar-color';
+import { peerDisplayName } from '@/lib/peer-display';
 
 
 
@@ -76,9 +77,9 @@ export function MembersTable({
                     className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-foreground"
                     style={{ backgroundColor: avatarColor(index) }}
                   >
-                    {member.username[0]?.toUpperCase() || '?'}
+                    {peerDisplayName(member)[0]?.toUpperCase() || '?'}
                   </div>
-                  <span className="text-sm text-foreground">{member.username}</span>
+                  <span className="text-sm text-foreground">{peerDisplayName(member)}</span>
                 </div>
               </TableCell>
               <TableCell className="py-2">

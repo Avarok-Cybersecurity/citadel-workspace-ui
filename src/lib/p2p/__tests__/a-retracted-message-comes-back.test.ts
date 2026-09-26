@@ -58,14 +58,14 @@ const { saveMetadata, saveMessagePage } = await import('../message-page-operatio
 const PEER: bigint = 777n;
 const OWNER: bigint = 4242n;
 
-function message(id: string, content: string): Record<string, unknown> {
+function message(id: string, content: string, senderCid: bigint = PEER): Record<string, unknown> {
   return {
-    id, content, senderCid: PEER, recipientCid: OWNER,
+    id, content, senderCid, recipientCid: senderCid === PEER ? OWNER : PEER,
     timestamp: 1_000, status: 'delivered', message_type: 'text',
   };
 }
 
-async function seedConversation(): Promise<void> {
+async function seedConversation(senderCid: bigint = PEER): Promise<void> {
   stored.clear();
   await saveMetadata(PEER, {
     peerCid: PEER, ownerCid: OWNER, peerUsername: 'peer',
@@ -75,7 +75,7 @@ async function seedConversation(): Promise<void> {
   } as never);
   await saveMessagePage(PEER, 0, {
     peerCid: PEER, pageNumber: 0,
-    messages: [message('keep-me', 'still here'), message('retract-me', 'oops')],
+    messages: [message('keep-me', 'still here', senderCid), message('retract-me', 'oops', senderCid)],
   } as never);
 }
 
@@ -162,7 +162,10 @@ describe('the inbound retraction reaches storage', () => {
 });
 
 describe('my own retraction reaches storage', () => {
-  beforeEach(async () => { await seedConversation(); });
+  // Sent by me ON DISK too: the stored page is what the sender check reads
+  // (message-page-revision), so a fixture whose page and memory disagree about
+  // who sent a message is refused, as it should be.
+  beforeEach(async () => { await seedConversation(OWNER); });
 
   it('retracting a message I sent removes it from the page a reload reads', async () => {
     vi.doMock('../current-cid', () => ({ getCurrentCid: async (): Promise<bigint> => OWNER }));

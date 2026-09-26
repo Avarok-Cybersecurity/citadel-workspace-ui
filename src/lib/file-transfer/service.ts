@@ -7,6 +7,7 @@
 
 import { scopedSettingsKey } from './settings-key';
 import { startExpirySweep } from './expiry-sweep';
+import { bindAccountHistory } from './account-history';
 import { loadPersistedTransfers, persistTransfer, persistSettings } from './transfer-persistence';
 import { eventEmitter } from '../event-emitter';
 import {
@@ -14,6 +15,7 @@ import {
   isFileTransferRequest, isFileTransferResponse, isFileTransferCancel,
 } from '@/types/messaging-layer';
 import { FileTransferState } from './state';
+import { isOpenTransfer } from './transfer-outcome';
 import { FileTransferIO } from './io';
 import { FILE_TRANSFER_EVENTS } from './events';
 import type { IFileTransferIORouter } from './io-router';
@@ -25,6 +27,7 @@ import { debugLog } from '@/lib/debug-config';
 import { handleAsyncSend, handleTransferRequest, handleTransferResponse } from './async-transfers';
 import { ProtocolOfferCorrelator } from './protocol-offer-correlation';
 import { handleTransferCancel } from './p2p-transfers';
+import { openPeerChannelViaAutoConnect } from './open-peer-channel';
 import {
   handleProtocolProgress, handleProtocolComplete, handleProtocolStatus,
 } from './protocol-transfer-events';
@@ -38,8 +41,7 @@ export class FileTransferService {
 
   private readonly state: FileTransferState = new FileTransferState();
   private readonly correlator: ProtocolOfferCorrelator = new ProtocolOfferCorrelator((transferId, objectId): void =>
-    this.io.registerTransferMapping(transferId, objectId)
-  );
+    this.io.registerTransferMapping(transferId, objectId), (transferId: string): boolean => isOpenTransfer(this.state.getTransfer(transferId)));
   private io: FileTransferIO;
   private initialized: boolean = false;
 
@@ -75,6 +77,7 @@ export class FileTransferService {
     if (this.initialized) return;
     this.setupMessageHandlers();
     await this.loadFromStorage();
+    bindAccountHistory(this.state);
     startExpirySweep(this.state, this.emitStateChange.bind(this), this.saveTransfer.bind(this));
     this.initialized = true;
     debugLog('FileTransferService', 'Initialized');
@@ -88,6 +91,7 @@ export class FileTransferService {
       saveTransfer: this.saveTransfer.bind(this),
       saveSettings: this.saveSettings.bind(this),
       handleAsyncSend: (t: FileTransfer, f: File): Promise<void> => handleAsyncSend(this.deps, t, f),
+      openPeerChannel: openPeerChannelViaAutoConnect,
     };
   }
 
@@ -95,11 +99,7 @@ export class FileTransferService {
     return sendFile(this.deps, recipientCid, file, mode);
   }
 
-  async sendFileWithNativePicker(
-    recipientCid: string,
-    title?: string,
-    allowedExtensions?: string[]
-  ): Promise<string> {
+  async sendFileWithNativePicker(recipientCid: string, title?: string, allowedExtensions?: string[]): Promise<string> {
     return sendFileWithNativePicker(this.deps, recipientCid, title, allowedExtensions);
   }
 
@@ -115,31 +115,15 @@ export class FileTransferService {
     return declineTransfer(this.deps, transferId, reason);
   }
 
-  // Settings
-  /**
-   * Per-peer settings are scoped to the ACCOUNT that set them.
-   *
-   * They were keyed by peer CID alone, and this browser holds several sessions
-   * at once — so one account enabling "auto-accept files from X" made every
-   * other account in the same browser auto-accept from X too. A security
-   * setting inherited by an account that never agreed to it.
-   *
-   * A missing own-CID falls back to the bare peer key rather than inventing a
-   * scope: settings written before a session is established belong to no
-   * account, and silently filing them under one would be worse.
-   */
-  private scopedKey(peerCid: string): string {
-    return scopedSettingsKey(peerCid);
-  }
-
-  getSettings(peerCid: string): FileTransferSettings { return this.state.getSettings(this.scopedKey(peerCid)); }
-  getAutoAccept(peerCid: string): boolean { return this.state.getSettings(this.scopedKey(peerCid)).autoAccept; }
-  getTransferMode(peerCid: string): TransferModePreference { return this.state.getSettings(this.scopedKey(peerCid)).transferMode; }
+  // Settings -- scoped per account; see settings-key.ts.
+  getSettings(peerCid: string): FileTransferSettings { return this.state.getSettings(scopedSettingsKey(peerCid)); }
+  getAutoAccept(peerCid: string): boolean { return this.state.getSettings(scopedSettingsKey(peerCid)).autoAccept; }
+  getTransferMode(peerCid: string): TransferModePreference { return this.state.getSettings(scopedSettingsKey(peerCid)).transferMode; }
 
   private async updateSetting<K extends keyof FileTransferSettings>(
     peerCid: string, key: K, value: FileTransferSettings[K]
   ): Promise<void> {
-    const key_: string = this.scopedKey(peerCid);
+    const key_: string = scopedSettingsKey(peerCid);
     const settings: FileTransferSettings = this.state.getSettings(key_);
     settings[key] = value;
     this.state.setSettings(key_, settings);
@@ -160,6 +144,11 @@ export class FileTransferService {
 
   getTransfer(transferId: string): FileTransfer | undefined {
     return this.state.getTransfer(transferId);
+  }
+
+  /** See `FileTransferState.noteOfferArriving`. */
+  isOfferArriving(transferId: string): boolean {
+    return this.state.isOfferArriving(transferId);
   }
 
   getTransfersForPeer(peerCid: string): FileTransfer[] {
@@ -238,6 +227,7 @@ export class FileTransferService {
       // Join the two halves BEFORE handleTransferRequest, because auto-accept
       // fires from inside it — and an accept that cannot name the object_id is
       // exactly the failure this correlation exists to prevent.
+      this.state.noteOfferArriving(layer.transfer_id);
       this.correlator.noteMessageOffer(
         layer.transfer_id,
         senderCid,

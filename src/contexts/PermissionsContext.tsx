@@ -174,11 +174,13 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     eventEmitter.on('permissions:updated', handlePermissionsUpdated);
     eventEmitter.on('permissions:role-changed', handleRoleChanged);
     eventEmitter.on('user:permissions:loaded', handlePermissionsLoaded);
+    eventEmitter.on('permissions:cleared', handlePermissionsUpdated);
 
     return (): void => {
       eventEmitter.off('permissions:updated', handlePermissionsUpdated);
       eventEmitter.off('permissions:role-changed', handleRoleChanged);
       eventEmitter.off('user:permissions:loaded', handlePermissionsLoaded);
+      eventEmitter.off('permissions:cleared', handlePermissionsUpdated);
     };
   }, [syncWithService]);
 

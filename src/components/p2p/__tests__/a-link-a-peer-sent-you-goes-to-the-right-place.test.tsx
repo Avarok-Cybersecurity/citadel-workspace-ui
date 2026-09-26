@@ -38,7 +38,7 @@ function renderBubble(content: string): void {
   render(
     <MemoryRouter initialEntries={['/messages?channel=c1']}>
       <CurrentLocation />
-      <MarkdownBubble message={messageSaying(content)} isOwn={false} />
+      <MarkdownBubble message={messageSaying(content)} isOwn={false} quoted={null} />
     </MemoryRouter>,
   );
 }

@@ -1,3 +1,4 @@
+import { describeFailure } from '@/lib/failure-message';
 /**
  * What to tell a person when a message to a peer will not send.
  *
@@ -113,6 +114,8 @@ export function peerFailureDetail(reason: string | null): PeerFailureDetail {
  * non-Error carries nothing to translate.
  */
 export function failureDescription(error: unknown, fallback: string): string {
-  if (!(error instanceof Error)) return fallback;
-  return peerFailureDetail(error.message).detail;
+  // describeFailure extracts a message from any thrown shape (Error, string, {message});
+  // what it cannot read stays the site's fallback, untranslated.
+  const message: string = describeFailure(error, '');
+  return message ? peerFailureDetail(message).detail : fallback;
 }

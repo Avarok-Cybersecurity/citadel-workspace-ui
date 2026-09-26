@@ -48,6 +48,8 @@ function deps(): { deps: unknown; recorded: Recorded } {
       saveTransfer: async (): Promise<void> => { recorded.saved += 1; },
       emitStateChange: (): void => { recorded.stateChanges += 1; },
       handleAsyncSend: async (): Promise<void> => { recorded.intents.push('async-send'); },
+      // The channel opens at once here; a-file-send-opens-the-peer-channel-first covers it.
+      openPeerChannel: async (): Promise<boolean> => true,
     },
   };
 }

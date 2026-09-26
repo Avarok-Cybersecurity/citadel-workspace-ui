@@ -14,8 +14,13 @@ import {
   TYPING_DISPLAY_DURATION_MS,
 } from '@/types/messaging-layer';
 import { routeRevfsOperation } from './revfs-layer-routing';
+import { applyScreenshotNotice } from './inbound-screenshot-notice';
+import { getPrivacySettings } from '@/lib/privacy-settings';
+import { peerDisplayName } from '@/lib/peer-display';
+import { p2pRegistrationService } from '../p2p-registration-service';
 import { eventEmitter } from '../event-emitter';
 import { applyIncomingEdit, applyIncomingDelete } from './inbound-revision';
+import { applyIncomingReaction } from './inbound-reaction';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import { debugLog, debugEnabled } from '@/lib/debug-config';
 import { deliverToConversation, shouldAck } from './inbound-message-delivery';
@@ -55,6 +60,10 @@ export async function handleMessagingLayerCommand(
       await applyIncomingDelete(config, peerCid, layer.message_id);
       break;
 
+    case MessagingLayerType.MessageReaction:
+      await applyIncomingReaction(config, peerCid, layer);
+      break;
+
     case MessagingLayerType.Typing:
       handleTypingIndicator(config, peerCid);
       break;
@@ -74,6 +83,13 @@ export async function handleMessagingLayerCommand(
         customText: layer.text,
         customColor: layer.indicator_icon_color,
         lastUpdate: Date.now(),
+      });
+      break;
+
+    case MessagingLayerType.ScreenshotNotice:
+      await applyScreenshotNotice(config, payload, peerCid, {
+        notify: getPrivacySettings().notifyOnScreenshot,
+        peerName: peerDisplayName(p2pRegistrationService.getPeerInfo(peerCid) ?? { cid: peerCid }),
       });
       break;
 
@@ -102,6 +118,12 @@ export async function handleMessagingLayerCommand(
     case MessagingLayerType.FileTransferChunk: {
       debugLog('P2PMessageHandler', 'Received file transfer message:', layer.type, 'from:', peerCid?.toString().slice(0, 8));
       const effectiveRecipientCid: bigint | null = recipientCid || (await config.getCurrentCid());
+      // Its only listener is FileTransferService, whose module the build puts in
+      // a chunk the page components load; this router is in one index loads on
+      // its own. Emitted before that chunk had run, an offer reached nobody: no
+      // record and no "arriving" mark, so its bubble read "Offer expired" the
+      // moment it appeared. Loading the module registers the listener.
+      await import('../file-transfer/service');
       eventEmitter.emit('p2p:file-transfer-message', {
         layer,
         senderCid: peerCid.toString(),

@@ -4,7 +4,8 @@
  * The protocol has no group name. `GroupCreate` carries
  * `{cid, request_id, initial_users_to_invite}` and nothing else, which is why
  * `group-names.ts` exists — a peer cannot be told a name the wire has no field
- * for. A rename is therefore local by necessity, and that is fine.
+ * for. The members learn it from a control message instead -- see
+ * announce-group-state.
  *
  * What was not fine: `useGroupSettingsActions.onNameChange` was the whole
  * rename, and it was one line of component state —
@@ -18,7 +19,8 @@
  * other is exactly the state that produced the bug.
  */
 import { rememberGroupName } from './group-names';
-import { updateGroups } from './group-store';
+import { getGroups, updateGroups } from './group-store';
+import { announceGroupState } from './announce-group-state';
 import type { GroupConversation } from '@/types/group';
 
 /** Returns whether anything changed. A blank name is refused, not applied. */
@@ -29,6 +31,7 @@ export function applyGroupRename(groupId: string, name: string): boolean {
   if (trimmed.length === 0) return false;
 
   rememberGroupName(groupId, trimmed);
+  let renamed: boolean = false;
   updateGroups((prev: GroupConversation[]) => {
     // Identity is the store's only no-op guard, and `map` always allocates, so
     // renaming a group to the name it already has would notify every subscriber
@@ -36,7 +39,11 @@ export function applyGroupRename(groupId: string, name: string): boolean {
     // cost when a caller was an effect.
     const target: GroupConversation | undefined = prev.find((group) => group.id === groupId);
     if (!target || target.name === trimmed) return prev;
+    renamed = true;
     return prev.map((group) => (group.id === groupId ? { ...group, name: trimmed } : group));
   });
+  // The members, too: see announce-group-state. Only for a real change, so an
+  // unchanged name sends nothing.
+  if (renamed) announceGroupState(getGroups().find((group) => group.id === groupId));
   return true;
 }

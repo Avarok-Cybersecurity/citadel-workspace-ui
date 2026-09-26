@@ -16,7 +16,10 @@ interface VFSToolbarProps {
   onNavigate: (path: string) => void;
   onNewFolder: () => void;
   onUploadFile: () => void;
-  onSync: () => void;
+  /** Why the open folder cannot take an upload; null when it can. */
+  uploadDisabledReason: string | null;
+  /** Null where there is no peer to sync with (Server Storage): the button is not shown. */
+  onSync: (() => void) | null;
   filterText?: string;
   onFilterChange?: (text: string) => void;
   sortField?: SortField;
@@ -37,6 +40,7 @@ export function VFSToolbar({
   onNavigate,
   onNewFolder,
   onUploadFile,
+  uploadDisabledReason,
   onSync,
   filterText = '',
   onFilterChange,
@@ -63,6 +67,7 @@ export function VFSToolbar({
         <button
           onClick={() => onNavigate('/')}
           className="hover:text-foreground flex items-center gap-1 shrink-0"
+          data-testid="vfs-breadcrumb-root"
         >
           <Home className="h-4 w-4" />
           <span>Root</span>
@@ -156,12 +161,18 @@ export function VFSToolbar({
         <Button variant="ghost" size="sm" aria-label="New folder" onClick={onNewFolder} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
           <FolderPlus className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" aria-label="Upload file" onClick={onUploadFile} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
-          <Upload className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="sm" aria-label="Sync with peer" onClick={onSync} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
-          <RefreshCw className="h-4 w-4" />
-        </Button>
+        {/* The span carries the reason: a disabled button gets no pointer
+            events, so its own title would never show. */}
+        <span title={uploadDisabledReason ?? 'Upload into this folder'}>
+          <Button variant="ghost" size="sm" aria-label="Upload file" onClick={onUploadFile} disabled={uploadDisabledReason !== null} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
+            <Upload className="h-4 w-4" />
+          </Button>
+        </span>
+        {onSync && (
+          <Button variant="ghost" size="sm" aria-label="Sync with peer" onClick={onSync} className="text-foreground/80 hover:text-foreground hover:bg-card h-7 w-7 p-0">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     </div>
   );

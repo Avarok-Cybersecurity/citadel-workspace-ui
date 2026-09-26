@@ -128,14 +128,15 @@ export async function sendGroupLeave(groupId: string): Promise<void> {
   await sendGroupRequest(request);
 }
 
-export async function sendGroupKick(groupId: string, memberCid: string): Promise<void> {
+/** The caller mints `requestId`: the answer names no member, only this id. See kick-group-member.ts. */
+export async function sendGroupKick(groupId: string, memberCid: bigint, requestId: string): Promise<void> {
   const cid: bigint = await requireCid();
-  const request: { GroupKick: { cid: bigint; peer_cid: bigint; group_key: MessageGroupKey; request_id: `${string}-${string}-${string}-${string}-${string}`; }; } = {
+  const request: { GroupKick: { cid: bigint; peer_cid: bigint; group_key: MessageGroupKey; request_id: string; }; } = {
     GroupKick: {
       cid,
-      peer_cid: BigInt(memberCid),
+      peer_cid: memberCid,
       group_key: groupIdToKey(groupId),
-      request_id: crypto.randomUUID(),
+      request_id: requestId,
     },
   };
   await sendGroupRequest(request);
@@ -151,6 +152,12 @@ export async function sendGroupListRequest(): Promise<void> {
     },
   };
   await sendGroupRequest(request);
+}
+
+/** The groups this session is in, owned or joined; see learn-joined-groups.ts. */
+export async function sendGroupListJoinedRequest(): Promise<void> {
+  const cid: bigint = await requireCid();
+  await sendGroupRequest({ GroupListJoined: { cid, request_id: crypto.randomUUID() } });
 }
 
 /**
@@ -199,20 +206,31 @@ export async function sendPeerGroupMessage(
   groupId: string,
   content: string,
   replyTo?: string,
+  /** The group's name, for the owner to tell members; see ownerAnnouncedName. */
+  groupName?: string,
 ): Promise<string> {
-  const cid: bigint = await requireCid();
-  const groupKey: MessageGroupKey = groupIdToKey(groupId);
-  // Minted here so a redelivery is the same message on the far side, and so the
-  // sender's own copy carries the identity the peers will see.
-  const messageId: string = crypto.randomUUID();
-  const body: Uint8Array = encodeGroupMessage({
+  return sendPeerGroupBody(groupId, (cid: bigint, messageId: string): Uint8Array => encodeGroupMessage({
     group_id: groupId,
     message_id: messageId,
     sender_cid: cid,
     content,
     timestamp: Date.now(),
     reply_to: replyTo,
-  });
+    group_name: groupName,
+  }));
+}
+
+/** One `GroupMessage` send for any body the peers agree on -- chat or control. */
+export async function sendPeerGroupBody(
+  groupId: string,
+  encode: (senderCid: bigint, messageId: string) => Uint8Array,
+): Promise<string> {
+  const cid: bigint = await requireCid();
+  const groupKey: MessageGroupKey = groupIdToKey(groupId);
+  // Minted here so a redelivery is the same message on the far side, and so the
+  // sender's own copy carries the identity the peers will see.
+  const messageId: string = crypto.randomUUID();
+  const body: Uint8Array = encode(cid, messageId);
 
   const request: { GroupMessage: { cid: bigint; message: number[]; group_key: MessageGroupKey; request_id: `${string}-${string}-${string}-${string}-${string}`; }; } = {
     GroupMessage: {

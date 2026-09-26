@@ -37,6 +37,7 @@ import {
   closeAnyModals, isHeaded,} from '../lib/index.js';
 import { config } from '../lib/config.js';
 import { connectPair, expectCallLive, CALL_LAUNCH_ARGS } from './call-helpers.js';
+import { acceptGroupInvitation } from '../lib/group-invite.js';
 
 interface UserSession {
   browser: Browser;
@@ -216,16 +217,17 @@ test.describe.serial('Group calling with three participants', () => {
     await expect(page.locator('[role="dialog"]')).toHaveCount(0, { timeout: 15_000 });
   });
 
-  test('the group reaches B and C without any action on their part', async () => {
-    // The invite path: server-relayed GroupInviteNotification, auto-accepted
-    // locally AND at the backend. The row must carry the SAME id as A's —
-    // three browsers converging on one id is what makes it one group.
+  test('B and C are asked to join, and accepting brings them the group', async () => {
+    // The invite path: server-relayed GroupInviteNotification, shown as a
+    // question (UI f40d9496) and joined on Accept. The row must carry the SAME
+    // id as A's -- three browsers converging on one id is what makes it one group.
     test.setTimeout(180_000);
     for (const member of [sessionB, sessionC]) {
-      await expect(
-        member.page.getByTestId(`group-row-${groupId}`),
-        `${member.username} should see the group in the sidebar`,
-      ).toBeVisible({ timeout: 60_000 });
+      const invite = member.page.locator(`[data-testid="group-invite-row"][data-group-id="${groupId}"]`);
+      await expect(invite, `${member.username} should be asked to join`).toBeVisible({ timeout: 60_000 });
+      // The wire carries no name; the question must not present a made-up one as the group's.
+      await expect(invite).toContainText('invited you to a group');
+      await acceptGroupInvitation(member.page, groupId, 60_000);
     }
   });
 

@@ -9,10 +9,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { getBubbleStyles, BUBBLE_MAX_WIDTH , type BaseBubbleProps } from './types';
+import { getBubbleStyles, BUBBLE_MAX_WIDTH , type ReplyableBubbleProps } from './types';
+import { ReplyQuote } from '@/components/chat/shared/ReplyQuote';
 import { BubbleFooter } from './BubbleFooter';
+import { ReactionChips } from '@/components/chat/shared/reactions/ReactionChips';
+import { ReactionMenuItems } from '@/components/chat/shared/reactions/ReactionMenuItems';
 import { getInitials } from '@/components/chat/shared';
 import { documentAnchor } from '@/components/shared/DocumentLink';
+import { useMenuFocusHandoff, type MenuFocusHandoff } from '@/components/chat/shared/menu-focus-handoff';
 
 /**
  * The markdown parse, memoized on the text alone.
@@ -31,7 +35,6 @@ const RenderedMarkdown: NamedExoticComponent<{ content: string; }> = memo(functi
 });
 
 type ChildrenProps = { children?: ReactNode };
-type CodeProps = { inline?: boolean; children?: ReactNode };
 
 // Custom components for markdown rendering in chat bubbles
 const markdownComponents: Components = {
@@ -55,17 +58,17 @@ const markdownComponents: Components = {
   // keeps the new tab (and its noopener) for links that really do leave.
   a: documentAnchor,
 
-  // Code
-  code: ({ inline, children }: CodeProps): JSX.Element =>
-    inline ? (
-      <code className="bg-black/30 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
-    ) : (
-      <code className="block bg-black/30 p-2 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap mb-2">
-        {children}
-      </code>
-    ),
+  // Code. Every `code` is styled as a span, and the <pre> of a fenced block
+  // undoes that for the code inside it. This branched on an `inline` prop,
+  // which react-markdown 9 no longer passes -- so every inline span took the
+  // block branch and sat on a line of its own.
+  code: ({ children }: ChildrenProps): JSX.Element => (
+    <code className="bg-black/30 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
+  ),
   pre: ({ children }: ChildrenProps): JSX.Element => (
-    <pre className="bg-black/30 p-2 rounded text-xs font-mono overflow-x-auto mb-2">{children}</pre>
+    <pre className="bg-black/30 p-2 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap mb-2 [&>code]:bg-transparent [&>code]:p-0">
+      {children}
+    </pre>
   ),
 
   // Block quotes
@@ -96,11 +99,15 @@ export function MarkdownBubble({
   onEdit,
   onDelete,
   onReply,
-}: BaseBubbleProps): JSX.Element {
+  focusComposer,
+  quoted,
+  reactions,
+}: ReplyableBubbleProps): JSX.Element {
+  const handoff: MenuFocusHandoff = useMenuFocusHandoff(focusComposer);
   const isFailed: boolean = message.status === 'failed';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
   const displayName: string = senderName || 'Unknown';
-  const hasActions: (() => void) | undefined = onEdit || onDelete || onReply;
+  const hasActions: boolean = Boolean(onEdit || onDelete || onReply || reactions);
 
   // Show avatar only for non-own messages in group mode
   const shouldShowAvatar: boolean | undefined = showSenderAvatar && !isOwn;
@@ -130,6 +137,7 @@ export function MarkdownBubble({
         )}
 
         <div className={`min-w-0 rounded-lg px-3 py-2 ${bubbleStyles}`}>
+          {message.replyTo && <ReplyQuote quoted={quoted} isOwn={isOwn} />}
           {/* Own bubbles invert UNCONDITIONALLY, because they are dark in both
               themes: `bg-primary text-primary-foreground`, and --primary is a
               dark purple in light mode too. `dark:prose-invert` alone meant that
@@ -138,9 +146,12 @@ export function MarkdownBubble({
               purple, and links got `hsl(var(--primary))`, i.e. the bubble's own
               colour. Your own markdown messages were barely legible and their
               links were invisible, on the light theme only. Peer bubbles sit on
-              `bg-surface` and correctly follow the theme. */}
+              `bg-surface` and correctly follow the theme.
+              The typography plugin also paints a literal backtick either side
+              of every `code`; in a chat bubble that is the markup showing, so
+              it is switched off for both. */}
           <div
-            className={`prose prose-sm max-w-none ${isOwn ? 'prose-invert' : 'dark:prose-invert'}`}
+            className={`prose prose-sm max-w-none prose-code:before:content-none prose-code:after:content-none ${isOwn ? 'prose-invert' : 'dark:prose-invert'}`}
           >
             <RenderedMarkdown content={message.content} />
           </div>
@@ -161,6 +172,7 @@ export function MarkdownBubble({
           )}
           <BubbleFooter message={message} isOwn={isOwn} onRetry={onRetry} />
         </div>
+        {reactions && <ReactionChips binding={reactions} isOwn={isOwn} />}
       </div>
 
       {/* Message Actions Dropdown */}
@@ -172,15 +184,15 @@ export function MarkdownBubble({
                 <MoreVertical className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align={isOwn ? 'start' : 'end'}>
+            <DropdownMenuContent align={isOwn ? 'start' : 'end'} onCloseAutoFocus={handoff.onCloseAutoFocus}>
               {onReply && (
-                <DropdownMenuItem onClick={onReply}>
+                <DropdownMenuItem onClick={handoff.toComposer(onReply)}>
                   <Reply className="h-4 w-4 mr-2" />
                   Reply
                 </DropdownMenuItem>
               )}
               {isOwn && onEdit && (
-                <DropdownMenuItem onClick={onEdit}>
+                <DropdownMenuItem onClick={handoff.toComposer(onEdit)}>
                   <Edit2 className="h-4 w-4 mr-2" />
                   Edit
                 </DropdownMenuItem>
@@ -194,6 +206,7 @@ export function MarkdownBubble({
                   Delete
                 </DropdownMenuItem>
               )}
+              {reactions && <ReactionMenuItems onReact={reactions.onReact} />}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

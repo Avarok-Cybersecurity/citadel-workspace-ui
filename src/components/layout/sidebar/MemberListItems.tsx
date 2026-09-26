@@ -53,20 +53,23 @@ export function MemberListItems({
         // put a non-<li> in the list and left every <li> below it without a list
         // parent.
         <SidebarMenuItem key={member.id} className="animate-fade-in">
-          <div className="flex items-center w-full group">
+          <div className="flex items-center w-full min-w-0 group">
             <Tooltip>
               <TooltipTrigger asChild>
-                <SidebarMenuButton className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors flex-1">
-                  <div className="flex items-center gap-2 flex-1">
+                <SidebarMenuButton className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors min-w-0 flex-1">
+                  {/* min-w-0 down the chain so the NAME gives way; see a-role-badge-is-never-clipped. */}
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     {getRoleIcon(member.role || 'member')}
-                    <span className="flex-1 truncate">{member.displayName || member.username}</span>
-                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
+                    <span className="min-w-0 flex-1 truncate">{member.displayName || member.username}</span>
+                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} shrink-0 whitespace-nowrap text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
                   </div>
                 </SidebarMenuButton>
               </TooltipTrigger>
               <TooltipContent>
                 <p>{member.displayName || member.username}</p>
                 {member.username && <p className="text-xs text-muted-foreground">@{member.username}</p>}
+                {member.title && <p className="text-xs">{member.title}</p>}
+                {member.email && <p className="text-xs text-muted-foreground">{member.email}</p>}
               </TooltipContent>
             </Tooltip>
             {currentUsername !== member.username && (

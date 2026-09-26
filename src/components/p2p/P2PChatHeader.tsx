@@ -13,6 +13,7 @@ import { CallEntryButtons } from '@/components/call/CallEntryButtons';
 import { getInitials } from '@/components/chat/shared';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { PeerPresence } from '@/lib/p2p';
+import { PAUSE_COPY } from '@/lib/p2p-pause/pause-copy';
 
 interface P2PChatHeaderProps {
   peerName: string;
@@ -20,6 +21,8 @@ interface P2PChatHeaderProps {
   peerTyping: boolean;
   isConnected: boolean;
   isRegistered: boolean;
+  /** Paused by us: the link is down on purpose, so presence is not the story. */
+  paused: boolean;
   onSettingsClick: () => void;
   /** Omitted where calling is not wired up, so the header stays usable. */
   call?: {
@@ -85,10 +88,13 @@ export function P2PChatHeader({
   peerTyping,
   isConnected,
   isRegistered,
+  paused,
   onSettingsClick,
   call,
 }: P2PChatHeaderProps): JSX.Element {
-  const statusDisplay: StatusDisplay = getStatusDisplay(peerPresence, isConnected, isRegistered);
+  const statusDisplay: StatusDisplay = paused
+    ? { text: PAUSE_COPY.statusLabel, color: 'bg-warning', textColor: 'text-warning-emphasis' }
+    : getStatusDisplay(peerPresence, isConnected, isRegistered);
 
   return (
     <div className="border-b border-surface/50 p-4 bg-background">

@@ -1,10 +1,15 @@
-import type { ViteDevServer } from 'vite';
+import type { Plugin, ViteDevServer } from 'vite';
+import type { OutputAsset, OutputChunk } from 'rollup';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { defineConfig } from 'vite';
 import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from 'vite-plugin-pwa';
 import path from "path";
 import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
+import { manifestForBuild } from "./src/lib/pwa/version-manifest";
+import { VERSION_MANIFEST_PATH } from "./src/lib/pwa/deployed-version";
+import { KIT_MANIFEST } from "./src/pwa/kit-manifest.generated";
+import { serviceChunkFor, sharedServiceDependencyChunkFor } from "./src/build/service-chunks";
 
 /**
  * The Content-Security-Policy the app ships under.
@@ -18,6 +23,8 @@ import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
  * to catch the very class of bug it exists to catch. The gpteng/unsplash origins were
  * scaffold residue: nothing in the app loads from either.
  *
+ * https://static.cloudflareinsights.com (script-src) and https://cloudflareinsights.com
+ * (connect-src) are Cloudflare Web Analytics, whose beacon the hosted edge injects into every page.
  * https://challenges.cloudflare.com (script-src, frame-src) is Cloudflare Turnstile, which the
  * "Create new workspace" flow loads and renders in an iframe; the hosted Worker serves the same
  * policy (deploy/tenant-worker/control/ui.mjs in the parent repo).
@@ -27,7 +34,7 @@ import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
  * match ANY host, which would let an XSS payload exfiltrate to an attacker's socket.
  */
 const PRODUCTION_CSP =
-  "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+  "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://cloudflareinsights.com; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
 
 /**
  * Identical to production except for the two script-src sources Vite's dev transform
@@ -37,7 +44,7 @@ const PRODUCTION_CSP =
  * so a violation fails in dev, where someone will notice.
  */
 const DEV_CSP =
-  "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+  "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://cloudflareinsights.com; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
 
 /**
  * Proxy the agent's WebSocket so a locally-served app reaches it at the same same-origin `/ws`
@@ -82,11 +89,36 @@ const agentProxy = {
   },
 };
 
+/**
+ * Emit `/version.json` so an open page can tell that a newer build is deployed
+ * without a service worker (see src/lib/pwa/deployed-version.ts for why, and why the entry
+ * chunk is the id).
+ */
+function versionManifestPlugin(): Plugin {
+  let base: string | null = null;
+  return {
+    name: 'citadel-version-manifest',
+    apply: 'build',
+    configResolved(config: { base: string }): void {
+      base = config.base;
+    },
+    generateBundle(_options: unknown, bundle: Record<string, OutputAsset | OutputChunk>): void {
+      if (base === null) this.error('version.json: the config was never resolved');
+      try {
+        this.emitFile({ type: 'asset', fileName: VERSION_MANIFEST_PATH.slice(1), source: manifestForBuild(bundle, base) });
+      } catch (error: unknown) {
+        this.error(error instanceof Error ? error.message : String(error));
+      }
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
+      versionManifestPlugin(),
       /**
        * Installable PWA + offline app shell.
        *
@@ -100,15 +132,14 @@ export default defineConfig(({ mode }) => {
        */
       VitePWA({
         registerType: 'prompt',
-        includeAssets: ['favicon.ico', 'icons/apple-touch-icon.png'],
+        includeAssets: ['favicon.ico', 'favicon.svg', 'mask-icon.svg', 'icons/apple-touch-icon-180.png'],
+        // The brand kit's site.webmanifest is the base -- name, short_name, display,
+        // scope and icons come from it, generated into KIT_MANIFEST -- and only what
+        // the kit does not know about is added here. One manifest ships, not two.
         manifest: {
-          name: 'Citadel Workspace',
-          short_name: 'Citadel',
+          ...KIT_MANIFEST,
           description: 'Post-quantum secure, peer-to-peer collaborative workspace.',
           id: '/',
-          start_url: '/',
-          scope: '/',
-          display: 'standalone',
           orientation: 'any',
           // The native menu-bar app opens the installed app AT an account. A
           // PWA shim drops https URLs handed to it by another app; a registered
@@ -117,8 +148,8 @@ export default defineConfig(({ mode }) => {
           // reuses the open window instead of stacking a second one.
           protocol_handlers: [{ protocol: 'web+citadel', url: '/?link=%s' }],
           launch_handler: { client_mode: 'navigate-existing' },
-          // #1B1C27 is what `--background: 235 18% 13%` actually resolves to.
-          // The old #1C1D28 was the pre-token hex and is a rounding step away;
+          // #1B1C27, NOT the kit's #1C1D28: it is what `--background: 235 18% 13%`
+          // actually resolves to, and #1C1D28 (the brand ground) is a rounding step away;
           // keeping all three declarations byte-identical means the splash, the
           // titlebar and the painted page cannot disagree even slightly.
           background_color: '#1B1C27',
@@ -127,12 +158,6 @@ export default defineConfig(({ mode }) => {
           // titlebar changing colour a moment after the app appears.
           theme_color: '#1B1C27',
           categories: ['productivity', 'business', 'security'],
-          icons: [
-            { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-            { src: '/icons/icon-192-maskable.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-            { src: '/icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-          ],
           // Jump straight to the two places people actually open the app for,
           // from the installed icon's context menu (right-click on desktop,
           // long-press on Android). An installed app that can only ever open on
@@ -173,14 +198,14 @@ export default defineConfig(({ mode }) => {
               sizes: '1280x800',
               type: 'image/png',
               form_factor: 'wide',
-              label: 'The Citadel Workspace landing page on a desktop',
+              label: 'The Citadel Workspaces landing page on a desktop',
             },
             {
               src: '/screenshots/narrow.png',
               sizes: '412x915',
               type: 'image/png',
               form_factor: 'narrow',
-              label: 'The Citadel Workspace landing page on a phone',
+              label: 'The Citadel Workspaces landing page on a phone',
             },
           ],
         },
@@ -216,7 +241,16 @@ export default defineConfig(({ mode }) => {
           globIgnores: ['assets/*.wasm', '**/screenshots/*'],
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
           // SPA fallback, minus the endpoints that must always hit the network.
-          navigateFallback: '/index.html',
+          // `/`, never `/index.html`: the Worker's asset handler answers /index.html with a
+          // 307 to `/`. Workbox's precache normally hides that, but when the cached copy is
+          // missing it falls back to the network, and a redirected response to a navigation
+          // is a network error -- every page failed with ERR_FAILED until site data was
+          // cleared. Precaching the shell under `/` means both paths get a plain 200.
+          navigateFallback: '/',
+          manifestTransforms: [(entries) => ({
+            manifest: entries.map((entry) => (entry.url === 'index.html' ? { ...entry, url: '/' } : entry)),
+            warnings: [],
+          })],
           navigateFallbackDenylist: [/^\/ws$/, /^\/api/],
           cleanupOutdatedCaches: true,
           runtimeCaching: [
@@ -271,16 +305,18 @@ export default defineConfig(({ mode }) => {
         external: ['events', 'fs', 'path', 'crypto', 'os', 'util'],
         output: {
           // Split vendor dependencies into separate chunks for better caching
-          manualChunks(id) {
+          manualChunks(id, meta) {
             // Keep each of these service directories whole. Their barrel (index.ts)
             // re-exports a module that transitively depends on the barrel again, so
             // if the two land in different route chunks Rollup emits a circular-chunk
             // warning and, in its own words, "will likely lead to broken execution
             // order". Co-locating them removes the cycle at the chunk level and also
             // caches better: these services change far less often than the pages that
-            // use them.
-            if (/[\\/]src[\\/]lib[\\/](p2p|connection-service|peer-registration-store)[\\/]/.test(id)) {
-              return 'app-services';
+            // use them. "Whole" is two halves -- what the landing page statically
+            // reaches, and what it does not -- see src/build/service-chunks.ts.
+            const serviceChunk: string | undefined = serviceChunkFor(id, meta);
+            if (serviceChunk) {
+              return serviceChunk;
             }
 
             if (id.includes('node_modules')) {
@@ -328,6 +364,7 @@ export default defineConfig(({ mode }) => {
                 return 'vendor-zod';
               }
             }
+            return sharedServiceDependencyChunkFor(id, meta);
           },
         },
         onwarn(warning, warn) {

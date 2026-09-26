@@ -151,7 +151,9 @@ const LISTEN_PATTERNS = [
   new RegExp(String.raw`eventEmitter\.(?:on|once)${GENERIC}\(\s*'([^']+)'`, 'g'),
   new RegExp(String.raw`useEventListener${GENERIC}\(\s*'([^']+)'`, 'g'),
   new RegExp(String.raw`\.on[A-Z]\w*Event${GENERIC}\(\s*'([^']+)'`, 'g'),
-  new RegExp(String.raw`this\.listen(?:Once)?${GENERIC}\(\s*'([^']+)'`, 'g'),
+  // `this.listen`, and a `listen` handed in as a parameter -- `bindOutgoingFileOffers`
+  // takes the manager's `this.listen` that way, so the bus stays out of its tests.
+  new RegExp(String.raw`(?:this\.|\b)listen(?:Once)?${GENERIC}\(\s*'([^']+)'`, 'g'),
 ];
 const LISTEN_ARRAY = new RegExp(String.raw`useEventListeners${GENERIC}\(\s*\[([^\]]*)\]`, 'g');
 

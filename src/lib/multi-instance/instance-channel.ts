@@ -16,7 +16,7 @@ import {
   startLeaderElection,
 } from './channel-leader-election';
 import { replayOutboundRequest } from './channel-messaging';
-import { setupBeforeUnloadHandler } from './channel-lifecycle';
+import { setupPageDepartureHandlers } from './channel-lifecycle';
 
 
 
@@ -59,7 +59,7 @@ class InstanceChannel {
       this.setupEventListeners();
       startLeaderElection(this.electionState);
       this.announcePresence();
-      setupBeforeUnloadHandler(this);
+      setupPageDepartureHandlers(this, window);
       debugLog('InstanceChannel', '[InstanceChannel] Initialized');
     } catch (error) {
       debugLog('InstanceChannel', 'Failed to initialize:', error);

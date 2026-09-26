@@ -60,7 +60,7 @@ async function handlers(): Promise<ReturnType<typeof import('../useFileManagerHa
       storageMode: 'peer', selectedPeerCid: 2n,
       tree: null, currentPath: '/', filterText: '',
       fileInputRef: { current: null },
-      setUploadTargetDir: noop, setRevfsDisabledReason: noop,
+      chooseUploadTarget: noop, setRevfsDisabledReason: noop,
       setRevfsDisabledModalOpen: noop, setAttemptedFileSize: noop,
       setStorageLimitModalOpen: noop, setPropertiesNode: noop,
     } as unknown as Parameters<typeof useFileManagerHandlers>[0]),

@@ -11,6 +11,8 @@ import { Paperclip, Upload, Zap, Cloud } from 'lucide-react';
 import type { FileTransferMode } from '@/types/messaging-layer';
 import { useFileTransfer } from './useFileTransfer';
 import { FileDropZone } from './FileDropZone';
+import { TRANSFER_METHOD_COPY } from './transfer-method-copy';
+import { nativePickerBlockedReason } from './native-picker-reason';
 
 interface FileTransferModalProps {
   isOpen: boolean;
@@ -76,6 +78,7 @@ export function FileTransferModal({
             isSending={isSending}
             isPickingFile={isPickingFile}
             nativePickerAvailable={nativePickerAvailable}
+            nativePickerBlockedReason={nativePickerBlockedReason(transferMode)}
             maxFileSizeBytes={maxFileSizeBytes}
             formatBytes={formatBytes}
             onDrop={handleDrop}
@@ -118,7 +121,7 @@ export function FileTransferModal({
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Stores on server, recipient downloads when ready
+                  {TRANSFER_METHOD_COPY.async}
                 </p>
               </div>
             </button>
@@ -139,7 +142,7 @@ export function FileTransferModal({
                   P2P Only Transfer
                 </span>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Direct transfer, both must be online
+                  {TRANSFER_METHOD_COPY.p2p}
                 </p>
               </div>
             </button>

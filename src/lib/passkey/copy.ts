@@ -14,6 +14,7 @@ export const PASSKEY_COPY: {
   readonly sectionTitle: 'Sign-in keys';
   readonly pinNote: string;
   readonly unavailableHere: string;
+  readonly chooseAccount: 'Sign in with a passkey as:';
 } = {
   signInButton: 'Use passkey or security key',
   orPassword: 'or use your password',
@@ -25,6 +26,7 @@ export const PASSKEY_COPY: {
   sectionTitle: 'Sign-in keys',
   pinNote: 'Security keys need a PIN set first — we require it so a lost key can\'t be used on its own.',
   unavailableHere: 'Passkeys need a secure (https or localhost) page in a browser that supports them. Your password still works.',
+  chooseAccount: 'Sign in with a passkey as:',
 } as const;
 
 export const enrolledCopy = (label: string, username: string): string =>

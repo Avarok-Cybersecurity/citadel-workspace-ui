@@ -5,8 +5,8 @@ import type { User as WorkspaceMember } from '@/types/workspace-entities';
 
 interface MemberListBodyProps {
   isLoading: boolean;
-  /** `null` when no node is selected — see the note below. */
-  activeDomainId: string | null;
+  /** The domain the list is for: the selected node, or the workspace root. */
+  activeDomainId: string;
   members: WorkspaceMember[];
   peerCount: number;
   membersUnavailable: boolean;
@@ -20,22 +20,16 @@ interface MemberListBodyProps {
 /**
  * What the member list shows, given what is known so far.
  *
- * Extracted from MembersSection, which had reached the 250-line limit. The four
- * outcomes are one decision — loading, not-asked, empty, or a list — and the
- * rule that governs them is easy to get wrong in exactly one direction:
+ * Extracted from MembersSection, which had reached the 250-line limit. The
+ * outcomes are one decision — loading, empty, or a list.
  *
- *   NOT-ASKED IS NOT EMPTY.
- *
- * `use-domain-members.ts` states that rule for NOT-LOADED ("Not-yet-loaded is
- * not empty") and applies it to the members array. It did not cover the absence
- * of a domain to ask about. `activeDomainId` is `params.get("nodeId")`, so it is
- * null before a node is chosen and across a route change; with no domain,
- * `isLoadingMembers` initialises FALSE — correctly, nothing is loading — and
- * `members` is empty, so the empty branch fired and told the user "Nobody else
- * is here yet" about a workspace nobody had asked about.
- *
- * member-list-loading.spec.ts reproduces it on a node switch, where the null is
- * momentary and the sentence is simply false.
+ * There is always a domain. `activeDomainId` was `params.get("nodeId")` alone,
+ * so on /workspace with no node selected -- the view everyone lands on after
+ * signing in -- it was null, nothing was asked, and a guard here rendered
+ * nothing at all: no spinner, no empty state, no members. That guard existed
+ * because an earlier revision rendered "Nobody else is here yet" for the same
+ * null. Both were answers to a question that should not arise: with no node
+ * selected the view IS the workspace root, and MembersSection now asks for it.
  */
 export function MemberListBody({
   isLoading,
@@ -60,8 +54,6 @@ export function MemberListBody({
       </SidebarMenuItem>
     );
   }
-  // Nothing has been asked. Say nothing, rather than something false.
-  if (activeDomainId === null) return null;
   if (members.length === 0 && peerCount === 0) {
     return <MembersEmptyState unavailable={membersUnavailable} domainId={activeDomainId} />;
   }

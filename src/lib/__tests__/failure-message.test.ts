@@ -21,6 +21,11 @@ describe('describeFailure', () => {
     expect(describeFailure('Session already active', 'Try again')).toBe('Session already active');
   });
 
+  it('reads the message of a plain object the WASM client rejects with', () => {
+    expect(describeFailure({ message: 'Peer connection not found' }, 'Try again')).toBe('Peer connection not found');
+    expect(describeFailure({ message: '  ' }, 'Try again')).toBe('Try again');
+  });
+
   it('falls back for anything else thrown', () => {
     expect(describeFailure({ code: 42 }, 'Could not save.')).toBe('Could not save.');
     expect(describeFailure(undefined, 'Could not save.')).toBe('Could not save.');

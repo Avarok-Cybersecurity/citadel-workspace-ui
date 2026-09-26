@@ -3,12 +3,13 @@ import { useDialogOverlay } from '@/hooks/use-dialog-overlay';
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { StepIndicator } from "@/components/ui/step-indicator";
+import { RegistrationStepIndicator } from "./RegistrationStepIndicator";
 import { WorkspaceNotInitializedModal } from "./WorkspaceNotInitializedModal";
 import { ConnectLoadingModal } from "./LoadingModal";
 import { useJoinRegistration, type JoinFormData } from "./useJoinRegistration";
 import type { SecuritySettingsValues } from "./SecuritySettings";
 import { JoinFormFields } from "./JoinFormFields";
+import { JoinOptionalProfile } from "./JoinOptionalProfile";
 
 interface JoinProps {
   onNext: (cid: string) => void;
@@ -29,6 +30,7 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
     showConnectModal,
     connectStatus,
     handleInputChange,
+    handleOptionalChange,
     handleBlur,
     fieldErrors,
     handleSubmit,
@@ -74,7 +76,7 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
         <Card className="bg-background border-border shadow-2xl shadow-black/40">
           <CardHeader className="pb-4">
             <CitadelLogo variant="mark" height={34} className="mb-4" />
-            <StepIndicator currentStep={3} totalSteps={3} labels={["Server", "Security", "Profile"]} />
+            <RegistrationStepIndicator currentStep={3} />
             <h2 className="text-xl font-bold text-foreground mt-5">Create Your Profile</h2>
             <p className="text-sm text-muted-foreground mt-1">
               {defaultWorkspace ? `Join ${defaultWorkspace} with a new account` : "Set up your identity for this workspace"}
@@ -88,6 +90,11 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
                 onChange={handleInputChange}
                 onBlur={handleBlur}
                 fieldErrors={fieldErrors}
+              />
+              <JoinOptionalProfile
+                values={formData}
+                onChange={handleOptionalChange}
+                disabled={isRegistering}
               />
             </CardContent>
 

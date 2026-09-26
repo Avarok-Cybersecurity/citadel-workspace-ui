@@ -49,7 +49,7 @@ function Harness(): JSX.Element {
     <MemoryRouter>
       <SidebarProvider>
       <button onClick={() => bump((n) => n + 1)}>unrelated update</button>
-      <TreeNodesSection title="Hierarchy" tree={TREE} canCreate />
+      <TreeNodesSection workspaceName="Test Workspace" title="Hierarchy" tree={TREE} createBlockedReason={null} />
       </SidebarProvider>
     </MemoryRouter>
   );

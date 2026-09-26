@@ -58,6 +58,8 @@ vi.mock('virtual:pwa-register/react', () => ({
 
 const { PwaUpdatePrompt } = await import('../PwaUpdatePrompt');
 const { Toaster } = await import('@/components/ui/sonner');
+const { OfflineBanner } = await import('../OfflineBanner');
+const { clearDeployNoticeForTests } = await import('@/lib/pwa/deploy-notice');
 
 function setOnline(value: boolean): void {
   Object.defineProperty(navigator, 'onLine', { value, configurable: true });
@@ -73,6 +75,7 @@ function renderPrompt(): RenderResult {
   return render(
     <>
       <Toaster />
+      <OfflineBanner />
       <PwaUpdatePrompt />
     </>,
   );
@@ -120,6 +123,8 @@ describe('PwaUpdatePrompt', () => {
     state.offlineReady = false;
     state.needRefresh = false;
     registeredOptions = {};
+    // The offer now lives in a store outside React, so it outlives a render.
+    clearDeployNoticeForTests();
   });
 
   afterEach(() => {
@@ -135,7 +140,7 @@ describe('PwaUpdatePrompt', () => {
     vi.useRealTimers();
   });
 
-  it('renders nothing itself — it drives the shared toast surface', () => {
+  it('renders nothing itself — the offer is shown by the banner stack', () => {
     const { container } = render(<PwaUpdatePrompt />);
 
     expect(container).toBeEmptyDOMElement();

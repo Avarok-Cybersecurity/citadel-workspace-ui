@@ -16,8 +16,7 @@
  * works. What was missing was saying so.
  */
 
-import { useState } from 'react';
-import { Check, Copy, UserPlus } from 'lucide-react';
+import { Copy, Link2, UserPlus } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -26,11 +25,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { toastError, toastSuccess } from '@/lib/toast-helpers';
+import { inviteLink } from '@/lib/invite-link';
+import { dialledHost } from '@/lib/sessions/same-server';
+import { useWorkspaceAddress } from '@/hooks/use-workspace-address';
 
 interface InviteToWorkspaceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   workspaceName: string;
+  /** The connection record's address, when it has one; the tab's selection is asked otherwise. */
   serverAddress: string | undefined;
 }
 
@@ -38,18 +43,17 @@ export function InviteToWorkspaceDialog({
   open,
   onOpenChange,
   workspaceName,
-  serverAddress,
+  serverAddress: connectionAddress,
 }: InviteToWorkspaceDialogProps): JSX.Element {
-  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
+  // What a person types and reads: a hosted workspace's host, not the `wss://…/` URL the agent dialled.
+  const found: string | undefined = useWorkspaceAddress(open, connectionAddress);
+  const serverAddress: string | undefined = found === undefined ? undefined : dialledHost(found);
 
-  const copy = (): void => {
-    if (!serverAddress) return;
-    void navigator.clipboard.writeText(serverAddress).then(
-      () => {
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 2000);
-      },
-      () => setCopied(false),
+  const copy = (text: string, done: string): void => {
+    void navigator.clipboard.writeText(text).then(
+      () => toastSuccess(toast, done),
+      () => toastError(toast, 'Could not copy', 'Your browser refused clipboard access. Select the text and copy it instead.'),
     );
   };
 
@@ -62,24 +66,20 @@ export function InviteToWorkspaceDialog({
             Invite someone to {workspaceName}
           </DialogTitle>
           <DialogDescription>
-            Send them this address. They choose <strong>Create Account</strong> on the
-            welcome screen, paste it in, and create their own account.
+            Send them the invite link: it opens <strong>Create Account</strong> with this
+            address filled in. Or send the address, for them to paste in themselves.
           </DialogDescription>
         </DialogHeader>
 
         {serverAddress ? (
           <div className="space-y-3">
-            <div className="flex items-start gap-2">
-              <code className="flex-1 break-all rounded bg-muted px-3 py-2 text-sm">
-                {serverAddress}
-              </code>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={copy}
-                aria-label={copied ? 'Workspace address copied' : 'Copy workspace address'}
-              >
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            <code className="block break-all rounded bg-muted px-3 py-2 text-sm">{serverAddress}</code>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => copy(serverAddress, 'Address copied')}>
+                <Copy className="mr-2 h-4 w-4" aria-hidden="true" />Copy address
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => copy(inviteLink(window.location.origin, serverAddress), 'Invite link copied')}>
+                <Link2 className="mr-2 h-4 w-4" aria-hidden="true" />Copy invite link
               </Button>
             </div>
 

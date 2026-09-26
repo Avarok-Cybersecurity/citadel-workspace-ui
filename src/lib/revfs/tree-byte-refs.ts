@@ -18,6 +18,7 @@
  */
 
 import type { RevfsNode } from '@/types/revfs-types';
+import { findNode } from './tree-queries';
 
 /**
  * Counts the file nodes in `tree` whose bytes live under `virtualDirectory`.
@@ -40,4 +41,19 @@ export function countByteKeyRefs(tree: RevfsNode, virtualDirectory: string): num
   };
   walk(tree);
   return count;
+}
+
+/**
+ * The key a new upload to `filePath` may store its bytes under.
+ *
+ * The path itself, unless some OTHER node already keeps its bytes there — a
+ * file renamed or moved away from `filePath` keeps its upload-time key, and an
+ * upload reusing it sent the new bytes over the old file's. A node being
+ * replaced at `filePath` does not count: overwriting its bytes is the upload.
+ */
+export function byteKeyFor(tree: RevfsNode, filePath: string, fileId: string): string {
+  const replaced: RevfsNode | null = findNode(tree, filePath);
+  const replacedHoldsIt: number =
+    replaced?.type === 'file' && replaced.fileMetadata?.virtualDirectory === filePath ? 1 : 0;
+  return countByteKeyRefs(tree, filePath) - replacedHoldsIt > 0 ? `${filePath}.${fileId}` : filePath;
 }

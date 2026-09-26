@@ -5,7 +5,9 @@
  * accepting/declining transfers, canceling transfers, and opening downloaded files.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import { transferDetails, type FileDetails } from '@/components/layout/sidebar/file-details';
+import type { FileTransfer } from '@/lib/file-transfer/types';
 import { failureDescription } from '@/lib/p2p/peer-failure-detail';
 import { fileTransferService } from '@/lib/file-transfer';
 import { useToast } from '@/hooks/use-toast';
@@ -22,7 +24,10 @@ interface UseP2PFileTransferReturn {
   handleAcceptTransfer: (transferId: string) => Promise<void>;
   handleDeclineTransfer: (transferId: string) => Promise<void>;
   handleCancelTransfer: (transferId: string) => Promise<void>;
-  handleOpenFile: (downloadPath: string) => void;
+  handleOpenFile: (transferId: string) => void;
+  /** The received file whose details are showing, or null. */
+  openedFile: FileDetails | null;
+  closeOpenedFile: () => void;
 }
 
 export function useP2PFileTransfer({
@@ -92,13 +97,19 @@ export function useP2PFileTransfer({
     }
   }, [toast]);
 
-  const handleOpenFile: (downloadPath: string) => void = useCallback((downloadPath: string): void => {
-    debugLog('UseP2PFileTransfer', 'Opening file:', downloadPath);
-    toast({
-      title: 'File Ready',
-      description: `File saved to: ${downloadPath}`,
-    });
-  }, [toast]);
+  const [openedFile, setOpenedFile] = useState<FileDetails | null>(null);
+
+  // The same details the sidebar's Files list shows. The file is on the
+  // agent's own filesystem and the browser has no route to it (see
+  // FilePreviewDialog), so what arrived and where it was saved is the answer.
+  const handleOpenFile: (transferId: string) => void = useCallback((transferId: string): void => {
+    const transfer: FileTransfer | undefined = fileTransferService.getTransfer(transferId);
+    if (!transfer?.downloadPath) {
+      toast({ variant: 'destructive', title: 'File location not known', description: 'This device has no record of where this file was saved.' });
+      return;
+    }
+    setOpenedFile(transferDetails(transfer, (cid: string): string | undefined => (cid === peerCid.toString() ? peerName : undefined)).details);
+  }, [toast, peerCid, peerName]);
 
   return {
     handleSendFile,
@@ -106,5 +117,7 @@ export function useP2PFileTransfer({
     handleDeclineTransfer,
     handleCancelTransfer,
     handleOpenFile,
+    openedFile,
+    closeOpenedFile: (): void => setOpenedFile(null),
   };
 }

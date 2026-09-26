@@ -9,7 +9,6 @@ import {
   type RevfsNode,
   type PeerPairKey,
   type ServerTreeKey,
-  RevfsFileState,
   TreeScope,
 } from '@/types/revfs-types';
 
@@ -17,7 +16,23 @@ import {
 // Key Generators
 // ============================================================================
 
-export function peerPairKey(cidA: bigint, cidB: bigint): PeerPairKey {
+/**
+ * The key THIS account's tree of its shared storage with `peer` lives under:
+ * `${mine}_${peer}`.
+ *
+ * It was the sorted pair, "so both peers generate the same key". Nothing
+ * needs them to: the key never crosses the wire, and each side's tree is its
+ * own view (the same file is Remote to its uploader and Hosted to the holder).
+ * What the shared key did do was put both views in ONE file on disk whenever
+ * both accounts use the same browser, since OPFS is per origin: whichever tab
+ * wrote last replaced the other's tree, and a reload showed that one.
+ */
+export function peerTreeKey(mine: bigint, peer: bigint): PeerPairKey {
+  return `${mine}_${peer}`;
+}
+
+/** Where both accounts' trees were stored before `peerTreeKey` was directional. */
+export function legacyPairKey(cidA: bigint, cidB: bigint): PeerPairKey {
   const a: bigint = cidA < cidB ? cidA : cidB;
   const b: bigint = cidA < cidB ? cidB : cidA;
   return `${a}_${b}`;
@@ -183,43 +198,4 @@ export function collectFiles(node: RevfsNode): RevfsNode[] {
 
   traverse(node);
   return files;
-}
-
-// ============================================================================
-// Flip File States (for incoming remote operations)
-// ============================================================================
-
-/**
- * Can this file's bytes actually be fetched by the viewer?
- *
- * Single source of truth for a predicate that was written out by hand at each
- * use site. It is the predicate the Hosted/Remote inversion broke: an uploader
- * was stamped Hosted, which fails this, so their own file was permanently
- * un-downloadable while the toast told them it was "encrypted, cannot open".
- */
-export function isDownloadableState(state: RevfsFileState | undefined): boolean {
-  return (
-    state === RevfsFileState.Remote ||
-    state === RevfsFileState.Received ||
-    state === RevfsFileState.ServerStored
-  );
-}
-
-export function flipFileState(state: RevfsFileState): RevfsFileState {
-  switch (state) {
-    case RevfsFileState.Hosted: return RevfsFileState.Remote;
-    case RevfsFileState.Remote: return RevfsFileState.Hosted;
-    default: return state; // Sent/Received stay as-is
-  }
-}
-
-export function flipNodeStates(node: RevfsNode): RevfsNode {
-  const flipped: RevfsNode = { ...node };
-  if (flipped.fileState) {
-    flipped.fileState = flipFileState(flipped.fileState);
-  }
-  if (flipped.children) {
-    flipped.children = flipped.children.map(flipNodeStates);
-  }
-  return flipped;
 }

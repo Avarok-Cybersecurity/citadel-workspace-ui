@@ -79,6 +79,8 @@ describe('the relay credential', () => {
         },
         timeoutMs: 1000,
       })),
+      // Not what this test is about: every chat at the default level.
+      securityFor: async (): Promise<'Standard'> => 'Standard',
     });
 
     await ops.openP2PConnection(OURS, PEER);

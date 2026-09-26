@@ -35,6 +35,7 @@ function renderRow(isConnected: boolean | null, isOnline: boolean | null): void 
       <PeerListRow
         cid="42"
         username="ada"
+        displayName="ada"
         isOnline={isOnline}
         isConnected={isConnected}
         connectionPath={null}

@@ -14,7 +14,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 import workspaceService from '@/lib/workspace-service';
 import { debugLog } from '@/lib/debug-config';
 import type { UseServerRevfsTreeResult, ServerCapabilities } from './useRevfsTree-types';
-import { DEFAULT_SERVER_CAPABILITIES } from './useRevfsTree-types';
+import { DEFAULT_SERVER_CAPABILITIES, NOTHING_PENDING } from './useRevfsTree-types';
 
 export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResult {
   const [tree, setTree] = useState<RevfsNode | null>(null);
@@ -183,5 +183,6 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     move,
     copy,
     refresh: loadTree,
+    pendingPaths: NOTHING_PENDING,
   };
 }

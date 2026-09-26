@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { describeError } from '@/lib/describe-error';
 import { wouldExceedQuota } from '@/lib/revfs/quota-check';
 import { TreeScope, type RevfsFileMetadata } from '@/types/revfs-types';
-import { SENT_FILES_DIR } from '@/types/revfs-types';
+import { uploadRefusal } from './upload-refusal';
 
 export interface DropUploadDeps {
   myCid: bigint | null;
@@ -47,8 +47,8 @@ export function useDropUpload(
 
   return useCallback(async (targetPath: string, files: FileList): Promise<void> => {
     if (!deps.myCid) { toast.error('Not connected'); return; }
-    const isStandardTransfer: boolean = targetPath === SENT_FILES_DIR || targetPath.startsWith(SENT_FILES_DIR + '/');
-    if (isStandardTransfer) { toast.info('Standard file transfer: Use P2P Chat to send files directly'); return; }
+    const refusal: string | null = uploadRefusal(targetPath);
+    if (refusal) { toast.info(refusal); return; }
     if (!deps.revfsEnabled) {
       deps.setRevfsDisabledReason(deps.storageMode === TreeScope.Server ? 'server_disabled' : 'peer_disabled');
       deps.setRevfsDisabledModalOpen(true);

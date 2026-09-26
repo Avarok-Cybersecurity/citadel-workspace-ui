@@ -9,9 +9,13 @@
  * since it was written.
  */
 
+// Imported for its side effect: the listener for the 'session:activated' emitted below.
+import '@/lib/session-startup-service';
+import { eventEmitter } from '@/lib/event-emitter';
 import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
-import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE , type ClaimOutcome } from '@/lib/sessions/claim-session';
-import { pickSessionToClaim } from '@/lib/sessions/pick-session-to-claim';
+import { claimSessionForThisTab, SESSION_OWNED_ELSEWHERE } from '@/lib/sessions/claim-session';
+import { claimOnStart, type StartClaim } from './claim-on-start';
+import { AGENT_START_RETRY } from '@/lib/connection/constants';
 import { ConnectionManager } from '@/lib/connection';
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser, getSelectedUser, clearSelectedUser , type TabUserContext } from '@/lib/tab-context';
@@ -30,6 +34,10 @@ interface AutoClaimOptions {
   setHasConnection: Dispatch<SetStateAction<boolean | null>>;
   setIsAutoClaimingSession: Dispatch<SetStateAction<boolean>>;
   autoClaimAttempted: MutableRefObject<boolean>;
+  /** The session is live in another browser: the agent will not hand it over without the password. */
+  onHeldElsewhere: (username: string) => void;
+  /** The agent ended the session it listed: only signing in to that account brings it back. */
+  onSessionEnded: (username: string, server: string, reason: string) => void;
 }
 
 export function useAutoClaimSession({
@@ -38,6 +46,8 @@ export function useAutoClaimSession({
   setHasConnection,
   setIsAutoClaimingSession,
   autoClaimAttempted,
+  onHeldElsewhere,
+  onSessionEnded,
 }: AutoClaimOptions): void {
 // Auto-claim an available session on mount if no connection exists
 useEffect(() => {
@@ -136,97 +146,57 @@ useEffect(() => {
     setIsAutoClaimingSession(true);
 
     try {
-      debugLog('WorkspaceLoader', ' Waiting for ConnectionManager to be ready...');
-      const timeoutPromise: Promise<void> = new Promise<void>((_, reject) =>
-        setTimeout(() => reject(new Error('ConnectionManager ready timeout')), TIMEOUT.CLAIM_SESSION_MS)
-      );
-      await Promise.race([connectionManager.waitForReady(), timeoutPromise]);
-      debugLog('WorkspaceLoader', ' ConnectionManager is ready');
+      const result: StartClaim = await claimOnStart({
+        // Bounded per attempt; claimOnStart retries, so a slow start is waited out, not concluded.
+        ready: (): Promise<boolean> => Promise.race([
+          connectionManager.waitForReady().then((): boolean => connectionManager.initialized),
+          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), TIMEOUT.CLAIM_SESSION_MS)),
+        ]),
+        activeSessions: () => connectionManager.getActiveSessionsResult(),
+        selection: getSelectedUser,
+        clearSelection: clearSelectedUser,
+        select: (session: ActiveSession) => setSelectedUser({
+          selectedUsername: session.username,
+          selectedServerAddress: session.server_address,
+          selectedCid: session.cid,
+        }),
+        claim: claimSessionForThisTab,
+        forgetSessions: (): void => connectionManager.invalidateSessionCache(),
+        sleep: (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
+      }, AGENT_START_RETRY);
+      debugLog('WorkspaceLoader', ' Start-up claim:', result.kind);
 
-      // The result form, because everything below reads an empty list as
-      // "you are logged out". A GetSessions timeout used to produce exactly
-      // that: the loader concluded there were no sessions, the loading
-      // deadline redirected to /connect, and -- worse -- the branch below
-      // called clearSelectedUser(), so a failed READ destroyed the tab's
-      // session selection. The user re-authenticated a session that was
-      // still there, which is the SessionAlreadyActive churn the backend
-      // notes warn about.
-      const { ok, sessions: activeSessions } = await connectionManager.getActiveSessionsResult();
-      debugLog('WorkspaceLoader', ' Found active sessions:', activeSessions.length, 'ok:', ok);
+      if (result.kind === 'owned-by-another-tab') toast(SESSION_OWNED_ELSEWHERE);
+      if (result.kind === 'held-by-another-connection') onHeldElsewhere(result.username);
+      if (result.kind === 'session-ended') onSessionEnded(result.username, result.server, result.reason);
+      if (result.kind !== 'claimed') return;
 
-      if (!ok) {
-        debugLog('WorkspaceLoader', ' Could not reach the internal service; not concluding anything');
-        setIsAutoClaimingSession(false);
-        return;
-      }
-
-      if (activeSessions.length === 0) {
-        debugLog('WorkspaceLoader', ' No active sessions available');
-        setIsAutoClaimingSession(false);
-        return;
-      }
-
-      const existingSelection: TabUserContext | null = await getSelectedUser();
-      debugLog('WorkspaceLoader', ' Tab context getSelectedUser() returned:', {
-        hasSelection: !!existingSelection,
-        selectedCid: existingSelection?.selectedCid?.toString() ?? 'none',
-        selectedUsername: existingSelection?.selectedUsername ?? 'none',
+      await postAuthSetup(result.cid);
+      // A reload is a claim. Without the activation nothing ran the startup
+      // sequence, so after any page reload the P2P registry stayed stopped.
+      eventEmitter.emit('session:activated', {
+        cid: result.cid.toString(), username: result.username,
+        serverAddress: result.server, activationType: 'claim',
       });
-
-      // Reached only when `ok` was true, so an empty list really is empty and
-      // clearing the selection is safe.
-      const { session: sessionToUse, staleSelection } = pickSessionToClaim(
-        activeSessions,
-        existingSelection?.selectedCid,
-      );
-      if (staleSelection) {
-        debugLog('WorkspaceLoader', ' Selected session no longer active, trying first available');
-        await clearSelectedUser();
-      }
-
-      if (!sessionToUse) {
-        debugLog('WorkspaceLoader', ' No usable session found');
-        setIsAutoClaimingSession(false);
-        return;
-      }
-
-      const session: ActiveSession = sessionToUse;
-      debugLog('WorkspaceLoader', ' Auto-claiming session:', session.username, session.cid);
-
-      const outcome: ClaimOutcome = await claimSessionForThisTab(session.cid);
-      if (outcome.status === 'owned-by-another-tab') {
-        toast(SESSION_OWNED_ELSEWHERE);
-        setIsAutoClaimingSession(false);
-        return;
-      }
-
-      await setSelectedUser({
-        selectedUsername: session.username,
-        selectedServerAddress: session.server_address,
-        selectedCid: session.cid
-      });
-
-      await postAuthSetup(session.cid);
-
       setHasConnection(true);
       debugLog('WorkspaceLoader', ' Auto-claim complete, workspace loading initiated');
-  } catch (error) {
-    // Same reason as the branch above: the user is left on a spinner that
-    // eventually says "taking longer than expected" and never says why.
-    debugLog('WorkspaceLoader', 'Auto-claim session failed:', error);
-    toast({
-      title: 'Could Not Restore Your Session',
-      description: describeFailure(
-        error,
-        'Your session could not be reconnected. Try signing in again.',
-      ),
-      variant: 'destructive',
-    });
-  } finally {
+    } catch (error) {
+      // Same reason as the branch above: the user is left on a spinner that
+      // eventually says "taking longer than expected" and never says why.
+      debugLog('WorkspaceLoader', 'Auto-claim session failed:', error);
+      toast({
+        title: 'Could Not Restore Your Session',
+        description: describeFailure(
+          error,
+          'Your session could not be reconnected. Try signing in again.',
+        ),
+        variant: 'destructive',
+      });
+    } finally {
       setIsAutoClaimingSession(false);
     }
   };
 
   runAsyncSetup(autoClaimSession);
-}, [isDevMode, toast, setHasConnection, setIsAutoClaimingSession, autoClaimAttempted]);
+}, [isDevMode, toast, setHasConnection, setIsAutoClaimingSession, autoClaimAttempted, onHeldElsewhere, onSessionEnded]);
 }

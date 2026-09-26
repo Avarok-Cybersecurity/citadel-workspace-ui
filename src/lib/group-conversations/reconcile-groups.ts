@@ -4,6 +4,7 @@ import type { GroupConversation } from '@/types/group';
 import { debugLog } from '@/lib/debug-config';
 import { groupIdToKey } from './group-key';
 import { instanceManager } from '@/lib/multi-instance/instance-manager';
+import { requestJoinedGroups } from './learn-joined-groups';
 
 /**
  * Making the sidebar agree with the server about which groups still exist.
@@ -109,6 +110,26 @@ export function applyGroupList(serverIds: readonly string[]): void {
   updateGroups((prev) => reconcileGroups(prev, serverIds, asked, selfCid));
 }
 
+/**
+ * Scope the list to the live account, then ask the server what it still holds.
+ *
+ * Failure is swallowed on purpose and is not silent-by-accident: if the socket
+ * is not ready the request throws, no list arrives, and the sidebar keeps
+ * showing what it showed before. The alternative, surfacing a toast for a
+ * background consistency check nobody asked for, is worse.
+ */
+function reconcileSession(): void {
+  // Scope first, then ask. The list is a module singleton keyed by nothing, so
+  // without the reset the snapshot would be built from the PREVIOUS account's
+  // groups -- or, on mount, before the persisted restore had put anything in it.
+  void resetGroupsForSession()
+    .then(() => requestGroupReconcile())
+    .then(() => requestJoinedGroups())
+    .catch((error: unknown) => {
+      debugLog('GroupReconcile', 'Could not ask the server for the group list', error);
+    });
+}
+
 export function bindGroupListReconcile(): void {
   eventEmitter.on('group:list-received', (data: { groupIds: string[] }) => {
     applyGroupList(data.groupIds);
@@ -117,23 +138,17 @@ export function bindGroupListReconcile(): void {
   // A session becoming live is the moment the answer can change AND the moment
   // it matters: everything that happened while this account was offline is
   // exactly what no event will ever tell it about.
-  //
-  // Failure is swallowed on purpose and is not silent-by-accident: if the
-  // socket is not ready the request throws, no list arrives, `askedWith` is
-  // left set, and the sidebar keeps showing what it showed before — today's
-  // behaviour. The alternative, surfacing a toast for a background
-  // consistency check nobody asked for, is worse.
   eventEmitter.on('instance:cid-changed', (data: { cid: bigint | null }) => {
-    if (data.cid === null) return;
-    // Scope first, then ask. The list is a module singleton keyed by nothing,
-    // so without the reset the snapshot below would be built from the PREVIOUS
-    // account's groups and the server's answer would be applied to them.
-    void resetGroupsForSession()
-      .then(() => requestGroupReconcile())
-      .catch((error) => {
-        debugLog('GroupReconcile', 'Could not ask the server for the group list', error);
-      });
+    if (data.cid !== null) reconcileSession();
   });
+
+  // ...but that event has almost always fired already. These bindings start
+  // when the first group consumer MOUNTS, and sign-in and resume both set the
+  // cid before the workspace renders; the cid is permanent, so `setCid` never
+  // emits again. Listening alone meant the request was never sent in any
+  // normal session, and groups the server had lost stayed in the sidebar
+  // forever. A session that was live before we subscribed is reconciled now.
+  if (instanceManager.cid !== null) reconcileSession();
 }
 
 /** Test seam: forget any outstanding request. */

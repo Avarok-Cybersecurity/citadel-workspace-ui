@@ -28,9 +28,10 @@ import {
 } from '@/components/ui/table';
 import type { GroupMemberWithRole } from '@/types/group';
 import { useGroupPermissions } from '@/hooks/use-group-permissions';
-import { memberAvatarColor } from '@/lib/avatar-color';
-import { getRoleIcon, type GroupMemberManagementProps } from './GroupMemberManagementHelpers';
+import type { GroupMemberManagementProps } from './GroupMemberManagementHelpers';
+import { rosterMemberName } from '@/lib/roster-peer-name';
 import { KickConfirmDialog } from './KickConfirmDialog';
+import { GroupMemberIdentity } from './GroupMemberIdentity';
 import { PeerPickerPopover } from './PeerPickerPopover';
 import type { GroupRole } from '@/types/group-permissions';
 
@@ -144,23 +145,7 @@ export function GroupMemberManagement({
                   >
                     {/* Member Info */}
                     <TableCell className="py-3">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium text-foreground"
-                          style={{ backgroundColor: memberAvatarColor(member, index) }}
-                        >
-                          {member.username[0]?.toUpperCase() || '?'}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-foreground font-medium">
-                            {member.username}
-                          </span>
-                          {getRoleIcon(member.role)}
-                          {isOwnerMember && (
-                            <span className="text-xs text-warning-emphasis">(Owner)</span>
-                          )}
-                        </div>
-                      </div>
+                      <GroupMemberIdentity member={member} index={index} isOwner={isOwnerMember} />
                     </TableCell>
 
                     {/* Role Selector */}
@@ -171,7 +156,7 @@ export function GroupMemberManagement({
                           onValueChange={value => handleRoleChange(member, value)}
                         >
                           <SelectTrigger
-              aria-label={`Role for ${member.username}`} className="h-8 w-32 bg-surface border-border text-foreground text-xs">
+              aria-label={`Role for ${rosterMemberName(member)}`} className="h-8 w-32 bg-surface border-border text-foreground text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-background border-border">

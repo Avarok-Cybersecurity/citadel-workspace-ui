@@ -15,15 +15,17 @@ import { describe, it, expect } from 'vitest';
 import { groupMessageActions } from '../group-message-actions';
 
 describe('what a group can do to a message', () => {
-  it('lets a peer group reply, and not revise', () => {
+  it('lets a peer group reply and react, and not revise', () => {
     // No GroupEdit or GroupDelete exists on the peer wire. Offering them shows
-    // a control whose only outcome is "Permission denied".
-    expect(groupMessageActions('7:42')).toEqual({ canReply: true, canRevise: false });
+    // a control whose only outcome is "Permission denied". Reactions are ours,
+    // like reply_to: they travel in a body the members define (group-reactions).
+    expect(groupMessageActions('7:42')).toEqual({ canReply: true, canRevise: false, canReact: true, canPageOlder: false });
   });
 
-  it('lets a node-backed channel do both', () => {
+  it('lets a node-backed channel revise, and not react', () => {
+    // The workspace server has no reaction operation for its channels.
     expect(groupMessageActions('9f3c1e2a-0000-4000-8000-000000000001')).toEqual({
-      canReply: true, canRevise: true,
+      canReply: true, canRevise: true, canReact: false, canPageOlder: true,
     });
   });
 });

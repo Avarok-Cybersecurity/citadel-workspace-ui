@@ -14,17 +14,26 @@ import type { InstanceInfo } from '../instance-manager-types';
 import { isOwnedByALiveConnection } from '@/lib/sessions/claim-session';
 
 type Handler = (payload: unknown) => void;
+
 interface World {
   claims: bigint[];
   failures: bigint[];
+  reportRequests: () => number;
+  instances: InstanceInfo[];
   emit: (event: string, payload?: unknown) => Promise<void>;
+  /** Let the report window close. */
+  closeWindow: () => void;
   becomeLeader: () => void;
+  resign: () => void;
 }
 
-function world(instances: InstanceInfo[], opts: { leader: boolean; ownedByThisConnection?: bigint[]; failing?: bigint[] }): World {
+function world(tabs: InstanceInfo[], opts: { leader: boolean; ownedByThisConnection?: bigint[]; failing?: bigint[] }): World {
   const handlers: Map<string, Handler[]> = new Map();
   const claims: bigint[] = [];
   const failures: bigint[] = [];
+  const instances: InstanceInfo[] = tabs.map((t: InstanceInfo) => ({ ...t }));
+  let reportRequests: number = 0;
+  let pending: Array<() => void> = [];
   let leader: boolean = opts.leader;
   const claimer: { settle: () => Promise<void> } = installFollowerSessionClaims({
     on: (event: string, handler: Handler): void => { handlers.set(event, [...(handlers.get(event) ?? []), handler]); },
@@ -39,12 +48,20 @@ function world(instances: InstanceInfo[], opts: { leader: boolean; ownedByThisCo
     },
     isOwnedByALiveConnection,
     reportFailure: (cid: bigint): void => { failures.push(cid); },
+    requestReports: (): void => { reportRequests += 1; },
+    unregister: (instanceId: string): void => {
+      const at: number = instances.findIndex((i: InstanceInfo) => i.instanceId === instanceId);
+      if (at >= 0) instances.splice(at, 1);
+    },
+    reportWindowMs: 5000,
+    schedule: (fn: () => void): void => { pending.push(fn); },
   });
   const emit = async (event: string, payload?: unknown): Promise<void> => {
     for (const h of handlers.get(event) ?? []) h(payload);
     await claimer.settle();
   };
-  return { claims, failures, emit, becomeLeader: (): void => { leader = true; } };
+  const closeWindow = (): void => { const due: Array<() => void> = pending; pending = []; for (const fn of due) fn(); };
+  return { claims, failures, reportRequests: (): number => reportRequests, instances, emit, closeWindow, becomeLeader: (): void => { leader = true; }, resign: (): void => { leader = false; } };
 }
 
 const TABS: InstanceInfo[] = [
@@ -101,11 +118,46 @@ describe('when the leader connection is replaced', () => {
     expect(w.claims).toEqual([2n, 3n, 2n, 3n]);
   });
 
-  it('reports a failed claim and retries it on the next trigger', async () => {
+  it('reports a failed claim and retries it when its tab reports it again', async () => {
     const w: World = world(TABS, { leader: true, failing: [3n] });
     await w.emit('on-ws-connection-success');
     expect(w.failures).toEqual([3n]);
     await w.emit('instance:registered', { instanceId: 'carol-tab', cid: 3n });
     expect(w.claims).toEqual([2n, 3n, 3n]);
+  });
+});
+
+describe('a tab that is gone', () => {
+  // Measured: a tab closed without its goodbye (or switched account) left its CID in
+  // the registry, the claim failed, and every later registration of ANY tab retried it.
+  it('is not re-claimed when some other tab registers', async () => {
+    const w: World = world(TABS, { leader: true, failing: [3n] });
+    await w.emit('on-ws-connection-success');
+    await w.emit('instance:registered', { instanceId: 'bob-tab', cid: 2n });
+    await w.emit('instance:registered', { instanceId: 'fresh-tab', cid: null });
+    expect(w.claims.filter((c: bigint) => c === 3n)).toEqual([3n]);
+  });
+
+  it('is asked to report in, and removed when it does not answer', async () => {
+    const w: World = world(TABS, { leader: true, failing: [3n] });
+    await w.emit('on-ws-connection-success');
+    expect(w.reportRequests()).toBe(1);
+    await w.emit('instance:registered', { instanceId: 'bob-tab', cid: 2n });
+    await w.emit('instance:registered', { instanceId: 'fresh-tab', cid: null });
+    w.closeWindow();
+    expect(w.instances.map((i: InstanceInfo) => i.instanceId)).toEqual(['me', 'bob-tab', 'fresh-tab']);
+
+    // So the next connection does not claim its CID at all.
+    await w.emit('websocket-disconnected');
+    await w.emit('on-ws-connection-success');
+    expect(w.claims.filter((c: bigint) => c === 3n)).toEqual([3n]);
+  });
+
+  it('is not removed by a tab that stopped leading before the window closed', async () => {
+    const w: World = world(TABS, { leader: true });
+    await w.emit('on-ws-connection-success');
+    w.resign();
+    w.closeWindow();
+    expect(w.instances).toHaveLength(4);
   });
 });

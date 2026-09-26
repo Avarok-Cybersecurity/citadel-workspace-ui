@@ -13,7 +13,8 @@ import type { Notification, NotificationHandler, UnreadCountChange } from './typ
 import { NotificationType, NotificationPriority, notificationBelongsTo } from './types';
 import { belongingTo, everything, messagesFrom, type ReadPredicate } from './read-state';
 import { unreadCountFor, unreadCountsByCid } from './unread-counts';
-import { peerRegistrationNotification } from './peer-registration-notification';
+import { peerRegistrationNotification, withRosterName } from './peer-registration-notification';
+import { memberDisplayName } from '@/lib/member-names';
 
 export class NotificationService {
   private static instance: NotificationService;
@@ -22,7 +23,9 @@ export class NotificationService {
   private unlisten: (() => void) | null = null;
 
   private constructor() {
-    this.unlisten = eventEmitter.on<Notification>('notification', (n) => this.addNotification(n));
+    const offAdd: () => void = eventEmitter.on<Notification>('notification', (n) => this.addNotification(n));
+    const offNames: () => void = eventEmitter.on('member-names:recorded', () => this.renameRequestsFromRoster());
+    this.unlisten = (): void => { offAdd(); offNames(); };
     debugLog('NotificationService', 'NotificationService event listeners set up');
   }
 
@@ -74,6 +77,13 @@ export class NotificationService {
         peerUsername, peerCid, requestId, onAccept, onDecline, onCardClick, recipientCid,
       }),
     );
+  }
+
+  private renameRequestsFromRoster(): void {
+    for (const n of this.notifications.values()) {
+      const renamed: Notification | null = withRosterName(n, memberDisplayName);
+      if (renamed) { this.notifications.set(renamed.id, renamed); this.notifyHandlers(renamed); }
+    }
   }
 
   public addSystemNotification(
@@ -235,7 +245,6 @@ export class NotificationService {
 }
 
 export const notificationService: NotificationService = NotificationService.getInstance();
-
 if (typeof window !== 'undefined' && import.meta.env.DEV) {
   window.notificationService = notificationService;
 }

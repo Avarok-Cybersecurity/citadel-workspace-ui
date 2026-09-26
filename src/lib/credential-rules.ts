@@ -29,7 +29,7 @@
  * bytes and 4 units. Measuring in units would accept a name the server then
  * rejects, which is the exact failure this module exists to prevent.
  */
-const byteLength = (value: string): number => new TextEncoder().encode(value).length;
+export const byteLength = (value: string): number => new TextEncoder().encode(value).length;
 
 export const CREDENTIAL_LIMITS: { readonly username: { readonly min: 3; readonly max: 37; }; readonly password: { readonly min: 7; readonly max: 17; }; readonly fullName: { readonly min: 2; readonly max: 77; }; } = {
   username: { min: 3, max: 37 },

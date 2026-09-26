@@ -35,11 +35,15 @@ export function NoPeersScreen({ onSwitchToServer }: NoPeersScreenProps): JSX.Ele
   );
 }
 
-export function LoadingScreen(): JSX.Element {
+interface LoadingScreenProps {
+  label: string;
+}
+
+export function LoadingScreen({ label }: LoadingScreenProps): JSX.Element {
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-background text-muted-foreground gap-4">
-      <Loader2 className="h-8 w-8 animate-spin" />
-      <p>Loading file system...</p>
+    <div className="flex flex-col items-center justify-center h-full bg-background text-muted-foreground gap-4" role="status">
+      <Loader2 className="h-8 w-8 animate-spin" aria-hidden="true" />
+      <p>{label}</p>
     </div>
   );
 }

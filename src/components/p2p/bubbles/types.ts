@@ -1,4 +1,6 @@
 import type { P2PMessage } from '@/lib/p2p';
+import type { QuotedMessage } from '@/components/chat/shared/reply-quote';
+import type { ReactionBinding } from '@/components/chat/shared/reactions/reaction-binding';
 
 export interface BaseBubbleProps {
   message: P2PMessage;
@@ -14,6 +16,16 @@ export interface BaseBubbleProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onReply?: () => void;
+  /** Focus the composer after Edit or Reply; see chat/shared/menu-focus-handoff. */
+  focusComposer?: () => void;
+  /** Absent where reactions are not offered; see ReactionChips. */
+  reactions?: ReactionBinding;
+}
+
+/** Text and markdown bubbles, the two a reply can be composed as. */
+export interface ReplyableBubbleProps extends BaseBubbleProps {
+  /** The message `message.replyTo` names, or `null` when it is not loaded. */
+  quoted: QuotedMessage | null;
 }
 
 export interface LiveDocumentBubbleProps extends BaseBubbleProps {

@@ -1,8 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
-import { searchMatcher } from '@/lib/fold-for-search';
 import { debugLog } from '@/lib/debug-config';
 import { useLocation, useNavigate } from "react-router-dom";
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { getEntityTypeString } from "@/lib/entity-type-registry";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -14,11 +13,11 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
+import { AddNodeButton } from "./AddNodeButton";
 import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 import { TreeNodeItem } from "./TreeNodeItem";
-import { buildTreeFromNodes } from "./tree-node-utils";
+import { buildTreeFromNodes, descendantCount, filterTree } from "./tree-node-utils";
 
 // Re-export all types for backward compatibility
 export type { NodeEntityType, DomainPermissions, DomainNode, TreeNode, TreeSchema, NestingRule, EntityTypeConfig } from "./tree-node-types";
@@ -29,6 +28,8 @@ import type { NavigateFunction } from 'react-router';
 export interface TreeNodesSectionProps {
   tree?: TreeNode;
   nodes?: DomainNode[];
+  /** The workspace's name, for the parent shown above several top-level spaces. */
+  workspaceName: string;
   selectedNodeId?: string;
   onNodeSelect?: (nodeId: string) => void;
   onNodeEdit?: (node: DomainNode) => void;
@@ -48,13 +49,11 @@ export interface TreeNodesSectionProps {
    */
   unavailable?: boolean;
   /**
-   * Whether the tree schema has arrived. Creating a node needs it (the allowed
-   * child types come from there), so until it does the create button cannot
-   * succeed — it can only raise a "schema is still loading" error. Offering a
-   * control whose only outcome is an error message is worse than not offering
-   * it yet, so the button is disabled and says why.
+   * Null when creating can succeed; otherwise why it cannot (the schema has not
+   * arrived, or the server would refuse this person). A control whose only
+   * outcome is an error is disabled and says why; see AddNodeButton.
    */
-  canCreate?: boolean;
+  createBlockedReason?: string | null;
   initialExpandedIds?: string[];
   maxHeight?: string;
 }
@@ -73,9 +72,10 @@ export function TreeNodesSection({
   title = "HIERARCHY",
   isLoading = false,
   unavailable = false,
-  canCreate = true,
+  createBlockedReason = null,
   initialExpandedIds = [],
   maxHeight = "50vh",
+  workspaceName,
 }: TreeNodesSectionProps): JSX.Element {
   const location: ReturnType<typeof useLocation> = useLocation();
   const navigate: NavigateFunction = useNavigate();
@@ -83,34 +83,15 @@ export function TreeNodesSection({
 
   const treeData: TreeNode | null = useMemo((): TreeNode | null => {
     if (tree) return tree;
-    if (nodes) return buildTreeFromNodes(nodes);
+    if (nodes) return buildTreeFromNodes(nodes, workspaceName);
     return null;
-  }, [tree, nodes]);
+  }, [tree, nodes, workspaceName]);
 
   // Search filter state
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter tree based on search query
-  const filteredTreeData: TreeNode | null = useMemo((): TreeNode | null => {
-    if (!treeData || !searchQuery.trim()) return treeData;
-    // Folded, and folded ONCE — see fold-for-search.ts. `filterNode` recurses
-    // over the whole tree, so a per-node fold is a per-node normalisation.
-    const matches: (haystack: string) => boolean = searchMatcher(searchQuery);
-
-    function filterNode(tn: TreeNode): TreeNode | null {
-      const nameMatches: boolean = matches(tn.node.name);
-      const filteredChildren: TreeNode[] = tn.children
-        .map(filterNode)
-        .filter((c): c is TreeNode => c !== null);
-
-      if (nameMatches || filteredChildren.length > 0) {
-        return { ...tn, children: filteredChildren };
-      }
-      return null;
-    }
-
-    return filterNode(treeData);
-  }, [treeData, searchQuery]);
+  const filteredTreeData: TreeNode | null = useMemo(
+    (): TreeNode | null => filterTree(treeData, searchQuery), [treeData, searchQuery]);
 
   const { effectiveExpanded, toggleExpand } = useTreeExpansion({
     treeData,
@@ -182,18 +163,7 @@ export function TreeNodesSection({
           <SidebarGroupLabel className="text-primary-accent font-semibold m-0 px-0">
             {title}
           </SidebarGroupLabel>
-          {onNodeCreate && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="tap-target h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground"
-              onClick={handleCreateRoot}
-              data-testid="add-root-node-button"
-              aria-label="Add to this workspace"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          )}
+          {onNodeCreate && <AddNodeButton onClick={handleCreateRoot} blockedReason={createBlockedReason} testId="add-root-node-button" />}
         </div>
         <SidebarGroupContent>
           <div className="px-3 py-2 text-sm text-muted-foreground">
@@ -206,7 +176,9 @@ export function TreeNodesSection({
               </span>
             ) : (
               <span data-testid="tree-empty">
-                Your workspace is empty. Click the + button to create your first space.
+                {createBlockedReason === null
+                  ? 'Your workspace is empty. Click the + button to create your first space.'
+                  : 'No spaces yet. An administrator adds the first one.'}
               </span>
             )}
           </div>
@@ -222,20 +194,7 @@ export function TreeNodesSection({
           <SidebarGroupLabel className="text-primary-accent font-semibold m-0 px-0">
             {title}
           </SidebarGroupLabel>
-          {onNodeCreate && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="tap-target h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground disabled:opacity-40"
-              onClick={handleCreateRoot}
-              disabled={canCreate === false}
-              data-testid="add-node-button"
-              aria-label={canCreate === false ? 'Add to this workspace (still loading)' : 'Add to this workspace'}
-              title={canCreate === false ? 'Waiting for the workspace to finish loading' : 'Add to this workspace'}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          )}
+          {onNodeCreate && <AddNodeButton onClick={handleCreateRoot} blockedReason={createBlockedReason} testId="add-node-button" />}
         </div>
         {/* Search filter */}
         {treeData && treeData.children.length > 0 && (
@@ -274,7 +233,8 @@ export function TreeNodesSection({
                     onNodeSelect={handleNodeSelect}
                     onNodeEdit={onNodeEdit}
                     onNodeDelete={handleNodeDelete}
-                    onNodeCreate={onNodeCreate}
+                    // "Add Child" is the same request; not offered when it would be refused.
+                    onNodeCreate={createBlockedReason === null ? onNodeCreate : undefined}
                     onAdminSettings={onAdminSettings}
                     onSetDefault={onSetDefault}
                     onMoveNode={onMoveNode}
@@ -297,10 +257,10 @@ export function TreeNodesSection({
           <>
             Are you sure you want to delete &quot;{nodeToDelete?.name}&quot;? This
             action cannot be undone.
-            {nodeToDelete?.children && nodeToDelete.children.length > 0 && (
+            {nodeToDelete && nodes && descendantCount(nodes, nodeToDelete.id) > 0 && (
               <span className="block mt-2 text-warning-emphasis">
-                Warning: This will also delete {nodeToDelete.children.length}{" "}
-                child node(s) and all their content.
+                Warning: This will also delete {descendantCount(nodes, nodeToDelete.id)}{" "}
+                space(s) inside it and all their content.
               </span>
             )}
             {deleteError && (

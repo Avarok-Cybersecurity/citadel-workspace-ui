@@ -9,7 +9,7 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { AdvancedSettings } from "./security/AdvancedSettings";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { StepIndicator } from "@/components/ui/step-indicator";
+import { RegistrationStepIndicator } from "./RegistrationStepIndicator";
 import {
   SecurityLevel,
   SecrecyMode,
@@ -104,7 +104,7 @@ export const SecuritySettings = ({
         <Card className="bg-background border-border shadow-2xl shadow-black/40">
           <CardHeader className="pb-4">
             {!isFromLogin && (
-              <StepIndicator currentStep={2} totalSteps={3} labels={["Server", "Security", "Profile"]} />
+              <RegistrationStepIndicator currentStep={2} />
             )}
             <h2 className="text-xl font-bold text-foreground mt-5">Security Settings</h2>
             <p className="text-sm text-muted-foreground mt-1">

@@ -23,5 +23,31 @@ export function sessionIsOnServer(session: SessionServer, address: string): bool
 }
 
 function sameAddress(a: string, b: string): boolean {
-  return normalizeWorkspaceAddress(a).toLowerCase() === normalizeWorkspaceAddress(b).toLowerCase();
+  return canonical(a) === canonical(b);
+}
+
+/**
+ * A dialled `ws(s)://` URL reduced to the host it names, so it compares equal to the typed
+ * host. Without this, a session reported with no `server_host` (one the agent re-created)
+ * matched nothing. The scheme's own port is dropped; any other port stays significant.
+ * Anything that is not such a URL is returned trimmed.
+ */
+export function dialledHost(address: string): string {
+  const trimmed: string = address.trim();
+  if (!/^wss?:\/\//i.test(trimmed)) return trimmed;
+  try {
+    const url: URL = new URL(trimmed);
+    return url.port ? `${url.hostname}:${url.port}` : url.hostname;
+  } catch {
+    return trimmed;
+  }
+}
+
+/** The host the agent says a session is on: what was typed, else the dialled URL's host. */
+export function sessionHost(session: SessionServer): string {
+  return session.server_host?.trim() || dialledHost(session.server_address);
+}
+
+function canonical(address: string): string {
+  return normalizeWorkspaceAddress(dialledHost(address)).toLowerCase();
 }

@@ -8,8 +8,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import WorkspaceApp from "./components/WorkspaceApp";
 import { DocumentTitle } from './components/DocumentTitle';
+import { ServerReconnectWatcher } from './components/ServerReconnectWatcher';
 import { useSendFailureToasts } from '@/hooks/use-send-failure-toasts';
-import { WorkspaceLoader } from "./components/ui/workspace-loader";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { RouteFallback } from "./components/RouteFallback";
 import { PwaUpdatePrompt } from "./components/pwa/PwaUpdatePrompt";
@@ -42,6 +42,11 @@ const GroupChatPage: LazyExoticComponent<() => JSX.Element> = lazy((): Promise<{
   import("./pages/GroupChatPage").then(m => ({ default: m.GroupChatPage }))
 );
 const NotFound: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pages/NotFound"));
+// Lazy too: only the protected routes mount it, and its start-up claim path
+// (retry, takeover offer) has no business on the landing page's critical path.
+const WorkspaceLoader: LazyExoticComponent<React.FC<{ children: React.ReactNode }>> = lazy((): Promise<{ default: React.FC<{ children: React.ReactNode }> }> =>
+  import("./components/ui/workspace-loader").then(m => ({ default: m.WorkspaceLoader }))
+);
 // Split like the rest: the landing page must not pay for the create-workspace
 // flow, and nothing on it is needed until someone chooses to set one up.
 const CreateWorkspace: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pages/CreateWorkspace"));
@@ -111,6 +116,7 @@ const App: () => JSX.Element = (): JSX.Element => {
               future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
             >
               <DocumentTitle />
+              <ServerReconnectWatcher />
               {/* Inside the router because its Return button navigates, above
                   the routes because a running call has to stay visible on all
                   of them. It lived in CallLayer, which is above the router --

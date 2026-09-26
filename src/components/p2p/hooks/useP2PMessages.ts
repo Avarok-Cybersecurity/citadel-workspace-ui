@@ -20,6 +20,7 @@ import type { P2PMessage, PeerPresence } from '@/lib/p2p';
 import type { UseP2PMessagesProps, UseP2PMessagesReturn } from './useP2PMessages-types';
 import { mergeMessages, prependMessages } from './useP2PMessages-types';
 import { subscribeToConversationEvents } from './useP2PMessages-subscriptions';
+import { applyRetentionOnOpen } from '@/lib/p2p/retention-sweep';
 import type { ConversationMetadata, P2PConversation, MessagePage } from '@/lib/p2p/p2p-types';
 
 export function useP2PMessages({
@@ -62,6 +63,7 @@ export function useP2PMessages({
     setIsLoadingHistory(true);
     const loadConversation = async (): Promise<void> => {
       await messenger.waitForReady();
+      await applyRetentionOnOpen(peerCid);
       await messenger.syncConnectionsFromBackend();
 
       const metadata: ConversationMetadata | null = await messenger.getConversationMetadata(peerCid);
@@ -221,6 +223,15 @@ export function useP2PMessages({
     }
   }, [peerCid, messenger, confirm]);
 
+  // Not awaited by the chip or menu item that calls it, so the failure is
+  // reported here rather than becoming an unhandled rejection.
+  const handleReactMessage: (messageId: string, emoji: string) => void = useCallback((messageId: string, emoji: string): void => {
+    messenger.reactToMessage(peerCid, messageId, emoji).catch((error: unknown): void => {
+      debugLog('UseP2PMessages', 'Failed to react to message:', error);
+      toast.error('Could not update reaction', { description: failureDescription(error, 'Please try again.') });
+    });
+  }, [peerCid, messenger]);
+
   return {
     messages,
     peerTyping,
@@ -234,5 +245,6 @@ export function useP2PMessages({
     handleRetryMessage,
     handleEditMessage,
     handleDeleteMessage,
+    handleReactMessage,
   };
 }

@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { User } from '../types/workspace-entities';
-import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/TreeNodesSection';
+// From the type module, not the component that re-exports it: this context is
+// read above the router (PeerRefusalNotice), and the component uses router hooks.
+import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/tree-node-types';
 import type { WorkspaceMetadataBytes } from '@/types/workspace-metadata';
 
 // Define the shape of our workspace state
@@ -19,6 +21,11 @@ export interface WorkspaceState {
     role?: string;
     displayName?: string;
     avatarUrl?: string; // Base64 data URL for avatar image
+    /** From the member record's metadata; see lib/profile-metadata.ts. */
+    email?: string;
+    title?: string;
+    /** Server-enforced; undefined until the own record has arrived. See lib/profile-privacy.ts. */
+    showProfileToStrangers?: boolean;
   };
   members: Record<string, User>;
   nodes: Record<string, DomainNode>;

@@ -5,11 +5,13 @@
  */
 
 import React, { forwardRef, useMemo } from 'react';
-import { groupMessagesByDate } from '@/components/chat/shared';
+import { groupMessagesByDate, quoteP2PReply } from '@/components/chat/shared';
 import { DateSeparator } from '@/components/chat/shared/DateSeparator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageBubble } from './bubbles';
 import type { P2PMessage } from '@/lib/p2p';
+import { reactionChips } from '@/lib/reactions/reaction-state';
+import type { ReactionBinding } from '@/components/chat/shared/reactions/reaction-binding';
 
 interface P2PMessageListProps {
   messages: P2PMessage[];
@@ -29,10 +31,13 @@ interface P2PMessageListProps {
   onAcceptTransfer: (transferId: string) => Promise<void>;
   onDeclineTransfer: (transferId: string) => Promise<void>;
   onCancelTransfer: (transferId: string) => Promise<void>;
-  onOpenFile: (downloadPath: string) => void;
+  onOpenFile: (transferId: string) => void;
   onEditMessage?: (messageId: string, content: string) => void;
   onDeleteMessage?: (messageId: string) => void;
   onReplyMessage?: (messageId: string) => void;
+  /** Focus the composer after a bubble's Edit or Reply; see chat/shared/menu-focus-handoff. */
+  focusComposer: () => void;
+  onReactMessage?: (messageId: string, emoji: string) => void;
 }
 
 export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps & React.RefAttributes<HTMLDivElement>> = forwardRef<HTMLDivElement, P2PMessageListProps>(
@@ -58,6 +63,8 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
       onEditMessage,
       onDeleteMessage,
       onReplyMessage,
+      focusComposer,
+      onReactMessage,
     }: P2PMessageListProps,
     ref: React.ForwardedRef<HTMLDivElement>
   ) {
@@ -70,6 +77,20 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
     const messagesByDate: Record<string, P2PMessage[]> = useMemo(
       () => groupMessagesByDate(messages),
       [messages],
+    );
+
+    // What each reply quotes, looked up among the messages already loaded.
+    const byId: Map<string, P2PMessage> = useMemo(
+      () => new Map(messages.map((m: P2PMessage): [string, P2PMessage] => [m.id, m])),
+      [messages],
+    );
+    const authorOf: (m: P2PMessage) => string = (m: P2PMessage): string => (m.senderCid === currentUserCid ? currentUserName : peerName);
+    // Two parties, so a reactor is either the viewer or the peer.
+    const reactorName: (cid: bigint) => string = (cid: bigint): string => (cid === currentUserCid ? 'You' : peerName);
+    const reactionsFor: (m: P2PMessage) => ReactionBinding | undefined = (m: P2PMessage): ReactionBinding | undefined => (
+      onReactMessage
+        ? { chips: reactionChips(m.reactions, currentUserCid ?? null), nameFor: reactorName, onReact: (emoji: string): void => onReactMessage(m.id, emoji) }
+        : undefined
     );
 
     return (
@@ -118,6 +139,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
                 key={message.id}
                 message={message}
                 isOwn={isOwn}
+                quoted={message.replyTo ? quoteP2PReply(message.replyTo, byId, authorOf) : null}
                 onRetry={() => onRetryMessage(message)}
                 onOpenDocument={onOpenDocument}
                 onAcceptTransfer={onAcceptTransfer}
@@ -130,6 +152,8 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
                 onEdit={onEditMessage ? (): void => onEditMessage(message.id, message.content) : undefined}
                 onDelete={onDeleteMessage ? (): void => onDeleteMessage(message.id) : undefined}
                 onReply={onReplyMessage ? (): void => onReplyMessage(message.id) : undefined}
+                focusComposer={focusComposer}
+                reactions={reactionsFor(message)}
               />
             );
           })}

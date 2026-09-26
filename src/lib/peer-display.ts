@@ -27,6 +27,7 @@
  */
 
 import { toCidKey, type CidLike } from './utils/cid-utils';
+import { memberDisplayName } from './member-names';
 
 /** Number of base36 characters in a derived handle. */
 const HANDLE_LENGTH: number = 6;
@@ -104,12 +105,21 @@ export function shortPeerHandle(cid: CidLike): string | null {
  *
  * Prefers what the peer calls themselves, then their username, then a derived
  * handle. Note the ordering: `fullName` wins because it is the display name a
- * user chose, while `username` is the login identifier.
+ * user chose, while `username` is the login identifier. A caller that knows
+ * only the username still gets the member's display name (`member-names.ts`).
  */
 export function peerDisplayName(peer: PeerIdentity): string {
-  const fullName: string | undefined = peer.fullName?.trim();
+  const fullName: string | undefined = peer.fullName?.trim() || memberDisplayName(peer.username);
   if (fullName && !isPlaceholderName(fullName)) return fullName;
+  return peerHandleName(peer);
+}
 
+/**
+ * What a peer is ADDRESSED by: the username when it is real, else the derived
+ * handle -- never the display name. Test ids, routes and username lookups key
+ * on this; a row keyed by "Bob Brown" is a row no caller can find.
+ */
+export function peerHandleName(peer: PeerIdentity): string {
   const username: string | undefined = peer.username?.trim();
   if (username && !isPlaceholderName(username)) return username;
 
@@ -125,7 +135,7 @@ export function peerDisplayName(peer: PeerIdentity): string {
  * leading digits of a decimal CID (those were frequently identical across peers).
  */
 export function peerInitials(peer: PeerIdentity): string {
-  const chosen: string | undefined = peer.fullName?.trim() || peer.username?.trim();
+  const chosen: string | undefined = peer.fullName?.trim() || memberDisplayName(peer.username) || peer.username?.trim();
   const name: string | undefined = isPlaceholderName(chosen) ? undefined : chosen;
   if (name) return name.slice(0, 1).toUpperCase();
 

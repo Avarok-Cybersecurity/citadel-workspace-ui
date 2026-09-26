@@ -7,9 +7,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { getBubbleStyles, BUBBLE_MAX_WIDTH , type BaseBubbleProps } from './types';
+import { getBubbleStyles, BUBBLE_MAX_WIDTH , type ReplyableBubbleProps } from './types';
+import { ReplyQuote } from '@/components/chat/shared/ReplyQuote';
 import { BubbleFooter } from './BubbleFooter';
+import { ReactionChips } from '@/components/chat/shared/reactions/ReactionChips';
+import { ReactionMenuItems } from '@/components/chat/shared/reactions/ReactionMenuItems';
 import { getInitials } from '@/components/chat/shared';
+import { useMenuFocusHandoff, type MenuFocusHandoff } from '@/components/chat/shared/menu-focus-handoff';
 
 export function TextBubble({
   message,
@@ -21,11 +25,15 @@ export function TextBubble({
   onEdit,
   onDelete,
   onReply,
-}: BaseBubbleProps): JSX.Element {
+  focusComposer,
+  quoted,
+  reactions,
+}: ReplyableBubbleProps): JSX.Element {
+  const handoff: MenuFocusHandoff = useMenuFocusHandoff(focusComposer);
   const isFailed: boolean = message.status === 'failed';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
   const displayName: string = senderName || 'Unknown';
-  const hasActions: (() => void) | undefined = onEdit || onDelete || onReply;
+  const hasActions: boolean = Boolean(onEdit || onDelete || onReply || reactions);
 
   // Show avatar only for non-own messages in group mode
   const shouldShowAvatar: boolean | undefined = showSenderAvatar && !isOwn;
@@ -56,6 +64,7 @@ export function TextBubble({
         )}
 
         <div className={`min-w-0 rounded-lg px-3 py-2 ${bubbleStyles}`}>
+          {message.replyTo && <ReplyQuote quoted={quoted} isOwn={isOwn} />}
           {/* break-words, like the group bubble beside it. `pre-wrap` only
               wraps at EXISTING opportunities, and a pasted URL or path has
               none — so it painted outside the bubble and was cut at the panel
@@ -79,6 +88,7 @@ export function TextBubble({
           )}
           <BubbleFooter message={message} isOwn={isOwn} onRetry={onRetry} />
         </div>
+        {reactions && <ReactionChips binding={reactions} isOwn={isOwn} />}
       </div>
 
       {/* Message Actions Dropdown */}
@@ -90,15 +100,15 @@ export function TextBubble({
                 <MoreVertical className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align={isOwn ? 'start' : 'end'}>
+            <DropdownMenuContent align={isOwn ? 'start' : 'end'} onCloseAutoFocus={handoff.onCloseAutoFocus}>
               {onReply && (
-                <DropdownMenuItem onClick={onReply}>
+                <DropdownMenuItem onClick={handoff.toComposer(onReply)}>
                   <Reply className="h-4 w-4 mr-2" />
                   Reply
                 </DropdownMenuItem>
               )}
               {isOwn && onEdit && (
-                <DropdownMenuItem onClick={onEdit}>
+                <DropdownMenuItem onClick={handoff.toComposer(onEdit)}>
                   <Edit2 className="h-4 w-4 mr-2" />
                   Edit
                 </DropdownMenuItem>
@@ -112,6 +122,7 @@ export function TextBubble({
                   Delete
                 </DropdownMenuItem>
               )}
+              {reactions && <ReactionMenuItems onReact={reactions.onReact} />}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

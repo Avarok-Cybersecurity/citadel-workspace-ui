@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CitadelLogo } from '@/components/brand/CitadelLogo';
+import { BRAND_NAME } from '@/components/brand/artwork/brand-rules.generated';
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { useInstallAction } from "@/components/pwa/use-install-action";
 import {
@@ -22,15 +23,13 @@ import { SettingsModal } from "@/components/SettingsModal";
 import { getUserInitials } from "@/lib/workspace-metadata-service";
 import { LeaderIndicator } from "@/components/ui/leader-indicator";
 import { isDiagnosticsUiEnabled } from "@/lib/debug-config";
-import { connectionManager } from "@/lib/connection";
-import { getSelectedUser , type TabUserContext } from "@/lib/tab-context";
-import { useState, useEffect } from "react";
+import { useSelfName, type SelfName } from "@/hooks/use-self-name";
+import { useState } from "react";
 import { ExitConfirmModal } from "@/components/ExitConfirmModal";
 import { ProfileModal } from "@/components/settings/ProfileModal";
 import { DisconnectLoadingModal } from "@/components/LoadingModal";
 import { cn } from "@/lib/utils";
 import { useSessionExit } from './use-session-exit';
-import type { StoredSession } from '@/types/session-types';
 
 interface TopBarProps {
   // Optional prop for backward compatibility
@@ -55,26 +54,12 @@ export const TopBar = ({ currentWorkspace }: TopBarProps): JSX.Element => {
   } = useSessionExit();
 
   // Get workspace name from context or fallback to prop
-  const workspaceName: string = state.workspace?.name || currentWorkspace || "Citadel Workspace";
+  const workspaceName: string = state.workspace?.name || currentWorkspace || BRAND_NAME;
 
-  // Fallback identity from tab-context — the orphan-claim path doesn't
-  // persist a stored-session row, so without this fallback the TopBar
-  // renders "U"/"User" even though tab-context knows the username.
-  const [sessionFallback, setSessionFallback] = useState<{ username: string; fullName?: string } | null>(null);
-  useEffect(() => {
-    let cancelled: boolean = false;
-    void (async (): Promise<void> => {
-      const tab: TabUserContext | null = await getSelectedUser();
-      if (cancelled) return;
-      if (tab?.selectedUsername) { setSessionFallback({ username: tab.selectedUsername }); return; }
-      const session: StoredSession | null = await connectionManager.getTabSelectedSession();
-      if (!cancelled) setSessionFallback(session?.username ? { username: session.username, fullName: session.fullName } : null);
-    })();
-    return (): void => { cancelled = true; };
-  }, [state.currentUser?.username]);
-
-  const username: string = state.currentUser?.username || sessionFallback?.username || "User";
-  const name: string = state.currentUser?.name || sessionFallback?.fullName || username;
+  // The same name the switcher and the chat use: see useSelfName.
+  const self: SelfName = useSelfName();
+  const username: string = self.username || "User";
+  const name: string = self.name || username;
   const userInitials: string = getUserInitials(name);
   const avatarUrl: string | undefined = state.currentUser?.avatarUrl;
 
@@ -121,9 +106,9 @@ export const TopBar = ({ currentWorkspace }: TopBarProps): JSX.Element => {
           <Menu className="h-5 w-5" />
         </Button>
         {/* The PRODUCT mark; the switcher beside it names the WORKSPACE, which an
-            admin can call anything. Mark alone: at 56px tall a wordmark would fall
-            under its 130px legibility floor. Hidden below `sm` for width. */}
-        <CitadelLogo variant="mark" height={26} className="mr-3 hidden shrink-0 sm:block" />
+            admin can call anything. Mark alone, at 26px (so the compact cut): the bar
+            has no room for a lockup beside the switcher. Hidden below `sm` for width. */}
+        <CitadelLogo variant="mark" height={26} className="mr-1 hidden shrink-0 sm:inline-flex" />
         <WorkspaceSwitcher workspaceName={workspaceName} />
       </div>
       {/* shrink-0: these controls are the way out of the app and must never be

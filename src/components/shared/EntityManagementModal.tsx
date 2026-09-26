@@ -68,6 +68,8 @@ export function EntityManagementModal<TMode extends string>({
 }: EntityManagementModalProps<TMode>): JSX.Element {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // The server's refusal, in the dialog: a toast can land behind it unseen.
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>(() =>
     buildFormState(fields, initialData)
   );
@@ -75,6 +77,7 @@ export function EntityManagementModal<TMode extends string>({
   useEffect(() => {
     if (isOpen) {
       setFormData(buildFormState(fields, initialData));
+      setSubmitError(null);
     }
     // Only re-sync when isOpen transitions; fields/initialData are stable per caller.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,6 +109,7 @@ export function EntityManagementModal<TMode extends string>({
     }
 
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
       await onSubmit(formData);
       onClose();
@@ -125,6 +129,7 @@ export function EntityManagementModal<TMode extends string>({
         error instanceof Error && error.message
           ? error.message
           : `The server did not accept the change.`;
+      setSubmitError(reason);
       toast({
         title: `Could not ${mode} that ${entityName}`,
         description: reason,
@@ -160,6 +165,9 @@ export function EntityManagementModal<TMode extends string>({
               />
             ))}
             {customContent}
+            {submitError && (
+              <p role="alert" data-testid="entity-modal-error" className="text-sm text-destructive-emphasis">{submitError}</p>
+            )}
           </div>
           <DialogFooter>
             {/* Not disabled while submitting: backing out of an in-flight

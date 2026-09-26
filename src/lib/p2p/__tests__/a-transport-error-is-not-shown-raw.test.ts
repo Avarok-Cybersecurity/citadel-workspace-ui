@@ -99,7 +99,11 @@ describe('the description a toast is given', () => {
   });
 
   it('uses the site fallback for a thrown non-Error, which carries nothing to translate', () => {
-    expect(failureDescription('a string, not an Error', 'Check your connection.')).toBe('Check your connection.');
+    // A thrown string or {message} carries the reason (the WASM client throws both); it is
+    // translated like an Error's message rather than replaced by the generic fallback.
+    expect(failureDescription('a string, not an Error', 'Check your connection.')).toBe(peerFailureDetail('a string, not an Error').detail);
+    expect(failureDescription({ message: 'Peer connection not found' }, 'Check your connection.')).toBe(peerFailureDetail('Peer connection not found').detail);
+    expect(failureDescription({ code: 42 }, 'Check your connection.')).toBe('Check your connection.');
     expect(failureDescription(undefined, 'Please try again.')).toBe('Please try again.');
   });
 

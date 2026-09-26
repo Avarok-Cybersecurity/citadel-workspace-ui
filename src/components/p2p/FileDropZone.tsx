@@ -31,6 +31,8 @@ interface FileDropZoneProps {
    * that mistake before.
    */
   nativePickerAvailable: false | null;
+  /** Null when the native picker can carry out the chosen method; otherwise why not, shown on it. */
+  nativePickerBlockedReason: string | null;
   maxFileSizeBytes: number;
   formatBytes: (bytes: number) => string;
   onDrop: (e: React.DragEvent) => void;
@@ -48,6 +50,7 @@ export function FileDropZone({
   isSending,
   isPickingFile,
   nativePickerAvailable,
+  nativePickerBlockedReason,
   maxFileSizeBytes,
   formatBytes,
   onDrop,
@@ -98,7 +101,7 @@ export function FileDropZone({
       {nativePickerAvailable !== false && (
         <button
           onClick={onNativePickerClick}
-          disabled={isPickingFile || isSending}
+          disabled={isPickingFile || isSending || nativePickerBlockedReason !== null}
           className="w-full flex items-center gap-3 p-4 rounded-lg border border-primary bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div className="p-2 rounded-lg bg-primary/20">
@@ -109,7 +112,7 @@ export function FileDropZone({
               {isPickingFile ? 'Opening file picker...' : 'Browse Files'}
             </span>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Uses native file picker with full path access
+              {nativePickerBlockedReason ?? 'Opens your computer\u2019s file picker; your agent streams the file to them'}
             </p>
           </div>
         </button>

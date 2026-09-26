@@ -14,9 +14,9 @@ import type {
 import { RevfsOpType } from '@/types/revfs-types';
 import { withSerialLock } from '@/lib/serial-queue';
 import {
-  peerPairKey,
+  peerTreeKey,
   serverTreeKey,
-  createDefaultTree,
+  legacyPairKey,
 } from './tree-operations';
 import { RevfsState, type TreeChangedCallback } from './revfs-state';
 import { RevfsIO, type RevfsIODeps } from './revfs-io';
@@ -25,6 +25,12 @@ import { wireDrainOnChannelReady } from './drain-on-channel-ready';
 import { applyInboundOperationSerially, type InboundContext } from './revfs-inbound';
 import { awaitTreeChange } from './await-tree-change';
 
+/** What asking a peer for its tree came to. */
+export type SyncOutcome =
+  | { kind: 'answered' }
+  | { kind: 'unsent' }
+  | { kind: 'unanswered'; waitedMs: number };
+
 /** How long a peer has to answer a sync request before we stop claiming it did. */
 const SYNC_ANSWER_TIMEOUT_MS: number = 15_000;
 import type { DirOpsContext } from './revfs-dir-ops';
@@ -32,7 +38,7 @@ import * as dirOps from './revfs-dir-ops';
 import type { FileOpsContext } from './revfs-file-ops';
 import * as fileOps from './revfs-file-ops';
 import * as serverFileOps from './revfs-server-file-ops';
-import { persistTree, markTreeRead } from './persist-tree';
+import { loadTree } from './tree-load';
 import type { RevfsIntentResult } from '@/types/revfs-intents';
 
 export class RevfsService {
@@ -85,63 +91,16 @@ export class RevfsService {
 
   // ── Tree Access ───────────────────────────────────────────────────────
 
+  /** Throws RevfsTreeUnreadableError when the saved tree cannot be read; see tree-load. */
   async getTree(myCid: bigint, peerCid: bigint): Promise<RevfsNode> {
-    return this.loadTreeFor(peerPairKey(myCid, peerCid));
-  }
-
-
-  /**
-   * Load the tree for `key`, or a default, without ever destroying what is on
-   * disk.
-   *
-   * Shared by `getTree` and `getServerTree`, which differ only in how the key is
-   * built. They were near-identical copies, and the read-tracking this needed
-   * would otherwise have been a fourth thing to keep in step across two bodies
-   * -- which is how the guard came to be on `persistPendingOps` and not here.
-   *
-   * Three outcomes, and the distinction between the last two is the whole point:
-   *   - loaded: cache it, mark the key read, return it.
-   *   - genuinely absent: the read SUCCEEDED and found nothing, which is a safe
-   *     starting point, so mark it read, persist the default and return it.
-   *   - unreadable: return a default for the caller to RENDER, but neither
-   *     cache nor mark nor persist it. Writing it would replace a tree still on
-   *     disk, and the user's files would be gone.
-   */
-  private async loadTreeFor(key: string): Promise<RevfsNode> {
-    const cached: RevfsNode | undefined = this.state.getTree(key);
-    if (cached) return cached;
-
-    const io: RevfsIO = this.ensureIO();
-    const result: RevfsIntentResult = await io.execute({ type: 'load-tree', treeKey: key });
-
-    // An op that landed while the load was in flight has already written
-    // through `setTree`; the default below would be written straight over it,
-    // clobbered in memory and persisted over on disk, with `setTree` firing
-    // `notifyTreeChanged` so the UI repaints the stale content.
-    const appliedDuringLoad: RevfsNode | undefined = this.state.getTree(key);
-    if (appliedDuringLoad) return appliedDuringLoad;
-
-    if (result.type === 'load-tree' && result.tree) {
-      markTreeRead(key);
-      this.state.setTree(key, result.tree);
-      return result.tree;
-    }
-
-    if (result.type === 'load-tree' && result.unreadable) {
-      return createDefaultTree();
-    }
-
-    markTreeRead(key);
-    const defaultTree: RevfsNode = createDefaultTree();
-    this.state.setTree(key, defaultTree);
-    await persistTree(io, key, defaultTree);
-    return defaultTree;
+    const key: TreeKey = peerTreeKey(myCid, peerCid);
+    const legacy: TreeKey = legacyPairKey(myCid, peerCid);
+    return loadTree(this.state, this.ensureIO(), { key, viewer: myCid, legacyKey: legacy === key ? null : legacy });
   }
 
   async getServerTree(myCid: bigint): Promise<RevfsNode> {
-    return this.loadTreeFor(serverTreeKey(myCid));
+    return loadTree(this.state, this.ensureIO(), { key: serverTreeKey(myCid), viewer: null, legacyKey: null });
   }
-
 
   // ── Peer-Scoped Operations (delegated) ────────────────────────────────
 
@@ -154,16 +113,16 @@ export class RevfsService {
   // a false is queued for retry. These were `Promise<void>`, so the ack flag
   // `sendAndAwaitAck` was changed to return died here and the file manager
   // reported every peer operation as delivered.
-  mkdir(myCid: bigint, peerCid: bigint, path: string): Promise<boolean> { return withSerialLock(peerPairKey(myCid, peerCid), () => dirOps.peerMkdir(this.dirCtx(), myCid, peerCid, path)); }
-  rmdir(myCid: bigint, peerCid: bigint, path: string): Promise<boolean> { return withSerialLock(peerPairKey(myCid, peerCid), () => dirOps.peerRmdir(this.dirCtx(), myCid, peerCid, path)); }
-  rename(myCid: bigint, peerCid: bigint, path: string, newName: string): Promise<boolean> { return withSerialLock(peerPairKey(myCid, peerCid), () => dirOps.peerRename(this.dirCtx(), myCid, peerCid, path, newName)); }
-  move(myCid: bigint, peerCid: bigint, src: string, dest: string): Promise<boolean> { return withSerialLock(peerPairKey(myCid, peerCid), () => dirOps.peerMove(this.dirCtx(), myCid, peerCid, src, dest)); }
-  copy(myCid: bigint, peerCid: bigint, src: string, dest: string): Promise<boolean> { return withSerialLock(peerPairKey(myCid, peerCid), () => dirOps.peerCopy(this.dirCtx(), myCid, peerCid, src, dest)); }
-  uploadFileToPeer(myCid: bigint, peerCid: bigint, dir: string, name: string, meta: RevfsFileMetadata, content: Uint8Array): Promise<boolean> { return withSerialLock(peerPairKey(myCid, peerCid), () => fileOps.uploadFileToPeer(this.fileCtx(), myCid, peerCid, dir, name, meta, content)); }
-  removeFileFromPeer(myCid: bigint, peerCid: bigint, path: string): Promise<boolean> { return withSerialLock(peerPairKey(myCid, peerCid), () => fileOps.removeFileFromPeer(this.fileCtx(), myCid, peerCid, path)); }
+  mkdir(myCid: bigint, peerCid: bigint, path: string): Promise<boolean> { return withSerialLock(peerTreeKey(myCid, peerCid), () => dirOps.peerMkdir(this.dirCtx(), myCid, peerCid, path)); }
+  rmdir(myCid: bigint, peerCid: bigint, path: string): Promise<boolean> { return withSerialLock(peerTreeKey(myCid, peerCid), () => dirOps.peerRmdir(this.dirCtx(), myCid, peerCid, path)); }
+  rename(myCid: bigint, peerCid: bigint, path: string, newName: string): Promise<boolean> { return withSerialLock(peerTreeKey(myCid, peerCid), () => dirOps.peerRename(this.dirCtx(), myCid, peerCid, path, newName)); }
+  move(myCid: bigint, peerCid: bigint, src: string, dest: string): Promise<boolean> { return withSerialLock(peerTreeKey(myCid, peerCid), () => dirOps.peerMove(this.dirCtx(), myCid, peerCid, src, dest)); }
+  copy(myCid: bigint, peerCid: bigint, src: string, dest: string): Promise<boolean> { return withSerialLock(peerTreeKey(myCid, peerCid), () => dirOps.peerCopy(this.dirCtx(), myCid, peerCid, src, dest)); }
+  uploadFileToPeer(myCid: bigint, peerCid: bigint, dir: string, name: string, meta: RevfsFileMetadata, content: Uint8Array): Promise<boolean> { return withSerialLock(peerTreeKey(myCid, peerCid), () => fileOps.uploadFileToPeer(this.fileCtx(), myCid, peerCid, dir, name, meta, content)); }
+  removeFileFromPeer(myCid: bigint, peerCid: bigint, path: string): Promise<boolean> { return withSerialLock(peerTreeKey(myCid, peerCid), () => fileOps.removeFileFromPeer(this.fileCtx(), myCid, peerCid, path)); }
   downloadFileFromPeer(myCid: bigint, peerCid: bigint, path: string): Promise<string | undefined> { return fileOps.downloadFileFromPeer(this.fileCtx(), myCid, peerCid, path); }
-  addSentFile(myCid: bigint, peerCid: bigint, t: { fileName: string; fileSize: number; fileType: string; transferId: string }): Promise<void> { return withSerialLock(peerPairKey(myCid, peerCid), () => fileOps.addSentFile(this.fileCtx(), myCid, peerCid, t)); }
-  addReceivedFile(myCid: bigint, peerCid: bigint, t: { fileName: string; fileSize: number; fileType: string; transferId: string; downloadPath?: string }): Promise<void> { return withSerialLock(peerPairKey(myCid, peerCid), () => fileOps.addReceivedFile(this.fileCtx(), myCid, peerCid, t)); }
+  addSentFile(myCid: bigint, peerCid: bigint, t: { fileName: string; fileSize: number; fileType: string; transferId: string }): Promise<void> { return withSerialLock(peerTreeKey(myCid, peerCid), () => fileOps.addSentFile(this.fileCtx(), myCid, peerCid, t)); }
+  addReceivedFile(myCid: bigint, peerCid: bigint, t: { fileName: string; fileSize: number; fileType: string; transferId: string; downloadPath?: string }): Promise<void> { return withSerialLock(peerTreeKey(myCid, peerCid), () => fileOps.addReceivedFile(this.fileCtx(), myCid, peerCid, t)); }
 
   // ── Server-Scoped Operations (delegated) ──────────────────────────────
 
@@ -203,13 +162,30 @@ export class RevfsService {
    *
    * See `awaitTreeChange` for what "arrived" means and why.
    */
-  async requestSync(myCid: bigint, peerCid: bigint, timeoutMs: number = SYNC_ANSWER_TIMEOUT_MS): Promise<boolean> {
-    const answered: Promise<boolean> = awaitTreeChange(this.state, peerPairKey(myCid, peerCid), timeoutMs);
+  async requestSync(myCid: bigint, peerCid: bigint, timeoutMs: number = SYNC_ANSWER_TIMEOUT_MS): Promise<SyncOutcome> {
+    const answered: Promise<boolean> = awaitTreeChange(this.state, peerTreeKey(myCid, peerCid), timeoutMs);
 
     const syncReq: RevfsOperation = { op_id: crypto.randomUUID(), op_type: RevfsOpType.SyncRequest, path: '/', timestamp: Date.now() };
     const sent: boolean = await this.sendOp(peerCid, syncReq);
-    if (!sent) return false;
-    return answered;
+    // Two different failures, and they were one `false`: a request that never
+    // left says nothing about the peer, and "the peer did not answer" sent the
+    // user to wait for an answer to a question nobody received.
+    if (!sent) return { kind: 'unsent' };
+    return (await answered) ? { kind: 'answered' } : { kind: 'unanswered', waitedMs: timeoutMs };
+  }
+
+  /**
+   * Paths whose change has not been acknowledged by the peer yet: queued for
+   * retry, or still waiting. The file manager marks them "pending
+   * confirmation" instead of either hiding them or implying the peer has them.
+   */
+  pendingPaths(myCid: bigint, peerCid: bigint): ReadonlySet<string> {
+    const paths: Set<string> = new Set<string>();
+    for (const entry of this.state.getPendingOps(peerTreeKey(myCid, peerCid))) {
+      paths.add(entry.operation.path);
+      if (entry.operation.destPath) paths.add(entry.operation.destPath);
+    }
+    return paths;
   }
 
   // ── Event Subscription ────────────────────────────────────────────────

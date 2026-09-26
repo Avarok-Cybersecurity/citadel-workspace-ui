@@ -58,7 +58,7 @@ describe('pollUntilActive stops', () => {
   });
 
   it('at once on a refusal -- asking again will not change a 404', async () => {
-    const notFound: ControlPlaneError = new ControlPlaneError(404, 'No such workspace.');
+    const notFound: ControlPlaneError = new ControlPlaneError(404, 'No such workspace.', 'not-found');
     const { options, calls } = scripted([notFound]);
     const outcome: PollOutcome = await pollUntilActive(options);
     expect(outcome).toEqual({ kind: 'failed', error: notFound });
@@ -66,19 +66,19 @@ describe('pollUntilActive stops', () => {
   });
 
   it('at once on 503, which is configuration and not a blip', async () => {
-    const { options, calls } = scripted([new ControlPlaneError(503, 'not configured')]);
+    const { options, calls } = scripted([new ControlPlaneError(503, 'not configured', undefined)]);
     expect((await pollUntilActive(options)).kind).toBe('failed');
     expect(calls()).toBe(1);
   });
 
   it('rides out transient failures, and resets the count on success', async () => {
-    const blip: ControlPlaneError = new ControlPlaneError(0, 'offline');
+    const blip: ControlPlaneError = new ControlPlaneError(0, 'offline', undefined);
     const { options } = scripted([blip, blip, PENDING, blip, blip, { status: 'active', claimCode: undefined, workspaceHost: undefined }]);
     expect((await pollUntilActive(options)).kind).toBe('active');
   });
 
   it('after too many transient failures in a row', async () => {
-    const blip: ControlPlaneError = new ControlPlaneError(502, 'bad gateway');
+    const blip: ControlPlaneError = new ControlPlaneError(502, 'bad gateway', undefined);
     const { options, calls } = scripted([blip]);
     expect(await pollUntilActive(options)).toEqual({ kind: 'failed', error: blip });
     expect(calls()).toBe(3);
@@ -119,6 +119,9 @@ describe('the claim code', () => {
     // this workspace does not answer on, so it must not receive the claim code.
     expect(createdWorkspaceAddress()).toBe('acme.work.avarok.net');
     expect(claimCodeFor('acme.work.avarok.net')).toBe('CLAIM-XYZ');
+    // The tab's connection record holds the dialled URL, not the host.
+    expect(claimCodeFor('wss://acme.work.avarok.net/')).toBe('CLAIM-XYZ');
+    expect(claimCodeFor('wss://other.work.avarok.net/')).toBeUndefined();
     expect(claimCodeFor('acme.work.avarok.net:12400')).toBeUndefined();
     expect(claimCodeFor('other.work.avarok.net')).toBeUndefined();
     expect(claimCodeFor(undefined)).toBeUndefined();

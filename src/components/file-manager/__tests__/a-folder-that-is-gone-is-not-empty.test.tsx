@@ -32,7 +32,7 @@ const asyncNoop = async (): Promise<void> => {};
 
 function grid(currentPath: string, onNavigate: (p: string) => void = noop): ReturnType<typeof render> {
   return render(
-    <VFSContentGrid
+    <VFSContentGrid pendingPaths={new Set<string>()} peerLabel="Bob"
       tree={tree}
       currentPath={currentPath}
       onNavigate={onNavigate}

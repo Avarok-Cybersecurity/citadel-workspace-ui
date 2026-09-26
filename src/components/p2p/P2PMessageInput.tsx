@@ -15,6 +15,7 @@ import { TypeSelectorBar } from './TypeSelectorBar';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import { documentAnchor } from '@/components/shared/DocumentLink';
 import type { MessageType } from '@/types/message-protocol';
+import { PAUSE_COPY } from '@/lib/p2p-pause/pause-copy';
 
 /**
  * The preview had NO component map, so its links fell through to
@@ -29,6 +30,8 @@ interface P2PMessageInputProps {
   messageType: MessageType;
   showMarkdownPreview: boolean;
   canSendMessages: boolean;
+  /** Paused: messages still send (they queue); files need the live link. */
+  paused: boolean;
   /** A message is between submit and appearing in the transcript. */
   isSending: boolean;
   onInputChange: (value: string) => void;
@@ -48,6 +51,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
       messageType,
       showMarkdownPreview,
       canSendMessages,
+      paused,
       isSending,
       onInputChange,
       onInputFocus,
@@ -68,7 +72,8 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
       onSubmit();
     };
 
-    const getPlaceholder: () => "Type markdown message..." | "Document content (optional)..." | "Type a message..." = (): "Type markdown message..." | "Document content (optional)..." | "Type a message..." => {
+    const getPlaceholder: () => string = (): string => {
+      if (paused) return PAUSE_COPY.composerPlaceholder;
       if (isMarkdownMode) return 'Type markdown message...';
       if (isLiveDocMode) return 'Document content (optional)...';
       return 'Type a message...';
@@ -99,9 +104,10 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
               size="icon"
               variant="ghost"
               onClick={onFileClick}
-              disabled={!canSendMessages}
+              disabled={!canSendMessages || paused}
               className="text-muted-foreground hover:text-foreground hover:bg-foreground/10"
-              title="Send file"
+              aria-label="Send file"
+              title={paused ? PAUSE_COPY.fileReason : 'Send file'}
             >
               <Paperclip className="h-4 w-4" />
             </Button>

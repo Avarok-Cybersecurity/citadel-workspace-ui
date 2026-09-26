@@ -55,7 +55,7 @@ export async function pollUntilActive(options: PollOptions): Promise<PollOutcome
     } catch (error: unknown) {
       if (options.signal.aborted || isAbort(error)) return { kind: 'aborted' };
       const refused: ControlPlaneError =
-        error instanceof ControlPlaneError ? error : new ControlPlaneError(0, String(error));
+        error instanceof ControlPlaneError ? error : new ControlPlaneError(0, String(error), undefined);
       if (!refused.transient) return { kind: 'failed', error: refused };
       failures += 1;
       if (failures >= options.maxConsecutiveFailures) return { kind: 'failed', error: refused };

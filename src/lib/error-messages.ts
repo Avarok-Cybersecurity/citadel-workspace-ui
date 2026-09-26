@@ -1,4 +1,5 @@
 import { describeError } from './describe-error';
+import { SERVER_HOLDS_A_SESSION } from './server-session-copy';
 import { credentialErrorMessage } from './credential-error-messages';
 import { workspaceMasterPasswordError, isWrongMasterPassword, WRONG_MASTER_PASSWORD_TITLE } from './workspace-master-password-error';
 /**
@@ -43,10 +44,8 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
     return 'The workspace server is not responding. It may be restarting. Please try again in a moment.';
   }
   
-  if (errorMessage.includes('Session Already Connected') || 
-      errorMessage.includes('already connected')) {
-    return 'You are already connected in another window or tab. Would you like to take over this session?';
-  }
+  // The workspace server's refusal, not another window here: see server-session-copy.ts.
+  if (errorMessage.includes('Session Already Connected') || errorMessage.includes('already connected')) return SERVER_HOLDS_A_SESSION;
   
   // Registration specifically. The generic branch below says "check your
   // network", which is wrong for almost every real instance of this: the agent

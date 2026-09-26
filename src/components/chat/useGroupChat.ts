@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback , type RefObject  } from 'react';
+import { preferredScrollBehavior } from '@/lib/motion';
 import { groupSendTransport } from '@/lib/group-conversations/group-send-transport';
 import { sendGroupMessageAnywhere } from '@/lib/group-conversations/send-group-message';
+import { restoreGroupTranscript } from '@/lib/group-conversations/group-transcript-store';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { DELETE_MESSAGE_PROMPT } from '@/lib/chat/delete-message-prompt';
 import { describeFailure } from '@/lib/failure-message';
@@ -45,11 +47,12 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
       // least a statement the user can act on, where an unresolvable spinner is
       // not.
       // A peer group has no server history to ask for. It is owned by no node,
-      // so the workspace server refuses the request outright, and nothing else
-      // holds a transcript: group-persistence stores the group LIST, not
-      // messages. Asking anyway raised a destructive toast for a request that
-      // could only fail, then fell through to the empty state on the deadline.
+      // so the workspace server refuses the request outright; asking anyway
+      // raised a destructive toast for a request that could only fail. Its
+      // history is the local transcript (group-transcript-store), and without
+      // reading it back every reload showed "No messages yet".
       if (groupSendTransport(groupId) === 'peer') {
+        await restoreGroupTranscript(groupId);
         setLoading(false);
         return;
       }
@@ -94,11 +97,9 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
               return [...prev, newMsg];
             });
             setTimeout(() => {
-              // An explicit `behavior` in ScrollIntoViewOptions beats the
-              // `scroll-behavior: auto !important` that index.css sets under
-              // prefers-reduced-motion, so the media query has to be read here.
-              const reduced: boolean = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-              messagesEndRef.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' });
+              // See preferredScrollBehavior: an explicit behaviour overrides the
+              // reduced-motion CSS, so the preference is read there.
+              messagesEndRef.current?.scrollIntoView({ behavior: preferredScrollBehavior() });
             }, 100);
           }
           break;
@@ -114,6 +115,9 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
           break;
         case 'message_deleted':
           setMessages((prev) => prev.filter((m) => m.id !== event.messageId));
+          break;
+        case 'message_reacted':
+          setMessages((prev) => prev.map((m) => (m.id === event.messageId ? { ...m, reactions: event.message?.reactions } : m)));
           break;
       }
     });

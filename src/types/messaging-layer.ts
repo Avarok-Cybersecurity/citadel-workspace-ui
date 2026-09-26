@@ -40,7 +40,10 @@ export enum MessagingLayerType {
   // Message revision. Carried in-band like everything else here, so both
   // peers agree without any backend involvement.
   MessageEdit = 'MessageEdit',
-  MessageDelete = 'MessageDelete'
+  MessageDelete = 'MessageDelete',
+  // A reaction added or retracted; see message-reaction-layer.ts.
+  MessageReaction = 'MessageReaction',
+  ScreenshotNotice = 'ScreenshotNotice' // see screenshot-notice-layer.ts
 }
 
 /**
@@ -162,6 +165,8 @@ export type MessagingLayer =
   | { type: MessagingLayerType.CheckStateResponse; ready: true }
   | { type: MessagingLayerType.MessageEdit; message_id: string; contents: string; edited_at: number }
   | { type: MessagingLayerType.MessageDelete; message_id: string; deleted_at: number }
+  | import('./message-reaction-layer').MessageReactionLayer
+  | import('./screenshot-notice-layer').ScreenshotNoticeLayer
   // File Transfer variants
   | { type: MessagingLayerType.FileTransferRequest } & FileTransferRequestData
   | { type: MessagingLayerType.FileTransferResponse } & FileTransferResponseData
@@ -446,8 +451,3 @@ export const FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES: number = 100 * 1024 * 1024;
 
 /** Default RE-VFS storage quota per peer (100 MB) */
 export const REVFS_DEFAULT_QUOTA_BYTES: number = 100 * 1024 * 1024;
-
-// The P2P chunk-streaming constants that used to sit here (chunk size,
-// max size, per-chunk timeout, retries) were tuning for the abandoned
-// message-plane transfer implementation and were deleted with it — the SDK
-// chunks the real transfer itself, server-side.

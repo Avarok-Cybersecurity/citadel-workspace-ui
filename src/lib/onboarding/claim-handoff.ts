@@ -20,6 +20,7 @@
  *     that dialog succeeds.
  */
 import { normalizeWorkspaceAddress } from '@/lib/workspace-address';
+import { dialledHost } from '@/lib/sessions/same-server';
 
 interface Issued {
   readonly workspaceHost: string;
@@ -52,8 +53,19 @@ export function createdWorkspaceAddress(): string | undefined {
 /** The claim code for `serverAddress`, if it is the workspace this page created. */
 export function claimCodeFor(serverAddress: string | undefined): string | undefined {
   if (!issued || !serverAddress) return undefined;
-  const wanted: string = normalizeWorkspaceAddress(issued.workspaceHost);
-  return normalizeWorkspaceAddress(serverAddress) === wanted ? issued.claimCode : undefined;
+  return sameWorkspace(serverAddress, issued.workspaceHost) ? issued.claimCode : undefined;
+}
+
+/**
+ * Whether two spellings name one workspace. The tab's connection holds the
+ * DIALLED form (`wss://acme.work.avarok.net/`) and the issued record the host,
+ * and normalizing leaves a URL as it is -- so the two never matched and the
+ * claim code was never pre-filled, even straight from "Open your workspace".
+ * Both are reduced to what was dialled; a different port is still different.
+ */
+function sameWorkspace(a: string, b: string): boolean {
+  const key: (x: string) => string = (x: string): string => dialledHost(normalizeWorkspaceAddress(x)).toLowerCase();
+  return key(a) === key(b);
 }
 
 /** Drop everything: the claim succeeded, or the visitor started over. */

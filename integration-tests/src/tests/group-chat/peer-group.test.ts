@@ -36,6 +36,7 @@ import {
   acceptP2PRequest,
 } from '../../lib/index.js';
 import { isVisibleWithin } from '../../lib/index.js';
+import { acceptGroupInvitation } from '../../lib/group-invite.js';
 
 // ============================================================================
 // Configuration
@@ -572,13 +573,21 @@ async function runPeerGroupTest(userCount: number): Promise<boolean> {
     results.groupNavigation[creator.username] = true;
 
     for (const member of members) {
-      // Wait for invite notification to be processed
-      await sleep(3000);
-
       // `groupId` is checked above -- `results.groupCreated` is `groupId !==
       // null` -- but narrow it here too rather than asserting non-null, so a
       // future reorder cannot turn a missing id into a lookup for "null".
       if (!groupId) break;
+
+      // An invitation waits for an answer; nobody joins a group unasked.
+      try {
+        await acceptGroupInvitation(member.page, groupId, 60000);
+      } catch (error) {
+        console.log(`    ${member.username} could not accept the invitation: ${String(error)}`);
+        uxTracker.log('major', 'functional', `${member.username} was never asked to join ${groupId}`);
+        await takeScreenshot(member.page, `${member.username}_no_invitation`);
+        results.groupNavigation[member.username] = false;
+        continue;
+      }
 
       results.groupNavigation[member.username] = await navigateToGroup(
         member,

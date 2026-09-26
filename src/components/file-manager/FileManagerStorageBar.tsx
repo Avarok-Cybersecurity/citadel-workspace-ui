@@ -1,12 +1,12 @@
 import { UserCircle2, Server } from "lucide-react";
 import { TreeScope } from "@/types/revfs-types";
-import type { Peer } from "@/lib/p2p-registration-service";
+import type { StoragePeer } from "./storage-peers";
 import { peerDisplayName } from '@/lib/peer-display';
 
 interface FileManagerStorageBarProps {
   storageMode: TreeScope;
   setStorageMode: (mode: TreeScope) => void;
-  registeredPeers: Peer[];
+  registeredPeers: StoragePeer[];
   selectedPeerCid: bigint | null;
   setSelectedPeerCid: (cid: bigint) => void;
 }

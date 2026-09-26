@@ -59,6 +59,19 @@ describe('sending into a peer group', () => {
     expect(new TextDecoder().decode(new Uint8Array(payload.message))).toContain('hello');
   });
 
+  it("carries the owner's group name when one is given, and none otherwise", async () => {
+    // GroupCreate and GroupInvite have no name field; this envelope is how
+    // members learn what the owner called the group.
+    const { decodeGroupMessage } = await import('../group-message-codec');
+    await sendPeerGroupMessage('7:42', 'hello', undefined, 'Team 0924');
+    await sendPeerGroupMessage('7:42', 'hello');
+    const names: Array<string | undefined> = sent.map((request) => {
+      const payload: { message: number[] } = request.GroupMessage as { message: number[] };
+      return decodeGroupMessage(new Uint8Array(payload.message))?.group_name;
+    });
+    expect(names).toEqual(['Team 0924', undefined]);
+  });
+
   it('refuses an id that is not a group key rather than sending nonsense', async () => {
     // A node-backed chat channel id reaching this path is a routing mistake,
     // and sending it as a group key would put a malformed request on the wire.

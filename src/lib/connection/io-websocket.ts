@@ -13,12 +13,13 @@
 import * as wsModule from '../websocket-service';
 import { markSessionsRead, sessionsHaveBeenRead } from './sessions-read-state';
 import { scrubLegacyCredentials, type ScrubResult } from './scrub-legacy-credentials';
+import { dropUnaddressedDuplicates } from './drop-unaddressed-duplicates';
 import { failOnSocketLoss } from '../websocket/request-response';
 import { persistJSON, parsePersistedJSON } from '../storage-utils';
 import { formatForDebug } from '../debug-formatter';
 import { stringToBytes, bytesToString } from '../utils/encoding-utils';
 import type { SessionSecuritySettings } from '../p2p-registration-service';
-import type { StoredSessions, GetSessionsRequest, GetSessionsResponse } from '@/types/session-types';
+import type { StoredSession, StoredSessions, GetSessionsRequest, GetSessionsResponse } from '@/types/session-types';
 import type { ConnectionIntent, PendingRequest } from './types';
 import { SESSION_STORAGE_KEY } from '@/types/session-types';
 import { debugLog, debugEnabled } from '@/lib/debug-config';
@@ -163,7 +164,7 @@ export class ConnectionIOWebSocket {
         // StoredSession.cid is a bigint and exists specifically so an orphaned
         // session can be reclaimed; a bare JSON.parse gave it back as a string.
         const parsed: StoredSessions = parsePersistedJSON<StoredSessions>(jsonStr, ['cid']);
-        return await this.withoutPlaintextCredentials(parsed);
+        return await this.withLegacyEntriesRepaired(parsed);
       } catch (decodeError) {
         debugLog('ConnectionIO', 'Failed to decode stored sessions:', decodeError);
         return null;
@@ -174,21 +175,32 @@ export class ConnectionIOWebSocket {
 
   /**
    * Every read path passes through here, so no in-memory copy -- and no
-   * read-modify-write built on one -- carries a plaintext password onward. The
-   * write-back removes it from the agent's store; if that write fails, the next
-   * read tries again.
+   * read-modify-write built on one -- carries a plaintext password or a
+   * serverless duplicate onward. The write-back repairs the agent's store; if
+   * that write fails, the next read tries again.
    */
-  private async withoutPlaintextCredentials(parsed: StoredSessions): Promise<StoredSessions> {
-    const result: ScrubResult = scrubLegacyCredentials(parsed);
-    if (result.scrubbed > 0) {
+  private async withLegacyEntriesRepaired(parsed: StoredSessions): Promise<StoredSessions> {
+    const scrub: ScrubResult = scrubLegacyCredentials(parsed);
+    const deduped: { sessions: StoredSession[]; removed: number } = dropUnaddressedDuplicates(scrub.sessions.sessions);
+    // The active entry by identity, since dropping entries shifts positions; a dropped
+    // serverless entry hands the selection to the addressed record of the same account.
+    const active: StoredSession | undefined = scrub.sessions.sessions[scrub.sessions.activeSessionIndex ?? -1];
+    const kept: number = active ? deduped.sessions.indexOf(active) : -1;
+    const activeIndex: number = kept >= 0 || !active ? kept : deduped.sessions.findIndex((s: StoredSession) => s.username === active.username);
+    const repaired: StoredSessions = {
+      ...scrub.sessions,
+      sessions: deduped.sessions,
+      activeSessionIndex: activeIndex >= 0 ? activeIndex : undefined,
+    };
+    if (scrub.scrubbed > 0 || deduped.removed > 0) {
       try {
-        await this.storeSessionsToLocalDB(result.sessions);
-        debugLog('ConnectionIO', 'Removed plaintext credentials from', result.scrubbed, 'stored sessions');
+        await this.storeSessionsToLocalDB(repaired);
+        debugLog('ConnectionIO', 'Repaired stored sessions: plaintext removed from', scrub.scrubbed, '; serverless duplicates dropped:', deduped.removed);
       } catch (error) {
-        debugLog('ConnectionIO', 'Could not write back scrubbed sessions; will retry on next read', error);
+        debugLog('ConnectionIO', 'Could not write back repaired sessions; will retry on next read', error);
       }
     }
-    return result.sessions;
+    return repaired;
   }
 
   // ============================================================================

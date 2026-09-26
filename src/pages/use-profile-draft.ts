@@ -1,7 +1,6 @@
 import { useState , type Dispatch , type SetStateAction } from 'react';
 import type { JoinFormData } from '@/components/useJoinRegistration';
-
-const BLANK: JoinFormData = { fullName: '', username: '', password: '', confirmPassword: '' };
+import { BLANK_JOIN_FORM as BLANK } from '@/components/join-form-blank';
 
 /**
  * What the user has typed on the wizard's profile step.

@@ -3,6 +3,7 @@ import { callFailureDetail, type CallFailureDetail } from '@/lib/call/call-failu
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { getInitials } from '@/components/chat/shared/formatters';
+import { useRosterName } from './use-roster-name';
 import type { CallParticipant, CallState } from '@/lib/call/call-state';
 
 /**
@@ -35,7 +36,7 @@ export function OutgoingCallPanel({
   onCancel: () => void;
 }): JSX.Element {
   const first: CallParticipant = invitees[0];
-  const calleeName: string = first?.username ?? 'Unknown';
+  const calleeName: string = useRosterName(first?.cid ?? null, first?.username ?? 'Unknown');
   const title: string =
     invitees.length > 1 ? `Calling ${calleeName} and ${invitees.length - 1} more…` : `Calling ${calleeName}…`;
 

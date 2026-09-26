@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import {
@@ -6,6 +6,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AccountManagementDialog } from "@/components/AccountManagementDialog";
+import { LazyTakeoverSignIn as TakeoverSignIn } from "@/components/LazyTakeoverSignIn";
+import { useSelfName } from "@/hooks/use-self-name";
 import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";
 import { Join } from "@/components/Join";
@@ -18,6 +20,10 @@ interface WorkspaceSwitcherProps {
 }
 
 export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JSX.Element => {
+  // Set when the user chose to move a session another browser window holds.
+  const [takeoverUsername, setTakeoverUsername] = useState<string | null>(null);
+  // This tab's person, named as the top bar names them (the current workspace is this tab's).
+  const selfName: string | undefined = useSelfName().name;
   const {
     availableWorkspaces,
     currentWorkspace,
@@ -41,7 +47,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
     handleManageAccounts,
     handleNext,
     handleBack,
-  } = useWorkspaceSwitcher(workspaceName);
+  } = useWorkspaceSwitcher(workspaceName, setTakeoverUsername);
 
   /**
    * The switcher button, so closing the account manager can put focus back on
@@ -102,9 +108,9 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
               <span className="font-semibold text-foreground block truncate group-hover:text-foreground">
                 {workspaceName || currentWorkspace?.workspaceName || "Select Workspace"}
               </span>
-              {currentWorkspace && (
-                <span className="block truncate text-xs text-muted-foreground group-hover:text-muted-foreground">
-                  {currentWorkspace.fullName || currentWorkspace.username}
+              {(selfName ?? currentWorkspace?.username) && (
+                <span className="block truncate text-xs text-muted-foreground group-hover:text-muted-foreground" data-testid="workspace-switcher-user">
+                  {selfName ?? currentWorkspace?.username}
                 </span>
               )}
             </div>
@@ -178,6 +184,8 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
           serverPassword={serverPassword}
         />
       )}
+
+      <TakeoverSignIn username={takeoverUsername} onClose={() => setTakeoverUsername(null)} />
 
       <AccountManagementDialog
         isOpen={isManagingAccounts}

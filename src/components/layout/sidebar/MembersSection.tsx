@@ -25,7 +25,8 @@ import { getEntityMetadata, getEntityTypeString } from "@/lib/entity-type-regist
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { peerRegistrationStore } from "@/lib/peer-registration-store";
 import { GroupConversationRow } from "./GroupConversationRow";
-import { PeerListRow } from "./PeerListRow";
+import { GroupInviteList } from "./GroupInviteList";
+import { PausablePeerRow } from "./PausablePeerRow";
 import { useGroupConversations, useRegisteredPeers, useConversationPeers, useEventListener } from '@/hooks';
 import { useDomainMembers } from '@/hooks/use-domain-members';
 import { debugLog } from '@/lib/debug-config';
@@ -81,7 +82,8 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
 
   useEventListener('open-pending-requests-modal', () => { setShowPendingRequests(true); });
 
-  const activeDomainId: string | null = currentNodeId;
+  // No node selected is the workspace view, whose members are the root's.
+  const activeDomainId: string = currentNodeId ?? WORKSPACE_ROOT_ID;
   const { members, isLoadingMembers, membersUnavailable } = useDomainMembers(activeDomainId);
 
   const handleEditMember = (m: WorkspaceMember): void => { setSelectedMember(m); setShowEditModal(true); };
@@ -120,9 +122,9 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
   return (
     <>
       <SidebarGroup className="flex-shrink-0 min-h-[4rem] mb-4">
-        <div className="flex items-center justify-between px-3 mb-2">
-          <div className="flex items-center gap-2">
-            <SidebarGroupLabel className="text-primary-accent font-semibold m-0 px-0">
+        <div className="flex items-center justify-between gap-2 px-3 mb-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <SidebarGroupLabel className="text-primary-accent font-semibold m-0 px-0 min-w-0 shrink truncate" title={getLocationText()}>
               {getLocationText().toUpperCase()}
             </SidebarGroupLabel>
             <PendingRequestsBadge count={pendingRequestCount} onOpen={() => setShowPendingRequests(true)} />
@@ -130,6 +132,8 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
           <MembersHeaderActions
             onDiscover={() => setShowPeerDiscovery(true)}
             onInvite={() => setShowInvite(true)}
+            onAddMember={() => setShowAddModal(true)}
+            domainId={activeDomainId}
           />
         </div>
         <SidebarGroupContent>
@@ -154,7 +158,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
             <div className="mt-2 border-t border-card pt-2">
               <SidebarMenu>
                 {filteredRegisteredPeers.map((peer) => (
-                  <PeerListRow key={peer.cid} cid={peer.cid} username={peer.username} isOnline={peer.isOnline} isConnected={peer.isConnected} connectionPath={peer.connectionPath} isActive={peer.cid === active.peerCid} onClick={() => void handlePeerClick(peer.cid, peer.username)} />
+                  <PausablePeerRow key={peer.cid} cid={peer.cid} username={peer.username} displayName={peer.displayName} isOnline={peer.isOnline} isConnected={peer.isConnected} connectionPath={peer.connectionPath} isActive={peer.cid === active.peerCid} onClick={() => void handlePeerClick(peer.cid, peer.username)} />
                 ))}
               </SidebarMenu>
             </div>
@@ -168,6 +172,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
           group: you needed a conversation to get the button that starts one.
           Still hidden with no peers at all -- a create-group dialog with nobody
           to add is a dead end, and offering it is worse than not. */}
+      <GroupInviteList />
       {(registeredPeers.length > 0 || groupConversations.length > 0) && (
         <SidebarGroup className="flex-shrink-0 min-h-[2rem] mb-4">
           <div className="flex items-center justify-between px-3">
@@ -184,7 +189,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
           <SidebarGroupContent>
             <SidebarMenu>
               {peersWithConversations.map((conv) => (
-                <PeerListRow key={conv.peerCid} cid={conv.peerCid} username={conv.peerUsername} isOnline={conv.isOnline} isConnected={conv.isConnected} connectionPath={conv.connectionPath} unreadCount={conv.unreadCount} isActive={conv.peerCid === active.peerCid} onClick={() => void handlePeerClick(conv.peerCid, conv.peerUsername)} />
+                <PausablePeerRow key={conv.peerCid} cid={conv.peerCid} username={conv.peerUsername} displayName={conv.peerDisplayName} isOnline={conv.isOnline} isConnected={conv.isConnected} connectionPath={conv.connectionPath} unreadCount={conv.unreadCount} isActive={conv.peerCid === active.peerCid} onClick={() => void handlePeerClick(conv.peerCid, conv.peerUsername)} />
               ))}
               {groupConversations.map((group) => (
                 <GroupConversationRow key={group.id} group={group} isActive={group.id === active.groupId} onClick={(g) => navigate(`/groups/${g.id}`)} />

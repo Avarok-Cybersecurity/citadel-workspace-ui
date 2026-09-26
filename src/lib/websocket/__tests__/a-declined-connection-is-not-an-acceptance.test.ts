@@ -35,6 +35,8 @@ function opsThatCapture(): {
     isLeader: (): boolean => true,
     // Accepting never fetches relay servers; a PeerConnect-only port.
     turnFor: async (): Promise<null> => null,
+    // Accepting never reads the chat level either; only PeerConnect does.
+    securityFor: async (): Promise<'Standard'> => 'Standard',
   });
   return { ops, requestId: (): string | undefined => seen };
 }

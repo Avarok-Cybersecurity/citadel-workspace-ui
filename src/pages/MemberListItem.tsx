@@ -12,8 +12,11 @@ export interface MemberDisplay {
   avatarUrl?: string;
   email?: string;
   role?: UserRole;
-  isOnline: boolean;
+  /** Null: nobody has said. See lib/presence.ts. */
+  isOnline: boolean | null;
   lastActive?: number;
+  /** The reader's own row: marked, and offering nothing to do to yourself. */
+  isSelf: boolean;
 }
 
 /** Re-exported for existing importers; the decision lives in lib/role-badge. */
@@ -68,7 +71,10 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
           )}
         </Avatar>
         <div>
-          <h3 className="font-medium text-foreground">{member.displayName}</h3>
+          <h3 className="font-medium text-foreground">
+            {member.displayName}
+            {member.isSelf && <Badge variant="outline" className="ml-2 text-xs">You</Badge>}
+          </h3>
           <div className="flex items-center space-x-2">
             {member.role && (
               <Badge className={`text-xs ${getRoleBadgeClass(member.role)}`}>
@@ -83,7 +89,7 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
           </div>
         </div>
       </button>
-      <div className="flex space-x-2">
+      {!member.isSelf && <div className="flex space-x-2">
         <Button
           variant="ghost"
           size="sm"
@@ -102,7 +108,7 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
         >
           <MessageCircle className="h-4 w-4" aria-hidden="true" />
         </Button>
-      </div>
+      </div>}
     </div>
   );
 }

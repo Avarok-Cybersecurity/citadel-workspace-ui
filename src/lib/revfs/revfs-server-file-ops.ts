@@ -15,7 +15,7 @@ import {
 import type { RevfsState } from './revfs-state';
 import type { RevfsIO } from './revfs-io';
 import { persistTree } from './persist-tree';
-import { countByteKeyRefs } from './tree-byte-refs';
+import { countByteKeyRefs, byteKeyFor } from './tree-byte-refs';
 import { debugLog } from '@/lib/debug-config';
 import type { RevfsIntentResult } from '@/types/revfs-intents';
 
@@ -43,6 +43,8 @@ export async function uploadFileToServer(
   const key: string = serverTreeKey(myCid);
   const tree: RevfsNode = await ctx.getServerTree(myCid);
   const filePath: string = dirPath.endsWith('/') ? `${dirPath}${fileName}` : `${dirPath}/${fileName}`;
+  // Not always `filePath`: see byteKeyFor.
+  const byteKey: string = byteKeyFor(tree, filePath, metadata.fileId);
   const io: RevfsIO = ctx.ensureIO();
 
   // Bytes FIRST, tree second.
@@ -63,7 +65,7 @@ export async function uploadFileToServer(
     peerCid: null,
     fileName,
     content,
-    virtualDir: filePath,
+    virtualDir: byteKey,
   });
 
   if (result.type !== 'backend-send-file' || !result.success) {
@@ -85,7 +87,7 @@ export async function uploadFileToServer(
     // What it must NOT be is what the UI passes in: `targetPath`, the containing
     // DIRECTORY. That is what made downloads and deletes address `/docs` for a
     // file stored at `/docs/notes.txt`.
-    virtualDirectory: filePath,
+    virtualDirectory: byteKey,
   };
 
   const [newTree] = treePlaceFile(tree, filePath, serverMetadata, myCid);

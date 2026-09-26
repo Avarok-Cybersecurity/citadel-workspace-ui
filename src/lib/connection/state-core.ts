@@ -156,12 +156,6 @@ export class ConnectionStateCore {
     this._storedSessions = { sessions: [] };
   }
 
-  clearSessionCids(): void {
-    for (const session of this._storedSessions.sessions) {
-      session.cid = undefined;
-    }
-  }
-
   getSessionsArray(): StoredSession[] {
     return [...this._storedSessions.sessions];
   }

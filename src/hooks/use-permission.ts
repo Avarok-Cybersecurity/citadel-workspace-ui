@@ -167,8 +167,12 @@ export function usePermission(
         runAsyncSetup(async () => {
           const result: Awaited<ReturnType<typeof fetchPermissionsForDomain>> =
             await fetchPermissionsForDomain(domainId);
-          if (cancelled) return;
+          // Before the cancellation check, not after it. The answer landing is itself
+          // what cancels this run -- it changes `permissions`, a dependency -- and the
+          // re-run returns early because the domain is now cached, so skipping this left
+          // `loading` true for good, and loading permits (measured live).
           setLocalLoading(false);
+          if (cancelled) return;
           // A null result is a failure, not an empty permission set: the
           // context swallows the error and returns null either way. On success
           // the cache fills and this effect will not run again.

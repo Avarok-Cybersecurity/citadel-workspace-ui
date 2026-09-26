@@ -4,6 +4,7 @@ import { announceWhenQuiet } from './announce-when-quiet';
 import { useToast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
 import { applyWaitingUpdate } from '@/lib/pwa/apply-waiting-update';
+import { offerDeployNotice } from '@/lib/pwa/deploy-notice';
 
 /**
  * Offers a reload when a new build has been downloaded, and confirms when the
@@ -14,8 +15,10 @@ import { applyWaitingUpdate } from '@/lib/pwa/apply-waiting-update';
  * Swapping the bundle underneath an open session would drop all of it — quietly,
  * and usually mid-conversation. The user picks the moment.
  *
- * Renders nothing; it drives the shared toast surface so update notices look
- * like every other notification rather than a bespoke banner.
+ * Renders nothing. The update offer goes to the deploy banner (DeployBanner),
+ * which stays until the page reloads: as a toast it could be dismissed or lost
+ * among other notifications, and the page then ran a superseded build against
+ * a server that had moved on. The offline-ready notice is still a toast.
  */
 
 /**
@@ -30,8 +33,7 @@ import { applyWaitingUpdate } from '@/lib/pwa/apply-waiting-update';
  */
 const UPDATE_CHECK_INTERVAL_MS: number = 60 * 60 * 1000;
 
-/** One identity for the update offer, so re-offering replaces rather than stacks. */
-const UPDATE_TOAST_ID: "pwa-update-available" = 'pwa-update-available';
+const reload = (): void => window.location.reload();
 export function PwaUpdatePrompt(): null {
   const { toast } = useToast();
 
@@ -48,16 +50,6 @@ export function PwaUpdatePrompt(): null {
   // A ref, not state: it is read inside a callback the library owns, and it
   // must not trigger a render.
   const weInitiatedUpdate: MutableRefObject<boolean> = useRef(false);
-  // `toast` is declared below and the callback above closes over this instead,
-  // so the callback does not depend on declaration order.
-  const toastRef: MutableRefObject<((opts: { title: string; description?: string; action?: { label: string; onClick: () => void; }; }) => void) | null> = useRef<
-    | ((opts: {
-        title: string;
-        description?: string;
-        action?: { label: string; onClick: () => void };
-      }) => void)
-    | null
-  >(null);
 
   const {
     offlineReady: [offlineReady, setOfflineReady],
@@ -76,11 +68,7 @@ export function PwaUpdatePrompt(): null {
       // re-offer-on-return path cannot help here either, because it is gated on
       // `registration.waiting`, which is already null once another window has
       // activated the new worker.
-      toastRef.current?.({
-        title: 'Updated in another window',
-        description: 'Reload to pick up the new version.',
-        action: { label: 'Reload', onClick: () => window.location.reload() },
-      });
+      offerDeployNotice({ reason: 'activated-elsewhere', accept: reload });
     },
     onRegisteredSW(url: string, registration: ServiceWorkerRegistration | undefined): void {
       debugLog('PWA', 'Service worker registered', url);
@@ -144,13 +132,9 @@ export function PwaUpdatePrompt(): null {
       weInitiatedUpdate.current = false;
       // The user pressed a button and is owed an outcome. If the new version is
       // already active elsewhere, a plain reload is what picks it up here.
-      window.location.reload();
+      reload();
     })();
   }, []);
-
-  useEffect(() => {
-    toastRef.current = toast;
-  }, [toast]);
 
   useEffect(() => {
     if (!offlineReady) return;
@@ -171,19 +155,9 @@ export function PwaUpdatePrompt(): null {
 
   useEffect(() => {
     if (!needRefresh) return;
-    toast({
-      title: 'Update available',
-      description: 'A new version of Citadel is ready. Reloading will reconnect your session.',
-      // No auto-dismiss: this is an action the user should get to on their own time.
-      duration: Infinity,
-      // Same id as the re-offer below. Both are infinite-duration, and the
-      // re-offer fires on every return to the tab, so without a shared identity
-      // a user who tabbed in and out collected a stack of identical prompts.
-      id: UPDATE_TOAST_ID,
-      action: { label: 'Reload', onClick: acceptUpdate },
-    });
+    offerDeployNotice({ reason: 'waiting', accept: acceptUpdate });
     setNeedRefresh(false);
-  }, [needRefresh, setNeedRefresh, acceptUpdate, toast]);
+  }, [needRefresh, setNeedRefresh, acceptUpdate]);
 
   // Re-offer the update when the user comes back to the tab.
   //
@@ -202,20 +176,14 @@ export function PwaUpdatePrompt(): null {
       void navigator.serviceWorker?.getRegistration()
         .then((registration) => {
           if (!registration?.waiting) return;
-          toast({
-            title: 'Update available',
-            description: 'A new version of Citadel is ready. Reloading will reconnect your session.',
-            duration: Infinity,
-            id: UPDATE_TOAST_ID,
-            action: { label: 'Reload', onClick: acceptUpdate },
-          });
+          offerDeployNotice({ reason: 'waiting', accept: acceptUpdate });
         })
         .catch(() => undefined);
     };
 
     document.addEventListener('visibilitychange', offerIfWaiting);
     return (): void => document.removeEventListener('visibilitychange', offerIfWaiting);
-  }, [toast, acceptUpdate]);
+  }, [acceptUpdate]);
 
   return null;
 }

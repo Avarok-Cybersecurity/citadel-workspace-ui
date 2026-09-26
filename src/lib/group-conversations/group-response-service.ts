@@ -18,7 +18,11 @@ import { getSelectedUser } from '../tab-context';
 import { isForThisSession, notificationCid } from '@/lib/sessions/notification-ownership';
 import { debugLog } from '@/lib/debug-config';
 import { toGroupEvents } from './group-events';
-import { p2pRegistrationService } from '../p2p-registration-service';
+import { rosterPeerName, rosterPeerUsername } from '@/lib/roster-peer-name';
+import { memberUsernamesFor, usernamesOf } from './member-group-record';
+import { groupIdToKey, isValidGroupId } from './group-key';
+import type { GroupEvent } from './group-events';
+import type { GroupControlBody } from './group-control-codec';
 import type { TabUserContext } from '@/lib/tab-context';
 
 let started: boolean = false;
@@ -75,6 +79,27 @@ async function resolveSelf(): Promise<{ cid: bigint; username: string } | null> 
  * Begin translating group responses into UI events. Idempotent — a second call
  * is a no-op rather than a second subscription, which would double every event.
  */
+/**
+ * Names the store will need, resolved here where the roster is: the store's own
+ * import graph stays clear of the registration service (see reconcile-groups).
+ */
+function withResolvedNames(event: GroupEvent, selfUsername: string): Record<string, unknown> {
+  switch (event.name) {
+    case 'group:message-received':
+      return { ...event.payload, memberUsernames: memberUsernamesFor(event.payload, rosterPeerUsername) };
+    case 'group:control-received': {
+      const control: GroupControlBody | undefined = event.payload.control as GroupControlBody | undefined;
+      return { ...event.payload, memberUsernames: usernamesOf((control?.assignments ?? []).map((a) => a.cid), rosterPeerUsername) };
+    }
+    case 'group:joined-list-received': {
+      const ids: string[] = (event.payload.groupIds as string[]).filter(isValidGroupId);
+      return { ...event.payload, selfUsername, memberUsernames: usernamesOf(ids.map((id) => groupIdToKey(id).cid), rosterPeerUsername) };
+    }
+    default:
+      return event.payload;
+  }
+}
+
 export function startGroupResponseService(): void {
   if (started) return;
   started = true;
@@ -108,16 +133,17 @@ export function startGroupResponseService(): void {
       }
 
       // The wire names peers only by CID; the registration roster is the one
-      // authority for their usernames. The cid string is the explicit fallback
-      // for a peer the roster has not seen — non-empty on purpose, because an
-      // invite whose inviter has no name at all is dropped as malformed.
-      const { registeredPeers } = p2pRegistrationService.getPeers();
-      const peerName = (cid: bigint): string =>
-        registeredPeers.find((p) => p.cid === cid)?.username ?? cid.toString();
-
-      for (const event of toGroupEvents(message, self.cid, self.username, peerName)) {
-        debugLog('GroupResponseService', `${event.name}`, event.payload);
-        eventEmitter.emit(event.name, event.payload);
+      // authority for their names, asked the same way calls ask it. The
+      // fallback for a peer the roster has not loaded is a short handle --
+      // non-empty on purpose, because an invite whose inviter has no name at
+      // all is dropped as malformed. It used to be `cid.toString()`, which is
+      // how an invitee's group came to be titled "<twenty digits>'s Group" and
+      // every member's message signed with the same twenty digits.
+      for (const event of toGroupEvents(message, self.cid, self.username, rosterPeerName)) {
+        // A message can bring a group this browser has never seen; see member-group-record.
+        const payload: Record<string, unknown> = withResolvedNames(event, self.username);
+        debugLog('GroupResponseService', `${event.name}`, payload);
+        eventEmitter.emit(event.name, payload);
       }
     })().catch((error) => {
       // `void` alone marks the promise handled for lint but does NOT catch —

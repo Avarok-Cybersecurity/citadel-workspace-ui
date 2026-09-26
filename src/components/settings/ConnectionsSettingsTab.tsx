@@ -47,7 +47,7 @@ export function ConnectionsSettingsTab(): JSX.Element {
         title: enabled ? 'Auto-reconnect enabled' : 'Auto-reconnect disabled',
         description: enabled
           ? 'Sessions will automatically reconnect when disconnected.'
-          : 'You will need to manually enter credentials to reconnect.',
+          : 'This browser will not sign a lost session back in. Sign in again from the start page when you need it.',
       });
     } catch (error) {
       // Revert on error
@@ -106,7 +106,7 @@ export function ConnectionsSettingsTab(): JSX.Element {
             Auto-reconnect
           </Label>
           <p className="text-xs text-muted-foreground">
-            Automatically reconnect to servers when disconnected. When disabled, you will need to manually enter credentials each time.
+            When a session to a workspace server is lost, this browser signs it back in on its own. Off: it does not try, and you sign in again from the start page.
           </p>
         </div>
         <div className="flex items-center gap-2">

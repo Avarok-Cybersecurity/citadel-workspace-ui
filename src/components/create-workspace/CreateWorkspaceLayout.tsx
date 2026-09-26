@@ -1,6 +1,7 @@
 import type { JSX, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { CitadelLogo } from '@/components/brand/CitadelLogo';
+import { BRAND_NAME } from '@/components/brand/artwork/brand-rules.generated';
 import { StepIndicator } from '@/components/ui/step-indicator';
 
 export interface CreateWorkspaceLayoutProps {
@@ -42,7 +43,7 @@ export function CreateWorkspaceLayout({ stepNumber, stepLabels, children }: Crea
       <header className="relative z-10 mx-auto flex w-full max-w-3xl items-center justify-between px-4 pt-6 sm:px-6">
         <Link
           to="/"
-          aria-label="Citadel Workspace home"
+          aria-label={`${BRAND_NAME} home`}
           className="rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <CitadelLogo variant="horizontal" height={30} />

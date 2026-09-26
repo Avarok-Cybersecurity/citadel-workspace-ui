@@ -22,6 +22,8 @@ import {
 } from '../multi-instance';
 
 import { INTERVAL } from '../timeout-constants';
+import type { ReconnectBackoff } from './reconnect-backoff';
+import { LeaderReconnect, broadcastAgentSocketState } from './leader-reconnect';
 
 // Global state key for preventing multiple WASM client initializations
 export const GLOBAL_INIT_KEY: "__citadel_wasm_client_init__" = '__citadel_wasm_client_init__';
@@ -43,6 +45,10 @@ export interface InitializationConfig {
   onClientCreated: (client: WorkspaceClient) => void;
   onClientReset: () => void;
   releaseSession: (cid: bigint) => void;
+  /** Spacing between socket opens; every open, from every path, asks it first. */
+  reconnectBackoff: ReconnectBackoff;
+  /** The service's init(): how the leader re-opens a socket it lost. */
+  reopen: () => Promise<unknown>;
 }
 
 export class WebSocketInitialization {
@@ -53,8 +59,16 @@ export class WebSocketInitialization {
   private leaderClient: WorkspaceClient | null = null;
   private creating: Promise<WorkspaceClient> | null = null;
 
+  private readonly reconnect: LeaderReconnect;
+
   constructor(config: InitializationConfig) {
     this.config = config;
+    this.reconnect = new LeaderReconnect({
+      backoff: config.reconnectBackoff,
+      wanted: (): boolean => instanceManager.isLeader && this.leaderClient === null,
+      reopen: config.reopen,
+      report: broadcastAgentSocketState,
+    });
   }
 
   /**
@@ -151,6 +165,7 @@ export class WebSocketInitialization {
    * mid-build closed nothing and left a live, deaf socket owned by a follower.
    */
   async closeLeaderClient(): Promise<void> {
+    this.reconnect.cancel();
     if (this.creating) await this.creating.catch(() => undefined);
     const client: WorkspaceClient | null = this.leaderClient;
     if (!client) return;
@@ -165,12 +180,23 @@ export class WebSocketInitialization {
       websocketUrl: this.config.websocketUrl,
       messageHandler: leaderInboundHandler(this.config.messageHandler),
       errorHandler: this.config.errorHandler,
+      // The library's own reconnect calls restart() on the process-wide WASM
+      // connection from whichever client scheduled it -- including clients this
+      // file already discarded. A discarded client restarting tore down the live
+      // client's connection, whose recovery restarted it back: two clients
+      // killing each other's socket every second, for ever. Reconnection is
+      // decided here, through reconnectBackoff, and nowhere else.
+      sessionConfig: { autoReconnect: false },
     };
+
+    this.config.reconnectBackoff.admitAttempt();
 
     try {
       debugLog('WebSocketInit', 'Creating WorkspaceClient with config', clientConfig);
       const client: WorkspaceClient = new WorkspaceClient(clientConfig);
       await client.init();
+      this.config.reconnectBackoff.connected();
+      this.reconnect.connected();
       this.leaderClient = client;
 
       eventEmitter.emit('on-ws-connection-success');
@@ -193,6 +219,8 @@ export class WebSocketInitialization {
       return client;
     } catch (error) {
       errorLog('Error initializing WorkspaceClient:', error);
+      this.config.reconnectBackoff.attemptFailed();
+      this.reconnect.lost();
 
       const errorMessage: string = error instanceof Error ? error.message : 'Failed to initialize WebSocket connection';
       eventEmitter.emit('connection-failure', { error: errorMessage });
@@ -204,6 +232,8 @@ export class WebSocketInitialization {
   private setupDisconnectionHandler(client: WorkspaceClient): void {
     setupDisconnection(client, {
       clearClient: () => {
+        this.config.reconnectBackoff.disconnected();
+        this.reconnect.lost();
         this.leaderClient = null;
         window[GLOBAL_INIT_KEY] = undefined;
       },

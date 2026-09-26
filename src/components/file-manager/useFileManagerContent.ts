@@ -2,14 +2,17 @@ import { useState, useCallback, useRef, useEffect, useMemo, type RefObject, type
 import { useRevfsTree, useServerRevfsTree } from "@/hooks/useRevfsTree";
 import { useVFSClipboard } from "@/hooks/useVFSClipboard";
 import { useVFSSelection  } from "@/hooks/useVFSSelection";
-import { connectionManager } from "@/lib/connection";
-import { p2pRegistrationService, type Peer } from "@/lib/p2p-registration-service";
-import { peerPairKey, serverTreeKey } from "@/lib/revfs/tree-operations";
+import { getCurrentCid } from "@/lib/p2p/current-cid";
+import { useRegisteredPeers } from "@/hooks/use-registered-peers";
+import { storagePeersFrom, type StoragePeer } from "./storage-peers";
+import { peerTreeKey, serverTreeKey } from "@/lib/revfs/tree-operations";
 import type { RevfsNode, TreeKey } from "@/types/revfs-types";
 import { TreeScope } from "@/types/revfs-types";
 import { INTERVAL } from "@/lib/timeout-constants";
 import { useFileManagerHandlers } from "./useFileManagerHandlers";
-import type { CurrentConnectionInfo } from '@/lib/connection/types';
+import { useUploadTarget, type UploadTarget } from './useUploadTarget';
+import { revfsDownloadHistory } from '@/lib/revfs/download-history';
+import type { FileDetails } from '@/components/layout/sidebar/file-details';
 import type { UseRevfsTreeResult, UseServerRevfsTreeResult } from '@/hooks/useRevfsTree-types';
 
 export { findNodeByPath } from '@/lib/revfs/tree-operations';
@@ -21,7 +24,8 @@ export { findNodeByPath } from '@/lib/revfs/tree-operations';
  */
 export type UseFileManagerContentResult = ReturnType<typeof useFileManagerHandlers> & {
   myCid: bigint | null;
-  registeredPeers: Peer[];
+  registeredPeers: StoragePeer[];
+  peersLoading: boolean;
   selectedPeerCid: bigint | null;
   setSelectedPeerCid: Dispatch<SetStateAction<bigint | null>>;
   storageMode: TreeScope;
@@ -33,11 +37,13 @@ export type UseFileManagerContentResult = ReturnType<typeof useFileManagerHandle
   storageUsed: UseServerRevfsTreeResult['storageUsed'];
   storageQuota: UseServerRevfsTreeResult['storageQuota'];
   revfsEnabled: UseServerRevfsTreeResult['revfsEnabled'];
+  pendingPaths: UseServerRevfsTreeResult['pendingPaths'];
   storageLabel: string;
   currentPath: string;
   setCurrentPath: Dispatch<SetStateAction<string>>;
   fileInputRef: RefObject<HTMLInputElement>;
-  uploadTargetDir: string;
+  /** The folder a picked file lands in; see useUploadTarget. */
+  takeUploadTarget: UploadTarget['take'];
   storageLimitModalOpen: boolean;
   setStorageLimitModalOpen: Dispatch<SetStateAction<boolean>>;
   attemptedFileSize: number;
@@ -45,6 +51,9 @@ export type UseFileManagerContentResult = ReturnType<typeof useFileManagerHandle
   setRevfsDisabledModalOpen: Dispatch<SetStateAction<boolean>>;
   revfsDisabledReason: 'peer_disabled' | 'server_disabled';
   propertiesNode: RevfsNode | null;
+  /** The file a "Show" asked for, in the FILES list's own dialog. */
+  shownFile: FileDetails | null;
+  setShownFile: Dispatch<SetStateAction<FileDetails | null>>;
   setPropertiesNode: Dispatch<SetStateAction<RevfsNode | null>>;
   sortField: 'name' | 'date' | 'size' | 'type';
   sortDirection: 'asc' | 'desc';
@@ -60,25 +69,32 @@ export type UseFileManagerContentResult = ReturnType<typeof useFileManagerHandle
 
 export function useFileManagerContent(): UseFileManagerContentResult {
   const [myCid, setMyCid] = useState<bigint | null>(null);
-  const [registeredPeers, setRegisteredPeers] = useState<Peer[]>([]);
   const [selectedPeerCid, setSelectedPeerCid] = useState<bigint | null>(null);
   const [storageMode, setStorageMode] = useState<TreeScope>(TreeScope.Peer);
+  // The list the sidebar shows, fetched from the agent. This read the
+  // registration service's cache, which only a registration seen in THIS tab
+  // fills, so a registered, online peer read as "No Peers Connected".
+  const { registeredPeers: listed, isLoading: peersLoading } = useRegisteredPeers();
+  const registeredPeers: StoragePeer[] = useMemo((): StoragePeer[] => storagePeersFrom(listed), [listed]);
 
+  // The tab's own session, not the global connection: a tab that resumed its
+  // session has no connection info for seconds, and that was "Connecting..."
   useEffect(() => {
+    let live: boolean = true;
     const update = (): void => {
-      const info: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
-      setMyCid(info?.cid ?? null);
-      const { registeredPeers: peers } = p2pRegistrationService.getPeers();
-      setRegisteredPeers(peers);
+      getCurrentCid().then(
+        (cid: bigint | null): void => { if (live) setMyCid(cid); },
+        (): void => { if (live) setMyCid(null); },
+      );
     };
     update();
     const interval: NodeJS.Timeout = setInterval(update, INTERVAL.HEARTBEAT_MS);
-    return (): void => clearInterval(interval);
+    return (): void => { live = false; clearInterval(interval); };
   }, []);
 
   useEffect(() => {
     if (storageMode === TreeScope.Peer && !selectedPeerCid && registeredPeers.length > 0) {
-      const firstPeer: Peer = registeredPeers[0];
+      const firstPeer: StoragePeer = registeredPeers[0];
       if (firstPeer?.cid) setSelectedPeerCid(firstPeer.cid);
     }
   }, [storageMode, selectedPeerCid, registeredPeers]);
@@ -89,14 +105,14 @@ export function useFileManagerContent(): UseFileManagerContentResult {
   );
   const serverTree: UseServerRevfsTreeResult = useServerRevfsTree(storageMode === TreeScope.Server ? myCid : null);
   const activeTree: UseServerRevfsTreeResult = storageMode === TreeScope.Server ? serverTree : peerTree;
-  const { tree, loading, error, mkdir, rmdir, uploadFile, downloadFile, removeFile, rename, move, copy, refresh, storageUsed, storageQuota, revfsEnabled } = activeTree;
+  const { tree, loading, error, mkdir, rmdir, uploadFile, downloadFile, removeFile, rename, move, copy, refresh, storageUsed, storageQuota, revfsEnabled, pendingPaths } = activeTree;
 
   const { clipboard, cut, copy: copyToClipboard, clear: clearClipboard, hasItems: hasPasteItems, isCut } = useVFSClipboard();
   const { selectedPaths, select: selectItem, selectAll, clearSelection } = useVFSSelection();
 
   const currentTreeKey: TreeKey | null = useMemo(() => {
     if (storageMode === TreeScope.Server && myCid) return serverTreeKey(myCid);
-    if (storageMode === TreeScope.Peer && myCid && selectedPeerCid) return peerPairKey(myCid, selectedPeerCid);
+    if (storageMode === TreeScope.Peer && myCid && selectedPeerCid) return peerTreeKey(myCid, selectedPeerCid);
     return null;
   }, [storageMode, myCid, selectedPeerCid]);
 
@@ -107,17 +123,18 @@ export function useFileManagerContent(): UseFileManagerContentResult {
 
   const storageLabel: string = storageMode === TreeScope.Server
     ? 'Server'
-    : registeredPeers.find(p => p.cid === selectedPeerCid)?.username ?? 'Peer';
+    : listed.find(p => p.cid === selectedPeerCid?.toString())?.displayName ?? 'Peer';
 
   const [currentPath, setCurrentPath] = useState('/');
   const fileInputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
-  const [uploadTargetDir, setUploadTargetDir] = useState('/');
+  const uploadTarget: UploadTarget = useUploadTarget(currentPath);
 
   const [storageLimitModalOpen, setStorageLimitModalOpen] = useState(false);
   const [attemptedFileSize, setAttemptedFileSize] = useState(0);
   const [revfsDisabledModalOpen, setRevfsDisabledModalOpen] = useState(false);
   const [revfsDisabledReason, setRevfsDisabledReason] = useState<'peer_disabled' | 'server_disabled'>('peer_disabled');
   const [propertiesNode, setPropertiesNode] = useState<RevfsNode | null>(null);
+  const [shownFile, setShownFile] = useState<FileDetails | null>(null);
 
   const [sortField, setSortField] = useState<'name' | 'date' | 'size' | 'type'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -167,12 +184,13 @@ export function useFileManagerContent(): UseFileManagerContentResult {
     currentTreeKey, hasPasteItems, clipboard, isCut,
     myCid, storageUsed, storageQuota, revfsEnabled, storageMode, selectedPeerCid,
     tree, currentPath, filterText, fileInputRef,
-    setUploadTargetDir, setRevfsDisabledReason, setRevfsDisabledModalOpen,
+    chooseUploadTarget: uploadTarget.choose, setRevfsDisabledReason, setRevfsDisabledModalOpen,
     setAttemptedFileSize, setStorageLimitModalOpen, setPropertiesNode,
+    storageLabel, downloadHistory: revfsDownloadHistory, showFile: setShownFile,
   });
 
   return {
-    myCid, registeredPeers, selectedPeerCid, setSelectedPeerCid,
+    myCid, registeredPeers, peersLoading, selectedPeerCid, setSelectedPeerCid,
     storageMode, setStorageMode,
     tree, loading, error,
     // Exposed so the error screen can offer a way out. It was already threaded
@@ -180,14 +198,14 @@ export function useFileManagerContent(): UseFileManagerContentResult {
     refresh,
     storageUsed, storageQuota, storageLabel,
     currentPath, setCurrentPath,
-    fileInputRef, uploadTargetDir,
+    fileInputRef, takeUploadTarget: uploadTarget.take,
     storageLimitModalOpen, setStorageLimitModalOpen, attemptedFileSize,
     revfsDisabledModalOpen, setRevfsDisabledModalOpen, revfsDisabledReason,
-    propertiesNode, setPropertiesNode,
+    propertiesNode, setPropertiesNode, shownFile, setShownFile,
     sortField, sortDirection, filterText, setFilterText,
     handleSortChange,
     cutItemPaths, hasPasteItems, selectedPaths, selectItem, clearSelection,
-    revfsEnabled,
+    revfsEnabled, pendingPaths,
     ...handlers,
   };
 }

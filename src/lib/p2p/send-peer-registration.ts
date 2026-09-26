@@ -16,8 +16,15 @@ import { debugLog } from '@/lib/debug-config';
  * Two entry points for one action, one of them real. This is the real one, and
  * now it is the only one.
  *
- * Returns the request id so the caller can correlate a later failure.
+ * Returns the request id so the caller can correlate a later failure, and
+ * whether the registration store recorded it -- a recorded request's refusal is
+ * announced by `PeerRefusalNotice`, so the caller need not say it again.
  */
+export interface SentPeerRegistration {
+  readonly requestId: string;
+  readonly recorded: boolean;
+}
+
 export async function sendPeerRegistration(
   ownCid: bigint,
   peerCid: bigint,
@@ -28,7 +35,7 @@ export async function sendPeerRegistration(
    * failure arriving early can still be matched to the peer it was about.
    */
   existingRequestId?: string,
-): Promise<string> {
+): Promise<SentPeerRegistration> {
   const requestId: string = existingRequestId ?? crypto.randomUUID();
   const now: number = Date.now();
 
@@ -94,5 +101,5 @@ export async function sendPeerRegistration(
     );
   }
 
-  return requestId;
+  return { requestId, recorded };
 }

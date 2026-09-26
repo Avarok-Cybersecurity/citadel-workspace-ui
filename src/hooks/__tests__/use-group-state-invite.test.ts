@@ -134,7 +134,8 @@ describe('buildGroupFromInvite', () => {
 });
 
 describe('applyGroupInvite', () => {
-  it('appends the new group and fires a notification on the happy path', async () => {
+  // Runs on ACCEPT now, not on arrival -- the arrival notice is bind-group-invites'.
+  it('appends the new group and says it was joined on the happy path', async () => {
     const setGroups: ReturnType<typeof vi.fn> = vi.fn();
     await applyGroupInvite(
       { groupId: 'g-1', groupName: 'X', inviterId: '5', inviterUsername: 'alice' },
@@ -146,7 +147,7 @@ describe('applyGroupInvite', () => {
     // emitters and no listener anywhere — so it passed for as long as the
     // notice reached nobody. That is how the dead path survived.
     expect(spies.toast).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Group Invitation' }),
+      expect.objectContaining({ title: 'Joined group', description: 'You joined "X"' }),
     );
   });
 

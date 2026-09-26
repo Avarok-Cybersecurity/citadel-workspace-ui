@@ -12,8 +12,8 @@ import type { JSX } from 'react';
  *     workspace password". The product has THREE different passwords in the
  *     first five minutes -- the account password the user picks in the join
  *     wizard, the optional server password on the connect step (ServerConnect
- *     labels that one "Workspace Password (Optional)", which is the same two
- *     words), and this one. Nothing anywhere said which.
+ *     labelled that one "Workspace Password (Optional)", the same two words;
+ *     it is now "Server Password"), and this one. Nothing anywhere said which.
  *   - The helper text said "Contact your workspace administrator if you don't
  *     have the password", and on a brand-new deployment there IS no
  *     administrator. This prompt is how the first one comes to exist. It sent
@@ -32,7 +32,12 @@ export function WorkspaceInitializationGuidance(): JSX.Element {
   return (
     <div className="space-y-2 text-sm text-muted-foreground">
       <p>
-        This asks for the{' '}
+        <span className="font-medium text-foreground">Created this workspace at work.avarok.net?</span>{' '}
+        Enter the <span className="font-medium text-foreground">claim code</span> you were shown
+        when you created it. It makes you the workspace&rsquo;s owner.
+      </p>
+      <p>
+        Running your own server? This asks for the{' '}
         <span className="font-medium text-foreground">workspace master password</span> — not
         the account password you chose when you registered. It is a separate secret, set by
         whoever deployed this server as{' '}

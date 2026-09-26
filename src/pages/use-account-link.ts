@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { NavigateFunction } from 'react-router';
 import { useToast } from '@/hooks/use-toast';
+import { useConfirm } from '@/components/shared/confirm-dialog';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { ACCOUNT_LINK_PARAMS, hasAccountLinkParams } from '@/lib/onboarding/account-link-params';
 
@@ -16,6 +17,7 @@ import { ACCOUNT_LINK_PARAMS, hasAccountLinkParams } from '@/lib/onboarding/acco
 export function useAccountLink(onLogin: (username: string) => void): void {
   const navigate: NavigateFunction = useNavigate();
   const { toast } = useToast();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
   /** The query string last acted on, so a StrictMode re-run does not act twice. */
   const consumed: React.MutableRefObject<string | null> = useRef<string | null>(null);
@@ -34,9 +36,9 @@ export function useAccountLink(onLogin: (username: string) => void): void {
 
     runAsyncSetup(async (): Promise<void> => {
       const { runAccountLink } = await import('./account-link-runner');
-      await runAccountLink(linkParams, { navigate, toast, login: (username: string) => latestOnLogin.current(username) });
+      await runAccountLink(linkParams, { navigate, toast, confirm, login: (username: string) => latestOnLogin.current(username) });
     });
-  }, [searchParams, setSearchParams, navigate, toast]);
+  }, [searchParams, setSearchParams, navigate, toast, confirm]);
 }
 
 /**

@@ -5,12 +5,13 @@ import { scopedSettingsKey } from './settings-key';
 import { getMimeType, formatBytes } from './transfer-format';
 import { type FileTransferMode, FILE_TRANSFER_REQUEST_TTL_MS } from '@/types/messaging-layer';
 import { FILE_TRANSFER_EVENTS } from './events';
-import { isTerminalTransferState } from './transfer-outcome';
+import { isTerminalTransferState, isStillOpen } from './transfer-outcome';
 import { completeStagedDownload } from './server-download';
 import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
 import type { FileTransfer, FileTransferSettings } from './types';
 import { wrapInMemory } from './types';
+import { openChannelBeforeSending } from './open-peer-channel';
 
 export interface LifecycleDeps {
   state: FileTransferState;
@@ -19,6 +20,8 @@ export interface LifecycleDeps {
   saveTransfer: (transfer: FileTransfer) => Promise<void>;
   saveSettings: (peerCid: string, settings: FileTransferSettings) => Promise<void>;
   handleAsyncSend: (transfer: FileTransfer, file: File) => Promise<void>;
+  /** Opens the peer's P2P channel if needed; resolves whether it opened. See open-peer-channel. */
+  openPeerChannel: (peerCid: bigint) => Promise<boolean>;
 }
 
 export async function sendFile(
@@ -58,6 +61,7 @@ export async function sendFile(
     );
   }
 
+  await openChannelBeforeSending(deps, recipientCid);
   let thumbnail: string | undefined;
   if (file.type.startsWith('image/')) {
     thumbnail = await deps.io.generateThumbnail(file);
@@ -136,6 +140,7 @@ export async function cancelTransfer(deps: LifecycleDeps, transferId: string): P
     targetCid: transfer.recipientCid,
     reason: 'Sender cancelled transfer',
   });
+  if (!isStillOpen(deps.state, transfer)) return;
 
   transfer.state = 'cancelled';
   transfer.updatedAt = Date.now();
@@ -193,6 +198,7 @@ export async function acceptTransfer(deps: LifecycleDeps, transferId: string): P
       accepted: true,
     });
   }
+  if (!isStillOpen(deps.state, transfer)) return;
 
   transfer.state = 'transferring';
   transfer.updatedAt = Date.now();

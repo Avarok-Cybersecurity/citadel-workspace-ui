@@ -3,32 +3,32 @@ import { TreeScope  } from "@/types/revfs-types";
 import { useFileManagerContent } from "./useFileManagerContent";
 import { ConnectingScreen, NoPeersScreen, LoadingScreen, ErrorScreen } from "./FileManagerStatusScreens";
 import { FileManagerStorageBar } from "./FileManagerStorageBar";
+import { fileManagerScreen, type FileManagerScreen } from "./file-manager-screen";
 import { VFSTreeView } from "./VFSTreeView";
 import { VFSContentGrid } from "./VFSContentGrid";
 import { VFSToolbar } from "./VFSToolbar";
+import { uploadRefusal } from "./upload-refusal";
 import { VFSPathBar } from "./VFSPathBar";
 import { StorageLimitModal } from "./StorageLimitModal";
 import { RevfsDisabledModal } from "./RevfsDisabledModal";
 import { VFSPropertiesDialog } from "./VFSPropertiesDialog";
+import { FilePreviewDialog } from "@/components/layout/sidebar/FilePreviewDialog";
 
 export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
   const fm: ReturnType<typeof useFileManagerContent> = useFileManagerContent();
 
   // ── Early returns ──────────────────────────────────────────────────────
 
-  if (!fm.myCid) {
-    return <ConnectingScreen />;
-  }
-
-  if (fm.storageMode === TreeScope.Peer && (fm.registeredPeers.length === 0 || !fm.selectedPeerCid)) {
-    return <NoPeersScreen onSwitchToServer={() => fm.setStorageMode(TreeScope.Server)} />;
-  }
-
-  if (fm.loading) {
-    return <LoadingScreen />;
-  }
-
-  if (fm.error || !fm.tree) {
+  const shown: FileManagerScreen = fileManagerScreen({
+    myCid: fm.myCid, storageMode: fm.storageMode, peersLoading: fm.peersLoading,
+    peerCount: fm.registeredPeers.length, selectedPeerCid: fm.selectedPeerCid,
+    treeLoading: fm.loading, hasError: Boolean(fm.error), hasTree: Boolean(fm.tree),
+  });
+  if (shown === 'connecting') return <ConnectingScreen />;
+  if (shown === 'finding-peers') return <LoadingScreen label="Finding your peers..." />;
+  if (shown === 'no-peers') return <NoPeersScreen onSwitchToServer={() => fm.setStorageMode(TreeScope.Server)} />;
+  if (shown === 'loading') return <LoadingScreen label="Loading file system..." />;
+  if (shown === 'error' || !fm.tree) {
     return <ErrorScreen error={fm.error ?? null} onRetry={() => { void fm.refresh(); }} />;
   }
 
@@ -55,7 +55,8 @@ export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
         onNavigate={fm.setCurrentPath}
         onNewFolder={() => fm.handleNewFolder(fm.currentPath)}
         onUploadFile={() => fm.handleUploadFile(fm.currentPath)}
-        onSync={fm.handleSync}
+        uploadDisabledReason={uploadRefusal(fm.currentPath)}
+        onSync={fm.storageMode === TreeScope.Peer ? fm.handleSync : null}
         filterText={fm.filterText}
         onFilterChange={fm.setFilterText}
         sortField={fm.sortField}
@@ -95,6 +96,8 @@ export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
           onPaste={fm.handlePaste}
           onDrop={fm.handleDrop}
           cutItemPaths={fm.cutItemPaths}
+          pendingPaths={fm.pendingPaths}
+          peerLabel={fm.storageLabel}
           hasPasteItems={fm.hasPasteItems}
           selectedPaths={fm.selectedPaths}
           onSelect={fm.selectItem}
@@ -114,7 +117,7 @@ export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
         multiple
         onChange={(e) => {
           if (e.target.files?.length) {
-            void fm.handleDrop(fm.uploadTargetDir, e.target.files);
+            void fm.handleDrop(fm.takeUploadTarget(), e.target.files);
             e.target.value = '';
           }
         }}
@@ -149,6 +152,12 @@ export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
         node={fm.propertiesNode}
         isOpen={fm.propertiesNode !== null}
         onClose={() => fm.setPropertiesNode(null)}
+      />
+
+      <FilePreviewDialog
+        file={fm.shownFile}
+        isOpen={fm.shownFile !== null}
+        onClose={() => fm.setShownFile(null)}
       />
     </div>
   );

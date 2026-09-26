@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { rosterDisplayName, selfDisplayName } from '@/lib/roster-display-name';
 import { useLocation } from 'react-router-dom';
 import { BaseOffice } from '../office/BaseOffice';
 import { P2PChat } from '../p2p/P2PChat';
-import { getDefaultNodeContent, getDefaultChildNodeContent, getDefaultMDXShowcase } from '@/lib/default-mdx-content';
+import { getDefaultNodeContent, getDefaultChildNodeContent, getWorkspaceHomeContent } from '@/lib/default-mdx-content';
+import { buildTreeFromNodes } from '@/components/layout/sidebar/tree-node-utils';
+import type { TreeNode } from '@/components/layout/sidebar/tree-node-types';
 import { NodeNotFound } from './NodeNotFound';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { isVariant } from 'citadel-workspace-client-ts';
@@ -14,6 +17,7 @@ import { tryParseCid } from '@/lib/utils/cid-utils';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
+import { useP2PChannelParam } from './use-p2p-channel-param';
 
 interface WorkspaceViewProps {
   nodeId?: string | null;
@@ -39,8 +43,8 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   // Parse query parameters for P2P chat
   const params: URLSearchParams = new URLSearchParams(location.search);
   const showP2P: boolean = params.get('showP2P') === 'true';
-  const peerCid: string | null = params.get('channel');
   const peerName: string | null = params.get('p2pUser');
+  const peerCid: string | null = useP2PChannelParam(params.get('channel'), peerName);
 
   // Get entity data from unified node hierarchy
   const node: DomainNode | null = nodeId ? state.nodes[nodeId] : null;
@@ -52,6 +56,11 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   // useCallback, not a bare arrow. A new identity every render put this in
   // BaseOffice's content effect dependencies and re-ran it on every unrelated
   // store change — which overwrote the editor buffer.
+  const workspaceName: string = state.workspace?.name || 'Your workspace';
+  // A string, so an unrelated store change that rebuilds `nodes` leaves the callback below alone.
+  const homeContent: string = useMemo((): string => getWorkspaceHomeContent(
+    workspaceName, state.workspace?.description ?? '', topLevelSpaces(state.nodes),
+  ), [workspaceName, state.workspace?.description, state.nodes]);
   const getInitialContent: () => string = useCallback((): string => {
     if (node && isLeafNode) {
       return getDefaultChildNodeContent(node.name, node.description);
@@ -59,11 +68,11 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
     if (node) {
       return getDefaultNodeContent(node.name);
     }
-    return getDefaultMDXShowcase();
-  }, [node, isLeafNode]);
+    return homeContent;
+  }, [node, isLeafNode, homeContent]);
 
   // Determine entity details
-  const entityTitle: string = node?.name || "Welcome to Your Workspace";
+  const entityTitle: string = node?.name || workspaceName;
 
   // When P2P chat is active, show the chat view
   if (showP2P && peerCid) {
@@ -75,7 +84,9 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
     const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
     const rawCid: bigint | undefined = tabSelection?.selectedCid ?? tabSession?.cid ?? connectionInfo?.cid;
     const currentUserCid: string | undefined = rawCid !== undefined ? String(rawCid) : undefined;
-    const currentUserName: string = tabSession?.fullName || connectionInfo?.fullName || 'You';
+    const currentUserName: string = selfDisplayName(state.members, {
+      username: tabSelection?.selectedUsername ?? tabSession?.username, fullName: tabSession?.fullName,
+    }) || 'You';
 
     // Both `BigInt(...)` calls below are funnelled through
     // `tryParseCid` so the parsing contract (and its boundary cases:
@@ -103,7 +114,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
         <P2PChat
           key={parsedPeerCid.toString()}
           peerCid={parsedPeerCid}
-          peerName={peerName || undefined}
+          peerName={rosterDisplayName(state.members, peerName ?? undefined) ?? (peerName || undefined)}
           currentUserCid={parsedCurrentUserCid}
           currentUserName={currentUserName}
         />
@@ -134,3 +145,10 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
     />
   );
 };
+
+/** The spaces directly under the workspace, by the sidebar's own rule (buildTreeFromNodes). */
+function topLevelSpaces(nodes: Record<string, DomainNode>): DomainNode[] {
+  const tree: TreeNode | null = buildTreeFromNodes(Object.values(nodes), '');
+  if (!tree) return [];
+  return tree.node.id === WORKSPACE_ROOT_ID ? tree.children.map((child: TreeNode): DomainNode => child.node) : [tree.node];
+}

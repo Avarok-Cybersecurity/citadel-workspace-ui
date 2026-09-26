@@ -32,12 +32,17 @@ describe('send failures the agent reports', () => {
   });
 
   it("keeps the agent's own words, which say more than 'send failed'", () => {
-    expect(failureReason({ message: 'Peer connection for 42 not found' })).toBe(
-      'Peer connection for 42 not found',
-    );
+    expect(failureReason({ message: 'Send timed out' })).toBe('Send timed out');
     // A blank reason still has to say something a person can act on.
     expect(failureReason({ message: '  ' })).toMatch(/could not send/i);
     expect(failureReason({})).toMatch(/could not send/i);
+  });
+
+  it('never shows a CID: the missing-channel reason names what happened instead', () => {
+    // Measured live: "Peer connection for 16578695292150393372 not found" in a toast.
+    const reason: string = failureReason({ message: 'Peer connection for 16578695292150393372 not found' });
+    expect(reason).not.toMatch(/\d{4,}/);
+    expect(reason).toMatch(/not open/i);
   });
 
   it('emits an event a surface can render', () => {
@@ -45,7 +50,7 @@ describe('send failures the agent reports', () => {
     const off: () => void = eventEmitter.on('p2p:send-failed', (e: unknown) => seen.push(e));
     expect(reportSendFailure({ cid: 7n, message: 'Peer connection for 42 not found' })).toBe(true);
     expect(seen).toHaveLength(1);
-    expect(seen[0]).toMatchObject({ cid: 7n, reason: 'Peer connection for 42 not found' });
+    expect(seen[0]).toMatchObject({ cid: 7n, reason: expect.stringMatching(/not open/i) });
     if (typeof off === 'function') off();
   });
 

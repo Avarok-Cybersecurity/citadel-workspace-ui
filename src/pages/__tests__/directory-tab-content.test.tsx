@@ -14,7 +14,7 @@ import { DirectoryTabContent } from '../DirectoryTabContent';
 import type { MemberDisplay } from '../MemberListItem';
 
 const member = (id: string, isOnline: boolean): MemberDisplay =>
-  ({ id, displayName: `User ${id}`, isOnline }) as MemberDisplay;
+  ({ id, displayName: `User ${id}`, isOnline, isSelf: false });
 
 const noop: ReturnType<typeof vi.fn> = vi.fn();
 const handlers: Pick<ComponentProps<typeof DirectoryTabContent>, 'onSendMessage' | 'onInvite' | 'onSelect'> =
@@ -23,16 +23,27 @@ const handlers: Pick<ComponentProps<typeof DirectoryTabContent>, 'onSendMessage'
 describe('an empty directory tab', () => {
   it('says nobody is online when the workspace has offline members', () => {
     render(
-      <DirectoryTabContent tab="online" members={[]} totalMembers={3} {...handlers} />,
+      <DirectoryTabContent tab="online" members={[]} totalMembers={3} presenceUnknown={0} {...handlers} />,
     );
 
     expect(screen.getByText(/nobody is online/i)).toBeInTheDocument();
     expect(screen.getByText(/currently offline/i)).toBeInTheDocument();
   });
 
+  it('does not call members offline when their presence is not known', () => {
+    render(
+      <DirectoryTabContent tab="online" members={[]} totalMembers={5} presenceUnknown={5} {...handlers} />,
+    );
+
+    // Live: a member with no contacts saw "Everyone ... is currently offline"
+    // while three of the five were online. Not knowing is not offline.
+    expect(screen.queryByText(/currently offline/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/presence isn't known yet for 5 of 5/i)).toBeInTheDocument();
+  });
+
   it('distinguishes an empty workspace from an all-offline one', () => {
     render(
-      <DirectoryTabContent tab="online" members={[]} totalMembers={0} {...handlers} />,
+      <DirectoryTabContent tab="online" members={[]} totalMembers={0} presenceUnknown={0} {...handlers} />,
     );
 
     // Telling a lone user "everyone is offline" would be a lie about people
@@ -42,7 +53,7 @@ describe('an empty directory tab', () => {
   });
 
   it('tells a user with no members what to do about it', () => {
-    render(<DirectoryTabContent tab="all" members={[]} totalMembers={0} {...handlers} />);
+    render(<DirectoryTabContent tab="all" members={[]} totalMembers={0} presenceUnknown={0} {...handlers} />);
 
     expect(screen.getByText(/no members yet/i)).toBeInTheDocument();
     expect(screen.getByText(/invite someone/i)).toBeInTheDocument();
@@ -54,6 +65,7 @@ describe('an empty directory tab', () => {
         tab="all"
         members={[member('1', true), member('2', false)]}
         totalMembers={2}
+        presenceUnknown={0}
         {...handlers}
       />,
     );

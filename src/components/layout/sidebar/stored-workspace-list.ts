@@ -7,7 +7,8 @@
  * without a connection manager, an IndexedDB read or a React render.
  */
 
-import type { StoredSession } from '@/types/session-types';
+import type { ActiveSession, StoredSession } from '@/types/session-types';
+import { dialledHost, sessionHost, sessionIsOnServer } from '@/lib/sessions/same-server';
 
 export interface StoredWorkspace {
   id: string;
@@ -64,4 +65,43 @@ export function pickCurrentWorkspace(
       )
     : undefined;
   return selected ?? workspaces.find((w) => w.isActive);
+}
+
+/**
+ * The switcher's rows: saved accounts, plus every session the agent holds live that no
+ * saved account covers.
+ *
+ * Saved accounts alone were the list, and a session resumed by claim is never saved: on
+ * a second org, the other org's live sessions were unreachable from here (measured live).
+ * A row is labelled with the current workspace's name only on the current server; any
+ * other server is labelled by its host, since its name is not known here -- it said the
+ * current org's name for every group.
+ */
+export function switcherWorkspaces(
+  stored: readonly StoredSession[],
+  live: readonly ActiveSession[],
+  workspaceName: string | undefined,
+  currentCid: bigint | null,
+): StoredWorkspace[] {
+  const saved: StoredWorkspace[] = toStoredWorkspaces(stored, workspaceName, currentCid);
+  const liveOnly: StoredWorkspace[] = live
+    .filter((session: ActiveSession) => !stored.some((s: StoredSession) => s.username === session.username && sessionIsOnServer(session, s.serverAddress)))
+    .map((session: ActiveSession): StoredWorkspace => {
+      const host: string = sessionHost(session);
+      return {
+        id: `${host}-${session.username}`,
+        username: session.username,
+        serverAddress: host,
+        workspaceName: host,
+        isActive: session.cid === currentCid,
+        cid: session.cid,
+        fullName: session.full_name,
+      };
+    });
+  const rows: StoredWorkspace[] = [...saved, ...liveOnly];
+  const current: StoredWorkspace | undefined = rows.find((row: StoredWorkspace) => row.isActive);
+  return rows.map((row: StoredWorkspace): StoredWorkspace => {
+    const onCurrent: boolean = current !== undefined && dialledHost(row.serverAddress) === dialledHost(current.serverAddress);
+    return { ...row, workspaceName: onCurrent ? (workspaceName || row.username) : dialledHost(row.serverAddress) };
+  });
 }

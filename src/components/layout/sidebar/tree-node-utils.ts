@@ -1,3 +1,4 @@
+import { searchMatcher } from '@/lib/fold-for-search';
 import { isVariant } from 'citadel-workspace-client-ts';
 import { getEntityTypeString } from '@/lib/entity-type-registry';
 import type { DomainNode, TreeNode } from './tree-node-types';
@@ -7,7 +8,11 @@ import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
  * Builds a tree structure from a flat list of DomainNodes.
  * Groups nodes by parent_id and creates a recursive TreeNode structure.
  */
-export function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
+/**
+ * `rootName` names the synthetic parent made when there are several top-level spaces:
+ * the workspace's own name. It said "Workspace", measured live.
+ */
+export function buildTreeFromNodes(nodes: DomainNode[], rootName: string): TreeNode | null {
   if (nodes.length === 0) return null;
 
   // Build lookup maps
@@ -66,7 +71,7 @@ export function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
     parent_id: null,
     entity_type: 'Workspace',
     depth: 0,
-    name: 'Workspace',
+    name: rootName,
     description: '',
     owner_id: '',
     members: [],
@@ -93,4 +98,43 @@ export function buildTreeFromNodes(nodes: DomainNode[]): TreeNode | null {
     node: syntheticRoot,
     children: roots.map(buildNode),
   };
+}
+
+/**
+ * How many spaces sit inside `nodeId`, at any depth, by `parent_id` -- the relation the
+ * tree is drawn from. A node's own `children` list can lag it: after a room was moved in,
+ * deleting its new office warned about nothing (measured live).
+ */
+export function descendantCount(nodes: readonly DomainNode[], nodeId: string): number {
+  const byParent: Map<string, string[]> = new Map();
+  for (const node of nodes) {
+    if (node.parent_id === null) continue;
+    byParent.set(node.parent_id, [...(byParent.get(node.parent_id) ?? []), node.id]);
+  }
+  let count: number = 0;
+  const pending: string[] = [...(byParent.get(nodeId) ?? [])];
+  while (pending.length > 0) {
+    const next: string = pending.pop() as string;
+    count++;
+    pending.push(...(byParent.get(next) ?? []));
+  }
+  return count;
+}
+
+/**
+ * The tree cut down to the nodes whose name matches `query`, plus their
+ * ancestors; the tree itself when the query is blank, null when nothing matches.
+ * Folded, and folded ONCE -- see fold-for-search.ts. The walk recurses over the
+ * whole tree, so a per-node fold is a per-node normalisation.
+ */
+export function filterTree(tree: TreeNode | null, query: string): TreeNode | null {
+  if (!tree || !query.trim()) return tree;
+  const matches: (haystack: string) => boolean = searchMatcher(query);
+  function filterNode(tn: TreeNode): TreeNode | null {
+    const children: TreeNode[] = tn.children
+      .map(filterNode)
+      .filter((c: TreeNode | null): c is TreeNode => c !== null);
+    return matches(tn.node.name) || children.length > 0 ? { ...tn, children } : null;
+  }
+  return filterNode(tree);
 }

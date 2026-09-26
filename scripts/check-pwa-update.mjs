@@ -150,13 +150,13 @@ async function main() {
 
     const swSource = await readFile(swPath, 'utf8');
     const bumped = swSource.replace(
-      /(\{url:"index\.html",revision:")([^"]+)(")/,
+      /(\{url:"\/",revision:")([^"]+)(")/,
       (_m, head, rev, tail) => `${head}${'d'.repeat(rev.length)}${tail}`,
     );
     if (bumped === swSource) {
       // Fail loudly rather than silently testing a deployment that changed nothing:
       // workbox's minified manifest shape is what this pattern depends on.
-      throw new Error('could not bump the index.html precache revision in sw.js - the manifest shape changed, so this check is no longer simulating a real deployment');
+      throw new Error('could not bump the shell ("/") precache revision in sw.js - the manifest shape changed, so this check is no longer simulating a real deployment');
     }
     await writeFile(swPath, bumped + '\n// deployed\n');
 
@@ -185,15 +185,14 @@ async function main() {
     // copy-under-test: the sentence IS what this check verifies reaches the
     // user. Addressing it by testid would test that a container exists while
     // saying nothing about whether it says anything.
-    const prompt = page.getByText(/A new version of Citadel is ready/i);
+    const prompt = page.getByText(/Update available\W+reload to continue/i);
     const shown = await prompt
       .waitFor({ state: 'visible', timeout: 30_000 })
       .then(() => true)
       .catch(() => false);
     record('the user is offered the update', shown);
 
-    // copy-under-test: a Sonner toast action, rendered by the toast library
-    // from a label we pass. There is no testid to address it by, and the label
+    // copy-under-test: the deploy banner's button (DeployBanner.tsx). The label
     // is part of the offer being verified -- "the offer carries a Reload
     // action" is a claim about what the user is shown.
     const reload = page.getByRole('button', { name: /^reload$/i });

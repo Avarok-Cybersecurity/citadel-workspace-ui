@@ -77,6 +77,13 @@ beforeEach((): void => {
 });
 
 describe('what the initialization prompt tells you', () => {
+  it('tells the owner of a hosted workspace that their claim code goes here', () => {
+    // Measured live on admin-lab: an owner holding a claim code was told only about an
+    // environment variable in a .env file on a server they never deployed.
+    renderPrompt();
+    expect(visibleText()).toMatch(/claim code/i);
+  });
+
   it('names the variable the operator set, not just "the workspace password"', () => {
     renderPrompt();
     expect(visibleText()).toContain('WORKSPACE_MASTER_PASSWORD');

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useMenuFocusHandoff, type MenuFocusHandoff } from './shared/menu-focus-handoff';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -10,9 +11,13 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { MoreVertical, Edit2, Trash2, Reply } from 'lucide-react';
 import type { GroupMessage } from '@/types/workspace-entities';
 import { cn } from '@/lib/utils';
-import { getInitials } from './shared';
+import { getInitials, ReplyQuote, MESSAGE_ANCHOR_ATTRIBUTE, JUMP_TARGET_CLASSES, type QuotedMessage } from './shared';
 import { GroupMessageFooter } from './GroupMessageFooter';
+import { GroupFileShareCard } from './GroupFileShareCard';
 import { BUBBLE_MAX_WIDTH } from '@/components/p2p/bubbles/types';
+import { ReactionChips } from './shared/reactions/ReactionChips';
+import { ReactionMenuItems } from './shared/reactions/ReactionMenuItems';
+import type { ReactionBinding } from './shared/reactions/reaction-binding';
 
 interface GroupMessageItemProps {
   message: GroupMessage;
@@ -36,6 +41,15 @@ interface GroupMessageItemProps {
    */
   canRevise: boolean;
   onReply: (messageId: string) => void;
+  /**
+   * Gives the composer focus after Edit or Reply. The menu returned focus to its own button
+   * when it closed -- after the choice, so typing went nowhere (measured live).
+   */
+  focusComposer: () => void;
+  /** What `reply_to` names, or `null` when this is not a reply or it is not loaded. */
+  quoted: QuotedMessage | null;
+  /** Absent where the group cannot carry reactions (a node-backed channel). */
+  reactions?: ReactionBinding;
 }
 
 export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
@@ -46,7 +60,11 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
   onDelete,
   canRevise,
   onReply,
+  focusComposer,
+  quoted,
+  reactions,
 }) => {
+  const handoff: MenuFocusHandoff = useMenuFocusHandoff(focusComposer);
   // Compared against the USERNAME, not the CID.
   //
   // The server sets `sender_id` from `get_username_by_cid`, so it is a workspace
@@ -68,8 +86,9 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
   const initials: string = getInitials(message.sender_name);
 
   return (
-    <div data-testid="message-item" className={cn(
+    <div data-testid="message-item" {...{ [MESSAGE_ANCHOR_ATTRIBUTE]: message.id }} className={cn(
       'group flex gap-3 px-4 py-2 hover:bg-accent/50 transition-colors',
+      JUMP_TARGET_CLASSES,
       isOwnMessage && 'flex-row-reverse'
     )}>
       <Avatar className="h-8 w-8 flex-shrink-0">
@@ -99,13 +118,13 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
             ? 'bg-primary text-primary-foreground'
             : 'bg-surface text-foreground'
         )}>
-          {message.reply_to && (
-            <div className="text-xs text-muted-foreground mb-1 border-l-2 border-border pl-2">
-              Replying to a message
-            </div>
-          )}
-          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          {message.reply_to && <ReplyQuote quoted={quoted} isOwn={isOwnMessage} />}
+          {message.file_share
+            ? <GroupFileShareCard share={message.file_share} senderName={message.sender_name} />
+            : <p className="whitespace-pre-wrap break-words">{message.content}</p>}
         </div>
+
+        {reactions && <ReactionChips binding={reactions} isOwn={isOwnMessage} />}
 
         <GroupMessageFooter
           message={message}
@@ -145,14 +164,17 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
               <MoreVertical className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align={isOwnMessage ? 'start' : 'end'}>
-            <DropdownMenuItem onClick={() => onReply(message.id)}>
+          <DropdownMenuContent
+            align={isOwnMessage ? 'start' : 'end'}
+            onCloseAutoFocus={handoff.onCloseAutoFocus}
+          >
+            <DropdownMenuItem onClick={handoff.toComposer(() => onReply(message.id))}>
               <Reply className="h-4 w-4 mr-2" />
               Reply
             </DropdownMenuItem>
             {isOwnMessage && canRevise && (
               <>
-                <DropdownMenuItem onClick={() => onEdit(message.id, message.content)}>
+                <DropdownMenuItem onClick={handoff.toComposer(() => onEdit(message.id, message.content))}>
                   <Edit2 className="h-4 w-4 mr-2" />
                   Edit
                 </DropdownMenuItem>
@@ -165,6 +187,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
                 </DropdownMenuItem>
               </>
             )}
+            {reactions && <ReactionMenuItems onReact={reactions.onReact} />}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

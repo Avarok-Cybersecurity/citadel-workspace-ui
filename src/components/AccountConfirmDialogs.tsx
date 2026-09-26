@@ -72,8 +72,14 @@ export function ClearAllConfirmDialog({ open, onOpenChange, onConfirm }: ClearAl
         <AlertDialogHeader>
           <AlertDialogTitle className="text-foreground">Clear All Accounts</AlertDialogTitle>
           <AlertDialogDescription className="text-foreground/80">
-            Remove all saved accounts from this device? This signs you out and clears
-            the stored credentials.
+            {/*
+              The twin of the note above, missed when that one was corrected: this said
+              "This signs you out and clears the stored credentials". removeAllSessions()
+              empties the saved list and nothing else -- live sessions stay signed in
+              (measured), and no credentials are stored to clear.
+            */}
+            Remove every account from the list saved on this device? Accounts that are
+            signed in now stay signed in; sign out of one to end it.
             <span className="mt-2 block">
               Messages already stored on this device are <strong>not</strong> deleted.
             </span>

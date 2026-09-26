@@ -11,7 +11,7 @@ import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
 import { TreeScope } from '@/types/revfs-types';
 import { revfsService } from '@/lib/revfs';
 import { fileTransferService } from '@/lib/file-transfer';
-import { peerPairKey, calculateStorageUsage } from '@/lib/revfs/tree-operations';
+import { peerTreeKey, calculateStorageUsage } from '@/lib/revfs/tree-operations';
 import { DEFAULT_QUOTA_BYTES , type UseRevfsTreeResult } from './useRevfsTree-types';
 import type { FileTransferSettings } from '@/lib/file-transfer/types';
 
@@ -22,8 +22,9 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
   const [tree, setTree] = useState<RevfsNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingPaths, setPendingPaths] = useState<ReadonlySet<string>>(new Set<string>());
 
-  const key: string | null = myCid && peerCid ? peerPairKey(myCid, peerCid) : null;
+  const key: string | null = myCid && peerCid ? peerTreeKey(myCid, peerCid) : null;
 
   const storageUsed: number = useMemo(() => {
     if (!tree) return 0;
@@ -61,6 +62,27 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     void loadTree();
   }, [loadTree]);
 
+  /**
+   * Re-read what the service holds once a change of ours has settled.
+   *
+   * The tree-changed event is the fast path, and it depends on the event's key
+   * matching this view's key. When it does not fire for any reason, an upload
+   * the service has recorded stayed off screen with "0 B used" beside it. The
+   * service's cache is the authority, so the view asks it directly; the same
+   * moment is when an acknowledgement has arrived or been given up on, so the
+   * pending marks are refreshed here too.
+   */
+  const afterChange: <T>(change: Promise<T>) => Promise<T> = useCallback(async <T,>(change: Promise<T>): Promise<T> => {
+    try {
+      return await change;
+    } finally {
+      if (myCid && peerCid) {
+        setPendingPaths(revfsService.pendingPaths(myCid, peerCid));
+        await revfsService.getTree(myCid, peerCid).then(setTree, (): void => {});
+      }
+    }
+  }, [myCid, peerCid]);
+
   useEffect(() => {
     if (!key) return;
     const unsub: () => void = revfsService.onTreeChanged((changedKey, newTree): void => {
@@ -68,7 +90,7 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
       // reports the folder removed, persisted AND acknowledged by the peer,
       // and the row stays on screen. Every link between the two checks out by
       // reading -- setTree notifies, this is subscribed, the view renders
-      // `activeTree.tree`, and `peerPairKey` sorts its cids so both sides
+      // `activeTree.tree`, and `peerTreeKey` sorts its cids so both sides
       // agree -- so the thing to find out is which link does not fire.
       debugLog('UseRevfsTree', 'tree changed', {
         changedKey,
@@ -78,28 +100,29 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
       });
       if (changedKey === key) {
         setTree(newTree);
+        if (myCid && peerCid) setPendingPaths(revfsService.pendingPaths(myCid, peerCid));
       }
     });
     return unsub;
-  }, [key]);
+  }, [key, myCid, peerCid]);
 
   const mkdir: (path: string) => Promise<boolean> = useCallback(async (path: string): Promise<boolean> => {
     // No session: the peer certainly has not acknowledged anything.
     if (!myCid || !peerCid) return false;
-    return revfsService.mkdir(myCid, peerCid, path);
-  }, [myCid, peerCid]);
+    return afterChange(revfsService.mkdir(myCid, peerCid, path));
+  }, [myCid, peerCid, afterChange]);
 
   const rmdir: (path: string) => Promise<boolean> = useCallback(async (path: string): Promise<boolean> => {
     // No session: the peer certainly has not acknowledged anything.
     if (!myCid || !peerCid) return false;
-    return revfsService.rmdir(myCid, peerCid, path);
-  }, [myCid, peerCid]);
+    return afterChange(revfsService.rmdir(myCid, peerCid, path));
+  }, [myCid, peerCid, afterChange]);
 
   const uploadFile: (dirPath: string, fileName: string, metadata: RevfsFileMetadata, content: Uint8Array) => Promise<boolean> = useCallback(async (dirPath: string, fileName: string, metadata: RevfsFileMetadata, content: Uint8Array): Promise<boolean> => {
     // No session: the peer certainly has not acknowledged anything.
     if (!myCid || !peerCid) return false;
-    return revfsService.uploadFileToPeer(myCid, peerCid, dirPath, fileName, metadata, content);
-  }, [myCid, peerCid]);
+    return afterChange(revfsService.uploadFileToPeer(myCid, peerCid, dirPath, fileName, metadata, content));
+  }, [myCid, peerCid, afterChange]);
 
   const downloadFile: (filePath: string) => Promise<string | undefined> = useCallback(async (filePath: string): Promise<string | undefined> => {
     if (!myCid || !peerCid) return undefined;
@@ -109,26 +132,26 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
   const removeFile: (filePath: string) => Promise<boolean> = useCallback(async (filePath: string): Promise<boolean> => {
     // No session: the peer certainly has not acknowledged anything.
     if (!myCid || !peerCid) return false;
-    return revfsService.removeFileFromPeer(myCid, peerCid, filePath);
-  }, [myCid, peerCid]);
+    return afterChange(revfsService.removeFileFromPeer(myCid, peerCid, filePath));
+  }, [myCid, peerCid, afterChange]);
 
   const rename: (path: string, newName: string) => Promise<boolean> = useCallback(async (path: string, newName: string): Promise<boolean> => {
     // No session: the peer certainly has not acknowledged anything.
     if (!myCid || !peerCid) return false;
-    return revfsService.rename(myCid, peerCid, path, newName);
-  }, [myCid, peerCid]);
+    return afterChange(revfsService.rename(myCid, peerCid, path, newName));
+  }, [myCid, peerCid, afterChange]);
 
   const move: (sourcePath: string, destParentPath: string) => Promise<boolean> = useCallback(async (sourcePath: string, destParentPath: string): Promise<boolean> => {
     // No session: the peer certainly has not acknowledged anything.
     if (!myCid || !peerCid) return false;
-    return revfsService.move(myCid, peerCid, sourcePath, destParentPath);
-  }, [myCid, peerCid]);
+    return afterChange(revfsService.move(myCid, peerCid, sourcePath, destParentPath));
+  }, [myCid, peerCid, afterChange]);
 
   const copy: (sourcePath: string, destParentPath: string) => Promise<boolean> = useCallback(async (sourcePath: string, destParentPath: string): Promise<boolean> => {
     // No session: the peer certainly has not acknowledged anything.
     if (!myCid || !peerCid) return false;
-    return revfsService.copy(myCid, peerCid, sourcePath, destParentPath);
-  }, [myCid, peerCid]);
+    return afterChange(revfsService.copy(myCid, peerCid, sourcePath, destParentPath));
+  }, [myCid, peerCid, afterChange]);
 
   return {
     tree,
@@ -146,5 +169,6 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     move,
     copy,
     refresh: loadTree,
+    pendingPaths,
   };
 }

@@ -1,4 +1,5 @@
 import { isPlaceholderName } from '@/lib/peer-display';
+import { useSelfName } from '@/hooks/use-self-name';
 import { AppLayout } from "@/components/layout/AppLayout";
 import { P2PPeerList } from "@/components/p2p/P2PPeerList";
 import { P2PChat } from "@/components/p2p/P2PChat";
@@ -31,7 +32,7 @@ const Messages: () => JSX.Element = (): JSX.Element => {
   // Get current user info
   const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
   const currentUserCid: bigint | undefined = connectionInfo?.cid;
-  const currentUserName: string = connectionInfo?.username || 'You';
+  const currentUserName: string = useSelfName().name || 'You';
 
   // Resolve peer CID to username
   const selectedPeerName: string = useMemo(() => {

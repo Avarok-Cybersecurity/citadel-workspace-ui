@@ -27,6 +27,14 @@ export interface PeerGroupMessage {
   timestamp: number;
   /** The message this replies to, so threading survives the peer wire. */
   reply_to?: string;
+  /**
+   * The group's name, as its OWNER calls it.
+   *
+   * `GroupCreate` and `GroupInvite` have no name field, so this envelope is the
+   * only thing members exchange that can carry one. The receiver honours it
+   * only when the protocol says the owner sent it -- see peer-group-inbound.
+   */
+  group_name?: string;
 }
 
 export function encodeGroupMessage(message: PeerGroupMessage): Uint8Array {
@@ -44,6 +52,8 @@ export function decodeGroupMessage(bytes: Uint8Array): PeerGroupMessage | null {
   try {
     const decoded: unknown = cborDecode(bytes);
     if (!decoded || typeof decoded !== 'object') return null;
+    // A control envelope is never chat, even one that also carries text; see group-control-codec.
+    if ('control' in decoded) return null;
     const candidate: Partial<PeerGroupMessage> = decoded as Partial<PeerGroupMessage>;
     if (typeof candidate.group_id !== 'string') return null;
     if (typeof candidate.message_id !== 'string') return null;
@@ -53,6 +63,7 @@ export function decodeGroupMessage(bytes: Uint8Array): PeerGroupMessage | null {
       group_id: candidate.group_id,
       message_id: candidate.message_id,
       reply_to: typeof candidate.reply_to === 'string' ? candidate.reply_to : undefined,
+      group_name: typeof candidate.group_name === 'string' ? candidate.group_name : undefined,
       sender_cid: candidate.sender_cid,
       content: candidate.content,
       timestamp: typeof candidate.timestamp === 'number' ? candidate.timestamp : Date.now(),

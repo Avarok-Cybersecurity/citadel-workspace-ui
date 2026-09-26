@@ -40,6 +40,8 @@ import { isAlreadyRegistered } from '@/lib/peer-registration-store/already-regis
 export interface SentRequest {
   readonly cid: bigint;
   readonly username: string;
+  /** The store recorded it, so `PeerRefusalNotice` announces a refusal; undefined until the send returns. */
+  recorded?: boolean;
 }
 
 /** The peer a failure is about, or undefined when the request is not ours. */
@@ -91,4 +93,24 @@ export function applyPeerRegisterFailure(
     return;
   }
   deps.reportRefusal(outcome.reason);
+}
+
+/** Notes on the sent entry whether the store recorded it (see `SentRequest.recorded`). */
+export function noteRecorded(sent: Map<string, SentRequest>, requestId: string, recorded: boolean): void {
+  const entry: SentRequest | undefined = sent.get(requestId);
+  if (entry) entry.recorded = recorded;
+}
+
+/**
+ * What the discovery view says about a refusal, or null when it says nothing:
+ * a recorded request's refusal is `PeerRefusalNotice`'s to announce, with the
+ * reason when the peer published one, and saying it here too put two toasts on
+ * screen for one decline. Unknown (the answer beat the send's return) counts as
+ * recorded, since the store writes before the request goes out.
+ */
+export function discoveryRefusalCopy(peer: SentRequest, reason: string | undefined): string | null {
+  if (peer.recorded !== false) return null;
+  return reason
+    ? `Your request to ${peer.username} was not accepted: ${reason}`
+    : `Your request to ${peer.username} could not be delivered.`;
 }

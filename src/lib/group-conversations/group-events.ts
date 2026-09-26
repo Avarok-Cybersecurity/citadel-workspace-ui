@@ -19,7 +19,8 @@
 import { GROUP_FAILURE_VARIANTS } from './group-failure-variants';
 import { groupKeyToId, parseGroupKey } from './group-key';
 import { variant, toCid, memberCids } from './group-wire-variants';
-import { peerGroupMessageEvent, type PeerGroupMessageSummary } from './peer-group-inbound';
+import { joinedGroupEvents } from './joined-group-events';
+import { peerGroupBodyEvents } from './peer-group-body-events';
 
 export interface GroupEvent {
   name:
@@ -35,6 +36,10 @@ export interface GroupEvent {
      * sidebar's badge, preview and recency sort work for both.
      */
     | 'group:message-received'
+    /** A rename or role change from a member; never a chat bubble. See apply-group-control. */
+    | 'group:control-received'
+    /** A member's reaction on a message; never a chat bubble. See peer-group-reaction-inbound. */
+    | 'group:reaction-received'
     /**
      * The server's answer to `GroupListGroupsFor` — the only message that can
      * establish a group is GONE. Every other event is additive or arrives only
@@ -42,6 +47,10 @@ export interface GroupEvent {
      * offline is in the sidebar forever. See reconcile-groups.ts.
      */
     | 'group:list-received'
+    /** The groups this session is in, from the agent; see learn-joined-groups.ts. */
+    | 'group:joined-list-received'
+    /** The server removed the member a `GroupKick` named; see await-group-kicked.ts. */
+    | 'group:kick-succeeded'
     /**
      * The server refused a group operation.
      *
@@ -74,6 +83,8 @@ export function toGroupEvents(
   selfUsername: string,
   peerName: PeerNameResolver,
 ): GroupEvent[] {
+  const joined: GroupEvent[] | null = joinedGroupEvents(message);
+  if (joined) return joined;
   const created: Record<string, unknown> | undefined = variant(message, 'GroupCreateSuccess') ?? variant(message, 'GroupChannelCreateSuccess');
   if (created) {
     return [{
@@ -173,15 +184,11 @@ export function toGroupEvents(
     }];
   }
 
-  // A peer-group message. Distinct from the WORKSPACE protocol notification of
-  // the same name, which `workspace-response-handler/group-handlers.ts` owns
-  // and which carries an already-formed GroupMessage rather than bytes.
+  // A peer-group message; not the WORKSPACE notification of the same name,
+  // which `workspace-response-handler/group-handlers.ts` owns.
   const groupMessage: Record<string, unknown> | undefined = variant(message, 'GroupMessageNotification');
-  if (groupMessage) {
-    const summary: PeerGroupMessageSummary | null = peerGroupMessageEvent(groupMessage, peerName);
-    if (!summary) return [];
-    return [{ name: 'group:message-received' as const, payload: { ...summary } }];
-  }
+  // Control, reaction or chat; see peer-group-body-events for the order.
+  if (groupMessage) return peerGroupBodyEvents(groupMessage, peerName, selfUsername);
 
   const ended: Record<string, unknown> | undefined = variant(message, 'GroupEndNotification');
   if (ended) {
@@ -208,10 +215,17 @@ export function toGroupEvents(
   // it was equally unhandled.
   const disconnected: Record<string, unknown> | undefined = variant(message, 'GroupDisconnectNotification');
   if (disconnected) {
+    // `byOthers`: someone else ended it or removed you; the owner's own delete needs no notice.
     return [{
       name: 'group:deleted',
-      payload: { groupId: groupKeyToId(parseGroupKey(disconnected.group_key)) },
+      payload: { groupId: groupKeyToId(parseGroupKey(disconnected.group_key)), byOthers: true },
     }];
+  }
+
+  // Names no member: the kicker learns WHO only from its own request id.
+  const kicked: Record<string, unknown> | undefined = variant(message, 'GroupKickSuccess');
+  if (kicked && typeof kicked.request_id === 'string') {
+    return [{ name: 'group:kick-succeeded', payload: { requestId: kicked.request_id } }];
   }
 
   // Both spellings: the internal service declares GroupListGroupsSuccess and

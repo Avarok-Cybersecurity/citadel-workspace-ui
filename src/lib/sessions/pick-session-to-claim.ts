@@ -20,8 +20,8 @@ export interface SessionChoice {
 /**
  * Which live session this tab should claim, given what it last had selected.
  *
- * Pure, so the rule -- prefer the remembered session, fall back to the first
- * live one -- can be read in one place and tested without a connection manager.
+ * Pure, so the rule -- the remembered session, or (only when nothing is remembered)
+ * the first live one -- can be read in one place and tested without a connection manager.
  */
 export function pickSessionToClaim(
   activeSessions: ActiveSession[],
@@ -32,8 +32,14 @@ export function pickSessionToClaim(
   if (selectedCid) {
     const remembered: ActiveSession | undefined = activeSessions.find((s) => s.cid === selectedCid);
     if (remembered) return { session: remembered, staleSelection: false };
-    return { session: activeSessions[0], staleSelection: true };
+    // The tab's own account is gone. Another live session is somebody else's account,
+    // not a substitute: claiming it offered to take over the wrong person's session.
+    return { session: undefined, staleSelection: true };
   }
 
-  return { session: activeSessions[0], staleSelection: false };
+  // Nothing remembered: resume only when there is no choice to make. The agent can hold
+  // several people's accounts; with more than one live, the landing page lets the person
+  // pick (measured live: a tab with no selection offered alice0924's session to whoever
+  // opened it).
+  return { session: activeSessions.length === 1 ? activeSessions[0] : undefined, staleSelection: false };
 }

@@ -17,6 +17,8 @@ interface DirectoryTabContentProps {
   /** Every member, not just this tab's — "nobody online" and "nobody at all"
    *  are different states and only this distinguishes them. */
   totalMembers: number;
+  /** Members whose presence nobody has reported: the Online tab cannot call them offline. */
+  presenceUnknown: number;
   onSendMessage: (userId: string) => void;
   onInvite: (userId: string) => void;
   onSelect: (userId: string) => void;
@@ -26,6 +28,7 @@ export function DirectoryTabContent({
   tab,
   members,
   totalMembers,
+  presenceUnknown,
   onSendMessage,
   onInvite,
   onSelect,
@@ -39,7 +42,9 @@ export function DirectoryTabContent({
           description={
             tab === 'online'
               ? totalMembers > 0
-                ? 'Everyone in this workspace is currently offline. They will appear here when they connect.'
+                ? presenceUnknown > 0
+                  ? `Nobody is shown as online. Presence isn't known yet for ${presenceUnknown} of ${totalMembers} members.`
+                  : 'Everyone in this workspace is currently offline. They will appear here when they connect.'
                 : 'There is nobody in this workspace yet, so nobody can be online.'
               : 'Invite someone to this workspace and they will appear here.'
           }

@@ -4,6 +4,7 @@ import { OrphanSessionIcon } from "./OrphanSessionIcon";
 import { DisconnectConfirmModal } from "./DisconnectConfirmModal";
 import { DisconnectLoadingModal } from "./LoadingModal";
 import { useOrphanSessions } from "./useOrphanSessions";
+import { LazyTakeoverSignIn as TakeoverSignIn } from "./LazyTakeoverSignIn";
 
 export const OrphanSessionsNavbar: () => JSX.Element | null = (): JSX.Element | null => {
   const {
@@ -18,6 +19,8 @@ export const OrphanSessionsNavbar: () => JSX.Element | null = (): JSX.Element | 
     handleDisconnect,
     handleConfirmDisconnect,
     handleLoadingComplete,
+    takeoverUsername,
+    clearTakeover,
   } = useOrphanSessions();
 
   // Load sessions, and keep asking while the answer is still "none".
@@ -72,8 +75,10 @@ export const OrphanSessionsNavbar: () => JSX.Element | null = (): JSX.Element | 
 
   return (
     <>
+      {/* Below the update/offline banner, not under it: that strip is fixed at the top of
+          a header-less page and swallowed every click on these chips (measured live). */}
       <div
-        className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border"
+        className="fixed top-[var(--offline-banner-height,0px)] left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border"
         data-testid="previous-sessions-navbar"
       >
         <div className="container mx-auto px-6 py-2">
@@ -102,6 +107,8 @@ export const OrphanSessionsNavbar: () => JSX.Element | null = (): JSX.Element | 
           </div>
         </div>
       </div>
+
+      <TakeoverSignIn username={takeoverUsername} onClose={clearTakeover} />
 
       <DisconnectConfirmModal
         open={disconnectTarget !== null}

@@ -65,12 +65,22 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
     }
   };
 
+  /** Returns focus to the editor after React applies the new value, caret at `at`. */
+  const restoreCaret = (textarea: HTMLTextAreaElement, at: number): void => {
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(at, at);
+    }, 0);
+  };
+
   // Format handlers
   const handleBold = (): void => formatText('**');
   const handleItalic = (): void => formatText('*');
   const handleUnderline = (): void => formatText('__');
   const handleCode = (): void => formatText('`');
-  const handleBlockquote = (): void => formatText('> ');
+  // Prefix-only markup passes an empty suffix: formatText's default repeats the prefix,
+  // right for **bold**, and it inserted "> > ", "- - " and a link twice (measured live).
+  const handleBlockquote = (): void => formatText('> ', '');
 
   const handleHeading = (level: number): void => {
     const prefix: string = '#'.repeat(level) + ' ';
@@ -93,6 +103,8 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
     }
 
     onChange(newText);
+    // Back to the editor, caret after the prefix: the button kept focus, so typing went nowhere.
+    restoreCaret(textarea, start + (newText.length - value.length));
   };
 
   const handleLink = (): void => {
@@ -101,7 +113,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
     if (selectedText) {
       formatText('[', '](url)');
     } else {
-      formatText('[Link text](url)');
+      formatText('[Link text](url)', '');
     }
   };
 
@@ -134,7 +146,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
 
     if (start === end) {
       const prefix: "1. " | "- " = ordered ? '1. ' : '- ';
-      formatText(prefix);
+      formatText(prefix, '');
     } else {
       const selectedText: string = value.substring(start, end);
       const lines: string[] = selectedText.split('\n');
@@ -147,6 +159,7 @@ export const MDXEditor: React.FC<MDXEditorProps> = ({
       const replacement: string = formattedLines.join('\n');
       const newText: string = value.substring(0, start) + replacement + value.substring(end);
       onChange(newText);
+      restoreCaret(textarea, start + replacement.length);
     }
   };
 

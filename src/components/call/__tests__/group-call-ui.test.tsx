@@ -73,7 +73,7 @@ function ctx(overrides: Partial<CallContextValue> = {}): CallContextValue {
 function renderControls(value: CallContextValue, roster: GroupCallMember[]): RenderResult {
   return render(
     <CallContext.Provider value={value}>
-      <GroupCallControls roomId={ROOM} roomName="Design" members={roster} />
+      <GroupCallControls roomId={ROOM} roomName="Design" members={roster} notConnected={[]} />
     </CallContext.Provider>,
   );
 }

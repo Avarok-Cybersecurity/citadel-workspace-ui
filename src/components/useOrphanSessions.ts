@@ -12,13 +12,15 @@ import { websocketService } from "@/lib/websocket-service";
 import type { ActiveSession, StoredSessions } from "@/types/session-types";
 import type { DisconnectAction } from "./DisconnectConfirmModal";
 import type { DisconnectStatus } from "./LoadingModal";
-import { useToast, useEventListener } from "@/hooks";
+import { useToast } from "@/hooks/use-toast";
+import { useEventListener } from "@/hooks/use-event-listener";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { notificationService, type UnreadCountChange } from "@/lib/notification-service";
 import { serverAutoConnectService } from "@/lib/server-auto-connect-service";
 import { debugLog } from '@/lib/debug-config';
 import type { NavigateFunction } from 'react-router';
 import { signOutSession, type SignOutResult, type SignOutTarget } from './sign-out-session';
+import { useConfirm } from './shared/confirm-dialog';
 
 export interface OrphanSessionWithWorkspace extends ActiveSession {
   workspaceName: string;
@@ -29,6 +31,8 @@ export interface OrphanSessionWithWorkspace extends ActiveSession {
 export function useOrphanSessions(): UseOrphanSessionsResult {
   const navigate: NavigateFunction = useNavigate();
   const { toast } = useToast();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
+  const [takeoverUsername, setTakeoverUsername] = useState<string | null>(null);
   const [sessions, setSessions] = useState<OrphanSessionWithWorkspace[]>([]);
   const [disconnectTarget, setDisconnectTarget] = useState<{
     session: ActiveSession;
@@ -78,7 +82,7 @@ export function useOrphanSessions(): UseOrphanSessionsResult {
   }, []);
 
   const handleNavigate = (session: OrphanSessionWithWorkspace): Promise<void> =>
-    switchToSession(session, { navigate, toast });
+    switchToSession(session, { navigate, toast, confirm, signInAs: setTakeoverUsername });
 
   const handleDisconnect = (session: OrphanSessionWithWorkspace): void => {
     setDisconnectTarget({ session, workspaceName: session.workspaceName });
@@ -156,6 +160,8 @@ export function useOrphanSessions(): UseOrphanSessionsResult {
   useEventListener<UnreadCountChange>('unread-count-changed', handleUnreadCountChanged);
 
   return {
+    takeoverUsername,
+    clearTakeover: (): void => setTakeoverUsername(null),
     sessions,
     disconnectTarget,
     setDisconnectTarget,

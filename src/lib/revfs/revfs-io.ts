@@ -18,6 +18,13 @@ import { backendSendFile, backendDeleteFile } from './revfs-io-network';
 import { backendDownloadFile } from './revfs-io-download';
 
 export interface RevfsIODeps {
+  /**
+   * Open the P2P channel to a peer, resolving whether it is open. Every peer-scoped
+   * intent awaits this first: after a server restart the channel is gone, and a send
+   * then failed with "Peer connection for <cid> not found" while a chat message to the
+   * same peer -- whose sender opens the channel -- went through.
+   */
+  openPeerChannel: (peerCid: bigint) => Promise<boolean>;
   sendP2PMessageReliable: (localCid: bigint, peerCid: bigint, message: Uint8Array) => Promise<void>;
   getCurrentCid: () => Promise<bigint | null>;
   /** Send an internal service request (SendFile, DownloadFile, DeleteVirtualFile) */
@@ -33,6 +40,11 @@ export class RevfsIO {
   }
 
   async execute(intent: RevfsIntent): Promise<RevfsIntentResult> {
+    const peerCid: bigint | null = 'peerCid' in intent ? intent.peerCid : null;
+    // Not opening in time is logged, not thrown: the send itself reports the real outcome.
+    if (peerCid !== null && !(await this.deps.openPeerChannel(peerCid))) {
+      debugLog('RevfsIO', `P2P channel to ${peerCid} not confirmed open; sending anyway`);
+    }
     switch (intent.type) {
       case 'send-revfs-op':
         return this.sendRevfsOp(intent.peerCid, intent.operation);

@@ -12,7 +12,7 @@ import type { CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
 import { useInboundMedia } from './use-inbound-media';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
 import { eventEmitter } from '@/lib/event-emitter';
-import { callPeerName } from '@/lib/call/peer-name';
+import { rosterPeerName } from '@/lib/roster-peer-name';
 import { toast } from 'sonner';
 import { startCall as runStartCall } from './start-call';
 import { useCallCapability } from './use-call-capability';
@@ -80,7 +80,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
         // keys on — but it is not a name. Resolve against the registration
         // roster so the incoming-call card and the participant tile show who is
         // calling rather than a twenty-digit number.
-        await manager.handleSignal(peerCid, callPeerName(peerCid), payload);
+        await manager.handleSignal(peerCid, rosterPeerName(peerCid), payload);
         // Signals carry the codec facts; each one is followed by a sync so
         // decoders and our send codec track what peers actually advertised.
         await syncNegotiatedCodecs(manager, sessionRef.current);

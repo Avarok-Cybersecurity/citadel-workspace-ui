@@ -5,7 +5,9 @@
  * Supports real-time updates, pagination, threading, and message actions.
  */
 
-import React from 'react';
+import React, { useMemo, useRef } from 'react';
+import type { GroupMessage } from '@/types/workspace-entities';
+import { quoteGroupReply } from './shared/reply-quote';
 import { groupMessageActions, type GroupMessageActions } from '@/lib/group-conversations/group-message-actions';
 import { DateSeparator } from './shared/DateSeparator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -15,6 +17,9 @@ import { Send, Loader2 } from 'lucide-react';
 import { useGroupChat } from './useGroupChat';
 import { restrictionText, type GroupRestriction } from './group-restriction';
 import { GroupMessageItem } from './GroupMessageItem';
+import { GroupAttachButton } from './GroupAttachButton';
+import { groupSendTransport } from '@/lib/group-conversations/group-send-transport';
+import { groupReactionBinding } from './group-reaction-binding';
 
 interface GroupChatViewProps {
   groupId: string;
@@ -46,8 +51,15 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   sendRestriction,
 }) => {
   const chat: ReturnType<typeof useGroupChat> = useGroupChat(groupId);
+  // The composer, for GroupMessageItem to focus after Edit or Reply (see focusComposer).
+  const composerRef: React.RefObject<HTMLTextAreaElement> = useRef<HTMLTextAreaElement>(null);
   // A peer group has no edit or delete on the wire; see group-message-actions.
   const actions: GroupMessageActions = groupMessageActions(groupId);
+  // What each reply quotes, looked up among the messages already loaded.
+  const byId: Map<string, GroupMessage> = useMemo(
+    () => new Map(chat.messages.map((m: GroupMessage): [string, GroupMessage] => [m.id, m])),
+    [chat.messages],
+  );
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -74,7 +86,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
           ) : (
             <>
             {/* Load more button */}
-            {chat.hasMore && (
+            {chat.hasMore && actions.canPageOlder && (
               <div className="flex justify-center mb-4">
                 <Button
                   variant="ghost"
@@ -106,7 +118,10 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
                     }}
                     onDelete={chat.handleDeleteMessage}
                     onReply={(id) => chat.setReplyToId(id)}
+                    focusComposer={(): void => { composerRef.current?.focus(); }}
                     canRevise={actions.canRevise}
+                    quoted={message.reply_to ? quoteGroupReply(message.reply_to, byId) : null}
+                    reactions={actions.canReact ? groupReactionBinding(groupId, message) : undefined}
                   />
                 ))}
               </div>
@@ -164,7 +179,10 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
       ) : (
       <div className="p-4 border-t border-surface/50">
         <div className="flex gap-2">
+          {/* Peer groups only: a node-backed channel's server has no file path. */}
+          {groupSendTransport(groupId) === 'peer' && !chat.editingId && <GroupAttachButton groupId={groupId} />}
           <Textarea
+            ref={composerRef}
             value={chat.editingId ? chat.editContent : chat.inputValue}
             onChange={(e) =>
               chat.editingId

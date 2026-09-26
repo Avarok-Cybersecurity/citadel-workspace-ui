@@ -16,6 +16,7 @@
 import { groupMessagingManager } from '@/lib/group-messaging-manager';
 import { GroupMessageTypeTS } from '@/types/workspace-protocol';
 import type { GroupMessage } from '@/types/workspace-entities';
+import type { GroupFileShare } from '@/types/group-file-share';
 
 export interface PeerGroupDelivery {
   groupId: string;
@@ -32,6 +33,8 @@ export interface PeerGroupDelivery {
   content: string;
   timestamp: number;
   replyTo?: string;
+  /** A shared file; see group-file-codec. */
+  fileShare?: GroupFileShare;
 }
 
 export function deliverPeerGroupMessage(delivery: PeerGroupDelivery): void {
@@ -47,6 +50,7 @@ export function deliverPeerGroupMessage(delivery: PeerGroupDelivery): void {
     reply_count: 0,
     mentions: [],
     edited_at: null,
+    ...(delivery.fileShare ? { file_share: delivery.fileShare } : {}),
   };
   groupMessagingManager.handleNewMessage(delivery.groupId, message);
 }

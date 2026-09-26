@@ -24,6 +24,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { JoinRegistration } from '../join-registration-shape';
 import { Join } from '../Join';
+import { BLANK_JOIN_FORM } from '../join-form-blank';
 
 /**
  * What `useJoinRegistration` returns, with only the flags each case needs
@@ -36,7 +37,7 @@ import { Join } from '../Join';
  * registration that would need a backend.
  */
 const registration: JoinRegistration = {
-  formData: { fullName: '', username: '', password: '', confirmPassword: '' },
+  formData: BLANK_JOIN_FORM,
   isRegistering: false,
   showNotInitializedModal: false,
   showConnectModal: false,

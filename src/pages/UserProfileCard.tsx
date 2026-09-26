@@ -9,6 +9,8 @@ import { getRoleBadgeClass } from './MemberListItem';
 
 interface UserProfileCardProps {
   selectedUser: UserData | null;
+  /** The reader's own profile: there is nobody to connect to. */
+  isSelf: boolean;
   isConnected: boolean;
   onClose: () => void;
   onSendMessage: (userId: string) => void;
@@ -17,6 +19,7 @@ interface UserProfileCardProps {
 
 export function UserProfileCard({
   selectedUser,
+  isSelf,
   isConnected,
   onClose,
   onSendMessage,
@@ -100,7 +103,15 @@ export function UserProfileCard({
           <div>
             <h4 className="text-sm font-medium text-muted-foreground mb-2">Connection Status</h4>
             <div className="p-3 rounded-md bg-card flex items-center space-x-3">
-              {isConnected ? (
+              {isSelf ? (
+                <>
+                  <User className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">This is you</p>
+                    <p className="text-xs text-muted-foreground">Others in the workspace see this profile</p>
+                  </div>
+                </>
+              ) : isConnected ? (
                 <>
                   <CheckCircle className="h-5 w-5 text-success-emphasis" />
                   <div>
@@ -124,7 +135,7 @@ export function UserProfileCard({
         </div>
       </CardContent>
 
-      <CardFooter className="flex justify-between border-t border-border pt-4">
+      {!isSelf && <CardFooter className="flex justify-between border-t border-border pt-4">
         {!isConnected ? (
           <Button
             className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
@@ -151,7 +162,7 @@ export function UserProfileCard({
             </Button>
           </>
         )}
-      </CardFooter>
+      </CardFooter>}
     </Card>
   );
 }

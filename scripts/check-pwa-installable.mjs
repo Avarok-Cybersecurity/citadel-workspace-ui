@@ -24,6 +24,17 @@ const check = (ok, message) => { if (!ok) failures.push(message); };
 // --- Service worker ---------------------------------------------------------
 check(existsSync(join(dist, 'sw.js')), 'dist/sw.js is missing — the app cannot work offline or update.');
 
+// The navigation fallback must be a URL the host serves without a redirect, and it must be
+// precached. The Worker answers /index.html with a 307 to `/`; when the cached shell was
+// missing, the worker's network fallback handed that redirect to a navigation, which the
+// browser refuses, so every page of the site failed until its data was cleared.
+if (existsSync(join(dist, 'sw.js'))) {
+  const sw = readFileSync(join(dist, 'sw.js'), 'utf8');
+  const bound = sw.match(/createHandlerBoundToURL\("([^"]+)"\)/)?.[1];
+  check(bound === '/', `the service worker's navigation fallback is ${bound ?? 'absent'}, not "/" — the host redirects /index.html, and a redirected navigation fails.`);
+  check(/\{url:"\/",revision:/.test(sw), 'the service worker does not precache "/" — its navigation fallback would always go to the network.');
+}
+
 // --- Manifest ---------------------------------------------------------------
 const manifestPath = join(dist, 'manifest.webmanifest');
 if (!existsSync(manifestPath)) {

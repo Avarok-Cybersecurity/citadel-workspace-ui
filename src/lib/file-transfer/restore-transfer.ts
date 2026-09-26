@@ -21,6 +21,7 @@
 
 import type { FileTransfer } from './types';
 import type { FileTransferState } from '@/types/messaging-layer';
+import { STALE_OFFER_REASON } from './transfer-view';
 
 /** States that describe a finished transfer. Anything else was moving. */
 const TERMINAL: ReadonlySet<FileTransferState> = new Set<FileTransferState>([
@@ -47,6 +48,14 @@ function isUsable(raw: Partial<FileTransfer>): raw is Partial<FileTransfer> & {
 
 export function restoreTransfer(raw: Partial<FileTransfer>): FileTransfer | null {
   if (!isUsable(raw)) return null;
+
+  // An offer we never answered was not interrupted — nothing was moving. It
+  // simply cannot be answered any more: accepting names the protocol object_id,
+  // whose join lived in memory, and the agent does not re-announce it.
+  if (raw.state === 'pending' && raw.isIncoming === true) {
+    const expired: FileTransfer | null = restoreTransfer({ ...raw, state: 'expired' });
+    return expired && { ...expired, errorMessage: STALE_OFFER_REASON };
+  }
 
   const interrupted: boolean = !TERMINAL.has(raw.state);
 

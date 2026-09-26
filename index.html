@@ -9,7 +9,7 @@
          dvh accounts for retractable browser chrome, not for the keyboard. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
 
-    <title>Citadel Workspace — Post-Quantum Secure Collaboration</title>
+    <title>Citadel Workspaces — Post-Quantum Secure Collaboration</title>
     <meta
       name="description"
       content="Citadel is a post-quantum secure, peer-to-peer collaborative workspace. Chat, share files and edit documents together over end-to-end encrypted connections built on lattice-based cryptography."
@@ -21,29 +21,29 @@
 
     <!-- Open Graph / social -->
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Citadel Workspace" />
-    <meta property="og:title" content="Citadel Workspace — Post-Quantum Secure Collaboration" />
+    <meta property="og:site_name" content="Citadel Workspaces" />
+    <meta property="og:title" content="Citadel Workspaces" />
     <meta
       property="og:description"
       content="A post-quantum secure, peer-to-peer collaborative workspace. End-to-end encrypted chat, file sharing and live documents."
     />
     <meta property="og:url" content="https://citadel.avarok.net/" />
-    <meta property="og:image" content="/og-image.png" />
+    <!-- Absolute: a crawler resolves nothing relative. The card is the kit's
+         dark/og-image-1200x630.png, the horizontal lockup on the dark ground. -->
+    <meta property="og:image" content="https://work.avarok.net/og-image-1200x630.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <!-- Describes what the card actually shows. It previously claimed to be the
-         landing page while pointing at a 220x154 Avarok wordmark. -->
-    <meta property="og:image:alt" content="Citadel Workspace" />
+    <meta property="og:image:alt" content="Citadel Workspaces" />
     <meta property="og:locale" content="en_US" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Citadel Workspace — Post-Quantum Secure Collaboration" />
+    <meta name="twitter:title" content="Citadel Workspaces — Post-Quantum Secure Collaboration" />
     <meta
       name="twitter:description"
       content="A post-quantum secure, peer-to-peer collaborative workspace. End-to-end encrypted chat, file sharing and live documents."
     />
-    <meta name="twitter:image" content="/og-image.png" />
-    <meta name="twitter:image:alt" content="Citadel Workspace" />
+    <meta name="twitter:image" content="https://work.avarok.net/og-image-1200x630.png" />
+    <meta name="twitter:image:alt" content="Citadel Workspaces" />
 
     <!--
       The landing hero is a CSS background, so the browser cannot discover it until
@@ -53,21 +53,29 @@
     -->
     <link rel="preload" as="image" href="/backgrounds/landing-hero.webp" fetchpriority="high" />
 
-    <!-- PWA. The <link rel="manifest"> is injected by vite-plugin-pwa at build time.
+    <!-- PWA. The manifest link is injected by vite-plugin-pwa at build time.
          theme-color drives the OS titlebar/status bar of the installed window.
 
          The app's default background, not the brand purple. This value is what
          paints before any script runs; ThemeColorSync then keeps it in step with
          the active theme. A brand-coloured value here would flash purple and
-         resolve to the surface colour on every single launch. -->
+         resolve to the surface colour on every single launch.
+
+         The kit's head-snippet says #1C1D28, the brand ground; #1B1C27 is what the
+         dark --background token actually renders, a rounding step away. The painted
+         value wins so this, the manifest and ThemeColorSync cannot disagree. -->
     <meta name="theme-color" content="#1B1C27" />
-    <!-- The SVG carries its own prefers-color-scheme block, so the mark takes the
-         white-and-lavender cut on a dark tab strip and the ink-and-purple cut on a
-         light one. The two purples are different values: neither clears 3:1 on both
-         grounds, so one cannot simply be recoloured into the other. -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <!-- The brand kit's head-snippet (assets/brand/head-snippet.html in the parent
+         repository), less its manifest link: vite-plugin-pwa injects the one
+         manifest the app ships, built from the kit's site.webmanifest.
+
+         favicon.svg is the kit's favicon.svg and favicon-ondark.svg as one file,
+         switched by prefers-color-scheme (scripts/sync-brand-kit.mjs): a tab strip
+         is dark in dark mode, and the light-ground cut may not sit on dark. -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
+    <link rel="mask-icon" href="/mask-icon.svg" color="#6E59A5" />
     <meta name="mobile-web-app-capable" content="yes" />
     <!-- Retained alongside the standard name above: older iOS Safari only honours
          the apple- prefixed form. Chrome logs the apple- one as deprecated. -->
@@ -99,7 +107,7 @@
       {
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
-        "name": "Citadel Workspace",
+        "name": "Citadel Workspaces",
         "applicationCategory": "BusinessApplication",
         "operatingSystem": "Web",
         "description": "A post-quantum secure, peer-to-peer collaborative workspace with end-to-end encrypted chat, file sharing and live documents.",

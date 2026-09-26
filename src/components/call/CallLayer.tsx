@@ -5,6 +5,7 @@ import { CallAudioHost } from './CallAudioHost';
 import { IncomingCallCard } from './IncomingCallCard';
 import { useCall } from '@/lib/call/call-context';
 import { useIsLeaderTab } from './use-leader-tab';
+import { useRosterName } from './use-roster-name';
 import { getCurrentCid } from '@/lib/p2p/current-cid';
 import { connectionManager } from '@/lib/connection';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
@@ -75,16 +76,17 @@ function RingingCall(): JSX.Element | null {
   // session and the caller heard nothing -- while the leader tab, which could
   // have taken the call, rang alongside it.
   const isLeaderTab: boolean = useIsLeaderTab();
+  const caller: CallParticipant | undefined = call ? [...call.participants.values()][0] : undefined;
+  // Named as the sidebar names them, not as the signal froze them. See use-roster-name.
+  const callerName: string = useRosterName(caller?.cid ?? null, caller?.username ?? '');
 
   if (!isLeaderTab) return null;
   if (!call || call.status !== 'ringing-in') return null;
-
-  const caller: CallParticipant = [...call.participants.values()][0];
   if (!caller) return null;
 
   return (
     <IncomingCallCard
-      callerName={caller.username}
+      callerName={callerName}
       media={caller.media}
       roomName={call.roomId}
       onAccept={(media) => void accept(media)}

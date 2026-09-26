@@ -31,6 +31,10 @@ interface VFSContentGridProps {
   onPaste: (destPath: string) => Promise<void>;
   onDrop: (targetPath: string, files: FileList) => void;
   cutItemPaths?: Set<string>;
+  /** Changes the peer has not confirmed yet; see useRevfsTree. */
+  pendingPaths: ReadonlySet<string>;
+  /** Who is being waited on, for the pending mark. */
+  peerLabel: string;
   hasPasteItems?: boolean;
   selectedPaths?: Set<string>;
   onSelect?: (path: string, mode: SelectMode) => void;
@@ -45,7 +49,7 @@ export function VFSContentGrid({
   tree, currentPath, onNavigate, onNewFolder,
   onDelete, onDeleteMultiple, onDownload, onUploadFile, onInfo, onRename,
   onCut, onCutMultiple, onCopy, onCopyMultiple, onPaste, onDrop,
-  cutItemPaths = new Set(), hasPasteItems = false,
+  cutItemPaths = new Set(), pendingPaths, peerLabel, hasPasteItems = false,
   selectedPaths = new Set(), onSelect, onSelectAll, onClearSelection,
   sortField = 'name', sortDirection = 'asc', filterText = '',
 }: VFSContentGridProps): JSX.Element {
@@ -173,6 +177,7 @@ export function VFSContentGrid({
               key={node.path} node={node}
               isRenaming={renamingPath === node.path}
               isCutItem={cutItemPaths.has(node.path)}
+              pendingPeer={pendingPaths.has(node.path) ? peerLabel : null}
               isSelected={selectedPaths.has(node.path)}
               onNavigate={onNavigate} onNewFolder={onNewFolder}
               onDelete={onDelete} onDownload={onDownload}

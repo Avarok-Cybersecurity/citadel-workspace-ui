@@ -13,10 +13,15 @@ import { Badge } from "@/components/ui/badge";
 import { rowClass } from "./selected-row";
 import { connectionPathLabel } from "@/lib/ice-servers/path-copy";
 import type { PeerConnectPath } from "@/types/ice-servers";
+import { PAUSE_COPY } from "@/lib/p2p-pause/pause-copy";
+import { PeerRowPauseMenu, type PeerRowPause } from "./PeerRowPauseMenu";
 
 interface PeerListRowProps {
   cid: string;
+  /** The key: test id and every caller address the row by username. */
   username: string;
+  /** What the row shows. */
+  displayName: string;
   /**
    * True, false, or null when no poll has landed yet. Null is a real answer
    * here: this row used to write "Offline" beside every peer until the first
@@ -31,20 +36,28 @@ interface PeerListRowProps {
   /** Whether this is the conversation currently on screen. See active-conversation. */
   isActive?: boolean;
   onClick: () => void;
+  /** Omitted where pausing is not wired up; the row then has no menu. */
+  pause?: PeerRowPause;
 }
 
 export function PeerListRow({
   cid,
   username,
+  displayName,
   isOnline,
   isConnected,
   connectionPath,
   unreadCount,
   isActive = false,
   onClick,
+  pause,
 }: PeerListRowProps): JSX.Element {
+  // Paused outranks presence: the link is down because the user chose it.
+  const paused: boolean = pause?.status === 'paused';
   const statusColor: "bg-success" | "bg-warning" | "bg-destructive" | "bg-muted-foreground" =
-    isConnected === true
+    paused
+      ? 'bg-muted-foreground'
+      : isConnected === true
       ? 'bg-success'
       : isOnline === true
       ? 'bg-warning'
@@ -52,7 +65,9 @@ export function PeerListRow({
       ? 'bg-destructive'
       : 'bg-muted-foreground';
 
-  const statusLabel: string = isConnected === true
+  const statusLabel: string = paused
+    ? PAUSE_COPY.statusLabel
+    : isConnected === true
     ? 'Connected'
     : isOnline === true
     ? 'Online'
@@ -61,7 +76,7 @@ export function PeerListRow({
     : 'Presence not known yet';
 
   // Only a live connection has a path worth naming; a stale one would mislead.
-  const pathLabel: string | null = isConnected === true ? connectionPathLabel(connectionPath) : null;
+  const pathLabel: string | null = !paused && isConnected === true ? connectionPathLabel(connectionPath) : null;
 
   return (
     <SidebarMenuItem key={cid}>
@@ -79,13 +94,13 @@ export function PeerListRow({
         // exists only as a background is invisible to a screen reader and to
         // anyone who cannot separate these two purples.
         aria-current={isActive ? 'page' : undefined}
-        className={`${rowClass(isActive)} h-8 py-1`}
+        className={`${rowClass(isActive)} h-8 py-1${pause ? ' pr-8' : ''}`}
       >
         <div className="flex items-center gap-2 w-full">
           {/* Avatar with status indicator */}
           <div className="relative w-6 h-6 flex-shrink-0">
             <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-xs font-medium">
-              {username[0]?.toUpperCase() || '?'}
+              {displayName[0]?.toUpperCase() || '?'}
             </div>
             {/* Status indicator - top-right corner */}
             <div
@@ -99,8 +114,9 @@ export function PeerListRow({
               {pathLabel === null ? statusLabel : `${statusLabel}, ${pathLabel}`}
             </span>
           </div>
-          {/* Username */}
-          <span className="flex-1 truncate text-sm">{username}</span>
+          <span className="min-w-0 flex-1 truncate text-sm">{displayName}</span>
+          {/* Visible word too: the grey dot alone reads as "offline". */}
+          {paused && <span aria-hidden="true" className="shrink-0 text-xs text-muted-foreground">{PAUSE_COPY.statusLabel}</span>}
           {/* Unread count badge */}
           {unreadCount !== undefined && unreadCount > 0 && (
             <Badge className="h-5 min-w-[20px] px-1.5 bg-primary text-primary-foreground">
@@ -110,6 +126,7 @@ export function PeerListRow({
           )}
         </div>
       </SidebarMenuButton>
+      {pause && <PeerRowPauseMenu displayName={displayName} pause={pause} />}
     </SidebarMenuItem>
   );
 }

@@ -170,8 +170,8 @@ class PeerRegistrationStore {
     if (this.pendingRequests.length !== before.length) {
       debugLog('PeerRegistrationStore', 'Removed requests from peer', peerCid.toString());
       clearNotificationsFor(before, this.pendingRequests);
-      await persistPendingToLocalDB(this.pendingRequests, this.pendingKVRequests);
       await this.emitUpdate();
+      await persistPendingToLocalDB(this.pendingRequests, this.pendingKVRequests);
     }
   }
 
@@ -193,8 +193,10 @@ class PeerRegistrationStore {
     const before: PendingPeerRequest[] = this.pendingRequests;
     this.pendingRequests = removePendingById(this.pendingRequests, requestId);
     clearNotificationsFor(before, this.pendingRequests);
-    await persistPendingToLocalDB(this.pendingRequests, this.pendingKVRequests);
+    // Announce first: a write that times out or is refused must not keep a
+    // removed request on screen until reload. The rejection still reaches the caller.
     await this.emitUpdate();
+    await persistPendingToLocalDB(this.pendingRequests, this.pendingKVRequests);
   }
 
   private async pollAndResend(): Promise<void> {
