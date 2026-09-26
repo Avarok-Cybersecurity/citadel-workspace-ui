@@ -1,16 +1,19 @@
 /**
  * The Advanced tab's state: this chat's saved settings, and the change that
  * takes effect at once -- a retention period is applied to the stored
- * conversation straight away. (The encryption level has no control yet; see
- * ChatSettingsAdvanced.)
+ * conversation straight away, and a new encryption level re-opens a live
+ * connection at it (lib/p2p/chat-level-change.ts).
  */
 import { useEffect, useState } from 'react';
 import {
   chatAdvancedSettings,
   DEFAULT_CHAT_ADVANCED_SETTINGS,
   type ChatAdvancedSettings,
+  type ChatSecurityLevel,
   type Retention,
 } from '@/lib/p2p/chat-advanced-settings';
+import { changeChatLevel, chatLevelStatus, type ChatLevelResult } from '@/lib/p2p/chat-level-change';
+import { peerLink, peerPauseStore } from '@/lib/p2p-pause';
 import { getCurrentCid } from '@/lib/p2p/current-cid';
 import { applyRetention } from '@/lib/p2p/retention-sweep';
 
@@ -21,6 +24,7 @@ export interface ChatAdvancedControls {
   status: string | null;
   error: string | null;
   changeRetention: (retention: Retention) => Promise<void>;
+  changeSecurityLevel: (level: ChatSecurityLevel) => Promise<void>;
 }
 
 async function ownCid(): Promise<bigint> {
@@ -67,5 +71,22 @@ export function useChatAdvancedSettings(isOpen: boolean, peerCid: bigint): ChatA
     }
   };
 
-  return { settings, status, error, changeRetention };
+  const changeSecurityLevel = async (level: ChatSecurityLevel): Promise<void> => {
+    setError(null);
+    setStatus(`Saving ${level}…`);
+    try {
+      const result: ChatLevelResult = await changeChatLevel({
+        save: (own: bigint, peer: bigint, change: Partial<ChatAdvancedSettings>): Promise<ChatAdvancedSettings> => chatAdvancedSettings.set(own, peer, change),
+        pauseStatus: (own: bigint, peer: bigint) => peerPauseStore.status(own, peer),
+        link: peerLink,
+      }, await ownCid(), peerCid, level);
+      setSettings(result.settings);
+      setStatus(chatLevelStatus(result));
+    } catch (e: unknown) {
+      setStatus(null);
+      setError(`The encryption level was not changed: ${describe(e)}`);
+    }
+  };
+
+  return { settings, status, error, changeRetention, changeSecurityLevel };
 }

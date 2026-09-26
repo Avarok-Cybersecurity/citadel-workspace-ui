@@ -52,14 +52,15 @@ function panel(): void {
 }
 
 /**
- * The controls that still have nothing behind them. Message Retention is now
- * enforced (see the retention tests). Encryption Level is not: the pinned SDK
- * ends the server session when a P2P level exceeds the login's (see
- * ChatSettingsAdvanced). Connection Priority cannot be from this client -- the
- * relay policy must match on both peers and the offer does not carry it.
+ * The controls that still have nothing behind them. Message Retention and the
+ * Encryption Level are enforced (see the retention tests and
+ * lib/p2p/__tests__/a-chat-level-change-reopens-the-live-link.test.ts; the SDK
+ * fix is Citadel-Protocol 539e416d). Connection Priority cannot be from this
+ * client -- the relay policy must match on both peers and the offer does not
+ * carry it.
  */
-const INERT: readonly string[] = ['encryption-level', 'connection-priority'];
-const ENFORCED: readonly string[] = ['message-retention'];
+const INERT: readonly string[] = ['connection-priority'];
+const ENFORCED: readonly string[] = ['message-retention', 'encryption-level'];
 
 /** The row a control sits in: the nearest ancestor that also holds its label. */
 function rowOf(id: string): HTMLElement {

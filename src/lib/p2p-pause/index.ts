@@ -10,22 +10,29 @@
 import { websocketService } from '@/lib/websocket-service';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { agentPauseStorage } from './agent-storage';
-import { PeerPauseStore } from './pause-store';
+import { PeerPauseStore, type PauseLink } from './pause-store';
+
+/**
+ * The live P2P link, as auto-connect knows it. Exported for the one other
+ * caller that must drop and redial a link -- a chat's encryption level
+ * changing -- so both use the same drop.
+ */
+export const peerLink: PauseLink = {
+  isConnected: (localCid: bigint, peerCid: bigint): boolean =>
+    p2pAutoConnectService.isPeerConnectedForSession(localCid, peerCid),
+  drop: async (localCid: bigint, peerCid: bigint): Promise<void> => {
+    p2pAutoConnectService.cancelRetry(peerCid);
+    await websocketService.disconnectP2P(localCid, peerCid);
+    p2pAutoConnectService.handlePeerDisconnect(localCid, peerCid);
+  },
+  reconnect: (peerCid: bigint): Promise<void> => p2pAutoConnectService.connectToPeer(peerCid),
+  flushHeld: (localCid: bigint, peerCid: bigint): Promise<number> =>
+    websocketService.flushPausedOutbox(localCid, peerCid),
+};
 
 export const peerPauseStore: PeerPauseStore = new PeerPauseStore({
   storage: agentPauseStorage,
-  link: {
-    isConnected: (localCid: bigint, peerCid: bigint): boolean =>
-      p2pAutoConnectService.isPeerConnectedForSession(localCid, peerCid),
-    drop: async (localCid: bigint, peerCid: bigint): Promise<void> => {
-      p2pAutoConnectService.cancelRetry(peerCid);
-      await websocketService.disconnectP2P(localCid, peerCid);
-      p2pAutoConnectService.handlePeerDisconnect(localCid, peerCid);
-    },
-    reconnect: (peerCid: bigint): Promise<void> => p2pAutoConnectService.connectToPeer(peerCid),
-    flushHeld: (localCid: bigint, peerCid: bigint): Promise<number> =>
-      websocketService.flushPausedOutbox(localCid, peerCid),
-  },
+  link: peerLink,
 });
 
 export type { PauseStatus } from './pause-rules';

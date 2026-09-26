@@ -1,19 +1,19 @@
 /**
- * The Advanced tab. Message retention is enforced (useChatAdvancedSettings,
- * lib/p2p/retention-sweep); encryption level and connection priority are not,
- * and say so.
+ * The Advanced tab. Message retention and the encryption level are enforced
+ * (useChatAdvancedSettings; lib/p2p/retention-sweep, lib/p2p/chat-level-change);
+ * connection priority is not, and says so.
  *
  * All three were uncontrolled -- `defaultValue`, no `onChange`, no store -- and
  * then disabled with a "not enforced" note. The note now sits only where it is
  * still true:
  *
- * - Encryption level: the client plumbing exists (PeerConnect asks for the
- *   chat's level, offers below it are declined, messages carry it), but the
- *   pinned SDK cannot honour it. A P2P level above the login's level ends the
- *   whole server session ("Only have max 0 security levels"), and a message
- *   sent at a level above its channel's is delivered anyway. Both are pinned in
- *   citadel-internal-service/tests/peer_security_level.rs. Enabling this before
- *   the SDK is fixed would log users out and promise layers it does not add.
+ * - Encryption level: the channel opens at the chat's level, offers below it
+ *   are declined, and messages carry it. It was disabled while a P2P level
+ *   above the login's ended the whole server session; Citadel-Protocol
+ *   539e416d protects peer signals at the carrying session's level instead
+ *   (citadel-internal-service/tests/peer_security_level.rs). One property is
+ *   still open there: the SDK does not refuse a message above its channel's
+ *   level, which this control never sends, since the channel is opened at it.
  * - Connection priority: the relay policy must be the same on both peers
  *   (`PeerTurnConfig`), the offer a peer receives does not carry the policy its
  *   initiator used, and without a relay grant "relay only" would silently
@@ -23,7 +23,9 @@ import { Sliders, Settings, MessageSquare } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { NotEnforcedNote } from '@/components/settings/not-enforced-note';
 import {
+  CHAT_SECURITY_LEVELS,
   RETENTION_CHOICES,
+  type ChatSecurityLevel,
   type Retention,
 } from '@/lib/p2p/chat-advanced-settings';
 import { useChatAdvancedSettings, type ChatAdvancedControls } from './useChatAdvancedSettings';
@@ -44,7 +46,7 @@ interface ChatSettingsAdvancedProps {
 }
 
 export function ChatSettingsAdvanced({ isOpen, peerCid, peerName }: ChatSettingsAdvancedProps): JSX.Element {
-  const { settings, status, error, changeRetention }: ChatAdvancedControls = useChatAdvancedSettings(isOpen, peerCid);
+  const { settings, status, error, changeRetention, changeSecurityLevel }: ChatAdvancedControls = useChatAdvancedSettings(isOpen, peerCid);
   return (
     <>
         <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-surface/50">
@@ -53,15 +55,22 @@ export function ChatSettingsAdvanced({ isOpen, peerCid, peerName }: ChatSettings
             <div>
               <Label htmlFor="encryption-level" className="text-sm font-medium">Encryption Level</Label>
               <p className="text-xs text-muted-foreground">
-                Every chat uses the protocol's Standard level today. A higher per-chat level
-                needs a fix in the underlying protocol first: asking for one would currently
-                disconnect you from the server.
+                The direct connection and your messages in this chat are encrypted at this level.
+                Higher levels add layers and cost more work per message; {peerName}'s own setting
+                decides what they send. Changing it reconnects the chat.
               </p>
-              <NotEnforcedNote />
             </div>
           </div>
-          <select id="encryption-level" className={SELECT_CLASS} defaultValue="Standard" disabled>
-            <option value="Standard">Standard</option>
+          <select id="encryption-level" className={SELECT_CLASS}
+            value={settings === null ? '' : settings.securityLevel}
+            disabled={settings === null}
+            onChange={(e): void => {
+              const chosen: ChatSecurityLevel | undefined = CHAT_SECURITY_LEVELS.find((l: ChatSecurityLevel): boolean => l === e.target.value);
+              if (chosen !== undefined) void changeSecurityLevel(chosen);
+            }}
+          >
+            {settings === null && <option value="">Loading…</option>}
+            {CHAT_SECURITY_LEVELS.map((l: ChatSecurityLevel) => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
 
