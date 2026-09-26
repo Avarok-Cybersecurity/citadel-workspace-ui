@@ -11,6 +11,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { debugLog } from '@/lib/debug-config';
 import { eventEmitter } from '@/lib/event-emitter';
 import { isMemberOnline } from '@/lib/presence';
+import { useSelfName } from '@/hooks/use-self-name';
 import { type MemberDisplay } from './MemberListItem';
 import { UserProfileCard } from './UserProfileCard';
 import { ConnectionRequestDialog } from './ConnectionRequestDialog';
@@ -42,7 +43,8 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
       .catch(err => debugLog('UserDirectory', 'Failed to load members:', err));
   }, [domainIdParam]);
 
-  const currentUserId: string = state.currentUser?.id || state.currentUser?.username || '';
+  // This tab's account, from the one reader the top bar uses; state.currentUser is unset on resumed tabs.
+  const selfUsername: string | undefined = useSelfName().username;
 
   // Re-read presence whenever the registry's poll lands; the answer itself
   // comes from isMemberOnline, as UserSearch's does.
@@ -63,11 +65,12 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
     // workspace peer the agent lists. This read the REGISTERED peers only, so
     // for anyone without a contact list the Online tab said "Everyone in this
     // workspace is currently offline" while they were online (live, admin-lab).
-    isOnline: isMemberOnline(member.id),
+    isOnline: member.id === selfUsername ? true : isMemberOnline(member.id),
+    isSelf: member.id === selfUsername,
     // Undefined, not 0: nothing tracks last-seen, and 0 rendered as 1970.
     lastActive: undefined,
   // eslint-disable-next-line react-hooks/exhaustive-deps -- presenceVersion is the re-read trigger
-  })), [state.members, registeredPeers, presenceVersion]);
+  })), [state.members, registeredPeers, presenceVersion, selfUsername]);
 
   const filteredMembers: MemberDisplay[] = allMembers.filter(member => {
     // `=== true`: a member whose presence nobody has reported is not evidence
@@ -165,7 +168,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
               <UserSearch
                 onUserSelect={handleUserSelect}
                 enableInvite={true}
-                exclude={[currentUserId]}
+                exclude={selfUsername ? [selfUsername] : []}
                 initialFocus={true}
               />
             </CardContent>
@@ -210,6 +213,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
         <div className="lg:col-span-1">
           <UserProfileCard
             selectedUser={selectedUser}
+            isSelf={selectedUser?.id === selfUsername}
             isConnected={selectedUser ? isUserConnected(selectedUser.id) : false}
             onClose={() => setSelectedUser(null)}
             onSendMessage={handleSendMessage}

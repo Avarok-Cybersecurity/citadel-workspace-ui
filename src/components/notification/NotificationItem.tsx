@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getInitials } from '@/components/chat/shared/formatters';
 import NotificationService, { 
   Notification, 
   NotificationType 
@@ -126,12 +127,13 @@ const NotificationItem: ({ notification }: NotificationItemProps) => JSX.Element
       
       <CardContent className="px-4 py-2">
         <div className="flex items-start space-x-3">
-          {notification.senderId && (
+          {notification.senderName && (
             <Avatar className="h-8 w-8">
-              {/* Decorative: the notification title carries the sender. */}
+              {/* Decorative: the notification title carries the sender. Initials from the
+                  name -- the id is a CID, and its first two digits read as "53". */}
               <AvatarImage src="" alt="" />
               <AvatarFallback className="bg-surface text-foreground text-xs">
-                {String(notification.senderId).substring(0, 2).toUpperCase()}
+                {getInitials(notification.senderName)}
               </AvatarFallback>
             </Avatar>
           )}

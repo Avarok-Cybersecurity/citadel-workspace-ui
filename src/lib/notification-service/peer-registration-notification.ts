@@ -18,14 +18,16 @@ export function peerRegistrationNotification(params: {
   onCardClick: () => void;
   recipientCid?: string;
 }): Omit<Notification, 'id' | 'timestamp' | 'read'> {
+  // The roster's name where it knows one, as every other surface shows them.
+  const name: string = memberDisplayName(params.peerUsername) ?? params.peerUsername;
   return {
     type: NotificationType.PEER_REGISTRATION,
-    // The roster's name where it knows one, as every other surface shows them.
-    title: `${memberDisplayName(params.peerUsername) ?? params.peerUsername} wants to connect`,
+    title: `${name} wants to connect`,
     // The handle, not the CID: a truncated CID ("CID: 165819323455...") is
     // noise to the reader, who identifies people by name and handle.
     content: `@${params.peerUsername}`,
     senderId: params.peerCid,
+    senderName: name,
     sourceId: params.requestId,
     recipientCid: params.recipientCid,
     priority: NotificationPriority.HIGH,

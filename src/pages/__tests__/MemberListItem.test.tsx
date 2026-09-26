@@ -17,6 +17,7 @@ const member: MemberDisplay = {
   id: 'member-1',
   displayName: 'Ada Lovelace',
   isOnline: true,
+  isSelf: false,
 };
 
 function renderRow(overrides: Partial<Parameters<typeof MemberListItem>[0]> = {}): Parameters<typeof MemberListItem>[0] {
