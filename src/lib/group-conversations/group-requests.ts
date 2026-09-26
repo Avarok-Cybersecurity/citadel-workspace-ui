@@ -154,6 +154,12 @@ export async function sendGroupListRequest(): Promise<void> {
   await sendGroupRequest(request);
 }
 
+/** The groups this session is in, owned or joined; see learn-joined-groups.ts. */
+export async function sendGroupListJoinedRequest(): Promise<void> {
+  const cid: bigint = await requireCid();
+  await sendGroupRequest({ GroupListJoined: { cid, request_id: crypto.randomUUID() } });
+}
+
 /**
  * End (delete) a group. Lived inline in GroupChatPage, which is why it was the
  * one group operation that never learned the follower-tab lesson the others

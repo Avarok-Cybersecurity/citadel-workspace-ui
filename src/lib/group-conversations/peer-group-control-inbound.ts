@@ -18,6 +18,8 @@ export interface GroupControlEvent {
   /** Who the group key names as owner; always permitted. */
   ownerCid: bigint;
   control: GroupControlBody;
+  /** The assigned members' usernames, resolved by group-response-service. */
+  memberUsernames?: Record<string, string>;
 }
 
 /** The `group:control-received` payload, or null when this is not a control message. */

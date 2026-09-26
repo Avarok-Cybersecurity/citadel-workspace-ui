@@ -53,9 +53,41 @@ function nextMember(
   return resolved === null || resolved === member.roleId ? member : { ...member, roleId: resolved };
 }
 
-export function applyGroupControl(groups: GroupConversation[], event: GroupControlEvent): GroupConversation[] {
+/**
+ * A learnt group (learn-joined-groups) holds only its key, so it has nothing of
+ * its own to judge a snapshot against: the first FULL snapshot from a member is
+ * taken whole. The sender is in the group -- the server delivers a group's
+ * messages only among its members -- and the owner's later announcements are
+ * always permitted, so a wrong answer does not stick.
+ */
+function adoptSnapshot(
+  group: GroupConversation,
+  control: GroupControlEvent['control'],
+  usernameFor: (cid: bigint) => string,
+): GroupConversation | null {
+  const { settings, assignments } = control;
+  if (!settings || !assignments) return null;
+  const known: Map<bigint, GroupMember> = new Map(group.members.map((m): [bigint, GroupMember] => [m.cid, m]));
+  const joinedAt: number = Date.now();
+  const members: GroupMember[] = assignments.map((a): GroupMember => ({
+    ...(known.get(a.cid) ?? { cid: a.cid, username: usernameFor(a.cid), joinedAt }),
+    roleId: resolveRoleId(settings, a.role_id) ?? settings.defaultRoleId,
+  }));
+  const { awaitingState: _awaiting, ...held } = group;
+  return { ...held, name: control.name?.trim() || group.name, settings, members };
+}
+
+export function applyGroupControl(
+  groups: GroupConversation[],
+  event: GroupControlEvent,
+  usernameFor: (cid: bigint) => string,
+): GroupConversation[] {
   const group: GroupConversation | undefined = groups.find((g) => g.id === event.groupId);
   if (!group) return groups;
+  if (group.awaitingState) {
+    const adopted: GroupConversation | null = adoptSnapshot(group, event.control, usernameFor);
+    return adopted ? groups.map((g) => (g.id === group.id ? adopted : g)) : groups;
+  }
 
   const standing: SenderStanding = senderStanding(group, event.senderCid, event.ownerCid);
   const { control } = event;

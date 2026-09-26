@@ -33,7 +33,10 @@ function receiverCopy(): GroupConversation {
 }
 
 const from = (sender: bigint, control: GroupControlBody): GroupControlEvent => ({ groupId: ID, senderCid: sender, ownerCid: OWNER, control });
-const apply = (group: GroupConversation, event: GroupControlEvent): GroupConversation => applyGroupControl([group], event)[0];
+// These groups are all held, never learnt, so no member is ever added and no name is looked up;
+// throwing proves it rather than hiding a lookup behind a stand-in name.
+const noLookup = (cid: bigint): string => { throw new Error(`a held group looked up member ${cid}`); };
+const apply = (group: GroupConversation, event: GroupControlEvent): GroupConversation => applyGroupControl([group], event, noLookup)[0];
 const roleOf = (group: GroupConversation, cid: bigint): GroupRole | undefined =>
   group.settings.roles.find((r) => r.id === group.members.find((m) => m.cid === cid)?.roleId);
 
@@ -124,11 +127,11 @@ describe('the store contract', () => {
       settings: { ...g.settings, roles: g.settings.roles.map((r) => ({ ...r })) },
       assignments: g.members.map((m) => ({ cid: m.cid, role_id: m.roleId })),
     };
-    expect(applyGroupControl(groups, from(OWNER, same))).toBe(groups);
+    expect(applyGroupControl(groups, from(OWNER, same), noLookup)).toBe(groups);
   });
 
   it('never creates a group it does not have', () => {
     const groups: GroupConversation[] = [];
-    expect(applyGroupControl(groups, from(OWNER, { name: 'X' }))).toBe(groups);
+    expect(applyGroupControl(groups, from(OWNER, { name: 'X' }), noLookup)).toBe(groups);
   });
 });

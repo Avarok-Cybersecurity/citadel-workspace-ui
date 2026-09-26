@@ -31,6 +31,7 @@ function operationVerb(operation: string): string {
     RespondRequest: 'answer that invitation',
     Message: 'send that message',
     ListGroups: 'load your groups',
+    ListJoined: 'load your groups',
     BroadcastHandle: 'reach the group',
   };
   return verbs[operation] ?? 'complete that group action';

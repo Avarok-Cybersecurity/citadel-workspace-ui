@@ -33,10 +33,11 @@ import type { GroupConversation } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { bindGroupInvites } from './bind-group-invites';
 import { bindGroupControl } from './bind-group-control';
+import { bindJoinedGroups } from './learn-joined-groups';
 import { forgetPendingInvites, restorePendingInvites } from './group-invites';
 import { loadPersistedGroups, persistGroups } from './group-persistence';
 import { applyGroupMessage } from './apply-group-message';
-import { peerHandleName } from '@/lib/peer-display';
+import { usernameFrom } from './member-group-record';
 import { debugLog } from '@/lib/debug-config';
 import type { GroupRole } from '@/types/group-permissions';
 
@@ -211,8 +212,7 @@ export function startGroupEventBindings(): void {
     selfUsername?: string;
     memberUsernames?: Record<string, string>;
   }) => {
-    const usernameFor = (cid: bigint): string => data.memberUsernames?.[cid.toString()] ?? peerHandleName({ cid });
-    updateGroups((prev) => applyGroupMessage(prev, data, Date.now(), usernameFor));
+    updateGroups((prev) => applyGroupMessage(prev, data, Date.now(), usernameFrom(data.memberUsernames)));
   });
 
   eventEmitter.on('group:deleted', (data: { groupId: string }) => {
@@ -224,6 +224,7 @@ export function startGroupEventBindings(): void {
   bindEndedGroups();
   // After bindMembershipEvents, so an owner's snapshot lists the member who just joined.
   bindGroupControl();
+  bindJoinedGroups();
   // A peer-group message reaches the sidebar through the event above; this is
   // what puts it in the conversation you are looking at. See the module header
   // for why it is bound here rather than for every group.

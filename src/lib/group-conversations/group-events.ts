@@ -19,6 +19,7 @@
 import { GROUP_FAILURE_VARIANTS } from './group-failure-variants';
 import { groupKeyToId, parseGroupKey } from './group-key';
 import { variant, toCid, memberCids } from './group-wire-variants';
+import { joinedGroupEvents } from './joined-group-events';
 import { peerGroupBodyEvents } from './peer-group-body-events';
 
 export interface GroupEvent {
@@ -46,6 +47,8 @@ export interface GroupEvent {
      * offline is in the sidebar forever. See reconcile-groups.ts.
      */
     | 'group:list-received'
+    /** The groups this session is in, from the agent; see learn-joined-groups.ts. */
+    | 'group:joined-list-received'
     /** The server removed the member a `GroupKick` named; see await-group-kicked.ts. */
     | 'group:kick-succeeded'
     /**
@@ -80,6 +83,8 @@ export function toGroupEvents(
   selfUsername: string,
   peerName: PeerNameResolver,
 ): GroupEvent[] {
+  const joined: GroupEvent[] | null = joinedGroupEvents(message);
+  if (joined) return joined;
   const created: Record<string, unknown> | undefined = variant(message, 'GroupCreateSuccess') ?? variant(message, 'GroupChannelCreateSuccess');
   if (created) {
     return [{

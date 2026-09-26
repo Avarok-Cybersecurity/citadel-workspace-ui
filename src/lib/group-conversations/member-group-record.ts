@@ -1,9 +1,14 @@
 import { groupIdToKey, isValidGroupId } from './group-key';
 import { chosenGroupName } from './group-names';
-import { peerDisplayName } from '@/lib/peer-display';
+import { peerDisplayName, peerHandleName } from '@/lib/peer-display';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import type { GroupConversation, GroupMember } from '@/types/group';
 import type { GroupRole } from '@/types/group-permissions';
+
+/** Each cid's username, resolved where the roster is, so a store handler need not reach for it. */
+export function usernamesOf(cids: readonly bigint[], usernameFor: (cid: bigint) => string): Record<string, string> {
+  return Object.fromEntries(cids.map((cid: bigint): [string, string] => [cid.toString(), usernameFor(cid)]));
+}
 
 /**
  * The usernames a message's group record would need -- its owner's and its
@@ -14,7 +19,12 @@ export function memberUsernamesFor(payload: Record<string, unknown>, usernameFor
   const cids: bigint[] = [];
   if (typeof payload.groupId === 'string' && isValidGroupId(payload.groupId)) cids.push(groupIdToKey(payload.groupId).cid);
   if (typeof payload.senderId === 'string' && /^\d+$/.test(payload.senderId)) cids.push(BigInt(payload.senderId));
-  return Object.fromEntries(cids.map((cid: bigint): [string, string] => [cid.toString(), usernameFor(cid)]));
+  return usernamesOf(cids, usernameFor);
+}
+
+/** A lookup over names resolved upstream; a short handle for anyone the roster had not loaded. */
+export function usernameFrom(memberUsernames: Record<string, string> | undefined): (cid: bigint) => string {
+  return (cid: bigint): string => memberUsernames?.[cid.toString()] ?? peerHandleName({ cid });
 }
 
 /**

@@ -4,6 +4,7 @@ import type { GroupConversation } from '@/types/group';
 import { debugLog } from '@/lib/debug-config';
 import { groupIdToKey } from './group-key';
 import { instanceManager } from '@/lib/multi-instance/instance-manager';
+import { requestJoinedGroups } from './learn-joined-groups';
 
 /**
  * Making the sidebar agree with the server about which groups still exist.
@@ -123,6 +124,7 @@ function reconcileSession(): void {
   // groups -- or, on mount, before the persisted restore had put anything in it.
   void resetGroupsForSession()
     .then(() => requestGroupReconcile())
+    .then(() => requestJoinedGroups())
     .catch((error: unknown) => {
       debugLog('GroupReconcile', 'Could not ask the server for the group list', error);
     });

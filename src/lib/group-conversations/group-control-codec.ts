@@ -25,6 +25,8 @@ export interface GroupControlBody {
   name?: string;
   settings?: GroupSettings;
   assignments?: GroupRoleAssignment[];
+  /** Asks the group's members for their current snapshot; see learn-joined-groups.ts. */
+  request_state?: true;
 }
 
 export interface PeerGroupControl {
@@ -103,6 +105,7 @@ function toBody(raw: unknown): GroupControlBody | null {
   if (!c) return null;
   const body: GroupControlBody = {};
   if (typeof c.name === 'string') body.name = c.name;
+  if (c.request_state === true) body.request_state = true;
   if (c.settings !== undefined) {
     const settings: GroupSettings | null = toSettings(c.settings);
     if (!settings) return null;

@@ -17,13 +17,14 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import { getGroups, updateGroups } from './group-store';
 import { applyGroupControl } from './apply-group-control';
+import { usernameFrom } from './member-group-record';
 import { announceGroupState } from './announce-group-state';
 import { groupIdToKey, isValidGroupId } from './group-key';
 import type { GroupControlEvent } from './peer-group-control-inbound';
 
 export function bindGroupControl(): void {
   eventEmitter.on('group:control-received', (data: GroupControlEvent) => {
-    updateGroups((prev) => applyGroupControl(prev, data));
+    updateGroups((prev) => applyGroupControl(prev, data, usernameFrom(data.memberUsernames)));
   });
 
   eventEmitter.on('group:member-joined', (data: { groupId: string; memberCid: bigint }) => {
