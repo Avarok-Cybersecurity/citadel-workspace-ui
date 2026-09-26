@@ -13,6 +13,7 @@
  * a name learnt from one is still true. Per tab, like the session it serves;
  * a later roster overwrites any name it disagrees with.
  */
+import { eventEmitter } from '@/lib/event-emitter';
 
 const displayNames: Map<string, string> = new Map();
 
@@ -26,10 +27,16 @@ export interface NamedMember {
 }
 
 export function recordMemberNames(members: readonly NamedMember[]): void {
+  let learnt: boolean = false;
   for (const { id, displayName } of members) {
     const name: string = displayName.trim();
-    if (id && name && name !== id) displayNames.set(id, name);
+    if (id && name && name !== id && displayNames.get(id) !== name) {
+      displayNames.set(id, name);
+      learnt = true;
+    }
   }
+  // Surfaces that named someone before the roster loaded follow it (see withRosterName).
+  if (learnt) eventEmitter.emit('member-names:recorded', undefined);
 }
 
 /** The member's display name, when it is something other than the username. */
