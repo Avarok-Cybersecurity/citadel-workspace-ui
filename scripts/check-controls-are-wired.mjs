@@ -89,7 +89,7 @@ if (offences.length > 0) {
   for (const o of offences) {
     console.error(
       `::error file=citadel-workspaces/${o.file},line=${o.line}::<${o.tag}> has a default value, no change handler and is not disabled, ` +
-        'so it accepts input and discards it. Wire it to a store, or disable it and say why with NotEnforcedNote.',
+        'so it accepts input and discards it. Wire it to a store, or remove it until something can honour it.',
     );
   }
   process.exit(1);

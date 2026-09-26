@@ -59,7 +59,9 @@ function panel(): void {
  * client -- the relay policy must match on both peers and the offer does not
  * carry it.
  */
-const INERT: readonly string[] = ['connection-priority'];
+const INERT: readonly string[] = [];
+/** Not offered at all: nothing can honour it from one side (see ChatSettingsAdvanced). */
+const NOT_OFFERED: readonly string[] = ['connection-priority'];
 const ENFORCED: readonly string[] = ['message-retention', 'encryption-level'];
 
 /** The row a control sits in: the nearest ancestor that also holds its label. */
@@ -87,7 +89,8 @@ describe('a settings control with nothing behind it', () => {
     panel();
     await openAdvanced();
     // The note beside an enforced control would be the opposite lie.
-    expect(screen.getAllByText(/not enforced yet/i)).toHaveLength(INERT.length);
+    expect(screen.queryAllByText(/not enforced yet/i)).toHaveLength(INERT.length);
+    for (const id of NOT_OFFERED) expect(document.getElementById(id), id).toBeNull();
     for (const id of ENFORCED) {
       const control: HTMLElement = document.getElementById(id) as HTMLElement;
       expect(control, id).toBeTruthy();

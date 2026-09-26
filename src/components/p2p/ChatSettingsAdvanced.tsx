@@ -1,7 +1,6 @@
 /**
  * The Advanced tab. Message retention and the encryption level are enforced
- * (useChatAdvancedSettings; lib/p2p/retention-sweep, lib/p2p/chat-level-change);
- * connection priority is not, and says so.
+ * (useChatAdvancedSettings; lib/p2p/retention-sweep, lib/p2p/chat-level-change).
  *
  * All three were uncontrolled -- `defaultValue`, no `onChange`, no store -- and
  * then disabled with a "not enforced" note. The note now sits only where it is
@@ -14,14 +13,14 @@
  *   (citadel-internal-service/tests/peer_security_level.rs). One property is
  *   still open there: the SDK does not refuse a message above its channel's
  *   level, which this control never sends, since the channel is opened at it.
- * - Connection priority: the relay policy must be the same on both peers
- *   (`PeerTurnConfig`), the offer a peer receives does not carry the policy its
- *   initiator used, and without a relay grant "relay only" would silently
- *   become a direct connection.
+ * - Connection priority is not offered. The agent's relay policy (TurnPolicy)
+ *   must match on both peers and the offer does not carry it: a relay-only
+ *   choice made by one person times out the connection (pinned ignored in
+ *   citadel-internal-service/tests/peer_turn.rs, 4c). A disabled control with a
+ *   "not enforced" note was the other option; offering nothing is the honest one.
  */
-import { Sliders, Settings, MessageSquare } from 'lucide-react';
+import { Sliders, MessageSquare } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { NotEnforcedNote } from '@/components/settings/not-enforced-note';
 import {
   CHAT_SECURITY_LEVELS,
   RETENTION_CHOICES,
@@ -71,22 +70,6 @@ export function ChatSettingsAdvanced({ isOpen, peerCid, peerName }: ChatSettings
           >
             {settings === null && <option value="">Loading…</option>}
             {CHAT_SECURITY_LEVELS.map((l: ChatSecurityLevel) => <option key={l} value={l}>{l}</option>)}
-          </select>
-        </div>
-
-        <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
-          <div className="flex items-center gap-3">
-            <Settings className="h-5 w-5 text-primary-accent" />
-            <div>
-              <Label htmlFor="connection-priority" className="text-sm font-medium">Connection Priority</Label>
-              <p className="text-xs text-muted-foreground">Prefer direct P2P or server relay</p>
-              <NotEnforcedNote />
-            </div>
-          </div>
-          <select id="connection-priority" className={SELECT_CLASS} defaultValue="p2p" disabled>
-            <option value="p2p">P2P First</option>
-            <option value="server">Server First</option>
-            <option value="auto">Auto</option>
           </select>
         </div>
 
