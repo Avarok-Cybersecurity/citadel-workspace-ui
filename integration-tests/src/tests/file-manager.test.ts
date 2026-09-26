@@ -572,15 +572,10 @@ async function uploadFileViaToolbar(
     const fileVisible = await isVisibleWithin(page.getByText(fileName, { exact: true }).first(), 5000);
     console.log(`  File "${fileName}" visible: ${fileVisible}`);
 
-    // Navigate back to root if we navigated away
-    if (targetDir !== '/') {
-      const rootBtn = page.getByTestId('vfs-breadcrumb-root');
-      if (await rootBtn.isVisible().catch(() => false)) {
-        await rootBtn.click();
-        await sleep(1000);
-      }
-    }
-
+    // Stays in `targetDir`: the caller verifies and deletes the file there. This
+    // used to go back to Root, but its Root selector opened the workspace
+    // switcher instead, so the flow only ever ran from inside the folder -- and
+    // once the selector was fixed the next steps looked for the file at Root.
     return fileVisible;
   } catch (error) {
     console.error(`  Error uploading file: ${error}`);
