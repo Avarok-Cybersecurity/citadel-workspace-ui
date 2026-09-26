@@ -5,7 +5,7 @@ import {
   EAGER_SERVICES_CHUNK,
   serviceChunkFor,
   sharedServiceDependencyChunkFor,
-} from '../lib/service-chunks';
+} from '../service-chunks';
 
 /**
  * A module graph shaped like the one that put the messenger on the landing
