@@ -42,11 +42,21 @@ export const AGENT_SETUP_COPY = {
   },
   linux: {
     debButton: 'Download for Ubuntu or Debian (.deb)',
-    debSteps: ['Double-click the downloaded package to install it. Citadel Agent starts when you log in.'],
+    // The package installs a login entry but starts nothing (it has no postinst), so
+    // the person has to open it once; "starts when you log in" alone left a fresh
+    // install with no agent running until the next login.
+    debSteps: [
+      'Double-click the downloaded package to install it.',
+      'Open Citadel Agent from your applications menu. From then on it starts when you log in.',
+    ],
     appImageButton: 'Download AppImage (other distributions)',
     appImageSteps: [
       `Mark it executable: chmod +x ${LINUX_APPIMAGE_ASSET}`,
       `Then run it: ./${LINUX_APPIMAGE_ASSET}`,
+      // The static type2 runtime needs only FUSE itself (/dev/fuse, fusermount3), which
+      // desktop distributions have; containers and WSL often do not.
+      `Where FUSE is unavailable (containers, WSL): ./${LINUX_APPIMAGE_ASSET} --appimage-extract-and-run`,
+      `To start it when you log in: ./${LINUX_APPIMAGE_ASSET} --install-autostart`,
     ],
   },
   advanced: {
