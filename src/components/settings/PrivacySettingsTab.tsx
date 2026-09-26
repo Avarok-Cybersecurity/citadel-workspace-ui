@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Eye, MessageSquare, Users } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { ProfileVisibilityRow, StrangerRequestsRow } from './PrivacyServerRows';
+import { OnlineStatusRow, ProfileVisibilityRow, StrangerRequestsRow } from './PrivacyServerRows';
 import {
   getPrivacySettings,
   savePrivacySettings,
@@ -40,16 +40,10 @@ export function PrivacySettingsTab(): JSX.Element {
           Visibility
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-          <div>
-            <Label htmlFor="online-status" className="text-sm font-medium">Online Status</Label>
-            <p className="text-xs text-muted-foreground">Tell your contacts when you come online or go away. Someone you are connected to directly can still see that connection.</p>
-          </div>
-          <Switch id="online-status"
-            checked={settings.showOnlineStatus}
-            onCheckedChange={(v) => update('showOnlineStatus', v)}
-          />
-        </div>
+        <OnlineStatusRow
+          shows={settings.showOnlineStatus}
+          onLocalChange={(v: boolean) => update('showOnlineStatus', v)}
+        />
 
         <ProfileVisibilityRow />
       </div>

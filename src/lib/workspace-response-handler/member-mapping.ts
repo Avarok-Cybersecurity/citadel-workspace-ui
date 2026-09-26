@@ -13,7 +13,7 @@
 
 import { profileFieldsFromMetadata } from '@/lib/profile-metadata';
 import { avatarUrlFromMetadata } from '@/lib/avatar-url';
-import { publishedAcceptsStrangers, showsProfileToStrangers } from '@/lib/profile-privacy';
+import { publishedAcceptsStrangers, publishedShowsOnlineStatus, showsProfileToStrangers } from '@/lib/profile-privacy';
 
 /** Shape emitted on `members:loaded` / `member:loaded`. */
 export interface MappedMember {
@@ -27,6 +27,8 @@ export interface MappedMember {
   title?: string;
   /** Published so a refused requester can be told why; see lib/profile-privacy.ts. */
   acceptsRequestsFromStrangers?: boolean;
+  /** Published Online Status choice; see lib/presence.ts `shownPresence`. */
+  showsOnlineStatus?: boolean;
   showProfileToStrangers: boolean;
   [k: string]: unknown;
 }
@@ -66,6 +68,7 @@ export function mapWasmMember(raw: Record<string, unknown>): MappedMember {
     avatarUrl: avatarUrlFromMetadata(raw.metadata),
     ...profileFieldsFromMetadata(raw.metadata),
     acceptsRequestsFromStrangers: publishedAcceptsStrangers(raw.metadata),
+    showsOnlineStatus: publishedShowsOnlineStatus(raw.metadata),
     showProfileToStrangers: showsProfileToStrangers(raw.metadata),
   };
 }

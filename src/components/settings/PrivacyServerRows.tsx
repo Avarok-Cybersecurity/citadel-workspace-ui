@@ -5,9 +5,10 @@ import { useToast } from '@/hooks';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '@/lib/workspace-service';
 import { describeFailure } from '@/lib/failure-message';
+import { publishOnlineStatus } from '@/lib/online-status-publication';
 
 /**
- * The two privacy rows that talk to the workspace server.
+ * The privacy rows that talk to the workspace server.
  *
  * Profile visibility is ENFORCED there: the server withholds the avatar, email
  * and title from members who are not your contacts. So the switch shows what
@@ -87,6 +88,47 @@ export function StrangerRequestsRow({ accepts, onLocalChange }: StrangerRequests
       </div>
       <Switch id="stranger-requests"
         checked={accepts}
+        onCheckedChange={(v: boolean) => { void change(v); }}
+      />
+    </div>
+  );
+}
+
+interface OnlineStatusRowProps {
+  shows: boolean;
+  /** Saves the local setting, which is what the presence sender reads. */
+  onLocalChange: (shows: boolean) => void;
+}
+
+/**
+ * This client stops sending presence as soon as the local setting changes. The
+ * server's peer list still reports the connection to every member, so the
+ * choice is also published for their clients to honour (lib/presence.ts); a
+ * failure to publish is reported, not undone.
+ */
+export function OnlineStatusRow({ shows, onLocalChange }: OnlineStatusRowProps): JSX.Element {
+  const { toast } = useToast();
+
+  const change = async (next: boolean): Promise<void> => {
+    onLocalChange(next);
+    try {
+      await publishOnlineStatus(next);
+    } catch (error: unknown) {
+      toast({
+        title: 'Saved on this device',
+        description: `${describeFailure(error, 'The server could not be told.')} Other members may still see when you are online until it is.`,
+      });
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
+      <div>
+        <Label htmlFor="online-status" className="text-sm font-medium">Online Status</Label>
+        <p className="text-xs text-muted-foreground">Let workspace members see when you are online. When off, they see it as not known. Someone you are connected to directly can still see that connection.</p>
+      </div>
+      <Switch id="online-status"
+        checked={shows}
         onCheckedChange={(v: boolean) => { void change(v); }}
       />
     </div>

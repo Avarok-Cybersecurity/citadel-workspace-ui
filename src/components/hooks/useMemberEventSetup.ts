@@ -1,6 +1,7 @@
 import { isPlaceholderName } from '@/lib/peer-display';
 import { useEffect } from 'react';
 import { isMemberOnline } from '@/lib/presence';
+import { reconcileOnlineStatus } from '@/lib/online-status-publication';
 import { workspaceEvents, type ConnectionInfo } from '@/lib/workspace-events';
 import { connectionManager } from '@/lib/connection';
 import WorkspaceService from '@/lib/workspace-service';
@@ -103,7 +104,7 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
                 displayName: member.displayName || member.username || id,
                 role: member.role as import('@/types/workspace-entities').UserRole | undefined,
                 avatarUrl: member.avatarUrl, email: member.email, title: member.title, acceptsRequestsFromStrangers: member.acceptsRequestsFromStrangers,
-                showProfileToStrangers: member.showProfileToStrangers,
+                showProfileToStrangers: member.showProfileToStrangers, showsOnlineStatus: member.showsOnlineStatus,
                 // Real presence rather than a constant. A member arriving from
                 // a member event was recorded as offline whatever the registry
                 // said, so anyone rendering this record showed a grey dot for a
@@ -119,6 +120,8 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
             ? Object.values(membersRecord).find((m: User): boolean => m.username === prev.currentUser?.username)
             : undefined;
           if (ownRecord) {
+            // So other members' clients read the choice this device obeys.
+            reconcileOnlineStatus(ownRecord.showsOnlineStatus);
             // Persist role to stored session for WorkspaceSwitcher (async)
             const roleToSave: UserRole | undefined = ownRecord.role;
             if (roleToSave) {

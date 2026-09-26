@@ -12,6 +12,7 @@ import { isVariant , type WorkspaceProtocolResponse } from 'citadel-workspace-cl
 import type { ConnectionInfo } from './workspace-handlers';
 import { mapWasmMember } from './member-mapping';
 import { recordMemberNames } from '@/lib/member-names';
+import { recordPresenceChoices } from '@/lib/published-presence';
 import type { MappedMember } from '@/lib/workspace-response-handler/member-mapping';
 
 export function handleGeneratedVariants(
@@ -69,6 +70,8 @@ export function handleGeneratedVariants(
 
     const mappedMembers: MappedMember[] = rawMembers.map((m) => mapWasmMember(m));
     recordMemberNames(mappedMembers);
+    // Before the emit: subscribers compute presence from it (useMemberEventSetup).
+    recordPresenceChoices(mappedMembers);
     eventEmitter.emit('members:loaded', {
       members: mappedMembers,
       domainId,
@@ -79,6 +82,7 @@ export function handleGeneratedVariants(
 
   if (isVariant(response, 'Member')) {
     const mappedMember: MappedMember = mapWasmMember(response.Member as Record<string, unknown>);
+    recordPresenceChoices([mappedMember]);
     eventEmitter.emit('member:loaded', {
       member: mappedMember, connection: connectionInfo,
     });

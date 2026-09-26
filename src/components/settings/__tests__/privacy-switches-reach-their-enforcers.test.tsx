@@ -64,6 +64,17 @@ describe('requests from people you are not connected with', () => {
   });
 });
 
+describe('Online Status', () => {
+  // The server's peer list reports presence to everyone, so other members'
+  // clients can only honour the choice if it is published on the record.
+  it('saves the choice this client obeys, and publishes it for everyone else', async () => {
+    render(<WithUser show={true} />);
+    await act(async () => { fireEvent.click(screen.getByRole('switch', { name: 'Online Status' })); });
+    expect(getPrivacySettings().showOnlineStatus).toBe(false);
+    expect(sent).toEqual([{ showsOnlineStatus: false }]);
+  });
+});
+
 describe('what the tab claims', () => {
   it('calls nothing unenforced any more', () => {
     render(<WithUser show={true} />);

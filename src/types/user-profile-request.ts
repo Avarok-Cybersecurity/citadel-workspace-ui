@@ -7,4 +7,5 @@ export interface UpdateUserProfileRequest {
   // See lib/profile-privacy.ts.
   show_profile_to_strangers?: boolean;
   accepts_requests_from_strangers?: boolean;
+  shows_online_status?: boolean;
 }

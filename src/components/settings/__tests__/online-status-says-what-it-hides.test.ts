@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const source: string = readFileSync(join(process.cwd(), 'src/components/settings/PrivacySettingsTab.tsx'), 'utf8');
+const source: string = readFileSync(join(process.cwd(), 'src/components/settings/PrivacyServerRows.tsx'), 'utf8');
 
 describe('online status copy', () => {
   it('states that a direct connection stays visible', () => {

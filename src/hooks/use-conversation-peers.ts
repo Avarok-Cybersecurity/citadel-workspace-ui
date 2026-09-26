@@ -16,6 +16,7 @@ import { connectionManager } from '@/lib/connection';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import type { RegisteredPeer } from './use-registered-peers';
 import type { P2PConversation } from '@/lib/p2p/p2p-types';
+import { shownPresence } from '@/lib/presence';
 
 export interface ConversationPeer {
   peerCid: string;
@@ -84,7 +85,7 @@ export function useConversationPeers({
         peerCid: peerCidStr,
         peerUsername: peerHandleName(identity),
         peerDisplayName: peerDisplayName(identity),
-        isOnline: p2pAutoConnectService.peerOnlineStatus(c.peerCid),
+        isOnline: shownPresence(registeredPeer?.username, c.peerCid, p2pAutoConnectService.peerOnlineStatus(c.peerCid)),
         // `null` when we cannot name our own session, exactly as isPeerConnected answers:
         // connections are keyed by session, so `false` there answers a question nobody asked.
         isConnected: sessionCid === null ? null : p2pAutoConnectService.isPeerConnectedForSession(sessionCid, c.peerCid),

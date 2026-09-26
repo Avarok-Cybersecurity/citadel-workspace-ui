@@ -5,6 +5,7 @@ import { wireMapValues, wireMapEntries } from '@/lib/wire-map';
 import { debugLog } from '@/lib/debug-config';
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import { TIMEOUT } from '@/lib/timeout-constants';
+import { shownPresence } from '@/lib/presence';
 import type { Peer } from './usePeerDiscovery';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 
@@ -69,7 +70,7 @@ export async function discoverPeersViaGetSessions(currentCid: bigint | null): Pr
       cid: s.cid.toString(),
       username: s.username || 'Unknown',
       fullName: undefined,
-      is_online: true
+      is_online: shownPresence(s.username, s.cid, true)
     }));
 }
 
@@ -177,6 +178,6 @@ export async function fetchAllPeers(currentCid: bigint): Promise<Peer[]> {
       cid: p.cid.toString(),
       username: p.username || 'Unknown',
       fullName: p.name ?? undefined,
-      is_online: p.online_status ?? false
+      is_online: shownPresence(p.username ?? undefined, p.cid, p.online_status ?? false)
     }));
 }

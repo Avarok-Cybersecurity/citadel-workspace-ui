@@ -23,7 +23,7 @@ export interface Peer {
   cid: string;
   username: string;
   fullName?: string;
-  is_online: boolean;
+  is_online: boolean | null; // null: not known, or hidden by the member (lib/presence.ts)
   is_registered?: boolean;
 }
 

@@ -18,6 +18,7 @@ import { P2PMessengerManager } from '@/lib/p2p';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { recordPeerUsernames } from '@/lib/member-names';
+import { shownPresence } from '@/lib/presence';
 
 export interface RegisteredPeer {
   cid: string;
@@ -111,7 +112,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
           const displayName: string = peerDisplayName({ cid: p.cid, username: p.username });
           const username: string = peerHandleName({ cid: p.cid, username: p.username });
           const peerCidBigInt: bigint = p.cid ?? BigInt(0);
-          const isOnline: boolean | null = p2pAutoConnectService.peerOnlineStatus(peerCidBigInt);
+          const isOnline: boolean | null = shownPresence(p.username, peerCidBigInt, p2pAutoConnectService.peerOnlineStatus(peerCidBigInt));
           let isConnected: boolean | null = null;
           try {
             // Already `boolean | null`: the service answers null when this tab

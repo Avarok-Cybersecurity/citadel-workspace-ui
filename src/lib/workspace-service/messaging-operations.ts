@@ -148,6 +148,8 @@ export interface ProfileUpdate {
   showProfileToStrangers?: boolean;
   /** Published copy of the local setting, for refused requesters. */
   acceptsRequestsFromStrangers?: boolean;
+  /** Published copy of the local Online Status setting, for other members' clients. */
+  showsOnlineStatus?: boolean;
 }
 
 /**
@@ -165,6 +167,7 @@ export async function updateUserProfile(
       title: update.title,
       show_profile_to_strangers: update.showProfileToStrangers,
       accepts_requests_from_strangers: update.acceptsRequestsFromStrangers,
+      shows_online_status: update.showsOnlineStatus,
     }
   };
   // The settings form disables every input on `isSaving` and cleared it only on

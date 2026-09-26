@@ -1,5 +1,5 @@
 /**
- * The two privacy choices stored on the server's user record, as the client
+ * The privacy choices stored on the server's user record, as the client
  * reads them back.
  *
  * `MetadataValue` is `#[serde(tag = "type", content = "content")]`, so a flag
@@ -15,6 +15,7 @@ import {
   metadataFlag,
   showsProfileToStrangers,
   publishedAcceptsStrangers,
+  publishedShowsOnlineStatus,
   PRIVACY_METADATA_KEYS,
   SHOW_PROFILE_TO_STRANGERS_WHEN_UNSET,
 } from '../profile-privacy';
@@ -46,5 +47,10 @@ describe('the stored choices', () => {
   it('reports a published request policy, and nothing when none is published', () => {
     expect(publishedAcceptsStrangers({ [PRIVACY_METADATA_KEYS.acceptsRequestsFromStrangers]: flag(false) })).toBe(false);
     expect(publishedAcceptsStrangers({})).toBeUndefined();
+  });
+
+  it('reports a published Online Status choice, and nothing when none is published', () => {
+    expect(publishedShowsOnlineStatus({ shows_online_status: flag(false) })).toBe(false);
+    expect(publishedShowsOnlineStatus({})).toBeUndefined();
   });
 });
