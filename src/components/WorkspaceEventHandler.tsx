@@ -30,6 +30,7 @@ import {
 } from './hooks';
 import { debugLog } from '@/lib/debug-config';
 import { WorkspaceThemeProvider } from './theme/WorkspaceThemeProvider';
+import { ClaimLaterBanner } from './ClaimLaterBanner';
 
 /**
  * The event handler's state: the context's `WorkspaceState`, plus the one field
@@ -175,6 +176,10 @@ export const WorkspaceEventHandler: React.FC<{
             so it can only be read once the workspace is in context. */}
         <WorkspaceThemeProvider>{children}</WorkspaceThemeProvider>
       </WorkspaceProvider>
+      <ClaimLaterBanner
+        visible={state.needsWorkspaceInitialization === true && initModalDismissed && !showInitModal}
+        onClaim={(): void => { clearInitPromptSuppression(); setInitModalDismissed(false); }}
+      />
       <WorkspaceInitializationModal
         isOpen={showInitModal}
         onClose={handleInitCancelled}

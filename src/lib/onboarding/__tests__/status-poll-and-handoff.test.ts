@@ -119,6 +119,9 @@ describe('the claim code', () => {
     // this workspace does not answer on, so it must not receive the claim code.
     expect(createdWorkspaceAddress()).toBe('acme.work.avarok.net');
     expect(claimCodeFor('acme.work.avarok.net')).toBe('CLAIM-XYZ');
+    // The tab's connection record holds the dialled URL, not the host.
+    expect(claimCodeFor('wss://acme.work.avarok.net/')).toBe('CLAIM-XYZ');
+    expect(claimCodeFor('wss://other.work.avarok.net/')).toBeUndefined();
     expect(claimCodeFor('acme.work.avarok.net:12400')).toBeUndefined();
     expect(claimCodeFor('other.work.avarok.net')).toBeUndefined();
     expect(claimCodeFor(undefined)).toBeUndefined();

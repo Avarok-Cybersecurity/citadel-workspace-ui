@@ -6,6 +6,7 @@
  * about what it is asking for.
  */
 
+import { dialledHost } from '@/lib/sessions/same-server';
 import { AlertCircle } from 'lucide-react';
 
 interface Props {
@@ -45,7 +46,7 @@ export function WorkspaceInitializationDetails({
                                         {(workspaceName || workspaceId) && (
                                             <p><span className="text-warning-emphasis">Workspace:</span> {workspaceName || workspaceId}</p>
                                         )}
-                                        {serverAddress && <p><span className="text-warning-emphasis">Server:</span> {serverAddress}</p>}
+                                        {serverAddress && <p><span className="text-warning-emphasis">Server:</span> {dialledHost(serverAddress)}</p>}
                                         {(fullName || username) && (
                                             <p><span className="text-warning-emphasis">User:</span> {fullName && username && fullName !== username ? `${fullName} (${username})` : (username || fullName)}</p>
                                         )}
