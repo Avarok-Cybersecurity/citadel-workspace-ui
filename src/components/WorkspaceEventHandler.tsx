@@ -17,6 +17,9 @@ const WorkspaceInitializationModal: (props: WorkspaceInitializationModalProps) =
   (props: WorkspaceInitializationModalProps): boolean => props.isOpen,
 );
 import { connectionManager } from '../lib/connection';
+import { useWorkspaceAddress } from '@/hooks/use-workspace-address';
+import { useTabIdentity } from '@/hooks/use-tab-identity';
+import type { TabIdentity } from '@/lib/tab-identity';
 
 import {
   useWorkspaceEventSetup,
@@ -72,6 +75,12 @@ export const WorkspaceEventHandler: React.FC<{
   });
 
   const [showInitModal, setShowInitModal] = useState(false);
+  // This tab's workspace and account. These read the FIRST saved account in the
+  // browser, so with another account saved the dialog named that account's
+  // server -- and the claim-code prefill, which matches on the server, never
+  // fired for the workspace just created (live, test-sep25 showed admin-lab).
+  const initServer: string | undefined = useWorkspaceAddress(showInitModal, connectionManager.getConnectionInfo()?.serverAddress);
+  const tabUser: TabIdentity | null = useTabIdentity();
   const [initModalDismissed, setInitModalDismissed] = useState(() => {
     return initPromptSuppressed();
   });
@@ -172,9 +181,9 @@ export const WorkspaceEventHandler: React.FC<{
         onSuccess={handleWorkspaceInitialized}
         workspaceName={state.workspace?.name}
         workspaceId={state.workspace?.id || 'root'}
-        serverAddress={connectionManager.getStoredSessionsArray()[0]?.serverAddress}
-        username={isPlaceholderName(state.currentUser?.username) ? connectionManager.getStoredSessionsArray()[0]?.username : state.currentUser?.username}
-        fullName={isPlaceholderName(state.currentUser?.name) ? connectionManager.getStoredSessionsArray()[0]?.fullName : state.currentUser?.name}
+        serverAddress={initServer}
+        username={isPlaceholderName(state.currentUser?.username) ? tabUser?.username : state.currentUser?.username}
+        fullName={isPlaceholderName(state.currentUser?.name) ? tabUser?.fullName : state.currentUser?.name}
       />
     </>
   );

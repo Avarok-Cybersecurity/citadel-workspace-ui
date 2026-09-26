@@ -184,13 +184,13 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
           // Update currentUser's role if it matches
           let updatedCurrentUser: { id: string; username: string; name: string; role?: string; displayName?: string; avatarUrl?: string; } | undefined = prev.currentUser;
 
-          // Check against currentUser username/id OR the stored session username
-          const storedSession: StoredSession = connectionManager.getStoredSessionsArray()[0];
+          // This tab's user only. A third clause matched a placeholder name against
+          // the FIRST saved account in the browser, so with several accounts saved
+          // one account could take another's role; currentUser now always carries
+          // the tab's real username (tab-identity), so the clause could only be wrong.
           const isCurrentUser: boolean | undefined = prev.currentUser && (
             prev.currentUser.username === payload.userId ||
-            prev.currentUser.id === payload.userId ||
-            // Also match if currentUser has placeholder "Loading..." but payload matches stored session
-            (isPlaceholderName(prev.currentUser.username) && storedSession?.username === payload.userId)
+            prev.currentUser.id === payload.userId
           );
 
           if (isCurrentUser && prev.currentUser) {
