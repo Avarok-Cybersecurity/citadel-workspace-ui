@@ -9,7 +9,7 @@ import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
 import { manifestForBuild } from "./src/lib/pwa/version-manifest";
 import { VERSION_MANIFEST_PATH } from "./src/lib/pwa/deployed-version";
 import { KIT_MANIFEST } from "./src/pwa/kit-manifest.generated";
-import { serviceChunkFor, sharedServiceDependencyChunkFor } from "./scripts/lib/service-chunks";
+import { serviceChunkFor, sharedServiceDependencyChunkFor } from "./src/build/service-chunks";
 
 /**
  * The Content-Security-Policy the app ships under.
@@ -313,7 +313,7 @@ export default defineConfig(({ mode }) => {
             // order". Co-locating them removes the cycle at the chunk level and also
             // caches better: these services change far less often than the pages that
             // use them. "Whole" is two halves -- what the landing page statically
-            // reaches, and what it does not -- see scripts/lib/service-chunks.ts.
+            // reaches, and what it does not -- see src/build/service-chunks.ts.
             const serviceChunk: string | undefined = serviceChunkFor(id, meta);
             if (serviceChunk) {
               return serviceChunk;

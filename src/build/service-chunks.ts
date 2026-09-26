@@ -15,8 +15,8 @@ import type { ManualChunkMeta } from 'rollup';
  * a module statically imported by a reachable module is reachable by
  * definition — so no chunk cycle can form between them.
  */
-export const EAGER_SERVICES_CHUNK = 'app-services';
-export const DEFERRED_SERVICES_CHUNK = 'app-services-deferred';
+export const EAGER_SERVICES_CHUNK: string = 'app-services';
+export const DEFERRED_SERVICES_CHUNK: string = 'app-services-deferred';
 
 const SERVICE_DIR: RegExp = /[\\/]src[\\/]lib[\\/](p2p|connection-service|peer-registration-store)[\\/]/;
 
