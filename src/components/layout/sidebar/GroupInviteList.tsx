@@ -11,15 +11,15 @@ import { Button } from '@/components/ui/button';
 import { SidebarGroup, SidebarGroupContent, SidebarGroupLabel } from '@/components/ui/sidebar';
 import { getPendingInvites, subscribeToInvites } from '@/lib/group-conversations/group-invites';
 import { acceptGroupInvite, declineGroupInvite } from '@/lib/group-conversations/respond-to-invite';
-import { inviteGroupLabel, type GroupInvitePayload } from '@/hooks/use-group-state-invite';
+import { inviteTarget, type GroupInvitePayload } from '@/hooks/use-group-state-invite';
 
 function InviteRow({ invite }: { invite: GroupInvitePayload }): JSX.Element {
-  const label: string = inviteGroupLabel(invite);
+  const label: string = inviteTarget(invite);
   return (
     <li className="rounded-md border border-border px-3 py-2 text-sm" data-testid="group-invite-row" data-group-id={invite.groupId}>
       <p className="text-foreground break-words">
         <span className="font-semibold">{invite.inviterUsername}</span> invited you to{' '}
-        <span className="font-semibold">{label}</span>
+        {invite.groupName ? <span className="font-semibold">{label}</span> : label}
       </p>
       <div className="mt-2 flex gap-2">
         <Button size="sm" className="tap-target h-7" data-testid="group-invite-accept" aria-label={`Accept invitation to ${label}`}

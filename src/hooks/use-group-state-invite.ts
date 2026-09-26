@@ -37,6 +37,16 @@ export function inviteGroupLabel(data: GroupInvitePayload): string {
 }
 
 /**
+ * How a sentence names the group an invitation is for. `GroupInviteNotification`
+ * carries no name, so an unnamed one is "a group": the placeholder above read as
+ * the group's real name ("alice invited you to alice's Group") for a group the
+ * owner had called something else. The real name arrives once the person joins.
+ */
+export function inviteTarget(data: GroupInvitePayload): string {
+  return data.groupName ? `"${data.groupName}"` : 'a group';
+}
+
+/**
  * Parse a CID from the invite payload. Returns `null` if the input
  * is not a syntactically valid BigInt — this lets callers reject the
  * whole invite cleanly instead of letting `BigInt()` throw a

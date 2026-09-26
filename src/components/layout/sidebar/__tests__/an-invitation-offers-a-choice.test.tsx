@@ -44,9 +44,17 @@ describe('a pending invitation in the sidebar', () => {
   it('says who invited you to what, and offers both answers', () => {
     act(() => { addPendingInvite(INVITE); });
     mount();
-    expect(screen.getByTestId('group-invite-row').textContent).toContain("alice invited you to alice's Group");
+    // The wire carries no group name; the row must not present a made-up one as real.
+    expect(screen.getByTestId('group-invite-row').textContent).toContain('alice invited you to a group');
+    expect(screen.getByTestId('group-invite-row').textContent).not.toContain("alice's Group");
     expect(screen.getByTestId('group-invite-accept')).toBeTruthy();
     expect(screen.getByTestId('group-invite-decline')).toBeTruthy();
+  });
+
+  it('names the group when the invitation carries its name', () => {
+    act(() => { addPendingInvite({ ...INVITE, groupName: 'Design' }); });
+    mount();
+    expect(screen.getByTestId('group-invite-row').textContent).toContain('alice invited you to "Design"');
   });
 
   it('Decline tells the server no and removes the row', async () => {

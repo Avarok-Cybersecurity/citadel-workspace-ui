@@ -13,7 +13,7 @@
 import { eventEmitter } from '@/lib/event-emitter';
 import { toast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
-import { inviteGroupLabel, type GroupInvitePayload } from '@/hooks/use-group-state-invite';
+import { inviteTarget, type GroupInvitePayload } from '@/hooks/use-group-state-invite';
 import { addPendingInvite, removePendingInvite } from './group-invites';
 
 export function bindGroupInvites(isMemberOf: (groupId: string) => boolean): void {
@@ -22,7 +22,7 @@ export function bindGroupInvites(isMemberOf: (groupId: string) => boolean): void
     // Same rule buildGroupFromInvite applies: an invitation from nobody is malformed.
     if (!data.groupId || !data.inviterUsername || isMemberOf(data.groupId)) return;
     if (!addPendingInvite(data)) return;
-    toast({ title: 'Group Invitation', description: `${data.inviterUsername} invited you to "${inviteGroupLabel(data)}"` });
+    toast({ title: 'Group Invitation', description: `${data.inviterUsername} invited you to ${inviteTarget(data)}` });
   });
 
   eventEmitter.on('group:deleted', (data: { groupId: string }) => {

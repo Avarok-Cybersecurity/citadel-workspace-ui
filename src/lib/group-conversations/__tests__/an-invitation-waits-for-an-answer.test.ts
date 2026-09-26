@@ -72,7 +72,7 @@ describe('an arriving invitation', () => {
     expect(getPendingInvites().map((p) => p.groupId)).toContain(inv.groupId);
     expect(getGroups().some((g) => g.id === inv.groupId)).toBe(false);
     expect(responds()).toEqual([]);
-    expect(h.toasts).toContainEqual(expect.objectContaining({ description: `alice invited you to "alice's Group"` }));
+    expect(h.toasts).toContainEqual(expect.objectContaining({ description: 'alice invited you to a group' }));
   });
 
   it('is one invitation however many times it is delivered', () => {
