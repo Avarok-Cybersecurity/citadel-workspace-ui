@@ -40,7 +40,7 @@ export function MembersHeaderActions({
 }: MembersHeaderActionsProps): JSX.Element {
   const blockedReason: string | null = addMemberBlockedReason(usePermission(domainId, Permission.AddUsers));
   return (
-    <div className="flex items-center" data-testid="members-header-actions">
+    <div className="flex shrink-0 items-center" data-testid="members-header-actions">
       <Button
         variant="ghost"
         size="icon"
