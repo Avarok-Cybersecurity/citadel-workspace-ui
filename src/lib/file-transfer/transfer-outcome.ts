@@ -68,3 +68,12 @@ export function isStillOpen(
 ): boolean {
   return state.getTransfer(transfer.id) === transfer && !isTerminalTransferState(transfer.state);
 }
+
+/**
+ * Whether a transfer can still be accepted. An unknown one counts: an offer's
+ * message half is noted before its transfer is recorded (see the service), so
+ * absent means "arriving", and only a recorded outcome closes it.
+ */
+export function isOpenTransfer(transfer: FileTransfer | undefined): boolean {
+  return transfer === undefined || !isTerminalTransferState(transfer.state);
+}

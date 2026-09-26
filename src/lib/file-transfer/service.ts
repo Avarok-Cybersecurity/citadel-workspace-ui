@@ -15,6 +15,7 @@ import {
   isFileTransferRequest, isFileTransferResponse, isFileTransferCancel,
 } from '@/types/messaging-layer';
 import { FileTransferState } from './state';
+import { isOpenTransfer } from './transfer-outcome';
 import { FileTransferIO } from './io';
 import { FILE_TRANSFER_EVENTS } from './events';
 import type { IFileTransferIORouter } from './io-router';
@@ -40,8 +41,7 @@ export class FileTransferService {
 
   private readonly state: FileTransferState = new FileTransferState();
   private readonly correlator: ProtocolOfferCorrelator = new ProtocolOfferCorrelator((transferId, objectId): void =>
-    this.io.registerTransferMapping(transferId, objectId)
-  );
+    this.io.registerTransferMapping(transferId, objectId), (transferId: string): boolean => isOpenTransfer(this.state.getTransfer(transferId)));
   private io: FileTransferIO;
   private initialized: boolean = false;
 

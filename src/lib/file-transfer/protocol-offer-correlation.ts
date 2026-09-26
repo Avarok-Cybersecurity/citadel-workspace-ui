@@ -64,7 +64,17 @@ export class ProtocolOfferCorrelator {
     seenAt: number;
   }> = [];
 
-  constructor(private readonly register: (transferId: string, objectId: string) => void) {}
+  /**
+   * `isOpen` says whether a held message half's transfer can still be accepted.
+   * Offers of the same file (same sender, name and size) pair in arrival order,
+   * so a half whose protocol offer never came -- stalled, then cancelled or
+   * expired -- used to take the NEXT offer's object id, and that live offer
+   * could never be accepted ("not announced over the protocol yet", live).
+   */
+  constructor(
+    private readonly register: (transferId: string, objectId: string) => void,
+    private readonly isOpen: (transferId: string) => boolean,
+  ) {}
 
   private prune(now: number): void {
     this.pending = this.pending.filter((o) => now - o.seenAt < OFFER_TTL_MS);
@@ -76,6 +86,7 @@ export class ProtocolOfferCorrelator {
     const now: number = Date.now();
     this.prune(now);
 
+    this.awaitingBytes = this.awaitingBytes.filter((a) => this.isOpen(a.transferId));
     const waitingIndex: number = this.awaitingBytes.findIndex((a) =>
       matches({ objectId, senderCid, fileName, fileSize, seenAt: now }, a.senderCid, a.fileName, a.fileSize)
     );
