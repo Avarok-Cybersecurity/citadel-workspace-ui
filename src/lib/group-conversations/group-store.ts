@@ -152,8 +152,11 @@ export function areGroupsHydrated(): boolean {
 /**
  * Bind the group:* events to the store. Idempotent — every consumer calls it
  * on mount, only the first call subscribes.
+ *
+ * `selfUsername` reads the signed-in account's username: an office channel names the sender by
+ * it, and a message of your own must not raise your badge (see own-message).
  */
-export function startGroupEventBindings(): void {
+export function startGroupEventBindings(selfUsername: () => string | undefined): void {
   if (bindingsStarted) return;
   bindingsStarted = true;
 
@@ -212,7 +215,7 @@ export function startGroupEventBindings(): void {
     selfUsername?: string;
     memberUsernames?: Record<string, string>;
   }) => {
-    updateGroups((prev) => applyGroupMessage(prev, data, Date.now(), usernameFrom(data.memberUsernames)));
+    updateGroups((prev) => applyGroupMessage(prev, { ...data, selfUsername: data.selfUsername ?? selfUsername() }, Date.now(), usernameFrom(data.memberUsernames)));
   });
 
   eventEmitter.on('group:deleted', (data: { groupId: string }) => {

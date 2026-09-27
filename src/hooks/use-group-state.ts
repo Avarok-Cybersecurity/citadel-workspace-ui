@@ -20,6 +20,7 @@ import {
   restorePersistedGroups,
 } from '@/lib/group-conversations/group-store';
 import { startGroupNotificationBindings } from '@/lib/group-conversations/group-notifications';
+import { sessionUsername } from '@/lib/group-conversations/session-username';
 
 export interface GroupState {
   groups: GroupConversation[];
@@ -47,11 +48,11 @@ export function useGroupState(): GroupState {
   useEffect(() => {
     // Idempotent: the first consumer to mount arms the store's event
     // subscriptions; everyone after is a no-op.
-    startGroupEventBindings();
+    startGroupEventBindings(sessionUsername);
     // Beside the store's, because a group message has to do two things: move
     // the sidebar badge (the store) and interrupt someone who is elsewhere
     // (this). Only the first was ever wired.
-    startGroupNotificationBindings();
+    startGroupNotificationBindings(sessionUsername);
     // Bindings FIRST, then the restore. An invite landing while the read is in
     // flight is merged under the snapshot rather than lost behind it.
     void restorePersistedGroups();

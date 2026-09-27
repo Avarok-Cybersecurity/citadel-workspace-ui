@@ -72,23 +72,9 @@ async function createLiveDoc(page: Page, username: string, docTitle: string): Pr
     return false;
   }
 
-  // BUG WORKAROUND: P2PChat.tsx returns early if input is empty BEFORE checking live_document
-  // One testid covers both modes: the composer is the same control whether it
-  // is holding a message or a document body, and only its placeholder changes.
-  const messageInput = page.getByTestId('p2p-message-input').first();
-  if (await isVisibleWithin(messageInput, 2000)) {
-    await messageInput.fill('initial content');
-    await sleep(300);
-    console.log('  Filled input with placeholder text (workaround)');
-  }
-
-  // Click the Send button to open LiveDocumentModal
-  const sendBtn = page.locator('button[type="submit"]').last();
-  if (await isVisibleWithin(sendBtn, 2000)) {
-    await sendBtn.click();
-    await sleep(1500);
-    console.log('  Clicked Send to open Live Doc modal');
-  }
+  // Choosing the Live Doc type opens the dialog by itself; nothing needs typing first. This
+  // used to fill the box with placeholder text and press Send, working around the composer
+  // returning on an empty box before it looked at the type.
 
   await takeScreenshot(page, `${username}_livedoc_02_modal`);
 

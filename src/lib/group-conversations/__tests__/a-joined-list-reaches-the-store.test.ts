@@ -3,6 +3,7 @@
  * actually gains the groups -- not only the pure fold in learn-joined-groups.
  */
 import { describe, it, expect, vi } from 'vitest';
+import { noSessionUsername } from '@/test-utils/no-session-username';
 import type { GroupConversation } from '@/types/group';
 
 const h: { cid: bigint | null } = vi.hoisted((): { cid: bigint | null } => ({ cid: 100n }));
@@ -21,7 +22,7 @@ describe('the joined list', () => {
     const store: typeof import('../group-store') = await import('../group-store');
     const { eventEmitter } = await import('@/lib/event-emitter');
     const announce: typeof import('../announce-group-state') = await import('../announce-group-state');
-    store.startGroupEventBindings();
+    store.startGroupEventBindings(noSessionUsername);
 
     eventEmitter.emit('group:joined-list-received', { groupIds: ['7:42'], selfUsername: 'self', memberUsernames: { '7': 'owner7' } });
 

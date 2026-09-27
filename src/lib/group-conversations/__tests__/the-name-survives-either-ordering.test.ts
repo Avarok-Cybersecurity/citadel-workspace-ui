@@ -16,6 +16,7 @@
  * proves half the fix.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
+import { noSessionUsername } from '@/test-utils/no-session-username';
 import { eventEmitter } from '@/lib/event-emitter';
 import { startGroupEventBindings, getGroups, updateGroups } from '../group-store';
 import { rememberGroupName, forgetChosenNames } from '../group-names';
@@ -48,7 +49,7 @@ describe('naming a group the creator just made', () => {
   beforeEach(() => {
     forgetChosenNames();
     updateGroups(() => []);
-    startGroupEventBindings();
+    startGroupEventBindings(noSessionUsername);
   });
 
   it('holds when the store builds the record first', () => {

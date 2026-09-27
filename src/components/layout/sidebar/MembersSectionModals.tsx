@@ -10,7 +10,7 @@
  * - CreateGroupDialog
  */
 
-import { MoreVertical, Shield, User as UserIcon } from "lucide-react";
+import { MoreVertical, Shield } from "lucide-react";
 import { InviteToWorkspaceDialog } from '@/components/workspace/InviteToWorkspaceDialog';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -39,18 +39,7 @@ import { useNavigate } from 'react-router-dom';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { mayLeaveEditor } from '@/lib/leave-editor';
 import type { NavigateFunction } from 'react-router';
-import { isPrivilegedRole } from '@/lib/role-predicate';
-
-export function getRoleIcon(role: string): JSX.Element {
-  // This compared against lowercase only, so the shield NEVER rendered for a
-  // member loaded from the server -- the wire sends PascalCase. It was the one
-  // place a fix the neighbours already had was not applied; the predicate now
-  // lives in lib/role-predicate so there is no "one place" left to miss.
-  return isPrivilegedRole(role)
-    ? <Shield className="h-4 w-4" />
-    : <UserIcon className="h-4 w-4" />;
-}
-
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 /** Role badge classes. Defined once in lib/role-badge so the sidebar and user
  *  search cannot drift apart again — they already had, and only one was fixed. */
 export function getRoleColor(role: string): string {
@@ -143,7 +132,7 @@ export function MembersSectionModals({
               {members.map((member) => (
                 <div key={member.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-card transition-colors">
                   <div className="flex items-center gap-3 flex-1">
-                    {getRoleIcon(member.role || 'member')}
+                    <MemberAvatar username={member.username} name={member.displayName || member.username} className="h-8 w-8" />
                     <div className="flex-1">
                       <p className="text-foreground font-medium">{member.displayName || member.username}</p>
                       {member.username && <p className="text-sm text-muted-foreground">@{member.username}</p>}

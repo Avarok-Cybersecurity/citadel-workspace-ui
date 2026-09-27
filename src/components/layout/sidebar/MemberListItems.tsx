@@ -23,7 +23,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getRoleIcon, getRoleColor, capitalizeRole } from './MembersSectionModals';
+import { getRoleColor, capitalizeRole } from './MembersSectionModals';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 
 const MEMBERS_TO_SHOW: number = 5;
@@ -59,7 +60,7 @@ export function MemberListItems({
                 <SidebarMenuButton className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors min-w-0 flex-1">
                   {/* min-w-0 down the chain so the NAME gives way; see a-role-badge-is-never-clipped. */}
                   <div className="flex items-center gap-2 min-w-0 flex-1">
-                    {getRoleIcon(member.role || 'member')}
+                    <MemberAvatar username={member.username} name={member.displayName || member.username} />
                     <span className="min-w-0 flex-1 truncate">{member.displayName || member.username}</span>
                     <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} shrink-0 whitespace-nowrap text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
                   </div>

@@ -10,6 +10,7 @@
  * zero short of a reload.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { noSessionUsername } from '@/test-utils/no-session-username';
 
 const h: { cid: bigint | null; } = vi.hoisted((): { cid: bigint | null; } => ({ cid: null as bigint | null }));
 vi.mock('@/lib/multi-instance/instance-manager', () => ({
@@ -30,7 +31,7 @@ async function freshStore(): Promise<{
   // an emitter the store was not listening on — and the "does not count own
   // message" test passed for that reason rather than the intended one.
   const { eventEmitter } = await import('@/lib/event-emitter');
-  store.startGroupEventBindings();
+  store.startGroupEventBindings(noSessionUsername);
   return { store, eventEmitter };
 }
 

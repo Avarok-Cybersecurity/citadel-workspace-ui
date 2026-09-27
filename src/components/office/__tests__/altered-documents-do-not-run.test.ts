@@ -24,7 +24,7 @@ const components: never = {} as never;
 describe('a document whose hash does not match', () => {
   it('is not rendered, and says why', async () => {
     const { result } = renderHook(() =>
-      useCompiledMdx('# Tampered', components, 'deadbeef'),
+      useCompiledMdx('# Tampered', components, 'deadbeef', false),
     );
 
     await waitFor(() => expect(result.current.renderError).toBeTruthy());
@@ -36,7 +36,7 @@ describe('a document whose hash does not match', () => {
     const content: "# Fine" = '# Fine';
     const hash: string = await hashDocument(content);
 
-    const { result } = renderHook(() => useCompiledMdx(content, components, hash));
+    const { result } = renderHook(() => useCompiledMdx(content, components, hash, false));
 
     await waitFor(() => expect(result.current.compiled).not.toBeNull());
     expect(result.current.renderError).toBeNull();
@@ -46,7 +46,7 @@ describe('a document whose hash does not match', () => {
     // Documents written before the field existed have none. Refusing those
     // would take every old document offline to prevent a tamper that has not
     // happened.
-    const { result } = renderHook(() => useCompiledMdx('# Old', components, null));
+    const { result } = renderHook(() => useCompiledMdx('# Old', components, null, false));
 
     await waitFor(() => expect(result.current.compiled).not.toBeNull());
     expect(result.current.renderError).toBeNull();
@@ -56,7 +56,7 @@ describe('a document whose hash does not match', () => {
     // While editing, the content is the user's own typing. Passing undefined is
     // how BaseOffice says "not the stored document"; refusing to render
     // someone's own draft would be absurd.
-    const { result } = renderHook(() => useCompiledMdx('# Draft', components, undefined));
+    const { result } = renderHook(() => useCompiledMdx('# Draft', components, undefined, false));
 
     await waitFor(() => expect(result.current.compiled).not.toBeNull());
     expect(result.current.renderError).toBeNull();

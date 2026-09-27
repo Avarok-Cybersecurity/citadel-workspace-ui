@@ -14,29 +14,42 @@ export const meetingRoomTemplate: MdxTemplate = {
   type: RoomType.MEETING,
   content: `# Team Meeting Room
 
-## Upcoming Meetings
+<Card title="About this room" description="Which meetings happen here">
 
-<MeetingSchedule />
+_List the recurring meetings this room is for, and who usually attends._
 
-## Meeting Notes
+</Card>
 
-<NotesList category="meetings" />
+## Upcoming meetings
 
-## Action Items
+| Date | Meeting | Facilitator |
+| ---- | ------- | ----------- |
+| _Date and time_ | _Meeting name_ | _Name_ |
+| _Date and time_ | _Meeting name_ | _Name_ |
 
-<ActionItemTracker />
+## Agenda for the next meeting
 
-## Discussion Topics
+1. _Topic — owner — time allowed_
+2. _Topic — owner — time allowed_
+3. _Any other business_
 
-<DiscussionBoard />
+## Action items
 
-## Meeting Resources
+- [ ] _Action — owner — due date_
+- [ ] _Action — owner — due date_
 
-<ResourceList tags={["meetings", "presentations"]} />
+## Notes from past meetings
 
-## Video Conferencing
+### _Date — meeting name_
 
-<VideoConferenceSetup />
+- **Decisions:** _What was agreed_
+- **Open questions:** _What still needs an answer_
+
+## Meeting guidelines
+
+- _Share the agenda before the meeting_
+- _Start and end on time_
+- _Record decisions and action items here_
 `
 };
 
@@ -48,29 +61,48 @@ export const projectsRoomTemplate: MdxTemplate = {
   type: RoomType.PROJECTS,
   content: `# Projects Hub
 
-## Active Projects
+<Card title="About this room" description="How projects are tracked here">
 
-<ProjectBoard filter="active" />
+_Explain which projects are tracked in this room and how often this page is updated._
 
-## Project Timeline
+</Card>
 
-<ProjectTimeline />
+## Active projects
 
-## Project Resources
+| Project | Lead | Target date | Status |
+| ------- | ---- | ----------- | ------ |
+| _Project name_ | _Name_ | _Date_ | <Badge>In Progress</Badge> |
+| _Project name_ | _Name_ | _Date_ | <Badge variant="secondary">Planned</Badge> |
 
-<ResourceList tags={["projects", "management"]} />
+## Milestones
 
-## Team Assignments
+- [ ] _Milestone — target date_
+- [ ] _Milestone — target date_
+- [ ] _Milestone — target date_
 
-<TeamAssignments />
+## Team assignments
 
-## Project Documentation
+| Person | Project | Responsibility |
+| ------ | ------- | -------------- |
+| _Name_ | _Project name_ | _What they own_ |
 
-<DocumentationList category="projects" />
+## Risks and blockers
 
-## Status Reports
+> _Record anything that could delay a project, who owns it, and what is being done about it._
 
-<StatusReportList />
+## Status updates
+
+### _Date_
+
+- **Done:** _What was completed_
+- **Next:** _What comes next_
+- **Blocked:** _Anything waiting on someone else_
+
+## Project documents
+
+- _Project brief_
+- _Requirements or specifications_
+- _Decision log_
 `
 };
 
@@ -82,33 +114,53 @@ export const documentationRoomTemplate: MdxTemplate = {
   type: RoomType.DOCUMENTATION,
   content: `# Documentation Center
 
-## Getting Started
+<Card title="Getting started" description="Where to begin">
 
-Welcome to our documentation center. Here you'll find comprehensive guides and documentation to help you get up and running quickly.
+_Tell new readers which document to read first, and summarise what this documentation covers._
 
-## Product Documentation
+</Card>
 
-<DocumentationList category="product" />
+## Product documentation
 
-## API References
+- _Product overview_
+- _Feature guides_
+- _Release notes_
 
-<ApiDocumentation />
+## API reference
 
-## User Guides
+- _Authentication_
+- _Endpoints or functions_
+- _Error codes_
 
-<DocumentationList category="user-guides" />
+Example request:
 
-## Internal Processes
+\`\`\`bash
+# Replace with a real example for your API
+curl https://example.com/api/resource
+\`\`\`
 
-<DocumentationList category="internal" />
+## User guides
 
-## Contribute to Docs
+1. _Guide title — one line on what it covers_
+2. _Guide title — one line on what it covers_
 
-<ContributionGuidelines />
+## Internal processes
 
-## Recently Updated
+- _How we release_
+- _How we handle support requests_
+- _Who owns which documents_
 
-<DocumentationList sort="recently-updated" limit={5} />
+## Contributing to the docs
+
+<Alert title="Keep documents current">
+_Explain how to propose a change, who reviews it, and how to mark a document as out of date._
+</Alert>
+
+## Recently updated
+
+| Document | Updated | By |
+| -------- | ------- | -- |
+| _Document name_ | _Date_ | _Name_ |
 `
 };
 
@@ -120,33 +172,51 @@ export const trainingRoomTemplate: MdxTemplate = {
   type: RoomType.TRAINING,
   content: `# Training Center
 
-## Learning Paths
+<Card title="About this room" description="Learning and development for the team">
 
-<LearningPathList />
+_Describe what people can learn here and who to contact about training._
 
-## Upcoming Training Sessions
+</Card>
 
-<TrainingSchedule />
+## Learning paths
 
-## Learning Resources
+### _Path name, e.g. new starter_
 
-<ResourceList tags={["training", "learning"]} />
+- [ ] _Module or course_
+- [ ] _Module or course_
+- [ ] _Practical exercise_
 
-## Knowledge Base
+## Upcoming sessions
 
-<KnowledgeBase />
+| Date | Session | Trainer | How to join |
+| ---- | ------- | ------- | ----------- |
+| _Date and time_ | _Session title_ | _Name_ | _Room or link_ |
+
+## Learning resources
+
+- _Recommended courses_
+- _Books and articles_
+- _Internal recordings_
+
+## Knowledge base
+
+_Answer the questions people ask most often, or link to where the answers live._
 
 ## Certifications
 
-<CertificationTracker />
+| Certification | Who holds it | Renewal date |
+| ------------- | ------------ | ------------ |
+| _Certification name_ | _Name_ | _Date_ |
 
-## Training Materials
+## Training materials
 
-<TrainingMaterialLibrary />
+- _Slides_
+- _Exercises and worksheets_
+- _Assessments_
 
-## Training Feedback
+## Feedback
 
-<FeedbackForm id="training-feedback" />
+_Explain how attendees can share feedback on a session and how it will be used._
 `
 };
 

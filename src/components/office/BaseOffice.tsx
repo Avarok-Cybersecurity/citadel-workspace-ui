@@ -13,6 +13,8 @@ import TemplateSelector from "@/components/mdx/TemplateSelector";
 import { TemplateCategory, MdxTemplate } from "@/lib/mdx-templates";
 import { saveOfficeContent } from "./save-office-content";
 import { useCompiledMdx } from "./use-compiled-mdx";
+import { useApplyTemplate } from "./use-apply-template";
+import { DocumentRenderError } from "./DocumentRenderError";
 import { useUnsavedMdxGuard, DISCARD_EDIT_PROMPT } from "./use-unsaved-mdx-guard";
 import { useConfirm } from "@/components/shared/confirm-dialog";
 import { editGate, noPageReason } from "./edit-gate";
@@ -58,6 +60,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     // is their unsaved buffer and will not match any hash — refusing to render
     // their own typing would be absurd.
     isEditing || isNewContent ? undefined : entityData?.mdx_content_hash,
+    isEditing,
   );
 
   // "No node" is the workspace ROOT, a real permission domain -- the same
@@ -132,21 +135,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   }, [entityData, getInitialContent, isEditing]);
 
 
-  // Handle template selection
-  const handleTemplateSelect = (template: MdxTemplate): void => {
-    // Replace content with template content
-    setContent(template.content);
-
-    // Show success toast
-    toast({
-      title: "Template applied",
-      description: `Applied "${template.name}" template. You can now customize it.`,
-      variant: 'success',
-    });
-
-    // Content is no longer new once a template is applied
-    setIsNewContent(false);
-  };
+  const handleTemplateSelect: (template: MdxTemplate) => void = useApplyTemplate(components, setContent, (): void => setIsNewContent(false));
 
   // Show skeleton loader during loading state
   // Chat is enabled, disabled, or NOT YET ANSWERED -- see chat-surface.ts.
@@ -198,11 +187,14 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     <div className="px-6 lg:px-10 pt-8 pb-4 prose dark:prose-invert prose-sm md:prose-base lg:prose-lg max-w-4xl">
       <MDXProvider components={components}>
         {compiledContent ?? (renderError && (
-          // Only when there is nothing to show. A transient compile error while
-          // typing keeps the last good render, which is the whole point of
-          // holding it -- but a document that has never rendered used to be a
-          // blank body under a title, indistinguishable from an empty one.
-          <p role="alert" className="text-destructive-emphasis">{renderError}</p>
+          // Only when there is nothing to show; outside the editor a failed
+          // compile clears the render (use-compiled-mdx), so this is reached.
+          <DocumentRenderError
+            message={renderError}
+            storedHash={entityData?.mdx_content_hash}
+            canEdit={gate.enabled}
+            onReplace={(template: MdxTemplate): void => { setIsEditing(true); handleTemplateSelect(template); }}
+          />
         ))}
       </MDXProvider>
     </div>

@@ -1,5 +1,6 @@
 import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import { isNewId } from '@/lib/seen-ids';
+import { isOwnGroupMessage } from './own-message';
 import { debugLog } from '@/lib/debug-config';
 import type { GroupConversation } from '@/types/group';
 import { isValidGroupId } from './group-key';
@@ -57,7 +58,8 @@ export function applyGroupMessage(
   }
 
   const own: bigint | null = instanceManager.cid;
-  const fromSelf: boolean = own !== null && data.senderId === String(own);
+  // By CID or username; an office channel names the sender by username (see own-message).
+  const fromSelf: boolean = isOwnGroupMessage(data.senderId, { cid: own, username: data.selfUsername });
   const withGroup: GroupConversation[] = known ? groups : [...groups, memberGroupRecord({
     groupId: data.groupId, groupName: data.groupName, senderId: data.senderId, self: own, selfUsername: data.selfUsername, usernameFor,
   })];

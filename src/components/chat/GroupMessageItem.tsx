@@ -7,11 +7,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
+import { senderUsernameOf } from './shared/sender-username';
 import { MoreVertical, Edit2, Trash2, Reply } from 'lucide-react';
 import type { GroupMessage } from '@/types/workspace-entities';
 import { cn } from '@/lib/utils';
-import { getInitials, ReplyQuote, MESSAGE_ANCHOR_ATTRIBUTE, JUMP_TARGET_CLASSES, type QuotedMessage } from './shared';
+import { ReplyQuote, MESSAGE_ANCHOR_ATTRIBUTE, JUMP_TARGET_CLASSES, type QuotedMessage } from './shared';
 import { GroupMessageFooter } from './GroupMessageFooter';
 import { GroupFileShareCard } from './GroupFileShareCard';
 import { BUBBLE_MAX_WIDTH } from '@/components/p2p/bubbles/types';
@@ -83,7 +84,6 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
   const isOwnMessage: boolean = Boolean(currentUserName) && currentUserName !== 'You'
     ? message.sender_id === currentUserName
     : false;
-  const initials: string = getInitials(message.sender_name);
 
   return (
     <div data-testid="message-item" {...{ [MESSAGE_ANCHOR_ATTRIBUTE]: message.id }} className={cn(
@@ -91,11 +91,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
       JUMP_TARGET_CLASSES,
       isOwnMessage && 'flex-row-reverse'
     )}>
-      <Avatar className="h-8 w-8 flex-shrink-0">
-        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-          {initials}
-        </AvatarFallback>
-      </Avatar>
+      <MemberAvatar username={senderUsernameOf(message)} name={message.sender_name} className="h-8 w-8" />
 
       <div className={cn('flex flex-col', BUBBLE_MAX_WIDTH, isOwnMessage && 'items-end')}>
         <div className={cn(

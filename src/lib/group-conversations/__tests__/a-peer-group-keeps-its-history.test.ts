@@ -14,6 +14,7 @@
  * thread and the store's write queue start again; only the Map persists.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { noSessionUsername } from '@/test-utils/no-session-username';
 import type { GroupMessage } from '@/types/workspace-entities';
 
 const world: { store: Map<string, unknown>; cid: bigint | null; failReads: boolean } = vi.hoisted(() => ({
@@ -169,7 +170,7 @@ describe('a peer group transcript', () => {
     const { startGroupEventBindings } = await import('../group-store');
     const { eventEmitter } = await import('@/lib/event-emitter');
     const store: typeof import('../group-transcript-store') = await import('../group-transcript-store');
-    startGroupEventBindings();
+    startGroupEventBindings(noSessionUsername);
 
     eventEmitter.emit('group:message-received', {
       groupId: PEER_GROUP, messageId: 'm-received', senderId: '9', senderName: 'bob',

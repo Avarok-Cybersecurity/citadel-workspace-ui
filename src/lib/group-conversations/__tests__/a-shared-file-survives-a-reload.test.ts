@@ -8,6 +8,7 @@
  * reload is `vi.resetModules()`.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { noSessionUsername } from '@/test-utils/no-session-username';
 import type { GroupMessage } from '@/types/workspace-entities';
 import type { GroupMember } from '@/types/group';
 
@@ -73,7 +74,7 @@ describe('a shared file after a reload', () => {
     const { startGroupEventBindings } = await import('../group-store');
     const { eventEmitter } = await import('@/lib/event-emitter');
     const { loadTranscript } = await import('../group-transcript-store');
-    startGroupEventBindings();
+    startGroupEventBindings(noSessionUsername);
     eventEmitter.emit('group:message-received', {
       groupId: GROUP, messageId: 'f-2', senderId: '9', senderName: 'bob', content: 'Shared a file: b.txt (3 B)',
       timestamp: 2_000, fileShare: { name: 'b.txt', size: 3, mimeType: 'text/plain', senderCid: 9n },
