@@ -58,6 +58,34 @@ export function sharedDocOf(message: PeerGroupMessage): SharedLiveDoc | undefine
   return message.message_type === 'LiveDocument' ? sharedLiveDocOf(message.document_id, message.document_title) : undefined;
 }
 
+/** What a member's chat message is, before it has an envelope. */
+export interface ChatEnvelopeInput {
+  groupId: string;
+  messageId: string;
+  senderCid: bigint;
+  content: string;
+  messageType: MemberMessageType;
+  replyTo?: string;
+  groupName?: string;
+  /** The live document the message shares; `content` is then its fallback text. */
+  document?: SharedLiveDoc;
+}
+
+/** The envelope for a chat message: its type and document fields only when it has them. */
+export function chatEnvelope(input: ChatEnvelopeInput): PeerGroupMessage {
+  return {
+    group_id: input.groupId,
+    message_id: input.messageId,
+    sender_cid: input.senderCid,
+    content: input.content,
+    timestamp: Date.now(),
+    reply_to: input.replyTo,
+    group_name: input.groupName,
+    ...(input.messageType === 'Markdown' ? { message_type: 'Markdown' as const } : {}),
+    ...(input.document ? { message_type: 'LiveDocument' as const, document_id: input.document.id, document_title: input.document.title } : {}),
+  };
+}
+
 export function encodeGroupMessage(message: PeerGroupMessage): Uint8Array {
   return cborEncode(message);
 }
