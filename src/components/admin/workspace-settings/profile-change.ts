@@ -7,10 +7,9 @@
  * here rather than refused after the upload.
  */
 import type { WorkspaceProfileChange } from '@/lib/workspace-service/workspace-profile';
-import { avatarToDataUrl } from '@/lib/image-processor';
+import { readyIcon, type IconResult } from '@/lib/workspace-metadata/workspace-icon';
 
-/** Decoded size the server accepts. */
-export const MAX_ICON_BYTES: number = 32 * 1024;
+export { MAX_ICON_BYTES } from '@/lib/workspace-metadata/workspace-icon';
 /** The server's name limit (MAX_WORKSPACE_NAME_CHARS). */
 export const MAX_NAME_CHARS: number = 64;
 /** The server's description limit (MAX_WORKSPACE_DESCRIPTION_CHARS). */
@@ -25,8 +24,6 @@ export interface ProfileForm {
 
 export type ProfileChangeResult = { ok: true; change: WorkspaceProfileChange | null } | { ok: false; reason: string };
 
-const decodedBytes = (base64: string): number => Math.floor((base64.replace(/=+$/, '').length * 3) / 4);
-
 export function profileChangeFrom(original: ProfileForm, edited: ProfileForm): ProfileChangeResult {
   const change: WorkspaceProfileChange = {};
   const name: string = edited.name.trim();
@@ -37,16 +34,12 @@ export function profileChangeFrom(original: ProfileForm, edited: ProfileForm): P
   const description: string = edited.description.trim();
   if (description !== original.description.trim()) change.description = description;
 
-  const icon: string | null = edited.icon === null ? null : avatarToDataUrl(edited.icon);
-  if (icon !== original.icon) {
-    if (icon === null) {
-      change.logo = 'Clear';
-    } else {
-      if (decodedBytes(icon.slice(icon.indexOf(',') + 1)) > MAX_ICON_BYTES) {
-        return { ok: false, reason: 'That icon is larger than 32 KB after resizing. Try a simpler image.' };
-      }
-      change.logo = { Set: { data_url: icon } };
-    }
+  if (edited.icon === null) {
+    if (original.icon !== null) change.logo = 'Clear';
+  } else {
+    const icon: IconResult = readyIcon(edited.icon);
+    if (!icon.ok) return { ok: false, reason: icon.reason };
+    if (icon.dataUrl !== original.icon) change.logo = { Set: { data_url: icon.dataUrl } };
   }
   return { ok: true, change: Object.keys(change).length === 0 ? null : change };
 }
