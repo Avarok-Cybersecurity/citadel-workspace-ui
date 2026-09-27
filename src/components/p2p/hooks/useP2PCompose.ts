@@ -97,8 +97,10 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
 
   const handleSendMessage = async (): Promise<void> => {
     if (isSending) return;
-    if (!inputMessage.trim()) return;
+    // Before the empty check: a Live Doc takes its title and seed from the dialog, not from the
+    // box, so an empty box is no reason to do nothing.
     if (messageType === 'live_document') { setShowDocModal(true); return; }
+    if (!inputMessage.trim()) return;
     messenger.stopTypingPolling(peerCid);
     setIsSending(true);
     try {
@@ -137,8 +139,8 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
 
   const handleMessageTypeChange: (type: MessageType) => void = useCallback((type: MessageType): void => {
     setMessageType(type);
-    if (type === 'live_document' && inputMessage.trim()) setShowDocModal(true);
-  }, [inputMessage]);
+    if (type === 'live_document') setShowDocModal(true);
+  }, []);
 
   const handleInputFocus: () => void = useCallback((): void => {
     if (peerCid) messenger.startTypingPolling(peerCid, () => inputMessageRef.current);
