@@ -82,8 +82,10 @@ export interface ControlPlane {
   checkSlug(slug: string, signal?: AbortSignal): Promise<SlugAvailability>;
   createTenant(request: CreateTenantRequest): Promise<CreateTenantResult>;
   tenantStatus(slug: string, sessionId: string, signal?: AbortSignal): Promise<TenantStatus>;
-  /** A Stripe Billing Portal address for `slug`, for the holder of its claim code. */
-  openPortal(slug: string, claimCode: string): Promise<string>;
+  /** For the holder of `slug`'s claim code: the portal, or, once the owner's address is verified, a mailed link to it. */
+  openPortal(slug: string, claimCode: string): Promise<PortalAnswer>;
+  /** Spends a mailed billing link: the portal's address. */
+  openPortalByLink(slug: string, token: string): Promise<string>;
   /** Confirms the address the claim email went to, with the token its link carried. */
   verifyEmail(slug: string, token: string): Promise<void>;
   /** "This wasn't me": forgets that address and never mails it again. */
@@ -165,6 +167,9 @@ function parsePortal(body: Record<string, unknown>): string {
   return portalUrl;
 }
 
+/** The portal, or word that a single-use link to it was mailed to the verified owner. */
+export type PortalAnswer = { readonly kind: 'portal'; readonly url: string } | { readonly kind: 'emailed' };
+
 function parseCreated(body: Record<string, unknown>): CreateTenantResult {
   const checkoutUrl: string | undefined = optionalString(body, 'checkout_url');
   if (checkoutUrl !== undefined) {
@@ -213,7 +218,7 @@ export function createControlPlane(fetchFn: FetchLike, base: string): ControlPla
       );
       return parseStatus(body);
     },
-    async openPortal(slug: string, claimCode: string): Promise<string> {
+    async openPortal(slug: string, claimCode: string): Promise<PortalAnswer> {
       // The code is the owner's proof: in the body, never the URL, where it
       // would reach logs, history and referrers.
       const body: Record<string, unknown> = await send(fetchFn, `${base}/tenants/${encodeURIComponent(slug)}/portal`, {
@@ -221,7 +226,12 @@ export function createControlPlane(fetchFn: FetchLike, base: string): ControlPla
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ claim_code: claimCode }),
       });
-      return parsePortal(body);
+      return body.portal_emailed === true ? { kind: 'emailed' } : { kind: 'portal', url: parsePortal(body) };
+    },
+    async openPortalByLink(slug: string, token: string): Promise<string> {
+      return parsePortal(await send(fetchFn, `${base}/tenants/${encodeURIComponent(slug)}/portal-link`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
+      }));
     },
     // The token is in the body, never the URL, for the reason the claim code is.
     async verifyEmail(slug: string, token: string): Promise<void> {

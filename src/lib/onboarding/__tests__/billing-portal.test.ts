@@ -4,7 +4,7 @@
  *
  * The request is driven through contract-fake.ts at the fetch boundary, so the
  * request building and error mapping under test are the production ones. The
- * refusal bodies are the control plane's own (tenants.mjs openPortal).
+ * refusal bodies are the control plane's own (portal.mjs openPortal).
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -53,10 +53,16 @@ describe('opening the billing portal', () => {
     };
     const api: ControlPlane = createControlPlane(recording, '/api');
 
-    expect(await api.openPortal('acme', CODE)).toBe(PORTAL);
+    expect(await api.openPortal('acme', CODE)).toEqual({ kind: 'portal', url: PORTAL });
     expect(fake.requests).toEqual([{ method: 'POST', path: '/api/tenants/acme/portal', body: { claim_code: CODE } }]);
     expect(seen[0].url).not.toContain(CODE);
     expect(seen[0].contentType).toBe('application/json');
+  });
+
+  it("reports a link mailed to a verified owner, and no address", async () => {
+    const fake: ContractFake = contractFake();
+    fake.portalReplies.push({ status: 200, body: { portal_emailed: true } });
+    expect(await createControlPlane(fake.fetch, '/api').openPortal('acme', CODE)).toEqual({ kind: 'emailed' });
   });
 
   it('refuses a portal address that is not Stripe billing', async () => {

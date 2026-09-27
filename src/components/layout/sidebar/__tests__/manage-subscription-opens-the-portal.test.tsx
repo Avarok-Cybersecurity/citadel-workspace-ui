@@ -72,6 +72,14 @@ describe('manage subscription', () => {
     expect(held.includes(CODE)).toBe(false);
   });
 
+  it("for a verified owner, says the link was emailed, closes the tab and opens nothing", async () => {
+    const { tabs } = setUp({ status: 200, body: { portal_emailed: true } });
+    await submitCode();
+    await screen.findByTestId('billing-link-emailed');
+    expect(tabs.map((t: RecordedTab) => [t.sentTo, t.closed])).toEqual([[undefined, true]]);
+    expect(screen.queryByRole('button', { name: 'Manage subscription' })).toBeNull();
+  });
+
   it('offers a link when the browser blocked the new tab', async () => {
     setUp({ status: 200, body: { portal_url: PORTAL } }, true);
     await submitCode();

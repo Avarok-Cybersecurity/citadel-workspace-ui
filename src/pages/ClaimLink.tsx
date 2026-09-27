@@ -27,7 +27,8 @@ import { debugLog } from '@/lib/debug-config';
 
 /** Read the link and take it out of the address bar, once, before anything renders from it. */
 function takeLink(): Link | null {
-  const link: Link | null = parseClaimLink(window.location.hash);
+  const parsed: Link | null = parseClaimLink(window.location.hash);
+  const link: Link | null = parsed?.kind === 'billing' ? null : parsed;
   if (window.location.hash) window.history.replaceState(null, '', window.location.pathname);
   if (link?.kind === 'claim') recordIssuedClaim(workspaceHostFor(link.slug), link.code);
   return link;
@@ -39,7 +40,7 @@ export function ClaimLinkPage({ api }: { api: ControlPlane }): JSX.Element {
   const [claimCode] = useState<string | undefined>(() => (link?.kind === 'claim' ? revealClaimCode() : undefined));
   const [outcome, setOutcome] = useState<'idle' | 'working' | 'done' | string>('idle');
 
-  if (link === null) {
+  if (link === null || link.kind === 'billing') {
     return (
       <CreateWorkspaceLayout stepNumber={undefined} stepLabels={FORM_STEP_LABELS}>
         <StepHeading title="This link cannot be used">
