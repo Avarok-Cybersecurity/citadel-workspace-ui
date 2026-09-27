@@ -13,6 +13,8 @@ interface LiveDocumentViewProps {
   documentTitle: string;
   peerCid: string;
   peerName: string;
+  /** Who created the document: its authority when the copies diverge. */
+  creatorCid: bigint;
   currentUserCid: string;
   currentUserName: string;
   onSave?: (documentId: string, content: string) => void;
@@ -23,15 +25,14 @@ export function LiveDocumentView({
   documentTitle,
   peerCid,
   peerName,
+  creatorCid,
   currentUserCid,
   currentUserName,
   onSave,
 }: LiveDocumentViewProps): JSX.Element {
-  // Unchanged from before the editor took a factory: the creator defaults to this side, the
-  // same default createYjsP2PProvider applied (STATUS: both sides believing they created it).
   const connectP2P: ConnectCollab = useCallback(
-    (doc: Y.Doc): CollabProvider => createYjsP2PProvider(documentId, peerCid, currentUserCid, doc, currentUserCid),
-    [documentId, peerCid, currentUserCid],
+    (doc: Y.Doc): CollabProvider => createYjsP2PProvider(documentId, peerCid, currentUserCid, doc, creatorCid.toString()),
+    [documentId, peerCid, currentUserCid, creatorCid],
   );
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSaving, setIsSaving] = useState(false);

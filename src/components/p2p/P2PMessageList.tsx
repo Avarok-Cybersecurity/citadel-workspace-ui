@@ -4,6 +4,7 @@
  * Renders the scrollable list of P2P messages with pagination support.
  */
 
+import type { OpenP2PDocument } from './bubbles/types';
 import React, { forwardRef, useMemo } from 'react';
 import { groupMessagesByDate, quoteP2PReply } from '@/components/chat/shared';
 import { DateSeparator } from '@/components/chat/shared/DateSeparator';
@@ -27,7 +28,7 @@ interface P2PMessageListProps {
   displaySenderAvatar: boolean;
   onScroll: (event: React.UIEvent<HTMLDivElement>) => void;
   onRetryMessage: (message: P2PMessage) => void;
-  onOpenDocument: (docId: string, title: string) => void;
+  onOpenDocument: OpenP2PDocument;
   onAcceptTransfer: (transferId: string) => Promise<void>;
   onDeclineTransfer: (transferId: string) => Promise<void>;
   onCancelTransfer: (transferId: string) => Promise<void>;

@@ -5,6 +5,8 @@ export interface ChatTab {
   type: 'messages' | 'live_document';
   title: string;
   documentId?: string;
+  /** A live document's creator, its authority on divergence (see OpenP2PDocument). */
+  creatorCid?: bigint;
   hasUnread?: boolean;  // Notification indicator for unread activity
 }
 
@@ -102,11 +104,12 @@ export const MESSAGES_TAB: ChatTab = {
 };
 
 // Helper to create a live document tab
-export function createLiveDocumentTab(documentId: string, title: string): ChatTab {
+export function createLiveDocumentTab(documentId: string, title: string, creatorCid: bigint): ChatTab {
   return {
     id: `doc-${documentId}`,
     type: 'live_document',
     title,
-    documentId
+    documentId,
+    creatorCid,
   };
 }

@@ -5,6 +5,7 @@
  * tab activity indicators, and tab open/close/select actions.
  */
 
+import type { OpenP2PDocument } from '../bubbles/types';
 import { useState, useEffect, useRef, useCallback , type MutableRefObject  } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { seedDocument } from '@/lib/live-document-store/seed-document';
@@ -20,7 +21,7 @@ interface UseP2PTabsOptions {
   currentUserCid?: bigint;
 }
 
-export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { tabs: ChatTab[]; activeTabId: string; activeTabIdRef: MutableRefObject<string>; tabsWithUnread: { hasUnread: boolean; id: string; type: "messages" | "live_document"; title: string; documentId?: string; }[]; activeTab: ChatTab | undefined; setMessagesHasUnread: Dispatch<SetStateAction<boolean>>; handleTabSelect: (tabId: string) => void; handleCloseTab: (tabId: string) => void; handleOpenDocument: (docId: string, title: string) => void; handleCreateDocument: (title: string, initialContent: string) => Promise<void>; } {
+export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { tabs: ChatTab[]; activeTabId: string; activeTabIdRef: MutableRefObject<string>; tabsWithUnread: { hasUnread: boolean; id: string; type: "messages" | "live_document"; title: string; documentId?: string; creatorCid?: bigint; }[]; activeTab: ChatTab | undefined; setMessagesHasUnread: Dispatch<SetStateAction<boolean>>; handleTabSelect: (tabId: string) => void; handleCloseTab: (tabId: string) => void; handleOpenDocument: OpenP2PDocument; handleCreateDocument: (title: string, initialContent: string) => Promise<void>; } {
   const [tabs, setTabs] = useState<ChatTab[]>([MESSAGES_TAB]);
   const [activeTabId, setActiveTabId] = useState('messages');
   const [messagesHasUnread, setMessagesHasUnread] = useState(false);
@@ -67,15 +68,20 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { ta
     if (activeTabId === tabId) setActiveTabId('messages');
   }, [activeTabId]);
 
-  const handleOpenDocument: (docId: string, title: string) => void = useCallback((docId: string, title: string): void => {
+  const handleOpenDocument: OpenP2PDocument = useCallback((docId: string, title: string, createdBySelf: boolean): void => {
     // Adopt before opening. Only the CREATOR had a store record, so on the
     // recipient's side updateDocumentState found nothing and silently wrote
     // nothing — every edit they made was lost when the tab closed. Adoption is
     // idempotent and keeps the id it was given, which is what makes this the
     // same document on both sides rather than two.
+    //
+    // The creator is whoever sent the document. Recording this side instead made both sides
+    // the authority, so neither ever deferred to the other when their copies diverged.
+    if (createdBySelf && currentUserCid === undefined) return; // no session yet: nothing to own it
+    const creatorCid: bigint = createdBySelf ? (currentUserCid as bigint) : peerCid;
     if (currentUserCid) {
       void liveDocumentStore
-        .adoptDocument(docId, title, peerCid.toString(), currentUserCid.toString())
+        .adoptDocument(docId, title, peerCid.toString(), creatorCid.toString())
         .catch((error: unknown) =>
           debugLog('P2PChat', 'Could not adopt live document', docId, error)
         );
@@ -85,7 +91,7 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { ta
     if (existingTab) {
       setActiveTabId(existingTab.id);
     } else {
-      const newTab: ChatTab = createLiveDocumentTab(docId, title);
+      const newTab: ChatTab = createLiveDocumentTab(docId, title, creatorCid);
       setTabs(prev => [...prev, newTab]);
       setActiveTabId(newTab.id);
     }
@@ -108,14 +114,14 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { ta
       documentId: metadata.id,
       documentTitle: title,
     });
-    handleOpenDocument(metadata.id, title);
+    handleOpenDocument(metadata.id, title, true);
     // No catch: LiveDocumentModal was written to render this failure
     // ("Could not create the document…"), and swallowing it here made that
     // branch unreachable — the modal closed normally, the title and the typed
     // content were discarded, and no tab opened.
   }, [peerCid, currentUserCid, handleOpenDocument, messenger]);
 
-  const tabsWithUnread: { hasUnread: boolean; id: string; type: "messages" | "live_document"; title: string; documentId?: string; }[] = tabs.map(tab => ({
+  const tabsWithUnread: { hasUnread: boolean; id: string; type: "messages" | "live_document"; title: string; documentId?: string; creatorCid?: bigint; }[] = tabs.map(tab => ({
     ...tab,
     hasUnread: tab.id === 'messages' ? messagesHasUnread : tabActivity[tab.id] || false,
   }));

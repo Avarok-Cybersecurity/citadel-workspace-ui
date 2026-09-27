@@ -184,8 +184,8 @@ export function P2PChat({
       )}
 
       <div className="flex-1 p-0 flex flex-col overflow-hidden">
-        {isViewingDocument && activeTab?.documentId ? (
-          <LiveDocumentView documentId={activeTab.documentId} documentTitle={activeTab.title} peerCid={peerCid.toString()} peerName={peerName} currentUserCid={currentUserCid?.toString() || ''} currentUserName={currentUserName} />
+        {isViewingDocument && activeTab?.documentId && activeTab.creatorCid ? (
+          <LiveDocumentView documentId={activeTab.documentId} documentTitle={activeTab.title} peerCid={peerCid.toString()} peerName={peerName} creatorCid={activeTab.creatorCid} currentUserCid={currentUserCid?.toString() || ''} currentUserName={currentUserName} />
         ) : (
           <>
             <P2PMessageList
