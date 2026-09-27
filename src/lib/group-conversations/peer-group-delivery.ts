@@ -52,6 +52,8 @@ export function deliverPeerGroupMessage(delivery: PeerGroupDelivery): void {
     reply_count: 0,
     mentions: [],
     edited_at: null,
+    document_id: null,
+    document_title: null,
     ...(delivery.fileShare ? { file_share: delivery.fileShare } : {}),
   };
   groupMessagingManager.handleNewMessage(delivery.groupId, message);

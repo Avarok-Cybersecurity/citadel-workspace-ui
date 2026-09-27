@@ -12,17 +12,15 @@ import { groupMessageActions, type GroupMessageActions } from '@/lib/group-conve
 import { DateSeparator } from './shared/DateSeparator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Send, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { GroupComposer } from './GroupComposer';
+import { GroupLiveDocDialog } from './live-doc/GroupLiveDocDialog';
+import { useGroupLiveDocs, type GroupLiveDocs } from './live-doc/use-group-live-docs';
 import { useGroupChat } from './useGroupChat';
 import { restrictionText, type GroupRestriction } from './group-restriction';
 import { GroupMessageItem } from './GroupMessageItem';
-import { GroupAttachButton } from './GroupAttachButton';
-import { groupSendTransport } from '@/lib/group-conversations/group-send-transport';
 import { groupReactionBinding } from './group-reaction-binding';
 import { markChannelOpen } from '@/lib/group-conversations/open-channel';
-import { TypeSelectorBar } from '@/components/p2p/TypeSelectorBar';
-import { GROUP_COMPOSE_TYPES, toComposeType, toMemberType } from './group-compose-types';
 
 interface GroupChatViewProps {
   groupId: string;
@@ -60,6 +58,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   const composerRef: React.RefObject<HTMLTextAreaElement> = useRef<HTMLTextAreaElement>(null);
   // A peer group has no edit or delete on the wire; see group-message-actions.
   const actions: GroupMessageActions = groupMessageActions(groupId);
+  const liveDocs: GroupLiveDocs = useGroupLiveDocs(groupId);
   // What each reply quotes, looked up among the messages already loaded.
   const byId: Map<string, GroupMessage> = useMemo(
     () => new Map(chat.messages.map((m: GroupMessage): [string, GroupMessage] => [m.id, m])),
@@ -127,6 +126,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
                     canRevise={actions.canRevise}
                     quoted={message.reply_to ? quoteGroupReply(message.reply_to, byId) : null}
                     reactions={actions.canReact ? groupReactionBinding(groupId, message) : undefined}
+                    onOpenDocument={liveDocs.setOpen}
                   />
                 ))}
               </div>
@@ -182,45 +182,10 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
           </p>
         </div>
       ) : (
-      <div className="p-4 border-t border-border">
-        <div className="flex gap-2">
-          {/* Peer groups only: a node-backed channel's server has no file path. */}
-          {groupSendTransport(groupId) === 'peer' && !chat.editingId && <GroupAttachButton groupId={groupId} />}
-          <Textarea
-            ref={composerRef}
-            value={chat.editingId ? chat.editContent : chat.inputValue}
-            onChange={(e) =>
-              chat.editingId
-                ? chat.setEditContent(e.target.value)
-                : chat.setInputValue(e.target.value)
-            }
-            onKeyDown={chat.handleKeyPress}
-            placeholder={chat.editingId ? 'Edit message...' : chat.messageType === 'Markdown' ? 'Write Markdown…' : 'Type a message...'}
-            data-testid="group-message-input"
-            className="flex-1 resize-none bg-background focus:border-primary-accent"
-            rows={1}
-          />
-          <Button
-            aria-label={chat.editingId ? 'Save edit' : 'Send message'}
-            onClick={chat.editingId ? chat.handleEditMessage : chat.handleSendMessage}
-            disabled={chat.sending || (chat.editingId ? !chat.editContent.trim() : !chat.inputValue.trim())}
-            className="bg-primary hover:bg-primary/90"
-          >
-            {chat.sending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-        {!chat.editingId && (
-          <TypeSelectorBar
-            types={GROUP_COMPOSE_TYPES}
-            selectedType={toComposeType(chat.messageType)}
-            onTypeChange={(type) => chat.setMessageType(toMemberType(type))}
-          />
-        )}
-      </div>
+      <GroupComposer groupId={groupId} chat={chat} liveDocs={liveDocs} composerRef={composerRef} />
+      )}
+      {liveDocs.open && (
+        <GroupLiveDocDialog groupId={groupId} doc={liveDocs.open} currentUserName={currentUserName} onClose={() => liveDocs.setOpen(null)} />
       )}
     </div>
   );

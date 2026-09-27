@@ -35,12 +35,12 @@ function message(share: GroupFileShare): GroupMessage {
   return {
     id: 'f1', group_id: '1:5', sender_id: '1', sender_name: 'ada', message_type: 'Text',
     content: 'Shared a file: plan.pdf (2 KB)', timestamp: 1n, reply_to: null, reply_count: 0, mentions: [],
-    edited_at: null, file_share: share,
+    edited_at: null, document_id: null, document_title: null, file_share: share,
   } as GroupMessage;
 }
 
-const props: { currentUserName: string; totalMembers: number; onEdit: () => void; onDelete: () => void; onReply: () => void; focusComposer: () => void; canRevise: boolean; quoted: null } = {
-  currentUserName: 'me', totalMembers: 4, onEdit: (): void => {}, onDelete: (): void => {}, onReply: (): void => {}, focusComposer: (): void => {}, canRevise: false, quoted: null,
+const props: { currentUserName: string; totalMembers: number; onEdit: () => void; onDelete: () => void; onReply: () => void; focusComposer: () => void; canRevise: boolean; quoted: null; onOpenDocument: () => void } = {
+  currentUserName: 'me', totalMembers: 4, onEdit: (): void => {}, onDelete: (): void => {}, onReply: (): void => {}, focusComposer: (): void => {}, canRevise: false, quoted: null, onOpenDocument: (): void => {},
 };
 
 const senderShare: GroupFileShare = {

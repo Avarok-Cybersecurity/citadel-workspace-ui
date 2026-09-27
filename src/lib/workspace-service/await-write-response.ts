@@ -55,6 +55,9 @@ export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   UpdateWorkspaceProfile: ['Workspace'],
   // The hierarchy editor's save; answered and broadcast as the saved schema.
   UpdateTreeSchema: ['TreeSchema'],
+  // Live documents in group chats: the open answers with the state, an update with its number.
+  LiveDocOpen: ['LiveDocState'],
+  LiveDocUpdate: ['LiveDocUpdated'],
 
   // The workspace-level writes. GeneralTab awaited updateWorkspace, toasted
   // "updated successfully" and cleared its dirty flag on the SEND — so a
@@ -115,15 +118,27 @@ export async function awaitWriteResponse(
    */
   matches?: (payload: unknown) => boolean
 ): Promise<void> {
+  await awaitWriteAnswer(requestType, send, matches);
+}
+
+/**
+ * {@link awaitWriteResponse}, resolving with the accepted response's payload, for a write whose
+ * answer carries data (a live document's state). An unmapped write resolves with `undefined`.
+ */
+export async function awaitWriteAnswer(
+  requestType: keyof typeof SUCCESS_RESPONSES,
+  send: () => Promise<void>,
+  matches?: (payload: unknown) => boolean
+): Promise<unknown> {
   const accepted: readonly string[] = SUCCESS_RESPONSES[requestType];
   if (!accepted) {
     // An unmapped write would wait for a response that never matches and then
     // fail a correct operation, which is worse than the original defect.
     await send();
-    return;
+    return undefined;
   }
 
-  const settled: Promise<void> = new Promise<void>((resolve, reject) => {
+  const settled: Promise<unknown> = new Promise<unknown>((resolve, reject) => {
     const timeoutId: NodeJS.Timeout = setTimeout((): void => {
       eventEmitter.off('workspace:raw-response', handler);
       reject(
@@ -147,10 +162,11 @@ export async function awaitWriteResponse(
       }
       if (accepted.includes(responseType)) {
         // A broadcast of the same variant from another member is not our answer.
-        if (matches && !matches((response as Record<string, unknown>)[responseType])) return;
+        const payload: unknown = (response as Record<string, unknown>)[responseType];
+        if (matches && !matches(payload)) return;
         clearTimeout(timeoutId);
         eventEmitter.off('workspace:raw-response', handler);
-        resolve();
+        resolve(payload);
       }
     };
 

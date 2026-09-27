@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { useState, useCallback } from 'react';
 import { debugLog } from '@/lib/debug-config';
+import type * as Y from 'yjs';
+import { createYjsP2PProvider } from '@/lib/yjs-p2p-provider';
+import type { CollabProvider, ConnectCollab } from '@/lib/collab/collab-provider';
 
 interface LiveDocumentViewProps {
   documentId: string;
@@ -24,6 +27,12 @@ export function LiveDocumentView({
   currentUserName,
   onSave,
 }: LiveDocumentViewProps): JSX.Element {
+  // Unchanged from before the editor took a factory: the creator defaults to this side, the
+  // same default createYjsP2PProvider applied (STATUS: both sides believing they created it).
+  const connectP2P: ConnectCollab = useCallback(
+    (doc: Y.Doc): CollabProvider => createYjsP2PProvider(documentId, peerCid, currentUserCid, doc, currentUserCid),
+    [documentId, peerCid, currentUserCid],
+  );
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -122,10 +131,10 @@ export function LiveDocumentView({
         >
           <CollaborativeEditor
             documentId={documentId}
-            peerCid={peerCid}
+            connect={connectP2P}
+            persistLocally
             currentUserCid={currentUserCid}
             currentUserName={currentUserName}
-            peerName={peerName}
             onSave={handleSave}
           />
         </ErrorBoundary>

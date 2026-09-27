@@ -43,7 +43,7 @@ const { GroupChatView } = await import('../GroupChatView');
 function groupMessage(id: string, sender: string, content: string, replyTo: string | null): GroupMessage {
   return {
     id, group_id: 'g1', sender_id: sender, sender_name: sender, message_type: 'Text' as GroupMessage['message_type'],
-    content, timestamp: 1_700_000_000_000n, reply_to: replyTo, reply_count: 0, mentions: [], edited_at: null,
+    content, timestamp: 1_700_000_000_000n, reply_to: replyTo, reply_count: 0, mentions: [], edited_at: null, document_id: null, document_title: null,
   };
 }
 

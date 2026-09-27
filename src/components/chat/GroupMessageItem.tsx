@@ -14,12 +14,12 @@ import type { GroupMessage } from '@/types/workspace-entities';
 import { cn } from '@/lib/utils';
 import { ReplyQuote, MESSAGE_ANCHOR_ATTRIBUTE, JUMP_TARGET_CLASSES, type QuotedMessage } from './shared';
 import { GroupMessageFooter } from './GroupMessageFooter';
-import { GroupFileShareCard } from './GroupFileShareCard';
+import { GroupMessageBody } from './GroupMessageBody';
+import type { OpenLiveDoc } from './live-doc/GroupLiveDocCard';
 import { BUBBLE_MAX_WIDTH } from '@/components/p2p/bubbles/types';
 import { ReactionChips } from './shared/reactions/ReactionChips';
 import { ReactionMenuItems } from './shared/reactions/ReactionMenuItems';
 import type { ReactionBinding } from './shared/reactions/reaction-binding';
-import { RenderedMarkdown } from './shared/RenderedMarkdown';
 
 interface GroupMessageItemProps {
   message: GroupMessage;
@@ -52,6 +52,8 @@ interface GroupMessageItemProps {
   quoted: QuotedMessage | null;
   /** Absent where the group cannot carry reactions (a node-backed channel). */
   reactions?: ReactionBinding;
+  /** Opens a live document this message shares (office and room chats). */
+  onOpenDocument: (doc: OpenLiveDoc) => void;
 }
 
 export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
@@ -65,6 +67,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
   focusComposer,
   quoted,
   reactions,
+  onOpenDocument,
 }) => {
   const handoff: MenuFocusHandoff = useMenuFocusHandoff(focusComposer);
   // Compared against the USERNAME, not the CID.
@@ -116,11 +119,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
             : 'bg-surface text-foreground'
         )}>
           {message.reply_to && <ReplyQuote quoted={quoted} isOwn={isOwnMessage} />}
-          {message.file_share
-            ? <GroupFileShareCard share={message.file_share} senderName={message.sender_name} />
-            : message.message_type === 'Markdown'
-              ? <div className="break-words" data-testid="group-message-markdown"><RenderedMarkdown content={message.content} /></div>
-              : <p className="whitespace-pre-wrap break-words">{message.content}</p>}
+          <GroupMessageBody message={message} onOpenDocument={onOpenDocument} />
         </div>
 
         {reactions && <ReactionChips binding={reactions} isOwn={isOwnMessage} />}

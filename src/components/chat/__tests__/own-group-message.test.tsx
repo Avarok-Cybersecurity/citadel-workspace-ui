@@ -33,7 +33,7 @@ function message(senderId: string): never {
 }
 
 /** The handlers the item needs; none is exercised by these assertions. */
-const props: { onEdit: () => void; onDelete: () => void; onReply: () => void; focusComposer: () => void; onOpenThread: () => void; totalMembers: number; canRevise: boolean; quoted: null; } = {
+const props: { onEdit: () => void; onDelete: () => void; onReply: () => void; focusComposer: () => void; onOpenThread: () => void; totalMembers: number; canRevise: boolean; quoted: null; onOpenDocument: () => void; } = {
   onEdit: (): void => {},
   onDelete: (): void => {},
   onReply: (): void => {}, focusComposer: (): void => {},
@@ -43,7 +43,7 @@ const props: { onEdit: () => void; onDelete: () => void; onReply: () => void; fo
   // group cannot revise -- see a-peer-group-offers-only-what-works.
   canRevise: true,
   // None of these fixtures is a reply.
-  quoted: null,
+  quoted: null, onOpenDocument: (): void => {},
 };
 
 describe('a group message', () => {

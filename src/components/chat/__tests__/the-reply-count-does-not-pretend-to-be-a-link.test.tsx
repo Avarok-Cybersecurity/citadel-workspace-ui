@@ -36,7 +36,7 @@ function renderItem(replyCount: number): void {
       onEdit={vi.fn()}
       onDelete={vi.fn()} canRevise
       onReply={vi.fn()} focusComposer={vi.fn()}
-      quoted={null}
+      quoted={null} onOpenDocument={(): void => {}}
     />,
   );
 }
