@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { loadCallSoundSettings, saveCallSoundSettings } from '@/lib/call/call-sound-preferences';
 import { useToast, useEventListener } from '@/hooks';
 import { AvatarUpload } from './AvatarUpload';
+import { PROFILE_PICTURE } from './image-upload-kinds';
 import { ProfileDetailsFields, profileDetailsAreValid, type ProfileDetailsValues } from './ProfileDetailsFields';
 import { metadataText, profileFieldsFromMetadata, PROFILE_METADATA_KEYS } from '@/lib/profile-metadata';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -137,6 +138,7 @@ export function GeneralSettingsTab(): JSX.Element {
           {/* Avatar */}
           <div className="flex-shrink-0">
             <AvatarUpload
+              kind={PROFILE_PICTURE}
               currentAvatar={avatarData || undefined}
               onAvatarChange={handleAvatarChange}
               disabled={isSaving}

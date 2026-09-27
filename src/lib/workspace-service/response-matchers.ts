@@ -17,6 +17,9 @@
  * the SAME node in flight at once still cannot be told apart. That remains a
  * property of the protocol, and is recorded in await-write-response.
  */
+import type { WorkspaceLogoChange } from 'citadel-workspace-client-ts';
+import { workspaceLogoOf } from '@/lib/workspace-metadata/workspace-logo';
+import type { MetadataSource } from '@/lib/workspace-metadata/metadata-document';
 
 function field(payload: unknown, key: string): unknown {
   if (!payload || typeof payload !== 'object') return undefined;
@@ -106,3 +109,23 @@ export function workspaceChangedTo(
   if (checks.length === 0) return undefined;
   return (payload: unknown): boolean => checks.every((check) => check(payload));
 }
+
+/**
+ * `Workspace` after an UpdateWorkspaceProfile: the record carrying every change the request
+ * made. The icon is compared as `workspaceLogoOf` reads it, so a clear matches the record whose
+ * logo is gone. Unlike `workspaceChangedTo`, never undefined: a profile request always changes
+ * something the answer shows.
+ */
+export function workspaceProfileIs(
+  workspaceId: string,
+  change: { name?: string; description?: string; logo?: WorkspaceLogoChange },
+): (payload: unknown) => boolean {
+  const expectedLogo: string | null | undefined =
+    change.logo === undefined ? undefined : change.logo === 'Clear' ? null : change.logo.Set.data_url;
+  return (payload: unknown): boolean =>
+    field(payload, 'id') === workspaceId &&
+    (change.name === undefined || field(payload, 'name') === change.name.trim()) &&
+    (change.description === undefined || field(payload, 'description') === change.description.trim()) &&
+    (expectedLogo === undefined || workspaceLogoOf(field(payload, 'metadata') as MetadataSource) === expectedLogo);
+}
+

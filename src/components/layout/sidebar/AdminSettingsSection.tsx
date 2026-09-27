@@ -1,4 +1,4 @@
-import { Settings, Shield, Users, Key, CreditCard } from "lucide-react";
+import { Settings, Shield, Users, Key, CreditCard, Building2 } from "lucide-react";
 import { isPrivilegedRole } from '@/lib/role-predicate';
 import { useMemo, useState } from "react";
 import {
@@ -27,6 +27,10 @@ import { planAndBillingSlug } from '@/lib/onboarding/billing-portal';
 import { openBrowserPortalTab } from '@/lib/onboarding/browser-portal-tab';
 import { ManageSubscriptionDialog } from './ManageSubscriptionDialog';
 import { useWorkspaceAddress } from '@/hooks/use-workspace-address';
+import { usePermission } from '@/hooks/use-permission';
+import { permits } from '@/hooks/use-permission-result';
+import { Permission } from '@/lib/permissions-service/types';
+import { WorkspaceSettingsDialog } from '@/components/admin/workspace-settings/WorkspaceSettingsDialog';
 
 /**
  * Admin Settings Section
@@ -41,6 +45,13 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
   const [showPermissionManager, setShowPermissionManager] = useState(false);
   const [showAdminInfo, setShowAdminInfo] = useState(false);
   const [showBilling, setShowBilling] = useState(false);
+  const [showWorkspaceSettings, setShowWorkspaceSettings] = useState(false);
+  // The permission the server checks for UpdateWorkspaceProfile, asked of the root and of this
+  // workspace, as the appearance editor asks for Themes.
+  const workspaceId: string = state.workspace?.id ?? WORKSPACE_ROOT_ID;
+  const rootPermission: ReturnType<typeof usePermission> = usePermission(WORKSPACE_ROOT_ID, Permission.UpdateWorkspace);
+  const ownPermission: ReturnType<typeof usePermission> = usePermission(workspaceId, Permission.UpdateWorkspace);
+  const canEditWorkspace: boolean = permits(rootPermission) || permits(ownPermission);
   const controlPlaneBase: string | undefined = readControlPlaneBase(document);
   const api: ControlPlane | undefined = useMemo((): ControlPlane | undefined => controlPlaneBase === undefined
     ? undefined
@@ -80,6 +91,18 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
         </div>
         <SidebarGroupContent>
           <SidebarMenu>
+            {canEditWorkspace && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setShowWorkspaceSettings(true)}
+                  data-testid="open-workspace-settings"
+                  className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors"
+                >
+                  <Building2 className="h-4 w-4 mr-2 text-warning-emphasis" />
+                  Workspace settings
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
             <SidebarMenuItem>
               <SidebarMenuButton
                 onClick={() => setShowPermissionManager(true)}
@@ -112,6 +135,11 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
+
+      {/* Mounted only while open, so it seeds from the stored record each time. */}
+      {showWorkspaceSettings && (
+        <WorkspaceSettingsDialog open onOpenChange={setShowWorkspaceSettings} />
+      )}
 
       {/* Permission Manager Modal - for workspace-level permissions */}
       {showPermissionManager && state.currentUser && (

@@ -1,16 +1,20 @@
 import { useState, useRef, useCallback , type RefObject , type ChangeEvent , type DragEvent } from 'react';
-import { Upload, X, User } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
+import type { ImageUploadKind } from './image-upload-kinds';
 import { processAvatarImage, validateAvatarFile, avatarToDataUrl } from '@/lib/image-processor';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { activateOnKey } from '@/lib/a11y';
 
 interface AvatarUploadProps {
+  /** A profile picture or a workspace icon: its size, shape and labels. */
+  kind: ImageUploadKind;
   currentAvatar?: string; // Base64-encoded current avatar
   onAvatarChange: (base64Data: string | null) => void;
   disabled?: boolean;
 }
 
-export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }: AvatarUploadProps): JSX.Element {
+export function AvatarUpload({ kind, currentAvatar, onAvatarChange, disabled = false }: AvatarUploadProps): JSX.Element {
+  const Placeholder: ImageUploadKind['placeholder'] = kind.placeholder;
   const [preview, setPreview] = useState<string | null>(
     currentAvatar ? avatarToDataUrl(currentAvatar) : null
   );
@@ -31,7 +35,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
 
     setIsProcessing(true);
     try {
-      const base64: string = await processAvatarImage(file);
+      const base64: string = await processAvatarImage(file, kind.maxDimension);
       const dataUrl: string = avatarToDataUrl(base64);
       setPreview(dataUrl);
       onAvatarChange(base64);
@@ -40,7 +44,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
     } finally {
       setIsProcessing(false);
     }
-  }, [onAvatarChange]);
+  }, [onAvatarChange, kind.maxDimension]);
 
   const handleDrop: (e: React.DragEvent<HTMLDivElement>) => void = useCallback((e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
@@ -103,14 +107,14 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
         tabIndex={0}
         // Its only content is the preview image or a placeholder icon, so
         // without this a screen reader announces "button" and nothing else.
-        aria-label={preview ? 'Change profile picture' : 'Upload profile picture'}
+        aria-label={preview ? kind.labels.change : kind.labels.upload}
         aria-disabled={disabled}
         onKeyDown={activateOnKey(handleClick)}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         className={`
-          relative w-32 h-32 rounded-full overflow-hidden cursor-pointer
+          relative w-32 h-32 ${kind.shape === 'circle' ? 'rounded-full' : 'rounded-xl'} overflow-hidden cursor-pointer
           border-2 border-dashed transition-all duration-200
           ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
           ${isDragActive ? 'border-primary-accent bg-primary-accent/10' : 'border-border hover:border-border'}
@@ -121,12 +125,12 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
           <>
             <img
               src={preview}
-              alt="Avatar preview"
+              alt={kind.labels.previewAlt}
               className="w-full h-full object-cover"
             />
             {!disabled && (
               <button
-                aria-label="Remove avatar"
+                aria-label={kind.labels.remove}
                 onClick={handleRemove}
                 className="absolute top-0 right-0 p-1 bg-destructive rounded-full transform translate-x-1/4 -translate-y-1/4 hover:bg-destructive transition-colors"
               >
@@ -140,7 +144,7 @@ export function AvatarUpload({ currentAvatar, onAvatarChange, disabled = false }
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-accent" />
             ) : (
               <>
-                <User className="h-12 w-12 text-muted-foreground" />
+                <Placeholder className="h-12 w-12 text-muted-foreground" />
                 <Upload className="h-5 w-5 text-muted-foreground mt-1" />
               </>
             )}
