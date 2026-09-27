@@ -28,6 +28,7 @@ import { debugLog } from '@/lib/debug-config';
 import { decodeGroupFileShare, fileInfoOf, type PeerGroupFileShare } from './group-file-codec';
 import { sharedFileText } from './group-file-preview';
 import type { GroupFileShare } from '@/types/group-file-share';
+import type { MemberMessageType } from './group-message-codec';
 
 export interface PeerGroupMessageSummary {
   groupId: string;
@@ -38,6 +39,8 @@ export interface PeerGroupMessageSummary {
   content: string;
   timestamp: number;
   replyTo?: string;
+  /** Text or Markdown, as the sender wrote it. */
+  messageType: MemberMessageType;
   /** The group's name, present only when its owner sent this. */
   groupName?: string;
   /** Present when this message announces a shared file; `content` then previews it. */
@@ -94,6 +97,7 @@ export function peerGroupMessageEvent(
     content: decoded.content,
     timestamp: decoded.timestamp,
     replyTo: decoded.reply_to,
+    messageType: decoded.message_type === 'Markdown' ? 'Markdown' : 'Text',
     groupName: ownerGivenName(notification, key, decoded),
   };
 }
@@ -119,6 +123,7 @@ function fileShareEvent(
     senderName: peerName(sender),
     content: sharedFileText(fileShare),
     timestamp: envelope.timestamp,
+    messageType: 'Text',
     fileShare,
   };
 }

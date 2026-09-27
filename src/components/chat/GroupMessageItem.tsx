@@ -19,6 +19,7 @@ import { BUBBLE_MAX_WIDTH } from '@/components/p2p/bubbles/types';
 import { ReactionChips } from './shared/reactions/ReactionChips';
 import { ReactionMenuItems } from './shared/reactions/ReactionMenuItems';
 import type { ReactionBinding } from './shared/reactions/reaction-binding';
+import { RenderedMarkdown } from './shared/RenderedMarkdown';
 
 interface GroupMessageItemProps {
   message: GroupMessage;
@@ -117,7 +118,9 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
           {message.reply_to && <ReplyQuote quoted={quoted} isOwn={isOwnMessage} />}
           {message.file_share
             ? <GroupFileShareCard share={message.file_share} senderName={message.sender_name} />
-            : <p className="whitespace-pre-wrap break-words">{message.content}</p>}
+            : message.message_type === 'Markdown'
+              ? <div className="break-words" data-testid="group-message-markdown"><RenderedMarkdown content={message.content} /></div>
+              : <p className="whitespace-pre-wrap break-words">{message.content}</p>}
         </div>
 
         {reactions && <ReactionChips binding={reactions} isOwn={isOwnMessage} />}

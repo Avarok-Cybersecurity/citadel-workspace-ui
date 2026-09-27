@@ -26,14 +26,22 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { deliverPeerGroupMessage } from './peer-group-delivery';
 import { ownerAnnouncedName } from './group-names';
 import { getGroups } from './group-store';
+import type { MemberMessageType } from './group-message-codec';
+
+/** The office wire's name for each type a member may send. */
+const OFFICE_TYPE: Record<MemberMessageType, GroupMessageTypeTS> = {
+  Text: GroupMessageTypeTS.Text,
+  Markdown: GroupMessageTypeTS.Markdown,
+};
 
 export async function sendGroupMessageAnywhere(
   groupId: string,
   content: string,
+  messageType: MemberMessageType,
   replyTo?: string,
 ): Promise<void> {
   if (groupSendTransport(groupId) !== 'peer') {
-    await WorkspaceService.sendGroupMessage(groupId, content, GroupMessageTypeTS.Text, replyTo);
+    await WorkspaceService.sendGroupMessage(groupId, content, OFFICE_TYPE[messageType], replyTo);
     return;
   }
 
@@ -41,7 +49,7 @@ export async function sendGroupMessageAnywhere(
   const groupName: string | undefined = self === null
     ? undefined
     : ownerAnnouncedName(getGroups().find((group) => group.id === groupId), self);
-  const messageId: string = await sendPeerGroupMessage(groupId, content, replyTo, groupName);
+  const messageId: string = await sendPeerGroupMessage(groupId, content, messageType, replyTo, groupName);
 
   const delivery: Parameters<typeof deliverPeerGroupMessage>[0] = {
     groupId,
@@ -51,6 +59,7 @@ export async function sendGroupMessageAnywhere(
     content,
     timestamp: Date.now(),
     replyTo,
+    messageType,
   };
 
   // BOTH halves, because they are different halves.

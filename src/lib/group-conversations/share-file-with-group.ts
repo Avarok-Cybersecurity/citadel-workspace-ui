@@ -58,6 +58,7 @@ export async function shareFileWithGroup(
     senderName: 'You',
     content: sharedFileText(info),
     timestamp,
+    messageType: 'Text',
     fileShare,
   });
   return { messageId, deliveries };

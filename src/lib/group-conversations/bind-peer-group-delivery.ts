@@ -14,6 +14,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { groupSendTransport } from './group-send-transport';
 import { deliverPeerGroupMessage } from './peer-group-delivery';
 import type { GroupFileShare } from '@/types/group-file-share';
+import type { MemberMessageType } from './group-message-codec';
 
 export function bindPeerGroupDelivery(): () => void {
   const onReceived = (data: {
@@ -24,6 +25,7 @@ export function bindPeerGroupDelivery(): () => void {
     content: string;
     timestamp?: number;
     replyTo?: string;
+    messageType: MemberMessageType;
     fileShare?: GroupFileShare;
   }): void => {
     if (groupSendTransport(data.groupId) !== 'peer') return;
@@ -40,6 +42,7 @@ export function bindPeerGroupDelivery(): () => void {
       content: data.content,
       timestamp: data.timestamp ?? Date.now(),
       replyTo: data.replyTo,
+      messageType: data.messageType,
       fileShare: data.fileShare,
     });
   };

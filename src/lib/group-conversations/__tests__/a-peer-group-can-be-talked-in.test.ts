@@ -40,7 +40,7 @@ describe('sending into a peer group', () => {
   beforeEach((): void => { sent.length = 0; });
 
   it('sends a GroupMessage keyed by the group, not a workspace request', async () => {
-    await sendPeerGroupMessage('7:42', 'hello');
+    await sendPeerGroupMessage('7:42', 'hello', 'Text');
 
     expect(sent).toHaveLength(1);
     const request: Record<string, unknown> = sent[0];
@@ -53,7 +53,7 @@ describe('sending into a peer group', () => {
   });
 
   it('carries the text as bytes the peer can decode back', async () => {
-    await sendPeerGroupMessage('7:42', 'hello');
+    await sendPeerGroupMessage('7:42', 'hello', 'Text');
 
     const payload: { message: number[] } = sent[0].GroupMessage as { message: number[] };
     expect(new TextDecoder().decode(new Uint8Array(payload.message))).toContain('hello');
@@ -63,8 +63,8 @@ describe('sending into a peer group', () => {
     // GroupCreate and GroupInvite have no name field; this envelope is how
     // members learn what the owner called the group.
     const { decodeGroupMessage } = await import('../group-message-codec');
-    await sendPeerGroupMessage('7:42', 'hello', undefined, 'Team 0924');
-    await sendPeerGroupMessage('7:42', 'hello');
+    await sendPeerGroupMessage('7:42', 'hello', 'Text', undefined, 'Team 0924');
+    await sendPeerGroupMessage('7:42', 'hello', 'Text');
     const names: Array<string | undefined> = sent.map((request) => {
       const payload: { message: number[] } = request.GroupMessage as { message: number[] };
       return decodeGroupMessage(new Uint8Array(payload.message))?.group_name;
@@ -75,7 +75,7 @@ describe('sending into a peer group', () => {
   it('refuses an id that is not a group key rather than sending nonsense', async () => {
     // A node-backed chat channel id reaching this path is a routing mistake,
     // and sending it as a group key would put a malformed request on the wire.
-    await expect(sendPeerGroupMessage('some-node-channel-uuid', 'hello')).rejects.toThrow(/group id/i);
+    await expect(sendPeerGroupMessage('some-node-channel-uuid', 'hello', 'Text')).rejects.toThrow(/group id/i);
     expect(sent).toHaveLength(0);
   });
 });

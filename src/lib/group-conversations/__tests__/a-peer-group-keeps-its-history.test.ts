@@ -53,7 +53,7 @@ async function boot(groupId: string = PEER_GROUP): Promise<Session> {
   return {
     thread: (): GroupMessage[] => groupMessagingManager.getMessages(groupId).messages,
     deliver: (id: string, content: string, timestamp: number): void => deliverPeerGroupMessage({
-      groupId, messageId: id, senderId: '7', senderName: 'ada', content, timestamp,
+      groupId, messageId: id, senderId: '7', senderName: 'ada', content, timestamp, messageType: 'Text',
     }),
     restore: (): Promise<void> => store.restoreGroupTranscript(groupId),
     stored: (): Promise<GroupMessage[]> => store.loadTranscript(groupId),

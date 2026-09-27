@@ -41,7 +41,7 @@ describe('a peer-group message reaching the open conversation', () => {
 
   it('is handed to the thread, not only to the sidebar', () => {
     deliverPeerGroupMessage({
-      groupId: GROUP, messageId: 'm-1', senderId: '7', senderName: 'ada',
+      groupId: GROUP, messageId: 'm-1', senderId: '7', senderName: 'ada', messageType: 'Text',
       content: 'hello', timestamp: 1_000,
     });
 
@@ -51,9 +51,9 @@ describe('a peer-group message reaching the open conversation', () => {
   it('keeps the id the sender minted, so a redelivery is the same message', () => {
     // Two arrivals of one message. handleNewMessage dedupes by id; a fresh uuid
     // per arrival would defeat that and print the message twice.
-    const payload: { groupId: string; messageId: string; senderId: string; senderName: string; content: string; timestamp: number } = {
+    const payload: Parameters<typeof deliverPeerGroupMessage>[0] = {
       groupId: GROUP, messageId: 'm-1', senderId: '7', senderName: 'ada',
-      content: 'hello', timestamp: 1_000,
+      content: 'hello', timestamp: 1_000, messageType: 'Text',
     };
     deliverPeerGroupMessage(payload);
     deliverPeerGroupMessage(payload);
