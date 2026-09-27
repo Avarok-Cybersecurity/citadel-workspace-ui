@@ -12,29 +12,43 @@ export const generalOfficeTemplate: MdxTemplate = {
   description: 'A standard office space for general team collaboration',
   category: TemplateCategory.OFFICE,
   type: OfficeType.GENERAL,
-  content: `# Welcome to the ${OfficeType.GENERAL} Office
+  content: `# Welcome to the General Office
 
-## About This Space
+<Card title="About this space" description="Replace this with a one-line summary of what this office is for">
 
-This is a collaborative workspace for our team. Here you'll find resources, announcements, and tools to help with your day-to-day activities.
+_Describe who works here, what the office is used for, and what people should expect to find on this page._
 
-## Quick Links
+</Card>
 
-- [Company Wiki](#)
-- [Team Calendar](#)
-- [Resource Library](#)
+## Announcements
 
-## Recent Announcements
+> _Post the most important current announcement here. Replace or remove it once it is no longer relevant._
 
-<Announcements count={3} />
+- _Date — short announcement_
+- _Date — short announcement_
 
-## Team Members
+## Team
 
-<TeamMembers office="general" />
+| Name | Role | Best way to reach |
+| ---- | ---- | ----------------- |
+| _Add a name_ | _Role_ | _Room, direct message, hours_ |
+| _Add a name_ | _Role_ | _Room, direct message, hours_ |
 
-## Resources
+## Quick links
 
-<ResourceList tags={["general", "company"]} />
+- _Add a link to your team calendar_
+- _Add a link to your shared documents_
+- _Add a link to the company handbook_
+
+## Getting started checklist
+
+- [ ] Introduce yourself in the team chat room
+- [ ] Read the pinned announcements
+- [ ] _Add an onboarding step for your team_
+
+## How to ask for help
+
+_Explain where questions should go, who to contact for what, and the response time people can expect._
 `
 };
 
@@ -46,29 +60,57 @@ export const engineeringOfficeTemplate: MdxTemplate = {
   type: OfficeType.ENGINEERING,
   content: `# Welcome to the Engineering Office
 
-## Development Resources
+<Card title="Team overview" description="What this team owns and how it works">
 
-<ResourceList tags={["engineering", "development"]} />
+_Describe the systems, services or products this team is responsible for, and link to the main repositories._
 
-## Current Sprint
+</Card>
 
-<SprintBoard />
+## Current sprint
 
-## Technical Documentation
+**Sprint goal:** _State the one outcome this sprint is aiming for._
 
-<DocumentationList category="technical" />
+| Item | Owner | Status |
+| ---- | ----- | ------ |
+| _Short description of the work_ | _Name_ | <Badge variant="secondary">To do</Badge> |
+| _Short description of the work_ | _Name_ | <Badge>In Progress</Badge> |
+| _Short description of the work_ | _Name_ | <Badge variant="outline">Done</Badge> |
 
-## Engineering Team
+## On-call rota
 
-<TeamMembers office="engineering" />
+| Week of | Primary | Secondary |
+| ------- | ------- | --------- |
+| _Date_ | _Name_ | _Name_ |
+| _Date_ | _Name_ | _Name_ |
 
-## CI/CD Status
+<Alert title="Paging">
+_Explain how to reach the on-call engineer and what counts as an urgent issue._
+</Alert>
 
-<CicdStatus />
+## Key links
 
-## Code Quality Metrics
+- _Source repositories_
+- _CI/CD pipelines_
+- _Issue tracker_
+- _Architecture and design documents_
 
-<CodeQualityDashboard />
+## Runbooks
+
+### _Runbook name, e.g. restarting a service_
+
+1. _First step_
+2. _Second step_
+3. _How to confirm it worked_
+
+## Working agreements
+
+- [ ] _Code review expectations, e.g. one approval before merge_
+- [ ] _Definition of done_
+- [ ] _Release process_
+
+## How to ask for help
+
+_Say which room to post questions in, what details to include (error text, steps to reproduce), and who to escalate to._
 `
 };
 
@@ -80,29 +122,53 @@ export const designOfficeTemplate: MdxTemplate = {
   type: OfficeType.DESIGN,
   content: `# Welcome to the Design Studio
 
-## Design Systems
+<Card title="About the design team" description="What we design and how to work with us">
 
-<DesignSystemGallery />
+_Describe the products, brands or surfaces this team designs for, and how other teams should bring work to you._
 
-## Recent Projects
+</Card>
 
-<ProjectGallery category="design" />
+## Design system
 
-## Brand Assets
+- _Link to the component library_
+- _Link to colour, typography and spacing guidelines_
+- _Link to accessibility guidelines_
 
-<AssetLibrary category="brand" />
+## Current projects
 
-## Design Team
+| Project | Designer | Stage |
+| ------- | -------- | ----- |
+| _Project name_ | _Name_ | <Badge variant="secondary">Research</Badge> |
+| _Project name_ | _Name_ | <Badge>In Progress</Badge> |
+| _Project name_ | _Name_ | <Badge variant="outline">Handed off</Badge> |
 
-<TeamMembers office="design" />
+## Brand assets
 
-## Inspiration Wall
+- _Where to find logos and approved variations_
+- _Where to find photography and illustration_
+- _Templates for slides and documents_
 
-<InspirationBoard />
+## Team
 
-## Tools & Resources
+| Name | Focus | Contact |
+| ---- | ----- | ------- |
+| _Add a name_ | _e.g. product design, brand, research_ | _How to reach them_ |
 
-<ResourceList tags={["design", "creative"]} />
+## Requesting design work
+
+1. _Describe the problem, not the solution_
+2. _Include the audience, deadline and any constraints_
+3. _Post the request in the design room_
+
+## Design review checklist
+
+- [ ] Meets accessibility contrast and sizing guidelines
+- [ ] Uses design system components where they exist
+- [ ] _Add a check your team always makes_
+
+## Inspiration
+
+_Collect references, articles and examples the team finds useful._
 `
 };
 
@@ -112,35 +178,58 @@ export const securityOfficeTemplate: MdxTemplate = {
   description: 'A workspace for cybersecurity professionals',
   category: TemplateCategory.OFFICE,
   type: OfficeType.SECURITY,
-  content: `# Cybersecurity Command Center
+  content: `# Security Office
 
-## Security Dashboard
+<Card title="About the security team" description="What we protect and how to reach us">
 
-<SecurityDashboard />
+_Describe the scope of this team: which systems, data and processes it is responsible for._
 
-## Threat Intelligence
+</Card>
 
-<ThreatIntelFeed />
+<Alert title="Reporting a security issue" variant="destructive">
+_Explain exactly how to report a suspected incident or vulnerability, who to contact, and what not to do, such as discussing it in public rooms._
+</Alert>
 
-## Security Announcements
+## Incident response
 
-<Announcements category="security" />
+1. **Contain** — _first actions to limit impact_
+2. **Report** — _who to notify and how_
+3. **Investigate** — _how evidence is gathered and preserved_
+4. **Recover** — _how systems are restored_
+5. **Review** — _how lessons learned are recorded_
 
-## Incident Response
+## On-call rota
 
-<IncidentResponseProcedures />
+| Week of | Primary | Secondary |
+| ------- | ------- | --------- |
+| _Date_ | _Name_ | _Name_ |
+| _Date_ | _Name_ | _Name_ |
 
-## Security Team
+## Open vulnerabilities
 
-<TeamMembers office="security" />
+| Identifier | Severity | Owner | Status |
+| ---------- | -------- | ----- | ------ |
+| _Reference_ | <Badge variant="destructive">High</Badge> | _Name_ | _Open, mitigated or fixed_ |
 
-## Vulnerabilities Tracker
+## Policies and standards
 
-<VulnerabilityTracker />
+- _Acceptable use policy_
+- _Access control and password policy_
+- _Data classification and handling_
+- _Compliance frameworks the organisation follows_
 
-## Security Resources
+## Security checklist for new projects
 
-<ResourceList tags={["security", "compliance"]} />
+- [ ] Threat model reviewed
+- [ ] Secrets stored outside source code
+- [ ] Dependencies scanned for known vulnerabilities
+- [ ] _Add a check your team requires_
+
+## Team
+
+| Name | Role | Contact |
+| ---- | ---- | ------- |
+| _Add a name_ | _Role_ | _How to reach them_ |
 `
 };
 
