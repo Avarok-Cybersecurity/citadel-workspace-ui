@@ -16,16 +16,24 @@ import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 type ContextValue = React.ContextType<typeof WorkspaceContext>;
 
-function renderWith(nodes: Record<string, DomainNode>): void {
+function renderWith(nodes: Record<string, DomainNode>, entityType: 'office' | 'workspace' = 'office'): void {
   const value: ContextValue = { state: { nodes } } as unknown as ContextValue;
   render(
     <WorkspaceContext.Provider value={value}>
-      <ChatSettingsTab entityType="office" entityId="o1" onClose={(): void => {}} />
+      <ChatSettingsTab entityType={entityType} entityId="o1" onClose={(): void => {}} />
     </WorkspaceContext.Provider>,
   );
 }
 
 describe('the admin chat switch', () => {
+  // Caught by CI (test:admin-modal): the workspace root is never a node in the store, so a tab
+  // waiting for one spun for ever and never said where chat is configured.
+  it("at the workspace level says where chat is set, with no node to wait for", () => {
+    renderWith({}, 'workspace');
+    expect(screen.getByTestId('chat-tab-workspace-message')).toBeTruthy();
+    expect(screen.queryByTestId('chat-tab-loading')).toBeNull();
+  });
+
   it('waits for the node rather than guessing chat is on', () => {
     renderWith({});
     expect(screen.getByTestId('chat-tab-loading')).toBeTruthy();
