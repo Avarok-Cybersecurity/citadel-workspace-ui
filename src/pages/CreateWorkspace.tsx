@@ -44,6 +44,7 @@ function requestFor(draft: FlowDraft, turnstileToken: string): CreateTenantReque
   const base: CreateTenantRequest = {
     slug: draft.slug,
     display_name: draft.displayName.trim(),
+    email: draft.email.trim(),
     ...(draft.logo ? { logo: draft.logo } : {}),
     tier: draft.plan.tier,
     turnstile_token: turnstileToken,
@@ -77,16 +78,18 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
   const [flow, setFlow] = useState<FlowStep>(initial.step);
   const [displayName, setDisplayName] = useState<string>(initial.draft?.displayName ?? '');
   const [logo, setLogo] = useState<string | null>(initial.draft?.logo ?? null);
+  const [email, setEmail] = useState<string>(initial.draft?.email ?? '');
+  const [emailConfirmation, setEmailConfirmation] = useState<string>(initial.draft?.email ?? '');
   const [slug, setSlug] = useState<string>(initial.draft?.slug ?? '');
   const [slugEdited, setSlugEdited] = useState<boolean>(initial.draft !== undefined);
   const [plan, setPlan] = useState<PlanSelection>(initial.draft?.plan ?? INITIAL_PLAN);
   const availability: Availability = useSlugAvailability(api, flow.step === 'name' ? slug : '');
 
-  const toClaim: (workspaceHost: string, claimCode: string | undefined) => void = useCallback((workspaceHost: string, claimCode: string | undefined): void => {
+  const toClaim: (workspaceHost: string, claimCode: string | undefined, emailSent: boolean | null) => void = useCallback((workspaceHost: string, claimCode: string | undefined, emailSent: boolean | null): void => {
     recordIssuedClaim(workspaceHost, claimCode);
     clearDraft();
     setSearchParams({}, { replace: true });
-    setFlow({ step: 'claim', workspaceHost, claimCode: revealClaimCode() });
+    setFlow({ step: 'claim', workspaceHost, claimCode: revealClaimCode(), emailSent });
   }, [setSearchParams]);
 
   const startOver = (): void => {
@@ -95,6 +98,8 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
     setSearchParams({}, { replace: true });
     setDisplayName('');
     setLogo(null);
+    setEmail('');
+    setEmailConfirmation('');
     setSlug('');
     setSlugEdited(false);
     setPlan(INITIAL_PLAN);
@@ -102,11 +107,11 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
   };
 
   const submit = async (turnstileToken: string): Promise<string | undefined> => {
-    const draft: FlowDraft = { displayName, slug, plan, reservationToken: initial.draft?.reservationToken, ...(logo ? { logo } : {}) };
+    const draft: FlowDraft = { displayName, slug, plan, email, reservationToken: initial.draft?.reservationToken, ...(logo ? { logo } : {}) };
     try {
       const result: CreateTenantResult = await api.createTenant(requestFor(draft, turnstileToken));
       if (result.kind === 'created') {
-        toClaim(result.workspaceHost, result.claimCode);
+        toClaim(result.workspaceHost, result.claimCode, result.emailSent);
       } else {
         const kept: boolean = saveDraft({ ...draft, reservationToken: result.reservationToken });
         if (!kept) debugLog('CreateWorkspace', 'Draft not kept across Checkout: session storage refused the write.');
@@ -124,6 +129,10 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
         return (
           <NameStep
             displayName={displayName}
+            email={email}
+            emailConfirmation={emailConfirmation}
+            onEmailChange={setEmail}
+            onEmailConfirmationChange={setEmailConfirmation}
             logo={logo}
             onLogoChange={setLogo}
             slug={slug}
@@ -160,7 +169,7 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
         );
       case 'provisioning':
         return (
-          <ProvisioningStep api={api} slug={flow.slug} sessionId={flow.sessionId} onActive={toClaim} onStartOver={startOver} />
+          <ProvisioningStep api={api} slug={flow.slug} sessionId={flow.sessionId} onActive={(host: string, code: string | undefined) => toClaim(host, code, null)} onStartOver={startOver} />
         );
       case 'cancelled':
         return (
@@ -179,6 +188,7 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
           <ClaimStep
             workspaceHost={flow.workspaceHost}
             claimCode={flow.claimCode}
+            emailSent={flow.emailSent}
             onOpenWorkspace={() => navigate('/?join=1')}
           />
         );

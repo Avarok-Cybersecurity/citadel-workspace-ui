@@ -24,7 +24,7 @@ describe('call sites', () => {
   });
 
   it('the create-workspace claim step renders the shared setup, full, under its own heading', () => {
-    render(<ClaimStep workspaceHost="acme.example.com" claimCode={undefined} onOpenWorkspace={() => undefined} />);
+    render(<ClaimStep workspaceHost="acme.example.com" emailSent={null} claimCode={undefined} onOpenWorkspace={() => undefined} />);
     const next: HTMLElement = screen.getByTestId('claim-next');
     expect(within(next).getByRole('heading', { name: `1. ${AGENT_SETUP_COPY.downloadHeading}` })).toBeInTheDocument();
     expect(within(next).getByTestId('agent-setup')).toHaveAttribute('data-layout', 'full');

@@ -19,7 +19,13 @@ export type FlowStep =
   | { readonly step: 'review' }
   | { readonly step: 'provisioning'; readonly slug: string; readonly sessionId: string }
   | { readonly step: 'cancelled'; readonly slug: string }
-  | { readonly step: 'claim'; readonly workspaceHost: string; readonly claimCode: string | undefined };
+  | {
+      readonly step: 'claim';
+      readonly workspaceHost: string;
+      readonly claimCode: string | undefined;
+      /** Whether the code was also emailed; null when this step cannot know (a paid workspace's email is sent on payment). */
+      readonly emailSent: boolean | null;
+    };
 
 /** The three steps a visitor fills in, in order; the rest are outcomes. */
 export const FORM_STEPS: readonly ['name', 'plan', 'review'] = ['name', 'plan', 'review'];
@@ -47,6 +53,8 @@ export interface FlowDraft {
   readonly displayName: string;
   readonly slug: string;
   readonly plan: PlanSelection;
+  /** Where the claim code is emailed. */
+  readonly email: string;
   /** The workspace icon chosen on the first step, as a data URL; absent for none. */
   readonly logo?: string;
   /**
@@ -65,7 +73,7 @@ const INTERVALS: readonly BillingInterval[] = ['month', 'year'];
 function isDraft(value: unknown): value is FlowDraft {
   if (typeof value !== 'object' || value === null) return false;
   const draft: Partial<Record<keyof FlowDraft, unknown>> = value as Partial<Record<keyof FlowDraft, unknown>>;
-  if (typeof draft.displayName !== 'string' || typeof draft.slug !== 'string') return false;
+  if (typeof draft.displayName !== 'string' || typeof draft.slug !== 'string' || typeof draft.email !== 'string') return false;
   const plan: unknown = draft.plan;
   if (typeof plan !== 'object' || plan === null) return false;
   const p: Partial<Record<keyof PlanSelection, unknown>> = plan as Partial<Record<keyof PlanSelection, unknown>>;

@@ -10,6 +10,8 @@ export interface ClaimStepProps {
   readonly workspaceHost: string;
   /** The code, on the one occasion it may be shown; `undefined` once it has been. */
   readonly claimCode: string | undefined;
+  /** Whether the code was also emailed; null when not known here. */
+  readonly emailSent: boolean | null;
   readonly onOpenWorkspace: () => void;
 }
 
@@ -93,7 +95,7 @@ function ClaimCodePanel({ claimCode, onStored }: { readonly claimCode: string; r
  * the control plane returns it exactly once. What stays in memory is only what
  * the initialization step needs to pre-fill it for this workspace.
  */
-export function ClaimStep({ workspaceHost, claimCode, onOpenWorkspace }: ClaimStepProps): JSX.Element {
+export function ClaimStep({ workspaceHost, claimCode, emailSent, onOpenWorkspace }: ClaimStepProps): JSX.Element {
   const [concealed, setConcealed] = useState<boolean>(claimCode === undefined);
 
   return (
@@ -102,6 +104,13 @@ export function ClaimStep({ workspaceHost, claimCode, onOpenWorkspace }: ClaimSt
         <CheckCircle2 className="mr-1.5 inline h-4 w-4 align-middle text-primary-accent" aria-hidden="true" />
         <span className="break-all font-medium text-foreground" data-testid="claim-host">{workspaceHost}</span> has been created.
       </StepHeading>
+      {emailSent !== null && (
+        <p className={emailSent ? 'mb-4 text-sm text-muted-foreground' : 'mb-4 text-sm text-warning-emphasis'} data-testid="claim-email-note">
+          {emailSent
+            ? 'We have also emailed you the claim code, with a link that brings you straight back to claiming.'
+            : 'We could not email the claim code, so store it now: this page shows it once.'}
+        </p>
+      )}
 
       {!concealed && claimCode !== undefined ? (
         <ClaimCodePanel claimCode={claimCode} onStored={() => setConcealed(true)} />
