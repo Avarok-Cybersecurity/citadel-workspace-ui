@@ -12,7 +12,7 @@
 import { websocketService } from '@/lib/websocket-service';
 import { toInternalServiceRequest } from '@/hooks/use-group-conversations.types';
 import { groupIdToKey } from './group-key';
-import { encodeGroupMessage } from './group-message-codec';
+import { encodeGroupMessage, type MemberMessageType } from './group-message-codec';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { MessageGroupKey } from '@/lib/group-conversations/group-key';
 
@@ -205,6 +205,7 @@ export async function sendGroupEnd(groupId: string): Promise<void> {
 export async function sendPeerGroupMessage(
   groupId: string,
   content: string,
+  messageType: MemberMessageType,
   replyTo?: string,
   /** The group's name, for the owner to tell members; see ownerAnnouncedName. */
   groupName?: string,
@@ -217,6 +218,7 @@ export async function sendPeerGroupMessage(
     timestamp: Date.now(),
     reply_to: replyTo,
     group_name: groupName,
+    ...(messageType === 'Markdown' ? { message_type: 'Markdown' as const } : {}),
   }));
 }
 

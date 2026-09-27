@@ -54,7 +54,7 @@ async function boot(): Promise<{
     // The binding's own body; applyGroupReaction is what `group:reaction-received` runs.
     receive: (event: GroupReactionEvent): Promise<void> => applyGroupReaction(event),
     restore: (): Promise<void> => store.restoreGroupTranscript(GROUP),
-    deliver: (): void => deliverPeerGroupMessage({ groupId: GROUP, messageId: 'm1', senderId: '7', senderName: 'ada', content: 'hi', timestamp: 1 }),
+    deliver: (): void => deliverPeerGroupMessage({ groupId: GROUP, messageId: 'm1', senderId: '7', senderName: 'ada', content: 'hi', timestamp: 1, messageType: 'Text' }),
     stop,
   };
 }

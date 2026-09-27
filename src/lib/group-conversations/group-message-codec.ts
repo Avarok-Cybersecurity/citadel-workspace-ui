@@ -12,6 +12,12 @@
  */
 import { encode as cborEncode, decode as cborDecode } from 'cbor-x';
 
+/**
+ * What a member's message may be. `System` is the server's voice and is never sent (the kernel
+ * refuses it on the office path; peers have no way to send it).
+ */
+export type MemberMessageType = 'Text' | 'Markdown';
+
 export interface PeerGroupMessage {
   group_id: string;
   /**
@@ -35,6 +41,12 @@ export interface PeerGroupMessage {
    * only when the protocol says the owner sent it -- see peer-group-inbound.
    */
   group_name?: string;
+  /**
+   * 'Markdown' for a Markdown message; absent for text. Absent rather than 'Text' so the bytes a
+   * text message travels as are unchanged, and a build that predates Markdown in groups still
+   * shows the text.
+   */
+  message_type?: 'Markdown';
 }
 
 export function encodeGroupMessage(message: PeerGroupMessage): Uint8Array {
@@ -64,6 +76,7 @@ export function decodeGroupMessage(bytes: Uint8Array): PeerGroupMessage | null {
       message_id: candidate.message_id,
       reply_to: typeof candidate.reply_to === 'string' ? candidate.reply_to : undefined,
       group_name: typeof candidate.group_name === 'string' ? candidate.group_name : undefined,
+      message_type: candidate.message_type === 'Markdown' ? 'Markdown' : undefined,
       sender_cid: candidate.sender_cid,
       content: candidate.content,
       timestamp: typeof candidate.timestamp === 'number' ? candidate.timestamp : Date.now(),

@@ -21,6 +21,8 @@ import { GroupAttachButton } from './GroupAttachButton';
 import { groupSendTransport } from '@/lib/group-conversations/group-send-transport';
 import { groupReactionBinding } from './group-reaction-binding';
 import { markChannelOpen } from '@/lib/group-conversations/open-channel';
+import { TypeSelectorBar } from '@/components/p2p/TypeSelectorBar';
+import { GROUP_COMPOSE_TYPES, toComposeType, toMemberType } from './group-compose-types';
 
 interface GroupChatViewProps {
   groupId: string;
@@ -193,7 +195,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
                 : chat.setInputValue(e.target.value)
             }
             onKeyDown={chat.handleKeyPress}
-            placeholder={chat.editingId ? 'Edit message...' : 'Type a message...'}
+            placeholder={chat.editingId ? 'Edit message...' : chat.messageType === 'Markdown' ? 'Write Markdown…' : 'Type a message...'}
             data-testid="group-message-input"
             className="flex-1 resize-none bg-background focus:border-primary-accent"
             rows={1}
@@ -211,6 +213,13 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
             )}
           </Button>
         </div>
+        {!chat.editingId && (
+          <TypeSelectorBar
+            types={GROUP_COMPOSE_TYPES}
+            selectedType={toComposeType(chat.messageType)}
+            onTypeChange={(type) => chat.setMessageType(toMemberType(type))}
+          />
+        )}
       </div>
       )}
     </div>

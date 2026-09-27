@@ -43,7 +43,7 @@ describe('reacting in a peer group', () => {
   it('shows your reaction in the thread and sends a reaction envelope', async () => {
     const { result } = renderHook(() => useGroupChat('7:42'));
     act((): void => {
-      deliverPeerGroupMessage({ groupId: '7:42', messageId: 'm1', senderId: '7', senderName: 'ada', content: 'hi', timestamp: 1 });
+      deliverPeerGroupMessage({ groupId: '7:42', messageId: 'm1', senderId: '7', senderName: 'ada', content: 'hi', timestamp: 1, messageType: 'Text' });
     });
     await waitFor((): void => { expect(result.current.messages.map((m) => m.id)).toEqual(['m1']); });
 

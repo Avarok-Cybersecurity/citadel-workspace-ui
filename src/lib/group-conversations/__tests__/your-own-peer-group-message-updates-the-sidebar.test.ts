@@ -17,7 +17,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const sent: Array<{ groupId: string; content: string; groupName?: string }> = [];
 vi.mock('../group-requests', () => ({
-  sendPeerGroupMessage: async (groupId: string, content: string, _replyTo?: string, groupName?: string): Promise<string> => {
+  sendPeerGroupMessage: async (groupId: string, content: string, _messageType: string, _replyTo?: string, groupName?: string): Promise<string> => {
     sent.push({ groupId, content, groupName });
     return 'msg-1';
   },
@@ -42,7 +42,7 @@ describe('sending into a peer group', () => {
     eventEmitter.on('group:message-received', listener);
 
     try {
-      await sendGroupMessageAnywhere('group-1', 'hello');
+      await sendGroupMessageAnywhere('group-1', 'hello', 'Text');
     } finally {
       eventEmitter.off('group:message-received', listener);
     }
@@ -61,7 +61,7 @@ describe('sending into a peer group', () => {
     eventEmitter.on('group:message-received', listener);
 
     try {
-      await sendGroupMessageAnywhere('group-1', 'hello');
+      await sendGroupMessageAnywhere('group-1', 'hello', 'Text');
     } finally {
       eventEmitter.off('group:message-received', listener);
     }
@@ -72,7 +72,7 @@ describe('sending into a peer group', () => {
   it('still actually sends it to the peers', async (): Promise<void> => {
     // The opposite failure: emitting instead of sending would update the sidebar
     // for a message nobody received, and the assertions above cannot see it.
-    await sendGroupMessageAnywhere('group-1', 'hello');
+    await sendGroupMessageAnywhere('group-1', 'hello', 'Text');
 
     expect(sent).toEqual([{ groupId: 'group-1', content: 'hello' }]);
   });
@@ -86,8 +86,8 @@ describe('sending into a peer group', () => {
     });
     updateGroups((): import('@/types/group').GroupConversation[] => [group('111:5'), group('222:5')]);
 
-    await sendGroupMessageAnywhere('111:5', 'hello');
-    await sendGroupMessageAnywhere('222:5', 'hello');
+    await sendGroupMessageAnywhere('111:5', 'hello', 'Text');
+    await sendGroupMessageAnywhere('222:5', 'hello', 'Text');
 
     expect(sent.map((m) => m.groupName)).toEqual(['Team 0924', undefined]);
   });

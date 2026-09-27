@@ -33,7 +33,7 @@ describe('a peer-group message arriving', () => {
     const event: PeerGroupMessageSummary | null = peerGroupMessageEvent(notification(body), peerName);
 
     expect(event).toEqual({
-      groupId: GROUP, messageId: 'm-1', senderId: '7', senderName: 'ada', content: 'hello', timestamp: 1_000,
+      groupId: GROUP, messageId: 'm-1', senderId: '7', senderName: 'ada', content: 'hello', timestamp: 1_000, messageType: 'Text',
     });
   });
 

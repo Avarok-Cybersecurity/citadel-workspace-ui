@@ -17,6 +17,9 @@ import { documentAnchor } from '@/components/shared/DocumentLink';
 import type { MessageType } from '@/types/message-protocol';
 import { PAUSE_COPY } from '@/lib/p2p-pause/pause-copy';
 
+/** Everything a direct conversation carries. */
+const P2P_MESSAGE_TYPES: readonly MessageType[] = ['text', 'markdown', 'live_document'];
+
 /**
  * The preview had NO component map, so its links fell through to
  * react-markdown's built-in anchor: no router, no `rel`. Previewing your own
@@ -161,6 +164,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
         </div>
 
         <TypeSelectorBar
+          types={P2P_MESSAGE_TYPES}
           selectedType={messageType}
           onTypeChange={onMessageTypeChange}
           disabled={!canSendMessages}
