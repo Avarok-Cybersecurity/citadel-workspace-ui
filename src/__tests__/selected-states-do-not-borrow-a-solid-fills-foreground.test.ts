@@ -70,8 +70,9 @@ describe('a tinted fill does not wear the solid fill\'s foreground', () => {
       pattern: /isActive && "bg-([\w-]+)\/(\d+) text-([\w-]+)"/, backdrop: 'surface' },
     { name: 'VFS tree, root entry', file: 'components/file-manager/VFSTreeView.tsx',
       pattern: /currentPath === '\/' && "bg-([\w-]+)\/(\d+) text-([\w-]+)"/, backdrop: 'surface' },
-    { name: 'Entity modal submit, hovered', file: 'components/shared/EntityManagementModal.tsx',
-      pattern: /hover:bg-([\w-]+)\/(\d+) hover:text-([\w-]+)"/, backdrop: 'background' },
+    // The entity modal submit used to be listed here: it was a 20% tint whose hover had to be
+    // checked. It is now the solid primary fill (EntityModalFooter), which carries its own
+    // foreground, so there is no tint left to check (owner, 2026-09-27: it looked disabled).
   ];
 
   for (const site of SITES) {

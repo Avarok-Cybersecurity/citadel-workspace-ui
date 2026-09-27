@@ -24,7 +24,7 @@ export function MemberAvatar({ username, name, className }: MemberAvatarProps): 
       {/* Decorative: the name is rendered beside it, so a meaningful alt would announce the
           person twice. */}
       {avatarUrl ? <AvatarImage src={avatarUrl} alt="" /> : null}
-      <AvatarFallback className="bg-primary-accent/15 text-primary-accent text-[10px] font-semibold">
+      <AvatarFallback className="bg-primary-accent/15 text-primary-accent text-xs font-semibold">
         {getUserInitials(name)}
       </AvatarFallback>
     </Avatar>
