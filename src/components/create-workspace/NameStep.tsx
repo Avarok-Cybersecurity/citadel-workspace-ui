@@ -8,11 +8,17 @@ import { SLUG_MAX, TENANT_DOMAIN } from '@/lib/onboarding/slug';
 import { canContinueWith, type Availability } from '@/lib/onboarding/slug-availability';
 import { StepHeading } from './StepHeading';
 import { WorkspaceIconField } from './WorkspaceIconField';
+import { OwnerEmailField } from './OwnerEmailField';
+import { emailProblem } from '@/lib/onboarding/owner-email';
 
 export interface NameStepProps {
   readonly displayName: string;
   readonly slug: string;
   readonly availability: Availability;
+  readonly email: string;
+  readonly emailConfirmation: string;
+  readonly onEmailChange: (value: string) => void;
+  readonly onEmailConfirmationChange: (value: string) => void;
   readonly logo: string | null;
   readonly onLogoChange: (logo: string | null) => void;
   readonly onDisplayNameChange: (value: string) => void;
@@ -55,7 +61,8 @@ function AvailabilityLine({ availability }: { readonly availability: Availabilit
 /** Step 1: what the workspace is called, and where it will live. */
 export function NameStep(props: NameStepProps): JSX.Element {
   const { displayName, slug, availability } = props;
-  const ready: boolean = displayName.trim().length > 0 && canContinueWith(availability);
+  const emailIssue: string | null = emailProblem(props.email, props.emailConfirmation);
+  const ready: boolean = displayName.trim().length > 0 && canContinueWith(availability) && emailIssue === null;
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
@@ -117,6 +124,15 @@ export function NameStep(props: NameStepProps): JSX.Element {
             <AvailabilityLine availability={availability} />
           </p>
         </div>
+
+        <OwnerEmailField
+          email={props.email}
+          confirmation={props.emailConfirmation}
+          // Said once both are typed: an address half-typed is not yet a mistake.
+          problem={props.email.length > 0 && props.emailConfirmation.length > 0 ? emailIssue : null}
+          onEmailChange={props.onEmailChange}
+          onConfirmationChange={props.onEmailConfirmationChange}
+        />
 
         <WorkspaceIconField logo={props.logo} onLogoChange={props.onLogoChange} />
 

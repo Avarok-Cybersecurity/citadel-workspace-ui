@@ -50,6 +50,7 @@ const WorkspaceLoader: LazyExoticComponent<React.FC<{ children: React.ReactNode 
 // Split like the rest: the landing page must not pay for the create-workspace
 // flow, and nothing on it is needed until someone chooses to set one up.
 const CreateWorkspace: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pages/CreateWorkspace"));
+const ClaimLink: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pages/ClaimLink"));
 
 const queryClient: QueryClient = new QueryClient();
 
@@ -130,6 +131,8 @@ const App: () => JSX.Element = (): JSX.Element => {
                   <Route path="/connect" element={<Connect />} />
                   <Route path="/create" element={<CreateWorkspace />} />
                   <Route path="/create/done" element={<CreateWorkspace />} />
+                  {/* Where the claim email's links land. */}
+                  <Route path="/claim" element={<ClaimLink />} />
 
                   {/* Protected routes that require workspace data to be loaded */}
                   <Route

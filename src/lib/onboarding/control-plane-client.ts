@@ -24,6 +24,8 @@ export type SlugAvailability =
 export interface CreateTenantRequest {
   readonly slug: string;
   readonly display_name: string;
+  /** Where the claim code and its claim link are emailed; required (see control/owner-email.mjs). */
+  readonly email: string;
   /** The workspace icon, a WebP/PNG/JPEG data URL of at most 32 KB decoded; see control/logo.mjs. */
   readonly logo?: string;
   readonly tier: TierId;
@@ -35,7 +37,7 @@ export interface CreateTenantRequest {
 }
 
 export type CreateTenantResult =
-  | { readonly kind: 'created'; readonly claimCode: string; readonly workspaceHost: string }
+  | { readonly kind: 'created'; readonly claimCode: string; readonly workspaceHost: string; readonly emailSent: boolean }
   | { readonly kind: 'checkout'; readonly checkoutUrl: string; readonly reservationToken: string | undefined };
 
 export type TenantStatus =
@@ -82,6 +84,10 @@ export interface ControlPlane {
   tenantStatus(slug: string, sessionId: string, signal?: AbortSignal): Promise<TenantStatus>;
   /** A Stripe Billing Portal address for `slug`, for the holder of its claim code. */
   openPortal(slug: string, claimCode: string): Promise<string>;
+  /** Confirms the address the claim email went to, with the token its link carried. */
+  verifyEmail(slug: string, token: string): Promise<void>;
+  /** "This wasn't me": forgets that address and never mails it again. */
+  notMe(slug: string, token: string): Promise<void>;
 }
 
 const NOT_CONFIGURED: string =
@@ -168,7 +174,7 @@ function parseCreated(body: Record<string, unknown>): CreateTenantResult {
   const claimCode: string | undefined = optionalString(body, 'claim_code');
   const workspaceHost: string | undefined = optionalString(body, 'workspace_host');
   if (claimCode === undefined || workspaceHost === undefined) throw malformed('new workspace');
-  return { kind: 'created', claimCode, workspaceHost };
+  return { kind: 'created', claimCode, workspaceHost, emailSent: body.email_sent === true };
 }
 
 function parseStatus(body: Record<string, unknown>): TenantStatus {
@@ -216,6 +222,17 @@ export function createControlPlane(fetchFn: FetchLike, base: string): ControlPla
         body: JSON.stringify({ claim_code: claimCode }),
       });
       return parsePortal(body);
+    },
+    // The token is in the body, never the URL, for the reason the claim code is.
+    async verifyEmail(slug: string, token: string): Promise<void> {
+      await send(fetchFn, `${base}/tenants/${encodeURIComponent(slug)}/verify-email`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
+      });
+    },
+    async notMe(slug: string, token: string): Promise<void> {
+      await send(fetchFn, `${base}/tenants/${encodeURIComponent(slug)}/not-me`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
+      });
     },
   };
 }

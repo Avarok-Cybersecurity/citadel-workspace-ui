@@ -57,6 +57,9 @@ function renderFlow(fake: ContractFake, at: string = '/create', redirect: (url: 
 
 async function nameIt(name: string): Promise<void> {
   fireEvent.change(screen.getByTestId('create-display-name'), { target: { value: name } });
+  // Required on this step since the claim code is emailed (owner, 2026-09-27).
+  fireEvent.change(screen.getByTestId('create-email'), { target: { value: 'owner@example.com' } });
+  fireEvent.change(screen.getByTestId('create-email-again'), { target: { value: 'owner@example.com' } });
 }
 
 beforeEach(() => {
@@ -77,6 +80,18 @@ describe('naming the workspace', () => {
     expect(screen.getByTestId('create-slug')).toHaveValue('acme-robotics');
     expect(screen.getByTestId('create-host-preview')).toHaveTextContent('https://acme-robotics.work.avarok.net');
     await waitFor(() => expect(screen.getByTestId('create-slug-status')).toHaveTextContent('Available'));
+    expect(screen.getByTestId('create-name-continue')).toBeEnabled();
+  });
+
+  it('needs the email twice, the same, before it will continue, and sends it with the workspace', async () => {
+    const fake: ContractFake = contractFake();
+    renderFlow(fake);
+    await nameIt('Acme Robotics');
+    await waitFor(() => expect(screen.getByTestId('create-name-continue')).toBeEnabled());
+    fireEvent.change(screen.getByTestId('create-email-again'), { target: { value: 'owner@exmaple.com' } });
+    expect(screen.getByTestId('create-name-continue')).toBeDisabled();
+    expect(screen.getByTestId('create-email-problem')).toHaveTextContent('different');
+    fireEvent.change(screen.getByTestId('create-email-again'), { target: { value: 'Owner@Example.com' } });
     expect(screen.getByTestId('create-name-continue')).toBeEnabled();
   });
 
@@ -119,7 +134,7 @@ describe('a free workspace', () => {
     fireEvent.click(screen.getByTestId('create-submit'));
 
     await waitFor(() => expect(screen.getByTestId('claim-code')).toHaveTextContent('CLAIM-7Q2'));
-    expect(fake.requests.at(-1)?.body).toEqual({ slug: 'acme', display_name: 'Acme', tier: 'free', turnstile_token: 'token-1' });
+    expect(fake.requests.at(-1)?.body).toEqual({ slug: 'acme', display_name: 'Acme', email: 'owner@example.com', tier: 'free', turnstile_token: 'token-1' });
     expect(screen.getByText(/becomes the owner/)).toBeInTheDocument();
 
     expect(screen.getByTestId('claim-continue')).toBeDisabled();
@@ -167,14 +182,14 @@ describe('a paid workspace', () => {
 
     await waitFor(() => expect(redirect).toHaveBeenCalledWith('https://checkout.stripe.com/c/pay/cs_test_9'));
     expect(fake.requests.at(-1)?.body).toEqual({
-      slug: 'acme', display_name: 'Acme', tier: 'team', interval: 'year', seats: 4, storage_blocks: 1, turnstile_token: 'token-1',
+      slug: 'acme', display_name: 'Acme', email: 'owner@example.com', tier: 'team', interval: 'year', seats: 4, storage_blocks: 1, turnstile_token: 'token-1',
     });
     expect(loadDraft('acme')?.plan.seats).toBe(4);
     expect(loadDraft('acme')?.reservationToken).toBe('rt_first');
   });
 
   it('retries a cancelled Checkout under the same name, proving the reservation is its own', async () => {
-    saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0 }, reservationToken: 'rt_first' });
+    saveDraft({ displayName: 'Acme', slug: 'acme', email: 'owner@example.com', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0 }, reservationToken: 'rt_first' });
     const fake: ContractFake = contractFake();
     fake.createReplies.push({ status: 200, body: { checkout_url: 'https://checkout.stripe.com/c/pay/cs_test_10', reservation_token: 'rt_second' } });
     const redirect: ReturnType<typeof vi.fn> = vi.fn();
@@ -192,7 +207,7 @@ describe('a paid workspace', () => {
   // the draft and sent as `logo`, so a paid workspace starts with it too.
   it('keeps the chosen icon through Checkout and sends it with the workspace', async () => {
     const logo: string = 'data:image/png;base64,iVBORw0KGgo=';
-    saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0 }, reservationToken: 'rt_first', logo });
+    saveDraft({ displayName: 'Acme', slug: 'acme', email: 'owner@example.com', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0 }, reservationToken: 'rt_first', logo });
     const fake: ContractFake = contractFake();
     fake.createReplies.push({ status: 200, body: { checkout_url: 'https://checkout.stripe.com/c/pay/cs_test_11', reservation_token: 'rt_second' } });
     renderFlow(fake, '/create?tenant=acme&canceled=1', vi.fn());
@@ -235,7 +250,7 @@ describe('a paid workspace', () => {
   });
 
   it('says so, and offers the plan back, when Checkout was cancelled', async () => {
-    saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'business', interval: 'month', seats: 5, storageBlocks: 0 } });
+    saveDraft({ displayName: 'Acme', slug: 'acme', email: 'owner@example.com', plan: { tier: 'business', interval: 'month', seats: 5, storageBlocks: 0 } });
     renderFlow(contractFake(), '/create?tenant=acme&canceled=1');
     expect(screen.getByTestId('checkout-cancelled')).toHaveTextContent('Nothing was charged');
     fireEvent.click(screen.getByTestId('cancelled-back-to-plans'));
@@ -249,7 +264,7 @@ describe('the claim screen', () => {
     const code: string = `${'0123abcd'.repeat(8)}`;
     const writeText: ReturnType<typeof vi.fn> = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-    render(<MemoryRouter><ClaimStep workspaceHost="acme.work.avarok.net" claimCode={code} onOpenWorkspace={() => {}} /></MemoryRouter>);
+    render(<MemoryRouter><ClaimStep workspaceHost="acme.work.avarok.net" emailSent={null} claimCode={code} onOpenWorkspace={() => {}} /></MemoryRouter>);
     expect(screen.getByTestId('claim-code').textContent).toBe(Array(8).fill('0123abcd').join(' '));
     fireEvent.click(screen.getByTestId('claim-code-copy'));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(code));
@@ -258,13 +273,13 @@ describe('the claim screen', () => {
   it('does not show the code a second time when it is opened again', () => {
     recordIssuedClaim('acme.work.avarok.net', 'ONCE-ONLY');
     const first: RenderResult = render(
-      <MemoryRouter><ClaimStep workspaceHost="acme.work.avarok.net" claimCode={revealClaimCode()} onOpenWorkspace={() => {}} /></MemoryRouter>,
+      <MemoryRouter><ClaimStep workspaceHost="acme.work.avarok.net" emailSent={null} claimCode={revealClaimCode()} onOpenWorkspace={() => {}} /></MemoryRouter>,
     );
     expect(first.getByTestId('claim-code')).toHaveTextContent('ONCE-ONLY');
     first.unmount();
 
     render(
-      <MemoryRouter><ClaimStep workspaceHost="acme.work.avarok.net" claimCode={revealClaimCode()} onOpenWorkspace={() => {}} /></MemoryRouter>,
+      <MemoryRouter><ClaimStep workspaceHost="acme.work.avarok.net" emailSent={null} claimCode={revealClaimCode()} onOpenWorkspace={() => {}} /></MemoryRouter>,
     );
     expect(screen.queryByTestId('claim-code')).toBeNull();
     expect(screen.getByTestId('claim-already-shown')).toBeInTheDocument();
