@@ -9,6 +9,7 @@
  * group-conversation wire modules.
  */
 
+import type { SharedLiveDoc } from '@/lib/collab/shared-live-doc';
 import { websocketService } from '@/lib/websocket-service';
 import { toInternalServiceRequest } from '@/hooks/use-group-conversations.types';
 import { groupIdToKey } from './group-key';
@@ -209,6 +210,8 @@ export async function sendPeerGroupMessage(
   replyTo?: string,
   /** The group's name, for the owner to tell members; see ownerAnnouncedName. */
   groupName?: string,
+  /** The live document this message shares; its `content` is then the fallback text. */
+  document?: SharedLiveDoc,
 ): Promise<string> {
   return sendPeerGroupBody(groupId, (cid: bigint, messageId: string): Uint8Array => encodeGroupMessage({
     group_id: groupId,
@@ -219,6 +222,7 @@ export async function sendPeerGroupMessage(
     reply_to: replyTo,
     group_name: groupName,
     ...(messageType === 'Markdown' ? { message_type: 'Markdown' as const } : {}),
+    ...(document ? { message_type: 'LiveDocument' as const, document_id: document.id, document_title: document.title } : {}),
   }));
 }
 

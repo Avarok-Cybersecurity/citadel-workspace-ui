@@ -10,6 +10,7 @@
  * the send side uses — the id itself, via `groupSendTransport`. One question,
  * one answer, both directions.
  */
+import type { SharedLiveDoc } from '@/lib/collab/shared-live-doc';
 import { eventEmitter } from '@/lib/event-emitter';
 import { groupSendTransport } from './group-send-transport';
 import { deliverPeerGroupMessage } from './peer-group-delivery';
@@ -26,6 +27,7 @@ export function bindPeerGroupDelivery(): () => void {
     timestamp?: number;
     replyTo?: string;
     messageType: MemberMessageType;
+    document?: SharedLiveDoc;
     fileShare?: GroupFileShare;
   }): void => {
     if (groupSendTransport(data.groupId) !== 'peer') return;
@@ -43,6 +45,7 @@ export function bindPeerGroupDelivery(): () => void {
       timestamp: data.timestamp ?? Date.now(),
       replyTo: data.replyTo,
       messageType: data.messageType,
+      document: data.document,
       fileShare: data.fileShare,
     });
   };

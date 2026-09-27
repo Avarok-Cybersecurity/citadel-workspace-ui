@@ -29,6 +29,7 @@ import { bindEndedGroups } from './ended-groups';
 import { bindPeerGroupDelivery } from './bind-peer-group-delivery';
 import { bindGroupTranscript } from './bind-group-transcript';
 import { bindGroupReactions } from './group-reactions';
+import { bindGroupLiveDocs } from '@/lib/group-live-docs/group-doc-keeper-instance';
 import type { GroupConversation } from '@/types/group';
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { bindGroupInvites } from './bind-group-invites';
@@ -235,6 +236,8 @@ export function startGroupEventBindings(selfUsername: () => string | undefined):
   // And what keeps it there across a reload; see bind-group-transcript.
   bindGroupTranscript();
   bindGroupReactions();
+  // Every member keeps the group's live documents, open or not; see group-doc-keeper.
+  bindGroupLiveDocs();
 
   debugLog('GroupStore', 'Group event bindings started');
 }

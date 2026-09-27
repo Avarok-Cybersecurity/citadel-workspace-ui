@@ -1,7 +1,8 @@
 /**
  * A group chat's composer: the box, its send button and the type bar.
  *
- * In an office or room chat it also shares a live document. That works with the box empty (the
+ * It also shares a live document (office and room chats through the server, peer groups member
+ * to member). That works with the box empty (the
  * document is then untitled) and with the box holding its title, and Enter does it too: in
  * that mode the box is a title, never a message.
  */
@@ -15,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { describeFailure } from '@/lib/failure-message';
 import { groupSendTransport } from '@/lib/group-conversations/group-send-transport';
 import { GroupAttachButton } from './GroupAttachButton';
-import { GROUP_COMPOSE_TYPES, NODE_CHAT_COMPOSE_TYPES, toComposeType, toMemberType } from './group-compose-types';
+import { GROUP_COMPOSE_TYPES, toComposeType, toMemberType } from './group-compose-types';
 import { shouldSendOnKey } from './should-send-on-key';
 import type { useGroupChat } from './useGroupChat';
 import type { GroupLiveDocs } from './live-doc/use-group-live-docs';
@@ -87,7 +88,7 @@ export function GroupComposer({ groupId, chat, liveDocs, composerRef }: GroupCom
       </div>
       {!editing && (
         <TypeSelectorBar
-          types={peer ? GROUP_COMPOSE_TYPES : NODE_CHAT_COMPOSE_TYPES}
+          types={GROUP_COMPOSE_TYPES}
           selectedType={liveDoc ? 'live_document' : toComposeType(chat.messageType)}
           onTypeChange={(type: MessageType) => {
             setLiveDoc(type === 'live_document');

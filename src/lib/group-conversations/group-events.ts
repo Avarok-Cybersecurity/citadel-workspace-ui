@@ -40,6 +40,8 @@ export interface GroupEvent {
     | 'group:control-received'
     /** A member's reaction on a message; never a chat bubble. See peer-group-reaction-inbound. */
     | 'group:reaction-received'
+    /** A member's live-document update or sync request; never a chat bubble. See group-doc-keeper. */
+    | 'group:live-doc-received'
     /**
      * The server's answer to `GroupListGroupsFor` — the only message that can
      * establish a group is GONE. Every other event is additive or arrives only

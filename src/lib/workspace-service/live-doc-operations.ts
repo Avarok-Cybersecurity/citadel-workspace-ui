@@ -8,6 +8,7 @@
 import { GroupMessageTypeTS, type WorkspaceProtocolRequestTS } from '@/types/workspace-protocol';
 import type { ProtocolSender } from './workspace-operations';
 import { awaitWriteAnswer } from './await-write-response';
+import { sharedLiveDocText } from '@/lib/collab/shared-live-doc';
 
 /** A document as the server holds it: the number of its last update and its merged state. */
 export interface LiveDocSnapshot { seq: number; state: string }
@@ -47,7 +48,7 @@ export async function shareLiveDoc(sender: ProtocolSender, groupId: string, docI
     SendGroupMessage: {
       group_id: groupId,
       message_type: GroupMessageTypeTS.LiveDocument,
-      content: `Shared a live document: ${title}`,
+      content: sharedLiveDocText(title),
       document_id: docId,
       document_title: title,
     },
