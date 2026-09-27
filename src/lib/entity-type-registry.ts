@@ -52,8 +52,8 @@ export function setTreeSchema(schema: TreeSchema): void {
   );
 }
 
-/** Resolve a Lucide icon name string to its React component. */
-function resolveIcon(iconName: string): ComponentType<{ className?: string }> {
+/** Resolve a Lucide icon name string to its React component; the hierarchy editor previews unsaved levels with it. */
+export function resolveIcon(iconName: string): ComponentType<{ className?: string }> {
   return ICON_MAP[iconName] ?? Folder;
 }
 

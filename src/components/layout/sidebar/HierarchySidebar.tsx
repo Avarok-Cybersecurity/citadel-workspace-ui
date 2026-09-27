@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo } from 'react';
-import { mayLeaveEditor } from '@/lib/leave-editor';
 import { describeFailure } from '@/lib/failure-message';
 import { debugLog } from '@/lib/debug-config';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -7,12 +6,12 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
 import WorkspaceService from '@/lib/workspace-service';
-import { buildWorkspacePath, getWorkspacePath } from '@/lib/workspace-navigation';
+import { getWorkspacePath } from '@/lib/workspace-navigation';
 import { getEntityTypeString } from '@/lib/entity-type-registry';
 import { MoveNodeDialog } from './MoveNodeDialog';
 import { TreeNodesSection, type DomainNode } from './TreeNodesSection';
 import { HierarchySidebarModals } from './HierarchySidebarModals';
-import { useConfirm } from '@/components/shared/confirm-dialog';
+import { useOpenNode } from '@/hooks/use-open-node';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { usePermission } from '@/hooks/use-permission';
 import { Permission } from '@/contexts/PermissionsContext';
@@ -37,27 +36,13 @@ export function HierarchySidebar(): JSX.Element {
   const [editNode, setEditNode] = useState<DomainNode | null>(null);
   const [moveNode, setMoveNode] = useState<DomainNode | null>(null);
   const [adminNode, setAdminNode] = useState<DomainNode | null>(null);
-  // The app's dialog, not window.confirm — which is what `confirm` resolves to
-  // if this line is missing, silently, with a `string` parameter.
-  const confirm: ReturnType<typeof useConfirm> = useConfirm();
   // What the server checks for every CreateNode; see createBlockedReason.
   const treeEdit: ReturnType<typeof usePermission> = usePermission(WORKSPACE_ROOT_ID, Permission.EditTreeStructure);
 
   // Build flat node list from state
   const nodes: DomainNode[] = useMemo(() => Object.values(state.nodes), [state.nodes]);
 
-  const handleNodeSelect: (nodeId: string) => Promise<void> = useCallback(async (nodeId: string): Promise<void> => {
-    if (!(await mayLeaveEditor(confirm))) return;
-
-    const newParams: URLSearchParams = new URLSearchParams(location.search);
-    newParams.set('nodeId', nodeId);
-    newParams.delete('section');
-    // Clear P2P chat overlay when navigating to a different node
-    newParams.delete('showP2P');
-    newParams.delete('channel');
-    newParams.delete('p2pUser');
-    navigate(buildWorkspacePath(newParams));
-  }, [location.search, navigate, confirm]);
+  const handleNodeSelect: (nodeId: string) => Promise<void> = useOpenNode();
 
   const handleNodeEdit: (node: DomainNode) => void = useCallback((node: DomainNode): void => {
     setEditNode(node);

@@ -26,7 +26,8 @@ const SRC: string = join(process.cwd(), 'src');
  * every navigate() in the app.
  */
 const LEAVES_THE_EDITOR: string[] = [
-  'components/layout/sidebar/HierarchySidebar.tsx',
+  // Opening a node, from the sidebar and from the hierarchy editor alike.
+  'hooks/use-open-node.ts',
   'components/layout/sidebar/MembersSection.tsx',
   'components/layout/sidebar/FilesSection.tsx',
   'components/layout/sidebar/useWorkspaceSwitcher.tsx',

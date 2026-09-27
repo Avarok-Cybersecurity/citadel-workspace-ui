@@ -53,6 +53,8 @@ export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   UpdateWorkspaceTheme: ['Workspace'],
   // Name, description and icon; answered and broadcast as the workspace record.
   UpdateWorkspaceProfile: ['Workspace'],
+  // The hierarchy editor's save; answered and broadcast as the saved schema.
+  UpdateTreeSchema: ['TreeSchema'],
 
   // The workspace-level writes. GeneralTab awaited updateWorkspace, toasted
   // "updated successfully" and cleared its dirty flag on the SEND — so a

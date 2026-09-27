@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@avarok/citadel-protocol-types": "^0.14.0",
+    "@dagrejs/dagre": "3.1.1",
     "@hookform/resolvers": "^3.9.0",
     "@mdx-js/mdx": "^3.1.0",
     "@mdx-js/react": "^3.1.0",
@@ -68,6 +69,7 @@
     "@tiptap/pm": "^2.27.1",
     "@tiptap/react": "^2.27.1",
     "@tiptap/starter-kit": "^2.27.1",
+    "@xyflow/react": "12.11.6",
     "cbor-x": "^1.6.0",
     "citadel-internal-service-wasm-client": "file:../citadel-internal-service/typescript-client",
     "citadel-workspace-client-ts": "file:../citadel-workspace-client-ts",
