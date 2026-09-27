@@ -17,7 +17,7 @@
  */
 import {
   Permission,
-  PERMISSION_LABELS,
+  permissionLabel,
   PERMISSION_CATEGORIES as CANONICAL_CATEGORIES,
   ROLE_DEFAULT_PERMISSIONS,
 } from '@/lib/permissions-service/types';
@@ -71,7 +71,9 @@ export const PERMISSION_CATEGORIES: Record<string, PermissionDefinition[]> =
       category.label,
       category.permissions.map((permission) => ({
         id: permission,
-        label: PERMISSION_LABELS[permission],
+        // Read when the matrix renders, not when this module loads: the labels name the
+        // workspace's levels, which arrive with its hierarchy.
+        get label(): string { return permissionLabel(permission); },
         description: PERMISSION_DESCRIPTIONS[permission],
       })),
     ]),

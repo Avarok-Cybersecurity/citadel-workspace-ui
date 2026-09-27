@@ -4,7 +4,10 @@
  * Shared type definitions for the AdminModal component and its tabs.
  */
 
+/** A level's type name, as the hierarchy schema names it: 'Workspace', 'Office', or a custom one. */
 export type AdminEntityType = string;
+/** The top of every hierarchy. */
+export const WORKSPACE_ENTITY: AdminEntityType = 'Workspace';
 
 export type AdminTabType = 'general' | 'members' | 'chat';
 

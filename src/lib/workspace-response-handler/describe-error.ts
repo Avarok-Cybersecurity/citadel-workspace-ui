@@ -1,3 +1,4 @@
+import { levelsPhrase } from '@/lib/entity-type-registry';
 /**
  * Rendering a server `WorkspaceError` for a human.
  *
@@ -37,8 +38,9 @@ export const PERMISSION_SENTENCE: Readonly<Record<NamedPermission, string>> = {
     'You do not have permission to add members here. An administrator can grant it.',
   RemoveUsers:
     'You do not have permission to remove members here. An administrator can grant it.',
-  EditTreeStructure:
-    'You do not have permission to add, rename, move or delete offices and rooms here. An administrator can grant it.',
+  get EditTreeStructure(): string {
+    return `You do not have permission to add, rename, move or delete ${levelsPhrase()} here. An administrator can grant it.`;
+  },
   EditMdx:
     'You do not have permission to edit this document. An administrator can grant it.',
   ViewContent: 'You do not have permission to view this.',

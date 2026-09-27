@@ -16,6 +16,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { getEntityMetadata , type EntityTypeMetadata } from '@/lib/entity-type-registry';
 import { debugLog } from '@/lib/debug-config';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
+import { WORKSPACE_ENTITY } from './types';
 
 export function AdminModal({
   isOpen,
@@ -38,7 +39,7 @@ export function AdminModal({
     const loadEntity = (): void => {
       setLoading(true);
       try {
-        if (entityType === 'workspace') {
+        if (entityType === WORKSPACE_ENTITY) {
           if (state.workspace) {
             setEntity({
               id: state.workspace.id,

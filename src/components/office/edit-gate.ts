@@ -8,12 +8,13 @@
  * is no page to write to.
  */
 import { gateOnKnownAnswer, type ActionGate, type UsePermissionResult } from '@/hooks/use-permission-result';
+import { levelsPhrase } from '@/lib/entity-type-registry';
 
 /** Why a page with no node cannot be edited or saved. */
 export function noPageReason(nodesLoading: boolean): string {
   return nodesLoading
     ? 'The workspace is still opening. Try again in a moment.'
-    : "This page isn't stored anywhere, so there is nothing to save to. Open an office or room to edit its content.";
+    : `This page isn't stored anywhere, so there is nothing to save to. Open one of the workspace's ${levelsPhrase()} to edit its page.`;
 }
 
 export function editGate(nodeId: string | undefined, nodesLoading: boolean, edit: UsePermissionResult): ActionGate {

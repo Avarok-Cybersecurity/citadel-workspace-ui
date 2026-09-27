@@ -12,7 +12,7 @@ function deps(overrides: Partial<Parameters<typeof saveChatSettings>[0]> = {}): 
     notices,
     write,
     args: {
-      entityType: 'office',
+      entityType: 'Office',
       entityId: 'node-1',
       chatEnabled: true,
       chatRules: 'Be kind',
@@ -49,7 +49,7 @@ describe('saveChatSettings', () => {
 
   it('refuses the workspace level instead of reporting a save it cannot make', async () => {
     // UpdateWorkspace carries no chat fields, so there is nowhere to put these.
-    const d: ReturnType<typeof deps> = deps({ entityType: 'workspace' });
+    const d: ReturnType<typeof deps> = deps({ entityType: 'Workspace' });
 
     const result: boolean = await saveChatSettings(d.args);
 

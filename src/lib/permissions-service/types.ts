@@ -1,3 +1,4 @@
+import { levelsPhrase } from '@/lib/entity-type-registry';
 /**
  * Permissions Service - Types & Constants
  *
@@ -75,13 +76,14 @@ export interface DomainPermissions {
  */
 export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.All]: 'All Permissions',
-  [Permission.CreateNode]: 'Create offices and rooms',
-  [Permission.DeleteNode]: 'Delete offices and rooms',
-  [Permission.UpdateNode]: 'Rename offices and rooms',
-  [Permission.AddNode]: 'Add offices and rooms',
-  [Permission.EditNodeConfig]: 'Change office and room settings',
-  [Permission.UpdateNodeSettings]: 'Update office and room settings',
-  [Permission.ManageNodeMembers]: 'Manage who is in an office or room',
+  // {levels} is the workspace's own words for its levels: see permissionLabel.
+  [Permission.CreateNode]: 'Create {levels}',
+  [Permission.DeleteNode]: 'Delete {levels}',
+  [Permission.UpdateNode]: 'Rename {levels}',
+  [Permission.AddNode]: 'Add {levels}',
+  [Permission.EditNodeConfig]: 'Change the settings of {levels}',
+  [Permission.UpdateNodeSettings]: 'Update the settings of {levels}',
+  [Permission.ManageNodeMembers]: 'Manage who is in {levels}',
   [Permission.CreateWorkspace]: 'Create Workspace',
   [Permission.UpdateWorkspace]: 'Update Workspace',
   [Permission.DeleteWorkspace]: 'Delete Workspace',
@@ -102,6 +104,11 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.ManageDomains]: 'Manage every space in the workspace',
   [Permission.ConfigureSystem]: 'Configure System',
 };
+
+/** A permission's name as an administrator reads it, in this workspace's words for its levels. */
+export function permissionLabel(permission: Permission): string {
+  return (PERMISSION_LABELS[permission] ?? permission).replace('{levels}', levelsPhrase());
+}
 
 /** Every permission, in declaration order. Mirrors `Permission::ALL_VARIANTS`. */
 export const ALL_PERMISSIONS: Permission[] = Object.values(Permission);

@@ -77,7 +77,7 @@ function startReason(others: number, notConnected: readonly string[], cap: numbe
     return `${who} connected with you yet. Calls go directly between people — connect with them from Members first.`;
   }
   if (others === 0) {
-    return 'No one else is in this conversation yet — add members to this room to call them.';
+    return 'No one else is in this conversation yet — add members here to call them.';
   }
   if (others > cap) {
     return `This group is too large for a ${kind} call — calls carry up to ${cap} other people, and this group has ${others}.`;

@@ -176,7 +176,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
         value={content}
         onChange={(value) => setContent(value)}
         height="400px"
-        placeholder="Write your office content here using Markdown or MDX..."
+        placeholder="Write this page's content here using Markdown or MDX..."
       />
     </div>
   ) : (

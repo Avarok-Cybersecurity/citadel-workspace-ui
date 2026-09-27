@@ -29,7 +29,7 @@ const ctx = (nodes: Record<string, unknown>): { state: WorkspaceState; } =>
 function renderTab(nodes: Record<string, unknown>): RenderResult {
   return render(
     <WorkspaceContext.Provider value={ctx(nodes)}>
-      <GeneralTab entityType="office" entityId="n1" onClose={() => {}} />
+      <GeneralTab entityType="Office" entityId="n1" onClose={() => {}} />
     </WorkspaceContext.Provider>,
   );
 }
@@ -49,7 +49,7 @@ describe('GeneralTab', () => {
     // A teammate saves a different document: same data for n1, new object identity.
     rerender(
       <WorkspaceContext.Provider value={ctx({ n1: { ...node }, other: { id: 'x' } })}>
-        <GeneralTab entityType="office" entityId="n1" onClose={() => {}} />
+        <GeneralTab entityType="Office" entityId="n1" onClose={() => {}} />
       </WorkspaceContext.Provider>,
     );
 
@@ -64,7 +64,7 @@ describe('GeneralTab', () => {
 
     rerender(
       <WorkspaceContext.Provider value={ctx({ n1: { ...node, name: 'Design (renamed)' } })}>
-        <GeneralTab entityType="office" entityId="n1" onClose={() => {}} />
+        <GeneralTab entityType="Office" entityId="n1" onClose={() => {}} />
       </WorkspaceContext.Provider>,
     );
 
@@ -79,7 +79,7 @@ describe('GeneralTab', () => {
     const nodes: { n1: { id: string; name: string; description: string; }; n2: { id: string; name: string; description: string; }; } = { n1: node, n2: { id: 'n2', name: 'Legal', description: '' } };
     const { rerender } = render(
       <WorkspaceContext.Provider value={ctx(nodes)}>
-        <GeneralTab entityType="office" entityId="n1" onClose={() => {}} />
+        <GeneralTab entityType="Office" entityId="n1" onClose={() => {}} />
       </WorkspaceContext.Provider>,
     );
 
@@ -87,7 +87,7 @@ describe('GeneralTab', () => {
 
     rerender(
       <WorkspaceContext.Provider value={ctx(nodes)}>
-        <GeneralTab entityType="office" entityId="n2" onClose={() => {}} />
+        <GeneralTab entityType="Office" entityId="n2" onClose={() => {}} />
       </WorkspaceContext.Provider>,
     );
 

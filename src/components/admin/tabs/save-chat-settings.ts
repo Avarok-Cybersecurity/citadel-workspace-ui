@@ -1,3 +1,5 @@
+import { getEntityMetadata, levelsPhrase } from '@/lib/entity-type-registry';
+import { WORKSPACE_ENTITY } from '../types';
 /**
  * Persisting a node's chat settings, separately from the tab that collects them.
  *
@@ -28,7 +30,7 @@ export interface ChatSettingsUpdate {
 }
 
 export interface SaveChatSettingsDeps {
-  /** 'workspace', or a node type such as 'office' / 'room'. */
+  /** 'Workspace', or a level's type name such as 'Office'. */
   entityType: string;
   entityId: string;
   chatEnabled: boolean;
@@ -50,12 +52,12 @@ export const MAX_CHAT_RULES_LENGTH: number = 2000;
 export async function saveChatSettings(deps: SaveChatSettingsDeps): Promise<boolean> {
   const { entityType, entityId, chatEnabled, chatRules, write, notify, log } = deps;
 
-  if (entityType === 'workspace') {
+  if (entityType === WORKSPACE_ENTITY) {
     log('Refusing to save: UpdateWorkspace carries no chat fields');
     notify({
       kind: 'error',
       title: 'Not available for the workspace',
-      description: 'Chat settings can be configured on offices and rooms, not on the workspace itself.',
+      description: `Chat settings can be configured on ${levelsPhrase()}, not on the workspace itself.`,
     });
     return false;
   }
@@ -94,7 +96,7 @@ export async function saveChatSettings(deps: SaveChatSettingsDeps): Promise<bool
   notify({
     kind: 'success',
     title: 'Chat settings updated',
-    description: `Chat ${chatEnabled ? 'enabled' : 'disabled'} for this ${entityType}`,
+    description: `Chat ${chatEnabled ? 'enabled' : 'disabled'} for this ${getEntityMetadata(entityType).label.toLowerCase()}`,
   });
   return true;
 }

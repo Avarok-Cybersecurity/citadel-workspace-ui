@@ -17,7 +17,7 @@ import { adminMemberTest } from '../fixtures/multi-user.fixture.js';
 import type { Page } from '@playwright/test';
 
 const editButton = (page: Page) => page.getByTestId('office-edit-content').first();
-const mdxTextarea = (page: Page) => page.getByPlaceholder(/Write your office content/i).first();
+const mdxTextarea = (page: Page) => page.getByPlaceholder(/Write this page's content/i).first();
 const saveButton = (page: Page) => page.getByTestId('office-save-content').first();
 const rendered = (page: Page) => page.locator('div.prose').first();
 

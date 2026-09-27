@@ -20,7 +20,7 @@ function renderWith(nodes: Record<string, DomainNode>): void {
   const value: ContextValue = { state: { nodes } } as unknown as ContextValue;
   render(
     <WorkspaceContext.Provider value={value}>
-      <ChatSettingsTab entityType="office" entityId="o1" onClose={(): void => {}} />
+      <ChatSettingsTab entityType="Office" entityId="o1" onClose={(): void => {}} />
     </WorkspaceContext.Provider>,
   );
 }

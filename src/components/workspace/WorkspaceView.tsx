@@ -3,7 +3,7 @@ import { rosterDisplayName, selfDisplayName } from '@/lib/roster-display-name';
 import { useLocation } from 'react-router-dom';
 import { BaseOffice } from '../office/BaseOffice';
 import { P2PChat } from '../p2p/P2PChat';
-import { getDefaultNodeContent, getDefaultChildNodeContent, getWorkspaceHomeContent } from '@/lib/default-mdx-content';
+import { getDefaultNodeContent, getDefaultChildNodeContent, getWorkspaceHomeContent, type LevelWords } from '@/lib/default-mdx-content';
 import { buildTreeFromNodes } from '@/components/layout/sidebar/tree-node-utils';
 import type { TreeNode } from '@/components/layout/sidebar/tree-node-types';
 import { NodeNotFound } from './NodeNotFound';
@@ -18,6 +18,7 @@ import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 import { useP2PChannelParam } from './use-p2p-channel-param';
+import { getEntityMetadata } from '@/lib/entity-type-registry';
 
 interface WorkspaceViewProps {
   nodeId?: string | null;
@@ -62,14 +63,17 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
     workspaceName, state.workspace?.description ?? '', topLevelSpaces(state.nodes),
   ), [workspaceName, state.workspace?.description, state.nodes]);
   const getInitialContent: () => string = useCallback((): string => {
-    if (node && isLeafNode) {
-      return getDefaultChildNodeContent(node.name, node.description);
-    }
-    if (node) {
-      return getDefaultNodeContent(node.name);
-    }
-    return homeContent;
-  }, [node, isLeafNode, homeContent]);
+    if (!node) return homeContent;
+    const parent: DomainNode | undefined = node.parent_id ? state.nodes[node.parent_id] : undefined;
+    const words: LevelWords = {
+      level: getEntityMetadata(node.entity_type).label.toLowerCase(),
+      childLevels: (node.allowed_child_types ?? []).map((t: string) => getEntityMetadata(t).pluralLabel.toLowerCase()).join(' and '),
+      parentLevel: parent ? getEntityMetadata(parent.entity_type).label.toLowerCase() : null,
+    };
+    return isLeafNode
+      ? getDefaultChildNodeContent(node.name, node.description, words)
+      : getDefaultNodeContent(node.name, words);
+  }, [node, isLeafNode, homeContent, state.nodes]);
 
   // Determine entity details
   const entityTitle: string = node?.name || workspaceName;

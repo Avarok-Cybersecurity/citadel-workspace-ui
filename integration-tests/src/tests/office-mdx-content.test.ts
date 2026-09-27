@@ -89,7 +89,7 @@ const editButtonGate = (page: Page) =>
 
 /** MDXEditor's textarea, identified by the placeholder BaseOffice passes it. */
 const mdxTextarea = (page: Page) =>
-  page.getByPlaceholder(/Write your office content/i).first();
+  page.getByPlaceholder(/Write this page's content/i).first();
 
 /** BaseOffice's view-mode wrapper — present only once MDX has compiled. */
 const renderedContent = (page: Page) => page.locator('div.prose').first();

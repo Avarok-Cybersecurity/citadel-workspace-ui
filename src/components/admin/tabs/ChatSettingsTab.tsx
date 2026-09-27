@@ -12,6 +12,8 @@ import { Loader2, MessageSquare, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { debugLog } from '@/lib/debug-config';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
+import { WORKSPACE_ENTITY } from '../types';
+import { getEntityMetadata } from '@/lib/entity-type-registry';
 
 export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: AdminTabProps): JSX.Element {
   const { toast } = useToast();
@@ -107,7 +109,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
   }
 
   // Show message for workspace level - chat is per office/room
-  if (entityType === 'workspace') {
+  if (entityType === WORKSPACE_ENTITY) {
     return (
       <div className="space-y-4" data-testid="chat-tab-workspace-message">
         <Alert className="bg-background border-primary-accent">
@@ -132,7 +134,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
               Enable Chat
             </Label>
             <p className="text-sm text-muted-foreground">
-              Allow members to send messages in this {entityType}
+              Allow members to send messages in this {getEntityMetadata(entityType).label.toLowerCase()}
             </p>
           </div>
         </div>

@@ -32,6 +32,7 @@ import { permits } from '@/hooks/use-permission-result';
 import { Permission } from '@/lib/permissions-service/types';
 import { WorkspaceSettingsDialog } from '@/components/admin/workspace-settings/WorkspaceSettingsDialog';
 import { HierarchyEditorDialog } from '@/components/hierarchy-editor/HierarchyEditorDialog';
+import { levelsPhrase } from '@/lib/entity-type-registry';
 
 /**
  * Admin Settings Section
@@ -203,7 +204,7 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
                     offices and rooms; the result toasts already use the real
                     ones, so the same thing had two names either side of a
                     click. */}
-                <p className="font-medium">Offices & Rooms</p>
+                <p className="font-medium first-letter:uppercase">{levelsPhrase()}</p>
                 <p className="text-sm text-muted-foreground">Create, rename and remove them</p>
               </div>
             </div>

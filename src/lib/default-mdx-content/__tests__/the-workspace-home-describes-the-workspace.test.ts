@@ -23,7 +23,7 @@ describe('the workspace home', () => {
   });
 
   it('says what to do when there is nothing in it yet', () => {
-    expect(getWorkspaceHomeContent('Harbor', '', [])).toMatch(/no offices yet/i);
+    expect(getWorkspaceHomeContent('Harbor', '', [])).toMatch(/no spaces yet/i);
   });
 
   it('escapes names, which MDX would otherwise run as code', () => {
@@ -31,5 +31,17 @@ describe('the workspace home', () => {
     expect(page).toContain('# R&D \\{beta\\}');
     expect(page).toContain('**\\<Lab\\>** — \\{x\\}');
     expect(page).not.toMatch(/(^|[^\\])[{<]/);
+  });
+});
+
+describe("a new page's default text", () => {
+  it("describes the node's own level, not an office or a room", async () => {
+    const { getDefaultNodeContent, getDefaultChildNodeContent } = await import('../node-content');
+    const division: string = getDefaultNodeContent('Research', { level: 'division', childLevels: 'teams', parentLevel: null });
+    expect(division).toContain('This is a division in your workspace');
+    expect(division).toContain('This division can hold **teams**');
+    const team: string = getDefaultChildNodeContent('Ops', undefined, { level: 'team', childLevels: '', parentLevel: 'division' });
+    expect(team).toContain('inherits access from the division above it');
+    expect(`${division}\n${team}`).not.toMatch(/\b(offices?|rooms?)\b/i);
   });
 });
