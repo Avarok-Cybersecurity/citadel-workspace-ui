@@ -37,7 +37,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * the component is actually mounted, so the claim can be checked.
  */
 const RENDERED_INDIRECTLY = new Map([
-  // (empty — every component in the tree is rendered somewhere findable)
+  // React Flow draws a graph's nodes from its `nodeTypes` map, never as JSX.
+  ['LevelNode', 'hierarchy-editor/StructureView.tsx NODE_TYPES { level: LevelNode }'],
+  ['OrgNode', 'hierarchy-editor/OrganisationView.tsx NODE_TYPES { org: OrgNode }'],
 ]);
 
 const isTest = (file) => file.includes('__tests__') || /\.test\.tsx?$/.test(file);
