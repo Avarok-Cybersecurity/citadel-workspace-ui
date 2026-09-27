@@ -41,12 +41,15 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
 
     const loadData = (): void => {
       setLoading(true);
+      // Same store the sidebar and BaseOffice read from, so the tab cannot
+      // disagree with what the rest of the app shows. Until the node is there,
+      // stay loading: a switch shown ON for a node not yet read is a guess, and
+      // Save would write it. This effect re-runs when the node arrives.
+      const node: DomainNode | undefined = state.nodes[entityId];
+      if (!node) return;
       try {
-        // Same store the sidebar and BaseOffice read from, so the tab cannot
-        // disagree with what the rest of the app shows.
-        const node: DomainNode = state.nodes[entityId];
-        const enabled: boolean = node ? node.chat_enabled : true;
-        const rules: string = node?.rules ?? '';
+        const enabled: boolean = node.chat_enabled;
+        const rules: string = node.rules ?? '';
 
         setChatEnabled(enabled);
         setChatRules(rules);
