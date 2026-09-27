@@ -2,7 +2,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { instanceManager } from '@/lib/multi-instance';
 import NotificationService from '@/lib/notification-service';
 import { debugLog } from '@/lib/debug-config';
-import { isOwnGroupMessage, currentGroupSelf } from './own-message';
+import { isOwnGroupMessage } from './own-message';
 import { isChannelOpen } from './open-channel';
 
 /**
@@ -22,7 +22,8 @@ import { isChannelOpen } from './open-channel';
 let started: boolean = false;
 
 /** Idempotent, like the store's own bindings: the first consumer arms it. */
-export function startGroupNotificationBindings(): void {
+/** `selfUsername` reads the signed-in account's username; see startGroupEventBindings. */
+export function startGroupNotificationBindings(selfUsername: () => string | undefined): void {
   if (started) return;
   started = true;
 
@@ -31,6 +32,7 @@ export function startGroupNotificationBindings(): void {
     senderId: string;
     senderName?: string;
     content: string;
+    selfUsername?: string;
   }) => {
     const own: bigint | null = instanceManager.cid;
 
@@ -39,7 +41,7 @@ export function startGroupNotificationBindings(): void {
     //    confirms a send -- so without this every message you sent would ring
     //    your own bell. By CID or username: an office channel names the sender
     //    by username (see own-message).
-    if (isOwnGroupMessage(data.senderId, currentGroupSelf())) return;
+    if (isOwnGroupMessage(data.senderId, { cid: own, username: data.selfUsername ?? selfUsername() })) return;
 
     // 2. Never for the conversation the user is reading right now: a peer group
     //    by its URL, an office/room chat by the channel its view marked open.

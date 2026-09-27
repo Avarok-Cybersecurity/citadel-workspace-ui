@@ -23,15 +23,12 @@ vi.mock('@/lib/multi-instance', () => ({
 }));
 
 const usernameRef: { current: string | undefined } = { current: 'thomas' };
-vi.mock('@/lib/connection', () => ({
-  connectionManager: { getConnectionInfo: (): { username: string | undefined } => ({ username: usernameRef.current }) },
-}));
 
 const { eventEmitter } = await import('@/lib/event-emitter');
 const { markChannelOpen } = await import('../open-channel');
 const { startGroupNotificationBindings } = await import('../group-notifications');
 
-startGroupNotificationBindings();
+startGroupNotificationBindings((): string | undefined => usernameRef.current);
 
 function receive(senderId: string, content: string = 'hello', groupId: string = 'g1'): void {
   eventEmitter.emit('group:message-received', {

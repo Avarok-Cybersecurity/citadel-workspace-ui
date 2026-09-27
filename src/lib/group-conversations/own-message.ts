@@ -6,9 +6,10 @@
  * `actor_user_id`). Comparing only with the CID -- as the notification bell and the unread count
  * both did -- never matched an office message, so your own messages rang your bell and counted
  * as unread. One rule, used by both, matching either identifier, as GroupMessageItem already did.
+ *
+ * Pure: the username arrives on the event (`selfUsername`), attached where the notification is
+ * received, so this rule and the store never import the connection manager.
  */
-import { instanceManager } from '@/lib/multi-instance';
-import { connectionManager } from '@/lib/connection';
 
 export interface GroupSelf {
   cid: bigint | null;
@@ -22,7 +23,3 @@ export function isOwnGroupMessage(senderId: string, self: GroupSelf): boolean {
   return Boolean(self.username) && senderId === self.username;
 }
 
-/** This tab's identity, read where a group message arrives. */
-export function currentGroupSelf(): GroupSelf {
-  return { cid: instanceManager.cid, username: connectionManager.getConnectionInfo()?.username };
-}

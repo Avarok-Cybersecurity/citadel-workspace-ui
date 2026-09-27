@@ -13,6 +13,7 @@
  * request is production code.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { noSessionUsername } from '@/test-utils/no-session-username';
 
 const h: { sent: Array<Record<string, unknown>>; failSend: boolean; toasts: Array<Record<string, unknown>> } = vi.hoisted(() => ({
   sent: [], failSend: false, toasts: [],
@@ -60,7 +61,7 @@ beforeEach(() => {
   h.sent.length = 0;
   h.toasts.length = 0;
   h.failSend = false;
-  startGroupEventBindings();
+  startGroupEventBindings(noSessionUsername);
 });
 
 describe('an arriving invitation', () => {

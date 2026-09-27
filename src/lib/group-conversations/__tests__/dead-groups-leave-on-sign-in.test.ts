@@ -14,6 +14,7 @@
  * the reconciliation are all production code.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { noSessionUsername } from '@/test-utils/no-session-username';
 
 const { ALICE, loadPersistedGroups, sendGroupListRequest } = vi.hoisted(() => ({
   ALICE: 12884901889n,
@@ -58,7 +59,7 @@ describe('a session that was live before the sidebar mounted', () => {
   });
 
   it('asks the server, and drops the owned groups it no longer lists', async () => {
-    startGroupEventBindings();
+    startGroupEventBindings(noSessionUsername);
     await vi.waitFor(() => expect(sendGroupListRequest, 'the list was never requested on mount').toHaveBeenCalled());
 
     const events: GroupEvent[] = toGroupEvents(serverAnswer(), ALICE, 'alice', (): string => 'peer');

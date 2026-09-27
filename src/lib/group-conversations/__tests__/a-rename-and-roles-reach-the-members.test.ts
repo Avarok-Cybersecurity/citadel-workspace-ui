@@ -10,6 +10,7 @@
  * binding and the store are production code.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { noSessionUsername } from '@/test-utils/no-session-username';
 
 const h: { sent: Array<Record<string, unknown>>; cid: bigint | null } = vi.hoisted(() => ({ sent: [], cid: 11n }));
 
@@ -57,7 +58,7 @@ let reconciled: boolean = false;
 
 beforeEach(async () => {
   h.cid = 11n;
-  startGroupEventBindings();
+  startGroupEventBindings(noSessionUsername);
   // The session is live before the bindings start, so binding reconciles it: a
   // GroupListGroupsFor goes out (see reconcile-groups), then GroupListJoined. Wait for the LAST of
   // them rather than a fixed delay: the reconcile first resets the session's groups, and a reset

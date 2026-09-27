@@ -8,6 +8,7 @@
  * group vanished from the sidebar without a word.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { noSessionUsername } from '@/test-utils/no-session-username';
 
 const h: { sent: Array<Record<string, unknown>>; toasts: Array<{ title: string }> } = vi.hoisted(
   (): { sent: Array<Record<string, unknown>>; toasts: Array<{ title: string }> } => ({ sent: [], toasts: [] }),
@@ -56,7 +57,7 @@ const flush = (): Promise<void> => new Promise<void>((r) => setTimeout(r, 0));
 beforeEach(() => {
   h.sent = [];
   h.toasts = [];
-  startGroupEventBindings();
+  startGroupEventBindings(noSessionUsername);
 });
 
 describe('the kicker', () => {

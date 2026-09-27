@@ -18,6 +18,7 @@
  * transcript.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { noSessionUsername } from '@/test-utils/no-session-username';
 
 const delivered: Array<{ groupId: string; id: string; content: string; sender: string }> = [];
 
@@ -129,7 +130,7 @@ describe('the store registers the delivery binding', () => {
     const { startGroupEventBindings } = await import('../group-store');
     const { eventEmitter } = await import('@/lib/event-emitter');
 
-    startGroupEventBindings();
+    startGroupEventBindings(noSessionUsername);
     eventEmitter.emit('group:message-received', {
       groupId: GROUP, messageId: 'm-registered', senderId: '7', senderName: 'ada',
       content: 'hello', timestamp: 1_000,

@@ -7,6 +7,7 @@
  * called start, creates dedup by id, and updates notify subscribers.
  */
 import { describe, it, expect } from 'vitest';
+import { noSessionUsername } from '@/test-utils/no-session-username';
 import { eventEmitter } from '@/lib/event-emitter';
 import type { GroupConversation, GroupMember } from '@/types/group-entities';
 import {
@@ -33,7 +34,7 @@ function emitCreated(groupId: string): void {
 
 describe('group store', () => {
   it('applies a created event once and shares it with every reader', () => {
-    startGroupEventBindings();
+    startGroupEventBindings(noSessionUsername);
     const id: string = freshId();
     let notified: number = 0;
     const unsubscribe: () => void = subscribeToGroups((): void => { notified += 1; });
@@ -49,7 +50,7 @@ describe('group store', () => {
   });
 
   it('dedups a repeated create for the same id', () => {
-    startGroupEventBindings();
+    startGroupEventBindings(noSessionUsername);
     const id: string = freshId();
 
     emitCreated(id);
@@ -62,8 +63,8 @@ describe('group store', () => {
     // Per-instance handlers over a shared list would apply every event N
     // times; the visible symptom is unread counts climbing by the number of
     // mounted components per message.
-    startGroupEventBindings();
-    startGroupEventBindings();
+    startGroupEventBindings(noSessionUsername);
+    startGroupEventBindings(noSessionUsername);
     const id: string = freshId();
     emitCreated(id);
 
@@ -77,7 +78,7 @@ describe('group store', () => {
   });
 
   it('adds a joined member once, keyed by cid', () => {
-    startGroupEventBindings();
+    startGroupEventBindings(noSessionUsername);
     const id: string = freshId();
     emitCreated(id);
 
@@ -91,7 +92,7 @@ describe('group store', () => {
   });
 
   it('gives a joining member a role that exists here, not one from elsewhere', () => {
-    startGroupEventBindings();
+    startGroupEventBindings(noSessionUsername);
     const id: string = freshId();
     emitCreated(id);
 
@@ -116,7 +117,7 @@ describe('group store', () => {
   it('keeps an offered role id that does name a role here', () => {
     // Positive control: the guard must not discard every offered id, only the
     // ones that resolve to nothing.
-    startGroupEventBindings();
+    startGroupEventBindings(noSessionUsername);
     const id: string = freshId();
     emitCreated(id);
     const real: string = getGroups().find(g => g.id === id)!.settings.roles[0].id;
@@ -129,7 +130,7 @@ describe('group store', () => {
   });
 
   it('removes a member on member-left', () => {
-    startGroupEventBindings();
+    startGroupEventBindings(noSessionUsername);
     const id: string = freshId();
     emitCreated(id);
     eventEmitter.emit('group:member-joined', { groupId: id, memberCid: 9n, memberUsername: 'bob' });

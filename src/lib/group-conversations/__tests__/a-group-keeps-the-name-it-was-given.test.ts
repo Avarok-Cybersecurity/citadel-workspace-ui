@@ -7,6 +7,7 @@
  * sidebar showed something else.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
+import { noSessionUsername } from '@/test-utils/no-session-username';
 import { eventEmitter } from '@/lib/event-emitter';
 import {
   startGroupEventBindings,
@@ -29,7 +30,7 @@ describe('a group created here', () => {
   beforeEach(() => {
     forgetChosenNames();
     updateGroups(() => []);
-    startGroupEventBindings();
+    startGroupEventBindings(noSessionUsername);
   });
 
   it('is called what the creator typed, not their username', () => {
