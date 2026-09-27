@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, type RefObject, type Dispatch, type SetStateAction } from 'react';
 import * as Y from 'yjs';
-import { YjsP2PProvider, createYjsP2PProvider } from '@/lib/yjs-p2p-provider';
+import type { CollabProvider, ConnectCollab } from '@/lib/collab/collab-provider';
 import { eventEmitter } from '@/lib/event-emitter';
 import type { FlashComment } from './CollaboratorCursor';
 import { flashCommentsFrom } from './collaborator-cursor-helpers';
@@ -24,15 +24,16 @@ function getRandomColor(): string {
 
 interface UseCollaborativeEditorParams {
   documentId: string;
-  peerCid: string;
-  currentUserCid: string;
+  /** How this document reaches its collaborators: P2P, or the server relay for a group chat. */
+  connect: ConnectCollab;
+  /** Whether a copy is kept in this browser (P2P); a relayed document lives on the server. */
+  persistLocally: boolean;
   currentUserName: string;
-  creatorCid?: string;
 }
 
 export interface UseCollaborativeEditorResult {
   doc: Y.Doc;
-  provider: YjsP2PProvider | null;
+  provider: CollabProvider | null;
   userColor: string;
   connectedUsers: { name: string; isActive: boolean }[];
   syncState: string;
@@ -46,13 +47,12 @@ export interface UseCollaborativeEditorResult {
 
 export function useCollaborativeEditor({
   documentId,
-  peerCid,
-  currentUserCid,
+  connect,
+  persistLocally,
   currentUserName,
-  creatorCid,
 }: UseCollaborativeEditorParams): UseCollaborativeEditorResult {
   const [doc] = useState<Y.Doc>(() => new Y.Doc());
-  const [provider, setProvider] = useState<YjsP2PProvider | null>(null);
+  const [provider, setProvider] = useState<CollabProvider | null>(null);
   const [userColor] = useState<string>(() => getRandomColor());
   const [connectedUsers, setConnectedUsers] = useState<{ name: string; isActive: boolean }[]>([{ name: currentUserName, isActive: true }]);
   const [syncState, setSyncState] = useState<string>('connecting');
@@ -60,12 +60,11 @@ export function useCollaborativeEditor({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const editorContainerRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
 
-  useDocumentPersistence(documentId, doc);
+  useDocumentPersistence(documentId, doc, persistLocally);
 
   // Create provider on mount
   useEffect(() => {
-    const effectiveCreatorCid: string = creatorCid ?? currentUserCid;
-    const newProvider: YjsP2PProvider = createYjsP2PProvider(documentId, peerCid, currentUserCid, doc, effectiveCreatorCid);
+    const newProvider: CollabProvider = connect(doc);
 
     newProvider.setLocalState({
       user: { name: currentUserName, color: userColor },
@@ -86,7 +85,7 @@ export function useCollaborativeEditor({
       eventEmitter.off('yjs:sync-complete', handleSyncComplete);
       newProvider.destroy();
     };
-  }, [documentId, peerCid, currentUserCid, currentUserName, userColor, doc, creatorCid]);
+  }, [documentId, connect, currentUserName, userColor, doc]);
 
   // Track connected users from awareness
   useEffect(() => {

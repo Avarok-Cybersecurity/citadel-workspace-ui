@@ -3,7 +3,7 @@ import { MarkdownBubble } from './MarkdownBubble';
 import { LiveDocumentBubble } from './LiveDocumentBubble';
 import { FileTransferBubble } from './FileTransferBubble';
 import { SystemNoticeLine } from './SystemNoticeLine';
-import { getBubbleContainerStyles } from './types';
+import { getBubbleContainerStyles, type OpenP2PDocument } from './types';
 import { MESSAGE_ANCHOR_ATTRIBUTE, JUMP_TARGET_CLASSES } from '@/components/chat/shared/jump-to-message';
 import type { QuotedMessage } from '@/components/chat/shared/reply-quote';
 import type { P2PMessage } from '@/lib/p2p';
@@ -15,7 +15,7 @@ interface MessageBubbleProps {
   /** What a reply quotes; `null` when this is not a reply or the original is not loaded. */
   quoted: QuotedMessage | null;
   onRetry?: () => void;
-  onOpenDocument?: (documentId: string, documentTitle: string) => void;
+  onOpenDocument?: OpenP2PDocument;
   onAcceptTransfer?: (transferId: string) => void;
   onDeclineTransfer?: (transferId: string) => void;
   onCancelTransfer?: (transferId: string) => void;

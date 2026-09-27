@@ -4,12 +4,17 @@ import { Button } from '@/components/ui/button';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { useState, useCallback } from 'react';
 import { debugLog } from '@/lib/debug-config';
+import type * as Y from 'yjs';
+import { createYjsP2PProvider } from '@/lib/yjs-p2p-provider';
+import type { CollabProvider, ConnectCollab } from '@/lib/collab/collab-provider';
 
 interface LiveDocumentViewProps {
   documentId: string;
   documentTitle: string;
   peerCid: string;
   peerName: string;
+  /** Who created the document: its authority when the copies diverge. */
+  creatorCid: bigint;
   currentUserCid: string;
   currentUserName: string;
   onSave?: (documentId: string, content: string) => void;
@@ -20,10 +25,15 @@ export function LiveDocumentView({
   documentTitle,
   peerCid,
   peerName,
+  creatorCid,
   currentUserCid,
   currentUserName,
   onSave,
 }: LiveDocumentViewProps): JSX.Element {
+  const connectP2P: ConnectCollab = useCallback(
+    (doc: Y.Doc): CollabProvider => createYjsP2PProvider(documentId, peerCid, currentUserCid, doc, creatorCid.toString()),
+    [documentId, peerCid, currentUserCid, creatorCid],
+  );
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -122,10 +132,10 @@ export function LiveDocumentView({
         >
           <CollaborativeEditor
             documentId={documentId}
-            peerCid={peerCid}
+            connect={connectP2P}
+            persistLocally
             currentUserCid={currentUserCid}
             currentUserName={currentUserName}
-            peerName={peerName}
             onSave={handleSave}
           />
         </ErrorBoundary>

@@ -85,14 +85,14 @@ describe('the picker', () => {
 
   it('is offered in a peer-group message menu when the group carries reactions', async () => {
     const onReact: (emoji: string) => void = vi.fn();
-    render(<GroupMessageItem message={groupMessage()} currentUserName="bob" totalMembers={3} onEdit={(): void => {}} onDelete={(): void => {}} canRevise={false} onReply={(): void => {}} focusComposer={(): void => {}} quoted={null} reactions={binding(onReact)} />);
+    render(<GroupMessageItem message={groupMessage()} currentUserName="bob" totalMembers={3} onEdit={(): void => {}} onDelete={(): void => {}} canRevise={false} onReply={(): void => {}} focusComposer={(): void => {}} quoted={null} onOpenDocument={(): void => {}} reactions={binding(onReact)} />);
     await userEvent.click(within(await openMenu()).getByRole('menuitem', { name: 'React with 👍' }));
     expect(onReact).toHaveBeenCalledWith('👍');
     expect(screen.getAllByTestId('reaction-chip')).toHaveLength(2);
   });
 
   it('is not offered where the group cannot carry reactions', async () => {
-    render(<GroupMessageItem message={groupMessage()} currentUserName="bob" totalMembers={3} onEdit={(): void => {}} onDelete={(): void => {}} canRevise={true} onReply={(): void => {}} focusComposer={(): void => {}} quoted={null} />);
+    render(<GroupMessageItem message={groupMessage()} currentUserName="bob" totalMembers={3} onEdit={(): void => {}} onDelete={(): void => {}} canRevise={true} onReply={(): void => {}} focusComposer={(): void => {}} quoted={null} onOpenDocument={(): void => {}} />);
     expect(within(await openMenu()).queryAllByTestId('reaction-pick')).toEqual([]);
   });
 });
@@ -100,6 +100,6 @@ describe('the picker', () => {
 function groupMessage(): GroupMessage {
   return {
     id: 'g1', group_id: '7:42', sender_id: '7', sender_name: 'ada', message_type: 'Text', content: 'hi',
-    timestamp: 1n, reply_to: null, reply_count: 0, mentions: [], edited_at: null,
+    timestamp: 1n, reply_to: null, reply_count: 0, mentions: [], edited_at: null, document_id: null, document_title: null,
   };
 }

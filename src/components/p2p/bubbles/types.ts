@@ -29,7 +29,7 @@ export interface ReplyableBubbleProps extends BaseBubbleProps {
 }
 
 export interface LiveDocumentBubbleProps extends BaseBubbleProps {
-  onOpenDocument?: (documentId: string, documentTitle: string) => void;
+  onOpenDocument?: OpenP2PDocument;
 }
 
 export interface FileTransferBubbleProps extends BaseBubbleProps {
@@ -68,3 +68,10 @@ export function getBubbleContainerStyles(isOwn: boolean): string {
  * site.
  */
 export const BUBBLE_MAX_WIDTH: "max-w-[75%]" = 'max-w-[75%]';
+
+/**
+ * Opens a P2P live document. `createdBySelf` says which side created it: that side is the
+ * document's authority when the two copies diverge, so both must agree on it. The sender of
+ * the message that shared the document is its creator.
+ */
+export type OpenP2PDocument = (documentId: string, documentTitle: string, createdBySelf: boolean) => void;

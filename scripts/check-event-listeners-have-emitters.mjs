@@ -60,6 +60,9 @@ const RECORDED_DEAD = new Map([
  * this direction.
  */
 const RECORDED_UNCONSUMED = new Map([
+  // Answers only the member who opened the document, whose open reads it through
+  // workspace:raw-response (awaitWriteAnswer); nothing else has a use for another open's state.
+  ['livedoc:state', "the opener reads its answer via workspace:raw-response; it is never broadcast"],
   // Newly VISIBLE, not newly dead: the whole file-transfer:* family was named
   // by constants, which this scan could not see until it learned to resolve
   // them. Every one of these fires alongside file-transfer:state-changed, which

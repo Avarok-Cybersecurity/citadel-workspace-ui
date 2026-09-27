@@ -27,6 +27,7 @@ import * as messaging from './messaging-operations';
 import * as nodes from './node-operations';
 import { updateWorkspaceProfile, type WorkspaceProfileChange } from './workspace-profile';
 import { updateTreeSchema } from './hierarchy-operations';
+import { openLiveDoc, sendLiveDocUpdate, shareLiveDoc, type LiveDocSnapshot } from './live-doc-operations';
 import type { TreeSchema } from '@/components/layout/sidebar/tree-node-types';
 
 export class WorkspaceService implements ProtocolSender {
@@ -150,6 +151,9 @@ export class WorkspaceService implements ProtocolSender {
   public getTreeStructure(rootId?: string, maxDepth?: number): Promise<void> { return nodes.getTreeStructure(this, rootId, maxDepth); }
   public getTreeSchema(): Promise<void> { return nodes.getTreeSchema(this); }
   public updateTreeSchema(schema: TreeSchema): Promise<void> { return updateTreeSchema(this, schema); }
+  public openLiveDoc(groupId: string, docId: string): Promise<LiveDocSnapshot> { return openLiveDoc(this, groupId, docId); }
+  public sendLiveDocUpdate(groupId: string, docId: string, update: string): Promise<number> { return sendLiveDocUpdate(this, groupId, docId, update); }
+  public shareLiveDoc(groupId: string, docId: string, title: string): Promise<void> { return shareLiveDoc(this, groupId, docId, title); }
   public getServerCapabilities(): Promise<void> { return nodes.getServerCapabilities(this); }
 
   public cleanup(): void { /* Any cleanup needed */ }

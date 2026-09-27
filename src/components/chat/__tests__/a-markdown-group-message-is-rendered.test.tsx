@@ -1,6 +1,6 @@
 /**
  * A Markdown group message is rendered as Markdown, a text one as it was written; and a group's
- * composer offers Text and Markdown but not yet Live Doc.
+ * composer offers Text and Markdown (a peer group's Live Doc is not built yet).
  *
  * No mocks: the item and the type bar render into jsdom.
  */
@@ -13,7 +13,7 @@ import { GROUP_COMPOSE_TYPES } from '../group-compose-types';
 
 const message = (message_type: GroupMessage['message_type'], content: string): GroupMessage => ({
   id: 'm1', group_id: 'g1', sender_id: 'ada', sender_name: 'Ada', message_type, content,
-  timestamp: 1n, reply_to: null, reply_count: 0, mentions: [], edited_at: null,
+  timestamp: 1n, reply_to: null, reply_count: 0, mentions: [], edited_at: null, document_id: null, document_title: null,
 }) as GroupMessage;
 
 function renderItem(m: GroupMessage): void {
@@ -27,7 +27,7 @@ function renderItem(m: GroupMessage): void {
       canRevise={false}
       onReply={vi.fn()}
       focusComposer={vi.fn()}
-      quoted={null}
+      quoted={null} onOpenDocument={(): void => {}}
     />,
   );
 }
@@ -45,8 +45,8 @@ describe('a group message', () => {
   });
 });
 
-describe("a group's composer", () => {
-  it('offers Text and Markdown, and not Live Doc until groups can carry one', () => {
+describe("a peer group's type bar", () => {
+  it('in a peer group offers Text and Markdown, and not Live Doc until peer groups can carry one', () => {
     render(<TypeSelectorBar types={GROUP_COMPOSE_TYPES} selectedType="text" onTypeChange={vi.fn()} />);
     expect(screen.getByRole('button', { name: /markdown/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /live doc/i })).toBeNull();

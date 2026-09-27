@@ -51,6 +51,15 @@ export function handleGroupVariants(
     return true;
   }
 
+  // Live documents in office and room chats: the whole state on open, and each numbered update,
+  // which the relay provider (yjs-relay-provider) applies in order. See live_docs.rs.
+  if (isVariant(response, 'LiveDocState') || isVariant(response, 'LiveDocUpdated')) {
+    if (isVariant(response, 'LiveDocUpdated')) eventEmitter.emit('livedoc:updated', response.LiveDocUpdated);
+    else eventEmitter.emit('livedoc:state', response.LiveDocState);
+    eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
   if (isVariant(response, 'GroupMessages')) {
     const { group_id, messages, has_more } = response.GroupMessages;
     debugLog('WorkspaceResponseHandler', 'GroupMessages received', { group_id, count: messages.length, has_more });

@@ -7,6 +7,7 @@ import { createCollaboratorCursor, type CursorUser } from './CollaboratorCursor'
 import { buildContextMenuFlashComment } from './collaborator-cursor-helpers';
 import { MessageSquare } from 'lucide-react';
 import { useCollaborativeEditor } from './useCollaborativeEditor';
+import type { ConnectCollab } from '@/lib/collab/collab-provider';
 import { EditorToolbar } from './EditorToolbar';
 import { eventEmitter } from '@/lib/event-emitter';
 import { activateOnKey } from '@/lib/a11y';
@@ -16,21 +17,21 @@ import type { Editor } from '@tiptap/core';
 
 interface CollaborativeEditorProps {
   documentId: string;
-  peerCid: string;
+  /** P2P or the group relay; see useCollaborativeEditor. */
+  connect: ConnectCollab;
+  persistLocally: boolean;
+  /** Who this user is, for the flash comments they author. */
   currentUserCid: string;
   currentUserName: string;
-  peerName?: string;
-  creatorCid?: string;
   onSave?: (content: string) => void;
 }
 
 export function CollaborativeEditor({
   documentId,
-  peerCid,
+  connect,
+  persistLocally,
   currentUserCid,
   currentUserName,
-  peerName: _peerName = 'Peer',
-  creatorCid,
   onSave,
 }: CollaborativeEditorProps): JSX.Element {
   const prompt: ReturnType<typeof usePrompt> = usePrompt();
@@ -46,13 +47,7 @@ export function CollaborativeEditor({
     editorContainerRef,
     handleContextMenu,
     dismissFlashComment,
-  } = useCollaborativeEditor({
-    documentId,
-    peerCid,
-    currentUserCid,
-    currentUserName,
-    creatorCid,
-  });
+  } = useCollaborativeEditor({ documentId, connect, persistLocally, currentUserName });
 
   const editor: Editor | null = useEditor({
     extensions: [

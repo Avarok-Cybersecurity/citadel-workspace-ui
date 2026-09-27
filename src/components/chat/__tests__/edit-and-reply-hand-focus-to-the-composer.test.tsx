@@ -17,7 +17,7 @@ const own: never = { id: 'm1', group_id: 'g1', sender_id: 'lara', sender_name: '
 async function choose(item: string): Promise<{ focusComposer: ReturnType<typeof vi.fn> }> {
   const focusComposer: ReturnType<typeof vi.fn> = vi.fn();
   render(<GroupMessageItem message={own} currentUserName="lara" totalMembers={2} onEdit={(): void => {}} onDelete={(): void => {}}
-    canRevise onReply={(): void => {}} focusComposer={focusComposer} quoted={null} />);
+    canRevise onReply={(): void => {}} focusComposer={focusComposer} quoted={null} onOpenDocument={(): void => {}} />);
   await userEvent.click(screen.getByRole('button', { name: /message actions/i }));
   await userEvent.click(screen.getByRole('menuitem', { name: item }));
   return { focusComposer };

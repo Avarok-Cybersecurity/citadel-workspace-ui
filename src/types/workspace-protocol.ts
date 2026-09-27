@@ -97,7 +97,11 @@ export interface WorkspaceProtocolRequestTS {
     content: string;
     reply_to?: string;
     mentions?: string[];
+    document_id?: string;
+    document_title?: string;
   };
+  LiveDocOpen?: { group_id: string; doc_id: string };
+  LiveDocUpdate?: { group_id: string; doc_id: string; update: string };
 
   EditGroupMessage?: {
     group_id: string;
@@ -185,7 +189,8 @@ export interface WorkspaceProtocolRequestTS {
 export enum GroupMessageTypeTS {
   Text = 'Text',
   Markdown = 'Markdown',
-  System = 'System'
+  System = 'System',
+  LiveDocument = 'LiveDocument',
 }
 
 // Group message interface

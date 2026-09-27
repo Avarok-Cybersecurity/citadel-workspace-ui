@@ -22,8 +22,10 @@ const DOCUMENT_PERSIST_DEBOUNCE_MS: number = 800;
  * updateDocumentState returns early without a cache entry. Saving after a
  * reload depends on having loaded first.
  */
-export function useDocumentPersistence(documentId: string, doc: Y.Doc): void {
+export function useDocumentPersistence(documentId: string, doc: Y.Doc, enabled: boolean): void {
   useEffect(() => {
+    // A relayed (group) document lives on the server; this browser keeps no copy of it.
+    if (!enabled) return;
     let cancelled: boolean = false;
     void liveDocumentStore
       .loadIntoYDoc(documentId, doc)
@@ -40,9 +42,10 @@ export function useDocumentPersistence(documentId: string, doc: Y.Doc): void {
     return (): void => {
       cancelled = true;
     };
-  }, [documentId, doc]);
+  }, [documentId, doc, enabled]);
 
   useEffect(() => {
+    if (!enabled) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const persist = (): void => {
       if (timer) clearTimeout(timer);
@@ -76,5 +79,5 @@ export function useDocumentPersistence(documentId: string, doc: Y.Doc): void {
         });
       });
     };
-  }, [documentId, doc]);
+  }, [documentId, doc, enabled]);
 }

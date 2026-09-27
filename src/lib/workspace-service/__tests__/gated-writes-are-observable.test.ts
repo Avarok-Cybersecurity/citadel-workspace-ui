@@ -33,6 +33,8 @@ const PAYLOADS: Record<string, unknown> = {
   GroupMessageEdited: { group_id: 'g1', message_id: 'm1' },
   GroupMessageDeleted: { group_id: 'g1', message_id: 'm1' },
   TreeSchema: { id: 's', name: 's', rules: [], max_depth: null, entity_type_configs: [] },
+  LiveDocState: { group_id: 'g1', doc_id: 'd1', seq: 0, state: '' },
+  LiveDocUpdated: { group_id: 'g1', doc_id: 'd1', seq: 1, update: 'AAA=' },
 };
 
 /**
