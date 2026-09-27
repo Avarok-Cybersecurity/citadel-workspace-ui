@@ -4,11 +4,10 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { EntityModalFooter } from "./EntityModalFooter";
 import { useToast } from "@/hooks/use-toast";
 import { debugLog } from '@/lib/debug-config';
 
@@ -169,42 +168,12 @@ export function EntityManagementModal<TMode extends string>({
               <p role="alert" data-testid="entity-modal-error" className="text-sm text-destructive-emphasis">{submitError}</p>
             )}
           </div>
-          <DialogFooter>
-            {/* Not disabled while submitting: backing out of an in-flight
-                request is always a legitimate thing to want, and greying this
-                is what made the sealed dialog total. */}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              className="bg-transparent border-border text-foreground hover:bg-card"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              // Every entity modal submits through here -- create a node, add a
-              // member, update a role -- and each spells its own label. One
-              // testid means a spec presses "the submit", not "the word Create",
-              // which is one rename away from finding nothing.
-              data-testid="entity-modal-submit"
-              disabled={isSubmitting}
-              className={
-                modeConfig.submitVariant === 'destructive'
-                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  // hover:text-foreground, not hover:text-primary-foreground.
-                  // Hovering only deepened the tint 20% -> 25%; it never became
-                  // a solid fill, so the white the old class named landed on a
-                  // near-white surface at 1.52:1. The submit label vanished
-                  // under the pointer, in light mode, on every entity modal.
-                  // `hover:text-foreground` is what the sidebar's rowClass
-                  // already uses for a hovered tint.
-                  : "bg-primary-accent/20 text-primary-accent hover:bg-primary-accent/25 hover:text-foreground"
-              }
-            >
-              {isSubmitting ? modeConfig.submittingLabel : modeConfig.submitLabel}
-            </Button>
-          </DialogFooter>
+          <EntityModalFooter
+            onCancel={handleClose}
+            isSubmitting={isSubmitting}
+            destructive={modeConfig.submitVariant === 'destructive'}
+            label={isSubmitting ? modeConfig.submittingLabel : modeConfig.submitLabel}
+          />
         </form>
       </DialogContent>
     </Dialog>
