@@ -27,6 +27,7 @@ import { deliverPeerGroupMessage } from './peer-group-delivery';
 import { ownerAnnouncedName } from './group-names';
 import { getGroups } from './group-store';
 import type { MemberMessageType } from './group-message-codec';
+import { sharedLiveDocText, type SharedLiveDoc } from '@/lib/collab/shared-live-doc';
 
 /** The office wire's name for each type a member may send. */
 const OFFICE_TYPE: Record<MemberMessageType, GroupMessageTypeTS> = {
@@ -39,17 +40,21 @@ export async function sendGroupMessageAnywhere(
   content: string,
   messageType: MemberMessageType,
   replyTo?: string,
+  /** A live document to share; `content` is then ignored for its fallback text. */
+  document?: SharedLiveDoc,
 ): Promise<void> {
   if (groupSendTransport(groupId) !== 'peer') {
-    await WorkspaceService.sendGroupMessage(groupId, content, OFFICE_TYPE[messageType], replyTo);
+    if (document) await WorkspaceService.shareLiveDoc(groupId, document.id, document.title);
+    else await WorkspaceService.sendGroupMessage(groupId, content, OFFICE_TYPE[messageType], replyTo);
     return;
   }
+  if (document) content = sharedLiveDocText(document.title);
 
   const self: bigint | null = instanceManager.cid;
   const groupName: string | undefined = self === null
     ? undefined
     : ownerAnnouncedName(getGroups().find((group) => group.id === groupId), self);
-  const messageId: string = await sendPeerGroupMessage(groupId, content, messageType, replyTo, groupName);
+  const messageId: string = await sendPeerGroupMessage(groupId, content, messageType, replyTo, groupName, document);
 
   const delivery: Parameters<typeof deliverPeerGroupMessage>[0] = {
     groupId,
@@ -60,6 +65,7 @@ export async function sendGroupMessageAnywhere(
     timestamp: Date.now(),
     replyTo,
     messageType,
+    document,
   };
 
   // BOTH halves, because they are different halves.

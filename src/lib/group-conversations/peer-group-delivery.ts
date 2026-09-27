@@ -13,6 +13,7 @@
  * calling it again from a shared event binding would print every workspace
  * message twice.
  */
+import type { SharedLiveDoc } from '@/lib/collab/shared-live-doc';
 import { groupMessagingManager } from '@/lib/group-messaging-manager';
 import type { GroupMessage } from '@/types/workspace-entities';
 import type { GroupFileShare } from '@/types/group-file-share';
@@ -35,6 +36,8 @@ export interface PeerGroupDelivery {
   replyTo?: string;
   /** Text or Markdown, as the sender wrote it. */
   messageType: MemberMessageType;
+  /** A shared live document; the message then shows as one (GroupMessageBody). */
+  document?: SharedLiveDoc;
   /** A shared file; see group-file-codec. */
   fileShare?: GroupFileShare;
 }
@@ -45,15 +48,15 @@ export function deliverPeerGroupMessage(delivery: PeerGroupDelivery): void {
     group_id: delivery.groupId,
     sender_id: delivery.senderId,
     sender_name: delivery.senderName,
-    message_type: delivery.messageType,
+    message_type: delivery.document ? 'LiveDocument' : delivery.messageType,
     content: delivery.content,
     timestamp: BigInt(delivery.timestamp),
     reply_to: delivery.replyTo ?? null,
     reply_count: 0,
     mentions: [],
     edited_at: null,
-    document_id: null,
-    document_title: null,
+    document_id: delivery.document?.id ?? null,
+    document_title: delivery.document?.title ?? null,
     ...(delivery.fileShare ? { file_share: delivery.fileShare } : {}),
   };
   groupMessagingManager.handleNewMessage(delivery.groupId, message);

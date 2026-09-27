@@ -78,9 +78,9 @@ describe("an office chat's composer", () => {
     expect(chat.setInputValue).not.toHaveBeenCalled();
   });
 
-  it('is not offered in a peer group, which cannot keep one yet', () => {
+  it('is offered in a peer group too, whose members keep it', () => {
     render(<Harness groupId={PEER_GROUP} chat={fakeChat('')} />);
-    expect(screen.queryByRole('button', { name: /live doc/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /live doc/i })).toBeTruthy();
   });
 });
 

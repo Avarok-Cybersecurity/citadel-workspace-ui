@@ -1,8 +1,9 @@
 /**
  * An office or room chat's live document, open for editing.
  *
- * Kept by the server (live_docs.rs), so it is relayed through it (YjsRelayProvider) and not
- * kept in this browser: the server's copy is the one everyone opens.
+ * An office or room's is kept by the server (live_docs.rs) and relayed through it
+ * (YjsRelayProvider); a peer group's is kept by every member and exchanged between them
+ * (GroupMeshProvider). Either way the editor itself persists nothing.
  */
 import React, { useCallback } from 'react';
 import type * as Y from 'yjs';
@@ -11,6 +12,9 @@ import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { CollaborativeEditor } from '@/components/p2p/CollaborativeEditor';
 import { YjsRelayProvider } from '@/lib/yjs-relay-provider/relay-provider';
 import { relayTransport } from '@/lib/yjs-relay-provider/relay-transport';
+import { GroupMeshProvider } from '@/lib/group-live-docs/mesh-provider';
+import { sessionDocKeeper } from '@/lib/group-live-docs/group-doc-keeper-instance';
+import { groupSendTransport } from '@/lib/group-conversations/group-send-transport';
 import type { CollabProvider, ConnectCollab } from '@/lib/collab/collab-provider';
 import WorkspaceService from '@/lib/workspace-service';
 import { instanceManager } from '@/lib/multi-instance/instance-manager';
@@ -26,11 +30,12 @@ interface GroupLiveDocDialogProps {
 }
 
 export function GroupLiveDocDialog({ groupId, doc, currentUserName, onClose }: GroupLiveDocDialogProps): JSX.Element {
-  const connect: ConnectCollab = useCallback(
-    (ydoc: Y.Doc): CollabProvider => new YjsRelayProvider(ydoc, doc.id, relayTransport(WorkspaceService, groupId, doc.id),
-      (reason: string): void => { toast({ title: 'That change was not saved', description: reason, variant: 'destructive' }); }),
-    [groupId, doc.id],
-  );
+  const connect: ConnectCollab = useCallback((ydoc: Y.Doc): CollabProvider => {
+    const refused = (reason: string): void => { toast({ title: 'That change was not saved', description: reason, variant: 'destructive' }); };
+    return groupSendTransport(groupId) === 'peer'
+      ? new GroupMeshProvider(ydoc, sessionDocKeeper(), groupId, doc.id, refused)
+      : new YjsRelayProvider(ydoc, doc.id, relayTransport(WorkspaceService, groupId, doc.id), refused);
+  }, [groupId, doc.id]);
   return (
     <Dialog open onOpenChange={(open: boolean) => { if (!open) onClose(); }}>
       <DialogContent className="max-w-4xl h-[85vh] flex flex-col" data-testid="group-live-doc-dialog">

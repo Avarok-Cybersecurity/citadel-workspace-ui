@@ -1,6 +1,6 @@
 /**
  * A Markdown group message is rendered as Markdown, a text one as it was written; and a group's
- * composer offers Text and Markdown (a peer group's Live Doc is not built yet).
+ * composer offers Text, Markdown and Live Doc.
  *
  * No mocks: the item and the type bar render into jsdom.
  */
@@ -45,10 +45,10 @@ describe('a group message', () => {
   });
 });
 
-describe("a peer group's type bar", () => {
-  it('in a peer group offers Text and Markdown, and not Live Doc until peer groups can carry one', () => {
+describe("a group's type bar", () => {
+  it('offers Text, Markdown and Live Doc', () => {
     render(<TypeSelectorBar types={GROUP_COMPOSE_TYPES} selectedType="text" onTypeChange={vi.fn()} />);
     expect(screen.getByRole('button', { name: /markdown/i })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /live doc/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /live doc/i })).toBeTruthy();
   });
 });

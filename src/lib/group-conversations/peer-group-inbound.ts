@@ -21,7 +21,8 @@
  *    relays the author's cid unchanged through the server, so `peer_cid` is the
  *    author, not a relay; `sender_cid` is whatever the sending client wrote.
  */
-import { decodeGroupMessage, type PeerGroupMessage } from './group-message-codec';
+import type { SharedLiveDoc } from '@/lib/collab/shared-live-doc';
+import { decodeGroupMessage, sharedDocOf, type PeerGroupMessage } from './group-message-codec';
 import { groupKeyToId, type MessageGroupKey } from './group-key';
 import { toCid } from './group-wire-variants';
 import { debugLog } from '@/lib/debug-config';
@@ -41,6 +42,8 @@ export interface PeerGroupMessageSummary {
   replyTo?: string;
   /** Text or Markdown, as the sender wrote it. */
   messageType: MemberMessageType;
+  /** The live document the message shares, if it does. */
+  document?: SharedLiveDoc;
   /** The group's name, present only when its owner sent this. */
   groupName?: string;
   /** Present when this message announces a shared file; `content` then previews it. */
@@ -98,6 +101,7 @@ export function peerGroupMessageEvent(
     timestamp: decoded.timestamp,
     replyTo: decoded.reply_to,
     messageType: decoded.message_type === 'Markdown' ? 'Markdown' : 'Text',
+    document: sharedDocOf(decoded),
     groupName: ownerGivenName(notification, key, decoded),
   };
 }

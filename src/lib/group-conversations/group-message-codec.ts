@@ -11,6 +11,7 @@
  * campaign keeps finding, and here they would be two files apart.
  */
 import { encode as cborEncode, decode as cborDecode } from 'cbor-x';
+import { sharedLiveDocOf, type SharedLiveDoc } from '@/lib/collab/shared-live-doc';
 
 /**
  * What a member's message may be. `System` is the server's voice and is never sent (the kernel
@@ -46,7 +47,43 @@ export interface PeerGroupMessage {
    * text message travels as are unchanged, and a build that predates Markdown in groups still
    * shows the text.
    */
-  message_type?: 'Markdown';
+  message_type?: 'Markdown' | 'LiveDocument';
+  /** The live document a 'LiveDocument' message shares; `content` is its fallback text. */
+  document_id?: string;
+  document_title?: string;
+}
+
+/** The live document a decoded message shares, if it is one. */
+export function sharedDocOf(message: PeerGroupMessage): SharedLiveDoc | undefined {
+  return message.message_type === 'LiveDocument' ? sharedLiveDocOf(message.document_id, message.document_title) : undefined;
+}
+
+/** What a member's chat message is, before it has an envelope. */
+export interface ChatEnvelopeInput {
+  groupId: string;
+  messageId: string;
+  senderCid: bigint;
+  content: string;
+  messageType: MemberMessageType;
+  replyTo?: string;
+  groupName?: string;
+  /** The live document the message shares; `content` is then its fallback text. */
+  document?: SharedLiveDoc;
+}
+
+/** The envelope for a chat message: its type and document fields only when it has them. */
+export function chatEnvelope(input: ChatEnvelopeInput): PeerGroupMessage {
+  return {
+    group_id: input.groupId,
+    message_id: input.messageId,
+    sender_cid: input.senderCid,
+    content: input.content,
+    timestamp: Date.now(),
+    reply_to: input.replyTo,
+    group_name: input.groupName,
+    ...(input.messageType === 'Markdown' ? { message_type: 'Markdown' as const } : {}),
+    ...(input.document ? { message_type: 'LiveDocument' as const, document_id: input.document.id, document_title: input.document.title } : {}),
+  };
 }
 
 export function encodeGroupMessage(message: PeerGroupMessage): Uint8Array {
@@ -76,7 +113,7 @@ export function decodeGroupMessage(bytes: Uint8Array): PeerGroupMessage | null {
       message_id: candidate.message_id,
       reply_to: typeof candidate.reply_to === 'string' ? candidate.reply_to : undefined,
       group_name: typeof candidate.group_name === 'string' ? candidate.group_name : undefined,
-      message_type: candidate.message_type === 'Markdown' ? 'Markdown' : undefined,
+      ...messageTypeOf(candidate),
       sender_cid: candidate.sender_cid,
       content: candidate.content,
       timestamp: typeof candidate.timestamp === 'number' ? candidate.timestamp : Date.now(),
@@ -84,4 +121,12 @@ export function decodeGroupMessage(bytes: Uint8Array): PeerGroupMessage | null {
   } catch {
     return null;
   }
+}
+
+/** Markdown; a LiveDocument only with a well-formed document; anything else is text. */
+function messageTypeOf(candidate: Partial<PeerGroupMessage>): Pick<PeerGroupMessage, 'message_type' | 'document_id' | 'document_title'> {
+  if (candidate.message_type === 'Markdown') return { message_type: 'Markdown' };
+  const doc: SharedLiveDoc | undefined = candidate.message_type === 'LiveDocument'
+    ? sharedLiveDocOf(candidate.document_id, candidate.document_title) : undefined;
+  return doc ? { message_type: 'LiveDocument', document_id: doc.id, document_title: doc.title } : { message_type: undefined };
 }
