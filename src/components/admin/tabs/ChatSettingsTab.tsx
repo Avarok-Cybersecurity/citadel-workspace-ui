@@ -98,15 +98,8 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
     setChatRules(originalRules);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8" data-testid="chat-tab-loading">
-        <Loader2 className="h-6 w-6 animate-spin text-primary-accent" />
-      </div>
-    );
-  }
-
-  // Show message for workspace level - chat is per office/room
+  // The workspace level has no chat of its own (chat is per office/room), and no node in the
+  // store to wait for: waiting for one left this tab spinning for ever.
   if (entityType === 'workspace') {
     return (
       <div className="space-y-4" data-testid="chat-tab-workspace-message">
@@ -117,6 +110,14 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
             Select an office or room from the sidebar to configure its chat settings.
           </AlertDescription>
         </Alert>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8" data-testid="chat-tab-loading">
+        <Loader2 className="h-6 w-6 animate-spin text-primary-accent" />
       </div>
     );
   }
