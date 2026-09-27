@@ -188,6 +188,23 @@ describe('a paid workspace', () => {
     expect(loadDraft('acme')?.reservationToken).toBe('rt_second');
   });
 
+  // Owner, 2026-09-27: an icon chosen at /create. It is kept through Checkout with the rest of
+  // the draft and sent as `logo`, so a paid workspace starts with it too.
+  it('keeps the chosen icon through Checkout and sends it with the workspace', async () => {
+    const logo: string = 'data:image/png;base64,iVBORw0KGgo=';
+    saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0 }, reservationToken: 'rt_first', logo });
+    const fake: ContractFake = contractFake();
+    fake.createReplies.push({ status: 200, body: { checkout_url: 'https://checkout.stripe.com/c/pay/cs_test_11', reservation_token: 'rt_second' } });
+    renderFlow(fake, '/create?tenant=acme&canceled=1', vi.fn());
+    fireEvent.click(screen.getByTestId('cancelled-back-to-plans'));
+    fireEvent.click(screen.getByTestId('create-plan-continue'));
+    await waitFor(() => expect(screen.getByTestId('create-submit')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('create-submit'));
+    await waitFor(() => expect(fake.requests.length).toBeGreaterThan(0));
+    expect((fake.requests.at(-1)?.body as { logo?: string }).logo).toBe(logo);
+    expect(loadDraft('acme')?.logo).toBe(logo);
+  });
+
   it('shows the sentence the control plane gives, not its error code', async () => {
     const fake: ContractFake = contractFake();
     fake.createReplies.push({ status: 409, body: { error: 'slug-taken', detail: 'Someone has just taken acme.work.avarok.net.' } });
