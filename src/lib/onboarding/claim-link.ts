@@ -1,8 +1,9 @@
 /**
- * The link in the claim email, read strictly.
+ * The links in the emails the control plane sends, read strictly.
  *
  * `/claim#slug=…&code=…&v=…` opens the claim step already filled in; `/claim#slug=…&not-me=…`
- * lets whoever received the email say it was not them. Its secrets are in the fragment, which the
+ * lets whoever received the email say it was not them; `/billing#slug=…&t=…` opens the billing
+ * portal once, for a verified owner (control/portal.mjs). Its secrets are in the fragment, which the
  * browser never sends to a server, so they reach no log and no Referer.
  *
  * Strict, as account-link-params is: exactly one of the two shapes, every value well-formed, or
@@ -13,7 +14,8 @@ import { checkSlugShape } from './slug';
 
 export type ClaimLink =
   | { readonly kind: 'claim'; readonly slug: string; readonly code: string; readonly token: string }
-  | { readonly kind: 'not-me'; readonly slug: string; readonly token: string };
+  | { readonly kind: 'not-me'; readonly slug: string; readonly token: string }
+  | { readonly kind: 'billing'; readonly slug: string; readonly token: string };
 
 const HEX64: RegExp = /^[0-9a-f]{64}$/;
 
@@ -32,6 +34,10 @@ export function parseClaimLink(fragment: string): ClaimLink | null {
   if (has('slug', 'not-me')) {
     const token: string = params.get('not-me') ?? '';
     return HEX64.test(token) ? { kind: 'not-me', slug, token } : null;
+  }
+  if (has('slug', 't')) {
+    const token: string = params.get('t') ?? '';
+    return HEX64.test(token) ? { kind: 'billing', slug, token } : null;
   }
   return null;
 }

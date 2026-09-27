@@ -62,11 +62,19 @@ const UNKNOWN: PortalRefusal = {
   retry: true,
 };
 
+const LINK_NOT_SENT: PortalRefusal = { message: "The billing link couldn't be emailed just now. Please try again later.", retry: true };
+const LINK_INVALID: PortalRefusal = {
+  message: 'This billing link has expired or has already been used. Ask for a new one from Plan & billing.',
+  retry: false,
+};
+
 /** The sentence for a refused portal request, keyed on the control plane's code rather than its status. */
 export function describePortalRefusal(error: unknown): PortalRefusal {
   if (!(error instanceof ControlPlaneError)) return UNKNOWN;
   switch (error.code) {
     case 'not-owner': return WRONG_CODE;
+    case 'portal-link-not-sent': return LINK_NOT_SENT;
+    case 'link-invalid': return LINK_INVALID;
     case 'no-subscription': return FREE_PLAN;
     case 'portal-not-configured':
     case 'billing-not-configured': return NOT_AVAILABLE;

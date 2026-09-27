@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { ControlPlane } from '@/lib/onboarding/control-plane-client';
+import type { ControlPlane, PortalAnswer } from '@/lib/onboarding/control-plane-client';
 import { describePortalRefusal, type PortalRefusal, type PortalTab } from '@/lib/onboarding/billing-portal';
 
 interface ManageSubscriptionDialogProps {
@@ -26,6 +26,7 @@ type Outcome =
   | { readonly kind: 'idle' }
   | { readonly kind: 'opening' }
   | { readonly kind: 'opened'; readonly portalUrl: string; readonly blocked: boolean }
+  | { readonly kind: 'emailed' }
   | { readonly kind: 'refused'; readonly refusal: PortalRefusal };
 
 const IDLE: Outcome = { kind: 'idle' };
@@ -58,9 +59,14 @@ export function ManageSubscriptionDialog({ open, onOpenChange, slug, api, openTa
     const tab: PortalTab | null = openTab();
     setOutcome({ kind: 'opening' });
     try {
-      const portalUrl: string = await api.openPortal(slug, presented);
-      if (tab) tab.navigate(portalUrl);
-      setOutcome({ kind: 'opened', portalUrl, blocked: tab === null });
+      const answer: PortalAnswer = await api.openPortal(slug, presented);
+      if (answer.kind === 'emailed') {
+        tab?.close();
+        setOutcome({ kind: 'emailed' });
+      } else {
+        if (tab) tab.navigate(answer.url);
+        setOutcome({ kind: 'opened', portalUrl: answer.url, blocked: tab === null });
+      }
     } catch (error: unknown) {
       tab?.close();
       setOutcome({ kind: 'refused', refusal: describePortalRefusal(error) });
@@ -100,7 +106,14 @@ export function ManageSubscriptionDialog({ open, onOpenChange, slug, api, openTa
           </p>
         )}
 
-        {!finalRefusal && outcome.kind !== 'opened' && (
+        {outcome.kind === 'emailed' && (
+          <p role="status" className="text-sm text-foreground" data-testid="billing-link-emailed">
+            We&apos;ve emailed a billing link to this workspace&apos;s owner address. It opens billing once, within
+            30 minutes. A claim code alone no longer opens billing once the owner&apos;s email is confirmed.
+          </p>
+        )}
+
+        {!finalRefusal && outcome.kind !== 'opened' && outcome.kind !== 'emailed' && (
           <form onSubmit={(e: FormEvent<HTMLFormElement>): void => { void submit(e); }} className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="billing-claim-code">Claim code</Label>

@@ -51,6 +51,7 @@ const WorkspaceLoader: LazyExoticComponent<React.FC<{ children: React.ReactNode 
 // flow, and nothing on it is needed until someone chooses to set one up.
 const CreateWorkspace: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pages/CreateWorkspace"));
 const ClaimLink: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pages/ClaimLink"));
+const BillingLink: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pages/BillingLink"));
 
 const queryClient: QueryClient = new QueryClient();
 
@@ -133,6 +134,8 @@ const App: () => JSX.Element = (): JSX.Element => {
                   <Route path="/create/done" element={<CreateWorkspace />} />
                   {/* Where the claim email's links land. */}
                   <Route path="/claim" element={<ClaimLink />} />
+                  {/* Where a mailed billing link lands (once the owner's email is verified). */}
+                  <Route path="/billing" element={<BillingLink />} />
 
                   {/* Protected routes that require workspace data to be loaded */}
                   <Route
