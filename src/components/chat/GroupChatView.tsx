@@ -5,7 +5,7 @@
  * Supports real-time updates, pagination, threading, and message actions.
  */
 
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import type { GroupMessage } from '@/types/workspace-entities';
 import { quoteGroupReply } from './shared/reply-quote';
 import { groupMessageActions, type GroupMessageActions } from '@/lib/group-conversations/group-message-actions';
@@ -20,6 +20,7 @@ import { GroupMessageItem } from './GroupMessageItem';
 import { GroupAttachButton } from './GroupAttachButton';
 import { groupSendTransport } from '@/lib/group-conversations/group-send-transport';
 import { groupReactionBinding } from './group-reaction-binding';
+import { markChannelOpen } from '@/lib/group-conversations/open-channel';
 
 interface GroupChatViewProps {
   groupId: string;
@@ -51,6 +52,8 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   sendRestriction,
 }) => {
   const chat: ReturnType<typeof useGroupChat> = useGroupChat(groupId);
+  // On screen, so the bell stays quiet for this channel (see open-channel).
+  useEffect((): (() => void) => markChannelOpen(groupId), [groupId]);
   // The composer, for GroupMessageItem to focus after Edit or Reply (see focusComposer).
   const composerRef: React.RefObject<HTMLTextAreaElement> = useRef<HTMLTextAreaElement>(null);
   // A peer group has no edit or delete on the wire; see group-message-actions.

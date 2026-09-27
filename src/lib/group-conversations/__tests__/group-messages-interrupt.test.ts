@@ -22,7 +22,13 @@ vi.mock('@/lib/multi-instance', () => ({
   instanceManager: { get cid(): bigint | null { return cidRef.current; } },
 }));
 
+const usernameRef: { current: string | undefined } = { current: 'thomas' };
+vi.mock('@/lib/connection', () => ({
+  connectionManager: { getConnectionInfo: (): { username: string | undefined } => ({ username: usernameRef.current }) },
+}));
+
 const { eventEmitter } = await import('@/lib/event-emitter');
+const { markChannelOpen } = await import('../open-channel');
 const { startGroupNotificationBindings } = await import('../group-notifications');
 
 startGroupNotificationBindings();
@@ -59,6 +65,22 @@ describe('an incoming group message', () => {
     // every message you sent would ring your own bell.
     receive('100');
     expect(addMessageNotification).not.toHaveBeenCalled();
+  });
+
+  it('does not ring for your own office/room message, whose sender is your username', () => {
+    // Live (owner, 2026-09-27): an office channel's sender_id is the account USERNAME, so the
+    // CID-only check never matched and every message you sent rang your own bell.
+    receive('thomas');
+    expect(addMessageNotification).not.toHaveBeenCalled();
+  });
+
+  it('does not ring for the office/room chat open on screen', () => {
+    const close: () => void = markChannelOpen('chan-1');
+    receive('200', 'hello', 'chan-1');
+    close();
+    expect(addMessageNotification).not.toHaveBeenCalled();
+    receive('200', 'hello again', 'chan-1');
+    expect(addMessageNotification).toHaveBeenCalledTimes(1);
   });
 
   it('does not ring for the group you are reading right now', () => {

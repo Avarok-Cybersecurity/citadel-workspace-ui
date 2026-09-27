@@ -2,6 +2,8 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { instanceManager } from '@/lib/multi-instance';
 import NotificationService from '@/lib/notification-service';
 import { debugLog } from '@/lib/debug-config';
+import { isOwnGroupMessage, currentGroupSelf } from './own-message';
+import { isChannelOpen } from './open-channel';
 
 /**
  * Raise a bell notification for an incoming group message.
@@ -35,11 +37,13 @@ export function startGroupNotificationBindings(): void {
     // 1. Never for your own message. The server answers the SENDER with the
     //    same notification it broadcasts to everyone else -- that echo is what
     //    confirms a send -- so without this every message you sent would ring
-    //    your own bell.
-    if (own !== null && data.senderId === String(own)) return;
+    //    your own bell. By CID or username: an office channel names the sender
+    //    by username (see own-message).
+    if (isOwnGroupMessage(data.senderId, currentGroupSelf())) return;
 
-    // 2. Never for the conversation the user is reading right now.
-    if (isViewingGroup(data.groupId)) return;
+    // 2. Never for the conversation the user is reading right now: a peer group
+    //    by its URL, an office/room chat by the channel its view marked open.
+    if (isViewingGroup(data.groupId) || (isTabVisible() && isChannelOpen(data.groupId))) return;
 
     debugLog('GroupNotifications', 'raising notification for group', data.groupId);
     NotificationService.getInstance().addMessageNotification(
@@ -63,6 +67,10 @@ export function startGroupNotificationBindings(): void {
  * the app constructs -- so its suppression has never worked, and copying the
  * mechanism would have copied the bug.
  */
+function isTabVisible(): boolean {
+  return typeof document === 'undefined' || document.visibilityState === 'visible';
+}
+
 function isViewingGroup(groupId: string): boolean {
   if (typeof window === 'undefined') return false;
   if (document.visibilityState !== 'visible') return false;
