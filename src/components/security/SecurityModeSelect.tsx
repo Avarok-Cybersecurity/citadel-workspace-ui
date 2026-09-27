@@ -32,7 +32,7 @@ export const SecurityModeSelect = ({ value = 'BestEffort', onChange }: SecurityM
           onValueChange={handleValueChange}
           defaultValue={'BestEffort'}
         >
-          <SelectTrigger id="security-mode" className="w-full bg-surface border-border text-foreground pr-12">
+          <SelectTrigger id="security-mode" className="w-full bg-surface text-foreground pr-12">
             <SelectValue placeholder="Select security mode" />
           </SelectTrigger>
           <SelectContent className="bg-card border border-primary-accent/30 text-foreground shadow-xl p-1">

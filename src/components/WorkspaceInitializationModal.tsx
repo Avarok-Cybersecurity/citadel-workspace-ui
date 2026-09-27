@@ -191,7 +191,7 @@ export const WorkspaceInitializationModal: React.FC<WorkspaceInitializationModal
                                 type="password"
                                 value={masterPassword}
                                 onChange={handleInputChange}
-                                className="bg-surface border-border text-foreground"
+                                className="bg-surface text-foreground"
                                 placeholder="The server's WORKSPACE_MASTER_PASSWORD"
                                 disabled={isSubmitting}
                             />

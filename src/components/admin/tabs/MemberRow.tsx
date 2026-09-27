@@ -127,7 +127,7 @@ export function MemberRow({
           >
             <SelectTrigger
               aria-label={`Role for ${member.username}`}
-              className="w-32 bg-card border-border text-foreground"
+              className="w-32 bg-card text-foreground"
               data-testid={`member-role-select-${member.userId}`}
             >
               {isUpdatingRole ? (

@@ -102,7 +102,7 @@ export function AppearanceSettingsTab(): JSX.Element {
               value={settings.sidebarWidth}
               onValueChange={(v) => update('sidebarWidth', v as AppearanceSettings['sidebarWidth'])}
             >
-              <SelectTrigger id="sidebar-width" className="w-28 h-8 bg-surface border-surface text-sm">
+              <SelectTrigger id="sidebar-width" className="w-28 h-8 bg-surface text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

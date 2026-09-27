@@ -69,7 +69,7 @@ const ELEVATION: Record<ThemeMode, { card: number; surface: number; accent: numb
  * Hue and saturation are untouched, so the theme's identity survives; a few
  * points of lightness on a button fill is imperceptible next to unreadable text.
  */
-import { ensureFillContrast, ensureTextContrast } from './palette-contrast';
+import { ensureFillContrast, ensureTextContrast, controlBorderFor } from './palette-contrast';
 
 export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
   const { background, primary, primaryAccent } = seed;
@@ -161,6 +161,7 @@ export function buildPalette(seed: PaletteSeed, mode: ThemeMode): ThemePalette {
     border,
     input,
     ring: accentText,
+    controlBorder: controlBorderFor(accentText, [background, card, surface]),
   };
 }
 

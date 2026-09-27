@@ -80,7 +80,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
     };
 
     return (
-      <div className="border-t border-surface/50 bg-background">
+      <div className="border-t border-border bg-background">
         <MarkdownToolbar
           visible={isMarkdownMode}
           onFormat={onFormat}
@@ -89,7 +89,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
         />
 
         {isMarkdownMode && showMarkdownPreview && inputMessage.trim() && (
-          <div className="p-4 border-b border-surface/50 bg-background">
+          <div className="p-4 border-b border-border bg-background">
             <p className="text-xs text-muted-foreground mb-2">Preview:</p>
             <div className="prose prose-sm dark:prose-invert max-w-none bg-surface rounded-lg p-3 max-h-32 overflow-y-auto">
               <ReactMarkdown components={previewComponents}>{inputMessage}</ReactMarkdown>
@@ -139,7 +139,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
               data-testid="p2p-message-input"
               disabled={!canSendMessages}
               rows={1}
-              className="flex-1 resize-none bg-surface border-surface text-foreground placeholder-gray-400 focus:border-primary"
+              className="flex-1 resize-none bg-background text-foreground placeholder:text-muted-foreground focus:border-primary"
             />
             <Button
               type="submit"
