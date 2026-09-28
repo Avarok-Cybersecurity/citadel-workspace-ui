@@ -116,7 +116,9 @@ describe('a message through the agent\'s ILM', () => {
       attempt === 1 ? 'This session has not opted in to agent-hosted ILM' : null;
     const a: FakeAgent = fakeAgent(agent({ offer: { hosted: [] }, send: lost }));
     await sendViaAgentIlm(a.io, 7n, 9n, body, 'Standard');
-    // The WASM mark survives an agent restart (it is this browser's state), so only the opt-in repeats.
+    // The agent dropped the hosted ILM while this socket stayed up (the session was removed and
+    // signed in again on it), so this browser's mark still stands and only the opt-in repeats. An
+    // agent RESTART drops the socket, which rebuilds the WASM state and its marks with it.
     expect(a.sent).toEqual(['SendReliable', 'EnableAgentIlm', 'SendReliable']);
   });
 

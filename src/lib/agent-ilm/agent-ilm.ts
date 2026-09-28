@@ -122,8 +122,10 @@ function sendReliable(io: AgentIlmIO, cid: bigint, peerCid: bigint, message: Uin
 }
 
 /**
- * Queue `message` in the agent's ILM. If the agent has lost the hosted ILM (it restarted, and its
- * opt-ins with it), opt in again and send once more; any other refusal is the caller's.
+ * Queue `message` in the agent's ILM. If the agent no longer hosts it -- its session was removed
+ * and signed in again on this same socket, which stops the hosted ILM -- opt in again and send
+ * once more; any other refusal is the caller's. (An agent restart drops the socket instead, and
+ * the rebuilt WASM state has no mark, so that path never reaches here.)
  */
 export async function sendViaAgentIlm(
   io: AgentIlmIO, cid: bigint, peerCid: bigint, message: Uint8Array, level: SecurityLevelName,
