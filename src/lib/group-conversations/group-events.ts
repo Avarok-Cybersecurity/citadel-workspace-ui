@@ -20,6 +20,7 @@ import { GROUP_FAILURE_VARIANTS } from './group-failure-variants';
 import { groupKeyToId, parseGroupKey } from './group-key';
 import { variant, toCid, memberCids } from './group-wire-variants';
 import { joinedGroupEvents } from './joined-group-events';
+import { inviteReceived } from './invite-event';
 import { peerGroupBodyEvents } from './peer-group-body-events';
 
 export interface GroupEvent {
@@ -83,7 +84,7 @@ export function toGroupEvents(
   selfUsername: string,
   peerName: PeerNameResolver,
 ): GroupEvent[] {
-  const joined: GroupEvent[] | null = joinedGroupEvents(message);
+  const joined: GroupEvent[] | null = joinedGroupEvents(message, peerName);
   if (joined) return joined;
   const created: Record<string, unknown> | undefined = variant(message, 'GroupCreateSuccess') ?? variant(message, 'GroupChannelCreateSuccess');
   if (created) {
@@ -139,16 +140,7 @@ export function toGroupEvents(
 
   const invited: Record<string, unknown> | undefined = variant(message, 'GroupInviteNotification');
   if (invited) {
-    const inviterCid: bigint = BigInt((invited.peer_cid ?? 0) as string | number | bigint);
-    return [{
-      name: 'group:invite-received',
-      payload: {
-        groupId: groupKeyToId(parseGroupKey(invited.group_key)),
-        groupName: '',
-        inviterId: inviterCid.toString(),
-        inviterUsername: peerName(inviterCid),
-      },
-    }];
+    return [inviteReceived(invited.group_key, invited.peer_cid, peerName)];
   }
 
   const memberChange: Record<string, unknown> | undefined = variant(message, 'GroupMemberStateChangeNotification');
