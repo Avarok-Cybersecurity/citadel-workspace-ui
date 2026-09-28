@@ -8,14 +8,31 @@
  * joined. The key says who owns it; the session in `cid` is only the member.
  */
 import { groupKeyToId, parseGroupKey, type MessageGroupKey } from './group-key';
-import type { GroupEvent } from './group-events';
+import type { GroupEvent, PeerNameResolver } from './group-events';
 import { variant, toCid } from './group-wire-variants';
+import { inviteReceived } from './invite-event';
 
-export function joinedGroupEvents(message: Record<string, unknown>): GroupEvent[] | null {
+/**
+ * Invitations the agent kept for this session while no tab was open to show them -- absent from
+ * an older agent, which does not keep them. They come after the joined list, so a group this
+ * answer also lists as joined is already a membership when its invitation is weighed.
+ */
+function listedInvites(listed: Record<string, unknown>, peerName: PeerNameResolver): GroupEvent[] {
+  if (!Array.isArray(listed.pending_invites)) return [];
+  return listed.pending_invites.map((invite: unknown): GroupEvent => {
+    const { group_key, peer_cid } = (invite ?? {}) as Record<string, unknown>;
+    return inviteReceived(group_key, peer_cid, peerName);
+  });
+}
+
+export function joinedGroupEvents(message: Record<string, unknown>, peerName: PeerNameResolver): GroupEvent[] | null {
   const listed: Record<string, unknown> | undefined = variant(message, 'GroupListJoinedSuccess');
   if (listed) {
     if (!Array.isArray(listed.groups)) return [];
-    return [{ name: 'group:joined-list-received', payload: { groupIds: listed.groups.map((key: unknown) => groupKeyToId(parseGroupKey(key))) } }];
+    return [
+      { name: 'group:joined-list-received', payload: { groupIds: listed.groups.map((key: unknown) => groupKeyToId(parseGroupKey(key))) } },
+      ...listedInvites(listed, peerName),
+    ];
   }
 
   const reopened: Record<string, unknown> | undefined = variant(message, 'GroupChannelCreateSuccess');
