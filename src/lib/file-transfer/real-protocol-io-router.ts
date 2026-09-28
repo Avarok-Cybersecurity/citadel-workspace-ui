@@ -44,7 +44,11 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   };
 
   async sendFile(params: SendFileParams): Promise<SendFileResult> {
-    return executeSendFile(params);
+    const result: SendFileResult = await executeSendFile(params);
+    // Filed so a LATER answer to this request -- a SendFileRequestFailure after the success,
+    // when the SDK refuses the object -- is joined to the transfer (createStatusChangeHandler).
+    this.tickCorrelation.requestIdToTransferId.set(result.requestId, params.transferId);
+    return result;
   }
 
   async cancelTransfer(params: CancelTransferParams): Promise<void> {
