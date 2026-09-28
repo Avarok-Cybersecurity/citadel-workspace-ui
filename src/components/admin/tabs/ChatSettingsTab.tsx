@@ -41,12 +41,15 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
 
     const loadData = (): void => {
       setLoading(true);
+      // Same store the sidebar and BaseOffice read from, so the tab cannot
+      // disagree with what the rest of the app shows. Until the node is there,
+      // stay loading: a switch shown ON for a node not yet read is a guess, and
+      // Save would write it. This effect re-runs when the node arrives.
+      const node: DomainNode | undefined = state.nodes[entityId];
+      if (!node) return;
       try {
-        // Same store the sidebar and BaseOffice read from, so the tab cannot
-        // disagree with what the rest of the app shows.
-        const node: DomainNode = state.nodes[entityId];
-        const enabled: boolean = node ? node.chat_enabled : true;
-        const rules: string = node?.rules ?? '';
+        const enabled: boolean = node.chat_enabled;
+        const rules: string = node.rules ?? '';
 
         setChatEnabled(enabled);
         setChatRules(rules);
@@ -95,15 +98,8 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
     setChatRules(originalRules);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8" data-testid="chat-tab-loading">
-        <Loader2 className="h-6 w-6 animate-spin text-primary-accent" />
-      </div>
-    );
-  }
-
-  // Show message for workspace level - chat is per office/room
+  // The workspace level has no chat of its own (chat is per office/room), and no node in the
+  // store to wait for: waiting for one left this tab spinning for ever.
   if (entityType === 'workspace') {
     return (
       <div className="space-y-4" data-testid="chat-tab-workspace-message">
@@ -114,6 +110,14 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
             Select an office or room from the sidebar to configure its chat settings.
           </AlertDescription>
         </Alert>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8" data-testid="chat-tab-loading">
+        <Loader2 className="h-6 w-6 animate-spin text-primary-accent" />
       </div>
     );
   }

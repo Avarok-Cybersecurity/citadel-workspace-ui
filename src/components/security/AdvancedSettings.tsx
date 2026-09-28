@@ -80,7 +80,7 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps): J
             onValueChange={(value: EncryptionAlgorithm) => handleValueChange('encryptionAlgorithm', value)}
             defaultValue={'AES_GCM_256'}
           >
-            <SelectTrigger id="encryption-algorithm" className="w-full bg-surface border-border text-foreground">
+            <SelectTrigger id="encryption-algorithm" className="w-full bg-surface text-foreground">
               <SelectValue placeholder="Select encryption algorithm" />
             </SelectTrigger>
             <SelectContent className="bg-card border border-primary-accent/30 text-foreground shadow-xl p-2">
@@ -110,7 +110,7 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps): J
             onValueChange={(value: KemAlgorithm) => handleValueChange('kemAlgorithm', value)}
             defaultValue={'MlKem'}
           >
-            <SelectTrigger id="kem-algorithm" className="w-full bg-surface border-border text-foreground">
+            <SelectTrigger id="kem-algorithm" className="w-full bg-surface text-foreground">
               <SelectValue placeholder="Select KEM algorithm" />
             </SelectTrigger>
             <SelectContent className="bg-card border border-primary-accent/30 text-foreground shadow-xl p-2">
@@ -139,7 +139,7 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps): J
             onValueChange={(value: SigAlgorithm) => handleValueChange('sigAlgorithm', value)}
             defaultValue={'None'}
           >
-            <SelectTrigger id="signing-algorithm" className="w-full bg-surface border-border text-foreground">
+            <SelectTrigger id="signing-algorithm" className="w-full bg-surface text-foreground">
               <SelectValue placeholder="Select signing algorithm" />
             </SelectTrigger>
             <SelectContent className="bg-card border border-primary-accent/30 text-foreground shadow-xl p-2">
@@ -170,7 +170,7 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps): J
             onValueChange={handleHeaderObfuscatorChange}
             defaultValue={'off'}
           >
-            <SelectTrigger id="header-obfuscator" className="w-full bg-surface border-border text-foreground">
+            <SelectTrigger id="header-obfuscator" className="w-full bg-surface text-foreground">
               <SelectValue placeholder="Select header obfuscator mode" />
             </SelectTrigger>
             <SelectContent className="bg-card border border-primary-accent/30 text-foreground shadow-xl p-2">

@@ -1,5 +1,6 @@
 import type { WorkspaceTheme, ThemePalette, HslColor, WorkspaceIcon } from './theme-types';
 import { defaultTheme } from './presets';
+import { controlBorderFor } from './palette-contrast';
 
 /**
  * Carrying a theme in the workspace's `metadata` bytes.
@@ -124,8 +125,14 @@ function validatePalette(value: unknown): ThemePalette | null {
   const palette: ThemePalette = {} as ThemePalette;
   for (const key of TOKEN_KEYS) {
     const color: HslColor | null = validateColor(value[key]);
-    if (!color) return null;
-    palette[key] = color;
+    if (color) { palette[key] = color; continue; }
+    // A theme saved before `controlBorder` existed lacks it. Strict validation would reject the
+    // whole theme and silently fall back to the default; derive the edge from the saved colours.
+    if (key === 'controlBorder' && value[key] === undefined) continue;
+    return null;
+  }
+  if (!palette.controlBorder) {
+    palette.controlBorder = controlBorderFor(palette.ring, [palette.background, palette.card, palette.surface]);
   }
   return palette;
 }

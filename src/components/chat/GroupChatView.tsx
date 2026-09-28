@@ -145,7 +145,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
 
       {/* Reply indicator */}
       {chat.replyToId && (
-        <div className="px-4 py-2 bg-background border-t border-surface/50 flex items-center justify-between">
+        <div className="px-4 py-2 bg-background border-t border-border flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Replying to message...</span>
           <Button variant="ghost" size="sm" onClick={() => chat.setReplyToId(null)}>
             Cancel
@@ -155,7 +155,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
 
       {/* Edit indicator */}
       {chat.editingId && (
-        <div className="px-4 py-2 bg-background border-t border-surface/50 flex items-center justify-between">
+        <div className="px-4 py-2 bg-background border-t border-border flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Editing message...</span>
           <Button
             variant="ghost"
@@ -174,13 +174,13 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
           that silently refuses -- a disabled composer with no explanation is
           indistinguishable from a broken one. */}
       {sendRestriction !== 'allowed' ? (
-        <div className="p-4 border-t border-surface/50">
+        <div className="p-4 border-t border-border">
           <p className="text-sm text-muted-foreground" data-testid="group-send-restricted">
             {restrictionText(sendRestriction, 'send messages')}
           </p>
         </div>
       ) : (
-      <div className="p-4 border-t border-surface/50">
+      <div className="p-4 border-t border-border">
         <div className="flex gap-2">
           {/* Peer groups only: a node-backed channel's server has no file path. */}
           {groupSendTransport(groupId) === 'peer' && !chat.editingId && <GroupAttachButton groupId={groupId} />}
@@ -195,7 +195,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
             onKeyDown={chat.handleKeyPress}
             placeholder={chat.editingId ? 'Edit message...' : 'Type a message...'}
             data-testid="group-message-input"
-            className="flex-1 resize-none bg-background border-surface/50 focus:border-primary-accent"
+            className="flex-1 resize-none bg-background focus:border-primary-accent"
             rows={1}
           />
           <Button

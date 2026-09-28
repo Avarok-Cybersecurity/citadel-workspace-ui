@@ -79,6 +79,12 @@ export interface ThemePalette {
   border: HslColor;
   input: HslColor;
   ring: HslColor;
+  /**
+   * The resting edge of a text field -- Input, Textarea, Select. At least 3:1 against every
+   * surface a field sits on (WCAG 1.4.11); `input`, a fill, is not reused for it because it also
+   * colours the sidebar. Derived from the accent hue, so it follows the scheme.
+   */
+  controlBorder: HslColor;
 }
 
 /** Token keys, derived from the type so the two cannot drift apart. */
