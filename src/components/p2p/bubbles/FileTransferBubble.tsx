@@ -3,7 +3,6 @@ import { getBubbleStyles, BUBBLE_MAX_WIDTH , type FileTransferBubbleProps } from
 import { BubbleFooter } from './BubbleFooter';
 import { debugLog } from '@/lib/debug-config';
 import { getFileIcon, formatBytes, getStatusContent } from './file-transfer-helpers';
-import { activateOnKey } from '@/lib/a11y';
 import type { StatusContent } from '@/components/p2p/bubbles/file-transfer-helpers';
 import { useTransferView } from '../hooks/useTransferView';
 import type { TransferView } from '@/lib/file-transfer/transfer-view';
@@ -89,21 +88,7 @@ export function FileTransferBubble({
     }
   };
 
-  return (
-    <div
-      data-testid="file-transfer-bubble"
-      data-transfer-state={state}
-      data-is-own={String(isOwn)}
-      className={`${BUBBLE_MAX_WIDTH} rounded-lg px-3 py-2 ${bubbleStyles}`}
-    >
-      <div
-        className={`${status.clickable ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
-        onClick={handleClick}
-        role="button"
-        tabIndex={0}
-        onKeyDown={activateOnKey(handleClick)}
-      >
-        {/* File info header */}
+  const header: JSX.Element = (
         <div className="flex items-start gap-3 mb-2">
           {/* File icon with thumbnail support */}
           <div className="p-2 rounded bg-foreground/10 flex-shrink-0">
@@ -132,6 +117,24 @@ export function FileTransferBubble({
             </div>
           </div>
         </div>
+  );
+
+  return (
+    <div
+      data-testid="file-transfer-bubble"
+      data-transfer-state={state}
+      data-is-own={String(isOwn)}
+      className={`${BUBBLE_MAX_WIDTH} rounded-lg px-3 py-2 ${bubbleStyles}`}
+    >
+      <div>
+        {/* File info header. A button only when a finished download can be opened: the bubble
+            used to be a role="button" in every state, around the Accept/Decline/Cancel buttons
+            (a button inside a button, and a focus stop that did nothing). */}
+        {status.clickable ? (
+          <button type="button" onClick={handleClick} className="w-full text-left cursor-pointer hover:opacity-90 transition-opacity">
+            {header}
+          </button>
+        ) : header}
 
         {/* Status section */}
         <div className="flex items-center gap-2 mb-2">
@@ -167,6 +170,7 @@ export function FileTransferBubble({
         {status.showAcceptDecline && (
           <div className="flex gap-2 mt-2">
             <button
+              type="button"
               onClick={handleAccept}
               className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-success/20 hover:bg-success/30 text-success-emphasis rounded text-sm transition-colors"
             >
@@ -174,6 +178,7 @@ export function FileTransferBubble({
               Accept
             </button>
             <button
+              type="button"
               onClick={handleDecline}
               className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-destructive/20 hover:bg-destructive/30 text-destructive-emphasis rounded text-sm transition-colors"
             >
@@ -186,6 +191,7 @@ export function FileTransferBubble({
         {status.showCancel && (
           <div className="mt-2">
             <button
+              type="button"
               onClick={handleCancel}
               className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-muted-foreground/20 hover:bg-muted-foreground/30 text-foreground/80 rounded text-sm transition-colors"
             >
