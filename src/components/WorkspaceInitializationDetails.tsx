@@ -8,6 +8,7 @@
 
 import { dialledHost } from '@/lib/sessions/same-server';
 import { AlertCircle } from 'lucide-react';
+import { levelsPhrase } from '@/lib/entity-type-registry';
 
 interface Props {
   workspaceName?: string;
@@ -31,7 +32,7 @@ export function WorkspaceInitializationDetails({
                                 <p className="font-semibold">You will become the Workspace Administrator</p>
                                 <p className="mt-1">By entering the workspace password, you will initialize this workspace and receive full administrator privileges including the ability to:</p>
                                 <ul className="mt-2 list-disc list-inside text-xs space-y-1">
-                                    <li>Create and manage offices and rooms</li>
+                                    <li>Create and manage {levelsPhrase()}</li>
                                     <li>Add and remove users</li>
                                     <li>Grant permissions to other users</li>
                                     <li>Configure workspace settings</li>

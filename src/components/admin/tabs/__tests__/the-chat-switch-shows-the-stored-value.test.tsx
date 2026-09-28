@@ -12,11 +12,12 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { WorkspaceContext } from '@/contexts/WorkspaceContext';
 import { ChatSettingsTab } from '../ChatSettingsTab';
+import { WORKSPACE_ENTITY, type AdminEntityType } from '../../types';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 type ContextValue = React.ContextType<typeof WorkspaceContext>;
 
-function renderWith(nodes: Record<string, DomainNode>, entityType: 'office' | 'workspace' = 'office'): void {
+function renderWith(nodes: Record<string, DomainNode>, entityType: AdminEntityType = 'Office'): void {
   const value: ContextValue = { state: { nodes } } as unknown as ContextValue;
   render(
     <WorkspaceContext.Provider value={value}>
@@ -29,7 +30,7 @@ describe('the admin chat switch', () => {
   // Caught by CI (test:admin-modal): the workspace root is never a node in the store, so a tab
   // waiting for one spun for ever and never said where chat is configured.
   it("at the workspace level says where chat is set, with no node to wait for", () => {
-    renderWith({}, 'workspace');
+    renderWith({}, WORKSPACE_ENTITY);
     expect(screen.getByTestId('chat-tab-workspace-message')).toBeTruthy();
     expect(screen.queryByTestId('chat-tab-loading')).toBeNull();
   });

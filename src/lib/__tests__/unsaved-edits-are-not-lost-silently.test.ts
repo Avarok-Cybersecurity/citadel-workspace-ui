@@ -70,12 +70,9 @@ describe('the sidebar asks before discarding', () => {
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const { stripComments } = await import('@/test-utils/strip-comments');
-    const source: string = stripComments(
-      readFileSync(
-        join(process.cwd(), 'src/components/layout/sidebar/HierarchySidebar.tsx'),
-        'utf8',
-      ),
-    );
-    expect(source).toContain('mayLeaveEditor(confirm)');
+    const read = (rel: string): string => stripComments(readFileSync(join(process.cwd(), rel), 'utf8'));
+    // The sidebar opens nodes through the shared hook, which is what asks.
+    expect(read('src/components/layout/sidebar/HierarchySidebar.tsx')).toContain('useOpenNode()');
+    expect(read('src/hooks/use-open-node.ts')).toContain('mayLeaveEditor(confirm)');
   });
 });

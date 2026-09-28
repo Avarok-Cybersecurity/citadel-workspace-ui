@@ -25,7 +25,7 @@ function renderDialog(onOpenChange: (open: boolean) => void): void {
   } as unknown as ContextValue;
   render(
     <WorkspaceContext.Provider value={value}>
-      <WorkspaceSettingsDialog open onOpenChange={onOpenChange} />
+      <WorkspaceSettingsDialog open onOpenChange={onOpenChange} onEditHierarchy={undefined} />
     </WorkspaceContext.Provider>,
   );
 }

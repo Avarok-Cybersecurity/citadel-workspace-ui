@@ -8,7 +8,7 @@
 
 // Import the workspace types from internal files instead of a separate file
 // We'll define the types directly here for simplicity since we only need minimal types
-import type { WorkspaceLogoChange } from 'citadel-workspace-client-ts';
+import type { TreeSchema, WorkspaceLogoChange } from 'citadel-workspace-client-ts';
 
 /**
  * The main protocol payload that wraps either a request or response
@@ -178,12 +178,7 @@ export interface WorkspaceProtocolRequestTS {
     max_depth?: number;
   };
   GetTreeSchema?: null;
-  UpdateTreeSchema?: {
-    schema: {
-      rules: Array<{ parent_type: string; allowed_child_types: string[] }>;
-      max_depth?: number | null;
-    };
-  };
+  UpdateTreeSchema?: { schema: TreeSchema };
 }
 
 // Group message type enum

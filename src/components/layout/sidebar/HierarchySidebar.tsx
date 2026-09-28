@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo } from 'react';
-import { mayLeaveEditor } from '@/lib/leave-editor';
 import { describeFailure } from '@/lib/failure-message';
 import { debugLog } from '@/lib/debug-config';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -7,12 +6,13 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
 import WorkspaceService from '@/lib/workspace-service';
-import { buildWorkspacePath, getWorkspacePath } from '@/lib/workspace-navigation';
-import { getEntityTypeString } from '@/lib/entity-type-registry';
+import { getWorkspacePath } from '@/lib/workspace-navigation';
+import { getEntityMetadata } from "@/lib/entity-type-registry";
 import { MoveNodeDialog } from './MoveNodeDialog';
 import { TreeNodesSection, type DomainNode } from './TreeNodesSection';
 import { HierarchySidebarModals } from './HierarchySidebarModals';
-import { useConfirm } from '@/components/shared/confirm-dialog';
+import type { TypeChoice } from './CreateChildTypePicker';
+import { useOpenNode } from '@/hooks/use-open-node';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { usePermission } from '@/hooks/use-permission';
 import { Permission } from '@/contexts/PermissionsContext';
@@ -34,30 +34,22 @@ export function HierarchySidebar(): JSX.Element {
 
   // Modal state
   const [createModal, setCreateModal] = useState<{ parentId: string; entityType: string } | null>(null);
+  const [typeChoice, setTypeChoice] = useState<TypeChoice | null>(null);
+  // One level goes straight to its create dialog; several ask which first.
+  const offer: (parentId: string, levels: string[]) => void = (parentId: string, levels: string[]): void => {
+    if (levels.length === 1) setCreateModal({ parentId, entityType: levels[0] });
+    else setTypeChoice({ parentId, levels });
+  };
   const [editNode, setEditNode] = useState<DomainNode | null>(null);
   const [moveNode, setMoveNode] = useState<DomainNode | null>(null);
   const [adminNode, setAdminNode] = useState<DomainNode | null>(null);
-  // The app's dialog, not window.confirm — which is what `confirm` resolves to
-  // if this line is missing, silently, with a `string` parameter.
-  const confirm: ReturnType<typeof useConfirm> = useConfirm();
   // What the server checks for every CreateNode; see createBlockedReason.
   const treeEdit: ReturnType<typeof usePermission> = usePermission(WORKSPACE_ROOT_ID, Permission.EditTreeStructure);
 
   // Build flat node list from state
   const nodes: DomainNode[] = useMemo(() => Object.values(state.nodes), [state.nodes]);
 
-  const handleNodeSelect: (nodeId: string) => Promise<void> = useCallback(async (nodeId: string): Promise<void> => {
-    if (!(await mayLeaveEditor(confirm))) return;
-
-    const newParams: URLSearchParams = new URLSearchParams(location.search);
-    newParams.set('nodeId', nodeId);
-    newParams.delete('section');
-    // Clear P2P chat overlay when navigating to a different node
-    newParams.delete('showP2P');
-    newParams.delete('channel');
-    newParams.delete('p2pUser');
-    navigate(buildWorkspacePath(newParams));
-  }, [location.search, navigate, confirm]);
+  const handleNodeSelect: (nodeId: string) => Promise<void> = useOpenNode();
 
   const handleNodeEdit: (node: DomainNode) => void = useCallback((node: DomainNode): void => {
     setEditNode(node);
@@ -72,7 +64,7 @@ export function HierarchySidebar(): JSX.Element {
         navigate(getWorkspacePath());
       }
 
-      const typeName: string = getEntityTypeString(node.entity_type);
+      const typeName: string = getEntityMetadata(node.entity_type).label;
       toastSuccess(toast, `${typeName} Deleted`, `${node.name} has been deleted successfully`);
     } catch (error) {
       debugLog('HierarchySidebar', 'Error deleting node:', error);
@@ -135,7 +127,7 @@ export function HierarchySidebar(): JSX.Element {
         );
         return;
       }
-      setCreateModal({ parentId: WORKSPACE_ROOT_ID, entityType: allowedTypes[0] });
+      offer(WORKSPACE_ROOT_ID, allowedTypes);
       return;
     }
 
@@ -148,9 +140,7 @@ export function HierarchySidebar(): JSX.Element {
       return;
     }
 
-    // If only one child type allowed, use it directly
-    // If multiple, default to first (future: show type picker)
-    setCreateModal({ parentId, entityType: allowedTypes[0] });
+    offer(parentId, allowedTypes);
   }, [state.nodes, state.treeSchema, toast]);
 
   const handleAdminSettings: (node: DomainNode) => void = useCallback((node: DomainNode): void => {
@@ -160,7 +150,7 @@ export function HierarchySidebar(): JSX.Element {
   const handleSetDefault: (node: DomainNode) => Promise<void> = useCallback(async (node: DomainNode): Promise<void> => {
     try {
       await WorkspaceService.updateNode(node.id, { isDefault: true });
-      const typeName: string = getEntityTypeString(node.entity_type);
+      const typeName: string = getEntityMetadata(node.entity_type).label;
       toastSuccess(toast, `Default ${typeName} Updated`, `${node.name} is now the default`);
     } catch (error) {
       debugLog('HierarchySidebar', 'Error setting default:', error);
@@ -216,6 +206,9 @@ export function HierarchySidebar(): JSX.Element {
         editNode={editNode}
         adminNode={adminNode}
         onCloseCreate={() => setCreateModal(null)}
+        typeChoice={typeChoice}
+        onPickType={(parentId: string, level: string) => { setTypeChoice(null); setCreateModal({ parentId, entityType: level }); }}
+        onCloseTypeChoice={() => setTypeChoice(null)}
         onCloseEdit={() => setEditNode(null)}
         onCloseAdmin={() => setAdminNode(null)}
       />

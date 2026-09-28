@@ -29,9 +29,11 @@ import { profileChangeFrom, MAX_DESCRIPTION_CHARS, MAX_NAME_CHARS, type ProfileF
 interface WorkspaceSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Opens the hierarchy editor; absent for someone who may not edit the hierarchy. */
+  onEditHierarchy: (() => void) | undefined;
 }
 
-export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSettingsDialogProps): JSX.Element {
+export function WorkspaceSettingsDialog({ open, onOpenChange, onEditHierarchy }: WorkspaceSettingsDialogProps): JSX.Element {
   const { state } = useWorkspace();
   const { toast } = useToast();
   const workspaceId: string | undefined = state.workspace?.id;
@@ -118,6 +120,13 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
         <div className="border-t border-border pt-4">
           <WorkspaceAppearanceSection />
         </div>
+        {onEditHierarchy && (
+          <div className="border-t border-border pt-4">
+            <Button variant="outline" onClick={onEditHierarchy} data-testid="workspace-settings-edit-hierarchy">
+              Edit the hierarchy (levels, offices and rooms)
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

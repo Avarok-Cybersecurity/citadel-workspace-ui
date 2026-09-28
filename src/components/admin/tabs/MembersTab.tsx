@@ -19,6 +19,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 import { debugLog } from '@/lib/debug-config';
 import { MemberRow, ROLE_COLORS } from './MemberRow';
+import { getEntityMetadata } from '@/lib/entity-type-registry';
 
 export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTabProps): JSX.Element {
   const { toast } = useToast();
@@ -204,7 +205,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
         open={!!memberToRemove}
         onOpenChange={() => setMemberToRemove(null)}
         title="Remove Member"
-        description={`Are you sure you want to remove ${memberToRemove?.name || memberToRemove?.username} from this ${entityType}? They will lose access to all content.`}
+        description={`Are you sure you want to remove ${memberToRemove?.name || memberToRemove?.username} from this ${getEntityMetadata(entityType).label.toLowerCase()}? They will lose access to all content.`}
         onConfirm={handleRemoveMember}
         confirmLabel="Remove"
       />

@@ -140,7 +140,22 @@ const dist = join(root, 'dist');
  * still constructed at boot, by main.tsx's dynamic import, after first paint.
  * DEFERRED_MODULES below fails if any of it comes back.
  */
-const BUDGET_KB = 322;
+/**
+ * 322 -> 323, approved by the owner (2026-09-28): features are not cut to fit this number. It
+ * is our own tripwire (not a Lighthouse limit) for a chunk arriving on the landing page by
+ * accident; raise it on purpose, with the reason written here, when real features grow the shell.
+ *
+ * CI measured 322.1 for the hierarchy editor (UI #65 with parent #163), a 0.1 KB overage that
+ * this file already classes as gzip noise; the local build reads 321.7. What grew is not a chunk:
+ * it is `entity-type-registry` and `permissions-service/types` becoming schema-driven, which the
+ * whole shell -- landing page included -- reads. Making `updateTreeSchema` a dynamic import
+ * was tried and moved the total by less than 0.05 KB, so it was not kept.
+ *
+ * The way to lower it is the owner's preferred shape: skeleton-first loading with the shell split
+ * into smaller chunks, and service initialisation deferred until after sign-in -- worth tens of
+ * kilobytes, not trimming features.
+ */
+const BUDGET_KB = 323;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source

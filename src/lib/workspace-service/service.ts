@@ -26,6 +26,8 @@ import * as members from './member-operations';
 import * as messaging from './messaging-operations';
 import * as nodes from './node-operations';
 import { updateWorkspaceProfile, type WorkspaceProfileChange } from './workspace-profile';
+import { updateTreeSchema } from './hierarchy-operations';
+import type { TreeSchema } from '@/components/layout/sidebar/tree-node-types';
 
 export class WorkspaceService implements ProtocolSender {
   private static instance: WorkspaceService;
@@ -147,6 +149,7 @@ export class WorkspaceService implements ProtocolSender {
   public listNodes(parentId?: string | null, entityTypes?: Array<{ Child: string } | 'Workspace'>): Promise<void> { return nodes.listNodes(this, parentId, entityTypes); }
   public getTreeStructure(rootId?: string, maxDepth?: number): Promise<void> { return nodes.getTreeStructure(this, rootId, maxDepth); }
   public getTreeSchema(): Promise<void> { return nodes.getTreeSchema(this); }
+  public updateTreeSchema(schema: TreeSchema): Promise<void> { return updateTreeSchema(this, schema); }
   public getServerCapabilities(): Promise<void> { return nodes.getServerCapabilities(this); }
 
   public cleanup(): void { /* Any cleanup needed */ }

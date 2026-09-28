@@ -7,7 +7,7 @@
 
 import { debugLog } from '@/lib/debug-config';
 import { isPrivilegedRole } from '@/lib/role-predicate';
-import { Permission, PERMISSION_LABELS } from './types';
+import { Permission, permissionLabel } from './types';
 import type { UserRole, DomainPermissions } from './types';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
@@ -153,7 +153,7 @@ export function getDeniedReason(
     return 'Permissions have not been loaded for this domain';
   }
 
-  const label: string = PERMISSION_LABELS[permission] || permission;
+  const label: string = permissionLabel(permission);
   const roleLabel: "Member" | "Admin" | "Owner" | "Guest" | "Banned" | "Custom" = typeof cached.role === 'string' ? cached.role : 'Custom';
   return `You don't have the "${label}" permission. Your role: ${roleLabel}`;
 }

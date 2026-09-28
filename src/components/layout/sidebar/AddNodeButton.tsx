@@ -1,8 +1,9 @@
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { permits, type UsePermissionResult } from "@/hooks/use-permission-result";
+import { levelsPhrase } from '@/lib/entity-type-registry';
 
-const NO_TREE_EDIT: string = 'You do not have permission to add offices or rooms here. An administrator can grant it.';
+const noTreeEdit = (): string => `You do not have permission to add ${levelsPhrase()} here. An administrator can grant it.`;
 
 /**
  * Why creating cannot succeed, or null when it can: it needs the tree schema
@@ -12,7 +13,7 @@ const NO_TREE_EDIT: string = 'You do not have permission to add offices or rooms
  */
 export function createBlockedReason(schemaLoaded: boolean, treeEdit: UsePermissionResult): string | null {
   if (!schemaLoaded) return 'Waiting for the workspace to finish loading';
-  return permits(treeEdit) ? null : (treeEdit.reason ?? NO_TREE_EDIT);
+  return permits(treeEdit) ? null : (treeEdit.reason ?? noTreeEdit());
 }
 
 interface AddNodeButtonProps {

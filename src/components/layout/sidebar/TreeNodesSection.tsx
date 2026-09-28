@@ -3,7 +3,7 @@ import { debugLog } from '@/lib/debug-config';
 import { useLocation, useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { getEntityTypeString } from "@/lib/entity-type-registry";
+import { getEntityMetadata } from "@/lib/entity-type-registry";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   SidebarGroup,
@@ -252,7 +252,7 @@ export function TreeNodesSection({
           setNodeToDelete(null);
           setDeleteError(null);
         }}
-        title={`Delete ${nodeToDelete ? getEntityTypeString(nodeToDelete.entity_type) : "Node"}`}
+        title={`Delete ${nodeToDelete ? getEntityMetadata(nodeToDelete.entity_type).label : "item"}`}
         description={
           <>
             Are you sure you want to delete &quot;{nodeToDelete?.name}&quot;? This

@@ -10,6 +10,8 @@ import WorkspaceService from '@/lib/workspace-service';
 import { Loader2 } from 'lucide-react';
 import { debugLog } from '@/lib/debug-config';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
+import { WORKSPACE_ENTITY } from '../types';
+import { getEntityMetadata } from '@/lib/entity-type-registry';
 
 export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTabProps): JSX.Element {
   const { state } = useWorkspace();
@@ -40,7 +42,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
     const loadData = (): void => {
       setLoading(true);
       try {
-        if (entityType === 'workspace' && state.workspace) {
+        if (entityType === WORKSPACE_ENTITY && state.workspace) {
           setName(state.workspace.name);
           setDescription(state.workspace.description || '');
           setOriginalName(state.workspace.name);
@@ -98,7 +100,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
 
     setSaving(true);
     try {
-      if (entityType === 'workspace') {
+      if (entityType === WORKSPACE_ENTITY) {
         await WorkspaceService.updateWorkspace(name, description);
       } else {
         await WorkspaceService.updateNode(entityId, { name, description });
@@ -117,7 +119,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
       debugLog('GeneralTab', 'Failed to update entity:', error);
       toast({
         title: 'Error',
-        description: `Failed to update ${entityType}. Please try again.`,
+        description: `Failed to update this ${getEntityMetadata(entityType).label.toLowerCase()}. Please try again.`,
         variant: 'destructive',
       });
     } finally {
@@ -148,7 +150,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
           id="entity-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={`Enter ${entityType} name`}
+          placeholder={getEntityMetadata(entityType).namePlaceholder}
           className="bg-card border-surface text-foreground placeholder:text-muted-foreground"
           maxLength={100}
           data-testid="general-name-input"
@@ -164,7 +166,7 @@ export function GeneralTab({ entityType, entityId, onClose: _onClose }: AdminTab
           id="entity-description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder={`Enter ${entityType} description (optional)`}
+          placeholder={getEntityMetadata(entityType).descriptionPlaceholder}
           className="bg-card border-surface text-foreground placeholder:text-muted-foreground min-h-[100px]"
           maxLength={500}
           data-testid="general-description-input"

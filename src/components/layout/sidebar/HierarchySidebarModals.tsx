@@ -8,6 +8,7 @@ import { NodeManagementModal } from '@/components/node/NodeManagementModal';
 import { AdminModal } from '@/components/admin';
 import { getEntityTypeString } from '@/lib/entity-type-registry';
 import type { DomainNode } from './TreeNodesSection';
+import { CreateChildTypePicker, type TypeChoice } from './CreateChildTypePicker';
 
 interface HierarchySidebarModalsProps {
   createModal: { parentId: string; entityType: string } | null;
@@ -16,6 +17,9 @@ interface HierarchySidebarModalsProps {
   onCloseCreate: () => void;
   onCloseEdit: () => void;
   onCloseAdmin: () => void;
+  typeChoice: TypeChoice | null;
+  onPickType: (parentId: string, level: string) => void;
+  onCloseTypeChoice: () => void;
 }
 
 export function HierarchySidebarModals({
@@ -25,13 +29,17 @@ export function HierarchySidebarModals({
   onCloseCreate,
   onCloseEdit,
   onCloseAdmin,
+  typeChoice,
+  onPickType,
+  onCloseTypeChoice,
 }: HierarchySidebarModalsProps): JSX.Element {
   const adminEntityType: string = adminNode
-    ? getEntityTypeString(adminNode.entity_type).toLowerCase()
+    ? getEntityTypeString(adminNode.entity_type)
     : 'workspace';
 
   return (
     <>
+      <CreateChildTypePicker choice={typeChoice} onPick={onPickType} onClose={onCloseTypeChoice} />
       {/* Create Node Modal */}
       {createModal && (
         <NodeManagementModal

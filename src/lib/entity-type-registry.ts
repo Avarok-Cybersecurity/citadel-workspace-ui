@@ -52,8 +52,8 @@ export function setTreeSchema(schema: TreeSchema): void {
   );
 }
 
-/** Resolve a Lucide icon name string to its React component. */
-function resolveIcon(iconName: string): ComponentType<{ className?: string }> {
+/** Resolve a Lucide icon name string to its React component; the hierarchy editor previews unsaved levels with it. */
+export function resolveIcon(iconName: string): ComponentType<{ className?: string }> {
   return ICON_MAP[iconName] ?? Folder;
 }
 
@@ -94,6 +94,23 @@ export function getEntityMetadata(entityType: NodeEntityType | string): EntityTy
     namePlaceholder: `Enter ${key.toLowerCase()} name...`,
     descriptionPlaceholder: `Describe this ${key.toLowerCase()}...`,
   };
+}
+
+/** What the levels are called before the workspace's hierarchy has arrived. */
+export const LEVELS_BEFORE_SCHEMA: string = 'items';
+
+/**
+ * The workspace's levels below the Workspace, in the words its hierarchy uses: "offices and
+ * rooms" by default, "divisions, departments and teams" in a workspace organised that way.
+ * Every sentence that talks about the hierarchy in general uses this, not a hard-coded pair.
+ */
+export function levelsPhrase(): string {
+  const plurals: string[] = schemaConfigs
+    ? [...schemaConfigs.values()].filter((c: EntityTypeConfig) => c.type_name !== 'Workspace').map((c: EntityTypeConfig) => c.plural_label.toLowerCase())
+    : [];
+  if (plurals.length === 0) return LEVELS_BEFORE_SCHEMA;
+  if (plurals.length === 1) return plurals[0];
+  return `${plurals.slice(0, -1).join(', ')} and ${plurals[plurals.length - 1]}`;
 }
 
 /** Get just the icon component for an entity type. */

@@ -138,7 +138,7 @@ export function TreeNodeItem({
             {node.is_default && (
               <Star
                 className="h-3 w-3 text-warning-emphasis fill-warning flex-shrink-0"
-                aria-label={`Default ${typeName.toLowerCase()}`}
+                aria-label={`Default ${getEntityMetadata(node.entity_type).label.toLowerCase()}`}
               />
             )}
           </span>
@@ -168,7 +168,7 @@ export function TreeNodeItem({
                 onClick={() => onNodeEdit(node)}
                 data-testid={`edit-node-${node.id}`}
               >
-                Edit {typeName}
+                Edit {getEntityMetadata(node.entity_type).label}
               </DropdownMenuItem>
             )}
             {onAdminSettings && (

@@ -25,8 +25,8 @@ function spaceLine(space: HomeSpace): string {
 export function getWorkspaceHomeContent(workspaceName: string, description: string, spaces: readonly HomeSpace[]): string {
   const intro: string = description.trim() ? `${mdxText(description.trim())}\n\n` : '';
   const listing: string = spaces.length > 0
-    ? `## Offices\n\n${spaces.map(spaceLine).join('\n')}\n\nOpen one from the sidebar to read its page, chat in its channel, or join a call there.`
-    : '## No offices yet\n\nAn administrator adds the first one with the + beside the workspace in the sidebar. Until then, direct messages, groups and files all work from the sidebar.';
+    ? `## Spaces\n\n${spaces.map(spaceLine).join('\n')}\n\nOpen one from the sidebar to read its page, chat in its channel, or join a call there.`
+    : '## No spaces yet\n\nAn administrator adds the first one with the + beside the workspace in the sidebar. Until then, direct messages, groups and files all work from the sidebar.';
   return `# ${mdxText(workspaceName)}
 
 ${intro}Everything here is end-to-end encrypted with post-quantum cryptography, and messages travel directly between people rather than through a server.

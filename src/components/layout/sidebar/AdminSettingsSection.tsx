@@ -1,4 +1,4 @@
-import { Settings, Shield, Users, Key, CreditCard, Building2 } from "lucide-react";
+import { Settings, Shield, Users, Key, CreditCard, Building2, Network } from "lucide-react";
 import { isPrivilegedRole } from '@/lib/role-predicate';
 import { useMemo, useState } from "react";
 import {
@@ -31,6 +31,8 @@ import { usePermission } from '@/hooks/use-permission';
 import { permits } from '@/hooks/use-permission-result';
 import { Permission } from '@/lib/permissions-service/types';
 import { WorkspaceSettingsDialog } from '@/components/admin/workspace-settings/WorkspaceSettingsDialog';
+import { HierarchyEditorDialog } from '@/components/hierarchy-editor/HierarchyEditorDialog';
+import { levelsPhrase } from '@/lib/entity-type-registry';
 
 /**
  * Admin Settings Section
@@ -52,6 +54,9 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
   const rootPermission: ReturnType<typeof usePermission> = usePermission(WORKSPACE_ROOT_ID, Permission.UpdateWorkspace);
   const ownPermission: ReturnType<typeof usePermission> = usePermission(workspaceId, Permission.UpdateWorkspace);
   const canEditWorkspace: boolean = permits(rootPermission) || permits(ownPermission);
+  const [showHierarchy, setShowHierarchy] = useState(false);
+  // What the server checks for UpdateTreeSchema.
+  const canEditHierarchy: boolean = permits(usePermission(WORKSPACE_ROOT_ID, Permission.ManageNodeTypes));
   const controlPlaneBase: string | undefined = readControlPlaneBase(document);
   const api: ControlPlane | undefined = useMemo((): ControlPlane | undefined => controlPlaneBase === undefined
     ? undefined
@@ -103,6 +108,18 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
                 </SidebarMenuButton>
               </SidebarMenuItem>
             )}
+            {canEditHierarchy && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setShowHierarchy(true)}
+                  data-testid="open-hierarchy-editor"
+                  className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors"
+                >
+                  <Network className="h-4 w-4 mr-2 text-warning-emphasis" />
+                  Edit hierarchy
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
             <SidebarMenuItem>
               <SidebarMenuButton
                 onClick={() => setShowPermissionManager(true)}
@@ -138,8 +155,13 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
 
       {/* Mounted only while open, so it seeds from the stored record each time. */}
       {showWorkspaceSettings && (
-        <WorkspaceSettingsDialog open onOpenChange={setShowWorkspaceSettings} />
+        <WorkspaceSettingsDialog
+          open
+          onOpenChange={setShowWorkspaceSettings}
+          onEditHierarchy={canEditHierarchy ? (): void => { setShowWorkspaceSettings(false); setShowHierarchy(true); } : undefined}
+        />
       )}
+      {showHierarchy && <HierarchyEditorDialog open onOpenChange={setShowHierarchy} />}
 
       {/* Permission Manager Modal - for workspace-level permissions */}
       {showPermissionManager && state.currentUser && (
@@ -182,7 +204,7 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
                     offices and rooms; the result toasts already use the real
                     ones, so the same thing had two names either side of a
                     click. */}
-                <p className="font-medium">Offices & Rooms</p>
+                <p className="font-medium first-letter:uppercase">{levelsPhrase()}</p>
                 <p className="text-sm text-muted-foreground">Create, rename and remove them</p>
               </div>
             </div>

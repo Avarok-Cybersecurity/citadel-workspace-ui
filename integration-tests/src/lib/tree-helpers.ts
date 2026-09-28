@@ -959,10 +959,24 @@ export async function verifyNodeDeleted(
 // Hierarchy Creation Helpers
 // ============================================================================
 
+/** The level type at depth `i` (1-based) of the chain {@link createDeepHierarchy} builds. */
+export function deepLevelType(i: number): string {
+  return `DeepLevel${i}`;
+}
+
 /**
- * Create a deep hierarchy of nodes.
- * Returns array of created node IDs in order from root to deepest.
- * Automatically updates tree schema to allow Office/Room nesting at arbitrary depth.
+ * A chain of `depth` nodes, one per depth, each of its own level type:
+ * Workspace -> DeepLevel1 -> DeepLevel2 -> ... -> DeepLevel<depth>.
+ *
+ * One level TYPE per depth, because the schema must be acyclic. This used to make the schema
+ * circular (Office<->Room, Office->Office) so two types could alternate forever; the server now
+ * refuses a level that can contain itself, directly or through others (schema_rules.rs), so that
+ * update was refused -- silently, since its result was never read -- and every chain stopped at
+ * depth 2. The server derives max_depth from the rules, so nothing here sets it.
+ *
+ * Each level is made with CreateNodeType, which adds its rule and display config; a level that
+ * already exists (a second call in one run) is reused. Returns the node ids, shallowest first;
+ * fewer than `depth` means the chain could not be built, and the log says where.
  */
 export async function createDeepHierarchy(
   page: Page,
@@ -970,69 +984,33 @@ export async function createDeepHierarchy(
   workspaceRootId: string,
   namePrefix: string = 'Level'
 ): Promise<string[]> {
-  // First, update tree schema to allow circular Office↔Room nesting
-  const schema = await getTreeSchema(page);
-  if (schema) {
-    let schemaModified = false;
-    // Ensure Room→Office nesting is allowed (for depth 3+)
-    const roomRule = schema.rules.find((r: NestingRule) => r.parent_type === 'Room');
-    if (roomRule) {
-      if (!roomRule.allowed_child_types.includes('Office')) {
-        roomRule.allowed_child_types.push('Office');
-        schemaModified = true;
-      }
-    } else {
-      schema.rules.push({ parent_type: 'Room', allowed_child_types: ['Office'] });
-      schemaModified = true;
-    }
-    // Ensure Office→Office nesting is allowed (for same-type chains)
-    const officeRule = schema.rules.find((r: NestingRule) => r.parent_type === 'Office');
-    if (officeRule) {
-      if (!officeRule.allowed_child_types.includes('Office')) {
-        officeRule.allowed_child_types.push('Office');
-        schemaModified = true;
-      }
-    }
-    // Also ensure max_depth allows the requested depth
-    if (schema.max_depth !== undefined && schema.max_depth !== null && schema.max_depth < depth + 1) {
-      schema.max_depth = depth + 1;
-      schemaModified = true;
-      console.log(`  [DeepHierarchy] Increasing max_depth to ${depth + 1} `);
-    }
-    if (schemaModified) {
-      console.log('  [DeepHierarchy] Updating tree schema for deep nesting');
-      await updateTreeSchema(page, schema);
-      await sleep(200);
+  const existing: Set<string> = new Set((await listNodeTypes(page)).map((t: CustomNodeType) => t.name));
+  for (let i = 1; i <= depth; i++) {
+    const type: string = deepLevelType(i);
+    if (existing.has(type)) continue;
+    const parent: string = i === 1 ? 'Workspace' : deepLevelType(i - 1);
+    if (!(await createNodeType(page, type, `Deep level ${i}`, [parent], 'layers'))) {
+      console.log(`  [DeepHierarchy] Could not create level type ${type} under ${parent}`);
+      return [];
     }
   }
 
   const nodeIds: string[] = [];
-  let parentId: string | null = workspaceRootId;
-
+  let parentId: string = workspaceRootId;
   for (let i = 1; i <= depth; i++) {
-    // Alternate between Office and Room for default schema
-    const entityType: NodeEntityType = i % 2 === 1
-      ? { Child: 'Office' }
-      : { Child: 'Room' };
-
-    const result = await createNodeViaProtocol(
+    const result: CreateNodeResult = await createNodeViaProtocol(
       page,
       parentId,
-      entityType,
-      `${namePrefix}_${i}_${Date.now()} `,
-      `Test node at depth ${i} `
+      { Child: deepLevelType(i) },
+      `${namePrefix}_${i}_${Date.now()}`,
+      `Test node at depth ${i}`
     );
-
     if (!result.success || !result.nodeId) {
-      console.log(`  [DeepHierarchy] Failed to create node at depth ${i}: ${result.error} `);
+      console.log(`  [DeepHierarchy] Failed to create node at depth ${i}: ${result.error}`);
       break;
     }
-
     nodeIds.push(result.nodeId);
     parentId = result.nodeId;
-
-    // Small delay to ensure ordering
-    await sleep(100);
   }
 
   console.log(`  [DeepHierarchy] Created ${nodeIds.length} nodes`);

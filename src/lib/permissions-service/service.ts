@@ -12,7 +12,7 @@ import { EventListenerManager } from '@/lib/utils/event-listener-manager';
 import { debugLog } from '@/lib/debug-config';
 import { INTERVAL } from '@/lib/timeout-constants';
 
-import { Permission, PERMISSION_LABELS } from './types';
+import { Permission, permissionLabel } from './types';
 import type { UserRole, DomainPermissions } from './types';
 import {
   updateCacheEntry,
@@ -224,7 +224,7 @@ export class PermissionsService extends EventListenerManager {
   }
 
   public getPermissionLabel(permission: Permission): string {
-    return PERMISSION_LABELS[permission] || permission;
+    return permissionLabel(permission);
   }
 
   public getDeniedReason(domainId: string, permission: Permission): string {

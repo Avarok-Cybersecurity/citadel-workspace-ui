@@ -32,6 +32,7 @@ const PAYLOADS: Record<string, unknown> = {
   GroupMessageNotification: { group_id: 'g1', message: { id: 'm1', sender_id: 'ada', content: 'hi' } },
   GroupMessageEdited: { group_id: 'g1', message_id: 'm1' },
   GroupMessageDeleted: { group_id: 'g1', message_id: 'm1' },
+  TreeSchema: { id: 's', name: 's', rules: [], max_depth: null, entity_type_configs: [] },
 };
 
 /**
