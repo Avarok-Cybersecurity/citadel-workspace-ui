@@ -28,7 +28,7 @@ function ringing(roomId: string | null): CallState {
   return {
     callId: 'c1', status: 'ringing-in', roomId, outgoing: false, caller: 7n,
     selfMedia: { audio: true, video: true }, selfSpeaking: false, reason: null,
-    participants: new Map([[7n, { cid: 7n, username: 'johndoesky', status: 'ringing', media: { audio: true, video: true }, speaking: false }]]),
+    participants: new Map([[7n, { cid: 7n, username: 'johndoesky', status: 'invited', media: { audio: true, video: true }, speaking: false }]]),
   } as CallState;
 }
 
