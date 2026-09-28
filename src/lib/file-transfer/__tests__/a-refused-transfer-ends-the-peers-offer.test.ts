@@ -14,7 +14,7 @@ import { deserializeP2PCommand } from '@/types/p2p-commands';
 import type { FileTransfer } from '../types';
 
 const wire: { from: bigint; to: bigint; bytes: Uint8Array }[] = [];
-vi.mock('../../tab-context', () => ({ getSelectedUser: async () => ({ selectedCid: 7n }) }));
+vi.mock('../../tab-context', () => ({ getSelectedUser: async (): Promise<{ selectedCid: bigint }> => ({ selectedCid: 7n }) }));
 vi.mock('../../p2p/message-send-operations', () => ({
   sendAllowingForAConcurrentOpen: async (from: bigint, to: bigint, bytes: Uint8Array): Promise<void> => {
     wire.push({ from, to, bytes });
@@ -54,7 +54,7 @@ describe('a refused transfer', () => {
     expect(wire).toHaveLength(1);
     expect(wire[0]).toMatchObject({ from: 7n, to: 42n });
     const sent: unknown = deserializeP2PCommand(wire[0].bytes);
-    expect(JSON.stringify(sent, (_k, v: unknown) => (typeof v === 'bigint' ? v.toString() : v)))
+    expect(JSON.stringify(sent, (_k: string, v: unknown) => (typeof v === 'bigint' ? v.toString() : v)))
       .not.toContain('not enabled');
     expect(sent).toMatchObject({
       payload: { layer: { type: 'FileTransferCancel', transfer_id: 'T1' } },
