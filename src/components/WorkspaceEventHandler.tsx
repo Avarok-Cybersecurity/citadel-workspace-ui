@@ -31,6 +31,7 @@ import {
 import { debugLog } from '@/lib/debug-config';
 import { WorkspaceThemeProvider } from './theme/WorkspaceThemeProvider';
 import { ClaimLaterBanner } from './ClaimLaterBanner';
+import { publishChannelNames } from '@/lib/call/room-names';
 
 /**
  * The event handler's state: the context's `WorkspaceState`, plus the one field
@@ -121,6 +122,11 @@ export const WorkspaceEventHandler: React.FC<{
   useEffect(() => {
     if (onStateChange) onStateChange(state);
   }, [state, onStateChange]);
+
+  // The ring card sits above this provider; see lib/call/room-names.ts.
+  useEffect(() => {
+    publishChannelNames(state.nodes);
+  }, [state.nodes]);
 
   const handleWorkspaceInitialized = (): void => {
     setShowInitModal(false);
