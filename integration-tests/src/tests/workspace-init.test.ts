@@ -62,22 +62,29 @@ const PASSWORD = config.DEFAULT_PASSWORD;
 async function registerUser(page: Page, username: string, password: string): Promise<boolean> {
   console.log(`\n=== Registering user: ${username} ===`);
 
+  let submitted: boolean = false;
   try {
     // Navigate to app
+    // Wait for the app to render, not a fixed 2s. On a cold dev server the
+    // first load compiles for 10-30s; the fixed sleep plus a 5s button check
+    // skipped every step for the first user and still reported success, so
+    // CI failed three steps later at "Workspace Loaded" with no Register sent
+    // (master 6e3c3b27, #171, 2026-09-28). createAccount already did this.
     await page.goto(config.BASE_URL, { waitUntil: 'commit', timeout: 60000 });
-    await sleep(2000);
+    await waitForAppReady(page, 60_000);
 
     // Clear browser storage
     await clearBrowserStorage(page);
     await page.reload({ waitUntil: 'commit', timeout: 60000 });
-    await sleep(2000);
+    await waitForAppReady(page, 30_000);
 
-    // Click "Create Account" button
     const joinBtn = page.getByTestId('create-account-button');
-    if (await isVisibleWithin(joinBtn, 5000)) {
-      await joinBtn.click();
-      await sleep(1000);
+    if (!(await isVisibleWithin(joinBtn, 10_000))) {
+      console.log(`  No Create Account button for ${username}; nothing was submitted`);
+      return false;
     }
+    await joinBtn.click();
+    await sleep(1000);
 
     // Step 1: Fill workspace address
     const serverInput = page.getByRole('textbox', { name: 'Workspace Address' });
@@ -126,10 +133,15 @@ async function registerUser(page: Page, username: string, password: string): Pro
       const submitBtn = page.getByRole('button', { name: 'Join', exact: true });
       if (await submitBtn.isVisible()) {
         await submitBtn.click();
+        submitted = true;
         await sleep(5000);
       }
     }
 
+    if (!submitted) {
+      console.log(`  The profile form never reached Join for ${username}; nothing was submitted`);
+      return false;
+    }
     console.log(`  User ${username} registration submitted`);
     return true;
   } catch (error) {
