@@ -10,6 +10,7 @@ import { debugLog } from '../debug-config';
 import { instanceManager, instanceChannel, instanceInboundRouter } from '../multi-instance';
 import { isEnsureMessengerOpenResponse } from '../multi-instance/outbound-queue';
 import type { AckResult } from '@/lib/multi-instance/outbound-queue-types';
+import { ensureMessengerOnLeader, openMessengerOnLeader, sendReliableOnLeader } from '@/lib/agent-ilm/leader-messenger';
 
 export interface MessengerConfig {
   init: () => Promise<void>;
@@ -45,7 +46,7 @@ export class MessengerOperations {
       if (!client) {
         throw new Error('WebSocket client not available (leader without client)');
       }
-      await client.openMessengerFor(cid.toString());
+      await openMessengerOnLeader(client, cid);
     } else {
       debugLog('MessengerOperations', '[Follower] Proxying openMessengerFor through leader');
 
@@ -84,7 +85,7 @@ export class MessengerOperations {
       if (!client) {
         throw new Error('WebSocket client not available (leader without client)');
       }
-      return await client.ensureMessengerOpen(cid.toString());
+      return await ensureMessengerOnLeader(client, cid);
     } else {
       debugLog('MessengerOperations', '[Follower] Proxying ensureMessengerOpen through leader');
 
@@ -140,7 +141,7 @@ export class MessengerOperations {
       if (!client) {
         throw new Error('WebSocket client not available (leader without client)');
       }
-      await client.sendP2PMessageReliable(localCid.toString(), peerCid.toString(), message, securityLevel);
+      await sendReliableOnLeader(client, localCid, peerCid, message, securityLevel);
     } else {
       debugLog('MessengerOperations', '[Follower] Proxying sendP2PMessageReliable through leader');
 

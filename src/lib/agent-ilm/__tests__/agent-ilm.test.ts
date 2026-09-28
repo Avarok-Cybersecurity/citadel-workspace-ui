@@ -5,7 +5,7 @@
  * Faked: the agent at the other end of the socket, which answers on the bus exactly as the
  * WebSocket delivers answers, and the WASM marks -- the two edges a unit test has no process for.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';
 import { adoptAgentIlm, sendViaAgentIlm, type AgentIlmIO } from '../agent-ilm';
 
@@ -70,8 +70,6 @@ function agent(opts: { offer: unknown; enable?: string | null; send?: (attempt: 
 }
 
 describe('who runs the ILM', () => {
-  beforeEach(() => { eventEmitter.removeAllListeners?.('websocket-message'); });
-
   it('stays in the browser with an agent that offers nothing, and asks nothing more', async () => {
     for (const offer of ['absent', undefined, null]) {
       const a: FakeAgent = fakeAgent(agent({ offer }));
