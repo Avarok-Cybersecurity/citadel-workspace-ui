@@ -141,7 +141,9 @@ const dist = join(root, 'dist');
  * DEFERRED_MODULES below fails if any of it comes back.
  */
 /**
- * 322 -> 323, the third raise the note above said should not happen -- recorded, not hidden.
+ * 322 -> 323, approved by the owner (2026-09-28): features are not cut to fit this number. It
+ * is our own tripwire (not a Lighthouse limit) for a chunk arriving on the landing page by
+ * accident; raise it on purpose, with the reason written here, when real features grow the shell.
  *
  * CI measured 322.1 for the hierarchy editor (UI #65 with parent #163), a 0.1 KB overage that
  * this file already classes as gzip noise; the local build reads 321.7. What grew is not a chunk:
@@ -149,9 +151,9 @@ const dist = join(root, 'dist');
  * whole shell -- landing page included -- reads. Making `updateTreeSchema` a dynamic import
  * was tried and moved the total by less than 0.05 KB, so it was not kept.
  *
- * The reduction the note above names is still the answer and is still owed: defer the service
- * initialisation until after sign-in, which returns tens of kilobytes. Lowering this number
- * back is what finishing that looks like.
+ * The way to lower it is the owner's preferred shape: skeleton-first loading with the shell split
+ * into smaller chunks, and service initialisation deferred until after sign-in -- worth tens of
+ * kilobytes, not trimming features.
  */
 const BUDGET_KB = 323;
 
