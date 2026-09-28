@@ -24,6 +24,8 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
 
   // Map client transferId to protocol objectId for correlation
   private transferIdToObjectId: Map<string, string> = new Map<string, string>();
+  /** Accepts waiting for their transfer's protocol half; see awaitObjectId. */
+  private objectIdWaiters: Map<string, Array<(objectId: string | undefined) => void>> = new Map();
   private objectIdToTransferId: Map<string, string> = new Map<string, string>();
 
   /**
@@ -183,17 +185,29 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   // ============================================================================
 
   /**
-   * The protocol object_id for a transfer, or undefined when the two halves have
-   * not been joined yet. Protected rather than private because the accept path
-   * lives in the subclass and MUST translate before responding.
+   * The object_id once the two halves join, waiting up to `timeoutMs` for it; undefined if they
+   * never do. For a large file the bubble arrives seconds before the protocol offer (the sender
+   * announces, then stages the bytes), so an accept pressed at once must wait rather than fail.
    */
-  protected resolveObjectId(transferId: string): string | undefined {
-    return this.transferIdToObjectId.get(transferId);
+  protected awaitObjectId(transferId: string, timeoutMs: number): Promise<string | undefined> {
+    const known: string | undefined = this.transferIdToObjectId.get(transferId);
+    if (known !== undefined) return Promise.resolve(known);
+    return new Promise((resolve) => {
+      const done = (objectId: string | undefined): void => { clearTimeout(timer); resolve(objectId); };
+      const timer: ReturnType<typeof setTimeout> = setTimeout(() => {
+        this.objectIdWaiters.set(transferId, (this.objectIdWaiters.get(transferId) ?? []).filter((w) => w !== done));
+        resolve(undefined);
+      }, timeoutMs);
+      this.objectIdWaiters.set(transferId, [...(this.objectIdWaiters.get(transferId) ?? []), done]);
+    });
   }
 
   registerTransferMapping(transferId: string, objectId: string): void {
     this.transferIdToObjectId.set(transferId, objectId);
     this.objectIdToTransferId.set(objectId, transferId);
+    const waiters: Array<(objectId: string | undefined) => void> = this.objectIdWaiters.get(transferId) ?? [];
+    this.objectIdWaiters.delete(transferId);
+    for (const release of waiters) release(objectId);
   }
 
   // ============================================================================
@@ -211,6 +225,8 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
 
     this.transferIdToObjectId.clear();
     this.objectIdToTransferId.clear();
+    for (const waiters of this.objectIdWaiters.values()) for (const release of waiters) release(undefined);
+    this.objectIdWaiters.clear();
     this.tickCorrelation.requestIdToTransferId.clear();
     this.tickCorrelation.requestIdToDownloadPath.clear();
     this.tickCorrelation.foreignRequestIds.clear();

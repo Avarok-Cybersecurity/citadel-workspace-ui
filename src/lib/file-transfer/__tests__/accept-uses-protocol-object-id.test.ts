@@ -43,6 +43,7 @@ vi.mock('@/lib/websocket-service', () => ({
 }));
 
 import { FileTransferIO } from '../io';
+import { TIMEOUT } from '../../timeout-constants';
 
 const UUID: "6f1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8" = '6f1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8';
 const OBJECT_ID: string = '90210';
@@ -72,15 +73,44 @@ describe('accepting a transfer', () => {
     expect(sent.RespondFileTransfer.accept).toBe(true);
   });
 
-  it('refuses with a readable message when the two halves are not joined yet', async () => {
-    const io: FileTransferIO = new FileTransferIO();
+  // Found live between two Macs (2026-09-27): for a large file the bubble arrives seconds before
+  // the protocol offer (the sender announces, then stages the bytes), so an Accept pressed at once
+  // was refused with "not announced over the protocol yet" -- and nothing tried again when the
+  // halves joined a moment later. The accept now waits for the join, for as long as the sender's
+  // own SendFile may take (TIMEOUT.FILE_SEND_MS).
+  it('an accept pressed before the protocol offer is sent once the two halves join', async () => {
+    vi.useFakeTimers();
+    try {
+      const io: FileTransferIO = new FileTransferIO();
+      const accepted: Promise<void> = accept(io, UUID);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(sendRequest).not.toHaveBeenCalled();
 
-    // No mapping registered — the bubble arrived, the bytes have not.
-    await expect(accept(io, UUID)).rejects.toThrow(/not been announced over the protocol/);
+      io.registerTransferMapping(UUID, OBJECT_ID);
+      await accepted;
 
-    // The point of the guard: nothing is sent, and the failure is not a raw
-    // BigInt parse error the user cannot act on.
-    expect(sendRequest).not.toHaveBeenCalled();
+      expect(sendRequest).toHaveBeenCalledTimes(1);
+      const sent: SentRequest = sendRequest.mock.calls[0]?.[0] as SentRequest;
+      expect(sent.RespondFileTransfer.object_id).toBe(BigInt(OBJECT_ID));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('refuses with a readable message when the protocol offer never comes', async () => {
+    vi.useFakeTimers();
+    try {
+      const io: FileTransferIO = new FileTransferIO();
+      const accepted: Promise<void> = accept(io, UUID);
+      const refusal: Promise<unknown> = expect(accepted).rejects.toThrow(/not been announced over the protocol/);
+      await vi.advanceTimersByTimeAsync(TIMEOUT.FILE_SEND_MS + 1);
+      await refusal;
+      // The point of the guard: nothing is sent, and the failure is not a raw
+      // BigInt parse error the user cannot act on.
+      expect(sendRequest).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
