@@ -10,6 +10,7 @@
  * @deprecated Use IFileTransferIORouter and RealProtocolIORouter directly.
  */
 
+import { TIMEOUT } from '../timeout-constants';
 import { websocketService } from '../websocket-service';
 import { RealProtocolIORouter } from './real-protocol-io-router';
 import type { FileSource } from './io-router-types';
@@ -72,7 +73,11 @@ export class FileTransferIO extends RealProtocolIORouter {
     // `BigInt(<uuid>)`, which throws SyntaxError synchronously while the request
     // literal is built — before anything is sent — so RespondFileTransfer was
     // never issued for any incoming transfer and the bytes never landed.
-    const objectId: string | undefined = this.resolveObjectId(intent.transferId);
+    //
+    // Waited for, not just looked up: the protocol half of a large file trails its bubble (see
+    // awaitObjectId). The sender's own SendFile gives up after FILE_SEND_MS, so waiting longer
+    // than that could only ever end in the same refusal.
+    const objectId: string | undefined = await this.awaitObjectId(intent.transferId, TIMEOUT.FILE_SEND_MS);
     if (objectId === undefined) {
       throw new Error(
         'This transfer has not been announced over the protocol yet. ' +

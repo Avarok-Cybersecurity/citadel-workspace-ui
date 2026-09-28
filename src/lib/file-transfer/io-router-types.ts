@@ -67,6 +67,12 @@ export interface SendFileResult {
   protocolId: string;
   /** Client transfer ID echoed back */
   transferId: string;
+  /**
+   * The SendFile request's id. The agent can answer it a SECOND time, with a
+   * SendFileRequestFailure, when the SDK refuses the object after accepting the
+   * request; the router files it so that refusal still reaches the transfer.
+   */
+  requestId: string;
 }
 
 export interface CancelTransferParams {

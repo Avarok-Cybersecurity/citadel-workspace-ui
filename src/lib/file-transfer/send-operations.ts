@@ -148,6 +148,7 @@ export async function executeSendFile(
         resolve({
           protocolId: params.transferId,
           transferId: params.transferId,
+          requestId,
         });
       }
 

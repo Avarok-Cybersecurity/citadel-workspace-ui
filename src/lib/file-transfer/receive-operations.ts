@@ -197,6 +197,20 @@ export function createStatusChangeHandler(
   correlation: TickCorrelation
 ): (message: Record<string, unknown>) => void {
   return (message: Record<string, unknown>) => {
+    // A send the agent accepted and the SDK then refused: the same request_id answered twice,
+    // Success then Failure. executeSendFile resolved on the first answer, so this is the only
+    // place the refusal can land; only a request the router filed after acceptance is joined.
+    const lateRefusal: { cid: bigint; message: string; request_id?: string } | undefined =
+      message.SendFileRequestFailure as { cid: bigint; message: string; request_id?: string } | undefined;
+    if (lateRefusal?.request_id) {
+      const refusedTransfer: string | undefined = correlation.requestIdToTransferId.get(lateRefusal.request_id);
+      if (refusedTransfer) {
+        correlation.requestIdToTransferId.delete(lateRefusal.request_id);
+        callback({ protocolId: '', transferId: refusedTransfer, cid: lateRefusal.cid, success: false, accepted: false, message: lateRefusal.message });
+      }
+      return;
+    }
+
     const notification: FileTransferStatusNotification | undefined = message.FileTransferStatusNotification as
       | FileTransferStatusNotification
       | undefined;

@@ -144,9 +144,19 @@ export async function handleProtocolStatus(
   if (!transfer) return;
 
   if (!event.success) {
+    if (isTerminalTransferState(transfer.state)) return;
     await applyTransferOutcome(deps, transfer.id, {
       success: false,
       errorMessage: event.message ?? 'The Citadel agent rejected the transfer response.',
+    });
+    // Only this side's agent refused, so only this side learns of it: without the signal the
+    // peer's offer stayed "Waiting…" for a transfer that can no longer happen. The agent's
+    // reason stays local; it can name this machine's configuration.
+    await deps.io.executeIntent({
+      type: 'send-cancel',
+      transferId: transfer.id,
+      targetCid: peerCidOf(transfer),
+      reason: 'The transfer failed on the other device.',
     });
     return;
   }
