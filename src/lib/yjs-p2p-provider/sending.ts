@@ -96,7 +96,7 @@ export function sendSyncMessage(
     type: 'yjs_sync',
     sub_type: subType,
     document_id: ctx.documentId,
-    data: Array.from(data),
+    data,
     doc_hash: hash,
     revision: ctx.revision,
     message_id: messageId,
@@ -153,7 +153,7 @@ export function broadcastAwareness(ctx: SendingContext, update: Uint8Array): voi
   const message: YjsAwarenessMessage = {
     type: 'yjs_awareness',
     document_id: ctx.documentId,
-    awareness: Array.from(update),
+    awareness: update,
   };
 
   sendP2PMessage(ctx, message);
