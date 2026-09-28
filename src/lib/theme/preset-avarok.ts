@@ -52,6 +52,9 @@ export const AVAROK_LIGHT: ThemePalette = {
   border: { h: 240, s: 15, l: 88 },
   input: { h: 240, s: 20, l: 97 },
   ring: { h: 257, s: 45, l: 45 },
+  // The softest purple edge that still clears 3:1 on background, card and surface (3.33 / 3.24 /
+  // 3.01): controlBorderFor(primaryAccent, surfaces), written out so index.css can match it.
+  controlBorder: { h: 257, s: 35, l: 62 },
 };
 
 export const AVAROK_DARK: ThemePalette = {
@@ -96,6 +99,8 @@ export const AVAROK_DARK: ThemePalette = {
   border: { h: 222, s: 23, l: 23 },
   input: { h: 235, s: 25, l: 10 },
   ring: { h: 251, s: 85, l: 75 },
+  // 3.86 / 3.49 / 3.11 on background, card and surface; see the light value.
+  controlBorder: { h: 251, s: 35, l: 58 },
 };
 
 /** Corner rounding the product ships with, in rem. */

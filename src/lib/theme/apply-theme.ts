@@ -87,5 +87,5 @@ const EMPTY_PALETTE_SHAPE: ThemePalette = {
   destructive: ZERO, destructiveForeground: ZERO, destructiveEmphasis: ZERO,
   success: ZERO, successForeground: ZERO,
   warning: ZERO, warningForeground: ZERO,
-  border: ZERO, input: ZERO, ring: ZERO,
+  border: ZERO, input: ZERO, ring: ZERO, controlBorder: ZERO,
 };

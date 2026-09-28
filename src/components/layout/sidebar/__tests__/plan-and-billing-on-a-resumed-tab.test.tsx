@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { WorkspaceContext, useWorkspace } from '@/contexts/WorkspaceContext';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { PermissionsProvider } from '@/contexts/PermissionsContext';
 
 let selectedServer: string = 'acme.work.avarok.net';
 vi.mock('@/lib/tab-context', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
@@ -42,7 +43,8 @@ function AsMember({ role }: { role: string }): JSX.Element {
   const { state } = useWorkspace();
   return (
     <WorkspaceContext.Provider value={{ state: { ...state, currentUser: { id: 'pia', username: 'pia', name: 'Pia', role } } }}>
-      <SidebarProvider><AdminSettingsSection /></SidebarProvider>
+      {/* Where the app renders it: the section asks whether Workspace settings may be offered. */}
+      <PermissionsProvider><SidebarProvider><AdminSettingsSection /></SidebarProvider></PermissionsProvider>
     </WorkspaceContext.Provider>
   );
 }

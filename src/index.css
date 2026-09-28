@@ -76,6 +76,8 @@
     --border: 240 15% 88%;
     --input: 240 20% 97%;
     --ring: 257 45% 45%;
+    /* Resting edge of text fields: >= 3:1 on background/card/surface (WCAG 1.4.11). */
+    --control-border: 257 35% 62%;
 
     --radius: 0.75rem;
 
@@ -150,6 +152,7 @@
     --border: 222 23% 23%;          /* was #2D3548 */
     --input: 235 25% 10%;           /* was #131420 */
     --ring: 251 85% 75%;
+    --control-border: 251 35% 58%;
 
     /* The sidebar family, aliased onto the palette rather than given its own.
        shadcn's sidebar primitive references bg-sidebar / bg-sidebar-accent /

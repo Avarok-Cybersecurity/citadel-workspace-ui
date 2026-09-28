@@ -25,6 +25,7 @@ import * as ws from './workspace-operations';
 import * as members from './member-operations';
 import * as messaging from './messaging-operations';
 import * as nodes from './node-operations';
+import { updateWorkspaceProfile, type WorkspaceProfileChange } from './workspace-profile';
 
 export class WorkspaceService implements ProtocolSender {
   private static instance: WorkspaceService;
@@ -118,6 +119,7 @@ export class WorkspaceService implements ProtocolSender {
   public createWorkspace(n: string, d: string, p: string, m?: Uint8Array): Promise<void> { return ws.createWorkspace(this, n, d, p, m); }
   public updateWorkspace(n?: string, d?: string, p?: string, m?: Uint8Array): Promise<void> { return ws.updateWorkspace(this, n, d, p, m); }
   public updateWorkspaceTheme(theme: Uint8Array, workspaceId?: string): Promise<void> { return ws.updateWorkspaceTheme(this, theme, workspaceId); }
+  public updateWorkspaceProfile(workspaceId: string, change: WorkspaceProfileChange): Promise<void> { return updateWorkspaceProfile(this, workspaceId, change); }
 
   // Member operations
   public addMember(userId: string, role: UserRoleTS, domainId?: string, metadata?: Uint8Array): Promise<void> { return members.addMember(this, userId, role, domainId, metadata); }
