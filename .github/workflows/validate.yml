@@ -9,7 +9,11 @@ on:
     branches: ["master"]
 
 concurrency:
-  group: ${{ github.head_ref || github.run_id }}
+  # One live run per PR branch, and one per pushed branch. This keyed pushes on run_id, which is
+  # unique, so every merge to master started a full 57-job validation that nothing superseded:
+  # on 2026-09-28 six of them (~280 queued jobs) sat ahead of the parent's deploy for an hour.
+  # The newest master push is the only one whose result matters.
+  group: validate-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 env:
