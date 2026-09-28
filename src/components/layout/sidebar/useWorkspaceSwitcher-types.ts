@@ -3,6 +3,7 @@
  *
  * Its own module because the hook was 262 lines with it inline.
  */
+import type { WorkspaceLogo } from '@/lib/workspace-metadata-service';
 import type { Dispatch, SetStateAction } from 'react';
 import type { StoredWorkspace } from './stored-workspace-list';
 import type { WorkflowStep } from './useWorkspaceSwitcher';
@@ -17,8 +18,7 @@ export interface UseWorkspaceSwitcherResult {
   isManagingAccounts: boolean;
   setIsManagingAccounts: Dispatch<SetStateAction<boolean>>;
   currentStep: WorkflowStep;
-  workspaceLogo: string | null;
-  isInitials: boolean;
+  workspaceLogo: WorkspaceLogo;
   isSwitching: boolean;
   targetWorkspaceForNewAccount: { workspaceName: string; serverAddress: string } | null;
   setTargetWorkspaceForNewAccount: Dispatch<SetStateAction<{ workspaceName: string; serverAddress: string } | null>>;

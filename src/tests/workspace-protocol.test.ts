@@ -6,7 +6,7 @@ import {
   createMessagePayload,
   serializeWorkspacePayload,
   deserializeWorkspacePayload
-} from '../types/workspace-protocol';
+} from '../types/workspace-payload-codec';
 import { debugLog } from '@/lib/debug-config';
 import type { WorkspaceProtocolPayloadTS } from '@/types/workspace-protocol';
 
