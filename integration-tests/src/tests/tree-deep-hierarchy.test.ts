@@ -24,14 +24,11 @@ import {
   createDeepHierarchy,
   createSiblingNodes,
   verifyNodeDepth,
-  getNodeViaProtocol,
   countTreeNodes,
   listNodesViaProtocol,
   deleteNodeViaProtocol,
   getTreeSchema,
-  updateTreeSchema,
   type DiagnosticsHandle,
-  type TreeSchema,
   type TreeNode,
   // Test framework
   TestHarness,
@@ -62,8 +59,7 @@ interface TestResults {
   // `undefined` means "not exercised" — see the SKIP handling below. The old
   // code set these to `true` when the schema could not be read, which printed
   // PASS for a test that never ran.
-  maxDepthSchemaSet?: boolean;
-  maxDepthPathBuilt?: boolean;
+  maxDepthDerived?: boolean;
   maxDepthConstraintEnforced?: boolean;
   maxDepthErrorNamesDepth?: boolean;
 
@@ -339,99 +335,38 @@ async function runTest(): Promise<boolean> {
     console.log('TEST 3: Max Depth Constraint');
     console.log('-'.repeat(50));
 
-    // Get current schema
-    console.log('\n  Getting current tree schema...');
-    const originalSchema = await getTreeSchema(page);
+    // The server derives max_depth from the nesting rules (schema_rules.rs); a caller can no
+    // longer set it. So the limit this checks is the one the chain above created: its deepest
+    // level allows no children, the schema reports a depth equal to the chain's length, and a
+    // node one level further is refused -- for its depth, not for some unrelated reason.
+    console.log('\n  Reading the schema the chain produced...');
+    const derivedSchema = await getTreeSchema(page);
+    results.maxDepthDerived = derivedSchema !== null && derivedSchema.max_depth === DEEP_HIERARCHY_LEVELS;
+    console.log(`  Derived max_depth ${derivedSchema?.max_depth} equals the chain length ${DEEP_HIERARCHY_LEVELS}: ${report(results.maxDepthDerived)}`);
 
-    if (originalSchema) {
-      console.log(`  Current schema max_depth: ${originalSchema.max_depth}`);
-
-      // Try to set max_depth to 5
-      console.log('\n  Setting schema max_depth to 5...');
-      const newSchema: TreeSchema = {
-        ...originalSchema,
-        max_depth: 5,
-      };
-
-      results.maxDepthSchemaSet = await updateTreeSchema(page, newSchema);
-      console.log(`  Schema update: ${results.maxDepthSchemaSet ? 'SUCCESS' : 'FAILED'}`);
-
-      if (results.maxDepthSchemaSet) {
-        // Build an explicit chain down to depth 4.
-        //
-        // This used to try `listNodesViaProtocol(page, { depth: 4 })` first and
-        // take element [0] as "a node at depth 4". ListNodes' `depth` is a
-        // BFS *traversal* limit measured from the start nodes, not an absolute
-        // depth filter (async_node_ops.rs list_nodes computes `base_depth` from
-        // the start set), so with no parent_id it returns every root-level node
-        // plus four levels below — and [0] is a depth-1 office. The subsequent
-        // "create at depth 6" then actually created at depth 3, sailed past
-        // max_depth:5, and the test blamed the server for not enforcing a limit
-        // it had never been asked to enforce.
-        const pathToDepth4 = await createDeepHierarchy(page, 4, workspaceRootId, 'MaxDepthPath');
-        createdNodeIds.push(...pathToDepth4);
-        const depth4ParentId = pathToDepth4.length === 4 ? pathToDepth4[3] : null;
-
-        const depth4Node = depth4ParentId
-          ? await getNodeViaProtocol(page, depth4ParentId)
-          : null;
-        results.maxDepthPathBuilt = depth4Node !== null && depth4Node.depth === 4;
-        console.log(`  Parent chain reaches depth 4: ${report(results.maxDepthPathBuilt)} (actual depth ${depth4Node?.depth})`);
-
-        if (depth4ParentId && results.maxDepthPathBuilt) {
-          console.log('\n  Creating node at depth 5 (should succeed)...');
-          const depth5Result = await createNodeViaProtocol(
-            page,
-            depth4ParentId,
-            { Child: 'Office' },
-            `MaxDepthTest_${timestamp}`,
-            'At the max_depth limit — should be accepted'
-          );
-
-          if (depth5Result.success && depth5Result.nodeId) {
-            createdNodeIds.push(depth5Result.nodeId);
-            console.log('\n  Attempting to create node at depth 6 (should be rejected)...');
-            const depth6Result = await createNodeViaProtocol(
-              page,
-              depth5Result.nodeId,
-              { Child: 'Room' },
-              `TooDeepNode_${timestamp}`,
-              'Should be rejected'
-            );
-
-            results.maxDepthConstraintEnforced = !depth6Result.success;
-            if (depth6Result.success) {
-              console.log('  WARNING: Node created at depth 6 despite max_depth:5');
-              if (depth6Result.nodeId) {
-                createdNodeIds.push(depth6Result.nodeId);
-              }
-            } else {
-              console.log(`  Depth 6 creation rejected: ${depth6Result.error}`);
-              // Insist the rejection is the depth rejection. Any other failure
-              // (permissions, a dropped socket) would otherwise read as the
-              // constraint working. The server's message is
-              // "Node 'x' at depth N exceeds schema max_depth M".
-              results.maxDepthErrorNamesDepth =
-                depth6Result.error?.toLowerCase().includes('depth') ?? false;
-              console.log(`  Error names the depth limit: ${report(results.maxDepthErrorNamesDepth)}`);
-            }
-          } else {
-            // A create AT the limit must be accepted; if it is not, the limit
-            // is off by one and the depth-6 case cannot be reached at all.
-            console.log(`  Depth 5 creation unexpectedly rejected: ${depth5Result.error}`);
-            results.maxDepthConstraintEnforced = false;
-          }
-        }
-
-        // Restore original schema
-        console.log('\n  Restoring original schema...');
-        await updateTreeSchema(page, originalSchema);
+    const deepest: string | undefined = deepNodeIds[DEEP_HIERARCHY_LEVELS - 1];
+    if (deepest) {
+      console.log(`\n  Attempting a node at depth ${DEEP_HIERARCHY_LEVELS + 1} (should be rejected)...`);
+      const tooDeep = await createNodeViaProtocol(
+        page,
+        deepest,
+        { Child: 'Office' },
+        `TooDeepNode_${timestamp}`,
+        'Should be rejected'
+      );
+      results.maxDepthConstraintEnforced = !tooDeep.success;
+      if (tooDeep.success) {
+        console.log(`  WARNING: node created below the deepest level`);
+        if (tooDeep.nodeId) createdNodeIds.push(tooDeep.nodeId);
+      } else {
+        console.log(`  Rejected: ${tooDeep.error}`);
+        // Any other failure (permissions, a dropped socket) would otherwise read as the limit
+        // working. The server says "Node 'x' at depth N exceeds max depth M".
+        results.maxDepthErrorNamesDepth = tooDeep.error?.toLowerCase().includes('depth') ?? false;
+        console.log(`  Error names the depth limit: ${report(results.maxDepthErrorNamesDepth)}`);
       }
     } else {
-      // Genuinely not exercised. Leaving these `undefined` reports SKIP; the
-      // old code set them to `true`, which printed PASS for a test that had
-      // not run and hid a broken GetTreeSchema completely.
-      console.log('  WARNING: Could not get tree schema — max_depth cases SKIPPED');
+      console.log('  WARNING: the chain did not reach its deepest level — depth-limit cases SKIPPED');
     }
 
     await takeScreenshot(page, `${ADMIN_USER}_max_depth`);
@@ -653,8 +588,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  Tree Structure Complete:      ${results.deepHierarchyTreeStructure ? 'PASS' : 'FAIL'}`);
 
     console.log('\nMax Depth Constraint Tests:');
-    console.log(`  Schema Update:                ${report(results.maxDepthSchemaSet)}`);
-    console.log(`  Depth-4 Path Built:           ${report(results.maxDepthPathBuilt)}`);
+    console.log(`  Max Depth Derived:            ${report(results.maxDepthDerived)}`);
     console.log(`  Constraint Enforced:          ${report(results.maxDepthConstraintEnforced)}`);
     console.log(`  Error Names Depth:            ${report(results.maxDepthErrorNamesDepth)}`);
 
@@ -696,8 +630,7 @@ async function runTest(): Promise<boolean> {
 
     const optionalTests = [
       results.customNodeDepthThree,
-      results.maxDepthSchemaSet,
-      results.maxDepthPathBuilt,
+      results.maxDepthDerived,
       results.maxDepthConstraintEnforced,
       results.maxDepthErrorNamesDepth,
     ];

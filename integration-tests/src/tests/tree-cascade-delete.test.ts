@@ -370,8 +370,8 @@ async function runTest(): Promise<boolean> {
     console.log('-'.repeat(50));
     console.log('  Creating 5-level hierarchy: Workspace -> A -> B -> C -> D -> E');
 
-    // Create a 5-level deep hierarchy
-    // Note: Default schema may limit depth, but we try to create as deep as possible
+    // Create a 5-level deep hierarchy: createDeepHierarchy adds one level type per depth, so the
+    // default schema's depth of 2 does not limit it.
     const deepNodeIds = await createDeepHierarchy(
       page,
       DEEP_CASCADE_LEVELS,
