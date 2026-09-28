@@ -19,7 +19,7 @@
  * failure says which one came back.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { stripComments } from '@/test-utils/strip-comments';
 
@@ -91,5 +91,49 @@ describe('the collaborative editor context menu follows the theme', () => {
     expect(block).toContain('hsl(var(--popover))');
     expect(block).toContain('hsl(var(--border))');
     expect(block).toContain('hsl(var(--primary))');
+  });
+});
+
+/**
+ * Text fields draw their edge with `--control-border` (3:1 on every surface, both modes).
+ *
+ * Live (owner, 2026-09-27): the chat composer had no visible border in light mode. The primitives
+ * used `border-input` (~1.08:1 on white) and call sites overrode even that with
+ * `border-surface/50`, `border-surface` or `border-border`. An override of a field's border
+ * colour is what hides the edge, so none is allowed; a field that needs emphasis uses focus.
+ */
+describe('text fields keep a visible edge', () => {
+  const PRIMITIVES: readonly string[] = ['components/ui/input.tsx', 'components/ui/textarea.tsx', 'components/ui/select.tsx'];
+
+  it('the Input, Textarea and Select primitives rest on the control border', () => {
+    for (const file of PRIMITIVES) {
+      const source: string = src(file);
+      expect(source, file).toContain('border-control-border');
+      expect(source, file).not.toMatch(/\bborder-input\b/);
+    }
+  });
+
+  it('no call site overrides a field border with a faint colour', () => {
+    const root: string = join(process.cwd(), 'src');
+    const files: string[] = [];
+    const walk = (dir: string): void => {
+      for (const name of readdirSync(dir)) {
+        const full: string = join(dir, name);
+        if (name === '__tests__' || name === 'node_modules') continue;
+        if (statSync(full).isDirectory()) walk(full);
+        else if (name.endsWith('.tsx')) files.push(full);
+      }
+    };
+    walk(join(root, 'components'));
+    walk(join(root, 'pages'));
+    const FIELD_WITH_FAINT_BORDER: RegExp = /<(?:Input|Textarea|SelectTrigger)\b[^>]*?className=(?:"|\{`|\{cn\()[^>]*?\bborder-(?:surface|border|input|transparent)(?:\/\d+)?\b/gs;
+    const offenders: string[] = [];
+    for (const file of files) {
+      const source: string = stripComments(readFileSync(file, 'utf8'));
+      for (const match of source.matchAll(FIELD_WITH_FAINT_BORDER)) {
+        offenders.push(`${file.slice(root.length + 1)}: ${match[0].slice(0, 90).replace(/\s+/g, ' ')}`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

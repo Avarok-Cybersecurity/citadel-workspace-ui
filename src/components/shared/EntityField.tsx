@@ -36,7 +36,7 @@ export function EntityField({ field, value, onChange, disabled }: EntityFieldPro
             value={value}
             onChange={e => onChange(e.target.value)}
             placeholder={field.placeholder}
-            className="bg-card border-border text-foreground placeholder:text-muted-foreground"
+            className="bg-card text-foreground placeholder:text-muted-foreground"
             required={field.required}
             disabled={disabled}
           />
@@ -51,7 +51,7 @@ export function EntityField({ field, value, onChange, disabled }: EntityFieldPro
             value={value}
             onChange={e => onChange(e.target.value)}
             placeholder={field.placeholder}
-            className="bg-card border-border text-foreground placeholder:text-muted-foreground min-h-[100px]"
+            className="bg-card text-foreground placeholder:text-muted-foreground min-h-[100px]"
             disabled={disabled}
           />
         </div>
@@ -61,7 +61,7 @@ export function EntityField({ field, value, onChange, disabled }: EntityFieldPro
         <div className="grid gap-2">
           <Label htmlFor={field.id} className="text-foreground">{field.label}</Label>
           <Select value={value} onValueChange={onChange} disabled={disabled}>
-            <SelectTrigger id={field.id} className="bg-card border-border text-foreground">
+            <SelectTrigger id={field.id} className="bg-card text-foreground">
               <SelectValue placeholder={field.placeholder ?? `Select ${field.label.toLowerCase()}`} />
             </SelectTrigger>
             <SelectContent className="bg-card border-border">

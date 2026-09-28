@@ -20,6 +20,7 @@ export interface WorkspacePayload {
   workspace: {
     id: string;
     name: string;
+    description?: string;
     metadata?: Record<string, unknown>;
   };
   connection: ConnectionInfo;
