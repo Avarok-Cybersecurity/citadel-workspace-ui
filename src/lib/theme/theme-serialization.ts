@@ -1,6 +1,7 @@
 import type { WorkspaceTheme, ThemePalette, HslColor, WorkspaceIcon } from './theme-types';
 import { defaultTheme } from './presets';
 import { controlBorderFor } from './palette-contrast';
+import { metadataDocument } from '@/lib/workspace-metadata/metadata-document';
 
 /**
  * Carrying a theme in the workspace's `metadata` bytes.
@@ -61,28 +62,8 @@ export function serializeTheme(theme: WorkspaceTheme): Uint8Array {
 export function deserializeTheme(
   metadata: Uint8Array | number[] | Record<string, unknown> | null | undefined,
 ): WorkspaceTheme | null {
-  if (!metadata) return null;
-
-  let document: unknown;
-  // ArrayBuffer.isView, not `instanceof Uint8Array`: a typed array that crossed
-  // a realm boundary — the WASM bindings, a worker, jsdom in the unit tests —
-  // fails the instanceof check while being a perfectly good byte array, and the
-  // miss is silent, landing the bytes in the object branch below.
-  if (ArrayBuffer.isView(metadata) || Array.isArray(metadata)) {
-    const array: Uint8Array<ArrayBuffer> = new Uint8Array(metadata as ArrayLike<number>);
-    if (array.length === 0) return null;
-    try {
-      document = JSON.parse(new TextDecoder().decode(array));
-    } catch {
-      // Metadata is a general-purpose field; another feature's bytes landing
-      // here is expected, not exceptional.
-      return null;
-    }
-  } else {
-    document = metadata;
-  }
-
-  if (!isRecord(document)) return null;
+  const document: Record<string, unknown> | null = metadataDocument(metadata);
+  if (!document) return null;
 
   const envelope: unknown = document.theme;
   if (!isRecord(envelope)) return null;

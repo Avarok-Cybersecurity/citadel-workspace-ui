@@ -7,31 +7,19 @@ import type { WorkspaceIcon } from '@/lib/theme/theme-types';
 
 // Interface for workspace logo information
 export interface WorkspaceLogo {
-  /** 'emoji' when the theme sets one, otherwise initials derived from the name. */
-  type: 'emoji' | 'initials';
+  /** The uploaded icon, else the theme's emoji, else initials derived from the name. */
+  type: 'image' | 'emoji' | 'initials';
   data: string;
 }
 
 /**
- * The workspace's logo: its themed icon, or initials as a fallback.
- *
- * This previously took `Record<string, any>` and tested `metadata.logo`. The
- * metadata is a `Vec<u8>` byte array, so that property was always undefined and
- * the image branch was unreachable — every workspace silently fell back to
- * initials, with no type error possible because `any` accepts the lookup.
- *
- * The icon now comes from the workspace theme, which is where it is actually
- * edited and stored, rather than being guessed at from raw bytes.
+ * The workspace's logo: its uploaded icon (`workspaceLogoOf` the metadata), the theme's emoji, or
+ * initials as a fallback -- in that order.
  */
-export function getWorkspaceLogo(workspaceName: string, icon?: WorkspaceIcon): WorkspaceLogo {
-  if (icon?.emoji) {
-    return { type: 'emoji', data: icon.emoji };
-  }
-
-  return {
-    type: 'initials',
-    data: getWorkspaceInitials(workspaceName),
-  };
+export function getWorkspaceLogo(workspaceName: string, icon: WorkspaceIcon | undefined, image: string | null): WorkspaceLogo {
+  if (image) return { type: 'image', data: image };
+  if (icon?.emoji) return { type: 'emoji', data: icon.emoji };
+  return { type: 'initials', data: getWorkspaceInitials(workspaceName) };
 }
 
 /**

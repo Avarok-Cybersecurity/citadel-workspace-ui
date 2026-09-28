@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type { UseWorkspaceSwitcherResult } from './useWorkspaceSwitcher-types';
 import { mayLeaveEditor } from '@/lib/leave-editor';
 import { useConfirm } from '@/components/shared/confirm-dialog';
@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { toastSuccess, toastError } from "@/lib/toast-helpers";
 import { getSelectedUser, type TabUserContext } from "@/lib/tab-context";
 import { getWorkspaceLogo , type WorkspaceLogo } from "@/lib/workspace-metadata-service";
+import { workspaceLogoOf } from "@/lib/workspace-metadata/workspace-logo";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { yieldToEventLoop } from '@/lib/utils/scheduling';
@@ -33,8 +34,6 @@ export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs
   const [isAddingWorkspace, setIsAddingWorkspace] = useState(false);
   const [isManagingAccounts, setIsManagingAccounts] = useState(false);
   const [currentStep, setCurrentStep] = useState<WorkflowStep>("connect");
-  const [workspaceLogo, setWorkspaceLogo] = useState<string | null>(null);
-  const [isInitials, setIsInitials] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
   const [targetWorkspaceForNewAccount, setTargetWorkspaceForNewAccount] = useState<{
     workspaceName: string;
@@ -92,18 +91,13 @@ export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs
     });
   }, [isOpen, loadStoredWorkspaces]);
 
-  useEffect(() => {
-    // The icon comes from the workspace theme, which is where it is edited and
-    // stored. This used to pass the raw metadata bytes and test for a `.logo`
-    // property that a byte array can never have, so it always fell through to
-    // initials.
-    const name: string | undefined = state.workspace?.name ?? workspaceName;
-    if (!name) return;
-
-    const logo: WorkspaceLogo = getWorkspaceLogo(name, theme.icon);
-    setWorkspaceLogo(logo.data);
-    setIsInitials(logo.type === 'initials');
-  }, [state.workspace, workspaceName, theme.icon]);
+  // The uploaded icon (metadata `logo`), else the theme's emoji, else initials. Derived, not
+  // stored in state: a rename or a new icon broadcast re-renders it with nothing to keep in step.
+  const logoName: string = state.workspace?.name ?? workspaceName ?? currentWorkspace?.username ?? 'W';
+  const workspaceLogo: WorkspaceLogo = useMemo(
+    (): WorkspaceLogo => getWorkspaceLogo(logoName, theme.icon, workspaceLogoOf(state.workspace?.metadata)),
+    [logoName, theme.icon, state.workspace?.metadata],
+  );
 
   const handleWorkspaceChange = async (workspace: StoredWorkspace): Promise<void> => {
     // Switching session tears the whole workspace down, editor included.
@@ -213,7 +207,6 @@ export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs
     setIsManagingAccounts,
     currentStep,
     workspaceLogo,
-    isInitials,
     isSwitching,
     targetWorkspaceForNewAccount,
     setTargetWorkspaceForNewAccount,
