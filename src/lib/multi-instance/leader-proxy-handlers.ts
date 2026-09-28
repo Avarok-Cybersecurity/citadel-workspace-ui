@@ -9,6 +9,7 @@
 import type { ProxyResponseData } from './outbound-queue-types';
 import type { WorkspaceProtocolRequest, WorkspaceClient } from 'citadel-workspace-client-ts';
 import { debugLog } from '@/lib/debug-config';
+import { ensureMessengerOnLeader, openMessengerOnLeader, sendReliableOnLeader } from '@/lib/agent-ilm/leader-messenger';
 
 interface ProxyRequest {
   requestId: string;
@@ -62,7 +63,7 @@ export async function handleOpenMessengerProxy(
     return;
   }
 
-  await client.openMessengerFor(request.payload.cid as string);
+  await openMessengerOnLeader(client, BigInt(request.payload.cid as string));
 
   sendAck(request.senderInstanceId, request.requestId, 'processed');
   debugLog('LeaderProxyHandlers', `openMessenger proxy processed for ${request.requestId}`);
@@ -81,7 +82,7 @@ export async function handleEnsureMessengerProxy(
     return;
   }
 
-  const wasOpened: boolean = await client.ensureMessengerOpen(request.payload.cid as string);
+  const wasOpened: boolean = await ensureMessengerOnLeader(client, BigInt(request.payload.cid as string));
 
   sendAck(request.senderInstanceId, request.requestId, 'processed', undefined, { wasOpened });
   debugLog('LeaderProxyHandlers', `ensureMessenger proxy processed for ${request.requestId}`);
@@ -101,9 +102,10 @@ export async function handleSendP2PMessageProxy(
   }
 
   const messageBytes: Uint8Array<ArrayBuffer> = new Uint8Array(request.payload.message as ArrayLike<number>);
-  await client.sendP2PMessageReliable(
-    request.payload.localCid as string,
-    request.payload.peerCid as string,
+  await sendReliableOnLeader(
+    client,
+    BigInt(request.payload.localCid as string),
+    BigInt(request.payload.peerCid as string),
     messageBytes,
     request.payload.securityLevel as 'Standard' | 'Reinforced' | 'High' | 'Extreme' | undefined
   );
