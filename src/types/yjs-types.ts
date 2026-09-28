@@ -21,7 +21,7 @@ export interface YjsSyncMessage {
   type: 'yjs_sync';
   sub_type: YjsSyncSubType;
   document_id: string;
-  data: number[];
+  data: Uint8Array | number[];
   doc_hash?: string;
   revision?: number;
   message_id: string;
@@ -32,7 +32,7 @@ export interface YjsSyncMessage {
 export interface YjsAwarenessMessage {
   type: 'yjs_awareness';
   document_id: string;
-  awareness: number[];
+  awareness: Uint8Array | number[];
 }
 
 export interface YjsAckMessage {

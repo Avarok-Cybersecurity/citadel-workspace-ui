@@ -37,11 +37,18 @@ export type SyncSubType =
 // verification rides the data-bearing messages instead (doc_hash on
 // update/full_state, local_hash on every ACK).
 
+/**
+ * Sent as a Uint8Array (a CBOR byte string, one byte per byte). Builds before
+ * 2026-09-28 sent a number[] (a CBOR int array, up to two bytes per byte), so
+ * receivers accept both via `new Uint8Array(x)`.
+ */
+export type YjsWireBytes = Uint8Array | number[];
+
 export interface YjsSyncMessage {
   type: 'yjs_sync';
   sub_type: SyncSubType;
   document_id: string;
-  data: number[];           // Uint8Array as array
+  data: YjsWireBytes;
   doc_hash?: string;        // SHA-256 of current state
   revision?: number;        // Revision counter
   message_id: string;       // Unique message ID
@@ -52,7 +59,7 @@ export interface YjsSyncMessage {
 export interface YjsAwarenessMessage {
   type: 'yjs_awareness';
   document_id: string;
-  awareness: number[]; // Uint8Array as array
+  awareness: YjsWireBytes;
 }
 
 export interface YjsAckMessage {
