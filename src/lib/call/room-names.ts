@@ -11,7 +11,7 @@
  * names are published here by the component that owns them
  * (WorkspaceEventHandler) rather than read from context.
  */
-import type { DomainNode } from '@/components/layout/sidebar/TreeNodesSection';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 import type { GroupConversation } from '@/types/group';
 import { notifyEach } from '@/lib/notify-listeners';
 

@@ -14,7 +14,7 @@ import { render, renderHook, screen, cleanup } from '@testing-library/react';
 import { CallContext, useCall, type CallContextValue } from '@/lib/call/call-context';
 import { publishChannelNames } from '@/lib/call/room-names';
 import { updateGroups } from '@/lib/group-conversations/group-store';
-import type { DomainNode } from '@/components/layout/sidebar/TreeNodesSection';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 import type { GroupConversation } from '@/types/group';
 import type { CallState } from '@/lib/call/call-state';
 
