@@ -58,7 +58,7 @@ function FormField({ id, name, label, value, onChange, placeholder, type, icon: 
           className={`bg-input text-foreground pl-10 pr-10 h-11 rounded-lg placeholder:text-muted-foreground focus:ring-1 transition-all ${
             error
               ? "border-destructive focus:border-destructive focus:ring-destructive/30"
-              : "border-border focus:border-primary-accent focus:ring-ring/30"
+              : " focus:border-primary-accent focus:ring-ring/30"
           }`}
           placeholder={placeholder}
         />

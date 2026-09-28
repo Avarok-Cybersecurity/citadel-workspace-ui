@@ -1,4 +1,5 @@
 import { AvatarUpload } from './settings/AvatarUpload';
+import { PROFILE_PICTURE } from '@/components/settings/image-upload-kinds';
 import { ProfileDetailsFields, type ProfileDetailsValues } from './settings/ProfileDetailsFields';
 import type { SignupProfileFields } from '@/lib/signup-profile';
 
@@ -23,6 +24,7 @@ export function JoinOptionalProfile({ values, onChange, disabled }: JoinOptional
         </p>
       </div>
       <AvatarUpload
+        kind={PROFILE_PICTURE}
         currentAvatar={values.avatarData ?? undefined}
         onAvatarChange={(avatarData) => onChange('avatarData', avatarData)}
         disabled={disabled}

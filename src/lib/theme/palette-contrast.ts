@@ -53,6 +53,18 @@ export function ensureTextContrast(text: HslColor, surfaces: readonly HslColor[]
   return candidate;
 }
 
+/**
+ * The control border: the accent hue, softened, at the lightest (light mode) or darkest (dark
+ * mode) lightness that still clears 3:1 against every given surface. Starting well inside the
+ * surfaces' lightness and walking away from them is what makes it the SOFTEST edge that is still
+ * clearly visible, rather than the accent itself.
+ */
+export function controlBorderFor(accent: HslColor, surfaces: readonly HslColor[]): HslColor {
+  const meanL: number = surfaces.reduce((acc, s) => acc + s.l, 0) / surfaces.length;
+  const start: HslColor = { h: accent.h, s: Math.min(accent.s, 35), l: meanL > 50 ? 78 : 28 };
+  return ensureTextContrast(start, surfaces, 3);
+}
+
 export function clamp(c: HslColor): HslColor {
   return { ...c, l: Math.min(100, Math.max(0, c.l)) };
 }

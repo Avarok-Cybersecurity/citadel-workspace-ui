@@ -5,11 +5,10 @@ import { broadcastChannelService } from '@/lib/broadcast-channel-service';
 import { connectionManager } from '@/lib/connection';
 import { getSelectedUser } from '@/lib/tab-context';
 import { tabIdentity, type TabIdentity } from '@/lib/tab-identity';
-import { bytesToString } from '@/lib/utils/encoding-utils';
+import { metadataDocument } from '@/lib/workspace-metadata/metadata-document';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
 import { applyOwnMemberRecord, mergeCurrentUser } from './merge-current-user';
-import { debugLog } from '@/lib/debug-config';
 import type { StoredSession } from '@/types/session-types';
 import type { User } from '@/types/workspace-entities';
 
@@ -59,30 +58,18 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
         const rawMetadata: WorkspaceMetadataBytes | Record<string, unknown> | undefined =
           payload.workspace.metadata as WorkspaceMetadataBytes | Record<string, unknown> | undefined;
 
-        // Parse metadata as JSON to check initialization status
-        let isInitialized: boolean = false;
-        let parsedMetadata: Record<string, unknown> | undefined;
-        try {
-          if (rawMetadata && typeof rawMetadata === 'object') {
-            if (Array.isArray(rawMetadata) && rawMetadata.length > 0) {
-              const metadataString: string = bytesToString(rawMetadata as number[]);
-              parsedMetadata = JSON.parse(metadataString);
-              isInitialized = parsedMetadata?.initialized === true;
-            } else if (!Array.isArray(rawMetadata)) {
-              parsedMetadata = rawMetadata;
-              isInitialized = parsedMetadata?.initialized === true;
-            }
-          }
-        } catch (error) {
-          debugLog('UseWorkspaceEventSetup', 'Failed to parse workspace metadata as JSON:', error);
-          isInitialized = false;
-        }
+        // Decoded by the one metadata reader (theme and logo use it too). This
+        // parsed number arrays only: typed-array bytes read as "not initialised".
+        const parsedMetadata: Record<string, unknown> | null = metadataDocument(rawMetadata);
+        const isInitialized: boolean = parsedMetadata?.initialized === true;
 
         setState(prev => ({
           ...prev,
           workspace: {
             id: payload.workspace.id,
             name: payload.workspace.name,
+            // Copied, so the settings dialog shows the stored description.
+            description: payload.workspace.description,
             // The BYTES, not the parse. `WorkspaceState.workspace.metadata` is
             // declared `WorkspaceMetadataBytes` and says "Raw Vec<u8> from the
             // wire. Decode it; do not read properties off it" -- and storing
@@ -103,7 +90,7 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
         broadcastChannelService.broadcastStateSync({
           type: 'workspace',
           data: {
-            workspace: { id: payload.workspace.id, name: payload.workspace.name, metadata: parsedMetadata },
+            workspace: { id: payload.workspace.id, name: payload.workspace.name, description: payload.workspace.description, metadata: parsedMetadata ?? undefined },
             loading: { workspace: false },
             needsWorkspaceInitialization: !isInitialized,
           }

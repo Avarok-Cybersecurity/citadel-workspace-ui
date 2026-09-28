@@ -51,6 +51,8 @@ export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
 
   // The theme write, whose UI promises "Every member will see this theme".
   UpdateWorkspaceTheme: ['Workspace'],
+  // Name, description and icon; answered and broadcast as the workspace record.
+  UpdateWorkspaceProfile: ['Workspace'],
 
   // The workspace-level writes. GeneralTab awaited updateWorkspace, toasted
   // "updated successfully" and cleared its dirty flag on the SEND — so a

@@ -11,7 +11,7 @@ import { useSelfName } from "@/hooks/use-self-name";
 import { ServerConnect } from "@/components/ServerConnect";
 import { SecuritySettings } from "@/components/SecuritySettings";
 import { Join } from "@/components/Join";
-import { getWorkspaceInitials } from "@/lib/workspace-metadata-service";
+import { WorkspaceLogoMark } from "@/components/shared/WorkspaceLogoMark";
 import { useWorkspaceSwitcher } from "./useWorkspaceSwitcher";
 import { WorkspaceSwitcherDropdown } from "./WorkspaceSwitcherDropdown";
 
@@ -35,7 +35,6 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
     setIsManagingAccounts,
     currentStep,
     workspaceLogo,
-    isInitials,
     isSwitching,
     targetWorkspaceForNewAccount,
     setTargetWorkspaceForNewAccount,
@@ -92,18 +91,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
             data-testid="workspace-switcher"
             disabled={isSwitching}
           >
-            {isInitials ? (
-              <div className="w-8 h-8 shrink-0 rounded flex items-center justify-center bg-primary text-primary-foreground text-sm font-semibold">
-                {workspaceLogo || getWorkspaceInitials(workspaceName || currentWorkspace?.username || "W")}
-              </div>
-            ) : (
-              <img
-                src={workspaceLogo || ""}
-                alt={workspaceName || currentWorkspace?.username || "Workspace"}
-                className="w-8 h-8 shrink-0 rounded"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            )}
+            <WorkspaceLogoMark logo={workspaceLogo} name={workspaceName || currentWorkspace?.workspaceName || "Workspace"} />
             <div className="flex-1 min-w-0 text-left">
               <span className="font-semibold text-foreground block truncate group-hover:text-foreground">
                 {workspaceName || currentWorkspace?.workspaceName || "Select Workspace"}
