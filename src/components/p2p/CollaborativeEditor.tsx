@@ -1,5 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { liveDocSyncLabel, type LiveDocSyncLabel } from './live-doc-sync-label';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import { useEffect, useCallback } from 'react';
@@ -14,12 +15,20 @@ import { usePrompt } from '@/components/shared/prompt-dialog';
 import type { FlashComment } from '@/components/p2p/collaborator-cursor-helpers';
 import type { Editor } from '@tiptap/core';
 
+const SYNC_DOT: Readonly<Record<LiveDocSyncLabel['tone'], string>> = {
+  success: 'bg-success',
+  warning: 'bg-warning',
+  muted: 'bg-muted-foreground',
+};
+
 interface CollaborativeEditorProps {
   documentId: string;
   peerCid: string;
   currentUserCid: string;
   currentUserName: string;
   peerName?: string;
+  /** Whether the P2P link to the peer is up: edits only travel over it. */
+  linkUp: boolean;
   creatorCid?: string;
   onSave?: (content: string) => void;
 }
@@ -29,7 +38,8 @@ export function CollaborativeEditor({
   peerCid,
   currentUserCid,
   currentUserName,
-  peerName: _peerName = 'Peer',
+  peerName = 'Peer',
+  linkUp,
   creatorCid,
   onSave,
 }: CollaborativeEditorProps): JSX.Element {
@@ -53,6 +63,8 @@ export function CollaborativeEditor({
     currentUserName,
     creatorCid,
   });
+
+  const syncLabel: LiveDocSyncLabel = liveDocSyncLabel(syncState, linkUp, peerName);
 
   const editor: Editor | null = useEditor({
     extensions: [
@@ -176,17 +188,8 @@ export function CollaborativeEditor({
           ))}
         </div>
         <div className="ml-auto flex items-center gap-1.5">
-          <span className={`
-            w-2 h-2 rounded-full
-            ${syncState === 'synced' ? 'bg-success' :
-              syncState === 'syncing' ? 'bg-warning animate-pulse' :
-                'bg-muted-foreground'}
-          `} />
-          <span className="text-xs text-muted-foreground">
-            {syncState === 'synced' ? 'Synced' :
-              syncState === 'syncing' ? 'Syncing...' :
-                'Connecting...'}
-          </span>
+          <span className={`w-2 h-2 rounded-full ${SYNC_DOT[syncLabel.tone]} ${syncLabel.pulsing ? 'animate-pulse' : ''}`} />
+          <span className="text-xs text-muted-foreground" data-testid="live-doc-sync-state">{syncLabel.text}</span>
         </div>
       </div>
 
