@@ -149,8 +149,13 @@ const dist = join(root, 'dist');
  * check is on the critical path. That is a real fix, not a chunk arriving. The way to lower this
  * is skeleton-first loading with the shell in smaller chunks and service initialisation deferred
  * until after sign-in -- worth tens of kilobytes -- not trimming features.
+ *
+ * 323 -> 324 (2026-09-29), same standing approval: CI read 323.0 once the phone navigation
+ * drawer carried its accessible title and description (UI #93). The sidebar renders on the
+ * landing page, so those two visually hidden lines are on the critical path. An accessibility
+ * fix, not a chunk arriving.
  */
-const BUDGET_KB = 323;
+const BUDGET_KB = 324;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source
