@@ -28,6 +28,12 @@ export type AccountLinkDecision<T extends LinkableSession> =
 export interface AccountLinkIO<T extends LinkableSession> {
   /** `ok: false` when the agent never answered -- not the same as "none". */
   listSessions: () => Promise<{ ok: boolean; sessions: readonly T[] }>;
+  /**
+   * Resolves when sign-in must open without waiting any longer for `listSessions`. The agent
+   * can be unreachable for as long as a permission prompt stays unanswered (Brave's "Access
+   * other apps and services on this device"), and the link used to wait on it for ever.
+   */
+  signInDeadline: () => Promise<void>;
   switchTo: (session: T) => Promise<void>;
   login: (username: string) => void;
 }
@@ -53,13 +59,26 @@ export function decideAccountLink<T extends LinkableSession>(
   return only ? { kind: 'switch', session: only } : { kind: 'login', username: link.username };
 }
 
+/**
+ * Sign-in opens with the link's username as soon as the deadline passes without an answer.
+ * A late answer that shows the account live still switches to it; otherwise the sign-in
+ * already open is the outcome, and it is not opened twice.
+ */
 export async function openAccountLink<T extends LinkableSession>(
   link: AccountLink,
   io: AccountLinkIO<T>,
 ): Promise<AccountLinkDecision<T>> {
-  const { ok, sessions } = await io.listSessions();
+  type Answer = { ok: boolean; sessions: readonly T[] };
+  const answered: Promise<Answer> = io.listSessions();
+  const first: Answer | 'deadline' = await Promise.race([
+    answered,
+    io.signInDeadline().then((): 'deadline' => 'deadline'),
+  ]);
+  const signedInEarly: boolean = first === 'deadline';
+  if (signedInEarly) io.login(link.username);
+  const { ok, sessions }: Answer = first === 'deadline' ? await answered : first;
   const decision: AccountLinkDecision<T> = decideAccountLink(link, ok ? sessions : []);
   if (decision.kind === 'switch') await io.switchTo(decision.session);
-  else io.login(decision.username);
+  else if (!signedInEarly) io.login(decision.username);
   return decision;
 }

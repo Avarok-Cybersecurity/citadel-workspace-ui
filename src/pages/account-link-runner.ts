@@ -9,6 +9,7 @@ import { debugLog } from '@/lib/debug-config';
 import { parseAccountLink, type AccountLink } from '@/lib/onboarding/account-link';
 import { openAccountLink } from '@/lib/onboarding/open-account-link';
 import type { OrphanSessionWithWorkspace } from '@/components/useOrphanSessions';
+import { TIMEOUT } from '@/lib/timeout-constants';
 
 type Toast = ReturnType<typeof useToast>['toast'];
 
@@ -39,6 +40,8 @@ export async function runAccountLink(
         ),
       };
     },
+    signInDeadline: (): Promise<void> =>
+      new Promise((resolve: () => void) => { setTimeout(resolve, TIMEOUT.ACCOUNT_LINK_SIGN_IN_MS); }),
     switchTo: (session: OrphanSessionWithWorkspace) =>
       switchToSession(session, { navigate: deps.navigate, toast: deps.toast, confirm: deps.confirm, signInAs: deps.login }),
     login: deps.login,
