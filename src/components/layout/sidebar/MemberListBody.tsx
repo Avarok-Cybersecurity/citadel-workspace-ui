@@ -3,6 +3,7 @@ import { MembersEmptyState } from './MembersEmptyState';
 import { MemberListItems } from './MemberListItems';
 import { useMemberActionBlocks } from './use-member-action-blocks';
 import type { MemberActionBlocks } from './member-actions-gate';
+import { useLevelName } from '@/hooks/use-level-name';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 
 interface MemberListBodyProps {
@@ -46,6 +47,7 @@ export function MemberListBody({
   onShowAllMembers,
 }: MemberListBodyProps): JSX.Element | null {
   const blocks: MemberActionBlocks = useMemberActionBlocks(activeDomainId);
+  const nameOfLevel: (levelId: string) => string = useLevelName();
   if (isLoading) {
     return (
       // Named, so a failure can say WHICH of the three branches was on screen.
@@ -65,6 +67,7 @@ export function MemberListBody({
     <MemberListItems
       members={members}
       blocks={blocks}
+      nameOfLevel={nameOfLevel}
       currentUsername={currentUsername}
       onEditMember={onEditMember}
       onRemoveMember={onRemoveMember}

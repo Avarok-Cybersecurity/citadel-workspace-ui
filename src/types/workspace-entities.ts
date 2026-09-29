@@ -29,6 +29,12 @@ export interface User extends Entity {
   role?: UserRole;
   permissions?: UserPermissions;
   lastActive?: number; // Timestamp of last activity
+  /**
+   * On a node's member list only: the level above (node or workspace id) whose
+   * membership gives them access here. Undefined when they are listed on the
+   * node itself, and on any other list. See lib/member-access.ts.
+   */
+  accessVia?: string;
 }
 
 // Role enumeration for users

@@ -33,6 +33,7 @@ export interface PermissionDefinition {
 const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   [Permission.All]: 'Every permission, including any added later',
   [Permission.ViewContent]: 'Can view content in this domain',
+  [Permission.ViewMembers]: 'Can see everyone else who has access here, including people who reach it through a level above',
   [Permission.EditContent]: 'Can modify content',
   [Permission.EditMdx]: 'Can edit MDX documents',
   [Permission.SendMessages]: 'Can send messages',

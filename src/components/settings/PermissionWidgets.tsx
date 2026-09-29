@@ -79,7 +79,7 @@ export function GroupedPermissionTable({ domainId }: { domainId: string }): JSX.
     >
       {Object.entries(PERMISSION_CATEGORIES).map(([key, category]) => {
         const allowedCount: number = category.permissions.filter(p => hasPermission(domainId, p)).length;
-        const totalCount: 2 | 5 | 3 | 9 = category.permissions.length;
+        const totalCount: number = category.permissions.length;
 
         return (
           <AccordionItem key={key} value={key} className="border-border/50">

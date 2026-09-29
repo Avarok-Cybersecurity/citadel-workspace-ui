@@ -43,6 +43,8 @@ import { MemberActionItems } from './MemberActionItems';
 import { useMemberActionBlocks } from './use-member-action-blocks';
 import type { MemberActionBlocks } from './member-actions-gate';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import { useLevelName } from '@/hooks/use-level-name';
+import { blocksForMember } from '@/lib/member-access';
 /** Role badge classes. Defined once in lib/role-badge so the sidebar and user
  *  search cannot drift apart again — they already had, and only one was fixed. */
 export function getRoleColor(role: string): string {
@@ -113,6 +115,7 @@ export function MembersSectionModals({
 }: MembersSectionModalsProps): JSX.Element {
   const navigate: NavigateFunction = useNavigate();
   const memberBlocks: MemberActionBlocks = useMemberActionBlocks(currentNodeId ?? WORKSPACE_ROOT_ID);
+  const nameOfLevel: (levelId: string) => string = useLevelName();
   const confirm: ReturnType<typeof useConfirm> = useConfirm();
   // Leaving the workspace view unmounts the editor, so ask first -- as every
   // other navigation out of the sidebar does.
@@ -139,6 +142,7 @@ export function MembersSectionModals({
                     <MemberAvatar username={member.username} name={member.displayName || member.username} className="h-8 w-8" />
                     <div className="flex-1">
                       <p className="text-foreground font-medium">{member.displayName || member.username}</p>
+                      {member.accessVia !== undefined && <p className="text-xs text-muted-foreground" data-testid="member-access-via">via {nameOfLevel(member.accessVia)}</p>}
                       {member.username && <p className="text-sm text-muted-foreground">@{member.username}</p>}
                       {member.title && <p className="text-xs text-foreground/80" data-testid="member-title">{member.title}</p>}
                       {member.email && <p className="text-xs text-muted-foreground" data-testid="member-email">{member.email}</p>}
@@ -150,7 +154,7 @@ export function MembersSectionModals({
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Actions for ${member.username}`}><MoreVertical className="h-4 w-4" aria-hidden="true" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <MemberActionItems
-                          blocks={memberBlocks}
+                          blocks={blocksForMember(memberBlocks, member.accessVia === undefined ? null : nameOfLevel(member.accessVia))}
                           onManagePermissions={() => { onManagePermissions(member); onSetShowAllMembersDialog(false); }}
                           onEditMember={() => { onEditMember(member); onSetShowAllMembersDialog(false); }}
                           onRemoveMember={() => { onRemoveMember(member); onSetShowAllMembersDialog(false); }}

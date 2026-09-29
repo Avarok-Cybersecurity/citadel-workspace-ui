@@ -21,7 +21,7 @@ function renderRow(): HTMLElement {
   render(
     <SidebarProvider>
       <TooltipProvider>
-        <MemberListItems members={[member]} blocks={{ managePermissions: null, changeRole: null, remove: null }} currentUsername="alice0924" onEditMember={vi.fn()} onRemoveMember={vi.fn()} onManagePermissions={vi.fn()} onShowAllMembers={vi.fn()} />
+        <MemberListItems members={[member]} blocks={{ managePermissions: null, changeRole: null, remove: null }} nameOfLevel={(id: string): string => id} currentUsername="alice0924" onEditMember={vi.fn()} onRemoveMember={vi.fn()} onManagePermissions={vi.fn()} onShowAllMembers={vi.fn()} />
       </TooltipProvider>
     </SidebarProvider>,
   );

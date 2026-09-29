@@ -36,6 +36,8 @@ export interface MemberData {
   name?: string;
   avatarUrl?: string;
   role: UserRole;
+  /** The level above that gives them access here, by name; undefined when listed on this node. */
+  accessViaName?: string;
 }
 
 export type UserRole = 'Admin' | 'Owner' | 'Member' | 'Guest' | 'Banned';

@@ -19,6 +19,7 @@ import { workspaceEvents, type MembersPayload } from '@/lib/workspace-events';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
+import { withAccess } from '@/lib/member-access';
 
 /**
  * A reply that never comes must not leave the section spinning forever. Falling
@@ -156,7 +157,9 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
       if (activeDomainId === null) return;
       // The list and the domain it is for, set together -- the response is what
       // ends the load, for THIS domain specifically.
-      setLoaded({ domain: activeDomainId, members: payload.members ?? [] });
+      // Marked with how each has access: a node's list includes people who
+      // reach it through a level above (lib/member-access.ts).
+      setLoaded({ domain: activeDomainId, members: withAccess(payload.members ?? [], payload.inheritedFrom ?? {}) });
       setUnavailableFor(null);
     };
     // `onMemberEvent` returns its unsubscribe SYNCHRONOUSLY. It used to be
