@@ -10,6 +10,8 @@ interface LiveDocumentViewProps {
   documentTitle: string;
   peerCid: string;
   peerName: string;
+  /** Whether the P2P link to the peer is up; see CollaborativeEditor. */
+  linkUp: boolean;
   currentUserCid: string;
   currentUserName: string;
   onSave?: (documentId: string, content: string) => void;
@@ -20,6 +22,7 @@ export function LiveDocumentView({
   documentTitle,
   peerCid,
   peerName,
+  linkUp,
   currentUserCid,
   currentUserName,
   onSave,
@@ -126,6 +129,7 @@ export function LiveDocumentView({
             currentUserCid={currentUserCid}
             currentUserName={currentUserName}
             peerName={peerName}
+            linkUp={linkUp}
             onSave={handleSave}
           />
         </ErrorBoundary>

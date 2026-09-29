@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, type RefObject, type Dispatch, type SetStateAction } from 'react';
 import * as Y from 'yjs';
+import type { EditorSyncState } from './live-doc-sync-label';
 import { YjsP2PProvider, createYjsP2PProvider } from '@/lib/yjs-p2p-provider';
 import { eventEmitter } from '@/lib/event-emitter';
 import type { FlashComment } from './CollaboratorCursor';
@@ -35,7 +36,7 @@ export interface UseCollaborativeEditorResult {
   provider: YjsP2PProvider | null;
   userColor: string;
   connectedUsers: { name: string; isActive: boolean }[];
-  syncState: string;
+  syncState: EditorSyncState;
   flashComments: FlashComment[];
   contextMenu: { x: number; y: number } | null;
   setContextMenu: Dispatch<SetStateAction<{ x: number; y: number } | null>>;
@@ -55,7 +56,7 @@ export function useCollaborativeEditor({
   const [provider, setProvider] = useState<YjsP2PProvider | null>(null);
   const [userColor] = useState<string>(() => getRandomColor());
   const [connectedUsers, setConnectedUsers] = useState<{ name: string; isActive: boolean }[]>([{ name: currentUserName, isActive: true }]);
-  const [syncState, setSyncState] = useState<string>('connecting');
+  const [syncState, setSyncState] = useState<EditorSyncState>('connecting');
   const [flashComments, setFlashComments] = useState<FlashComment[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const editorContainerRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
