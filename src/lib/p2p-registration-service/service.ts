@@ -15,12 +15,13 @@ import { isPlaceholderName } from '@/lib/peer-display';
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from '../multi-instance';
 import { getCurrentCid } from '../p2p/current-cid';
-import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
 import type { BroadcastStateSyncData, WebSocketMessage } from '@/types/ws-message-types';
 import { debugLog } from '@/lib/debug-config';
 import type { Peer, PeerInfoResponse, PeerRegistrationOptions, PendingRequestEntry } from './types';
 import { POLLING_INTERVAL } from './constants';
+import { startPeerPoll, type PeerPoll } from './peer-poll';
+import { connectionManager } from '../connection';
 import {
   listAllPeers as doListAllPeers,
   listRegisteredPeers as doListRegisteredPeers,
@@ -47,13 +48,10 @@ export class P2PRegistrationService {
   private isRunning: boolean = false;
   private registeredPeers: Map<bigint, Peer> = new Map<bigint, Peer>();
   private allPeers: Map<bigint, Peer> = new Map<bigint, Peer>();
-  private pollingInterval: NodeJS.Timeout | null = null;
+  private poll: PeerPoll | null = null;
   private pendingRequests: Map<string, PendingRequestEntry> = new Map<string, PendingRequestEntry>();
   private outgoingRegistrations: Set<bigint> = new Set<bigint>();
   private incomingRegistrations: Set<bigint> = new Set<bigint>();
-  private isCheckingPeers: boolean = false;
-  /** The options start() was called with, replayed on every reconnect re-sync. */
-  private startOptions: PeerRegistrationOptions = {};
 
   private constructor() {
     this.setupEventListeners();
@@ -87,7 +85,7 @@ export class P2PRegistrationService {
     // re-checking without them would silently drop autoRegisterAll.
     eventEmitter.on('on-ws-connection-success', async () => {
       if (!this.isRunning) return;
-      await this.checkAndRegisterPeers(this.startOptions);
+      await this.poll?.runNow();
     });
 
     eventEmitter.on('broadcast-state-sync', (raw: unknown) => {
@@ -139,50 +137,53 @@ export class P2PRegistrationService {
       this.isRunning = false;
       throw new Error('No active connection. Please connect first.');
     }
-    this.startOptions = options;
     debugLog('P2PRegistrationService', 'Starting P2P Registration Service');
-    await this.checkAndRegisterPeers(options);
-    this.pollingInterval = setInterval(() => {
-      runAsyncSetup(async () => { await this.checkAndRegisterPeers(options); });
+    this.poll = startPeerPoll({
+      check: () => this.checkAndRegisterPeers(options),
+      currentCid: getCurrentCid,
+      activeSessions: () => { connectionManager.invalidateSessionCache(); return connectionManager.getActiveSessionsResult(); },
+      onSessionGone: (cid: bigint) => this.sessionGone(cid),
+      onError: (error: unknown) => {
+        if (!/CID 0|No active/.test(String(error))) debugLog('P2PRegistrationService', 'Error checking and registering peers:', error);
+      },
     }, POLLING_INTERVAL);
+    await this.poll.runNow();
+    // Stopped meanwhile, or the first round found the session gone from the agent.
+    if (!this.isRunning) return;
     eventEmitter.emit('p2p:registration-service-started');
+  }
+
+  /**
+   * The agent no longer holds this tab's session. Not 'registration-service-stopped': that means logout and
+   * stops server auto-connect, which is what signs the session back in. The next activation calls start().
+   */
+  private sessionGone(cid: bigint): void {
+    this.isRunning = false;
+    this.poll = null;
+    eventEmitter.emit('p2p:session-gone-from-agent', { cid });
   }
 
   public stop(): void {
     if (!this.isRunning) return;
     this.isRunning = false;
-    if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
-      this.pollingInterval = null;
-    }
+    this.poll?.stop();
+    this.poll = null;
     debugLog('P2PRegistrationService', 'Stopped P2P Registration Service');
     eventEmitter.emit('p2p:registration-service-stopped');
   }
 
-  private async checkAndRegisterPeers(options: PeerRegistrationOptions = {}): Promise<void> {
-    if (this.isCheckingPeers) {
-      debugLog('P2PRegistrationService', '[P2P] Skipping peer check - previous check still in progress');
-      return;
+  /** One poll round; failures propagate to the poll (see peer-poll.ts). */
+  private async checkAndRegisterPeers(options: PeerRegistrationOptions): Promise<void> {
+    const allPeers: PeerInfoResponse[] = await doListAllPeers(this.pendingRequests);
+    const registeredPeers: PeerInfoResponse[] = await doListRegisteredPeersWithRetry(this.pendingRequests);
+    updatePeerMaps(this.allPeers, this.registeredPeers, allPeers, registeredPeers);
+    if (options.autoRegisterAll) {
+      await doRegisterUnregisteredPeers(this.allPeers, options, this.pendingRequests);
     }
-    this.isCheckingPeers = true;
-    try {
-      const allPeers: PeerInfoResponse[] = await doListAllPeers(this.pendingRequests);
-      const registeredPeers: PeerInfoResponse[] = await doListRegisteredPeersWithRetry(this.pendingRequests);
-      updatePeerMaps(this.allPeers, this.registeredPeers, allPeers, registeredPeers);
-      if (options.autoRegisterAll) {
-        await doRegisterUnregisteredPeers(this.allPeers, options, this.pendingRequests);
-      }
-      eventEmitter.emit('p2p:peers-updated', {
-        allPeers: Array.from(this.allPeers.values()),
-        registeredPeers: Array.from(this.registeredPeers.values())
-      });
-    } catch (error: unknown) {
-      const errorMessage: string = error instanceof Error ? error.message : String(error);
-      if (errorMessage?.includes('CID 0') || errorMessage?.includes('No active')) return;
-      debugLog('P2PRegistrationService', 'Error checking and registering peers:', error);
-    } finally {
-      this.isCheckingPeers = false;
-    }
+    eventEmitter.emit('p2p:peers-updated', {
+      allPeers: Array.from(this.allPeers.values()),
+      registeredPeers: Array.from(this.registeredPeers.values())
+    });
   }
 
   public async listAllPeers(): Promise<PeerInfoResponse[]> {
