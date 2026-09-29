@@ -209,14 +209,11 @@ const Sidebar: React.ForwardRefExoticComponent<
             data-sidebar="sidebar"
             data-mobile="true"
             className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
-            style={
-              {
-                "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
-              } as React.CSSProperties
-            }
+            style={{ "--sidebar-width": SIDEBAR_WIDTH_MOBILE } as React.CSSProperties}
             side={side}
           >
-            {/* A dialog on a phone, so it needs a name; read, not shown. */}
+            {/* A dialog on a phone, so it needs a name: screen readers announce it,
+                nothing is shown. Radix logs an error on every open without one. */}
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             <SheetDescription className="sr-only">Spaces, members and conversations</SheetDescription>
             <div className="flex h-full w-full flex-col">{children}</div>
