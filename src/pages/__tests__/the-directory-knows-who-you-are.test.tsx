@@ -14,8 +14,8 @@ import type { UserData } from '@/components/user/user-search-types';
 
 afterEach(cleanup);
 
-const me: MemberDisplay = { id: 'hana', displayName: 'Hana High', isOnline: true, isSelf: true };
-const other: MemberDisplay = { id: 'nia', displayName: 'Nia Newcomer', isOnline: true, isSelf: false };
+const me: MemberDisplay = { id: 'hana', displayName: 'Hana High', isOnline: true, isSelf: true, isContact: false };
+const other: MemberDisplay = { id: 'nia', displayName: 'Nia Newcomer', isOnline: true, isSelf: false, isContact: false };
 
 function row(member: MemberDisplay): void {
   render(<MemberListItem member={member} variant="all" onSendMessage={vi.fn()} onInvite={vi.fn()} onSelect={vi.fn()} />);

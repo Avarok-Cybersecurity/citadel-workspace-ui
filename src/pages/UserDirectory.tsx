@@ -55,6 +55,10 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
     return (): void => { eventEmitter.off('p2p:peers-updated', bump); };
   }, []);
 
+  // One answer to "is this person a contact", for the rows and the card alike.
+  const isUserConnected = (username: string): boolean =>
+    registeredPeers.some((peer) => peer.username === username);
+
   const allMembers: MemberDisplay[] = useMemo(() => Object.values(state.members || {}).map(member => ({
     id: member.id,
     displayName: member.displayName,
@@ -67,6 +71,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
     // workspace is currently offline" while they were online (live, admin-lab).
     isOnline: member.id === selfUsername ? true : isMemberOnline(member.id),
     isSelf: member.id === selfUsername,
+    isContact: isUserConnected(member.id),
     // Undefined, not 0: nothing tracks last-seen, and 0 rendered as 1970.
     lastActive: undefined,
   // eslint-disable-next-line react-hooks/exhaustive-deps -- presenceVersion is the re-read trigger
@@ -78,9 +83,6 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
     if (tab === 'online') return member.isOnline === true;
     return true;
   });
-
-  const isUserConnected = (username: string): boolean =>
-    registeredPeers.some((peer) => peer.username === username);
 
   const handleSendMessage = (userId: string): void => {
     if (isUserConnected(userId)) {
