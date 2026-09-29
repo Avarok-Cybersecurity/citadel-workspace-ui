@@ -9,6 +9,8 @@
 import type { ProxyResponseData } from './outbound-queue-types';
 import type { WorkspaceProtocolRequest, WorkspaceClient } from 'citadel-workspace-client-ts';
 import { debugLog } from '@/lib/debug-config';
+import { isCompressionHint } from '@/lib/p2p/compression-hints';
+import type { ChatSecurityLevel } from '@/lib/p2p/chat-advanced-settings';
 
 interface ProxyRequest {
   requestId: string;
@@ -100,12 +102,21 @@ export async function handleSendP2PMessageProxy(
     return;
   }
 
+  // The follower chose the hint where it built the payload; it crosses the tab
+  // boundary as data, so it is checked here rather than trusted.
+  const hint: unknown = request.payload.compressionHint;
+  if (hint !== undefined && !isCompressionHint(hint)) {
+    sendAck(request.senderInstanceId, request.requestId, 'error', `Unknown compression hint ${String(hint)}`);
+    return;
+  }
+
   const messageBytes: Uint8Array<ArrayBuffer> = new Uint8Array(request.payload.message as ArrayLike<number>);
   await client.sendP2PMessageReliable(
     request.payload.localCid as string,
     request.payload.peerCid as string,
     messageBytes,
-    request.payload.securityLevel as 'Standard' | 'Reinforced' | 'High' | 'Extreme' | undefined
+    request.payload.securityLevel as ChatSecurityLevel | undefined,
+    hint
   );
 
   sendAck(request.senderInstanceId, request.requestId, 'processed');

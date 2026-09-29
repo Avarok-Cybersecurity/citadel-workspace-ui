@@ -22,7 +22,8 @@ import {
   createFileTransferCancel,
 } from '@/types/messaging-layer';
 import type { P2PMessagingLayerPayload } from '@/types/p2p-commands';
-import { P2PCommandType, serializeP2PCommand } from '@/types/p2p-types';
+import { P2PCommandType, serializeP2PCommand, type P2PCommand } from '@/types/p2p-types';
+import { compressionHintFor } from '../p2p/compression-hints';
 import { buildLayerPayload } from './transfer-announcement';
 import { debugLog } from '@/lib/debug-config';
 
@@ -37,11 +38,9 @@ import { debugLog } from '@/lib/debug-config';
  * went through.
  */
 export async function sendLayerPayload(payload: P2PMessagingLayerPayload): Promise<void> {
-  const bytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand({
-    type: P2PCommandType.MessagingLayerCommand,
-    payload,
-  });
-  await sendAllowingForAConcurrentOpen(payload.sender_cid, payload.recipient_cid, bytes);
+  const command: P2PCommand = { type: P2PCommandType.MessagingLayerCommand, payload };
+  const bytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand(command);
+  await sendAllowingForAConcurrentOpen(payload.sender_cid, payload.recipient_cid, bytes, compressionHintFor(command));
 }
 
 /** Tell the sender we accepted or declined their offer. */

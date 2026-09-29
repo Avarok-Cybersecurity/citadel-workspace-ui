@@ -62,7 +62,7 @@ export class P2PMessengerManager extends EventListenerManager {
     });
     this.checkStateManager = new CheckStateManager({
       timeout: TIMEOUT.CHECKSTATE_MS,
-      sendToP2P: (peerCid, bytes): Promise<void> => this.messageSender.sendRawBytes(peerCid, bytes),
+      sendToP2P: (peerCid, bytes, compressionHint): Promise<void> => this.messageSender.sendRawBytes(peerCid, bytes, compressionHint),
       getCurrentCid: (): Promise<bigint | null> => resolveCurrentCid(),
       getLastMessageIndex: (peerCid): number => this.conversationManager.getOrCreateConversation(peerCid).lastMessageIndex
     });

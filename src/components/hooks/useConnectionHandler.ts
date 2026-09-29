@@ -86,8 +86,8 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
     // Starts the engine loading and initializes it. Deferred so the sync
     // engine stays off the landing page's critical path; see revfs-loader.
     void startRevfs({
-      sendP2PMessageReliable: (localCid, peerCid, message) =>
-        websocketService.sendP2PMessageReliable(localCid, peerCid, message),
+      sendP2PMessageReliable: (localCid, peerCid, message, compressionHint) =>
+        websocketService.sendP2PMessageReliable(localCid, peerCid, message, undefined, compressionHint),
       // The authority, not the bare connection lookup.
       //
       // `connectionManager.getConnectionInfo().cid` belongs to the CONNECTION,
