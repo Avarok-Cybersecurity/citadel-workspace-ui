@@ -18,6 +18,7 @@ const member: MemberDisplay = {
   displayName: 'Ada Lovelace',
   isOnline: true,
   isSelf: false,
+  isContact: false,
 };
 
 function renderRow(overrides: Partial<Parameters<typeof MemberListItem>[0]> = {}): Parameters<typeof MemberListItem>[0] {
@@ -34,6 +35,21 @@ function renderRow(overrides: Partial<Parameters<typeof MemberListItem>[0]> = {}
 }
 
 afterEach(cleanup);
+
+describe('a row for someone who is already a contact', () => {
+  // Found live (2026-09-29): Thomas Braun's row offered "Send a connection
+  // request" while his card beside it said he was already a contact.
+  it('offers a message, not another connection request', () => {
+    renderRow({ member: { ...member, isContact: true } });
+    expect(screen.queryByRole('button', { name: 'Send a connection request to Ada Lovelace' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Message Ada Lovelace' })).toBeInTheDocument();
+  });
+
+  it('still offers the request to someone who is not', () => {
+    renderRow();
+    expect(screen.getByRole('button', { name: 'Send a connection request to Ada Lovelace' })).toBeInTheDocument();
+  });
+});
 
 describe('MemberListItem', () => {
   it('exposes the row as a named control that selects the member', () => {

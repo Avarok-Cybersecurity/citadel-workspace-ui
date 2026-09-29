@@ -15,6 +15,7 @@ import type { SessionSecuritySettings } from '@/lib/security-utils';
 import { withTurn, type TurnSource } from '../ice-servers/peer-connect-turn';
 import type { TurnConfig } from '@/types/ice-servers';
 import type { ChatSecurityLevel } from '@/lib/p2p/chat-advanced-settings';
+import type { SendDelivery } from '@/lib/p2p/send-failure';
 
 export interface P2PConfig {
   init: () => Promise<void>;
@@ -47,8 +48,8 @@ export class P2POperations {
   }
 
   /** Send raw bytes over the P2P channel. Delegates to the dispatch module. */
-  async sendP2PMessageBytes(cid: bigint, targetCid: bigint, message: Uint8Array): Promise<void> {
-    return sendP2PMessageBytes(this.config, cid, targetCid, message);
+  async sendP2PMessageBytes(cid: bigint, targetCid: bigint, message: Uint8Array, delivery: SendDelivery): Promise<void> {
+    return sendP2PMessageBytes(this.config, cid, targetCid, message, delivery);
   }
 
   /**

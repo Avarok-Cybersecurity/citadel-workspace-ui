@@ -65,9 +65,30 @@ export const REPORT_INTERVAL_MS: number = 15_000;
 
 const lastReported: Map<string, number> = new Map();
 
+/**
+ * Who a send is for. A 'background' send is traffic the person did not write --
+ * a Live Doc's sync -- whose surface shows its own state. Its failure is not
+ * "Message not sent": opening a document with an offline contact said exactly
+ * that, with nothing typed (live, 2026-09-29).
+ */
+export type SendDelivery = 'user' | 'background';
+
+/** Request ids of background sends still awaiting an answer; oldest dropped past the cap. */
+const backgroundRequests: Set<string> = new Set();
+const BACKGROUND_REQUESTS_KEPT: number = 512;
+
+export function markBackgroundSend(requestId: string): void {
+  backgroundRequests.add(requestId);
+  if (backgroundRequests.size > BACKGROUND_REQUESTS_KEPT) {
+    const oldest: string | undefined = backgroundRequests.values().next().value;
+    if (oldest !== undefined) backgroundRequests.delete(oldest);
+  }
+}
+
 /** Reset the throttle. Tests use this; nothing else should need it. */
 export function resetSendFailureThrottle(): void {
   lastReported.clear();
+  backgroundRequests.clear();
 }
 
 /**
@@ -96,6 +117,8 @@ export function reportSendFailure(failure: SendFailure, now: number = Date.now()
 export function consumeSendFailure(response: unknown): boolean {
   const failure: SendFailure | null = readSendFailure(response);
   if (!failure) return false;
+  // A background send's failure is the sender's to show (the document's sync state).
+  if (typeof failure.request_id === 'string' && backgroundRequests.delete(failure.request_id)) return true;
   // The discarded boolean is the RATE LIMIT, not the failure: `false` means this
   // peer's failure was already reported within REPORT_INTERVAL_MS, so the user
   // has the toast on screen. The failure itself is what this function returns,

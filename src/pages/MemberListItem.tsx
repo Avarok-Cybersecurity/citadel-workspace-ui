@@ -17,6 +17,8 @@ export interface MemberDisplay {
   lastActive?: number;
   /** The reader's own row: marked, and offering nothing to do to yourself. */
   isSelf: boolean;
+  /** Already a registered peer: a connection request would be for a contact you have. */
+  isContact: boolean;
 }
 
 /** Re-exported for existing importers; the decision lives in lib/role-badge. */
@@ -90,15 +92,17 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
         </div>
       </button>
       {!member.isSelf && <div className="flex space-x-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground hover:text-foreground hover:bg-accent"
-          onClick={() => onInvite(member.id)}
-          aria-label={`Send a connection request to ${member.displayName}`}
-        >
-          <UserPlus className="h-4 w-4" aria-hidden="true" />
-        </Button>
+        {!member.isContact && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground hover:bg-accent"
+            onClick={() => onInvite(member.id)}
+            aria-label={`Send a connection request to ${member.displayName}`}
+          >
+            <UserPlus className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"

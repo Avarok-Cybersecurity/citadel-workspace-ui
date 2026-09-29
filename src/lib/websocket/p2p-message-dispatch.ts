@@ -11,6 +11,7 @@
 import { debugLog } from '../debug-config';
 import { stringToBytes } from '../utils/encoding-utils';
 import type { P2PConfig } from './p2p-operations';
+import { markBackgroundSend, type SendDelivery } from '../p2p/send-failure';
 
 /**
  * Common send path for both string- and bytes-shaped P2P message APIs.
@@ -20,7 +21,7 @@ import type { P2PConfig } from './p2p-operations';
  * representation both branches converge on.
  */
 async function dispatchP2PMessage(
-  config: P2PConfig, cid: bigint, targetCid: bigint, messageBytes: number[], callerLabel: string
+  config: P2PConfig, cid: bigint, targetCid: bigint, messageBytes: number[], callerLabel: string, delivery: SendDelivery
 ): Promise<void> {
   await config.init();
   if (cid === undefined || cid === null) {
@@ -40,6 +41,8 @@ async function dispatchP2PMessage(
     }
   };
 
+  if (delivery === 'background') markBackgroundSend(messageRequest.Message.request_id);
+
   debugLog('P2POperations', `[P2P] ${callerLabel}`, {
     cid: cid.toString(), targetCid: targetCid.toString(), messageLength: messageBytes.length,
   });
@@ -51,7 +54,7 @@ async function dispatchP2PMessage(
  * Send a P2P message to a peer.
  */
 export async function sendP2PMessage(config: P2PConfig, cid: bigint, targetCid: bigint, message: string): Promise<void> {
-  return dispatchP2PMessage(config, cid, targetCid, stringToBytes(message), 'sendP2PMessage');
+  return dispatchP2PMessage(config, cid, targetCid, stringToBytes(message), 'sendP2PMessage', 'user');
 }
 
 /**
@@ -60,6 +63,6 @@ export async function sendP2PMessage(config: P2PConfig, cid: bigint, targetCid: 
  * CBOR-encodes its messages) already have bytes and would otherwise lose
  * data when `stringToBytes` round-trips them through `TextEncoder`.
  */
-export async function sendP2PMessageBytes(config: P2PConfig, cid: bigint, targetCid: bigint, message: Uint8Array): Promise<void> {
-  return dispatchP2PMessage(config, cid, targetCid, Array.from(message), 'sendP2PMessageBytes');
+export async function sendP2PMessageBytes(config: P2PConfig, cid: bigint, targetCid: bigint, message: Uint8Array, delivery: SendDelivery): Promise<void> {
+  return dispatchP2PMessage(config, cid, targetCid, Array.from(message), 'sendP2PMessageBytes', delivery);
 }

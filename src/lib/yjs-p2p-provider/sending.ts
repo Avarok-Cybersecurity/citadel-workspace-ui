@@ -72,6 +72,8 @@ export function sendP2PMessage(ctx: SendingContext, message: YjsP2PMessage): voi
     BigInt(ctx.ownCid),
     BigInt(ctx.peerCid),
     bytes,
+    // Sync traffic, not a message: the document shows whether it is in step.
+    'background',
   ).catch((error: unknown) => {
     debugLog('YjsP2PProvider', 'Failed to send message:', error);
   });
