@@ -18,7 +18,7 @@
  * and pinned the null guard that produced this blank list.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act, waitFor } from '@testing-library/react';
+import { render, screen, act, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { MembersPayload } from '@/lib/workspace-events';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
@@ -31,11 +31,13 @@ import type { UsePermissionResult } from '@/hooks/use-permission-result';
 const { listMembers } = vi.hoisted(() => ({ listMembers: vi.fn(async (): Promise<void> => {}) }));
 let deliver: ((payload: MembersPayload) => void) | null = null;
 
-// The members header asks AddUsers through `usePermission`, whose fetch is agent
-// I/O and not what this file is about; answered "yes" so the header renders.
+// The members header asks AddUsers, and the member menu RemoveUsers, through
+// `usePermission`, whose fetch is agent I/O. Answered "yes" unless a case says no.
+let permissionAllowed: boolean = true;
+let ownRole: string | undefined;
 vi.mock('@/hooks/use-permission', () => ({
   usePermission: (): UsePermissionResult => ({
-    allowed: true, loading: false, reason: null, unanswered: false, answered: true,
+    allowed: permissionAllowed, loading: false, reason: null, unanswered: false, answered: true,
     refresh: async (): Promise<void> => {},
   }),
 }));
@@ -51,7 +53,7 @@ vi.mock('@/lib/workspace-events', () => ({
 }));
 vi.mock('@/contexts/WorkspaceContext', () => ({
   useWorkspace: (): { state: Record<string, unknown> } => ({
-    state: { nodes: {}, currentUser: { username: 'alice' }, workspace: { name: 'Bench' } },
+    state: { nodes: {}, currentUser: { username: 'alice', role: ownRole }, workspace: { name: 'Bench' } },
   }),
 }));
 vi.mock('@/hooks', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
@@ -90,7 +92,7 @@ function renderAt(url: string): void {
   );
 }
 
-beforeEach((): void => { listMembers.mockClear(); deliver = null; });
+beforeEach((): void => { listMembers.mockClear(); deliver = null; permissionAllowed = true; ownRole = undefined; });
 
 describe('the sidebar member list with no node selected', () => {
   it('asks for the workspace root and shows its members', async () => {
@@ -132,3 +134,25 @@ describe('the all-members dialog', () => {
   });
 });
 
+
+describe("a member's actions, for someone who may not take them", () => {
+  // Found live (2026-09-29): a Member saw an Admin's Change Role and Remove Member enabled.
+  async function openBobsMenu(): Promise<HTMLElement[]> {
+    renderAt('/workspace');
+    await waitFor((): void => { expect(listMembers).toHaveBeenCalled(); });
+    act((): void => { deliver?.({ members: [member('alice'), member('bob')], domainId: WORKSPACE_ROOT_ID } as MembersPayload); });
+    fireEvent.keyDown(await screen.findByRole('button', { name: 'Actions for bob' }), { key: 'Enter' });
+    return [/manage permissions/i, /change role/i, /remove member/i].map((name: RegExp): HTMLElement => screen.getByRole('menuitem', { name }));
+  }
+
+  it('are disabled for a Member without RemoveUsers', async () => {
+    ownRole = 'Member';
+    permissionAllowed = false;
+    for (const item of await openBobsMenu()) expect(item).toHaveAttribute('data-disabled');
+  });
+
+  it('stay enabled for an Admin', async () => {
+    ownRole = 'Admin';
+    for (const item of await openBobsMenu()) expect(item).not.toHaveAttribute('data-disabled');
+  });
+});

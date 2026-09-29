@@ -5,7 +5,7 @@
  * role badges, and dropdown menus for member management.
  */
 
-import { MoreVertical, Shield, Users } from "lucide-react";
+import { MoreVertical, Users } from "lucide-react";
 import {
   SidebarMenuItem,
   SidebarMenuButton,
@@ -15,7 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -25,12 +24,16 @@ import {
 } from "@/components/ui/tooltip";
 import { getRoleColor, capitalizeRole } from './MembersSectionModals';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
+import { MemberActionItems } from './MemberActionItems';
+import type { MemberActionBlocks } from './member-actions-gate';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 
 const MEMBERS_TO_SHOW: number = 5;
 
 interface MemberListItemsProps {
   members: WorkspaceMember[];
+  /** What the server will refuse you, from `useMemberActionBlocks`. */
+  blocks: MemberActionBlocks;
   currentUsername?: string;
   onEditMember: (member: WorkspaceMember) => void;
   onRemoveMember: (member: WorkspaceMember) => void;
@@ -40,6 +43,7 @@ interface MemberListItemsProps {
 
 export function MemberListItems({
   members,
+  blocks,
   currentUsername,
   onEditMember,
   onRemoveMember,
@@ -87,9 +91,12 @@ export function MemberListItems({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onManagePermissions(member)}><Shield className="h-4 w-4 mr-2" />Manage Permissions</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onEditMember(member)}>Change Role</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onRemoveMember(member)} className="text-destructive-emphasis">Remove Member</DropdownMenuItem>
+                  <MemberActionItems
+                    blocks={blocks}
+                    onManagePermissions={() => onManagePermissions(member)}
+                    onEditMember={() => onEditMember(member)}
+                    onRemoveMember={() => onRemoveMember(member)}
+                  />
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
