@@ -3,6 +3,7 @@
  *
  * Timeouts, retry configuration, and polling intervals for the service.
  */
+import { TIMEOUT } from '@/lib/timeout-constants';
 
 /** Base delay for exponential backoff (1 second) */
 export const BASE_DELAY_MS: number = 1000;
@@ -22,8 +23,8 @@ export const CID_LOOKUP_TIMEOUT_MS: number = 500;
 /** Interval for waitForPeerConnected polling (500ms) */
 export const PEER_CONNECTED_CHECK_INTERVAL_MS: number = 500;
 
-/** Default timeout for waitForPeerConnected (30 seconds) */
-export const WAIT_FOR_PEER_TIMEOUT_MS: number = 30_000;
+/** Default timeout for waitForPeerConnected: as long as a connect may take, relayed or not. */
+export const WAIT_FOR_PEER_TIMEOUT_MS: number = TIMEOUT.P2P_CONNECT_REQUEST_MS;
 
 /** Extra time beyond timeout before cleaning up event listeners (1 second) */
 export const LISTENER_CLEANUP_BUFFER_MS: number = 1000;

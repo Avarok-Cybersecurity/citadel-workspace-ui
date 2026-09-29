@@ -3,7 +3,17 @@
  * Extracted from magic numbers scattered across the codebase.
  */
 
-export const TIMEOUT: { readonly SERVER_REQUEST_MS: 5000; readonly DISCONNECT_REQUEST_MS: 30000; readonly FILE_PICKER_MS: 120000; readonly LOCALDB_REQUEST_MS: 5000; readonly GET_SELECTED_USER_MS: 2000; readonly P2P_CONNECT_REQUEST_MS: 30000; readonly P2P_ACCEPT_REQUEST_MS: 10000; readonly P2P_DISCONNECT_MS: 10000; readonly P2P_MESSAGE_MS: 500; readonly SEARCH_DEBOUNCE_MS: 300; readonly SESSION_MANAGEMENT_MS: 3000; readonly CLAIM_SESSION_MS: 10000; readonly PEER_REGISTER_MS: 10000; readonly PERMISSION_FETCH_MS: 10000; readonly PEER_LIST_MS: 35000; readonly FILE_SEND_MS: 30000; readonly FILE_DOWNLOAD_MS: 60000; readonly OUTBOUND_ACK_MS: 30000; readonly CHECKSTATE_MS: 3000; readonly SW_ACTIVATION_MS: 3000; readonly CID_REPORT_WINDOW_MS: 5000; readonly ACCOUNT_LINK_SIGN_IN_MS: 2500; } = {
+/**
+ * The SDK's own bound on a P2P connect: `P2P_CONNECT_TIMEOUT` in citadel_sdk's
+ * remote_ext.rs. Within it, a failed hole punch (up to 30 s) falls back to relaying
+ * through the server and still succeeds, after up to 15 s more of registration.
+ * Anything waiting on a connect must outlast it, or a relayed connection is
+ * reported as a failure: the agent and this app both gave up at 30 s, so on any
+ * network where punching fails, connecting to a contact never worked.
+ */
+export const SDK_P2P_CONNECT_BOUND_MS: 60000 = 60000;
+
+export const TIMEOUT: { readonly SERVER_REQUEST_MS: 5000; readonly DISCONNECT_REQUEST_MS: 30000; readonly FILE_PICKER_MS: 120000; readonly LOCALDB_REQUEST_MS: 5000; readonly GET_SELECTED_USER_MS: 2000; readonly P2P_CONNECT_REQUEST_MS: 75000; readonly P2P_ACCEPT_REQUEST_MS: 10000; readonly P2P_DISCONNECT_MS: 10000; readonly P2P_MESSAGE_MS: 500; readonly SEARCH_DEBOUNCE_MS: 300; readonly SESSION_MANAGEMENT_MS: 3000; readonly CLAIM_SESSION_MS: 10000; readonly PEER_REGISTER_MS: 10000; readonly PERMISSION_FETCH_MS: 10000; readonly PEER_LIST_MS: 35000; readonly FILE_SEND_MS: 30000; readonly FILE_DOWNLOAD_MS: 60000; readonly OUTBOUND_ACK_MS: 30000; readonly CHECKSTATE_MS: 3000; readonly SW_ACTIVATION_MS: 3000; readonly CID_REPORT_WINDOW_MS: 5000; readonly ACCOUNT_LINK_SIGN_IN_MS: 2500; } = {
   /** Default timeout for server requests (WebSocket round-trip) */
   SERVER_REQUEST_MS: 5000,
   /** Timeout for disconnect requests (may involve cleanup) */
@@ -14,8 +24,8 @@ export const TIMEOUT: { readonly SERVER_REQUEST_MS: 5000; readonly DISCONNECT_RE
   LOCALDB_REQUEST_MS: 5000,
   /** Timeout for getSelectedUser() tab context lookup */
   GET_SELECTED_USER_MS: 2000,
-  /** Timeout for P2P connection establishment */
-  P2P_CONNECT_REQUEST_MS: 30000,
+  /** P2P connection establishment: the SDK's bound plus the agent's round trip. See SDK_P2P_CONNECT_BOUND_MS. */
+  P2P_CONNECT_REQUEST_MS: 75000,
   /** Timeout for P2P accept request */
   P2P_ACCEPT_REQUEST_MS: 10000,
   /** Timeout for P2P disconnect */
