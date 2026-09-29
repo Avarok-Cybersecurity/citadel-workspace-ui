@@ -51,9 +51,11 @@ export const PeerListItem: React.FC<PeerListItemProps> = ({
           </Badge>
         )}
         {isRegistered ? (
-          <Badge className="bg-primary-accent/20 text-primary-accent border-primary-accent/50">
+          // "Contact", not "Connected": this is registration, which holds while the
+          // person is offline; presence is the Online badge beside it.
+          <Badge className="bg-primary-accent/20 text-primary-accent border-primary-accent/50" data-testid="peer-contact-badge">
             <UserCheck className="h-3 w-3 mr-1" />
-            Connected
+            Contact
           </Badge>
         ) : isOutgoing ? (
           <Button
