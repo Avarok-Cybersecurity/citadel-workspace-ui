@@ -68,19 +68,8 @@ export async function openConversation(
     // The header and peer list are siblings within SidebarGroup, not parent-child
     // So we need to find the SidebarGroup containing the section header, then search within it
 
-    // Strategy 1: Look in sidebar for the peer username directly (most reliable)
-    // The peer is rendered in a SidebarMenuButton with the username as text
-    const sidebarPeer = page.locator(`[data-sidebar="menu-button"]:has-text("${peerUsername}")`).first();
-    if (await isVisibleWithin(sidebarPeer, 1000)) {
-      console.log(`  Found ${peerUsername} in sidebar via menu-button`);
-      await sidebarPeer.click();
-      await sleep(2000);
-      await waitForChatReady(page, peerUsername);
-      await takeScreenshot(page, `${username}_conversation_opened`);
-      return true;
-    }
-
-    // Strategy 2: the peer's own row, wherever the sidebar happens to put it.
+    // Strategy 2, tried first: the peer's own contact row, by its test id --
+    // the one row that opens the conversation.
     //
     // This walked into a group headed "CONNECTED PEERS", a heading the app
     // deliberately stopped using when the members list was given one noun. The
@@ -91,6 +80,23 @@ export async function openConversation(
     if (await isVisibleWithin(peerInConnected, 500)) {
       console.log(`  Found ${peerUsername} in the sidebar peer list`);
       await peerInConnected.click();
+      await sleep(2000);
+      await waitForChatReady(page, peerUsername);
+      await takeScreenshot(page, `${username}_conversation_opened`);
+      return true;
+    }
+
+    // Strategy 1 (fallback): any sidebar button carrying the username.
+    //
+    // It was tried FIRST and was not reliable: a node's member list now shows
+    // everyone who can use the node (UI #97), so the same person appears once as
+    // a member -- a row that opens nothing -- and once as a contact below it.
+    // `.first()` clicked the member row, the chat never opened, and eight e2e
+    // specs reported undelivered messages that had in fact arrived (#182 CI).
+    const sidebarPeer = page.locator(`[data-sidebar="menu-button"]:has-text("${peerUsername}")`).first();
+    if (await isVisibleWithin(sidebarPeer, 1000)) {
+      console.log(`  Found ${peerUsername} in sidebar via menu-button`);
+      await sidebarPeer.click();
       await sleep(2000);
       await waitForChatReady(page, peerUsername);
       await takeScreenshot(page, `${username}_conversation_opened`);
