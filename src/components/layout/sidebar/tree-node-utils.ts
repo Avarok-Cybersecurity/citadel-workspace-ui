@@ -101,6 +101,19 @@ export function buildTreeFromNodes(nodes: DomainNode[], rootName: string): TreeN
 }
 
 /**
+ * The spaces directly under the workspace, each with its subtree -- the sidebar's rule.
+ *
+ * `buildTreeFromNodes` returns the workspace root (real, or the synthetic one it
+ * makes for several top-level spaces) with the spaces beneath it, or a single
+ * space on its own; both read here as the list of top-level spaces.
+ */
+export function topLevelTrees(nodes: readonly DomainNode[]): TreeNode[] {
+  const tree: TreeNode | null = buildTreeFromNodes([...nodes], '');
+  if (!tree) return [];
+  return tree.node.id === WORKSPACE_ROOT_ID ? tree.children : [tree];
+}
+
+/**
  * How many spaces sit inside `nodeId`, at any depth, by `parent_id` -- the relation the
  * tree is drawn from. A node's own `children` list can lag it: after a room was moved in,
  * deleting its new office warned about nothing (measured live).
