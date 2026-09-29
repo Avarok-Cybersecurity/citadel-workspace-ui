@@ -78,6 +78,16 @@ describe('the link a peer row navigates to', () => {
     expect(url.searchParams.has('section')).toBe(false);
   });
 
+  it('opens the conversation from the file manager', () => {
+    // Found live (2026-09-29): Office renders the file manager whenever
+    // `section=files` is present, before it looks at `showP2P`. The link kept
+    // the section, so from File Manager the address changed and nothing opened.
+    const href: string = conversationHref('/workspace', '?section=files', { cid: '42', username: 'bob' });
+    const url: URL = new URL(href, 'http://x');
+    expect(url.searchParams.has('section')).toBe(false);
+    expect(activeConversation(url.pathname, url.search).peerCid).toBe('42');
+  });
+
   it('keeps the parameters that were already there', () => {
     expect(conversationHref('/workspace', '?nodeId=n1', { cid: '42', username: 'bob' })).toContain(
       'nodeId=n1',

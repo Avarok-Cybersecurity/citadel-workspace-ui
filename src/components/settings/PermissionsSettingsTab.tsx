@@ -18,10 +18,9 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import type { UserRole } from '@/lib/permissions-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
-import type { NodeEntityType } from '@/lib/entity-type-registry';
+import { permissionSections, type PermissionSection } from './permission-sections';
 import { RoleBadge, GroupedPermissionTable } from './PermissionWidgets';
 import { ParentNodePermissionSection } from './PermissionNodeSections';
-import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 /**
  * Main PermissionsSettingsTab component
@@ -50,22 +49,7 @@ export function PermissionsSettingsTab(): JSX.Element {
     }
   }, [workspaceId, fetchPermissionsForDomain]);
 
-  // Group nodes by parent/child hierarchy using parent_id relationships
-  const nodesWithChildren: { id: string; name: string; entityType: NodeEntityType; children: { id: string; name: string; entityType: NodeEntityType; }[]; }[] = useMemo((): { id: string; name: string; entityType: NodeEntityType; children: { id: string; name: string; entityType: NodeEntityType; }[]; }[] => {
-    const allNodes: DomainNode[] = Object.values(state.nodes);
-    const childParentIds: Set<string | null> = new Set(allNodes.filter(n => n.parent_id).map(n => n.parent_id));
-    const parentNodes: DomainNode[] = allNodes.filter(n => childParentIds.has(n.id));
-    const leafNodes: DomainNode[] = allNodes.filter(n => !childParentIds.has(n.id) && n.parent_id);
-
-    return parentNodes.map(parent => ({
-      id: parent.id,
-      name: parent.name,
-      entityType: parent.entity_type as NodeEntityType,
-      children: leafNodes
-        .filter(leaf => leaf.parent_id === parent.id)
-        .map(leaf => ({ id: leaf.id, name: leaf.name, entityType: leaf.entity_type as NodeEntityType })),
-    }));
-  }, [state.nodes]);
+  const nodesWithChildren: PermissionSection[] = useMemo((): PermissionSection[] => permissionSections(Object.values(state.nodes)), [state.nodes]);
 
   const handleRefresh = async (): Promise<void> => {
     setIsRefreshing(true);
