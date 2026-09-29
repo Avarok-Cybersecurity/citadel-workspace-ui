@@ -24,6 +24,8 @@ function record(ok: boolean, sessions: Session[]): Recorder {
     loginFor,
     io: {
       listSessions: async () => ({ ok, sessions }),
+      // These cases are about the answer, which is immediate; the deadline never passes.
+      signInDeadline: (): Promise<void> => new Promise<void>(() => undefined),
       switchTo: async (session: Session): Promise<void> => { switched.push(session); },
       login: (username: string): void => { loginFor.push(username); },
     },
