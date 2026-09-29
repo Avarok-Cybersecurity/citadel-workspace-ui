@@ -4,6 +4,7 @@
  */
 
 import { Button } from '@/components/ui/button';
+import { inheritedRemoveReason } from '@/lib/member-access';
 import { isAdminRole } from '@/lib/role-predicate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -65,6 +66,11 @@ export function MemberRow({
 }: MemberRowProps): JSX.Element {
   const lastAdminReason: "This is the only administrator. Promote another member to Admin first." =
     'This is the only administrator. Promote another member to Admin first.';
+  // Someone who reaches this node through a level above cannot be removed from it
+  // here: the server refuses, since it would not take their access away.
+  const removeBlocked: string | null = isOnlyAdmin
+    ? lastAdminReason
+    : member.accessViaName !== undefined ? inheritedRemoveReason(member.accessViaName) : null;
   return (
     <div
       className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 p-3 bg-card rounded-lg"
@@ -102,6 +108,11 @@ export function MemberRow({
           {member.name && (
             <div className="text-muted-foreground text-sm break-all sm:truncate">
               @{member.username}
+            </div>
+          )}
+          {member.accessViaName !== undefined && (
+            <div className="text-muted-foreground text-xs" data-testid={`member-access-via-${member.userId}`}>
+              via {member.accessViaName}
             </div>
           )}
         </div>
@@ -160,9 +171,9 @@ export function MemberRow({
           variant="ghost"
           size="icon"
           onClick={() => onRemove(member)}
-          disabled={isOnlyAdmin}
-          title={isOnlyAdmin ? lastAdminReason : `Remove ${member.username}`}
-          aria-label={isOnlyAdmin ? lastAdminReason : `Remove ${member.username}`}
+          disabled={removeBlocked !== null}
+          title={removeBlocked ?? `Remove ${member.username}`}
+          aria-label={removeBlocked ?? `Remove ${member.username}`}
           className="text-destructive hover:text-destructive hover:bg-destructive/15"
           data-testid={`member-remove-${member.userId}`}
         >

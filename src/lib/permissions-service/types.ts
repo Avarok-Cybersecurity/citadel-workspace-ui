@@ -32,6 +32,8 @@ export enum Permission {
   Themes = 'Themes',
   // Content permissions
   ViewContent = 'ViewContent',
+  /** See everyone else who has access to a node, including through a level above. */
+  ViewMembers = 'ViewMembers',
   EditContent = 'EditContent',
   EditMdx = 'EditMdx',
   // User management
@@ -90,6 +92,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.EditTreeStructure]: 'Reorganise the workspace',
   [Permission.ManageNodeTypes]: 'Define new kinds of space',
   [Permission.ViewContent]: 'View Content',
+  [Permission.ViewMembers]: 'See members',
   [Permission.EditContent]: 'Edit Content',
   [Permission.EditMdx]: 'Edit documents',
   [Permission.AddUsers]: 'Add Users',
@@ -123,12 +126,13 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, Permission[]> = {
   ),
   Member: [
     Permission.ViewContent,
+    Permission.ViewMembers,
     Permission.SendMessages,
     Permission.ReadMessages,
     Permission.UploadFiles,
     Permission.DownloadFiles,
   ],
-  Guest: [Permission.ViewContent],
+  Guest: [Permission.ViewContent, Permission.ViewMembers],
   Banned: [],
 };
 
@@ -174,7 +178,7 @@ export const PERMISSION_CATEGORIES = {
   },
   users: {
     label: 'User Management',
-    permissions: [Permission.AddUsers, Permission.RemoveUsers, Permission.BanUser],
+    permissions: [Permission.ViewMembers, Permission.AddUsers, Permission.RemoveUsers, Permission.BanUser],
   },
   admin: {
     label: 'Administration',

@@ -40,6 +40,12 @@ export interface MembersPayload {
    * its old behaviour rather than discard the list.
    */
   domainId?: string;
+  /**
+   * Member id -> the level above that gives them access to `domainId`. Empty
+   * when everyone is listed on the domain itself, and against a server that
+   * predates the field, which lists direct members only.
+   */
+  inheritedFrom: Readonly<Record<string, string>>;
 }
 
 export interface WorkspacesPayload {

@@ -26,6 +26,7 @@ import { getRoleColor, capitalizeRole } from './MembersSectionModals';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { MemberActionItems } from './MemberActionItems';
 import type { MemberActionBlocks } from './member-actions-gate';
+import { blocksForMember } from '@/lib/member-access';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 
 const MEMBERS_TO_SHOW: number = 5;
@@ -34,6 +35,8 @@ interface MemberListItemsProps {
   members: WorkspaceMember[];
   /** What the server will refuse you, from `useMemberActionBlocks`. */
   blocks: MemberActionBlocks;
+  /** Names a member's `accessVia` level; see hooks/use-level-name. */
+  nameOfLevel: (levelId: string) => string;
   currentUsername?: string;
   onEditMember: (member: WorkspaceMember) => void;
   onRemoveMember: (member: WorkspaceMember) => void;
@@ -44,6 +47,7 @@ interface MemberListItemsProps {
 export function MemberListItems({
   members,
   blocks,
+  nameOfLevel,
   currentUsername,
   onEditMember,
   onRemoveMember,
@@ -52,7 +56,9 @@ export function MemberListItems({
 }: MemberListItemsProps): JSX.Element {
   return (
     <>
-      {members.slice(0, MEMBERS_TO_SHOW).map((member) => (
+      {members.slice(0, MEMBERS_TO_SHOW).map((member) => {
+        const via: string | null = member.accessVia === undefined ? null : nameOfLevel(member.accessVia);
+        return (
         // animate-fade-in moves onto the items: the wrapper that carried it was
         // a <div> rendered directly inside <SidebarMenu>, which is a <ul>. That
         // put a non-<li> in the list and left every <li> below it without a list
@@ -65,7 +71,10 @@ export function MemberListItems({
                   {/* min-w-0 down the chain so the NAME gives way; see a-role-badge-is-never-clipped. */}
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <MemberAvatar username={member.username} name={member.displayName || member.username} />
-                    <span className="min-w-0 flex-1 truncate">{member.displayName || member.username}</span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="min-w-0 truncate">{member.displayName || member.username}</span>
+                      {via !== null && <span className="min-w-0 truncate text-xs text-muted-foreground" data-testid="member-access-via">via {via}</span>}
+                    </span>
                     <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} shrink-0 whitespace-nowrap text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
                   </div>
                 </SidebarMenuButton>
@@ -92,7 +101,7 @@ export function MemberListItems({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <MemberActionItems
-                    blocks={blocks}
+                    blocks={blocksForMember(blocks, via)}
                     onManagePermissions={() => onManagePermissions(member)}
                     onEditMember={() => onEditMember(member)}
                     onRemoveMember={() => onRemoveMember(member)}
@@ -102,7 +111,8 @@ export function MemberListItems({
             )}
           </div>
         </SidebarMenuItem>
-      ))}
+        );
+      })}
       {members.length > MEMBERS_TO_SHOW && (
         <SidebarMenuItem>
           <SidebarMenuButton onClick={onShowAllMembers} className="text-primary-accent hover:bg-primary-accent/15 hover:text-foreground transition-colors">

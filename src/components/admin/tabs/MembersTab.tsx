@@ -19,6 +19,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 import { debugLog } from '@/lib/debug-config';
 import { MemberRow, ROLE_COLORS } from './MemberRow';
+import { useLevelName } from '@/hooks/use-level-name';
 
 export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTabProps): JSX.Element {
   const { toast } = useToast();
@@ -28,6 +29,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedMember, setSelectedMember] = useState<MemberData | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<MemberData | null>(null);
+  const nameOfLevel: (levelId: string) => string = useLevelName();
 
   useEffect(() => {
     runAsyncSetup(loadMembers);
@@ -54,6 +56,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
           name: m.displayName,
           avatarUrl: m.avatarUrl,
           role: (m.role ?? 'Member') as UserRole,
+          accessViaName: payload.inheritedFrom?.[m.id] === undefined ? undefined : nameOfLevel(payload.inheritedFrom[m.id]),
         }))
       );
       cancelLoadingDeadline(deadlineKey);
@@ -62,7 +65,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
     // Return the unsubscribe — see use-domain-members.ts for why the async
     // wrapper that used to swallow it leaked a listener per tab visit.
     return workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded);
-  }, [deadlineKey, entityId]);
+  }, [deadlineKey, entityId, nameOfLevel]);
 
   const loadMembers = async (): Promise<void> => {
     setLoading(true);

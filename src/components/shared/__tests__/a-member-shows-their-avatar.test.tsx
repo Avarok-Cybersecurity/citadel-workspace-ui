@@ -31,7 +31,7 @@ function stateWith(member: WorkspaceMember, currentUserAvatar?: string): Workspa
 function ui(state: WorkspaceState, members: WorkspaceMember[]): JSX.Element {
   return (
     <WorkspaceProvider state={state}><TooltipProvider><SidebarProvider>
-      <MemberListItems members={members} blocks={{ managePermissions: null, changeRole: null, remove: null }} currentUsername="thomas" onEditMember={(): void => {}}
+      <MemberListItems members={members} blocks={{ managePermissions: null, changeRole: null, remove: null }} nameOfLevel={(id: string): string => id} currentUsername="thomas" onEditMember={(): void => {}}
         onRemoveMember={(): void => {}} onManagePermissions={(): void => {}} onShowAllMembers={(): void => {}} />
     </SidebarProvider></TooltipProvider></WorkspaceProvider>
   );
