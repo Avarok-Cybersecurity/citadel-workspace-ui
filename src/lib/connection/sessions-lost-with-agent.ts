@@ -16,6 +16,7 @@
  */
 import type { ActiveSessionsResult } from './queries';
 import type { AgentSocketState } from '@/lib/multi-instance/agent-socket-state';
+import { agentLacksSession } from '@/lib/sessions/agent-holds-session';
 
 export interface SessionLostDeps {
   onAgentSocket(handler: (state: AgentSocketState) => void): () => void;
@@ -41,7 +42,7 @@ export function watchForSessionLostWithAgent(deps: SessionLostDeps, graceMs: num
       if (cid === null) return;
       await deps.wait(graceMs);
       const result: ActiveSessionsResult = await deps.activeSessions();
-      if (result.ok && !result.sessions.some((s) => s.cid === cid)) deps.notifySessionLost();
+      if (agentLacksSession(cid, result)) deps.notifySessionLost();
     })();
   });
 }

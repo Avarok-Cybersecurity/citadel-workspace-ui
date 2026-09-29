@@ -40,24 +40,22 @@ export function setupEventListeners(
     startBackendPolling(state);
   });
 
-  eventEmitter.on('p2p:registration-service-stopped', () => {
-    stopPolling(state);
-    stopBackendPolling(state);
-    state.cancelAllRetries();
+  const stopAll = (): void => { stopPolling(state); stopBackendPolling(state); state.cancelAllRetries(); };
+  eventEmitter.on('p2p:registration-service-stopped', stopAll);
+  // The agent no longer holds this tab's session: its ListAllPeers would be refused for ever.
+  eventEmitter.on('p2p:session-gone-from-agent', ({ cid }: { cid: bigint }) => {
+    debugLog('P2PAutoConnectService', `[P2PAutoConnect] Agent no longer holds session ${cid.toString()}, stopping all polling`);
+    stopAll();
   });
 
   eventEmitter.on('websocket-disconnected', ({ reason }: { reason: string }) => {
     debugLog('P2PAutoConnectService', `[P2PAutoConnect] WebSocket disconnected: ${reason}, stopping all polling`);
-    stopPolling(state);
-    stopBackendPolling(state);
-    state.cancelAllRetries();
+    stopAll();
   });
 
   eventEmitter.on('connection-failure', ({ error }: { error: string }) => {
     debugLog('P2PAutoConnectService', `[P2PAutoConnect] Connection failure: ${error}, stopping all polling`);
-    stopPolling(state);
-    stopBackendPolling(state);
-    state.cancelAllRetries();
+    stopAll();
   });
 
   eventEmitter.on('instance:leader-changed', (data: { isLeader: boolean; leaderId: string }) => {
@@ -66,9 +64,7 @@ export function setupEventListeners(
       startPolling(state, connectAll);
       startBackendPolling(state);
     } else {
-      stopPolling(state);
-      stopBackendPolling(state);
-      state.cancelAllRetries();
+      stopAll();
     }
   });
 

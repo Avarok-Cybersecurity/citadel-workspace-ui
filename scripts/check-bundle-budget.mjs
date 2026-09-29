@@ -140,7 +140,17 @@ const dist = join(root, 'dist');
  * still constructed at boot, by main.tsx's dynamic import, after first paint.
  * DEFERRED_MODULES below fails if any of it comes back.
  */
-const BUDGET_KB = 322;
+/**
+ * 322 -> 323, approved by the owner (2026-09-28): features are not cut to fit this number; it is
+ * our own tripwire for a chunk arriving on the landing page by accident, not a Lighthouse limit.
+ *
+ * CI read 322.0 for the fix that stops polling sessions the agent no longer holds: the session
+ * start-up sequence runs on the landing page, so its new "is this session still the agent's?"
+ * check is on the critical path. That is a real fix, not a chunk arriving. The way to lower this
+ * is skeleton-first loading with the shell in smaller chunks and service initialisation deferred
+ * until after sign-in -- worth tens of kilobytes -- not trimming features.
+ */
+const BUDGET_KB = 323;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source
