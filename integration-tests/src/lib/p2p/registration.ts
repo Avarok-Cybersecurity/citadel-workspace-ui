@@ -265,9 +265,9 @@ export async function verifyConnectedBadgeInModal(
     const peerRow = modal.locator(`div.rounded-lg:has(p.font-medium:text-is("${peerUsername}"))`).first();
 
     if (await isVisibleWithin(peerRow, 500)) {
-      // Check for "Connected" badge within this peer's row
-      // The badge has: bg-blue-500/20 class, UserCheck icon (lucide-user-check), and text "Connected"
-      const connectedBadge = peerRow.locator('[class*="bg-blue-500"]:has-text("Connected"), div:has(svg.lucide-user-check):has-text("Connected")').first();
+      // The registered badge, by test id: it reads "Contact" (it was "Connected",
+      // which claimed a connection for peers who were offline).
+      const connectedBadge = peerRow.getByTestId('peer-contact-badge');
 
       if (await isVisibleWithin(connectedBadge, 100)) {
         console.log(`  SUCCESS: Found "Connected" badge for ${peerUsername}`);
