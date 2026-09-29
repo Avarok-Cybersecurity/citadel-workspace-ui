@@ -91,6 +91,19 @@ describe('a send to a contact', () => {
     expect(await outbox.heldCount(LARA, MAX)).toBe(0);
   });
 
+  it('leaves in write order even when every send lands in the same millisecond', async (): Promise<void> => {
+    // The clock above never repeats, which hid this: keys ordered by time then a
+    // random tiebreak put same-millisecond messages in random order. CI caught it
+    // (2026-09-29): two sends from one test landed together and left as 2, 1.
+    const frozen: PausedOutbox = new PausedOutbox({ storage: db, now: (): number => 1_000 });
+    pause(LARA, MAX);
+    const written: string[] = Array.from({ length: 12 }, (_: unknown, i: number): string => `m${i}`);
+    for (const m of written) await frozen.sendOrHold(LARA, MAX, bytes(m), {}, send(bytes(m)));
+    const flushed: string[] = [];
+    await frozen.flush(LARA, MAX, async (b: Uint8Array): Promise<void> => { flushed.push(text(b)); });
+    expect(flushed).toEqual(written);
+  });
+
   it('keeps what was not flushed when a flush fails part-way', async (): Promise<void> => {
     pause(LARA, MAX);
     for (const m of ['one', 'two', 'three']) await outbox.sendOrHold(LARA, MAX, bytes(m), {}, send(bytes(m)));

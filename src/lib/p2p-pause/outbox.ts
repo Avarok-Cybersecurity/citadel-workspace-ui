@@ -9,8 +9,9 @@
  * contact never reaches the ILM at all. It is written to the agent's LocalDB,
  * under the local session, one key per message, and leaves on Resume.
  *
- * One key per message, ordered by time then a random tiebreak, so two tabs
- * writing at once cannot overwrite each other. Durable, because the banner
+ * One key per message, ordered by a stamp that strictly increases within this
+ * tab, then a random tiebreak, so two tabs writing at once cannot overwrite
+ * each other. Across tabs, same-stamp order is the tiebreak's. Durable, because the banner
  * promises delivery after Resume and a reload in between must not break that.
  *
  * The key also carries the send's security level and compression hint, so a
@@ -74,10 +75,21 @@ function optionsFromKey(key: string, prefix: string): ReliableSendOptions {
 export class PausedOutbox {
   private readonly storage: OutboxStorage;
   private readonly now: () => number;
+  /**
+   * The last stamp written. Stamps strictly increase, so messages held within
+   * one millisecond still sort in write order: with the clock alone they tied,
+   * and the random tiebreak decided which left first.
+   */
+  private lastStamp: number = 0;
 
   constructor(deps: { storage: OutboxStorage; now: () => number }) {
     this.storage = deps.storage;
     this.now = deps.now;
+  }
+
+  private nextStamp(): number {
+    this.lastStamp = Math.max(this.now(), this.lastStamp + 1);
+    return this.lastStamp;
   }
 
   /**
@@ -96,7 +108,7 @@ export class PausedOutbox {
       await send();
       return 'sent';
     }
-    const key: string = `${outboxPrefix(peerCid)}${this.now().toString().padStart(TIME_WIDTH, '0')}_${crypto.randomUUID()}${optionsSuffix(options)}`;
+    const key: string = `${outboxPrefix(peerCid)}${this.nextStamp().toString().padStart(TIME_WIDTH, '0')}_${crypto.randomUUID()}${optionsSuffix(options)}`;
     await this.storage.set(localCid, key, Array.from(bytes));
     return 'held';
   }
