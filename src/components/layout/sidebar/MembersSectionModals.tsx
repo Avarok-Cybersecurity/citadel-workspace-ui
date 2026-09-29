@@ -10,14 +10,13 @@
  * - CreateGroupDialog
  */
 
-import { MoreVertical, Shield } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 import { InviteToWorkspaceDialog } from '@/components/workspace/InviteToWorkspaceDialog';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MemberManagementModal } from "@/components/member/MemberManagementModal";
@@ -40,6 +39,10 @@ import { useConfirm } from '@/components/shared/confirm-dialog';
 import { mayLeaveEditor } from '@/lib/leave-editor';
 import type { NavigateFunction } from 'react-router';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
+import { MemberActionItems } from './MemberActionItems';
+import { useMemberActionBlocks } from './use-member-action-blocks';
+import type { MemberActionBlocks } from './member-actions-gate';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 /** Role badge classes. Defined once in lib/role-badge so the sidebar and user
  *  search cannot drift apart again — they already had, and only one was fixed. */
 export function getRoleColor(role: string): string {
@@ -109,6 +112,7 @@ export function MembersSectionModals({
   onCreateGroup,
 }: MembersSectionModalsProps): JSX.Element {
   const navigate: NavigateFunction = useNavigate();
+  const memberBlocks: MemberActionBlocks = useMemberActionBlocks(currentNodeId ?? WORKSPACE_ROOT_ID);
   const confirm: ReturnType<typeof useConfirm> = useConfirm();
   // Leaving the workspace view unmounts the editor, so ask first -- as every
   // other navigation out of the sidebar does.
@@ -145,9 +149,12 @@ export function MembersSectionModals({
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Actions for ${member.username}`}><MoreVertical className="h-4 w-4" aria-hidden="true" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => { onManagePermissions(member); onSetShowAllMembersDialog(false); }}><Shield className="h-4 w-4 mr-2" />Manage Permissions</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { onEditMember(member); onSetShowAllMembersDialog(false); }}>Change Role</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { onRemoveMember(member); onSetShowAllMembersDialog(false); }} className="text-destructive-emphasis">Remove Member</DropdownMenuItem>
+                        <MemberActionItems
+                          blocks={memberBlocks}
+                          onManagePermissions={() => { onManagePermissions(member); onSetShowAllMembersDialog(false); }}
+                          onEditMember={() => { onEditMember(member); onSetShowAllMembersDialog(false); }}
+                          onRemoveMember={() => { onRemoveMember(member); onSetShowAllMembersDialog(false); }}
+                        />
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}

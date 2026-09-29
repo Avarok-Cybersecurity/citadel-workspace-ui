@@ -18,6 +18,11 @@ import type { FileTransfer } from './types';
 import type { FileTransferState as TransferLifecycleState } from '@/types/messaging-layer';
 
 export const STALE_OFFER_REASON: string = 'Offer expired — ask the sender to send it again.';
+/** The sender's own copy: telling them to ask the sender was telling them to ask themselves. */
+export const STALE_SENT_OFFER_REASON: string = 'Offer expired before it was accepted — send the file again.';
+
+/** Which side of the conversation is reading the bubble. */
+export type OfferSide = 'sent' | 'received';
 
 export interface TransferView {
   state: TransferLifecycleState;
@@ -38,11 +43,13 @@ const AWAITING_ANSWER: ReadonlySet<TransferLifecycleState> = new Set<TransferLif
  * @param record the service's record for the entry's transfer, if it has one
  * @param offerArriving whether the offer was announced during this page's life
  *   and its record is still being written
+ * @param side whether the reader sent this offer or received it
  */
 export function transferView(
   message: TransferMessageFields,
   record: FileTransfer | undefined,
-  offerArriving: boolean
+  offerArriving: boolean,
+  side: OfferSide
 ): TransferView {
   if (record) {
     return { state: record.state, progress: record.progress, reason: record.errorMessage };
@@ -51,7 +58,7 @@ export function transferView(
   // An offer with no record that did not arrive in this page's life is one
   // restored from storage: there is nothing left that could accept it.
   if (AWAITING_ANSWER.has(state) && !offerArriving) {
-    return { state: 'expired', progress: 0, reason: STALE_OFFER_REASON };
+    return { state: 'expired', progress: 0, reason: side === 'sent' ? STALE_SENT_OFFER_REASON : STALE_OFFER_REASON };
   }
   return { state, progress: message.transfer_progress ?? 0, reason: message.error };
 }
