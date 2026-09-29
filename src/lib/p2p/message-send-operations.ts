@@ -17,6 +17,8 @@ import type { MessageSenderConfig } from './message-sender-types';
 import { debugLog } from '@/lib/debug-config';
 import type { P2PConversation } from '@/lib/p2p/p2p-types';
 import { chatAdvancedSettings, type ChatSecurityLevel } from './chat-advanced-settings';
+import { compressionHintFor } from './compression-hints';
+import type { CompressionHint } from 'citadel-workspace-client-ts';
 
 /**
  * Send a raw MessagingLayer message to a peer (used by FileTransferService)
@@ -89,7 +91,8 @@ const RETRY_AFTER_MS: number = 250;
 export async function sendAllowingForAConcurrentOpen(
   currentCid: bigint,
   peerCid: bigint,
-  bytes: Uint8Array
+  bytes: Uint8Array,
+  compressionHint?: CompressionHint
 ): Promise<void> {
   // The chat's level, on every send, rather than leaving it unset (which the
   // WASM binding reads as Standard). Dormant today: no control sets a level
@@ -98,13 +101,13 @@ export async function sendAllowingForAConcurrentOpen(
   const level: ChatSecurityLevel = (await chatAdvancedSettings.get(currentCid, peerCid)).securityLevel;
   await websocketService.ensureMessengerOpen(currentCid);
   try {
-    await websocketService.sendP2PMessageReliable(currentCid, peerCid, bytes, level);
+    await websocketService.sendP2PMessageReliable(currentCid, peerCid, bytes, level, compressionHint);
   } catch (error: unknown) {
     if (!MESSENGER_STILL_OPENING.test(String(error))) throw error;
     debugLog('MessageSendOperations', '[P2P] messenger was still opening; retrying once');
     await new Promise<void>((resolve) => setTimeout(resolve, RETRY_AFTER_MS));
     await websocketService.ensureMessengerOpen(currentCid);
-    await websocketService.sendP2PMessageReliable(currentCid, peerCid, bytes, level);
+    await websocketService.sendP2PMessageReliable(currentCid, peerCid, bytes, level, compressionHint);
   }
 }
 
@@ -127,22 +130,24 @@ export async function sendP2PCommand(
   debugLog('MessageSendOperations', `[P2P] *** sendP2PCommand *** from ${currentCid.toString().slice(0, 8)}... to ${peerCid.toString().slice(0, 8)}... (${messageBytes.length} bytes)`);
 
   debugLog('MessageSendOperations', `[P2P] *** Calling websocketService.sendP2PMessageReliable(${currentCid.toString().slice(0, 8)}..., ${peerCid.toString().slice(0, 8)}..., ...)`);
-  await sendAllowingForAConcurrentOpen(currentCid, peerCid, messageBytes);
+  await sendAllowingForAConcurrentOpen(currentCid, peerCid, messageBytes, compressionHintFor(command));
   debugLog('MessageSendOperations', `[P2P] *** websocketService.sendP2PMessageReliable completed successfully ***`);
 }
 
 /**
- * Send raw bytes to a peer (bypassing command serialization)
+ * Send raw bytes to a peer (bypassing command serialization). The caller that
+ * serialized them knows what they are, so it passes the hint.
  */
 export async function sendRawBytes(
   config: MessageSenderConfig,
   peerCid: bigint,
-  bytes: Uint8Array
+  bytes: Uint8Array,
+  compressionHint?: CompressionHint
 ): Promise<void> {
   const currentCid: bigint | null = await config.getCurrentCid();
   if (!currentCid) {
     throw new Error('Not connected to server');
   }
 
-  await sendAllowingForAConcurrentOpen(currentCid, peerCid, bytes);
+  await sendAllowingForAConcurrentOpen(currentCid, peerCid, bytes, compressionHint);
 }

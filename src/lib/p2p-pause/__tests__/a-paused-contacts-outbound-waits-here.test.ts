@@ -64,19 +64,19 @@ describe('a send to a contact', () => {
   };
 
   it('goes straight out when the contact is not paused', async (): Promise<void> => {
-    expect(await outbox.sendOrHold(LARA, MAX, bytes('hi'), send(bytes('hi')))).toBe('sent');
+    expect(await outbox.sendOrHold(LARA, MAX, bytes('hi'), {}, send(bytes('hi')))).toBe('sent');
     expect(sent).toEqual(['hi']);
   });
 
   it('is held, not sent, while the contact is paused', async (): Promise<void> => {
     pause(LARA, MAX);
-    expect(await outbox.sendOrHold(LARA, MAX, bytes('hi'), send(bytes('hi')))).toBe('held');
+    expect(await outbox.sendOrHold(LARA, MAX, bytes('hi'), {}, send(bytes('hi')))).toBe('held');
     expect(sent).toEqual([]);
   });
 
   it('is refused -- not sent, not held -- when the pause record cannot be read', async (): Promise<void> => {
     db.failReads = true;
-    await expect(outbox.sendOrHold(LARA, MAX, bytes('hi'), send(bytes('hi')))).rejects.toThrow(/could not check/i);
+    await expect(outbox.sendOrHold(LARA, MAX, bytes('hi'), {}, send(bytes('hi')))).rejects.toThrow(/could not check/i);
     db.failReads = false;
     expect(sent).toEqual([]);
     expect(await outbox.heldCount(LARA, MAX)).toBe(0);
@@ -84,7 +84,7 @@ describe('a send to a contact', () => {
 
   it('leaves on resume, in the order it was written, and only once', async (): Promise<void> => {
     pause(LARA, MAX);
-    for (const m of ['one', 'two', 'three']) await outbox.sendOrHold(LARA, MAX, bytes(m), send(bytes(m)));
+    for (const m of ['one', 'two', 'three']) await outbox.sendOrHold(LARA, MAX, bytes(m), {}, send(bytes(m)));
     const flushed: string[] = [];
     await outbox.flush(LARA, MAX, async (b: Uint8Array): Promise<void> => { flushed.push(text(b)); });
     expect(flushed).toEqual(['one', 'two', 'three']);
@@ -93,7 +93,7 @@ describe('a send to a contact', () => {
 
   it('keeps what was not flushed when a flush fails part-way', async (): Promise<void> => {
     pause(LARA, MAX);
-    for (const m of ['one', 'two', 'three']) await outbox.sendOrHold(LARA, MAX, bytes(m), send(bytes(m)));
+    for (const m of ['one', 'two', 'three']) await outbox.sendOrHold(LARA, MAX, bytes(m), {}, send(bytes(m)));
     const flushed: string[] = [];
     await expect(outbox.flush(LARA, MAX, async (b: Uint8Array): Promise<void> => {
       if (text(b) === 'two') throw new Error('socket closed');
@@ -107,9 +107,9 @@ describe('a send to a contact', () => {
     pause(LARA, MAX);
     pause(LARA, CAROL);
     pause(CAROL, MAX);
-    await outbox.sendOrHold(LARA, MAX, bytes('to max'), send(bytes('to max')));
-    await outbox.sendOrHold(LARA, CAROL, bytes('to carol'), send(bytes('to carol')));
-    await outbox.sendOrHold(CAROL, MAX, bytes('carol to max'), send(bytes('carol to max')));
+    await outbox.sendOrHold(LARA, MAX, bytes('to max'), {}, send(bytes('to max')));
+    await outbox.sendOrHold(LARA, CAROL, bytes('to carol'), {}, send(bytes('to carol')));
+    await outbox.sendOrHold(CAROL, MAX, bytes('carol to max'), {}, send(bytes('carol to max')));
     const flushed: string[] = [];
     await outbox.flush(LARA, MAX, async (b: Uint8Array): Promise<void> => { flushed.push(text(b)); });
     expect(flushed).toEqual(['to max']);
@@ -119,7 +119,7 @@ describe('a send to a contact', () => {
 
   it('survives a reload: a fresh outbox over the same agent still holds it', async (): Promise<void> => {
     pause(LARA, MAX);
-    await outbox.sendOrHold(LARA, MAX, bytes('before reload'), send(bytes('before reload')));
+    await outbox.sendOrHold(LARA, MAX, bytes('before reload'), {}, send(bytes('before reload')));
     const afterReload: PausedOutbox = new PausedOutbox({ storage: db, now: (): number => 5_000 });
     const flushed: string[] = [];
     await afterReload.flush(LARA, MAX, async (b: Uint8Array): Promise<void> => { flushed.push(text(b)); });

@@ -12,6 +12,8 @@ import type { RevfsNode, RevfsPendingOp, RevfsOperation } from '@/types/revfs-ty
 import { MessagingLayerType } from '@/types/messaging-layer';
 import { P2PCommandType, serializeP2PCommand } from '@/types/p2p-types';
 import type { P2PCommand, P2PMessagingLayerPayload } from '@/types/p2p-types';
+import type { CompressionHint } from 'citadel-workspace-client-ts';
+import { compressionHintFor } from '@/lib/p2p/compression-hints';
 import { RevfsOpfsStorage } from './opfs-storage';
 import { debugLog } from '@/lib/debug-config';
 import { backendSendFile, backendDeleteFile } from './revfs-io-network';
@@ -25,7 +27,7 @@ export interface RevfsIODeps {
    * same peer -- whose sender opens the channel -- went through.
    */
   openPeerChannel: (peerCid: bigint) => Promise<boolean>;
-  sendP2PMessageReliable: (localCid: bigint, peerCid: bigint, message: Uint8Array) => Promise<void>;
+  sendP2PMessageReliable: (localCid: bigint, peerCid: bigint, message: Uint8Array, compressionHint: CompressionHint | undefined) => Promise<void>;
   getCurrentCid: () => Promise<bigint | null>;
   /** Send an internal service request (SendFile, DownloadFile, DeleteVirtualFile) */
   sendInternalServiceRequest: (request: unknown) => Promise<void>;
@@ -90,7 +92,7 @@ export class RevfsIO {
 
       const bytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand(command);
       debugLog('RevfsIO', `sendRevfsOp: sending ${bytes.length} bytes to peer ${peerCid}`);
-      await this.deps.sendP2PMessageReliable(localCid, peerCid, bytes);
+      await this.deps.sendP2PMessageReliable(localCid, peerCid, bytes, compressionHintFor(command));
       debugLog('RevfsIO', 'sendRevfsOp: sent successfully');
       return { type: 'send-revfs-op', success: true };
     } catch (err) {

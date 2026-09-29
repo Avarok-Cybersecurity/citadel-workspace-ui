@@ -12,16 +12,29 @@
  * One key per message, ordered by time then a random tiebreak, so two tabs
  * writing at once cannot overwrite each other. Durable, because the banner
  * promises delivery after Resume and a reload in between must not break that.
+ *
+ * The key also carries the send's security level and compression hint, so a
+ * held message leaves on Resume exactly as it would have left at once. Keys
+ * written before that have neither, and flush as they always did.
  */
+import type { CompressionHint } from 'citadel-workspace-client-ts';
 import { readPauseStatus, type PauseStorage } from './pause-store';
 import type { PauseStatus } from './pause-rules';
 import { isGenuinelyAbsent } from '@/lib/storage/absence';
+import { CHAT_SECURITY_LEVELS, type ChatSecurityLevel } from '@/lib/p2p/chat-advanced-settings';
+import { isCompressionHint } from '@/lib/p2p/compression-hints';
 
 export interface OutboxStorage extends PauseStorage {
   listKeys(localCid: bigint, prefix: string): Promise<string[]>;
 }
 
 export type SendOutcome = 'sent' | 'held';
+
+/** How a message is sent, apart from its bytes. Absent fields mean the transport's own default. */
+export interface ReliableSendOptions {
+  securityLevel?: ChatSecurityLevel;
+  compressionHint?: CompressionHint;
+}
 
 /** A send the pause forbids and nothing can hold: the caller must not retry around it. */
 export class PausedPeerError extends Error {
@@ -33,9 +46,29 @@ export class PausedPeerError extends Error {
 
 const OUTBOX_PREFIX: 'p2p_paused_outbox_' = 'p2p_paused_outbox_';
 const TIME_WIDTH: number = 16;
+const ABSENT: '-' = '-';
 
 function outboxPrefix(peerCid: bigint): string {
   return `${OUTBOX_PREFIX}${peerCid.toString()}_`;
+}
+
+function optionsSuffix(options: ReliableSendOptions): string {
+  return `_${options.securityLevel ?? ABSENT}_${options.compressionHint ?? ABSENT}`;
+}
+
+/** Inverse of optionsSuffix. A key this module did not write is an error, not a guess. */
+function optionsFromKey(key: string, prefix: string): ReliableSendOptions {
+  const parts: string[] = key.slice(prefix.length).split('_');
+  if (parts.length === 2) return {};
+  const [, , level, hint] = parts;
+  const securityLevel: ChatSecurityLevel | undefined = CHAT_SECURITY_LEVELS.find((l: ChatSecurityLevel): boolean => l === level);
+  if (parts.length !== 4 || (level !== ABSENT && securityLevel === undefined) || (hint !== ABSENT && !isCompressionHint(hint))) {
+    throw new Error(`Unreadable held-message key ${key}; nothing further was flushed`);
+  }
+  return {
+    ...(securityLevel !== undefined ? { securityLevel } : {}),
+    ...(isCompressionHint(hint) ? { compressionHint: hint } : {}),
+  };
 }
 
 export class PausedOutbox {
@@ -52,7 +85,9 @@ export class PausedOutbox {
    * break a pause, and holding would park a message for a contact who may not
    * be paused at all, with no Resume ever coming to release it.
    */
-  async sendOrHold(localCid: bigint, peerCid: bigint, bytes: Uint8Array, send: () => Promise<void>): Promise<SendOutcome> {
+  async sendOrHold(
+    localCid: bigint, peerCid: bigint, bytes: Uint8Array, options: ReliableSendOptions, send: () => Promise<void>
+  ): Promise<SendOutcome> {
     const status: PauseStatus = await readPauseStatus(this.storage, localCid, peerCid);
     if (status === 'unknown') {
       throw new Error(`Could not check whether the connection to ${peerCid.toString()} is paused; nothing was sent`);
@@ -61,7 +96,7 @@ export class PausedOutbox {
       await send();
       return 'sent';
     }
-    const key: string = `${outboxPrefix(peerCid)}${this.now().toString().padStart(TIME_WIDTH, '0')}_${crypto.randomUUID()}`;
+    const key: string = `${outboxPrefix(peerCid)}${this.now().toString().padStart(TIME_WIDTH, '0')}_${crypto.randomUUID()}${optionsSuffix(options)}`;
     await this.storage.set(localCid, key, Array.from(bytes));
     return 'held';
   }
@@ -80,12 +115,15 @@ export class PausedOutbox {
    * In write order; each one removed only after it was handed on, and the first
    * failure stops the flush, so what is left is exactly what did not go.
    */
-  async flush(localCid: bigint, peerCid: bigint, send: (bytes: Uint8Array) => Promise<void>): Promise<number> {
+  async flush(
+    localCid: bigint, peerCid: bigint, send: (bytes: Uint8Array, options: ReliableSendOptions) => Promise<void>
+  ): Promise<number> {
     const keys: string[] = await this.heldKeys(localCid, peerCid);
     let flushed: number = 0;
     for (const key of keys) {
+      const options: ReliableSendOptions = optionsFromKey(key, outboxPrefix(peerCid));
       const stored: { value: number[] } | null = await this.storage.get(localCid, key);
-      if (stored !== null) await send(Uint8Array.from(stored.value));
+      if (stored !== null) await send(Uint8Array.from(stored.value), options);
       await this.storage.remove(localCid, key);
       flushed += 1;
     }

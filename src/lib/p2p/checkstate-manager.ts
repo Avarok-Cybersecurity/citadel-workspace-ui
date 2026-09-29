@@ -18,12 +18,14 @@ import {
 import { debugLog } from '@/lib/debug-config';
 import type { MessagingLayer } from '@/types/messaging-layer';
 import type { P2PCommand } from '@/types/p2p-commands';
+import type { CompressionHint } from 'citadel-workspace-client-ts';
+import { compressionHintFor } from './compression-hints';
 
 export interface CheckStateConfig {
   /** Timeout for CheckState response (ms) */
   timeout: number;
   /** Function to send serialized bytes to peer */
-  sendToP2P: (peerCid: bigint, bytes: Uint8Array) => Promise<void>;
+  sendToP2P: (peerCid: bigint, bytes: Uint8Array, compressionHint: CompressionHint | undefined) => Promise<void>;
   /** Function to get current CID */
   getCurrentCid: () => Promise<bigint | null>;
   /** Function to get conversation's last message index */
@@ -129,7 +131,7 @@ export class CheckStateManager {
 
     try {
       const bytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand(command);
-      await this.config.sendToP2P(peerCid, bytes);
+      await this.config.sendToP2P(peerCid, bytes, compressionHintFor(command));
       debugLog('CheckstateManager', '[P2P] Sent CheckStateResponse to peer:', peerCid);
     } catch (error) {
       debugLog('CheckstateManager', 'Failed to send CheckStateResponse:', error);
@@ -200,7 +202,7 @@ export class CheckStateManager {
     // Send the CheckState request
     try {
       const bytes: Uint8Array<ArrayBufferLike> = serializeP2PCommand(command);
-      await this.config.sendToP2P(peerCid, bytes);
+      await this.config.sendToP2P(peerCid, bytes, compressionHintFor(command));
       debugLog('CheckstateManager', '[P2P] Sent CheckState to peer:', peerCid);
     } catch (error) {
       // Clean up pending state on send failure

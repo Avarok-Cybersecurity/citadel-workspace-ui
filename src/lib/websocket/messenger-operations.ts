@@ -5,7 +5,8 @@
  * Extracted from websocket-service.ts to reduce file size.
  */
 
-import { WorkspaceClient } from 'citadel-workspace-client-ts';
+import { WorkspaceClient, type CompressionHint } from 'citadel-workspace-client-ts';
+import type { ChatSecurityLevel } from '../p2p/chat-advanced-settings';
 import { debugLog } from '../debug-config';
 import { instanceManager, instanceChannel, instanceInboundRouter } from '../multi-instance';
 import { isEnsureMessengerOpenResponse } from '../multi-instance/outbound-queue';
@@ -116,7 +117,8 @@ export class MessengerOperations {
     localCid: bigint,
     peerCid: bigint,
     message: Uint8Array,
-    securityLevel?: 'Standard' | 'Reinforced' | 'High' | 'Extreme'
+    securityLevel?: ChatSecurityLevel,
+    compressionHint?: CompressionHint
   ): Promise<void> {
     await this.config.init();
 
@@ -132,7 +134,8 @@ export class MessengerOperations {
       localCid: localCid.toString(),
       peerCid: peerCid.toString(),
       messageLength: message.length,
-      securityLevel
+      securityLevel,
+      compressionHint
     });
 
     if (instanceManager.isLeader) {
@@ -140,17 +143,18 @@ export class MessengerOperations {
       if (!client) {
         throw new Error('WebSocket client not available (leader without client)');
       }
-      await client.sendP2PMessageReliable(localCid.toString(), peerCid.toString(), message, securityLevel);
+      await client.sendP2PMessageReliable(localCid.toString(), peerCid.toString(), message, securityLevel, compressionHint);
     } else {
       debugLog('MessengerOperations', '[Follower] Proxying sendP2PMessageReliable through leader');
 
       // Convert Uint8Array to Array for serialization over BroadcastChannel
-      const proxyRequest: { __sendP2PMessageProxy: boolean; localCid: string; peerCid: string; message: number[]; securityLevel: "Standard" | "Reinforced" | "High" | "Extreme" | undefined; } = {
+      const proxyRequest: { __sendP2PMessageProxy: boolean; localCid: string; peerCid: string; message: number[]; securityLevel: ChatSecurityLevel | undefined; compressionHint: CompressionHint | undefined; } = {
         __sendP2PMessageProxy: true,
         localCid: localCid.toString(),
         peerCid: peerCid.toString(),
         message: Array.from(message),
-        securityLevel: securityLevel
+        securityLevel: securityLevel,
+        compressionHint: compressionHint
       };
 
       const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();

@@ -28,6 +28,7 @@ import { debugLog } from '@/lib/debug-config';
 import { markSendFailed } from './mark-send-failed';
 import { resendMessage } from './resend-message';
 import type { P2PCommand } from '@/types/p2p-commands';
+import type { CompressionHint } from 'citadel-workspace-client-ts';
 
 export type { MessageSenderConfig, SendMessageOptions } from './message-sender-types';
 
@@ -171,7 +172,7 @@ export class MessageSender {
     return p2pCommandOp(this.config, peerCid, command, senderCid);
   }
 
-  public async sendRawBytes(peerCid: bigint, bytes: Uint8Array): Promise<void> {
-    return rawBytesOp(this.config, peerCid, bytes);
+  public async sendRawBytes(peerCid: bigint, bytes: Uint8Array, compressionHint?: CompressionHint): Promise<void> {
+    return rawBytesOp(this.config, peerCid, bytes, compressionHint);
   }
 }

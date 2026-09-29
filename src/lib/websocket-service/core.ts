@@ -4,7 +4,7 @@
  * Thin facade that delegates to extracted operation modules.
  */
 
-import type { WorkspaceClient } from 'citadel-workspace-client-ts';
+import type { WorkspaceClient, CompressionHint } from 'citadel-workspace-client-ts';
 import { instanceManager } from '../multi-instance/instance-manager';
 import { isLeaderSocketUp } from '../multi-instance/agent-socket-state';
 // Namespace import to break circular dependency:
@@ -18,7 +18,8 @@ import { createServiceModules, type ServiceModules } from './module-init';
 import { initService, waitForInit as waitForInitFn, resetService } from './initialization';
 import { sendRequest as sendRequestFn } from './send-request';
 import { pausedOutboxOver } from './paused-outbox';
-import type { PausedOutbox } from '@/lib/p2p-pause/outbox';
+import type { PausedOutbox, ReliableSendOptions } from '@/lib/p2p-pause/outbox';
+import type { ChatSecurityLevel } from '@/lib/p2p/chat-advanced-settings';
 
 export class WebSocketServiceCore {
   client: WorkspaceClient | null = null;
@@ -128,18 +129,19 @@ export class WebSocketServiceCore {
 
   async sendP2PMessageReliable(
     localCid: bigint, peerCid: bigint, message: Uint8Array,
-    securityLevel?: 'Standard' | 'Reinforced' | 'High' | 'Extreme'
+    securityLevel?: ChatSecurityLevel, compressionHint?: CompressionHint
   ): Promise<void> {
     // The one road into the ILM. A paused contact's messages, edits, reactions
     // and receipts wait in the outbox instead; see p2p-pause/outbox.ts.
-    await this.outbox.sendOrHold(localCid, peerCid, message,
-      () => this.modules.messengerOps.sendP2PMessageReliable(localCid, peerCid, message, securityLevel));
+    await this.outbox.sendOrHold(localCid, peerCid, message, { securityLevel, compressionHint },
+      () => this.modules.messengerOps.sendP2PMessageReliable(localCid, peerCid, message, securityLevel, compressionHint));
   }
 
-  /** Resume's half: hand what the pause held to the ILM, in order. */
+  /** Resume's half: hand what the pause held to the ILM, in order, as each would have left at once. */
   async flushPausedOutbox(localCid: bigint, peerCid: bigint): Promise<number> {
     return this.outbox.flush(localCid, peerCid,
-      (held: Uint8Array) => this.modules.messengerOps.sendP2PMessageReliable(localCid, peerCid, held));
+      (held: Uint8Array, options: ReliableSendOptions) => this.modules.messengerOps.sendP2PMessageReliable(
+        localCid, peerCid, held, options.securityLevel, options.compressionHint));
   }
 
   // ============== Disconnect ==============
