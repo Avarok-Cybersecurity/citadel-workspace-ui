@@ -109,11 +109,15 @@ export function useConversationPeers({
     eventEmitter.on('p2p:message-received', handleMessageUpdate);
     eventEmitter.on('p2p:message-sent', handleMessageUpdate);
     eventEmitter.on('p2p:conversation-updated', handleMessageUpdate);
+    // Cached history arrives after the first read. Without this the list stayed
+    // "No conversations yet" after every reload, until someone wrote.
+    eventEmitter.on('p2p:messages-loaded', handleMessageUpdate);
 
     return (): void => {
       eventEmitter.off('p2p:message-received', handleMessageUpdate);
       eventEmitter.off('p2p:message-sent', handleMessageUpdate);
       eventEmitter.off('p2p:conversation-updated', handleMessageUpdate);
+      eventEmitter.off('p2p:messages-loaded', handleMessageUpdate);
     };
   }, [loadConversations]);
 

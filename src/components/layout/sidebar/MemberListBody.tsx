@@ -1,6 +1,8 @@
 import { SidebarMenuItem } from '@/components/ui/sidebar';
 import { MembersEmptyState } from './MembersEmptyState';
 import { MemberListItems } from './MemberListItems';
+import { useMemberActionBlocks } from './use-member-action-blocks';
+import type { MemberActionBlocks } from './member-actions-gate';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 
 interface MemberListBodyProps {
@@ -43,6 +45,7 @@ export function MemberListBody({
   onManagePermissions,
   onShowAllMembers,
 }: MemberListBodyProps): JSX.Element | null {
+  const blocks: MemberActionBlocks = useMemberActionBlocks(activeDomainId);
   if (isLoading) {
     return (
       // Named, so a failure can say WHICH of the three branches was on screen.
@@ -61,6 +64,7 @@ export function MemberListBody({
   return (
     <MemberListItems
       members={members}
+      blocks={blocks}
       currentUsername={currentUsername}
       onEditMember={onEditMember}
       onRemoveMember={onRemoveMember}

@@ -6,11 +6,11 @@
 import { useEffect, useReducer } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { fileTransferService, FILE_TRANSFER_EVENTS } from '@/lib/file-transfer';
-import { transferView, type TransferView } from '@/lib/file-transfer/transfer-view';
+import { transferView, type OfferSide, type TransferView } from '@/lib/file-transfer/transfer-view';
 import type { FileTransfer } from '@/lib/file-transfer/types';
 import type { P2PMessage } from '@/lib/p2p';
 
-export function useTransferView(message: P2PMessage): TransferView {
+export function useTransferView(message: P2PMessage, side: OfferSide): TransferView {
   const transferId: string | undefined = message.transfer_id;
   const [, rerender] = useReducer((n: number): number => n + 1, 0);
 
@@ -26,5 +26,5 @@ export function useTransferView(message: P2PMessage): TransferView {
 
   const record: FileTransfer | undefined = transferId ? fileTransferService.getTransfer(transferId) : undefined;
   const arriving: boolean = transferId ? fileTransferService.isOfferArriving(transferId) : false;
-  return transferView(message, record, arriving);
+  return transferView(message, record, arriving, side);
 }

@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { BaseOffice } from '../office/BaseOffice';
 import { P2PChat } from '../p2p/P2PChat';
 import { getDefaultNodeContent, getDefaultChildNodeContent, getWorkspaceHomeContent } from '@/lib/default-mdx-content';
-import { buildTreeFromNodes } from '@/components/layout/sidebar/tree-node-utils';
+import { topLevelTrees } from '@/components/layout/sidebar/tree-node-utils';
 import type { TreeNode } from '@/components/layout/sidebar/tree-node-types';
 import { NodeNotFound } from './NodeNotFound';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -146,9 +146,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   );
 };
 
-/** The spaces directly under the workspace, by the sidebar's own rule (buildTreeFromNodes). */
+/** The spaces directly under the workspace, by the sidebar's own rule. */
 function topLevelSpaces(nodes: Record<string, DomainNode>): DomainNode[] {
-  const tree: TreeNode | null = buildTreeFromNodes(Object.values(nodes), '');
-  if (!tree) return [];
-  return tree.node.id === WORKSPACE_ROOT_ID ? tree.children.map((child: TreeNode): DomainNode => child.node) : [tree.node];
+  return topLevelTrees(Object.values(nodes)).map((tree: TreeNode): DomainNode => tree.node);
 }
