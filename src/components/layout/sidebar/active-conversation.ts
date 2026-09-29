@@ -22,6 +22,8 @@ const GROUPS_PREFIX: '/groups/' = '/groups/';
 const SHOWING: 'showP2P' = 'showP2P';
 const CHANNEL: 'channel' = 'channel';
 const PEER: 'p2pUser' = 'p2pUser';
+/** A pane that replaces the workspace view, and so hides any conversation. */
+const SECTION: 'section' = 'section';
 
 export interface ActiveConversation {
   /** The peer whose conversation is open, by CID. */
@@ -65,6 +67,10 @@ export function conversationHref(
   // address and opened nothing, so from there the link goes to the workspace,
   // without the other page's parameters, which mean something else there.
   const params: URLSearchParams = new URLSearchParams(pathname === getWorkspacePath() ? search : '');
+  // The same failure one level down: Office shows a `section` (the file
+  // manager) in place of the workspace view, so a conversation link that kept
+  // one changed the address and opened nothing.
+  params.delete(SECTION);
   params.set(SHOWING, 'true');
   params.set(PEER, peer.username);
   params.set(CHANNEL, peer.cid);

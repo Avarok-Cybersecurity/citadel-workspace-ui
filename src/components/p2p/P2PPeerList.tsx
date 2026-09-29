@@ -10,7 +10,7 @@ import { UserPlus, MessageCircle, Users, CheckCircle } from 'lucide-react';
 import { useEventListener } from '@/hooks';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
-import type { PeerInfo } from './P2PPeerListHelpers';
+import { conversationPeerName, type PeerInfo } from './P2PPeerListHelpers';
 import { ConversationPeerItem } from './ConversationPeerItem';
 import { peerDisplayName, peerInitials, isUnnamedPeer } from '@/lib/peer-display';
 import type { P2PConversation, P2PMessage } from '@/lib/p2p/p2p-types';
@@ -29,12 +29,13 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
 
   const loadPeers: () => void = useCallback((): void => {
     const conversations: P2PConversation[] = messenger.getAllConversations();
+    const { allPeers } = p2pRegistrationService.getPeers();
     const peerList: PeerInfo[] = conversations.map(conv => {
       const lastMessage: P2PMessage = conv.messages[conv.messages.length - 1];
       const peerCidStr: string = conv.peerCid.toString();
       return {
         cid: peerCidStr,
-        name: peerDisplayName({ cid: conv.peerCid, username: conv.peerUsername }),
+        name: conversationPeerName(conv.peerCid, conv.peerUsername, allPeers),
         isConnected: messenger.isConnected(conv.peerCid),
         unreadCount: conv.unreadCount,
         lastMessage: lastMessage?.content,
