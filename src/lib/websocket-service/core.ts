@@ -20,6 +20,7 @@ import { sendRequest as sendRequestFn } from './send-request';
 import { pausedOutboxOver } from './paused-outbox';
 import type { PausedOutbox, ReliableSendOptions } from '@/lib/p2p-pause/outbox';
 import type { ChatSecurityLevel } from '@/lib/p2p/chat-advanced-settings';
+import type { SendDelivery } from '@/lib/p2p/send-failure';
 
 export class WebSocketServiceCore {
   client: WorkspaceClient | null = null;
@@ -112,7 +113,7 @@ export class WebSocketServiceCore {
    * `sendP2PMessage` above would otherwise round-trip the bytes through
    * `stringToBytes` which assumes UTF-8 and corrupts binary payloads.
    */
-  async sendP2PMessageBytes(cid: bigint, targetCid: bigint, message: Uint8Array): Promise<void> { await this.outbox.refuseIfPaused(cid, targetCid); return this.modules.p2pOps.sendP2PMessageBytes(cid, targetCid, message) }
+  async sendP2PMessageBytes(cid: bigint, targetCid: bigint, message: Uint8Array, delivery: SendDelivery): Promise<void> { await this.outbox.refuseIfPaused(cid, targetCid); return this.modules.p2pOps.sendP2PMessageBytes(cid, targetCid, message, delivery) }
 
   async openP2PConnection(cid: bigint, targetCid: bigint): Promise<void> { return this.modules.p2pOps.openP2PConnection(cid, targetCid) }
 
