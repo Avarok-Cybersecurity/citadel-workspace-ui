@@ -37,7 +37,7 @@ export function FileTransferBubble({
   onCancel,
   onOpen
 }: FileTransferBubbleProps): JSX.Element {
-  const view: TransferView = useTransferView(message);
+  const view: TransferView = useTransferView(message, isOwn ? 'sent' : 'received');
   const state: string = view.state;
   const isFailed: boolean = message.status === 'failed' || state === 'error';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
