@@ -20,6 +20,7 @@ import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-ti
 import { debugLog } from '@/lib/debug-config';
 import { MemberRow, ROLE_COLORS } from './MemberRow';
 import { useLevelName } from '@/hooks/use-level-name';
+import { MembersVisibilitySwitch } from './MembersVisibilitySwitch';
 
 export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTabProps): JSX.Element {
   const { toast } = useToast();
@@ -145,6 +146,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
 
   return (
     <div className="space-y-4" data-testid="members-tab-content">
+      <MembersVisibilitySwitch entityType={entityType} entityId={entityId} />
       {/* Advanced Toggle */}
       <div className="flex items-center justify-between p-3 bg-background rounded-lg">
         <div className="flex items-center gap-2">

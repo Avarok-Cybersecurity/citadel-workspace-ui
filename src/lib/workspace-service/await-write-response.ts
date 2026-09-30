@@ -36,6 +36,7 @@ export const WRITE_RESPONSE_TIMEOUT_MS: number = 15_000;
 export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   CreateNode: ['Node'],
   UpdateNode: ['Node'],
+  SetMembersVisible: ['Node'],
   DeleteNode: ['NodeDeleted'],
   MoveNode: ['NodeMoved'],
 

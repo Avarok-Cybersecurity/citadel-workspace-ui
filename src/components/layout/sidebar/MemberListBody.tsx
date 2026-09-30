@@ -1,5 +1,6 @@
 import { SidebarMenuItem } from '@/components/ui/sidebar';
 import { MembersEmptyState } from './MembersEmptyState';
+import { MembersHiddenNotice } from './MembersHiddenNotice';
 import { MemberListItems } from './MemberListItems';
 import { useMemberActionBlocks } from './use-member-action-blocks';
 import type { MemberActionBlocks } from './member-actions-gate';
@@ -17,6 +18,8 @@ interface MemberListBodyProps {
   /** Your registered peers: a member who is one of them opens the conversation when clicked. */
   contacts: readonly RegisteredPeer[];
   membersUnavailable: boolean;
+  /** An admin has hidden this roster from the current user. */
+  membersHidden: boolean;
   currentUsername: string | undefined;
   onEditMember: (member: WorkspaceMember) => void;
   onRemoveMember: (member: WorkspaceMember) => void;
@@ -45,6 +48,7 @@ export function MemberListBody({
   peerCount,
   contacts,
   membersUnavailable,
+  membersHidden,
   currentUsername,
   onEditMember,
   onRemoveMember,
@@ -71,6 +75,7 @@ export function MemberListBody({
       </SidebarMenuItem>
     );
   }
+  if (membersHidden) return <MembersHiddenNotice domainId={activeDomainId} />;
   if (members.length === 0 && peerCount === 0) {
     return <MembersEmptyState unavailable={membersUnavailable} domainId={activeDomainId} />;
   }

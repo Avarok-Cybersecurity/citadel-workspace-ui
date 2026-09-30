@@ -30,6 +30,7 @@ import type { UsePermissionResult } from '@/hooks/use-permission-result';
 
 const { listMembers } = vi.hoisted(() => ({ listMembers: vi.fn(async (): Promise<void> => {}) }));
 let deliver: ((payload: MembersPayload) => void) | null = null;
+let hide: ((payload: { domainId: string }) => void) | null = null;
 
 // The members header asks AddUsers, and the member menu RemoveUsers, through
 // `usePermission`, whose fetch is agent I/O. Answered "yes" unless a case says no.
@@ -45,7 +46,11 @@ vi.mock('@/hooks/use-permission', () => ({
 vi.mock('@/lib/workspace-service', () => ({ default: { listMembers } }));
 vi.mock('@/lib/workspace-events', () => ({
   workspaceEvents: {
-    onMemberEvent: (_event: string, cb: (payload: MembersPayload) => void): (() => void) => {
+    onMemberEvent: (event: string, cb: (payload: MembersPayload) => void): (() => void) => {
+      if (event === 'members:hidden') {
+        hide = cb as unknown as (payload: { domainId: string }) => void;
+        return (): void => { hide = null; };
+      }
       deliver = cb;
       return (): void => { deliver = null; };
     },
@@ -114,6 +119,17 @@ describe('the sidebar member list with no node selected', () => {
     renderAt('/workspace?nodeId=office-7');
     await waitFor((): void => { expect(listMembers).toHaveBeenCalledWith('office-7'); });
     expect(listMembers).not.toHaveBeenCalledWith(WORKSPACE_ROOT_ID);
+  });
+
+  it('says an admin hid the list, rather than that nobody is here', async () => {
+    renderAt('/workspace?nodeId=office-7');
+    await waitFor((): void => { expect(listMembers).toHaveBeenCalledWith('office-7'); });
+
+    act((): void => { hide?.({ domainId: 'office-7' }); });
+
+    expect(await screen.findByTestId('members-hidden')).toHaveTextContent('An admin has chosen not to show who else is here');
+    expect(screen.queryByTestId('members-empty')).toBeNull();
+    expect(screen.queryByTestId('members-loading')).toBeNull();
   });
 });
 
