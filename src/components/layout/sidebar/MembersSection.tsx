@@ -6,10 +6,9 @@ import { PendingRequestsBadge } from './PendingRequestsBadge';
 import { membersSectionLabel } from './members-section-label';
 import { MembersHeaderActions } from './MembersHeaderActions';
 import { connectionManager } from '@/lib/connection';
-import { mayLeaveEditor } from '@/lib/leave-editor';
-import { useConfirm } from '@/components/shared/confirm-dialog';
-import { useLocation, useNavigate } from "react-router-dom";
-import { activeConversation, conversationHref, type ActiveConversation } from "./active-conversation";
+import { useLocation } from "react-router-dom";
+import { activeConversation, type ActiveConversation } from "./active-conversation";
+import { useOpenConversation } from './use-open-conversation';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   SidebarGroup,
@@ -33,15 +32,12 @@ import { debugLog } from '@/lib/debug-config';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 import { MembersSectionModals } from './MembersSectionModals';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
-import type { NavigateFunction } from 'react-router';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 export const MembersSection: () => JSX.Element = (): JSX.Element => {
   const location: ReturnType<typeof useLocation> = useLocation();
-  const confirm: ReturnType<typeof useConfirm> = useConfirm();
   const [showInvite, setShowInvite] = useState(false);
-  const navigate: NavigateFunction = useNavigate();
   const { state } = useWorkspace();
   const params: URLSearchParams = new URLSearchParams(location.search);
   const currentNodeId: string | null = params.get("nodeId");
@@ -104,13 +100,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
   // held as state, so it cannot drift from what is actually rendered.
   const active: ActiveConversation = activeConversation(location.pathname, location.search);
 
-  const handlePeerClick = async (cid: string, username: string): Promise<void> => {
-    // The workspace view renders P2P chat instead of the editor, so this
-    // unmounts the buffer as completely as selecting another node does.
-    if (!(await mayLeaveEditor(confirm))) return;
-
-    navigate(conversationHref(location.pathname, location.search, { cid, username }));
-  };
+  const handlePeerClick: (cid: string, username: string) => Promise<void> = useOpenConversation();
 
   const getLocationText = (): string => {
     const node: DomainNode | undefined = currentNodeId ? state.nodes[currentNodeId] : undefined;
@@ -144,6 +134,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
                 activeDomainId={activeDomainId}
                 members={members}
                 peerCount={filteredRegisteredPeers.length + registeredPeers.length}
+                contacts={registeredPeers}
                 membersUnavailable={membersUnavailable}
                 currentUsername={state.currentUser?.username}
                 onEditMember={handleEditMember}

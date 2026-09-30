@@ -27,7 +27,8 @@ const SRC: string = join(process.cwd(), 'src');
  */
 const LEAVES_THE_EDITOR: string[] = [
   'components/layout/sidebar/HierarchySidebar.tsx',
-  'components/layout/sidebar/MembersSection.tsx',
+  // MembersSection no longer navigates itself: its contact and member rows open
+  // chats through use-open-conversation.ts, listed below with the guarded ones.
   'components/layout/sidebar/FilesSection.tsx',
   'components/layout/sidebar/useWorkspaceSwitcher.tsx',
   // Exit to Landing and Sign Out: both do work before they navigate, so they
@@ -49,6 +50,7 @@ const NAVIGATES_ONLY_THROUGH_THE_GUARD: string[] = [
   'components/layout/sidebar/GroupConversationRow.tsx',
   'components/layout/sidebar/MembersSectionModals.tsx',
   'components/call/OngoingCallBar.tsx',
+  'components/layout/sidebar/use-open-conversation.ts',
 ];
 
 describe('a navigation that unmounts the editor', () => {

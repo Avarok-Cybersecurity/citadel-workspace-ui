@@ -74,7 +74,7 @@ describe('a sidebar member row', () => {
     render(
       <SidebarProvider><TooltipProvider>
         <MemberListItems members={members} blocks={NONE} nameOfLevel={(id: string): string => (id === 'workspace-root' ? 'mac2' : id)}
-          currentUsername="me" onEditMember={() => undefined} onRemoveMember={() => undefined}
+          currentUsername="me" onEditMember={() => undefined} openChatWith={(): null => null} onRemoveMember={() => undefined}
           onManagePermissions={() => undefined} onShowAllMembers={() => undefined} />
       </TooltipProvider></SidebarProvider>,
     );
