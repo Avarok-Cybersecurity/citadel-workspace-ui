@@ -1,11 +1,9 @@
 import { useNavigate } from "react-router-dom";
-import { useProfileDraft } from "./use-profile-draft";
+import { useRegistrationChoices, type RegistrationChoices } from "@/components/registration-choices";
 import { LazyLandingSteps as LandingSteps } from "./lazy-landing-steps";
 import { Button } from "@/components/ui/button";
 import { LogIn, Settings, Shield, ArrowRight } from "lucide-react";
 import { useState, useCallback } from "react";
-import type { SecuritySettingsValues } from "@/components/SecuritySettings";
-import { DEFAULT_SECURITY_SETTINGS } from "@/components/security-settings-defaults";
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { ManageAccountsButton } from "@/components/ManageAccountsButton";
 import { OrphanSessionsNavbar } from "@/components/OrphanSessionsNavbar";
@@ -31,20 +29,15 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
   const navigate: NavigateFunction = useNavigate();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<'none' | 'server' | 'security' | 'join' | 'login'>('none');
-  const { draft: profileDraft, setDraft: setProfileDraft, clear: clearProfileDraft } = useProfileDraft();
+  // The security chosen and the profile typed; see SecurityAndProfileSteps.
+  const choices: RegistrationChoices = useRegistrationChoices();
+  const clearProfileDraft: () => void = choices.clearProfileDraft;
   const hasOrphanSessions: boolean = useHasOrphanSessions();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Server connection data lifted to Landing state to avoid React Query GC eviction
   const [serverAddress, setServerAddress] = useState('');
   const [serverPassword, setServerPassword] = useState('');
-  // Lifted for the same reason, which the server fields' fix did not carry to.
-  // Nothing observes the ['securitySettings'] query key, so the entry was
-  // garbage-collected five minutes after the user chose -- and the account was
-  // then registered with the defaults, permanently, with nothing said.
-  const [securitySettings, setSecuritySettings] = useState<SecuritySettingsValues>(
-    DEFAULT_SECURITY_SETTINGS,
-  );
 
   useJoinLink(useCallback((): void => setCurrentStep('server'), []), setServerAddress);
 
@@ -67,16 +60,9 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
     setServerPassword(password);
     setCurrentStep('security');
   };
-  const handleSecurityComplete = (chosen: SecuritySettingsValues): void => {
-    setSecuritySettings(chosen);
-    if (currentStep === 'security') {
-      setCurrentStep('join');
-    }
-  };
   const handleSecurityBack = (): void => setCurrentStep('server');
   const handleJoinNext = async (cid: string): Promise<void> => {
     debugLog('Landing', `[Landing] handleJoinNext called with cid: ${cid}`);
-    clearProfileDraft();
     try {
       await postAuthSetup(BigInt(cid));
       debugLog('Landing', '[Landing] Navigating to /office...');
@@ -240,12 +226,9 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
         setCurrentStep={setCurrentStep}
         serverAddress={serverAddress}
         serverPassword={serverPassword}
-        securitySettings={securitySettings}
-        profileDraft={profileDraft}
-        setProfileDraft={setProfileDraft}
+        choices={choices}
         handleServerNext={handleServerNext}
         handleSecurityBack={handleSecurityBack}
-        handleSecurityComplete={handleSecurityComplete}
         handleJoinNext={handleJoinNext}
         handleJoinBack={handleJoinBack}
         handleLoginNext={handleLoginNext}
