@@ -4,7 +4,7 @@
  * Type definitions for P2P auto-connect functionality.
  */
 
-import type { PeerConnectPath } from '@/types/ice-servers';
+import type { PeerPathReport } from '@/types/ice-servers';
 
 export interface ConnectionAttempt {
   attempts: number;
@@ -32,8 +32,12 @@ export interface PeerConnectionInfo {
   peerCid: bigint;
   connectedAt: number;
   lastVerified: number;
-  /** How the agent reported reaching the peer; null until a PeerConnectSuccess says. */
-  path: PeerConnectPath | null;
+  /**
+   * The agent's latest report of how traffic reaches the peer; null until one
+   * arrives. PeerConnectSuccess gives the first (normally the server relay) and
+   * each PeerPathChangedNotification replaces it.
+   */
+  route: PeerPathReport | null;
 }
 
 /**

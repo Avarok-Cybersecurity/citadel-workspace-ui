@@ -22,6 +22,8 @@ import { P2PMessageList } from './P2PMessageList';
 import { P2PMessageInput } from './P2PMessageInput';
 import { useP2PMessages, useP2PFileTransfer, useP2PTabs } from './hooks';
 import { useP2PCompose } from './hooks/useP2PCompose';
+import { useConnectionRoute } from './hooks/use-connection-route';
+import type { PeerPathReport } from '@/types/ice-servers';
 import { useFollowLatest } from './hooks/use-follow-latest';
 import { usePeerPause, type PeerPauseBinding } from './hooks/use-peer-pause';
 import { PausedBanner } from './PausedBanner';
@@ -92,6 +94,7 @@ export function P2PChat({
   });
 
   const fileTransfer: ReturnType<typeof useP2PFileTransfer> = useP2PFileTransfer({ peerCid, peerName });
+  const connectionRoute: PeerPathReport | null = useConnectionRoute(currentUserCid ?? null, peerCid);
 
   // Composition hook (input, reply/edit context, send, live-doc flow)
   const {
@@ -144,6 +147,7 @@ export function P2PChat({
         isConnected={isConnected}
         isRegistered={isRegistered}
         paused={paused}
+        connectionRoute={connectionRoute}
         onSettingsClick={() => setShowSettingsModal(true)}
         call={{
           canCall: isConnected,

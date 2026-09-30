@@ -14,7 +14,7 @@
 
 import { ensureBigInt, ensureBigIntPair } from '../utils';
 import type { PeerConnectionInfo } from './types';
-import type { PeerConnectPath } from '@/types/ice-servers';
+import type { PeerPathReport } from '@/types/ice-servers';
 import { debugLog } from '@/lib/debug-config';
 
 export class ConnectedPeersState {
@@ -50,7 +50,7 @@ export class ConnectedPeersState {
       peerCid: peerCidBigInt,
       connectedAt: now,
       lastVerified: now,
-      path: localPeerMap.get(peerCidBigInt)?.path ?? null,
+      route: localPeerMap.get(peerCidBigInt)?.route ?? null,
     });
 
     // Store reverse direction: peerCid -> localCid (BIDIRECTIONAL)
@@ -62,7 +62,7 @@ export class ConnectedPeersState {
       peerCid: localCidBigInt,
       connectedAt: now,
       lastVerified: now,
-      path: peerPeerMap.get(localCidBigInt)?.path ?? null,
+      route: peerPeerMap.get(localCidBigInt)?.route ?? null,
     });
 
     const allKeys: bigint[] = Array.from(this.connectedPeers.keys());
@@ -75,18 +75,31 @@ export class ConnectedPeersState {
   }
 
   /**
-   * Record how the connection reached the peer (bidirectional). The report comes
-   * with PeerConnectSuccess, so the pair is connected; a missing record is created.
+   * Record how the connection reaches the peer (bidirectional). Called with
+   * PeerConnectSuccess, so the pair is connected and a missing record is created;
+   * a later path change goes through `updateConnectionPath` instead.
    * Dropped with the connection by setPeerDisconnected.
    */
-  setConnectionPath(localCid: bigint, peerCid: bigint, path: PeerConnectPath): void {
+  setConnectionPath(localCid: bigint, peerCid: bigint, route: PeerPathReport): void {
     const [a, b] = ensureBigIntPair(localCid, peerCid);
     const now: number = Date.now();
     for (const [from, to] of [[a, b], [b, a]] as const) {
       const peers: Map<bigint, PeerConnectionInfo> = this.getPeerMapForSession(from);
       const existing: PeerConnectionInfo | undefined = peers.get(to);
-      peers.set(to, { peerCid: to, connectedAt: existing?.connectedAt ?? now, lastVerified: now, path });
+      peers.set(to, { peerCid: to, connectedAt: existing?.connectedAt ?? now, lastVerified: now, route });
     }
+  }
+
+  /**
+   * A path change of a connection this state holds. False, and nothing written,
+   * when it holds none: a change is not a connection, and must not make a
+   * dropped or paused pair read as connected.
+   */
+  updateConnectionPath(localCid: bigint, peerCid: bigint, route: PeerPathReport): boolean {
+    const [a, b] = ensureBigIntPair(localCid, peerCid);
+    if (this.connectedPeers.get(a)?.get(b) === undefined) return false;
+    this.setConnectionPath(a, b, route);
+    return true;
   }
 
   /**

@@ -19,7 +19,7 @@ const FOLLOWER_SESSION: bigint = 14741090851496596846n;
 const PEER: bigint = 7610457994796114930n;
 const FOLLOWER_TAB: string = '424242';
 
-interface Sent { data: { type?: string; localCid?: string; peerCid?: string; path?: unknown }; about: bigint | undefined }
+interface Sent { data: { type?: string; localCid?: string; peerCid?: string; route?: unknown }; about: bigint | undefined }
 let sent: Sent[];
 let leading: boolean;
 
@@ -43,12 +43,12 @@ const announceFrom = (instanceId: string, cid: bigint | null): void => {
 };
 
 describe('a tab that newly holds a session', () => {
-  it('is sent every link that session already has, addressed to it, path field included', () => {
+  it('is sent every link that session already has, addressed to it, route field included', () => {
     instanceManager.registerInstance(FOLLOWER_TAB, FOLLOWER_SESSION);
     expect(sent).toHaveLength(1);
     expect(sent[0].about).toBe(FOLLOWER_SESSION);
     expect(sent[0].data).toMatchObject({ type: 'connected-peers-update', localCid: FOLLOWER_SESSION.toString(), peerCid: PEER.toString() });
-    expect(sent[0].data).toHaveProperty('path');
+    expect(sent[0].data).toHaveProperty('route');
   });
 
   it('is not sent it again for repeating what it already said', () => {

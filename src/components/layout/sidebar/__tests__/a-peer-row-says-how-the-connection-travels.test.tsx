@@ -51,7 +51,7 @@ describe('the reported connection path', () => {
     eventEmitter.emit('websocket-message', { PeerConnectSuccess: { cid: LEADS, peer_cid: OTHER, request_id: null, path: 'turn' } });
     await vi.waitFor((): void => { expect(sent).toHaveBeenCalled(); });
     const payload: unknown = sent.mock.calls.at(-1)?.[0];
-    expect(payload).toMatchObject({ type: 'connected-peers-update', path: 'turn' });
+    expect(payload).toMatchObject({ type: 'connected-peers-update', route: { path: 'turn', upgrading: false } });
 
     leader.mockReturnValue(false);
     p2pAutoConnectService.setPeerDisconnected(LEADS, OTHER);

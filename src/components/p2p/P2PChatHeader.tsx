@@ -14,6 +14,8 @@ import { getInitials } from '@/components/chat/shared';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { PeerPresence } from '@/lib/p2p';
 import { PAUSE_COPY } from '@/lib/p2p-pause/pause-copy';
+import type { PeerPathReport } from '@/types/ice-servers';
+import { ConnectionPathLabel } from './ConnectionPathLabel';
 
 interface P2PChatHeaderProps {
   peerName: string;
@@ -23,6 +25,8 @@ interface P2PChatHeaderProps {
   isRegistered: boolean;
   /** Paused by us: the link is down on purpose, so presence is not the story. */
   paused: boolean;
+  /** How messages reach the peer now; shown only while the link is up. */
+  connectionRoute: PeerPathReport | null;
   onSettingsClick: () => void;
   /** Omitted where calling is not wired up, so the header stays usable. */
   call?: {
@@ -89,6 +93,7 @@ export function P2PChatHeader({
   isConnected,
   isRegistered,
   paused,
+  connectionRoute,
   onSettingsClick,
   call,
 }: P2PChatHeaderProps): JSX.Element {
@@ -116,6 +121,7 @@ export function P2PChatHeader({
                 style={statusDisplay.customColor ? { backgroundColor: statusDisplay.customColor } : undefined}
               />
               <span className={statusDisplay.textColor}>{statusDisplay.text}</span>
+              {isConnected && !paused && <ConnectionPathLabel route={connectionRoute} />}
               {/* Permanently mounted so the region pre-exists its text; a live
                   region created together with its content is announced
                   inconsistently or not at all. The pulse was purely visual. */}
