@@ -33,6 +33,7 @@ import { useGroupConversations } from '@/hooks/use-group-conversations';
 import type { GroupConversation } from '@/types/group';
 import { connectionManager } from '@/lib/connection';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { debugLog } from '@/lib/debug-config';
 import { groupGoneMessage, type GoneMessage } from '@/lib/group-conversations/group-gone-message';
 import type { NavigateFunction } from 'react-router';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
@@ -114,7 +115,9 @@ export function GroupChatPage(): JSX.Element {
   const handleKickMember: (memberCid: string) => Promise<void> = useCallback(
     async (memberCid: string) => {
       if (!groupId) return;
-      await kickMember(groupId, memberCid);
+      // Every way a kick fails has already been shown by kickGroupMember, on the
+      // group-failure toast; the roster moves only on the server's success.
+      await kickMember(groupId, memberCid).catch((e: unknown): void => debugLog('GroupChatPage', 'kick failed', e));
     },
     [groupId, kickMember]
   );
