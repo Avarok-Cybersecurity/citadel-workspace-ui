@@ -28,6 +28,7 @@ import type { TabIdentity } from '@/lib/tab-identity';
 import { useConfirm } from './shared/confirm-dialog';
 import { LazyTakeoverSignIn as TakeoverSignIn } from './LazyTakeoverSignIn';
 import { AccountRow } from './AccountRows';
+import { signedOutReasonFor } from './signed-out/signed-out-match';
 
 interface AccountManagementDialogProps {
   isOpen: boolean;
@@ -163,6 +164,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
                     current={isCurrentAccount(me, session)}
                     live
                     lastConnected={null}
+                    signedOut={null}
                     onSwitch={() => { void switchToLive(session); }}
                     onDelete={null}
                   />
@@ -186,6 +188,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
                       current={isCurrentAccount(me, { cid: session.cid, username: session.username })}
                       live={liveSession !== undefined}
                       lastConnected={session.lastConnected ? formatLastConnected(session.lastConnected) : null}
+                      signedOut={liveSession === undefined ? signedOutReasonFor(session, live.signedOut) : null}
                       onSwitch={() => { if (liveSession) void switchToLive(liveSession); else startSignIn(session.username); }}
                       onDelete={() => { setSessionToDelete({ username: session.username, serverAddress: session.serverAddress }); setDeleteConfirmOpen(true); }}
                     />

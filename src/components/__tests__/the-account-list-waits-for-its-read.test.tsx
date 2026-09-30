@@ -44,7 +44,7 @@ vi.mock('@/lib/connection', async (importOriginal) => {
           resolve();
         };
       }),
-      getActiveSessionsResult: async (): Promise<{ ok: boolean; sessions: never[] }> => ({ ok: true, sessions: [] }),
+      getActiveSessionsResult: async (): Promise<{ ok: boolean; sessions: never[]; signedOut: never[] }> => ({ ok: true, sessions: [], signedOut: [] }),
     }),
   };
 });

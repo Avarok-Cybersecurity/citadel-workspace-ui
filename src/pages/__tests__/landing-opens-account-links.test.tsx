@@ -17,7 +17,7 @@ const agent: { sessions: ActiveSession[] } = { sessions: [] };
 vi.mock('@/lib/connection', () => ({
   connectionManager: {
     waitForReady: async (): Promise<void> => {},
-    getActiveSessionsResult: async (): Promise<{ ok: boolean; sessions: ActiveSession[] }> => ({ ok: true, sessions: agent.sessions }),
+    getActiveSessionsResult: async (): Promise<{ ok: boolean; sessions: ActiveSession[]; signedOut: [] }> => ({ ok: true, sessions: agent.sessions, signedOut: [] }),
     getStoredSessions: (): { sessions: never[] } => ({ sessions: [] }),
   },
 }));

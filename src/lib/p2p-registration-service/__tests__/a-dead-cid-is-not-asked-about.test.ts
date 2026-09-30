@@ -14,7 +14,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ActiveSessionsResult } from '@/lib/connection/queries';
 import { isSessionNotFoundRefusal, SessionNotHeldError } from '@/lib/sessions/agent-holds-session';
-import { startPeerPoll } from '../peer-poll';
+import { startPeerPoll, type PeerPoll } from '../peer-poll';
 
 const OURS: bigint = 1n;
 const h: { sessions: ActiveSessionsResult; sent: unknown[] } = vi.hoisted(() => ({
@@ -86,7 +86,7 @@ describe('a peer list for a session the agent does not hold', () => {
     h.sessions = { ok: true, sessions: [], signedOut: [] };
     const gone: bigint[] = [];
     let checks: number = 0;
-    const poll = startPeerPoll({
+    const poll: PeerPoll = startPeerPoll({
       check: async (): Promise<void> => { checks++; await listAllPeers(new Map() as never); },
       currentCid: async (): Promise<bigint | null> => OURS,
       activeSessions: async (): Promise<ActiveSessionsResult> => h.sessions,

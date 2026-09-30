@@ -11,6 +11,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import type { ActiveSessionsResult } from '@/lib/connection/queries';
+import type { SignedOutAccount } from '@/types/session-types';
 
 const agent: { answer: ActiveSessionsResult; answered: number } = vi.hoisted(() => ({
   answer: { ok: true, sessions: [], signedOut: [] } as ActiveSessionsResult,
@@ -26,8 +27,8 @@ vi.mock('@/lib/connection', () => ({
 import { SignedOutNotice } from '../SignedOutNotice';
 import { signedOutNotice } from '../signed-out-copy';
 
-const alice = { cid: 7n, username: 'alice', reason: 'CID not registered to this node' };
-const bob = { cid: 9n, username: 'bob', reason: 'no answer from the server in 600s' };
+const alice: SignedOutAccount = { cid: 7n, username: 'alice', reason: 'CID not registered to this node' };
+const bob: SignedOutAccount = { cid: 9n, username: 'bob', reason: 'no answer from the server in 600s' };
 
 afterEach(cleanup);
 
@@ -47,11 +48,11 @@ describe('the landing page’s signed-out notice', () => {
     expect((await screen.findByTestId('signed-out-notice')).textContent).toContain('2 accounts (alice, bob) were signed out');
   });
 
-  it.each([
+  it.each<[string, ActiveSessionsResult]>([
     ['nobody was signed out', { ok: true, sessions: [], signedOut: [] }],
     // The failed answer carries a name so that reading it anyway would show.
     ['the agent could not be asked', { ok: false, sessions: [], signedOut: [alice] }],
-  ] as const)('says nothing when %s', async (_why: string, answer: ActiveSessionsResult): Promise<void> => {
+  ])('says nothing when %s', async (_why: string, answer: ActiveSessionsResult): Promise<void> => {
     agent.answer = answer;
     agent.answered = 0;
     render(<SignedOutNotice />);
