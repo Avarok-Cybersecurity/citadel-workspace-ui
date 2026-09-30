@@ -6,6 +6,7 @@ import { useCall } from '@/lib/call/call-context';
 import { useCallStageVisible } from './call-stage-presence';
 import { useCallDuration } from './use-call-duration';
 import { useRosterName } from './use-roster-name';
+import { openCallHome } from './open-call-home';
 import type { CallParticipant } from '@/lib/call/call-state';
 
 /**
@@ -40,19 +41,8 @@ export function OngoingCallBar(): JSX.Element | null {
   // that person may never pick up.
   const anyoneAnswered: boolean = others.some(hasAnswered);
 
-  const returnToCall = (): void => {
-    if (call.roomId) {
-      void navigate(`/groups/${call.roomId}`);
-      return;
-    }
-    const peer: CallParticipant = others[0];
-    // `channel`, which is the param the Messages page reads. This said `peer`,
-    // which nothing reads anywhere -- so during a 1:1 call, leaving the
-    // conversation and pressing Return landed on "No conversation selected",
-    // the call stage never came back, and the bar kept floating over it. Wired
-    // from one end: the button navigated, the page never listened.
-    if (peer) void navigate(`/messages?channel=${peer.cid.toString()}`);
-  };
+  // Guarded: Return leaves the page an unsaved document may be open on (#102).
+  const returnToCall = (): void => openCallHome(call.home, others[0], (to: string): void => { void navigate(to); });
 
   return (
     <div

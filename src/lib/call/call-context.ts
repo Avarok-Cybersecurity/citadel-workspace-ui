@@ -1,5 +1,5 @@
 import { createContext, useContext , type Context } from 'react';
-import type { CallState } from './call-state';
+import type { CallHome, CallState } from './call-state';
 import type { CaptureFailure } from './media-capture';
 import type { CallMediaKinds } from '@/types/p2p-commands';
 import type { VideoQuality } from './video-quality';
@@ -27,7 +27,7 @@ export interface CallContextValue {
   captureFailure: CaptureFailure | null;
   /** Whether this browser can do calls at all, with the reason if not. */
   capability: { supported: boolean; reason?: string };
-  startCall: (peers: Array<{ cid: bigint; username: string }>, video: boolean, roomId?: string) => Promise<void>;
+  startCall: (peers: Array<{ cid: bigint; username: string }>, video: boolean, home: CallHome) => Promise<void>;
   accept: (media: CallMediaKinds) => Promise<void>;
   decline: () => Promise<void>;
   leave: () => Promise<void>;

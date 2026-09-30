@@ -20,7 +20,7 @@ import type {
   CallMediaKinds,
   CallSignalPayload,
 } from '@/types/p2p-commands';
-import { canAddParticipant, type CallEvent, type CallState } from './call-state';
+import { callRoomId, canAddParticipant, type CallEvent, type CallHome, type CallState } from './call-state';
 import { reduce } from './call-reducer';
 import type { WireFrame } from './frame-codec';
 import { PeerCodecBook } from './peer-codec-book';
@@ -99,12 +99,13 @@ export class CallManager {
     callId: string,
     invitees: Array<{ cid: bigint; username: string }>,
     media: CallMediaKinds,
-    roomId: string | null,
+    home: CallHome,
     videoSendCodec: string | null,
   ): Promise<void> {
     this.codecs.clear();
     // apply() arms the ringing-out deadline; see call-deadline.
-    this.apply({ type: 'invite-sent', callId, roomId, media, invitees });
+    this.apply({ type: 'invite-sent', callId, home, media, invitees });
+    const roomId: string | null = callRoomId(home);
 
     const invite: CallSignalPayload = {
       kind: 'CallInvite',

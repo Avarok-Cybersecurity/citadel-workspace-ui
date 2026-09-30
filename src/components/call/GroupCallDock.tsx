@@ -1,5 +1,6 @@
 import { CallStage } from './CallStage';
 import { useCall } from '@/lib/call/call-context';
+import { callRoomId } from '@/lib/call/call-state';
 
 /**
  * The in-call stage, docked above one group conversation and no other.
@@ -29,7 +30,7 @@ export function GroupCallDock({ roomId }: { roomId: string }): JSX.Element | nul
 
   const docked: boolean =
     call !== null &&
-    call.roomId === roomId &&
+    callRoomId(call.home) === roomId &&
     call.status !== 'ended' &&
     call.status !== 'ringing-in';
 

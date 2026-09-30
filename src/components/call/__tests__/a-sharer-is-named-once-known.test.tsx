@@ -38,7 +38,7 @@ const STREAM: MediaStream = { getVideoTracks: (): MediaStreamTrack[] => [], getT
 
 function sharingCall(username: string): CallState {
   return {
-    callId: 'c1', status: 'active', selfSpeaking: false, roomId: null, outgoing: false, caller: ALICE,
+    callId: 'c1', status: 'active', selfSpeaking: false, home: { kind: 'direct' }, outgoing: false, caller: ALICE,
     selfMedia: { audio: true, video: false, screen: false },
     participants: new Map([[ALICE, { cid: ALICE, username, status: 'active', media: { audio: true, video: false, screen: true }, speaking: false }]]),
     reason: null,

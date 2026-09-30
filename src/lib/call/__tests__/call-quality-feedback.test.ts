@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach    } from 'vitest';
 import { CallManager } from '../call-manager';
 import type { CallTransport } from '../call-transport';
 import type { CallCodecCapabilities, CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
+import { DIRECT_CALL } from '../call-state';
 
 const AUDIO: CallMediaKinds = { audio: true, video: false, screen: false };
 const CAPS: CallCodecCapabilities = { audio: ['opus'], video: [] };
@@ -54,7 +55,7 @@ function harness(observed?: (cid: bigint) => Link | undefined): { manager: CallM
         .map((c) => c[1] as CallSignalPayload)
         .filter((s) => s.kind === 'CallHeartbeat'),
     active: async (): Promise<void> => {
-      await manager.start('c1', [{ cid: BOB, username: 'bob' }], AUDIO, null, null);
+      await manager.start('c1', [{ cid: BOB, username: 'bob' }], AUDIO, DIRECT_CALL, null);
       await manager.handleSignal(BOB, 'bob', {
         kind: 'CallAccept',
         call_id: 'c1',

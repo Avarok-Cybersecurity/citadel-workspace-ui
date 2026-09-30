@@ -10,6 +10,7 @@ import { stillInCall } from './participant-presence';
 import {
   MAX_AUDIO_PARTICIPANTS,
   MAX_VIDEO_PARTICIPANTS,
+  callRoomId,
   canAddParticipant,
   type CallState,
 } from './call-state';
@@ -33,7 +34,7 @@ export function groupCallEntryMode(
   notConnected: readonly string[],
 ): GroupCallEntryMode {
   if (call && call.status !== 'ended') {
-    if (call.roomId === roomId) {
+    if (callRoomId(call.home) === roomId) {
       if (call.status === 'ringing-in') {
         // Someone already started this room's call. Joining is the only sane
         // offer — a "start" here puts two people in two calls in one room.

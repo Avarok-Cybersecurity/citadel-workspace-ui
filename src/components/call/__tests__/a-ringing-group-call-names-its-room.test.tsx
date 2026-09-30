@@ -12,7 +12,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, renderHook, screen, cleanup } from '@testing-library/react';
 import { CallContext, useCall, type CallContextValue } from '@/lib/call/call-context';
-import { publishChannelNames } from '@/lib/call/room-names';
+import { callHomeOf, publishChannelNames } from '@/lib/call/room-names';
 import { updateGroups } from '@/lib/group-conversations/group-store';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 import type { GroupConversation } from '@/types/group';
@@ -26,7 +26,7 @@ const CHANNEL: string = '03347dcf-54be-4ef6-ad99-3cff1ced04a3';
 
 function ringing(roomId: string | null): CallState {
   return {
-    callId: 'c1', status: 'ringing-in', roomId, outgoing: false, caller: 7n,
+    callId: 'c1', status: 'ringing-in', home: callHomeOf(roomId, new Map<string, string>()), outgoing: false, caller: 7n,
     selfMedia: { audio: true, video: true }, selfSpeaking: false, reason: null,
     participants: new Map([[7n, { cid: 7n, username: 'johndoesky', status: 'invited', media: { audio: true, video: true }, speaking: false }]]),
   } as CallState;

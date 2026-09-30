@@ -27,6 +27,8 @@ import type { GroupSettingsPanelProps } from './group-settings-types';
 export function GroupSettingsPanel({
   open,
   onOpenChange,
+  tab,
+  onTabChange,
   group,
   onNameChange,
   onSettingsChange,
@@ -37,7 +39,6 @@ export function GroupSettingsPanel({
   onDeleteGroup,
 }: GroupSettingsPanelProps): JSX.Element {
   const { can } = useGroupPermissions(group);
-  const [activeTab, setActiveTab] = useState('members');
   const [groupName, setGroupName] = useState(group.name);
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -95,8 +96,10 @@ export function GroupSettingsPanel({
 
         {/* Tabs */}
         <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
+          value={tab}
+          onValueChange={(next: string): void => {
+            if (next === 'members' || next === 'roles' || next === 'settings') onTabChange(next);
+          }}
           className="flex-1 flex flex-col overflow-hidden"
         >
           <TabsList className="mx-4 mt-4 bg-surface border border-border">

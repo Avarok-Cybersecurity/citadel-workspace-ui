@@ -124,7 +124,7 @@ describe('the stage naming who holds the screen', () => {
         call={{
           callId: 'c1',
           status: 'active',
-          roomId: null,
+          home: { kind: 'direct' },
           outgoing: true,
           caller: null,
           selfMedia: { audio: true, video: false, screen: false },

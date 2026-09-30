@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { DisabledWithTooltip } from '@/components/ui/DisabledWithTooltip';
 import { useCall } from '@/lib/call/call-context';
 import { groupCallEntryMode , type GroupCallEntryMode } from '@/lib/call/group-call-entry';
+import type { RoomCallHome } from '@/lib/call/call-state';
 
 export interface GroupCallMember {
   cid: bigint;
@@ -11,8 +12,8 @@ export interface GroupCallMember {
 }
 
 interface GroupCallControlsProps {
-  /** The room this surface belongs to; scopes every decision to that call. */
-  roomId: string;
+  /** The room this surface belongs to; its roomId scopes every decision to that call. */
+  home: RoomCallHome;
   roomName: string;
   /** Everyone in the room except the current user. */
   members: GroupCallMember[];
@@ -28,9 +29,9 @@ interface GroupCallControlsProps {
  * per-media cap refusals, and "Join call" when this room's call is already
  * ringing so two people cannot end up in two rival calls in one room.
  */
-export function GroupCallControls({ roomId, roomName, members, notConnected }: GroupCallControlsProps): JSX.Element {
+export function GroupCallControls({ home, roomName, members, notConnected }: GroupCallControlsProps): JSX.Element {
   const { call, capability, startCall, accept, leave } = useCall();
-  const mode: GroupCallEntryMode = groupCallEntryMode(call, roomId, members.length, notConnected);
+  const mode: GroupCallEntryMode = groupCallEntryMode(call, home.roomId, members.length, notConnected);
 
   if (mode.kind === 'in-call') {
     return (
@@ -93,7 +94,7 @@ export function GroupCallControls({ roomId, roomName, members, notConnected }: G
         reason={audioReason}
         label={`Start audio call in ${roomName}`}
         testId="group-call-start-audio"
-        onClick={() => void startCall(members, false, roomId)}
+        onClick={() => void startCall(members, false, home)}
       >
         <Phone className="h-5 w-5" aria-hidden="true" />
       </EntryButton>
@@ -101,7 +102,7 @@ export function GroupCallControls({ roomId, roomName, members, notConnected }: G
         reason={videoReason}
         label={`Start video call in ${roomName}`}
         testId="group-call-start-video"
-        onClick={() => void startCall(members, true, roomId)}
+        onClick={() => void startCall(members, true, home)}
       >
         <Video className="h-5 w-5" aria-hidden="true" />
       </EntryButton>

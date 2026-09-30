@@ -19,12 +19,11 @@ export interface GroupSettingsActions {
 
 export function useGroupSettingsActions(deps: {
   groupId: string | undefined;
-  currentUserId: string;
   setGroup: React.Dispatch<React.SetStateAction<GroupConversation | null>>;
   navigate: NavigateFunction;
   toast: (options: { title: string; description?: string; variant?: 'destructive' }) => void;
 }): GroupSettingsActions {
-  const { groupId, currentUserId, setGroup, navigate, toast } = deps;
+  const { groupId, setGroup, navigate, toast } = deps;
 
   const onSettingsChange: (settings: GroupSettings) => void = useCallback(
     (settings: GroupSettings): void => {
@@ -53,7 +52,12 @@ export function useGroupSettingsActions(deps: {
   );
 
   const onDeleteGroup: () => Promise<void> = useCallback(async (): Promise<void> => {
-    if (!groupId || !currentUserId) return;
+    if (!groupId) return;
+    // No `currentUserId` guard. It was the page's copy of the connection CID,
+    // empty in a tab that cannot resolve it, and returning on it resolved the
+    // delete as though it had worked: the panel closed and nothing was sent or
+    // said. `sendGroupEnd` resolves the CID itself and throws when there is
+    // none, which lands in the catch below and is shown.
     try {
       // Was `const client = getClient(); if (client) { ...send... }` -- and a
       // follower tab owns no client, so the delete was skipped WITHOUT error
@@ -69,7 +73,7 @@ export function useGroupSettingsActions(deps: {
         variant: 'destructive',
       });
     }
-  }, [groupId, currentUserId, navigate, toast]);
+  }, [groupId, navigate, toast]);
 
   return { onSettingsChange, onNameChange, onDeleteGroup };
 }

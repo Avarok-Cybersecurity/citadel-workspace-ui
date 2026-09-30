@@ -33,7 +33,7 @@ function callState(status: CallStatus, selfMedia: CallMediaKinds = AUDIO_ONLY): 
     callId: 'c1',
     status,
     selfSpeaking: false,
-    roomId: null,
+    home: { kind: 'direct' },
     outgoing: true,
     caller: null,
     selfMedia,

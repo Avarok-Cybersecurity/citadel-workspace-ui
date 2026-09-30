@@ -20,6 +20,7 @@ import { CallManager } from '../call-manager';
 import { RING_TIMEOUT_MS } from '../call-constants';
 import type { CallTransport } from '../call-transport';
 import type { CallCodecCapabilities, CallMediaKinds } from '@/types/p2p-commands';
+import { DIRECT_CALL } from '../call-state';
 
 const AUDIO: CallMediaKinds = { audio: true, video: false, screen: false };
 const CAPS: CallCodecCapabilities = { audio: ['opus'], video: [] };
@@ -95,7 +96,7 @@ async function groupCallWithOneStraggler(h: Harness): Promise<void> {
       { cid: CAROL, username: 'carol' },
     ],
     AUDIO,
-    null,
+    DIRECT_CALL,
     null
   );
   await h.accept(BOB);
