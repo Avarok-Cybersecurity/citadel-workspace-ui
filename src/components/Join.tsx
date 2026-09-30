@@ -22,7 +22,7 @@ interface JoinProps {
   profileDraft?: { initial: JoinFormData; onChange: (next: JoinFormData) => void };
 }
 
-export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress, serverPassword, securitySettings, profileDraft }: JoinProps): JSX.Element => {
+export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPassword, securitySettings, profileDraft }: JoinProps): JSX.Element => {
   const {
     formData,
     isRegistering,
@@ -36,7 +36,7 @@ export const Join = ({ onNext: _onNext, onBack, defaultWorkspace, serverAddress,
     handleSubmit,
     handleConnectModalComplete,
     handleReturnToLogin,
-  } = useJoinRegistration(onBack, serverAddress, serverPassword, securitySettings, profileDraft);
+  } = useJoinRegistration(onBack, onNext, serverAddress, serverPassword, securitySettings, profileDraft);
 
   /**
    * Delegated while a nested dialog is up, exactly as Login already does for

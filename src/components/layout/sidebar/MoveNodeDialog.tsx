@@ -22,20 +22,28 @@ export function MoveNodeDialog({
 }: {
   node: DomainNode | null;
   nodes: Record<string, DomainNode>;
-  onMove: (nodeId: string, newParentId: string | null) => void;
+  onMove: (nodeId: string, newParentId: string | null) => Promise<void>;
   onClose: () => void;
 }): JSX.Element | null {
-  const [moving, setMoving] = useState(false);
+  // Which node's move is in flight, not a bare flag. This dialog stays mounted
+  // for the sidebar's life, so a boolean set on the first move and never
+  // cleared disabled every destination and Cancel on every Move after it.
+  const [movingId, setMovingId] = useState<string | null>(null);
   const targets: DomainNode[] = useMemo(
     () => (node ? moveTargets(nodes, node.id) : []),
     [node, nodes],
   );
 
   if (!node) return null;
+  const moving: boolean = movingId === node.id;
 
-  const move = (parentId: string | null): void => {
-    setMoving(true);
-    onMove(node.id, parentId);
+  const move = async (parentId: string | null): Promise<void> => {
+    setMovingId(node.id);
+    try {
+      await onMove(node.id, parentId);
+    } finally {
+      setMovingId(null);
+    }
   };
 
   return (
@@ -62,7 +70,7 @@ export function MoveNodeDialog({
                 variant="ghost"
                 className="w-full justify-start"
                 disabled={moving}
-                onClick={() => move(null)}
+                onClick={() => void move(null)}
               >
                 Top level
               </Button>
@@ -73,7 +81,7 @@ export function MoveNodeDialog({
                 variant="ghost"
                 className="w-full justify-start"
                 disabled={moving}
-                onClick={() => move(target.id)}
+                onClick={() => void move(target.id)}
                 data-testid={`move-target-${target.id}`}
               >
                 {target.name}

@@ -1,8 +1,7 @@
 import { ServerConnect } from "@/components/ServerConnect";
-import { SecuritySettings, type SecuritySettingsValues } from "@/components/SecuritySettings";
-import { Join } from "@/components/Join";
+import { SecurityAndProfileSteps } from "@/components/SecurityAndProfileSteps";
 import { Login } from "@/components/Login";
-import type { JoinFormData } from "@/components/useJoinRegistration";
+import type { RegistrationChoices } from "@/components/registration-choices";
 
 /**
  * The registration and login overlays, by step.
@@ -17,12 +16,9 @@ export interface LandingStepsProps {
   setCurrentStep: (step: 'none' | 'server' | 'security' | 'join' | 'login') => void;
   serverAddress: string;
   serverPassword: string;
-  securitySettings: SecuritySettingsValues;
-  profileDraft: JoinFormData;
-  setProfileDraft: (next: JoinFormData) => void;
+  choices: RegistrationChoices;
   handleServerNext: (address: string, password: string) => void;
   handleSecurityBack: () => void;
-  handleSecurityComplete: (chosen: SecuritySettingsValues) => void;
   handleJoinNext: (cid: string) => void;
   handleJoinBack: () => void;
   handleLoginNext: (cid: string) => void;
@@ -35,12 +31,9 @@ export function LandingSteps({
   setCurrentStep,
   serverAddress,
   serverPassword,
-  securitySettings,
-  profileDraft,
-  setProfileDraft,
+  choices,
   handleServerNext,
   handleSecurityBack,
-  handleSecurityComplete,
   handleJoinNext,
   handleJoinBack,
   handleLoginNext,
@@ -56,22 +49,16 @@ export function LandingSteps({
           initialPassword={serverPassword}
         />
       )}
-      {currentStep === 'security' && (
-        <SecuritySettings
-          onNext={() => setCurrentStep('join')}
-          onBack={handleSecurityBack}
-          onComplete={handleSecurityComplete}
-          initialValues={securitySettings}
-        />
-      )}
-      {currentStep === 'join' && (
-        <Join
-          onNext={handleJoinNext}
-          onBack={handleJoinBack}
+      {(currentStep === 'security' || currentStep === 'join') && (
+        <SecurityAndProfileSteps
+          step={currentStep}
+          choices={choices}
           serverAddress={serverAddress}
           serverPassword={serverPassword}
-          securitySettings={securitySettings}
-          profileDraft={{ initial: profileDraft, onChange: setProfileDraft }}
+          onSecurityBack={handleSecurityBack}
+          onSecurityChosen={() => setCurrentStep('join')}
+          onJoinBack={handleJoinBack}
+          onJoined={handleJoinNext}
         />
       )}
       {currentStep === 'login' && (

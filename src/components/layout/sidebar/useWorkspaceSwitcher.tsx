@@ -18,6 +18,7 @@ import { workspaceLogoOf } from "@/lib/workspace-metadata/workspace-logo";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { yieldToEventLoop } from '@/lib/utils/scheduling';
+import { getWorkspacePath } from '@/lib/workspace-navigation';
 import { useWorkspaceTheme } from '@/lib/theme/workspace-theme-context';
 
 export type { StoredWorkspace } from './stored-workspace-list';
@@ -185,6 +186,8 @@ export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs
         setCurrentStep("connect");
         setServerAddress("");
         setServerPassword("");
+        setTargetWorkspaceForNewAccount(null);
+        navigate(getWorkspacePath());
         break;
     }
   };
