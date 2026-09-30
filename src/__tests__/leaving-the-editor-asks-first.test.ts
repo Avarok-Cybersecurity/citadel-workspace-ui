@@ -30,6 +30,25 @@ const LEAVES_THE_EDITOR: string[] = [
   'components/layout/sidebar/MembersSection.tsx',
   'components/layout/sidebar/FilesSection.tsx',
   'components/layout/sidebar/useWorkspaceSwitcher.tsx',
+  // Exit to Landing and Sign Out: both do work before they navigate, so they
+  // ask with the check itself rather than through useGuardedNavigate.
+  'components/layout/sidebar/use-session-exit.ts',
+];
+
+/**
+ * Controls on screen beside the editor whose only way to navigate is
+ * useGuardedNavigate. A raw `useNavigate()` here is how the Messages icon, the
+ * office title, the group rows, the call bar and a notification's "open
+ * conversation" each came to discard the buffer while the sidebar next to them
+ * asked. Files that still hold a raw navigate behind an explicit
+ * mayLeaveEditor call are in LEAVES_THE_EDITOR instead.
+ */
+const NAVIGATES_ONLY_THROUGH_THE_GUARD: string[] = [
+  'components/office/OfficeLayout.tsx',
+  'components/notification/NotificationCenter.tsx',
+  'components/layout/sidebar/GroupConversationRow.tsx',
+  'components/layout/sidebar/MembersSectionModals.tsx',
+  'components/call/OngoingCallBar.tsx',
 ];
 
 describe('a navigation that unmounts the editor', () => {
@@ -42,6 +61,20 @@ describe('a navigation that unmounts the editor', () => {
       offenders,
       'this navigation unmounts the document editor without asking, so the ' +
         'buffer is discarded silently. Call mayLeaveEditor(confirm) first.',
+    ).toEqual([]);
+  });
+
+  it('cannot reach a raw navigate from a control beside the editor', () => {
+    const offenders: string[] = NAVIGATES_ONLY_THROUGH_THE_GUARD.filter((rel) => {
+      const source: string = stripComments(readFileSync(join(SRC, rel), 'utf-8'));
+      return /\buseNavigate\s*\(/.test(source) || !/\buseGuardedNavigate\s*\(/.test(source);
+    });
+
+    expect(
+      offenders,
+      'these controls sit beside the document editor and navigate without ' +
+        'asking, so an unsaved edit is discarded silently. Use ' +
+        'useGuardedNavigate() from @/hooks/use-guarded-navigate.',
     ).toEqual([]);
   });
 
