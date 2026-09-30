@@ -4,6 +4,8 @@ import { MemberListItems } from './MemberListItems';
 import { useMemberActionBlocks } from './use-member-action-blocks';
 import type { MemberActionBlocks } from './member-actions-gate';
 import { useLevelName } from '@/hooks/use-level-name';
+import { useOpenConversation } from './use-open-conversation';
+import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 
 interface MemberListBodyProps {
@@ -12,6 +14,8 @@ interface MemberListBodyProps {
   activeDomainId: string;
   members: WorkspaceMember[];
   peerCount: number;
+  /** Your registered peers: a member who is one of them opens the conversation when clicked. */
+  contacts: readonly RegisteredPeer[];
   membersUnavailable: boolean;
   currentUsername: string | undefined;
   onEditMember: (member: WorkspaceMember) => void;
@@ -39,6 +43,7 @@ export function MemberListBody({
   activeDomainId,
   members,
   peerCount,
+  contacts,
   membersUnavailable,
   currentUsername,
   onEditMember,
@@ -48,6 +53,13 @@ export function MemberListBody({
 }: MemberListBodyProps): JSX.Element | null {
   const blocks: MemberActionBlocks = useMemberActionBlocks(activeDomainId);
   const nameOfLevel: (levelId: string) => string = useLevelName();
+  const openConversation: (cid: string, username: string) => Promise<void> = useOpenConversation();
+  // A member row did nothing when clicked -- beside a contact row for the same
+  // person that opened the chat (live, 2026-09-29). Now both open it.
+  const openChatWith = (member: WorkspaceMember): (() => void) | null => {
+    const peer: RegisteredPeer | undefined = contacts.find((p: RegisteredPeer): boolean => p.username === member.username);
+    return peer ? (): void => { void openConversation(peer.cid, peer.username); } : null;
+  };
   if (isLoading) {
     return (
       // Named, so a failure can say WHICH of the three branches was on screen.
@@ -68,6 +80,7 @@ export function MemberListBody({
       members={members}
       blocks={blocks}
       nameOfLevel={nameOfLevel}
+      openChatWith={openChatWith}
       currentUsername={currentUsername}
       onEditMember={onEditMember}
       onRemoveMember={onRemoveMember}

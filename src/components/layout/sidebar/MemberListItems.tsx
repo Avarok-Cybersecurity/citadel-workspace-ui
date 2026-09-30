@@ -37,6 +37,8 @@ interface MemberListItemsProps {
   blocks: MemberActionBlocks;
   /** Names a member's `accessVia` level; see hooks/use-level-name. */
   nameOfLevel: (levelId: string) => string;
+  /** Opens the chat with this member when they are a contact; null when they are not. */
+  openChatWith: (member: WorkspaceMember) => (() => void) | null;
   currentUsername?: string;
   onEditMember: (member: WorkspaceMember) => void;
   onRemoveMember: (member: WorkspaceMember) => void;
@@ -48,6 +50,7 @@ export function MemberListItems({
   members,
   blocks,
   nameOfLevel,
+  openChatWith,
   currentUsername,
   onEditMember,
   onRemoveMember,
@@ -58,6 +61,7 @@ export function MemberListItems({
     <>
       {members.slice(0, MEMBERS_TO_SHOW).map((member) => {
         const via: string | null = member.accessVia === undefined ? null : nameOfLevel(member.accessVia);
+        const openChat: (() => void) | null = openChatWith(member);
         return (
         // animate-fade-in moves onto the items: the wrapper that carried it was
         // a <div> rendered directly inside <SidebarMenu>, which is a <ul>. That
@@ -67,7 +71,11 @@ export function MemberListItems({
           <div className="flex items-center w-full min-w-0 group">
             <Tooltip>
               <TooltipTrigger asChild>
-                <SidebarMenuButton className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors min-w-0 flex-1">
+                <SidebarMenuButton
+                  className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors min-w-0 flex-1"
+                  onClick={openChat ?? undefined}
+                  data-testid={`member-row-${member.username}`}
+                >
                   {/* min-w-0 down the chain so the NAME gives way; see a-role-badge-is-never-clipped. */}
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <MemberAvatar username={member.username} name={member.displayName || member.username} />
