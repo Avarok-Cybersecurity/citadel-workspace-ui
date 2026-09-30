@@ -97,6 +97,8 @@ export interface WorkspaceEventMap {
   'member:loaded': MemberPayload;
   'members:loading': { domainId?: string; connection: ConnectionInfo };
   'members:loaded': MembersPayload;
+  /** An admin has hidden `domainId`'s roster from this user: not an empty list. */
+  'members:hidden': { domainId: string; connection: ConnectionInfo };
   'members:reload': ConnectionInfo;
   'member:role-updated': { userId: string; role: string; connection: ConnectionInfo };
   'user:permissions:loaded': { userId: string; role: string; permissions: unknown[]; domainId: string; connection: ConnectionInfo };
@@ -142,7 +144,7 @@ export type WorkspaceEventType = keyof WorkspaceEventMap;
 // Subset types for each method category
 type WorkspaceEventKeys = 'workspace:loading' | 'workspace:loaded' | 'workspace:created' | 'workspace:not-initialized' | 'workspaces:listed' | 'members:reload';
 type NodeEventKeys = 'node:loaded' | 'node:deleted' | 'node:moved' | 'node:content-updated' | 'nodes:loading' | 'nodes:loaded' | 'tree:structure:loaded' | 'tree:schema:loaded' | 'node:types:loaded';
-type MemberEventKeys = 'member:adding' | 'member:added' | 'member:loading' | 'member:updating_role' | 'member:updating_permissions' | 'member:removing' | 'member:removed' | 'member:loaded' | 'members:loading' | 'members:loaded' | 'members:reload' | 'member:role-updated' | 'user:permissions:loaded';
+type MemberEventKeys = 'member:adding' | 'member:added' | 'member:loading' | 'member:updating_role' | 'member:updating_permissions' | 'member:removing' | 'member:removed' | 'member:loaded' | 'members:loading' | 'members:loaded' | 'members:hidden' | 'members:reload' | 'member:role-updated' | 'user:permissions:loaded';
 type MessageEventKeys = 'message:received' | 'typing:started' | 'typing:stopped';
 type OperationEventKeys = 'operation:success' | 'operation:error' | 'operation:deleted';
 type ProtocolEventKeys = 'protocol:warning';

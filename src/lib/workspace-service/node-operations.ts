@@ -82,6 +82,15 @@ export async function updateNode(
 }
 
 /**
+ * Switch "Members can see each other" on a node. Admin only; the server refuses
+ * anyone else. Resolves on the server's `Node` answer for this node.
+ */
+export async function setMembersVisible(sender: ProtocolSender, nodeId: string, visible: boolean): Promise<void> {
+  const requestPart: WorkspaceProtocolRequestTS = { SetMembersVisible: { node_id: nodeId, visible } };
+  return awaitWriteResponse('SetMembersVisible', () => sender.sendProtocolRequest(requestPart), nodeWithId(nodeId));
+}
+
+/**
  * Delete a node and optionally cascade-delete its children.
  */
 export async function deleteNode(

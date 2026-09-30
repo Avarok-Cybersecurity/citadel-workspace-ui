@@ -42,6 +42,8 @@ export interface DomainMembers {
    * state; there is a third answer, which is to say what actually happened.
    */
   membersUnavailable: boolean;
+  /** An admin has hidden this domain's roster from this user (members:hidden). */
+  membersHidden: boolean;
 }
 
 /**
@@ -78,6 +80,8 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
    * A stale `true` would report the previous node's failure against this one.
    */
   const [unavailableFor, setUnavailableFor] = useState<string | null>(null);
+  /** The domain whose roster an admin hid, for the same reason as above. */
+  const [hiddenFor, setHiddenFor] = useState<string | null>(null);
 
   // Both DERIVED, in the same render as the domain change -- no effect involved,
   // so there is no frame in which they disagree with `activeDomainId`.
@@ -85,6 +89,7 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
   const members: WorkspaceMember[] =
     loaded !== null && loaded.domain === activeDomainId ? loaded.members : NO_MEMBERS;
   const membersUnavailable: boolean = unavailableFor !== null && unavailableFor === activeDomainId;
+  const membersHidden: boolean = hiddenFor !== null && hiddenFor === activeDomainId;
 
   // The four values `MemberListBody` branches on, logged whenever they settle.
   //
@@ -161,6 +166,7 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
       // reach it through a level above (lib/member-access.ts).
       setLoaded({ domain: activeDomainId, members: withAccess(payload.members ?? [], payload.inheritedFrom ?? {}) });
       setUnavailableFor(null);
+      setHiddenFor(null);
     };
     // `onMemberEvent` returns its unsubscribe SYNCHRONOUSLY. It used to be
     // wrapped in `runAsyncSetup(async () => await ...)`, which threw the return
@@ -175,6 +181,15 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
     return workspaceEvents.onMemberEvent('members:loaded', handleMembersLoaded);
   }, [activeDomainId]);
 
+  // The answer that ends the load when an admin hid the roster: settled, and
+  // said to be hidden rather than left to read as "Nobody else is here yet".
+  useEffect(() => workspaceEvents.onMemberEvent('members:hidden', ({ domainId }): void => {
+    if (activeDomainId === null || domainId !== activeDomainId) return;
+    setLoaded({ domain: activeDomainId, members: [] });
+    setUnavailableFor(null);
+    setHiddenFor(activeDomainId);
+  }), [activeDomainId]);
+
   useEffect(() => {
     if (!isLoadingMembers) return;
     const domain: string | null = activeDomainId;
@@ -187,5 +202,5 @@ export function useDomainMembers(activeDomainId: string | null): DomainMembers {
     return (): void => window.clearTimeout(timer);
   }, [isLoadingMembers, activeDomainId]);
 
-  return { members, isLoadingMembers, membersUnavailable };
+  return { members, isLoadingMembers, membersUnavailable, membersHidden };
 }

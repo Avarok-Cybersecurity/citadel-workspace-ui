@@ -142,6 +142,7 @@ export class WorkspaceService implements ProtocolSender {
   // Node operations
   public createNode(parentId: string | null, entityType: { Child: string } | 'Workspace', name: string, desc: string, opts?: { mdxContent?: string; metadata?: Uint8Array; isDefault?: boolean }): Promise<void> { return nodes.createNode(this, parentId, entityType, name, desc, opts); }
   public updateNode(nodeId: string, updates: { name?: string; description?: string; mdxContent?: string; rules?: string; chatEnabled?: boolean; isDefault?: boolean }): Promise<void> { return nodes.updateNode(this, nodeId, updates); }
+  public setMembersVisible(nodeId: string, visible: boolean): Promise<void> { return nodes.setMembersVisible(this, nodeId, visible); }
   public deleteNode(nodeId: string, cascade?: boolean): Promise<void> { return nodes.deleteNode(this, nodeId, cascade); }
   public moveNode(nodeId: string, newParentId: string | null): Promise<void> { return nodes.moveNode(this, nodeId, newParentId); }
   public listNodes(parentId?: string | null, entityTypes?: Array<{ Child: string } | 'Workspace'>): Promise<void> { return nodes.listNodes(this, parentId, entityTypes); }
