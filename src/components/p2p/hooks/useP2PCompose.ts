@@ -32,7 +32,7 @@ interface UseP2PComposeParams {
   createDocument: (title: string, initialContent: string) => Promise<void>;
 }
 
-export function useP2PCompose({ peerCid, messages, editMessage, createDocument }: UseP2PComposeParams): { inputRef: RefObject<HTMLTextAreaElement>; inputMessage: string; setInputMessage: Dispatch<SetStateAction<string>>; isSending: boolean; messageType: MessageType; showDocModal: boolean; setShowDocModal: Dispatch<SetStateAction<boolean>>; showMarkdownPreview: boolean; setShowMarkdownPreview: Dispatch<SetStateAction<boolean>>; applyFormat: (format: string, prefix: string, suffix: string) => void; replyingTo: P2PMessage | null; editingMessage: P2PMessage | null; handleReplyMessage: (messageId: string) => void; handleStartEdit: (messageId: string, content: string) => void; cancelComposeContext: () => void; handleSendMessage: () => Promise<void>; handleDocCreate: (title: string, initialContent: string) => Promise<void>; handleMessageTypeChange: (type: MessageType) => void; handleInputFocus: () => void; handleInputBlur: () => void; } {
+export function useP2PCompose({ peerCid, messages, editMessage, createDocument }: UseP2PComposeParams): { inputRef: RefObject<HTMLTextAreaElement>; inputMessage: string; setInputMessage: Dispatch<SetStateAction<string>>; isSending: boolean; messageType: MessageType; showDocModal: boolean; closeDocModal: () => void; showMarkdownPreview: boolean; setShowMarkdownPreview: Dispatch<SetStateAction<boolean>>; applyFormat: (format: string, prefix: string, suffix: string) => void; replyingTo: P2PMessage | null; editingMessage: P2PMessage | null; handleReplyMessage: (messageId: string) => void; handleStartEdit: (messageId: string, content: string) => void; cancelComposeContext: () => void; handleSendMessage: () => Promise<void>; handleDocCreate: (title: string, initialContent: string) => Promise<void>; handleMessageTypeChange: (type: MessageType) => void; handleInputFocus: () => void; handleInputBlur: () => void; } {
   // Seeded from the draft store, so switching conversations and coming back
   // returns what was typed. The chat is keyed by peer — that keying is the fix
   // for drafts LEAKING between conversations, and it is why the text has to
@@ -131,11 +131,19 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
   };
 
 
+  // Back to text whichever way the dialog ends. Only handleMessageTypeChange
+  // ever changed the type, so after a Live Doc was created or cancelled the
+  // next Enter reopened the dialog instead of sending what was typed.
+  const closeDocModal: () => void = useCallback((): void => {
+    setShowDocModal(false);
+    setMessageType('text');
+  }, []);
+
   const handleDocCreate: (title: string, initialContent: string) => Promise<void> = useCallback(async (title: string, initialContent: string): Promise<void> => {
     await createDocument(title, initialContent);
-    setShowDocModal(false);
+    closeDocModal();
     setInputMessage('');
-  }, [createDocument]);
+  }, [createDocument, closeDocModal]);
 
   const handleMessageTypeChange: (type: MessageType) => void = useCallback((type: MessageType): void => {
     setMessageType(type);
@@ -152,7 +160,7 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
 
   return {
     inputRef, inputMessage, setInputMessage, isSending,
-    messageType, showDocModal, setShowDocModal,
+    messageType, showDocModal, closeDocModal,
     showMarkdownPreview, setShowMarkdownPreview,
     applyFormat,
     replyingTo, editingMessage,
