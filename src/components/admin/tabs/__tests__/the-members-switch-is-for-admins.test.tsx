@@ -6,14 +6,16 @@
  * click can be observed without a server (the write itself is covered by
  * the-members-switch-waits-for-the-server.test.ts).
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, type Mock } from 'vitest';
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { WorkspaceContext } from '@/contexts/WorkspaceContext';
 import { MembersVisibilitySwitch } from '../MembersVisibilitySwitch';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
-const setMembersVisible = vi.fn(async (): Promise<void> => {});
-vi.mock('@/lib/workspace-service', () => ({ default: { setMembersVisible: (...args: unknown[]): Promise<void> => setMembersVisible(...(args as [])) } }));
+const setMembersVisible: Mock<(nodeId: string, visible: boolean) => Promise<void>> = vi.fn(async (): Promise<void> => {});
+vi.mock('@/lib/workspace-service', () => ({
+  default: { setMembersVisible: (nodeId: string, visible: boolean): Promise<void> => setMembersVisible(nodeId, visible) },
+}));
 
 afterEach(() => { cleanup(); setMembersVisible.mockClear(); });
 
