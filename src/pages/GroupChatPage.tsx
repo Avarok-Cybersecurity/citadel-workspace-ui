@@ -152,7 +152,7 @@ export function GroupChatPage(): JSX.Element {
   );
 
   const { onSettingsChange, onNameChange, onDeleteGroup } = useGroupSettingsActions({
-    groupId, currentUserId, setGroup, navigate, toast,
+    groupId, setGroup, navigate, toast,
   });
 
   if (!group) {
