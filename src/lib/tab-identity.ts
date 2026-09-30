@@ -41,6 +41,22 @@ export function tabIdentity(
   };
 }
 
+/**
+ * This tab's own CID: the tab's identity first, the connection's second.
+ *
+ * The connection's CID is the CONNECTION's, not the tab's -- with two sessions
+ * in one browser it is empty or the other tab's -- so it is only the fallback.
+ * The Messages page read it alone, at render, with nothing to re-render it when
+ * it arrived, and showed "No conversation selected" for the peer the user had
+ * just picked. `WorkspaceView` had the right order spelled out by hand.
+ */
+export function selfCid(
+  tab: Pick<TabIdentity, 'cid'> | null,
+  connection: { cid?: bigint } | null,
+): bigint | undefined {
+  return tab?.cid ?? connection?.cid;
+}
+
 /** Who the reader is, for authorship and display in a room. */
 export interface ReaderIdentity {
   id: string;

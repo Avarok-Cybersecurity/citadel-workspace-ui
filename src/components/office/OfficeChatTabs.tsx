@@ -105,7 +105,7 @@ export function OfficeChatTabs({
             </TabsTrigger>
           </TabsList>
           <GroupCallControls
-            roomId={chatChannelId}
+            home={{ kind: 'node', roomId: chatChannelId, nodeId: nodeId ?? WORKSPACE_ROOT_ID }}
             roomName={roomName}
             members={callRoster.callable}
             notConnected={callRoster.notConnected}

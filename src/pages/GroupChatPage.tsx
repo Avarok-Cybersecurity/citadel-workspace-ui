@@ -27,11 +27,13 @@ import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
 import { GroupCallControls } from '@/components/call/GroupCallControls';
 import { GroupCallDock } from '@/components/call/GroupCallDock';
 import { GroupSettingsPanel } from '@/components/chat/GroupSettingsPanel';
+import type { GroupSettingsTab } from '@/components/chat/group-settings-types';
 import { GroupChatView } from '@/components/chat/GroupChatView';
 import { useGroupConversations } from '@/hooks/use-group-conversations';
 import type { GroupConversation } from '@/types/group';
 import { connectionManager } from '@/lib/connection';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { debugLog } from '@/lib/debug-config';
 import { groupGoneMessage, type GoneMessage } from '@/lib/group-conversations/group-gone-message';
 import type { NavigateFunction } from 'react-router';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
@@ -61,6 +63,7 @@ export function GroupChatPage(): JSX.Element {
   // these permissions were computed and read by nobody until this call site.
   const { can, listedAsMember, myRole } = useGroupPermissions(group);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<GroupSettingsTab>('members');
 
   // Get current user info.
   //
@@ -112,7 +115,9 @@ export function GroupChatPage(): JSX.Element {
   const handleKickMember: (memberCid: string) => Promise<void> = useCallback(
     async (memberCid: string) => {
       if (!groupId) return;
-      await kickMember(groupId, memberCid);
+      // Every way a kick fails has already been shown by kickGroupMember, on the
+      // group-failure toast; the roster moves only on the server's success.
+      await kickMember(groupId, memberCid).catch((e: unknown): void => debugLog('GroupChatPage', 'kick failed', e));
     },
     [groupId, kickMember]
   );
@@ -152,7 +157,7 @@ export function GroupChatPage(): JSX.Element {
   );
 
   const { onSettingsChange, onNameChange, onDeleteGroup } = useGroupSettingsActions({
-    groupId, currentUserId, setGroup, navigate, toast,
+    groupId, setGroup, navigate, toast,
   });
 
   if (!group) {
@@ -176,13 +181,13 @@ export function GroupChatPage(): JSX.Element {
       {/* Header */}
       <GroupChatHeader
         group={group}
-        onOpenSettings={() => setShowSettings(true)}
+        onOpenSettings={(tab: GroupSettingsTab): void => { setSettingsTab(tab); setShowSettings(true); }}
         onLeaveGroup={handleLeaveGroup}
         // Calling needs to know who NOT to ring, so it waits for the CID that
         // the chat below no longer waits for.
         callControls={
           currentUserId ? (
-            <GroupCallControls roomId={group.id} roomName={group.name} members={members} notConnected={[]} />
+            <GroupCallControls home={{ kind: 'group', roomId: group.id }} roomName={group.name} members={members} notConnected={[]} />
           ) : null
         }
       />
@@ -221,6 +226,8 @@ export function GroupChatPage(): JSX.Element {
       <GroupSettingsPanel
         open={showSettings}
         onOpenChange={setShowSettings}
+        tab={settingsTab}
+        onTabChange={setSettingsTab}
         group={group}
         onNameChange={onNameChange}
         onSettingsChange={onSettingsChange}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { rosterDisplayName, selfDisplayName } from '@/lib/roster-display-name';
 import { useLocation } from 'react-router-dom';
 import { BaseOffice } from '../office/BaseOffice';
@@ -10,9 +10,8 @@ import { NodeNotFound } from './NodeNotFound';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { isVariant } from 'citadel-workspace-client-ts';
 import { connectionManager } from '@/lib/connection';
-import { StoredSession } from '@/types/session-types';
-import { getSelectedUser, TabUserContext } from '@/lib/tab-context';
-import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { useTabIdentity } from '@/hooks/use-tab-identity';
+import { selfCid, type TabIdentity } from '@/lib/tab-identity';
 import { tryParseCid } from '@/lib/utils/cid-utils';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
@@ -26,20 +25,8 @@ interface WorkspaceViewProps {
 export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
   const { state } = useWorkspace();
   const location: ReturnType<typeof useLocation> = useLocation();
-  const [tabSelection, setTabSelection] = useState<TabUserContext | null>(null);
-  const [tabSession, setTabSession] = useState<StoredSession | null>(null);
+  const me: TabIdentity | null = useTabIdentity();
 
-  // Load tab context and session asynchronously
-  useEffect(() => {
-    const loadTabInfo = async (): Promise<void> => {
-      const selection: TabUserContext | null = await getSelectedUser();
-      const session: StoredSession | null = await connectionManager.getTabSelectedSession();
-      setTabSelection(selection);
-      setTabSession(session);
-    };
-    runAsyncSetup(loadTabInfo);
-  }, []);
-  
   // Parse query parameters for P2P chat
   const params: URLSearchParams = new URLSearchParams(location.search);
   const showP2P: boolean = params.get('showP2P') === 'true';
@@ -76,16 +63,12 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
 
   // When P2P chat is active, show the chat view
   if (showP2P && peerCid) {
-    // Priority chain for currentUserCid:
-    // 1) Tab context selectedCid (most authoritative for follower tabs)
-    // 2) tabSession.cid from connection manager
-    // 3) connectionInfo.cid (global connection)
-    // tabSelection and tabSession are loaded asynchronously via useEffect
+    // The tab's identity first, the connection's second: see selfCid.
     const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
-    const rawCid: bigint | undefined = tabSelection?.selectedCid ?? tabSession?.cid ?? connectionInfo?.cid;
+    const rawCid: bigint | undefined = selfCid(me, connectionInfo);
     const currentUserCid: string | undefined = rawCid !== undefined ? String(rawCid) : undefined;
     const currentUserName: string = selfDisplayName(state.members, {
-      username: tabSelection?.selectedUsername ?? tabSession?.username, fullName: tabSession?.fullName,
+      username: me?.username, fullName: me?.fullName,
     }) || 'You';
 
     // Both `BigInt(...)` calls below are funnelled through

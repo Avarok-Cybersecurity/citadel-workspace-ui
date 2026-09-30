@@ -32,10 +32,9 @@ describe('the Live Doc type', () => {
     expect(result.current.showDocModal).toBe(true);
   });
 
-  it('opens the dialog when Send is pressed with an empty box', async () => {
+  it('keeps the dialog up, and sends nothing, when Send is pressed with an empty box', async () => {
     const { result } = setup();
     act(() => result.current.handleMessageTypeChange('live_document'));
-    act(() => result.current.setShowDocModal(false));
     await act(async () => { await result.current.handleSendMessage(); });
     expect(result.current.showDocModal).toBe(true);
     expect(sendMessage).not.toHaveBeenCalled();

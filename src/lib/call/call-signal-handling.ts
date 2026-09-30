@@ -12,6 +12,7 @@ import type { CallSignalPayload } from '@/types/p2p-commands';
 import type { CallMediaKinds } from '@/types/call-signals';
 import { eventEmitter } from '@/lib/event-emitter';
 import { glareWinner } from './call-state';
+import { callHomeFor } from './room-names';
 import { MEDIA_WIRE_VERSION } from './call-constants';
 import type { CallManagerInternals } from './call-manager-internals';
 import { closeIfFinished, closeSessionFor, openSessionFor } from './media-session-lifecycle';
@@ -211,7 +212,7 @@ async function handleInvite(
   m.apply({
     type: 'invite-received',
     callId: signal.call_id,
-    roomId: signal.group?.room_id ?? null,
+    home: callHomeFor(signal.group?.room_id ?? null),
     from: { cid: from, username },
     media: signal.media,
     others,

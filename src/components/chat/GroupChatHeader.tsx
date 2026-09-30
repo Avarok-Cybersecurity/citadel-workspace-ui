@@ -28,6 +28,7 @@ import {
 import type { GroupConversation } from '@/types/group';
 import { useGroupPermissions } from '@/hooks/use-group-permissions';
 import { GroupMemberAvatars } from './GroupMemberAvatars';
+import type { GroupSettingsTab } from './group-settings-types';
 
 // ============================================================================
 // Types
@@ -35,8 +36,8 @@ import { GroupMemberAvatars } from './GroupMemberAvatars';
 
 interface GroupChatHeaderProps {
   group: GroupConversation;
-  /** Callback when settings button is clicked */
-  onOpenSettings: () => void;
+  /** Open the settings panel on the tab the chosen menu item names. */
+  onOpenSettings: (tab: GroupSettingsTab) => void;
   /** Callback when user leaves the group */
   onLeaveGroup: () => Promise<void>;
   /** Call entry/leave controls, supplied by the surface that knows the roster. */
@@ -117,8 +118,12 @@ export function GroupChatHeader({
           >
             {canAccessSettings && (
               <>
+                {/* Both items used to open the panel on its default, Members, so
+                    "Group Settings" opened the member list. Settings when this
+                    member may edit them; otherwise Roles, the other half of
+                    what grants this item. */}
                 <DropdownMenuItem
-                  onClick={onOpenSettings}
+                  onClick={() => onOpenSettings(can('editGroupSettings') ? 'settings' : 'roles')}
                   className="text-foreground hover:bg-surface cursor-pointer"
                 >
                   <Settings className="h-4 w-4 mr-2" />
@@ -128,7 +133,7 @@ export function GroupChatHeader({
               </>
             )}
             <DropdownMenuItem
-              onClick={onOpenSettings}
+              onClick={() => onOpenSettings('members')}
               className="text-foreground hover:bg-surface cursor-pointer"
             >
               <Users className="h-4 w-4 mr-2" />

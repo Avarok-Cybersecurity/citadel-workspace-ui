@@ -207,7 +207,7 @@ export function HierarchySidebar(): JSX.Element {
       <MoveNodeDialog
         node={moveNode}
         nodes={state.nodes}
-        onMove={(nodeId, parentId) => void handleMove(nodeId, parentId)}
+        onMove={handleMove}
         onClose={() => setMoveNode(null)}
       />
 

@@ -34,7 +34,7 @@ function callState(overrides: Partial<CallState> = {}): CallState {
   return {
     callId: 'c1',
     status: 'active',
-    roomId: ROOM,
+    home: { kind: 'group', roomId: ROOM },
     outgoing: true,
     caller: null,
     selfMedia: { audio: true, video: false, screen: false },
@@ -73,7 +73,7 @@ function ctx(overrides: Partial<CallContextValue> = {}): CallContextValue {
 function renderControls(value: CallContextValue, roster: GroupCallMember[]): RenderResult {
   return render(
     <CallContext.Provider value={value}>
-      <GroupCallControls roomId={ROOM} roomName="Design" members={roster} notConnected={[]} />
+      <GroupCallControls home={{ kind: 'group', roomId: ROOM }} roomName="Design" members={roster} notConnected={[]} />
     </CallContext.Provider>,
   );
 }
@@ -85,7 +85,7 @@ describe('GroupCallControls — starting', () => {
 
     await userEvent.click(screen.getByTestId('group-call-start-video'));
 
-    expect(value.startCall).toHaveBeenCalledWith(members(3), true, ROOM);
+    expect(value.startCall).toHaveBeenCalledWith(members(3), true, { kind: 'group', roomId: ROOM });
   });
 
   it('starts an audio call with the room id', async () => {
@@ -94,7 +94,7 @@ describe('GroupCallControls — starting', () => {
 
     await userEvent.click(screen.getByTestId('group-call-start-audio'));
 
-    expect(value.startCall).toHaveBeenCalledWith(members(3), false, ROOM);
+    expect(value.startCall).toHaveBeenCalledWith(members(3), false, { kind: 'group', roomId: ROOM });
   });
 
   it('disables only video when the room outgrows the video mesh', () => {
@@ -112,7 +112,7 @@ describe('GroupCallControls — starting', () => {
   });
 
   it('disables starting while a DM call owns the tab', () => {
-    renderControls(ctx({ call: callState({ roomId: null }) }), members(2));
+    renderControls(ctx({ call: callState({ home: { kind: 'direct' } }) }), members(2));
 
     expect(screen.getByTestId('group-call-start-audio')).toBeDisabled();
     expect(screen.getByTestId('group-call-start-video')).toBeDisabled();
@@ -188,13 +188,13 @@ describe('GroupCallDock — scoping', () => {
   });
 
   it('never docks another room’s call here', () => {
-    renderDock(ctx({ call: callState({ roomId: 'other-room' }) }));
+    renderDock(ctx({ call: callState({ home: { kind: 'group', roomId: 'other-room' } }) }));
 
     expect(screen.queryByTestId('call-stage')).not.toBeInTheDocument();
   });
 
   it('never docks a DM call over a group surface', () => {
-    renderDock(ctx({ call: callState({ roomId: null }) }));
+    renderDock(ctx({ call: callState({ home: { kind: 'direct' } }) }));
 
     expect(screen.queryByTestId('call-stage')).not.toBeInTheDocument();
   });

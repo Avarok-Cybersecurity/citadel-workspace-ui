@@ -9,8 +9,8 @@ import { AccountManagementDialog } from "@/components/AccountManagementDialog";
 import { LazyTakeoverSignIn as TakeoverSignIn } from "@/components/LazyTakeoverSignIn";
 import { useSelfName } from "@/hooks/use-self-name";
 import { ServerConnect } from "@/components/ServerConnect";
-import { SecuritySettings } from "@/components/SecuritySettings";
-import { Join } from "@/components/Join";
+import { SecurityAndProfileSteps } from "@/components/SecurityAndProfileSteps";
+import { useRegistrationChoices, type RegistrationChoices } from "@/components/registration-choices";
 import { WorkspaceLogoMark } from "@/components/shared/WorkspaceLogoMark";
 import { useWorkspaceSwitcher } from "./useWorkspaceSwitcher";
 import { WorkspaceSwitcherDropdown } from "./WorkspaceSwitcherDropdown";
@@ -56,6 +56,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
    * page, where closing with Escape otherwise dropped focus onto `<body>`.
    */
   const triggerRef: React.RefObject<HTMLButtonElement> = useRef<HTMLButtonElement>(null);
+  const choices: RegistrationChoices = useRegistrationChoices();
 
   /**
    * One place to end the join flow.
@@ -67,6 +68,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
   const closeAddWorkspace = (): void => {
     setIsAddingWorkspace(false);
     setTargetWorkspaceForNewAccount(null);
+    choices.clearProfileDraft();
   };
 
   return (
@@ -160,16 +162,17 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
           }
         />
       )}
-      {isAddingWorkspace && currentStep === "security" && (
-        <SecuritySettings onNext={handleNext} onBack={handleBack} />
-      )}
-      {isAddingWorkspace && currentStep === "join" && (
-        <Join
-          onNext={handleNext}
-          onBack={handleBack}
-          defaultWorkspace={targetWorkspaceForNewAccount?.workspaceName}
+      {isAddingWorkspace && (currentStep === "security" || currentStep === "join") && (
+        <SecurityAndProfileSteps
+          step={currentStep}
+          choices={choices}
           serverAddress={targetWorkspaceForNewAccount?.serverAddress ?? serverAddress}
           serverPassword={serverPassword}
+          defaultWorkspace={targetWorkspaceForNewAccount?.workspaceName}
+          onSecurityBack={handleBack}
+          onSecurityChosen={() => handleNext()}
+          onJoinBack={handleBack}
+          onJoined={() => handleNext()}
         />
       )}
 

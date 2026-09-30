@@ -185,7 +185,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
                 <PausablePeerRow key={conv.peerCid} cid={conv.peerCid} username={conv.peerUsername} displayName={conv.peerDisplayName} isOnline={conv.isOnline} isConnected={conv.isConnected} connectionPath={conv.connectionPath} unreadCount={conv.unreadCount} isActive={conv.peerCid === active.peerCid} onClick={() => void handlePeerClick(conv.peerCid, conv.peerUsername)} />
               ))}
               {groupConversations.map((group) => (
-                <GroupConversationRow key={group.id} group={group} isActive={group.id === active.groupId} onClick={(g) => navigate(`/groups/${g.id}`)} />
+                <GroupConversationRow key={group.id} group={group} isActive={group.id === active.groupId} />
               ))}
               {peersWithConversations.length === 0 && groupConversations.length === 0 && (
                 <SidebarMenuItem className="px-3 py-2 text-sm text-muted-foreground">
@@ -231,11 +231,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
         onEditMember={handleEditMember}
         onRemoveMember={handleRemoveMember}
         onManagePermissions={handleManagePermissions}
-        onCreateGroup={async (name, membersList) => {
-          // Open it: every other way into a group navigates; this one did not.
-          const groupId: string = await createGroup(name, membersList);
-          if (groupId) navigate(`/groups/${groupId}`);
-        }}
+        onCreateGroup={createGroup}
       />
 
     </>

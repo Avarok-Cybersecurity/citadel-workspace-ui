@@ -49,7 +49,7 @@ function callState(status: CallState['status']): CallState {
   return {
     callId: 'call-9',
     status,
-    roomId: null,
+    home: { kind: 'direct' },
     outgoing: status === 'ringing-out',
     caller: null,
     selfMedia: { audio: true, video: false, screen: false },

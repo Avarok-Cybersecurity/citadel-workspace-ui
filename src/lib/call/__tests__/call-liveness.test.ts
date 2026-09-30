@@ -13,6 +13,7 @@ import { CALL_HEARTBEAT_TIMEOUT_MS } from '../call-constants';
 import type { CallTransport } from '../call-transport';
 import type { CallCodecCapabilities, CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
 import type { CallState } from '@/lib/call/call-state';
+import { DIRECT_CALL } from '../call-state';
 
 const AUDIO: CallMediaKinds = { audio: true, video: false, screen: false };
 const CAPS: CallCodecCapabilities = { audio: ['opus'], video: [] };
@@ -85,7 +86,7 @@ type Harness = ReturnType<typeof harness>;
 
 /** 1:1 call from our side, answered, active — liveness armed at t=0. */
 async function activeCall(h: Harness): Promise<void> {
-  await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], AUDIO, null, null);
+  await h.manager.start('c1', [{ cid: BOB, username: 'bob' }], AUDIO, DIRECT_CALL, null);
   await h.accept(BOB);
   expect(h.manager.getState()?.status).toBe('active');
 }
@@ -153,7 +154,7 @@ describe('call liveness', () => {
       'c1',
       [{ cid: BOB, username: 'bob' }, { cid: CAROL, username: 'carol' }],
       AUDIO,
-      'room-1',
+      { kind: 'group', roomId: 'room-1' },
       null,
     );
     await h.accept(BOB);

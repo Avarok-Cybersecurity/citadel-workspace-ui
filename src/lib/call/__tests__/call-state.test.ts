@@ -13,6 +13,7 @@ import {
 } from '../call-state';
 import { reduce } from '../call-reducer';
 import type { CallMediaKinds } from '@/types/p2p-commands';
+import { callHomeOf } from '../room-names';
 
 const AUDIO: CallMediaKinds = { audio: true, video: false, screen: false };
 const VIDEO: CallMediaKinds = { audio: true, video: true, screen: false };
@@ -25,7 +26,7 @@ function outgoing(invitees: { cid: bigint; username: string; }[] = [BOB], roomId
   return reduce(null, {
     type: 'invite-sent',
     callId: 'call-1',
-    roomId,
+    home: callHomeOf(roomId, new Map<string, string>()),
     media: VIDEO,
     invitees,
   })!;
@@ -35,7 +36,7 @@ function incoming(others: Array<{ cid: bigint; username: string }> = [], roomId:
   return reduce(null, {
     type: 'invite-received',
     callId: 'call-2',
-    roomId,
+    home: callHomeOf(roomId, new Map<string, string>()),
     from: ALICE,
     media: VIDEO,
     others,
@@ -90,7 +91,7 @@ describe('receiving a call', () => {
     const after: CallState = reduce(state, {
       type: 'invite-received',
       callId: 'call-2',
-      roomId: null,
+      home: { kind: 'direct' },
       from: ALICE,
       media: VIDEO,
       others: [],

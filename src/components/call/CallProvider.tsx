@@ -4,7 +4,7 @@ import { useCallMediaToggles } from './use-call-media-toggles';
 import { CallContext, type CallContextValue } from '@/lib/call/call-context';
 import type { ConnectionQuality } from './ParticipantTile';
 import { adoptPeerCodecs, syncNegotiatedCodecs } from '@/lib/call/codec-sync';
-import type { CallState } from '@/lib/call/call-state';
+import type { CallHome, CallState } from '@/lib/call/call-state';
 import type { CaptureFailure } from '@/lib/call/media-capture';
 import { useCallRuntime } from './use-call-runtime';
 import { useIsLeaderTab } from './use-leader-tab';
@@ -106,14 +106,14 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     [teardown, managerRef],
   );
 
-  const startCall: (peers: Array<{ cid: bigint; username: string; }>, video: boolean, roomId?: string) => Promise<void> = useCallback(
-    (peers: Array<{ cid: bigint; username: string }>, video: boolean, roomId?: string) =>
+  const startCall: (peers: Array<{ cid: bigint; username: string; }>, video: boolean, home: CallHome) => Promise<void> = useCallback(
+    (peers: Array<{ cid: bigint; username: string }>, video: boolean, home: CallHome) =>
       // See start-call.ts: three busy checks, and which state each asks.
       runStartCall(
         { managerRef, ensureManager, ensureSession, teardown, setCaptureFailure, reportCallSystemUnavailable },
         peers,
         video,
-        roomId,
+        home,
       ),
     [ensureManager, ensureSession, teardown, managerRef],
   );

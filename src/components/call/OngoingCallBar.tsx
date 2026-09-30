@@ -1,12 +1,12 @@
 import { stillInCall, hasAnswered } from '@/lib/call/participant-presence';
-import { useNavigate } from 'react-router-dom';
+import { useGuardedNavigate, type GuardedNavigate } from '@/hooks/use-guarded-navigate';
 import { PhoneOff, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCall } from '@/lib/call/call-context';
 import { useCallStageVisible } from './call-stage-presence';
 import { useCallDuration } from './use-call-duration';
 import { useRosterName } from './use-roster-name';
-import type { NavigateFunction } from 'react-router';
+import { openCallHome } from './open-call-home';
 import type { CallParticipant } from '@/lib/call/call-state';
 
 /**
@@ -20,7 +20,7 @@ import type { CallParticipant } from '@/lib/call/call-state';
 export function OngoingCallBar(): JSX.Element | null {
   const { call, leave } = useCall();
   const stageVisible: boolean = useCallStageVisible();
-  const navigate: NavigateFunction = useNavigate();
+  const navigate: GuardedNavigate = useGuardedNavigate();
   const duration: string = useCallDuration(call?.status === 'active');
   const others: CallParticipant[] = call ? [...call.participants.values()].filter(stillInCall) : [];
   const onlyOther: string = useRosterName(others.length === 1 ? others[0].cid : null, others[0]?.username ?? '');
@@ -41,19 +41,8 @@ export function OngoingCallBar(): JSX.Element | null {
   // that person may never pick up.
   const anyoneAnswered: boolean = others.some(hasAnswered);
 
-  const returnToCall = (): void => {
-    if (call.roomId) {
-      navigate(`/groups/${call.roomId}`);
-      return;
-    }
-    const peer: CallParticipant = others[0];
-    // `channel`, which is the param the Messages page reads. This said `peer`,
-    // which nothing reads anywhere -- so during a 1:1 call, leaving the
-    // conversation and pressing Return landed on "No conversation selected",
-    // the call stage never came back, and the bar kept floating over it. Wired
-    // from one end: the button navigated, the page never listened.
-    if (peer) navigate(`/messages?channel=${peer.cid.toString()}`);
-  };
+  // Guarded: Return leaves the page an unsaved document may be open on (#102).
+  const returnToCall = (): void => openCallHome(call.home, others[0], (to: string): void => { void navigate(to); });
 
   return (
     <div

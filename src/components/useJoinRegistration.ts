@@ -3,19 +3,16 @@ import { joinFieldErrors } from './join-field-errors';
 import type { JoinRegistration } from './join-registration-shape';
 import { firstInvalidField } from './join-first-error';
 import { DEFAULT_SECURITY_SETTINGS } from './security-settings-defaults';
-import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import type { SecuritySettingsValues } from "./SecuritySettings";
 import { websocketService } from "@/lib/websocket-service";
 import { eventEmitter } from "@/lib/event-emitter";
 import { ConnectionManager } from "@/lib/connection";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
-import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { mapSecuritySettings } from "@/lib/security-utils";
 import type { ConnectStatus } from "./LoadingModal";
 import { debugLog } from '@/lib/debug-config';
 import { createRegistrationResponseHandler } from './registration-response-handler';
-import type { NavigateFunction } from 'react-router';
 import { startSignupProfile } from '@/lib/signup-profile-io';
 import type { SignupProfileFields } from '@/lib/signup-profile';
 import { BLANK_JOIN_FORM } from './join-form-blank';
@@ -32,6 +29,8 @@ export interface JoinFormData extends SignupProfileFields {
 
 export function useJoinRegistration(
   onBack: () => void,
+  /** Given the new account's CID once it exists; what follows is the caller's, as after a login. */
+  onJoined: (cid: string) => void,
   serverAddress: string,
   serverPassword: string,
   providedSecuritySettings?: SecuritySettingsValues,
@@ -47,12 +46,12 @@ export function useJoinRegistration(
    */
   draft?: { initial: JoinFormData; onChange: (next: JoinFormData) => void },
 ): JoinRegistration {
-  const navigate: NavigateFunction = useNavigate();
   const { toast } = useToast();
   const [isRegistering, setIsRegistering] = useState(false);
   const [showNotInitializedModal, setShowNotInitializedModal] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [connectStatus, setConnectStatus] = useState<ConnectStatus>("connecting");
+  const [registeredCid, setRegisteredCid] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<JoinFormData>(
     draft?.initial ?? BLANK_JOIN_FORM,
@@ -209,6 +208,7 @@ export function useJoinRegistration(
       startSignupProfile({ avatarData: formData.avatarData, email: formData.email, title: formData.title });
 
       toast({ title: "Registration Successful", description: "Your account has been registered. Connecting to workspace...", variant: "default" });
+      setRegisteredCid(response.cid);
       setConnectStatus("ready");
     } catch (error: unknown) {
       debugLog('Join', 'Registration Error:', error);
@@ -221,9 +221,10 @@ export function useJoinRegistration(
     }
   };
 
+  // The caller's, not a navigate to /workspace: the switcher is already there, so its wizard stayed up.
   const handleConnectModalComplete = (): void => {
     setShowConnectModal(false);
-    navigate(getWorkspacePath());
+    if (registeredCid !== null) onJoined(registeredCid);
   };
 
   const handleReturnToLogin = (): void => {

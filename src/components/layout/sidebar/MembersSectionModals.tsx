@@ -34,10 +34,7 @@ import { CreateGroupDialog } from "@/components/chat/CreateGroupDialog";
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 import { roleBadgeClass } from '@/lib/role-badge';
-import { useNavigate } from 'react-router-dom';
-import { useConfirm } from '@/components/shared/confirm-dialog';
-import { mayLeaveEditor } from '@/lib/leave-editor';
-import type { NavigateFunction } from 'react-router';
+import { useGuardedNavigate, type GuardedNavigate } from '@/hooks/use-guarded-navigate';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { MemberActionItems } from './MemberActionItems';
 import { useMemberActionBlocks } from './use-member-action-blocks';
@@ -92,7 +89,7 @@ interface MembersSectionModalsProps {
   onEditMember: (member: WorkspaceMember) => void;
   onRemoveMember: (member: WorkspaceMember) => void;
   onManagePermissions: (member: WorkspaceMember) => void;
-  onCreateGroup: (name: string, members: Array<{ cid: string; username: string; roleId: string }>) => Promise<void>;
+  onCreateGroup: (name: string, members: Array<{ cid: string; username: string; roleId: string }>) => Promise<string>;
 }
 
 export function MembersSectionModals({
@@ -113,16 +110,19 @@ export function MembersSectionModals({
   onEditMember, onRemoveMember, onManagePermissions,
   onCreateGroup,
 }: MembersSectionModalsProps): JSX.Element {
-  const navigate: NavigateFunction = useNavigate();
+  const navigate: GuardedNavigate = useGuardedNavigate();
   const memberBlocks: MemberActionBlocks = useMemberActionBlocks(currentNodeId ?? WORKSPACE_ROOT_ID);
   const nameOfLevel: (levelId: string) => string = useLevelName();
-  const confirm: ReturnType<typeof useConfirm> = useConfirm();
   // Leaving the workspace view unmounts the editor, so ask first -- as every
   // other navigation out of the sidebar does.
   const openDirectory = async (): Promise<void> => {
-    if (!(await mayLeaveEditor(confirm))) return;
     onSetShowPeerDiscovery(false);
-    navigate('/directory');
+    await navigate('/directory');
+  };
+  // Open it: every other way into a group navigates; this one did not.
+  const createAndOpenGroup = async (...args: Parameters<MembersSectionModalsProps['onCreateGroup']>): Promise<void> => {
+    const groupId: string = await onCreateGroup(...args);
+    if (groupId) await navigate(`/groups/${groupId}`);
   };
   return (
     <>
@@ -172,7 +172,7 @@ export function MembersSectionModals({
       {permissionModalData && <PermissionManagerModal isOpen={showPermissionModal} onClose={() => { onSetShowPermissionModal(false); onClearPermissionModalData(); }} userId={permissionModalData.userId} domainId={permissionModalData.domainId} domainType={permissionModalData.domainType} />}
       <PeerDiscoveryModal isOpen={showPeerDiscovery} onClose={() => onSetShowPeerDiscovery(false)} onOpenDirectory={() => void openDirectory()} />
       <PendingRequestsModal isOpen={showPendingRequests} onClose={() => onSetShowPendingRequests(false)} />
-      <CreateGroupDialog open={showCreateGroupDialog} onOpenChange={onSetShowCreateGroupDialog} availablePeers={registeredPeers.map(p => ({ cid: p.cid, username: p.username, isOnline: p.isOnline }))} currentUsername={currentUsername || 'User'} onCreateGroup={onCreateGroup} />
+      <CreateGroupDialog open={showCreateGroupDialog} onOpenChange={onSetShowCreateGroupDialog} availablePeers={registeredPeers.map(p => ({ cid: p.cid, username: p.username, isOnline: p.isOnline }))} currentUsername={currentUsername || 'User'} onCreateGroup={createAndOpenGroup} />
       <InviteToWorkspaceDialog
         open={showInvite}
         onOpenChange={onSetShowInvite}

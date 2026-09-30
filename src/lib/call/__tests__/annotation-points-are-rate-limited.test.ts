@@ -78,6 +78,7 @@ describe('admitting a drawn point', () => {
 import { vi } from 'vitest';
 import { CallManager } from '../call-manager';
 import type { CallSignalPayload } from '@/types/p2p-commands';
+import { DIRECT_CALL } from '../call-state';
 
 describe('CallManager.annotate', () => {
   it('sends far fewer signals than a pointer produces events', async (): Promise<void> => {
@@ -102,7 +103,7 @@ describe('CallManager.annotate', () => {
       resolvePeerName: (): string => 'peer',
     } as never);
 
-    await manager.start('call-1', [{ cid: 2n, username: 'bob' }], { audio: true, video: false, screen: false }, null, null);
+    await manager.start('call-1', [{ cid: 2n, username: 'bob' }], { audio: true, video: false, screen: false }, DIRECT_CALL, null);
     sent.length = 0;
 
     // One second of a 120Hz pointer.

@@ -33,11 +33,31 @@ export interface CallParticipant {
   speaking: boolean;
 }
 
+/**
+ * Where a call's conversation lives: what "Return" opens.
+ *
+ * `roomId` is the call's scope on the wire, and for an office or room it is the
+ * node's CHAT CHANNEL id, not a page anyone can open. Carrying only that id sent
+ * Return on a room call to `/groups/<channel>`, which is "Group not found".
+ */
+export type CallHome =
+  | { kind: 'direct' }
+  | { kind: 'group'; roomId: string }
+  | { kind: 'node'; roomId: string; nodeId: string };
+
+export type RoomCallHome = Exclude<CallHome, { kind: 'direct' }>;
+
+export const DIRECT_CALL: CallHome = { kind: 'direct' };
+
+/** The call's scope on the wire; null for a 1:1 call. */
+export function callRoomId(home: CallHome): string | null {
+  return home.kind === 'direct' ? null : home.roomId;
+}
+
 export interface CallState {
   callId: string;
   status: CallStatus;
-  /** Absent for a 1:1 call. */
-  roomId: string | null;
+  home: CallHome;
   /** True when we placed the call. Decides who wins a glare collision. */
   outgoing: boolean;
   /** Who dialled — null when we did. Their hangup ends a still-ringing call. */
@@ -67,14 +87,14 @@ export type CallEvent =
   | {
       type: 'invite-sent';
       callId: string;
-      roomId: string | null;
+      home: CallHome;
       media: CallMediaKinds;
       invitees: CallPeerRef[];
     }
   | {
       type: 'invite-received';
       callId: string;
-      roomId: string | null;
+      home: CallHome;
       from: CallPeerRef;
       media: CallMediaKinds;
       /** The caller's other invitees, so this peer can build the same mesh. */
@@ -103,7 +123,7 @@ export function initialState(callId: string): CallState {
   return {
     callId,
     status: 'ringing-out',
-    roomId: null,
+    home: DIRECT_CALL,
     outgoing: true,
     caller: null,
     selfMedia: NO_MEDIA,

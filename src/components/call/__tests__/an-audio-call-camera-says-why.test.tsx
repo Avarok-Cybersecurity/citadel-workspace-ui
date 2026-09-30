@@ -28,7 +28,7 @@ function streamWith(video: Array<'live' | 'ended'>): MediaStream {
 
 function activeAudioCall(): CallState {
   return {
-    callId: 'c1', status: 'active', selfSpeaking: false, roomId: null, outgoing: true, caller: null,
+    callId: 'c1', status: 'active', selfSpeaking: false, home: { kind: 'direct' }, outgoing: true, caller: null,
     selfMedia: { audio: true, video: false, screen: false },
     participants: new Map([[2n, { cid: 2n, username: 'bob', status: 'active', media: { audio: true, video: false, screen: false }, speaking: false }]]),
     reason: null,
