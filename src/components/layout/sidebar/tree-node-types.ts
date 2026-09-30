@@ -15,6 +15,8 @@ export type NodeEntityType = "Workspace" | { Child: string };
  */
 export interface DomainPermissions {
   view_content: boolean;
+  /** On a node: "Members can see each other". False hides its roster, and every roster below it, from non-admins. */
+  view_members: boolean;
   read_messages: boolean;
   download_files: boolean;
   edit_content: boolean;

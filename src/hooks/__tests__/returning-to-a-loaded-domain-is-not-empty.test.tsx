@@ -47,7 +47,9 @@ let deliver: ((payload: MembersPayload) => void) | null = null;
 
 vi.mock('@/lib/workspace-events', (): { workspaceEvents: unknown } => ({
   workspaceEvents: {
-    onMemberEvent: (_event: string, cb: (payload: MembersPayload) => void): (() => void) => {
+    onMemberEvent: (event: string, cb: (payload: MembersPayload) => void): (() => void) => {
+      // Only the list: the hook also subscribes to `members:hidden`.
+      if (event !== 'members:loaded') return (): void => {};
       deliver = cb;
       return (): void => { deliver = null; };
     },

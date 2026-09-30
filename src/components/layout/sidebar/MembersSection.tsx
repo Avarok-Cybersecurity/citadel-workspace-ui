@@ -80,7 +80,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
 
   // No node selected is the workspace view, whose members are the root's.
   const activeDomainId: string = currentNodeId ?? WORKSPACE_ROOT_ID;
-  const { members, isLoadingMembers, membersUnavailable } = useDomainMembers(activeDomainId);
+  const { members, isLoadingMembers, membersUnavailable, membersHidden } = useDomainMembers(activeDomainId);
 
   const handleEditMember = (m: WorkspaceMember): void => { setSelectedMember(m); setShowEditModal(true); };
   const handleRemoveMember = (m: WorkspaceMember): void => { setSelectedMember(m); setShowRemoveModal(true); };
@@ -136,6 +136,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
                 peerCount={filteredRegisteredPeers.length + registeredPeers.length}
                 contacts={registeredPeers}
                 membersUnavailable={membersUnavailable}
+                membersHidden={membersHidden}
                 currentUsername={state.currentUser?.username}
                 onEditMember={handleEditMember}
                 onRemoveMember={handleRemoveMember}

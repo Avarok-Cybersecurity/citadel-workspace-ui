@@ -43,6 +43,8 @@ const MUTATING: string[] = [
   // The group send, whose composer clears on resolve — an ungated one throws
   // the user's text away on any refusal.
   'SendGroupMessage',
+  // "Members can see each other": the admin's switch shows the stored value.
+  'SetMembersVisible',
 ];
 
 /**

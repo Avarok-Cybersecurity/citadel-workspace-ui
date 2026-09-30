@@ -83,6 +83,13 @@ export function handleGeneratedVariants(
     return true;
   }
 
+  // Hidden by an admin ("Members can see each other" off here or above). Its
+  // own event: an empty `members:loaded` would render "Nobody else is here yet".
+  if (isVariant(response, 'MembersHidden')) {
+    eventEmitter.emit('members:hidden', { domainId: response.MembersHidden.domain_id, connection: connectionInfo });
+    return true;
+  }
+
   if (isVariant(response, 'Member')) {
     const mappedMember: MappedMember = mapWasmMember(response.Member as Record<string, unknown>);
     recordPresenceChoices([mappedMember]);

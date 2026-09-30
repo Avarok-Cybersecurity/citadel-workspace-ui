@@ -160,14 +160,12 @@ export interface WorkspaceProtocolRequestTS {
     chat_enabled?: boolean;
     is_default?: boolean;
   };
-  DeleteNode?: {
+  SetMembersVisible?: {
     node_id: string;
-    cascade: boolean;
+    visible: boolean;
   };
-  MoveNode?: {
-    node_id: string;
-    new_parent_id: string | null;
-  };
+  DeleteNode?: { node_id: string; cascade: boolean };
+  MoveNode?: { node_id: string; new_parent_id: string | null };
   ListNodes?: {
     parent_id?: string | null;
     depth?: number;
