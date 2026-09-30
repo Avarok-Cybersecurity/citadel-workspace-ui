@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLiveSessions, LiveStatusUnknown, type LiveSessions } from './account-live-status';
+import { useSavedAccounts, SavedAccountsLoading, SavedAccountsUnreadable, type SavedAccounts } from './account-saved-list';
 import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
@@ -12,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { connectionManager } from '@/lib/connection';
 import { Clock, Wifi } from 'lucide-react';
-import type { ActiveSession } from '@/types/session-types';
+import type { ActiveSession, StoredSession } from '@/types/session-types';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { DeleteConfirmDialog, ClearAllConfirmDialog } from './AccountConfirmDialogs';
@@ -38,7 +39,10 @@ interface AccountManagementDialogProps {
 export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: AccountManagementDialogProps): JSX.Element {
   const { toast } = useToast();
   const navigate: NavigateFunction = useNavigate();
-  const [storedSessions, setStoredSessions] = useState(connectionManager.getStoredSessionsArray());
+  const saved: SavedAccounts = useSavedAccounts();
+  const storedSessions: StoredSession[] = saved.sessions;
+  const loadSaved: () => Promise<void> = saved.load;
+  const [liveAsked, setLiveAsked] = useState(false);
   const live: LiveSessions = useLiveSessions();
   const loadLive: () => Promise<void> = live.load;
   const activeSessions: ActiveSession[] | null = live.sessions;
@@ -59,17 +63,18 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
         } catch (error) {
           debugLog('AccountManagementDialog', 'Failed to load active sessions:', error);
         }
+        setLiveAsked(true);
       };
       runAsyncSetup(loadActiveSessions);
-      setStoredSessions(connectionManager.getStoredSessionsArray());
+      runAsyncSetup(loadSaved);
     }
-  }, [isOpen, loadLive]);
+  }, [isOpen, loadLive, loadSaved]);
 
   const handleRemoveSession = async (): Promise<void> => {
     if (!sessionToDelete) return;
     try {
       await connectionManager.removeSession(sessionToDelete.username, sessionToDelete.serverAddress);
-      setStoredSessions(connectionManager.getStoredSessionsArray());
+      saved.sync();
       toast({ title: 'Account removed', description: `${sessionToDelete.username} has been removed from saved accounts.` });
       setDeleteConfirmOpen(false);
       setSessionToDelete(null);
@@ -81,7 +86,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
   const handleClearAll = async (): Promise<void> => {
     try {
       await connectionManager.removeAllSessions();
-      setStoredSessions([]);
+      saved.sync();
       toast({ title: 'Saved accounts cleared', description: 'The saved list is empty. Accounts signed in now stay signed in.' });
       setClearAllConfirmOpen(false);
       onClose();
@@ -142,7 +147,9 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
           </DialogHeader>
 
           <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-            {activeSessions === null && storedSessions.length > 0 && <LiveStatusUnknown />}
+            {(!liveAsked || saved.status === 'loading') && <SavedAccountsLoading />}
+            {saved.status === 'unreadable' && <SavedAccountsUnreadable onRetry={() => { runAsyncSetup(loadSaved); }} />}
+            {liveAsked && activeSessions === null && saved.status !== 'loading' && <LiveStatusUnknown />}
             {(activeSessions?.length ?? 0) > 0 && (
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -187,7 +194,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
               </div>
             )}
 
-            {(activeSessions?.length ?? 0) === 0 && storedSessions.length === 0 && (
+            {liveAsked && saved.status === 'ready' && (activeSessions?.length ?? 0) === 0 && storedSessions.length === 0 && (
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-4">No accounts found. Join a workspace to get started.</p>
                 <Button
