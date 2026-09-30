@@ -1,12 +1,11 @@
 import { stillInCall, hasAnswered } from '@/lib/call/participant-presence';
-import { useNavigate } from 'react-router-dom';
+import { useGuardedNavigate, type GuardedNavigate } from '@/hooks/use-guarded-navigate';
 import { PhoneOff, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCall } from '@/lib/call/call-context';
 import { useCallStageVisible } from './call-stage-presence';
 import { useCallDuration } from './use-call-duration';
 import { useRosterName } from './use-roster-name';
-import type { NavigateFunction } from 'react-router';
 import type { CallParticipant } from '@/lib/call/call-state';
 
 /**
@@ -20,7 +19,7 @@ import type { CallParticipant } from '@/lib/call/call-state';
 export function OngoingCallBar(): JSX.Element | null {
   const { call, leave } = useCall();
   const stageVisible: boolean = useCallStageVisible();
-  const navigate: NavigateFunction = useNavigate();
+  const navigate: GuardedNavigate = useGuardedNavigate();
   const duration: string = useCallDuration(call?.status === 'active');
   const others: CallParticipant[] = call ? [...call.participants.values()].filter(stillInCall) : [];
   const onlyOther: string = useRosterName(others.length === 1 ? others[0].cid : null, others[0]?.username ?? '');
@@ -43,7 +42,7 @@ export function OngoingCallBar(): JSX.Element | null {
 
   const returnToCall = (): void => {
     if (call.roomId) {
-      navigate(`/groups/${call.roomId}`);
+      void navigate(`/groups/${call.roomId}`);
       return;
     }
     const peer: CallParticipant = others[0];
@@ -52,7 +51,7 @@ export function OngoingCallBar(): JSX.Element | null {
     // conversation and pressing Return landed on "No conversation selected",
     // the call stage never came back, and the bar kept floating over it. Wired
     // from one end: the button navigated, the page never listened.
-    if (peer) navigate(`/messages?channel=${peer.cid.toString()}`);
+    if (peer) void navigate(`/messages?channel=${peer.cid.toString()}`);
   };
 
   return (

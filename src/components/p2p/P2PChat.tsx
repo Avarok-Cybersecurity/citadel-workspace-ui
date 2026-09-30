@@ -96,7 +96,7 @@ export function P2PChat({
   // Composition hook (input, reply/edit context, send, live-doc flow)
   const {
     inputRef, inputMessage, setInputMessage, isSending,
-    messageType, showDocModal, setShowDocModal,
+    messageType, showDocModal, closeDocModal,
     showMarkdownPreview, setShowMarkdownPreview,
     applyFormat,
     replyingTo, editingMessage,
@@ -223,7 +223,7 @@ export function P2PChat({
         )}
       </div>
 
-      <LiveDocumentModal isOpen={showDocModal} onClose={() => setShowDocModal(false)} onCreateDocument={handleDocCreate} initialContent={inputMessage} />
+      <LiveDocumentModal isOpen={showDocModal} onClose={closeDocModal} onCreateDocument={handleDocCreate} initialContent={inputMessage} />
       <FileTransferModal isOpen={showFileModal} onClose={() => setShowFileModal(false)} onSendFile={fileTransfer.handleSendFile} peerCid={peerCid.toString()} />
       <FilePreviewDialog file={fileTransfer.openedFile} isOpen={fileTransfer.openedFile !== null} onClose={fileTransfer.closeOpenedFile} />
       <ChatSettingsPanel isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} peerCid={peerCid.toString()} peerName={peerName} />

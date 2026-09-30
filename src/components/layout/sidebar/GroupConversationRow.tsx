@@ -8,13 +8,12 @@
 import { useMemo, useRef, useEffect, useState    , type RefObject } from 'react';
 import { memberAvatarColor } from '@/lib/avatar-color';
 import { useGroupPermissions } from '@/hooks/use-group-permissions';
-import { useNavigate } from 'react-router-dom';
+import { useGuardedNavigate, type GuardedNavigate } from '@/hooks/use-guarded-navigate';
 import { SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { rowClass } from './selected-row';
 import { Badge } from '@/components/ui/badge';
 import { membersByRank } from '@/components/chat/members-by-rank';
 import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
-import type { NavigateFunction } from 'react-router';
 
 // ============================================================================
 // Types
@@ -24,8 +23,6 @@ interface GroupConversationRowProps {
   group: GroupConversation;
   /** Whether this group is currently selected */
   isActive?: boolean;
-  /** Callback when the group is clicked */
-  onClick?: (group: GroupConversation) => void;
 }
 
 // ============================================================================
@@ -54,9 +51,8 @@ const MAX_AVATARS: number = 4;
 export function GroupConversationRow({
   group,
   isActive = false,
-  onClick,
 }: GroupConversationRowProps): JSX.Element {
-  const navigate: NavigateFunction = useNavigate();
+  const navigate: GuardedNavigate = useGuardedNavigate();
   const containerRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const [maxAvatars, setMaxAvatars] = useState(MAX_AVATARS);
   const { can } = useGroupPermissions(group);
@@ -113,11 +109,7 @@ export function GroupConversationRow({
 
   // Handle click
   const handleClick = (): void => {
-    if (onClick) {
-      onClick(group);
-    } else {
-      navigate(`/groups/${group.id}`);
-    }
+    void navigate(`/groups/${group.id}`);
   };
 
   return (

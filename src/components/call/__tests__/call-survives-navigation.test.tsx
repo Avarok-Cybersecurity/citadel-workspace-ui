@@ -15,6 +15,7 @@ import { describe, it, expect, vi, beforeEach   } from 'vitest';
 import { render, screen, act , type RenderResult } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { CallAudioHost } from '../CallAudioHost';
 import { OngoingCallBar } from '../OngoingCallBar';
 import { registerCallStage } from '../call-stage-presence';
@@ -95,12 +96,16 @@ describe('CallAudioHost', () => {
 
 describe('OngoingCallBar', () => {
   function renderBar(value: CallContextValue): RenderResult {
+    // The provider App mounts above the router: returning to the call asks
+    // before discarding an open document edit.
     return render(
-      <MemoryRouter>
-        <CallContext.Provider value={value}>
-          <OngoingCallBar />
-        </CallContext.Provider>
-      </MemoryRouter>,
+      <ConfirmDialogProvider>
+        <MemoryRouter>
+          <CallContext.Provider value={value}>
+            <OngoingCallBar />
+          </CallContext.Provider>
+        </MemoryRouter>
+      </ConfirmDialogProvider>,
     );
   }
 
