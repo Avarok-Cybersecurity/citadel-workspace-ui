@@ -10,6 +10,8 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useConfirm } from '@/components/shared/confirm-dialog';
+import { mayLeaveEditor } from '@/lib/leave-editor';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess } from '@/lib/toast-helpers';
 import { connectionManager } from '@/lib/connection';
@@ -21,14 +23,19 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import type { NavigateFunction } from 'react-router';
 
-export function useSessionExit(): { showDisconnectModal: boolean; disconnectStatus: DisconnectStatus; disconnectError: string | undefined; handleExit: () => void; handleSignOut: () => Promise<void>; handleDisconnectComplete: () => void; } {
+export function useSessionExit(): { showDisconnectModal: boolean; disconnectStatus: DisconnectStatus; disconnectError: string | undefined; handleExit: () => Promise<void>; handleSignOut: () => Promise<void>; handleDisconnectComplete: () => void; } {
   const { toast } = useToast();
   const navigate: NavigateFunction = useNavigate();
+  const confirm: ReturnType<typeof useConfirm> = useConfirm();
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [disconnectStatus, setDisconnectStatus] = useState<DisconnectStatus>("disconnecting");
   const [disconnectError, setDisconnectError] = useState<string | undefined>();
 
-  const handleExit = (): void => {
+  const handleExit = async (): Promise<void> => {
+    // Asked before the tab lets go of its session: the landing page unmounts
+    // the editor, and an open document edit would go with it.
+    if (!(await mayLeaveEditor(confirm))) return;
+
     // Stop WASM connection manager polling (session stays active but this tab won't poll)
     wasmConnectionManager.stop();
 
@@ -40,6 +47,10 @@ export function useSessionExit(): { showDisconnectModal: boolean; disconnectStat
   };
 
   const handleSignOut = async (): Promise<void> => {
+    // Asked before anything is torn down: the landing page this ends on
+    // unmounts the editor, and by then the session it would save to is gone.
+    if (!(await mayLeaveEditor(confirm))) return;
+
     // Show the disconnect modal immediately
     setDisconnectStatus("disconnecting");
     setDisconnectError(undefined);

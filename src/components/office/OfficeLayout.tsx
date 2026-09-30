@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Settings } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { buildWorkspacePath } from "@/lib/workspace-navigation";
 import { DisabledWithTooltip } from "@/components/ui/DisabledWithTooltip";
 import { SettingsModal } from "@/components/SettingsModal";
-import type { NavigateFunction } from 'react-router';
+import { useGuardedNavigate, type GuardedNavigate } from '@/hooks/use-guarded-navigate';
 
 interface OfficeLayoutProps {
   title: string;
@@ -31,13 +31,13 @@ export const OfficeLayout = ({
   editDeniedReason,
 }: OfficeLayoutProps): JSX.Element => {
   const location: ReturnType<typeof useLocation> = useLocation();
-  const navigate: NavigateFunction = useNavigate();
+  const navigate: GuardedNavigate = useGuardedNavigate();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   const handleNavigateUp = (): void => {
     const params: URLSearchParams = new URLSearchParams(location.search);
     params.delete("nodeId");
-    navigate(buildWorkspacePath(params));
+    void navigate(buildWorkspacePath(params));
   };
 
   return (
@@ -63,7 +63,7 @@ export const OfficeLayout = ({
               variant="ghost"
               size="icon"
               className="text-foreground/80 hover:bg-primary-accent/15 hover:text-foreground"
-              onClick={() => navigate('/messages')}
+              onClick={() => void navigate('/messages')}
               title="Messages"
             >
               <MessageSquare className="h-4 w-4" />

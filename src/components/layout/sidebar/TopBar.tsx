@@ -202,7 +202,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps): JSX.Element => {
       <ExitConfirmModal
         open={showExitConfirm}
         onOpenChange={setShowExitConfirm}
-        onConfirm={handleExit}
+        onConfirm={() => void handleExit()}
         userName={name}
         workspaceName={workspaceName}
       />

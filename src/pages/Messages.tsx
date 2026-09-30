@@ -1,5 +1,6 @@
 import { isPlaceholderName } from '@/lib/peer-display';
-import { useSelfName } from '@/hooks/use-self-name';
+import { useSelfName, type SelfName } from '@/hooks/use-self-name';
+import { selfCid } from '@/lib/tab-identity';
 import { AppLayout } from "@/components/layout/AppLayout";
 import { P2PPeerList } from "@/components/p2p/P2PPeerList";
 import { P2PChat } from "@/components/p2p/P2PChat";
@@ -11,7 +12,6 @@ import { useRegisteredPeers } from "@/hooks";
 import { peerDisplayName } from "@/lib/peer-display";
 import { tryParseCid } from '@/lib/utils/cid-utils';
 import type { NavigateFunction } from 'react-router';
-import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 
 const Messages: () => JSX.Element = (): JSX.Element => {
@@ -29,10 +29,12 @@ const Messages: () => JSX.Element = (): JSX.Element => {
   const parsedPeerCid: bigint | undefined = tryParseCid(selectedPeerCid);
   const { registeredPeers } = useRegisteredPeers();
 
-  // Get current user info
-  const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
-  const currentUserCid: bigint | undefined = connectionInfo?.cid;
-  const currentUserName: string = useSelfName().name || 'You';
+  // The tab's identity first, the connection's second -- see selfCid. The
+  // connection's alone gated the whole chat, and the tab identity is what
+  // re-renders this page when it lands.
+  const self: SelfName = useSelfName();
+  const currentUserCid: bigint | undefined = selfCid(self, connectionManager.getConnectionInfo());
+  const currentUserName: string = self.name || 'You';
 
   // Resolve peer CID to username
   const selectedPeerName: string = useMemo(() => {
@@ -91,24 +93,29 @@ const Messages: () => JSX.Element = (): JSX.Element => {
             selectedPeerCid ? 'flex' : 'hidden md:flex'
           }`}
         >
-          {selectedPeerCid && parsedPeerCid !== undefined && currentUserCid ? (
+          {/* The way back, mobile only, and whenever a peer is chosen -- the
+              list is hidden then, whatever this pane goes on to show.
+              Lives here and not in P2PChat: that component also renders
+              office and room chat, where "back to conversations" is not a
+              place the user came from. Full-screen chat without this would
+              strand a phone user in a conversation with no exit. */}
+          {selectedPeerCid && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedPeerCid(null);
+                navigate('/messages', { replace: true });
+              }}
+              className="md:hidden flex items-center gap-2 px-4 py-3 border-b border-border text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              Conversations
+            </button>
+          )}
+          {/* Not gated on currentUserCid: P2PChat takes it as optional, and
+              WorkspaceView renders the same chat without it. */}
+          {parsedPeerCid !== undefined ? (
             <>
-              {/* The way back, mobile only.
-                  Lives here and not in P2PChat: that component also renders
-                  office and room chat, where "back to conversations" is not a
-                  place the user came from. Full-screen chat without this would
-                  strand a phone user in a conversation with no exit. */}
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedPeerCid(null);
-                  navigate('/messages', { replace: true });
-                }}
-                className="md:hidden flex items-center gap-2 px-4 py-3 border-b border-border text-sm text-muted-foreground hover:text-foreground"
-              >
-                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                Conversations
-              </button>
               {/* Keyed by the conversation, so React resets this subtree on a switch.
                   Without it the same component instance is reused: useP2PMessages'
                   only reset path fires on a FALSY peerCid, and mergeMessages

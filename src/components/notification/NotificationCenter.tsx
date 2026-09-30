@@ -20,14 +20,15 @@ import { notificationBelongsTo } from '@/lib/notification-service/types';
 import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
 import { conversationHref } from '@/components/layout/sidebar/active-conversation';
-import { useNavigate, useLocation, type NavigateFunction, type Location } from 'react-router-dom';
+import { useLocation, type Location } from 'react-router-dom';
+import { useGuardedNavigate, type GuardedNavigate } from '@/hooks/use-guarded-navigate';
 
 const NotificationCenter: () => JSX.Element = (): JSX.Element => {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | NotificationType>('all');
   const [sessionCid, setSessionCid] = useState<string | null>(null);
-  const navigate: NavigateFunction = useNavigate();
+  const navigate: GuardedNavigate = useGuardedNavigate();
   const location: Location = useLocation();
 
   // The third end of the message-notification click.
@@ -41,7 +42,7 @@ const NotificationCenter: () => JSX.Element = (): JSX.Element => {
       'p2p:open-conversation',
       (payload): void => {
         setOpen(false);
-        navigate(
+        void navigate(
           conversationHref(location.pathname, location.search, {
             cid: payload.peerCid.toString(),
             username: payload.peerUsername,

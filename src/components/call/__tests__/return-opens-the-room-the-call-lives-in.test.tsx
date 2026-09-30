@@ -13,7 +13,8 @@
  * and nothing here is about what crosses it.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { OngoingCallBar } from '../OngoingCallBar';
@@ -82,15 +83,19 @@ function Where(): JSX.Element {
 async function pressReturn(call: CallState): Promise<string> {
   render(
     <CallContext.Provider value={{ call, leave: vi.fn() } as unknown as CallContextValue}>
-      <MemoryRouter initialEntries={['/files']}>
-        <OngoingCallBar />
-        <Routes>
-          <Route path="*" element={<Where />} />
-        </Routes>
-      </MemoryRouter>
+      <ConfirmDialogProvider>
+        <MemoryRouter initialEntries={['/files']}>
+          <OngoingCallBar />
+          <Routes>
+            <Route path="*" element={<Where />} />
+          </Routes>
+        </MemoryRouter>
+      </ConfirmDialogProvider>
     </CallContext.Provider>,
   );
   await userEvent.click(screen.getByRole('button', { name: 'Return' }));
+  // Return is guarded (it may ask about an unsaved edit first), so it lands a tick later.
+  await waitFor((): void => { expect(screen.getByTestId('where').textContent).not.toBe('/files'); });
   return screen.getByTestId('where').textContent ?? '';
 }
 

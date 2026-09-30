@@ -10,14 +10,14 @@
  */
 import { getWorkspacePath } from '@/lib/workspace-navigation';
 import { rememberTab } from '@/components/office/office-tab-memory';
-import type { NavigateFunction } from 'react-router';
 import type { CallHome, CallParticipant } from '@/lib/call/call-state';
 
 export function openCallHome(
   home: CallHome,
   /** The other side of a 1:1 call; unused for rooms. */
   peer: CallParticipant | undefined,
-  navigate: NavigateFunction,
+  /** Router navigate or the guarded one (hooks/use-guarded-navigate); only the path is used. */
+  navigate: (to: string) => void,
 ): void {
   switch (home.kind) {
     case 'node':
