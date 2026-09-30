@@ -1,6 +1,6 @@
 import { useCall } from '@/lib/call/call-context';
 import type { VideoQuality } from '@/lib/call/video-quality';
-import type { CallState } from '@/lib/call/call-state';
+import { DIRECT_CALL, type CallState } from '@/lib/call/call-state';
 import type { ConnectionQuality } from '@/components/call/ParticipantTile';
 
 export interface DirectCallBinding {
@@ -53,7 +53,7 @@ export function useDirectCall(peerCid: bigint, peerName: string): DirectCallBind
     setVideoQuality,
   } = useCall();
 
-  // roomId must be null: a GROUP call that happens to include this peer belongs
+  // The home must be direct: a GROUP call that happens to include this peer belongs
   // to its room's surface, not to the 1:1 chat with them.
   //
   // 'ended' is excluded but 'failed' deliberately is not. A call the user left
@@ -62,7 +62,7 @@ export function useDirectCall(peerCid: bigint, peerName: string): DirectCallBind
   // stage renders.
   const active: boolean =
     call !== null &&
-    call.roomId === null &&
+    call.home.kind === 'direct' &&
     call.participants.has(peerCid) &&
     call.status !== 'ended';
 
@@ -77,7 +77,7 @@ export function useDirectCall(peerCid: bigint, peerName: string): DirectCallBind
     screenStream,
     qualities,
     capability,
-    startCall: (video) => void startCall([{ cid: peerCid, username: peerName }], video),
+    startCall: (video) => void startCall([{ cid: peerCid, username: peerName }], video, DIRECT_CALL),
     leave: () => void leave(),
     toggleMic: () => void toggleMic(),
     toggleCamera: () => void toggleCamera(),

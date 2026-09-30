@@ -27,7 +27,7 @@ function callState(status: CallState['status'], peerStatus: string = 'active'): 
   return {
     callId: 'c1',
     status,
-    roomId: null,
+    home: { kind: 'direct' },
     selfMedia: { audio: true, video: false, screen: false },
     selfSpeaking: false,
     participants: new Map([

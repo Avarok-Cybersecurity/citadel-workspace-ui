@@ -19,6 +19,7 @@ import { CallManager } from '../call-manager';
 import { callOutcomeMessage, callOutcomePeerName } from '../call-outcome-message';
 import type { CallTransport } from '../call-transport';
 import type { CallState } from '../call-state';
+import { DIRECT_CALL } from '../call-state';
 
 const BOB: bigint = 2n;
 
@@ -51,7 +52,7 @@ function told(state: CallState | null): string | null {
 describe('a callee who declines', () => {
   it('leaves the caller a sentence saying so', async () => {
     const { manager, callId } = caller();
-    await manager.start('c1', [{ cid: BOB, username: 'bob0924' }], { audio: true, video: false, screen: false }, null, null);
+    await manager.start('c1', [{ cid: BOB, username: 'bob0924' }], { audio: true, video: false, screen: false }, DIRECT_CALL, null);
     await manager.handleSignal(BOB, 'bob0924', { kind: 'CallDecline', call_id: callId(), reason: 'rejected' });
 
     expect(manager.getState()?.status).toBe('ended');
@@ -60,7 +61,7 @@ describe('a callee who declines', () => {
 
   it("is not overwritten by the callee's goodbye arriving after it", async () => {
     const { manager, callId } = caller();
-    await manager.start('c1', [{ cid: BOB, username: 'bob0924' }], { audio: true, video: false, screen: false }, null, null);
+    await manager.start('c1', [{ cid: BOB, username: 'bob0924' }], { audio: true, video: false, screen: false }, DIRECT_CALL, null);
     await manager.handleSignal(BOB, 'bob0924', { kind: 'CallDecline', call_id: callId(), reason: 'rejected' });
     await manager.handleSignal(BOB, 'bob0924', { kind: 'CallEnd', call_id: callId(), reason: 'hangup' });
 
@@ -69,7 +70,7 @@ describe('a callee who declines', () => {
 
   it('is not overwritten by a local hang-up of the call that is already over', async () => {
     const { manager, callId } = caller();
-    await manager.start('c1', [{ cid: BOB, username: 'bob0924' }], { audio: true, video: false, screen: false }, null, null);
+    await manager.start('c1', [{ cid: BOB, username: 'bob0924' }], { audio: true, video: false, screen: false }, DIRECT_CALL, null);
     await manager.handleSignal(BOB, 'bob0924', { kind: 'CallDecline', call_id: callId(), reason: 'rejected' });
     await manager.end('hangup');
 

@@ -32,7 +32,7 @@ function call(overrides: Partial<CallState> = {}): CallState {
   return {
     callId: 'c1',
     status: 'active',
-    roomId: ROOM,
+    home: { kind: 'group', roomId: ROOM },
     outgoing: true,
     caller: null,
     selfMedia: { audio: true, video: false, screen: false },
@@ -134,23 +134,23 @@ describe('groupCallEntryMode — in call / busy', () => {
   });
 
   it('reports busy when a DM call owns the tab', () => {
-    const mode: GroupCallEntryMode = groupCallEntryMode(call({ roomId: null }), ROOM, 2, []);
+    const mode: GroupCallEntryMode = groupCallEntryMode(call({ home: { kind: 'direct' } }), ROOM, 2, []);
     expect(mode).toEqual({ kind: 'busy', reason: 'You are already in another call.' });
   });
 
   it('reports busy when another ROOM owns the call', () => {
-    expect(groupCallEntryMode(call({ roomId: 'other-room' }), ROOM, 2, []).kind).toBe('busy');
+    expect(groupCallEntryMode(call({ home: { kind: 'group', roomId: 'other-room' } }), ROOM, 2, []).kind).toBe('busy');
   });
 
   it('names an incoming call elsewhere as the reason', () => {
-    const mode: GroupCallEntryMode = groupCallEntryMode(call({ roomId: null, status: 'ringing-in' }), ROOM, 2, []);
+    const mode: GroupCallEntryMode = groupCallEntryMode(call({ home: { kind: 'direct' }, status: 'ringing-in' }), ROOM, 2, []);
     expect(mode).toEqual({ kind: 'busy', reason: 'You have an incoming call.' });
   });
 
   it('does not let a FAILED call elsewhere block calling here', () => {
     // The failed call's surface owes the user its reason, but it is over;
     // stranding every other conversation behind it would have no way out.
-    expect(groupCallEntryMode(call({ roomId: null, status: 'failed' }), ROOM, 2, []).kind).toBe(
+    expect(groupCallEntryMode(call({ home: { kind: 'direct' }, status: 'failed' }), ROOM, 2, []).kind).toBe(
       'start',
     );
   });

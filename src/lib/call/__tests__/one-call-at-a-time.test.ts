@@ -19,9 +19,10 @@ import { callBusyReason } from '../call-busy';
 import { groupCallEntryMode } from '../group-call-entry';
 import type { CallState } from '../call-state';
 import type { GroupCallEntryMode } from '@/lib/call/group-call-entry';
+import { callHomeOf } from '../room-names';
 
 function state(status: CallState['status'], roomId: string | null = null): CallState {
-  return { status, roomId, participants: new Map() } as unknown as CallState;
+  return { status, home: callHomeOf(roomId, new Map<string, string>()), participants: new Map() } as unknown as CallState;
 }
 
 describe('whether a new call can start', () => {

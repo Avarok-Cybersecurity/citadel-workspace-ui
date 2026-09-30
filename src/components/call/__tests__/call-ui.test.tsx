@@ -34,7 +34,7 @@ function callState(overrides: Partial<CallState> = {}): CallState {
   return {
     callId: 'c1',
     status: 'active',
-    roomId: null,
+    home: { kind: 'direct' },
     outgoing: true,
     caller: null,
     selfMedia: VIDEO,

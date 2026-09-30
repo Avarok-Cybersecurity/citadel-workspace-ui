@@ -3,7 +3,7 @@ import { IncomingCallCard } from './IncomingCallCard';
 import { useCall } from '@/lib/call/call-context';
 import { useIsLeaderTab } from './use-leader-tab';
 import { useRosterName } from './use-roster-name';
-import type { CallParticipant } from '@/lib/call/call-state';
+import { callRoomId, type CallParticipant } from '@/lib/call/call-state';
 import { getChannelNames, roomNameFor, subscribeToChannelNames } from '@/lib/call/room-names';
 import { getGroups, subscribeToGroups } from '@/lib/group-conversations/group-store';
 import type { GroupConversation } from '@/types/group';
@@ -30,12 +30,13 @@ export function RingingCall(): JSX.Element | null {
   if (!isLeaderTab) return null;
   if (!call || call.status !== 'ringing-in') return null;
   if (!caller) return null;
+  const roomId: string | null = callRoomId(call.home);
 
   return (
     <IncomingCallCard
       callerName={callerName}
       media={caller.media}
-      roomName={call.roomId ? roomNameFor(call.roomId, channels, groups) : null}
+      roomName={roomId ? roomNameFor(roomId, channels, groups) : null}
       onAccept={(media) => void accept(media)}
       onDecline={() => void decline()}
     />

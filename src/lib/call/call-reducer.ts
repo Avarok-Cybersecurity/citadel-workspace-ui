@@ -65,7 +65,7 @@ export function reduce(state: CallState | null, event: CallEvent): CallState | n
       return {
         callId: event.callId,
         status: 'ringing-out',
-        roomId: event.roomId,
+        home: event.home,
         outgoing: true,
         caller: null,
         selfMedia: event.media,
@@ -94,7 +94,7 @@ export function reduce(state: CallState | null, event: CallEvent): CallState | n
       return {
         callId: event.callId,
         status: 'ringing-in',
-        roomId: event.roomId,
+        home: event.home,
         outgoing: false,
         caller: event.from.cid,
         selfMedia: NO_MEDIA,

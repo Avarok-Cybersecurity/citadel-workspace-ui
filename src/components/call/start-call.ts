@@ -14,6 +14,7 @@ import type { CallSession } from '@/lib/call/call-session';
 import { callBusyReason } from '@/lib/call/call-busy';
 import type { CallMediaKinds } from '@/types/call-signals';
 import type { CallMoment } from './report-call-system-unavailable';
+import type { CallHome } from '@/lib/call/call-state';
 
 export interface StartCallDeps {
   managerRef: MutableRefObject<CallManager | null>;
@@ -28,7 +29,7 @@ export async function startCall(
   deps: StartCallDeps,
   peers: Array<{ cid: bigint; username: string }>,
   video: boolean,
-  roomId?: string,
+  home: CallHome,
 ): Promise<void> {
   // Before capturing anything. The group entry path has refused a second
   // call since it was written; this one never did, so from any other
@@ -85,5 +86,5 @@ export async function startCall(
   const callId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   // The invite announces our provisional codec; the accept's decode list
   // may change it, in which case the signal path announces the new one.
-  await manager.start(callId, peers, got, roomId ?? null, session.getCodec());
+  await manager.start(callId, peers, got, home, session.getCodec());
 }

@@ -14,17 +14,23 @@
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 import type { GroupConversation } from '@/types/group';
 import { notifyEach } from '@/lib/notify-listeners';
+import { DIRECT_CALL, type CallHome } from './call-state';
 
 let channelNames: ReadonlyMap<string, string> = new Map<string, string>();
+let channelNodes: ReadonlyMap<string, string> = new Map<string, string>();
 const listeners: Set<() => void> = new Set<() => void>();
 
-/** Replace the channel-id → node-name map from the workspace's current nodes. */
+/** Replace the channel-id → node-name and → node-id maps from the workspace's current nodes. */
 export function publishChannelNames(nodes: Readonly<Record<string, DomainNode>>): void {
   const next: Map<string, string> = new Map<string, string>();
+  const owners: Map<string, string> = new Map<string, string>();
   for (const node of Object.values(nodes)) {
-    if (node.chat_channel_id && node.name.trim()) next.set(node.chat_channel_id, node.name.trim());
+    if (!node.chat_channel_id) continue;
+    owners.set(node.chat_channel_id, node.id);
+    if (node.name.trim()) next.set(node.chat_channel_id, node.name.trim());
   }
   channelNames = next;
+  channelNodes = owners;
   notifyEach(listeners, 'channel names');
 }
 
@@ -50,4 +56,19 @@ export function roomNameFor(
   const group: GroupConversation | undefined = groups.find((g: GroupConversation): boolean => g.id === roomId);
   const name: string = group?.name.trim() ?? '';
   return name.length > 0 ? name : null;
+}
+
+/**
+ * Where an incoming call lives, resolved by the receiver for the same reason
+ * its name is. A `room_id` is either an office/room chat channel or a peer
+ * group's id; a channel this user's tree knows is a node, anything else a group.
+ */
+export function callHomeOf(roomId: string | null, nodesByChannel: ReadonlyMap<string, string>): CallHome {
+  if (roomId === null) return DIRECT_CALL;
+  const nodeId: string | undefined = nodesByChannel.get(roomId);
+  return nodeId ? { kind: 'node', roomId, nodeId } : { kind: 'group', roomId };
+}
+
+export function callHomeFor(roomId: string | null): CallHome {
+  return callHomeOf(roomId, channelNodes);
 }
