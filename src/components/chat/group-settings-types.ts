@@ -5,9 +5,14 @@ import type { AvailablePeer } from './create-group-types';
 
 import type { GroupConversation, GroupSettings as GroupSettingsType } from '@/types/group';
 
+/** The panel's tabs. The menu item that opens the panel names which one it means. */
+export type GroupSettingsTab = 'members' | 'roles' | 'settings';
+
 export interface GroupSettingsPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  tab: GroupSettingsTab;
+  onTabChange: (tab: GroupSettingsTab) => void;
   group: GroupConversation;
   /** Callback when group name is changed */
   onNameChange: (name: string) => Promise<void>;

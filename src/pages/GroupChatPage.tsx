@@ -27,6 +27,7 @@ import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
 import { GroupCallControls } from '@/components/call/GroupCallControls';
 import { GroupCallDock } from '@/components/call/GroupCallDock';
 import { GroupSettingsPanel } from '@/components/chat/GroupSettingsPanel';
+import type { GroupSettingsTab } from '@/components/chat/group-settings-types';
 import { GroupChatView } from '@/components/chat/GroupChatView';
 import { useGroupConversations } from '@/hooks/use-group-conversations';
 import type { GroupConversation } from '@/types/group';
@@ -61,6 +62,7 @@ export function GroupChatPage(): JSX.Element {
   // these permissions were computed and read by nobody until this call site.
   const { can, listedAsMember, myRole } = useGroupPermissions(group);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<GroupSettingsTab>('members');
 
   // Get current user info.
   //
@@ -176,7 +178,7 @@ export function GroupChatPage(): JSX.Element {
       {/* Header */}
       <GroupChatHeader
         group={group}
-        onOpenSettings={() => setShowSettings(true)}
+        onOpenSettings={(tab: GroupSettingsTab): void => { setSettingsTab(tab); setShowSettings(true); }}
         onLeaveGroup={handleLeaveGroup}
         // Calling needs to know who NOT to ring, so it waits for the CID that
         // the chat below no longer waits for.
@@ -221,6 +223,8 @@ export function GroupChatPage(): JSX.Element {
       <GroupSettingsPanel
         open={showSettings}
         onOpenChange={setShowSettings}
+        tab={settingsTab}
+        onTabChange={setSettingsTab}
         group={group}
         onNameChange={onNameChange}
         onSettingsChange={onSettingsChange}
