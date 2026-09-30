@@ -31,6 +31,13 @@ vi.mock('@/lib/broadcast-channel-service', () => ({
 // IndexedDB, which jsdom does not have.
 vi.mock('@/lib/multi-instance', () => ({ instanceManager: { cid: 1n } }));
 vi.mock('../tab-context', (): { getSelectedUser: () => Promise<{ selectedCid: bigint; }>; } => ({ getSelectedUser: (): Promise<{ selectedCid: bigint; }> => Promise.resolve({ selectedCid: 1n }) }));
+// The agent's session list, which every peer-list request is checked against
+// first (session-held-gate): it holds this session, so the request is sent.
+vi.mock('@/lib/connection', () => ({
+  connectionManager: {
+    getActiveSessionsResult: (): Promise<unknown> => Promise.resolve({ ok: true, sessions: [{ cid: 1n }], signedOut: [] }),
+  },
+}));
 vi.mock('../connection', () => ({
   connectionManager: {
     getConnectionInfo: (): { cid: bigint; } => ({ cid: 1n }),
@@ -44,7 +51,7 @@ async function callListAllPeers(): Promise<PeerInfoResponse[]> {
   const pending: Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; }> = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
   const promise: Promise<PeerInfoResponse[]> = listAllPeers(pending as never);
   // Settle whatever request was registered with the response under test.
-  await Promise.resolve();
+  await vi.waitFor((): void => { if (pending.size === 0) throw new Error('not sent yet'); });
   for (const [, entry] of pending) entry.resolve(h.response);
   return promise;
 }

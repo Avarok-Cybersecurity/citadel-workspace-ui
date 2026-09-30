@@ -9,7 +9,7 @@ import type { ConnectionState } from './state';
 import { isConnectAlreadyInProgress } from '@/lib/connection/is-connect-in-progress';
 import { failOnSocketLoss } from '../websocket/request-response';
 import type { ConnectionIO } from './io';
-import type { ActiveSession, StoredSession } from '@/types/session-types';
+import type { ActiveSession, SignedOutAccount, StoredSession } from '@/types/session-types';
 import {
   WEBSOCKET_INIT_TIMEOUT_MS,
   GET_SESSIONS_TIMEOUT_MS,
@@ -29,7 +29,14 @@ import { sessionIsOnServer } from '@/lib/sessions/same-server';
 export interface ActiveSessionsResult {
   ok: boolean;
   sessions: ActiveSession[];
+  /** Accounts the agent signed out after a failed reconnect; see SignedOutAccount. */
+  signedOut: SignedOutAccount[];
 }
+
+/** One GetSessions answer, as cached: what an `ok` result carries. */
+export type SessionsAnswer = Omit<ActiveSessionsResult, 'ok'>;
+
+const NO_ANSWER: ActiveSessionsResult = { ok: false, sessions: [], signedOut: [] };
 
 /**
  * Get active sessions with caching and deduplication.
@@ -50,9 +57,9 @@ export async function getActiveSessionsResult(
   state: ConnectionState,
   io: ConnectionIO,
 ): Promise<ActiveSessionsResult> {
-  const cached: ActiveSession[] | null = state.cachedSessions;
+  const cached: SessionsAnswer | null = state.cachedSessions;
   if (cached && state.isCacheValid()) {
-    return { ok: true, sessions: cached };
+    return { ok: true, ...cached };
   }
 
   const pending: Promise<ActiveSessionsResult> | null = state.pendingGetSessions;
@@ -69,12 +76,14 @@ export async function getActiveSessionsResult(
     // timeout produced an empty list that every later call returned instantly
     // for the whole cache window, without re-asking. That is what turned a
     // transient hiccup into a logged-out-looking app that would not recover.
-    if (result.ok) state.setCachedSessions(result.sessions);
+    if (result.ok) state.setCachedSessions({ sessions: result.sessions, signedOut: result.signedOut });
     return result;
   } finally {
     state.setPendingGetSessions(null);
   }
 }
+
+interface WireSessions { sessions?: ActiveSession[]; signed_out?: SignedOutAccount[] }
 
 async function fetchActiveSessions(
   state: ConnectionState,
@@ -95,17 +104,17 @@ async function fetchActiveSessions(
           ),
         ]);
       } catch {
-        return { ok: false, sessions: [] };
+        return NO_ANSWER;
       }
 
       if (!io.canSendRequests()) {
-        return { ok: false, sessions: [] };
+        return NO_ANSWER;
       }
     }
 
     const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
 
-    const responsePromise: Promise<{ sessions?: ActiveSession[]; }> = new Promise<{ sessions?: ActiveSession[] }>((resolve, reject): void => {
+    const responsePromise: Promise<WireSessions> = new Promise<WireSessions>((resolve, reject): void => {
       state.setPendingRequest(requestId, { resolve: resolve as (value: unknown) => void, reject });
 
       setTimeout(() => {
@@ -118,11 +127,13 @@ async function fetchActiveSessions(
 
     await io.sendWebSocketMessage({ GetSessions: { request_id: requestId } });
 
-    const response: { sessions?: ActiveSession[]; } = await failOnSocketLoss('GetSessions', responsePromise);
-    return { ok: true, sessions: response.sessions || [] };
+    const response: WireSessions = await failOnSocketLoss('GetSessions', responsePromise);
+    // `signed_out` is absent from an agent older than 0.8.4, which signs no one
+    // out: the agent's own type defaults it to empty for exactly that case.
+    return { ok: true, sessions: response.sessions || [], signedOut: response.signed_out ?? [] };
   } catch (error) {
     debugLog('ConnectionService', 'Failed to get active sessions', error);
-    return { ok: false, sessions: [] };
+    return NO_ANSWER;
   }
 }
 

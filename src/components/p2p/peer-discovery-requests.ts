@@ -8,6 +8,7 @@ import { TIMEOUT } from '@/lib/timeout-constants';
 import { shownPresence } from '@/lib/presence';
 import type { Peer } from './usePeerDiscovery';
 import type { WebSocketMessage } from '@/types/ws-message-types';
+import { assertAgentHoldsSession } from '@/lib/p2p-registration-service/session-held-gate';
 
 interface SessionEntry {
   cid: bigint;
@@ -78,6 +79,7 @@ export async function discoverPeersViaGetSessions(currentCid: bigint | null): Pr
  * Load the set of already-registered peer CIDs via ListRegisteredPeers.
  */
 export async function fetchRegisteredPeers(currentCid: bigint): Promise<Set<string>> {
+  await assertAgentHoldsSession(currentCid);
   const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   broadcastChannelService.registerRequest(requestId, currentCid);
 
@@ -128,6 +130,7 @@ export async function fetchRegisteredPeers(currentCid: bigint): Promise<Set<stri
  * Discover all peers via ListAllPeers request, with GetSessions fallback.
  */
 export async function fetchAllPeers(currentCid: bigint): Promise<Peer[]> {
+  await assertAgentHoldsSession(currentCid);
   const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   broadcastChannelService.registerRequest(requestId, currentCid);
 

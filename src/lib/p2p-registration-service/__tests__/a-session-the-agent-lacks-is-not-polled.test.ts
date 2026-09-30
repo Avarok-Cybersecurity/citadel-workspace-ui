@@ -55,7 +55,7 @@ describe('the peer poll', () => {
   afterEach(() => { vi.useRealTimers(); });
 
   it('stops polling a session the agent refuses and does not hold', async () => {
-    const agent: FakeAgent = fakeAgent({ refusal: NOT_FOUND, sessions: { ok: true, sessions: [held(9n)] } });
+    const agent: FakeAgent = fakeAgent({ refusal: NOT_FOUND, sessions: { ok: true, sessions: [held(9n)], signedOut: [] } });
     const poll: PeerPoll = startPeerPoll(agent.deps, INTERVAL_MS);
     await runFor(poll, 5);
     expect(agent.checks()).toBe(1);
@@ -64,7 +64,7 @@ describe('the peer poll', () => {
   });
 
   it('keeps polling when the agent still lists the session', async () => {
-    const agent: FakeAgent = fakeAgent({ refusal: NOT_FOUND, sessions: { ok: true, sessions: [held(STALE_CID)] } });
+    const agent: FakeAgent = fakeAgent({ refusal: NOT_FOUND, sessions: { ok: true, sessions: [held(STALE_CID)], signedOut: [] } });
     const poll: PeerPoll = startPeerPoll(agent.deps, INTERVAL_MS);
     await runFor(poll, 5);
     expect(agent.checks()).toBe(6);
@@ -73,7 +73,7 @@ describe('the peer poll', () => {
   });
 
   it('keeps polling when the session list could not be read', async () => {
-    const agent: FakeAgent = fakeAgent({ refusal: NOT_FOUND, sessions: { ok: false, sessions: [] } });
+    const agent: FakeAgent = fakeAgent({ refusal: NOT_FOUND, sessions: { ok: false, sessions: [], signedOut: [] } });
     const poll: PeerPoll = startPeerPoll(agent.deps, INTERVAL_MS);
     await runFor(poll, 5);
     expect(agent.checks()).toBe(6);
@@ -82,7 +82,7 @@ describe('the peer poll', () => {
   });
 
   it('keeps polling through other failures without calling the session gone', async () => {
-    const agent: FakeAgent = fakeAgent({ refusal: 'ListAllPeers request timed out', sessions: { ok: true, sessions: [] } });
+    const agent: FakeAgent = fakeAgent({ refusal: 'ListAllPeers request timed out', sessions: { ok: true, sessions: [], signedOut: [] } });
     const poll: PeerPoll = startPeerPoll(agent.deps, INTERVAL_MS);
     await runFor(poll, 5);
     expect(agent.checks()).toBe(6);
@@ -91,7 +91,7 @@ describe('the peer poll', () => {
   });
 
   it('polls a healthy session every interval until stopped', async () => {
-    const agent: FakeAgent = fakeAgent({ refusal: null, sessions: { ok: true, sessions: [held(STALE_CID)] } });
+    const agent: FakeAgent = fakeAgent({ refusal: null, sessions: { ok: true, sessions: [held(STALE_CID)], signedOut: [] } });
     const poll: PeerPoll = startPeerPoll(agent.deps, INTERVAL_MS);
     await runFor(poll, 3);
     poll.stop();

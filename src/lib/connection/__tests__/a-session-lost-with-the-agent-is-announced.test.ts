@@ -42,7 +42,7 @@ const session: (cid: bigint) => ActiveSession = (cid: bigint): ActiveSession => 
 
 describe('a session lost with the agent', () => {
   it('is announced after the socket comes back without it', async () => {
-    const h: Harness = harness({ currentCid: 7n, sessions: { ok: true, sessions: [session(9n)] } });
+    const h: Harness = harness({ currentCid: 7n, sessions: { ok: true, sessions: [session(9n)], signedOut: [] } });
     watchForSessionLostWithAgent(h.deps, 0);
     await h.fire('down');
     await h.fire('up');
@@ -50,7 +50,7 @@ describe('a session lost with the agent', () => {
   });
 
   it('is not announced when the session survived', async () => {
-    const h: Harness = harness({ currentCid: 7n, sessions: { ok: true, sessions: [session(7n)] } });
+    const h: Harness = harness({ currentCid: 7n, sessions: { ok: true, sessions: [session(7n)], signedOut: [] } });
     watchForSessionLostWithAgent(h.deps, 0);
     await h.fire('down');
     await h.fire('up');
@@ -58,13 +58,13 @@ describe('a session lost with the agent', () => {
   });
 
   it('is not announced on the first connection, or when the answer was a failure', async () => {
-    const first: Harness = harness({ currentCid: 7n, sessions: { ok: true, sessions: [] } });
+    const first: Harness = harness({ currentCid: 7n, sessions: { ok: true, sessions: [], signedOut: [] } });
     watchForSessionLostWithAgent(first.deps, 0);
     await first.fire('up');
     expect(first.notify).not.toHaveBeenCalled();
 
     // A failed query is not "you have no sessions" (queries.ts).
-    const failed: Harness = harness({ currentCid: 7n, sessions: { ok: false, sessions: [] } });
+    const failed: Harness = harness({ currentCid: 7n, sessions: { ok: false, sessions: [], signedOut: [] } });
     watchForSessionLostWithAgent(failed.deps, 0);
     await failed.fire('down');
     await failed.fire('up');
@@ -72,7 +72,7 @@ describe('a session lost with the agent', () => {
   });
 
   it('is not announced for a tab that was not signed in', async () => {
-    const h: Harness = harness({ currentCid: null, sessions: { ok: true, sessions: [] } });
+    const h: Harness = harness({ currentCid: null, sessions: { ok: true, sessions: [], signedOut: [] } });
     watchForSessionLostWithAgent(h.deps, 0);
     await h.fire('down');
     await h.fire('up');
