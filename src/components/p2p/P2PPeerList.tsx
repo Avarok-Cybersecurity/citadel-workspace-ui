@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAddPeer } from './use-add-peer';
+import { usePeerRequest } from './use-add-peer';
+import { PeerDiscoveryModal } from './PeerDiscoveryModal';
+import { useNavigate } from 'react-router-dom';
+import type { NavigateFunction } from 'react-router';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { p2pRegistrationService, type Peer } from '@/lib/p2p-registration-service';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { UserPlus, MessageCircle, Users, CheckCircle } from 'lucide-react';
 import { useEventListener } from '@/hooks';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
@@ -83,14 +85,10 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
     setAvailablePeers(allPeers);
   };
 
-  const {
-    value: newPeerCid,
-    setValue: setNewPeerCid,
-    error: addPeerError,
-    setError: setAddPeerError,
-    adding: isAddingPeer,
-    submit: handleAddPeer,
-  } = useAddPeer((cid) => messenger.autoRegisterPeer(cid), loadPeers);
+  const [showDiscovery, setShowDiscovery] = useState(false);
+  const navigate: NavigateFunction = useNavigate();
+  // One click on someone in the Available list sends them a request.
+  const { error: addPeerError, request: sendRequest } = usePeerRequest((cid) => messenger.autoRegisterPeer(cid), loadPeers);
 
   return (
     <div className="h-full flex flex-col bg-input">
@@ -114,34 +112,17 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
 
       <div className="flex-1 p-0 flex flex-col">
         <div className="p-3 border-b border-border">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              runAsyncSetup(handleAddPeer);
-            }}
-            className="flex gap-2"
+          {/* It asked for a "Peer CID": a number no screen shows. People are found by name. */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowDiscovery(true)}
+            className="w-full h-9 justify-start gap-2 rounded-lg text-sm"
+            data-testid="messages-find-people"
           >
-            <Input
-              value={newPeerCid}
-              onChange={(e) => {
-                setNewPeerCid(e.target.value);
-                if (addPeerError) setAddPeerError(null);
-              }}
-              placeholder="Peer CID (or use Discover Peers)"
-              aria-invalid={addPeerError ? true : undefined}
-              aria-describedby={addPeerError ? 'add-peer-error' : undefined}
-              className="flex-1 bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 h-9 rounded-lg text-sm"
-            />
-            <Button
-              type="submit"
-              size="icon"
-              aria-label="Add peer"
-              disabled={isAddingPeer || !newPeerCid.trim()}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 w-9 rounded-lg"
-            >
-              <UserPlus className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </form>
+            <UserPlus className="h-4 w-4" aria-hidden="true" />
+            Find people to message
+          </Button>
           {addPeerError && (
             // role="alert" so a screen reader announces it, not only shows it.
             <p id="add-peer-error" role="alert" className="mt-2 text-xs text-destructive-emphasis">
@@ -167,8 +148,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                       className="w-full justify-start h-auto py-2 px-3"
                       onClick={() => {
                         if (!peer.isRegistered) {
-                          setNewPeerCid(peerCidStr);
-                          runAsyncSetup(handleAddPeer);
+                          runAsyncSetup(() => sendRequest(peer.cid));
                         } else {
                           onSelectPeer(peerCidStr);
                         }
@@ -234,6 +214,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
           </div>
         </ScrollArea>
       </div>
+      <PeerDiscoveryModal isOpen={showDiscovery} onClose={() => setShowDiscovery(false)} onOpenDirectory={() => { setShowDiscovery(false); navigate('/directory'); }} />
     </div>
   );
 }

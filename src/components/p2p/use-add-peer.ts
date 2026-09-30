@@ -1,67 +1,48 @@
 import { useState } from 'react';
-import { isUsablePeerCid } from '@/lib/peer-cid-input';
 import { debugLog } from '@/lib/debug-config';
 
 /**
- * The add-a-peer-by-CID form.
+ * Sending a connection request to someone chosen from a list.
  *
- * Extracted to keep the peer list under the file cap, and because the error
- * copy is the interesting part. It used to say "Copy it from the peer's
- * account" — advice to do something the app does not allow: no screen anywhere
- * displays a full CID, only a six-character short handle. It named an internal
- * identifier, under an acronym the reader was never told, and pointed at a
- * place that does not exist. The two paths that actually work are the workspace
- * directory and Discover Peers, so those are what it names now.
+ * It was a typed-CID form: `setValue(cid)` then `submit()`. The Messages page's
+ * Available list used it that way on click -- set the CID, submit at once --
+ * and `submit` read the value from the render before, which was still empty,
+ * so it returned without sending anything. The one-click request never worked.
+ * The CID box is gone too (it asked for a number no screen shows); people are
+ * found by name, so the CID is passed straight in.
  */
-/** What the add-a-peer form needs to render and submit itself. */
-export interface AddPeerForm {
-  value: string;
-  setValue: (next: string) => void;
+export interface PeerRequest {
   error: string | null;
-  setError: (next: string | null) => void;
-  adding: boolean;
-  submit: () => Promise<void>;
+  sending: boolean;
+  request: (cid: bigint) => Promise<void>;
 }
 
-export function useAddPeer(
+export function usePeerRequest(
   register: (cid: bigint) => Promise<unknown>,
-  onAdded: () => void,
-): AddPeerForm {
-  const [value, setValue] = useState('');
+  onSent: () => void,
+): PeerRequest {
   const [error, setError] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  const submit = async (): Promise<void> => {
-    const entered: string = value.trim();
-    if (!entered) return;
-
-    // Before BigInt, which throws on anything else — see peer-cid-input.
-    if (!isUsablePeerCid(entered)) {
-      setError(
-        'A peer CID is a number. Find the person in the workspace directory, or use Discover Peers in the sidebar.',
-      );
-      return;
-    }
-
-    setAdding(true);
+  const request = async (cid: bigint): Promise<void> => {
+    setSending(true);
     setError(null);
     try {
-      await register(BigInt(entered));
-      setValue('');
-      onAdded();
+      await register(cid);
+      onSent();
     } catch (caught) {
-      debugLog('P2PPeerList', 'Failed to add peer:', caught);
-      // Shown, not only logged: debugLog is a no-op outside dev, so this was
-      // silence. The server's own words where there are any.
+      debugLog('P2PPeerList', 'Failed to send a connection request:', caught);
+      // Shown, not only logged: debugLog is a no-op outside dev. The server's
+      // own words where there are any.
       setError(
         caught instanceof Error && caught.message
           ? caught.message
-          : 'Could not add that peer. Check the CID and try again.',
+          : 'Could not send the connection request. Try again, or use Find people.',
       );
     } finally {
-      setAdding(false);
+      setSending(false);
     }
   };
 
-  return { value, setValue, error, setError, adding, submit };
+  return { error, sending, request };
 }
