@@ -238,7 +238,9 @@ jobs:
         env:
           WORKSPACE_MASTER_PASSWORD: 'ci-prod-build'
           INTERNAL_SERVICE_PORT: '12345'
-        run: docker compose up --build sync-wasm-client
+        # --exit-code-from: without it compose exits 0 even when the one-shot container fails,
+        # so a sync that died half-way (it wipes the WASM output first) read as a green step.
+        run: docker compose up --build --exit-code-from sync-wasm-client sync-wasm-client
 
       # sync-wasm-client runs as root and bind-mounts this tree read-write. It
       # runs a Vite build of its own, so it leaves `citadel-workspaces/dist/`
