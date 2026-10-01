@@ -23,10 +23,13 @@
  */
 import { validateUsername } from '@/lib/credential-rules';
 import { isWorkspaceServerShape } from '@/lib/default-workspace-server';
+import { parseLinkTarget, type LinkTarget } from './link-target';
 
 export interface AccountLink {
   readonly username: string;
   readonly server?: string;
+  /** What to open there (link-target.ts). */
+  readonly open?: LinkTarget;
 }
 
 /** Every query key this module owns, so the page can clear them after reading. */
@@ -53,22 +56,28 @@ function keysOf(params: URLSearchParams): string[] {
   return Array.from(params.keys());
 }
 
-/** Exactly `account`, or exactly `account` and `server`, each once. */
+/** Exactly `account`, with at most one `server` and one `open`. */
 function parseAccountParams(params: URLSearchParams): AccountLink | null {
   const keys: string[] = keysOf(params);
   const allowed: boolean =
-    keys.every((key: string) => key === 'account' || key === 'server') &&
+    keys.every((key: string) => key === 'account' || key === 'server' || key === 'open') &&
     params.getAll('account').length === 1 &&
-    params.getAll('server').length <= 1;
+    params.getAll('server').length <= 1 &&
+    params.getAll('open').length <= 1;
   if (!allowed) return null;
 
   const username: string = params.get('account') ?? '';
   if (validateUsername(username) !== null || INVISIBLE_OR_CONTROL.test(username)) return null;
 
+  const raw: string | null = params.get('open');
+  const open: LinkTarget | null = raw === null ? null : parseLinkTarget(raw);
+  if (raw !== null && open === null) return null;
+  const target: { open?: LinkTarget } = open ? { open } : {};
+
   const server: string | null = params.get('server');
-  if (server === null) return { username };
+  if (server === null) return { username, ...target };
   if (server.length > MAX_SERVER_LENGTH || !isWorkspaceServerShape(server)) return null;
-  return { username, server };
+  return { username, server, ...target };
 }
 
 /** `web+citadel://open?account=...[&server=...]`, and nothing more. */

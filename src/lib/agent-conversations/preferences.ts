@@ -8,6 +8,7 @@
  */
 import type {
   AccountPreferences,
+  NotificationPreview,
   PeerRetention,
   Retention as AgentRetention,
 } from 'citadel-internal-service-wasm-client';
@@ -26,7 +27,16 @@ export function toAgentRetention(retention: Retention): AgentRetention {
   return retention === 'forever' ? 'Forever' : { Days: retention };
 }
 
-export async function accountPreferences(ownCid: bigint, sources: PreferenceSources): Promise<AccountPreferences> {
+/**
+ * `preview` is the account's notification preview, which only the agent keeps
+ * (per account, SenderOnly until the user turns previews on): passed through,
+ * so a push of the window's other settings never resets it.
+ */
+export async function accountPreferences(
+  ownCid: bigint,
+  sources: PreferenceSources,
+  preview: NotificationPreview,
+): Promise<AccountPreferences> {
   const privacy: PrivacySettings = sources.privacy();
   const retention: PeerRetention[] = await Promise.all(
     sources.peers().map(async (peer_cid: bigint): Promise<PeerRetention> => ({
@@ -38,9 +48,7 @@ export async function accountPreferences(ownCid: bigint, sources: PreferenceSour
     send_read_receipts: privacy.sendReadReceipts,
     accept_requests_from_strangers: privacy.acceptRequestsFromStrangers,
     notify_on_screenshot: privacy.notifyOnScreenshot,
-    // What the in-app toast shows today: the sender and the text. The setting
-    // that lets a user hide the text arrives with native notifications (mw6).
-    notification_preview: 'Text',
+    notification_preview: preview,
     // Only the chats that expire: a chat absent from the list keeps everything.
     retention: retention.filter((r: PeerRetention): boolean => r.retention !== 'Forever'),
   };

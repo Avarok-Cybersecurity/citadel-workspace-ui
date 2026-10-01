@@ -16,12 +16,16 @@ import { Settings, Wifi, Palette, Shield, Lock } from 'lucide-react';
 import { connectionManager } from '@/lib/connection';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
-interface SettingsModalProps {
+export type SettingsTab = 'general' | 'connections' | 'appearance' | 'privacy' | 'permissions';
+
+export interface SettingsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The tab it opens on: a native notice's "settings" opens it at Privacy. */
+  tab: SettingsTab;
 }
 
-export function SettingsModal({ open, onOpenChange }: SettingsModalProps): JSX.Element {
+export function SettingsModal({ open, onOpenChange, tab }: SettingsModalProps): JSX.Element {
   const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
   const isConnected: boolean = !!connectionInfo?.cid;
 
@@ -35,7 +39,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps): JSX.E
           <p className="text-sm text-muted-foreground mt-1">Configure your workspace preferences</p>
         </DialogHeader>
 
-        <Tabs defaultValue="general" className="flex-1 flex flex-col min-h-0">
+        <Tabs key={tab} defaultValue={tab} className="flex-1 flex flex-col min-h-0">
           <div className="px-6 pt-4 pb-2">
             {/* Each trigger's text is hidden below `sm`, which left five
                 icon-only tabs with no accessible name on a phone. aria-label

@@ -238,7 +238,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
       />
 
       {/* Settings modal */}
-      <LazySettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <LazySettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} tab="general" />
     </div>
   );
 };

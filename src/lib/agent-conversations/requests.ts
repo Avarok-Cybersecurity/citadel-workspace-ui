@@ -22,6 +22,12 @@ import { conversationSender, type RequestSender } from './sender';
 
 export { registerConversationSender, type RequestSender } from './sender';
 
+/** A request with no answer to wait for (ReportFocus): sent, and that is all. */
+export function sendToAgent(request: Record<string, unknown>): Promise<void> {
+  if (!sender) return Promise.reject(new Error('The websocket service is not ready'));
+  return sender(request);
+}
+
 function unwrap(message: Record<string, unknown>): Record<string, unknown> {
   return ((message.Response as Record<string, unknown> | undefined) ?? message);
 }
@@ -95,6 +101,8 @@ export const agentConversations: {
   list(cid: bigint): Promise<ConversationMetadata[]>;
   page(cid: bigint, peer: bigint, page: number | null): Promise<{ metadata: ConversationMetadata | null; page: ConversationPage | null }>;
   setPreferences(cid: bigint, preferences: AccountPreferences): Promise<void>;
+  /** What the agent holds for the account: its UI defaults if nothing was ever pushed. */
+  getPreferences(cid: bigint): Promise<AccountPreferences>;
   sendReliable(cid: bigint, peer: bigint, message: Uint8Array, securityLevel: string, compressionHint: string | null): Promise<void>;
 } = {
   send: (cid, peer, out, requestId) =>
@@ -124,6 +132,8 @@ export const agentConversations: {
     })),
   setPreferences: (cid, preferences) =>
     ask('SetAccountPreferences', { cid, preferences }, 'AccountPreferencesResponse', matched).then(done),
+  getPreferences: (cid) =>
+    ask('GetAccountPreferences', { cid }, 'AccountPreferencesResponse', (a) => a.preferences as AccountPreferences),
   sendReliable: (cid, peer, message, securityLevel, compressionHint) =>
     ask(
       'SendReliable',
