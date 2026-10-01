@@ -11,6 +11,10 @@ import { debugLog } from '../debug-config';
 import { instanceManager, instanceChannel, instanceInboundRouter } from '../multi-instance';
 import { isEnsureMessengerOpenResponse } from '../multi-instance/outbound-queue';
 import type { AckResult } from '@/lib/multi-instance/outbound-queue-types';
+import { agentHostsConversations } from '../agent-conversations/capabilities';
+import { agentConversations } from '../agent-conversations/requests';
+
+const UNSET_LEVEL: ChatSecurityLevel = 'Standard';
 
 export interface MessengerConfig {
   init: () => Promise<void>;
@@ -31,6 +35,9 @@ export class MessengerOperations {
    * SINGLE-WEBSOCKET ARCHITECTURE:
    * - Leader: Calls WASM method directly
    * - Follower: Proxies through leader via BroadcastChannel
+   *
+   * When the agent hosts the account's ILM there is nothing to open: a browser
+   * ILM beside the agent's would split the per-source frontier.
    */
   async openMessengerFor(cid: bigint): Promise<void> {
     await this.config.init();
@@ -38,6 +45,7 @@ export class MessengerOperations {
     if (cid === undefined || cid === null) {
       throw new Error('CID is required to open messenger');
     }
+    if (await agentHostsConversations()) return;
 
     debugLog('MessengerOperations', 'Opening messenger handle for CID', { cid: cid.toString() });
 
@@ -79,6 +87,7 @@ export class MessengerOperations {
     if (cid === undefined || cid === null) {
       throw new Error('CID is required');
     }
+    if (await agentHostsConversations()) return false;
 
     if (instanceManager.isLeader) {
       const client: WorkspaceClient | null = this.config.getClient();
@@ -137,6 +146,13 @@ export class MessengerOperations {
       securityLevel,
       compressionHint
     });
+
+    if (await agentHostsConversations()) {
+      // An unset level is Standard on both routes: the WASM binding reads an
+      // absent level as Standard, and SendReliable names it.
+      await agentConversations.sendReliable(localCid, peerCid, message, securityLevel ?? UNSET_LEVEL, compressionHint ?? null);
+      return;
+    }
 
     if (instanceManager.isLeader) {
       const client: WorkspaceClient | null = this.config.getClient();

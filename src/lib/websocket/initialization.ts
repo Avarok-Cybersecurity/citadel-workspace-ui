@@ -5,8 +5,8 @@
  * Extracted from websocket-service.ts to reduce file size.
  */
 
-import { WorkspaceClient, type WorkspaceClientConfig } from 'citadel-workspace-client-ts';
-import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
+import { declareOnLeaderSocket, forgetCapabilities, watchGreeting, type Greeting } from '../agent-conversations/capabilities';
+import { WorkspaceClient, type WorkspaceClientConfig, type InternalServiceRequest, type InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { installLeadershipListener } from './leadership-listener';
 import { leaderInboundHandler } from './leader-inbound-handler';
 import { eventEmitter } from '../event-emitter';
@@ -16,11 +16,7 @@ import {
   setupSessionReleaseHandler as setupSessionRelease,
   closeLeaderSocket,
 } from './leader-socket-teardown';
-import {
-  instanceManager,
-  leaderOutboundHandler
-} from '../multi-instance';
-
+import { instanceManager, leaderOutboundHandler } from '../multi-instance';
 import { INTERVAL } from '../timeout-constants';
 import type { ReconnectBackoff } from './reconnect-backoff';
 import { LeaderReconnect, broadcastAgentSocketState } from './leader-reconnect';
@@ -170,15 +166,18 @@ export class WebSocketInitialization {
     const client: WorkspaceClient | null = this.leaderClient;
     if (!client) return;
     this.leaderClient = null;
+    forgetCapabilities();
     await closeLeaderSocket(client);
     this.config.onClientReset();
     window[GLOBAL_INIT_KEY] = undefined;
   }
 
   private async doCreateWebSocketAsLeader(): Promise<WorkspaceClient> {
+    const greeting: Greeting = watchGreeting();
+    const inbound: (message: InternalServiceResponse) => void = leaderInboundHandler(this.config.messageHandler);
     const clientConfig: WorkspaceClientConfig = {
       websocketUrl: this.config.websocketUrl,
-      messageHandler: leaderInboundHandler(this.config.messageHandler),
+      messageHandler: (message) => { greeting.observe(message); inbound(message); },
       errorHandler: this.config.errorHandler,
       // The library's own reconnect calls restart() on the process-wide WASM
       // connection from whichever client scheduled it -- including clients this
@@ -195,6 +194,8 @@ export class WebSocketInitialization {
       debugLog('WebSocketInit', 'Creating WorkspaceClient with config', clientConfig);
       const client: WorkspaceClient = new WorkspaceClient(clientConfig);
       await client.init();
+      // Before reporting up: a hosted account refuses claims on an undeclared socket (capabilities.ts).
+      await declareOnLeaderSocket(client, greeting);
       this.config.reconnectBackoff.connected();
       this.reconnect.connected();
       this.leaderClient = client;
@@ -235,13 +236,13 @@ export class WebSocketInitialization {
         this.config.reconnectBackoff.disconnected();
         this.reconnect.lost();
         this.leaderClient = null;
+        forgetCapabilities();
         window[GLOBAL_INIT_KEY] = undefined;
       },
       onClientReset: () => this.config.onClientReset(),
       releaseSession: (cid: bigint) => this.config.releaseSession(cid),
     });
   }
-
 
   private setupSessionReleaseHandler(): void {
     setupSessionRelease({ releaseSession: (cid: bigint) => this.config.releaseSession(cid) });

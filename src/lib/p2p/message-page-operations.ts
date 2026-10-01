@@ -3,6 +3,11 @@
  *
  * Low-level page I/O operations for the paginated message store.
  * Handles reading/writing individual pages and metadata to LocalDB.
+ *
+ * For agents before 0.8.6 only. A 0.8.6 agent that hosts the account keeps
+ * these records itself (agent-conversations/agent-store.ts answers instead),
+ * and refuses a window's write to them. This path goes once no supported
+ * agent predates 0.8.6 (docs/plans/multi-window-sessions.md).
  */
 
 import { websocketService } from '../websocket-service';

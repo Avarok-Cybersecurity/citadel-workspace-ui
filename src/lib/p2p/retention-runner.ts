@@ -23,10 +23,22 @@ export interface RetentionDeps {
   /** Run `tick` every `ms`; answers a stop function. */
   every: (ms: number, tick: () => void) => () => void;
   io: RetentionPageIO;
+  /** The agent, which keeps the account's one sweeper when it hosts it (0.8.6). */
+  agent: AgentRetention;
+}
+
+export interface AgentRetention {
+  hosts: () => Promise<boolean>;
+  /** Tell it every chat's period; it sweeps on hearing. */
+  tell: (ownCid: bigint) => Promise<void>;
+  /** How many messages it holds for a chat: how a change reports what went. */
+  count: (peerCid: bigint) => Promise<number>;
 }
 
 export interface RetentionRunner {
   applyRetention(peerCid: bigint): Promise<number>;
+  /** This chat's period was just changed; answers how many messages it removed. */
+  retentionChanged(peerCid: bigint): Promise<number>;
   sweepNow(): Promise<void>;
   tick(): Promise<void>;
   start(intervalMs: number): void;
@@ -36,6 +48,7 @@ export function createRetention(deps: RetentionDeps): RetentionRunner {
   let started: boolean = false;
 
   async function applyRetention(peerCid: bigint): Promise<number> {
+    if (await deps.agent.hosts()) return 0;
     const own: bigint | null = await deps.currentCid();
     if (own === null) return 0;
     const settings: ChatAdvancedSettings = await deps.settings.get(own, peerCid);
@@ -46,6 +59,15 @@ export function createRetention(deps: RetentionDeps): RetentionRunner {
     // messages the store never did (still sending), and they are older too.
     deps.onExpired(peerCid, cutoff);
     return removed;
+  }
+
+  async function retentionChanged(peerCid: bigint): Promise<number> {
+    if (!(await deps.agent.hosts())) return applyRetention(peerCid);
+    const own: bigint | null = await deps.currentCid();
+    if (own === null) return 0;
+    const before: number = await deps.agent.count(peerCid);
+    await deps.agent.tell(own);
+    return Math.max(0, before - (await deps.agent.count(peerCid)));
   }
 
   async function sweepNow(): Promise<void> {
@@ -59,6 +81,7 @@ export function createRetention(deps: RetentionDeps): RetentionRunner {
 
   return {
     applyRetention,
+    retentionChanged,
     sweepNow,
     tick: sweepNow,
     start(intervalMs: number): void {

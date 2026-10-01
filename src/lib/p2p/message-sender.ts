@@ -29,6 +29,8 @@ import { markSendFailed } from './mark-send-failed';
 import { resendMessage } from './resend-message';
 import type { P2PCommand } from '@/types/p2p-commands';
 import type { CompressionHint } from 'citadel-workspace-client-ts';
+import { agentHostsConversations } from '../agent-conversations/capabilities';
+import { sendThroughAgent, resendThroughAgent } from '../agent-conversations/agent-actions';
 
 export type { MessageSenderConfig, SendMessageOptions } from './message-sender-types';
 
@@ -72,6 +74,9 @@ export class MessageSender {
     if (!peerReady) {
       debugLog('MessageSender', `[P2P] Sending to ${recipientCid.toString()} without CheckState confirmation (transport handles delivery)`);
     }
+
+    // The agent stores and sends it, and announces it to every window.
+    if (await agentHostsConversations()) return sendThroughAgent(this.config.agent(), recipientCid, content, options);
 
     const conversation: P2PConversation = this.config.getOrCreateConversation(recipientCid);
     const index: number = conversation.lastMessageIndex + 1;
@@ -152,6 +157,7 @@ export class MessageSender {
 
   /** Retry a message that previously failed. See ./resend-message. */
   public async resendMessage(peerCid: bigint, messageId: string, conversation: P2PConversation): Promise<void> {
+    if (await agentHostsConversations()) return resendThroughAgent(this.config.agent(), peerCid, messageId);
     return resendMessage(this, this.config, peerCid, messageId, conversation);
   }
 

@@ -65,6 +65,11 @@ export const CID_ROUTED_NOTIFICATIONS: Set<ResponseType | AgentReconnectNotifica
   // tab's "Reconnecting…" and send the wrong account to sign-in. Not generated
   // variants yet; see types/agent-reconnect.ts.
   ...AGENT_RECONNECT_NOTIFICATIONS,
+  // Multi-window (agent 0.8.6): addressed to the account, never to a request.
+  // A ConversationEvent's request_id names the window's own send; routed by it,
+  // the event would consume the pending entry the send's answer is waiting on.
+  'ConversationEvent',
+  'SessionRoleNotification',
 ]);
 
 /**

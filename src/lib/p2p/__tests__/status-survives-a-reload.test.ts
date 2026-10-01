@@ -4,7 +4,8 @@
  * `messages: []` and nothing rehydrates it. These are the two that a user hits
  * in the ordinary offline-peer flow.
  */
-import { describe, it, expect, vi   } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { greetAs } from '@/lib/agent-conversations/__tests__/agent-greeting';
 import { MessageAckHandler } from '../message-ack-handler';
 import { MessageSender } from '../message-sender';
 import type { P2PConversation } from '../p2p-types';
@@ -22,6 +23,9 @@ function ackHandlerWith(updateMessageInPages: ReturnType<typeof vi.fn>): { handl
   return { handler, notifyMessageStatusListeners };
 }
 
+
+// The browser-written store is the path for an agent before 0.8.6; this tab's socket greeted one.
+beforeAll(() => greetAs('older'));
 describe('an ack for a message outside the in-memory window', () => {
   it('is applied to the stored page instead of being dropped', async () => {
     const updateMessageInPages: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<boolean> => true);

@@ -9,6 +9,7 @@ import { debugLog } from '@/lib/debug-config';
 import { useToast } from '@/hooks/use-toast';
 import { WorkspaceLoaderSpinner } from './workspace-loader-ui';
 import { useHeldElsewhere } from './use-held-elsewhere';
+import { onThisTabDetached } from '@/lib/sessions/detached';
 import type { NavigateFunction } from 'react-router';
 import { reconnectingTo, signInAfterLoss, type SignInAfterLoss } from '@/lib/reconnect/server-reconnect';
 import { loaderView, shouldLeaveForConnect, type LoaderInputs, type LoaderView } from './workspace-loader-state';
@@ -33,6 +34,8 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   const autoClaimAttempted: React.MutableRefObject<boolean> = useRef(false);
   // Another browser holds this tab's session: the switcher's takeover, not a hang. See use-held-elsewhere.
   const heldElsewhere: ReturnType<typeof useHeldElsewhere> = useHeldElsewhere();
+  // Let go of mid-session, when another window took it over: offered back the same way.
+  useEffect(() => onThisTabDetached(heldElsewhere.offer), [heldElsewhere.offer]);
   // The agent's own word that it is bringing this session's server link back.
   const reconnectingServer: string | null = useSyncExternalStore(reconnectingTo.subscribe, reconnectingTo.get);
 

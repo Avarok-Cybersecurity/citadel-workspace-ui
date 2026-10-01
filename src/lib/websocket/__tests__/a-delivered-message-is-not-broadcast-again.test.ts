@@ -63,7 +63,8 @@ vi.mock('citadel-workspace-client-ts', () => ({
     constructor(config: { messageHandler?: (m: unknown) => void }) {
       capturedConfig.current = config;
     }
-    async init(): Promise<void> {}
+    // Every agent's first message; this one predates agent hosting.
+    async init(): Promise<void> { capturedConfig.current?.messageHandler?.({ ServiceConnectionAccepted: { cid: 0n, request_id: null } }); }
   },
 }));
 
@@ -93,6 +94,9 @@ async function handlerForALeader(): Promise<(m: unknown) => void> {
     reopen: vi.fn(async () => undefined),
   });
   await init.createWebSocketAsLeader();
+  // The socket's greeting went through the same handler; count from here.
+  routeMessage.mockClear();
+  broadcastWorkspaceResponse.mockClear();
   const handler: ((m: unknown) => void) | undefined = captured()?.messageHandler;
   expect(handler, 'the leader installs a messageHandler').toBeTypeOf('function');
   return handler!;

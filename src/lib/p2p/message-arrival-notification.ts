@@ -24,8 +24,11 @@ import type { P2PMessage, P2PConversation } from './p2p-types';
 /** How much of the message body the toast shows. */
 const PREVIEW_LENGTH: number = 100;
 
+/** What the toast needs from the messenger. */
+export type ArrivalNotice = Pick<MessageHandlerConfig, 'shouldShowNotification' | 'getConversations' | 'addNotification'>;
+
 export function notifyMessageArrived(
-  config: MessageHandlerConfig,
+  config: ArrivalNotice,
   peerCid: bigint,
   message: P2PMessage,
   recipientCid?: bigint,

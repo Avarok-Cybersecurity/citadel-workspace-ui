@@ -1,15 +1,15 @@
 /**
  * Message Pagination Store
  *
- * Paginated P2P message persistence into the INTERNAL SERVICE's LocalDB, NOT
- * browser IndexedDB (via message-page-operations -> sendLocalDB* ->
- * LocalDBGetKV). "IndexedDB" would imply history survives on the browser alone;
- * it needs the local agent. Fine with no internet, empty with no agent.
+ * Paginated P2P message persistence into the INTERNAL SERVICE's LocalDB, NOT browser
+ * IndexedDB (message-page-operations -> sendLocalDB* -> LocalDBGetKV): history needs
+ * the local agent, not just this browser. Fine with no internet, empty with no agent.
  *
  * Format:
  *   - Metadata: msgs_with_peer_{CID}_metadata
  *   - Pages: msgs_with_peer_{CID}_{pageNumber}
- * Page 0 = oldest messages, higher pages = newer messages
+ * Page 0 = oldest messages, higher pages = newer messages. The writer for agents BEFORE 0.8.6
+ * only: a 0.8.6 agent writes these records itself, and refuses a window that tries (store-switch.ts).
  */
 
 import { websocketService } from '../websocket-service';
@@ -44,6 +44,7 @@ import { reactToMessageInPages, type StoredReactionOutcome } from './message-pag
 import type { ReactionChange } from '@/lib/reactions/reaction-state';
 import { placeInPage, recordAppend } from './message-page-append';
 import { isGenuinelyAbsent } from '@/lib/storage/absence';
+import { switchedStore } from './store-switch';
 
 export class MessagePaginationStore {
   private readonly dbPrefix: "p2p_messages" = 'p2p_messages';
@@ -245,5 +246,5 @@ export class MessagePaginationStore {
   }
 }
 
-// Singleton export
-export const messagePaginationStore: MessagePaginationStore = new MessagePaginationStore();
+// Browser-written only for an agent before 0.8.6; otherwise the agent (store-switch.ts).
+export const messagePaginationStore: MessagePaginationStore = switchedStore(new MessagePaginationStore());

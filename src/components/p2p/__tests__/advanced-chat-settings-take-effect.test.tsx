@@ -3,7 +3,7 @@
  * chat and acted on at once.
  *
  * Stood in, each for a stated reason:
- *   - `applyRetention`: it reads and rewrites the agent's LocalDB. The pruning
+ *   - `retentionChanged`: it reads and rewrites the agent's LocalDB. The pruning
  *     itself is pinned in retention-deletes-what-is-older-than-the-period.
  *   - the messenger singleton, as the sibling panel test does.
  */
@@ -18,7 +18,7 @@ vi.mock('@/lib/p2p/p2p-messenger-manager', () => ({ p2pMessengerManager: {} }));
 
 const retained: bigint[] = [];
 vi.mock('@/lib/p2p/retention-sweep', () => ({
-  applyRetention: async (peer: bigint): Promise<number> => { retained.push(peer); return 0; },
+  retentionChanged: async (peer: bigint): Promise<number> => { retained.push(peer); return 0; },
 }));
 
 const { ChatSettingsPanel } = await import('../ChatSettingsPanel');

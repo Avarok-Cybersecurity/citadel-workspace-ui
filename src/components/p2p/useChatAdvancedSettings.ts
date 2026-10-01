@@ -15,7 +15,7 @@ import {
 import { changeChatLevel, chatLevelStatus, type ChatLevelResult } from '@/lib/p2p/chat-level-change';
 import { peerLink, peerPauseStore } from '@/lib/p2p-pause';
 import { getCurrentCid } from '@/lib/p2p/current-cid';
-import { applyRetention } from '@/lib/p2p/retention-sweep';
+import { retentionChanged } from '@/lib/p2p/retention-sweep';
 
 export interface ChatAdvancedControls {
   /** Null until the saved settings have been read. */
@@ -62,7 +62,7 @@ export function useChatAdvancedSettings(isOpen: boolean, peerCid: bigint): ChatA
     setError(null);
     try {
       setSettings(await chatAdvancedSettings.set(await ownCid(), peerCid, { retention }));
-      const removed: number = await applyRetention(peerCid);
+      const removed: number = await retentionChanged(peerCid);
       setStatus(retention === 'forever'
         ? 'Saved. Messages on this device are kept.'
         : `Saved. ${removed} older message${removed === 1 ? '' : 's'} deleted from this device.`);

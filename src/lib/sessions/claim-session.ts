@@ -18,6 +18,8 @@
 import { websocketService } from '../websocket-service';
 import { instanceManager } from '../multi-instance';
 import { debugLog } from '../debug-config';
+import { agentHostsConversations } from '../agent-conversations/capabilities';
+import { browserAttach, joinWithRememberedToken } from './attach-session';
 
 export type ClaimOutcome =
   /** The session was orphaned and is now ours. */
@@ -98,6 +100,12 @@ export async function claimSessionForThisTab(cid: bigint): Promise<ClaimOutcome>
     }
 
     if (!(await heldHere(cid))) {
+      // A browser that opened this session here once before joins again, beside
+      // the window that holds it, without being asked (agent 0.8.6).
+      if ((await agentHostsConversations()) && (await joinWithRememberedToken(browserAttach, cid))) {
+        debugLog('ClaimSession', `${cid} is live on another connection; joined it here too`);
+        return { status: 'already-active' };
+      }
       debugLog('ClaimSession', `${cid} is live on another connection; not adopting`);
       return { status: 'held-by-another-connection' };
     }
@@ -114,7 +122,16 @@ export const SESSION_OWNED_ELSEWHERE: { readonly title: "Already Open Elsewhere"
 } as const;
 
 /** What to ask before moving a session another browser window holds. */
-export function takeoverPrompt(username: string): { title: string; description: string; confirmLabel: string } {
+export function takeoverPrompt(username: string, joinable: boolean): { title: string; description: string; confirmLabel: string } {
+  if (joinable) {
+    return {
+      title: `${username} is open in another window`,
+      description:
+        'Open it here too? Both windows stay signed in and in step. ' +
+        'You will confirm with your password, once for this browser.',
+      confirmLabel: 'Open here too',
+    };
+  }
   return {
     title: `${username} is open in another browser window`,
     description:
@@ -137,5 +154,5 @@ export interface TakeoverCallbacks {
  * this asks, and on yes starts the password sign-in that moves it.
  */
 export async function offerTakeover(username: string, callbacks: TakeoverCallbacks): Promise<void> {
-  if (await callbacks.confirm(takeoverPrompt(username))) callbacks.signInAs(username);
+  if (await callbacks.confirm(takeoverPrompt(username, await agentHostsConversations()))) callbacks.signInAs(username);
 }

@@ -15,7 +15,8 @@
  * These assert on what reaches the PAGE STORE, not on the in-memory object. The
  * in-memory object was always correct, which is exactly why this was invisible.
  */
-import { describe, it, expect, vi  } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { greetAs } from '@/lib/agent-conversations/__tests__/agent-greeting';
 
 const wireSend: ReturnType<typeof vi.fn> = vi.fn();
 
@@ -69,6 +70,9 @@ async function sendAndCatch(config: MessageSenderConfig): Promise<string> {
   }
 }
 
+
+// The browser-written store is the path for an agent before 0.8.6; this tab's socket greeted one.
+beforeAll(() => greetAs('older'));
 describe('terminal send status', () => {
   it('is written through when the send succeeds', async () => {
     wireSend.mockImplementation(async () => undefined);

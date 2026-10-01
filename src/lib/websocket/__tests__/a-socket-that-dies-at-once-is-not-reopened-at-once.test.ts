@@ -26,14 +26,16 @@ vi.mock('../../multi-instance', () => ({
   instanceChannel: { send: vi.fn() },
 }));
 vi.mock('../leader-inbound-handler', () => ({
-  leaderInboundHandler: (h: unknown): unknown => h,
+  // A handler, as the real one always returns, forwarding to whatever it wraps.
+  leaderInboundHandler: (h?: (m: unknown) => void) => (m: unknown): void => { h?.(m); },
 }));
 
 vi.mock('citadel-workspace-client-ts', async () => {
   const { eventEmitter }: typeof import('../../event-emitter') = await import('../../event-emitter');
   return {
     WorkspaceClient: class {
-      constructor(config: Record<string, unknown>) { constructed.configs.push(config); }
+      private readonly config: Record<string, unknown>;
+      constructor(config: Record<string, unknown>) { this.config = config; constructed.configs.push(config); }
       async init(): Promise<void> {
         attempts.at.push(Date.now());
         if (attempts.agentDown || attempts.failNext > 0) {
@@ -41,6 +43,8 @@ vi.mock('citadel-workspace-client-ts', async () => {
           throw new Error('WebSocket connection failed: ConnectionFailed { code: 1006 }');
         }
         attempts.ok.push(Date.now());
+        // Every agent's first message; this one predates agent hosting.
+        (this.config.messageHandler as (m: unknown) => void)({ ServiceConnectionAccepted: { cid: 0n, request_id: null } });
         // Connected; the communication task then ends.
         setTimeout(() => {
           eventEmitter.emit('websocket-disconnected', { reason: 'WebSocket communication task ended' });
