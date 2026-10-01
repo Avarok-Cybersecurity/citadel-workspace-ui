@@ -87,6 +87,7 @@ export function OpenHereToo({ username, onClose, onMoveInstead }: OpenHereTooPro
           autoComplete="current-password"
           aria-label="Password"
           placeholder="Password"
+          data-testid="open-here-too-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           disabled={busy}
@@ -95,7 +96,7 @@ export function OpenHereToo({ username, onClose, onMoveInstead }: OpenHereTooPro
         <div className="flex flex-wrap justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onMoveInstead} disabled={busy}>Move it here instead</Button>
           <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button type="submit" disabled={busy || password.length === 0}>Open here too</Button>
+          <Button type="submit" disabled={busy || password.length === 0} data-testid="open-here-too-submit">Open here too</Button>
         </div>
       </form>
     </div>
