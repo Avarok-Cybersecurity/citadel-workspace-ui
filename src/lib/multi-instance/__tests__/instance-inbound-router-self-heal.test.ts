@@ -18,12 +18,12 @@ const instanceChannelMock: {
 
 const instanceManagerMock: {
   instanceId: string;
-  findInstanceByCid: ReturnType<typeof vi.fn<(cid: bigint) => string | null>>;
+  findInstanceByCid: ReturnType<typeof vi.fn<(cid: bigint) => string | null>>; findInstancesByCid(cid: bigint): string[];
   getAllInstances: ReturnType<typeof vi.fn>;
   registerInstance: ReturnType<typeof vi.fn>;
 } = vi.hoisted(() => ({
   instanceId: 'leader-instance',
-  findInstanceByCid: vi.fn<(cid: bigint) => string | null>(),
+  findInstanceByCid: vi.fn<(cid: bigint) => string | null>(), findInstancesByCid(cid: bigint): string[] { const one: string | null = this.findInstanceByCid(cid); return one ? [one] : []; },
   getAllInstances: vi.fn(() => [] as Array<{ instanceId: string; cid: bigint | null }>),
   registerInstance: vi.fn(),
 }));

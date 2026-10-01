@@ -93,8 +93,11 @@ export async function claimSessionForThisTab(cid: bigint): Promise<ClaimOutcome>
       throw error;
     }
 
+    // With an agent that hosts the account, several tabs may hold it at once:
+    // the router hands every one of them what is addressed to the session, and
+    // none of them writes the store. An older agent's browser ILM allows one.
     const owner: string | null = otherTabOwns(cid);
-    if (owner) {
+    if (owner && !(await agentHostsConversations())) {
       debugLog('ClaimSession', `${cid} is owned by instance ${owner}; not adopting`);
       return { status: 'owned-by-another-tab', instanceId: owner };
     }

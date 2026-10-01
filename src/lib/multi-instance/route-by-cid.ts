@@ -43,36 +43,18 @@ export function routeByCid(
     return false;
   }
 
-  const targetInstance: string | null = instanceManager.findInstanceByCid(BigInt(targetCid));
+  // EVERY tab holding the session: several tabs of one browser can be signed in
+  // to the same account, and each renders what is addressed to it. A response
+  // is not routed here -- it goes to the tab that asked (route-by-request-id).
+  const targets: string[] = instanceManager.findInstancesByCid(BigInt(targetCid));
 
-  if (targetInstance) {
-    if (targetInstance === instanceManager.instanceId) {
+  if (targets.length > 0) {
+    for (const target of targets) deliverTo(deps, target, targets, targetCid, message, messageType);
+    if (!targets.includes(instanceManager.instanceId) && LEADER_MUST_PROCESS_LOCALLY.has(messageType)) {
+      debugLog('InstanceInboundRouter', `[ILM-Router] Also processing ${messageType} locally for central state (ILM visibility)`);
       deps.processLocalMessage(message);
-    } else {
-      // Retained until the target acks. No ack within the buffer timeout and
-      // the fallback fires — the same terminal path an unowned CID takes — so a
-      // dropped BroadcastChannel post can no longer lose the message. A cid
-      // re-registration meanwhile drains and re-routes it, which is the
-      // mid-reload recovery path.
-      if (UNRELIABLE_FORWARDS.has(messageType)) {
-        // Fire and forget; see UNRELIABLE_FORWARDS. Retaining a media frame
-        // costs a uuid, a timer and the payload PER FRAME, and its fallback
-        // decodes another tab's video on this one.
-        instanceChannel.forwardToInstance(targetInstance, message);
-      } else {
-        const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
-        deps.orphanBuffer.push(targetCid, message, messageType, {
-          requestId,
-          targetInstanceId: targetInstance,
-        });
-        instanceChannel.forwardToInstance(targetInstance, message, requestId);
-      }
-      if (LEADER_MUST_PROCESS_LOCALLY.has(messageType)) {
-        debugLog('InstanceInboundRouter', `[ILM-Router] Also processing ${messageType} locally for central state (ILM visibility)`);
-        deps.processLocalMessage(message);
-      }
     }
-    return true; // The instance that owns this CID has it.
+    return true; // Every tab holding this CID has it.
   }
 
   if (messageType === 'ConnectSuccess' || messageType === 'RegisterSuccess') {
@@ -105,4 +87,33 @@ export function routeByCid(
   // broadcast remains as the second chance it has always been, and the
   // receiving tab's own CID filter decides whether to keep it.
   return false;
+}
+
+/** Hand `message` to one of the tabs holding its CID; `fanOut` is all of them. */
+function deliverTo(
+  deps: CidRouteDeps,
+  target: string,
+  fanOut: string[],
+  targetCid: string,
+  message: Record<string, unknown>,
+  messageType: string,
+): void {
+  if (target === instanceManager.instanceId) {
+    deps.processLocalMessage(message);
+    return;
+  }
+  // Retained until the target acks. No ack within the buffer timeout and the
+  // fallback fires (router-forwarding.ts), so a dropped BroadcastChannel post
+  // can no longer lose the message. A cid re-registration meanwhile drains and
+  // re-routes it, which is the mid-reload recovery path.
+  if (UNRELIABLE_FORWARDS.has(messageType)) {
+    // Fire and forget; see UNRELIABLE_FORWARDS. Retaining a media frame costs a
+    // uuid, a timer and the payload PER FRAME, and its fallback decodes another
+    // tab's video on this one.
+    instanceChannel.forwardToInstance(target, message);
+    return;
+  }
+  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+  deps.orphanBuffer.push(targetCid, message, messageType, { requestId, targetInstanceId: target, fanOut });
+  instanceChannel.forwardToInstance(target, message, requestId);
 }

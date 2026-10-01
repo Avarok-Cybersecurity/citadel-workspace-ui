@@ -33,18 +33,23 @@ import { isP2PMessageHandlerAttached } from '@/lib/p2p/p2p-handler-ready';
  * every subsequent message to that CID pays the full timeout again before
  * being delivered.
  */
-export type ForwardFallback = (message: Record<string, unknown>, messageType: string, targetInstanceId?: string) => void;
+export type ForwardFallback = (message: Record<string, unknown>, messageType: string, targetInstanceId?: string, fanOut?: string[]) => void;
 
 export function makeForwardFallback(
   processLocally: (message: Record<string, unknown>) => void,
   reroute: (message: Record<string, unknown>, messageType: string) => boolean,
 ): ForwardFallback {
-  return (message: Record<string, unknown>, messageType: string, targetInstanceId?: string): void => {
+  return (message: Record<string, unknown>, messageType: string, targetInstanceId?: string, fanOut?: string[]): void => {
     if (targetInstanceId) {
       debugLog('InstanceInboundRouter',
         `[ILM-Router] forward to ${targetInstanceId} not acked (${messageType}); unregistering, re-routing`);
       instanceManager.unregisterInstance(targetInstanceId);
       instanceChannel.requestCidReport();
+      // The same message went to other tabs holding the session too: while one
+      // of them is still registered it has it, and re-routing would hand it to
+      // each of them a second time. The last of them to time out re-routes.
+      const stillHeld: Set<string> = new Set(instanceManager.getAllInstances().map((i) => i.instanceId));
+      if ((fanOut ?? []).some((id: string) => id !== targetInstanceId && stillHeld.has(id))) return;
       // Another tab may hold the CID now (the session reopened elsewhere). Processing on
       // the leader would hand that tab's answer to the wrong session; re-routing finds
       // the live owner, or buffers it as unowned, whose own fallback is local processing.
