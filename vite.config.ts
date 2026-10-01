@@ -239,7 +239,13 @@ export default defineConfig(({ mode }) => {
           // ever requests — WASM init passes the stable /wasm/ URL explicitly.
           // Precaching it would double the install for bytes no page fetches.
           globIgnores: ['assets/*.wasm', '**/screenshots/*'],
-          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+          // Raised from 4 MiB when the agent took over conversations (multi-window
+          // mw4): the WASM client now carries the conversation request, event and
+          // record types, and grew from 4.0 MB to 4.8 MB. Over the cap, workbox
+          // DROPS the binary from the precache silently, splitting it from its
+          // glue (see wasm-is-never-served-stale.test.ts), so the cap follows the
+          // binary with headroom rather than the binary being cut to fit.
+          maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
           // SPA fallback, minus the endpoints that must always hit the network.
           // `/`, never `/index.html`: the Worker's asset handler answers /index.html with a
           // 307 to `/`. Workbox's precache normally hides that, but when the cached copy is
