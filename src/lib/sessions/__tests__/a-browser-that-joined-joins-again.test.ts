@@ -31,7 +31,7 @@ vi.mock('@/lib/websocket-service', async () => {
         throw new Error(onlyIfOrphaned ? `Session ${cid} is not orphaned` : `Session ${cid} is in use by another connection`);
       },
       sendRequest: async (request: Record<string, unknown>): Promise<void> => {
-        const body = request.ConnectionManagement as { request_id: string; management_command: { AttachSession: { proof: unknown } } };
+        const body: { request_id: string; management_command: { AttachSession: { proof: unknown } } } = request.ConnectionManagement as { request_id: string; management_command: { AttachSession: { proof: unknown } } };
         h.attaches.push(body.management_command.AttachSession.proof);
         const answer: Record<string, unknown> = h.honoursToken
           ? { SessionAttached: { cid: 7n, role: 'Secondary', token: TOKEN, request_id: body.request_id } }

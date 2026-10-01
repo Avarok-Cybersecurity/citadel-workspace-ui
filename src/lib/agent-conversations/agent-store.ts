@@ -42,7 +42,28 @@ async function newest(peerCid: bigint): Promise<{ metadata: ConversationMetadata
   return agentConversations.page(await own(), peerCid, null);
 }
 
-export const agentStore = {
+/** The store surface the agent answers; the compound-only methods refuse. */
+export interface AgentStore {
+  loadAllMetadata(): Promise<ConversationMetadata[]>;
+  loadMetadata(peerCid: bigint): Promise<ConversationMetadata | null>;
+  loadMessagePage(peerCid: bigint, pageNumber: number): Promise<MessagePage | null>;
+  loadLatestMessages(peerCid: bigint): Promise<P2PMessage[]>;
+  findMessageInPages(peerCid: bigint, messageId: string): Promise<P2PMessage | null>;
+  findUnreadFromPeer(peerCid: bigint): Promise<P2PMessage[]>;
+  appendMessageToPage(peerCid: bigint, message: P2PMessage): Promise<void>;
+  updateMessageInPages(peerCid: bigint, messageId: string, updates: Partial<P2PMessage>): Promise<boolean>;
+  deleteConversationPages(peerCid: bigint, scope: { includeUnattributed: boolean }): Promise<void>;
+  updatePeerUsernameInMetadata(): Promise<void>;
+  deleteOldFormat(): Promise<void>;
+  reactToMessageInPages(): never;
+  reviseMessageInPages(): never;
+  removeMessageFromPages(): never;
+  updateUnreadCount(): never;
+  saveMetadata(): never;
+  saveMessagePage(): never;
+}
+
+export const agentStore: AgentStore = {
   async loadAllMetadata(): Promise<ConversationMetadata[]> {
     return agentConversations.list(await own());
   },

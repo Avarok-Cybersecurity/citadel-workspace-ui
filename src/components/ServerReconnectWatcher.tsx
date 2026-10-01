@@ -1,8 +1,6 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import type { NavigateFunction } from 'react-router';
 import { eventEmitter } from '@/lib/event-emitter';
-import { useToast } from '@/hooks/use-toast';
+import { useLeaveEndedSession, type LeaveEndedSession } from './use-leave-ended-session';
 import { getSelectedUser, type TabUserContext } from '@/lib/tab-context';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { readAgentReconnectEvent, type AgentReconnectEvent } from '@/types/agent-reconnect';
@@ -20,8 +18,7 @@ import { postAuthSetup } from '@/lib/post-auth-setup';
  * Inside the router, because giving up sends the user to sign in.
  */
 export function ServerReconnectWatcher(): null {
-  const navigate: NavigateFunction = useNavigate();
-  const { toast } = useToast();
+  const leave: LeaveEndedSession = useLeaveEndedSession();
 
   useEffect(() => {
     const io: ServerReconnectIO = {
@@ -40,9 +37,9 @@ export function ServerReconnectWatcher(): null {
       // The same sequence sign-in and the start-up claim run, so a page that loaded
       // during the drop ends up exactly where a fresh sign-in would.
       reloadWorkspace: (cid: bigint): Promise<void> => postAuthSetup(cid),
+      // The same way out as every other ended session: unsaved editor text is asked about first.
       signInAgain: (path: string, message: string): void => {
-        toast({ title: 'Signed out', description: message, variant: 'destructive' });
-        navigate(path);
+        leave(path, message).catch((error: unknown): void => { debugLog('ServerReconnect', 'Leaving failed', error); });
       },
     };
 
@@ -61,7 +58,7 @@ export function ServerReconnectWatcher(): null {
       eventEmitter.off('websocket-message', onMessage);
       reconnectingTo.set(null);
     };
-  }, [navigate, toast]);
+  }, [leave]);
 
   return null;
 }

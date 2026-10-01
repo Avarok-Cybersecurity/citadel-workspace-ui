@@ -18,7 +18,7 @@ const ME: bigint = 7n;
 
 
 const browserCalls: string[] = [];
-const browser = { async loadAllMetadata(): Promise<string> { browserCalls.push('loadAllMetadata'); return 'browser'; } };
+const browser: { loadAllMetadata(): Promise<string> } = { async loadAllMetadata(): Promise<string> { browserCalls.push('loadAllMetadata'); return 'browser'; } };
 const asked: string[] = [];
 
 beforeEach(async () => {

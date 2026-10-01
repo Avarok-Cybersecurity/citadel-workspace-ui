@@ -55,7 +55,7 @@ beforeEach(() => {
 describe('sending through the agent', () => {
   it('clears the composer when the agent announces the stored message, once', async () => {
     let cleared: number = 0;
-    answer = (_v, body) => {
+    answer = (_v: string, body: Record<string, unknown>): void => {
       for (const watch of [...watchers]) watch(appended(String(body.request_id)));
       expect(cleared).toBe(1);
       respond('ConversationUpdated', { request_id: body.request_id, cid: ME, peer_cid: BOB, message: stored('m1') });
@@ -71,7 +71,7 @@ describe('sending through the agent', () => {
 
   it('keeps the composer when the agent refuses before storing anything', async () => {
     let cleared: number = 0;
-    answer = (_v, body) => respond('ConversationFailure', { request_id: body.request_id, message: 'no session' });
+    answer = (_v: string, body: Record<string, unknown>): void => respond('ConversationFailure', { request_id: body.request_id, message: 'no session' });
     await expect(sendThroughAgent(deps(), BOB, 'hi', { onOptimisticAppend: () => { cleared += 1; } })).rejects.toThrow('no session');
     expect(cleared).toBe(0);
     expect(watchers.size).toBe(0);
@@ -79,14 +79,14 @@ describe('sending through the agent', () => {
 
   it('clears the composer on success even when no Appended event came first', async () => {
     let cleared: number = 0;
-    answer = (_v, body) => respond('ConversationUpdated', { request_id: body.request_id, message: stored('m1') });
+    answer = (_v: string, body: Record<string, unknown>): void => respond('ConversationUpdated', { request_id: body.request_id, message: stored('m1') });
     await sendThroughAgent(deps(), BOB, 'hi', { onOptimisticAppend: () => { cleared += 1; } });
     expect(cleared).toBe(1);
   });
 
   it('ignores another request\'s Appended event', async () => {
     let cleared: number = 0;
-    answer = (_v, body) => {
+    answer = (_v: string, body: Record<string, unknown>): void => {
       for (const watch of [...watchers]) watch(appended('someone-else'));
       expect(cleared).toBe(0);
       respond('ConversationFailure', { request_id: body.request_id, message: 'down' });

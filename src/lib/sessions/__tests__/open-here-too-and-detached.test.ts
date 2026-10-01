@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const tab: { cid: bigint; username: string } = vi.hoisted(() => ({ cid: 7n, username: 'alice' }));
 vi.mock('@/lib/tab-context', () => ({
-  getSelectedUser: async () => ({ selectedCid: tab.cid, selectedUsername: tab.username }),
+  getSelectedUser: async (): Promise<{ selectedCid: bigint; selectedUsername: string }> => ({ selectedCid: tab.cid, selectedUsername: tab.username }),
 }));
 
 import { openHereToo, type OpenHereTooDeps } from '../open-here-too';
@@ -24,30 +24,30 @@ function seam(found: SwitchTarget | null, joins: boolean): OpenHereTooDeps & { s
   const steps: string[] = [];
   return {
     steps,
-    findTarget: async () => { steps.push('find'); return found; },
-    join: async (cid: bigint, password: string) => {
+    findTarget: async (): Promise<SwitchTarget | null> => { steps.push('find'); return found; },
+    join: async (cid: bigint, password: string): Promise<void> => {
       steps.push(`join ${cid} ${password}`);
       if (!joins) throw new Error('The password does not match this session');
     },
-    open: async (target: SwitchTarget) => { steps.push(`open ${target.username}`); },
+    open: async (target: SwitchTarget): Promise<void> => { steps.push(`open ${target.username}`); },
   };
 }
 
 describe('opening a session here too', () => {
   it('joins, then opens it the way any switch does', async () => {
-    const s = seam(ALICE, true);
+    const s: OpenHereTooDeps & { steps: string[] } = seam(ALICE, true);
     await openHereToo(s, 'alice', 'pw');
     expect(s.steps).toEqual(['find', 'join 7 pw', 'open alice']);
   });
 
   it('opens nothing when the join is refused', async () => {
-    const s = seam(ALICE, false);
+    const s: OpenHereTooDeps & { steps: string[] } = seam(ALICE, false);
     await expect(openHereToo(s, 'alice', 'bad')).rejects.toThrow('password does not match');
     expect(s.steps).toEqual(['find', 'join 7 bad']);
   });
 
   it('says so when the agent no longer has the session', async () => {
-    const s = seam(null, true);
+    const s: OpenHereTooDeps & { steps: string[] } = seam(null, true);
     await expect(openHereToo(s, 'alice', 'pw')).rejects.toThrow('no longer signed in');
     expect(s.steps).toEqual(['find']);
   });

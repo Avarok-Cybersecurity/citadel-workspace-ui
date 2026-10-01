@@ -33,7 +33,7 @@ function socket(agentIlm: boolean | 'silent'): DeclaringClient & { sent: Interna
   let match: ((m: InternalServiceResponse) => unknown) | null = null;
   let settle: ((v: unknown) => void) | null = null;
   let fail: ((e: Error) => void) | null = null;
-  const client = {
+  const client: DeclaringClient & { sent: InternalServiceRequest[] } = {
     sent: [] as InternalServiceRequest[],
     async sendDirectToInternalService(request: InternalServiceRequest): Promise<void> {
       client.sent.push(request);
@@ -50,7 +50,7 @@ function socket(agentIlm: boolean | 'silent'): DeclaringClient & { sent: Interna
 }
 
 /** A leader client that must not be used: the agent carries these. */
-const untouchable = {
+const untouchable: WorkspaceClient = {
   sendP2PMessageReliable: (): never => { throw new Error('the browser ILM was used'); },
   openMessengerFor: (): never => { throw new Error('a browser messenger was opened'); },
   ensureMessengerOpen: (): never => { throw new Error('a browser messenger was opened'); },
@@ -60,7 +60,7 @@ beforeEach(() => forgetCapabilities());
 
 describe('declaring agent hosting', () => {
   it('declares on the leader socket when the agent offers, and believes the answer', async () => {
-    const s = socket(true);
+    const s: DeclaringClient & { sent: InternalServiceRequest[] } = socket(true);
     expect(await declareOnLeaderSocket(s, greeted(true))).toBe(true);
     expect(s.sent).toEqual([{ ConnectionManagement: expect.objectContaining({ management_command: { DeclareCapabilities: { capabilities: { agent_ilm: true } } } }) }]);
     expect(await agentHostsConversations()).toBe(true);
@@ -69,7 +69,7 @@ describe('declaring agent hosting', () => {
   it('does not declare at all to an agent whose greeting offers nothing', async () => {
     for (const offers of ['older', false] as const) {
       forgetCapabilities();
-      const s = socket('silent');
+      const s: DeclaringClient & { sent: InternalServiceRequest[] } = socket('silent');
       expect(await declareOnLeaderSocket(s, greeted(offers))).toBe(false);
       expect(s.sent).toEqual([]);
     }
@@ -107,7 +107,7 @@ describe('reliable sends when the agent hosts the account', () => {
       const body: Record<string, unknown> = request.SendReliable as Record<string, unknown>;
       queueMicrotask(() => eventEmitter.emit('websocket-message', { SendReliableAccepted: { request_id: body.request_id } }));
     });
-    const ops: MessengerOperations = new MessengerOperations({ init: async () => {}, getClient: () => untouchable });
+    const ops: MessengerOperations = new MessengerOperations({ init: async (): Promise<void> => {}, getClient: (): WorkspaceClient => untouchable });
 
     await ops.openMessengerFor(5n);
     expect(await ops.ensureMessengerOpen(5n)).toBe(false);

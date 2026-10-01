@@ -12,7 +12,6 @@ import { instanceManager, instanceChannel, instanceInboundRouter } from '../mult
 import { isEnsureMessengerOpenResponse } from '../multi-instance/outbound-queue';
 import type { AckResult } from '@/lib/multi-instance/outbound-queue-types';
 import { agentHostsConversations } from '../agent-conversations/capabilities';
-import { agentConversations } from '../agent-conversations/requests';
 
 const UNSET_LEVEL: ChatSecurityLevel = 'Standard';
 
@@ -150,6 +149,7 @@ export class MessengerOperations {
     if (await agentHostsConversations()) {
       // An unset level is Standard on both routes: the WASM binding reads an
       // absent level as Standard, and SendReliable names it.
+      const { agentConversations } = await import('../agent-conversations/requests');
       await agentConversations.sendReliable(localCid, peerCid, message, securityLevel ?? UNSET_LEVEL, compressionHint ?? null);
       return;
     }

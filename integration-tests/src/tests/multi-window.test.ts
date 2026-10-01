@@ -13,7 +13,8 @@
  *   6. A2 closes. A1 still receives from B.
  *   7. A2 reopens and rejoins with its sealed token, without a prompt; A1b opens A
  *      as a second tab. B -> A reaches A1, A1b and A2, once each.
- *   8. A1 signs out. A2 is told, and A is gone from the agent for every window.
+ *   8. A1 signs out. A2 is told, leaves for the landing page saying why, and A
+ *      is gone from the agent for every window.
  *
  * NEGATIVE CONTROLS (by reasoning; this suite is run by CI, not here):
  *
@@ -45,12 +46,13 @@
  *      the second check -- A's chip absent from a freshly loaded strip in which
  *      B's chip IS present -- is red too.
  *
- * Note: the UI shows no change of its own when another window signs the
- * session out (connection/message-handling.ts only clears state), so step 8
- * asserts what A2 is told and what the agent then holds, not a screen.
+ *      And the screen: A2 leaves for the landing page and says "<A> was signed
+ *      out in another window." (SessionEndedWatcher). Without it A2 keeps the
+ *      dead workspace, no sign-in button appears and no toast, and the step is
+ *      red.
  */
 import type { Page, WebSocket } from 'playwright';
-import { TestHarness, runTestMain, config, sleep, pollUntil, takeScreenshot, setupConsoleCapture, openConversation, sendMessage, disconnectViaTopBar } from '../lib/index.js';
+import { TestHarness, runTestMain, config, sleep, pollUntil, isVisibleWithin, takeScreenshot, setupConsoleCapture, openConversation, sendMessage, disconnectViaTopBar } from '../lib/index.js';
 import { openMultiWindowWorld, makePeers, MULTI_WINDOW_CAPTURE, type MultiWindowWorld, type PeersReady } from '../lib/multi-window-setup.js';
 import { everyWindowShowsOnce, landingListsSession, openHereTooWithPassword, pressSessionChip, sealedJoinTokens, showsWorkspaceOf, type SessionPrompt } from '../lib/multi-window.js';
 
@@ -70,7 +72,7 @@ interface Results {
   bToBothWindows: boolean; replyFromA2: boolean;
   a1AfterA2Closed: boolean;
   silentRejoin: boolean; sameBrowserTab: boolean; toThreeWindows: boolean;
-  a2ToldOfLogout: boolean; sessionEndedForAll: boolean;
+  a2ToldOfLogout: boolean; a2LeftForLanding: boolean; sessionEndedForAll: boolean;
 }
 
 function noPrompts(seen: Readonly<Record<SessionPrompt, number>>): boolean {
@@ -111,7 +113,7 @@ async function runTest(): Promise<boolean> {
     joinedHereToo: false, joinWasAsked: false, tokenSealed: false, bothShowA: false, a1NotDisplaced: false,
     bToBothWindows: false, replyFromA2: false, a1AfterA2Closed: false,
     silentRejoin: false, sameBrowserTab: false, toThreeWindows: false,
-    a2ToldOfLogout: false, sessionEndedForAll: false,
+    a2ToldOfLogout: false, a2LeftForLanding: false, sessionEndedForAll: false,
   };
   try {
     say('STEPS 1-2: A (window 1) and B, P2P-registered and talking');
@@ -166,6 +168,11 @@ async function runTest(): Promise<boolean> {
     say('STEP 8: window 1 signs out; the session ends for window 2 as well');
     const signedOut: boolean = await disconnectViaTopBar(a1, A, harness.uxTracker);
     r.a2ToldOfLogout = signedOut && aCid !== '' && (await pollUntil(async () => sessionEnds.includes(aCid), 30_000, 250));
+    // What the user sees, before anything here navigates: window 2 has left the workspace for the
+    // landing page (its sign-in button) and says why (the toast). Both are positive markers.
+    r.a2LeftForLanding = signedOut
+      && (await isVisibleWithin(a2again.getByTestId('sign-in-button'), 30_000))
+      && (await isVisibleWithin(a2again.getByText(`${A} was signed out in another window.`), 10_000));
     // Presence first: B's chip proves the strip loaded the agent's live list; only then is A's absence evidence.
     r.sessionEndedForAll = signedOut && (await landingListsSession(a2again, B)) && (await a2again.getByTestId(`session-icon-${A}`).count()) === 0;
     await takeScreenshot(a2again, 'multi_window_after_logout');

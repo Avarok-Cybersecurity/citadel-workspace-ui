@@ -41,12 +41,14 @@ export function holdMessage(cache: MessageCache, conversation: P2PConversation, 
   return true;
 }
 
-/** Replace the held copy of `message`, if the window holds one. */
-export function replaceHeld(conversation: P2PConversation, message: P2PMessage): boolean {
+/**
+ * Replace the held copy of `message`. A window that does not hold it (it was
+ * paged out, or never loaded) has nothing to replace: the open view hears the
+ * change through 'p2p:message-updated' either way.
+ */
+export function replaceHeld(conversation: P2PConversation, message: P2PMessage): void {
   const at: number = conversation.messages.findIndex(m => m.id === message.id);
-  if (at < 0) return false;
-  conversation.messages[at] = message;
-  return true;
+  if (at >= 0) conversation.messages[at] = message;
 }
 
 /** Drop `messageId` from the window. */

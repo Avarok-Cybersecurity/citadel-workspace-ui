@@ -10,7 +10,8 @@
 // Imported for its side effect: the listener for the 'session:activated' emitted below.
 // See __tests__/every-session-activation-has-a-listener.test.ts.
 import '@/lib/session-startup-service';
-import { claimSessionForThisTab, offerTakeover, type ClaimOutcome, type TakeoverCallbacks } from './claim-session';
+import { claimSessionForThisTab, type ClaimOutcome } from './claim-session';
+import type { TakeoverCallbacks } from './takeover';
 import { sessionSwitchToasts, type SessionSwitchToasts } from './session-switch-toasts';
 import { readLastLocation } from './last-location';
 import { markLastAccessed } from './last-accessed';
@@ -56,6 +57,7 @@ export async function switchToSession(session: SwitchTarget, callbacks: SwitchCa
       return;
     }
     if (outcome.status === 'held-by-another-connection') {
+      const { offerTakeover } = await import('./takeover');
       await offerTakeover(session.username, callbacks);
       return;
     }

@@ -18,14 +18,9 @@ import type {
 import { requestResponse } from '../websocket/request-response';
 import { TIMEOUT } from '../timeout-constants';
 
-export type RequestSender = (request: Record<string, unknown>, requestId?: string) => Promise<void>;
+import { conversationSender, type RequestSender } from './sender';
 
-let sender: RequestSender | null = null;
-
-/** How requests reach the agent, set once by the websocket service. */
-export function registerConversationSender(send: RequestSender): void {
-  sender = send;
-}
+export { registerConversationSender, type RequestSender } from './sender';
 
 function unwrap(message: Record<string, unknown>): Record<string, unknown> {
   return ((message.Response as Record<string, unknown> | undefined) ?? message);
@@ -46,7 +41,7 @@ async function ask<T>(
   read: (answer: Record<string, unknown>) => T,
   requestId: string = crypto.randomUUID(),
 ): Promise<T> {
-  const send: RequestSender | null = sender;
+  const send: RequestSender | null = conversationSender();
   if (!send) throw new Error(`${variant}: the websocket service is not ready`);
   return requestResponse<T>({
     request: { [variant]: { request_id: requestId, ...body } },

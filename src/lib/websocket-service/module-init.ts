@@ -24,7 +24,7 @@ import { lazyTurnSource } from '../ice-servers/lazy-turn-source';
 import { TIMEOUT } from '../timeout-constants';
 import { ReconnectBackoff, AGENT_RECONNECT_BACKOFF, systemClock } from '../websocket/reconnect-backoff';
 import { registerCapabilityRoute } from '../agent-conversations/capabilities';
-import { registerConversationSender } from '../agent-conversations/requests';
+import { registerConversationSender } from '../agent-conversations/sender';
 
 export interface ServiceModules {
   localDB: LocalDBOperations;

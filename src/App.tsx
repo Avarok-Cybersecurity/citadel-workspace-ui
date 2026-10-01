@@ -8,7 +8,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import WorkspaceApp from "./components/WorkspaceApp";
 import { DocumentTitle } from './components/DocumentTitle';
-import { ServerReconnectWatcher } from './components/ServerReconnectWatcher';
 import { useSendFailureToasts } from '@/hooks/use-send-failure-toasts';
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { RouteFallback } from "./components/RouteFallback";
@@ -34,6 +33,10 @@ const Office: LazyExoticComponent<() => JSX.Element> = lazy((): Promise<{ defaul
   import("@/components/Office").then(m => ({ default: m.Office }))
 );
 const Messages: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pages/Messages"));
+// Off the landing critical path (check-bundle-budget): both leave a workspace whose session ended,
+// asking about unsaved editor text first, which only an open workspace can have.
+const SessionEndedWatcher: LazyExoticComponent<() => null> = lazy(() => import("./components/SessionEndedWatcher").then((m) => ({ default: m.SessionEndedWatcher })));
+const ServerReconnectWatcher: LazyExoticComponent<() => null> = lazy(() => import("./components/ServerReconnectWatcher").then((m) => ({ default: m.ServerReconnectWatcher })));
 const Connect: LazyExoticComponent<() => JSX.Element> = lazy((): Promise<{ default: never; } | { default: () => JSX.Element; }> =>
   import("./pages/Connect").then(m => ({ default: m.Connect }))
 );
@@ -116,7 +119,7 @@ const App: () => JSX.Element = (): JSX.Element => {
               future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
             >
               <DocumentTitle />
-              <ServerReconnectWatcher />
+              <Suspense fallback={null}><ServerReconnectWatcher /><SessionEndedWatcher /></Suspense>
               {/* Inside the router because its Return button navigates, above
                   the routes because a running call has to stay visible on all
                   of them. It lived in CallLayer, which is above the router --

@@ -80,8 +80,7 @@ const dist = join(root, 'dist');
  * attributes is not optimisation, it is guessing. The budget exists to catch a
  * CHUNK arriving on the critical path, which shows up as tens of kilobytes and
  * is still caught with a kilobyte of headroom.
- */
-/**
+ *
  * Raised from 312 in round 481, deliberately and with the reasoning recorded.
  *
  * CI measured 312.3 KB against 312 after the peer-group work — a real product
@@ -139,8 +138,7 @@ const dist = join(root, 'dist');
  * reached it, so even an unreachable messenger was preloaded. The messenger is
  * still constructed at boot, by main.tsx's dynamic import, after first paint.
  * DEFERRED_MODULES below fails if any of it comes back.
- */
-/**
+ *
  * 322 -> 323, approved by the owner (2026-09-28): features are not cut to fit this number; it is
  * our own tripwire for a chunk arriving on the landing page by accident, not a Lighthouse limit.
  *
@@ -159,8 +157,10 @@ const dist = join(root, 'dist');
  * says which saved accounts the server signed out (agent #92's signed_out list) and waits for the
  * saved-account list before saying there is none (#105's useSavedAccounts). Both run on the
  * landing page by design; DEFERRED_MODULES still passes, so nothing deferred arrived early.
+ * 325 -> 326 (2026-10-01), same approval, multi-window sessions (UI #107): the greeting and join check
+ * run at start-up; deferring takeover, rejoin, watchers and sender cut 326.5 to 325.2, rest is gzip noise.
  */
-const BUDGET_KB = 325;
+const BUDGET_KB = 326;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source

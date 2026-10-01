@@ -19,8 +19,8 @@ function memory(): JoinTokenStorage & { raw: Map<string, unknown> } {
   return {
     raw,
     get: async (k: string) => raw.get(k),
-    put: async (k: string, v: unknown) => { raw.set(k, v); },
-    delete: async (k: string) => { raw.delete(k); },
+    put: async (k: string, v: unknown): Promise<void> => { raw.set(k, v); },
+    delete: async (k: string): Promise<void> => { raw.delete(k); },
   };
 }
 
@@ -32,7 +32,7 @@ function deps(tokens: JoinTokenStorage): AttachDeps {
   return {
     tokens,
     send: async (request: Record<string, unknown>): Promise<void> => {
-      const body = (request.ConnectionManagement as { request_id: string; management_command: { AttachSession: { session_cid: bigint; proof: Proof } } });
+      const body: { request_id: string; management_command: { AttachSession: { session_cid: bigint; proof: Proof } } } = (request.ConnectionManagement as { request_id: string; management_command: { AttachSession: { session_cid: bigint; proof: Proof } } });
       expect(body.management_command.AttachSession.session_cid).toBe(CID);
       const proof: Proof = body.management_command.AttachSession.proof;
       proofs.push(proof);
@@ -59,7 +59,7 @@ beforeEach(() => { proofs = []; });
 
 describe('opening a session here too', () => {
   it('joins with the password, then again with the token alone', async () => {
-    const store = memory();
+    const store: JoinTokenStorage & { raw: Map<string, unknown> } = memory();
     agent = accepts('correct horse');
     expect(await joinWithPassword(deps(store), CID, 'correct horse')).toBe('Secondary');
     expect(await joinWithRememberedToken(deps(store), CID)).toBe(true);
@@ -67,7 +67,7 @@ describe('opening a session here too', () => {
   });
 
   it('reports a wrong password and remembers nothing', async () => {
-    const store = memory();
+    const store: JoinTokenStorage & { raw: Map<string, unknown> } = memory();
     agent = accepts('correct horse');
     await expect(joinWithPassword(deps(store), CID, 'wrong')).rejects.toThrow('password does not match');
     expect(await joinWithRememberedToken(deps(store), CID)).toBe(false);
@@ -75,10 +75,10 @@ describe('opening a session here too', () => {
   });
 
   it('forgets a token the agent no longer honours, and asks again', async () => {
-    const store = memory();
+    const store: JoinTokenStorage & { raw: Map<string, unknown> } = memory();
     agent = accepts('correct horse');
     await joinWithPassword(deps(store), CID, 'correct horse');
-    agent = () => ({ ConnectionManagementFailure: { cid: CID, error: "This browser's session token is not valid any more" } });
+    agent = (): Record<string, unknown> => ({ ConnectionManagementFailure: { cid: CID, error: "This browser's session token is not valid any more" } });
     expect(await joinWithRememberedToken(deps(store), CID)).toBe(false);
     expect(await recallJoin(store, CID)).toBeNull();
   });
@@ -91,7 +91,7 @@ describe('opening a session here too', () => {
 
 describe('the remembered token', () => {
   it('is never stored as plaintext, under a key nothing can export', async () => {
-    const store = memory();
+    const store: JoinTokenStorage & { raw: Map<string, unknown> } = memory();
     await rememberJoin(store, CID, Uint8Array.from(TOKEN));
     const plaintext: string = TOKEN.slice(0, 8).join(',');
     for (const value of store.raw.values()) {
@@ -106,7 +106,7 @@ describe('the remembered token', () => {
   });
 
   it('opens only as the session it was sealed for', async () => {
-    const store = memory();
+    const store: JoinTokenStorage & { raw: Map<string, unknown> } = memory();
     await rememberJoin(store, CID, Uint8Array.from(TOKEN));
     // Another session's slot, holding this session's sealed token: refused, and dropped.
     store.raw.set('multi-window:join-token:7', store.raw.get(`multi-window:join-token:${CID}`));

@@ -39,7 +39,8 @@ vi.mock('@/lib/multi-instance', async (importOriginal: () => Promise<Record<stri
   instanceChannel: { announcePresence: (): void => {} },
 }));
 
-import { claimSessionForThisTab, takeoverPrompt } from '../claim-session';
+import { claimSessionForThisTab } from '../claim-session';
+import { takeoverPrompt } from '../takeover';
 import { switchToSession } from '../switch-to-session';
 import { instanceManager } from '@/lib/multi-instance';
 
