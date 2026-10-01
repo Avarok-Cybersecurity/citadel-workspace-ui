@@ -7,6 +7,7 @@
  * Shown only when the agent hosts the account; an older agent raises none.
  */
 import { useEffect, useState } from 'react';
+import type { AccountPreferences } from 'citadel-internal-service-wasm-client';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { agentHostsConversations } from '@/lib/agent-conversations/capabilities';
@@ -28,7 +29,7 @@ export function NotificationPreviewRow(): JSX.Element | null {
     void (async (): Promise<void> => {
       const cid: bigint | null = await getCurrentCid();
       if (cid === null || !(await agentHostsConversations())) return;
-      const prefs = await agentConversations.getPreferences(cid);
+      const prefs: AccountPreferences = await agentConversations.getPreferences(cid);
       if (live) { setAccount(cid); setShows(prefs.notification_preview === 'Text'); }
     })().catch((e: unknown) => { if (live) setError(describeFailure(e, 'The notification setting could not be read.')); });
     return (): void => { live = false; };

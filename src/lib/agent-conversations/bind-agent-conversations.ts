@@ -12,7 +12,7 @@ import { agentHostsConversations } from './capabilities';
 import { pushAccountPreferences } from './push-preferences';
 import { onPrivacySettingsSaved } from '../privacy-settings';
 import { createFocusReporter, windowInFront } from './report-focus';
-import { sendToAgent } from './requests';
+import { sendToAgent } from './sender';
 
 type Listen = (event: string, handler: (data: unknown) => void) => void;
 

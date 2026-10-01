@@ -5,12 +5,12 @@
  */
 import { useEffect } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
-import { takeLinkTarget } from '@/lib/onboarding/link-target';
+import { takeLinkTarget, type LinkTarget } from '@/lib/onboarding/link-target';
 import { p2pMessengerManager } from '@/lib/p2p/p2p-messenger-manager';
 
 export function useLinkTargetOpener(openRequests: () => void): void {
   useEffect(() => {
-    const peer = takeLinkTarget(['conversation', 'call']);
+    const peer: Extract<LinkTarget, { kind: 'conversation' | 'call' }> | null = takeLinkTarget(['conversation', 'call']);
     if (peer) {
       const peerUsername: string = p2pMessengerManager.getConversation(peer.peerCid)?.peerUsername ?? '';
       eventEmitter.emit('p2p:open-conversation', { peerCid: peer.peerCid, peerUsername });

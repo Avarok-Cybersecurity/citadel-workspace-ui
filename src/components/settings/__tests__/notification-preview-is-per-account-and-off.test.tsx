@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { AccountPreferences } from 'citadel-internal-service-wasm-client';
 
-vi.mock('@/lib/p2p/p2p-messenger-manager', () => ({ p2pMessengerManager: { getAllConversations: () => [] } }));
+vi.mock('@/lib/p2p/p2p-messenger-manager', () => ({ p2pMessengerManager: { getAllConversations: (): unknown[] => [] } }));
 
 import { NotificationPreviewRow } from '../NotificationPreviewRow';
 import { greetAs } from '@/lib/agent-conversations/__tests__/agent-greeting';

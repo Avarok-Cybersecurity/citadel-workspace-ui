@@ -16,7 +16,7 @@ function rig(hosts: boolean): { deps: FocusDeps; said: Said[]; state: { front: b
     activePeer: () => state.peer,
     inFront: () => state.front,
     send: async (request: Record<string, unknown>) => {
-      const command = (request.ConnectionManagement as { management_command: { ReportFocus: Said } }).management_command;
+      const command: { ReportFocus: Said } = (request.ConnectionManagement as { management_command: { ReportFocus: Said } }).management_command;
       said.push(command.ReportFocus);
     },
   };

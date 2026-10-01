@@ -16,3 +16,9 @@ export function registerConversationSender(send: RequestSender): void {
 export function conversationSender(): RequestSender | null {
   return sender;
 }
+
+/** A request with no answer to wait for (ReportFocus): sent, and that is all. */
+export function sendToAgent(request: Record<string, unknown>): Promise<void> {
+  if (!sender) return Promise.reject(new Error('The websocket service is not ready'));
+  return sender(request);
+}
