@@ -154,8 +154,13 @@ const dist = join(root, 'dist');
  * drawer carried its accessible title and description (UI #93). The sidebar renders on the
  * landing page, so those two visually hidden lines are on the critical path. An accessibility
  * fix, not a chunk arriving.
+ *
+ * 324 -> 325 (2026-10-01), same standing approval: CI read 324.2 for UI #104. The landing page now
+ * says which saved accounts the server signed out (agent #92's signed_out list) and waits for the
+ * saved-account list before saying there is none (#105's useSavedAccounts). Both run on the
+ * landing page by design; DEFERRED_MODULES still passes, so nothing deferred arrived early.
  */
-const BUDGET_KB = 324;
+const BUDGET_KB = 325;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source

@@ -56,6 +56,10 @@ export const CID_ROUTED_NOTIFICATIONS: Set<ResponseType | AgentReconnectNotifica
   // frame, not to the request any tab issued, so request_id routing drops it --
   // which is how the UI came to ignore send failures entirely.
   'MessageSendFailure',
+  // cid = the session whose peer connection changed path (relay -> direct, or
+  // back). Unsolicited, request_id null: without cid routing it would reach no
+  // tab, and the chat header would say "Relayed" for ever.
+  'PeerPathChangedNotification',
   // cid = the session whose server link dropped, came back, or could not. They
   // answer no request, so without cid routing the leader tab would show another
   // tab's "Reconnecting…" and send the wrong account to sign-in. Not generated

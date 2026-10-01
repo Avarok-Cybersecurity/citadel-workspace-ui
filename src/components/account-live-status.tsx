@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { connectionManager } from '@/lib/connection';
-import type { ActiveSession } from '@/types/session-types';
+import type { ActiveSession, SignedOutAccount } from '@/types/session-types';
 
 /**
  * Which of the saved accounts are currently connected — and whether that is
@@ -24,21 +24,25 @@ import type { ActiveSession } from '@/types/session-types';
 export interface LiveSessions {
   /** `null` until answered; `[]` only when the answer was "none". */
   sessions: ActiveSession[] | null;
+  /** From the same answer: accounts the agent signed out after a failed reconnect. Empty until answered. */
+  signedOut: SignedOutAccount[];
   load: () => Promise<void>;
 }
 
 export function useLiveSessions(): LiveSessions {
   const [sessions, setSessions] = useState<ActiveSession[] | null>(null);
+  const [signedOut, setSignedOut] = useState<SignedOutAccount[]>([]);
 
   // Stable, so the caller's effect can depend on it rather than suppressing
   // the dependency it actually has.
   const load: () => Promise<void> = useCallback(async (): Promise<void> => {
-    const { ok, sessions: answered } = await connectionManager.getActiveSessionsResult();
+    const { ok, sessions: answered, signedOut: gaveUp } = await connectionManager.getActiveSessionsResult();
     // Left unknown on a query that did not answer, rather than recorded as none.
     setSessions(ok ? answered : null);
+    setSignedOut(ok ? gaveUp : []);
   }, []);
 
-  return { sessions, load };
+  return { sessions, signedOut, load };
 }
 
 /**

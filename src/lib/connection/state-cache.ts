@@ -5,8 +5,7 @@
  * Extends ConnectionStateCore with caching and request tracking.
  */
 
-import type { ActiveSession } from '@/types/session-types';
-import type { ActiveSessionsResult } from './queries';
+import type { ActiveSessionsResult, SessionsAnswer } from './queries';
 import type { PendingRequest } from './types';
 import { CACHE_TTL_MS } from './constants';
 import { ConnectionStateCore } from './state-core';
@@ -17,7 +16,7 @@ export class ConnectionState extends ConnectionStateCore {
 
   // Session cache for deduplication
   private _pendingGetSessions: Promise<ActiveSessionsResult> | null = null;
-  private _cachedSessions: ActiveSession[] | null = null;
+  private _cachedSessions: SessionsAnswer | null = null;
   private _cachedSessionsTimestamp: number = 0;
 
   // Concurrency guard for connection attempts
@@ -47,7 +46,7 @@ export class ConnectionState extends ConnectionStateCore {
   // Session Cache
   // ============================================================================
 
-  get cachedSessions(): ActiveSession[] | null {
+  get cachedSessions(): SessionsAnswer | null {
     return this._cachedSessions;
   }
 
@@ -56,7 +55,7 @@ export class ConnectionState extends ConnectionStateCore {
     return (Date.now() - this._cachedSessionsTimestamp) < CACHE_TTL_MS;
   }
 
-  setCachedSessions(sessions: ActiveSession[]): void {
+  setCachedSessions(sessions: SessionsAnswer): void {
     this._cachedSessions = sessions;
     this._cachedSessionsTimestamp = Date.now();
   }

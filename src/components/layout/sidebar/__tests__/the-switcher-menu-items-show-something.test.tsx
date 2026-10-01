@@ -49,7 +49,7 @@ vi.mock('@/lib/connection', async (importOriginal) => {
       getStoredSessions: (): { sessions: typeof SESSIONS } => ({ sessions: SESSIONS }),
       getStoredSessionsArray: (): typeof SESSIONS => SESSIONS,
       getConnectionInfo: (): { cid: bigint } => ({ cid: 1n }),
-      getActiveSessionsResult: async (): Promise<{ ok: boolean; sessions: [] }> => ({ ok: true, sessions: [] }),
+      getActiveSessionsResult: async (): Promise<{ ok: boolean; sessions: []; signedOut: [] }> => ({ ok: true, sessions: [], signedOut: [] }),
     }),
   };
 });

@@ -143,6 +143,18 @@ export interface GetSessionsRequest {
 }
 
 /**
+ * GetSessions' `signed_out` entry: an account whose session the agent removed
+ * when its reconnect gave up (the server refused it, stayed unreachable, or held
+ * the old session too long). Listed until that account signs in again.
+ */
+export interface SignedOutAccount {
+  cid: bigint;
+  username: string;
+  /** What the agent's ServerReconnectFailed said. */
+  reason: string;
+}
+
+/**
  * GetSessions response from internal service
  */
 export interface GetSessionsResponse {

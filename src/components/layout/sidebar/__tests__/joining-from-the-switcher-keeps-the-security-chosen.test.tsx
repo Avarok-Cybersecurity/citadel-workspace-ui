@@ -36,7 +36,7 @@ vi.mock('@/lib/connection', async (importOriginal) => {
     connectionManager: Object.assign(Object.create(actual.connectionManager as object), {
       getStoredSessions: (): { sessions: [] } => ({ sessions: [] }),
       getConnectionInfo: (): null => null,
-      getActiveSessionsResult: async (): Promise<{ ok: boolean; sessions: [] }> => ({ ok: true, sessions: [] }),
+      getActiveSessionsResult: async (): Promise<{ ok: boolean; sessions: []; signedOut: [] }> => ({ ok: true, sessions: [], signedOut: [] }),
       reloadStoredSessions: async (): Promise<void> => {},
     }),
   };

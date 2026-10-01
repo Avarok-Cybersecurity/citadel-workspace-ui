@@ -33,6 +33,7 @@ function renderHeader(): RenderResult {
       paused={false}
       isConnected
       isRegistered
+      connectionRoute={null}
       onSettingsClick={vi.fn()}
       call={callProps}
     />,

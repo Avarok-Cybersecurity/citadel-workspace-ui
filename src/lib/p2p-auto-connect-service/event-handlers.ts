@@ -17,9 +17,11 @@ import { connectToPeer, handleConnectionSuccess, handlePeerDisconnect } from './
 import { handleIncomingPeerConnect, offerAdmitted, type IncomingOffer } from './incoming-connect';
 import { incomingAnswer, linkAdmitted } from './pause-gate';
 import { startPolling, stopPolling, startBackendPolling, stopBackendPolling } from './polling';
-import { parsePeerConnectPath } from '@/lib/ice-servers/path';
-import type { PeerConnectPath } from '@/types/ice-servers';
+import { parsePeerPathReport } from '@/lib/ice-servers/path';
+import type { PeerPathReport } from '@/types/ice-servers';
 import { installFollowerSnapshots } from './follower-snapshot';
+import { installPathChanges } from './path-changes';
+import { LEADER_WIRE_EVENT } from '@/lib/websocket/leader-inbound-handler';
 
 /** Callback type for setPeerConnected (broadcasts to followers) */
 type BroadcastPeerConnected = (localCid: bigint, peerCid: bigint) => void;
@@ -89,8 +91,8 @@ export function setupEventListeners(
         state.setPeerConnectedLocal(localCidBigInt, peerCidBigInt);
         // Followers never see the PeerConnectSuccess (it is routed to the
         // leader, which issued the request), so the path rides along here.
-        const path: PeerConnectPath | null = parsePeerConnectPath(data.path);
-        if (path !== null) state.core.setConnectionPath(localCidBigInt, peerCidBigInt, path);
+        const route: PeerPathReport | null = parsePeerPathReport(data.route);
+        if (route !== null) state.core.setConnectionPath(localCidBigInt, peerCidBigInt, route);
         // `{ peerCid }` alone, as the other three emitters of this event
         // already send: every consumer destructures only peerCid.
         eventEmitter.emit('p2p-connection-established', { peerCid: peerCidBigInt });
@@ -130,6 +132,8 @@ export function setupEventListeners(
       debugLog('P2PAutoConnectService', `P2PAutoConnect: Registration accepted for ${peerCid.toString().slice(0, 8)}... - waiting for initiator to connect`);
     }
   });
+
+  installPathChanges({ bus: eventEmitter, isLeader: (): boolean => instanceManager.isLeader, wireEvent: LEADER_WIRE_EVENT, core: state.core });
 
   // WebSocket message handler for P2P connect/disconnect events
   setupWebSocketMessageHandler(state, broadcastPeerConnected);
@@ -198,12 +202,12 @@ async function handlePeerConnectSuccess(
   const messageCid: bigint | undefined = v.cid as bigint | undefined;
   const peerCid: bigint | undefined = v.peer_cid as bigint | undefined;
 
-  // The agent reports the path on both the connecting and the accepting side;
-  // an older agent omits it, which reads as null and records nothing. Recorded
-  // BEFORE the broadcast below, which carries it to the follower tabs.
-  const path: PeerConnectPath | null = parsePeerConnectPath(v.path);
-  if (path !== null && messageCid !== undefined && peerCid !== undefined) {
-    state.core.setConnectionPath(messageCid, peerCid, path);
+  // The path at delivery (both sides), normally the relay while `upgrading`; the link is
+  // usable now and path-changes keeps it current. An older agent omits it: nothing is
+  // recorded. Recorded BEFORE the broadcast below, which carries it to the followers.
+  const route: PeerPathReport | null = parsePeerPathReport(v);
+  if (route !== null && messageCid !== undefined && peerCid !== undefined) {
+    state.core.setConnectionPath(messageCid, peerCid, route);
   }
   // A paused pair is neither marked connected nor left up; see pause-gate.
   if (messageCid !== undefined && peerCid !== undefined && !(await linkAdmitted(messageCid, peerCid))) return;

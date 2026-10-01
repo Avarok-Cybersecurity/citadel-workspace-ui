@@ -11,6 +11,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { connectionPathFor } from '@/lib/p2p-auto-connect-service/connection-path';
+import { PATH_CHANGED_EVENT } from '@/lib/p2p-auto-connect-service/path-changes';
 import { getCurrentCid } from '@/lib/p2p/current-cid';
 import type { PeerConnectPath } from '@/types/ice-servers';
 import { sessionStartupService } from '@/lib/session-startup-service';
@@ -192,6 +193,8 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
     eventEmitter.on('p2p:peers-updated', handlePeerUpdate);
     eventEmitter.on('p2p-connection-established', handlePeerUpdate);
     eventEmitter.on('p2p-connection-lost', handlePeerUpdate);
+    // A connection delivered over the relay goes direct later; the row names its path.
+    eventEmitter.on(PATH_CHANGED_EVENT, handlePeerUpdate);
     eventEmitter.on('session:startup-complete', handlePeerUpdate);
 
     return (): void => {
@@ -200,6 +203,7 @@ export function useRegisteredPeers(): UseRegisteredPeersReturn {
       eventEmitter.off('p2p:peers-updated', handlePeerUpdate);
       eventEmitter.off('p2p-connection-established', handlePeerUpdate);
       eventEmitter.off('p2p-connection-lost', handlePeerUpdate);
+      eventEmitter.off(PATH_CHANGED_EVENT, handlePeerUpdate);
       eventEmitter.off('session:startup-complete', handlePeerUpdate);
     };
   }, [loadRegisteredPeers]);

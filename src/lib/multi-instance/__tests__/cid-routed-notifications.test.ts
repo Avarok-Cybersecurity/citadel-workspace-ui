@@ -53,6 +53,9 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     // No peer_cid on this one: the agent's failure answer carries the sender's
     // own cid, a reason, and a transport-frame request_id.
     MessageSendFailure: { cid: targetCid, message: 'Peer connection for 42 not found', request_id: 'r9' },
+    // The generated binding: { cid, peer_cid, path, upgrading, request_id }. Unsolicited, so
+    // request_id is always null and `cid` is the only route to the owning tab.
+    PeerPathChangedNotification: { cid: targetCid, peer_cid: senderCid, path: 'direct', upgrading: false, request_id: null },
     // The agent's server-link notifications (types/agent-reconnect.ts): no
     // request_id and no peer, so `cid` is the only way to the owning tab.
     ServerConnectionLost: { cid: targetCid, reconnecting: true, request_id: null },
@@ -89,6 +92,7 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
         'MessageNotification',
         'MessageSendFailure',
         'PeerConnectNotification',
+        'PeerPathChangedNotification',
         'PeerRegisterNotification',
         'ServerConnectionLost',
         'ServerReconnectFailed',

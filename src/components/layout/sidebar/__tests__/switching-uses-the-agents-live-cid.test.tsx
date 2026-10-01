@@ -34,8 +34,9 @@ vi.mock('@/lib/connection', async (importOriginal) => {
       getConnectionInfo: (): { cid: bigint } => ({ cid: 1n }),
       reloadStoredSessions: async (): Promise<{ sessions: typeof SESSIONS }> => { reloads.count += 1; return { sessions: SESSIONS }; },
       // Behind the edge `server_address` is the resolved address; `server_host` is what was typed.
-      getActiveSessionsResult: async (): Promise<{ ok: boolean; sessions: unknown[] }> => ({
+      getActiveSessionsResult: async (): Promise<{ ok: boolean; sessions: unknown[]; signedOut: [] }> => ({
         ok: true,
+        signedOut: [],
         sessions: [{ cid: 42n, username: 'bob', server_address: '104.16.0.1:443', server_host: 'acme.work.example.net' }],
       }),
     }),

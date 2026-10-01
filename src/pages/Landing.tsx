@@ -24,6 +24,7 @@ import { useLinkedLogin } from './use-account-link';
 import { useJoinLink } from './use-join-link';
 import { useHasOrphanSessions } from './use-orphan-sessions';
 import { LazySettingsModal } from '@/components/LazySettingsModal';
+import { SignedOutNotice } from '@/components/signed-out/SignedOutNotice';
 
 export const Landing: () => JSX.Element = (): JSX.Element => {
   const navigate: NavigateFunction = useNavigate();
@@ -190,6 +191,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
           </div>
 
           <CreateWorkspaceCta />
+          <SignedOutNotice />
           <div className="mt-6 flex items-center gap-4">
             <ManageAccountsButton />
             <div className="w-[1px] h-4 bg-border" />

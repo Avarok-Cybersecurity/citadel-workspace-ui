@@ -24,7 +24,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { StoredSession, StoredSessions } from '@/types/session-types';
 import type { ActiveSessionsResult } from '@/lib/connection/queries';
 
-let queryResult: ActiveSessionsResult = { ok: true, sessions: [] };
+let queryResult: ActiveSessionsResult = { ok: true, sessions: [], signedOut: [] };
 const stored: StoredSessions = {
   sessions: [
     { username: 'alice', serverAddress: 'srv', password: 'p' },
@@ -53,7 +53,7 @@ describe('the reconnect poll', () => {
   beforeEach(() => {
     scheduled = [];
     attempts = new Map<string, unknown>();
-    queryResult = { ok: true, sessions: [] };
+    queryResult = { ok: true, sessions: [], signedOut: [] };
   });
 
   const run = (): Promise<void> =>
@@ -68,7 +68,7 @@ describe('the reconnect poll', () => {
     );
 
   it('schedules nothing when the session query failed', async () => {
-    queryResult = { ok: false, sessions: [] };
+    queryResult = { ok: false, sessions: [], signedOut: [] };
     await run();
     expect(
       scheduled,
@@ -79,7 +79,7 @@ describe('the reconnect poll', () => {
   it('still schedules when the query genuinely reports nothing active', async () => {
     // The discrimination. A poll that scheduled nothing on both answers would
     // be safe and useless — auto-reconnect would never fire at all.
-    queryResult = { ok: true, sessions: [] };
+    queryResult = { ok: true, sessions: [], signedOut: [] };
     await run();
     expect(scheduled.sort()).toEqual(['alice@srv', 'bob@srv']);
   });

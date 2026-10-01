@@ -96,7 +96,7 @@ describe('asking which sessions exist', () => {
     const result: ActiveSessionsResult = await getActiveSessionsResult(state as never, io as never);
 
     expect(result.ok).toBe(true);
-    expect(state.cachedForTest()).toEqual([]);
+    expect(state.cachedForTest()).toEqual({ sessions: [], signedOut: [] });
   });
 });
 

@@ -14,6 +14,7 @@ import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 import type { Peer, PeerInfoResponse, PendingRequestEntry } from './types';
 import { PEER_LIST_TIMEOUT } from './constants';
 import { wireMapValues } from '@/lib/wire-map';
+import { assertAgentHoldsSession } from './session-held-gate';
 
 // One implementation, in lib/p2p/current-cid. This copy had the same four
 // steps and the same 500ms timeout under a different constant name.
@@ -35,6 +36,7 @@ export async function listAllPeers(
 ): Promise<PeerInfoResponse[]> {
   const currentCid: bigint | null = await getCurrentCid();
   assertValidSession(currentCid);
+  await assertAgentHoldsSession(currentCid);
 
   const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   broadcastChannelService.registerRequest(requestId, currentCid);
@@ -78,6 +80,7 @@ export async function listRegisteredPeers(
   const currentCid: bigint | null = await getCurrentCid();
   debugLog('P2PRegistrationService', `[P2P] listRegisteredPeers: currentCid=${currentCid?.toString() ?? 'null'}`);
   assertValidSession(currentCid);
+  await assertAgentHoldsSession(currentCid);
 
   const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   broadcastChannelService.registerRequest(requestId, currentCid);

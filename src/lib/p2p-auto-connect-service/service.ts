@@ -59,7 +59,7 @@ export class P2PAutoConnectService {
         type: 'connected-peers-update',
         localCid: localCid.toString(),
         peerCid: peerCid.toString(),
-        path: this.state.getPeerConnectionInfo(localCid, peerCid)?.path ?? null,
+        route: this.state.getPeerConnectionInfo(localCid, peerCid)?.route ?? null,
       }, localCid);
     }
   }

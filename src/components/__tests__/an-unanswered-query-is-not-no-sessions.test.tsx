@@ -16,9 +16,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useLiveSessions, type LiveSessions } from '../account-live-status';
 
-const answer: { ok: boolean; sessions: { cid: bigint; username: string; server_address: string }[] } = {
+const answer: { ok: boolean; sessions: { cid: bigint; username: string; server_address: string }[]; signedOut: { cid: bigint; username: string; reason: string }[] } = {
   ok: true,
   sessions: [],
+  signedOut: [],
 };
 
 vi.mock('@/lib/connection', () => ({
@@ -30,6 +31,7 @@ vi.mock('@/lib/connection', () => ({
 beforeEach((): void => {
   answer.ok = true;
   answer.sessions = [];
+  answer.signedOut = [];
 });
 
 describe('asking which sessions are live', () => {
@@ -78,5 +80,17 @@ describe('asking which sessions are live', () => {
 
     expect(result.current.sessions).toHaveLength(1);
     expect(result.current.sessions?.[0].username).toBe('alice');
+  });
+
+  it('carries the signed-out accounts from an answer, and none from a failure', async () => {
+    const gaveUp: { cid: bigint; username: string; reason: string } = { cid: 7n, username: 'alice', reason: 'CID not registered to this node' };
+    answer.signedOut = [gaveUp];
+    const { result } = renderHook((): LiveSessions => useLiveSessions());
+    await act(async () => { await result.current.load(); });
+    expect(result.current.signedOut).toEqual([gaveUp]);
+
+    answer.ok = false;
+    await act(async () => { await result.current.load(); });
+    expect(result.current.signedOut).toEqual([]);
   });
 });

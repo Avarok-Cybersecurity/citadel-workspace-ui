@@ -37,6 +37,9 @@ vi.mock('@/lib/connection', async (importOriginal) => {
         removed.push({ username, serverAddress });
       },
       removeAllSessions: async (): Promise<void> => { cleared += 1; },
+      // The dialog reads the list from the agent on open and waits for it
+      // (the-account-list-waits-for-its-read); answered at once here.
+      reloadStoredSessions: async (): Promise<void> => {},
     }),
   };
 });
@@ -61,7 +64,7 @@ describe('removing one saved account', () => {
 
   it('does not remove it on the first click', async (): Promise<void> => {
     await open();
-    await userEvent.click(screen.getByLabelText(/Delete saved account ada/i));
+    await userEvent.click(await screen.findByLabelText(/Delete saved account ada/i));
     expect(removed).toEqual([]);
   });
 
@@ -69,7 +72,7 @@ describe('removing one saved account', () => {
     // Positive control: the guard must not block a confirmed removal, and the
     // account removed must be the one that was asked about.
     await open();
-    await userEvent.click(screen.getByLabelText(/Delete saved account ada/i));
+    await userEvent.click(await screen.findByLabelText(/Delete saved account ada/i));
     await userEvent.click(screen.getByRole('button', { name: 'Remove' }));
     expect(removed).toEqual([{ username: 'ada', serverAddress: 'wss://one' }]);
   });
@@ -80,7 +83,7 @@ describe('clearing every saved account', () => {
 
   it('does not clear them on the first click', async (): Promise<void> => {
     await open();
-    await userEvent.click(screen.getByRole('button', { name: /Clear Saved Accounts/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /Clear Saved Accounts/i }));
     expect(cleared).toBe(0);
   });
 });

@@ -24,7 +24,7 @@ vi.mock('@/lib/connection', async (importOriginal: () => Promise<{ connectionMan
     ...actual,
     connectionManager: Object.assign(Object.create(actual.connectionManager), {
       getStoredSessionsArray: (): [] => [],
-      getActiveSessionsResult: async (): Promise<{ ok: true; sessions: ActiveSession[] }> => ({ ok: true, sessions: LIVE }),
+      getActiveSessionsResult: async (): Promise<{ ok: true; sessions: ActiveSession[]; signedOut: [] }> => ({ ok: true, sessions: LIVE, signedOut: [] }),
       // A resumed tab: the connection names nobody.
       getConnectionInfo: (): null => null,
       getTabSelectedSession: async (): Promise<null> => null,
