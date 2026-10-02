@@ -42,6 +42,7 @@ import type { MemberActionBlocks } from './member-actions-gate';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { useLevelName } from '@/hooks/use-level-name';
 import { blocksForMember } from '@/lib/member-access';
+import { roleLabel } from '@/components/shared/RoleIcon';
 /** Role badge classes. Defined once in lib/role-badge so the sidebar and user
  *  search cannot drift apart again — they already had, and only one was fixed. */
 export function getRoleColor(role: string): string {
@@ -49,9 +50,6 @@ export function getRoleColor(role: string): string {
 }
 
 
-export function capitalizeRole(role: string): string {
-  return role.charAt(0).toUpperCase() + role.slice(1);
-}
 
 interface MembersSectionModalsProps {
   currentNodeId: string | null;
@@ -147,7 +145,7 @@ export function MembersSectionModals({
                       {member.title && <p className="text-xs text-foreground/80" data-testid="member-title">{member.title}</p>}
                       {member.email && <p className="text-xs text-muted-foreground" data-testid="member-email">{member.email}</p>}
                     </div>
-                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
+                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-xs`}>{roleLabel(member.role || 'member')}</Badge>
                   </div>
                   {currentUsername !== member.username && (
                     <DropdownMenu>
