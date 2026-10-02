@@ -10,15 +10,18 @@ import type {
   AccountPreferences,
   NotificationPreview,
   PeerRetention,
+  PeerSecurityMinimum,
   Retention as AgentRetention,
 } from 'citadel-internal-service-wasm-client';
 import type { PrivacySettings } from '../privacy-settings';
-import type { Retention } from '../p2p/chat-advanced-settings';
+import type { ChatSecurityLevel, Retention } from '../p2p/chat-advanced-settings';
 
 export interface PreferenceSources {
   privacy: () => PrivacySettings;
   /** This chat's retention period, as the chat settings hold it. */
   retentionFor: (ownCid: bigint, peerCid: bigint) => Promise<Retention>;
+  /** This chat's encryption level: the agent declines offers below it when it answers. */
+  levelFor: (ownCid: bigint, peerCid: bigint) => Promise<ChatSecurityLevel>;
   /** The peers this account has conversations with. */
   peers: () => bigint[];
 }
@@ -44,6 +47,12 @@ export async function accountPreferences(
       retention: toAgentRetention(await sources.retentionFor(ownCid, peer_cid)),
     })),
   );
+  const minimums: PeerSecurityMinimum[] = await Promise.all(
+    sources.peers().map(async (peer_cid: bigint): Promise<PeerSecurityMinimum> => ({
+      peer_cid,
+      level: await sources.levelFor(ownCid, peer_cid),
+    })),
+  );
   return {
     send_read_receipts: privacy.sendReadReceipts,
     accept_requests_from_strangers: privacy.acceptRequestsFromStrangers,
@@ -51,5 +60,7 @@ export async function accountPreferences(
     notification_preview: preview,
     // Only the chats that expire: a chat absent from the list keeps everything.
     retention: retention.filter((r: PeerRetention): boolean => r.retention !== 'Forever'),
+    // Only the chats above Standard: a chat absent from the list admits every offer.
+    security_minimums: minimums.filter((m: PeerSecurityMinimum): boolean => m.level !== 'Standard'),
   };
 }

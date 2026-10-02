@@ -4,7 +4,9 @@
  * The level is read when a channel opens, so a link already up stays at the
  * old level until it is re-opened. A paused contact is saved but not dialled:
  * that would break the pause. The fakes stand in for the three I/O
- * boundaries only -- the settings store, the pause record, and the P2P link.
+ * boundaries only -- the settings store, the agent, the pause record, and the
+ * P2P link. The agent is told before any redial: it answers the peer's offers
+ * for this account, and must not admit a re-offer at the old level.
  */
 import { describe, it, expect } from 'vitest';
 import { changeChatLevel, chatLevelStatus, type ChatLevelChangeDeps, type ChatLevelResult } from '../chat-level-change';
@@ -24,6 +26,7 @@ function fakes(connected: boolean, pause: PauseStatus): Recorded {
         stored = { ...stored, ...change };
         return stored;
       },
+      tellAgent: async (): Promise<void> => { calls.push('tell'); },
       pauseStatus: async (): Promise<PauseStatus> => pause,
       link: {
         isConnected: (): boolean => connected,
@@ -38,7 +41,7 @@ describe('changing a chat encryption level', () => {
   it('saves it, then drops and redials a live link once', async () => {
     const f: Recorded = fakes(true, 'active');
     const result: ChatLevelResult = await changeChatLevel(f.deps, 1n, 2n, 'High');
-    expect(f.calls).toEqual(['save:High', 'drop', 'reconnect']);
+    expect(f.calls).toEqual(['save:High', 'tell', 'drop', 'reconnect']);
     expect(result.settings.securityLevel).toBe('High');
     expect(chatLevelStatus(result)).toMatch(/Reconnected at High/);
   });
@@ -46,20 +49,20 @@ describe('changing a chat encryption level', () => {
   it('only saves when no link is up', async () => {
     const f: Recorded = fakes(false, 'active');
     const result: ChatLevelResult = await changeChatLevel(f.deps, 1n, 2n, 'Extreme');
-    expect(f.calls).toEqual(['save:Extreme']);
+    expect(f.calls).toEqual(['save:Extreme', 'tell']);
     expect(chatLevelStatus(result)).toMatch(/next connection .* uses Extreme/);
   });
 
   it('never dials a paused contact', async () => {
     const f: Recorded = fakes(true, 'paused');
     const result: ChatLevelResult = await changeChatLevel(f.deps, 1n, 2n, 'High');
-    expect(f.calls).toEqual(['save:High']);
+    expect(f.calls).toEqual(['save:High', 'tell']);
     expect(chatLevelStatus(result)).toMatch(/paused/);
   });
 
   it('treats an unreadable pause record as paused', async () => {
     const f: Recorded = fakes(true, 'unknown');
     await changeChatLevel(f.deps, 1n, 2n, 'Reinforced');
-    expect(f.calls).toEqual(['save:Reinforced']);
+    expect(f.calls).toEqual(['save:Reinforced', 'tell']);
   });
 });
