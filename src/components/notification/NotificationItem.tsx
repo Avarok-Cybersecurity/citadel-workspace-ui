@@ -1,17 +1,11 @@
 import { useState } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
-import { MessageSquare, Users, Bell } from 'lucide-react';
-import { 
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle 
-} from '@/components/ui/card';
+import { MessageSquare, Users, Bell, X } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/components/chat/shared/formatters';
+import { cn } from '@/lib/utils';
 import NotificationService, { 
   Notification, 
   NotificationType 
@@ -52,20 +46,18 @@ const NotificationItem: ({ notification }: NotificationItemProps) => JSX.Element
     }
   };
   
-  // Get border color based on priority
-  const getBorderColor: () => "border-destructive" | "border-primary-accent" | "border-border" = (): "border-destructive" | "border-primary-accent" | "border-border" => {
+  // Priority shows on the leading chip only.
+  const chipTone: () => string = (): string => {
     switch (notification.priority) {
       case 'high':
-        return 'border-destructive';
+        return 'text-destructive';
       case 'normal':
-        return 'border-primary-accent';
-      case 'low':
-        return 'border-border';
+        return 'text-primary-accent';
       default:
-        return 'border-border';
+        return 'text-muted-foreground';
     }
   };
-  
+
   // Handle card click (for PEER_REGISTRATION cards, opens the modal)
   const handleCardClick = (e: React.MouseEvent): void => {
     // Don't trigger if clicking buttons or the dismiss X
@@ -89,91 +81,90 @@ const NotificationItem: ({ notification }: NotificationItemProps) => JSX.Element
   // key mismatch: the message pipeline supplied `onOpen`.)
   const isClickable: boolean = typeof notification.data?.onCardClick === 'function';
 
+  // A flat row, not a framed card. getBorderColor used to paint the WHOLE 1px
+  // border with the priority colour on top of a 4px left bar and the Card's
+  // shadow, so every notice sat in a glowing outline. Priority now tints only
+  // the leading chip; the row itself is neutral.
   return (
     <Card
       onClick={handleCardClick}
-      className={`bg-surface border-l-4 ${getBorderColor()}
-        hover:bg-surface transition-colors duration-200
-        ${notification.read ? 'opacity-80' : 'opacity-100'}
-        ${isClickable ? 'cursor-pointer' : ''}`}
+      data-priority={notification.priority}
+      className={cn(
+        'group relative flex gap-3 rounded-lg border border-border bg-surface px-3.5 py-3 text-foreground shadow-none transition-colors duration-150',
+        isClickable && 'cursor-pointer hover:border-primary-accent/40 hover:bg-muted/40',
+      )}
     >
-      <CardHeader className="pb-2 pt-3 px-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="bg-card p-1 rounded-full">
-              {getNotificationIcon()}
-            </div>
-            <CardTitle className="text-sm font-medium text-foreground">
-              {notification.title}
-            </CardTitle>
-          </div>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            className="tap-target h-6 w-6 text-muted-foreground hover:text-foreground"
-            onClick={handleDismiss}
+      {notification.senderName ? (
+        <Avatar className="h-9 w-9 shrink-0">
+          {/* Decorative: the notification title carries the sender. Initials from the
+              name -- the id is a CID, and its first two digits read as "53". */}
+          <AvatarImage src="" alt="" />
+          <AvatarFallback className="bg-muted text-foreground text-xs font-medium">
+            {getInitials(notification.senderName)}
+          </AvatarFallback>
+        </Avatar>
+      ) : (
+        <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted', chipTone())} aria-hidden="true">
+          {getNotificationIcon()}
+        </span>
+      )}
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start gap-2">
+          <h3 className="min-w-0 flex-1 truncate text-sm font-semibold leading-5 text-foreground">
+            {notification.title}
+          </h3>
+          <time
+            className="shrink-0 text-xs leading-5 text-muted-foreground"
+            dateTime={new Date(notification.timestamp).toISOString()}
+            title={exactTime}
           >
-            <span className="sr-only">Dismiss</span>
-            <span aria-hidden="true">&times;</span>
+            {formattedTime}
+          </time>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="tap-target -mr-1 h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground reveal-on-hover"
+            onClick={handleDismiss}
+            aria-label="Dismiss"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
           </Button>
         </div>
-        <CardDescription 
-          className="text-xs text-muted-foreground"
-          title={exactTime}
-        >
-          {formattedTime}
-        </CardDescription>
-      </CardHeader>
-      
-      <CardContent className="px-4 py-2">
-        <div className="flex items-start space-x-3">
-          {notification.senderName && (
-            <Avatar className="h-8 w-8">
-              {/* Decorative: the notification title carries the sender. Initials from the
-                  name -- the id is a CID, and its first two digits read as "53". */}
-              <AvatarImage src="" alt="" />
-              <AvatarFallback className="bg-surface text-foreground text-xs">
-                {getInitials(notification.senderName)}
-              </AvatarFallback>
-            </Avatar>
-          )}
-          
-          <div className="flex-1">
-            <p className={`text-sm ${isExpanded ? '' : 'line-clamp-2'}`}>
-              {notification.content}
-            </p>
-            
-            {notification.content.length > 100 && (
-              <Button 
-                variant="link" 
+
+        <p className={cn('mt-0.5 break-words text-sm leading-5 text-foreground/80', !isExpanded && 'line-clamp-2')}>
+          {notification.content}
+        </p>
+
+        {notification.content.length > 100 && (
+          <Button
+            variant="link"
+            size="sm"
+            className="mt-1 h-auto p-0 text-xs text-primary-accent"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            {isExpanded ? 'Show less' : 'Show more'}
+          </Button>
+        )}
+
+        {notification.actionButtons && notification.actionButtons.length > 0 && (
+          <div className="mt-3 flex justify-end gap-2">
+            {notification.actionButtons.map(action => (
+              <Button
+                key={action.id}
+                variant={action.variant || 'default'}
                 size="sm"
-                className="p-0 h-auto text-xs mt-1 text-primary-accent"
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={() => {
+                  action.onClick();
+                  handleDismiss();
+                }}
               >
-                {isExpanded ? 'Show less' : 'Show more'}
+                {action.label}
               </Button>
-            )}
+            ))}
           </div>
-        </div>
-      </CardContent>
-      
-      {notification.actionButtons && notification.actionButtons.length > 0 && (
-        <CardFooter className="px-4 py-2 flex justify-end space-x-2">
-          {notification.actionButtons.map(action => (
-            <Button
-              key={action.id}
-              variant={action.variant || 'default'}
-              size="sm"
-              onClick={() => {
-                action.onClick();
-                handleDismiss();
-              }}
-            >
-              {action.label}
-            </Button>
-          ))}
-        </CardFooter>
-      )}
+        )}
+      </div>
     </Card>
   );
 };
