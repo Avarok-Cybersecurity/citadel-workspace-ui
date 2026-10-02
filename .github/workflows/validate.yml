@@ -33,6 +33,16 @@ env:
   COMPOSE_PROJECT_NAME: citadel-workspace
 
 jobs:
+  # Jobs whose runs-on is the long `vars.CITADEL_MAC_RUNNER` expression may run on
+  # the self-hosted Apple Silicon runners (`apple-48gb-metal`, two slots shared
+  # with the parent, agent and SDK repositories). They are the ones that need
+  # neither Docker, apt nor sudo: the typecheck matrix routes only its
+  # integration-tests leg, because the citadel-workspaces leg builds WASM in
+  # `docker compose` and installs Chromium with apt. Unset, the org variable sends
+  # every one of them back to ubuntu-latest. The same-repo clause is mandatory:
+  # this repository is public, and a fork's pull request must never execute on
+  # that machine. The parent's scripts/check-mac-runner-is-fork-safe.mjs, run by
+  # the lint job below, refuses any other spelling.
   # Which revision of the parent supplies this repo's build layout and gate scripts.
   #
   # Pinning this to the parent's default branch makes a coordinated change across the
@@ -48,7 +58,11 @@ jobs:
   parent-ref:
     name: Resolve parent ref
     timeout-minutes: 5
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ vars.CITADEL_MAC_RUNNER == '1'
+          && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+          && fromJSON('["self-hosted","macOS","ARM64","apple-48gb-metal"]')
+          || 'ubuntu-latest' }}
     outputs:
       ref: ${{ steps.pick.outputs.ref }}
     steps:
@@ -76,7 +90,11 @@ jobs:
     # Observed the same work as the parent job, 6m there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
     timeout-minutes: 25
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ vars.CITADEL_MAC_RUNNER == '1'
+          && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+          && fromJSON('["self-hosted","macOS","ARM64","apple-48gb-metal"]')
+          || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: parent
@@ -142,7 +160,12 @@ jobs:
     # Observed the same work as the parent job, under a minute there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
     timeout-minutes: 15
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ matrix.project == 'integration-tests'
+          && vars.CITADEL_MAC_RUNNER == '1'
+          && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+          && fromJSON('["self-hosted","macOS","ARM64","apple-48gb-metal"]')
+          || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -416,7 +439,11 @@ jobs:
     # Observed the same work as the parent job, 1m there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
     timeout-minutes: 15
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ vars.CITADEL_MAC_RUNNER == '1'
+          && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+          && fromJSON('["self-hosted","macOS","ARM64","apple-48gb-metal"]')
+          || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -546,6 +573,12 @@ jobs:
         if: matrix.project == 'citadel-workspaces'
         run: npm run check:parent-ref
         working-directory: parent/citadel-workspaces
+
+      - name: No fork's pull request can reach the self-hosted Mac
+        if: matrix.project == 'citadel-workspaces'
+        # The parent's gate, run from the parent checkout: it reads this
+        # repository's workflow at parent/citadel-workspaces/.github/workflows.
+        run: node scripts/check-mac-runner-is-fork-safe.mjs && node --test scripts/lib/mac-runner-routing.test.mjs
 
   playwright-tests:
     # The cheap gates first. Both of these bring up the full Docker stack --
