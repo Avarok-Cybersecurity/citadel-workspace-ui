@@ -52,8 +52,8 @@ function getReadStatusIcon(status: ReadStatus): JSX.Element | null {
       // Amber/yellow for partial reads
       return <CheckCheck className="h-3 w-3 text-warning-emphasis" data-testid="message-status-partial" />;
     case 'all_read':
-      // Blue for all read
-      return <CheckCheck className="h-3 w-3 text-primary-accent" data-testid="message-status-all-read" />;
+      // Blue, as the comment always said; it was primary-accent, which is purple.
+      return <CheckCheck className="h-3.5 w-3.5 text-read-receipt" strokeWidth={2.5} data-testid="message-status-all-read" aria-label="Seen by everyone" />;
     default:
       return null;
   }

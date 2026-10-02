@@ -24,7 +24,7 @@ function getMessageStatusIcon(message: P2PMessage): JSX.Element | null {
     case 'delivered':
       return <CheckCheck className="h-3 w-3 text-muted-foreground" data-testid="message-status-delivered" />;
     case 'read':
-      return <CheckCheck className="h-3 w-3 text-primary-accent" data-testid="message-status-read" />;
+      return <CheckCheck className="h-3.5 w-3.5 text-read-receipt" strokeWidth={2.5} data-testid="message-status-read" aria-label="Seen" />;
     case 'failed':
       return <XCircle className="h-3 w-3 text-destructive" data-testid="message-status-failed" />;
     default:

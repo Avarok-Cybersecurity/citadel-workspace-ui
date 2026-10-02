@@ -15,8 +15,11 @@
  * here: this site used to build `Peer <first 8 CID digits>` of its own, which
  * is the exact rendering that module exists to abolish, and which disagreed
  * with the two other hand-rolled variants elsewhere in the app.
+ * When the conversation does not know the username, the name comes from the
+ * roster (`roster-peer-name`), as it does for calls and group messages.
  */
-import { peerDisplayName } from '@/lib/peer-display';
+import { isPlaceholderName, peerDisplayName } from '@/lib/peer-display';
+import { rosterPeerName } from '@/lib/roster-peer-name';
 import { eventEmitter } from '../event-emitter';
 import type { MessageHandlerConfig } from './message-handler-types';
 import type { P2PMessage, P2PConversation } from './p2p-types';
@@ -36,7 +39,11 @@ export function notifyMessageArrived(
   if (!config.shouldShowNotification(peerCid)) return;
 
   const conversation: P2PConversation | undefined = config.getConversations().get(peerCid);
-  const peerUsername: string = peerDisplayName({ cid: peerCid, username: conversation?.peerUsername });
+  const known: string | undefined = conversation?.peerUsername;
+  // A conversation opened by an inbound message has no username yet, which
+  // titled the toast "New message from Peer D7U2E0" beside a sidebar row
+  // reading "Thomas Braun". The roster is where that name lives.
+  const peerUsername: string = isPlaceholderName(known) ? rosterPeerName(peerCid) : peerDisplayName({ cid: peerCid, username: known });
 
   config.addNotification(
     `New message from ${peerUsername}`,

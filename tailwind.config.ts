@@ -112,6 +112,7 @@ export default {
           // bg-success/20 tint -- the "Active" badge.
           emphasis: "hsl(var(--success-emphasis))",
         },
+        "read-receipt": "hsl(var(--read-receipt))",
         warning: {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
