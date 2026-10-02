@@ -24,17 +24,16 @@ export function roleLabel(role: string): string {
 
 interface RoleIconProps {
   role: string;
-  className?: string;
 }
 
-export function RoleIcon({ role, className }: RoleIconProps): JSX.Element {
+export function RoleIcon({ role }: RoleIconProps): JSX.Element {
   const Icon: LucideIcon = ROLE_ICON[role.toLowerCase()] ?? User;
   return (
     <span
       role="img"
       aria-label={roleLabel(role)}
       data-role={role.toLowerCase()}
-      className={cn(roleBadgeClass(role), 'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full', className)}
+      className={cn(roleBadgeClass(role), 'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full')}
     >
       <Icon className="h-3 w-3" aria-hidden="true" strokeWidth={2.25} />
     </span>
