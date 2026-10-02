@@ -202,6 +202,10 @@ class InstanceManager {
     return registry.findInstanceByCid(this.knownInstances, cid);
   }
 
+  findInstancesByCid(cid: bigint): string[] {
+    return registry.findInstancesByCid(this.knownInstances, cid);
+  }
+
   getAllInstances(): InstanceInfo[] {
     return registry.getAllInstances(this.knownInstances);
   }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,11 +20,13 @@ import { notificationBelongsTo } from '@/lib/notification-service/types';
 import { connectionManager } from '@/lib/connection';
 import { eventEmitter } from '@/lib/event-emitter';
 import { conversationHref } from '@/components/layout/sidebar/active-conversation';
+import { useLinkTargetOpener } from './use-link-target';
 import { useLocation, type Location } from 'react-router-dom';
 import { useGuardedNavigate, type GuardedNavigate } from '@/hooks/use-guarded-navigate';
 
 const NotificationCenter: () => JSX.Element = (): JSX.Element => {
   const [open, setOpen] = useState(false);
+  const openPanel: () => void = useCallback((): void => setOpen(true), []);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | NotificationType>('all');
   const [sessionCid, setSessionCid] = useState<string | null>(null);
@@ -51,7 +53,8 @@ const NotificationCenter: () => JSX.Element = (): JSX.Element => {
       },
     );
   }, [navigate, location.pathname, location.search]);
-  
+  useLinkTargetOpener(openPanel);
+
   const notificationService: NotificationService = NotificationService.getInstance();
   
   // Get counts of different notification types

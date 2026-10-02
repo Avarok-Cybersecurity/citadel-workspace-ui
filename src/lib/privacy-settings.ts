@@ -101,6 +101,12 @@ export function savePrivacySettings(settings: PrivacySettings): void {
   window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: settings }));
 }
 
+/** Call `listener` whenever this tab saves new settings; answers the unsubscribe. */
+export function onPrivacySettingsSaved(listener: () => void): () => void {
+  window.addEventListener(CHANGE_EVENT, listener);
+  return () => window.removeEventListener(CHANGE_EVENT, listener);
+}
+
 /** Drop the cache when another tab changes the settings. */
 export function initPrivacySettingsSync(): () => void {
   const onStorage = (e: StorageEvent): void => {

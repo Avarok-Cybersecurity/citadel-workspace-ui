@@ -11,15 +11,17 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { NavigateFunction } from 'react-router';
-import { offerTakeover, takeoverPrompt } from '@/lib/sessions/claim-session';
+import { offerTakeover, takeoverPrompt } from '@/lib/sessions/takeover';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { LazyTakeoverSignIn as TakeoverSignIn } from '@/components/LazyTakeoverSignIn';
 import { Button } from '@/components/ui/button';
+import { agentHostsConversations } from '@/lib/agent-conversations/capabilities';
 
 export interface HeldElsewhere {
   /** Whose session is held elsewhere, or null when none is. */
   username: string | null;
-  offer: (username: string) => void;
+  /** `declined` runs when the user does not take it back. */
+  offer: (username: string, declined?: () => void) => void;
   /** What the loader shows instead of its spinner. */
   notice: JSX.Element;
 }
@@ -29,13 +31,16 @@ export function useHeldElsewhere(): HeldElsewhere {
   const navigate: NavigateFunction = useNavigate();
   const [username, setUsername] = useState<string | null>(null);
   const [signingInAs, setSigningInAs] = useState<string | null>(null);
+  // Joinable beside the other window when the agent hosts the account (0.8.6).
+  const [joinable, setJoinable] = useState<boolean>(false);
 
-  const offer: (name: string) => void = useCallback((name: string): void => {
+  const offer: (name: string, declined?: () => void) => void = useCallback((name: string, declined?: () => void): void => {
     setUsername(name);
-    void offerTakeover(name, { confirm, signInAs: setSigningInAs });
+    void agentHostsConversations().then(setJoinable);
+    void offerTakeover(name, { confirm, signInAs: setSigningInAs, declined });
   }, [confirm]);
 
-  const prompt: ReturnType<typeof takeoverPrompt> | null = username === null ? null : takeoverPrompt(username);
+  const prompt: ReturnType<typeof takeoverPrompt> | null = username === null ? null : takeoverPrompt(username, joinable);
   const notice: JSX.Element = (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background px-4" data-testid="session-held-elsewhere">
       <div className="flex max-w-md flex-col items-center space-y-4 text-center">

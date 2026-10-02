@@ -61,6 +61,11 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     ServerConnectionLost: { cid: targetCid, reconnecting: true, request_id: null },
     ServerReconnected: { cid: targetCid, request_id: null },
     ServerReconnectFailed: { cid: targetCid, reason: 'The server did not accept the session', request_id: null },
+    // Multi-window (agent 0.8.6). A conversation change goes to every window of
+    // the account; its request_id, when set, is the asking window's send, and
+    // routed by it the event would consume the pending entry its answer needs.
+    ConversationEvent: { cid: targetCid, peer_cid: senderCid, seq: 1, kind: 'Appended', message: null, message_id: 'm1', metadata: null, account_username: 'bob', peer_username: 'alice', preview: 'hi', request_id: 'r10' },
+    SessionRoleNotification: { cid: targetCid, role: 'Secondary', attached: 2, request_id: null },
   };
 
   it('has a test fixture for every CID-routed notification type', () => {
@@ -83,6 +88,7 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     // adding one is a deliberate edit in two places.
     expect([...CID_ROUTED_NOTIFICATIONS].sort()).toEqual(
       [
+        'ConversationEvent',
         'FileTransferRequestNotification',
         'FileTransferStatusNotification',
         'FileTransferTickNotification',
@@ -97,6 +103,7 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
         'ServerConnectionLost',
         'ServerReconnectFailed',
         'ServerReconnected',
+        'SessionRoleNotification',
       ].sort(),
     );
   });

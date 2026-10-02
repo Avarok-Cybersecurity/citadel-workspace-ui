@@ -17,7 +17,8 @@
  * redelivers whatever is still in its persisted inbound map, and that need not
  * all fall inside the newest 50 messages.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import { greetAs } from '@/lib/agent-conversations/__tests__/agent-greeting';
 import { MESSAGES_PER_PAGE, type MessagePage, type ConversationMetadata, type P2PMessage } from '../p2p-types';
 
 const pages: Map<string, MessagePage> = new Map<string, MessagePage>();
@@ -69,6 +70,9 @@ async function append(m: P2PMessage): Promise<void> {
   );
 }
 
+
+// The browser-written store is the path for an agent before 0.8.6; this tab's socket greeted one.
+beforeAll(() => greetAs('older'));
 describe('a duplicate arriving as a page fills', () => {
   beforeEach((): void => {
     pages.clear();

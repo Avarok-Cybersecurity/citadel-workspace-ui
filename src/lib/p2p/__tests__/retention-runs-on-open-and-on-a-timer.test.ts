@@ -7,58 +7,8 @@
  * and the timer; the settings store is real, over an in-memory port.
  */
 import { describe, it, expect } from 'vitest';
-import { createRetention, type RetentionDeps } from '../retention-runner';
-import { ChatAdvancedSettingsStore, type ChatAdvancedSettings, type ChatSettingsStorage } from '../chat-advanced-settings';
-import type { ConversationMetadata, MessagePage, P2PMessage } from '../p2p-types';
-
-const OWN: bigint = 1n;
-const BOB: bigint = 2n;
-const CAROL: bigint = 3n;
-const DAY: number = 24 * 60 * 60 * 1000;
-const NOW: number = Date.UTC(2026, 8, 25);
-
-function memory(): ChatSettingsStorage {
-  const raw: Map<string, unknown> = new Map();
-  return { get: async (k: string): Promise<unknown> => raw.get(k), put: async (k: string, v: ChatAdvancedSettings): Promise<void> => { raw.set(k, v); } };
-}
-
-function conversation(peer: bigint, ages: number[]): { meta: ConversationMetadata; page: MessagePage } {
-  const messages: P2PMessage[] = ages.map((age: number, i: number) => ({
-    id: `${peer}-${i}`, content: '', senderCid: peer, recipientCid: OWN, timestamp: NOW - age * DAY, index: i, status: 'delivered', message_type: 'text',
-  }) as P2PMessage);
-  const times: number[] = messages.map((m: P2PMessage) => m.timestamp);
-  return {
-    meta: { peerCid: peer, ownerCid: OWN, totalMessageCount: messages.length, oldestMessageTimestamp: Math.min(...times), newestMessageTimestamp: Math.max(...times), latestPage: 0, messagesPerPage: 50, unreadCount: 0, lastMessageIndex: 0, lastUpdated: 0 },
-    page: { peerCid: peer, pageNumber: 0, messages, pageTimestamps: { minTimestamp: Math.min(...times), maxTimestamp: Math.max(...times) } },
-  };
-}
-
-interface Rig { deps: RetentionDeps; data: Map<bigint, { meta: ConversationMetadata; page: MessagePage }>; expired: Array<[bigint, number]>; timers: Array<() => void>; store: ChatAdvancedSettingsStore }
-
-function rig(): Rig {
-  const data: Map<bigint, { meta: ConversationMetadata; page: MessagePage }> = new Map([[BOB, conversation(BOB, [10, 1])], [CAROL, conversation(CAROL, [10, 1])]]);
-  const expired: Array<[bigint, number]> = [];
-  const timers: Array<() => void> = [];
-  const store: ChatAdvancedSettingsStore = new ChatAdvancedSettingsStore(memory());
-  const deps: RetentionDeps = {
-    now: (): number => NOW,
-    currentCid: async (): Promise<bigint | null> => OWN,
-    settings: store,
-    peers: (): bigint[] => [BOB, CAROL],
-    lock: <T>(_peer: bigint, op: () => Promise<T>): Promise<T> => op(),
-    onExpired: (peer: bigint, cutoff: number): void => { expired.push([peer, cutoff]); },
-    every: (_ms: number, tick: () => void): (() => void) => { timers.push(tick); return (): void => {}; },
-    io: {
-      loadMetadata: async (peer: bigint): Promise<ConversationMetadata | null> => structuredClone(data.get(peer)?.meta ?? null),
-      loadPage: async (peer: bigint): Promise<MessagePage | null> => structuredClone(data.get(peer)?.page ?? null),
-      savePage: async (peer: bigint, _n: number, p: MessagePage): Promise<void> => { const d: { meta: ConversationMetadata; page: MessagePage } | undefined = data.get(peer); if (d) d.page = structuredClone(p); },
-      saveMetadata: async (peer: bigint, m: ConversationMetadata): Promise<void> => { const d: { meta: ConversationMetadata; page: MessagePage } | undefined = data.get(peer); if (d) d.meta = structuredClone(m); },
-    },
-  };
-  return { deps, data, expired, timers, store };
-}
-
-const count = (r: Rig, peer: bigint): number => r.data.get(peer)?.page.messages.length ?? -1;
+import { createRetention } from '../retention-runner';
+import { rig, count, OWN, BOB, CAROL, DAY, NOW, type Rig } from './retention-rig';
 
 describe('applying retention', () => {
   it('prunes one chat by its own period and tells the open view', async () => {

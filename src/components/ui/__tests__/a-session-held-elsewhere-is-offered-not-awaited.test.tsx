@@ -7,7 +7,7 @@
  * its I/O injected, by claim-on-start.test.ts. Everything the loader does with
  * the answer is production code: the prompt, the notice, the sign-in.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
@@ -23,6 +23,11 @@ vi.mock('../use-auto-claim-session', async () => {
 });
 
 import { WorkspaceLoader } from '../workspace-loader';
+import { greetAs } from '@/lib/agent-conversations/__tests__/agent-greeting';
+
+// The agent that refused the claim greeted this tab's socket first, as every
+// agent does; this one predates agent hosting, so the takeover is the offer.
+beforeAll(() => greetAs('older'));
 
 function renderLoader(): void {
   const state: WorkspaceState = { nodes: {}, members: {}, loading: { workspace: true, members: false, nodes: false } } as unknown as WorkspaceState;

@@ -24,6 +24,7 @@ import {
   handleOpenMessengerProxy,
   handleEnsureMessengerProxy,
   handleSendP2PMessageProxy,
+  handleAgentCapabilitiesProxy,
 } from './leader-proxy-handlers';
 import { debugLog } from '@/lib/debug-config';
 import { requiresILM } from './ilm-policy';
@@ -160,6 +161,10 @@ class LeaderOutboundHandler {
       }
       if (request.payload?.__sendP2PMessageProxy) {
         await handleSendP2PMessageProxy(request, this.sendAck.bind(this));
+        return;
+      }
+      if (request.payload?.__agentCapabilitiesProxy) {
+        await handleAgentCapabilitiesProxy(request, this.sendAck.bind(this));
         return;
       }
 

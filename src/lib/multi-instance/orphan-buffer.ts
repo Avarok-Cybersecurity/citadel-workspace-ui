@@ -36,6 +36,8 @@ export interface OrphanedMessage {
   requestId?: string;
   /** The instance the forward targeted, so the fallback can unregister a ghost. */
   targetInstanceId?: string;
+  /** Every tab the same message went to, so a ghost's timeout does not deliver it twice. */
+  fanOut?: string[];
 }
 
 /**
@@ -53,6 +55,7 @@ export type FallbackHandler = (
   message: Record<string, unknown>,
   messageType: string,
   targetInstanceId?: string,
+  fanOut?: string[],
 ) => void;
 
 /**
@@ -76,14 +79,14 @@ export class OrphanBuffer {
     cid: string,
     message: Record<string, unknown>,
     messageType: string,
-    forward?: { requestId: string; targetInstanceId: string },
+    forward?: { requestId: string; targetInstanceId: string; fanOut: string[] },
   ): void {
     const fallbackTimer: NodeJS.Timeout = setTimeout((): void => {
       this.removeByTimer(cid, fallbackTimer);
       debugLog('OrphanBuffer',
         `Orphan buffer timeout for CID ${cid} (${messageType}); falling back to local processing`,
       );
-      this.onFallback(message, messageType, forward?.targetInstanceId);
+      this.onFallback(message, messageType, forward?.targetInstanceId, forward?.fanOut);
     }, this.timeoutMs);
 
     const entry: OrphanedMessage = { message, messageType, fallbackTimer, ...forward };

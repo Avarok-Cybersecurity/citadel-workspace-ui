@@ -20,6 +20,7 @@ vi.mock('@/lib/multi-instance/instance-manager', () => ({
     instanceId: 'leader-tab',
     leaderId: 'leader-tab',
     findInstanceByCid: (cid: bigint): string | null => (cid === FOLLOWER_CID ? 'follower-tab' : null),
+    findInstancesByCid: (cid: bigint): string[] => (cid === FOLLOWER_CID ? ['follower-tab'] : []),
     registerInstance: (): void => {},
   },
 }));

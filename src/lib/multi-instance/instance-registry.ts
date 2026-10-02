@@ -57,11 +57,20 @@ export function unregisterInstance(registry: InstanceRegistry, instanceId: strin
  * live: an account link reopened a closed tab's session and its workspace never loaded.
  */
 export function findInstanceByCid(registry: InstanceRegistry, cid: bigint): string | null {
-  let latest: string | null = null;
+  return findInstancesByCid(registry, cid).at(-1) ?? null;
+}
+
+/**
+ * Every tab holding `cid`, in registration order. Several tabs of one browser
+ * can hold the same account (agent 0.8.6); each of them renders what is
+ * addressed to it.
+ */
+export function findInstancesByCid(registry: InstanceRegistry, cid: bigint): string[] {
+  const holders: string[] = [];
   for (const [instanceId, instanceCid] of registry) {
-    if (instanceCid === cid) latest = instanceId;
+    if (instanceCid === cid) holders.push(instanceId);
   }
-  return latest;
+  return holders;
 }
 
 export function getAllInstances(registry: InstanceRegistry): InstanceInfo[] {

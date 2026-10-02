@@ -7,6 +7,7 @@
 import type { P2PMessage, P2PConversation } from './p2p-types';
 import type { P2PAttachment } from '@/types/p2p-types';
 import type { MessageType } from '@/types/message-protocol';
+import type { AgentActionDeps } from '../agent-conversations/agent-actions';
 
 export interface SendMessageOptions {
   replyTo?: string;
@@ -53,4 +54,6 @@ export interface MessageSenderConfig {
   isConnected: (peerCid: bigint) => boolean;
   /** Try to ensure peer is ready (non-blocking) */
   tryEnsurePeerReady: (peerCid: bigint) => Promise<boolean>;
+  /** The agent's seam, for an account it hosts (agent-conversations/agent-actions). */
+  agent: () => AgentActionDeps;
 }

@@ -36,12 +36,12 @@ const instanceChannelMock: {
 
 const instanceManagerMock: {
   instanceId: string;
-  findInstanceByCid: ReturnType<typeof vi.fn<(cid: bigint) => string | null>>;
+  findInstancesByCid: ReturnType<typeof vi.fn<(cid: bigint) => string[]>>;
   getAllInstances: ReturnType<typeof vi.fn>;
   registerInstance: ReturnType<typeof vi.fn>;
 } = vi.hoisted(() => ({
   instanceId: 'leader-instance',
-  findInstanceByCid: vi.fn<(cid: bigint) => string | null>(),
+  findInstancesByCid: vi.fn<(cid: bigint) => string[]>(),
   getAllInstances: vi.fn(() => [] as Array<{ instanceId: string; cid: bigint | null }>),
   registerInstance: vi.fn(),
 }));
@@ -86,7 +86,7 @@ describe('a group notification is delivered by the router, once', () => {
 
   for (const type of GROUP_NOTIFICATIONS) {
     it(`${type} is forwarded to the owning tab and reported as delivered`, () => {
-      instanceManagerMock.findInstanceByCid.mockReturnValue('follower-instance');
+      instanceManagerMock.findInstancesByCid.mockReturnValue(['follower-instance']);
 
       const delivered: boolean = instanceInboundRouter.routeMessage({
         [type]: { cid: '12345', peer_cid: '99', request_id: null },
@@ -103,7 +103,7 @@ describe('a group notification is delivered by the router, once', () => {
     // The negative control for the verdict: a router that returned a constant
     // `true` would satisfy every assertion above, and would then suppress the
     // broadcast that is this message's only remaining chance of arriving.
-    instanceManagerMock.findInstanceByCid.mockReturnValue(null);
+    instanceManagerMock.findInstancesByCid.mockReturnValue([]);
 
     const delivered: boolean = instanceInboundRouter.routeMessage({
       GroupInviteNotification: { cid: '999', peer_cid: '99', request_id: null },

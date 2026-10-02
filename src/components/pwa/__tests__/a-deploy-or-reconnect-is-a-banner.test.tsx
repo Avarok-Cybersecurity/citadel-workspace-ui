@@ -37,6 +37,7 @@ vi.mock('@/lib/tab-context', () => ({
 import { eventEmitter } from '@/lib/event-emitter';
 import { OfflineBanner } from '../OfflineBanner';
 import { ServerReconnectWatcher } from '@/components/ServerReconnectWatcher';
+import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { clearDeployNoticeForTests, offerDeployNotice } from '@/lib/pwa/deploy-notice';
 import { reconnectingTo } from '@/lib/reconnect/server-reconnect';
 import { saveDraft, clearAllDraftsForTests } from '@/lib/chat/draft-store';
@@ -49,11 +50,14 @@ function Where(): JSX.Element {
 
 function renderApp(): void {
   render(
-    <MemoryRouter initialEntries={['/workspace']}>
-      <OfflineBanner />
-      <ServerReconnectWatcher />
-      <Routes><Route path="*" element={<Where />} /></Routes>
-    </MemoryRouter>,
+    // As App mounts it: inside the confirm provider, which leaving asks through.
+    <ConfirmDialogProvider>
+      <MemoryRouter initialEntries={['/workspace']}>
+        <OfflineBanner />
+        <ServerReconnectWatcher />
+        <Routes><Route path="*" element={<Where />} /></Routes>
+      </MemoryRouter>
+    </ConfirmDialogProvider>,
   );
 }
 

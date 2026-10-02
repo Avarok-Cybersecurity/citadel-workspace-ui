@@ -13,6 +13,7 @@ import type { P2PMessage, P2PConversation, MessageCache } from './p2p-types';
 import { messagePaginationStore } from './message-pagination-store';
 import { debugLog } from '@/lib/debug-config';
 import { clearSessionState } from './reset-conversations';
+import { holdMessage } from './conversation-memory';
 import type { ConversationMetadata } from '@/lib/p2p/p2p-types';
 
 export interface ConversationManagerConfig {
@@ -83,30 +84,20 @@ export class ConversationManager {
   }
 
   public async addMessageToConversation(peerCid: bigint, message: P2PMessage): Promise<boolean> {
-    const conversation: P2PConversation = this.getOrCreateConversation(peerCid);
-
-    if (conversation.messages.find(m => m.id === message.id)) {
-      debugLog('ConversationManager', '[P2P] Duplicate message detected, skipping add:', message.id);
-      return false;
-    }
-
-    // Paired with [LOSS-DIAG] in message-handler-routing: records what the
-    // conversation held before and after, so a message that is added here but
-    // absent from the rendered list can be told apart from one that never
-    // arrived. See the reconnect entry in WORKSPACE_IMPLEMENTATION_GAPS.
-    debugLog(
-      'ConversationManager',
-      `[LOSS-DIAG] adding id=${message.id} to peer=${peerCid.toString().slice(0, 8)} ` +
-        `had=${conversation.messages.length}`,
+    if (!(await this.holdInMemory(peerCid, message))) return false;
+    await messagePaginationStore.appendMessageToPage(
+      peerCid,
+      message,
+      () => this.config.getCurrentCid(),
+      () => this.cache.conversations.get(peerCid)?.peerUsername
     );
+    return true;
+  }
 
-    conversation.messages.push(message);
-    conversation.lastMessageIndex = Math.max(conversation.lastMessageIndex, message.index);
-    conversation.messages.sort((a, b) => a.timestamp - b.timestamp);
-
-    if (conversation.messages.length > this.cache.maxMessagesPerConversation) {
-      conversation.messages.splice(0, conversation.messages.length - this.cache.maxMessagesPerConversation);
-    }
+  /** The window half alone: for a message the agent has already stored. */
+  public async holdInMemory(peerCid: bigint, message: P2PMessage): Promise<boolean> {
+    const conversation: P2PConversation = this.getOrCreateConversation(peerCid);
+    if (!holdMessage(this.cache, conversation, message)) return false;
 
     // The badge every sidebar reads lives on the in-memory conversation, and
     // nothing incremented it -- only resets and decrements existed. So a message
@@ -121,23 +112,7 @@ export class ConversationManager {
     if (message.senderCid !== currentCid && message.status === 'delivered') {
       conversation.unreadCount += 1;
     }
-
-    this.updateMessageQueue(message);
-    await messagePaginationStore.appendMessageToPage(
-      peerCid,
-      message,
-      () => this.config.getCurrentCid(),
-      () => this.cache.conversations.get(peerCid)?.peerUsername
-    );
-
     return true;
-  }
-
-  private updateMessageQueue(message: P2PMessage): void {
-    this.cache.messageQueue.push(message);
-    if (this.cache.messageQueue.length > this.cache.maxQueueSize) {
-      this.cache.messageQueue.splice(0, this.cache.messageQueue.length - this.cache.maxQueueSize);
-    }
   }
 
   public getConversation(peerCid: bigint): P2PConversation | undefined {

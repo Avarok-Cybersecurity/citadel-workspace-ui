@@ -28,6 +28,7 @@ describe('forward retention and ack', () => {
     buffer.push('cid-1', MSG, 'MessageNotification', {
       requestId: 'req-1',
       targetInstanceId: 'tab-b',
+      fanOut: ['tab-b'],
     });
     expect(buffer.ack('req-1')).toBe(true);
 
@@ -44,12 +45,13 @@ describe('forward retention and ack', () => {
     buffer.push('cid-1', MSG, 'MessageNotification', {
       requestId: 'req-1',
       targetInstanceId: 'ghost-tab',
+      fanOut: ['ghost-tab'],
     });
     vi.advanceTimersByTime(2001);
 
     // The instance id is what lets the router unregister a ghost; without it
     // every later message to that CID pays the same timeout again.
-    expect(fallback).toHaveBeenCalledWith(MSG, 'MessageNotification', 'ghost-tab');
+    expect(fallback).toHaveBeenCalledWith(MSG, 'MessageNotification', 'ghost-tab', ['ghost-tab']);
   });
 
   it('an unknown or repeated ack is a harmless no-op', () => {
@@ -59,6 +61,7 @@ describe('forward retention and ack', () => {
     buffer.push('cid-1', MSG, 'MessageNotification', {
       requestId: 'req-1',
       targetInstanceId: 'tab-b',
+      fanOut: ['tab-b'],
     });
 
     // Every tab sees the ack event; only the leader holds entries, so misses
@@ -72,8 +75,8 @@ describe('forward retention and ack', () => {
     const fallback: ReturnType<typeof vi.fn> = vi.fn();
     const buffer: OrphanBuffer = new OrphanBuffer(fallback, 2000);
 
-    buffer.push('cid-1', MSG, 'A', { requestId: 'req-1', targetInstanceId: 'tab-b' });
-    buffer.push('cid-1', MSG, 'B', { requestId: 'req-2', targetInstanceId: 'tab-b' });
+    buffer.push('cid-1', MSG, 'A', { requestId: 'req-1', targetInstanceId: 'tab-b', fanOut: ['tab-b'] });
+    buffer.push('cid-1', MSG, 'B', { requestId: 'req-2', targetInstanceId: 'tab-b', fanOut: ['tab-b'] });
 
     buffer.ack('req-1');
     vi.advanceTimersByTime(2001);
@@ -81,7 +84,7 @@ describe('forward retention and ack', () => {
     // A burst to one tab shares a CID bucket; releasing one entry must not
     // release its neighbours.
     expect(fallback).toHaveBeenCalledTimes(1);
-    expect(fallback).toHaveBeenCalledWith(MSG, 'B', 'tab-b');
+    expect(fallback).toHaveBeenCalledWith(MSG, 'B', 'tab-b', ['tab-b']);
   });
 
   it('orphan pushes with no forward context still work unchanged', () => {
@@ -91,6 +94,6 @@ describe('forward retention and ack', () => {
     buffer.push('cid-1', MSG, 'MessageNotification');
     vi.advanceTimersByTime(2001);
 
-    expect(fallback).toHaveBeenCalledWith(MSG, 'MessageNotification', undefined);
+    expect(fallback).toHaveBeenCalledWith(MSG, 'MessageNotification', undefined, undefined);
   });
 });

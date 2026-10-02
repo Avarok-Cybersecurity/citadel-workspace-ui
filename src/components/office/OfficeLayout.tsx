@@ -125,6 +125,7 @@ export const OfficeLayout = ({
       <SettingsModal
         open={showSettingsModal}
         onOpenChange={setShowSettingsModal}
+        tab="general"
       />
     </div>
   );

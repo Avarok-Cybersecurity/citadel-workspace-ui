@@ -8,7 +8,7 @@
  *
  * These assert at the send points, which is where the promise is kept or broken.
  */
-import { describe, it, expect, vi, beforeEach     } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrivacySettings } from '@/lib/privacy-settings';
 import type { PresenceManager } from '@/lib/p2p/presence-manager';
 import {
@@ -122,6 +122,8 @@ describe('read receipts', () => {
       JSON.stringify({ ...DEFAULT_PRIVACY_SETTINGS, sendReadReceipts }),
     );
     vi.resetModules();
+    // A fresh module graph is a fresh tab: it learns again which agent it talks to.
+    await (await import('@/lib/agent-conversations/__tests__/agent-greeting')).greetAs('older');
     const { markMessagesAsRead } = await import('../p2p/messenger-compatibility');
 
     const message: { id: string; senderCid: bigint; status: "delivered"; } = { id: 'm1', senderCid: 7n, status: 'delivered' as const };

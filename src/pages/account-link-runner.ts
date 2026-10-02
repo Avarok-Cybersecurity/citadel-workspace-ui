@@ -7,6 +7,7 @@ import { readLastAccessed } from '@/lib/sessions/last-accessed';
 import { switchToSession, type SwitchCallbacks } from '@/lib/sessions/switch-to-session';
 import { debugLog } from '@/lib/debug-config';
 import { parseAccountLink, type AccountLink } from '@/lib/onboarding/account-link';
+import { stashLinkTarget } from '@/lib/onboarding/link-target';
 import { openAccountLink } from '@/lib/onboarding/open-account-link';
 import type { OrphanSessionWithWorkspace } from '@/components/useOrphanSessions';
 import { TIMEOUT } from '@/lib/timeout-constants';
@@ -27,6 +28,8 @@ export async function runAccountLink(
     debugLog('Landing', 'Ignoring a malformed account link');
     return;
   }
+  // Taken by the workspace once it is open (NotificationCenter, TopBar).
+  if (link.open) stashLinkTarget(link.open);
   await openAccountLink<OrphanSessionWithWorkspace>(link, {
     listSessions: async () => {
       await connectionManager.waitForReady();

@@ -6,6 +6,7 @@
  */
 
 import { requestResponse } from './request-response';
+import { endingHereWhile } from '../sessions/ending-here';
 import { debugLog, errorLog } from '../debug-config';
 import { TIMEOUT } from '../timeout-constants';
 
@@ -40,7 +41,8 @@ export class DisconnectOperations {
 
     debugLog('DisconnectOperations', 'Sending Disconnect request', request);
 
-    await requestResponse<true>({
+    // Marked while it asks: its own answer is not "signed out in another window" (sessions/session-ended.ts).
+    await endingHereWhile(cid, async (): Promise<void> => { await requestResponse<true>({
       request, requestId, timeoutMs: TIMEOUT.DISCONNECT_REQUEST_MS,
       sendRequest: this.config.sendRequest,
       operationName: 'Disconnect',
@@ -86,7 +88,7 @@ export class DisconnectOperations {
           return undefined;
         },
       },
-    });
+    }); });
   }
 
   /**
@@ -104,7 +106,8 @@ export class DisconnectOperations {
 
     debugLog('DisconnectOperations', 'Sending Deregister request', request);
 
-    await requestResponse<true>({
+    // Marked while it asks: its own answer is not "signed out in another window" (sessions/session-ended.ts).
+    await endingHereWhile(cid, async (): Promise<void> => { await requestResponse<true>({
       request, requestId, timeoutMs: TIMEOUT.DISCONNECT_REQUEST_MS,
       sendRequest: this.config.sendRequest,
       operationName: 'Deregister',
@@ -129,6 +132,6 @@ export class DisconnectOperations {
           return undefined;
         },
       },
-    });
+    }); });
   }
 }

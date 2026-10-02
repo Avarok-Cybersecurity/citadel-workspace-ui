@@ -18,6 +18,7 @@
 import { websocketService } from '../websocket-service';
 import { instanceManager } from '../multi-instance';
 import { debugLog } from '../debug-config';
+import { agentHostsConversations } from '../agent-conversations/capabilities';
 
 export type ClaimOutcome =
   /** The session was orphaned and is now ours. */
@@ -69,6 +70,12 @@ async function heldHere(cid: bigint): Promise<boolean> {
   }
 }
 
+/** The silent rejoin, loaded only when a session is held elsewhere (off the landing path). */
+async function rejoinWithToken(cid: bigint): Promise<boolean> {
+  const { browserAttach, joinWithRememberedToken } = await import('./attach-session');
+  return joinWithRememberedToken(browserAttach, cid);
+}
+
 /** Does another instance already own this CID? */
 function otherTabOwns(cid: bigint): string | null {
   const owner: string | null = instanceManager.findInstanceByCid(cid);
@@ -91,13 +98,22 @@ export async function claimSessionForThisTab(cid: bigint): Promise<ClaimOutcome>
       throw error;
     }
 
+    // With an agent that hosts the account, several tabs may hold it at once:
+    // the router hands every one of them what is addressed to the session, and
+    // none of them writes the store. An older agent's browser ILM allows one.
     const owner: string | null = otherTabOwns(cid);
-    if (owner) {
+    if (owner && !(await agentHostsConversations())) {
       debugLog('ClaimSession', `${cid} is owned by instance ${owner}; not adopting`);
       return { status: 'owned-by-another-tab', instanceId: owner };
     }
 
     if (!(await heldHere(cid))) {
+      // A browser that opened this session here once before joins again, beside
+      // the window that holds it, without being asked (agent 0.8.6).
+      if ((await agentHostsConversations()) && (await rejoinWithToken(cid))) {
+        debugLog('ClaimSession', `${cid} is live on another connection; joined it here too`);
+        return { status: 'already-active' };
+      }
       debugLog('ClaimSession', `${cid} is live on another connection; not adopting`);
       return { status: 'held-by-another-connection' };
     }
@@ -112,30 +128,3 @@ export const SESSION_OWNED_ELSEWHERE: { readonly title: "Already Open Elsewhere"
   description:
     'This session is open in another tab. Switch to it, or pick a different session here.',
 } as const;
-
-/** What to ask before moving a session another browser window holds. */
-export function takeoverPrompt(username: string): { title: string; description: string; confirmLabel: string } {
-  return {
-    title: `${username} is open in another browser window`,
-    description:
-      'Use it here instead? You will sign in with your password to move it to this window, ' +
-      'and the other window will stop receiving updates for this account.',
-    confirmLabel: 'Use it here',
-  };
-}
-
-export interface TakeoverCallbacks {
-  /** Ask before moving a session another browser window holds. */
-  confirm: (request: { title: string; description: string; confirmLabel: string }) => Promise<boolean>;
-  /** Open sign-in for this username: the password is the agent's only takeover door. */
-  signInAs: (username: string) => void;
-}
-
-/**
- * A session live on another connection cannot be claimed: the agent refuses
- * `only_if_orphaned: false` for it. Switching to one used to do nothing at all;
- * this asks, and on yes starts the password sign-in that moves it.
- */
-export async function offerTakeover(username: string, callbacks: TakeoverCallbacks): Promise<void> {
-  if (await callbacks.confirm(takeoverPrompt(username))) callbacks.signInAs(username);
-}

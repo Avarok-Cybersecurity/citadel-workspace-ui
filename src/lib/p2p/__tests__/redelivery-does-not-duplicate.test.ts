@@ -79,6 +79,8 @@ describe('recordAppend', () => {
 describe('appendMessageToPage', () => {
   it('writes a redelivered message once', async () => {
     vi.resetModules();
+    // A fresh module graph is a fresh tab: it learns again which agent it talks to.
+    await (await import('@/lib/agent-conversations/__tests__/agent-greeting')).greetAs('older');
 
     const pages: Map<string, MessagePage> = new Map<string, MessagePage>();
     let metadata: ConversationMetadata | undefined;

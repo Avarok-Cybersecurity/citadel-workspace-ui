@@ -39,7 +39,8 @@ vi.mock('@/lib/multi-instance', async (importOriginal: () => Promise<Record<stri
   instanceChannel: { announcePresence: (): void => {} },
 }));
 
-import { claimSessionForThisTab, takeoverPrompt } from '../claim-session';
+import { claimSessionForThisTab } from '../claim-session';
+import { takeoverPrompt } from '../takeover';
 import { switchToSession } from '../switch-to-session';
 import { instanceManager } from '@/lib/multi-instance';
 
@@ -74,8 +75,8 @@ describe('switching to it', () => {
     const signInAs: ReturnType<typeof vi.fn> = vi.fn();
     await switchToSession(target, { navigate: vi.fn(), toast: vi.fn(), confirm, signInAs });
 
-    expect(confirm).toHaveBeenCalledWith(takeoverPrompt('alice0924'));
-    expect(takeoverPrompt('alice0924').title).toBe('alice0924 is open in another browser window');
+    expect(confirm).toHaveBeenCalledWith(takeoverPrompt('alice0924', false));
+    expect(takeoverPrompt('alice0924', false).title).toBe('alice0924 is open in another browser window');
     expect(signInAs).toHaveBeenCalledWith('alice0924');
     expect(h.selected).toBe(0);
   });

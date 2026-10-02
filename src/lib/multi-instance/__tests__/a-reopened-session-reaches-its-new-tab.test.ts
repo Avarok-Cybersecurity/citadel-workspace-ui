@@ -58,12 +58,21 @@ describe('the leader routing an answer for the reopened session', () => {
     eventEmitter.emit('instance:leader-changed', { isLeader: true, leaderId: instanceManager.instanceId });
   });
 
-  it('forwards it to the new tab, not the closed one', () => {
+  // Every tab holding a session receives what is addressed to it (several tabs
+  // can be signed in to one account), so the new tab gets it. The closed tab's
+  // silence then retires it without handing the message to anyone a second time.
+  it('reaches the new tab, and the closed one\'s silence does not deliver it twice', () => {
     instanceManager.registerInstance('closed-tab-B', ERIN);
     instanceManager.registerInstance('new-tab-C', ERIN);
     const payload: string = JSON.stringify({ Response: { GetWorkspace: {} } });
     instanceInboundRouter.routeMessage({ MessageNotification: { cid: ERIN, peer_cid: 0n, request_id: null, message: Array.from(new TextEncoder().encode(payload)) } });
-    expect(forwarded).toEqual([{ to: 'new-tab-C', type: 'MessageNotification' }]);
+    expect(forwarded).toContainEqual({ to: 'new-tab-C', type: 'MessageNotification' });
+
+    const rerouted: string[] = [];
+    const fallback: ForwardFallback = makeForwardFallback(() => { throw new Error('not on the leader'); }, (_m, t): boolean => { rerouted.push(t); return true; });
+    fallback({ MessageNotification: {} }, 'MessageNotification', 'closed-tab-B', ['closed-tab-B', 'new-tab-C']);
+    expect(rerouted).toEqual([]);
+    expect(instanceManager.findInstancesByCid(ERIN)).toEqual(['new-tab-C']);
   });
 });
 

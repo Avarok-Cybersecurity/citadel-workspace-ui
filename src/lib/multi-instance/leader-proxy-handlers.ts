@@ -122,3 +122,12 @@ export async function handleSendP2PMessageProxy(
   sendAck(request.senderInstanceId, request.requestId, 'processed');
   debugLog('LeaderProxyHandlers', `sendP2PMessage proxy processed for ${request.requestId}`);
 }
+
+/** What this leader's socket was told by the agent: a follower has no socket to ask. */
+export async function handleAgentCapabilitiesProxy(
+  request: ProxyRequest,
+  sendAck: SendAckFn
+): Promise<void> {
+  const { agentHostsConversations } = await import('../agent-conversations/capabilities');
+  sendAck(request.senderInstanceId, request.requestId, 'processed', undefined, { agentIlm: await agentHostsConversations() });
+}

@@ -15,16 +15,21 @@ import { loadMetadata, loadMessagePage, saveMessagePage, saveMetadata } from './
 import { p2pMessengerManager } from './p2p-messenger-manager';
 import { eventEmitter } from '../event-emitter';
 import { errorLog } from '@/lib/debug-config';
+import { agentHostsConversations } from '../agent-conversations/capabilities';
+import { pushAccountPreferences } from '../agent-conversations/push-preferences';
+import { agentStore } from '../agent-conversations/agent-store';
 import type { P2PConversation } from './p2p-types';
 
 /** How often every chat is re-checked. An hour: periods are counted in days. */
 export const RETENTION_SWEEP_INTERVAL_MS: number = 60 * 60 * 1000;
 
+const peers = (): bigint[] => p2pMessengerManager.getAllConversations().map((c: P2PConversation): bigint => c.peerCid);
+
 const runner: RetentionRunner = createRetention({
   now: (): number => Date.now(),
   currentCid: getCurrentCid,
   settings: chatAdvancedSettings,
-  peers: (): bigint[] => p2pMessengerManager.getAllConversations().map((c: P2PConversation): bigint => c.peerCid),
+  peers,
   lock: withPeerLock,
   onExpired: (peerCid: bigint, cutoff: number): void => {
     const conversation: P2PConversation | undefined = p2pMessengerManager.getConversation(peerCid);
@@ -37,10 +42,20 @@ const runner: RetentionRunner = createRetention({
     return (): void => clearInterval(handle);
   },
   io: { loadMetadata, loadPage: loadMessagePage, savePage: saveMessagePage, saveMetadata },
+  agent: {
+    hosts: agentHostsConversations,
+    tell: (own: bigint): Promise<void> => pushAccountPreferences(own, peers),
+    count: async (peerCid: bigint): Promise<number> => (await agentStore.loadMetadata(peerCid))?.totalMessageCount ?? 0,
+  },
 });
 
 export function applyRetention(peerCid: bigint): Promise<number> {
   return runner.applyRetention(peerCid);
+}
+
+/** A chat's period was just changed: pruned here, or told to the agent that keeps the store. */
+export function retentionChanged(peerCid: bigint): Promise<number> {
+  return runner.retentionChanged(peerCid);
 }
 
 /**

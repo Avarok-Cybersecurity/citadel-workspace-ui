@@ -7,7 +7,8 @@
  * were: one event was never emitted at all, the other was emitted without the
  * 'p2p:' prefix the subscriber listens for.
  */
-import { describe, it, expect, vi   } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { greetAs } from '@/lib/agent-conversations/__tests__/agent-greeting';
 import { markMessagesAsRead } from '../messenger-compatibility';
 import type { P2PConversation, P2PMessage } from '../p2p-types';
 
@@ -17,6 +18,9 @@ function message(id: string, senderCid: bigint, status: P2PMessage['status']): P
   } as P2PMessage;
 }
 
+
+// The browser-written store is the path for an agent before 0.8.6; this tab's socket greeted one.
+beforeAll(() => greetAs('older'));
 describe('markMessagesAsRead', () => {
   const peerCid: bigint = 42n;
 
