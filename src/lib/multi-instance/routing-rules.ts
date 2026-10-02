@@ -20,6 +20,7 @@ import { AGENT_RECONNECT_NOTIFICATIONS, type AgentReconnectNotification } from '
 export const BROADCAST_MESSAGE_TYPES: string[] = [
   'DisconnectNotification', // Session disconnected
   'DeregisterSuccess', // Account deleted
+  'UpdateAvailable', // A newer agent: the agent's, not a session's (cid 0), so every tab
 ] satisfies ResponseType[];
 
 // Fields that commonly contain the target CID

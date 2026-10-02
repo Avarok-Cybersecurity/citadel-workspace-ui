@@ -7,6 +7,8 @@ import { useAgentRequired } from '@/lib/onboarding/agent-optional';
 import { reconnectingMessage, reconnectingTo } from '@/lib/reconnect/server-reconnect';
 import { DeployBanner, useDeployNotice } from './DeployBanner';
 import type { DeployNotice } from '@/lib/pwa/deploy-notice';
+import { AgentUpdateBanner, useAgentUpdate } from '@/components/agent-update/AgentUpdateBanner';
+import type { AgentUpdate } from '@/lib/agent-update/update-state';
 
 /**
  * Tell the user when the device has lost connectivity.
@@ -38,13 +40,15 @@ export function OfflineBanner(): JSX.Element | null {
   const restarting: string | null = reconnectingServer ? reconnectingMessage(reconnectingServer) : shutdown;
   // A new build: its own row in the same stack, so the two never overlap.
   const deploy: DeployNotice | null = useDeployNotice();
+  // A newer local agent: also its own row, beside the site's own update.
+  const agentUpdate: AgentUpdate | null = useAgentUpdate();
   const ref: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   // Not on a page that works without the agent (creating a workspace), where
   // "can't reach the agent" describes nothing the visitor is trying to do.
   const agentRequired: boolean = useAgentRequired();
   const agentDown: boolean = isOnline && !isHealthy && agentRequired;
   const connectivity: boolean = Boolean(restarting) || !isOnline || justReconnected || agentDown;
-  const showing: boolean = connectivity || deploy !== null;
+  const showing: boolean = connectivity || deploy !== null || agentUpdate !== null;
 
   // Publish the stack's real height (deploy row included) so the layout can make room for it. It is
   // `fixed`, so it took no space and covered the first ~36px of BOTH the sidebar
@@ -96,6 +100,7 @@ export function OfflineBanner(): JSX.Element | null {
       ].join(' ')}
     >
       {deploy && <DeployBanner notice={deploy} />}
+      {agentUpdate && <AgentUpdateBanner update={agentUpdate} />}
       {connectivity && (
         <div
           // role="status" with a polite live region: announced to screen readers
