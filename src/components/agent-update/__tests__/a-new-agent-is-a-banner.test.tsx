@@ -6,13 +6,13 @@ import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AgentUpdateBanner, RESTART_WARNING } from '../AgentUpdateBanner';
 import { fromAvailable, type AgentUpdate } from '@/lib/agent-update/update-state';
-import { available, fakeUpdater } from '@/lib/agent-update/__tests__/fake-updater';
+import { available, fakeUpdater, type FakeUpdater } from '@/lib/agent-update/__tests__/fake-updater';
 
 const update = (ready: boolean): AgentUpdate => fromAvailable(available(ready)) as AgentUpdate;
 
 describe('the agent update banner', () => {
   it('asks before restarting, says accounts will sign in again, then asks the agent to install', async () => {
-    const agent = fakeUpdater(available(true));
+    const agent: FakeUpdater = fakeUpdater(available(true));
     agent.silent = true;
     render(<AgentUpdateBanner update={update(true)} />);
     expect(screen.getByTestId('agent-update-banner')).toHaveTextContent('Citadel Agent 0.9.0 is available');
@@ -26,7 +26,7 @@ describe('the agent update banner', () => {
   });
 
   it('cancelling the confirmation installs nothing', async () => {
-    const agent = fakeUpdater(available(true));
+    const agent: FakeUpdater = fakeUpdater(available(true));
     render(<AgentUpdateBanner update={update(true)} />);
     fireEvent.click(screen.getByTestId('agent-update-restart'));
     fireEvent.click(await screen.findByText('Cancel'));
@@ -34,7 +34,7 @@ describe('the agent update banner', () => {
   });
 
   it('shows why when the agent installed nothing', async () => {
-    const agent = fakeUpdater(available(true));
+    const agent: FakeUpdater = fakeUpdater(available(true));
     agent.status = { ...agent.status, last_error: 'Nothing was installed: Citadel Agent.app is not listening' };
     render(<AgentUpdateBanner update={update(true)} />);
     fireEvent.click(screen.getByTestId('agent-update-restart'));

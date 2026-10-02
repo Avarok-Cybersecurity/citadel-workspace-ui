@@ -55,18 +55,16 @@ function variant<T>(message: unknown, name: string): T | undefined {
   return typeof body === 'object' && body !== null ? (body as T) : undefined;
 }
 
-/** Apply an inbound agent message to the stores; true when it was an updater message. */
-export function applyUpdaterMessage(message: unknown): boolean {
+/** Apply an inbound agent message to the stores; anything not the updater's is left alone. */
+export function applyUpdaterMessage(message: unknown): void {
   const available: UpdateAvailable | undefined = variant<UpdateAvailable>(message, 'UpdateAvailable');
   if (available) {
     agentUpdate.set(fromAvailable(available));
-    return true;
+    return;
   }
   const status: UpdateStatus | undefined = variant<UpdateStatus>(message, 'UpdateStatus');
   if (status) {
     updaterSettings.set(fromStatus(status));
     agentUpdate.set(status.available ? fromAvailable(status.available) : null);
-    return true;
   }
-  return false;
 }

@@ -4,6 +4,7 @@
  * release links.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
+import type { UpdateStatus } from 'citadel-internal-service-wasm-client';
 import { agentUpdate, applyUpdaterMessage, isReleaseLink, updaterSettings } from '../update-state';
 import { available, RELEASE } from './fake-updater';
 
@@ -11,7 +12,7 @@ beforeEach(() => { agentUpdate.set(null); updaterSettings.set(null); });
 
 describe('updater messages', () => {
   it('an UpdateAvailable broadcast, wrapped or not, becomes the update shown', () => {
-    expect(applyUpdaterMessage({ Response: { UpdateAvailable: available(true) } })).toBe(true);
+    applyUpdaterMessage({ Response: { UpdateAvailable: available(true) } });
     expect(agentUpdate.get()).toMatchObject({ latest: '0.9.0', current: '0.8.8', ready: true });
     applyUpdaterMessage({ UpdateAvailable: available(false, '0.9.1') });
     expect(agentUpdate.get()).toMatchObject({ latest: '0.9.1', ready: false });
@@ -19,8 +20,8 @@ describe('updater messages', () => {
 
   it('a status answer sets the settings and the update, and clears an update that is gone', () => {
     applyUpdaterMessage({ UpdateAvailable: available(true) });
-    const status = { cid: 0n, current: '0.9.0', available: null, auto_install: false, last_checked: 5n, last_error: 'offline', request_id: 'r' };
-    expect(applyUpdaterMessage({ UpdateStatus: status })).toBe(true);
+    const status: UpdateStatus = { cid: 0n, current: '0.9.0', available: null, auto_install: false, last_checked: 5n, last_error: 'offline', request_id: 'r' };
+    applyUpdaterMessage({ UpdateStatus: status });
     expect(updaterSettings.get()).toEqual({ current: '0.9.0', autoInstall: false, lastChecked: 5n, lastError: 'offline' });
     expect(agentUpdate.get()).toBeNull();
   });
@@ -34,8 +35,10 @@ describe('updater messages', () => {
   });
 
   it('anything else is left alone', () => {
-    expect(applyUpdaterMessage({ MessageNotification: { cid: 1n } })).toBe(false);
-    expect(applyUpdaterMessage(null)).toBe(false);
-    expect(agentUpdate.get()).toBeNull();
+    applyUpdaterMessage({ UpdateAvailable: available(true) });
+    applyUpdaterMessage({ MessageNotification: { cid: 1n } });
+    applyUpdaterMessage(null);
+    expect(agentUpdate.get()).toMatchObject({ latest: '0.9.0' });
+    expect(updaterSettings.get()).toBeNull();
   });
 });
