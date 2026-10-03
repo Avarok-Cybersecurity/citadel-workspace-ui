@@ -15,6 +15,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { startRevfs, revfsWhenReady, forgetRevfsLoad } from '../revfs-loader';
 import type { RevfsIODeps } from '../revfs-io';
+// The engine the loader fetches on demand, transformed now, at collection, which
+// no test timeout measures. Cold, that transform was the 1.1 s of "reports the
+// engine once started", and a loaded runner took it past 5 s. The loader's own
+// import() still runs; it resolves from the module cache.
+import '../index';
 
 function deps(): RevfsIODeps {
   return {

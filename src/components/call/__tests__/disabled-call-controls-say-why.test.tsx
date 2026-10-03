@@ -17,6 +17,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CallControls } from '../CallControls';
+import { CallStage } from '../CallStage';
 
 const MEDIA: { audio: boolean; video: boolean; screen: boolean } = {
   audio: true,
@@ -116,7 +117,6 @@ describe('the stage naming who holds the screen', () => {
     // browser returns a promise. Stubbed here rather than guarded in the
     // component: the guard would exist only for this test.
     HTMLMediaElement.prototype.play = (): Promise<void> => Promise.resolve();
-    const { CallStage } = await import('../CallStage');
     const remote: MediaStream = { getTracks: (): unknown[] => [] } as unknown as MediaStream;
 
     render(

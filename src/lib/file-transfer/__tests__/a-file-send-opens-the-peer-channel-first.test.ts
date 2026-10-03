@@ -37,6 +37,7 @@ import { sendFileWithNativePicker } from '../send-with-native-picker';
 import { openPeerChannelViaAutoConnect, FILE_SEND_CONNECT_TIMEOUT_MS } from '../open-peer-channel';
 import { buildTransferAnnouncement } from '../transfer-announcement';
 import type { FileTransfer } from '../types';
+import { fileTransferService } from '../service';
 
 function deps(opened: boolean): LifecycleDeps {
   return {
@@ -85,7 +86,6 @@ describe('a file send', () => {
   });
 
   it('is wired to the auto-connect opener in the service every send goes through', async () => {
-    const { fileTransferService } = await import('../service');
     // `deps` is private; read here because the wiring is exactly what broke.
     expect((fileTransferService as unknown as { deps: LifecycleDeps }).deps.openPeerChannel).toBe(openPeerChannelViaAutoConnect);
   });

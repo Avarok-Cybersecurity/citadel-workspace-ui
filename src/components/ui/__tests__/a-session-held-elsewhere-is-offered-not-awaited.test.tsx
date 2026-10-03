@@ -24,6 +24,9 @@ vi.mock('../use-auto-claim-session', async () => {
 
 import { WorkspaceLoader } from '../workspace-loader';
 import { greetAs } from '@/lib/agent-conversations/__tests__/agent-greeting';
+// What "Use it here" lazy-loads, fetched and transformed now, at collection,
+// rather than inside the test after the click.
+import '@/components/TakeoverSignIn';
 
 // The agent that refused the claim greeted this tab's socket first, as every
 // agent does; this one predates agent hosting, so the takeover is the offer.
@@ -54,6 +57,6 @@ describe('a session another browser holds', () => {
     renderLoader();
     await screen.findByRole('alertdialog');
     fireEvent.click(screen.getByRole('button', { name: 'Use it here' }));
-    expect(await screen.findByDisplayValue('alice0924', {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('alice0924')).toBeInTheDocument();
   });
 });

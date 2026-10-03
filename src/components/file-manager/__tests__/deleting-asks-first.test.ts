@@ -15,6 +15,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import type { RevfsNode } from '@/types/revfs-types';
+import { useFileManagerHandlers } from '../useFileManagerHandlers';
 
 let answer: boolean = true;
 vi.mock('@/components/shared/confirm-dialog', () => ({
@@ -44,8 +45,7 @@ function node(path: string, type: 'directory' | 'file'): RevfsNode {
   return { path, name: path.split('/').pop() ?? path, type, children: [] } as unknown as RevfsNode;
 }
 
-async function handlers(): Promise<ReturnType<typeof import('../useFileManagerHandlers')['useFileManagerHandlers']>> {
-  const { useFileManagerHandlers } = await import('../useFileManagerHandlers');
+async function handlers(): Promise<ReturnType<typeof useFileManagerHandlers>> {
   const noop: () => void = (): void => {};
   const anoop: () => Promise<void> = async (): Promise<void> => {};
   const adone: () => Promise<boolean> = async (): Promise<boolean> => true;

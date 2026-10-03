@@ -12,6 +12,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { TakeoverSignIn } from '../TakeoverSignIn';
 import { greetAs } from '@/lib/agent-conversations/__tests__/agent-greeting';
+import { forgetCapabilities, leaderSocketFailedToOpen, registerCapabilityRoute } from '@/lib/agent-conversations/capabilities';
 
 function show(): void {
   render(
@@ -41,5 +42,15 @@ describe('a session another window holds', () => {
     show();
     expect(await screen.findByDisplayValue('alice0924', {}, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.queryByTestId('open-here-too')).toBeNull();
+  });
+
+  it('still reaches the sign-in when this tab leads and its socket fails to open', async () => {
+    // Blank for good, before: the leader's answer waited on a declaration that a
+    // socket which never opened does not make. Its submit reports the agent.
+    forgetCapabilities();
+    registerCapabilityRoute({ isLeader: () => true, askLeader: async () => { throw new Error('the leader does not ask itself'); } });
+    show();
+    leaderSocketFailedToOpen(new Error('WebSocket connection failed: ConnectionFailed { code: 1006 }'));
+    expect(await screen.findByDisplayValue('alice0924')).toBeInTheDocument();
   });
 });

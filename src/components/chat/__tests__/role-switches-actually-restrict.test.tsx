@@ -33,6 +33,10 @@ import type { GroupConversation } from '@/types/group';
 import type { GroupPermissions } from '@/types/group-permissions';
 import { DEFAULT_MEMBER_PERMISSIONS } from '@/types/group-permissions';
 import { groupRestriction, type GroupRestriction } from '../group-restriction';
+import { GroupChatHeader } from '../GroupChatHeader';
+import { GroupMemberManagement } from '../GroupMemberManagement';
+import { useGroupPermissions } from '@/hooks/use-group-permissions';
+import { GroupChatView } from '../GroupChatView';
 
 const SELF: bigint = 7n;
 const OWNER: bigint = 99n;
@@ -106,7 +110,6 @@ const BLINDED: GroupPermissions = { ...DEFAULT_MEMBER_PERMISSIONS, viewMemberLis
 
 describe('the viewMemberList switch', () => {
   it('hides the roster in the chat header, and shows it when permitted', async () => {
-    const { GroupChatHeader } = await import('../GroupChatHeader');
 
     const permitted: ReturnType<typeof render> = render(
       <GroupChatHeader
@@ -130,7 +133,6 @@ describe('the viewMemberList switch', () => {
   });
 
   it('replaces the settings roster with the reason', async () => {
-    const { GroupMemberManagement } = await import('../GroupMemberManagement');
 
     const permitted: ReturnType<typeof render> = render(
       <GroupMemberManagement
@@ -154,8 +156,6 @@ describe('the viewMemberList switch', () => {
 
 describe('the sendMessages switch', () => {
   it('replaces the composer with the reason, and leaves it alone when permitted', async () => {
-    const { useGroupPermissions } = await import('@/hooks/use-group-permissions');
-    const { GroupChatView } = await import('../GroupChatView');
 
     // Driven from the role itself rather than a literal, so this covers the
     // whole chain the defect broke: role -> can('sendMessages') -> composer.
@@ -193,8 +193,6 @@ describe('a user who is not in the member list', () => {
   }
 
   it('is told that, not that their role forbids it', async () => {
-    const { useGroupPermissions } = await import('@/hooks/use-group-permissions');
-    const { GroupChatView } = await import('../GroupChatView');
 
     const result: ReturnType<typeof useGroupPermissions> = renderHook(() =>
       useGroupPermissions(groupWithoutSelf()),
@@ -218,7 +216,6 @@ describe('a user who is not in the member list', () => {
   });
 
   it('sees the same distinction on the member list', async () => {
-    const { GroupMemberManagement } = await import('../GroupMemberManagement');
 
     render(
       <GroupMemberManagement
@@ -250,8 +247,6 @@ describe('a member whose roleId names no role we have', () => {
   }
 
   it('is told the role is missing, not that they lack permission', async () => {
-    const { useGroupPermissions } = await import('@/hooks/use-group-permissions');
-    const { GroupChatView } = await import('../GroupChatView');
 
     const result: ReturnType<typeof useGroupPermissions> = renderHook(() =>
       useGroupPermissions(groupWithDanglingRole()),

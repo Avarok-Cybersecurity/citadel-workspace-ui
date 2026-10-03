@@ -15,9 +15,12 @@
  * Real: the targeting rule, the envelope builder, the connection-state core. Stood in:
  * the BroadcastChannel (a recorder), because there is no second tab here.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { broadcastStateSync, stateSyncTarget } from '@/lib/broadcast-channel-service/broadcasting';
 import { AutoConnectState } from '../state';
+import { instanceManager } from '@/lib/multi-instance/instance-manager';
+import { broadcastChannelService } from '@/lib/broadcast-channel-service';
+import { p2pAutoConnectService } from '../index';
 
 const LEADER_SESSION: bigint = 7610457994796114930n;
 const FOLLOWER_SESSION: bigint = 14741090851496596846n;
@@ -57,13 +60,9 @@ describe('resetting connection state', () => {
 
 describe('the leader, marking a follower session connected', () => {
   it('addresses the update to that session', async () => {
-    const { vi } = await import('vitest');
-    const { instanceManager } = await import('@/lib/multi-instance/instance-manager');
     vi.spyOn(instanceManager, 'isLeader', 'get').mockReturnValue(true);
-    const { broadcastChannelService } = await import('@/lib/broadcast-channel-service');
     const sent: Array<{ data: unknown; about: bigint | undefined }> = [];
     vi.spyOn(broadcastChannelService, 'broadcastStateSync').mockImplementation((data: unknown, about?: bigint): void => { sent.push({ data, about }); });
-    const { p2pAutoConnectService } = await import('../index');
     p2pAutoConnectService.setPeerConnected(FOLLOWER_SESSION, LEADER_SESSION);
     expect(sent).toHaveLength(1);
     expect(sent[0].about).toBe(FOLLOWER_SESSION);

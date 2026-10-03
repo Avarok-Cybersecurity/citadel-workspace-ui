@@ -45,6 +45,17 @@ vi.mock('@/lib/multi-instance/instance-channel', () => ({
   instanceChannel: new Proxy({}, { get: (): (() => undefined) => (): undefined => undefined }),
 }));
 vi.mock('../current-cid', () => ({ getCurrentCid: async (): Promise<bigint> => 4242n }));
+// Held across the reloads as the real module: it and the connection layer behind
+// it are ~130 modules that hold no conversation, and every reset module is a
+// round trip to the vitest main process -- seconds per reload on a loaded
+// runner. See an-edit-or-delete-survives-a-reload for the measurements.
+vi.mock('@/lib/p2p-registration-service', async (importOriginal) => importOriginal());
+
+// Transformed at collection, which no test timeout measures, not in the first test.
+import '../conversation-manager';
+import '../message-handler-routing';
+import '../messenger-reaction';
+import '../message-pagination-store';
 
 const ALICE: bigint = 4242n; // this device
 const BOB: bigint = 777n;

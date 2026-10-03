@@ -23,6 +23,19 @@ vi.mock('@/lib/storage-utils', () => ({
 vi.mock('@/lib/multi-instance/instance-manager', () => ({
   instanceManager: { get cid(): bigint | null { return world.cid; } },
 }));
+// Held across the reloads as the real module: the socket service and the
+// connection layer behind it are ~220 of the ~270 modules a reload re-imports,
+// hold no transcript (sends go through the injected `sendFile`), and every reset
+// module is a round trip to the vitest main process -- seconds per reload on a
+// loaded runner. See p2p/__tests__/an-edit-or-delete-survives-a-reload.
+vi.mock('@/lib/websocket-service', async (importOriginal) => importOriginal());
+
+// Transformed at collection, which no test timeout measures, not in the first test.
+import '../bind-group-transcript';
+import '../peer-group-delivery';
+import '../share-file-with-group';
+import '../group-store';
+import '@/lib/group-messaging-manager';
 
 const GROUP: string = '111:42';
 const members: GroupMember[] = [

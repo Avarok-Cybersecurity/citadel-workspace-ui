@@ -50,6 +50,22 @@ vi.mock('@/lib/multi-instance/instance-channel', () => ({
   instanceChannel: new Proxy({}, { get: (): (() => undefined) => (): undefined => undefined }),
 }));
 vi.mock('../current-cid', () => ({ getCurrentCid: async (): Promise<bigint> => 4242n }));
+// The real registration service, held across the "reloads" rather than replaced.
+// Through presence.ts it brings in the connection, workspace, notification and
+// auto-connect layers: about 130 of the ~200 modules a reload re-imports, none of
+// which holds a conversation. A reset module is fetched again from the vitest
+// main process, one round trip per module, so each reload cost ~45 ms on an idle
+// machine and seconds on a loaded runner. Held, only the messaging modules this
+// file measures are fresh at each reload. A factory-registered module is not
+// invalidated by `vi.resetModules()`; `importOriginal` keeps it production code.
+vi.mock('@/lib/p2p-registration-service', async (importOriginal) => importOriginal());
+
+// Fetched and transformed now, at collection, which no test timeout measures.
+// The first `reload()` used to pay that cold transform inside the first test.
+import '../conversation-manager';
+import '../message-handler-routing';
+import '../messenger-revision';
+import '../message-pagination-store';
 
 const ME: bigint = 4242n;
 const PEER: bigint = 777n;

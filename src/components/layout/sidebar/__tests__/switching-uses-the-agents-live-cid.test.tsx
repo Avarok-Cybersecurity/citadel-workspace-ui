@@ -17,6 +17,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
+import { WorkspaceSwitcher } from '../WorkspaceSwitcher';
 
 // The stored copy of bob has no CID, as a boot left it; the agent holds him as 42.
 const SESSIONS: Array<{ username: string; serverAddress: string; cid?: bigint; fullName: string }> = [
@@ -57,7 +58,6 @@ vi.mock('@/lib/sessions/switch-to-session', () => ({
 }));
 
 async function openMenu(): Promise<void> {
-  const { WorkspaceSwitcher } = await import('../WorkspaceSwitcher');
   render(<MemoryRouter><ConfirmDialogProvider><WorkspaceSwitcher workspaceName="Acme" /></ConfirmDialogProvider></MemoryRouter>);
   await userEvent.click(await screen.findByTestId('workspace-switcher'));
 }

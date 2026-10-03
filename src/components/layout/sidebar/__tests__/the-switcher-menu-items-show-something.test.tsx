@@ -33,6 +33,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
+import { WorkspaceSwitcher } from '../WorkspaceSwitcher';
 
 const SESSIONS: Array<{ username: string; serverAddress: string; cid: bigint; fullName: string }> = [
   { username: 'ada', serverAddress: 'one.example.com:12349', cid: 1n, fullName: 'Ada L' },
@@ -74,7 +75,6 @@ vi.mock('@/hooks/use-toast', () => ({
 }));
 
 async function openMenu(): Promise<void> {
-  const { WorkspaceSwitcher } = await import('../WorkspaceSwitcher');
   render(
     <MemoryRouter>
       <ConfirmDialogProvider>

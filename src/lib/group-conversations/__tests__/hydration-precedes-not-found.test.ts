@@ -23,6 +23,10 @@ vi.mock('../group-persistence', () => ({
   persistGroups: (): Promise<void> => Promise.resolve(),
 }));
 
+// Transformed at collection, which no test timeout measures, not in the first
+// test; each test still gets a fresh, unhydrated store from freshStore().
+import '../group-store';
+
 async function freshStore(): Promise<typeof import('../group-store')> {
   vi.resetModules();
   return import('../group-store');

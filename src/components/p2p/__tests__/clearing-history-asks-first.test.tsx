@@ -14,6 +14,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ChatSettingsPanel } from '../ChatSettingsPanel';
 
 let answer: boolean = true;
 const cleared: bigint[] = [];
@@ -30,7 +31,6 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: (): { toast: () => void } => ({ toast: (): void => {} }) }));
 
 async function openPanel(): Promise<void> {
-  const { ChatSettingsPanel } = await import('../ChatSettingsPanel');
   render(<ChatSettingsPanel isOpen onClose={(): void => {}} peerCid="42" peerName="bob" />);
   // The control lives on the Advanced tab, which is not the one that opens.
   await userEvent.click(screen.getByTestId('tab-advanced'));

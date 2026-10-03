@@ -24,6 +24,7 @@ import userEvent from '@testing-library/user-event';
 import { eventEmitter } from '@/lib/event-emitter';
 import { NotificationType, NotificationPriority, type Notification } from '@/lib/notification-service/types';
 import NotificationItem from '../NotificationItem';
+import { notifyMessageArrived } from '@/lib/p2p/message-arrival-notification';
 
 function messageNotification(data: Record<string, unknown>): Notification {
   return {
@@ -83,7 +84,6 @@ describe('a message notification card', () => {
 
 describe('the callback the message pipeline supplies', () => {
   it('is spelled the way the card reads it, and announces the peer', async () => {
-    const { notifyMessageArrived } = await import('@/lib/p2p/message-arrival-notification');
 
     let supplied: Record<string, unknown> | undefined;
     const config: Record<string, unknown> = {

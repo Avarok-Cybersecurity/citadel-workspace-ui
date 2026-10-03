@@ -22,6 +22,19 @@ vi.mock('@/lib/p2p-auto-connect-service', () => ({
   },
 }));
 
+// Held across each test's vi.resetModules() as the real modules: the
+// registration service, the socket service and the connection layer are ~160 of
+// the ~240 modules ConversationManager re-imports, none of them decides a new
+// conversation's presence (the auto-connect service above does), and every
+// reset module is a round trip to the vitest main process -- seconds on a loaded
+// runner. See an-edit-or-delete-survives-a-reload.
+vi.mock('@/lib/p2p-registration-service', async (importOriginal) => importOriginal());
+vi.mock('@/lib/websocket-service', async (importOriginal) => importOriginal());
+vi.mock('@/lib/connection', async (importOriginal) => importOriginal());
+
+// Transformed at collection, which no test timeout measures, not in the first test.
+import '../conversation-manager';
+
 describe('a conversation created for an unheard-of peer', () => {
   beforeEach(() => { vi.resetModules(); });
 

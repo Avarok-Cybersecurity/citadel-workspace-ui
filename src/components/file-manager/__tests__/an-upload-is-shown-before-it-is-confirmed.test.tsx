@@ -20,6 +20,8 @@ import { installFakeOpfs } from '@/lib/revfs/__tests__/fake-opfs';
 import { resetTreeReadTracking } from '@/lib/revfs/persist-tree';
 import type { RevfsIntent, RevfsIntentResult } from '@/types/revfs-intents';
 import type { UseFileManagerContentResult } from '../useFileManagerContent';
+import { fileTransferService } from '@/lib/file-transfer';
+import { useFileManagerContent } from '../useFileManagerContent';
 
 const peers: { registeredPeers: { cid: string; username: string; displayName: string }[]; isLoading: boolean } = {
   registeredPeers: [{ cid: '200', username: 'bob', displayName: 'Bob Brown' }], isLoading: false,
@@ -57,12 +59,10 @@ async function fileManager(treeEvents: boolean): Promise<{ current: UseFileManag
   const real: (i: RevfsIntent) => Promise<RevfsIntentResult> = io.execute.bind(io);
   io.execute = async (i: RevfsIntent): Promise<RevfsIntentResult> =>
     i.type === 'backend-send-file' ? { type: 'backend-send-file', success: true } : real(i);
-  const { fileTransferService } = await import('@/lib/file-transfer');
   vi.spyOn(fileTransferService, 'getSettings').mockReturnValue({
     autoAccept: false, maxFileSize: 1e9, transferMode: 'browser', allowRevfsStorage: true, revfsQuota: 100e6,
   });
   if (!treeEvents) vi.spyOn(revfsService, 'onTreeChanged').mockReturnValue((): void => {});
-  const { useFileManagerContent } = await import('../useFileManagerContent');
   const { result } = renderHook((): UseFileManagerContentResult => useFileManagerContent());
   await waitFor(() => expect(result.current.tree).not.toBeNull(), { timeout: 5000 });
   return result;
