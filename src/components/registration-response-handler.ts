@@ -6,6 +6,7 @@
  */
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import { debugLog } from '@/lib/debug-config';
+import { AdmissionRefusal, admissionReasonOf, type AdmissionReason } from '@/lib/admission/refusal';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 
 export interface RegistrationHandlerDeps {
@@ -35,7 +36,11 @@ export function createRegistrationResponseHandler(
   };
   const matchId = (v: Record<string, unknown>): boolean => v.request_id === requestId;
   const rejectWith = (v: Record<string, unknown>, fallback: string): void => {
-    cleanup(); reject(new Error((v.message as string) || fallback));
+    cleanup();
+    const message: string = (v.message as string) || fallback;
+    // A human check the workspace asked for, missing or failed: the form shows or resets it.
+    const admission: AdmissionReason | null = admissionReasonOf(v);
+    reject(admission ? new AdmissionRefusal(admission, message) : new Error(message));
   };
   return (raw: unknown): void => {
     const message: WebSocketMessage | null = narrowWebSocketMessage(raw);

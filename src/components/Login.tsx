@@ -18,6 +18,9 @@ import { websocketService } from "@/lib/websocket-service";
 import { passkeysAvailableHere } from "@/lib/passkey";
 import type { SignInHint } from "@/lib/sign-in";
 import { SIGN_IN_COPY } from "@/lib/sign-in/copy";
+import { AdmissionCheck } from "./admission/AdmissionCheck";
+import { useAdmissionGate, type AdmissionGate } from "./admission/useAdmissionGate";
+import { ADMISSION_ACTION } from "@/lib/admission/copy";
 
 interface LoginProps {
   onNext: (connectionId: string) => void;
@@ -30,7 +33,8 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [showSecuritySettings, setShowSecuritySettings] = useState(false);
 
-  const h: LoginHandler = useLoginHandler({ onNext, initialUsername });
+  const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.signIn);
+  const h: LoginHandler = useLoginHandler({ onNext, initialUsername, admission });
   const {
     username, setUsername, error, invalidField, loading, securitySettings, setSecuritySettings,
     handleLogin, passkey, handlePasskeyLogin, handleKeyLogin, keyOffer, recoverySession, mode,
@@ -180,6 +184,8 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
                 setSecuritySettings={setSecuritySettings}
                 passkey={passkey}
               />
+
+              <AdmissionCheck gate={admission} />
 
               {/* Error */}
               {error && (

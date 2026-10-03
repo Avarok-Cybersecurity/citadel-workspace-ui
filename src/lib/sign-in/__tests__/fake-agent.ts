@@ -12,6 +12,7 @@
  */
 import { eventEmitter } from '@/lib/event-emitter';
 import { toBase64Url } from '@/lib/passkey/bytes';
+import { FakeAdmission } from './fake-admission';
 import type { SignInCredential, SignInPolicy } from '../types';
 
 type Req = Record<string, unknown>;
@@ -35,6 +36,8 @@ export class FakeAgent {
   readonly accounts: FakeAccount[] = [];
   /** Sessions that a recovery code opened. */
   readonly recoverySessions: Set<bigint> = new Set<bigint>();
+  /** The workspace's human-check requirement, enforced on Connect and Register. */
+  readonly admission: FakeAdmission = new FakeAdmission();
   private readonly pending: Map<string, Pending> = new Map<string, Pending>();
   private nextFactor: number = 10;
   private nextCode: number = 0;
@@ -110,6 +113,8 @@ export class FakeAgent {
   }
 
   private register(body: Req): void {
+    const refused: string | null = this.admission.check(body.admission_token);
+    if (refused) { this.emit('RegisterFailure', { request_id: body.request_id, message: 'A human check is required', reason_code: refused }); return; }
     const account: FakeAccount = this.account(body.username as string, 'Password', 100n + BigInt(this.accounts.length));
     account.password = this.text(body.proposed_password) ?? '';
     this.emit('RegisterSuccess', { cid: account.cid, request_id: body.request_id, recovery_codes: [...account.recoveryCodes] });
@@ -119,6 +124,8 @@ export class FakeAgent {
   private async connect(body: Req): Promise<void> {
     const requestId: string = body.request_id as string;
     const fail = (): void => this.emit('ConnectFailure', { cid: 0n, request_id: requestId, message: 'authentication failed' });
+    const admission: string | null = this.admission.check(body.admission_token);
+    if (admission) { this.emit('ConnectFailure', { cid: 0n, request_id: requestId, message: 'A human check is required', reason_code: admission }); return; }
     const account: FakeAccount | undefined = this.accounts.find((a) => a.username === body.username);
     if (!account) { fail(); return; }
     const code: string | null = this.text(body.recovery_code);

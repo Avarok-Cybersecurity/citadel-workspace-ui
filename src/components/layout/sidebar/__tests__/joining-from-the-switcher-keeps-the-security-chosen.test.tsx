@@ -65,7 +65,9 @@ describe('joining from the workspace switcher', () => {
     // Positive control: this IS the switcher's registration, not some other call.
     expect(args[1]).toBe(JOIN_USERNAME);
     expect(args[4]).toBe(JOIN_ADDRESS);
-    const sent: SessionSecuritySettings = args[6] as SessionSecuritySettings;
+    // No human check here: the workspace does not ask for one (lib/admission).
+    expect(args[5]).toBeNull();
+    const sent: SessionSecuritySettings = args[7] as SessionSecuritySettings;
     expect(sent.security_level).toBe('High');
   });
 });

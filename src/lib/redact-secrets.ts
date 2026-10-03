@@ -9,7 +9,7 @@
  * site, including the ones written next year.
  */
 const SECRET_FIELDS: ReadonlySet<string> = new Set<string>([
-  'recovery_codes', 'RecoveryCodes', 'recovery_code', 'prf_output', 'password', 'proposed_password',
+  'recovery_codes', 'RecoveryCodes', 'recovery_code', 'prf_output', 'password', 'proposed_password', 'admission_token',
 ]);
 const MAX_DEPTH: 8 = 8;
 export const REDACTED: '<redacted>' = '<redacted>';
