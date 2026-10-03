@@ -36,8 +36,7 @@ export function SignInKeysSection(): JSX.Element | null {
     );
   }
 
-  const keys: SignInCredential[] = (k.credentials ?? []).filter((c: SignInCredential) => c.kind === 'SecurityKey');
-  const codesLeft: number = (k.credentials ?? []).filter((c: SignInCredential) => c.kind === 'RecoveryCode' && !c.consumed).length;
+  const keys: SignInCredential[] = k.listing?.keys ?? [];
   const add = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (await k.add(label.trim())) setLabel(defaultPasskeyLabel(navigator.userAgent));
@@ -51,49 +50,57 @@ export function SignInKeysSection(): JSX.Element | null {
       </div>
       <p className="text-xs text-muted-foreground">{SIGN_IN_COPY.addKeyBody}</p>
 
-      {k.credentials === null && !k.message && <p className="text-xs text-muted-foreground">Loading your sign-in keys…</p>}
-      {keys.length > 0 && (
-        <ul className="space-y-2" aria-label="Your security keys">
-          {keys.map((key: SignInCredential) => (
-            <CredentialRow key={key.id} credential={key} busy={k.busy}
-              onRename={(next: string) => k.rename(key.id, next)} onRemove={() => setRemoving(key)} />
-          ))}
-        </ul>
-      )}
-
-      {!k.available ? (
-        <p className="text-xs text-muted-foreground">{PASSKEY_COPY.unavailableHere}</p>
-      ) : (
-        <form onSubmit={(e) => { void add(e); }} className="space-y-2 p-3 rounded-lg bg-background/50">
-          <Label htmlFor="new-passkey-label" className="text-sm font-medium">Name this key</Label>
-          <Input id="new-passkey-label" value={label} maxLength={64} onChange={(e) => setLabel(e.target.value)} />
-          <p className="text-xs text-muted-foreground">{PASSKEY_COPY.pinNote}</p>
-          <Button type="submit" size="sm" disabled={k.busy || !label.trim()} data-testid="add-passkey">{PASSKEY_COPY.addButton}</Button>
-        </form>
-      )}
-
-      <div className="space-y-2 p-3 rounded-lg bg-background/50">
-        <p className="text-sm font-medium">{SIGN_IN_COPY.policyTitle}</p>
-        <PolicyChoice id="settings" value={k.policy} options={POLICIES} disabled={k.busy}
-          onChange={(next: SignInPolicy) => { void k.setPolicy(next); }} />
-      </div>
-
-      <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-background/50">
-        <div>
-          <p className="text-sm font-medium">Recovery codes</p>
-          <p className="text-xs text-muted-foreground" data-testid="recovery-codes-left">
-            {k.credentials === null ? '' : `${codesLeft} unused. ${SIGN_IN_COPY.regenerateWarning}`}
-          </p>
+      {k.listing === null ? (
+        <div className="space-y-2 p-3 rounded-lg bg-background/50">
+          <p className="text-xs text-muted-foreground">{SIGN_IN_COPY.stepUpBody}</p>
+          <Button type="button" size="sm" variant="outline" disabled={k.busy} onClick={() => { void k.show(); }} data-testid="show-sign-in-keys">
+            {SIGN_IN_COPY.showKeys}
+          </Button>
         </div>
-        <Button type="button" size="sm" variant="outline" className="gap-2 shrink-0" disabled={k.busy}
-          onClick={() => { void k.regenerateCodes(); }} data-testid="regenerate-recovery-codes">
-          <RefreshCw className="h-4 w-4" aria-hidden="true" />{SIGN_IN_COPY.regenerate}
-        </Button>
-      </div>
+      ) : (<>
+        {keys.length > 0 && (
+          <ul className="space-y-2" aria-label="Your security keys">
+            {keys.map((key: SignInCredential) => (
+              <CredentialRow key={key.id} credential={key} busy={k.busy}
+                onRename={(next: string) => k.rename(key.id, next)} onRemove={() => setRemoving(key)} />
+            ))}
+          </ul>
+        )}
+
+        {!k.available ? (
+          <p className="text-xs text-muted-foreground">{PASSKEY_COPY.unavailableHere}</p>
+        ) : (
+          <form onSubmit={(e) => { void add(e); }} className="space-y-2 p-3 rounded-lg bg-background/50">
+            <Label htmlFor="new-passkey-label" className="text-sm font-medium">Name this key</Label>
+            <Input id="new-passkey-label" value={label} maxLength={64} onChange={(e) => setLabel(e.target.value)} />
+            <p className="text-xs text-muted-foreground">{PASSKEY_COPY.pinNote}</p>
+            <Button type="submit" size="sm" disabled={k.busy || !label.trim()} data-testid="add-passkey">{PASSKEY_COPY.addButton}</Button>
+          </form>
+        )}
+
+        <div className="space-y-2 p-3 rounded-lg bg-background/50">
+          <p className="text-sm font-medium">{SIGN_IN_COPY.policyTitle}</p>
+          <PolicyChoice id="settings" value={k.listing.policy} options={POLICIES} disabled={k.busy}
+            onChange={(next: SignInPolicy) => { void k.setPolicy(next); }} />
+        </div>
+
+        <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-background/50">
+          <div>
+            <p className="text-sm font-medium">Recovery codes</p>
+            <p className="text-xs text-muted-foreground" data-testid="recovery-codes-left">
+              {`${k.listing.codesLeft} unused. ${SIGN_IN_COPY.regenerateWarning}`}
+            </p>
+          </div>
+          <Button type="button" size="sm" variant="outline" className="gap-2 shrink-0" disabled={k.busy}
+            onClick={() => { void k.regenerateCodes(); }} data-testid="regenerate-recovery-codes">
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />{SIGN_IN_COPY.regenerate}
+          </Button>
+        </div>
+      </>)}
 
       <p role="status" className="text-xs text-muted-foreground" data-testid="sign-in-keys-status">{k.message ?? ''}</p>
 
-      <StepUpDialog open={stepUp.open} keyAvailable={k.available && keys.length > 0} onConfirm={stepUp.confirm} onCancel={stepUp.cancel} />
+      <StepUpDialog open={stepUp.open} keyAvailable={k.available} onConfirm={stepUp.confirm} onCancel={stepUp.cancel} />
       <AlertDialog open={removing !== null} onOpenChange={(open) => { if (!open) setRemoving(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>

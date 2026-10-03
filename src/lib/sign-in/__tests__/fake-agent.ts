@@ -162,10 +162,11 @@ export class FakeAgent {
     const opName: string = typeof op === 'string' ? op : Object.keys(op as Req)[0];
     const recovery: boolean = this.recoverySessions.has(cid);
     if (recovery && opName !== 'AddSecurityKey' && opName !== 'SetSignInPolicy') {
+      // ListCredentials included: a recovery session cannot list.
       fail('This session signed in with a recovery code: it can only add a security key, set the sign-in policy, or sign out');
       return;
     }
-    if (opName === 'ListCredentials') { ok({ Credentials: this.credentials(account) }); return; }
+    // Every request, listing included, needs a fresh proof (agent #112 eafca8da).
     if (!recovery) {
       const viaPassword: boolean = this.text(stepUp.password) === account.password && account.policy !== 'KeyOnly';
       if (!viaPassword || account.policy === 'PasswordAndKey') {
@@ -174,6 +175,7 @@ export class FakeAgent {
         if (refused !== null) { fail(refused); return; }
       }
     }
+    if (opName === 'ListCredentials') { ok({ Credentials: { policy: account.policy, credentials: this.credentials(account) } }); return; }
     const args: Req = typeof op === 'string' ? {} : (op as Req)[opName] as Req;
     if (opName === 'AddSecurityKey') {
       const credentialId: number[] = args.credential_id as number[];

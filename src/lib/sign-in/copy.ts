@@ -29,6 +29,7 @@ export const SIGN_IN_COPY: {
   readonly stepUpBody: string;
   readonly policyTitle: 'How you sign in';
   readonly regenerate: 'New recovery codes';
+  readonly showKeys: 'Show my sign-in keys';
   readonly regenerateWarning: string;
 } = {
   continueWithKey: 'Continue',
@@ -57,6 +58,7 @@ export const SIGN_IN_COPY: {
   stepUpBody: 'Changes to how you sign in need your password or one of your security keys.',
   policyTitle: 'How you sign in',
   regenerate: 'New recovery codes',
+  showKeys: 'Show my sign-in keys',
   regenerateWarning: 'Your current recovery codes will stop working.',
 } as const;
 

@@ -35,6 +35,7 @@ import { SecurityKeyPromptHost as SecurityKeyPrompt } from '../sign-in/SecurityK
 import { enrolKey, world } from '@/lib/sign-in/__tests__/helpers';
 import { loginWorld as h } from './login-world';
 import { listHints } from '@/lib/sign-in/hints';
+import { SIGN_IN_COPY } from '@/lib/sign-in/copy';
 
 let onNext: ReturnType<typeof vi.fn>;
 function renderLogin(): void {
@@ -115,6 +116,9 @@ describe('a recovery code', () => {
     expect(h.postAuth).not.toHaveBeenCalled();
     expect(h.messaging).not.toHaveBeenCalled();
     expect(connects()[0]).toMatchObject({ password: null });
+    // A recovery session cannot list its factors: the screen says what it can do instead.
+    expect(screen.getByText(SIGN_IN_COPY.recoveryBody)).toBeInTheDocument();
+    expect(h.w.agent.sent.some(([v, b]) => v === 'SignInManagement' && b.op === 'ListCredentials')).toBe(false);
   });
 
   it('adds a key there, then signs out back to a key-first form', async () => {

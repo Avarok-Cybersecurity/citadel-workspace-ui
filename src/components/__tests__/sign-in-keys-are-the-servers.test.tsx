@@ -39,6 +39,17 @@ async function stepUpWithPassword(): Promise<void> {
   fireEvent.click(screen.getByTestId('step-up-submit'));
 }
 const status = (): HTMLElement => screen.getByTestId('sign-in-keys-status');
+/** Listing needs a step-up too: open the section with the password, or with a key touch. */
+async function openSection(via: 'password' | 'key'): Promise<void> {
+  renderSection();
+  fireEvent.click(await screen.findByTestId('show-sign-in-keys'));
+  if (via === 'password') await stepUpWithPassword();
+  else {
+    fireEvent.click(await screen.findByTestId('step-up-key'));
+    fireEvent.click(await screen.findByTestId('security-key-continue'));
+  }
+  await screen.findByText('YubiKey');
+}
 
 beforeEach(async () => {
   h.w = world(false);
@@ -49,14 +60,12 @@ afterEach(() => h.w.stop());
 
 describe('Settings -> Sign-in keys', () => {
   it('lists the keys the server holds', async () => {
-    renderSection();
-    expect(await screen.findByText('YubiKey')).toBeInTheDocument();
+    await openSection('password');
     expect(screen.getByTestId('recovery-codes-left')).toHaveTextContent('10 unused');
   });
 
   it('adds a key after a step-up, with its Enrol touch', async () => {
-    renderSection();
-    await screen.findByText('YubiKey');
+    await openSection('password');
     fireEvent.change(screen.getByLabelText('Name this key'), { target: { value: 'Touch ID' } });
     fireEvent.click(screen.getByTestId('add-passkey'));
     await stepUpWithPassword();
@@ -67,7 +76,7 @@ describe('Settings -> Sign-in keys', () => {
   });
 
   it('renames a key', async () => {
-    renderSection();
+    await openSection('password');
     fireEvent.click(await screen.findByTestId('sign-in-key-rename'));
     fireEvent.change(screen.getByLabelText('New name for YubiKey'), { target: { value: 'Blue YubiKey' } });
     fireEvent.click(screen.getByTestId('sign-in-key-save-name'));
@@ -78,7 +87,7 @@ describe('Settings -> Sign-in keys', () => {
 
   it('shows the server refusing to remove the key a KeyOnly account needs', async () => {
     alice.policy = 'KeyOnly';
-    renderSection();
+    await openSection('key');
     fireEvent.click(await screen.findByTestId('sign-in-key-remove'));
     fireEvent.click(await screen.findByTestId('confirm-remove-key'));
     fireEvent.click(await screen.findByTestId('step-up-key'));
@@ -88,8 +97,7 @@ describe('Settings -> Sign-in keys', () => {
   });
 
   it('switches the policy, and this device remembers a key-first account by tenant and CID', async () => {
-    renderSection();
-    await screen.findByText('YubiKey');
+    await openSection('password');
     fireEvent.click(screen.getByTestId('settings-policy-KeyOnly'));
     await stepUpWithPassword();
     await waitFor(() => expect(alice.policy).toBe('KeyOnly'));
@@ -99,8 +107,7 @@ describe('Settings -> Sign-in keys', () => {
   });
 
   it('regenerates the recovery codes and shows them once', async () => {
-    renderSection();
-    await screen.findByText('YubiKey');
+    await openSection('password');
     const before: string[] = [...alice.recoveryCodes];
     fireEvent.click(screen.getByTestId('regenerate-recovery-codes'));
     await stepUpWithPassword();
@@ -112,9 +119,30 @@ describe('Settings -> Sign-in keys', () => {
     expect(screen.queryByTestId('recovery-code')).toBeNull();
   });
 
-  it('sends nothing when the step-up is cancelled', async () => {
+  it('asks for the step-up before it lists anything, and sends the list with it', async () => {
     renderSection();
+    const before: number = h.w.agent.sent.length;
+    fireEvent.click(await screen.findByTestId('show-sign-in-keys'));
+    fireEvent.click(await screen.findByTestId('step-up-cancel'));
+    await new Promise<void>((r) => setTimeout(r, 20));
+    expect(h.w.agent.sent.length).toBe(before);
+    expect(screen.queryByText('YubiKey')).toBeNull();
+    fireEvent.click(screen.getByTestId('show-sign-in-keys'));
+    await stepUpWithPassword();
     await screen.findByText('YubiKey');
+    const list: Record<string, unknown> | undefined = h.w.agent.sent.map(([, b]) => b).find((b) => b.op === 'ListCredentials');
+    expect(list?.step_up).toEqual({ password: Array.from(new TextEncoder().encode(PASSWORD)), security_key: true });
+  });
+
+  it('shows the policy the server reports', async () => {
+    alice.policy = 'PasswordAndKey';
+    await openSection('key');
+    expect(screen.getByTestId('settings-policy-PasswordAndKey')).toHaveAttribute('data-state', 'checked');
+    expect(screen.getByTestId('settings-policy-Password')).toHaveAttribute('data-state', 'unchecked');
+  });
+
+  it('sends nothing when the step-up is cancelled', async () => {
+    await openSection('password');
     const sent: number = h.w.agent.sent.length;
     fireEvent.click(screen.getByTestId('regenerate-recovery-codes'));
     fireEvent.click(await screen.findByTestId('step-up-cancel'));

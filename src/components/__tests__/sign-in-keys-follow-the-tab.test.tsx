@@ -40,6 +40,5 @@ describe('sign-in keys in a resumed tab', () => {
     h.w.agent.account('alice0924');
     const { result } = renderHook(() => useSignInKeys(async (): Promise<'cancelled'> => 'cancelled'));
     await waitFor(() => expect(result.current.account).toEqual({ username: 'alice0924', cid: 7n, tenant: 'bench.work.avarok.net' }));
-    await waitFor(() => expect(result.current.credentials?.map((c) => c.kind)).toContain('Password'));
   });
 });

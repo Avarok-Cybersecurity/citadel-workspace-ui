@@ -24,10 +24,10 @@ const PASSWORD_STEP_UP: { password: number[]; security_key: boolean } =
   { password: Array.from(new TextEncoder().encode('correct horse battery')), security_key: true };
 
 async function enrolled(account: FakeAccount): Promise<number> {
-  return addSecurityKey(w.deps, {
+  return (await addSecurityKey(w.deps, {
     account: { tenant: 'bench.work.avarok.net', cid: account.cid, username: account.username },
     label: 'YubiKey', existingCredentialIds: [],
-  }, PASSWORD_STEP_UP);
+  }, PASSWORD_STEP_UP)).id;
 }
 
 describe('adding a security key', () => {

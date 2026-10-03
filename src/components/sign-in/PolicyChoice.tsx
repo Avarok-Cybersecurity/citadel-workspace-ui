@@ -6,15 +6,14 @@ import type { SignInPolicy } from '@/lib/sign-in/types';
 /** The sign-in policy as a radio group: what each one asks for, in words. */
 export function PolicyChoice<P extends SignInPolicy>({ id, value, options, onChange, disabled }: {
   id: string;
-  /** Null when the current policy is not known: nothing is shown as chosen. */
-  value: P | null;
+  value: P;
   options: readonly P[];
   onChange: (policy: P) => void;
   disabled: boolean;
 }): JSX.Element {
   return (
     <RadioGroup
-      value={value ?? ''}
+      value={value}
       onValueChange={(next: string) => { const picked: P | undefined = options.find((o) => o === next); if (picked) onChange(picked); }}
       disabled={disabled}
       aria-label="How you sign in"

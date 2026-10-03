@@ -68,14 +68,17 @@ export async function createSecurityKey(deps: EnrolDeps, key: NewKey): Promise<B
   return created.credentialId;
 }
 
-/** Make the key, then enrol it. Resolves with the server's id for the new factor. */
-export async function addSecurityKey(deps: EnrolDeps, key: NewKey, stepUp: StepUp): Promise<number> {
+/** A key the server enrolled: its factor id, and the WebAuthn credential behind it. */
+export interface AddedKey { id: number; credentialId: number[] }
+
+/** Make the key, then enrol it. */
+export async function addSecurityKey(deps: EnrolDeps, key: NewKey, stepUp: StepUp): Promise<AddedKey> {
   const credentialId: Bytes = await createSecurityKey(deps, key);
   const outcome: SignInManagementOutcome = await manageSignIn(
     deps.send, key.account.cid,
     { AddSecurityKey: { credential_id: Array.from(credentialId), label: key.label } },
     { ...stepUp, security_key: true },
   );
-  if (typeof outcome === 'object' && 'Added' in outcome) return outcome.Added.id;
+  if (typeof outcome === 'object' && 'Added' in outcome) return { id: outcome.Added.id, credentialId: Array.from(credentialId) };
   throw new Error('The server did not report the key it added');
 }
