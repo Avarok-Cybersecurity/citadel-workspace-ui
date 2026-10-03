@@ -20,6 +20,8 @@ export interface AgentUpdate {
   ready: boolean;
 }
 
+export const agentUpdate: ValueStore<AgentUpdate | null> = createValueStore<AgentUpdate | null>('agent-update', null);
+
 export interface UpdaterSettings {
   current: string;
   autoInstall: boolean;
@@ -28,11 +30,10 @@ export interface UpdaterSettings {
   lastError: string | null;
 }
 
-const RELEASES: string = 'https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/';
-
-export const agentUpdate: ValueStore<AgentUpdate | null> = createValueStore<AgentUpdate | null>('agent-update', null);
 export const updaterSettings: ValueStore<UpdaterSettings | null> =
   createValueStore<UpdaterSettings | null>('agent-updater-settings', null);
+
+const RELEASES: string = 'https://github.com/Avarok-Cybersecurity/citadel-workspace/releases/';
 
 export function isReleaseLink(url: string): boolean {
   return url.startsWith(RELEASES) && !url.includes('..');

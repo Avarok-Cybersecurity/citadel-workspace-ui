@@ -1,19 +1,14 @@
-import { useState, useSyncExternalStore } from 'react';
-import { ArrowDownCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { agentUpdate, type AgentUpdate } from '@/lib/agent-update/update-state';
+import type { AgentUpdate } from '@/lib/agent-update/update-state';
 import { askUpdater } from '@/lib/agent-update/requests';
 import { describeFailure } from '@/lib/failure-message';
 import { CONNECTION_LOST } from '@/lib/websocket/request-response';
-
-/** The newer agent release, for the top banner stack to show. */
-export function useAgentUpdate(): AgentUpdate | null {
-  return useSyncExternalStore(agentUpdate.subscribe, agentUpdate.get);
-}
 
 /** What restarting costs, said before it happens. Sessions live in the agent's memory. */
 export const RESTART_WARNING: string =
@@ -41,7 +36,7 @@ export function AgentUpdateBanner({ update }: { update: AgentUpdate }): JSX.Elem
   return (
     <div role="status" aria-live="polite" data-testid="agent-update-banner" data-ready={update.ready}
       className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2 text-sm bg-muted text-foreground border-b border-surface">
-      <ArrowDownCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
       <span>
         <strong className="font-semibold">Citadel Agent {update.latest} is available</strong>
         {state === 'restarting' ? ' — restarting the agent…' : state !== 'idle' ? ` — ${state}` : ''}
