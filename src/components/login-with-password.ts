@@ -26,6 +26,7 @@ import { sessionLabel, type SessionLabel } from '@/lib/sessions/session-label';
 import type { SecuritySettingsState } from './useLoginHandler';
 import { watchKeyChallenges } from '@/lib/sign-in/challenge-watch';
 import type { SignInFactors } from '@/lib/sign-in/types';
+import { AdmissionRefusal } from '@/lib/admission/refusal';
 
 export type LoginResult =
   | { kind: 'signed-in'; cid: bigint; messagingReady: boolean; serverAddress: string }
@@ -90,6 +91,7 @@ export async function loginWithPassword(
     return { kind: 'redirected' };
   }
   if (outcome.kind === 'failed') {
+    if (outcome.reasonCode !== null) throw new AdmissionRefusal(outcome.reasonCode, outcome.message);
     if (!isConnectAlreadyInProgress(outcome.message)) throw new Error(outcome.message);
     if (outcome.cid && outcome.cid !== 0n) {
       const { serverAddress } = await labelFor(outcome.cid);

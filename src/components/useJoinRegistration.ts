@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { joinFieldErrors } from './join-field-errors';
 import type { JoinRegistration } from './join-registration-shape';
-import { firstInvalidField } from './join-first-error';
+import { focusFirstInvalidField } from './join-first-error';
 import { DEFAULT_SECURITY_SETTINGS } from './security-settings-defaults';
 import { useToast } from "@/hooks/use-toast";
 import type { SecuritySettingsValues } from "./SecuritySettings";
@@ -18,6 +18,7 @@ import type { SignupProfileFields } from '@/lib/signup-profile';
 import { BLANK_JOIN_FORM } from './join-form-blank';
 import { serverPasswordMismatchMessage } from '@/lib/server-password-error';
 import { describeFailure } from '@/lib/failure-message';
+import type { AdmissionGate } from './admission/useAdmissionGate';
 
 /** The required credentials plus the optional profile fields sent after registration. */
 export interface JoinFormData extends SignupProfileFields {
@@ -33,6 +34,8 @@ export function useJoinRegistration(
   onJoined: (cid: string) => void,
   serverAddress: string,
   serverPassword: string,
+  /** The workspace's human check, if it asks for one: a fresh token per attempt. */
+  admission: AdmissionGate,
   providedSecuritySettings?: SecuritySettingsValues,
   /**
    * The profile the user has already typed, and where to keep it.
@@ -62,31 +65,7 @@ export function useJoinRegistration(
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
-  /**
-   * Take the user to the field to fix.
-   *
-   * A refused submit used to leave focus on the Join button: the error was
-   * announced and the field was marked `aria-invalid`, and neither of those
-   * moves anyone. A screen-reader user hears the message with their cursor on a
-   * button; a keyboard user shift-tabs back through the form guessing which
-   * field it meant.
-   *
-   * Which field is a pure decision (`firstInvalidField`); this is the one line
-   * that touches the DOM.
-   */
-  const focusFirstProblem = (): void => {
-    const field: "fullName" | "username" | "password" | "confirmPassword" | null = firstInvalidField(
-      {
-        fullName: formData.fullName,
-        username: formData.username,
-        password: formData.password,
-        confirmPassword: formData.confirmPassword,
-      },
-      rawErrors,
-    );
-    if (!field) return;
-    document.getElementById(field)?.focus();
-  };
+  const focusFirstProblem = (): void => focusFirstInvalidField(formData, rawErrors);
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>): void => {
     setTouched((prev) => ({ ...prev, [e.target.name]: true }));
@@ -162,6 +141,8 @@ export function useJoinRegistration(
       focusFirstProblem();
       return;
     }
+    const admissionToken: string | null | 'missing' = admission.take();
+    if (admissionToken === 'missing') return;
 
     setIsRegistering(true);
     setShowConnectModal(true);
@@ -192,7 +173,7 @@ export function useJoinRegistration(
 
       await websocketService.register(
         requestId, formData.username, formData.password, formData.fullName,
-        serverAddress, serverPassword || "",
+        serverAddress, admissionToken, serverPassword || "",
         mapSecuritySettings(securitySettings)
       );
 
@@ -213,6 +194,7 @@ export function useJoinRegistration(
     } catch (error: unknown) {
       debugLog('Join', 'Registration Error:', error);
       setShowConnectModal(false);
+      if (admission.settle(error)) return; // Shown on the human check itself.
       const wrongServerPassword: string | null = serverPasswordMismatchMessage(describeFailure(error, ''), Boolean(serverPassword));
       toast({ title: wrongServerPassword ? 'Wrong server password' : getErrorTitle(error), description: wrongServerPassword ?? getUserFriendlyErrorMessage(error), variant: "destructive" });
     } finally {

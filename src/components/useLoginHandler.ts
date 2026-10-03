@@ -17,6 +17,7 @@ import { browserSignInDeps } from '@/lib/sign-in';
 import type { AccountRef, SignInFactors } from '@/lib/sign-in/types';
 import { completeSignIn, type Completed } from './sign-in/complete-sign-in';
 import { useKeyOffer, type KeyOffer } from './sign-in/useKeyOffer';
+import type { AdmissionGate } from './admission/useAdmissionGate';
 import type { NavigateFunction } from 'react-router';
 import type {
   SecurityLevel, SecrecyMode, EncryptionAlgorithm, KemAlgorithm, SigAlgorithm,
@@ -40,6 +41,8 @@ interface UseLoginHandlerParams {
   onNext: (connectionId: string) => void;
   /** The username the form starts with; undefined starts it empty. */
   initialUsername: string | undefined;
+  /** The workspace's human check, if it asks for one: a fresh token per attempt. */
+  admission: AdmissionGate;
 }
 
 /** Everything the sign-in form renders and submits with. */
@@ -78,7 +81,7 @@ export interface LoginHandler {
   endRecoverySession: () => void;
 }
 
-export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerParams): LoginHandler {
+export function useLoginHandler({ onNext, initialUsername, admission }: UseLoginHandlerParams): LoginHandler {
   const [username, setUsername] = useState(initialUsername ?? "");
   const [password, setPassword] = useState("");
   const [recoveryCode, setRecoveryCode] = useState("");
@@ -131,11 +134,15 @@ export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerPara
   };
 
   const reportFailure = (err: unknown): void => {
+    // A human check that was missing or failed is shown on the check itself.
+    if (admission.settle(err)) return;
     setError(getUserFriendlyErrorMessage(err));
     toast({ variant: "destructive", title: getErrorTitle(err), description: getUserFriendlyErrorMessage(err) });
   };
 
   const begin = (): void => { setLoading(true); setError(null); setInvalidField(null); };
+  /** This attempt's human-check token; false when the check is still to be done. */
+  const admit = (): string | null | false => { const t: string | null | 'missing' = admission.take(); return t === 'missing' ? false : t; };
 
   const requireUsername = (name: string): boolean => {
     if (name) return true;
@@ -148,12 +155,13 @@ export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerPara
   const handlePasskeyLogin = async (account: string): Promise<void> => {
     const name: string = account.trim();
     if (!requireUsername(name)) return;
+    const admissionToken: string | null | false = admit(); if (admissionToken === false) return;
     begin();
     let unlocked: boolean = false;
     try {
       await signInWithPasskey(browserPasskeyDeps(), name, async (user: string, secret: string): Promise<void> => {
         unlocked = true;
-        await completeLogin(user, { password: secret, securityKey: passkeysAvailableHere(), recoveryCode: null }, { offerKey: false, legacy: true });
+        await completeLogin(user, { password: secret, securityKey: passkeysAvailableHere(), recoveryCode: null, admissionToken }, { offerKey: false, legacy: true });
       });
     } catch (err: unknown) {
       // Before the unlock: the passkey copy, and the password field is right
@@ -175,9 +183,10 @@ export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerPara
     const name: string = account.trim();
     if (!requireUsername(name)) return;
     setUsername(name);
+    const admissionToken: string | null | false = admit(); if (admissionToken === false) return;
     begin();
     try {
-      await completeLogin(name, { password: null, securityKey: true, recoveryCode: null }, { offerKey: false, legacy: false });
+      await completeLogin(name, { password: null, securityKey: true, recoveryCode: null, admissionToken }, { offerKey: false, legacy: false });
     } catch (err: unknown) {
       reportFailure(err);
     } finally {
@@ -196,9 +205,10 @@ export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerPara
         document.getElementById('recovery-code')?.focus();
         return;
       }
+      const admissionToken: string | null | false = admit(); if (admissionToken === false) return;
       begin();
       try {
-        await completeLogin(username, { password: null, securityKey: false, recoveryCode }, { offerKey: false, legacy: false });
+        await completeLogin(username, { password: null, securityKey: false, recoveryCode, admissionToken }, { offerKey: false, legacy: false });
       } catch (err: unknown) {
         reportFailure(err);
       } finally {
@@ -215,16 +225,14 @@ export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerPara
       if (field) document.getElementById(field)?.focus();
       return;
     }
+    const admissionToken: string | null | false = admit(); if (admissionToken === false) return;
     begin();
     try {
-      // No pre-emptive claim on a username match: Connect goes to the server
-      // with the credentials, always, and a live session answers
-      // SessionAlreadyActive, which loginWithPassword turns into the redirect.
-      //
-      // `securityKey` says this window can answer a key challenge: a
-      // PasswordAndKey account asks for the touch mid-Connect.
+      // No pre-emptive claim on a username match: Connect goes to the server with the
+      // credentials, and a live session answers SessionAlreadyActive (the redirect).
+      // `securityKey`: this window can answer a PasswordAndKey account's mid-Connect touch.
       const available: boolean = passkeysAvailableHere();
-      await completeLogin(username, { password, securityKey: available, recoveryCode: null },
+      await completeLogin(username, { password, securityKey: available, recoveryCode: null, admissionToken },
         { offerKey: securitySettings.enrolPasskey && available, legacy: false });
     } catch (err: unknown) {
       reportFailure(err);

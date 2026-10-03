@@ -30,3 +30,31 @@ export function firstInvalidField(
   // form ended up without it.
   return firstFieldToFix(JOIN_FIELD_ORDER, values, errors);
 }
+
+/**
+ * Take the user to the field to fix.
+ *
+ * A refused submit used to leave focus on the Join button: the error was
+ * announced and the field was marked `aria-invalid`, and neither of those
+ * moves anyone. A screen-reader user hears the message with their cursor on a
+ * button; a keyboard user shift-tabs back through the form guessing which
+ * field it meant.
+ *
+ * Which field is a pure decision (`firstInvalidField`); this is the one line
+ * that touches the DOM.
+ */
+export function focusFirstInvalidField(
+  formData: Record<JoinField, string>, rawErrors: Record<JoinField, string | null>,
+): void {
+  const field: JoinField | null = firstInvalidField(
+    {
+      fullName: formData.fullName,
+      username: formData.username,
+      password: formData.password,
+      confirmPassword: formData.confirmPassword,
+    },
+    rawErrors,
+  );
+  if (!field) return;
+  document.getElementById(field)?.focus();
+}

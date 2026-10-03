@@ -11,10 +11,20 @@ import { vi } from 'vitest';
 import type { World } from '@/lib/sign-in/__tests__/helpers';
 import type { FakeAccount } from '@/lib/sign-in/__tests__/fake-agent';
 import type { SignInFactors } from '@/lib/sign-in/types';
+import type { Admission } from '@/lib/admission';
 
-export const loginWorld: { w: World; postAuth: ReturnType<typeof vi.fn>; messaging: ReturnType<typeof vi.fn> } = {
-  w: undefined as unknown as World, postAuth: vi.fn(), messaging: vi.fn(),
+export const loginWorld: {
+  w: World; postAuth: ReturnType<typeof vi.fn>; messaging: ReturnType<typeof vi.fn>;
+  /** What the control plane answers about the human check: null is "unknown" (no answer). */
+  discovered: Admission | null;
+} = {
+  w: undefined as unknown as World, postAuth: vi.fn(), messaging: vi.fn(), discovered: null,
 };
+
+/** Discovery is a fetch to the control plane: answered here from `loginWorld.discovered`. */
+export const admissionDouble = async (orig: () => Promise<Record<string, unknown>>): Promise<Record<string, unknown>> => ({
+  ...(await orig()), browserDiscoverAdmission: async (): Promise<Admission | null> => loginWorld.discovered,
+});
 
 export async function websocketServiceDouble(): Promise<Record<string, unknown>> {
   const { AuthOperations } = await import('@/lib/websocket/auth-operations');
@@ -26,6 +36,8 @@ export async function websocketServiceDouble(): Promise<Record<string, unknown>>
   return {
     websocketService: {
       connect: (id: string, user: string, f: SignInFactors): Promise<void> => ops().connect(id, user, f),
+      register: (id: string, user: string, pw: string, name: string, addr: string, token: string | null): Promise<void> =>
+        ops().register(id, user, pw, name, addr, token),
       disconnect: (cid: bigint): Promise<void> => loginWorld.w.agent.send({ Disconnect: { request_id: 'bye', cid } }),
       sendRequest: (r: Record<string, unknown>): Promise<void> => loginWorld.w.agent.send(r),
     },
