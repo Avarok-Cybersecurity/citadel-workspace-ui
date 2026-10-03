@@ -6,7 +6,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { type Bytes, bytesEqual } from '../bytes';
 import { failureOf } from '../authenticator';
-import { enrolCredential } from '../enrol';
+import { enrolCredential } from './legacy-enrol';
 import { signInWithPasskey, unlockAccount } from '../unlock';
 import type { CredentialRecord } from '../records';
 import {
@@ -131,7 +131,8 @@ describe('signing in with a passkey', () => {
     const login: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<void> => undefined);
     await signInWithPasskey(deps, 'alice', login);
     expect(login).toHaveBeenCalledExactlyOnceWith('alice', PASSWORD);
-    expect((await listCredentials(deps.store, deps.rpId, 'alice'))[0].lastUsedAt).not.toBeNull();
+    // Read-only since option A was retired: nothing is written back.
+    expect((await listCredentials(deps.store, deps.rpId, 'alice'))[0].lastUsedAt).toBeNull();
   });
 
   it('asks only for this account\'s keys, with UV and each key\'s own salt', async () => {

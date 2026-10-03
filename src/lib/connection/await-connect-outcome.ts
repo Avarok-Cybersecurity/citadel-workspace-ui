@@ -11,14 +11,24 @@
  */
 import { isResponseType, type InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
+import { extensionFor } from '@/lib/sign-in/challenge-watch';
 
 export type ConnectOutcome =
   | { kind: 'connected'; cid: bigint }
   | { kind: 'already-active'; cid: bigint; username: string; message: string }
   | { kind: 'failed'; cid: bigint; message: string };
 
+/**
+ * A sign-in that asks for a security key answers only after the touch, so a
+ * challenge for this Connect restarts the wait at the touch window plus the
+ * ordinary budget: the user is never told "timeout" while holding the key.
+ */
 export function awaitConnectOutcome(requestId: string, timeoutMs: number): Promise<ConnectOutcome> {
   return new Promise<ConnectOutcome>((resolve, reject) => {
+    const arm = (ms: number): ReturnType<typeof setTimeout> => setTimeout((): void => {
+      eventEmitter.off('websocket-message', handler);
+      reject(new Error('Connection timeout'));
+    }, ms);
     const settle = (outcome: ConnectOutcome): void => {
       clearTimeout(timeout);
       eventEmitter.off('websocket-message', handler);
@@ -27,6 +37,12 @@ export function awaitConnectOutcome(requestId: string, timeoutMs: number): Promi
     const handler = (message: InternalServiceResponse): void => {
       const response: InternalServiceResponse = (message as Record<string, unknown>).Response
         ? ((message as Record<string, unknown>).Response as InternalServiceResponse) : message;
+      const extension: number | null = extensionFor(response, requestId, timeoutMs);
+      if (extension !== null) {
+        clearTimeout(timeout);
+        timeout = arm(extension);
+        return;
+      }
       if (isResponseType(response, 'ConnectSuccess') && response.ConnectSuccess.request_id === requestId) {
         settle({ kind: 'connected', cid: response.ConnectSuccess.cid });
       } else if (isResponseType(response, 'SessionAlreadyActive') && response.SessionAlreadyActive.request_id === requestId) {
@@ -36,10 +52,7 @@ export function awaitConnectOutcome(requestId: string, timeoutMs: number): Promi
         settle({ kind: 'failed', cid: response.ConnectFailure.cid, message: response.ConnectFailure.message || 'Connection failed' });
       }
     };
-    const timeout: ReturnType<typeof setTimeout> = setTimeout((): void => {
-      eventEmitter.off('websocket-message', handler);
-      reject(new Error('Connection timeout'));
-    }, timeoutMs);
+    let timeout: ReturnType<typeof setTimeout> = arm(timeoutMs);
     eventEmitter.on('websocket-message', handler);
   });
 }

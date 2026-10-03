@@ -15,6 +15,11 @@ export interface RegistrationHandlerDeps {
     reject: (reason: Error) => void
   ) => Promise<void>;
   setShowNotInitializedModal: (show: boolean) => void;
+  /**
+   * RegisterSuccess carries the recovery codes and arrives AHEAD of the connect
+   * answer, under the same request id. It is not an outcome: the wait goes on.
+   */
+  onRecoveryCodes: (codes: readonly string[]) => void;
 }
 
 export function createRegistrationResponseHandler(
@@ -24,7 +29,10 @@ export function createRegistrationResponseHandler(
   cleanup: () => void,
   deps: RegistrationHandlerDeps
 ) {
-  const { handleConnectSuccess, setShowNotInitializedModal } = deps;
+  const { handleConnectSuccess, setShowNotInitializedModal, onRecoveryCodes } = deps;
+  const takeCodes = (v: Record<string, unknown> | undefined): void => {
+    if (v && matchId(v) && Array.isArray(v.recovery_codes)) onRecoveryCodes(v.recovery_codes.filter((c: unknown): c is string => typeof c === 'string'));
+  };
   const matchId = (v: Record<string, unknown>): boolean => v.request_id === requestId;
   const rejectWith = (v: Record<string, unknown>, fallback: string): void => {
     cleanup(); reject(new Error((v.message as string) || fallback));
@@ -33,6 +41,9 @@ export function createRegistrationResponseHandler(
     const message: WebSocketMessage | null = narrowWebSocketMessage(raw);
     if (!message) return;
     debugLog('Join', 'Registration response received, expecting:', requestId);
+    takeCodes(getVariant(message, 'RegisterSuccess'));
+    const wrapped: Record<string, unknown> | undefined = getVariant(message, 'Response');
+    takeCodes(wrapped?.RegisterSuccess as Record<string, unknown> | undefined);
 
     const cs: Record<string, unknown> | undefined = getVariant(message, 'ConnectSuccess');
     if (cs && matchId(cs)) { cleanup(); handleConnectSuccess(cs, resolve, reject).catch(reject); return; }

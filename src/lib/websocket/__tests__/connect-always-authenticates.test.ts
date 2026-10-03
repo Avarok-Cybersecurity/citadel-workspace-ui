@@ -18,6 +18,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { passwordOnly } from '@/lib/sign-in/factors';
 
 const sendRequest: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
 const claimSession: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
@@ -53,13 +54,13 @@ describe('connect', () => {
   });
 
   it('sends Connect even when a session for that username is already live', async () => {
-    await operations().connect('req-1', 'alice', 'hunter2');
+    await operations().connect('req-1', 'alice', passwordOnly('hunter2'));
 
     expect(sendRequest).toHaveBeenCalled();
   });
 
   it('does not claim the session behind the server’s back', async () => {
-    await operations().connect('req-1', 'alice', 'hunter2');
+    await operations().connect('req-1', 'alice', passwordOnly('hunter2'));
 
     // Claiming here is what skipped authentication entirely.
     expect(claimSession).not.toHaveBeenCalled();
@@ -68,7 +69,7 @@ describe('connect', () => {
   it('does not tear down a live session on an unauthenticated request', async () => {
     // The other branch disconnected first — destroying a working session on the
     // strength of a request that had proved nothing but knowing a username.
-    await operations().connect('req-1', 'alice', 'hunter2');
+    await operations().connect('req-1', 'alice', passwordOnly('hunter2'));
 
     expect(disconnect).not.toHaveBeenCalled();
   });
@@ -78,7 +79,7 @@ describe('connect', () => {
     // and every test in this file stayed green while every login failed --
     // the register path is checked byte-for-byte and Connect was not, which
     // is the asymmetry that let it through.
-    await operations().connect('req-1', 'alice', 'hunter2');
+    await operations().connect('req-1', 'alice', passwordOnly('hunter2'));
 
     const [request] = sendRequest.mock.calls[0] as [{ Connect: { password: number[] } }];
     expect(request.Connect.password).toEqual(Array.from(new TextEncoder().encode('hunter2')));
@@ -89,14 +90,14 @@ describe('connect', () => {
     // gone. Asserting the exact bytes above would catch it, but so would a
     // rename of the field to something the server ignores -- this asserts the
     // field the SERVER reads is populated.
-    await operations().connect('req-1', 'alice', 'hunter2');
+    await operations().connect('req-1', 'alice', passwordOnly('hunter2'));
 
     const [request] = sendRequest.mock.calls[0] as [{ Connect: { password: number[] } }];
     expect(request.Connect.password.length).toBeGreaterThan(0);
   });
 
   it('sends the username under the name the server reads', async () => {
-    await operations().connect('req-1', 'alice', 'hunter2');
+    await operations().connect('req-1', 'alice', passwordOnly('hunter2'));
 
     const [request] = sendRequest.mock.calls[0] as [{ Connect: { username: string } }];
     expect(request.Connect.username).toBe('alice');
@@ -105,7 +106,7 @@ describe('connect', () => {
   it('carries the security settings the user chose, not the defaults', async () => {
     // A registration's chosen posture reaching the wire as defaults was a real
     // defect one layer up (round 139); this pins the Connect half of it.
-    await operations().connect('req-1', 'alice', 'hunter2', {
+    await operations().connect('req-1', 'alice', passwordOnly('hunter2'), {
       security_level: 'Reinforced',
       secrecy_mode: 'Perfect',
       header_obfuscator_settings: {},
@@ -122,7 +123,7 @@ describe('connect', () => {
   it('carries the caller’s request id, so the answer can be matched', async () => {
     // The claim used its own id, so the caller's 30s wait for ConnectSuccess /
     // ConnectFailure / SessionAlreadyActive could never be satisfied.
-    await operations().connect('req-1', 'alice', 'hunter2');
+    await operations().connect('req-1', 'alice', passwordOnly('hunter2'));
 
     // The id is passed alongside the request as well as embedded in it; either
     // is enough for the caller to match its own answer.

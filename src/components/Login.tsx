@@ -5,12 +5,19 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { ChevronLeft, Loader2, Eye, EyeOff, User, Lock, LogIn } from "lucide-react";
+import { ChevronLeft, Loader2, User, LogIn } from "lucide-react";
 import { SecuritySettings, SecuritySettingsValues } from "./SecuritySettings";
-import { useLoginHandler } from "./useLoginHandler";
+import { useLoginHandler, type LoginHandler } from "./useLoginHandler";
 import { PasskeySignIn } from "./passkey/PasskeySignIn";
-import { PasskeyEnrolCard } from "./passkey/PasskeyEnrolCard";
 import { passkeyChoices, usePasskeyAccounts } from "./passkey/usePasskeyAccounts";
+import { LoginFactorFields } from "./LoginFactorFields";
+import { AddSecurityKeyCard } from "./sign-in/AddSecurityKeyCard";
+import { RecoverySessionScreen } from "./sign-in/RecoverySessionScreen";
+import { useSignInHints } from "./sign-in/useSignInHints";
+import { websocketService } from "@/lib/websocket-service";
+import { passkeysAvailableHere } from "@/lib/passkey";
+import type { SignInHint } from "@/lib/sign-in";
+import { SIGN_IN_COPY } from "@/lib/sign-in/copy";
 
 interface LoginProps {
   onNext: (connectionId: string) => void;
@@ -22,25 +29,25 @@ interface LoginProps {
 export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.Element {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [showSecuritySettings, setShowSecuritySettings] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
+  const h: LoginHandler = useLoginHandler({ onNext, initialUsername });
   const {
-    username,
-    setUsername,
-    password,
-    setPassword,
-    error,
-    invalidField,
-    loading,
-    securitySettings,
-    setSecuritySettings,
-    handleLogin,
-    passkey,
-    handlePasskeyLogin,
-    enrolPrompt,
-  } = useLoginHandler({ onNext, initialUsername });
+    username, setUsername, error, invalidField, loading, securitySettings, setSecuritySettings,
+    handleLogin, passkey, handlePasskeyLogin, handleKeyLogin, keyOffer, recoverySession, mode,
+  } = h;
 
-  const passkeyAccounts: string[] = passkeyChoices(username, passkey.hasKeys, usePasskeyAccounts());
+  // Offered before a username is typed: option-A passkeys (to move them to the
+  // server) and accounts that sign in key-first here, scoped by tenant and CID.
+  const legacyAccounts: string[] = usePasskeyAccounts();
+  const hints: SignInHint[] = useSignInHints();
+  const hintNames: string[] = hints.map((hint: SignInHint) => hint.username);
+  const deviceAccounts: string[] = [...new Set([...legacyAccounts, ...hintNames])].sort((a, b) => a.localeCompare(b));
+  const typedHasKeys: boolean = passkey.hasKeys || hintNames.includes(username.trim());
+  const passkeyAccounts: string[] = mode === 'password' ? passkeyChoices(username, typedHasKeys, deviceAccounts) : [];
+  const signInAs = (account: string): void => {
+    if (legacyAccounts.includes(account)) void handlePasskeyLogin(account);
+    else void handleKeyLogin(account);
+  };
 
   const handleSecuritySettingsComplete = (values: SecuritySettingsValues): void => {
     setSecuritySettings({
@@ -72,8 +79,21 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4" ref={dialogRef} {...dialogProps}>
-      {enrolPrompt ? (
-        <PasskeyEnrolCard prompt={enrolPrompt} />
+      {recoverySession ? (
+        <Card className="bg-background border-border shadow-2xl shadow-black/40 w-full max-w-md">
+          <CardContent className="pt-6">
+            <RecoverySessionScreen
+              account={recoverySession}
+              signOut={async (): Promise<void> => { await websocketService.disconnect(recoverySession.cid); h.endRecoverySession(); }}
+            />
+          </CardContent>
+        </Card>
+      ) : keyOffer ? (
+        <Card className="bg-background border-border shadow-2xl shadow-black/40 w-full max-w-md" data-testid="passkey-enrol">
+          <CardContent className="pt-6">
+            <AddSecurityKeyCard account={keyOffer.account} stepUp={keyOffer.stepUp} title={keyOffer.title} body={keyOffer.body} onFinished={keyOffer.finish} />
+          </CardContent>
+        </Card>
       ) : showSecuritySettings ? (
         <SecuritySettings
           onNext={() => setShowSecuritySettings(false)}
@@ -136,49 +156,11 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
               </div>
 
               {passkeyAccounts.length > 0 && (
-                <PasskeySignIn accounts={passkeyAccounts} onUse={(account: string) => { void handlePasskeyLogin(account); }} disabled={loading} />
+                <PasskeySignIn accounts={passkeyAccounts} onUse={signInAs} disabled={loading} />
               )}
 
-              {/* Password */}
-              <div className="space-y-1.5">
-                <label htmlFor="password" className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    aria-invalid={invalidField === 'password' ? true : undefined}
-                    aria-describedby={error ? 'login-error' : undefined}
-                    placeholder="••••••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="bg-input border-border text-foreground pl-10 pr-10 h-11 rounded-lg placeholder:text-muted-foreground focus:border-primary-accent focus:ring-1 focus:ring-ring/30 transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    // The name says what the control is; aria-pressed below says whether it
-                  // is on. Flipping both made them contradict -- "Hide password,
-                  // pressed" announces as hidden while the password is on screen.
-                  aria-label="Show password"
-                    aria-pressed={showPassword}
-                    // The icon stays 16px; the BUTTON is 24px, the WCAG 2.2
-                    // target-size floor. Centring the icon inside keeps the
-                    // position identical while the thumb gets something to aim
-                    // at. `right-3` becomes right-2 to keep the visual inset
-                    // once the box grew.
-                    className="tap-target absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center text-muted-foreground hover:text-foreground/80 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded"
-                  >
-                    {showPassword
-                      ? <EyeOff className="h-4 w-4" aria-hidden="true" />
-                      : <Eye className="h-4 w-4" aria-hidden="true" />}
-                  </button>
-                </div>
-              </div>
-
+              {/* How the account is proved: password, key alone, or recovery code */}
+              <LoginFactorFields h={h} keysHere={passkeysAvailableHere()} />
               {/* No Server Address field.
                   Signing in does not need one and never did: the SDK pins the
                   server in the account's CNAC at registration, and `connect`
@@ -227,7 +209,7 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
                 ) : (
                   <>
                     <LogIn className="h-4 w-4" />
-                    Sign In
+                    {mode === 'recovery' ? SIGN_IN_COPY.recoverySubmit : mode === 'key' ? 'Continue with security key' : 'Sign In'}
                   </>
                 )}
               </Button>

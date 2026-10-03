@@ -1,4 +1,11 @@
 /**
+ * TEST FIXTURE: how the retired option A wrote its records.
+ *
+ * Moved here verbatim from lib/passkey/enrol.ts when the app stopped sealing
+ * passwords (docs/plans/pq-sign-in.md). The app still READS these records, to
+ * move their owners to a server-verified key, so the tests still need to write
+ * them exactly as the old enrolment did.
+ *
  * Adding a passkey or security key to an account.
  *
  * The first key needs the password the user has just proved (a successful
@@ -12,18 +19,18 @@
  * that round trip has produced the password it was given.
  */
 import { debugLog } from '@/lib/debug-config';
-import { type Bytes, bytesEqual, randomBytes } from './bytes';
-import { type Assertion, type CreatedCredential, PasskeyError } from './authenticator';
+import { type Bytes, bytesEqual, randomBytes } from '../bytes';
+import { type Assertion, type CreatedCredential, PasskeyError } from '../authenticator';
 import {
   type AccountBinding, type CredentialBinding, type Sealed,
   deriveKek, generateDek, openPassword, sealPassword, unwrapDek, wrapDek,
-} from './envelope';
+} from '../envelope';
 import {
   type AccountRecord, type CredentialRecord, RECORD_VERSION,
   decodeAccountRecord, decodeCredentialRecord, encodeAccountRecord, encodeCredentialRecord,
-} from './records';
-import { credentialKey, loadAccount, listCredentials, saveAccount, saveCredential } from './repository';
-import { type PasskeyDeps, type Unlocked, unlockAccount } from './unlock';
+} from '../records';
+import { credentialKey, loadAccount, listCredentials, saveAccount, saveCredential } from '../repository';
+import { type PasskeyDeps, type Unlocked, unlockAccount } from '../unlock';
 
 export interface EnrolRequest {
   username: string;

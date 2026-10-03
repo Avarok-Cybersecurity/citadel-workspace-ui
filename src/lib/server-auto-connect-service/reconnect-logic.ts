@@ -13,6 +13,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import type { ActiveSessionsResult } from '@/lib/connection/queries';
 import { BASE_DELAY, MAX_DELAY , type ConnectionAttempt } from './types';
+import { passwordOnly } from '@/lib/sign-in/factors';
 
 /**
  * Generate a unique key for a session.
@@ -133,7 +134,8 @@ export async function attemptReconnect(
     await websocketService.connect(
       uuidv4(),
       session.username,
-      session.password,
+      // Unattended: no window is there to touch a key, so none is offered.
+      passwordOnly(session.password),
       session.sessionSecuritySettings
     );
     // Success handled by event listener

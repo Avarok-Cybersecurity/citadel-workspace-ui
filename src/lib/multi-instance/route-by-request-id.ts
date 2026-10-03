@@ -10,7 +10,7 @@
 import { instanceChannel } from './instance-channel';
 import { instanceManager } from './instance-manager';
 import { extractTargetCid } from './message-routing';
-import { LEADER_MUST_PROCESS_LOCALLY } from './routing-rules';
+import { INTERIM_ANSWERS, LEADER_MUST_PROCESS_LOCALLY } from './routing-rules';
 import { debugLog } from '@/lib/debug-config';
 
 export interface PendingRequest {
@@ -36,7 +36,8 @@ export function routeByRequestId(
   debugLog('InstanceInboundRouter',
     `[ILM-Router] Routing ${messageType} by request_id ${requestId} -> ${pending.instanceId}`
   );
-  deps.pendingRequestMap.delete(requestId);
+  // An interim answer leaves the route in place for the answer that ends the request.
+  if (!INTERIM_ANSWERS.has(messageType)) deps.pendingRequestMap.delete(requestId);
 
   if (messageType === 'ConnectSuccess' || messageType === 'RegisterSuccess') {
     const cid: string | null = extractTargetCid(message);
