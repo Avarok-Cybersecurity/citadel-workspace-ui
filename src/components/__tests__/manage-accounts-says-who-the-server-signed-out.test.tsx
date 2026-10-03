@@ -46,9 +46,34 @@ vi.mock('@/hooks/use-toast', () => ({
 import { AccountManagementDialog } from '../AccountManagementDialog';
 import { ConfirmDialogProvider } from '../shared/confirm-dialog';
 import { SIGNED_OUT_COPY } from '../signed-out/signed-out-copy';
+import { declareOnLeaderSocket, watchGreeting, type DeclaringClient, type Greeting } from '@/lib/agent-conversations/capabilities';
+// What "Sign in" lazy-loads, fetched and transformed now, at collection, rather
+// than inside the test after the click.
+import '../TakeoverSignIn';
+
+/**
+ * The leader socket was greeted by an agent that does not host conversations,
+ * so the sign-in is the password form rather than "open it here too".
+ *
+ * Left undecided, TakeoverSignIn's question went to whoever led: the real
+ * instance channel elects this tab 2.5 s (real timers) after it loads. A click
+ * before that asked a leader that did not exist yet and fell through to the
+ * form only when the election answered "Not leader"; a click after it, on a
+ * loaded runner, waited on a socket that never opens, and the form never came.
+ */
+function greetedByAnOlderAgent(): void {
+  const greeting: Greeting = watchGreeting();
+  greeting.observe({ ServiceConnectionAccepted: { cid: 0n, request_id: null } });
+  const unused: DeclaringClient = {
+    sendDirectToInternalService: async (): Promise<void> => { throw new Error('an older agent is not declared to'); },
+    nextResponse: async (): Promise<never> => { throw new Error('an older agent is not declared to'); },
+  };
+  void declareOnLeaderSocket(unused, greeting);
+}
 
 describe('Manage Accounts and an account the server signed out', () => {
   it('marks only that account, with the reason, and Sign in opens its sign-in', async (): Promise<void> => {
+    greetedByAnOlderAgent();
     render(
       <MemoryRouter>
         <ConfirmDialogProvider>
@@ -67,6 +92,6 @@ describe('Manage Accounts and an account the server signed out', () => {
       await userEvent.click(screen.getByRole('button', { name: SIGNED_OUT_COPY.signIn }));
     });
     // The existing sign-in (TakeoverSignIn), its username filled in for alice.
-    expect(await screen.findByDisplayValue('alice', {}, { timeout: 4000 })).toBeTruthy();
+    expect(await screen.findByDisplayValue('alice')).toBeTruthy();
   });
 });
