@@ -16,6 +16,7 @@ import { changeChatLevel, chatLevelStatus, type ChatLevelResult } from '@/lib/p2
 import { peerLink, peerPauseStore } from '@/lib/p2p-pause';
 import { getCurrentCid } from '@/lib/p2p/current-cid';
 import { retentionChanged } from '@/lib/p2p/retention-sweep';
+import { tellAgentAccountSettings } from '@/lib/p2p/tell-agent-settings';
 
 export interface ChatAdvancedControls {
   /** Null until the saved settings have been read. */
@@ -77,6 +78,7 @@ export function useChatAdvancedSettings(isOpen: boolean, peerCid: bigint): ChatA
     try {
       const result: ChatLevelResult = await changeChatLevel({
         save: (own: bigint, peer: bigint, change: Partial<ChatAdvancedSettings>): Promise<ChatAdvancedSettings> => chatAdvancedSettings.set(own, peer, change),
+        tellAgent: tellAgentAccountSettings,
         pauseStatus: (own: bigint, peer: bigint) => peerPauseStore.status(own, peer),
         link: peerLink,
       }, await ownCid(), peerCid, level);

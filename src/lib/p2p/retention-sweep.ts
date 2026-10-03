@@ -18,12 +18,13 @@ import { errorLog } from '@/lib/debug-config';
 import { agentHostsConversations } from '../agent-conversations/capabilities';
 import { pushAccountPreferences } from '../agent-conversations/push-preferences';
 import { agentStore } from '../agent-conversations/agent-store';
+import { conversationPeers } from './tell-agent-settings';
 import type { P2PConversation } from './p2p-types';
 
 /** How often every chat is re-checked. An hour: periods are counted in days. */
 export const RETENTION_SWEEP_INTERVAL_MS: number = 60 * 60 * 1000;
 
-const peers = (): bigint[] => p2pMessengerManager.getAllConversations().map((c: P2PConversation): bigint => c.peerCid);
+const peers: () => bigint[] = conversationPeers;
 
 const runner: RetentionRunner = createRetention({
   now: (): number => Date.now(),

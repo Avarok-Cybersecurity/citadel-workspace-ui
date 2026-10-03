@@ -14,6 +14,8 @@ import type { PauseStatus } from '@/lib/p2p-pause/pause-rules';
 
 export interface ChatLevelChangeDeps {
   save(ownCid: bigint, peerCid: bigint, change: Partial<ChatAdvancedSettings>): Promise<ChatAdvancedSettings>;
+  /** The agent answers this account's offers by the level, so it hears it before any redial. */
+  tellAgent(ownCid: bigint): Promise<void>;
   pauseStatus(ownCid: bigint, peerCid: bigint): Promise<PauseStatus>;
   link: Pick<PauseLink, 'isConnected' | 'drop' | 'reconnect'>;
 }
@@ -32,6 +34,7 @@ export async function changeChatLevel(
   level: ChatSecurityLevel,
 ): Promise<ChatLevelResult> {
   const settings: ChatAdvancedSettings = await deps.save(ownCid, peerCid, { securityLevel: level });
+  await deps.tellAgent(ownCid);
   // Unknown is treated as paused: redialling a contact who may be paused
   // breaks the promise the pause made.
   if ((await deps.pauseStatus(ownCid, peerCid)) !== 'active') return { settings, outcome: 'saved-paused' };

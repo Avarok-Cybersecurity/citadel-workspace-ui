@@ -21,7 +21,7 @@ const set: AccountPreferences[] = [];
 beforeEach(() => {
   set.length = 0;
   instanceManager.setCid(5n);
-  held = { send_read_receipts: true, accept_requests_from_strangers: true, notify_on_screenshot: false, notification_preview: 'SenderOnly', retention: [] };
+  held = { send_read_receipts: true, accept_requests_from_strangers: true, notify_on_screenshot: false, notification_preview: 'SenderOnly', retention: [], security_minimums: [] };
   registerConversationSender(async (request: Record<string, unknown>): Promise<void> => {
     const [, body] = Object.entries(request)[0] as [string, { request_id: string; preferences?: AccountPreferences }];
     if (body.preferences) { held = body.preferences; set.push(body.preferences); }
