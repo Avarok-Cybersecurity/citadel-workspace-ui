@@ -10,6 +10,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { AccountManagementDialog } from '../AccountManagementDialog';
+import { ConfirmDialogProvider } from '../shared/confirm-dialog';
 
 interface Stored { username: string; serverAddress: string; cid: bigint }
 
@@ -53,8 +55,6 @@ vi.mock('@/hooks/use-toast', () => ({
 }));
 
 async function open(): Promise<void> {
-  const { AccountManagementDialog } = await import('../AccountManagementDialog');
-  const { ConfirmDialogProvider } = await import('../shared/confirm-dialog');
   render(
     <MemoryRouter>
       <ConfirmDialogProvider>

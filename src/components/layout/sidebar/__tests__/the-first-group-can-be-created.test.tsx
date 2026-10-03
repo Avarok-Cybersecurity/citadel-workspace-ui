@@ -25,6 +25,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import type { UsePermissionResult } from '@/hooks/use-permission-result';
+import { MembersSection } from '../MembersSection';
 
 const peers: { current: { cid: string; username: string; displayName: string; isOnline: boolean; isConnected: boolean }[] } = {
   current: [],
@@ -65,7 +66,6 @@ vi.mock('@/components/shared/confirm-dialog', () => ({
 }));
 
 async function renderSection(): Promise<void> {
-  const { MembersSection } = await import('../MembersSection');
   render(
     <MemoryRouter>
       <SidebarProvider>

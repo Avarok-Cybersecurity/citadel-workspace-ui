@@ -18,6 +18,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PeerInfoResponse } from '@/lib/p2p-registration-service/types';
+import { listAllPeers } from '../discovery';
 
 const h: { response: Record<string, unknown>; } = vi.hoisted((): { response: Record<string, unknown>; } => ({ response: {} as Record<string, unknown> }));
 
@@ -45,9 +46,11 @@ vi.mock('../connection', () => ({
   },
 }));
 
+// Imported once. Each call used to vi.resetModules() and re-import it, though
+// discovery keeps no state between calls: every re-import fetched its graph again
+// from the vitest main process, one round trip per module, which a loaded runner
+// turned into a 5 s timeout.
 async function callListAllPeers(): Promise<PeerInfoResponse[]> {
-  vi.resetModules();
-  const { listAllPeers } = await import('../discovery');
   const pending: Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; }> = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
   const promise: Promise<PeerInfoResponse[]> = listAllPeers(pending as never);
   // Settle whatever request was registered with the response under test.

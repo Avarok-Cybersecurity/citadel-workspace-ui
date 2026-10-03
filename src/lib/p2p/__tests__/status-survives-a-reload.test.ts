@@ -8,7 +8,22 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { greetAs } from '@/lib/agent-conversations/__tests__/agent-greeting';
 import { MessageAckHandler } from '../message-ack-handler';
 import { MessageSender } from '../message-sender';
+import { markMessagesAsRead } from '../messenger-compatibility';
 import type { P2PConversation } from '../p2p-types';
+
+// The page store, holding what the transcript on screen was rendered from.
+// Declared for the file, not with vi.doMock after a vi.resetModules() inside the
+// test: that re-imported messenger-compatibility's ~220-module graph, one round
+// trip to the vitest main process per module, which a loaded runner turned into
+// a 5 s timeout. Nothing else in this file reaches the store.
+const onScreen: { stored: Array<{ id: string; senderCid: bigint; status: string }> } = vi.hoisted(() => ({ stored: [] }));
+vi.mock('../message-pagination-store', () => ({
+  messagePaginationStore: {
+    findUnreadFromPeer: vi.fn(async () => onScreen.stored),
+    updateMessageInPages: vi.fn(async () => true),
+    updateUnreadCount: vi.fn(async () => {}),
+  },
+}));
 
 const PEER: bigint = 42n;
 
@@ -92,24 +107,15 @@ describe('retrying a failed message after a reload', () => {
 
 describe('opening a conversation after a reload', () => {
   it('sends read receipts for the messages actually on screen', async () => {
-    const stored: { id: string; senderCid: bigint; status: string; }[] = [
+    onScreen.stored = [
       { id: 'a', senderCid: PEER, status: 'delivered' },
       { id: 'b', senderCid: PEER, status: 'delivered' },
     ];
-    vi.resetModules();
-    vi.doMock('../message-pagination-store', () => ({
-      messagePaginationStore: {
-        findUnreadFromPeer: vi.fn(async () => stored),
-        updateMessageInPages: vi.fn(async () => true),
-        updateUnreadCount: vi.fn(async () => {}),
-      },
-    }));
     const conversationManager: { getConversation: () => { messages: never[]; unreadCount: number; }; } = {
       // Empty, exactly as after a reload — while the transcript on screen came
       // from the page store.
       getConversation: (): { messages: never[]; unreadCount: number; } => ({ messages: [], unreadCount: 2 }),
     };
-    const { markMessagesAsRead } = await import('../messenger-compatibility');
 
     const sendMessageAck: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<void> => {});
     await markMessagesAsRead(

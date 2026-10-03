@@ -14,6 +14,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { GroupConversation } from '@/types/group';
 import type { MemberDelivery } from '@/types/group-file-share';
 import { registrationLookup, type RegistrationLookup } from '../group-file-registration';
+import { sendGroupFile } from '../send-group-file';
 
 const world: { cached: bigint[]; listed: bigint[] | Error; sent: string[] } = vi.hoisted(() => ({
   cached: [] as bigint[], listed: [] as bigint[] | Error, sent: [] as string[],
@@ -69,7 +70,6 @@ describe('who is registered with the sender', () => {
 describe('sharing into a group, as wired', () => {
   it('offers the file to a member the agent lists as registered, with nothing in the cache', async () => {
     world.listed = [2n];
-    const { sendGroupFile } = await import('../send-group-file');
     const result: { deliveries: MemberDelivery[] } = await sendGroupFile('1:5', new File(['x'], 'x.txt'));
     expect(world.sent).toEqual(['2']);
     expect(result.deliveries.map((d: MemberDelivery): string => `${d.username}:${d.kind}`)).toEqual(['bob:offered', 'cy:skipped']);
@@ -77,7 +77,6 @@ describe('sharing into a group, as wired', () => {
 
   it('attempts everyone when the listing fails, and reports each outcome', async () => {
     world.listed = new Error('timed out');
-    const { sendGroupFile } = await import('../send-group-file');
     await sendGroupFile('1:5', new File(['x'], 'x.txt'));
     expect(world.sent).toEqual(['2', '3']);
   });

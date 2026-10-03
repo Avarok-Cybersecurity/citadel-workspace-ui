@@ -13,7 +13,32 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { placeInPage, recordAppend } from '../message-page-append';
+import { messagePaginationStore } from '../message-pagination-store';
+import { greetAs } from '@/lib/agent-conversations/__tests__/agent-greeting';
 import type { MessagePage, ConversationMetadata, P2PMessage } from '../p2p-types';
+
+// The store's page I/O, as Maps. Declared for the file, not with vi.doMock after
+// a vi.resetModules() inside the test: that re-import fetched the store's whole
+// graph again from the vitest main process, one round trip per module, which a
+// loaded runner turned into a 5 s timeout. The helpers above do not use it.
+const io: { pages: Map<string, MessagePage>; metadata: ConversationMetadata | undefined } = vi.hoisted(() => ({
+  pages: new Map<string, MessagePage>(), metadata: undefined as ConversationMetadata | undefined,
+}));
+vi.mock('../message-page-operations', () => ({
+  loadMetadataByKey: vi.fn(async () => null),
+  loadMetadata: vi.fn(async () => io.metadata ?? null),
+  tryLoadMetadata: vi.fn(async () => ({ found: io.metadata !== undefined, value: io.metadata ?? null })),
+  saveMetadata: vi.fn(async (_cid: bigint, m: ConversationMetadata) => { io.metadata = m; }),
+  loadMessagePage: vi.fn(async (_cid: bigint, n: number) => io.pages.get(String(n)) ?? null),
+  tryLoadMessagePage: vi.fn(async (_cid: bigint, n: number) => ({
+    found: io.pages.has(String(n)),
+    value: io.pages.get(String(n)) ?? null,
+  })),
+  saveMessagePage: vi.fn(async (_cid: bigint, n: number, p: MessagePage) => { io.pages.set(String(n), p); }),
+  deleteConversationPages: vi.fn(async () => {}),
+  loadAllMetadata: vi.fn(async () => []),
+  deleteOldFormat: vi.fn(async () => {}),
+}));
 
 const message = (id: string, t: number): P2PMessage =>
   ({ id, timestamp: t, index: 1, senderCid: 7n, status: 'delivered' } as unknown as P2PMessage);
@@ -78,41 +103,19 @@ describe('recordAppend', () => {
  */
 describe('appendMessageToPage', () => {
   it('writes a redelivered message once', async () => {
-    vi.resetModules();
-    // A fresh module graph is a fresh tab: it learns again which agent it talks to.
-    await (await import('@/lib/agent-conversations/__tests__/agent-greeting')).greetAs('older');
+    await greetAs('older');
+    io.pages.clear();
+    io.metadata = undefined;
 
-    const pages: Map<string, MessagePage> = new Map<string, MessagePage>();
-    let metadata: ConversationMetadata | undefined;
-
-    vi.doMock('../message-page-operations', () => ({
-      loadMetadataByKey: vi.fn(async () => null),
-      loadMetadata: vi.fn(async () => metadata ?? null),
-      tryLoadMetadata: vi.fn(async () => ({ found: metadata !== undefined, value: metadata ?? null })),
-      saveMetadata: vi.fn(async (_cid: bigint, m: ConversationMetadata) => { metadata = m; }),
-      loadMessagePage: vi.fn(async (_cid: bigint, n: number) => pages.get(String(n)) ?? null),
-      tryLoadMessagePage: vi.fn(async (_cid: bigint, n: number) => ({
-        found: pages.has(String(n)),
-        value: pages.get(String(n)) ?? null,
-      })),
-      saveMessagePage: vi.fn(async (_cid: bigint, n: number, p: MessagePage) => { pages.set(String(n), p); }),
-      deleteConversationPages: vi.fn(async () => {}),
-      loadAllMetadata: vi.fn(async () => []),
-      deleteOldFormat: vi.fn(async () => {}),
-    }));
-
-    const { messagePaginationStore } = await import('../message-pagination-store');
     const inbound: P2PMessage = message('redelivered-1', 10);
 
     await messagePaginationStore.appendMessageToPage(7n, inbound, async () => 99n, () => 'peer');
     await messagePaginationStore.appendMessageToPage(7n, inbound, async () => 99n, () => 'peer');
 
-    const stored: P2PMessage[] = [...pages.values()].flatMap((p) => p.messages);
+    const stored: P2PMessage[] = [...io.pages.values()].flatMap((p) => p.messages);
     expect(stored.filter((m) => m.id === 'redelivered-1')).toHaveLength(1);
     // And the unread badge must not count it twice either.
-    expect(metadata?.unreadCount).toBe(1);
-    expect(metadata?.totalMessageCount).toBe(1);
-
-    vi.doUnmock('../message-page-operations');
+    expect(io.metadata?.unreadCount).toBe(1);
+    expect(io.metadata?.totalMessageCount).toBe(1);
   });
 });

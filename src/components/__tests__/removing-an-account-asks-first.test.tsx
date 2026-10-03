@@ -14,6 +14,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { AccountManagementDialog } from '../AccountManagementDialog';
+import { ConfirmDialogProvider } from '../shared/confirm-dialog';
 
 const removed: Array<{ username: string; serverAddress: string }> = [];
 let cleared: number = 0;
@@ -48,8 +50,6 @@ vi.mock('@/hooks/use-toast', () => ({
 }));
 
 async function open(): Promise<void> {
-  const { AccountManagementDialog } = await import('../AccountManagementDialog');
-  const { ConfirmDialogProvider } = await import('../shared/confirm-dialog');
   render(
     <MemoryRouter>
       <ConfirmDialogProvider>

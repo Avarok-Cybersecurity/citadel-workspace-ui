@@ -11,6 +11,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
+import { WorkspaceSwitcher } from '../WorkspaceSwitcher';
 
 // jsdom has no layout, so no scrollIntoView; Radix Select calls it on the
 // highlighted option when the list opens. A no-op: nothing here is about scroll.
@@ -22,7 +23,6 @@ export const JOIN_ADDRESS: string = 'two.example.com:12349';
 export const JOIN_USERNAME: string = 'grace';
 
 export async function renderSwitcher(): Promise<void> {
-  const { WorkspaceSwitcher } = await import('../WorkspaceSwitcher');
   render(
     <QueryClientProvider client={new QueryClient()}>
       <TooltipProvider>

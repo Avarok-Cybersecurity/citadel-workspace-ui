@@ -13,6 +13,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import type { UsePermissionResult } from '@/hooks/use-permission-result';
+import { MembersSection } from '../MembersSection';
 
 const navigated: string[] = [];
 const createGroup: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<string> => 'group-77');
@@ -59,7 +60,6 @@ beforeEach((): void => { navigated.length = 0; createGroup.mockClear(); });
 
 describe('creating a group', () => {
   it('navigates to the group it just created', async (): Promise<void> => {
-    const { MembersSection } = await import('../MembersSection');
     render(
       <MemoryRouter>
         <SidebarProvider>

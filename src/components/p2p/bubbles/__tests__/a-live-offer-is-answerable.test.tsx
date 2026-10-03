@@ -44,6 +44,16 @@ vi.mock('@/lib/p2p-auto-connect-service', () => ({
 import type { P2PMessage } from '@/lib/p2p';
 import type { FileTransfer } from '@/lib/file-transfer/types';
 
+// Fetched and transformed now, at collection, which no test timeout measures;
+// cold, that was the first test's 1.1 s. These instances are discarded: each
+// test's vi.resetModules() gives it a fresh graph, an unloaded service and a new
+// event emitter, so the order this file replays is unchanged.
+import '@/lib/file-transfer/transfer-announcement';
+import '@/lib/p2p/message-handler-routing';
+import '@/lib/p2p/file-transfer-message-handler';
+import '@/lib/file-transfer';
+import '../FileTransferBubble';
+
 afterEach(cleanup);
 beforeEach((): void => { vi.resetModules(); });
 

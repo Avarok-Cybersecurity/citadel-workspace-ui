@@ -10,7 +10,9 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrivacySettings } from '@/lib/privacy-settings';
-import type { PresenceManager } from '@/lib/p2p/presence-manager';
+import { PresenceManager } from '@/lib/p2p/presence-manager';
+import { markMessagesAsRead } from '@/lib/p2p/messenger-compatibility';
+import { greetAs } from '@/lib/agent-conversations/__tests__/agent-greeting';
 import {
   DEFAULT_PRIVACY_SETTINGS,
   PRIVACY_ENFORCEMENT,
@@ -18,7 +20,31 @@ import {
   getPrivacySettings,
 } from '../privacy-settings';
 
+// The page store's LocalDB, as a Map. Unanswered, marking read waited for the
+// real socket to be built: a 2.5 s real-timer leader election, then a WASM load
+// that cannot succeed here -- time the receipt decision does not depend on, and
+// that a loaded runner stretched past the test timeout.
+//
+// The send points read the choice as the app gives it to them, through
+// savePrivacySettings, so they are imported once rather than re-imported after
+// a vi.resetModules() per test: every re-import is ~200 round trips to the
+// vitest main process, which a loaded runner turned into seconds.
+const disk: Map<string, string> = vi.hoisted(() => new Map<string, string>());
+vi.mock('@/lib/websocket-service', () => ({
+  websocketService: {
+    sendLocalDBGet: async (_cid: bigint, key: string): Promise<{ value: string }> => {
+      const value: string | undefined = disk.get(key);
+      if (value === undefined) throw new Error(`no such key: ${key}`);
+      return { value };
+    },
+    sendLocalDBSet: async (_cid: bigint, key: string, value: number[]): Promise<void> => { disk.set(key, String.fromCharCode(...value)); },
+    sendLocalDBDelete: async (_cid: bigint, key: string): Promise<void> => { disk.delete(key); },
+    sendLocalDBListKeys: async (_cid: bigint, prefix: string): Promise<string[]> => [...disk.keys()].filter((k) => k.startsWith(prefix)),
+  },
+}));
+
 beforeEach(() => {
+  disk.clear();
   localStorage.clear();
   savePrivacySettings(DEFAULT_PRIVACY_SETTINGS);
 });
@@ -77,17 +103,7 @@ describe('privacy settings storage', () => {
 
 describe('typing indicators', () => {
   async function makeManager(showTypingIndicators: boolean): Promise<{ manager: PresenceManager; sendCommand: ReturnType<typeof vi.fn>; }> {
-    // Write to storage, THEN reset modules, so the manager and the settings
-    // module it imports are both fresh and read the same value. Without the
-    // reset the manager keeps a binding to an earlier settings instance whose
-    // in-process cache still holds the previous answer — which is a property of
-    // module caching in the test runner, not of the code under test.
-    localStorage.setItem(
-      'citadel:privacy-settings',
-      JSON.stringify({ ...DEFAULT_PRIVACY_SETTINGS, showTypingIndicators }),
-    );
-    vi.resetModules();
-    const { PresenceManager } = await import('../p2p/presence-manager');
+    savePrivacySettings({ ...DEFAULT_PRIVACY_SETTINGS, showTypingIndicators });
     const sendCommand: ReturnType<typeof vi.fn> = vi.fn((): Promise<void> => Promise.resolve());
     const manager: PresenceManager = new PresenceManager({
       sendCommand,
@@ -117,14 +133,8 @@ describe('read receipts', () => {
    * tells the sender, is theirs to withhold.
    */
   async function markRead(sendReadReceipts: boolean): Promise<{ sendMessageAck: ReturnType<typeof vi.fn>; message: { id: string; senderCid: bigint; status: "delivered"; }; conversation: { messages: { id: string; senderCid: bigint; status: "delivered"; }[]; unreadCount: number; }; }> {
-    localStorage.setItem(
-      'citadel:privacy-settings',
-      JSON.stringify({ ...DEFAULT_PRIVACY_SETTINGS, sendReadReceipts }),
-    );
-    vi.resetModules();
-    // A fresh module graph is a fresh tab: it learns again which agent it talks to.
-    await (await import('@/lib/agent-conversations/__tests__/agent-greeting')).greetAs('older');
-    const { markMessagesAsRead } = await import('../p2p/messenger-compatibility');
+    savePrivacySettings({ ...DEFAULT_PRIVACY_SETTINGS, sendReadReceipts });
+    await greetAs('older');
 
     const message: { id: string; senderCid: bigint; status: "delivered"; } = { id: 'm1', senderCid: 7n, status: 'delivered' as const };
     const conversation: { messages: { id: string; senderCid: bigint; status: "delivered"; }[]; unreadCount: number; } = { messages: [message], unreadCount: 1 };

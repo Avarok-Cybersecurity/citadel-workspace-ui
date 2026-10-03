@@ -42,6 +42,15 @@ vi.mock('@/lib/connection', () => ({
   },
 }));
 
+// Held across each test's vi.resetModules() as the real module: through
+// roster-peer-name it brings ~155 of the ~190 modules the response service
+// re-imports, none of which holds who the creator is, and every reset module is a
+// round trip to the vitest main process. See p2p/__tests__/an-edit-or-delete-survives-a-reload.
+vi.mock('@/lib/p2p-registration-service', async (importOriginal) => importOriginal());
+
+// Transformed at collection, which no test timeout measures, not in the first test.
+import '../group-response-service';
+
 describe('who the creator is', () => {
   beforeEach(() => {
     selection.current = null;
