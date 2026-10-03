@@ -23,6 +23,7 @@ import type { StoredSession, StoredSessions, GetSessionsRequest, GetSessionsResp
 import type { ConnectionIntent, PendingRequest } from './types';
 import { SESSION_STORAGE_KEY } from '@/types/session-types';
 import { debugLog, debugEnabled } from '@/lib/debug-config';
+import { passwordOnly } from '@/lib/sign-in/factors';
 
 /**
  * WebSocket and LocalDB I/O operations.
@@ -92,7 +93,7 @@ export class ConnectionIOWebSocket {
     await wsModule.websocketService.connect(
       params.requestId,
       params.username,
-      params.password,
+      passwordOnly(params.password),
       params.sessionSecuritySettings
     );
   }

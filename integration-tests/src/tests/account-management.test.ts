@@ -144,7 +144,7 @@ async function testLoginPage(page: Page): Promise<{
     await advancedOptions.click();
   }
 
-  results.passkeyEnrol = await isVisibleWithin(page.getByText(/Unlock with a passkey or security key next time|Passkeys need a secure/i), 5000);
+  results.passkeyEnrol = await isVisibleWithin(page.getByText(/Add a security key after I sign in|Passkeys need a secure/i), 5000);
   console.log(`  Passkey enrol switch visible: ${results.passkeyEnrol}`);
 
   await page.keyboard.press('Escape');

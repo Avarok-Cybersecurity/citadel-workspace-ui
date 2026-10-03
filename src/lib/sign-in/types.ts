@@ -1,0 +1,36 @@
+/**
+ * The post-quantum sign-in vocabulary (docs/plans/pq-sign-in.md), as the agent
+ * speaks it. The wire types are generated from the agent's Rust; only the
+ * shapes the UI composes from them are declared here.
+ */
+export type {
+  SecurityKeyChallengeNotification, SecurityKeyPurpose, SignInCredential, SignInManagementOp,
+  SignInManagementOutcome, SignInPolicy, StepUp, FactorKind,
+} from 'citadel-workspace-client-ts';
+
+/**
+ * What one Connect proves. The server, not the page, decides whether these
+ * satisfy the account's policy; the page only says what it can offer.
+ */
+export interface SignInFactors {
+  /** Null for a key-first or recovery-code sign-in. */
+  password: string | null;
+  /** This window can answer a SecurityKeyChallengeNotification (WebAuthn works here). */
+  securityKey: boolean;
+  /** A recovery code as typed: signs in once, to a restricted session. */
+  recoveryCode: string | null;
+}
+
+/** The three Connect fields the factors become. */
+export interface ConnectFactorFields {
+  password: number[] | null;
+  security_key: boolean;
+  recovery_code: number[] | null;
+}
+
+/** Who a sign-in record or a key belongs to. A tenant is the server the account lives on. */
+export interface AccountRef {
+  tenant: string;
+  cid: bigint;
+  username: string;
+}

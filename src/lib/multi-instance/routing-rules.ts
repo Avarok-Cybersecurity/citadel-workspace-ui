@@ -74,6 +74,22 @@ export const CID_ROUTED_NOTIFICATIONS: Set<ResponseType | AgentReconnectNotifica
 ]);
 
 /**
+ * Answers a request receives on the way to its outcome, which must not spend
+ * the route to the asking tab.
+ *
+ * `routeByRequestId` forgets a request once it is answered. These arrive under
+ * the request's id BEFORE its terminal answer: a security-key challenge comes
+ * mid-Connect or mid-SignInManagement, and RegisterSuccess comes ahead of the
+ * connect_after_register answer. Spending the entry on them left the terminal
+ * answer with no route -- a challenge's cid is 0 at sign-in -- so the tab that
+ * asked waited out its timeout on a request that had succeeded.
+ */
+export const INTERIM_ANSWERS: Set<string> = new Set<string>([
+  'SecurityKeyChallengeNotification',
+  'RegisterSuccess',
+] satisfies ResponseType[]);
+
+/**
  * Forwards that must NOT be retained, acked, or replayed.
  *
  * The reliability machinery around a cross-tab forward costs, per message, a

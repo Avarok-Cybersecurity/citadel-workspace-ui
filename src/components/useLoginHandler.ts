@@ -3,7 +3,7 @@ import { firstFieldToFix } from '@/lib/first-field-to-fix';
 
 /** The login form's fields, in the order they are rendered. */
 const LOGIN_FIELD_ORDER: readonly ["username", "password"] = ['username', 'password'] as const;
-type LoginField = (typeof LOGIN_FIELD_ORDER)[number];
+type LoginField = (typeof LOGIN_FIELD_ORDER)[number] | 'recovery-code';
 import { DEFAULT_SECURITY_SETTINGS } from './security-settings-defaults';
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -11,9 +11,12 @@ import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages
 import { redirectToExistingSession } from './login-session-redirect';
 import { loginWithPassword, type LoginResult } from './login-with-password';
 import { usePasskeyAccount, type PasskeyAccount } from './passkey/usePasskeyAccount';
-import { usePasskeyEnrolPrompt, type EnrolPrompt } from './passkey/usePasskeyEnrolPrompt';
-import { browserPasskeyDeps, failureOf, signInWithPasskey } from '@/lib/passkey';
+import { browserPasskeyDeps, failureOf, passkeysAvailableHere, signInWithPasskey } from '@/lib/passkey';
 import { failureCopy } from '@/lib/passkey/copy';
+import { browserSignInDeps } from '@/lib/sign-in';
+import type { AccountRef, SignInFactors } from '@/lib/sign-in/types';
+import { completeSignIn, type Completed } from './sign-in/complete-sign-in';
+import { useKeyOffer, type KeyOffer } from './sign-in/useKeyOffer';
 import type { NavigateFunction } from 'react-router';
 import type {
   SecurityLevel, SecrecyMode, EncryptionAlgorithm, KemAlgorithm, SigAlgorithm,
@@ -26,9 +29,12 @@ export interface SecuritySettingsState {
   kemAlgorithm: KemAlgorithm;
   sigAlgorithm: SigAlgorithm;
   headerObfuscatorSettings: Record<string, string>;
-  /** Offer to enrol a passkey after this sign-in. Replaces plaintext "Remember credentials". */
+  /** Offer to add a security key after this sign-in. Replaces plaintext "Remember credentials". */
   enrolPasskey: boolean;
 }
+
+/** Password (and a key, if the account's policy asks); a key alone; or a recovery code. */
+export type SignInMode = 'password' | 'key' | 'recovery';
 
 interface UseLoginHandlerParams {
   onNext: (connectionId: string) => void;
@@ -42,6 +48,10 @@ export interface LoginHandler {
   setUsername: React.Dispatch<React.SetStateAction<string>>;
   password: string;
   setPassword: React.Dispatch<React.SetStateAction<string>>;
+  recoveryCode: string;
+  setRecoveryCode: React.Dispatch<React.SetStateAction<string>>;
+  mode: SignInMode;
+  setMode: (mode: SignInMode) => void;
   server: string;
   setServer: React.Dispatch<React.SetStateAction<string>>;
   error: string | null;
@@ -54,17 +64,25 @@ export interface LoginHandler {
   handleLogin: (e: React.FormEvent) => Promise<void>;
   /** Which field to mark, so the message lands on the control it is about. */
   invalidField: LoginField | null;
-  /** Whether passkeys work in this browser, and whether this username has one here. */
+  /** Whether passkeys work in this browser, and whether this username has an option-A passkey here. */
   passkey: PasskeyAccount;
-  /** Sign in as `account` with its passkey; falls back to the password form on failure. */
+  /** Sign in as `account` with its option-A passkey, then move it to a server-verified key. */
   handlePasskeyLogin: (account: string) => Promise<void>;
-  /** Set while the form is asking whether to enrol a passkey after sign-in. */
-  enrolPrompt: EnrolPrompt | null;
+  /** Sign in as `account` with a security key alone. */
+  handleKeyLogin: (account: string) => Promise<void>;
+  /** Set while the form is offering to add a security key after sign-in. */
+  keyOffer: KeyOffer | null;
+  /** Set once a recovery code has signed in: the form shows the restricted screen. */
+  recoverySession: AccountRef | null;
+  /** The restricted session was signed out: back to the form, ready for the new key. */
+  endRecoverySession: () => void;
 }
 
 export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerParams): LoginHandler {
   const [username, setUsername] = useState(initialUsername ?? "");
   const [password, setPassword] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [mode, setModeState] = useState<SignInMode>('password');
   // Registration still needs one; signing in does not. Kept so the hook's
   // shape is unchanged for the join flow that shares it.
   const [server, setServer] = useState("");
@@ -72,6 +90,7 @@ export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerPara
   /** The field a refused submit pointed at, so the form can mark it invalid. */
   const [invalidField, setInvalidField] = useState<LoginField | null>(null);
   const [loading, setLoading] = useState(false);
+  const [recoverySession, setRecoverySession] = useState<AccountRef | null>(null);
   const [securitySettings, setSecuritySettings] =
     useState<SecuritySettingsState>(DEFAULT_SECURITY_SETTINGS);
 
@@ -79,25 +98,29 @@ export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerPara
   const navigate: NavigateFunction = useNavigate();
 
   const passkey: PasskeyAccount = usePasskeyAccount(username);
-  const { enrolPrompt, offerEnrolment } = usePasskeyEnrolPrompt(toast);
+  const { offer: keyOffer, offerKey } = useKeyOffer();
 
   const doRedirect = (session: { cid: bigint; username: string; server_address: string }): Promise<void> =>
     redirectToExistingSession(session, { navigate, toast, onNext });
 
+  const setMode = (next: SignInMode): void => { setModeState(next); setError(null); setInvalidField(null); };
+
   /**
-   * Sign in with a password -- typed, or opened by a passkey -- and finish.
-   * The password lives in this call's scope only, including while the
-   * enrolment prompt waits for the user; it is never put in React state.
+   * Sign in with the given factors and finish. A password lives in this call's
+   * scope only, including while the key offer waits; it never enters React state
+   * beyond the field it was typed into.
    */
-  const completeLogin = async (user: string, secret: string, enrol: boolean): Promise<void> => {
-    const result: LoginResult = await loginWithPassword({ redirect: doRedirect }, user, secret, securitySettings);
-    if (result.kind === 'redirected') return;
-    if (enrol) await offerEnrolment({ username: user.trim(), cid: result.cid, password: secret });
-    onNext(result.cid.toString());
+  const completeLogin = async (user: string, factors: SignInFactors, opts: { offerKey: boolean; legacy: boolean }): Promise<void> => {
+    const login = (name: string, f: SignInFactors): Promise<LoginResult> =>
+      loginWithPassword({ redirect: doRedirect }, name, f, securitySettings);
+    const done: Completed = await completeSignIn({ login, offerKey, signIn: browserSignInDeps() }, user, factors, opts);
+    if (done.kind === 'redirected') return;
+    if (done.kind === 'recovery') { setRecoverySession(done.account); return; }
+    onNext(done.cid.toString());
     // Not an unconditional "Connected to workspace successfully". The ILM
     // messenger can fail to start while everything else succeeds.
     toast(
-      result.messagingReady
+      done.messagingReady
         ? { title: 'Login successful', description: 'Connected to workspace successfully' }
         : {
             variant: 'destructive',
@@ -107,21 +130,30 @@ export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerPara
     );
   };
 
+  const reportFailure = (err: unknown): void => {
+    setError(getUserFriendlyErrorMessage(err));
+    toast({ variant: "destructive", title: getErrorTitle(err), description: getUserFriendlyErrorMessage(err) });
+  };
+
+  const begin = (): void => { setLoading(true); setError(null); setInvalidField(null); };
+
+  const requireUsername = (name: string): boolean => {
+    if (name) return true;
+    setInvalidField('username');
+    setError('Enter your username first');
+    document.getElementById('username')?.focus();
+    return false;
+  };
+
   const handlePasskeyLogin = async (account: string): Promise<void> => {
     const name: string = account.trim();
-    if (!name) {
-      setInvalidField('username');
-      setError('Enter your username first');
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    setInvalidField(null);
+    if (!requireUsername(name)) return;
+    begin();
     let unlocked: boolean = false;
     try {
       await signInWithPasskey(browserPasskeyDeps(), name, async (user: string, secret: string): Promise<void> => {
         unlocked = true;
-        await completeLogin(user, secret, false);
+        await completeLogin(user, { password: secret, securityKey: passkeysAvailableHere(), recoveryCode: null }, { offerKey: false, legacy: true });
       });
     } catch (err: unknown) {
       // Before the unlock: the passkey copy, and the password field is right
@@ -132,9 +164,22 @@ export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerPara
         setError(failureCopy(failureOf(err)));
         document.getElementById('password')?.focus();
       } else {
-        setError(getUserFriendlyErrorMessage(err));
-        toast({ variant: "destructive", title: getErrorTitle(err), description: getUserFriendlyErrorMessage(err) });
+        reportFailure(err);
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyLogin = async (account: string): Promise<void> => {
+    const name: string = account.trim();
+    if (!requireUsername(name)) return;
+    setUsername(name);
+    begin();
+    try {
+      await completeLogin(name, { password: null, securityKey: true, recoveryCode: null }, { offerKey: false, legacy: false });
+    } catch (err: unknown) {
+      reportFailure(err);
     } finally {
       setLoading(false);
     }
@@ -142,51 +187,56 @@ export function useLoginHandler({ onNext, initialUsername }: UseLoginHandlerPara
 
   const handleLogin = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
+    if (mode === 'key') { await handleKeyLogin(username); return; }
+    if (mode === 'recovery') {
+      if (!requireUsername(username.trim())) return;
+      if (!recoveryCode.trim()) {
+        setError('Enter one of your recovery codes');
+        setInvalidField('recovery-code');
+        document.getElementById('recovery-code')?.focus();
+        return;
+      }
+      begin();
+      try {
+        await completeLogin(username, { password: null, securityKey: false, recoveryCode }, { offerKey: false, legacy: false });
+      } catch (err: unknown) {
+        reportFailure(err);
+      } finally {
+        setRecoveryCode('');
+        setLoading(false);
+      }
+      return;
+    }
     if (!username.trim() || !password.trim()) {
       setError("Username and password are required");
-      // And take them to the field, which announcing alone does not.
-      //
-      // This said the sentence and left focus on Sign In with no field marked
-      // invalid: a screen-reader user hears "username and password are
-      // required" with their cursor on a button, and there is nothing to say
-      // which of the two is missing. The join form was given this in round 230
-      // and the login form was not -- the same fix, in one of the two places it
-      // belonged.
+      // And take them to the field, which announcing alone does not (round 230).
       const field: "username" | "password" | null = firstFieldToFix(LOGIN_FIELD_ORDER, { username, password });
       setInvalidField(field);
       if (field) document.getElementById(field)?.focus();
       return;
     }
-
-    setLoading(true);
-    setError(null);
-    setInvalidField(null);
-
+    begin();
     try {
-      // No pre-emptive claim on a username match.
+      // No pre-emptive claim on a username match: Connect goes to the server
+      // with the credentials, always, and a live session answers
+      // SessionAlreadyActive, which loginWithPassword turns into the redirect.
       //
-      // This used to look up the active sessions, match on username ALONE, and
-      // redirect straight into the session -- so the password box on the login
-      // form was never read whenever a session for that username was already
-      // active on this agent. The legitimate case is handled one step later by
-      // the right party: Connect goes to the server with the credentials, and a
-      // live session answers SessionAlreadyActive, which loginWithPassword turns
-      // into the same redirect. (docs/ROBUSTNESS.md records the agent's side.)
-      //
-      // Enrolment is offered only for an account with no key here yet: adding a
-      // second key needs one already enrolled, and that lives in Settings.
-      await completeLogin(username, password, securitySettings.enrolPasskey && passkey.available && !passkey.hasKeys);
+      // `securityKey` says this window can answer a key challenge: a
+      // PasswordAndKey account asks for the touch mid-Connect.
+      const available: boolean = passkeysAvailableHere();
+      await completeLogin(username, { password, securityKey: available, recoveryCode: null },
+        { offerKey: securitySettings.enrolPasskey && available, legacy: false });
     } catch (err: unknown) {
-      setError(getUserFriendlyErrorMessage(err));
-      toast({ variant: "destructive", title: getErrorTitle(err), description: getUserFriendlyErrorMessage(err) });
+      reportFailure(err);
     } finally {
       setLoading(false);
     }
   };
 
   return {
-    username, setUsername, password, setPassword, server, setServer,
+    username, setUsername, password, setPassword, recoveryCode, setRecoveryCode, mode, setMode, server, setServer,
     error, loading, securitySettings, setSecuritySettings, handleLogin, invalidField,
-    passkey, handlePasskeyLogin, enrolPrompt,
+    passkey, handlePasskeyLogin, handleKeyLogin, keyOffer, recoverySession,
+    endRecoverySession: (): void => { setRecoverySession(null); setMode('key'); },
   };
 }

@@ -52,6 +52,8 @@ export function useJoinRegistration(
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [connectStatus, setConnectStatus] = useState<ConnectStatus>("connecting");
   const [registeredCid, setRegisteredCid] = useState<string | null>(null);
+  /** Shown once by the caller, then gone: never stored, never logged. */
+  const [recoveryCodes, setRecoveryCodes] = useState<readonly string[]>([]);
 
   const [formData, setFormData] = useState<JoinFormData>(
     draft?.initial ?? BLANK_JOIN_FORM,
@@ -183,11 +185,9 @@ export function useJoinRegistration(
         };
 
         handler = createRegistrationResponseHandler(requestId, resolve, reject, cleanup, {
-          handleConnectSuccess,
-          setShowNotInitializedModal,
+          handleConnectSuccess, setShowNotInitializedModal, onRecoveryCodes: setRecoveryCodes,
         });
         eventEmitter.on('websocket-message', handler);
-        debugLog('Join', 'Join: Event listener registered');
       });
 
       await websocketService.register(
@@ -216,7 +216,6 @@ export function useJoinRegistration(
       const wrongServerPassword: string | null = serverPasswordMismatchMessage(describeFailure(error, ''), Boolean(serverPassword));
       toast({ title: wrongServerPassword ? 'Wrong server password' : getErrorTitle(error), description: wrongServerPassword ?? getUserFriendlyErrorMessage(error), variant: "destructive" });
     } finally {
-      debugLog('Join', "Setting isRegistering to false in finally block.");
       setIsRegistering(false);
     }
   };
@@ -246,5 +245,6 @@ export function useJoinRegistration(
     handleSubmit,
     handleConnectModalComplete,
     handleReturnToLogin,
+    recoveryCodes,
   };
 }

@@ -15,6 +15,8 @@ import { instanceManager } from '../multi-instance';
 import { stringToBytes } from '../utils/encoding-utils';
 import type { PreSharedKey } from '@avarok/citadel-protocol-types';
 import type { HeaderObfuscatorSettings } from '@/lib/security-utils';
+import { connectFactorFields } from '../sign-in/factors';
+import type { ConnectFactorFields, SignInFactors } from '../sign-in/types';
 
 export interface AuthConfig {
   init: () => Promise<void>;
@@ -33,7 +35,7 @@ export class AuthOperations {
   async connect(
     requestId: string,
     username: string,
-    password: string,
+    factors: SignInFactors,
     sessionSecuritySettings?: SessionSecuritySettings
   ): Promise<void> {
     await this.config.init();
@@ -70,10 +72,11 @@ export class AuthOperations {
     // Use provided settings or defaults (snake_case from SessionSecuritySettings)
     const settings: SessionSecuritySettings = sessionSecuritySettings ?? getDefaultSecuritySettings();
 
-    const connectOptions: { request_id: string; username: string; password: number[]; connect_mode: { Standard: { force_login: boolean; }; }; udp_mode: string; keep_alive_timeout: null; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; } = {
+    const connectOptions: ConnectFactorFields & { request_id: string; username: string; connect_mode: { Standard: { force_login: boolean; }; }; udp_mode: string; keep_alive_timeout: null; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; } = {
       request_id: requestId,
       username,
-      password: stringToBytes(password),
+      // Which factors this window offers; the server's policy decides which it needs.
+      ...connectFactorFields(factors),
       connect_mode: { Standard: { force_login: true } },
       udp_mode: "Disabled",
       keep_alive_timeout: null,
@@ -85,7 +88,7 @@ export class AuthOperations {
       },
     };
 
-    const connectRequest: { Connect: { request_id: string; username: string; password: number[]; connect_mode: { Standard: { force_login: boolean; }; }; udp_mode: string; keep_alive_timeout: null; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; }; } = { Connect: connectOptions };
+    const connectRequest: { Connect: ConnectFactorFields & { request_id: string; username: string; connect_mode: { Standard: { force_login: boolean; }; }; udp_mode: string; keep_alive_timeout: null; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; }; } = { Connect: connectOptions };
 
     debugLog('AuthOperations', `[Connect] Sending Connect request with request_id: ${requestId}`);
     debugLog('AuthOperations', `[Connect] isLeader: ${instanceManager.isLeader}`);

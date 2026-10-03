@@ -5,6 +5,8 @@
  * In production: only error and warn emit; debug/info are no-ops.
  */
 
+import { redactSecrets } from './redact-secrets';
+
 const isDev: boolean = import.meta.env.DEV;
 
 /** No-op function for suppressed log levels in production. */
@@ -33,7 +35,7 @@ const noop = (..._args: unknown[]): void => { /* intentionally empty */ };
  */
 function printable(value: unknown): unknown {
   if (typeof value === 'bigint') return `${value}n`;
-  return value;
+  return redactSecrets(value);
 }
 
 /**

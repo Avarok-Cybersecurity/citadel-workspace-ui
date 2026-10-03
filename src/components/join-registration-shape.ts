@@ -26,4 +26,6 @@ export interface JoinRegistration {
   handleSubmit: (e: React.FormEvent) => Promise<void>;
   handleConnectModalComplete: () => void;
   handleReturnToLogin: () => void;
+  /** The account's recovery codes from RegisterSuccess; empty from a server without post-quantum sign-in. */
+  recoveryCodes: readonly string[];
 }

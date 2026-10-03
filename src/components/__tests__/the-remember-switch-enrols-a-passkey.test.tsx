@@ -25,7 +25,7 @@ function renderWith(passkey: PasskeyAccount): void {
 describe('the login form\'s passkey-enrol switch', () => {
   it('replaces Remember Credentials where passkeys can work', () => {
     renderWith({ available: true, hasKeys: false });
-    expect(screen.getByRole('switch', { name: 'Unlock with a passkey or security key next time' })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Add a security key after I sign in' })).toBeInTheDocument();
     expect(screen.queryByText(/Remember Credentials/i)).toBeNull();
   });
 

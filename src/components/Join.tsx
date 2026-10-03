@@ -10,6 +10,8 @@ import { useJoinRegistration, type JoinFormData } from "./useJoinRegistration";
 import type { SecuritySettingsValues } from "./SecuritySettings";
 import { JoinFormFields } from "./JoinFormFields";
 import { JoinOptionalProfile } from "./JoinOptionalProfile";
+import { PostRegistrationSteps } from "./sign-in/PostRegistrationSteps";
+import { useState } from "react";
 
 interface JoinProps {
   onNext: (cid: string) => void;
@@ -23,6 +25,8 @@ interface JoinProps {
 }
 
 export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPassword, securitySettings, profileDraft }: JoinProps): JSX.Element => {
+  // The account exists from here; the key and recovery-code steps come before the workspace.
+  const [joinedCid, setJoinedCid] = useState<string | null>(null);
   const {
     formData,
     isRegistering,
@@ -36,7 +40,8 @@ export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPa
     handleSubmit,
     handleConnectModalComplete,
     handleReturnToLogin,
-  } = useJoinRegistration(onBack, onNext, serverAddress, serverPassword, securitySettings, profileDraft);
+    recoveryCodes,
+  } = useJoinRegistration(onBack, setJoinedCid, serverAddress, serverPassword, securitySettings, profileDraft);
 
   /**
    * Delegated while a nested dialog is up, exactly as Login already does for
@@ -64,6 +69,15 @@ export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPa
    * visible-but-blurred underneath the one being read -- which is alarming on
    * its own, and makes the message on top easy to take for a glitch.
    */
+  if (joinedCid !== null) {
+    return (
+      <PostRegistrationSteps
+        cid={BigInt(joinedCid)} username={formData.username} serverAddress={serverAddress}
+        password={formData.password} recoveryCodes={recoveryCodes} onDone={() => onNext(joinedCid)}
+      />
+    );
+  }
+
   if (showNotInitializedModal) {
     return (
       <WorkspaceNotInitializedModal isOpen onReturnToLogin={handleReturnToLogin} />

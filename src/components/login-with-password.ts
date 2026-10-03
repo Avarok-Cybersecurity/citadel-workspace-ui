@@ -24,9 +24,16 @@ import { mapSecuritySettings, type SessionSecuritySettings } from '@/lib/securit
 import type { StoredSessions, StoredSession, ActiveSession } from '@/types/session-types';
 import { sessionLabel, type SessionLabel } from '@/lib/sessions/session-label';
 import type { SecuritySettingsState } from './useLoginHandler';
+import { watchKeyChallenges } from '@/lib/sign-in/challenge-watch';
+import type { SignInFactors } from '@/lib/sign-in/types';
 
 export type LoginResult =
-  | { kind: 'signed-in'; cid: bigint; messagingReady: boolean }
+  | { kind: 'signed-in'; cid: bigint; messagingReady: boolean; serverAddress: string }
+  /**
+   * A recovery code opened a restricted session: it may only add a key, set the
+   * policy or sign out, so nothing that would use the workspace is started.
+   */
+  | { kind: 'recovery'; cid: bigint; serverAddress: string }
   /** An existing session was claimed instead; the redirect has already run. */
   | { kind: 'redirected' };
 
@@ -37,7 +44,7 @@ export interface LoginContext {
 const CONNECT_TIMEOUT_MS: 30000 = 30000;
 
 export async function loginWithPassword(
-  ctx: LoginContext, username: string, password: string, securitySettings: SecuritySettingsState,
+  ctx: LoginContext, username: string, factors: SignInFactors, securitySettings: SecuritySettingsState,
 ): Promise<LoginResult> {
   // Metadata only. `connect` takes no server address -- the SDK pinned the
   // account's server in its CNAC at registration and dials that -- so this
@@ -53,20 +60,27 @@ export async function loginWithPassword(
 
   const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   const outcomePromise: Promise<ConnectOutcome> = awaitConnectOutcome(requestId, CONNECT_TIMEOUT_MS);
+  // A PasswordAndKey or KeyOnly account asks this window for a touch mid-Connect.
+  const unwatch: () => void = watchKeyChallenges(requestId);
 
   // The settings the user actually chose, not the defaults: `auth-operations`
   // fills `undefined` with `getDefaultSecuritySettings()`, so every choice made
   // in the Security Settings dialog used to die in the hook's state.
   const chosenSettings: SessionSecuritySettings = mapSecuritySettings(securitySettings);
+  let outcome: ConnectOutcome;
   try {
-    await websocketService.connect(requestId, username, password, chosenSettings);
-  } catch (error) {
-    // Nothing will answer a request that was never sent; its timeout must not
-    // surface later as an unhandled rejection.
-    const _unanswered: Promise<unknown> = outcomePromise.catch((): undefined => undefined);
-    throw error;
+    try {
+      await websocketService.connect(requestId, username, factors, chosenSettings);
+    } catch (error) {
+      // Nothing will answer a request that was never sent; its timeout must not
+      // surface later as an unhandled rejection.
+      const _unanswered: Promise<unknown> = outcomePromise.catch((): undefined => undefined);
+      throw error;
+    }
+    outcome = await outcomePromise;
+  } finally {
+    unwatch();
   }
-  const outcome: ConnectOutcome = await outcomePromise;
 
   if (outcome.kind === 'already-active') {
     // The agent verified the password against the live session: claim it.
@@ -92,6 +106,7 @@ export async function loginWithPassword(
 
   const cid: bigint = outcome.cid;
   const { serverAddress, fullName } = await labelFor(cid);
+  if (factors.recoveryCode !== null) return { kind: 'recovery', cid, serverAddress };
   await connectionManager.handleAuthSuccess({
     username, fullName, serverAddress,
     // Stored as chosen too. Persisting the defaults here meant every
@@ -108,5 +123,5 @@ export async function loginWithPassword(
     cid: cid.toString(), username: username.trim(),
     serverAddress, activationType: 'login',
   });
-  return { kind: 'signed-in', cid, messagingReady };
+  return { kind: 'signed-in', cid, messagingReady, serverAddress };
 }
