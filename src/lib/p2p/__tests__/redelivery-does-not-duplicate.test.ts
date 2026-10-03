@@ -101,6 +101,12 @@ describe('recordAppend', () => {
  * correct with the dedup removed — this is the assertion that actually fails
  * when a redelivered message is appended twice.
  */
+/** What the store last saved. A function, so TypeScript reads the declared
+ *  type rather than the `undefined` the test assigned before the appends. */
+function savedMetadata(): ConversationMetadata | undefined {
+  return io.metadata;
+}
+
 describe('appendMessageToPage', () => {
   it('writes a redelivered message once', async () => {
     await greetAs('older');
@@ -115,7 +121,7 @@ describe('appendMessageToPage', () => {
     const stored: P2PMessage[] = [...io.pages.values()].flatMap((p) => p.messages);
     expect(stored.filter((m) => m.id === 'redelivered-1')).toHaveLength(1);
     // And the unread badge must not count it twice either.
-    expect(io.metadata?.unreadCount).toBe(1);
-    expect(io.metadata?.totalMessageCount).toBe(1);
+    expect(savedMetadata()?.unreadCount).toBe(1);
+    expect(savedMetadata()?.totalMessageCount).toBe(1);
   });
 });
