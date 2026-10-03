@@ -25,11 +25,11 @@ function renderRow(): HTMLElement {
       </TooltipProvider>
     </SidebarProvider>,
   );
-  return screen.getByText('Member');
+  return screen.getByRole('img', { name: 'Member' });
 }
 
 describe('a sidebar member row', () => {
-  it('never lets the badge shrink', () => {
+  it('never lets the role icon shrink', () => {
     expect(renderRow().className).toMatch(/\bshrink-0\b/);
   });
 

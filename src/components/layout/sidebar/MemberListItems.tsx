@@ -2,7 +2,7 @@
  * MemberListItems Component
  *
  * Renders individual workspace member items in the sidebar with tooltips,
- * role badges, and dropdown menus for member management.
+ * role icons, and dropdown menus for member management.
  */
 
 import { MoreVertical, Users } from "lucide-react";
@@ -11,7 +11,6 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +21,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getRoleColor, capitalizeRole } from './MembersSectionModals';
+import { RoleIcon, roleLabel } from '@/components/shared/RoleIcon';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { MemberActionItems } from './MemberActionItems';
 import type { MemberActionBlocks } from './member-actions-gate';
@@ -83,24 +82,28 @@ export function MemberListItems({
                       <span className="min-w-0 truncate">{member.displayName || member.username}</span>
                       {via !== null && <span className="min-w-0 truncate text-xs text-muted-foreground" data-testid="member-access-via">via {via}</span>}
                     </span>
-                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} shrink-0 whitespace-nowrap text-xs`}>{capitalizeRole(member.role || 'member')}</Badge>
+                    <RoleIcon role={member.role || 'member'} />
                   </div>
                 </SidebarMenuButton>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{member.displayName || member.username}</p>
+                <p>{member.displayName || member.username} · {roleLabel(member.role || 'member')}</p>
                 {member.username && <p className="text-xs text-muted-foreground">@{member.username}</p>}
                 {member.title && <p className="text-xs">{member.title}</p>}
                 {member.email && <p className="text-xs text-muted-foreground">{member.email}</p>}
               </TooltipContent>
             </Tooltip>
-            {currentUsername !== member.username && (
+            {/* The slot is kept on your own row too: without it every OTHER row's
+                role icon sat 24px further left, so the column read as ragged. */}
+            {currentUsername === member.username ? (
+              <span className="tap-target h-6 w-6 shrink-0" aria-hidden="true" data-testid="member-actions-slot" />
+            ) : (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="tap-target h-6 w-6 reveal-on-hover"
+                    className="tap-target h-6 w-6 shrink-0 reveal-on-hover"
                     aria-label={`Actions for ${member.displayName || member.username}`}
                     onClick={(e) => e.stopPropagation()}
                   >

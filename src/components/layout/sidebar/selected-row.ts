@@ -9,12 +9,18 @@
  * which is 2.86:1 against the idle text -- a difference, but a difference made
  * of colour alone.
  *
- * The left rule is what carries it now: full-strength accent against the
- * sidebar, and a position and a shape rather than only a hue. The tint stays as
- * a secondary cue for anyone who reads it.
+ * A left rule carried it next (6.38:1), but a 2px rule on a rounded row read
+ * as a curved sliver stuck to one edge. It is now a macOS-style selection
+ * pill: the tint, a hairline inset outline in the accent at 70%, and a faint
+ * top highlight. The outline is the 3:1 cue -- a shape around the whole row,
+ * computed at 4.19:1 (dark) / 4.34:1 (light) against the sidebar and above 3:1
+ * against the tint itself, with the same model that reproduces the measured
+ * 6.38:1 for the full-strength rule.
  *
- * Idle rows reserve the same two pixels in `transparent`, so selecting a row
- * does not nudge every label in the list sideways.
+ * It is a box-shadow, not a border or a `ring-*`: a shadow takes no layout, so
+ * idle rows reserve nothing, and SidebarMenuButton already sets
+ * `ring-sidebar-ring` for focus, which a `ring-primary-accent` here would have
+ * fought by stylesheet order -- the trap described below.
  *
  * One function, in one place, because three components render this state and a
  * fourth will; three copies of it is how the tree came to say one thing and the
@@ -29,14 +35,16 @@
  * classes need no override and cannot be reordered into each other.
  */
 
+/** The selection pill's outline and highlight; see above for the contrast. */
+export const SELECTED_OUTLINE: string = 'shadow-[inset_0_0_0_1px_hsl(var(--primary-accent)/0.7),inset_0_1px_0_hsl(0_0%_100%/0.06)]';
+
 /** The classes for a sidebar row, given whether it is the one on screen. */
 export function rowClass(isSelected: boolean): string {
   return [
-    // The width is on every row, so selecting one does not nudge the list.
-    'border-l-2 transition-colors',
+    'transition-colors',
     'hover:bg-primary-accent/15 hover:text-foreground',
     isSelected
-      ? 'border-l-primary-accent bg-primary-accent/20 text-primary-accent'
-      : 'border-l-transparent text-foreground',
+      ? `${SELECTED_OUTLINE} bg-primary-accent/20 text-primary-accent`
+      : 'text-foreground',
   ].join(' ');
 }

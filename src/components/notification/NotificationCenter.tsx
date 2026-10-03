@@ -183,9 +183,10 @@ const NotificationCenter: () => JSX.Element = (): JSX.Element => {
           heading's padding with it. No overflow check can see that; the panel looks
           like it has no left margin at all. The Sheet primitive defaults to a
           responsive w-3/4 sm:max-w-sm, which this override discarded. */}
-      <SheetContent className="w-full sm:w-[540px] bg-card text-foreground border-border">
+      <SheetContent className="w-full sm:w-[540px] bg-card/85 backdrop-blur-xl backdrop-saturate-150 text-foreground border-border">
         <SheetHeader className="border-b border-border pb-4">
-          <div className="flex items-center justify-between">
+          {/* pr-8 clears the Sheet's own close button, which sits absolute at top-right. */}
+          <div className="flex items-center justify-between pr-8">
             <SheetTitle className="text-foreground">Notifications</SheetTitle>
             <Button 
               variant="ghost" 
@@ -221,7 +222,7 @@ const NotificationCenter: () => JSX.Element = (): JSX.Element => {
                   No notifications to display
                 </div>
               ) : (
-                <div className="space-y-4 pr-4">
+                <div className="space-y-2 pr-4">
                   {filteredNotifications.map(notification => (
                     <NotificationItem 
                       key={notification.id} 

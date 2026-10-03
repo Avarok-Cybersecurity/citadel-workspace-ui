@@ -71,6 +71,8 @@
        /20 tints, which is every surface they are read on. */
     --success-emphasis: 160 84% 23%;
     --warning-emphasis: 38 92% 27%;
+    /* "Seen" double tick. Sits on your own bubble (bg-primary) in both themes: 5.25:1 light, 3.91:1 dark, above the 3:1 a graphic needs. */
+    --read-receipt: 199 100% 80%;
 
     /* Lines and controls */
     --border: 240 15% 88%;
@@ -148,6 +150,8 @@
     --warning-foreground: 235 18% 13%;
     --success-emphasis: 160 84% 41%;
     --warning-emphasis: 38 92% 50%;
+    /* "Seen" double tick. Sits on your own bubble (bg-primary) in both themes: 5.25:1 light, 3.91:1 dark, above the 3:1 a graphic needs. */
+    --read-receipt: 199 100% 80%;
 
     --border: 222 23% 23%;          /* was #2D3548 */
     --input: 235 25% 10%;           /* was #131420 */
