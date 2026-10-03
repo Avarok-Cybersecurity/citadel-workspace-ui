@@ -12,6 +12,9 @@ import { JoinFormFields } from "./JoinFormFields";
 import { JoinOptionalProfile } from "./JoinOptionalProfile";
 import { PostRegistrationSteps } from "./sign-in/PostRegistrationSteps";
 import { useState } from "react";
+import { AdmissionCheck } from "./admission/AdmissionCheck";
+import { useAdmissionGate, type AdmissionGate } from "./admission/useAdmissionGate";
+import { ADMISSION_ACTION } from "@/lib/admission/copy";
 
 interface JoinProps {
   onNext: (cid: string) => void;
@@ -27,6 +30,7 @@ interface JoinProps {
 export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPassword, securitySettings, profileDraft }: JoinProps): JSX.Element => {
   // The account exists from here; the key and recovery-code steps come before the workspace.
   const [joinedCid, setJoinedCid] = useState<string | null>(null);
+  const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.register);
   const {
     formData,
     isRegistering,
@@ -41,7 +45,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPa
     handleConnectModalComplete,
     handleReturnToLogin,
     recoveryCodes,
-  } = useJoinRegistration(onBack, setJoinedCid, serverAddress, serverPassword, securitySettings, profileDraft);
+  } = useJoinRegistration(onBack, setJoinedCid, serverAddress, serverPassword, admission, securitySettings, profileDraft);
 
   /**
    * Delegated while a nested dialog is up, exactly as Login already does for
@@ -110,6 +114,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPa
                 onChange={handleOptionalChange}
                 disabled={isRegistering}
               />
+              <AdmissionCheck gate={admission} />
             </CardContent>
 
             <CardFooter className="flex justify-between pt-2">

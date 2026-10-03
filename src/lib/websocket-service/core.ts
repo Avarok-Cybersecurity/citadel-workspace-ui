@@ -92,9 +92,9 @@ export class WebSocketServiceCore {
 
   async register(
     requestId: string, username: string, password: string,
-    fullName: string, serverAddr: string, serverPassword?: string,
+    fullName: string, serverAddr: string, admissionToken: string | null, serverPassword?: string,
     sessionSecuritySettings?: SessionSecuritySettings
-  ): Promise<void> { return this.modules.authOps.register(requestId, username, password, fullName, serverAddr, serverPassword, sessionSecuritySettings) }
+  ): Promise<void> { return this.modules.authOps.register(requestId, username, password, fullName, serverAddr, admissionToken, serverPassword, sessionSecuritySettings) }
 
   // ============== Workspace ==============
 

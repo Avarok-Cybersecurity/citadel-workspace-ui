@@ -53,7 +53,7 @@ function makeAuth(): AuthOperations {
 
 describe('AuthOperations.register — server_password wire format', () => {
   it('sends server_password as Option<PreSharedKey>::Some({passwords: [bytes]}) when provided', async () => {
-    await makeAuth().register('req-1', 'alice', 'password', 'Alice', '127.0.0.1:12349', 'sekret');
+    await makeAuth().register('req-1', 'alice', 'password', 'Alice', '127.0.0.1:12349', null, 'sekret');
     expect(sendSpy).toHaveBeenCalledTimes(1);
     const [request] = sendSpy.mock.calls[0] as [Record<string, unknown>, string];
     const opts: Record<string, unknown> = (request.Register as Record<string, unknown>);
@@ -67,7 +67,7 @@ describe('AuthOperations.register — server_password wire format', () => {
   });
 
   it('sends server_password as Option<PreSharedKey>::None when no password is provided', async () => {
-    await makeAuth().register('req-2', 'bob', 'password', 'Bob', '127.0.0.1:12349');
+    await makeAuth().register('req-2', 'bob', 'password', 'Bob', '127.0.0.1:12349', null);
     expect(sendSpy).toHaveBeenCalledTimes(1);
     const [request] = sendSpy.mock.calls[0] as [Record<string, unknown>, string];
     const opts: Record<string, unknown> = (request.Register as Record<string, unknown>);
@@ -75,7 +75,7 @@ describe('AuthOperations.register — server_password wire format', () => {
   });
 
   it('sends proposed_password as bytes (not a raw string)', async () => {
-    await makeAuth().register('req-3', 'carol', 'pw', 'Carol', '127.0.0.1:12349');
+    await makeAuth().register('req-3', 'carol', 'pw', 'Carol', '127.0.0.1:12349', null);
     const [request] = sendSpy.mock.calls[0] as [Record<string, unknown>, string];
     const opts: Record<string, unknown> = (request.Register as Record<string, unknown>);
     const pw: number[] = opts.proposed_password as number[];

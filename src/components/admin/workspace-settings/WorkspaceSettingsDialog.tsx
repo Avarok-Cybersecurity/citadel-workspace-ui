@@ -18,6 +18,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { AvatarUpload } from '@/components/settings/AvatarUpload';
 import { WORKSPACE_ICON } from '@/components/settings/image-upload-kinds';
 import { WorkspaceAppearanceSection } from '@/components/settings/WorkspaceAppearanceSection';
+import { kernelAdmissionSetting } from '@/lib/admission/workspace-setting';
+import { TurnstileAdmissionSwitch } from './TurnstileAdmissionSwitch';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess } from '@/lib/toast-helpers';
@@ -114,6 +116,10 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
             {saving ? 'Saving…' : 'Save'}
           </Button>
         </DialogFooter>
+
+        <div className="border-t border-border pt-4">
+          <TurnstileAdmissionSwitch port={kernelAdmissionSetting} />
+        </div>
 
         <div className="border-t border-border pt-4">
           <WorkspaceAppearanceSection />

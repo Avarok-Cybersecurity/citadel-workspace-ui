@@ -19,6 +19,8 @@ export interface SignInFactors {
   securityKey: boolean;
   /** A recovery code as typed: signs in once, to a restricted session. */
   recoveryCode: string | null;
+  /** A Turnstile token for a workspace that asks for a human check; single-use. */
+  admissionToken: string | null;
 }
 
 /** The three Connect fields the factors become. */
@@ -26,6 +28,7 @@ export interface ConnectFactorFields {
   password: number[] | null;
   security_key: boolean;
   recovery_code: number[] | null;
+  admission_token: string | null;
 }
 
 /** Who a sign-in record or a key belongs to. A tenant is the server the account lives on. */

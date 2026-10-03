@@ -6,7 +6,7 @@ import type { ConnectFactorFields, SignInFactors } from './types';
 
 /** A password sign-in from a window that cannot touch a key (an unattended reconnect). */
 export const passwordOnly = (password: string): SignInFactors =>
-  ({ password, securityKey: false, recoveryCode: null });
+  ({ password, securityKey: false, recoveryCode: null, admissionToken: null });
 
 export function connectFactorFields(factors: SignInFactors): ConnectFactorFields {
   const code: string | null = factors.recoveryCode === null ? null : factors.recoveryCode.trim();
@@ -18,6 +18,7 @@ export function connectFactorFields(factors: SignInFactors): ConnectFactorFields
     password: factors.password === null ? null : stringToBytes(factors.password),
     security_key: factors.securityKey,
     recovery_code: code === null ? null : stringToBytes(code),
+    admission_token: factors.admissionToken,
   };
 }
 
