@@ -1,6 +1,6 @@
 /**
  * Keeps this window's view of the agent's updater current: every `UpdateAvailable`
- * the agent broadcasts, and its status once at start (an agent before 0.8.8 does not
+ * the agent broadcasts, and its status once at start (an agent before 0.8.7 does not
  * answer, and then there is simply nothing to show).
  */
 import { useEffect } from 'react';

@@ -1,7 +1,7 @@
 /**
  * The agent's updater settings: install automatically when nobody is signed in (on until the
  * user turns it off), and Check now. Agent-wide, not per account. Hidden when the agent has no
- * updater (before 0.8.8, or a build without one).
+ * updater (before 0.8.7, or a build without one).
  */
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';

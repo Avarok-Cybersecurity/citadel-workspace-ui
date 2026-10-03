@@ -1,5 +1,5 @@
 /**
- * What this window knows about a newer Citadel Agent (agent 0.8.8, kernel/updates).
+ * What this window knows about a newer Citadel Agent (agent 0.8.7, kernel/updates).
  *
  * The agent checks GitHub itself and tells every window, signed in or not, with
  * `UpdateAvailable`; every updater request is answered with `UpdateStatus`. This
