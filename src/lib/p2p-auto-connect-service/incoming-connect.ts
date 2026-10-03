@@ -17,8 +17,19 @@ import type { PeerConnectionInfo } from '@/lib/p2p-auto-connect/types';
 import { chatAdvancedSettings, type ChatSecurityLevel } from '@/lib/p2p/chat-advanced-settings';
 import { offerMeetsMinimum } from '@/lib/p2p/security-level-rank';
 
-/** A PeerConnectNotification as read here; the level is the one the initiator asked for. */
-export type IncomingOffer = { cid?: bigint; peer_cid?: bigint; session_security_settings?: { security_level?: unknown } };
+/**
+ * A PeerConnectNotification as read here; the level is the one the initiator asked for.
+ * `answered_by_agent`: the agent answers this offer itself, for an account it hosts, so the
+ * account is reachable with no window showing it. An agent that predates it never sends it.
+ */
+export type IncomingOffer = {
+  cid?: bigint; peer_cid?: bigint; session_security_settings?: { security_level?: unknown }; answered_by_agent?: boolean;
+};
+
+/** Whether this window sends the answer: never a second one to an offer the agent answers. */
+function windowAnswers(offer: IncomingOffer): boolean {
+  return offer.answered_by_agent !== true;
+}
 
 /** Whether `targetCid`'s chat with `initiatorCid` admits an offer at the level it names. */
 export async function offerAdmitted(targetCid: bigint, initiatorCid: bigint, offer: IncomingOffer): Promise<boolean> {
@@ -68,7 +79,7 @@ export async function handleIncomingPeerConnect(
   const answer: IncomingAnswer = await incomingAnswer(currentCid, initiatorCid);
   if (answer !== 'accept') {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: ${answer} incoming connection from paused ${initiatorCid.toString().slice(0, 8)}...`);
-    if (answer === 'decline') await websocketService.declinePeerConnect(currentCid, initiatorCid, notification);
+    if (answer === 'decline' && windowAnswers(notification)) await websocketService.declinePeerConnect(currentCid, initiatorCid, notification);
     return;
   }
 
@@ -77,7 +88,7 @@ export async function handleIncomingPeerConnect(
   // marked connected, and a pending attempt of ours is not cancelled.
   if (!(await offerAdmitted(currentCid, initiatorCid, notification))) {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Declining ${initiatorCid.toString().slice(0, 8)}...: offered below this chat's level`);
-    await websocketService.declinePeerConnect(currentCid, initiatorCid, notification);
+    if (windowAnswers(notification)) await websocketService.declinePeerConnect(currentCid, initiatorCid, notification);
     return;
   }
 
@@ -104,6 +115,11 @@ export async function handleIncomingPeerConnect(
   broadcastPeerConnected(currentCid, initiatorCid);
   state.cancelRetry(initiatorCid);
   debugLog('P2PAutoConnectService', `P2PAutoConnect: Incoming connection from ${initiatorCid.toString().slice(0, 8)}... (they initiated)`);
+
+  if (!windowAnswers(notification)) {
+    eventEmitter.emit('p2p-connection-established', { peerCid: initiatorCid });
+    return;
+  }
 
   try {
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Sending PeerConnectAccept for ${initiatorCid.toString().slice(0, 8)}...`);
