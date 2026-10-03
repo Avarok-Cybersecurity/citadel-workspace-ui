@@ -104,6 +104,18 @@ export function declareOnLeaderSocket(client: DeclaringClient, greeting: Greetin
   return answer;
 }
 
+/**
+ * The leader's socket failed to open, so it will not declare. Its waiting
+ * callers hear that failure rather than wait on a declaration that cannot come;
+ * nothing is remembered, so the next socket is asked afresh.
+ */
+export function leaderSocketFailedToOpen(error: unknown): void {
+  const failed: Promise<boolean> = Promise.reject(error instanceof Error ? error : new Error(String(error)));
+  failed.catch((): void => undefined);
+  for (const wake of leaderWaiters) wake(failed);
+  leaderWaiters = [];
+}
+
 export function registerCapabilityRoute(r: CapabilityRoute): void {
   route = r;
 }

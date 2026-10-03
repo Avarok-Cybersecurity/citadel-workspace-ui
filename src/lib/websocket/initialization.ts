@@ -5,7 +5,7 @@
  * Extracted from websocket-service.ts to reduce file size.
  */
 
-import { declareOnLeaderSocket, forgetCapabilities, watchGreeting, type Greeting } from '../agent-conversations/capabilities';
+import { declareOnLeaderSocket, forgetCapabilities, leaderSocketFailedToOpen, watchGreeting, type Greeting } from '../agent-conversations/capabilities';
 import { WorkspaceClient, type WorkspaceClientConfig, type InternalServiceRequest, type InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { installLeadershipListener } from './leadership-listener';
 import { leaderInboundHandler } from './leader-inbound-handler';
@@ -220,9 +220,9 @@ export class WebSocketInitialization {
       return client;
     } catch (error) {
       errorLog('Error initializing WorkspaceClient:', error);
+      leaderSocketFailedToOpen(error);
       this.config.reconnectBackoff.attemptFailed();
       this.reconnect.lost();
-
       const errorMessage: string = error instanceof Error ? error.message : 'Failed to initialize WebSocket connection';
       eventEmitter.emit('connection-failure', { error: errorMessage });
 
