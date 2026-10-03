@@ -19,7 +19,7 @@ describe('BROADCAST_MESSAGE_TYPES', () => {
     // deliberate edit in two places — same convention as the
     // CID_ROUTED_NOTIFICATIONS pin next door.
     expect([...BROADCAST_MESSAGE_TYPES].sort()).toEqual(
-      ['DeregisterSuccess', 'DisconnectNotification'].sort(),
+      ['DeregisterSuccess', 'DisconnectNotification', 'UpdateAvailable'].sort(),
     );
   });
 
@@ -33,5 +33,10 @@ describe('BROADCAST_MESSAGE_TYPES', () => {
   it('still fans out a disconnect', () => {
     // Positive control: an emptied list would pass the assertion above.
     expect(shouldBroadcast('DisconnectNotification')).toBe(true);
+  });
+
+  it('fans out an agent update to every tab, signed in or not', () => {
+    // UpdateAvailable carries cid 0: filtered by cid, every signed-in follower dropped it.
+    expect(shouldBroadcast('UpdateAvailable')).toBe(true);
   });
 });

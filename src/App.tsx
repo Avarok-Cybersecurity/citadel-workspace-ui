@@ -37,6 +37,7 @@ const Messages: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pa
 // asking about unsaved editor text first, which only an open workspace can have.
 const SessionEndedWatcher: LazyExoticComponent<() => null> = lazy(() => import("./components/SessionEndedWatcher").then((m) => ({ default: m.SessionEndedWatcher })));
 const ServerReconnectWatcher: LazyExoticComponent<() => null> = lazy(() => import("./components/ServerReconnectWatcher").then((m) => ({ default: m.ServerReconnectWatcher })));
+const AgentUpdateWatcher: LazyExoticComponent<() => JSX.Element | null> = lazy(() => import("./components/agent-update/AgentUpdateWatcher").then((m) => ({ default: m.AgentUpdateWatcher })));
 const Connect: LazyExoticComponent<() => JSX.Element> = lazy((): Promise<{ default: never; } | { default: () => JSX.Element; }> =>
   import("./pages/Connect").then(m => ({ default: m.Connect }))
 );
@@ -119,7 +120,7 @@ const App: () => JSX.Element = (): JSX.Element => {
               future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
             >
               <DocumentTitle />
-              <Suspense fallback={null}><ServerReconnectWatcher /><SessionEndedWatcher /></Suspense>
+              <Suspense fallback={null}><ServerReconnectWatcher /><SessionEndedWatcher /><AgentUpdateWatcher /></Suspense>
               {/* Inside the router because its Return button navigates, above
                   the routes because a running call has to stay visible on all
                   of them. It lived in CallLayer, which is above the router --

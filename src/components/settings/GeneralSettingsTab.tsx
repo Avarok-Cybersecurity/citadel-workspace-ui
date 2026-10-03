@@ -17,6 +17,7 @@ import WorkspaceService from '@/lib/workspace-service';
 import userService from '@/lib/user-service';
 import type { User } from 'citadel-workspace-client-ts';
 import type { UserRegistrationInfo } from '@/lib/user-service';
+import { AgentUpdateRow } from './AgentUpdateRow';
 
 export function GeneralSettingsTab(): JSX.Element {
   const { toast } = useToast();
@@ -204,6 +205,11 @@ export function GeneralSettingsTab(): JSX.Element {
             data-testid="call-sounds-toggle"
           />
         </div>
+      </div>
+
+      {/* The local agent's updates */}
+      <div className="space-y-3 pt-4 border-t border-border">
+        <AgentUpdateRow />
       </div>
 
       {/* Save Button */}
